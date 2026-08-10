@@ -1,0 +1,105 @@
+import api from "./axios";
+
+export interface Expense {
+  id: number;
+  customer_id: number | null;
+  type: string;
+  description: string;
+  amount: number;
+  quantity: number;
+  currency: string;
+  rate_to_base: number;
+  total_amount: number;
+  date: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ExpenseCreateData {
+  customer_id?: number | null;
+  type: string;
+  description: string;
+  amount: number;
+  quantity: number;
+  currency: string;
+  rate_to_base: number;
+  date: string;
+}
+
+export interface ExpenseUpdateData {
+  customer_id?: number | null;
+  type?: string;
+  description?: string;
+  amount?: number;
+  quantity?: number;
+  currency?: string;
+  rate_to_base?: number;
+  date?: string;
+}
+
+export interface ExpenseParams {
+  search?: string;
+  type?: string;
+  currency?: string;
+}
+
+export const getExpenses = async (
+  params?: ExpenseParams,
+): Promise<Expense[]> => {
+  try {
+    const response = await api.get("/expenses", { params });
+    console.log(response);
+    // Handle nested data structure where actual data is in response.data.data
+    return Array.isArray(response.data.data) ? response.data.data : [];
+  } catch (error) {
+    console.error("Error fetching expenses:", error);
+    throw error;
+  }
+};
+
+export const getExpense = async (id: number): Promise<Expense> => {
+  try {
+    const response = await api.get(`/expenses/${id}`);
+    // Handle nested data structure
+    return response.data.data;
+  } catch (error) {
+    console.error(`Error fetching expense ${id}:`, error);
+    throw error;
+  }
+};
+
+export const createExpense = async (
+  data: ExpenseCreateData,
+): Promise<Expense> => {
+  try {
+    const response = await api.post("/expenses", data);
+    // Handle nested data structure
+    return response.data.data;
+  } catch (error) {
+    console.error("Error creating expense:", error);
+    throw error;
+  }
+};
+
+export const updateExpense = async (
+  id: number,
+  data: ExpenseUpdateData,
+): Promise<Expense> => {
+  try {
+    const response = await api.put(`/expenses/${id}`, data);
+    // Handle nested data structure
+    return response.data.data;
+  } catch (error) {
+    console.error(`Error updating expense ${id}:`, error);
+    throw error;
+  }
+};
+
+export const deleteExpense = async (id: number): Promise<void> => {
+  try {
+    await api.delete(`/expenses/${id}`);
+  } catch (error) {
+    console.error(`Error deleting expense ${id}:`, error);
+    throw error;
+  }
+};

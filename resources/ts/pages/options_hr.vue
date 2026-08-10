@@ -1,0 +1,122 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+
+// Placeholder types and data
+interface HROption {
+  id: number
+  name: string
+  category: string
+  description: string
+  active: boolean
+}
+
+const hrOptions = ref<HROption[]>([
+  { id: 1, name: 'Leave Policy', category: 'Policies', description: 'Standard leave policy', active: true },
+  { id: 2, name: 'Work Hours', category: 'Settings', description: 'Default work hours', active: true },
+  { id: 3, name: 'Holiday Calendar', category: 'Policies', description: 'Company holidays', active: true },
+])
+
+// Placeholder reactive states
+const searchQuery = ref('')
+const filter1 = ref<string | null>(null)
+const filter2 = ref<string | null>(null)
+const isLoading = ref(false)
+
+// Placeholder filter options
+const categoryOptions = ['Policies', 'Settings', 'Benefits', 'Compliance']
+const statusOptions = ['Active', 'Inactive']
+</script>
+
+<template>
+  <div>
+    <VCard class="mb-6">
+      <VCardText>
+        <VRow align="center">
+          <VCol cols="12" md="4">
+            <VTextField
+              v-model="searchQuery"
+              prepend-inner-icon="tabler-search"
+              placeholder="Search HR options..."
+              density="compact"
+              clearable
+              hide-details
+            />
+          </VCol>
+
+          <VCol cols="12" sm="6" md="2">
+            <VSelect
+              v-model="filter1"
+              :items="categoryOptions"
+              label="Filter by Category"
+              density="compact"
+              clearable
+              hide-details
+            />
+          </VCol>
+
+          <VCol cols="12" sm="6" md="2">
+            <VSelect
+              v-model="filter2"
+              :items="statusOptions"
+              label="Filter by Status"
+              density="compact"
+              clearable
+              hide-details
+            />
+          </VCol>
+
+          <VCol cols="12" md="4" class="d-flex justify-md-end">
+            <VBtn color="primary">
+              <VIcon icon="tabler-plus" class="me-1" />
+              Add New
+            </VBtn>
+          </VCol>
+        </VRow>
+      </VCardText>
+    </VCard>
+
+    <VCard>
+      <div class="table-container">
+        <VDataTable
+          :items="hrOptions"
+          :headers="[
+            { title: 'ID', key: 'id' },
+            { title: 'Name', key: 'name' },
+            { title: 'Category', key: 'category' },
+            { title: 'Description', key: 'description' },
+            { title: 'Active', key: 'active' },
+            { title: 'Actions', key: 'actions', sortable: false }
+          ]"
+          item-value="id"
+          class="text-no-wrap"
+          :loading="isLoading"
+          mobile-breakpoint="sm"
+          density="compact"
+        >
+          <template #item.active="{ item }">
+            <VChip
+              size="small"
+              :color="item.active ? 'success' : 'default'"
+              variant="tonal"
+            >
+              {{ item.active ? 'Yes' : 'No' }}
+            </VChip>
+          </template>
+
+          <template #item.actions>
+            <div class="d-flex gap-1">
+              <VBtn icon="tabler-edit" variant="text" size="small" color="medium-emphasis" />
+              <VBtn icon="tabler-trash" variant="text" size="small" color="error" />
+            </div>
+          </template>
+        </VDataTable>
+      </div>
+    </VCard>
+  </div>
+</template>
+
+<style scoped>
+.table-container {
+  overflow-x: auto;
+}
+</style>
