@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useTaskStore } from '@/stores/useTaskStore'
+import { canAccess } from '@/utils/authorization'
 import type { Task } from '@/types/taskManager'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
@@ -23,10 +24,46 @@ const priorityColorMap: Record<string, string> = {
   urgent: 'error'
 }
 
+const formatDate = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+const addDays = (date: string, days: number) => {
+  const [year, month, day] = date.split('-').map(Number)
+  const value = new Date(year, month - 1, day)
+  value.setDate(value.getDate() + days)
+
+  return formatDate(value)
+}
+
+const daysBetween = (startDate: string, endDate: string) => {
+  const start = new Date(`${startDate}T00:00:00`)
+  const end = new Date(`${endDate}T00:00:00`)
+
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86_400_000))
+}
+
+const moveTaskToDate = (taskId: string, startDate: string) => {
+  if (!canAccess('edit_assigned_tasks')) return
+  const task = store.tasks.find(candidate => candidate.id === taskId)
+  if (!task) return
+
+  const duration = daysBetween(task.startDate, task.dueDate)
+  store.updateTaskDates(task.id, startDate, addDays(startDate, duration))
+}
+
 // --------------------------------------------------------------------------
 // Event Drag & Drop / Resize Sync Handlers
 // --------------------------------------------------------------------------
 const handleEventChange = (info: any) => {
+  if (!canAccess('edit_assigned_tasks')) {
+    info.revert?.()
+    return
+  }
   const rawTask = info.event.extendedProps.rawTask as Task
   if (!rawTask) return
 
@@ -35,6 +72,10 @@ const handleEventChange = (info: any) => {
 
   // FullCalendar endStr can be null if same-day event
   let dueDate = info.event.endStr ? info.event.endStr.split('T')[0] : startDate
+
+  // FullCalendar all-day events use an exclusive end date, while tasks use an
+  // inclusive due date in the database.
+  if (info.event.allDay && info.event.endStr) dueDate = addDays(dueDate, -1)
 
   // Update central Pinia store
   store.updateTaskDates(rawTask.id, startDate, dueDate)
@@ -54,7 +95,7 @@ const calendarOptions = computed(() => ({
   events: store.calendarEvents,
 
   // Interactive features enabled
-  editable: true,       // Enables dragging events and resizing duration
+  editable: canAccess('edit_assigned_tasks'),
   selectable: true,     // Enables date selection
   navLinks: true,
   height: 'auto',
@@ -62,6 +103,38 @@ const calendarOptions = computed(() => ({
   // Drag & Drop / Resize Handlers
   eventDrop: handleEventChange,
   eventResize: handleEventChange,
+
+  // FullCalendar's list view intentionally disables built-in event dragging.
+  // Provide native drag/drop between list-day rows and preserve the task span.
+  eventDidMount: (info: any) => {
+    if (!canAccess('edit_assigned_tasks') || !info.view.type.startsWith('list')) return
+
+    const element = info.el as HTMLElement
+    element.draggable = true
+    element.classList.add('fc-list-event-draggable')
+    element.addEventListener('dragstart', (event: DragEvent) => {
+      event.dataTransfer?.setData('application/x-task-id', info.event.id)
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+    })
+  },
+  dayHeaderDidMount: (info: any) => {
+    if (!canAccess('edit_assigned_tasks') || !info.view.type.startsWith('list')) return
+
+    const element = info.el as HTMLElement
+    const clearDropTarget = () => element.classList.remove('fc-list-drop-target')
+    element.addEventListener('dragover', (event: DragEvent) => {
+      event.preventDefault()
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+      element.classList.add('fc-list-drop-target')
+    })
+    element.addEventListener('dragleave', clearDropTarget)
+    element.addEventListener('drop', (event: DragEvent) => {
+      event.preventDefault()
+      clearDropTarget()
+      const taskId = event.dataTransfer?.getData('application/x-task-id')
+      if (taskId) moveTaskToDate(taskId, formatDate(info.date))
+    })
+  },
 
   // Click event to view task modal
   eventClick: (info: any) => {
@@ -103,12 +176,12 @@ const executeDeleteTask = () => {
         <template #title>
           <div class="d-flex align-center">
             <VIcon icon="tabler-calendar-event" color="primary" class="mr-2" />
-            <span class="text-h5 font-weight-bold">Schedule & Timeline View</span>
+            <span class="text-h5 font-weight-bold">{{ $t('components.taskManager.calendarview.scheduleTimelineView') }}</span>
           </div>
         </template>
         <template #append>
           <VChip variant="tonal" color="success" size="small">
-            <VIcon icon="tabler-arrows-move" size="14" class="mr-1" /> Drag & Drop Active
+            <VIcon icon="tabler-arrows-move" size="14" class="mr-1" /> {{ $t('components.taskManager.calendarview.dragDropActive') }}
           </VChip>
         </template>
       </VCardItem>
@@ -139,15 +212,16 @@ const executeDeleteTask = () => {
         <VCardText class="pa-4">
           <!-- Metadata Bar -->
           <div class="d-flex align-center flex-wrap gap-3 mb-5">
+            <TaskCompletionChip :progress="selectedTask.progress" />
             <VChip :color="priorityColorMap[selectedTask.priority]" size="small"
               class="text-uppercase font-weight-bold">
               <VIcon icon="tabler-flag" size="14" class="mr-1" />
-              {{ selectedTask.priority }} Priority
+              {{ $t('components.taskManager.event.priority', { priority: translateBackendValue(selectedTask.priority) }) }}
             </VChip>
 
             <VChip color="secondary" size="small" variant="tonal">
               <VIcon icon="tabler-calendar-time" size="14" class="mr-1" />
-              {{ selectedTask.startDate }} — {{ selectedTask.dueDate }}
+              {{ $t('components.taskManager.event.dateRange', { start: formatLocalizedDate(`${selectedTask.startDate}T00:00:00`), end: formatLocalizedDate(`${selectedTask.dueDate}T00:00:00`) }) }}
             </VChip>
 
             <VChip v-for="tag in selectedTask.tags" :key="tag.id" :color="tag.color" size="small">
@@ -158,38 +232,37 @@ const executeDeleteTask = () => {
           <!-- Calculated Progress Meter -->
           <div class="pa-4 bg-grey-50 rounded border mb-5">
             <div class="d-flex justify-space-between align-center mb-2">
-              <span class="text-subtitle-2 font-weight-bold">Task Progress Rollup</span>
+              <span class="text-subtitle-2 font-weight-bold">{{ $t('components.taskManager.calendarview.taskProgressRollup') }}</span>
               <span class="text-subtitle-2 font-weight-bold">{{ selectedTask.progress }}%</span>
             </div>
             <VProgressLinear :model-value="selectedTask.progress"
               :color="selectedTask.progress === 100 ? 'success' : 'primary'" height="8" rounded />
             <div class="d-flex align-center justify-space-between mt-2 text-caption text-medium-emphasis">
-              <span>Sub-tasks Completed</span>
+              <span>{{ $t('components.taskManager.calendarview.subTasksCompleted') }}</span>
               <span>
-                {{selectedTask.subtasks.filter(st => st.isCompleted).length}} / {{ selectedTask.subtasks.length }}
-                Items
+                {{ $t('components.taskManager.calendarview.itemProgress', { completed: selectedTask.subtasks.filter(st => st.isCompleted).length, total: selectedTask.subtasks.length }) }}
               </span>
             </div>
           </div>
 
           <!-- HTML Content Display (Label Fixed) -->
           <div class="mb-2">
-            <span class="text-subtitle-1 font-weight-bold">Description</span>
+            <span class="text-subtitle-1 font-weight-bold">{{ $t('common.fields.description') }}</span>
           </div>
           <div class="html-preview-box pa-4 border rounded bg-surface text-body-1">
             <div v-if="selectedTask.description" v-html="selectedTask.description"></div>
-            <span v-else class="text-disabled italic">No description provided for this task.</span>
+            <span v-else class="text-disabled italic">{{ $t('components.taskManager.calendarview.noDescriptionProvidedForThisTask') }}</span>
           </div>
         </VCardText>
 
         <!-- Modal Action Footer -->
         <VCardActions class="pa-4 border-t d-flex justify-space-between bg-surface">
-          <VBtn color="error" variant="tonal" prepend-icon="tabler-trash" @click="triggerDeleteWarning">
-            Delete Task
+          <VBtn v-if="canAccess('delete_assigned_tasks')" color="error" variant="tonal" prepend-icon="tabler-trash" @click="triggerDeleteWarning">
+            {{ $t('common.messages.deleteTask') }}
           </VBtn>
 
           <VBtn color="secondary" variant="outlined" @click="isDetailModalOpen = false">
-            Close
+            {{ $t('common.actions.close') }}
           </VBtn>
         </VCardActions>
       </VCard>
@@ -203,20 +276,19 @@ const executeDeleteTask = () => {
             <VIcon icon="tabler-alert-triangle" size="40" />
           </VAvatar>
 
-          <h4 class="text-h4 font-weight-bold mb-2">Are you sure?</h4>
+          <h4 class="text-h4 font-weight-bold mb-2">{{ $t('common.confirmations.areYouSure') }}</h4>
           <p class="text-body-1 text-medium-emphasis mb-0">
-            You are about to delete <strong>"{{ selectedTask?.title }}"</strong>. This action cannot be undone and will
-            permanently erase all associated mini-todos and timeline history.
+            {{ $t('components.taskManager.calendarview.youAreAboutToDelete') }} <strong>"{{ selectedTask?.title }}"</strong>{{ $t('common.confirmations.thisActionCannotBeUndoneAndWillPermanentlyEraseAllAssociatedMiniTodosA') }}
           </p>
         </VCardText>
 
         <VCardActions class="justify-center gap-3 pb-4">
           <VBtn color="secondary" variant="tonal" @click="isDeleteConfirmOpen = false">
-            Cancel
+            {{ $t('common.actions.cancel') }}
           </VBtn>
 
           <VBtn color="error" variant="elevated" prepend-icon="tabler-trash-x" @click="executeDeleteTask">
-            Yes, Delete It!
+            {{ $t('components.taskManager.calendarview.yesDeleteIt') }}
           </VBtn>
         </VCardActions>
       </VCard>
@@ -256,6 +328,15 @@ const executeDeleteTask = () => {
 
 :deep(.fc-event:active) {
   cursor: grabbing;
+}
+
+:deep(.fc-list-event-draggable) {
+  cursor: grab;
+}
+
+:deep(.fc-list-drop-target > th) {
+  outline: 2px dashed rgb(var(--v-theme-primary));
+  outline-offset: -3px;
 }
 
 .html-preview-box {

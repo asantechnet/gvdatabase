@@ -5,8 +5,10 @@ export type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'task'
 export interface AppNotification {
   id: number
   type: NotificationType
-  title: string
-  message: string
+  notification_key: string | null
+  title: string | null
+  message: string | null
+  data: Record<string, unknown> | null
   date_time: string
   is_read: boolean | null
   employee_id: number | null
@@ -17,10 +19,11 @@ export interface AppNotification {
 
 export interface CreateNotificationData {
   type: NotificationType
-  title: string
-  message: string
+  notification_key: string
+  data?: Record<string, unknown>
   date_time?: string
   employee_id?: number | null
+  user_ids?: number[]
   go_to_url?: string | null
 }
 

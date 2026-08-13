@@ -13,7 +13,6 @@ class PositionFactory extends Factory
             'description' => fake()->sentence(),
             'salary' => fake()->numberBetween(20000, 100000),
             'status' => 'active',
-            'is_sys_user' => false,
         ];
     }
 }

@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Currency extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     protected $fillable = [
         'name',
@@ -56,5 +57,15 @@ class Currency extends Model
     public function salaries()
     {
         return $this->hasMany(Salary::class);
+    }
+
+    public function incomes()
+    {
+        return $this->hasMany(Income::class, 'currency_id');
+    }
+
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class, 'currency_id');
     }
 }

@@ -1,32 +1,40 @@
 export default [
   {
-    title: "Options",
+    title: "common.navigation.options",
     icon: { icon: "tabler-layout-grid-add" },
     children: [
       {
-        title: "Contract",
+        title: "common.navigation.contract",
         children: [
           {
-            title: "Policies",
+            title: "common.navigation.policies",
             to: "contract-policies",
+            action: 'read',
+            subject: 'view_contract_templates',
           },
         ],
       },
       {
-        title: "Services",
+        title: "common.navigation.services",
         to: "options-services",
+        action: 'read',
+        subject: 'view_services',
       },
       {
-        title: "Invoice",
+        title: "common.navigation.invoice",
         to: "options-invoice",
+        action: 'read',
+        subject: 'view_invoices',
       },
       {
-        title: "Finance",
-        children: [{ title: "Currencies", to: "options-currencies" }],
+        title: "common.navigation.finance",
+        children: [{ title: "common.navigation.currencies", to: "options-currencies", action: 'read', subject: 'view_currencies' }],
       },
       {
-        title: "HRM",
+        title: "common.navigation.hrm",
         to: "options-hr",
+        action: 'read',
+        subject: 'view_employees',
       },
     ],
   },

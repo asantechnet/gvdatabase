@@ -29,18 +29,18 @@ export const { themeConfig, layoutConfig } = defineThemeConfig({
       defaultLocale: "en",
       langConfig: [
         {
-          label: "English",
+          label: "common.languages.english",
           i18nLang: "en",
           isRTL: false,
         },
         {
-          label: "French",
-          i18nLang: "fr",
-          isRTL: false,
+          label: "common.languages.dari",
+          i18nLang: "fa-AF",
+          isRTL: true,
         },
         {
-          label: "Arabic",
-          i18nLang: "ar",
+          label: "common.languages.pashto",
+          i18nLang: "ps-AF",
           isRTL: true,
         },
       ],

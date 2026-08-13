@@ -11,9 +11,9 @@ interface InvoiceOption {
 }
 
 const invoiceOptions = ref<InvoiceOption[]>([
-  { id: 1, name: 'Standard Invoice', type: 'Standard', description: 'Default invoice template', default: true },
-  { id: 2, name: 'Proforma Invoice', type: 'Proforma', description: 'Pre-payment invoice', default: false },
-  { id: 3, name: 'Credit Note', type: 'Credit Note', description: 'Refund invoice', default: false },
+  { id: 1, name: 'Standard Invoice', type: 'Standard', description: translate('pages.finance.optionsInvoice.optionsInvoice.defaultInvoiceTemplate'), default: true },
+  { id: 2, name: 'Proforma Invoice', type: 'Proforma', description: translate('pages.finance.optionsInvoice.optionsInvoice.prePaymentInvoice'), default: false },
+  { id: 3, name: 'Credit Note', type: 'Credit Note', description: translate('pages.finance.optionsInvoice.optionsInvoice.refundInvoice'), default: false },
 ])
 
 // Placeholder reactive states
@@ -36,7 +36,7 @@ const statusOptions = ['Default', 'Custom']
             <VTextField
               v-model="searchQuery"
               prepend-inner-icon="tabler-search"
-              placeholder="Search invoice options..."
+              :placeholder="$t('pages.finance.optionsInvoice.optionsInvoice.searchInvoiceOptions')"
               density="compact"
               clearable
               hide-details
@@ -47,7 +47,7 @@ const statusOptions = ['Default', 'Custom']
             <VSelect
               v-model="filter1"
               :items="typeOptions"
-              label="Filter by Type"
+              :label="$t('common.messages.filterByType')"
               density="compact"
               clearable
               hide-details
@@ -58,7 +58,7 @@ const statusOptions = ['Default', 'Custom']
             <VSelect
               v-model="filter2"
               :items="statusOptions"
-              label="Filter by Status"
+              :label="$t('common.messages.filterByStatus')"
               density="compact"
               clearable
               hide-details
@@ -68,7 +68,7 @@ const statusOptions = ['Default', 'Custom']
           <VCol cols="12" md="4" class="d-flex justify-md-end">
             <VBtn color="primary">
               <VIcon icon="tabler-plus" class="me-1" />
-              Add New
+              {{ $t('common.messages.addNew') }}
             </VBtn>
           </VCol>
         </VRow>
@@ -80,12 +80,12 @@ const statusOptions = ['Default', 'Custom']
         <VDataTable
           :items="invoiceOptions"
           :headers="[
-            { title: 'ID', key: 'id' },
-            { title: 'Name', key: 'name' },
-            { title: 'Type', key: 'type' },
-            { title: 'Description', key: 'description' },
-            { title: 'Default', key: 'default' },
-            { title: 'Actions', key: 'actions', sortable: false }
+            { title: translate('common.messages.id'), key: 'id' },
+            { title: translate('common.fields.name'), key: 'name' },
+            { title: translate('common.fields.type'), key: 'type' },
+            { title: translate('common.fields.description'), key: 'description' },
+            { title: translate('common.messages.default'), key: 'default' },
+            { title: translate('common.messages.actions'), key: 'actions', sortable: false }
           ]"
           item-value="id"
           class="text-no-wrap"

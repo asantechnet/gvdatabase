@@ -17,35 +17,30 @@ class PositionSeeder extends Seeder
                 'title' => 'Junior Engineer',
                 'salary' => 50000,
                 'status' => 'active',
-                'is_sys_user' => false,
                 'description' => 'Entry-level engineering position'
             ],
             [
                 'title' => 'Senior Engineer',
                 'salary' => 80000,
                 'status' => 'active',
-                'is_sys_user' => false,
                 'description' => 'Experienced engineering position'
             ],
             [
                 'title' => 'Lead Consultant',
                 'salary' => 100000,
                 'status' => 'active',
-                'is_sys_user' => false,
                 'description' => 'Technical leadership position'
             ],
             [
                 'title' => 'Manager',
                 'salary' => 120000,
                 'status' => 'active',
-                'is_sys_user' => false,
                 'description' => 'Management position'
             ],
             [
                 'title' => 'Director',
                 'salary' => 150000,
                 'status' => 'active',
-                'is_sys_user' => true,
                 'description' => 'Executive leadership position'
             ],
         ];

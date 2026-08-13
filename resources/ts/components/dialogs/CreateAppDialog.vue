@@ -15,28 +15,28 @@ const currentStep = ref(0)
 const createApp = [
   {
     icon: 'tabler-file-text',
-    title: 'DETAILS',
-    subtitle: 'Enter Details',
+    title: translate('components.dialogs.createappdialog.details'),
+    subtitle: translate('components.dialogs.createappdialog.enterDetails'),
   },
   {
     icon: 'tabler-id',
-    title: 'FRAMEWORKS',
-    subtitle: 'Select Framework',
+    title: translate('components.dialogs.createappdialog.frameworks'),
+    subtitle: translate('components.dialogs.createappdialog.selectFramework'),
   },
   {
     icon: 'tabler-database',
-    title: 'DATABASE',
-    subtitle: 'Select Database',
+    title: translate('components.dialogs.createappdialog.database'),
+    subtitle: translate('components.dialogs.createappdialog.selectDatabase'),
   },
   {
     icon: 'tabler-credit-card',
-    title: 'BILLING',
-    subtitle: 'Payment Details',
+    title: translate('components.dialogs.createappdialog.billing'),
+    subtitle: translate('components.dialogs.createappdialog.paymentDetails'),
   },
   {
     icon: 'tabler-check',
-    title: 'SUBMIT',
-    subtitle: 'Submit',
+    title: translate('common.actions.submit3'),
+    subtitle: translate('common.actions.submit2'),
   },
 ]
 
@@ -44,22 +44,22 @@ const categories = [
   {
     icon: 'tabler-file-text',
     color: 'info',
-    title: 'CRM Application',
-    subtitle: 'Scales with any business',
+    title: translate('components.dialogs.createappdialog.crmApplication'),
+    subtitle: translate('components.dialogs.createappdialog.scalesWithAnyBusiness'),
     slug: 'crm-application',
   },
   {
     icon: 'tabler-shopping-cart',
     color: 'success',
-    title: 'Ecommerce Platforms',
-    subtitle: 'Grow Your Business With App',
+    title: translate('components.dialogs.createappdialog.ecommercePlatforms'),
+    subtitle: translate('components.dialogs.createappdialog.growYourBusinessWithApp'),
     slug: 'ecommerce-application',
   },
   {
     icon: 'tabler-device-laptop',
     color: 'error',
-    title: 'Online Learning platform',
-    subtitle: 'Start learning today',
+    title: translate('components.dialogs.createappdialog.onlineLearningPlatform'),
+    subtitle: translate('components.dialogs.createappdialog.startLearningToday'),
     slug: 'online-learning-application',
   },
 ]
@@ -68,29 +68,29 @@ const frameworks = [
   {
     icon: 'tabler-brand-react-native',
     color: 'info',
-    title: 'React Native',
-    subtitle: 'Create truly native apps',
+    title: translate('components.dialogs.createappdialog.reactNative'),
+    subtitle: translate('components.dialogs.createappdialog.createTrulyNativeApps'),
     slug: 'react-framework',
   },
   {
     icon: 'tabler-brand-angular',
     color: 'error',
-    title: 'Angular',
-    subtitle: 'Most suited for your application',
+    title: translate('components.dialogs.createappdialog.angular'),
+    subtitle: translate('components.dialogs.createappdialog.mostSuitedForYourApplication'),
     slug: 'angular-framework',
   },
   {
     icon: 'tabler-brand-vue',
     color: 'success',
-    title: 'Vue',
-    subtitle: 'JS web frameworks',
+    title: translate('components.dialogs.createappdialog.vue'),
+    subtitle: translate('components.dialogs.createappdialog.jsWebFrameworks'),
     slug: 'js-framework',
   },
   {
     icon: 'tabler-brand-html5',
     color: 'warning',
-    title: 'HTML',
-    subtitle: 'Progressive Framework',
+    title: translate('components.dialogs.createappdialog.html'),
+    subtitle: translate('components.dialogs.createappdialog.progressiveFramework'),
     slug: 'html-framework',
   },
 ]
@@ -99,22 +99,22 @@ const databases = [
   {
     icon: 'tabler-brand-firebase',
     color: 'error',
-    title: 'Firebase',
-    subtitle: 'Cloud Firestore',
+    title: translate('components.dialogs.createappdialog.firebase'),
+    subtitle: translate('components.dialogs.createappdialog.cloudFirestore'),
     slug: 'firebase-database',
   },
   {
     icon: 'tabler-brand-amazon',
     color: 'warning',
-    title: 'AWS',
-    subtitle: 'Amazon Fast NoSQL Database',
+    title: translate('components.dialogs.createappdialog.aws'),
+    subtitle: translate('components.dialogs.createappdialog.amazonFastNoSQLDatabase'),
     slug: 'aws-database',
   },
   {
     icon: 'tabler-database',
     color: 'info',
-    title: 'MySQL',
-    subtitle: 'Basic MySQL database',
+    title: translate('components.dialogs.createappdialog.mysql'),
+    subtitle: translate('components.dialogs.createappdialog.basicMySQLDatabase'),
     slug: 'mysql-database',
   },
 ]
@@ -142,7 +142,7 @@ watch(() => props, () => {
 
 const onSubmit = () => {
   // eslint-disable-next-line no-alert
-  alert('submitted...!!')
+  alert(translate('components.dialogs.createappdialog.submitted'))
   emit('updatedData', createAppData.value)
 }
 </script>
@@ -166,10 +166,10 @@ const onSubmit = () => {
       <VCardText class="pa-5 pa-sm-16">
         <!-- 👉 Title -->
         <h4 class="text-h4 text-center mb-2">
-          Create App
+          {{ $t('components.dialogs.createappdialog.createApp') }}
         </h4>
         <p class="text-body-1 text-center mb-6">
-          Provide data with this form to create your app.
+          {{ $t('components.dialogs.createappdialog.provideDataWithThisFormToCreateYourApp') }}
         </p>
 
         <VRow>
@@ -201,12 +201,12 @@ const onSubmit = () => {
               <!-- 👉 category -->
               <VWindowItem>
                 <AppTextField
-                  label="Application Name"
-                  placeholder="Application Name"
+                  :label="$t('common.messages.applicationName')"
+                  :placeholder="$t('common.messages.applicationName')"
                 />
 
                 <h5 class="text-h5 mt-6 mb-4">
-                  Category
+                  {{ $t('common.fields.category') }}
                 </h5>
                 <VRadioGroup v-model="createAppData.category">
                   <VList class="card-list">
@@ -249,7 +249,7 @@ const onSubmit = () => {
               <!-- 👉 Frameworks -->
               <VWindowItem>
                 <h5 class="text-h5 mb-4">
-                  Select Framework
+                  {{ $t('components.dialogs.createappdialog.selectFramework') }}
                 </h5>
                 <VRadioGroup v-model="createAppData.framework">
                   <VList class="card-list">
@@ -290,12 +290,12 @@ const onSubmit = () => {
               <!-- 👉 Database Engine -->
               <VWindowItem>
                 <AppTextField
-                  label="Database Name"
-                  placeholder="UserDB"
+                  :label="$t('components.dialogs.createappdialog.databaseName')"
+                  :placeholder="$t('components.dialogs.createappdialog.userdb')"
                 />
 
                 <h5 class="text-h5 mt-6 mb-4">
-                  Select Database Engine
+                  {{ $t('components.dialogs.createappdialog.selectDatabaseEngine') }}
                 </h5>
                 <VRadioGroup v-model="createAppData.database">
                   <VList class="card-list">
@@ -336,7 +336,7 @@ const onSubmit = () => {
               <!-- 👉 Billing form -->
               <VWindowItem>
                 <h6 class="text-h6 mb-6">
-                  Payment Details
+                  {{ $t('components.dialogs.createappdialog.paymentDetails') }}
                 </h6>
 
                 <VForm>
@@ -344,7 +344,7 @@ const onSubmit = () => {
                     <VCol cols="12">
                       <AppTextField
                         v-model="createAppData.cardNumber"
-                        label="Card Number"
+                        :label="$t('components.dialogs.createappdialog.cardNumber')"
                         placeholder="1234 1234 1234 1234"
                         type="number"
                       />
@@ -356,8 +356,8 @@ const onSubmit = () => {
                     >
                       <AppTextField
                         v-model="createAppData.cardName"
-                        label="Name on Card"
-                        placeholder="John Doe"
+                        :label="$t('components.dialogs.createappdialog.nameOnCard')"
+                        :placeholder="$t('components.dialogs.createappdialog.johnDoe')"
                       />
                     </VCol>
 
@@ -367,7 +367,7 @@ const onSubmit = () => {
                     >
                       <AppTextField
                         v-model="createAppData.cardExpiry"
-                        label="Expiry"
+                        :label="$t('components.dialogs.createappdialog.expiry')"
                         placeholder="MM/YY"
                       />
                     </VCol>
@@ -386,7 +386,7 @@ const onSubmit = () => {
                     <VCol cols="12">
                       <VSwitch
                         v-model="createAppData.isSave"
-                        label="Save Card for future billing?"
+                        :label="$t('components.dialogs.createappdialog.saveCardForFutureBilling')"
                       />
                     </VCol>
                   </VRow>
@@ -395,10 +395,10 @@ const onSubmit = () => {
 
               <VWindowItem class="text-center">
                 <h5 class="text-h5 mb-1">
-                  Submit
+                  {{ $t('common.actions.submit') }}
                 </h5>
                 <p class="text-sm mb-4">
-                  Submit to kickstart your project.
+                  {{ $t('components.dialogs.createappdialog.submitToKickstartYourProject') }}
                 </p>
 
                 <VImg
@@ -421,7 +421,7 @@ const onSubmit = () => {
                   start
                   class="flip-in-rtl"
                 />
-                Previous
+                {{ $t('components.dialogs.createappdialog.previous') }}
               </VBtn>
 
               <VBtn
@@ -429,14 +429,14 @@ const onSubmit = () => {
                 color="success"
                 @click="onSubmit"
               >
-                submit
+                {{ $t('common.actions.submit4') }}
               </VBtn>
 
               <VBtn
                 v-else
                 @click="currentStep++"
               >
-                Next
+                {{ $t('common.actions.next') }}
 
                 <VIcon
                   icon="tabler-arrow-right"

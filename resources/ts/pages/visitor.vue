@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import VisitorApi, { type Visitor, type CreateVisitorData, type UpdateVisitorData } from '@/api/visitor'
+import MarketerApi, { type Marketer } from '@/api/marketer'
 
 const visitors = ref<Visitor[]>([])
 const search = ref('')
@@ -11,6 +12,7 @@ const isEditVisitorDialogVisible = ref(false)
 const isDeleteVisitorDialogVisible = ref(false)
 const selectedVisitor = ref<Visitor | null>(null)
 const isLoading = ref(false)
+const marketerDirectory = ref<Marketer[]>([])
 
 const visitorData = ref<Omit<Visitor, 'id' | 'date'>>({
   name: '',
@@ -50,10 +52,10 @@ const validateForm = () => {
 
   // Validate Visitor Name
   if (!visitorData.value.name.trim()) {
-    formErrors.value.name = 'Visitor name is required'
+    formErrors.value.name = translate('pages.contracts.visitor.visitor.visitorNameIsRequired')
     isValid = false
   } else if (visitorData.value.name.length < 2) {
-    formErrors.value.name = 'Visitor name must be at least 2 characters'
+    formErrors.value.name = translate('pages.contracts.visitor.visitor.visitorNameMustBeAtLeast2Characters')
     isValid = false
   } else {
     formErrors.value.name = ''
@@ -61,10 +63,10 @@ const validateForm = () => {
 
   // Validate Company
   if (!visitorData.value.company.trim()) {
-    formErrors.value.company = 'Company name is required'
+    formErrors.value.company = translate('pages.contracts.visitor.visitor.companyNameIsRequired')
     isValid = false
   } else if (visitorData.value.company.length < 2) {
-    formErrors.value.company = 'Company name must be at least 2 characters'
+    formErrors.value.company = translate('pages.contracts.visitor.visitor.companyNameMustBeAtLeast2Characters')
     isValid = false
   } else {
     formErrors.value.company = ''
@@ -72,10 +74,10 @@ const validateForm = () => {
 
   // Validate Contact/Phone
   if (!visitorData.value.contact.trim()) {
-    formErrors.value.contact = 'Contact number is required'
+    formErrors.value.contact = translate('common.messages.contactNumberIsRequired')
     isValid = false
   } else if (!/^[\d\s\-()+]{8,}$/.test(visitorData.value.contact)) {
-    formErrors.value.contact = 'Please enter a valid phone number'
+    formErrors.value.contact = translate('common.messages.pleaseEnterAValidPhoneNumber')
     isValid = false
   } else {
     formErrors.value.contact = ''
@@ -83,10 +85,10 @@ const validateForm = () => {
 
   // Validate Service
   if (!visitorData.value.service.trim()) {
-    formErrors.value.service = 'Service is required'
+    formErrors.value.service = translate('pages.contracts.visitor.visitor.serviceIsRequired')
     isValid = false
   } else if (visitorData.value.service.length < 2) {
-    formErrors.value.service = 'Service must be at least 2 characters'
+    formErrors.value.service = translate('pages.contracts.visitor.visitor.serviceMustBeAtLeast2Characters')
     isValid = false
   } else {
     formErrors.value.service = ''
@@ -94,10 +96,10 @@ const validateForm = () => {
 
   // Validate Marketer
   if (!visitorData.value.marketer.trim()) {
-    formErrors.value.marketer = 'Marketer is required'
+    formErrors.value.marketer = translate('pages.contracts.visitor.visitor.marketerIsRequired')
     isValid = false
   } else if (visitorData.value.marketer.length < 2) {
-    formErrors.value.marketer = 'Marketer must be at least 2 characters'
+    formErrors.value.marketer = translate('pages.contracts.visitor.visitor.marketerMustBeAtLeast2Characters')
     isValid = false
   } else {
     formErrors.value.marketer = ''
@@ -115,14 +117,7 @@ const fetchVisitors = async () => {
       marketer: filterMarketer.value || undefined
     })
 
-    // Handle the response data properly
-    if (response && Array.isArray(response)) {
-      visitors.value = response
-    } else if (response && response.data && Array.isArray(response.data)) {
-      visitors.value = response.data
-    } else {
-      visitors.value = []
-    }
+    visitors.value = response
   } catch (error) {
     console.error('Error fetching visitors:', error)
     visitors.value = []
@@ -143,13 +138,13 @@ const filtered = computed(() => {
 })
 
 const headers = [
-  { title: 'Name', key: 'name', sortable: true },
-  { title: 'Company', key: 'company', sortable: true },
-  { title: 'Contact', key: 'contact', sortable: true },
-  { title: 'Service', key: 'service', sortable: true },
-  { title: 'Marketer', key: 'marketer', sortable: true },
-  { title: 'Date', key: 'date', sortable: true },
-  { title: 'Actions', key: 'actions', sortable: false },
+  { title: translate('common.fields.name'), key: 'name', sortable: true },
+  { title: translate('common.fields.company'), key: 'company', sortable: true },
+  { title: translate('common.messages.contact'), key: 'contact', sortable: true },
+  { title: translate('common.messages.service'), key: 'service', sortable: true },
+  { title: translate('common.messages.marketer'), key: 'marketer', sortable: true },
+  { title: translate('common.fields.date'), key: 'date', sortable: true },
+  { title: translate('common.messages.actions'), key: 'actions', sortable: false },
 ]
 
 const printTable = () => {
@@ -250,9 +245,10 @@ const companies = computed(() => {
   return [...new Set(visitors.value.map(v => v.company))].filter(Boolean)
 })
 
-const marketers = computed(() => {
-  return [...new Set(visitors.value.map(v => v.marketer))].filter(Boolean)
-})
+const marketers = computed(() => [...new Set([
+  ...marketerDirectory.value.filter(marketer => marketer.status === 'active').map(marketer => marketer.name),
+  ...visitors.value.map(visitor => visitor.marketer),
+])].filter(Boolean).sort())
 
 const services = computed(() => {
   return [...new Set(visitors.value.map(v => v.service))].filter(Boolean)
@@ -260,6 +256,7 @@ const services = computed(() => {
 
 onMounted(() => {
   fetchVisitors()
+  MarketerApi.getAll().then(data => { marketerDirectory.value = data }).catch(console.error)
 })
 </script>
 
@@ -271,7 +268,7 @@ onMounted(() => {
           <VTextField
             v-model="search"
             prepend-inner-icon="tabler-search"
-            placeholder="Search visitors..."
+            :placeholder="$t('pages.contracts.visitor.visitor.searchVisitors')"
             density="compact"
             clearable
             hide-details
@@ -282,7 +279,7 @@ onMounted(() => {
           <VSelect
             v-model="filterCompany"
             :items="companies"
-            label="Filter by Company"
+            :label="$t('pages.contracts.visitor.visitor.filterByCompany')"
             density="compact"
             clearable
             hide-details
@@ -293,7 +290,7 @@ onMounted(() => {
           <VSelect
             v-model="filterMarketer"
             :items="marketers"
-            label="Filter by Marketer"
+            :label="$t('pages.contracts.visitor.visitor.filterByMarketer')"
             density="compact"
             clearable
             hide-details
@@ -312,7 +309,7 @@ onMounted(() => {
             @click="isAddNewVisitorDialogVisible = true"
             :loading="isLoading"
           >
-            <VIcon icon="tabler-plus" class="me-1" /> Add Visitor
+            <VIcon icon="tabler-plus" class="me-1" /> {{ $t('pages.contracts.visitor.visitor.addVisitor') }}
           </VBtn>
         </VCol>
       </VRow>
@@ -335,7 +332,7 @@ onMounted(() => {
             size="small"
             color="medium-emphasis"
             @click="openEditDialog(item)"
-            title="Edit visitor"
+            :title="$t('pages.contracts.visitor.visitor.editVisitor')"
             :loading="isLoading"
           />
           <VBtn
@@ -344,7 +341,7 @@ onMounted(() => {
             size="small"
             color="error"
             @click="openDeleteDialog(item)"
-            title="Delete visitor"
+            :title="$t('pages.contracts.visitor.visitor.deleteVisitor')"
             :loading="isLoading"
           />
         </div>
@@ -356,7 +353,7 @@ onMounted(() => {
   <VDialog v-model="isAddNewVisitorDialogVisible" max-width="600">
     <VCard>
       <VCardTitle class="pa-4">
-        <span class="text-h5">Add New Visitor</span>
+        <span class="text-h5">{{ $t('pages.contracts.visitor.visitor.addNewVisitor') }}</span>
       </VCardTitle>
 
       <VCardText>
@@ -365,9 +362,9 @@ onMounted(() => {
             <VCol cols="12" md="6">
               <VTextField
                 v-model="visitorData.name"
-                label="Visitor Name"
-                placeholder="Enter visitor name"
-                hint="Enter the full name of the visitor"
+                :label="$t('common.messages.visitorName')"
+                :placeholder="$t('common.messages.enterVisitorName')"
+                :hint="$t('common.messages.enterTheFullNameOfTheVisitor')"
                 persistent-hint
                 :error-messages="formErrors.name"
                 required
@@ -376,9 +373,9 @@ onMounted(() => {
             <VCol cols="12" md="6">
               <VTextField
                 v-model="visitorData.company"
-                label="Company"
-                placeholder="Enter company name"
-                hint="Enter the company the visitor represents"
+                :label="$t('common.fields.company')"
+                :placeholder="$t('common.messages.enterCompanyName')"
+                :hint="$t('common.messages.enterTheCompanyTheVisitorRepresents')"
                 persistent-hint
                 :error-messages="formErrors.company"
                 required
@@ -387,9 +384,9 @@ onMounted(() => {
             <VCol cols="12" md="6">
               <VTextField
                 v-model="visitorData.contact"
-                label="Contact/Phone"
-                placeholder="Enter phone number"
-                hint="Enter the visitor's contact number"
+                :label="$t('common.messages.contactPhone')"
+                :placeholder="$t('common.messages.enterPhoneNumber')"
+                :hint="$t('common.messages.enterTheVisitorSContactNumber')"
                 persistent-hint
                 :error-messages="formErrors.contact"
                 required
@@ -398,20 +395,21 @@ onMounted(() => {
             <VCol cols="12" md="6">
               <VTextField
                 v-model="visitorData.service"
-                label="Service"
-                placeholder="Enter service"
-                hint="Enter the service the visitor is interested in"
+                :label="$t('common.messages.service')"
+                :placeholder="$t('common.messages.enterService')"
+                :hint="$t('common.messages.enterTheServiceTheVisitorIsInterestedIn')"
                 persistent-hint
                 :error-messages="formErrors.service"
                 required
               />
             </VCol>
             <VCol cols="12">
-              <VTextField
+              <VAutocomplete
                 v-model="visitorData.marketer"
-                label="Marketer"
-                placeholder="Enter marketer name"
-                hint="Enter the marketer who will handle this visitor"
+                :items="marketers"
+                :label="$t('common.messages.marketer')"
+                :placeholder="$t('common.messages.selectAMarketer')"
+                :hint="$t('common.messages.manageMarketersFromSetupMarketers')"
                 persistent-hint
                 :error-messages="formErrors.marketer"
                 required
@@ -429,14 +427,14 @@ onMounted(() => {
           @click="isAddNewVisitorDialogVisible = false; resetForm()"
           :disabled="isLoading"
         >
-          Cancel
+          {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="primary"
           @click="addNewVisitor"
           :loading="isLoading"
         >
-          Add
+          {{ $t('common.actions.add') }}
         </VBtn>
       </VCardActions>
     </VCard>
@@ -446,7 +444,7 @@ onMounted(() => {
   <VDialog v-model="isEditVisitorDialogVisible" max-width="600">
     <VCard>
       <VCardTitle class="pa-4">
-        <span class="text-h5">Edit Visitor</span>
+        <span class="text-h5">{{ $t('pages.contracts.visitor.visitor.editVisitor') }}</span>
       </VCardTitle>
 
       <VCardText>
@@ -455,9 +453,9 @@ onMounted(() => {
             <VCol cols="12" md="6">
               <VTextField
                 v-model="visitorData.name"
-                label="Visitor Name"
-                placeholder="Enter visitor name"
-                hint="Enter the full name of the visitor"
+                :label="$t('common.messages.visitorName')"
+                :placeholder="$t('common.messages.enterVisitorName')"
+                :hint="$t('common.messages.enterTheFullNameOfTheVisitor')"
                 persistent-hint
                 :error-messages="formErrors.name"
                 required
@@ -466,9 +464,9 @@ onMounted(() => {
             <VCol cols="12" md="6">
               <VTextField
                 v-model="visitorData.company"
-                label="Company"
-                placeholder="Enter company name"
-                hint="Enter the company the visitor represents"
+                :label="$t('common.fields.company')"
+                :placeholder="$t('common.messages.enterCompanyName')"
+                :hint="$t('common.messages.enterTheCompanyTheVisitorRepresents')"
                 persistent-hint
                 :error-messages="formErrors.company"
                 required
@@ -477,9 +475,9 @@ onMounted(() => {
             <VCol cols="12" md="6">
               <VTextField
                 v-model="visitorData.contact"
-                label="Contact/Phone"
-                placeholder="Enter phone number"
-                hint="Enter the visitor's contact number"
+                :label="$t('common.messages.contactPhone')"
+                :placeholder="$t('common.messages.enterPhoneNumber')"
+                :hint="$t('common.messages.enterTheVisitorSContactNumber')"
                 persistent-hint
                 :error-messages="formErrors.contact"
                 required
@@ -488,20 +486,21 @@ onMounted(() => {
             <VCol cols="12" md="6">
               <VTextField
                 v-model="visitorData.service"
-                label="Service"
-                placeholder="Enter service"
-                hint="Enter the service the visitor is interested in"
+                :label="$t('common.messages.service')"
+                :placeholder="$t('common.messages.enterService')"
+                :hint="$t('common.messages.enterTheServiceTheVisitorIsInterestedIn')"
                 persistent-hint
                 :error-messages="formErrors.service"
                 required
               />
             </VCol>
             <VCol cols="12">
-              <VTextField
+              <VAutocomplete
                 v-model="visitorData.marketer"
-                label="Marketer"
-                placeholder="Enter marketer name"
-                hint="Enter the marketer who will handle this visitor"
+                :items="marketers"
+                :label="$t('common.messages.marketer')"
+                :placeholder="$t('common.messages.selectAMarketer')"
+                :hint="$t('common.messages.manageMarketersFromSetupMarketers')"
                 persistent-hint
                 :error-messages="formErrors.marketer"
                 required
@@ -519,14 +518,14 @@ onMounted(() => {
           @click="isEditVisitorDialogVisible = false; resetForm()"
           :disabled="isLoading"
         >
-          Cancel
+          {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="primary"
           @click="editVisitor"
           :loading="isLoading"
         >
-          Save
+          {{ $t('common.actions.save') }}
         </VBtn>
       </VCardActions>
     </VCard>
@@ -536,11 +535,11 @@ onMounted(() => {
   <VDialog v-model="isDeleteVisitorDialogVisible" max-width="500">
     <VCard>
       <VCardTitle class="text-h5 pa-4">
-        Are you sure you want to delete this visitor?
+        {{ $t('common.confirmations.areYouSureYouWantToDeleteThisVisitor') }}
       </VCardTitle>
 
       <VCardText>
-        This action cannot be undone. The visitor record will be permanently removed from the system.
+        {{ $t('common.confirmations.thisActionCannotBeUndoneTheVisitorRecordWillBePermanentlyRemovedFromTh') }}
       </VCardText>
 
       <VCardActions class="pa-4">
@@ -551,14 +550,14 @@ onMounted(() => {
           @click="isDeleteVisitorDialogVisible = false"
           :disabled="isLoading"
         >
-          Cancel
+          {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="error"
           @click="deleteVisitor"
           :loading="isLoading"
         >
-          Delete
+          {{ $t('common.actions.delete') }}
         </VBtn>
       </VCardActions>
     </VCard>

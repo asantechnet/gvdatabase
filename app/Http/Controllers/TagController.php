@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Tag;
 use App\Http\Resources\TagResource;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class TagController extends Controller
 {
@@ -23,11 +24,20 @@ class TagController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:tags',
+            'name' => 'required|string|max:255',
             'color' => 'required|string|max:255',
         ]);
 
-        $tag = Tag::create($validated);
+        $tag = Tag::withTrashed()->where('name', $validated['name'])->first();
+        if ($tag && ! $tag->trashed()) {
+            throw ValidationException::withMessages(['name' => ['This task label already exists.']]);
+        }
+        if ($tag) {
+            $tag->fill($validated);
+            $tag->restore();
+        } else {
+            $tag = Tag::create($validated);
+        }
         return new TagResource($tag);
     }
 
@@ -50,6 +60,7 @@ class TagController extends Controller
      */
     public function destroy(Tag $tag)
     {
+        $tag->tasks()->detach();
         $tag->delete();
         return response()->json(['message' => 'Tag deleted successfully']);
     }

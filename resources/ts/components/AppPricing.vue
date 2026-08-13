@@ -72,13 +72,13 @@ const pricingPlans = [
   <!-- 👉 Title and subtitle -->
   <div class="text-center">
     <h3 class="text-h3 pricing-title mb-2">
-      {{ props.title ? props.title : 'Pricing Plans' }}
+      {{ props.title ? props.title: translate('pages.settings.apppricing.apppricing.pricingPlans') }}
     </h3>
     <p class="mb-0">
-      All plans include 40+ advanced tools and features to boost your product.
+      {{ $t('pages.settings.apppricing.apppricing.allPlansInclude40AdvancedToolsAndFeaturesToBoostYourProduct') }}
     </p>
     <p class="mb-2">
-      Choose the best plan to fit your needs.
+      {{ $t('pages.settings.apppricing.apppricing.chooseTheBestPlanToFitYourNeeds') }}
     </p>
   </div>
 
@@ -89,7 +89,7 @@ const pricingPlans = [
       for="pricing-plan-toggle"
       class="me-3"
     >
-      Monthly
+      {{ $t('pages.settings.apppricing.apppricing.monthly') }}
     </VLabel>
 
     <div class="position-relative">
@@ -99,7 +99,7 @@ const pricingPlans = [
       >
         <template #label>
           <div class="text-body-1 font-weight-medium">
-            Annually
+            {{ $t('pages.settings.apppricing.apppricing.annually') }}
           </div>
         </template>
       </VSwitch>
@@ -115,7 +115,7 @@ const pricingPlans = [
           color="primary"
           size="small"
         >
-          Save up to 10%
+          {{ $t('pages.settings.apppricing.apppricing.saveUpTo10') }}
         </VChip>
       </div>
     </div>
@@ -146,7 +146,7 @@ const pricingPlans = [
             color="primary"
             size="small"
           >
-            Popular
+            {{ $t('pages.settings.apppricing.apppricing.popular') }}
           </VChip>
         </VCardText>
 
@@ -178,7 +178,7 @@ const pricingPlans = [
                 {{ annualMonthlyPlanPriceToggler ? Math.floor(Number(plan.yearlyPrice) / 12) : plan.monthlyPrice }}
               </h1>
               <div class="text-body-1 font-weight-medium align-self-end">
-                /month
+                {{ $t('pages.settings.apppricing.apppricing.month') }}
               </div>
             </div>
 

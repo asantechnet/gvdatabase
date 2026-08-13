@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ContractApi from '@/api/contracts'
+import SettingApi, { type Setting } from '@/api/setting'
 import ContractForm from '@/components/ContractForm.vue'
 import { useContracts } from '@/composables/useContracts'
 import { computed, onMounted, ref } from 'vue'
@@ -48,6 +49,8 @@ const selectedContract = ref<Contract | null>(null)
 const isPrintDialogVisible = ref(false)
 const includeEmptyLastPage = ref(false)
 const includeSignatureSection = ref(true)
+const includeCustomCover = ref(true)
+const includeCustomLetterhead = ref(true)
 const contractToPrint = ref<Contract | null>(null)
 const combinedPrintRef = ref<HTMLElement | null>(null)
 const isPrintLoading = ref(false)
@@ -70,22 +73,26 @@ const filtered = computed(() => {
 })
 
 const headers = [
-  { title: 'Contract Number', key: 'contract_number', sortable: true },
-  { title: 'Contract', key: 'contract', sortable: true },
-  { title: 'Counterparty', key: 'counterparty', sortable: true },
-  { title: 'Start Date', key: 'start_date', sortable: true },
-  { title: 'Status', key: 'status', sortable: true },
-  { title: 'Actions', key: 'actions', sortable: false },
+  { title: translate('common.messages.contractNumber'), key: 'contract_number', sortable: true },
+  { title: translate('common.messages.contract'), key: 'contract', sortable: true },
+  { title: translate('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true },
+  { title: translate('common.fields.startDate'), key: 'start_date', sortable: true },
+  { title: translate('common.fields.status'), key: 'status', sortable: true },
+  { title: translate('common.messages.actions'), key: 'actions', sortable: false },
 ]
 
-const sampleCompany: CompanyDetails = {
-  brandName: 'Acme Global Services',
-  slogan: 'Excellence in every contract',
-  address: '100 Innovation Way, Tech City, TC 90210',
-  phone: '+1 (555) 019-2834',
-  email: 'legal@acmeglobal.com',
-  website: 'www.acmeglobal.com'
-}
+const companySetting = ref<Setting | null>(null)
+const company = computed<CompanyDetails>(() => ({
+  brandName: companySetting.value?.original_company_name || companySetting.value?.short_company_name || companySetting.value?.website_title || 'Company',
+  logo: companySetting.value?.website_logo_url || undefined,
+  address: companySetting.value?.physical_address || undefined,
+  phone: companySetting.value?.phone || undefined,
+  website: companySetting.value?.website_address || undefined,
+  email: companySetting.value?.company_email || undefined,
+  licence: companySetting.value?.business_licence || undefined,
+  signatureUrl: companySetting.value?.company_signature_url || undefined,
+  letterheadUrl: companySetting.value?.contract_letterhead_url || undefined,
+}))
 
 const deltaToHtml = (delta: any): string => {
   if (!delta || !delta.ops) return ''
@@ -135,15 +142,15 @@ const getContractPagesHtml = (contract: Contract): string[] => {
   }
 
   // Fallback to default content if no template content is available
-  const startDate = new Date(contract.start_date).toLocaleDateString()
+  const startDate = formatLocalizedDate(contract.start_date)
   const contractName = contract.contract || contract.contract_template?.name || 'Untitled Contract'
   const pages = [
     `
     <h1>Contract Agreement</h1>
-    <p>This agreement is made between <strong>${sampleCompany.brandName}</strong> and <strong>${contract.counterparty}</strong> on <strong>${startDate}</strong>.</p>
+    <p>This agreement is made between <strong>${company.value.brandName}</strong> and <strong>${contract.counterparty}</strong> on <strong>${startDate}</strong>.</p>
 
     <h2>1. Parties</h2>
-    <p><strong>Service Provider:</strong> ${sampleCompany.brandName}, located at ${sampleCompany.address}</p>
+    <p><strong>Service Provider:</strong> ${company.value.brandName}, located at ${company.value.address || 'the registered company address'}</p>
     <p><strong>Client:</strong> ${contract.counterparty}</p>
 
     <h2>2. Contract Details</h2>
@@ -194,7 +201,7 @@ const printContract = async (contract: Contract) => {
     isPrintDialogVisible.value = true
   } catch (err) {
     console.error('Failed to load contract template:', err)
-    alert('Failed to load contract template. Using default content.')
+    alert(translate('pages.contracts.allContracts.allContracts.failedToLoadContractTemplateUsingDefaultContent'))
     contractToPrint.value = contract
     includeEmptyLastPage.value = false
     includeSignatureSection.value = true
@@ -209,7 +216,7 @@ const executePrint = () => {
 
   const printWindow = window.open('', '_blank', 'width=900,height=1100')
   if (!printWindow) {
-    alert("Could not open print window. Please allow pop-ups for this site.")
+    alert(translate('common.messages.couldNotOpenPrintWindowPleaseAllowPopUpsForThisSite'))
     return
   }
 
@@ -293,7 +300,7 @@ const executePrint = () => {
             .contract-content ul,
             .contract-content ol {
               margin-bottom: 1em;
-              padding-left: 2em;
+              padding-inline-start: 2em;
             }
             .contract-content table {
               width: 100%;
@@ -371,7 +378,7 @@ const addNew = () => {
     start_date: new Date().toISOString().substr(0, 10),
     counterparty: '',
     is_cancelled: false,
-    template_id: 0
+    template_id: templates.value[0]?.id || 0
   }
   isDialogVisible.value = true
 }
@@ -388,7 +395,7 @@ const deleteContractUI = async (contract: Contract) => {
     try {
       await removeContract(contract.id)
     } catch (err) {
-      alert('Failed to delete contract. Please try again.')
+      alert(translate('pages.contracts.allContracts.allContracts.failedToDeleteContractPleaseTryAgain'))
     }
   }
 }
@@ -402,7 +409,7 @@ const cancelContract = async (contract: Contract) => {
       await fetchContracts()
     } catch (err) {
       console.error('Failed to cancel contract:', err)
-      alert('Failed to cancel contract. Please try again.')
+      alert(translate('pages.contracts.allContracts.allContracts.failedToCancelContractPleaseTryAgain'))
     } finally {
       isCancelling.value = false
     }
@@ -423,13 +430,18 @@ const handleFormSubmit = async (contractData: {
     }
     isDialogVisible.value = false
   } catch (err) {
-    alert('Failed to save contract. Please try again.')
+    alert(translate('pages.contracts.allContracts.allContracts.failedToSaveContractPleaseTryAgain'))
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   fetchContracts()
   fetchTemplates()
+  try {
+    companySetting.value = (await SettingApi.getCompanyProfile()).data
+  } catch {
+    // Printing still works with neutral fallback company details.
+  }
 })
 </script>
 
@@ -438,22 +450,22 @@ onMounted(() => {
     <VCardText>
       <VRow align="center">
         <VCol cols="12" md="4">
-          <VTextField v-model="search" prepend-inner-icon="tabler-search" placeholder="Search contracts..."
+          <VTextField v-model="search" prepend-inner-icon="tabler-search" :placeholder="$t('pages.contracts.allContracts.allContracts.searchContracts')"
             density="compact" clearable hide-details />
         </VCol>
         <VCol cols="12" sm="6" md="3">
-          <VSelect v-model="filterCounterparty" :items="counterparties" label="Filter by Counterparty" density="compact"
+          <VSelect v-model="filterCounterparty" :items="counterparties" :label="$t('pages.contracts.allContracts.allContracts.filterByCounterparty')" density="compact"
             clearable hide-details />
         </VCol>
         <VCol cols="12" sm="6" md="3">
-          <VSelect v-model="filterStatus" :items="statuses" label="Filter by Status" density="compact" clearable
+          <VSelect v-model="filterStatus" :items="statuses" :label="$t('common.messages.filterByStatus')" density="compact" clearable
             hide-details />
         </VCol>
         <VCol cols="12" md="2" class="text-end d-flex gap-2 justify-end">
-          <VBtn icon="tabler-printer" variant="text" title="Print table" @click="printTable" />
+          <VBtn icon="tabler-printer" variant="text" :title="$t('pages.contracts.allContracts.allContracts.printTable')" @click="printTable" />
           <VBtn color="primary" @click="addNew" :loading="isLoading">
             <VIcon icon="tabler-plus" class="me-1" />
-            Add Contract
+            {{ $t('pages.contracts.allContracts.allContracts.addContract') }}
           </VBtn>
         </VCol>
       </VRow>
@@ -468,29 +480,29 @@ onMounted(() => {
       <template #item.contract="{ item }">
         {{ item.contract || item.contract_template?.name || 'Untitled Contract' }}
         <VChip v-if="item.is_cancelled" color="error" size="x-small" class="ml-2">
-          Cancelled
+          {{ $t('common.statuses.cancelled') }}
         </VChip>
       </template>
       <template #item.counterparty="{ item }">
         {{ item.counterparty || 'Unknown Counterparty' }}
       </template>
       <template #item.start_date="{ item }">
-        {{ item.start_date ? new Date(item.start_date).toLocaleDateString() : 'N/A' }}
+                  {{ formatLocalizedDate(item.start_date) }}
       </template>
       <template #item.status="{ item }">
         <VChip :color="getStatusColor(item.status)" size="small" class="font-weight-medium">
-          {{ item.status || 'Unknown' }}
+          {{ translateBackendValue(item.status || 'unknown') }}
         </VChip>
       </template>
       <template #item.actions="{ item }">
         <VBtn v-if="!item.is_cancelled" icon="tabler-ban" variant="text" size="small" @click="cancelContract(item)"
-          :loading="isCancelling" class="me-2" title="Cancel contract" color="error" />
+          :loading="isCancelling" class="me-2" :title="$t('pages.contracts.allContracts.allContracts.cancelContract')" color="error" />
         <VBtn icon="tabler-edit" variant="text" size="small" @click="editContractUI(item)" class="me-2"
-          title="Edit contract" />
+          :title="$t('pages.contracts.allContracts.allContracts.editContract')" />
         <VBtn icon="tabler-trash" variant="text" size="small" @click="deleteContractUI(item)" class="me-2"
-          title="Delete contract" />
+          :title="$t('pages.contracts.allContracts.allContracts.deleteContract')" />
         <VBtn icon="tabler-printer" variant="text" size="small" @click="printContract(item)" :loading="isPrintLoading"
-          title="Print contract" />
+          :title="$t('pages.contracts.allContracts.allContracts.printContract')" />
       </template>
     </VDataTable>
   </VCard>
@@ -514,27 +526,28 @@ onMounted(() => {
     <VCard>
       <VCardTitle class="d-flex align-center gap-2">
         <VIcon icon="tabler-printer" />
-        <span>Print Contract Options</span>
+        <span>{{ $t('pages.contracts.allContracts.allContracts.printContractOptions') }}</span>
       </VCardTitle>
       <VCardText>
         <p class="mb-4">
-          Prepare <strong>{{ contractToPrint?.contract || contractToPrint?.contract_template?.name ||
-            'UntitledContract' }}</strong> for A4 printing. The document will include the cover
-          page and all contract terms.
+          {{ $t('pages.contracts.allContracts.allContracts.prepare') }} <strong>{{ contractToPrint?.contract || contractToPrint?.contract_template?.name ||
+            'UntitledContract' }}</strong> {{ $t('pages.contracts.allContracts.allContracts.forA4PrintingTheDocumentWillIncludeTheCoverPageAndAllContractTerms') }}
         </p>
         <div class="d-flex flex-column gap-2">
-          <VCheckbox v-model="includeSignatureSection" label="Include formal signature & stamp section at the end"
+          <VCheckbox v-model="includeSignatureSection" :label="$t('pages.contracts.allContracts.allContracts.includeFormalSignatureStampSectionAtTheEnd')"
             density="compact" hide-details />
-          <VCheckbox v-model="includeEmptyLastPage" label="Add a last fully empty page" density="compact"
+          <VCheckbox v-model="includeCustomCover" label="Use custom cover page from settings" density="compact" hide-details />
+          <VCheckbox v-model="includeCustomLetterhead" label="Use custom letterhead from settings" density="compact" hide-details />
+          <VCheckbox v-model="includeEmptyLastPage" :label="$t('pages.contracts.allContracts.allContracts.addALastFullyEmptyPage')" density="compact"
             hide-details />
         </div>
       </VCardText>
       <VCardActions class="justify-end px-4 pb-4">
         <VBtn variant="outlined" color="secondary" @click="isPrintDialogVisible = false">
-          Cancel
+          {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn color="primary" @click="executePrint">
-          Print A4 Document
+          {{ $t('pages.contracts.allContracts.allContracts.printA4Document') }}
         </VBtn>
       </VCardActions>
     </VCard>
@@ -544,17 +557,20 @@ onMounted(() => {
   <div ref="combinedPrintRef" style="display: none;">
     <template v-if="contractToPrint">
       <ContractCover :contractee-name="contractToPrint.counterparty"
+        :logo="company.logo"
+        :cover-design-url="includeCustomCover ? companySetting?.contract_cover_design_url || '' : ''"
         :contract-number="contractToPrint.contract_number"
-        :contract-title="contractToPrint.contract || contractToPrint.contract_template?.name || 'Untitled Contract'"
+        :contract-title="contractToPrint.contract_template?.name || contractToPrint.contract || 'Untitled Contract'"
+        :cover-description="contractToPrint.contract_template?.cover_text || ''"
         :contract-type="contractToPrint.contract_template?.type || 'Service Agreement'"
-        :contract-date="new Date(contractToPrint.start_date).toLocaleDateString()" company-website="www.acmeglobal.com"
-        company-address="100 Innovation Way, Tech City, TC 90210" company-email="legal@acmeglobal.com"
-        company-number="+1 (555) 019-2834" />
+        :contract-date="formatLocalizedDate(contractToPrint.start_date)" :company-website="company.website || ''"
+        :company-address="company.address || ''" :company-email="company.email || ''"
+        :company-number="company.phone || ''" />
 
       <ContractTemplate v-for="(pageHtml, idx) in getContractPagesHtml(contractToPrint)" :key="idx"
         :document-number="contractToPrint.contract_number"
-        :document-title="contractToPrint.contract || contractToPrint.contract_template?.name || 'Untitled Contract'"
-        :company="sampleCompany" :html-content="pageHtml"
+        :document-title="contractToPrint.contract_template?.name || contractToPrint.contract || 'Untitled Contract'"
+        :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }" :html-content="pageHtml"
         :page-number-string="`Page ${idx + 1} of ${getContractPagesHtml(contractToPrint).length}`"
         :show-signature="includeSignatureSection && idx === getContractPagesHtml(contractToPrint).length - 1"
         :contractee-name="contractToPrint.counterparty" footer-text="Confidential - All Rights Reserved"

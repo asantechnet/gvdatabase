@@ -1,1 +1,33 @@
-// Write your overrides
+@font-face {
+  font-family: Vazirmatn;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/Vazirmatn-Regular.woff2') format('woff2');
+}
+
+html.locale-persian-script,
+html.locale-persian-script body,
+html.locale-persian-script .v-application {
+  font-family: Vazirmatn, 'Public Sans', sans-serif;
+}
+
+/* Values whose reading order must remain stable inside an RTL interface. */
+.text-email,
+.text-url,
+.text-identifier,
+.text-currency-value {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+[dir='rtl'] .flip-in-rtl {
+  transform: scaleX(-1);
+}
+
+@media print {
+  html[dir='rtl'] .print-document {
+    direction: rtl;
+    text-align: start;
+  }
+}

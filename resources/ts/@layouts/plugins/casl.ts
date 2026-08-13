@@ -1,4 +1,5 @@
-import { useAbility } from '@casl/vue'
+import { ability } from '@/plugins/casl/ability'
+import type { Actions } from '@/plugins/casl/ability'
 import type { RouteLocationNormalized } from 'vue-router'
 import type { NavGroup } from '@layouts/types'
 
@@ -26,7 +27,7 @@ export const can = (action: string | undefined, subject: string | undefined) => 
 
   const localCan = vm.proxy && '$can' in vm.proxy
 
-  return localCan ? vm.proxy?.$can(action, subject) : true
+  return localCan ? vm.proxy?.$can(action as Actions, subject as string) : true
 }
 
 /**
@@ -46,16 +47,20 @@ export const canViewNavMenuGroup = (item: NavGroup) => {
 }
 
 export const canNavigate = (to: RouteLocationNormalized) => {
-  const ability = useAbility()
-
   // Get the most specific route (last one in the matched array)
   const targetRoute = to.matched[to.matched.length - 1]
 
+  const anyPermissions = targetRoute?.meta?.anyPermissions
+  if (Array.isArray(anyPermissions))
+    return anyPermissions.some(permission => ability.can('read', permission as string))
+
+  if (!targetRoute?.meta?.action && !targetRoute?.meta?.subject)
+    return true
+
   // If the target route has specific permissions, check those first
   if (targetRoute?.meta?.action && targetRoute?.meta?.subject)
-    return ability.can(targetRoute.meta.action, targetRoute.meta.subject)
+    return ability.can(targetRoute.meta.action as Actions, targetRoute.meta.subject as string)
 
   // If no specific permissions, fall back to checking if any parent route allows access
-  // @ts-expect-error We should allow passing string | undefined to can because for admin ability we omit defining action & subject
-  return to.matched.some(route => ability.can(route.meta.action, route.meta.subject))
+  return to.matched.some(route => ability.can(route.meta.action as Actions, route.meta.subject as string))
 }

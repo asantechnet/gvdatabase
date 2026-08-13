@@ -1,7 +1,9 @@
 export default [
   {
-    title: "Home",
+    title: "common.navigation.home",
     icon: { icon: "tabler-home-2" },
     to: "home",
+    action: 'read',
+    subject: 'view_dashboard',
   },
 ];

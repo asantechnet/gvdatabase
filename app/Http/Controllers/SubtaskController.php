@@ -7,20 +7,25 @@ use App\Models\Subtask;
 use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use App\Support\EditWindow;
 
 class SubtaskController extends Controller
 {
     public function store(Request $request, Task $task)
     {
+        Gate::authorize('create', [Subtask::class, $task]);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'category' => 'nullable|string|max:255',
             'priority' => 'nullable|in:low,medium,high,urgent',
         ]);
 
-        [$subtask, $progress] = DB::transaction(function () use ($task, $validated) {
+        $userId = $request->user()->id;
+        [$subtask, $progress] = DB::transaction(function () use ($task, $validated, $userId) {
             $subtask = $task->subtasks()->create([
                 ...$validated,
+                'user_id' => $userId,
                 'category' => $validated['category'] ?? 'General',
                 'priority' => $validated['priority'] ?? 'medium',
             ]);
@@ -31,9 +36,11 @@ class SubtaskController extends Controller
         return (new SubtaskResource($subtask))->additional(['taskProgress' => $progress]);
     }
 
-    public function update(Request $request, Task $task, Subtask $subtask)
+    public function update(Request $request, Task $task, Subtask $subtask, EditWindow $editWindow)
     {
         $this->ensureSubtaskBelongsToTask($task, $subtask);
+        Gate::authorize('view', $task);
+        Gate::authorize('update', $subtask);
 
         $validated = $request->validate([
             'title' => 'sometimes|string|max:255',
@@ -41,6 +48,9 @@ class SubtaskController extends Controller
             'priority' => 'sometimes|in:low,medium,high,urgent',
             'is_completed' => 'sometimes|boolean',
         ]);
+        if (array_intersect(array_keys($validated), ['title', 'category', 'priority'])) {
+            $editWindow->enforce($request->user(), $subtask);
+        }
 
         $progress = DB::transaction(function () use ($task, $subtask, $validated) {
             $subtask->update($validated);
@@ -54,6 +64,8 @@ class SubtaskController extends Controller
     public function destroy(Task $task, Subtask $subtask)
     {
         $this->ensureSubtaskBelongsToTask($task, $subtask);
+        Gate::authorize('view', $task);
+        Gate::authorize('delete', $subtask);
 
         $progress = DB::transaction(function () use ($task, $subtask) {
             $subtask->delete();

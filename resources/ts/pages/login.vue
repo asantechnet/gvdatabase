@@ -1,54 +1,104 @@
 <script setup lang="ts">
 import AuthApi from '@/api/auth'
+import { storeAuthTokens } from '@/utils/authStorage'
+import { applyPermissions } from '@/utils/authorization'
 import { useCookie } from '@core/composable/useCookie'
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
 
 const form = ref({
   email: '',
   password: '',
-  remember: false
+  remember: false,
+  twoFactorCode: '',
 })
 
 const loading = ref(false)
+const resendingVerification = ref(false)
 const error = ref('')
+const status = ref('')
+const showPassword = ref(false)
+const twoFactorRequired = ref(false)
+const verificationRequired = ref(false)
+
+onMounted(() => {
+  const rememberedEmail = localStorage.getItem('remembered_login_email')
+  if (rememberedEmail) {
+    form.value.email = rememberedEmail
+    form.value.remember = true
+  }
+
+  if (route.query.reset === '1')
+    status.value = translate('pages.auth.login.login.yourPasswordWasResetYouCanNowSignIn')
+  else if (route.query.invited === '1')
+    status.value = translate('pages.auth.login.login.yourAccountIsReadySignInWithThePasswordYouCreated')
+})
 
 const handleLogin = async () => {
+  error.value = ''
+  status.value = ''
+
+  if (!form.value.email || !form.value.password) {
+    error.value = translate('pages.auth.login.login.emailAndPasswordAreRequired')
+    return
+  }
+
   try {
     loading.value = true
-    error.value = ''
-
     const response = await AuthApi.login({
       email: form.value.email,
-      password: form.value.password
+      password: form.value.password,
+      remember: form.value.remember,
+      two_factor_code: twoFactorRequired.value ? form.value.twoFactorCode : undefined,
     })
 
-    if (response.data && response.data.success) {
-      // Set cookies for authentication
-      const accessToken = response.data.data.access_token
-      const userData = response.data.data.user
+    const session = response.data.data
+    storeAuthTokens(session, form.value.remember)
+    useCookie<Record<string, unknown> | null>('userData').value = session.user
+    applyPermissions(session.user.permissions ?? [])
 
-      const accessTokenCookie = useCookie<string | null>('accessToken')
-      const userDataCookie = useCookie<Record<string, unknown> | null>('userData')
+    if (form.value.remember)
+      localStorage.setItem('remembered_login_email', form.value.email)
+    else
+      localStorage.removeItem('remembered_login_email')
 
-      accessTokenCookie.value = accessToken
-      userDataCookie.value = userData
-
-      // Also set in localStorage for axios interceptor
-      localStorage.setItem('access_token', accessToken)
-      if (response.data.data.refresh_token) {
-        localStorage.setItem('refresh_token', response.data.data.refresh_token)
-      }
-
-      // Redirect to home
-      await router.replace('/home')
-    }
+    await router.replace(
+      session.user.permissions?.includes('view_dashboard')
+        ? '/home'
+        : session.user.permissions?.some((permission: string) => ['view_all_boards', 'view_assigned_boards'].includes(permission))
+          ? '/tasks'
+          : '/account-settings',
+    )
   } catch (err: any) {
-    error.value = err.response?.data?.message || 'Login failed. Please check your credentials.'
+    twoFactorRequired.value = Boolean(err.two_factor_required) || twoFactorRequired.value
+    verificationRequired.value = Boolean(err.email_verification_required)
+    error.value = err.errors?.email?.[0]
+      || err.errors?.password?.[0]
+      || err.message
+      || 'Login failed. Please check your credentials.'
   } finally {
     loading.value = false
+  }
+}
+
+const resendVerification = async () => {
+  if (!form.value.email) {
+    error.value = translate('pages.auth.login.login.enterYourEmailAddressFirst')
+    return
+  }
+
+  resendingVerification.value = true
+  error.value = ''
+  try {
+    await AuthApi.resendEmailVerification(form.value.email)
+    status.value = translate('common.messages.ifVerificationIsRequiredANewEmailHasBeenSent')
+  } catch (err: any) {
+    error.value = err.message || 'Unable to send a verification email right now.'
+  } finally {
+    resendingVerification.value = false
   }
 }
 </script>
@@ -58,54 +108,60 @@ const handleLogin = async () => {
     <VCard class="auth-card pa-4 pt-7" max-width="448">
       <VCardItem class="justify-center">
         <template #prepend>
-          <div class="d-flex">
-            <VImg src="/logo.svg" width="32" height="32" />
-          </div>
+          <VImg src="/logo.svg" width="32" height="32" />
         </template>
-
-        <VCardTitle class="text-h5 font-weight-bold">
-          Asantech Mini Management
-        </VCardTitle>
+        <VCardTitle class="text-h5 font-weight-bold">{{ $t('pages.auth.login.login.asantechMiniManagement') }}</VCardTitle>
       </VCardItem>
 
       <VCardText class="pt-2">
-        <h5 class="text-h5 mb-1">
-          Welcome! 👋
-        </h5>
-        <p class="mb-0">
-          Please sign-in to your account
-        </p>
+        <h5 class="text-h5 mb-1">{{ $t('pages.auth.login.login.welcome') }}</h5>
+        <p class="mb-0">{{ $t('pages.auth.login.login.pleaseSignInToYourAccount') }}</p>
       </VCardText>
 
       <VCardText>
+        <VAlert v-if="status" type="success" variant="tonal" class="mb-4" closable @click:close="status = ''">
+          {{ status }}
+        </VAlert>
+        <VAlert v-if="error" type="error" variant="tonal" class="mb-4">
+          {{ error }}
+          <template v-if="verificationRequired" #append>
+            <VBtn size="small" variant="text" :loading="resendingVerification" @click="resendVerification">
+              {{ $t('pages.auth.login.login.resendEmail') }}
+            </VBtn>
+          </template>
+        </VAlert>
+
         <VForm @submit.prevent="handleLogin">
           <VRow>
-            <!-- Email -->
             <VCol cols="12">
-              <VTextField v-model="form.email" label="Email" type="email" placeholder="Enter your email"
-                :error-messages="error && !form.email ? error : ''" />
+              <VTextField v-model="form.email" :label="$t('common.fields.email')" type="email" autocomplete="email"
+                :placeholder="$t('pages.auth.login.login.enterYourEmail')" required />
             </VCol>
 
-            <!-- Password -->
             <VCol cols="12">
-              <VTextField v-model="form.password" label="Password" placeholder="••••••••"
-                :type="form.remember ? 'text' : 'password'" :error-messages="error && form.email ? error : ''" />
+              <VTextField v-model="form.password" :label="$t('common.fields.password')" :placeholder="$t('pages.auth.login.login.enterYourPassword')"
+                :type="showPassword ? 'text' : 'password'" autocomplete="current-password"
+                :append-inner-icon="showPassword ? 'tabler-eye-off' : 'tabler-eye'"
+                required @click:append-inner="showPassword = !showPassword" />
             </VCol>
 
-            <!-- Remember Me -->
+            <VCol v-if="twoFactorRequired" cols="12">
+              <VTextField v-model="form.twoFactorCode" :label="$t('pages.auth.login.login.authenticatorCode')" inputmode="numeric"
+                autocomplete="one-time-code" maxlength="6" prepend-inner-icon="tabler-shield-lock" required />
+            </VCol>
+
             <VCol cols="12">
               <div class="d-flex align-center justify-space-between flex-wrap gap-3">
-                <VCheckbox v-model="form.remember" label="Remember me" />
-                <a class="text-primary ms-2 mb-1" href="#">
-                  Forgot Password?
-                </a>
+                <VCheckbox v-model="form.remember" :label="$t('pages.auth.login.login.rememberMe')" hide-details />
+                <RouterLink class="text-primary" :to="{ name: 'forgot-password', query: { email: form.email || undefined } }">
+                  {{ $t('pages.auth.login.login.forgotPassword') }}
+                </RouterLink>
               </div>
             </VCol>
 
-            <!-- Login Button -->
             <VCol cols="12">
               <VBtn block type="submit" :loading="loading">
-                Login
+                {{ twoFactorRequired ? 'Verify and sign in' : 'Login' }}
               </VBtn>
             </VCol>
           </VRow>

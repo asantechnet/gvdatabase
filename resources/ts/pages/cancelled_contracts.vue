@@ -29,11 +29,11 @@ const filtered = computed(() => {
 })
 
 const headers = [
-  { title: 'Contract Number', key: 'contract_number', sortable: true },
-  { title: 'Contract', key: 'contract', sortable: true },
-  { title: 'Client', key: 'counterparty', sortable: true },
-  { title: 'Start Date', key: 'start_date', sortable: true },
-  { title: 'Status', key: 'status', sortable: true },
+  { title: translate('common.messages.contractNumber'), key: 'contract_number', sortable: true },
+  { title: translate('common.messages.contract'), key: 'contract', sortable: true },
+  { title: translate('common.messages.client'), key: 'counterparty', sortable: true },
+  { title: translate('common.fields.startDate'), key: 'start_date', sortable: true },
+  { title: translate('common.fields.status'), key: 'status', sortable: true },
 ]
 
 const printTable = () => {
@@ -50,11 +50,11 @@ onMounted(() => {
     <VCardText>
       <VRow align="center">
         <VCol cols="12" md="4">
-          <VTextField v-model="search" prepend-inner-icon="tabler-search" placeholder="Search cancelled contracts..."
+          <VTextField v-model="search" prepend-inner-icon="tabler-search" :placeholder="$t('pages.contracts.cancelledContracts.cancelledContracts.searchCancelledContracts')"
             density="compact" clearable hide-details />
         </VCol>
         <VCol cols="12" sm="6" md="3">
-          <VSelect v-model="filterClient" :items="clients" label="Filter by Client" density="compact" clearable
+          <VSelect v-model="filterClient" :items="clients" :label="$t('pages.contracts.cancelledContracts.cancelledContracts.filterByClient')" density="compact" clearable
             hide-details />
         </VCol>
         <VCol cols="12" md="2" class="text-end">
@@ -76,11 +76,11 @@ onMounted(() => {
         {{ item.counterparty || 'Unknown Counterparty' }}
       </template>
       <template #item.start_date="{ item }">
-        {{ item.start_date ? new Date(item.start_date).toLocaleDateString() : 'N/A' }}
+                {{ formatLocalizedDate(item.start_date) }}
       </template>
       <template #item.status="{ item }">
         <VChip color="error" size="small" class="font-weight-medium">
-          Cancelled
+          {{ $t('common.statuses.cancelled') }}
         </VChip>
       </template>
     </VDataTable>

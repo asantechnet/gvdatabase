@@ -97,18 +97,18 @@ const membersList: Member[] = [
     <VCard class="share-project-dialog pa-2 pa-sm-10">
       <VCardText>
         <h4 class="text-h4 text-center mb-2">
-          Share Project
+          {{ $t('components.dialogs.shareprojectdialog.shareProject') }}
         </h4>
         <p class="text-body-1 text-center mb-6">
-          Share project with a team members
+          {{ $t('components.dialogs.shareprojectdialog.shareProjectWithATeamMembers') }}
         </p>
 
         <AppAutocomplete
-          label="Add Members"
+          :label="$t('components.dialogs.shareprojectdialog.addMembers')"
           :items="membersList"
           item-title="name"
           item-value="name"
-          placeholder="Add project members..."
+          :placeholder="$t('components.dialogs.shareprojectdialog.addProjectMembers')"
         >
           <template #item="{ props: listItemProp, item }">
             <VListItem v-bind="listItemProp">
@@ -123,7 +123,7 @@ const membersList: Member[] = [
         </AppAutocomplete>
 
         <h5 class="text-h5 mb-4 mt-6">
-          8 Members
+          {{ $t('components.dialogs.shareprojectdialog.n8Members') }}
         </h5>
 
         <VList class="card-list">
@@ -148,7 +148,7 @@ const membersList: Member[] = [
                 color="secondary"
                 :icon="$vuetify.display.xs"
               >
-                <span class="d-none d-sm-block me-1">{{ member.permission }}</span>
+                <span class="d-none d-sm-block me-1">{{ translateBackendValue(member.permission, 'backend.values') }}</span>
                 <VIcon icon="tabler-chevron-down" />
 
                 <VMenu activator="parent">
@@ -158,7 +158,7 @@ const membersList: Member[] = [
                       :key="index"
                       :value="item"
                     >
-                      <VListItemTitle>{{ item }}</VListItemTitle>
+                      <VListItemTitle>{{ translateBackendValue(item, 'backend.values') }}</VListItemTitle>
                     </VListItem>
                   </VList>
                 </VMenu>
@@ -174,14 +174,14 @@ const membersList: Member[] = [
               class="me-2"
               size="20"
             />
-            <div>Public to Vuexy - Pixinvent</div>
+            <div>{{ $t('components.dialogs.shareprojectdialog.publicToVuexyPixinvent') }}</div>
           </h6>
 
           <VBtn
             class="text-capitalize"
             prepend-icon="tabler-link"
           >
-            Copy Project Link
+            {{ $t('components.dialogs.shareprojectdialog.copyProjectLink') }}
           </VBtn>
         </div>
       </VCardText>

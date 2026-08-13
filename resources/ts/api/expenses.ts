@@ -1,13 +1,15 @@
 import api from "./axios";
+import type { Currency } from "./currency";
 
 export interface Expense {
   id: number;
   customer_id: number | null;
+  currency_id: number;
   type: string;
   description: string;
   amount: number;
   quantity: number;
-  currency: string;
+  currency: Pick<Currency, "id" | "code" | "symbol" | "rateToBase" | "decimalPlaces"> | null;
   rate_to_base: number;
   total_amount: number;
   date: string;
@@ -17,22 +19,23 @@ export interface Expense {
 
 export interface ExpenseCreateData {
   customer_id?: number | null;
+  currency_id: number;
   type: string;
   description: string;
   amount: number;
   quantity: number;
-  currency: string;
   rate_to_base: number;
+  total_amount?: number;
   date: string;
 }
 
 export interface ExpenseUpdateData {
   customer_id?: number | null;
+  currency_id?: number;
   type?: string;
   description?: string;
   amount?: number;
   quantity?: number;
-  currency?: string;
   rate_to_base?: number;
   date?: string;
 }
@@ -40,7 +43,7 @@ export interface ExpenseUpdateData {
 export interface ExpenseParams {
   search?: string;
   type?: string;
-  currency?: string;
+  currency_id?: number;
 }
 
 export const getExpenses = async (
@@ -48,7 +51,6 @@ export const getExpenses = async (
 ): Promise<Expense[]> => {
   try {
     const response = await api.get("/expenses", { params });
-    console.log(response);
     // Handle nested data structure where actual data is in response.data.data
     return Array.isArray(response.data.data) ? response.data.data : [];
   } catch (error) {

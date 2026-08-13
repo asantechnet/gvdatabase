@@ -2,6 +2,7 @@
 import CustomerApi, { type Customer, type CustomerService } from '@/api/customer'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import InvoiceApi, { type Invoice } from '@/api/invoice'
+import SettingApi, { type Setting } from '@/api/setting'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -13,9 +14,10 @@ const toast = useToast()
 const invoices = ref<Invoice[]>([])
 const customers = ref<Customer[]>([])
 const currencies = ref<Currency[]>([])
+const companySetting = ref<Setting | null>(null)
 const isLoading = ref(false)
 const searchQuery = ref('')
-const selectedTypeFilter = ref<string | null>(null)
+const selectedTypeFilter = ref<Invoice['class-type'] | null>(null)
 const isDialogActive = ref(false)
 const voidDialog = ref(false)
 const invoiceToVoid = ref<Invoice | null>(null)
@@ -30,6 +32,8 @@ const defaultForm = () => ({
   customer_id: 0,
   currency_id: 0,
   class_type: 'Standard' as Invoice['class-type'],
+  issue_date: new Date().toISOString().slice(0, 10),
+  due_date: '',
   service_ids: [] as number[],
   tax_percent: 0,
   discount: 0,
@@ -41,22 +45,22 @@ const defaultForm = () => ({
 const invoiceForm = ref(defaultForm())
 
 const headers = [
-  { title: 'Invoice Number', key: 'invoice_number' },
-  { title: 'Customer', key: 'deptor' },
-  { title: 'Type', key: 'class-type' },
-  { title: 'Currency', key: 'currency.shortname' },
-  { title: 'Total', key: 'total_amount' },
-  { title: 'Balance', key: 'balance' },
-  { title: 'Status', key: 'status' },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const },
+  { title: translate('pages.settings.innvoice.innvoice.invoiceNumber'), key: 'invoice_number' },
+  { title: translate('pages.settings.innvoice.innvoice.customer'), key: 'deptor' },
+  { title: translate('common.fields.type'), key: 'class-type' },
+  { title: translate('common.fields.currency'), key: 'currency.shortname' },
+  { title: translate('common.messages.total'), key: 'total_amount' },
+  { title: translate('common.messages.balance'), key: 'balance' },
+  { title: translate('common.fields.status'), key: 'status' },
+  { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
 ]
 
 const serviceHeaders = [
-  { title: 'Include', key: 'selected', sortable: false },
-  { title: 'Service', key: 'type' },
-  { title: 'Original Fee', key: 'fee' },
-  { title: 'Invoice Amount', key: 'converted' },
-  { title: 'Deadline', key: 'deadline' },
+  { title: translate('pages.settings.innvoice.innvoice.include'), key: 'selected', sortable: false },
+  { title: translate('common.messages.service'), key: 'type' },
+  { title: translate('pages.settings.innvoice.innvoice.originalFee'), key: 'fee' },
+  { title: translate('pages.settings.innvoice.innvoice.invoiceAmount'), key: 'converted' },
+  { title: translate('common.messages.deadline'), key: 'deadline' },
 ]
 
 const selectedCustomer = computed(() =>
@@ -161,6 +165,8 @@ const createInvoice = async () => {
       customer_id: invoiceForm.value.customer_id,
       currency_id: invoiceForm.value.currency_id,
       class_type: invoiceForm.value.class_type,
+      issue_date: invoiceForm.value.issue_date || undefined,
+      due_date: invoiceForm.value.due_date || undefined,
       services: invoiceForm.value.service_ids.map(id => ({ id, quantity: 1 })),
       tax_percent: Number(invoiceForm.value.tax_percent),
       discount: Number(invoiceForm.value.discount),
@@ -173,7 +179,7 @@ const createInvoice = async () => {
     })
     isDialogActive.value = false
     await fetchInvoices()
-    toast.success('Invoice issued')
+    toast.success(translate('pages.settings.innvoice.innvoice.invoiceIssued'))
   }
   catch (error: any) {
     toast.error(error.response?.data?.message || 'Failed to issue invoice')
@@ -198,7 +204,7 @@ const voidInvoice = async () => {
     await InvoiceApi.void(invoiceToVoid.value.id, voidReason.value.trim())
     voidDialog.value = false
     await fetchInvoices()
-    toast.success('Invoice voided without deleting its record')
+    toast.success(translate('pages.settings.innvoice.innvoice.invoiceVoidedWithoutDeletingItsRecord'))
   }
   catch (error: any) {
     toast.error(error.response?.data?.message || 'Failed to void invoice')
@@ -210,15 +216,19 @@ const voidInvoice = async () => {
 
 const formatInvoiceForTemplate = (invoice: Invoice) => ({
   invoiceNumber: invoice.invoice_number,
-  dateOfIssue: invoice.created_at ? new Date(invoice.created_at).toLocaleDateString() : '',
-  dueDate: '',
+  dateOfIssue: invoice.issue_date ? formatLocalizedDate(invoice.issue_date) : '',
+  dueDate: invoice.due_date ? formatLocalizedDate(invoice.due_date) : '',
   client: {
     name: invoice.deptor,
-    addressLines: [invoice.customer.company, invoice.customer.contact].filter(Boolean) as string[],
+    addressLines: [invoice.customer.company, invoice.customer.address, invoice.customer.contact, invoice.customer.email, invoice.customer.tax_number].filter(Boolean) as string[],
   },
   sender: {
-    brandName: 'Our Company',
-    addressLines: [],
+    brandName: companySetting.value?.original_company_name || companySetting.value?.website_title || '',
+    logo: companySetting.value?.website_logo_url || undefined,
+    addressLines: [companySetting.value?.physical_address].filter(Boolean) as string[],
+    phone: companySetting.value?.phone || undefined,
+    email: companySetting.value?.company_email || undefined,
+    website: companySetting.value?.website_address || undefined,
   },
   services: invoice.services.map(service => ({
     description: service.name,
@@ -244,14 +254,15 @@ const triggerPrint = async (invoice: Invoice) => {
 onMounted(async () => {
   try {
     isLoading.value = true
-    await Promise.all([fetchInvoices(), fetchFormOptions()])
+    const [, , profile] = await Promise.all([fetchInvoices(), fetchFormOptions(), SettingApi.getCompanyProfile()])
+    companySetting.value = profile.data
 
     const customerId = Number(route.query.customer)
     if (customerId && customers.value.some(customer => customer.id === customerId))
       openCreateDialog(customerId)
   }
   catch (error) {
-    toast.error('Failed to load invoicing data')
+    toast.error(translate('pages.settings.innvoice.innvoice.failedToLoadInvoicingData'))
   }
   finally {
     isLoading.value = false
@@ -266,15 +277,15 @@ onMounted(async () => {
         <VRow align="center">
           <VCol cols="12" md="5">
             <VTextField v-model="searchQuery" prepend-inner-icon="tabler-search"
-              placeholder="Search invoice number or customer..." density="compact" hide-details clearable />
+              :placeholder="$t('pages.settings.innvoice.innvoice.searchInvoiceNumberOrCustomer')" density="compact" hide-details clearable />
           </VCol>
           <VCol cols="12" sm="6" md="4">
-            <VSelect v-model="selectedTypeFilter" :items="invoiceTypes" label="Invoice type" density="compact"
+            <VSelect v-model="selectedTypeFilter" :items="invoiceTypes" :label="$t('pages.settings.innvoice.innvoice.invoiceType')" density="compact"
               hide-details clearable />
           </VCol>
           <VCol cols="12" sm="6" md="3">
             <VBtn color="primary" block @click="openCreateDialog()">
-              <VIcon icon="tabler-file-invoice" class="me-1" /> Issue Invoice
+              <VIcon icon="tabler-file-invoice" class="me-1" /> {{ $t('common.messages.issueInvoice') }}
             </VBtn>
           </VCol>
         </VRow>
@@ -290,18 +301,18 @@ onMounted(async () => {
         <template #item.total_amount="{ item }">{{ formatMoney(item.total_amount, item.currency) }}</template>
         <template #item.balance="{ item }">{{ formatMoney(item.balance, item.currency) }}</template>
         <template #item.status="{ item }">
-          <VChip size="small" variant="tonal" :color="getStatusColor(item.status)">{{ item.status }}</VChip>
+          <VChip size="small" variant="tonal" :color="getStatusColor(item.status)">{{ translateBackendValue(item.status) }}</VChip>
         </template>
         <template #item.actions="{ item }">
           <div class="d-flex justify-end gap-1">
             <VBtn icon variant="text" size="small" color="info" @click="triggerPrint(item)">
               <VIcon icon="tabler-printer" />
-              <VTooltip activator="parent">Print</VTooltip>
+              <VTooltip activator="parent">{{ $t('common.actions.print') }}</VTooltip>
             </VBtn>
             <VBtn v-if="item.status !== 'Void'" icon variant="text" size="small" color="error"
               @click="openVoidDialog(item)">
               <VIcon icon="tabler-circle-x" />
-              <VTooltip activator="parent">Void invoice</VTooltip>
+              <VTooltip activator="parent">{{ $t('pages.settings.innvoice.innvoice.voidInvoice2') }}</VTooltip>
             </VBtn>
           </div>
         </template>
@@ -309,25 +320,27 @@ onMounted(async () => {
     </VCard>
 
     <VDialog v-model="isDialogActive" max-width="900" scrollable>
-      <VCard title="Issue Invoice">
+      <VCard :title="$t('common.messages.issueInvoice')">
         <VCardText>
           <VRow>
             <VCol cols="12" md="6">
               <VSelect :model-value="invoiceForm.customer_id || null" :items="customers" item-title="name"
-                item-value="id" label="Customer" @update:model-value="selectCustomer" />
+                item-value="id" :label="$t('pages.settings.innvoice.innvoice.customer')" @update:model-value="selectCustomer" />
             </VCol>
             <VCol cols="12" md="3">
-              <VSelect v-model="invoiceForm.class_type" :items="invoiceTypes" label="Invoice type" />
+              <VSelect v-model="invoiceForm.class_type" :items="invoiceTypes" :label="$t('pages.settings.innvoice.innvoice.invoiceType2')" />
             </VCol>
             <VCol cols="12" md="3">
               <VSelect v-model="invoiceForm.currency_id" :items="currencies.filter(currency => currency.isActive)"
                 :item-title="currency => `${currency.code} - ${currency.name}`" item-value="id"
-                label="Invoice currency" />
+                :label="$t('pages.settings.innvoice.innvoice.invoiceCurrency')" />
             </VCol>
+            <VCol cols="12" md="6"><AppDateTimePicker v-model="invoiceForm.issue_date" label="Issue date" :config="{ dateFormat: 'Y-m-d' }" /></VCol>
+            <VCol cols="12" md="6"><AppDateTimePicker v-model="invoiceForm.due_date" label="Due date" :config="{ dateFormat: 'Y-m-d' }" /></VCol>
 
             <VCol cols="12">
               <VAlert v-if="selectedCustomer && assignedServices.length === 0" type="warning" variant="tonal">
-                This customer has no assigned services. Assign services from the customers page first.
+                {{ $t('pages.settings.innvoice.innvoice.thisCustomerHasNoAssignedServicesAssignServicesFromTheCustomersPageFir') }}
               </VAlert>
               <VDataTable v-else-if="selectedCustomer" :headers="serviceHeaders" :items="assignedServices"
                 density="compact" hide-default-footer>
@@ -345,48 +358,48 @@ onMounted(async () => {
             </VCol>
 
             <VCol cols="12" sm="6" md="4">
-              <VTextField v-model.number="invoiceForm.tax_percent" type="number" min="0" max="100" label="Tax (%)" />
+              <VTextField v-model.number="invoiceForm.tax_percent" type="number" min="0" max="100" :label="$t('pages.settings.innvoice.innvoice.tax')" />
             </VCol>
             <VCol cols="12" sm="6" md="4">
-              <VTextField v-model.number="invoiceForm.discount" type="number" min="0" label="Discount" />
+              <VTextField v-model.number="invoiceForm.discount" type="number" min="0" :label="$t('pages.settings.innvoice.innvoice.discount')" />
             </VCol>
             <VCol cols="12" md="4">
               <VTextField :model-value="formatMoney(formTotal, invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined)"
-                label="Estimated total" readonly />
+                :label="$t('pages.settings.innvoice.innvoice.estimatedTotal')" readonly />
             </VCol>
             <VCol cols="12">
-              <VTextarea v-model="invoiceForm.notes" label="Notes" rows="2" />
+              <VTextarea v-model="invoiceForm.notes" :label="$t('common.fields.notes')" rows="2" />
             </VCol>
             <VCol cols="12" md="6">
               <VCombobox v-model="invoiceForm.payment_method" :items="paymentMethods"
-                label="Payment method" clearable />
+                :label="$t('pages.settings.innvoice.innvoice.paymentMethod')" clearable />
             </VCol>
             <VCol cols="12" md="6">
               <VTextarea v-model="invoiceForm.payment_instructions"
-                label="Payment instructions (one per line)" rows="2" />
+                :label="$t('pages.settings.innvoice.innvoice.paymentInstructionsOnePerLine')" rows="2" />
             </VCol>
           </VRow>
         </VCardText>
         <VCardActions class="justify-end pa-6 pt-0">
-          <VBtn variant="tonal" color="secondary" @click="isDialogActive = false">Cancel</VBtn>
+          <VBtn variant="tonal" color="secondary" @click="isDialogActive = false">{{ $t('common.actions.cancel') }}</VBtn>
           <VBtn color="primary" :loading="isLoading"
             :disabled="!invoiceForm.customer_id || !invoiceForm.currency_id || invoiceForm.service_ids.length === 0"
-            @click="createInvoice">Issue Invoice</VBtn>
+            @click="createInvoice">{{ $t('common.messages.issueInvoice') }}</VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
     <VDialog v-model="voidDialog" max-width="520">
-      <VCard title="Void Invoice">
+      <VCard :title="$t('pages.settings.innvoice.innvoice.voidInvoice')">
         <VCardText>
           <VAlert type="warning" variant="tonal" class="mb-4">
-            The invoice remains permanently recorded and will be marked Void.
+            {{ $t('pages.settings.innvoice.innvoice.theInvoiceRemainsPermanentlyRecordedAndWillBeMarkedVoid') }}
           </VAlert>
-          <VTextarea v-model="voidReason" label="Reason" rows="3" autofocus />
+          <VTextarea v-model="voidReason" :label="$t('common.fields.reason')" rows="3" autofocus />
         </VCardText>
         <VCardActions class="justify-end pa-6 pt-0">
-          <VBtn variant="tonal" @click="voidDialog = false">Cancel</VBtn>
-          <VBtn color="error" :disabled="!voidReason.trim()" :loading="isLoading" @click="voidInvoice">Void</VBtn>
+          <VBtn variant="tonal" @click="voidDialog = false">{{ $t('common.actions.cancel') }}</VBtn>
+          <VBtn color="error" :disabled="!voidReason.trim()" :loading="isLoading" @click="voidInvoice">{{ $t('pages.settings.innvoice.innvoice.void') }}</VBtn>
         </VCardActions>
       </VCard>
     </VDialog>

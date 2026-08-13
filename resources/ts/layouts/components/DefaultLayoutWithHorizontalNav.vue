@@ -5,6 +5,7 @@ import { themeConfig } from '@themeConfig'
 
 // Components
 import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
+import NavBarAuditLogs from '@/layouts/components/NavBarAuditLogs.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import NavBarI18n from '@core/components/I18n.vue'
 import { HorizontalNavLayout } from '@layouts'
@@ -12,6 +13,7 @@ import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
 import NavbarFullscreenToggle from '@/layouts/components/NavbarFullscreenToggle.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
+import NavbarLayoutSwitcher from '@/layouts/components/NavbarLayoutSwitcher.vue'
 
 </script>
 
@@ -19,7 +21,7 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
   <HorizontalNavLayout :nav-items="navItems">
     <!-- 👉 navbar -->
     <template #navbar>
-      <RouterLink to="/" class="app-logo d-flex align-center gap-x-3">
+      <RouterLink to="/" class="app-logo d-flex align-center gap-x-3 navbar-brand">
         <VNodeRenderer :nodes="themeConfig.app.logo" />
 
         <h1 class="app-title font-weight-bold leading-normal text-xl text-capitalize">
@@ -34,8 +36,10 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
         :languages="themeConfig.app.i18n.langConfig" />
 
       <NavbarFullscreenToggle />
+      <NavbarLayoutSwitcher />
       <NavbarThemeSwitcher />
       <!-- <NavbarShortcuts /> -->
+      <NavBarAuditLogs class="me-2" />
       <NavBarNotifications class="me-2" />
       <UserProfile />
     </template>
@@ -52,3 +56,9 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
     <!-- <TheCustomizer /> -->
   </HorizontalNavLayout>
 </template>
+
+<style scoped>
+@media (max-width: 599px) {
+  .navbar-brand { display: none !important; }
+}
+</style>

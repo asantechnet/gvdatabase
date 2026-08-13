@@ -20,12 +20,12 @@ const updateOptions = (options: any) => {
 // 👉 headers
 const headers = [
   { title: '#', key: 'id' },
-  { title: 'Status', key: 'status', sortable: false },
-  { title: 'Client', key: 'client' },
-  { title: 'Total', key: 'total' },
-  { title: 'Issued Date', key: 'date' },
-  { title: 'Balance', key: 'balance' },
-  { title: 'Actions', key: 'actions', sortable: false },
+  { title: translate('common.fields.status'), key: 'status', sortable: false },
+  { title: translate('common.messages.client'), key: 'client' },
+  { title: translate('common.messages.total'), key: 'total' },
+  { title: translate('components.account.billinghistorytable.issuedDate'), key: 'date' },
+  { title: translate('common.messages.balance'), key: 'balance' },
+  { title: translate('common.messages.actions'), key: 'actions', sortable: false },
 ]
 
 // 👉 Fetch Invoices
@@ -83,13 +83,13 @@ const deleteInvoice = async (id: number) => {
   <VCard
     v-if="invoices"
     id="invoice-list"
-    title="Billing History"
+    :title="$t('components.account.billinghistorytable.billingHistory')"
   >
     <VCardText class="d-flex align-center flex-wrap gap-4">
       <!-- 👉 Create invoice -->
 
       <div class="d-flex gap-2">
-        <VLabel>Show</VLabel>
+        <VLabel>{{ $t('components.account.billinghistorytable.show') }}</VLabel>
         <AppSelect
           v-model="itemsPerPage"
           :items="[5, 10, 20, 25, 50]"
@@ -100,7 +100,7 @@ const deleteInvoice = async (id: number) => {
         prepend-icon="tabler-plus"
         :to="{ name: 'apps-invoice-add' }"
       >
-        Create invoice
+        {{ $t('components.account.billinghistorytable.createInvoice') }}
       </VBtn>
 
       <VSpacer />
@@ -110,13 +110,13 @@ const deleteInvoice = async (id: number) => {
         <div class="invoice-list-search">
           <AppTextField
             v-model="searchQuery"
-            placeholder="Search Invoice"
+            :placeholder="$t('components.account.billinghistorytable.searchInvoice')"
           />
         </div>
         <div class="invoice-list-status">
           <AppSelect
             v-model="selectedStatus"
-            placeholder="Invoice Status"
+            :placeholder="$t('components.account.billinghistorytable.invoiceStatus')"
             clearable
             clear-icon="tabler-x"
             :items="['Downloaded', 'Draft', 'Sent', 'Paid', 'Partial Payment', 'Past Due']"
@@ -222,7 +222,7 @@ const deleteInvoice = async (id: number) => {
           size="small"
           label
         >
-          {{ (resolveInvoiceBalanceVariant(item.balance, item.total)).status }}
+          {{ translateBackendValue((resolveInvoiceBalanceVariant(item.balance, item.total)).status) }}
         </VChip>
         <div
           v-else

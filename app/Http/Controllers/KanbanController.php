@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Board;
 use App\Http\Resources\BoardResource;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class KanbanController extends Controller
@@ -13,9 +14,18 @@ class KanbanController extends Controller
      */
     public function index(Request $request)
     {
-        $boards = Board::with([
+        /** @var User $user */
+        $user = $request->user();
+
+        $boards = Board::query()
+        ->when(! $user->hasPermission('view_all_boards'), fn ($query) => $query
+            ->whereHas('users', fn ($members) => $members->whereKey($user->id)))
+        ->with([
             // Load nested tasks ordered by their vertical position
-            'tasks' => fn($query) => $query->orderBy('order'),
+            'tasks' => fn($query) => $query
+                ->when(! $user->hasPermission('view_all_tasks'), fn ($tasks) => $tasks
+                    ->whereHas('users', fn ($assignees) => $assignees->whereKey($user->id)))
+                ->orderBy('order'),
             // Eager load all relations required by TaskResource
             'tasks.users',
             'tasks.tags',

@@ -16,7 +16,12 @@ class KanbanSeeder extends Seeder
     {
         // 1. Create Users & Tags
         $users = User::factory(5)->create();
-        $tags = Tag::factory(8)->create();
+        $tags = collect(range(1, 8))->map(function (int $number) {
+            return Tag::firstOrCreate(
+                ['name' => "Kanban Tag {$number}"],
+                ['color' => fake()->randomElement(['primary', 'secondary', 'success', 'info', 'warning', 'error'])]
+            );
+        });
 
         // 2. Create Standard Boards
         $boardTitles = ['To Do', 'In Progress', 'In Review', 'Done'];
@@ -43,9 +48,10 @@ class KanbanSeeder extends Seeder
                 $task->update(['order' => $taskOrder++]);
 
                 // Attach random users (assignees)
-                $task->users()->attach(
-                    $users->random(rand(1, 3))->pluck('id')->toArray()
-                );
+                $assignedUsers = $users->random(rand(1, 3));
+                $assignedUserIds = $assignedUsers->pluck('id')->toArray();
+                $task->users()->attach($assignedUserIds);
+                $board->users()->syncWithoutDetaching($assignedUserIds);
 
                 // Attach random tags
                 $task->tags()->attach(
@@ -64,6 +70,7 @@ class KanbanSeeder extends Seeder
                 if (rand(0, 1)) {
                     Subtask::factory(rand(1, 3))->create([
                         'task_id' => $task->id,
+                        'user_id' => $assignedUsers->random()->id,
                     ]);
                 }
             }

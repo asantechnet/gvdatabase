@@ -40,18 +40,18 @@ class ContractController extends Controller
             'template_id' => 'required|exists:contract_templates,id',
             'status' => 'required|string|in:Active,Expired,Pending',
             'start_date' => 'required|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
             'counterparty' => 'required|string|max:255',
+            'counterparty_company' => 'nullable|string|max:255',
+            'counterparty_email' => 'nullable|email|max:255',
+            'counterparty_contact' => 'nullable|string|max:255',
+            'counterparty_address' => 'nullable|string|max:2000',
             'is_cancelled' => 'sometimes|boolean',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $validator->validate();
 
-        $contract = Contract::create($request->all());
+        $contract = Contract::create($validator->validated());
         return response()->json([
             'success' => true,
             'data' => new ContractResource($contract->load('template'))
@@ -87,18 +87,18 @@ class ContractController extends Controller
             'template_id' => 'sometimes|exists:contract_templates,id',
             'status' => 'sometimes|string|in:Active,Expired,Pending',
             'start_date' => 'sometimes|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
             'counterparty' => 'sometimes|string|max:255',
+            'counterparty_company' => 'nullable|string|max:255',
+            'counterparty_email' => 'nullable|email|max:255',
+            'counterparty_contact' => 'nullable|string|max:255',
+            'counterparty_address' => 'nullable|string|max:2000',
             'is_cancelled' => 'sometimes|boolean',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $validator->validate();
 
-        $contract->update($request->all());
+        $contract->update($validator->validated());
         return response()->json([
             'success' => true,
             'data' => new ContractResource($contract->load('template'))
@@ -115,7 +115,7 @@ class ContractController extends Controller
             ], 404);
         }
 
-        $contract->update(['is_cancelled' => true]);
+        $contract->update(['is_cancelled' => true, 'cancelled_at' => now('UTC')]);
         return response()->json([
             'success' => true,
             'data' => new ContractResource($contract->load('template'))

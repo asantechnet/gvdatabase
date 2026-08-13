@@ -7,6 +7,7 @@ import moment from 'moment'
 import CustomerApi, { type Customer, type CustomerService, type ApiResponse } from '@/api/customer'
 import type { Service } from '@/api/services'
 import CurrencyApi, { type Currency } from '@/api/currency'
+import MarketerApi, { type Marketer } from '@/api/marketer'
 
 // Types
 interface ServiceForm {
@@ -25,6 +26,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const servicesLoading = ref(false)
 const currencies = ref<Currency[]>([])
+const marketers = ref<Marketer[]>([])
 
 // Form state
 const dialog = ref(false)
@@ -34,6 +36,9 @@ const currentCustomer = ref<Customer>({
   name: '',
   company: '',
   contact: '',
+  email: null,
+  address: null,
+  tax_number: null,
   marketer: '',
   date: new Date().toISOString().split('T')[0],
   services: [],
@@ -62,31 +67,33 @@ const filterCurrency = ref<string | null>(null)
 
 // Table headers
 const headers = [
-  { title: 'Name', key: 'name', sortable: true },
-  { title: 'Company', key: 'company', sortable: true },
-  { title: 'Contact', key: 'contact', sortable: true },
-  { title: 'Marketer', key: 'marketer', sortable: true },
-  { title: 'Services', key: 'services', sortable: false },
-  { title: 'Actions', key: 'actions', sortable: false },
+  { title: translate('common.fields.name'), key: 'name', sortable: true },
+  { title: translate('common.fields.company'), key: 'company', sortable: true },
+  { title: translate('common.messages.contact'), key: 'contact', sortable: true },
+  { title: translate('common.messages.marketer'), key: 'marketer', sortable: true },
+  { title: translate('pages.contracts.allCustomers.allCustomers.registered'), key: 'date', sortable: true },
+  { title: translate('common.messages.services'), key: 'services', sortable: false },
+  { title: translate('common.messages.actions'), key: 'actions', sortable: false },
 ]
 
 const serviceHeaders = [
-  { title: 'Type', key: 'type' },
-  { title: 'Fee', key: 'fee' },
-  { title: 'Deadline', key: 'deadline' },
-  { title: 'Currency', key: 'currency.code' },
-  { title: 'Actions', key: 'serviceActions', sortable: false },
+  { title: translate('common.fields.type'), key: 'type' },
+  { title: translate('common.messages.fee'), key: 'fee' },
+  { title: translate('common.messages.deadline'), key: 'deadline' },
+  { title: translate('common.fields.currency'), key: 'currency.code' },
+  { title: translate('common.messages.actions'), key: 'serviceActions', sortable: false },
 ]
 
 const availableServiceHeaders = [
-  { title: 'Select', key: 'select', sortable: false },
-  { title: 'Type', key: 'type' },
-  { title: 'Deadline', key: 'duration' },
-  { title: 'Fee', key: 'fee', sortable: false },
-  { title: 'Currency', key: 'currency.code', sortable: false },
+  { title: translate('pages.contracts.allCustomers.allCustomers.select'), key: 'select', sortable: false },
+  { title: translate('common.fields.type'), key: 'type' },
+  { title: translate('common.messages.deadline'), key: 'duration' },
+  { title: translate('common.messages.fee'), key: 'fee', sortable: false },
+  { title: translate('common.fields.currency'), key: 'currency.code', sortable: false },
 ]
 
-const deadlineMeta = (deadline: string) => {
+const deadlineMeta = (deadline: string | null) => {
+  if (!deadline) return { color: 'secondary', title: translate('pages.contracts.allCustomers.allCustomers.noDeadline') }
   const today = moment().startOf('day')
   const dueDate = moment(deadline).startOf('day')
   const monthDifference = Math.ceil(Math.abs(dueDate.diff(today, 'months', true)))
@@ -96,10 +103,10 @@ const deadlineMeta = (deadline: string) => {
     return { color: 'error', title: `${monthDifference} ${unit} overdue` }
 
   if (dueDate.isSame(today, 'day'))
-    return { color: 'warning', title: 'Due today (0 months)' }
+    return { color: 'warning', title: translate('pages.contracts.allCustomers.allCustomers.dueToday0Months') }
 
   if (dueDate.diff(today, 'months') === 0)
-    return { color: 'warning', title: 'Due within 1 month' }
+    return { color: 'warning', title: translate('pages.contracts.allCustomers.allCustomers.dueWithin1Month') }
 
   return { color: 'success', title: `${monthDifference} ${unit} remaining` }
 }
@@ -139,10 +146,10 @@ const fetchCustomers = async () => {
     if (response.success) {
       customers.value = response.data
     } else {
-      error.value = 'Failed to fetch customers: ' + (response.message || 'Unknown error')
+      error.value = translate('pages.contracts.allCustomers.allCustomers.failedToFetchCustomers') + (response.message || 'Unknown error')
     }
   } catch (err) {
-    error.value = 'Failed to fetch customers'
+    error.value = translate('pages.contracts.allCustomers.allCustomers.failedToFetchCustomers2')
     console.error(err)
   } finally {
     loading.value = false
@@ -156,10 +163,10 @@ const fetchAllServices = async () => {
     if (response.success) {
       allServices.value = response.data
     } else {
-      error.value = 'Failed to fetch services: ' + (response.message || 'Unknown error')
+      error.value = translate('pages.contracts.allCustomers.allCustomers.failedToFetchServices') + (response.message || 'Unknown error')
     }
   } catch (err) {
-    error.value = 'Failed to fetch services'
+    error.value = translate('pages.contracts.allCustomers.allCustomers.failedToFetchServices2')
     console.error(err)
   } finally {
     servicesLoading.value = false
@@ -171,7 +178,7 @@ const fetchCurrencies = async () => {
     const response = await CurrencyApi.getAll()
     currencies.value = response.data
   } catch (err) {
-    error.value = 'Failed to fetch currencies'
+    error.value = translate('common.messages.failedToFetchCurrencies')
     console.error(err)
   }
 }
@@ -182,6 +189,9 @@ const createCustomer = async () => {
       name: currentCustomer.value.name,
       company: currentCustomer.value.company,
       contact: currentCustomer.value.contact,
+      email: currentCustomer.value.email,
+      address: currentCustomer.value.address,
+      tax_number: currentCustomer.value.tax_number,
       marketer: currentCustomer.value.marketer,
       date: currentCustomer.value.date,
     })
@@ -189,10 +199,10 @@ const createCustomer = async () => {
       customers.value.push(response.data)
       dialog.value = false
     } else {
-      error.value = 'Failed to create customer: ' + (response.message || 'Unknown error')
+      error.value = translate('pages.contracts.allCustomers.allCustomers.failedToCreateCustomer') + (response.message || 'Unknown error')
     }
   } catch (err) {
-    error.value = 'Failed to create customer'
+    error.value = translate('pages.contracts.allCustomers.allCustomers.failedToCreateCustomer2')
     console.error(err)
   }
 }
@@ -205,6 +215,9 @@ const updateCustomer = async () => {
       name: currentCustomer.value.name,
       company: currentCustomer.value.company,
       contact: currentCustomer.value.contact,
+      email: currentCustomer.value.email,
+      address: currentCustomer.value.address,
+      tax_number: currentCustomer.value.tax_number,
       marketer: currentCustomer.value.marketer,
       date: currentCustomer.value.date,
     })
@@ -215,10 +228,10 @@ const updateCustomer = async () => {
       }
       dialog.value = false
     } else {
-      error.value = 'Failed to update customer: ' + (response.message || 'Unknown error')
+      error.value = translate('pages.contracts.allCustomers.allCustomers.failedToUpdateCustomer') + (response.message || 'Unknown error')
     }
   } catch (err) {
-    error.value = 'Failed to update customer'
+    error.value = translate('pages.contracts.allCustomers.allCustomers.failedToUpdateCustomer2')
     console.error(err)
   }
 }
@@ -251,9 +264,9 @@ const updateService = async (customerId: number, pivotId: number) => {
     }
 
     serviceDialog.value = false
-    toast.success('Customer service updated')
+    toast.success(translate('pages.contracts.allCustomers.allCustomers.customerServiceUpdated'))
   } catch (err) {
-    toast.error('Failed to update customer service')
+    toast.error(translate('pages.contracts.allCustomers.allCustomers.failedToUpdateCustomerService'))
     console.error(err)
   } finally {
     serviceLoading.value = false
@@ -286,10 +299,10 @@ const attachSelectedServices = async () => {
       // Reset selected services and close dialog
       selectedServices.value = []
       attachServiceDialog.value = false
-      toast.success('Services attached')
+      toast.success(translate('pages.contracts.allCustomers.allCustomers.servicesAttached'))
     }
   } catch (err) {
-    error.value = 'Failed to attach services'
+    error.value = translate('pages.contracts.allCustomers.allCustomers.failedToAttachServices')
     console.error(err)
   } finally {
     serviceLoading.value = false
@@ -305,10 +318,10 @@ const deleteCustomer = async () => {
       customers.value = customers.value.filter(c => c.id !== customerToDelete.value)
       deleteDialog.value = false
     } else {
-      error.value = 'Failed to delete customer: ' + (response.message || 'Unknown error')
+      error.value = translate('pages.contracts.allCustomers.allCustomers.failedToDeleteCustomer') + (response.message || 'Unknown error')
     }
   } catch (err) {
-    error.value = 'Failed to delete customer'
+    error.value = translate('pages.contracts.allCustomers.allCustomers.failedToDeleteCustomer2')
     console.error(err)
   }
 }
@@ -317,7 +330,7 @@ const removeService = async (customerId: number, pivotId: number) => {
   try {
     const response = await CustomerApi.detachService(customerId, pivotId)
     if (!response.success) {
-      error.value = 'Failed to remove service: ' + (response.message || 'Unknown error')
+      error.value = translate('pages.contracts.allCustomers.allCustomers.failedToRemoveService') + (response.message || 'Unknown error')
       return
     }
 
@@ -335,7 +348,7 @@ const removeService = async (customerId: number, pivotId: number) => {
       }
     }
   } catch (err) {
-    error.value = 'Failed to remove service'
+    error.value = translate('pages.contracts.allCustomers.allCustomers.failedToRemoveService2')
     console.error(err)
   }
 }
@@ -356,6 +369,9 @@ const openAddCustomer = () => {
     name: '',
     company: '',
     contact: '',
+    email: null,
+    address: null,
+    tax_number: null,
     marketer: '',
     date: new Date().toISOString().split('T')[0],
     services: [],
@@ -390,7 +406,7 @@ const openEditService = (customerId: number, pivotId: number) => {
         id: service.id,
         service_id: service.service_id,
         type: service.type,
-        deadline: service.deadline,
+        deadline: service.deadline || '',
       }
       serviceToEdit.value = pivotId
       serviceDialog.value = true
@@ -413,6 +429,14 @@ const saveService = async () => {
     await updateService(currentCustomer.value.id, serviceToEdit.value)
 }
 
+const fetchMarketers = async () => {
+  try {
+    marketers.value = await MarketerApi.getAll()
+  } catch (err) {
+    console.error('Failed to fetch marketers:', err)
+  }
+}
+
 const issueInvoice = (customerId: number) => {
   router.push({ name: 'innvoice', query: { customer: customerId } })
 }
@@ -421,6 +445,7 @@ const issueInvoice = (customerId: number) => {
 onMounted(() => {
   fetchCustomers()
   fetchCurrencies()
+  fetchMarketers()
 })
 </script>
 
@@ -432,7 +457,7 @@ onMounted(() => {
           <VTextField
             v-model="search"
             prepend-inner-icon="tabler-search"
-            placeholder="Search customers..."
+            :placeholder="$t('pages.contracts.allCustomers.allCustomers.searchCustomers')"
             density="compact"
             clearable
             hide-details
@@ -445,7 +470,7 @@ onMounted(() => {
             :items="currencies"
             item-title="code"
             item-value="code"
-            label="Filter by Currency"
+            :label="$t('pages.contracts.allCustomers.allCustomers.filterByCurrency')"
             density="compact"
             clearable
             hide-details
@@ -456,14 +481,14 @@ onMounted(() => {
             icon="tabler-printer"
             variant="text"
             @click="printTable"
-            title="Print customer list"
+            :title="$t('pages.contracts.allCustomers.allCustomers.printCustomerList')"
           />
           <VBtn
             color="primary"
             @click="openAddCustomer"
           >
             <VIcon icon="tabler-plus" class="me-1" />
-            Add New Customer
+            {{ $t('pages.contracts.allCustomers.allCustomers.addNewCustomer') }}
           </VBtn>
         </VCol>
       </VRow>
@@ -478,9 +503,13 @@ onMounted(() => {
       :loading="loading"
       style="overflow-x: auto;"
     >
+      <template #item.date="{ item }">
+        {{ formatLocalizedDate(`${item.date}T00:00:00`) }}
+      </template>
+
       <template #item.services="{ item }">
         <div v-if="item.services.length === 0" class="text-disabled">
-          No services
+          {{ $t('pages.contracts.allCustomers.allCustomers.noServices') }}
         </div>
         <VDataTable
           v-else
@@ -490,17 +519,18 @@ onMounted(() => {
           hide-default-footer
         >
           <template #item.deadline="{ item }">
-            <VChip
+            <VChip v-if="item.deadline"
               :color="deadlineMeta(item.deadline).color"
               size="small"
               label
               variant="tonal"
             >
-              {{ moment(item.deadline).format('YYYY-MM-DD') }}
+              {{ formatLocalizedDate(`${item.deadline}T00:00:00`) }}
               <VTooltip activator="parent" location="top">
                 {{ deadlineMeta(item.deadline).title }}
               </VTooltip>
             </VChip>
+            <span v-else class="text-medium-emphasis">{{ $t('common.messages.noDeadline') }}</span>
           </template>
           <template #item.currency.code="{ item }">
             {{ item.currency.code }}
@@ -512,10 +542,10 @@ onMounted(() => {
               size="x-small"
               color="primary"
               @click="openEditService(item.id, service.id)"
-              title="Edit service"
+              :title="$t('common.messages.editService')"
             >
               <VIcon icon="tabler-edit" />
-              <VTooltip activator="parent" location="top">Edit Service</VTooltip>
+              <VTooltip activator="parent" location="top">{{ $t('common.messages.editService2') }}</VTooltip>
             </VBtn>
             <VBtn
               icon="tabler-trash"
@@ -523,10 +553,10 @@ onMounted(() => {
               size="x-small"
               color="error"
               @click="removeService(item.id, service.id)"
-              title="Remove service"
+              :title="$t('common.messages.removeService')"
             >
               <VIcon icon="tabler-trash" />
-              <VTooltip activator="parent" location="top">Remove Service</VTooltip>
+              <VTooltip activator="parent" location="top">{{ $t('common.messages.removeService2') }}</VTooltip>
             </VBtn>
           </template>
           <template #bottom></template>
@@ -540,10 +570,10 @@ onMounted(() => {
           size="small"
           color="primary"
           @click="openEditCustomer(item)"
-          title="Edit customer"
+          :title="$t('pages.contracts.allCustomers.allCustomers.editCustomer')"
         >
           <VIcon icon="tabler-edit" />
-          <VTooltip activator="parent" location="top">Edit Customer</VTooltip>
+          <VTooltip activator="parent" location="top">{{ $t('pages.contracts.allCustomers.allCustomers.editCustomer2') }}</VTooltip>
         </VBtn>
         <VBtn
           icon="tabler-plus"
@@ -551,10 +581,10 @@ onMounted(() => {
           size="small"
           color="success"
           @click="openAttachServices(item.id)"
-          title="Attach services"
+          :title="$t('pages.contracts.allCustomers.allCustomers.attachServices')"
         >
           <VIcon icon="tabler-plus" />
-          <VTooltip activator="parent" location="top">Attach Services</VTooltip>
+          <VTooltip activator="parent" location="top">{{ $t('common.messages.attachServices') }}</VTooltip>
         </VBtn>
         <VBtn
           icon
@@ -575,10 +605,10 @@ onMounted(() => {
           size="small"
           color="error"
           @click="confirmDeleteCustomer(item.id)"
-          title="Delete customer"
+          :title="$t('pages.contracts.allCustomers.allCustomers.deleteCustomer')"
         >
           <VIcon icon="tabler-trash" />
-          <VTooltip activator="parent" location="top">Delete Customer</VTooltip>
+          <VTooltip activator="parent" location="top">{{ $t('pages.contracts.allCustomers.allCustomers.deleteCustomer2') }}</VTooltip>
         </VBtn>
       </template>
     </VDataTable>
@@ -597,35 +627,43 @@ onMounted(() => {
             <VCol cols="12" md="6">
               <VTextField
                 v-model="currentCustomer.name"
-                label="Full Name"
+                :label="$t('pages.contracts.allCustomers.allCustomers.fullName')"
                 required
               />
             </VCol>
             <VCol cols="12" md="6">
               <VTextField
                 v-model="currentCustomer.company"
-                label="Company"
+                :label="$t('common.fields.company')"
                 required
               />
             </VCol>
             <VCol cols="12" md="6">
               <VTextField
                 v-model="currentCustomer.contact"
-                label="Contact (Email/Phone)"
+                :label="$t('pages.contracts.allCustomers.allCustomers.contactEmailPhone')"
                 required
               />
             </VCol>
+            <VCol cols="12" md="6"><VTextField v-model="currentCustomer.email" label="Email" type="email" /></VCol>
+            <VCol cols="12"><VTextarea v-model="currentCustomer.address" label="Address" rows="2" /></VCol>
+            <VCol cols="12" md="6"><VTextField v-model="currentCustomer.tax_number" label="Tax number" /></VCol>
             <VCol cols="12" md="6">
-              <VTextField
+              <VAutocomplete
                 v-model="currentCustomer.marketer"
-                label="Marketer"
+                :items="marketers"
+                item-title="name"
+                item-value="name"
+                :label="$t('common.messages.marketer')"
+                :placeholder="$t('common.messages.selectAMarketer')"
+                :no-data-text="$t('pages.contracts.allCustomers.allCustomers.addMarketersFromSetupMarketers')"
                 required
               />
             </VCol>
             <VCol cols="12" md="6">
               <VTextField
                 v-model="currentCustomer.date"
-                label="Date"
+                :label="$t('common.fields.date')"
                 type="date"
                 required
               />
@@ -636,7 +674,7 @@ onMounted(() => {
             <VCol cols="12">
               <VCard>
                 <VCardTitle class="d-flex justify-space-between align-center">
-                  <span>Services</span>
+                  <span>{{ $t('pages.contracts.allCustomers.allCustomers.services') }}</span>
                   <div v-if="currentCustomer.id">
                     <VBtn
                       color="primary"
@@ -645,7 +683,7 @@ onMounted(() => {
                       @click="openAttachServices(currentCustomer.id)"
                     >
                       <VIcon icon="tabler-plus" class="me-1" />
-                      Attach Services
+                      {{ $t('common.messages.attachServices') }}
                     </VBtn>
                   </div>
                 </VCardTitle>
@@ -657,17 +695,18 @@ onMounted(() => {
                   hide-default-footer
                 >
                   <template #item.deadline="{ item }">
-                    <VChip
+                    <VChip v-if="item.deadline"
                       :color="deadlineMeta(item.deadline).color"
                       size="small"
                       label
                       variant="tonal"
                     >
-                      {{ moment(item.deadline).format('YYYY-MM-DD') }}
+                      {{ formatLocalizedDate(`${item.deadline}T00:00:00`) }}
                       <VTooltip activator="parent" location="top">
                         {{ deadlineMeta(item.deadline).title }}
                       </VTooltip>
                     </VChip>
+                    <span v-else class="text-medium-emphasis">{{ $t('common.messages.noDeadline') }}</span>
                   </template>
                   <template #item.currency.code="{ item }">
                     {{ item.currency.code }}
@@ -679,10 +718,10 @@ onMounted(() => {
                       size="x-small"
                       color="primary"
                       @click="openEditService(currentCustomer.id, item.id)"
-                      title="Edit service"
+                      :title="$t('common.messages.editService')"
                     >
                       <VIcon icon="tabler-edit" />
-                      <VTooltip activator="parent" location="top">Edit Service</VTooltip>
+                      <VTooltip activator="parent" location="top">{{ $t('common.messages.editService2') }}</VTooltip>
                     </VBtn>
                     <VBtn
                       icon="tabler-trash"
@@ -690,10 +729,10 @@ onMounted(() => {
                       size="x-small"
                       color="error"
                       @click="removeService(currentCustomer.id, item.id)"
-                      title="Remove service"
+                      :title="$t('common.messages.removeService')"
                     >
                       <VIcon icon="tabler-trash" />
-                      <VTooltip activator="parent" location="top">Remove Service</VTooltip>
+                      <VTooltip activator="parent" location="top">{{ $t('common.messages.removeService2') }}</VTooltip>
                     </VBtn>
                   </template>
                 </VDataTable>
@@ -710,13 +749,13 @@ onMounted(() => {
           variant="outlined"
           @click="dialog = false"
         >
-          Cancel
+          {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="primary"
           @click="saveCustomer"
         >
-          Save
+          {{ $t('common.actions.save') }}
         </VBtn>
       </VCardActions>
     </VCard>
@@ -726,7 +765,7 @@ onMounted(() => {
   <VDialog v-model="serviceDialog" max-width="600px">
     <VCard>
       <VCardTitle>
-        <span class="text-h5">Edit Customer Service</span>
+        <span class="text-h5">{{ $t('pages.contracts.allCustomers.allCustomers.editCustomerService') }}</span>
       </VCardTitle>
 
       <VCardText>
@@ -735,16 +774,16 @@ onMounted(() => {
             <VCol cols="12" md="6">
               <VTextField
                 v-model="currentService.type"
-                label="Service Type"
+                :label="$t('common.messages.serviceType')"
                 readonly
               />
             </VCol>
             <VCol cols="12">
               <VTextField
                 v-model="currentService.deadline"
-                label="Deadline"
+                :label="$t('pages.contracts.allCustomers.allCustomers.deadline')"
                 type="date"
-                required
+                clearable
               />
             </VCol>
           </VRow>
@@ -758,14 +797,14 @@ onMounted(() => {
           variant="outlined"
           @click="serviceDialog = false"
         >
-          Cancel
+          {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="primary"
           @click="saveService"
           :loading="serviceLoading"
         >
-          Save
+          {{ $t('common.actions.save') }}
         </VBtn>
       </VCardActions>
     </VCard>
@@ -775,7 +814,7 @@ onMounted(() => {
   <VDialog v-model="attachServiceDialog" max-width="800px">
     <VCard>
       <VCardTitle>
-        <span class="text-h5">Attach Services to {{ currentCustomer.name }}</span>
+        <span class="text-h5">{{ $t('pages.contracts.allCustomers.attachServicesTo', { customer: currentCustomer.name }) }}</span>
       </VCardTitle>
 
       <VCardText>
@@ -804,7 +843,7 @@ onMounted(() => {
               </template>
 
               <template #item.duration="{ item }">
-                {{ moment().add(item.duration, 'months').format('YYYY-MM-DD') }}
+                {{ formatLocalizedDate(moment().add(item.duration, 'months').toDate()) }}
               </template>
 
               <template #item.fee="{ item }">
@@ -826,7 +865,7 @@ onMounted(() => {
           variant="outlined"
           @click="attachServiceDialog = false"
         >
-          Cancel
+          {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="primary"
@@ -834,7 +873,7 @@ onMounted(() => {
           :loading="serviceLoading"
           :disabled="selectedServices.length === 0"
         >
-          Attach Selected Services
+          {{ $t('pages.contracts.allCustomers.allCustomers.attachSelectedServices') }}
         </VBtn>
       </VCardActions>
     </VCard>
@@ -844,10 +883,10 @@ onMounted(() => {
   <VDialog v-model="deleteDialog" max-width="500px">
     <VCard>
       <VCardTitle class="text-h5">
-        Are you sure you want to delete this customer?
+        {{ $t('common.confirmations.areYouSureYouWantToDeleteThisCustomer') }}
       </VCardTitle>
       <VCardText>
-        This action cannot be undone. All customer data and associated services will be permanently removed.
+        {{ $t('common.confirmations.thisActionCannotBeUndoneAllCustomerDataAndAssociatedServicesWillBePerm') }}
       </VCardText>
       <VCardActions>
         <VSpacer />
@@ -856,13 +895,13 @@ onMounted(() => {
           variant="outlined"
           @click="deleteDialog = false"
         >
-          Cancel
+          {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="error"
           @click="deleteCustomer"
         >
-          Delete Permanently
+          {{ $t('pages.contracts.allCustomers.allCustomers.deletePermanently') }}
         </VBtn>
       </VCardActions>
     </VCard>

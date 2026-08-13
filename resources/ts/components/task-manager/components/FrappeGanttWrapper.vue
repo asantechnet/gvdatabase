@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import type { FrappeGanttTask } from '@/types/taskManager';
-import Gantt from 'frappe-gantt';
-import 'frappe-gantt/dist/frappe-gantt.css';
-import { nextTick, onMounted, ref, watch } from 'vue';
+import type { FrappeGanttTask } from '@/types/taskManager'
+import Gantt from 'frappe-gantt'
+import 'frappe-gantt/dist/frappe-gantt.css'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   tasks: FrappeGanttTask[]
   viewMode: 'Quarter Day' | 'Half Day' | 'Day' | 'Week' | 'Month' | 'Year'
 }>()
-
 const emit = defineEmits<{
   (e: 'task-click', task: FrappeGanttTask): void
   (e: 'date-change', task: FrappeGanttTask, start: Date, end: Date): void
@@ -17,91 +16,103 @@ const emit = defineEmits<{
 
 const ganttContainer = ref<HTMLElement | null>(null)
 let ganttInstance: any = null
+let pendingInteractiveDateChange: { id: string; start: string; end: string } | null = null
+let ganttPointerStart: { x: number; y: number } | null = null
+let suppressTaskClickUntil = 0
+
+const localDateString = (date: Date) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
+const isGanttBarTarget = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('.bar-wrapper'))
+const handlePointerDown = (event: PointerEvent) => { if (isGanttBarTarget(event.target)) ganttPointerStart = { x: event.clientX, y: event.clientY } }
+const handlePointerMove = (event: PointerEvent) => {
+  if (ganttPointerStart && Math.hypot(event.clientX - ganttPointerStart.x, event.clientY - ganttPointerStart.y) > 5)
+    suppressTaskClickUntil = Date.now() + 350
+}
+const handlePointerUp = () => { ganttPointerStart = null }
+
+// Frappe crashes when a dependency is not present in the visible task list.
+const chartTasks = computed<FrappeGanttTask[]>(() => {
+  const validIds = new Set(props.tasks.map(task => task.id))
+  return props.tasks.map(task => ({
+    ...task,
+    dependencies: task.dependencies.split(',').map(id => id.trim()).filter(id => id && id !== task.id && validIds.has(id)).join(','),
+  }))
+})
 
 const initGantt = () => {
-  if (!ganttContainer.value || props.tasks.length === 0) return
-
-  if (ganttInstance) {
-    ganttContainer.value.innerHTML = ''
-  }
-
-  ganttInstance = new Gantt(ganttContainer.value, props.tasks, {
+  if (!ganttContainer.value || !chartTasks.value.length) return
+  if (ganttInstance) ganttContainer.value.innerHTML = ''
+  ganttInstance = new Gantt(ganttContainer.value, chartTasks.value, {
     header_height: 50,
-    // FIX: Removed 'column_width' and 'step'. 
-    // Frappe will now auto-calculate sizes based on the view_mode to prevent squished text!
     bar_height: 30,
     bar_corner_radius: 6,
     arrow_curve: 5,
     padding: 18,
     view_mode: props.viewMode,
     date_format: 'YYYY-MM-DD',
-
-    on_click: (task: FrappeGanttTask) => {
-      emit('task-click', task)
-    },
+    container_height: 900,
+    infinite_padding: false,
+    on_click: (task: FrappeGanttTask) => { if (Date.now() >= suppressTaskClickUntil) emit('task-click', task) },
     on_date_change: (task: FrappeGanttTask, start: Date, end: Date) => {
+      pendingInteractiveDateChange = { id: task.id, start: localDateString(start), end: localDateString(end) }
       emit('date-change', task, start, end)
     },
     on_progress_change: (task: FrappeGanttTask, progress: number) => {
       emit('progress-change', task, progress)
-    }
+      nextTick(() => ganttInstance?.refresh(chartTasks.value))
+    },
   })
 }
 
-watch(() => props.tasks, async (newTasks) => {
-  if (ganttInstance && newTasks.length > 0) {
-    ganttInstance.refresh(newTasks)
-  } else if (!ganttInstance && newTasks.length > 0) {
-    await nextTick()
-    initGantt()
+watch(chartTasks, async tasks => {
+  if (!tasks.length) {
+    if (ganttContainer.value) ganttContainer.value.innerHTML = ''
+    ganttInstance = null
+    return
   }
+  if (!ganttInstance) return void (await nextTick(), initGantt())
+  if (pendingInteractiveDateChange) {
+    const moved = tasks.find(task => task.id === pendingInteractiveDateChange?.id)
+    if (moved?.start === pendingInteractiveDateChange.start && moved?.end === pendingInteractiveDateChange.end) {
+      pendingInteractiveDateChange = null
+      return
+    }
+  }
+  ganttInstance.refresh(tasks)
 }, { deep: true })
 
-watch(() => props.viewMode, (newMode) => {
-  if (ganttInstance) {
-    ganttInstance.change_view_mode(newMode)
-  }
-})
-
-onMounted(() => {
-  initGantt()
-})
+watch(() => props.viewMode, mode => ganttInstance?.change_view_mode(mode))
+onMounted(initGantt)
 </script>
 
 <template>
-  <div class="frappe-gantt-vue-wrapper w-100">
-    <div ref="ganttContainer"></div>
+  <div
+    class="frappe-gantt-vue-wrapper w-100"
+    @pointerdown.capture="handlePointerDown"
+    @pointermove.capture="handlePointerMove"
+    @pointerup.capture="handlePointerUp"
+    @pointercancel.capture="handlePointerUp"
+  >
+    <div ref="ganttContainer" />
     <div v-if="tasks.length === 0" class="pa-10 text-center text-disabled">
       <VIcon icon="tabler-chart-bar-off" size="48" class="mb-3" />
-      <div class="text-subtitle-1">No tasks available to plot on the timeline.</div>
+      <div class="text-subtitle-1">{{ $t('components.taskManager.frappeganttwrapper.noTasksAvailableToPlotOnTheTimeline') }}</div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* FIX: Force Frappe's internal container to hide vertical scroll and handle horizontal properly */
+.frappe-gantt-vue-wrapper,
 :deep(.gantt-container) {
-  overflow-y: hidden !important;
-  overflow-x: auto !important;
-  /* Smooth scrolling for horizontal dragging */
-  scroll-behavior: smooth;
+  overflow: visible !important;
 }
 
-/* Theme integration */
-:deep(.gantt .bar-wrapper) {
-  cursor: pointer;
+:deep(.gantt-container) {
+  height: 900px;
+  touch-action: pan-y;
 }
 
-:deep(.gantt .bar-progress) {
-  fill: rgb(var(--v-theme-primary));
-}
-
-:deep(.gantt .bar) {
-  fill: rgba(var(--v-theme-primary), 0.2);
-}
-
-:deep(.gantt .grid-header) {
-  fill: rgb(var(--v-theme-surface));
-  stroke: rgba(var(--v-border-color), var(--v-border-opacity));
-}
+:deep(.gantt .bar-wrapper) { cursor: pointer; }
+:deep(.gantt .bar-progress) { fill: rgb(var(--v-theme-primary)); }
+:deep(.gantt .bar) { fill: rgba(var(--v-theme-primary), 0.2); }
+:deep(.gantt .grid-header) { fill: rgb(var(--v-theme-surface)); stroke: rgba(var(--v-border-color), var(--v-border-opacity)); }
 </style>

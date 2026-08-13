@@ -70,7 +70,7 @@ const resetPaymentForm = () => {
   <VRow>
     <!-- 👉 Current Plan -->
     <VCol cols="12">
-      <VCard title="Current Plan">
+      <VCard :title="$t('components.account.accountsettingsbillingandplans.currentPlan')">
         <VCardText>
           <VRow>
             <VCol
@@ -80,35 +80,35 @@ const resetPaymentForm = () => {
               <div>
                 <div class="mb-6">
                   <h3 class="text-body-1 text-high-emphasis font-weight-medium mb-1">
-                    Your Current Plan is Basic
+                    {{ $t('components.account.accountsettingsbillingandplans.yourCurrentPlanIsBasic') }}
                   </h3>
                   <p class="text-body-1">
-                    A simple start for everyone
+                    {{ $t('components.account.accountsettingsbillingandplans.aSimpleStartForEveryone') }}
                   </p>
                 </div>
 
                 <div class="mb-6">
                   <h3 class="text-body-1 text-high-emphasis font-weight-medium mb-1">
-                    Active until Dec 09, 2021
+                    {{ $t('components.account.accountsettingsbillingandplans.activeUntilDec092021') }}
                   </h3>
                   <p class="text-body-1">
-                    We will send you a notification upon Subscription expiration
+                    {{ $t('components.account.accountsettingsbillingandplans.weWillSendYouANotificationUponSubscriptionExpiration') }}
                   </p>
                 </div>
 
                 <div>
                   <h3 class="text-body-1 text-high-emphasis font-weight-medium mb-1">
-                    <span class="me-2">$199 Per Month</span>
+                    <span class="me-2">{{ $t('components.account.accountsettingsbillingandplans.n199PerMonth2') }}</span>
                     <VChip
                       color="primary"
                       size="small"
                       label
                     >
-                      Popular
+                      {{ $t('components.account.accountsettingsbillingandplans.popular') }}
                     </VChip>
                   </h3>
                   <p class="text-base mb-0">
-                    Standard plan for small to medium businesses
+                    {{ $t('components.account.accountsettingsbillingandplans.standardPlanForSmallToMediumBusinesses') }}
                   </p>
                 </div>
               </div>
@@ -124,17 +124,17 @@ const resetPaymentForm = () => {
                 variant="tonal"
               >
                 <VAlertTitle class="mb-1">
-                  We need your attention!
+                  {{ $t('components.account.accountsettingsbillingandplans.weNeedYourAttention') }}
                 </VAlertTitle>
 
-                <span>Your plan requires update</span>
+                <span>{{ $t('components.account.accountsettingsbillingandplans.yourPlanRequiresUpdate') }}</span>
               </VAlert>
 
               <!-- progress -->
               <h6 class="d-flex font-weight-medium text-body-1 text-high-emphasis mt-6 mb-1">
-                <span>Days</span>
+                <span>{{ $t('components.account.accountsettingsbillingandplans.days') }}</span>
                 <VSpacer />
-                <span>12 of 30 Days</span>
+                <span>{{ $t('components.account.accountsettingsbillingandplans.n12Of30Days2') }}</span>
               </h6>
 
               <VProgressLinear
@@ -144,14 +144,14 @@ const resetPaymentForm = () => {
               />
 
               <p class="text-body-2 mt-1 mb-0">
-                18 days remaining until your plan requires update
+                {{ $t('components.account.accountsettingsbillingandplans.n18DaysRemainingUntilYourPlanRequiresUpdate2') }}
               </p>
             </VCol>
 
             <VCol cols="12">
               <div class="d-flex flex-wrap gap-4">
                 <VBtn @click="isPricingPlanDialogVisible = true">
-                  upgrade plan
+                  {{ $t('components.account.accountsettingsbillingandplans.upgradePlan') }}
                 </VBtn>
 
                 <VBtn
@@ -159,7 +159,7 @@ const resetPaymentForm = () => {
                   variant="tonal"
                   @click="isConfirmDialogVisible = true"
                 >
-                  Cancel Subscription
+                  {{ $t('components.account.accountsettingsbillingandplans.cancelSubscription') }}
                 </VBtn>
               </div>
             </VCol>
@@ -183,7 +183,7 @@ const resetPaymentForm = () => {
 
     <!-- 👉 Payment Methods -->
     <VCol cols="12">
-      <VCard title="Payment Methods">
+      <VCard :title="$t('components.account.accountsettingsbillingandplans.paymentMethods')">
         <VCardText>
           <VForm @submit.prevent="() => {}">
             <VRow>
@@ -200,13 +200,13 @@ const resetPaymentForm = () => {
                     >
                       <VRadio
                         value="credit-debit-atm-card"
-                        label="Credit/Debit/ATM Card"
+                        :label="$t('components.account.accountsettingsbillingandplans.creditDebitATMCard2')"
                         color="primary"
                         class="me-6"
                       />
                       <VRadio
                         value="paypal-account"
-                        label="Paypal account"
+                        :label="$t('components.account.accountsettingsbillingandplans.paypalAccount2')"
                         color="primary"
                       />
                     </VRadioGroup>
@@ -218,7 +218,7 @@ const resetPaymentForm = () => {
                       <VCol cols="12">
                         <AppTextField
                           v-model="cardNumber"
-                          label="Card Number"
+                          :label="$t('components.account.accountsettingsbillingandplans.cardNumber')"
                           placeholder="1234 1234 1234 1234"
                           type="number"
                         />
@@ -231,8 +231,8 @@ const resetPaymentForm = () => {
                       >
                         <AppTextField
                           v-model="cardName"
-                          label="Name"
-                          placeholder="John Doe"
+                          :label="$t('common.fields.name')"
+                          :placeholder="$t('components.account.accountsettingsbillingandplans.johnDoe')"
                         />
                       </VCol>
 
@@ -243,8 +243,8 @@ const resetPaymentForm = () => {
                       >
                         <AppTextField
                           v-model="cardExpiryDate"
-                          label="Expiry Date"
-                          placeholder="MM/YY"
+                          :label="$t('components.account.accountsettingsbillingandplans.expiryDate')"
+                          :placeholder="$t('components.account.accountsettingsbillingandplans.mmYY')"
                         />
                       </VCol>
 
@@ -256,7 +256,7 @@ const resetPaymentForm = () => {
                         <AppTextField
                           v-model="cardCvv"
                           type="number"
-                          label="CVV Code"
+                          :label="$t('components.account.accountsettingsbillingandplans.cvvCode')"
                           placeholder="123"
                         />
                       </VCol>
@@ -266,7 +266,7 @@ const resetPaymentForm = () => {
                         <VSwitch
                           v-model="isCardDetailSaveBilling"
                           density="compact"
-                          label="Save card for future billing?"
+                          :label="$t('components.account.accountsettingsbillingandplans.saveCardForFutureBilling2')"
                         />
                       </VCol>
                     </VRow>
@@ -276,14 +276,14 @@ const resetPaymentForm = () => {
                     class="d-flex flex-wrap gap-4"
                   >
                     <VBtn type="submit">
-                      Save changes
+                      {{ $t('common.messages.saveChanges3') }}
                     </VBtn>
                     <VBtn
                       color="secondary"
                       variant="tonal"
                       @click="resetPaymentForm"
                     >
-                      Cancel
+                      {{ $t('common.actions.cancel') }}
                     </VBtn>
                   </VCol>
                 </VRow>
@@ -295,7 +295,7 @@ const resetPaymentForm = () => {
                 md="6"
               >
                 <h6 class="text-body-1 text-high-emphasis font-weight-medium mb-6">
-                  My Cards
+                  {{ $t('components.account.accountsettingsbillingandplans.myCards') }}
                 </h6>
 
                 <div class="d-flex flex-column gap-y-6">
@@ -321,7 +321,7 @@ const resetPaymentForm = () => {
                             color="primary"
                             size="small"
                           >
-                            Primary
+                            {{ $t('components.account.accountsettingsbillingandplans.primary') }}
                           </VChip>
                         </h4>
                         <div class="text-body-1">
@@ -338,14 +338,14 @@ const resetPaymentForm = () => {
                             size="small"
                             @click="openEditCardDialog(card)"
                           >
-                            Edit
+                            {{ $t('common.actions.edit') }}
                           </VBtn>
                           <VBtn
                             color="error"
                             size="small"
                             variant="tonal"
                           >
-                            Delete
+                            {{ $t('common.actions.delete') }}
                           </VBtn>
                         </div>
                         <span class="text-body-2 my-4 order-sm-1 order-0">Card expires at {{ card.expiry }}</span>
@@ -368,7 +368,7 @@ const resetPaymentForm = () => {
 
     <!-- 👉 Billing Address -->
     <VCol cols="12">
-      <VCard title="Billing Address">
+      <VCard :title="$t('common.messages.billingAddress')">
         <VCardText>
           <VForm @submit.prevent="() => {}">
             <VRow>
@@ -378,8 +378,8 @@ const resetPaymentForm = () => {
                 md="6"
               >
                 <AppTextField
-                  label="Company Name"
-                  placeholder="Pixinvent"
+                  :label="$t('components.account.accountsettingsbillingandplans.companyName')"
+                  :placeholder="$t('components.account.accountsettingsbillingandplans.pixinvent')"
                 />
               </VCol>
 
@@ -389,7 +389,7 @@ const resetPaymentForm = () => {
                 md="6"
               >
                 <AppTextField
-                  label="Billing Email"
+                  :label="$t('components.account.accountsettingsbillingandplans.billingEmail')"
                   placeholder="pixinvent@email.com"
                 />
               </VCol>
@@ -400,7 +400,7 @@ const resetPaymentForm = () => {
                 md="6"
               >
                 <AppTextField
-                  label="Tax ID"
+                  :label="$t('components.account.accountsettingsbillingandplans.taxID')"
                   placeholder="123 123 1233"
                 />
               </VCol>
@@ -411,7 +411,7 @@ const resetPaymentForm = () => {
                 md="6"
               >
                 <AppTextField
-                  label="VAT Number"
+                  :label="$t('components.account.accountsettingsbillingandplans.vatNumber2')"
                   placeholder="121212"
                 />
               </VCol>
@@ -423,7 +423,7 @@ const resetPaymentForm = () => {
               >
                 <AppTextField
                   dirty
-                  label="Phone Number"
+                  :label="$t('components.account.accountsettingsbillingandplans.phoneNumber')"
                   type="number"
                   prefix="US (+1)"
                   placeholder="+1 123 456 7890"
@@ -436,17 +436,17 @@ const resetPaymentForm = () => {
                 md="6"
               >
                 <AppSelect
-                  label="Country"
+                  :label="$t('components.account.accountsettingsbillingandplans.country')"
                   :items="countryList"
-                  placeholder="Select Country"
+                  :placeholder="$t('components.account.accountsettingsbillingandplans.selectCountry')"
                 />
               </VCol>
 
               <!-- 👉 Billing Address -->
               <VCol cols="12">
                 <AppTextField
-                  label="Billing Address"
-                  placeholder="1234 Main St"
+                  :label="$t('common.messages.billingAddress')"
+                  :placeholder="$t('components.account.accountsettingsbillingandplans.n1234MainSt2')"
                 />
               </VCol>
 
@@ -456,8 +456,8 @@ const resetPaymentForm = () => {
                 md="6"
               >
                 <AppTextField
-                  label="State"
-                  placeholder="New York"
+                  :label="$t('components.account.accountsettingsbillingandplans.state')"
+                  :placeholder="$t('components.account.accountsettingsbillingandplans.newYork')"
                 />
               </VCol>
 
@@ -467,7 +467,7 @@ const resetPaymentForm = () => {
                 md="6"
               >
                 <AppTextField
-                  label="Zip Code"
+                  :label="$t('components.account.accountsettingsbillingandplans.zipCode')"
                   type="number"
                   placeholder="100006"
                 />
@@ -479,14 +479,14 @@ const resetPaymentForm = () => {
                 class="d-flex flex-wrap gap-4"
               >
                 <VBtn type="submit">
-                  Save changes
+                  {{ $t('common.messages.saveChanges3') }}
                 </VBtn>
                 <VBtn
                   type="reset"
                   color="secondary"
                   variant="tonal"
                 >
-                  Discard
+                  {{ $t('components.account.accountsettingsbillingandplans.discard') }}
                 </VBtn>
               </VCol>
             </VRow>

@@ -1,12 +1,15 @@
-import api from "./axios";
+import api from './axios'
 
-// Types matching the frontend requirements
+export type StockCondition = 'new' | 'good' | 'fair' | 'poor' | 'damaged'
+
 export interface StockItem {
   id: number
   serial_number: string
   item: string
   quantity: number
+  price: number
   model: string
+  condition: StockCondition
   office: string
   staff_id: number | null
   staff?: {
@@ -19,65 +22,43 @@ export interface StockParams {
   search?: string
   model?: string
   office?: string
+  condition?: StockCondition
 }
 
-// Stock API endpoints
+export type StockPayload = Omit<StockItem, 'id' | 'staff'>
+
+const unwrapData = <T>(response: unknown): T => {
+  let payload = response
+
+  while (payload !== null && typeof payload === 'object' && 'data' in payload)
+    payload = (payload as { data: unknown }).data
+
+  return payload as T
+}
+
 const StockApi = {
-  // Get all stocks
-  getAll: async (params?: StockParams) => {
-    try {
-      const response = await api.get<{ data: StockItem[] }>("/stocks", { params })
-      return response
-    } catch (error) {
-      console.error('API getAll error:', error)
-      throw error
-    }
+  async getAll(params?: StockParams): Promise<StockItem[]> {
+    const response = await api.get('/stocks', { params })
+    const stocks = unwrapData<StockItem[]>(response)
+
+    return Array.isArray(stocks) ? stocks : []
   },
 
-  // Get single stock
-  getById: async (id: number) => {
-    try {
-      const response = await api.get<{ data: StockItem }>(`/stocks/${id}`)
-      return response
-    } catch (error) {
-      console.error('API getById error:', error)
-      throw error
-    }
+  async getById(id: number): Promise<StockItem> {
+    return unwrapData<StockItem>(await api.get(`/stocks/${id}`))
   },
 
-  // Create stock
-  create: async (data: Omit<StockItem, 'id' | 'staff'>) => {
-    try {
-      const response = await api.post<{ data: StockItem }>("/stocks", data)
-      return response
-    } catch (error) {
-      console.error('API create error:', error)
-      throw error
-    }
+  async create(data: StockPayload): Promise<StockItem> {
+    return unwrapData<StockItem>(await api.post('/stocks', data))
   },
 
-  // Update stock
-  update: async (id: number, data: Partial<Omit<StockItem, 'id' | 'staff'>>) => {
-    try {
-      const response = await api.put<{ data: StockItem }>(`/stocks/${id}`, data)
-      return response
-    } catch (error) {
-      console.error('API update error:', error)
-      throw error
-    }
+  async update(id: number, data: Partial<StockPayload>): Promise<StockItem> {
+    return unwrapData<StockItem>(await api.put(`/stocks/${id}`, data))
   },
 
-  // Delete stock
-  delete: async (id: number) => {
-    try {
-      const response = await api.delete<{ success: boolean; message: string }>(`/stocks/${id}`)
-      return response
-    } catch (error) {
-      console.error('API delete error:', error)
-      throw error
-    }
+  async delete(id: number): Promise<void> {
+    await api.delete(`/stocks/${id}`)
   },
 }
 
 export default StockApi
-export type { StockItem, StockParams }

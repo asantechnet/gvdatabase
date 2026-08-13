@@ -5,6 +5,7 @@ import CalendarView from './views/CalendarView.vue'
 import GanttView from './views/GanttView.vue'
 import KanbanView from './views/KanbanView.vue'
 import TodoMatrixView from './views/TodoMatrixView.vue'
+import TaskSettingsView from './views/TaskSettingsView.vue'
 
 const store = useTaskStore()
 
@@ -15,10 +16,11 @@ const activeTab = computed({
 })
 
 const tabs = [
-  { title: 'Kanban Board', value: 'kanban', icon: 'tabler-layout-kanban' },
-  { title: 'Calendar', value: 'calendar', icon: 'tabler-calendar-event' },
-  { title: 'Gantt Timeline', value: 'gantt', icon: 'tabler-chart-bar' },
-  { title: 'Todo Matrix', value: 'todos', icon: 'tabler-list-check' },
+  { title: translate('components.taskManager.taskappshell.kanbanBoard'), value: 'kanban', icon: 'tabler-layout-kanban' },
+  { title: translate('common.messages.calendar'), value: 'calendar', icon: 'tabler-calendar-event' },
+  { title: translate('components.taskManager.taskappshell.ganttTimeline'), value: 'gantt', icon: 'tabler-chart-bar' },
+  { title: translate('components.taskManager.taskappshell.todoMatrix'), value: 'todos', icon: 'tabler-list-check' },
+  { title: translate('common.messages.settings'), value: 'settings', icon: 'tabler-settings' },
 ]
 
 // Dynamically swap views directly in this layout
@@ -28,6 +30,7 @@ const currentComponent = computed(() => {
     case 'calendar': return CalendarView
     case 'gantt': return GanttView
     case 'todos': return TodoMatrixView
+    case 'settings': return TaskSettingsView
     default: return KanbanView
   }
 })

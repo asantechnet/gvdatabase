@@ -53,6 +53,10 @@
 - Never delete an issued invoice. Void it with a reason while retaining its number, totals, service snapshots, and audit history.
 - `incomes.invoice_id` is nullable. An invoice can have multiple income records for partial payments, while unrelated incomes remain valid.
 
+## Stock
+
+- Stock condition is required and limited to `new`, `good`, `fair`, `poor`, or `damaged` across migration, validation, API, filters, and UI.
+
 ## Working Rules
 
 - The repository is large; inspect filenames and relevant areas first instead of reading built-in template files line by line.

@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import Shepherd from 'shepherd.js'
-import { withQuery } from 'ufo'
 import { useRouter } from 'vue-router'
 import type { RouteLocationRaw } from 'vue-router'
-import type { SearchResults } from '@db/app-bar-search/types'
 import { useConfigStore } from '@core/stores/config'
 
 interface Suggestion {
@@ -12,97 +10,89 @@ interface Suggestion {
   url: RouteLocationRaw
 }
 
-defineOptions({
-  inheritAttrs: false,
-})
-
-const configStore = useConfigStore()
-
 interface SuggestionGroup {
   title: string
   content: Suggestion[]
 }
 
-// 👉 Is App Search Bar Visible
+interface SearchResultGroup {
+  title: string
+  children: Suggestion[]
+}
+
+defineOptions({ inheritAttrs: false })
+
+const configStore = useConfigStore()
+const router = useRouter()
 const isAppSearchBarVisible = ref(false)
 const isLoading = ref(false)
-
-// 👉 Default suggestions
+const searchQuery = ref('')
+const searchResult = ref<SearchResultGroup[]>([])
 
 const suggestionGroups: SuggestionGroup[] = [
   {
-    title: 'Popular Searches',
+    title: translate('components.navigation.navsearchbar.overview'),
     content: [
-      { icon: 'tabler-chart-bar', title: 'Analytics', url: { name: 'dashboards-analytics' } },
-      { icon: 'tabler-chart-donut-3', title: 'CRM', url: { name: 'dashboards-crm' } },
-      { icon: 'tabler-shopping-cart', title: 'eCommerce', url: { name: 'dashboards-ecommerce' } },
-      { icon: 'tabler-truck', title: 'Logistics', url: { name: 'dashboards-logistics' } },
+      { icon: 'tabler-home', title: translate('components.navigation.navsearchbar.home'), url: { name: 'home' } },
+      { icon: 'tabler-chart-bar', title: translate('components.navigation.navsearchbar.reports'), url: { name: 'reports' } },
+      { icon: 'tabler-notes', title: translate('components.navigation.navsearchbar.tasks'), url: { name: 'tasks' } },
     ],
   },
   {
-    title: 'Apps & Pages',
+    title: translate('components.navigation.navsearchbar.humanResources'),
     content: [
-      { icon: 'tabler-calendar', title: 'Calendar', url: { name: 'apps-calendar' } },
-      { icon: 'tabler-lock', title: 'Roles & Permissions', url: { name: 'apps-roles' } },
-      { icon: 'tabler-settings', title: 'Account Settings', url: { name: 'pages-account-settings-tab', params: { tab: 'account' } } },
-      { icon: 'tabler-copy', title: 'Dialog Examples', url: { name: 'pages-dialog-examples' } },
+      { icon: 'tabler-users', title: translate('common.messages.staffList'), url: { name: 'staff-list' } },
+      { icon: 'tabler-calendar-check', title: translate('common.messages.timesheet'), url: { name: 'timesheet' } },
+      { icon: 'tabler-cash', title: translate('components.navigation.navsearchbar.staffSalary'), url: { name: 'staff-salary' } },
+      { icon: 'tabler-award', title: translate('components.navigation.navsearchbar.bonusList'), url: { name: 'bonuslist' } },
     ],
   },
   {
-    title: 'User Interface',
+    title: translate('components.navigation.navsearchbar.financeOperations'),
     content: [
-      { icon: 'tabler-typography', title: 'Typography', url: { name: 'pages-typography' } },
-      { icon: 'tabler-menu-2', title: 'Accordion', url: { name: 'components-expansion-panel' } },
-      { icon: 'tabler-info-triangle', title: 'Alert', url: { name: 'components-alert' } },
-      { icon: 'tabler-checkbox', title: 'Cards', url: { name: 'pages-cards-card-basic' } },
+      { icon: 'tabler-file-invoice', title: translate('components.navigation.navsearchbar.invoices'), url: { name: 'innvoice' } },
+      { icon: 'tabler-arrow-down-circle', title: translate('components.navigation.navsearchbar.income'), url: { name: 'income' } },
+      { icon: 'tabler-arrow-up-circle', title: translate('components.navigation.navsearchbar.expenses'), url: { name: 'expenses' } },
+      { icon: 'tabler-package', title: translate('components.navigation.navsearchbar.stock'), url: { name: 'stock' } },
+      { icon: 'tabler-user-search', title: translate('components.navigation.navsearchbar.visitors'), url: { name: 'visitor' } },
+      { icon: 'tabler-file-description', title: translate('components.navigation.navsearchbar.contracts'), url: { name: 'contracts' } },
+      { icon: 'tabler-users-group', title: translate('components.navigation.navsearchbar.customers'), url: { name: 'all-customers' } },
+      { icon: 'tabler-file-x', title: translate('components.navigation.navsearchbar.cancelledContracts'), url: { name: 'cancelled-contracts' } },
     ],
   },
   {
-    title: 'Forms & Tables',
+    title: translate('components.navigation.navsearchbar.administration'),
     content: [
-      { icon: 'tabler-circle-dot', title: 'Radio', url: { name: 'forms-radio' } },
-      { icon: 'tabler-file-invoice', title: 'Form Layouts', url: { name: 'forms-form-layouts' } },
-      { icon: 'tabler-table', title: 'Table', url: { name: 'tables-data-table' } },
-      { icon: 'tabler-edit', title: 'Editor', url: { name: 'forms-editors' } },
+      { icon: 'tabler-users', title: translate('common.messages.users'), url: { name: 'setup-users' } },
+      { icon: 'tabler-lock', title: translate('common.messages.roles'), url: { name: 'setup-roles' } },
+      { icon: 'tabler-briefcase', title: translate('components.navigation.navsearchbar.positions'), url: { name: 'setup-positions' } },
+      { icon: 'tabler-settings', title: translate('common.messages.settings'), url: { name: 'setup-settings' } },
+      { icon: 'tabler-bell', title: translate('common.messages.notifications'), url: { name: 'notifications' } },
+      { icon: 'tabler-file-text', title: translate('components.navigation.navsearchbar.contractPolicies'), url: { name: 'contract-policies' } },
+      { icon: 'tabler-tool', title: translate('common.messages.services'), url: { name: 'options-services' } },
+      { icon: 'tabler-currency-dollar', title: translate('components.navigation.navsearchbar.currencies'), url: { name: 'options-currencies' } },
+      { icon: 'tabler-adjustments', title: translate('components.navigation.navsearchbar.financeOptions'), url: { name: 'options-finance' } },
     ],
   },
 ]
 
-// 👉 No Data suggestion
 const noDataSuggestions: Suggestion[] = [
-  {
-    title: 'Analytics',
-    icon: 'tabler-chart-bar',
-    url: { name: 'dashboards-analytics' },
-  },
-  {
-    title: 'CRM',
-    icon: 'tabler-chart-donut-3',
-    url: { name: 'dashboards-crm' },
-  },
-  {
-    title: 'eCommerce',
-    icon: 'tabler-shopping-cart',
-    url: { name: 'dashboards-ecommerce' },
-  },
+  { title: translate('common.messages.staffList'), icon: 'tabler-users', url: { name: 'staff-list' } },
+  { title: translate('common.messages.timesheet'), icon: 'tabler-calendar-check', url: { name: 'timesheet' } },
+  { title: translate('common.messages.settings'), icon: 'tabler-settings', url: { name: 'setup-settings' } },
 ]
 
-const searchQuery = ref('')
+const fetchResults = () => {
+  const query = searchQuery.value.trim().toLowerCase()
 
-const router = useRouter()
-const searchResult = ref<SearchResults[]>([])
-
-const fetchResults = async () => {
-  isLoading.value = true
-
-  const { data } = await useApi<any>(withQuery('/app-bar/search', { q: searchQuery.value }))
-
-  searchResult.value = data.value
-
-  // ℹ️ simulate loading: we have used setTimeout for better user experience your can remove it
-  setTimeout(() => {
-    isLoading.value = false
-  }, 500)
+  searchResult.value = query
+    ? suggestionGroups
+      .map(group => ({
+        title: group.title,
+        children: group.content.filter(item => item.title.toLowerCase().includes(query)),
+      }))
+      .filter(group => group.children.length)
+    : []
 }
 
 watch(searchQuery, fetchResults)
@@ -112,9 +102,8 @@ const closeSearchBar = () => {
   searchQuery.value = ''
 }
 
-// 👉 redirect the selected page
 const redirectToSuggestedPage = (selected: Suggestion) => {
-  router.push(selected.url as string)
+  router.push(selected.url)
   closeSearchBar()
 }
 
@@ -128,8 +117,6 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
     style="user-select: none;"
     @click="isAppSearchBarVisible = !isAppSearchBarVisible"
   >
-    <!-- 👉 Search Trigger button -->
-    <!-- close active tour while opening search bar using icon -->
     <IconBtn @click="Shepherd.activeTour?.cancel()">
       <VIcon icon="tabler-search" />
     </IconBtn>
@@ -139,48 +126,37 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
       class="d-none d-md-flex align-center text-disabled ms-2"
       @click="Shepherd.activeTour?.cancel()"
     >
-      <span class="me-2">Search</span>
-      <span class="meta-key">&#8984;K</span>
+      <span class="me-2">{{ $t('common.actions.search') }}</span>
+      <span class="meta-key" dir="ltr" aria-hidden="true">&#8984;K</span>
     </span>
   </div>
 
-  <!-- 👉 App Bar Search -->
   <LazyAppBarSearch
     v-model:is-dialog-visible="isAppSearchBarVisible"
     :search-results="searchResult"
     :is-loading="isLoading"
     @search="searchQuery = $event"
   >
-    <!-- suggestion -->
     <template #suggestions>
       <VCardText class="app-bar-search-suggestions pa-12">
-        <VRow v-if="suggestionGroups">
-          <VCol
-            v-for="suggestion in suggestionGroups"
-            :key="suggestion.title"
-            cols="12"
-            sm="6"
-          >
+        <VRow>
+          <VCol v-for="group in suggestionGroups" :key="group.title" cols="12" sm="6">
             <p
               class="custom-letter-spacing text-disabled text-uppercase py-2 px-4 mb-0"
               style="font-size: 0.75rem; line-height: 0.875rem;"
             >
-              {{ suggestion.title }}
+              {{ group.title }}
             </p>
             <VList class="card-list">
               <VListItem
-                v-for="item in suggestion.content"
+                v-for="item in group.content"
                 :key="item.title"
                 class="app-bar-search-suggestion mx-4 mt-2"
                 @click="redirectToSuggestedPage(item)"
               >
                 <VListItemTitle>{{ item.title }}</VListItemTitle>
                 <template #prepend>
-                  <VIcon
-                    :icon="item.icon"
-                    size="20"
-                    class="me-n1"
-                  />
+                  <VIcon :icon="item.icon" size="20" class="me-n1" />
                 </template>
               </VListItem>
             </VList>
@@ -189,27 +165,21 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
       </VCardText>
     </template>
 
-    <!-- no data suggestion -->
     <template #noDataSuggestion>
       <div class="mt-9">
-        <span class="d-flex justify-center text-disabled mb-2">Try searching for</span>
+        <span class="d-flex justify-center text-disabled mb-2">{{ $t('components.navigation.navsearchbar.trySearchingFor') }}</span>
         <h6
           v-for="suggestion in noDataSuggestions"
           :key="suggestion.title"
           class="app-bar-search-suggestion text-h6 font-weight-regular cursor-pointer py-2 px-4"
           @click="redirectToSuggestedPage(suggestion)"
         >
-          <VIcon
-            size="20"
-            :icon="suggestion.icon"
-            class="me-2"
-          />
+          <VIcon size="20" :icon="suggestion.icon" class="me-2" />
           <span>{{ suggestion.title }}</span>
         </h6>
       </div>
     </template>
 
-    <!-- search result -->
     <template #searchResult="{ item }">
       <VListSubheader class="text-disabled custom-letter-spacing font-weight-regular ps-4">
         {{ item.title }}
@@ -221,22 +191,12 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
         @click="closeSearchBar"
       >
         <template #prepend>
-          <VIcon
-            size="20"
-            :icon="list.icon"
-            class="me-n1"
-          />
+          <VIcon size="20" :icon="list.icon" class="me-n1" />
         </template>
         <template #append>
-          <VIcon
-            size="20"
-            icon="tabler-corner-down-left"
-            class="enter-icon flip-in-rtl"
-          />
+          <VIcon size="20" icon="tabler-corner-down-left" class="enter-icon flip-in-rtl" />
         </template>
-        <VListItemTitle>
-          {{ list.title }}
-        </VListItemTitle>
+        <VListItemTitle>{{ list.title }}</VListItemTitle>
       </VListItem>
     </template>
   </LazyAppBarSearch>

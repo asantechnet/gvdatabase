@@ -2,230 +2,108 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Http\Resources\UserResource;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use App\Support\RoleCatalog;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request): JsonResponse
     {
-        $users = User::with('positions')->get();
-        return response()->json([
-            'success' => true,
-            'data' => UserResource::collection($users)
-        ]);
+        $this->authorizePermission($request, 'view_users');
+        $users = User::query()->orderBy('name')->get();
+        return response()->json(['success' => true, 'data' => UserResource::collection($users)]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-            'phone' => 'required|string|max:20',
-            'address' => 'required|string',
-            'acc_status' => 'required|string|in:active,inactive,suspended',
-            'position_ids' => 'nullable|array',
-            'position_ids.*' => 'exists:positions,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+        $this->authorizePermission($request, 'create_users');
+        $this->authorizePermission($request, 'assign_user_roles');
+        $data = $this->validated($request);
+        if (in_array('super_admin', $data['roles'], true) && ! $request->user()->isSuperAdmin()) {
+            abort(403, 'auth.forbidden');
         }
-
-        $data = $request->all();
-        $data['password'] = Hash::make($data['password']);
+        $data['password'] = Hash::make(Str::random(64));
+        $data['must_set_password'] = true;
         $user = User::create($data);
-
-        if ($request->has('position_ids')) {
-            $user->positions()->sync($request->position_ids);
-        }
-
-        $user->load('positions');
-
-        return response()->json([
-            'success' => true,
-            'data' => new UserResource($user)
-        ], 201);
+        $user->sendEmailVerificationNotification();
+        return response()->json(['success' => true, 'data' => new UserResource($user)], 201);
     }
 
-    public function show($id)
+    public function show(Request $request, User $user): JsonResponse
     {
-        $user = User::with('positions')->find($id);
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
-        }
-        return response()->json([
-            'success' => true,
-            'data' => new UserResource($user)
-        ]);
+        $this->authorizePermission($request, 'view_users');
+        return response()->json(['success' => true, 'data' => new UserResource($user)]);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, User $user): JsonResponse
     {
-        $user = User::find($id);
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
+        $this->authorizePermission($request, 'edit_users');
+        $data = $this->validated($request, $user);
+        if (array_key_exists('acc_status', $data)
+            && ($user->acc_status === 'deactivated' || $data['acc_status'] === 'deactivated')
+            && $data['acc_status'] !== $user->acc_status) {
+            abort(422, 'business.use_account_reactivation_workflow');
         }
-
-        $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|string|email|max:255|unique:users,email,'.$id,
-            'password' => 'sometimes|string|min:8',
-            'phone' => 'sometimes|string|max:20',
-            'address' => 'sometimes|string',
-            'acc_status' => 'sometimes|string|in:active,inactive,suspended',
-            'position_ids' => 'nullable|array',
-            'position_ids.*' => 'exists:positions,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+        if ($request->has('roles')) {
+            $this->authorizePermission($request, 'assign_user_roles');
+            $this->guardSuperAdminAssignment($request, $user, $data);
         }
-
-        $data = $request->all();
-        if (isset($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
-        }
-
+        $this->guardCurrentSuperAdmin($request, $user, $data);
+        $emailChanged = isset($data['email']) && $data['email'] !== $user->email;
+        if ($emailChanged) $data['email_verified_at'] = null;
         $user->update($data);
-
-        if ($request->has('position_ids')) {
-            $user->positions()->sync($request->position_ids);
-        }
-
-        $user->load('positions');
-
-        return response()->json([
-            'success' => true,
-            'data' => new UserResource($user)
-        ]);
+        if ($emailChanged) $user->sendEmailVerificationNotification();
+        return response()->json(['success' => true, 'data' => new UserResource($user->fresh())]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, User $user): JsonResponse
     {
-        $user = User::find($id);
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
-        }
-
+        $this->authorizePermission($request, 'delete_users');
+        $this->guardSuperAdminTarget($request, $user);
+        abort_if($user->is($request->user()), 422, 'business.cannot_delete_current_user');
+        abort_if($this->isLastSuperAdmin($user), 422, 'business.last_super_admin_required');
         $user->delete();
-        return response()->json([
-            'success' => true,
-            'message' => 'User deleted successfully'
-        ]);
+        return response()->json(['success' => true, 'message' => 'User deleted successfully.']);
     }
 
-    public function updateStatus(Request $request, $id)
+    public function updateStatus(Request $request, User $user): JsonResponse
     {
-        $user = User::find($id);
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'acc_status' => 'required|string|in:active,inactive,suspended',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $user->update(['acc_status' => $request->acc_status]);
-        $user->load('positions');
-
-        return response()->json([
-            'success' => true,
-            'data' => new UserResource($user)
-        ]);
+        $this->authorizePermission($request, 'manage_user_status');
+        $this->guardSuperAdminTarget($request, $user);
+        abort_if($user->acc_status === 'deactivated', 422, 'business.use_account_reactivation_workflow');
+        $data = $request->validate(['acc_status' => ['required', Rule::in(['active', 'inactive', 'suspended'])]]);
+        $this->guardCurrentSuperAdmin($request, $user, $data);
+        abort_if($data['acc_status'] !== 'active' && $this->isLastSuperAdmin($user), 422, 'business.last_super_admin_required');
+        $user->update($data);
+        return response()->json(['success' => true, 'data' => new UserResource($user)]);
     }
 
-    public function attachPosition(Request $request, $id)
+    private function validated(Request $request, ?User $user = null): array
     {
-        $user = User::find($id);
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'position_id' => 'required|exists:positions,id',
-            'assigned_at' => 'nullable|date',
-            'ended_at' => 'nullable|date|after_or_equal:assigned_at',
+        $data = $request->validate([
+            'name' => [$user ? 'sometimes' : 'required', 'string', 'max:255'],
+            'email' => [$user ? 'sometimes' : 'required', 'email', 'max:255', Rule::unique('users')->ignore($user?->id)],
+            'phone' => [$user ? 'sometimes' : 'required', 'nullable', 'string', 'max:20'],
+            'address' => [$user ? 'sometimes' : 'required', 'nullable', 'string', 'max:2000'],
+            'roles' => [$user ? 'sometimes' : 'required', 'array', 'min:1'],
+            'roles.*' => [Rule::in(RoleCatalog::NAMES)],
+            'acc_status' => [
+                $user ? 'sometimes' : 'required',
+                Rule::in($user ? ['active', 'inactive', 'suspended', 'deactivated'] : ['active', 'inactive', 'suspended']),
+            ],
         ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $user->positions()->attach($request->position_id, [
-            'assigned_at' => $request->assigned_at,
-            'ended_at' => $request->ended_at,
-        ]);
-        $user->load('positions');
-
-        return response()->json([
-            'success' => true,
-            'data' => new UserResource($user)
-        ]);
+        return $data;
     }
 
-    public function detachPosition(Request $request, $id)
-    {
-        $user = User::find($id);
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'position_id' => 'required|exists:positions,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $user->positions()->detach($request->position_id);
-        $user->load('positions');
-
-        return response()->json([
-            'success' => true,
-            'data' => new UserResource($user)
-        ]);
-    }
+    private function authorizePermission(Request $request, string $permission): void { abort_unless($request->user()->hasPermission($permission), 403, 'auth.forbidden'); }
+    private function isLastSuperAdmin(User $user): bool { return in_array('super_admin', $user->roleNames(), true) && User::query()->where('acc_status', 'active')->get()->filter(fn (User $candidate) => in_array('super_admin', $candidate->roleNames(), true))->count() <= 1; }
+    private function guardCurrentSuperAdmin(Request $request, User $user, array $data): void { if ($user->is($request->user()) && (isset($data['roles']) && !in_array('super_admin', $data['roles'], true))) abort(422, 'business.cannot_remove_current_super_admin_role'); }
+    private function guardSuperAdminTarget(Request $request, User $user): void { if ($user->isSuperAdmin() && ! $request->user()->isSuperAdmin()) abort(403, 'auth.forbidden'); }
+    private function guardSuperAdminAssignment(Request $request, User $user, array $data): void { $this->guardSuperAdminTarget($request, $user); if (in_array('super_admin', $data['roles'] ?? [], true) && ! $request->user()->isSuperAdmin()) abort(403, 'auth.forbidden'); }
 }

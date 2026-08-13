@@ -6,8 +6,14 @@ export interface Contract {
   contract: string;
   status: "Active" | "Expired" | "Pending";
   start_date: string;
+  end_date?: string | null;
   counterparty: string;
+  counterparty_company?: string | null;
+  counterparty_email?: string | null;
+  counterparty_contact?: string | null;
+  counterparty_address?: string | null;
   is_cancelled: boolean;
+  cancelled_at?: string | null;
   template_id: number;
   contract_template?: {
     id: number;
@@ -34,14 +40,24 @@ export interface ContractCreateData {
   template_id: number;
   status: "Active" | "Expired" | "Pending";
   start_date: string;
+  end_date?: string | null;
   counterparty: string;
+  counterparty_company?: string | null;
+  counterparty_email?: string | null;
+  counterparty_contact?: string | null;
+  counterparty_address?: string | null;
 }
 
 export interface ContractUpdateData {
   template_id?: number;
   status?: "Active" | "Expired" | "Pending";
   start_date?: string;
+  end_date?: string | null;
   counterparty?: string;
+  counterparty_company?: string | null;
+  counterparty_email?: string | null;
+  counterparty_contact?: string | null;
+  counterparty_address?: string | null;
   is_cancelled?: boolean;
 }
 

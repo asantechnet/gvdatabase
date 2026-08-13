@@ -60,7 +60,7 @@ const confirmAndDelete = () => {
             <div class="d-flex align-center justify-space-between width-100">
               <div class="d-flex align-center gap-2">
                 <VChip :color="priorityColor" size="small" class="text-uppercase font-weight-bold">
-                  {{ task.priority }} Priority
+                  {{ $t('components.taskManager.event.priority', { priority: translateBackendValue(task.priority) }) }}
                 </VChip>
                 <VChip color="secondary" variant="tonal" size="small">
                   {{ task.boardId.replace('_', ' ').toUpperCase() }}
@@ -82,14 +82,14 @@ const confirmAndDelete = () => {
             <div class="d-flex align-center gap-2">
               <VIcon icon="tabler-calendar" size="20" color="primary" />
               <span class="text-body-2 font-weight-medium">
-                {{ task.startDate }} &rarr; {{ task.dueDate }}
+                {{ $t('components.taskManager.event.dateRange', { start: formatLocalizedDate(`${task.startDate}T00:00:00`), end: formatLocalizedDate(`${task.dueDate}T00:00:00`) }) }}
               </span>
             </div>
             <VSpacer />
             <div class="d-flex align-center gap-2">
               <VIcon icon="tabler-paperclip" size="20" color="secondary" />
               <span class="text-body-2 text-medium-emphasis">
-                {{ task.dependencies.length }} Dependencies
+                {{ $t('components.taskManager.event.dependencyCount', { count: task.dependencies.length }) }}
               </span>
             </div>
           </div>
@@ -97,7 +97,7 @@ const confirmAndDelete = () => {
           <!-- Tags & Assignees -->
           <VRow class="mb-4">
             <VCol cols="12" sm="6" v-if="task.tags.length">
-              <div class="text-caption text-medium-emphasis mb-1 font-weight-bold">TAGS</div>
+              <div class="text-caption text-medium-emphasis mb-1 font-weight-bold">{{ $t('common.fields.tags') }}</div>
               <div class="d-flex flex-wrap gap-1">
                 <VChip v-for="tag in task.tags" :key="tag.id" :color="tag.color" size="small">
                   {{ tag.name }}
@@ -106,7 +106,7 @@ const confirmAndDelete = () => {
             </VCol>
 
             <VCol cols="12" sm="6" v-if="task.assignees.length">
-              <div class="text-caption text-medium-emphasis mb-1 font-weight-bold">ASSIGNED TO</div>
+              <div class="text-caption text-medium-emphasis mb-1 font-weight-bold">{{ $t('components.taskManager.taskeventmodal.assignedTO') }}</div>
               <div class="d-flex align-center gap-2">
                 <VAvatar v-for="user in task.assignees" :key="user.id" size="30" color="primary" variant="tonal">
                   <span class="text-caption font-weight-bold">{{ user.name.charAt(0) }}</span>
@@ -118,7 +118,7 @@ const confirmAndDelete = () => {
           <!-- Progress Visualizer -->
           <div class="mb-6">
             <div class="d-flex justify-space-between align-center mb-1">
-              <span class="text-subtitle-2 font-weight-bold">Overall Progress</span>
+              <span class="text-subtitle-2 font-weight-bold">{{ $t('components.taskManager.taskeventmodal.overallProgress') }}</span>
               <span class="text-caption font-weight-bold">{{ task.progress }}%</span>
             </div>
             <VProgressLinear :model-value="task.progress" :color="task.progress === 100 ? 'success' : 'primary'"
@@ -128,19 +128,21 @@ const confirmAndDelete = () => {
           <VDivider class="my-5" />
 
           <!-- Raw HTML Quill Output (Contract/Task Content) -->
-          <div class="text-subtitle-2 font-weight-bold mb-2">Description & Scope</div>
-          <div class="task-html-preview pa-4 rounded bg-surface border text-body-1"
-            v-html="task.description || '<em class=\'text-disabled\'>No description provided.</em>'"></div>
+          <div class="text-subtitle-2 font-weight-bold mb-2">{{ $t('components.taskManager.taskeventmodal.descriptionScope') }}</div>
+          <div v-if="task.description" class="task-html-preview pa-4 rounded bg-surface border text-body-1" v-html="task.description"></div>
+          <div v-else class="task-html-preview pa-4 rounded bg-surface border text-body-1">
+            <em class="text-disabled">{{ $t('components.taskManager.taskeventmodal.noDescriptionProvided') }}</em>
+          </div>
         </VCardText>
 
         <!-- Actions -->
         <VCardActions class="pa-5 border-t bg-grey-50 d-flex justify-space-between">
           <VBtn color="error" variant="tonal" prepend-icon="tabler-trash" @click="triggerDeleteConfirmation">
-            Delete Task
+            {{ $t('common.messages.deleteTask') }}
           </VBtn>
 
           <VBtn color="secondary" variant="outlined" @click="closeModal">
-            Close
+            {{ $t('common.actions.close') }}
           </VBtn>
         </VCardActions>
       </VCard>
@@ -154,21 +156,19 @@ const confirmAndDelete = () => {
               <VIcon icon="tabler-alert-triangle" size="40" />
             </VAvatar>
 
-            <h5 class="text-h5 font-weight-bold mb-2">Are you sure?</h5>
+            <h5 class="text-h5 font-weight-bold mb-2">{{ $t('common.confirmations.areYouSure') }}</h5>
             <p class="text-body-2 text-medium-emphasis mb-0">
-              You are about to permanently delete <strong>"{{ task?.title }}"</strong>. This action will destroy all
-              attached
-              sub-tasks and cannot be undone!
+              {{ $t('components.taskManager.taskeventmodal.youAreAboutToPermanentlyDelete') }} <strong>"{{ task?.title }}"</strong>{{ $t('common.confirmations.thisActionWillDestroyAllAttachedSubTasksAndCannotBeUndone') }}
             </p>
           </VCardText>
 
           <VCardActions class="d-flex justify-center gap-3 pt-2">
             <VBtn color="secondary" variant="outlined" @click="isConfirmDeleteOpen = false">
-              Cancel
+              {{ $t('common.actions.cancel') }}
             </VBtn>
 
             <VBtn color="error" variant="elevated" prepend-icon="tabler-trash" @click="confirmAndDelete">
-              Yes, Delete It
+              {{ $t('components.taskManager.taskeventmodal.yesDeleteIt') }}
             </VBtn>
           </VCardActions>
         </VCard>

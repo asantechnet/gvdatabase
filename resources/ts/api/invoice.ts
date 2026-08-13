@@ -33,11 +33,16 @@ export interface Invoice {
     name: string
     company?: string
     contact?: string
+    email?: string
+    address?: string
+    tax_number?: string
   }
   'class-type': 'Standard' | 'Proforma' | 'Credit Note' | 'Debit Note'
   services: InvoiceService[]
   deptor: string
   status: 'Issued' | 'Partially Paid' | 'Paid' | 'Overdue' | 'Void'
+  issue_date?: string | null
+  due_date?: string | null
   tax_percent: number
   currency: InvoiceCurrency
   subtotal: number
@@ -59,12 +64,15 @@ export interface InvoiceParams {
   customer_id?: number
   status?: string
   search?: string
+  unpaid?: boolean
 }
 
 export interface CreateInvoiceData {
   customer_id: number
   currency_id: number
   class_type: Invoice['class-type']
+  issue_date?: string
+  due_date?: string
   services: Array<{ id: number; quantity: number }>
   tax_percent: number
   discount?: number

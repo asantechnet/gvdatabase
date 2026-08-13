@@ -7,6 +7,11 @@ const props = defineProps({
     required: false,
     default: '',
   },
+  coverDesignUrl: {
+    type: String,
+    required: false,
+    default: '',
+  },
   companyWebsite: {
     type: String,
     required: false,
@@ -16,6 +21,11 @@ const props = defineProps({
     type: String,
     required: false,
     default: 'SIMPLE CONTRACT',
+  },
+  coverDescription: {
+    type: String,
+    required: false,
+    default: '',
   },
   contractNumber: {
     type: String,
@@ -80,7 +90,7 @@ const printContractCover = async () => {
 
   const printWindow = window.open('', '_blank', 'width=900,height=1100');
   if (!printWindow) {
-    alert("Could not open print window. Please allow pop-ups for this site.");
+    alert(translate('common.messages.couldNotOpenPrintWindowPleaseAllowPopUpsForThisSite'));
     return;
   }
 
@@ -93,7 +103,7 @@ const printContractCover = async () => {
   printWindow.document.open();
   printWindow.document.write(`
     <!DOCTYPE html>
-    <html>
+    <html lang="${document.documentElement.lang}" dir="${document.documentElement.dir}">
       <head>
         <title>Print Contract Cover - ${props.contractTitle}</title>
         ${styles}
@@ -166,23 +176,24 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="contractCoverRef" class="contract-cover">
+  <div ref="contractCoverRef" class="contract-cover print-document" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'" :class="{ 'contract-cover--custom': coverDesignUrl }">
+    <img v-if="coverDesignUrl" :src="coverDesignUrl" alt="" class="cover-design-background" aria-hidden="true" />
     <!-- Blue top section with complex clip-path geometric transition -->
     <div class="top-section">
       <div class="content-container">
         <!-- Far Left: "COVER PAGE" -->
-        <div class="cover-page-text">COVER PAGE</div>
+        <div class="cover-page-text">{{ $t('documents.contract_cover_template.contractCoverTemplate.coverPAGE') }}</div>
 
         <!-- Far Right: Logo, website, Contractee Info -->
         <div class="right-info-block">
           <div class="logo-circle">
             <img v-if="logo" :src="logo" ref="logoImage" alt="Company Logo" class="logo-image" />
-            <div v-else class="logo-placeholder">YOUR LOGO</div>
+            <div v-else class="logo-placeholder">{{ $t('documents.contract_cover_template.contractCoverTemplate.yourLOGO') }}</div>
           </div>
           <div class="company-website">{{ companyWebsite }}</div>
 
           <div class="contractee-block">
-            <div class="contractee-word">CONTRACTEE</div>
+            <div class="contractee-word">{{ $t('documents.contract_cover_template.contractCoverTemplate.contractee') }}</div>
             <div class="contractee-name">{{ contracteeName }}</div>
           </div>
         </div>
@@ -194,6 +205,7 @@ onMounted(() => {
       <div class="content-container">
         <div class="title-block">
           <h1 class="contract-title">{{ contractTitle }}</h1>
+          <p v-if="coverDescription" class="cover-description">{{ coverDescription }}</p>
           <p>{{ contractNumber }}</p>
         </div>
         <footer class="footer-block">
@@ -225,6 +237,42 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background: #ffffff;
+}
+
+.cover-design-background {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.contract-cover--custom .top-section,
+.contract-cover--custom .bottom-section {
+  background: transparent;
+  clip-path: none;
+}
+
+.contract-cover--custom .top-section,
+.contract-cover--custom .bottom-section {
+  z-index: 1;
+}
+
+.contract-cover--custom .cover-page-text,
+.contract-cover--custom .company-website,
+.contract-cover--custom .contractee-word,
+.contract-cover--custom .contractee-name,
+.contract-cover--custom .contract-title,
+.contract-cover--custom .title-block,
+.contract-cover--custom .footer-block {
+  text-shadow: 0 1px 3px rgb(255 255 255 / 80%);
+}
+
+.cover-description {
+  max-inline-size: 34rem;
+  margin-block: 0.75rem;
+  white-space: pre-line;
 }
 
 .content-container {

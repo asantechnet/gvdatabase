@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('customer_id')->constrained()->onDelete('cascade');
             $table->foreignId('service_id')->constrained()->restrictOnDelete();
-            $table->date('deadline');
+            $table->date('deadline')->nullable();
             $table->timestamps();
 
             $table->unique(['customer_id', 'service_id']);

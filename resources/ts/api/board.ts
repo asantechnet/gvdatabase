@@ -46,6 +46,16 @@ const BoardApi = {
       throw error;
     }
   },
+
+  // Persist the complete column order after a board drag-and-drop.
+  reorder: async (boardIds: string[]) => {
+    try {
+      return await api.put<{ message: string }>("/boards/reorder", { board_ids: boardIds });
+    } catch (error) {
+      console.error('API reorder error:', error);
+      throw error;
+    }
+  },
 };
 
 export default BoardApi;

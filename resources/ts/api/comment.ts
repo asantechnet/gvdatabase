@@ -13,6 +13,8 @@ const CommentApi = {
       throw error;
     }
   },
+  update: (taskId: string, commentId: string, content: string) =>
+    api.put<{ data: Comment }>(`/tasks/${taskId}/comments/${commentId}`, { content }),
 };
 
 export default CommentApi;

@@ -1,15 +1,18 @@
 import api from './axios'
+import type { Currency } from './currency'
 
 export interface Income {
   id: number
+  receipt_number: string
   customer_id: number | null
   invoice_id: number | null
+  currency_id: number
   invoice_number?: string | null
   type: string
-  description: string
+  description?: string
   amount: number
   quantity: number
-  currency: string
+  currency: Pick<Currency, 'id' | 'code' | 'symbol' | 'rateToBase' | 'decimalPlaces'> | null
   rate_to_base: number
   total_amount: number
   date: string
@@ -20,11 +23,11 @@ export interface Income {
 export interface IncomeCreateData {
   customer_id?: number | null
   invoice_id?: number | null
+  currency_id: number
   type: string
-  description: string
+  description?: string
   amount: number
   quantity: number
-  currency: string
   rate_to_base: number
   date: string
 }
@@ -32,11 +35,11 @@ export interface IncomeCreateData {
 export interface IncomeUpdateData {
   customer_id?: number | null
   invoice_id?: number | null
+  currency_id?: number
   type?: string
-  description?: string
+  description?: string | null
   amount?: number
   quantity?: number
-  currency?: string
   rate_to_base?: number
   date?: string
 }
@@ -44,7 +47,7 @@ export interface IncomeUpdateData {
 export interface IncomeParams {
   search?: string
   type?: string
-  currency?: string
+  currency_id?: number
 }
 
 export const getIncomes = async (params?: IncomeParams): Promise<Income[]> => {

@@ -3,11 +3,12 @@ import navItems from '@/navigation/vertical'
 import { themeConfig } from '@themeConfig'
 
 import Footer from '@/layouts/components/Footer.vue'
+import NavBarAuditLogs from '@/layouts/components/NavBarAuditLogs.vue'
 import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
-import NavbarShortcuts from '@/layouts/components/NavbarShortcuts.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
+import NavbarLayoutSwitcher from '@/layouts/components/NavbarLayoutSwitcher.vue'
 import { useBranding } from '@/composables/useBranding'
 import NavBarI18n from '@core/components/I18n.vue'
 import { VerticalNavLayout } from '@layouts'
@@ -32,7 +33,7 @@ onMounted(loadBranding)
           />
         </IconBtn>
 
-        <RouterLink to="/" class="d-flex align-center gap-2 me-4">
+        <RouterLink to="/" class="d-flex align-center gap-2 me-4 navbar-brand">
           <img :src="logoUrl" :alt="shortCompanyName" class="navbar-logo">
           <span class="text-h6 font-weight-bold text-no-wrap d-none d-sm-inline">{{ shortCompanyName }}</span>
         </RouterLink>
@@ -46,7 +47,8 @@ onMounted(loadBranding)
           :languages="themeConfig.app.i18n.langConfig"
         />
         <NavbarThemeSwitcher />
-        <NavbarShortcuts />
+        <NavbarLayoutSwitcher />
+        <NavBarAuditLogs class="me-1" />
         <NavBarNotifications class="me-1" />
         <UserProfile />
       </div>
@@ -65,5 +67,9 @@ onMounted(loadBranding)
   block-size: 2rem;
   inline-size: 2rem;
   object-fit: contain;
+}
+
+@media (max-width: 599px) {
+  .navbar-brand { display: none !important; }
 }
 </style>

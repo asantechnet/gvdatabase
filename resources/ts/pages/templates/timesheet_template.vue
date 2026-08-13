@@ -1,5 +1,5 @@
 <template>
-  <div class="timesheet-wrapper">
+  <div class="timesheet-wrapper print-document" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'">
     <div class="actions no-print">
       <button @click="printReport" class="print-btn">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -8,7 +8,7 @@
           <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
           <rect x="6" y="14" width="12" height="8"></rect>
         </svg>
-        Print Timesheet
+        {{ $t('documents.timesheet_template.timesheetTemplate.printTimesheet') }}
       </button>
     </div>
 
@@ -16,7 +16,7 @@
       <div v-for="(page, index) in calendarPages" :key="index" class="a4-page">
         <div class="timesheet-page-header">
           <h2>{{ page.monthName }} {{ page.year }}</h2>
-          <p class="subtitle">Monthly Attendance Record</p>
+          <p class="subtitle">{{ $t('documents.timesheet_template.timesheetTemplate.monthlyAttendanceRecord') }}</p>
         </div>
 
         <div class="calendar-grid">
@@ -49,13 +49,18 @@
                   </svg>
                 </div>
                 <span class="staff-name">{{ att.name }}</span>
+                <span v-if="att.status === 'present'" class="staff-hours">
+                  {{ att.missing_punch_state !== 'none' ? translateBackendValue('incomplete') : formatDuration(att.net_worked_minutes) }}
+                  <template v-if="att.overtime_minutes">{{ $t('documents.timesheet.overtimeInline', { duration: formatDuration(att.overtime_minutes) }) }}</template>
+                </span>
               </div>
             </div>
           </div>
         </div>
 
         <footer class="page-footer">
-          <p>Generated on {{ new Date().toLocaleDateString() }}</p>
+          <p>{{ $t('documents.timesheet.totals', { worked: formatDuration(totalWorkedMinutes), overtime: formatDuration(totalOvertimeMinutes) }) }}</p>
+          <p>{{ $t('documents.timesheet.generatedOn', { date: formatLocalizedDate(new Date()) }) }}</p>
         </footer>
       </div>
     </div>
@@ -64,6 +69,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 export interface Attendance {
   id: string | number
@@ -71,17 +77,30 @@ export interface Attendance {
   name: string
   role: string
   date: string // Format: 'YYYY-MM-DD'
-  status: 'present' | 'absent'
+  status: 'present' | 'absent' | 'paid-off-day' | 'unpaid-off-day'
   timestamp: string
+  net_worked_minutes: number | null
+  overtime_minutes: number
+  missing_punch_state: 'none' | 'check_in' | 'check_out' | 'both'
 }
 
 const props = defineProps<{
   attendances: Attendance[]
   startDate: string // Format: 'YYYY-MM-DD'
   endDate: string // Format: 'YYYY-MM-DD'
+  totalWorkedMinutes: number
+  totalOvertimeMinutes: number
 }>()
 
-const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const { locale } = useI18n()
+
+const formatDuration = (minutes: number | null) => minutes === null
+  ? '—'
+  : `${new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'hour', unitDisplay: 'narrow' }).format(Math.floor(minutes / 60))} ${new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'minute', unitDisplay: 'narrow' }).format(minutes % 60)}`
+
+const weekDays = computed(() => Array.from({ length: 7 }, (_, day) =>
+  new Intl.DateTimeFormat(locale.value, { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2023, 0, day + 1))),
+))
 
 // Helper to format date cleanly avoiding timezone shifting issues
 const formatDateKey = (year: number, month: number, day: number): string => {
@@ -117,7 +136,7 @@ const calendarPages = computed(() => {
   while (currentMonth <= endMonth) {
     const year = currentMonth.getFullYear()
     const month = currentMonth.getMonth()
-    const monthName = currentMonth.toLocaleString('default', { month: 'long' })
+const monthName = formatLocalizedDate(currentMonth, { month: 'long' })
 
     // Calendar math
     const firstDayOfMonth = new Date(year, month, 1)
@@ -361,7 +380,7 @@ const printReport = () => {
   justify-content: center;
   border-radius: 50%;
   margin-top: -2px;
-  margin-right: -2px;
+  margin-inline-end: -2px;
 }
 
 /* ==========================================

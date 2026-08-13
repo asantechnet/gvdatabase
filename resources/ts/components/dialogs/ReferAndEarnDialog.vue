@@ -23,18 +23,18 @@ const dialogVisibleUpdate = (val: boolean) => {
 const referAndEarnSteps = [
   {
     icon: paper,
-    title: 'Send Invitation 👍🏻',
-    subtitle: 'Send your referral link to your friend',
+    title: translate('components.dialogs.referandearndialog.sendInvitation'),
+    subtitle: translate('components.dialogs.referandearndialog.sendYourReferralLinkToYourFriend'),
   },
   {
     icon: keyboard,
-    title: 'Registration 😎',
-    subtitle: 'Let them register to our services',
+    title: translate('components.dialogs.referandearndialog.registration'),
+    subtitle: translate('components.dialogs.referandearndialog.letThemRegisterToOurServices'),
   },
   {
     icon: rocket,
-    title: 'Free Trial  🎉',
-    subtitle: 'Your friend will get 30 days free trial',
+    title: translate('components.dialogs.referandearndialog.freeTrial'),
+    subtitle: translate('components.dialogs.referandearndialog.yourFriendWillGet30DaysFreeTrial'),
   },
 ]
 </script>
@@ -51,10 +51,10 @@ const referAndEarnSteps = [
     <VCard class="pa-2 pa-sm-10">
       <VCardText>
         <h4 class="text-h4 text-center mb-2">
-          Refer & Earn
+          {{ $t('components.dialogs.referandearndialog.referEarn') }}
         </h4>
         <p class="text-body-1 mb-6 text-center">
-          Invite your friend to <span class="text-capitalize">{{ themeConfig.app.title }}</span>, if they sign up, you and your friend will get 30 days free trial
+          {{ $t('components.dialogs.referandearndialog.inviteYourFriendTo') }} <span class="text-capitalize">{{ themeConfig.app.title }}</span>{{ $t('components.dialogs.referandearndialog.ifTheySignUpYouAndYourFriendWillGet30DaysFreeTrial') }}
         </p>
 
         <VRow class="text-center mt-8">
@@ -86,7 +86,7 @@ const referAndEarnSteps = [
         <VDivider class="mt-12 mb-6" />
 
         <h5 class="text-h5 mb-6">
-          Invite your friends
+          {{ $t('components.dialogs.referandearndialog.inviteYourFriends') }}
         </h5>
 
         <VForm
@@ -95,19 +95,19 @@ const referAndEarnSteps = [
         >
           <AppTextField
             placeholder="johnDoe@gmail.com"
-            label="Enter your friend's email address and invite them to join Vuexy 😍"
+            :label="$t('components.dialogs.referandearndialog.enterYourFriendSEmailAddressAndInviteThemToJoinVuexy')"
           />
 
           <VBtn
             class="align-self-end"
             type="submit"
           >
-            Send
+            {{ $t('components.dialogs.referandearndialog.send') }}
           </VBtn>
         </VForm>
 
         <h5 class="text-h5 my-6">
-          Share the referral link
+          {{ $t('components.dialogs.referandearndialog.shareTheReferralLink') }}
         </h5>
 
         <VForm
@@ -115,13 +115,13 @@ const referAndEarnSteps = [
           @submit.prevent="() => {}"
         >
           <AppTextField
-            placeholder="http://pixinvent.link"
-            label="You can also copy and send it or share it on your social media. 🚀"
+            :placeholder="$t('components.dialogs.referandearndialog.httpPixinventLink')"
+            :label="$t('components.dialogs.referandearndialog.youCanAlsoCopyAndSendItOrShareItOnYourSocialMedia')"
             class="refer-link-input"
           >
             <template #append-inner>
               <VBtn variant="text">
-                Copy link
+                {{ $t('components.dialogs.referandearndialog.copyLink') }}
               </VBtn>
             </template>
           </AppTextField>

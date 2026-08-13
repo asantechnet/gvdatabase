@@ -1,483 +1,222 @@
 <script setup lang="ts">
+import ReportApi, { type GeneratedReport, type ReportCatalog, type ReportFilters, type ReportSection, type ReportType } from '@/api/report'
+import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
-import { ref } from 'vue'
+import { canAccess } from '@/utils/authorization'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-// 1. Interfaces Schema Definitions
-interface FinancialSummary {
-  totalInvoiced: number
-  totalExpenses: number
-  netProfit: number
-  activeUsersCount: number
-  totalStaffOnboarded: number
+const { locale } = useI18n()
+const today = new Date()
+const startOfMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`
+const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+const type = ref<ReportType>('financial')
+const catalog = ref<ReportCatalog | null>(null)
+const report = ref<GeneratedReport | null>(null)
+const loading = ref(false)
+const exporting = ref(false)
+const error = ref('')
+const filters = reactive<ReportFilters>({ start_date: startOfMonth, end_date: todayKey })
+
+const typeOptions = computed(() => catalog.value?.types.map(item => ({ title: translate(`pages.reports.types.${item.value}`), value: item.value })) ?? [])
+const direction = computed(() => locale.value === 'fa-AF' || locale.value === 'ps-AF' ? 'rtl' : 'ltr')
+const generatedAt = computed(() => report.value
+  ? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'medium', timeZone: report.value.meta.timezone }).format(new Date(report.value.meta.generated_at))
+  : '')
+const canExport = computed(() => canAccess('export_reports') && (type.value !== 'financial' || canAccess('export_financial_reports')))
+
+const resetIrrelevantFilters = () => {
+  filters.employee_id = null
+  filters.office_id = null
+  filters.customer_id = null
+  filters.currency_id = null
+  filters.board_id = null
+  filters.status = null
+  filters.contract_type = null
+  filters.attendance_state = null
 }
 
-interface ExpenseCategoryShare {
-  name: string
-  amount: number
-  percentage: number
-  color: string
+const generate = async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    report.value = await ReportApi.generate(type.value, filters)
+  } catch (caught) {
+    report.value = null
+    error.value = apiErrorMessage(caught, 'Unable to generate the report.')
+  } finally {
+    loading.value = false
+  }
 }
 
-interface PerformanceMetric {
-  department: string
-  allocatedBudget: number
-  spentBudget: number
-  efficiencyScore: number // percentage
+const changeType = async () => {
+  resetIrrelevantFilters()
+  await generate()
 }
 
-// 2. Mock Core Analytics Data (Reflective of past features)
-const analyticsSummary = ref<FinancialSummary>({
-  totalInvoiced: 48950.00,
-  totalExpenses: 14210.50,
-  netProfit: 34739.50,
-  activeUsersCount: 142,
-  totalStaffOnboarded: 24,
+const exportCsv = async () => {
+  exporting.value = true
+  error.value = ''
+  try {
+    const blob = await ReportApi.export(type.value, filters)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${type.value}-report-${filters.start_date}-${filters.end_date}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (caught) {
+    error.value = apiErrorMessage(caught, 'Unable to export the report.')
+  } finally {
+    exporting.value = false
+  }
+}
+
+const printReport = () => printDocument({ bodyClass: 'printing-generated-report', pageStyle: 'size: A4 landscape; margin: 10mm;' })
+
+const humanize = (value: string) => value.startsWith('reports.')
+  ? translate(`pages.${value}`)
+  : translateBackendValue(value, 'pages.reports.columns')
+
+const formatValue = (value: unknown, column: string): string => {
+  if (value === null || value === undefined || value === '') return translate('common.messages.notAvailable')
+  if (typeof value === 'boolean') return translateBackendValue(value ? 'yes' : 'no')
+  if (column.endsWith('_utc')) {
+    return new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'short', timeZone: report.value?.meta.timezone }).format(new Date(String(value)))
+  }
+  if (column.endsWith('_minutes') && typeof value === 'number') {
+    const hours = Math.floor(value / 60)
+    const minutes = value % 60
+    return `${new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'hour', unitDisplay: 'narrow' }).format(hours)} ${new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'minute', unitDisplay: 'narrow' }).format(minutes)}`
+  }
+  if (typeof value === 'number') return formatLocalizedNumber(value, { maximumFractionDigits: 4 })
+  if (typeof value === 'object') return Object.entries(value as Record<string, unknown>).map(([key, item]) => `${key}: ${formatValue(item, key)}`).join(' · ')
+  if (/status|state|priority|type$/.test(column)) return translateBackendValue(value)
+  return String(value)
+}
+
+const totals = (section: ReportSection) => Object.entries(section.totals)
+
+onMounted(async () => {
+  loading.value = true
+  try {
+    catalog.value = await ReportApi.catalog()
+    if (catalog.value.types.length) type.value = catalog.value.types[0].value
+    await generate()
+  } catch (caught) {
+    error.value = apiErrorMessage(caught, 'Unable to load report options.')
+  } finally {
+    loading.value = false
+  }
 })
-
-const expenseDistribution = ref<ExpenseCategoryShare[]>([
-  { name: 'Marketing & Ads', amount: 5400.00, percentage: 38, color: 'primary' },
-  { name: 'Software / SaaS Licenses', amount: 3200.00, percentage: 22, color: 'info' },
-  { name: 'Corporate HR Salaries', amount: 4100.50, percentage: 29, color: 'success' },
-  { name: 'Office Utilities & Supplies', amount: 1510.00, percentage: 11, color: 'warning' },
-])
-
-const departmentPerformance = ref<PerformanceMetric[]>([
-  { department: 'Engineering (Frontend/Backend)', allocatedBudget: 25000, spentBudget: 22400, efficiencyScore: 94 },
-  { department: 'UI/UX Design Studios', allocatedBudget: 8000, spentBudget: 7900, efficiencyScore: 88 },
-  { department: 'Marketing & Public Growth', allocatedBudget: 12000, spentBudget: 11200, efficiencyScore: 91 },
-  { department: 'HR & Operations Admin', allocatedBudget: 5000, spentBudget: 4200, efficiencyScore: 96 },
-])
-
-// 3. States & Date Filters
-const selectedQuarter = ref('Q3-2026')
-const activePrintReport = ref(false)
-
-const quartersList = [
-  { title: 'Q1 (Jan - Mar 2026)', value: 'Q1-2026' },
-  { title: 'Q2 (Apr - Jun 2026)', value: 'Q2-2026' },
-  { title: 'Q3 (Jul - Sep 2026)', value: 'Q3-2026' },
-]
-
-// 4. Print Executive Report Routine
-const triggerPrintReport = () => {
-  void printDocument({
-    bodyClass: 'printing-reports',
-    pageStyle: 'size: letter portrait; margin: 15mm;',
-    beforePrint: () => { activePrintReport.value = true },
-    afterPrint: () => { activePrintReport.value = false },
-  })
-}
 </script>
 
 <template>
-  <div class="reports-dashboard-wrapper">
-
-    <div class="d-flex justify-between align-center mb-6 screen-only">
-      <div>
-        <h3 class="text-h4 font-weight-medium">Analytics & Performance Intelligence</h3>
-        <p class="text-subtitle-2 text-muted mb-0">Cross-reference financial operations, human resource footprints, and
-          ledger distribution.</p>
-      </div>
-
-      <div class="d-flex gap-3 align-center" style="margin-left: auto">
-        <VSelect v-model="selectedQuarter" :items="quartersList" density="compact" hide-details style="width: 220px;"
-          variant="solo" />
-        <VSelect v-model="selectedQuarter" :items="quartersList" density="compact" hide-details style="width: 220px;"
-          variant="solo" />
-        <VBtn color="primary" @click="triggerPrintReport">
-          <VIcon icon="tabler-printer" class="me-1" /> Print Report Statement
-        </VBtn>
-      </div>
-    </div>
-
-    <VRow class="mb-6 screen-only">
-      <VCol cols="12" sm="6" md="3">
-        <VCard class="p-2 border-start border-primary border-lg">
-          <VCardText class="d-flex justify-between align-center">
-            <div>
-              <div class="text-xs text-muted uppercase font-weight-bold">Total Gross Revenue</div>
-              <h3 class="text-h5 font-weight-black mt-1">${{ analyticsSummary.totalInvoiced.toLocaleString() }}</h3>
-            </div>
-            <VAvatar color="primary" variant="tonal" style="margin-left: auto" rounded size="42">
-              <VIcon icon="tabler-file-invoice" />
-            </VAvatar>
-          </VCardText>
-        </VCard>
-      </VCol>
-
-      <VCol cols="12" sm="6" md="3">
-        <VCard class="p-2 border-start border-error border-lg">
-          <VCardText class="d-flex justify-between align-center">
-            <div>
-              <div class="text-xs text-muted uppercase font-weight-bold">Total Expenses</div>
-              <h3 class="text-h5 font-weight-black mt-1 text-error">${{ analyticsSummary.totalExpenses.toLocaleString()
-              }}</h3>
-            </div>
-            <VAvatar color="error" variant="tonal" style="margin-left: auto" rounded size="42">
-              <VIcon icon="tabler-receipt" />
-            </VAvatar>
-          </VCardText>
-        </VCard>
-      </VCol>
-
-      <VCol cols="12" sm="6" md="3">
-        <VCard class="p-2 border-start border-success border-lg">
-          <VCardText class="d-flex justify-between align-center">
-            <div>
-              <div class="text-xs text-muted uppercase font-weight-bold">Net Profit Margin</div>
-              <h3 class="text-h5 font-weight-black mt-1 text-success">${{ analyticsSummary.netProfit.toLocaleString() }}
-              </h3>
-            </div>
-            <VAvatar color="success" variant="tonal" style="margin-left: auto" rounded size="42">
-              <VIcon icon="tabler-chart-pie" />
-            </VAvatar>
-          </VCardText>
-        </VCard>
-      </VCol>
-
-      <VCol cols="12" sm="6" md="3">
-        <VCard class="p-2 border-start border-info border-lg">
-          <VCardText class="d-flex justify-between align-center">
-            <div>
-              <div class="text-xs text-muted uppercase font-weight-bold">Onboarded Directory Size</div>
-              <h3 class="text-h5 font-weight-black mt-1 text-info">{{ analyticsSummary.activeUsersCount }} Users / {{
-                analyticsSummary.totalStaffOnboarded }} Staff</h3>
-            </div>
-            <VAvatar color="info" variant="tonal" style="margin-left: auto" rounded size="42">
-              <VIcon icon="tabler-users" />
-            </VAvatar>
-          </VCardText>
-        </VCard>
-      </VCol>
-    </VRow>
-
-    <VRow class="mb-6 screen-only">
-      <VCol cols="12" md="5">
-        <VCard title="Expenditure Ledger Categorization" h-100 class="h-100">
-          <VCardText class="pt-2">
-            <p class="text-caption text-muted mb-4">Live percentage distribution of cash flows across categorized
-              transactional operational units.</p>
-
-            <div class="d-flex flex-column gap-5">
-              <div v-for="(category, index) in expenseDistribution" :key="index">
-                <div class="d-flex justify-between align-center text-body-2 mb-1">
-                  <span class="font-weight-medium text-high-emphasis">{{ category.name }}</span>
-                  <span class="font-weight-bold text-secondary" style="margin-left: auto">${{
-                    category.amount.toLocaleString() }} ({{
-                      category.percentage }}%)</span>
-                </div>
-                <VProgressLinear :model-value="category.percentage" :color="category.color" height="8" rounded />
-              </div>
-            </div>
-          </VCardText>
-        </VCard>
-      </VCol>
-
-      <VCol cols="12" md="7">
-        <VCard title="Departmental Operational Efficiency Tracking Matrix" class="h-100">
-          <VCardText>
-            <VTable class="text-no-wrap">
-              <thead>
-                <tr>
-                  <th>Functional Core Department</th>
-                  <th>Allocated Cap</th>
-                  <th>Actual Outflows</th>
-                  <th class="text-end">Performance Index</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(dept, index) in departmentPerformance" :key="index">
-                  <td class="font-weight-semibold">{{ dept.department }}</td>
-                  <td>${{ dept.allocatedBudget.toLocaleString() }}</td>
-                  <td class="text-secondary">${{ dept.spentBudget.toLocaleString() }}</td>
-                  <td class="text-end">
-                    <VChip size="small" :color="dept.efficiencyScore >= 92 ? 'success' : 'warning'" variant="tonal"
-                      class="font-weight-black">
-                      {{ dept.efficiencyScore }}% Index
-                    </VChip>
-                  </td>
-                </tr>
-              </tbody>
-            </VTable>
-          </VCardText>
-        </VCard>
-      </VCol>
-    </VRow>
-
-
-    <div v-if="activePrintReport" class="a4-print-report-canvas">
-      <div class="print-report-header">
-        <div>
-          <h1 class="print-corporate-brand">ASANTECH OPERATIONAL SYSTEM REPORT</h1>
-          <div class="print-report-sub-meta">Dashboard Intelligence Export Ledger Auditing Statement</div>
-        </div>
-        <div class="text-right font-mono text-xs">
-          <div>Scope: {{ selectedQuarter }} Audit</div>
-          <div>Generated Timestamp: 2026-07-08</div>
-        </div>
-      </div>
-
-      <hr class="print-report-divider" />
-
-      <h3 class="print-section-title-label">1. FISCAL & DIRECTORY SUMMARY BALANCES</h3>
-      <table class="print-summary-table">
-        <thead>
-          <tr>
-            <th>Financial Statement Element</th>
-            <th class="text-right">Ledger Accounting Balance Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Total Aggregated Invoiced Revenue Volume</td>
-            <td class="text-right font-weight-bold">${{ analyticsSummary.totalInvoiced.toFixed(2) }}</td>
-          </tr>
-          <tr>
-            <td>Total Registered Operational Expenditure Outflows</td>
-            <td class="text-right font-weight-bold text-error">${{ analyticsSummary.totalExpenses.toFixed(2) }}</td>
-          </tr>
-          <tr class="highlighted-profit-row">
-            <td><strong>NET BALANCED RETAINED EARNINGS OPERATIONAL PROFIT</strong></td>
-            <td class="text-right font-weight-black text-success">${{ analyticsSummary.netProfit.toFixed(2) }}</td>
-          </tr>
-          <tr>
-            <td>Active Connected Application System Directory User Count</td>
-            <td class="text-right">{{ analyticsSummary.activeUsersCount }} Registered Users</td>
-          </tr>
-          <tr>
-            <td>Onboarded Corporate Workforce Personnel Record Count</td>
-            <td class="text-right">{{ analyticsSummary.totalStaffOnboarded }} Active Staff Members</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h3 class="print-section-title-label">2. EXPENDITURE CAPITAL ACCOUNT ALLOCATIONS</h3>
-      <table class="print-summary-table">
-        <thead>
-          <tr>
-            <th>Expense Category Channel Description</th>
-            <th class="text-center">Percent Ratio Share</th>
-            <th class="text-right">Settled Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(item, idx) in expenseDistribution" :key="idx">
-            <td>{{ item.name }} Allocation Resource Provision</td>
-            <td class="text-center">{{ item.percentage }}%</td>
-            <td class="text-right">${{ item.amount.toFixed(2) }}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h3 class="print-section-title-label">3. OPERATIONAL PERFORMANCE & AUDITING METRICS</h3>
-      <table class="print-summary-table">
-        <thead>
-          <tr>
-            <th>Audited Department Division</th>
-            <th class="text-right">Allocated Budget Cap</th>
-            <th class="text-right">Actual Spent Outflows</th>
-            <th class="text-right">Efficiency Utilization Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(dept, idx) in departmentPerformance" :key="idx">
-            <td>{{ dept.department }}</td>
-            <td class="text-right">${{ dept.allocatedBudget.toLocaleString() }}.00</td>
-            <td class="text-right">${{ dept.spentBudget.toLocaleString() }}.00</td>
-            <td class="text-right font-weight-bold">{{ dept.efficiencyScore }}% Performance Rating</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="print-report-attestation-block">
-        <div class="print-attestation-line-row">
-          <div class="attestation-signature-box">
-            <div class="attestation-blank-line"></div>
-            <div>Chief Financial Comptroller Endorsement</div>
-            <div class="text-muted text-xs">Internal Security Financial Audit Approval Signee</div>
+  <div class="reports-page">
+    <VCard class="mb-6 report-controls no-print">
+      <VCardText>
+        <div class="d-flex flex-wrap align-center justify-space-between gap-3 mb-5">
+          <div>
+            <h2 class="text-h4 font-weight-bold mb-1">{{ $t('pages.reports.reports.reports.reports') }}</h2>
+            <p class="text-body-2 text-medium-emphasis mb-0">{{ $t('pages.reports.reports.reports.generatePermissionAwareOperationalReportsFromRecordedSystemData') }}</p>
           </div>
-          <div class="attestation-signature-box">
-            <div class="attestation-blank-line"></div>
-            <div>System Operational Audit Director</div>
-            <div class="text-muted text-xs">Infrastructure Operations Verification Endorsement Block</div>
+          <div class="d-flex gap-2">
+            <VBtn v-if="canExport" variant="tonal" prepend-icon="tabler-file-spreadsheet" :loading="exporting" :disabled="!report" @click="exportCsv">{{ $t('pages.reports.reports.reports.exportCSV') }}</VBtn>
+            <VBtn v-if="canExport" color="primary" prepend-icon="tabler-printer" :disabled="!report" @click="printReport">{{ $t('pages.reports.reports.reports.printSavePDF') }}</VBtn>
           </div>
         </div>
-      </div>
 
-      <div class="print-report-footer-notice" style="padding-bottom: 6px">
-        CONFIDENTIAL DATA SYSTEM REPORT EXPORT STATEMENT. FOR INTERNAL CORPORATE AUDITING PURPOSES ONLY.
-      </div>
-    </div>
+        <VRow>
+          <VCol cols="12" md="3"><VSelect v-model="type" :items="typeOptions" :label="$t('pages.reports.reports.reports.reportCategory')" @update:model-value="changeType" /></VCol>
+          <VCol cols="12" sm="6" md="3"><AppDateTimePicker v-model="filters.start_date" :label="$t('common.fields.startDate')" :config="{ dateFormat: 'Y-m-d' }" /></VCol>
+          <VCol cols="12" sm="6" md="3"><AppDateTimePicker v-model="filters.end_date" :label="$t('common.fields.endDate')" :config="{ dateFormat: 'Y-m-d' }" /></VCol>
+          <VCol v-if="type === 'payroll' || type === 'attendance'" cols="12" md="3"><VSelect v-model="filters.employee_id" :items="catalog?.employees ?? []" item-title="name" item-value="id" :label="$t('common.fields.employee')" clearable /></VCol>
+          <VCol v-if="type === 'payroll' || type === 'attendance'" cols="12" md="3"><VSelect v-model="filters.office_id" :items="catalog?.offices ?? []" item-title="name" item-value="id" :label="$t('common.fields.office')" clearable /></VCol>
+          <VCol v-if="type === 'financial'" cols="12" md="3"><VSelect v-model="filters.customer_id" :items="catalog?.customers ?? []" item-title="name" item-value="id" :label="$t('common.messages.customer')" clearable /></VCol>
+          <VCol v-if="type === 'financial' || type === 'payroll'" cols="12" md="3"><VSelect v-model="filters.currency_id" :items="catalog?.currencies ?? []" item-title="code" item-value="id" :label="$t('common.fields.currency')" clearable /></VCol>
+          <VCol v-if="type === 'operations'" cols="12" md="3"><VSelect v-model="filters.board_id" :items="catalog?.boards ?? []" item-title="title" item-value="id" :label="$t('pages.reports.reports.reports.taskBoard')" clearable /></VCol>
+          <VCol v-if="type === 'operations'" cols="12" md="3"><VSelect v-model="filters.contract_type" :items="catalog?.contract_types ?? []" :label="$t('pages.reports.reports.reports.contractType')" clearable /></VCol>
+          <VCol v-if="type === 'attendance'" cols="12" md="3"><VSelect v-model="filters.attendance_state" :items="['present', 'absent', 'paid-off-day', 'complete', 'incomplete']" :item-title="translateBackendValue" :label="$t('pages.reports.reports.reports.attendanceState')" clearable /></VCol>
+          <VCol v-if="type === 'financial' || type === 'payroll' || type === 'operations'" cols="12" md="3"><VTextField v-model="filters.status" :label="$t('common.fields.status')" clearable /></VCol>
+          <VCol cols="12" md="3" class="d-flex align-center"><VBtn block color="primary" size="large" :loading="loading" @click="generate">{{ $t('pages.reports.reports.reports.generateReport') }}</VBtn></VCol>
+        </VRow>
+      </VCardText>
+    </VCard>
 
+    <VAlert v-if="error" type="error" variant="tonal" class="mb-5 no-print">{{ error }}</VAlert>
+    <div v-if="loading && !report" class="text-center py-12 no-print"><VProgressCircular indeterminate color="primary" /></div>
+
+    <article v-if="report" class="generated-report" :dir="direction">
+      <header class="report-header">
+        <div class="d-flex align-center gap-3">
+          <img v-if="report.meta.company.logo" :src="report.meta.company.logo" alt="" class="company-logo">
+          <div>
+            <h1>{{ report.meta.company.name || report.meta.company.short_name }}</h1>
+            <div class="text-medium-emphasis">{{ $t('pages.reports.reportTitle', { type: $t(`pages.reports.types.${report.type}`) }) }}</div>
+          </div>
+        </div>
+        <div class="report-meta">
+          <div>{{ formatLocalizedDate(`${report.filters.start_date}T00:00:00`) }} — {{ formatLocalizedDate(`${report.filters.end_date}T00:00:00`) }}</div>
+          <div>{{ generatedAt }}</div>
+          <div>{{ report.meta.timezone }}</div>
+        </div>
+      </header>
+
+      <section v-for="section in report.sections" :key="section.key" class="report-section">
+        <div class="d-flex flex-wrap align-center justify-space-between gap-2 mb-3">
+          <h2>{{ $t(`pages.reports.sections.${section.key}`) }}</h2>
+          <div class="d-flex flex-wrap gap-2">
+            <VChip v-for="([key, value]) in totals(section)" :key="key" size="small" variant="tonal">
+              {{ humanize(key) }}: {{ formatValue(value, key) }}
+            </VChip>
+          </div>
+        </div>
+        <div class="report-table-wrap">
+          <table>
+            <thead><tr><th v-for="column in section.columns" :key="column">{{ humanize(column) }}</th></tr></thead>
+            <tbody>
+              <tr v-for="(row, rowIndex) in section.rows" :key="rowIndex">
+                <td v-for="column in section.columns" :key="column">{{ formatValue(row[column], column) }}</td>
+              </tr>
+              <tr v-if="section.rows.length === 0"><td :colspan="section.columns.length" class="text-center text-medium-emphasis py-6">{{ $t('pages.reports.reports.reports.noRecordsFound') }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="report-footer">
+        <div>{{ $t(report.meta.currency_basis) }}</div>
+        <div>{{ report.meta.company.address }} · {{ report.meta.company.email }} · {{ report.meta.company.phone }}</div>
+      </footer>
+    </article>
   </div>
 </template>
 
 <style scoped>
-.border-lg {
-  border-inline-start-width: 6px !important;
-}
-
-.gap-5 {
-  gap: 20px;
-}
-
-.gap-3 {
-  gap: 12px;
-}
-
-.text-right {
-  text-align: right;
-}
-
-.text-center {
-  text-align: center;
-}
+@font-face { font-family: "Report Persian"; src: local("Vazirmatn"), local("Vazir"), local("Tahoma"); font-display: swap; }
+.reports-page { font-family: "Report Persian", Tahoma, "Segoe UI", Arial, sans-serif; }
+.report-controls { border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+.generated-report { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: 12px; padding: 24px; }
+.report-header { align-items: center; border-bottom: 2px solid rgb(var(--v-theme-primary)); display: flex; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; }
+.report-header h1 { font-size: 1.5rem; margin: 0; }.report-meta { font-size: .8rem; line-height: 1.6; text-align: end; }
+.company-logo { height: 52px; max-width: 150px; object-fit: contain; }.report-section { margin-top: 24px; }.report-section h2 { font-size: 1.1rem; margin: 0; }
+.report-table-wrap { overflow-x: auto; } table { border-collapse: collapse; min-width: 100%; white-space: nowrap; } th, td { border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); padding: 8px 10px; text-align: start; } th { background: rgba(var(--v-theme-primary), .08); font-size: .75rem; text-transform: uppercase; }
+.report-footer { border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); color: rgb(var(--v-theme-on-surface-variant)); display: flex; font-size: .75rem; justify-content: space-between; margin-top: 28px; padding-top: 12px; }
+@media (max-width: 700px) { .report-header, .report-footer { align-items: flex-start; flex-direction: column; gap: 8px; } }
 </style>
 
 <style>
 @media print {
-
-  /* Aggressively hide all Vuexy theme application structural layout shell frame tags */
-  body.printing-reports .screen-only,
-  body.printing-reports .layout-navbar,
-  body.printing-reports .layout-navbar-and-nav-container,
-  body.printing-reports .layout-horizontal-nav,
-  body.printing-reports .v-navigation-drawer,
-  body.printing-reports .v-app-bar,
-  body.printing-reports .layout-footer,
-  body.printing-reports .v-card,
-  body.printing-reports .v-btn,
-  body.printing-reports .v-dialog,
-  body.printing-reports .v-overlay-container {
-    display: none !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  /* Force viewport padding resets onto main component views containers */
-  body.printing-reports .layout-page-content,
-  body.printing-reports .v-main,
-  body.printing-reports .layout-wrapper,
-  body.printing-reports .layout-content-wrapper {
-    /* padding: 0 !important;
-    margin: 0 !important; */
-    max-width: 100% !important;
-    width: 100% !important;
-  }
-
-  body.printing-reports .a4-print-report-canvas {
-    display: block !important;
-    width: 100% !important;
-    background: #ffffff !important;
-    color: #000000 !important;
-    font-family: Arial, sans-serif;
-    line-height: 1.4;
-  }
-}
-
-/* Hidden during normal display monitor dashboard usage */
-.a4-print-report-canvas {
-  display: none;
-}
-
-/* Structural Attestation Presentation formatting rules rules mapping items */
-.print-corporate-brand {
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: -0.5px;
-  color: #000000;
-}
-
-.print-report-sub-meta {
-  font-size: 11px;
-  color: #555555;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.print-report-divider {
-  border: 0;
-  border-top: 3px double #000000;
-  margin: 15px 0;
-}
-
-.print-section-title-label {
-  font-size: 12px;
-  font-weight: bold;
-  background: #f0f2f5;
-  padding: 4px 8px;
-  border-left: 4px solid #000000;
-  margin-top: 25px;
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.print-summary-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 20px;
-  font-size: 12px;
-}
-
-.print-summary-table th {
-  text-transform: uppercase;
-  font-weight: bold;
-  border-bottom: 2px solid #000000;
-  padding: 6px;
-  text-align: left;
-  background: transparent;
-  color: #000000;
-}
-
-.print-summary-table td {
-  padding: 8px 6px;
-  border-bottom: 1px solid #e2e8f0;
-  color: #000000;
-}
-
-.highlighted-profit-row {
-  background-color: #f8fafc;
-  font-size: 13px;
-  border-bottom: 2px solid #000000 !important;
-  border-top: 1px solid #000000 !important;
-}
-
-.print-report-attestation-block {
-  margin-top: 50px;
-  page-break-inside: avoid;
-}
-
-.print-attestation-line-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 50px;
-}
-
-.attestation-signature-box {
-  width: 45%;
-  font-size: 11px;
-  font-weight: bold;
-}
-
-.attestation-blank-line {
-  border-top: 1px solid #000000;
-  margin-bottom: 6px;
-  margin-top: 40px;
-}
-
-.print-report-footer-notice {
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  text-align: center;
-  font-size: 9px;
-  color: #718096;
-  border-top: 1px dashed #cbd5e1;
-  padding-top: 4px;
-  font-weight: bold;
+  body.printing-generated-report .no-print,
+  body.printing-generated-report .layout-navbar,
+  body.printing-generated-report .layout-horizontal-nav,
+  body.printing-generated-report .v-navigation-drawer,
+  body.printing-generated-report .layout-footer { display: none !important; }
+  body.printing-generated-report .generated-report { border: 0 !important; color: #172033 !important; font-family: "Report Persian", Tahoma, "Segoe UI", Arial, sans-serif !important; padding: 0 !important; }
+  body.printing-generated-report .report-section { break-inside: auto; }
+  body.printing-generated-report tr { break-inside: avoid; }
+  body.printing-generated-report .report-table-wrap { overflow: visible !important; }
+  body.printing-generated-report table { font-size: 8px; white-space: normal; }
+  body.printing-generated-report .v-chip { border: 1px solid #ccd2dc !important; color: #172033 !important; }
 }
 </style>

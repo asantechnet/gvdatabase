@@ -2,21 +2,24 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use App\Models\Concerns\HasDocumentNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Income extends Model
 {
-    use HasFactory;
+    use HasDocumentNumber, HasFactory, Auditable;
 
     protected $fillable = [
+        'receipt_number',
         'customer_id',
         'invoice_id',
+        'currency_id',
         'type',
         'description',
         'amount',
         'quantity',
-        'currency',
         'rate_to_base',
         'total_amount',
         'date',
@@ -30,6 +33,7 @@ class Income extends Model
         'date' => 'date',
         'customer_id' => 'integer',
         'invoice_id' => 'integer',
+        'currency_id' => 'integer',
     ];
 
     public function customer()
@@ -40,6 +44,21 @@ class Income extends Model
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function incomeCurrency()
+    {
+        return $this->belongsTo(Currency::class);
+    }
+
+    protected function documentNumberColumn(): string
+    {
+        return 'receipt_number';
+    }
+
+    protected function documentNumberPrefix(): string
+    {
+        return 'RCP';
     }
 
     protected static function booted()

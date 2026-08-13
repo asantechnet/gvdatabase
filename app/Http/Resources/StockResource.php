@@ -19,13 +19,15 @@ class StockResource extends JsonResource
             'serial_number' => $this->serial_number,
             'item' => $this->item,
             'quantity' => $this->quantity,
+            'price' => (float) $this->price,
             'model' => $this->model,
+            'condition' => $this->condition,
             'office' => $this->office,
             'staff_id' => $this->staff_id,
             'staff' => $this->whenLoaded('staff', function () {
                 return [
                     'id' => $this->staff->id,
-                    'name' => $this->staff->first_name . ' ' . $this->staff->last_name,
+                    'name' => $this->staff->name,
                 ];
             }),
             'created_at' => $this->created_at,

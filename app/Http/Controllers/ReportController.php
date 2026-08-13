@@ -2,159 +2,111 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Invoice;
-use App\Models\Expence;
-use App\Models\Employee;
-use App\Models\EmployeeSalary;
-use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
-use PDF;
+use App\Http\Requests\GenerateReportRequest;
+use App\Models\User;
+use App\Services\ReportService;
+use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
-    public function generateInvoiceReport(Request $request)
+    public function catalog(GenerateReportRequest $request, ReportService $reports): JsonResponse
     {
-        $validator = $request->validate([
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-        ]);
-
-        $startDate = Carbon::parse($request->start_date);
-        $endDate = Carbon::parse($request->end_date);
-
-        $invoices = Invoice::whereBetween('created_at', [$startDate, $endDate])
-            ->where('status', '!=', 'Void')
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $totalAmount = $invoices->sum(fn ($invoice) =>
-            (float) $invoice->currency_rate > 0
-                ? (float) $invoice->amount / (float) $invoice->currency_rate
-                : 0
-        );
-        $totalInvoices = $invoices->count();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'invoices' => $invoices,
-                'total_amount' => $totalAmount,
-                'total_invoices' => $totalInvoices,
-                'start_date' => $startDate->toDateString(),
-                'end_date' => $endDate->toDateString(),
-            ]
-        ]);
+        /** @var User $user */
+        $user = $request->user();
+        return response()->json(['success' => true, 'data' => $reports->catalog($user)]);
     }
 
-    public function generateExpenceReport(Request $request)
+    public function generate(GenerateReportRequest $request, string $type, ReportService $reports): JsonResponse
     {
-        $validator = $request->validate([
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-        ]);
-
-        $startDate = Carbon::parse($request->start_date);
-        $endDate = Carbon::parse($request->end_date);
-
-        $expences = Expence::whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $totalAmount = $expences->sum('amount');
-        $totalExpences = $expences->count();
-
-        $groupedByCategory = $expences->groupBy('category')->map(function ($items) {
-            return [
-                'total' => $items->sum('amount'),
-                'count' => $items->count(),
-            ];
-        });
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'expences' => $expences,
-                'total_amount' => $totalAmount,
-                'total_expences' => $totalExpences,
-                'by_category' => $groupedByCategory,
-                'start_date' => $startDate->toDateString(),
-                'end_date' => $endDate->toDateString(),
-            ]
-        ]);
+        /** @var User $user */
+        $user = $request->user();
+        return response()->json(['success' => true, 'data' => $reports->generate($type, $request->validated(), $user)]);
     }
 
-    public function generateSalaryReport(Request $request)
+    public function export(GenerateReportRequest $request, string $type, ReportService $reports): StreamedResponse|\Illuminate\Contracts\View\View
     {
-        $validator = $request->validate([
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-        ]);
+        /** @var User $user */
+        $user = $request->user();
+        abort_unless($reports->canExport($user, $type), 403, 'You are not authorized to export this report.');
+        $report = $reports->generate($type, $request->validated(), $user);
 
-        $startDate = Carbon::parse($request->start_date);
-        $endDate = Carbon::parse($request->end_date);
+        if (($request->validated('format') ?? 'csv') === 'print') {
+            return view('reports.print', [
+                'report' => $report,
+                'direction' => in_array(app()->getLocale(), ['ar', 'fa', 'ps'], true) ? 'rtl' : 'ltr',
+            ]);
+        }
 
-        $salaries = EmployeeSalary::whereBetween('salary_month', [$startDate, $endDate])
-            ->with('employee')
-            ->orderBy('salary_month', 'desc')
-            ->get();
-
-        $totalSalary = $salaries->sum(function ($salary) {
-            // Calculate actual salary based on fraction and bonus
-            $employee = $salary->employee;
-            $baseSalary = $employee ? $employee->position->salary : 0;
-            $actualSalary = ($baseSalary * $salary->salary_fraction / 100) + $salary->bonus;
-            return $actualSalary;
-        });
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'salaries' => $salaries,
-                'total_salary' => $totalSalary,
-                'total_records' => $salaries->count(),
-                'start_date' => $startDate->toDateString(),
-                'end_date' => $endDate->toDateString(),
-            ]
-        ]);
+        $filename = sprintf('%s-report-%s-%s.csv', $type, $report['filters']['start_date'], $report['filters']['end_date']);
+        return response()->streamDownload(function () use ($report): void {
+            $stream = fopen('php://output', 'wb');
+            fwrite($stream, "\xEF\xBB\xBF");
+            foreach ($report['sections'] as $index => $section) {
+                if ($index > 0) fputcsv($stream, []);
+                fputcsv($stream, [$section['key']]);
+                fputcsv($stream, $section['columns']);
+                foreach ($section['rows'] as $row) {
+                    fputcsv($stream, array_map(fn (string $column) => $this->csvValue($row[$column] ?? null), $section['columns']));
+                }
+                fputcsv($stream, ['totals', json_encode($section['totals'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+            }
+            fputcsv($stream, []);
+            fputcsv($stream, ['generated_at_utc', $report['meta']['generated_at']]);
+            fputcsv($stream, ['company_timezone', $report['meta']['timezone']]);
+            fclose($stream);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    public function exportInvoiceReport(Request $request)
+    public function generateInvoiceReport(GenerateReportRequest $request, ReportService $reports): JsonResponse
     {
-        $validator = $request->validate([
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-        ]);
+        return $this->legacy($request, $reports, 'financial', 'invoices');
+    }
 
-        $startDate = Carbon::parse($request->start_date);
-        $endDate = Carbon::parse($request->end_date);
+    public function generateExpenseReport(GenerateReportRequest $request, ReportService $reports): JsonResponse
+    {
+        return $this->legacy($request, $reports, 'financial', 'expenses');
+    }
 
-        $invoices = Invoice::whereBetween('created_at', [$startDate, $endDate])
-            ->where('status', '!=', 'Void')
-            ->orderBy('created_at', 'desc')
-            ->get();
+    /** @deprecated Kept temporarily for clients using the misspelled endpoint. */
+    public function generateExpenceReport(GenerateReportRequest $request, ReportService $reports): JsonResponse
+    {
+        return $this->generateExpenseReport($request, $reports);
+    }
 
-        $totalAmount = $invoices->sum(fn ($invoice) =>
-            (float) $invoice->currency_rate > 0
-                ? (float) $invoice->amount / (float) $invoice->currency_rate
-                : 0
-        );
+    public function generateSalaryReport(GenerateReportRequest $request, ReportService $reports): JsonResponse
+    {
+        return $this->legacy($request, $reports, 'payroll', 'salary_payments');
+    }
 
-        $pdf = PDF::loadView('reports.invoices', [
-            'invoices' => $invoices,
-            'totalAmount' => $totalAmount,
-            'startDate' => $startDate,
-            'endDate' => $endDate,
-        ]);
+    public function generateIncomeReport(GenerateReportRequest $request, ReportService $reports): JsonResponse
+    {
+        return $this->legacy($request, $reports, 'financial', 'income');
+    }
 
-        $fileName = 'invoice_report_' . time() . '.pdf';
-        $filePath = 'reports/' . $fileName;
-        Storage::put('public/' . $filePath, $pdf->output());
+    public function generateVisitorReport(GenerateReportRequest $request, ReportService $reports): JsonResponse
+    {
+        return $this->legacy($request, $reports, 'operations', 'visitors');
+    }
 
-        return response()->json([
-            'success' => true,
-            'file_path' => $filePath,
-            'file_name' => $fileName,
-        ]);
+    public function exportInvoiceReport(GenerateReportRequest $request, ReportService $reports): StreamedResponse|\Illuminate\Contracts\View\View
+    {
+        return $this->export($request, 'financial', $reports);
+    }
+
+    private function legacy(GenerateReportRequest $request, ReportService $reports, string $type, string $section): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $report = $reports->generate($type, $request->validated(), $user);
+        $report['sections'] = array_values(array_filter($report['sections'], fn (array $item) => $item['key'] === $section));
+        return response()->json(['success' => true, 'data' => $report]);
+    }
+
+    private function csvValue(mixed $value): string|int|float
+    {
+        if (is_bool($value)) return $value ? 'yes' : 'no';
+        if (is_array($value)) return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return $value ?? '';
     }
 }

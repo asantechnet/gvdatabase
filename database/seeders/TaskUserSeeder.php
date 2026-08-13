@@ -21,6 +21,7 @@ class TaskUserSeeder extends Seeder
                 $numUsers = rand(1, $maxUsersToAttach);
                 $selectedUsers = $users->random(min($numUsers, $users->count()))->pluck('id')->toArray();
                 $task->users()->attach($selectedUsers);
+                $task->board->users()->syncWithoutDetaching($selectedUsers);
             }
         }
     }

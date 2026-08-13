@@ -1,60 +1,59 @@
 <script lang="ts" setup>
 import AuthApi, { type Account, type NotificationPreferences } from '@/api/auth'
-const recentDevices = ref(
-  [
-    {
-      type: 'New for you',
-      email: true,
-      browser: true,
-      app: true,
-    },
-    {
-      type: 'Account activity',
-      email: true,
-      browser: true,
-      app: true,
-    },
-    {
-      type: 'A new browser used to sign in',
-      email: true,
-      browser: true,
-      app: false,
-    },
-    {
-      type: 'A new device is linked',
-      email: true,
-      browser: false,
-      app: false,
-    },
-  ],
-)
 
-const selectedNotification = ref('Only when I\'m online')
-const initialDevices = ref<NotificationPreferences>()
+type NotificationEvent = { key: string; title: string; description: string; in_app: boolean }
+
+const notificationEvents = ref<NotificationEvent[]>([
+  { key: 'audit_activity', title: translate('components.account.accountsettingsnotification.auditActivity'), description: translate('components.account.accountsettingsnotification.recordEditsDeletionsRestoresAndReviewActions'), in_app: true },
+  { key: 'finance_updates', title: translate('components.account.accountsettingsnotification.financeUpdates'), description: translate('components.account.accountsettingsnotification.invoicesIncomeExpensesAndPaymentActivity'), in_app: true },
+  { key: 'work_updates', title: translate('components.account.accountsettingsnotification.workUpdates'), description: translate('components.account.accountsettingsnotification.tasksBoardsCommentsAndContractActivity'), in_app: true },
+  { key: 'staff_updates', title: translate('components.account.accountsettingsnotification.staffUpdates'), description: translate('components.account.accountsettingsnotification.employeeAttendanceSalaryAndBonusActivity'), in_app: true },
+])
+
+const initialPreferences = ref<NotificationPreferences>()
 const saving = ref(false)
 const message = ref('')
 const error = ref('')
 
+const preferences = (): NotificationPreferences => Object.fromEntries(notificationEvents.value.map(event => [event.key, { in_app: event.in_app }]))
+
+function applyPreferences(savedPreferences?: NotificationPreferences) {
+  notificationEvents.value.forEach(event => {
+    const saved = savedPreferences?.[event.key] as { in_app?: boolean; browser?: boolean } | undefined
+    // Migrate the old browser preference to the new in-app preference.
+    event.in_app = saved?.in_app ?? saved?.browser ?? true
+  })
+}
+
 async function load() {
   try {
     const account = (await AuthApi.me()).data.data as Account
-    if (account.notifications) recentDevices.value = Object.entries(account.notifications).map(([type, value]) => ({ type, ...value }))
-    initialDevices.value = structuredClone(Object.fromEntries(recentDevices.value.map(({ type, ...value }) => [type, value])))
-    selectedNotification.value = account.notification_frequency === 'anytime' ? 'Anytime' : 'Only when I\'m online'
-  } catch (e: any) { error.value = e.message || 'Unable to load notification preferences.' }
+    applyPreferences(account.notifications)
+    initialPreferences.value = structuredClone(preferences())
+  } catch (exception: any) {
+    error.value = exception.message || 'Unable to load notification preferences.'
+  }
 }
 
 async function save() {
   saving.value = true
   try {
-    const notifications = Object.fromEntries(recentDevices.value.map(({ type, ...value }) => [type, value])) as NotificationPreferences
-    await AuthApi.updateNotifications({ notifications, notification_frequency: selectedNotification.value === 'Anytime' ? 'anytime' : 'online' })
-    initialDevices.value = structuredClone(notifications); message.value = 'Notification preferences saved.'; error.value = ''
-  } catch (e: any) { error.value = e.message || 'Unable to save notification preferences.' }
-  finally { saving.value = false }
+    const notifications = preferences()
+    await AuthApi.updateNotifications({ notifications })
+    initialPreferences.value = structuredClone(notifications)
+    message.value = translate('components.account.accountsettingsnotification.notificationPreferencesSaved')
+    error.value = ''
+  } catch (exception: any) {
+    error.value = exception.message || 'Unable to save notification preferences.'
+  } finally {
+    saving.value = false
+  }
 }
 
-function discard() { if (initialDevices.value) recentDevices.value = Object.entries(initialDevices.value).map(([type, value]) => ({ type, ...value })) }
+function discard() {
+  applyPreferences(initialPreferences.value)
+}
+
 onMounted(load)
 </script>
 
@@ -62,89 +61,26 @@ onMounted(load)
   <VCard>
     <VAlert v-if="message" type="success" class="ma-4">{{ message }}</VAlert>
     <VAlert v-if="error" type="error" class="ma-4">{{ error }}</VAlert>
-    <VCardItem>
-      <VCardTitle>Recent Devices</VCardTitle>
-      <p class="text-body-1 mb-0">
-        We need permission from your browser to show notifications. <span class="text-primary cursor-pointer">Request Permission</span>
-      </p>
-    </VCardItem>
+
+    <VCardItem :title="$t('components.account.accountsettingsnotification.notificationPreferences')" subtitle="Choose which Asantech Mini Management events appear in your in-app inbox." />
 
     <VCardText class="px-0">
-      <VDivider />
       <VTable class="text-no-wrap rounded">
-        <thead>
-          <tr>
-            <th scope="col">
-              Type
-            </th>
-            <th scope="col">
-              EMAIL
-            </th>
-            <th scope="col">
-              BROWSER
-            </th>
-            <th scope="col">
-              App
-            </th>
-          </tr>
-        </thead>
+        <thead><tr><th scope="col">{{ $t('components.account.accountsettingsnotification.event') }}</th><th scope="col" class="text-center">{{ $t('components.account.accountsettingsnotification.inAPP') }}</th></tr></thead>
         <tbody>
-          <tr
-            v-for="device in recentDevices"
-            :key="device.type"
-          >
-            <td class="text-body-1 text-high-emphasis">
-              {{ device.type }}
-            </td>
-            <td>
-              <VCheckbox v-model="device.email" />
-            </td>
-            <td>
-              <VCheckbox v-model="device.browser" />
-            </td>
-            <td>
-              <VCheckbox v-model="device.app" />
-            </td>
+          <tr v-for="event in notificationEvents" :key="event.key">
+            <td><div class="text-body-1 text-high-emphasis">{{ event.title }}</div><div class="text-caption text-medium-emphasis text-wrap">{{ event.description }}</div></td>
+            <td class="text-center"><VCheckbox v-model="event.in_app" hide-details /></td>
           </tr>
         </tbody>
       </VTable>
-      <VDivider />
     </VCardText>
 
     <VCardText>
-      <VForm @submit.prevent="save">
-        <h6 class="text-body-1 font-weight-medium mb-6">
-          When should we send you notifications?
-        </h6>
-
-        <VRow>
-          <VCol
-            cols="12"
-            sm="6"
-          >
-            <AppSelect
-              v-model="selectedNotification"
-              mandatory
-              placeholder="Select an option"
-              :items="['Only when I\'m online', 'Anytime']"
-            />
-          </VCol>
-        </VRow>
-
-        <div class="d-flex flex-wrap gap-4 mt-6">
-          <VBtn type="submit" :loading="saving">
-            Save Changes
-          </VBtn>
-          <VBtn
-            color="secondary"
-            variant="tonal"
-            type="reset"
-            @click.prevent="discard"
-          >
-            Discard
-          </VBtn>
-        </div>
-      </VForm>
+      <div class="d-flex flex-wrap gap-4">
+        <VBtn :loading="saving" @click="save">{{ $t('common.messages.saveChanges2') }}</VBtn>
+        <VBtn color="secondary" variant="tonal" :disabled="saving" @click="discard">{{ $t('common.messages.discard') }}</VBtn>
+      </div>
     </VCardText>
   </VCard>
 </template>

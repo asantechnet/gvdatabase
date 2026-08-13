@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { useTheme } from 'vuetify'
 import fallbackLogo from '@images/logo.svg'
 import SettingApi from '@/api/setting'
+import { applyAccessibleThemeColors } from '@/utils/themeContrast'
 
 const logoUrl = ref(fallbackLogo)
 const shortCompanyName = ref('Asantech')
@@ -13,6 +14,10 @@ interface BrandingSettings {
   website_title?: string
   short_company_name?: string | null
   original_company_name?: string | null
+  company_email?: string | null
+  timezone?: string
+  contract_letterhead_url?: string | null
+  contract_cover_design_url?: string | null
   navigation_clr?: string
   footer_clr?: string
   cards_clr?: string
@@ -29,24 +34,18 @@ export const useBranding = () => {
     const theme = vuetifyTheme.themes.value[vuetifyTheme.name.value]
     if (!theme) return
 
-    if (branding.navigation_clr) {
-      theme.colors.header = branding.navigation_clr
-      document.documentElement.style.setProperty('--app-navigation-color', branding.navigation_clr)
-    }
-    if (branding.footer_clr) {
-      theme.colors.footer = branding.footer_clr
-      document.documentElement.style.setProperty('--app-footer-color', branding.footer_clr)
-    }
-    if (branding.cards_clr)
-      theme.colors.surface = branding.cards_clr
+    applyAccessibleThemeColors(theme, {
+      navigation: branding.navigation_clr || theme.colors.surface,
+      footer: branding.footer_clr || theme.colors.surface,
+      surface: branding.cards_clr || theme.colors.surface,
+    })
   }
 
   const loadBranding = async () => {
     if (!brandingRequest) {
-      brandingRequest = SettingApi.getAll()
+      brandingRequest = SettingApi.getCompanyProfile()
         .then(({ data }) => {
-          const setting = data[0]
-          if (setting) applyBranding(setting)
+          if (data) applyBranding(data)
         })
         .catch(() => {
           // Keep the built-in branding when settings are not available yet.

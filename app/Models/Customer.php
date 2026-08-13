@@ -2,17 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Customer extends Model
 {
-    use HasFactory;
+    use Auditable, HasFactory;
 
     protected $fillable = [
         'name',
         'company',
         'contact',
+        'email',
+        'address',
+        'tax_number',
         'marketer',
         'date',
     ];
@@ -25,6 +29,7 @@ class Customer extends Model
     {
         return $this->belongsToMany(Service::class)
             ->using(CustomerService::class)
+            ->wherePivotNull('deleted_at')
             ->withPivot('id', 'deadline')
             ->withTimestamps();
     }

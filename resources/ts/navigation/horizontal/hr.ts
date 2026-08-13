@@ -1,24 +1,33 @@
 export default [
+  { title: 'Paid-off days', to: 'paid-time-offs', icon: { icon: 'tabler-beach' }, action: 'read', subject: 'view_paid_time_off' },
   {
-    title: "HR",
+    title: "common.navigation.hr",
     icon: { icon: "tabler-users-group" },
     to: "hr",
     children: [
       {
-        title: "Staff List",
+        title: "common.navigation.staffList",
         to: "staff-list",
+        action: 'read',
+        subject: 'view_employees',
       },
       {
-        title: "Timesheet",
+        title: "common.navigation.timesheet",
         to: "timesheet",
+        action: 'read',
+        subject: 'view_attendance',
       },
       {
-        title: "Staff Salary",
+        title: "common.navigation.staffSalary",
         to: "staff-salary",
+        action: 'read',
+        subject: 'view_salaries',
       },
       {
-        title: "Bonus List",
+        title: "common.navigation.bonusList",
         to: "bonuslist",
+        action: 'read',
+        subject: 'view_bonuses',
       },
     ],
   },

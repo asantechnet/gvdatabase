@@ -18,7 +18,6 @@ class NotificationFactory extends Factory
             'title' => fake()->sentence(4),
             'message' => fake()->sentence(12),
             'date_time' => fake()->dateTimeBetween('-14 days'),
-            'is_read' => fake()->optional()->boolean(),
             'employee_id' => null,
             'go_to_url' => '/home',
         ];

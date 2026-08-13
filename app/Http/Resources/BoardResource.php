@@ -13,6 +13,7 @@ class BoardResource extends JsonResource
             'id' => (string) $this->id,
             'title' => $this->title,
             'order' => (int) $this->order,
+            'members' => UserResource::collection($this->whenLoaded('users')),
             'tasks' => TaskResource::collection($this->whenLoaded('tasks')),
         ];
     }

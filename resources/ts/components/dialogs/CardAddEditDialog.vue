@@ -74,7 +74,7 @@ const dialogModelValueUpdate = (val: boolean) => {
             <VCol cols="12">
               <AppTextField
                 v-model="cardDetails.number"
-                label="Card Number"
+                :label="$t('components.dialogs.cardaddeditdialog.cardNumber')"
                 placeholder="1356 3215 6548 7898"
                 type="number"
               />
@@ -87,8 +87,8 @@ const dialogModelValueUpdate = (val: boolean) => {
             >
               <AppTextField
                 v-model="cardDetails.name"
-                label="Name"
-                placeholder="John Doe"
+                :label="$t('common.fields.name')"
+                :placeholder="$t('components.dialogs.cardaddeditdialog.johnDoe')"
               />
             </VCol>
 
@@ -99,8 +99,8 @@ const dialogModelValueUpdate = (val: boolean) => {
             >
               <AppTextField
                 v-model="cardDetails.expiry"
-                label="Expiry Date"
-                placeholder="MM/YY"
+                :label="$t('components.dialogs.cardaddeditdialog.expiryDate')"
+                :placeholder="$t('components.dialogs.cardaddeditdialog.mmYY')"
               />
             </VCol>
 
@@ -112,7 +112,7 @@ const dialogModelValueUpdate = (val: boolean) => {
               <AppTextField
                 v-model="cardDetails.cvv"
                 type="number"
-                label="CVV Code"
+                :label="$t('components.dialogs.cardaddeditdialog.cvvCode')"
                 placeholder="654"
               />
             </VCol>
@@ -121,7 +121,7 @@ const dialogModelValueUpdate = (val: boolean) => {
             <VCol cols="12">
               <VSwitch
                 v-model="cardDetails.isPrimary"
-                label="Save Card for future billing?"
+                :label="$t('components.dialogs.cardaddeditdialog.saveCardForFutureBilling')"
               />
             </VCol>
 
@@ -135,14 +135,14 @@ const dialogModelValueUpdate = (val: boolean) => {
                 type="submit"
                 @click="formSubmit"
               >
-                Submit
+                {{ $t('common.actions.submit2') }}
               </VBtn>
               <VBtn
                 color="secondary"
                 variant="tonal"
                 @click="$emit('update:isDialogVisible', false)"
               >
-                Cancel
+                {{ $t('common.actions.cancel') }}
               </VBtn>
             </VCol>
           </VRow>

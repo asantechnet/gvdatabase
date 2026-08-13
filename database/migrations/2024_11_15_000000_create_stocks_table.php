@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('item');
             $table->integer('quantity');
             $table->string('model');
+            $table->string('condition')->default('good');
             $table->string('office');
             $table->foreignId('staff_id')->nullable()->constrained('employees')->nullOnDelete();
             $table->timestamps();

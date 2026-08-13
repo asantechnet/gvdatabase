@@ -22,12 +22,12 @@ interface CurrencyOption {
 
 // --- Headers matching the table layout ---
 const headers = [
-  { title: 'TYPE', key: 'type', align: 'start' },
-  { title: 'FEE', key: 'fee', align: 'start' },
-  { title: 'DURATION (MONTHS)', key: 'duration', align: 'start' },
-  { title: 'CURRENCY', key: 'currency', align: 'start' },
-  { title: 'STATUS', key: 'status', align: 'start' },
-  { title: 'ACTIONS', key: 'actions', align: 'end', sortable: false },
+  { title: translate('common.fields.type2'), key: 'type', align: 'start' },
+  { title: translate('pages.contracts.services.services.fee'), key: 'fee', align: 'start' },
+  { title: translate('pages.contracts.services.services.durationMONTHS'), key: 'duration', align: 'start' },
+  { title: translate('common.fields.currency2'), key: 'currency', align: 'start' },
+  { title: translate('common.fields.status2'), key: 'status', align: 'start' },
+  { title: translate('pages.contracts.services.services.actions'), key: 'actions', align: 'end', sortable: false },
 ] as const
 
 // --- State ---
@@ -79,7 +79,7 @@ const fetchServices = async () => {
     }))
   } catch (error) {
     console.error('Error fetching services:', error)
-    toast.error('Failed to load services: ' + (error.message || 'Unknown error'))
+    toast.error(translate('pages.contracts.services.services.failedToLoadServices') + (error.message || 'Unknown error'))
   } finally {
     isLoading.value = false
   }
@@ -99,7 +99,7 @@ const fetchCurrencies = async () => {
     }))
   } catch (error) {
     console.error('Error fetching currencies:', error)
-    toast.error('Failed to load currencies: ' + (error.message || 'Unknown error'))
+    toast.error(translate('pages.contracts.services.services.failedToLoadCurrencies') + (error.message || 'Unknown error'))
   } finally {
     isLoading.value = false
   }
@@ -116,13 +116,13 @@ const createService = async () => {
       currency_id: editedItem.value.currency_id
     }
     const response = await ServiceApi.create(payload)
-    toast.success('Service created successfully')
+    toast.success(translate('pages.contracts.services.services.serviceCreatedSuccessfully'))
     await fetchServices()
     return response
   } catch (error) {
     console.error('Error creating service:', error)
     const errorMessage = error.message || error.errors?.join(', ') || 'Unknown error'
-    toast.error('Failed to create service: ' + errorMessage)
+    toast.error(translate('pages.contracts.services.services.failedToCreateService') + errorMessage)
     throw error
   } finally {
     isLoading.value = false
@@ -156,12 +156,12 @@ const updateService = async () => {
         currency_id: response.data.currency.id,
       }
     }
-    toast.success('Service updated successfully')
+    toast.success(translate('pages.contracts.services.services.serviceUpdatedSuccessfully'))
     return response
   } catch (error) {
     console.error('Error updating service:', error)
     const errorMessage = error.message || error.errors?.join(', ') || 'Unknown error'
-    toast.error('Failed to update service: ' + errorMessage)
+    toast.error(translate('pages.contracts.services.services.failedToUpdateService') + errorMessage)
     throw error
   } finally {
     isLoading.value = false
@@ -174,12 +174,12 @@ const deleteService = async () => {
   try {
     isLoading.value = true
     await ServiceApi.delete(selectedItemForDelete.value)
-    toast.success('Service deleted successfully')
+    toast.success(translate('pages.contracts.services.services.serviceDeletedSuccessfully'))
     await fetchServices()
   } catch (error) {
     console.error('Error deleting service:', error)
     const errorMessage = error.message || error.errors?.join(', ') || 'Unknown error'
-    toast.error('Failed to delete service: ' + errorMessage)
+    toast.error(translate('pages.contracts.services.services.failedToDeleteService') + errorMessage)
   } finally {
     isLoading.value = false
     isDeleteDialogVisible.value = false
@@ -242,12 +242,12 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
     <!-- Card Header & Actions -->
     <VCardText class="d-flex flex-wrap gap-4 align-center justify-space-between">
       <div class="d-flex align-center gap-4 flex-wrap">
-        <VTextField v-model="searchQuery" placeholder="Search service..." density="compact" hide-details
+        <VTextField v-model="searchQuery" :placeholder="$t('pages.contracts.services.services.searchService')" density="compact" hide-details
           prepend-inner-icon="tabler-search" style="max-inline-size: 280px; min-inline-size: 220px;" />
       </div>
 
       <VBtn color="primary" prepend-icon="tabler-plus" @click="openCreateModal">
-        Add Service
+        {{ $t('pages.contracts.services.services.addService') }}
       </VBtn>
     </VCardText>
 
@@ -258,18 +258,18 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
       class="text-no-wrap">
       <!-- FEE Slot -->
       <template #item.fee="{ item }">
-        <span class="font-weight-medium">{{ item.fee.toLocaleString() }}</span>
+                <span class="font-weight-medium">{{ formatLocalizedNumber(item.fee) }}</span>
       </template>
 
       <!-- DURATION Slot -->
       <template #item.duration="{ item }">
-        <span class="font-weight-medium">{{ item.duration }} month{{ item.duration !== 1 ? 's' : '' }}</span>
+        <span class="font-weight-medium">{{ $t('pages.contracts.services.durationMonthsValue', { count: item.duration }) }}</span>
       </template>
 
       <!-- STATUS Slot -->
       <template #item.status="{ item }">
         <VChip :color="resolveStatusColor(item.status)" size="small" label class="text-capitalize">
-          {{ item.status }}
+          {{ translateBackendValue(item.status) }}
         </VChip>
       </template>
 
@@ -301,35 +301,35 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
       <VCardText>
         <VRow>
           <VCol cols="12" md="8">
-            <VTextField v-model="editedItem.type" label="Service Type" placeholder="e.g. Website Maintenance"
+            <VTextField v-model="editedItem.type" :label="$t('common.messages.serviceType')" :placeholder="$t('pages.contracts.services.services.eGWebsiteMaintenance')"
               required />
           </VCol>
 
           <VCol cols="12" md="4">
-            <VSelect v-model="editedItem.currency_id" :items="currencyOptions" label="Currency" item-title="title"
+            <VSelect v-model="editedItem.currency_id" :items="currencyOptions" :label="$t('common.fields.currency')" item-title="title"
               item-value="value" />
           </VCol>
 
           <VCol cols="12" md="6">
-            <VTextField v-model.number="editedItem.fee" label="Fee" type="number" min="0" step="0.01" />
+            <VTextField v-model.number="editedItem.fee" :label="$t('pages.contracts.services.services.fee')" type="number" min="0" step="0.01" />
           </VCol>
 
           <VCol cols="12" md="6">
-            <VTextField v-model.number="editedItem.duration" label="Duration (months)" type="number" min="1" />
+            <VTextField v-model.number="editedItem.duration" :label="$t('pages.contracts.services.services.durationMonths')" type="number" min="1" />
           </VCol>
 
           <VCol cols="12" md="6">
-            <VSelect v-model="editedItem.status" :items="statusOptions" label="Status" />
+            <VSelect v-model="editedItem.status" :items="statusOptions" :label="$t('common.fields.status')" />
           </VCol>
         </VRow>
       </VCardText>
 
       <VCardActions class="justify-end gap-2 pa-4">
         <VBtn variant="tonal" color="secondary" @click="isDialogVisible = false" :disabled="isLoading">
-          Cancel
+          {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn color="primary" @click="saveService" :loading="isLoading">
-          Save
+          {{ $t('common.actions.save') }}
         </VBtn>
       </VCardActions>
     </VCard>
@@ -337,17 +337,17 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
 
   <!-- Delete Confirmation Dialog -->
   <VDialog v-model="isDeleteDialogVisible" max-width="400">
-    <VCard title="Confirm Deletion">
+    <VCard :title="$t('common.messages.confirmDeletion')">
       <VCardText>
-        Are you sure you want to delete this service record? This action cannot be undone.
+        {{ $t('common.confirmations.areYouSureYouWantToDeleteThisServiceRecordThisActionCannotBeUndone') }}
       </VCardText>
 
       <VCardActions class="justify-end gap-2 pa-4">
         <VBtn variant="tonal" color="secondary" @click="isDeleteDialogVisible = false" :disabled="isLoading">
-          Cancel
+          {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn color="error" @click="deleteService" :loading="isLoading">
-          Delete
+          {{ $t('common.actions.delete') }}
         </VBtn>
       </VCardActions>
     </VCard>

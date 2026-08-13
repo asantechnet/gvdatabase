@@ -85,10 +85,10 @@ const dialogModelValueUpdate = (val: boolean) => {
       <VCardText>
         <!-- 👉 Title -->
         <h4 class="text-h4 text-center mb-2">
-          Edit User Information
+          {{ $t('components.dialogs.userinfoeditdialog.editUserInformation') }}
         </h4>
         <p class="text-body-1 text-center mb-6">
-          Updating user details will receive a privacy audit.
+          {{ $t('components.dialogs.userinfoeditdialog.updatingUserDetailsWillReceiveAPrivacyAudit') }}
         </p>
 
         <!-- 👉 Form -->
@@ -104,8 +104,8 @@ const dialogModelValueUpdate = (val: boolean) => {
             >
               <AppTextField
                 v-model="userData.fullName.split(' ')[0]"
-                label="First Name"
-                placeholder="John"
+                :label="$t('common.messages.firstName')"
+                :placeholder="$t('common.messages.john')"
               />
             </VCol>
 
@@ -116,8 +116,8 @@ const dialogModelValueUpdate = (val: boolean) => {
             >
               <AppTextField
                 v-model="userData.fullName.split(' ')[1]"
-                label="Last Name"
-                placeholder="Doe"
+                :label="$t('common.messages.lastName')"
+                :placeholder="$t('common.messages.doe')"
               />
             </VCol>
 
@@ -125,8 +125,8 @@ const dialogModelValueUpdate = (val: boolean) => {
             <VCol cols="12">
               <AppTextField
                 v-model="userData.username"
-                label="Username"
-                placeholder="john.doe.007"
+                :label="$t('components.dialogs.userinfoeditdialog.username')"
+                :placeholder="$t('components.dialogs.userinfoeditdialog.johnDoe007')"
               />
             </VCol>
 
@@ -137,7 +137,7 @@ const dialogModelValueUpdate = (val: boolean) => {
             >
               <AppTextField
                 v-model="userData.email"
-                label="Email"
+                :label="$t('common.fields.email')"
                 placeholder="johndoe@email.com"
               />
             </VCol>
@@ -149,8 +149,8 @@ const dialogModelValueUpdate = (val: boolean) => {
             >
               <AppSelect
                 v-model="userData.status"
-                label="Status"
-                placeholder="Active"
+                :label="$t('common.fields.status')"
+                :placeholder="$t('common.statuses.active')"
                 :items="['Active', 'Inactive', 'Pending']"
               />
             </VCol>
@@ -162,7 +162,7 @@ const dialogModelValueUpdate = (val: boolean) => {
             >
               <AppTextField
                 v-model="userData.taxId"
-                label="Tax ID"
+                :label="$t('components.dialogs.userinfoeditdialog.taxID')"
                 placeholder="123456789"
               />
             </VCol>
@@ -174,7 +174,7 @@ const dialogModelValueUpdate = (val: boolean) => {
             >
               <AppTextField
                 v-model="userData.contact"
-                label="Phone Number"
+                :label="$t('common.messages.phoneNumber')"
                 placeholder="+1 9876543210"
               />
             </VCol>
@@ -189,8 +189,8 @@ const dialogModelValueUpdate = (val: boolean) => {
                 closable-chips
                 chips
                 multiple
-                label="Language"
-                placeholder="English"
+                :label="$t('components.dialogs.userinfoeditdialog.language')"
+                :placeholder="$t('components.dialogs.userinfoeditdialog.english')"
                 :items="['English', 'Spanish', 'French']"
               />
             </VCol>
@@ -202,8 +202,8 @@ const dialogModelValueUpdate = (val: boolean) => {
             >
               <AppSelect
                 v-model="userData.country"
-                label="Country"
-                placeholder="United States"
+                :label="$t('components.dialogs.userinfoeditdialog.country')"
+                :placeholder="$t('components.dialogs.userinfoeditdialog.unitedStates')"
                 :items="['United States', 'United Kingdom', 'France']"
               />
             </VCol>
@@ -213,7 +213,7 @@ const dialogModelValueUpdate = (val: boolean) => {
               <VSwitch
                 v-model="isUseAsBillingAddress"
                 density="compact"
-                label="Use as a billing address?"
+                :label="$t('common.messages.useAsABillingAddress')"
               />
             </VCol>
 
@@ -223,7 +223,7 @@ const dialogModelValueUpdate = (val: boolean) => {
               class="d-flex flex-wrap justify-center gap-4"
             >
               <VBtn type="submit">
-                Submit
+                {{ $t('common.actions.submit2') }}
               </VBtn>
 
               <VBtn
@@ -231,7 +231,7 @@ const dialogModelValueUpdate = (val: boolean) => {
                 variant="tonal"
                 @click="onFormReset"
               >
-                Cancel
+                {{ $t('common.actions.cancel') }}
               </VBtn>
             </VCol>
           </VRow>

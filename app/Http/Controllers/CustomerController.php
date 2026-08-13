@@ -77,6 +77,9 @@ class CustomerController extends Controller
             'name' => [$presence, 'string', 'max:255'],
             'company' => [$presence, 'string', 'max:255'],
             'contact' => [$presence, 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'address' => ['nullable', 'string', 'max:2000'],
+            'tax_number' => ['nullable', 'string', 'max:100'],
             'marketer' => [$presence, 'string', 'max:255'],
             'date' => [$presence, 'date'],
         ]);

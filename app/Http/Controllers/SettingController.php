@@ -2,15 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpsertSettingRequest;
 use App\Http\Resources\SettingResource;
 use App\Models\Setting;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
+use Throwable;
 
 class SettingController extends Controller
 {
-    public function index()
+    private const FILES = [
+        'website_logo' => 'logos',
+        'company_signature' => 'signatures',
+        'contract_letterhead' => 'contract-letterheads',
+        'contract_cover_design' => 'contract-cover-designs',
+    ];
+
+    public function index(): JsonResponse
     {
         return response()->json([
             'success' => true,
@@ -18,35 +28,37 @@ class SettingController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function profile(): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'navigation_clr' => 'required|string|max:20',
-            'cards_clr' => 'required|string|max:20',
-            'footer_clr' => 'required|string|max:20',
-            'website_title' => 'required|string|max:255',
-            'website_logo' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:2048',
-            'website_address' => 'required|string|max:255',
-            'phone' => 'required|string|max:50',
-            'physical_address' => 'required|string|max:1000',
-            'short_company_name' => 'required|string|max:255',
-            'original_company_name' => 'required|string|max:255',
+        $setting = Setting::latest('id')->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => $setting ? new SettingResource($setting) : null,
         ]);
+    }
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
+    public function store(UpsertSettingRequest $request): JsonResponse
+    {
+        $data = Arr::except($request->validated(), [
+            'remove_contract_letterhead',
+            'remove_contract_cover_design',
+        ]);
+        $storedPaths = [];
+
+        try {
+            foreach (self::FILES as $field => $directory) {
+                if ($request->hasFile($field)) {
+                    $data[$field] = $request->file($field)->store($directory, 'public');
+                    $storedPaths[] = $data[$field];
+                }
+            }
+
+            $setting = Setting::create($data);
+        } catch (Throwable $exception) {
+            Storage::disk('public')->delete($storedPaths);
+            throw $exception;
         }
-
-        $data = $validator->validated();
-
-        if ($request->hasFile('website_logo')) {
-            $data['website_logo'] = $request->file('website_logo')->store('logos', 'public');
-        }
-
-        $setting = Setting::create($data);
 
         return response()->json([
             'success' => true,
@@ -54,65 +66,52 @@ class SettingController extends Controller
         ], 201);
     }
 
-    public function show(string $id)
+    public function show(Setting $setting): JsonResponse
     {
-        $setting = Setting::find($id);
-
-        if (! $setting) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Setting not found',
-            ], 404);
-        }
-
         return response()->json([
             'success' => true,
             'data' => new SettingResource($setting),
         ]);
     }
 
-    public function update(Request $request, string $id)
+    public function update(UpsertSettingRequest $request, Setting $setting): JsonResponse
     {
-        $setting = Setting::find($id);
-
-        if (! $setting) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Setting not found',
-            ], 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'navigation_clr' => 'sometimes|string|max:20',
-            'cards_clr' => 'sometimes|string|max:20',
-            'footer_clr' => 'sometimes|string|max:20',
-            'website_title' => 'sometimes|string|max:255',
-            'website_logo' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:2048',
-            'website_address' => 'sometimes|string|max:255',
-            'phone' => 'sometimes|string|max:50',
-            'physical_address' => 'sometimes|string|max:1000',
-            'short_company_name' => 'sometimes|string|max:255',
-            'original_company_name' => 'sometimes|string|max:255',
+        $data = Arr::except($request->validated(), [
+            'remove_contract_letterhead',
+            'remove_contract_cover_design',
         ]);
+        $storedPaths = [];
+        $supersededPaths = [];
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $data = $validator->validated();
-
-        if ($request->hasFile('website_logo')) {
-            if ($setting->website_logo) {
-                Storage::disk('public')->delete($setting->website_logo);
+        try {
+            foreach (self::FILES as $field => $directory) {
+                if ($request->hasFile($field)) {
+                    $path = $request->file($field)->store($directory, 'public');
+                    $storedPaths[] = $path;
+                    if ($setting->{$field}) {
+                        $supersededPaths[] = $setting->{$field};
+                    }
+                    $data[$field] = $path;
+                }
             }
 
-            $data['website_logo'] = $request->file('website_logo')->store('logos', 'public');
+            foreach (['contract_letterhead', 'contract_cover_design'] as $field) {
+                $removeField = 'remove_'.$field;
+                if ($request->boolean($removeField) && ! $request->hasFile($field)) {
+                    if ($setting->{$field}) {
+                        $supersededPaths[] = $setting->{$field};
+                    }
+                    $data[$field] = null;
+                }
+            }
+
+            DB::transaction(fn () => $setting->update($data));
+        } catch (Throwable $exception) {
+            Storage::disk('public')->delete($storedPaths);
+            throw $exception;
         }
 
-        $setting->update($data);
+        Storage::disk('public')->delete(array_values(array_unique($supersededPaths)));
 
         return response()->json([
             'success' => true,
@@ -120,22 +119,16 @@ class SettingController extends Controller
         ]);
     }
 
-    public function destroy(string $id)
+    public function destroy(Setting $setting): JsonResponse
     {
-        $setting = Setting::find($id);
-
-        if (! $setting) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Setting not found',
-            ], 404);
-        }
-
-        if ($setting->website_logo) {
-            Storage::disk('public')->delete($setting->website_logo);
-        }
+        $paths = collect(array_keys(self::FILES))
+            ->map(fn (string $field) => $setting->{$field})
+            ->filter()
+            ->values()
+            ->all();
 
         $setting->delete();
+        Storage::disk('public')->delete($paths);
 
         return response()->json([
             'success' => true,

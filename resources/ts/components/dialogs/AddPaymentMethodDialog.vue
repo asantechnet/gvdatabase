@@ -33,27 +33,27 @@ const dialogVisibleUpdate = (val: boolean) => {
 
 const paymentMethodsData = [
   {
-    title: 'Visa',
+    title: translate('components.dialogs.addpaymentmethoddialog.visa'),
     type: 'Credit Card',
     img: visa,
   },
   {
-    title: 'American Express',
+    title: translate('components.dialogs.addpaymentmethoddialog.americanExpress'),
     type: 'Credit Card',
     img: americanEx,
   },
   {
-    title: 'Mastercard',
+    title: translate('components.dialogs.addpaymentmethoddialog.mastercard'),
     type: 'Credit Card',
     img: masterCard,
   },
   {
-    title: 'JCB',
+    title: translate('components.dialogs.addpaymentmethoddialog.jcb'),
     type: 'Credit Card',
     img: jcb,
   },
   {
-    title: 'Diners Club',
+    title: translate('components.dialogs.addpaymentmethoddialog.dinersClub'),
     type: 'Credit Card',
     img: dc,
   },
@@ -74,10 +74,10 @@ const paymentMethodsData = [
       <VCardText>
         <!-- 👉 Title -->
         <h4 class="text-h4 text-center mb-2">
-          Add payment methods
+          {{ $t('components.dialogs.addpaymentmethoddialog.addPaymentMethods') }}
         </h4>
         <p class="text-body-1 text-center mb-6">
-          Supported payment methods
+          {{ $t('components.dialogs.addpaymentmethoddialog.supportedPaymentMethods') }}
         </p>
 
         <div

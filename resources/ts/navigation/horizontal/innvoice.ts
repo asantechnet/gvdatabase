@@ -1,7 +1,9 @@
 export default [
   {
-    title: "Invoice",
+    title: "common.navigation.invoice",
     icon: { icon: "tabler-invoice" },
     to: "innvoice",
+    action: 'read',
+    subject: 'view_invoices',
   },
 ];

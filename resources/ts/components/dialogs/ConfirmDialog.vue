@@ -66,7 +66,7 @@ const onCancel = () => {
           variant="elevated"
           @click="onConfirmation"
         >
-          Confirm
+          {{ $t('common.actions.confirm') }}
         </VBtn>
 
         <VBtn
@@ -74,7 +74,7 @@ const onCancel = () => {
           variant="tonal"
           @click="onCancel"
         >
-          Cancel
+          {{ $t('common.actions.cancel') }}
         </VBtn>
       </VCardText>
     </VCard>
@@ -110,7 +110,7 @@ const onCancel = () => {
           color="success"
           @click="unsubscribed = false"
         >
-          Ok
+          {{ $t('common.messages.ok') }}
         </VBtn>
       </VCardText>
     </VCard>
@@ -130,7 +130,7 @@ const onCancel = () => {
           class="my-4"
           style=" block-size: 88px;inline-size: 88px; pointer-events: none;"
         >
-          <span class="text-5xl font-weight-light">X</span>
+          <span class="text-5xl font-weight-light">{{ $t('components.dialogs.confirmdialog.x') }}</span>
         </VBtn>
 
         <h1 class="text-h4 mb-4">
@@ -143,7 +143,7 @@ const onCancel = () => {
           color="success"
           @click="cancelled = false"
         >
-          Ok
+          {{ $t('common.messages.ok') }}
         </VBtn>
       </VCardText>
     </VCard>

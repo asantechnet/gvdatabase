@@ -2,20 +2,23 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasDocumentNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
-    use HasDocumentNumber, HasFactory;
+    use HasDocumentNumber, HasFactory, Auditable;
 
     protected $fillable = [
         'class_type',
         'customer_id',
         'currency_id',
         'deptor',
+        'customer_company', 'customer_email', 'customer_contact', 'customer_address', 'customer_tax_number',
         'status',
+        'issue_date', 'due_date',
         'tax_percent',
         'currency_name',
         'currency_rate',
@@ -39,6 +42,8 @@ class Invoice extends Model
         'discount' => 'decimal:2',
         'currency_rate' => 'decimal:6',
         'voided_at' => 'datetime',
+        'issue_date' => 'date',
+        'due_date' => 'date',
     ];
 
     protected $attributes = [

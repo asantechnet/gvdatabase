@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Permission extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     protected $fillable = [
         'name',
@@ -20,10 +21,4 @@ class Permission extends Model
         'updated_at' => 'datetime',
     ];
 
-    public function positions()
-    {
-        return $this->belongsToMany(Position::class)
-            ->using(PermissionPosition::class)
-            ->withTimestamps();
-    }
 }

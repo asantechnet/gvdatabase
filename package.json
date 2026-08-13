@@ -7,6 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "vue-tsc --noEmit",
+    "i18n:check": "node scripts/i18n/check.mjs",
+    "i18n:test": "node scripts/i18n/runtime-test.mjs",
+    "i18n:migrate": "node scripts/i18n/migrate-ui.mjs",
     "lint": "eslint . -c .eslintrc.cjs --fix --rulesdir eslint-internal-rules/ --ext .ts,.js,.cjs,.vue,.tsx,.jsx",
     "build:icons": "tsx resources/ts/plugins/iconify/build-icons.ts",
     "postinstall": "npm run build:icons"

@@ -11,9 +11,9 @@ interface ContractOption {
 }
 
 const contractOptions = ref<ContractOption[]>([
-  { id: 1, name: 'NDA Template', type: 'NDA', description: 'Standard NDA agreement', active: true },
-  { id: 2, name: 'SLA Template', type: 'SLA', description: 'Service level agreement', active: true },
-  { id: 3, name: 'Employment Contract', type: 'Employment', description: 'Standard employment terms', active: false },
+  { id: 1, name: 'NDA Template', type: 'NDA', description: translate('pages.contracts.optionsContract.optionsContract.standardNDAAgreement'), active: true },
+  { id: 2, name: 'SLA Template', type: 'SLA', description: translate('pages.contracts.optionsContract.optionsContract.serviceLevelAgreement'), active: true },
+  { id: 3, name: 'Employment Contract', type: 'Employment', description: translate('pages.contracts.optionsContract.optionsContract.standardEmploymentTerms'), active: false },
 ])
 
 // Placeholder reactive states
@@ -36,7 +36,7 @@ const statusOptions = ['Active', 'Inactive']
             <VTextField
               v-model="searchQuery"
               prepend-inner-icon="tabler-search"
-              placeholder="Search contract options..."
+              :placeholder="$t('pages.contracts.optionsContract.optionsContract.searchContractOptions')"
               density="compact"
               clearable
               hide-details
@@ -47,7 +47,7 @@ const statusOptions = ['Active', 'Inactive']
             <VSelect
               v-model="filter1"
               :items="typeOptions"
-              label="Filter by Type"
+              :label="$t('common.messages.filterByType')"
               density="compact"
               clearable
               hide-details
@@ -58,7 +58,7 @@ const statusOptions = ['Active', 'Inactive']
             <VSelect
               v-model="filter2"
               :items="statusOptions"
-              label="Filter by Status"
+              :label="$t('common.messages.filterByStatus')"
               density="compact"
               clearable
               hide-details
@@ -68,7 +68,7 @@ const statusOptions = ['Active', 'Inactive']
           <VCol cols="12" md="4" class="d-flex justify-md-end">
             <VBtn color="primary">
               <VIcon icon="tabler-plus" class="me-1" />
-              Add New
+              {{ $t('common.messages.addNew') }}
             </VBtn>
           </VCol>
         </VRow>
@@ -80,12 +80,12 @@ const statusOptions = ['Active', 'Inactive']
         <VDataTable
           :items="contractOptions"
           :headers="[
-            { title: 'ID', key: 'id' },
-            { title: 'Name', key: 'name' },
-            { title: 'Type', key: 'type' },
-            { title: 'Description', key: 'description' },
-            { title: 'Active', key: 'active' },
-            { title: 'Actions', key: 'actions', sortable: false }
+            { title: translate('common.messages.id'), key: 'id' },
+            { title: translate('common.fields.name'), key: 'name' },
+            { title: translate('common.fields.type'), key: 'type' },
+            { title: translate('common.fields.description'), key: 'description' },
+            { title: translate('common.statuses.active'), key: 'active' },
+            { title: translate('common.messages.actions'), key: 'actions', sortable: false }
           ]"
           item-value="id"
           class="text-no-wrap"

@@ -1,6 +1,24 @@
 import api from './axios'
 
-// Position API endpoints
+export interface Position {
+  id: number
+  title: string
+  description: string | null
+  salary: number
+  status: 'active' | 'inactive'
+  employee_count: number
+  user_count: number
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface PositionPayload {
+  title: string
+  description?: string | null
+  salary: number
+  status: 'active' | 'inactive'
+}
+
 const PositionApi = {
   // Get all positions
   getAll: () => api.get('/positions'),
@@ -9,35 +27,14 @@ const PositionApi = {
   getById: (id: number) => api.get(`/positions/${id}`),
 
   // Create position
-  create: (data: {
-    title: string;
-    salary: number;
-    status: string;
-    is_sys_user: boolean;
-    description?: string;
-    permission_ids?: number[];
-  }) => api.post('/positions', data),
+  create: (data: PositionPayload) => api.post('/positions', data),
 
   // Update position
-  update: (id: number, data: {
-    title?: string;
-    salary?: number;
-    status?: string;
-    is_sys_user?: boolean;
-    description?: string;
-    permission_ids?: number[];
-  }) => api.put(`/positions/${id}`, data),
+  update: (id: number, data: Partial<PositionPayload>) => api.put(`/positions/${id}`, data),
 
   // Delete position
   delete: (id: number) => api.delete(`/positions/${id}`),
 
-  // Attach permission to position
-  attachPermission: (positionId: number, permissionId: number) =>
-    api.post(`/positions/${positionId}/permissions/attach`, { permission_id: permissionId }),
-
-  // Detach permission from position
-  detachPermission: (positionId: number, permissionId: number) =>
-    api.post(`/positions/${positionId}/permissions/detach`, { permission_id: permissionId }),
 }
 
 export default PositionApi

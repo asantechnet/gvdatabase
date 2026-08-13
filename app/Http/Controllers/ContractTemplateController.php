@@ -34,14 +34,9 @@ class ContractTemplateController extends Controller
             'content' => 'required|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $validator->validate();
 
-        $template = ContractTemplate::create($request->all());
+        $template = ContractTemplate::create($validator->validated());
 
         return response()->json([
             'success' => true,
@@ -90,14 +85,9 @@ class ContractTemplateController extends Controller
             'content' => 'sometimes|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $validator->validate();
 
-        $template->update($request->all());
+        $template->update($validator->validated());
 
         return response()->json([
             'success' => true,
@@ -117,6 +107,13 @@ class ContractTemplateController extends Controller
                 'success' => false,
                 'message' => 'Contract template not found'
             ], 404);
+        }
+
+        if ($template->contracts()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Templates used by contracts cannot be deleted.',
+            ], 409);
         }
 
         $template->delete();

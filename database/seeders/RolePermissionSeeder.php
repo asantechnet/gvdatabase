@@ -1,0 +1,90 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Permission;
+use App\Models\RolePermission;
+use Illuminate\Database\Seeder;
+
+/** Seeds conservative defaults; super administrators retain the policy bypass. */
+class RolePermissionSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $all = PermissionSeeder::catalogNames();
+
+        $grants = [
+            // Day-to-day operations, but never identity/role control or audit reversal.
+            'admin' => array_values(array_diff($all, [
+                'view_users', 'create_users', 'edit_users', 'delete_users', 'manage_user_status', 'assign_user_roles',
+                'view_roles', 'manage_role_permissions', 'view_permissions',
+                'view_audit_logs', 'view_deleted_records', 'review_audit_logs', 'revert_audit_changes',
+            ])),
+
+            // Supervises operational work and all task work. Destructive financial and system actions remain excluded.
+            'manager' => [
+                'view_dashboard',
+                'view_reports', 'export_reports', 'view_automation_runs', 'view_analytics',
+                'manage_own_workday', 'submit_own_daily_report',
+                'request_own_paid_time_off',
+                'request_account_deactivation', 'cancel_own_deactivation_request',
+                'view_account_deactivation_requests', 'review_account_deactivation_requests', 'reactivate_user_accounts',
+                'view_employees', 'view_paid_time_off', 'create_paid_time_off', 'edit_paid_time_off', 'delete_paid_time_off',
+                'grant_paid_time_off', 'print_paid_time_off',
+                'view_attendance', 'record_attendance', 'view_unmarked_attendance_staff',
+                'view_bonuses', 'nominate_bonus_candidates', 'edit_bonus_nominations',
+                'view_positions', 'view_marketers', 'view_offices',
+                'view_customers', 'create_customers', 'edit_customers', 'manage_customer_services',
+                'view_contracts', 'create_contracts', 'edit_contracts', 'cancel_contracts', 'download_contracts',
+                'view_contract_templates', 'view_services',
+                'view_invoices', 'create_invoices', 'edit_invoices',
+                'view_incomes', 'create_incomes', 'edit_incomes',
+                'view_expenses', 'create_expenses', 'edit_expenses',
+                'view_stocks', 'create_stocks', 'edit_stocks',
+                'view_currencies', 'view_financial_reports',
+                'view_all_boards', 'view_assigned_boards', 'create_boards', 'edit_all_boards', 'edit_assigned_boards', 'reorder_boards', 'assign_board_members',
+                'view_all_tasks', 'view_assigned_tasks', 'create_tasks', 'edit_all_tasks', 'edit_assigned_tasks', 'move_all_tasks', 'move_assigned_tasks',
+                'assign_task_members', 'manage_task_dependencies', 'manage_task_tags', 'view_task_tags',
+                'create_subtasks_on_assigned_tasks', 'edit_all_subtasks', 'edit_own_subtasks', 'delete_all_subtasks', 'delete_own_subtasks',
+                'create_comments_on_assigned_tasks', 'edit_all_comments', 'edit_own_comments', 'delete_all_comments', 'delete_own_comments',
+                'view_visitors', 'create_visitors', 'edit_visitors',
+                'view_own_notifications', 'update_own_notifications', 'delete_own_notifications', 'send_notifications',
+                'upload_files', 'view_files', 'download_files',
+            ],
+
+            // Assigned work only. A staff member cannot change a parent task,
+            // another person's subtask, or another person's comment.
+            'staff' => [
+                'view_dashboard', 'request_account_deactivation', 'cancel_own_deactivation_request',
+                'manage_own_workday', 'submit_own_daily_report',
+                'request_own_paid_time_off',
+                'view_assigned_boards', 'view_assigned_tasks', 'view_task_tags',
+                'create_subtasks_on_assigned_tasks', 'edit_own_subtasks', 'delete_own_subtasks',
+                'create_comments_on_assigned_tasks', 'edit_own_comments', 'delete_own_comments',
+                'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
+            ],
+
+            'viewer' => [
+                'view_dashboard', 'request_account_deactivation', 'cancel_own_deactivation_request',
+                'manage_own_workday', 'submit_own_daily_report',
+                'request_own_paid_time_off',
+                'view_assigned_boards', 'view_assigned_tasks', 'view_task_tags',
+                'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
+            ],
+        ];
+
+        $permissionIds = Permission::query()->whereIn('name', $all)->pluck('id', 'name');
+
+        foreach ($grants as $role => $permissionNames) {
+            foreach (array_unique($permissionNames) as $permissionName) {
+                $permissionId = $permissionIds[$permissionName] ?? null;
+                if ($permissionId) {
+                    RolePermission::query()->firstOrCreate([
+                        'role' => $role,
+                        'permission_id' => $permissionId,
+                    ]);
+                }
+            }
+        }
+    }
+}

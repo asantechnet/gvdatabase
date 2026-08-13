@@ -11,11 +11,13 @@ export interface TaskAssignee {
   name: string;
   avatar: string;
   email: string;
+  contributionPercent?: number | null;
 }
 
 export interface SubTask {
   id: string;
   taskId: string;
+  userId: string;
   title: string;
   category: string;
   priority: TaskPriority;
@@ -23,6 +25,9 @@ export interface SubTask {
   tag?: string;
   isCompleted: boolean;
   createdAt: string;
+  editableUntil: string;
+  canEdit: boolean;
+  editWindowExpired: boolean;
 }
 
 export interface KanbanBoardColumn {
@@ -50,6 +55,10 @@ export interface Task {
   progress: number; // Computed percentage: 0 to 100
   createdAt: string;
   updatedAt: string;
+  completedAt: string | null;
+  reopenedCount: number;
+  rejectedCount: number;
+  managerQualityScore: number | null;
 }
 
 // --------------------------------------------------------------------------

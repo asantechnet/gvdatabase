@@ -27,9 +27,9 @@ const initialInvoices: Invoice[] = [
 ]
 
 const initialExpenses: Expense[] = [
-  { id: 1, description: 'Production Server Nginx Hosting (Cloud)', category: 'Infrastructure', amount: 240.00, date: '2026-07-02' },
-  { id: 2, description: 'UI/UX Vector Assets & Sprite Licenses', category: 'Software', amount: 150.00, date: '2026-07-05' },
-  { id: 3, description: 'Full-Stack Developer Contract Retainer', category: 'Salaries', amount: 2100.00, date: '2026-07-07' }
+  { id: 1, description: translate('pages.finance.finance.finance.productionServerNginxHostingCloud'), category: 'Infrastructure', amount: 240.00, date: '2026-07-02' },
+  { id: 2, description: translate('pages.finance.finance.finance.uiUXVectorAssetsSpriteLicenses'), category: 'Software', amount: 150.00, date: '2026-07-05' },
+  { id: 3, description: translate('pages.finance.finance.finance.fullStackDeveloperContractRetainer'), category: 'Salaries', amount: 2100.00, date: '2026-07-07' }
 ]
 
 // 3. Reactive States
@@ -128,7 +128,7 @@ const saveInvoice = () => {
 }
 
 const deleteInvoice = (id: string) => {
-  if (confirm('Delete this invoice?')) {
+  if (confirm(translate('pages.finance.finance.finance.deleteThisInvoice'))) {
     invoices.value = invoices.value.filter(i => i.id !== id)
   }
 }
@@ -168,7 +168,7 @@ const saveExpense = () => {
 }
 
 const deleteExpense = (id: number) => {
-  if (confirm('Delete this expense?')) {
+  if (confirm(translate('pages.finance.finance.finance.deleteThisExpense'))) {
     expenses.value = expenses.value.filter(e => e.id !== id)
   }
 }
@@ -296,10 +296,10 @@ const printTable = (section: 'invoices' | 'expenses') => {
         <VCard class="pa-5 border-start border-success border-xl h-100" elevation="1">
           <div class="d-flex justify-space-between align-center">
             <div>
-              <div class="text-caption text-medium-emphasis uppercase font-weight-bold tracking-widest">Revenue Settled
+              <div class="text-caption text-medium-emphasis uppercase font-weight-bold tracking-widest">{{ $t('pages.finance.finance.finance.revenueSettled') }}
               </div>
               <h3 class="text-h4 font-weight-black mt-2 text-success tracking-tight">
-                ${{ totalRevenueCollected.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                    ${{ formatLocalizedNumber(totalRevenueCollected, { minimumFractionDigits: 2 }) }}
               </h3>
             </div>
             <VAvatar color="success" variant="tonal" rounded="lg" size="48" class="ms-4">
@@ -313,10 +313,9 @@ const printTable = (section: 'invoices' | 'expenses') => {
         <VCard class="pa-5 border-start border-warning border-xl h-100" elevation="1">
           <div class="d-flex justify-space-between align-center">
             <div>
-              <div class="text-caption text-medium-emphasis uppercase font-weight-bold tracking-widest">Outstanding
-                Receivables</div>
+              <div class="text-caption text-medium-emphasis uppercase font-weight-bold tracking-widest">{{ $t('pages.finance.finance.finance.outstandingReceivables') }}</div>
               <h3 class="text-h4 font-weight-black mt-2 text-warning tracking-tight">
-                ${{ totalOutstandingReceivables.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                    ${{ formatLocalizedNumber(totalOutstandingReceivables, { minimumFractionDigits: 2 }) }}
               </h3>
             </div>
             <VAvatar color="warning" variant="tonal" rounded="lg" size="48" class="ms-4">
@@ -330,10 +329,9 @@ const printTable = (section: 'invoices' | 'expenses') => {
         <VCard class="pa-5 border-start border-error border-xl h-100" elevation="1">
           <div class="d-flex justify-space-between align-center">
             <div>
-              <div class="text-caption text-medium-emphasis uppercase font-weight-bold tracking-widest">Operating
-                Expenses Logged</div>
+              <div class="text-caption text-medium-emphasis uppercase font-weight-bold tracking-widest">{{ $t('pages.finance.finance.finance.operatingExpensesLogged') }}</div>
               <h3 class="text-h4 font-weight-black mt-2 text-error tracking-tight">
-                ${{ totalExpensesLogged.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                    ${{ formatLocalizedNumber(totalExpensesLogged, { minimumFractionDigits: 2 }) }}
               </h3>
             </div>
             <VAvatar color="error" variant="tonal" rounded="lg" size="48" class="ms-4">
@@ -348,11 +346,11 @@ const printTable = (section: 'invoices' | 'expenses') => {
       <VCol cols="12" xl="7" lg="12">
         <VCard>
           <VCardItem class="py-4">
-            <VCardTitle class="text-h6 font-weight-bold">Invoices Ledger Operations</VCardTitle>
+            <VCardTitle class="text-h6 font-weight-bold">{{ $t('pages.finance.finance.finance.invoicesLedgerOperations') }}</VCardTitle>
             <template #append>
               <VBtn color="primary" size="medium" prepend-icon="tabler-file-plus" class="px-4 font-weight-bold"
                 @click="openInvoiceModal">
-                Issue Invoice
+                {{ $t('common.messages.issueInvoice') }}
               </VBtn>
             </template>
           </VCardItem>
@@ -360,30 +358,30 @@ const printTable = (section: 'invoices' | 'expenses') => {
           <VCardText class="pb-4">
             <VRow>
               <VCol cols="12" sm="4">
-                <VTextField v-model="invoiceSearch" label="Search by client, token or project..." density="compact"
+                <VTextField v-model="invoiceSearch" :label="$t('pages.finance.finance.finance.searchByClientTokenOrProject')" density="compact"
                   prepend-inner-icon="tabler-search" hide-details clearable />
               </VCol>
               <VCol cols="12" sm="4">
-                <VSelect v-model="selectedStatusFilter" :items="['Paid', 'Pending', 'Overdue']"
-                  label="Filter Status" density="compact" hide-details clearable />
+                <VSelect v-model="selectedStatusFilter" :items="['Paid', 'Pending', 'Overdue']" :item-title="translateBackendValue"
+                  :label="$t('pages.finance.finance.finance.filterStatus')" density="compact" hide-details clearable />
               </VCol>
               <VCol cols="12" sm="4">
                 <VSelect v-model="selectedInvoiceAmountRange" :items="[
-                  { title: 'Under $3,000', value: 'low' },
+                  { title: translate('pages.finance.finance.finance.under3000'), value: 'low' },
                   { title: '$3,000 - $6,000', value: 'mid' },
-                  { title: 'Over $6,000', value: 'high' }
-                ]" label="Filter by Amount" density="compact" hide-details clearable />
+                  { title: translate('pages.finance.finance.finance.over6000'), value: 'high' }
+                ]" :label="$t('common.messages.filterByAmount')" density="compact" hide-details clearable />
               </VCol>
             </VRow>
           </VCardText>
 
           <VDataTable :headers="[
-            { title: 'Token ID', key: 'id', sortable: true },
-            { title: 'Client Accounts', key: 'clientName', sortable: true },
-            { title: 'Project Type', key: 'projectType', sortable: true },
-            { title: 'Statement Balance', key: 'amount', sortable: true },
-            { title: 'Status', key: 'status', sortable: true },
-            { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const },
+            { title: translate('pages.finance.finance.finance.tokenID'), key: 'id', sortable: true },
+            { title: translate('pages.finance.finance.finance.clientAccounts'), key: 'clientName', sortable: true },
+            { title: translate('pages.finance.finance.finance.projectType'), key: 'projectType', sortable: true },
+            { title: translate('pages.finance.finance.finance.statementBalance'), key: 'amount', sortable: true },
+            { title: translate('common.fields.status'), key: 'status', sortable: true },
+            { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
           ]" :items="filteredInvoices" class="text-no-wrap">
             <template #item.amount="{ item }">
               <span class="font-weight-black text-body-1">${{ item.amount.toFixed(2) }}</span>
@@ -391,7 +389,7 @@ const printTable = (section: 'invoices' | 'expenses') => {
             <template #item.status="{ item }">
               <VChip :color="getStatusColor(item.status)" size="small" variant="tonal" class="font-weight-bold cursor-pointer"
                 @click="toggleInvoiceStatus(item)">
-                {{ item.status }}
+                {{ translateBackendValue(item.status) }}
               </VChip>
             </template>
             <template #item.actions="{ item }">
@@ -407,11 +405,11 @@ const printTable = (section: 'invoices' | 'expenses') => {
       <VCol cols="12" xl="5" lg="12">
         <VCard>
           <VCardItem class="py-4">
-            <VCardTitle class="text-h6 font-weight-bold">Capital Expenditures Ledger</VCardTitle>
+            <VCardTitle class="text-h6 font-weight-bold">{{ $t('pages.finance.finance.finance.capitalExpendituresLedger') }}</VCardTitle>
             <template #append>
               <VBtn color="error" size="medium" variant="tonal" prepend-icon="tabler-cash-banknote"
                 class="px-4 font-weight-bold" @click="openExpenseModal">
-                Log Expense
+                {{ $t('pages.finance.finance.finance.logExpense') }}
               </VBtn>
             </template>
           </VCardItem>
@@ -419,30 +417,30 @@ const printTable = (section: 'invoices' | 'expenses') => {
           <VCardText class="pb-4">
             <VRow>
               <VCol cols="12" sm="4">
-                <VTextField v-model="expenseSearch" label="Search description or category..." density="compact"
+                <VTextField v-model="expenseSearch" :label="$t('pages.finance.finance.finance.searchDescriptionOrCategory')" density="compact"
                   prepend-inner-icon="tabler-search" hide-details clearable />
               </VCol>
               <VCol cols="12" sm="4">
                 <VSelect v-model="expenseCategoryFilter"
-                  :items="['Software', 'Salaries', 'Marketing', 'Supplies', 'Infrastructure']"
-                  label="Filter Cost Pool" density="compact" hide-details clearable />
+                  :items="['Software', 'Salaries', 'Marketing', 'Supplies', 'Infrastructure']" :item-title="translateBackendValue"
+                  :label="$t('pages.finance.finance.finance.filterCostPool')" density="compact" hide-details clearable />
               </VCol>
               <VCol cols="12" sm="4">
                 <VSelect v-model="selectedExpenseAmountRange" :items="[
-                  { title: 'Under $500', value: 'low' },
+                  { title: translate('pages.finance.finance.finance.under500'), value: 'low' },
                   { title: '$500 - $1,500', value: 'mid' },
-                  { title: 'Over $1,500', value: 'high' }
-                ]" label="Filter by Amount" density="compact" hide-details clearable />
+                  { title: translate('pages.finance.finance.finance.over1500'), value: 'high' }
+                ]" :label="$t('common.messages.filterByAmount')" density="compact" hide-details clearable />
               </VCol>
             </VRow>
           </VCardText>
 
           <VDataTable :headers="[
-            { title: 'Description', key: 'description', sortable: true },
-            { title: 'Cost Pool', key: 'category', sortable: true },
-            { title: 'Date', key: 'date', sortable: true },
-            { title: 'Charge', key: 'amount', sortable: true },
-            { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const },
+            { title: translate('common.fields.description'), key: 'description', sortable: true },
+            { title: translate('pages.finance.finance.finance.costPool'), key: 'category', sortable: true },
+            { title: translate('common.fields.date'), key: 'date', sortable: true },
+            { title: translate('pages.finance.finance.finance.charge'), key: 'amount', sortable: true },
+            { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
           ]" :items="filteredExpenses" class="text-no-wrap">
             <template #item.amount="{ item }">
               <span class="font-weight-black text-body-1 text-error">-${{ item.amount.toFixed(2) }}</span>
@@ -471,29 +469,29 @@ const printTable = (section: 'invoices' | 'expenses') => {
         <VCardText class="mt-2">
           <VRow>
             <VCol cols="12">
-              <VTextField v-model="invoiceForm.clientName" label="Client Corporate Enterprise Name" variant="outlined" />
+              <VTextField v-model="invoiceForm.clientName" :label="$t('pages.finance.finance.finance.clientCorporateEnterpriseName')" variant="outlined" />
             </VCol>
             <VCol cols="12">
-              <VTextField v-model="invoiceForm.projectType" label="Operational Execution Project Focus" variant="outlined" />
+              <VTextField v-model="invoiceForm.projectType" :label="$t('pages.finance.finance.finance.operationalExecutionProjectFocus')" variant="outlined" />
             </VCol>
             <VCol cols="12" sm="6">
-              <VTextField v-model.number="invoiceForm.amount" type="number" prefix="$" label="Gross Statement Balance" variant="outlined" />
+              <VTextField v-model.number="invoiceForm.amount" type="number" prefix="$" :label="$t('pages.finance.finance.finance.grossStatementBalance')" variant="outlined" />
             </VCol>
             <VCol cols="12" sm="6">
-              <VTextField v-model="invoiceForm.dueDate" type="date" label="Maturity Payment Due Date" variant="outlined" persistent-placeholder />
+              <VTextField v-model="invoiceForm.dueDate" type="date" :label="$t('pages.finance.finance.finance.maturityPaymentDueDate')" variant="outlined" persistent-placeholder />
             </VCol>
             <VCol cols="12" sm="6">
-              <VSelect v-model="invoiceForm.status" :items="['Pending', 'Paid', 'Overdue']" label="Status" variant="outlined" />
+              <VSelect v-model="invoiceForm.status" :items="['Pending', 'Paid', 'Overdue']" :item-title="translateBackendValue" :label="$t('common.fields.status')" variant="outlined" />
             </VCol>
           </VRow>
         </VCardText>
         <VCardActions class="px-4 pb-4 gap-2">
           <VSpacer />
           <VBtn color="secondary" variant="text" class="px-4 font-weight-bold" @click="isInvoiceDialogActive = false">
-            Cancel
+            {{ $t('common.actions.cancel') }}
           </VBtn>
           <VBtn color="primary" variant="elevated" class="px-5 font-weight-bold"
-            :disabled="!invoiceForm.clientName || !invoiceForm.amount" @click="saveInvoice">Save</VBtn>
+            :disabled="!invoiceForm.clientName || !invoiceForm.amount" @click="saveInvoice">{{ $t('common.actions.save') }}</VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
@@ -507,28 +505,28 @@ const printTable = (section: 'invoices' | 'expenses') => {
         <VCardText class="mt-2">
           <VRow>
             <VCol cols="12">
-              <VTextField v-model="expenseForm.description" label="Transactional Outflow Description" variant="outlined" />
+              <VTextField v-model="expenseForm.description" :label="$t('pages.finance.finance.finance.transactionalOutflowDescription')" variant="outlined" />
             </VCol>
             <VCol cols="12" sm="6">
               <VSelect v-model="expenseForm.category"
-                :items="['Software', 'Salaries', 'Marketing', 'Supplies', 'Infrastructure']"
-                label="Target Cost Allocation Pool" variant="outlined" />
+                :items="['Software', 'Salaries', 'Marketing', 'Supplies', 'Infrastructure']" :item-title="translateBackendValue"
+                :label="$t('pages.finance.finance.finance.targetCostAllocationPool')" variant="outlined" />
             </VCol>
             <VCol cols="12" sm="6">
-              <VTextField v-model.number="expenseForm.amount" type="number" prefix="$" label="Settled Amount Outflow" variant="outlined" />
+              <VTextField v-model.number="expenseForm.amount" type="number" prefix="$" :label="$t('pages.finance.finance.finance.settledAmountOutflow')" variant="outlined" />
             </VCol>
             <VCol cols="12" sm="6">
-              <VTextField v-model="expenseForm.date" type="date" label="Date" variant="outlined" />
+              <VTextField v-model="expenseForm.date" type="date" :label="$t('common.fields.date')" variant="outlined" />
             </VCol>
           </VRow>
         </VCardText>
         <VCardActions class="px-4 pb-4 gap-2">
           <VSpacer />
           <VBtn color="secondary" variant="text" class="px-4 font-weight-bold" @click="isExpenseDialogActive = false">
-            Cancel
+            {{ $t('common.actions.cancel') }}
           </VBtn>
           <VBtn color="error" variant="elevated" class="px-5 font-weight-bold"
-            :disabled="!expenseForm.description || !expenseForm.amount" @click="saveExpense">Save</VBtn>
+            :disabled="!expenseForm.description || !expenseForm.amount" @click="saveExpense">{{ $t('common.actions.save') }}</VBtn>
         </VCardActions>
       </VCard>
     </VDialog>

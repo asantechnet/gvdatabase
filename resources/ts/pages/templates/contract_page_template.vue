@@ -10,6 +10,9 @@ export interface CompanyDetails {
   phone?: string;
   email?: string;
   website?: string;
+  licence?: string;
+  signatureUrl?: string;
+  letterheadUrl?: string;
 }
 
 export interface ContractClause {
@@ -34,7 +37,7 @@ export interface ContractPageProps {
 
 const props = withDefaults(defineProps<ContractPageProps>(), {
   documentTitle: 'SERVICE AGREEMENT',
-  footerText: 'Thank you for doing business with us!',
+  footerText: translate('documents.contract.defaultFooter'),
   pageNumberString: 'Page 1 of 1',
   clauses: () => [],
   htmlContent: '',
@@ -58,7 +61,7 @@ const printContractPage = () => {
 
   const printWindow = window.open('', '_blank', 'width=900,height=1100');
   if (!printWindow) {
-    alert('Please allow popups to print the contract page.');
+    alert(translate('documents.contract_page_template.contractPageTemplate.pleaseAllowPopupsToPrintTheContractPage'));
     return;
   }
 
@@ -91,7 +94,7 @@ const printContractPage = () => {
   printWindow.document.open();
   printWindow.document.write(`
     <!DOCTYPE html>
-    <html>
+    <html lang="${document.documentElement.lang}" dir="${document.documentElement.dir}">
       <head>
         <title>Print Contract - ${props.documentTitle}</title>
         ${fallbackStyles}
@@ -182,7 +185,8 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="contractRef" class="contract-page-container" :style="{ '--brand-accent': accentColor }">
+  <div ref="contractRef" class="contract-page-container print-document" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'" :style="{ '--brand-accent': accentColor }">
+    <img v-if="company.letterheadUrl" :src="company.letterheadUrl" alt="" class="letterhead-background" aria-hidden="true" />
     <!-- Sleek Margin Accents -->
     <div class="margin-rail-left"></div>
     <div class="margin-corner-top-right"></div>
@@ -194,6 +198,7 @@ defineExpose({
           <h1 class="document-title">{{ documentTitle }}</h1>
           <p>{{ documentNumber }}</p>
           <p v-if="company.slogan" class="company-slogan">{{ company.slogan }}</p>
+            <p v-if="company.licence" class="company-slogan">{{ $t('documents.contract.licence', { licence: company.licence }) }}</p>
         </div>
 
         <div class="header-right">
@@ -229,15 +234,16 @@ defineExpose({
 
         <!-- Signature Section -->
         <div v-if="showSignature" class="signature-section">
-          <h3 class="signature-title">IN WITNESS WHEREOF, the parties hereto have executed this Agreement:</h3>
+          <h3 class="signature-title">{{ $t('documents.contract_page_template.contractPageTemplate.inWITNESSWHEREOFThePartiesHeretoHaveExecutedThisAgreement') }}</h3>
           <div class="signature-grid">
 
             <!-- Company Signature Area -->
             <div class="signature-box">
+              <img v-if="company.signatureUrl" :src="company.signatureUrl" alt="Authorized company signature" class="company-signature" />
               <div class="sig-line"></div>
               <p class="sig-name"><strong>{{ company.brandName }}</strong></p>
-              <p class="sig-sub">Company Name</p>
-              <p class="sig-sub">Authorized Signature & Date</p>
+              <p class="sig-sub">{{ $t('documents.contract_page_template.contractPageTemplate.companyName') }}</p>
+              <p class="sig-sub">{{ $t('common.messages.authorizedSignatureDate') }}</p>
             </div>
 
             <!-- Contractee Signature Area -->
@@ -245,8 +251,8 @@ defineExpose({
               <div class="sig-line"></div>
               <p class="sig-name"><strong>{{ contracteeName }}</strong></p>
               <p v-if="contracteeCompanyName" class="sig-sub">{{ contracteeCompanyName }}</p>
-              <p class="sig-sub">Client / Contractee Name</p>
-              <p class="sig-sub">Authorized Signature & Date</p>
+              <p class="sig-sub">{{ $t('documents.contract_page_template.contractPageTemplate.clientContracteeName') }}</p>
+              <p class="sig-sub">{{ $t('common.messages.authorizedSignatureDate') }}</p>
             </div>
 
           </div>
@@ -263,8 +269,10 @@ defineExpose({
 
           <div class="footer-col footer-contact">
             <span v-if="company.address">{{ company.address }}</span>
-            <span v-if="company.address && company.phone"> &bull; </span>
-            <span v-if="company.phone">Tel: {{ company.phone }}</span>
+            <span v-if="company.address && company.phone"> {{ $t('common.messages.text') }} </span>
+            <span v-if="company.phone">{{ $t('documents.contract.telephone', { phone: company.phone }) }}</span>
+            <span v-if="company.email && (company.address || company.phone)"> {{ $t('common.messages.text') }} </span>
+            <span v-if="company.email">{{ company.email }}</span>
           </div>
 
           <div class="footer-col footer-page">
@@ -295,6 +303,23 @@ defineExpose({
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
+.letterhead-background {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.content-wrapper,
+.margin-rail-left,
+.margin-corner-top-right {
+  position: relative;
+  z-index: 1;
+}
+
 /* Margin Accents */
 .margin-rail-left {
   position: absolute;
@@ -313,7 +338,7 @@ defineExpose({
   width: 24px;
   height: 24px;
   border-top: 3px solid var(--brand-accent);
-  border-right: 3px solid var(--brand-accent);
+  border-inline-end: 3px solid var(--brand-accent);
   opacity: 0.6;
 }
 
@@ -495,6 +520,14 @@ defineExpose({
   flex: 1;
   display: flex;
   flex-direction: column;
+}
+
+.company-signature {
+  width: 150px;
+  height: 58px;
+  object-fit: contain;
+  object-position: left bottom;
+  margin-bottom: 4px;
 }
 
 .sig-line {

@@ -11,9 +11,9 @@ interface FinanceOption {
 }
 
 const financeOptions = ref<FinanceOption[]>([
-  { id: 1, name: 'Default Tax Rate', category: 'Tax', description: 'Standard tax rate', default: true },
-  { id: 2, name: 'Payment Terms', category: 'Payment', description: 'Standard payment terms', default: true },
-  { id: 3, name: 'Currency', category: 'General', description: 'Default currency', default: true },
+  { id: 1, name: 'Default Tax Rate', category: 'Tax', description: translate('pages.finance.optionsFinance.optionsFinance.standardTaxRate'), default: true },
+  { id: 2, name: 'Payment Terms', category: 'Payment', description: translate('pages.finance.optionsFinance.optionsFinance.standardPaymentTerms'), default: true },
+  { id: 3, name: 'Currency', category: 'General', description: translate('pages.finance.optionsFinance.optionsFinance.defaultCurrency'), default: true },
 ])
 
 // Placeholder reactive states
@@ -36,7 +36,7 @@ const statusOptions = ['Default', 'Custom']
             <VTextField
               v-model="searchQuery"
               prepend-inner-icon="tabler-search"
-              placeholder="Search finance options..."
+              :placeholder="$t('pages.finance.optionsFinance.optionsFinance.searchFinanceOptions')"
               density="compact"
               clearable
               hide-details
@@ -47,7 +47,7 @@ const statusOptions = ['Default', 'Custom']
             <VSelect
               v-model="filter1"
               :items="categoryOptions"
-              label="Filter by Category"
+              :label="$t('common.messages.filterByCategory')"
               density="compact"
               clearable
               hide-details
@@ -58,7 +58,7 @@ const statusOptions = ['Default', 'Custom']
             <VSelect
               v-model="filter2"
               :items="statusOptions"
-              label="Filter by Status"
+              :label="$t('common.messages.filterByStatus')"
               density="compact"
               clearable
               hide-details
@@ -68,7 +68,7 @@ const statusOptions = ['Default', 'Custom']
           <VCol cols="12" md="4" class="d-flex justify-md-end">
             <VBtn color="primary">
               <VIcon icon="tabler-plus" class="me-1" />
-              Add New
+              {{ $t('common.messages.addNew') }}
             </VBtn>
           </VCol>
         </VRow>
@@ -80,12 +80,12 @@ const statusOptions = ['Default', 'Custom']
         <VDataTable
           :items="financeOptions"
           :headers="[
-            { title: 'ID', key: 'id' },
-            { title: 'Name', key: 'name' },
-            { title: 'Category', key: 'category' },
-            { title: 'Description', key: 'description' },
-            { title: 'Default', key: 'default' },
-            { title: 'Actions', key: 'actions', sortable: false }
+            { title: translate('common.messages.id'), key: 'id' },
+            { title: translate('common.fields.name'), key: 'name' },
+            { title: translate('common.fields.category'), key: 'category' },
+            { title: translate('common.fields.description'), key: 'description' },
+            { title: translate('common.messages.default'), key: 'default' },
+            { title: translate('common.messages.actions'), key: 'actions', sortable: false }
           ]"
           item-value="id"
           class="text-no-wrap"

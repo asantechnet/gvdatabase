@@ -47,7 +47,7 @@ const props = withDefaults(defineProps<InvoiceProps>(), {
   services: () => [],
   discount: 0,
   taxRate: 0,
-  notes: 'Unless otherwise agreed in writing by the parties, all invoices are payable within thirty (30) days of the invoice date.',
+  notes: translate('documents.invoice.defaultPaymentTerms'),
   paymentMethod: '',
   paymentInstructions: () => []
 });
@@ -85,7 +85,7 @@ const printInvoice = () => {
 
   const printWindow = window.open('', '_blank', 'width=700,height=950');
   if (!printWindow) {
-    alert('Please allow popups to print the invoice.');
+    alert(translate('documents.invoice_template.invoiceTemplate.pleaseAllowPopupsToPrintTheInvoice'));
     return;
   }
 
@@ -98,7 +98,7 @@ const printInvoice = () => {
   printWindow.document.open();
   printWindow.document.write(`
     <!DOCTYPE html>
-    <html>
+    <html lang="${document.documentElement.lang}" dir="${document.documentElement.dir}">
       <head>
         <title>Print Invoice - ${props.invoiceNumber}</title>
         ${styles}
@@ -266,11 +266,11 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="invoiceRef" class="invoice-container a5-layout">
+  <div ref="invoiceRef" class="invoice-container a5-layout print-document" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'">
     <!-- Top Header -->
     <header class="invoice-header">
       <div class="title-section">
-        <h1 class="invoice-title">INVOICE</h1>
+        <h1 class="invoice-title">{{ $t('documents.invoice_template.invoiceTemplate.invoice') }}</h1>
       </div>
       <div class="logo-section">
         <img v-if="sender.logo" :src="sender.logo" :alt="sender.brandName" class="brand-logo" />
@@ -281,15 +281,15 @@ defineExpose({
     <!-- Metadata Row 1 -->
     <section class="metadata-row primary-meta">
       <div class="meta-block">
-        <span class="meta-label">INVOICE #</span>
+        <span class="meta-label">{{ $t('documents.invoice_template.invoiceTemplate.invoice2') }}</span>
         <span class="meta-value">{{ invoiceNumber }}</span>
       </div>
       <div class="meta-block">
-        <span class="meta-label">DATE OF ISSUE</span>
+        <span class="meta-label">{{ $t('documents.invoice_template.invoiceTemplate.dateOFISSUE') }}</span>
         <span class="meta-value">{{ dateOfIssue }}</span>
       </div>
       <div class="meta-block text-right">
-        <span class="meta-label">DUE DATE</span>
+        <span class="meta-label">{{ $t('documents.invoice_template.invoiceTemplate.dueDATE') }}</span>
         <span class="meta-value">{{ dueDate }}</span>
       </div>
     </section>
@@ -297,7 +297,7 @@ defineExpose({
     <!-- Metadata Row 2: Addresses -->
     <section class="metadata-row address-meta">
       <div class="address-block">
-        <span class="meta-label">BILL TO</span>
+        <span class="meta-label">{{ $t('documents.invoice_template.invoiceTemplate.billTO') }}</span>
         <strong class="client-name">{{ client.name }}</strong>
         <div class="address-lines">
           <p v-for="(line, idx) in client.addressLines" :key="idx">{{ line }}</p>
@@ -318,10 +318,10 @@ defineExpose({
     <table class="services-table">
       <thead>
         <tr>
-          <th class="th-desc">DESCRIPTION</th>
-          <th class="th-unit text-right">UNIT COST</th>
-          <th class="th-qty text-right">QTY</th>
-          <th class="th-amount text-right">AMOUNT</th>
+          <th class="th-desc">{{ $t('common.fields.description') }}</th>
+          <th class="th-unit text-right">{{ $t('documents.invoice_template.invoiceTemplate.unitCOST') }}</th>
+          <th class="th-qty text-right">{{ $t('documents.invoice_template.invoiceTemplate.qty') }}</th>
+          <th class="th-amount text-right">{{ $t('common.fields.amount') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -340,29 +340,29 @@ defineExpose({
     <!-- Totals Section -->
     <section class="totals-section">
       <div class="grand-total-display">
-        <span class="grand-total-label">GRAND TOTAL</span>
+        <span class="grand-total-label">{{ $t('documents.invoice_template.invoiceTemplate.grandTOTAL') }}</span>
         <span class="grand-total-value">{{ formatCurrency(grandTotal, primaryCurrency) }}</span>
       </div>
 
       <div class="summary-grid">
         <div class="summary-row">
-          <span class="summary-label">SUBTOTAL</span>
+          <span class="summary-label">{{ $t('documents.invoice_template.invoiceTemplate.subtotal') }}</span>
           <span class="summary-value">{{ formatCurrency(subtotal, primaryCurrency) }}</span>
         </div>
         <div v-if="discount > 0" class="summary-row">
-          <span class="summary-label">DISCOUNT</span>
+          <span class="summary-label">{{ $t('documents.invoice_template.invoiceTemplate.discount') }}</span>
           <span class="summary-value discount-val">-{{ formatCurrency(discount, primaryCurrency) }}</span>
         </div>
         <div v-if="taxRate > 0" class="summary-row">
-          <span class="summary-label">(TAX RATE)</span>
+          <span class="summary-label">{{ $t('documents.invoice_template.invoiceTemplate.taxRATE') }}</span>
           <span class="summary-value">{{ taxRate }}%</span>
         </div>
         <div v-if="taxRate > 0" class="summary-row">
-          <span class="summary-label">TAX</span>
+          <span class="summary-label">{{ $t('documents.invoice_template.invoiceTemplate.tax') }}</span>
           <span class="summary-value">{{ formatCurrency(taxAmount, primaryCurrency) }}</span>
         </div>
         <div class="summary-row final-row">
-          <span class="summary-label">TOTAL</span>
+          <span class="summary-label">{{ $t('documents.invoice_template.invoiceTemplate.total') }}</span>
           <span class="summary-value">{{ formatCurrency(grandTotal, primaryCurrency) }}</span>
         </div>
       </div>
@@ -372,25 +372,25 @@ defineExpose({
     <footer class="invoice-footer">
       <div class="footer-left">
         <div v-if="notes" class="footer-block">
-          <span class="meta-label">NOTES</span>
+          <span class="meta-label">{{ $t('common.fields.notes') }}</span>
           <p class="footer-text">{{ notes }}</p>
         </div>
 
         <div v-if="paymentInstructions && paymentInstructions.length > 0" class="footer-block">
-          <span class="meta-label">PAYMENT INSTRUCTIONS</span>
+          <span class="meta-label">{{ $t('documents.invoice_template.invoiceTemplate.paymentINSTRUCTIONS') }}</span>
           <div class="footer-text">
             <p v-for="(line, idx) in paymentInstructions" :key="idx">{{ line }}</p>
           </div>
         </div>
 
         <div v-if="paymentMethod" class="footer-block">
-          <span class="meta-label">PAYMENT METHOD</span>
+          <span class="meta-label">{{ $t('documents.invoice_template.invoiceTemplate.paymentMETHOD') }}</span>
           <p class="footer-text">{{ paymentMethod }}</p>
         </div>
       </div>
 
       <div class="footer-right">
-        <strong class="thank-you-message">THANK YOU FOR YOUR BUSINESS!</strong>
+        <strong class="thank-you-message">{{ $t('documents.invoice_template.invoiceTemplate.thankYOUFORYOURBUSINESS') }}</strong>
       </div>
     </footer>
   </div>

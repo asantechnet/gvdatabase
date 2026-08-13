@@ -4,6 +4,26 @@ import api from "./axios";
 export type EligibilityReason = 'Top Performer' | 'Project Milestone' | 'Client Praise' | 'Work Anniversary' | 'Manager Nomination';
 export type BonusType = 'Performance' | 'Spot Bonus' | 'Project Completion' | 'Retention';
 
+export interface CurrencySnapshot {
+    id: number | null;
+    code: string | null;
+    name: string | null;
+    symbol: string | null;
+    decimalPlaces: number | null;
+}
+
+export interface SalaryConversionSnapshot {
+    sourceAmount: number;
+    sourceCurrencyCode: string;
+    sourceRateToBase: number;
+    baseAmount: number;
+    salaryCurrencyCode: string;
+    salaryRateToBase: number;
+    convertedAmount: number;
+    formula: string;
+    snapshotSource: string;
+}
+
 export interface WorthyEmployee {
     id: string;
     employeeId: string;
@@ -14,25 +34,49 @@ export interface WorthyEmployee {
     eligibilityReason: EligibilityReason;
     achievementDetails: string;
     suggestedAmount: number;
+    originalCurrency: CurrencySnapshot;
+    suggestedRateToBase: number;
+    suggestedBaseAmount: number;
     selectedAmount: number;
+    selectedCurrency: CurrencySnapshot;
+    selectedRateToBase: number;
+    selectedBaseAmount: number;
     selectedType: BonusType;
     isGranted: boolean;
+    grantedAt: string | null;
+    grantedBy: number | null;
+    grantedAmount: number | null;
+    grantedCurrency: CurrencySnapshot | null;
+    grantedRateToBase: number | null;
+    grantedBaseAmount: number | null;
+    currencySnapshotSource: string;
+    currencySnapshotNote: string | null;
+    isAutomatic: boolean;
+    calculationKey: string | null;
+    calculationScore: number | null;
+    calculationInputs: { tasks?: Array<Record<string, unknown>>; formula?: string } | null;
+    ruleSnapshot: { id: number; version: number; rules: Record<string, unknown> } | null;
+    calculatedAt: string | null;
+    salaryConversion?: SalaryConversionSnapshot;
     bonusMonth: string; // Format: YYYY-MM
 }
 
 export interface CreateNominationData {
-    employeeId: string;
+    employeeId: number;
     performanceScore: number;
     eligibilityReason: EligibilityReason;
     achievementDetails: string;
     suggestedAmount: number;
+    currencyId: number;
     selectedType: BonusType;
     selectedAmount?: number;
+    selectedCurrencyId?: number;
     bonusMonth?: string; // Format: YYYY-MM
 }
 
 export interface UpdateEmployeeData {
     selectedAmount?: number;
+    selectedCurrencyId?: number;
     selectedType?: BonusType;
     isGranted?: boolean;
 }

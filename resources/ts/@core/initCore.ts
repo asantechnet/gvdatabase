@@ -3,6 +3,7 @@ import { useTheme } from 'vuetify'
 import { useConfigStore } from '@core/stores/config'
 import { cookieRef, namespaceConfig } from '@layouts/stores/config'
 import { themeConfig } from '@themeConfig'
+import { supportedLocales } from '@/plugins/i18n'
 
 const _syncAppRtl = () => {
   const configStore = useConfigStore()
@@ -11,8 +12,10 @@ const _syncAppRtl = () => {
   const { locale } = useI18n({ useScope: 'global' })
 
   // TODO: Handle case where i18n can't read persisted value
-  if (locale.value !== storedLang.value && storedLang.value)
+  if (storedLang.value && supportedLocales.includes(storedLang.value as typeof supportedLocales[number]))
     locale.value = storedLang.value
+  else if (storedLang.value)
+    storedLang.value = locale.value as string
 
   // watch and change lang attribute of html on language change
   watch(
@@ -21,6 +24,11 @@ const _syncAppRtl = () => {
       // Update lang attribute of html tag
       if (typeof document !== 'undefined')
         document.documentElement.setAttribute('lang', val as string)
+      if (typeof document !== 'undefined') {
+        const isPersianScript = val === 'fa-AF' || val === 'ps-AF'
+        document.documentElement.setAttribute('dir', isPersianScript ? 'rtl' : 'ltr')
+        document.documentElement.classList.toggle('locale-persian-script', isPersianScript)
+      }
 
       // Store selected language in cookie
       storedLang.value = val as string

@@ -44,12 +44,20 @@ const TaskApi = {
   // Move a task (drag and drop)
   move: async (id: string, data: MoveTaskData) => {
     try {
-      const response = await api.put<{ message: string }>(`/tasks/${id}/move`, data);
+      const response = await api.put<{
+        message: string
+        positions: Array<{ id: string; boardId: string; order: number }>
+      }>(`/tasks/${id}/move`, data);
       return response;
     } catch (error) {
       console.error('API move error:', error);
       throw error;
     }
+  },
+
+  reviewBonusInputs: async (id: string, data: { quality_score: number; rejected?: boolean; contributions?: Record<string, number> }) => {
+    const response = await api.patch<{ data: Task }>(`/tasks/${id}/bonus-review`, data)
+    return response.data.data
   },
 };
 

@@ -44,7 +44,7 @@ const VisitorApi = {
   // Get all visitors
   getAll: async (params?: VisitorParams) => {
     try {
-      const response = await api.get<{ data: { data: Visitor[] } }>("/visitors", { params });
+      const response = await api.get<{ data: Visitor[] }>("/visitors", { params });
       return response.data.data;
     } catch (error) {
       console.error('API getAll error:', error);
@@ -55,7 +55,7 @@ const VisitorApi = {
   // Get single visitor
   getById: async (id: number) => {
     try {
-      const response = await api.get<{ data: { data: Visitor } }>(`/visitors/${id}`);
+      const response = await api.get<{ data: Visitor }>(`/visitors/${id}`);
       return response.data.data;
     } catch (error) {
       console.error('API getById error:', error);
@@ -66,7 +66,7 @@ const VisitorApi = {
   // Create visitor
   create: async (data: CreateVisitorData) => {
     try {
-      const response = await api.post<{ data: { data: Visitor } }>("/visitors", data);
+      const response = await api.post<{ data: Visitor }>("/visitors", data);
       return response.data.data;
     } catch (error) {
       console.error('API create error:', error);
@@ -77,7 +77,7 @@ const VisitorApi = {
   // Update visitor
   update: async (id: number, data: UpdateVisitorData) => {
     try {
-      const response = await api.put<{ data: { data: Visitor } }>(`/visitors/${id}`, data);
+      const response = await api.put<{ data: Visitor }>(`/visitors/${id}`, data);
       return response.data.data;
     } catch (error) {
       console.error('API update error:', error);
@@ -88,8 +88,7 @@ const VisitorApi = {
   // Delete visitor
   delete: async (id: number) => {
     try {
-      const response = await api.delete<{ data: { success: boolean; message: string } }>(`/visitors/${id}`);
-      return response.data.data;
+      await api.delete(`/visitors/${id}`);
     } catch (error) {
       console.error('API delete error:', error);
       throw error;
@@ -98,4 +97,3 @@ const VisitorApi = {
 };
 
 export default VisitorApi;
-export type { CreateVisitorData, Visitor, VisitorParams, UpdateVisitorData };

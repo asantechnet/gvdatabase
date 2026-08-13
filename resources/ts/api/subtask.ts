@@ -9,6 +9,9 @@ export interface CreateSubtaskData {
 
 export interface UpdateSubtaskData {
   is_completed?: boolean
+  title?: string
+  category?: string
+  priority?: Subtask['priority']
 }
 
 interface SubtaskResponse {

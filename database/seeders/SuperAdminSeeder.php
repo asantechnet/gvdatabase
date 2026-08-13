@@ -23,7 +23,7 @@ class SuperAdminSeeder extends Seeder
                 'password' => Hash::make('password123'), // Change this in production!
                 'phone' => '+1234567890',
                 'address' => 'Admin Headquarters',
-                'roles' => json_encode(['super_admin']),
+                'roles' => ['super_admin'],
                 'acc_status' => 'active',
                 'email_verified_at' => now(),
             ]
@@ -34,10 +34,13 @@ class SuperAdminSeeder extends Seeder
             [
                 'salary' => 150000,
                 'status' => 'active',
-                'is_sys_user' => true,
                 'description' => 'Executive leadership position',
             ],
         );
+
+        $superAdmin->positions()->syncWithoutDetaching([
+            $directorPosition->id => ['assigned_at' => now()->toDateString()],
+        ]);
 
         Employee::updateOrCreate(
             ['user_id' => $superAdmin->id],
@@ -49,13 +52,12 @@ class SuperAdminSeeder extends Seeder
                 'education_lvl' => 'Bachelor',
                 'position_id' => $directorPosition->id,
                 'salary' => $directorPosition->salary,
-                'bonus' => false,
                 'department' => 'Administration',
                 'join_date' => now()->toDateString(),
                 'contract_duration' => 'Permanent',
             ],
         );
 
-        $this->command->info('Super Admin user and employee record created successfully!');
+        $this->command->info('Super Admin user, role, and employee position created successfully!');
     }
 }

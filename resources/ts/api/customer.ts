@@ -15,7 +15,7 @@ export interface CustomerService {
     symbol: string
     rateToBase: number
   }
-  deadline: string
+  deadline: string | null
   status: string
   created_at: string
   updated_at: string
@@ -26,6 +26,9 @@ export interface Customer {
   name: string
   company: string
   contact: string
+  email: string | null
+  address: string | null
+  tax_number: string | null
   marketer: string
   date: string
   services: CustomerService[]
@@ -43,6 +46,9 @@ export interface CreateCustomerData {
   name: string
   company: string
   contact: string
+  email?: string | null
+  address?: string | null
+  tax_number?: string | null
   marketer: string
   date: string
 }
@@ -51,10 +57,11 @@ export type UpdateCustomerData = Partial<CreateCustomerData>
 
 export interface CreateCustomerServiceData {
   service_id: number
+  deadline?: string | null
 }
 
 export interface UpdateCustomerServiceData {
-  deadline: string
+  deadline: string | null
 }
 
 const emptyCustomer = (): Customer => ({
@@ -62,6 +69,9 @@ const emptyCustomer = (): Customer => ({
   name: '',
   company: '',
   contact: '',
+  email: null,
+  address: null,
+  tax_number: null,
   marketer: '',
   date: '',
   services: [],

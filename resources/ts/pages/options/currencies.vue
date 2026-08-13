@@ -9,7 +9,7 @@ const searchQuery = ref('')
 const statusFilter = ref<StatusFilter>('all')
 const isDialogVisible = ref(false)
 const isDeleteDialogVisible = ref(false)
-const editingId = ref<string | null>(null)
+const editingId = ref<number | null>(null)
 const currencyToDelete = ref<Currency | null>(null)
 const currencies = ref<Currency[]>([])
 const isLoading = ref(false)
@@ -61,8 +61,8 @@ const fetchCurrencies = async () => {
     isLoading.value = true
     const response = await CurrencyApi.getAll()
     currencies.value = response.data
-  } catch (error) {
-    toast.error('Failed to fetch currencies')
+  } catch (error: any) {
+    toast.error(translate('common.messages.failedToFetchCurrencies'))
     console.error('Error fetching currencies:', error)
   } finally {
     isLoading.value = false
@@ -72,14 +72,14 @@ const fetchCurrencies = async () => {
 const createCurrency = async () => {
   try {
     formErrors.value = {}
-    const response = await CurrencyApi.create(formData.value)
-    currencies.value.push(response.data)
-    toast.success('Currency created successfully')
+    await CurrencyApi.create(formData.value)
+    await fetchCurrencies()
+    toast.success(translate('pages.finance.currencies.currencies.currencyCreatedSuccessfully'))
     return true
-  } catch (error) {
+  } catch (error: any) {
     if (error.errors) {
       formErrors.value = error.errors
-      Object.entries(error.errors).forEach(([field, messages]) => {
+      Object.entries(error.errors as Record<string, string[]>).forEach(([field, messages]) => {
         toast.error(`${field}: ${messages.join(', ')}`)
       })
     } else {
@@ -95,19 +95,16 @@ const updateCurrency = async () => {
 
   try {
     formErrors.value = {}
-    const response = await CurrencyApi.update(Number(editingId.value), formData.value)
-
-    // Find and update the currency in the list with the server response
-    const index = currencies.value.findIndex(c => c.id === editingId.value)
-    if (index !== -1) {
-      currencies.value[index] = response.data
-    }
-    toast.success('Currency updated successfully')
+    await CurrencyApi.update(editingId.value, formData.value)
+    // Changing the base recalculates every exchange rate, so the whole list
+    // must be refreshed rather than replacing only the edited row.
+    await fetchCurrencies()
+    toast.success(translate('pages.finance.currencies.currencies.currencyUpdatedSuccessfully'))
     return true
-  } catch (error) {
+  } catch (error: any) {
     if (error.errors) {
       formErrors.value = error.errors
-      Object.entries(error.errors).forEach(([field, messages]) => {
+      Object.entries(error.errors as Record<string, string[]>).forEach(([field, messages]) => {
         toast.error(`${field}: ${messages.join(', ')}`)
       })
     } else {
@@ -125,13 +122,13 @@ const deleteCurrency = async () => {
     const response = await CurrencyApi.delete(Number(currencyToDelete.value.id))
     if (response.success) {
       currencies.value = currencies.value.filter(c => c.id !== currencyToDelete.value?.id)
-      toast.success('Currency deleted successfully')
+      toast.success(translate('pages.finance.currencies.currencies.currencyDeletedSuccessfully'))
       return true
     } else {
       toast.error(response.message || 'Failed to delete currency')
       return false
     }
-  } catch (error) {
+  } catch (error: any) {
     toast.error(error.message || 'Failed to delete currency')
     console.error('Error deleting currency:', error)
     return false
@@ -162,7 +159,7 @@ const openEditDialog = (currency: Currency) => {
 
 const saveCurrency = async () => {
   if (!formData.value.name || !formData.value.code) {
-    toast.error('Name and code are required')
+    toast.error(translate('pages.finance.currencies.currencies.nameAndCodeAreRequired'))
     return
   }
 
@@ -175,19 +172,15 @@ const saveCurrency = async () => {
   }
 }
 
-const setAsBaseCurrency = async (targetId: string) => {
+const setAsBaseCurrency = async (targetId: number) => {
   const target = currencies.value.find((c) => c.id === targetId)
   if (!target || target.isBase) return
 
   try {
-    const response = await CurrencyApi.update(Number(targetId), { isBase: true })
-    // Update the currency in the list with the server response
-    const index = currencies.value.findIndex(c => c.id === targetId)
-    if (index !== -1) {
-      currencies.value[index] = response.data
-    }
+    await CurrencyApi.update(targetId, { isBase: true })
+    await fetchCurrencies()
     toast.success(`Successfully set ${target.code} as base currency`)
-  } catch (error) {
+  } catch (error: any) {
     toast.error(error.message || 'Failed to set as base currency')
     console.error('Error setting base currency:', error)
   }
@@ -216,8 +209,8 @@ const toggleStatus = async (currency: Currency) => {
     if (index !== -1) {
       currencies.value[index] = response.data
     }
-    toast.success(`Currency ${currency.isActive ? 'deactivated' : 'activated'}`)
-  } catch (error) {
+    toast.success(translate(currency.isActive ? 'pages.finance.currencies.deactivated' : 'pages.finance.currencies.activated'))
+  } catch (error: any) {
     toast.error(error.message || 'Failed to update currency status')
     console.error('Error updating currency status:', error)
   }
@@ -228,13 +221,13 @@ const toggleStatus = async (currency: Currency) => {
   <div class="currencies-page p-4 p-md-6">
     <div class="d-flex flex-column flex-sm-row justify-space-between align-sm-center mb-6 gap-4">
       <div>
-        <h2 class="text-h4 font-weight-bold mb-1">Currency Management</h2>
+        <h2 class="text-h4 font-weight-bold mb-1">{{ $t('pages.finance.currencies.currencies.currencyManagement') }}</h2>
         <p class="text-body-2 text-medium-emphasis mb-0">
-          Manage exchange rates, set your application's primary base currency, and toggle statuses.
+          {{ $t('pages.finance.currencies.currencies.manageExchangeRatesSetYourApplicationSPrimaryBaseCurrencyAndToggleStat') }}
         </p>
       </div>
       <v-btn color="primary" prepend-icon="tabler-plus" elevation="2" size="large" @click="openCreateDialog">
-        Add Currency
+        {{ $t('pages.finance.currencies.currencies.addCurrency') }}
       </v-btn>
     </div>
 
@@ -244,7 +237,7 @@ const toggleStatus = async (currency: Currency) => {
           <div class="d-flex align-center justify-space-between">
             <div>
               <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
-                Total Currencies
+                {{ $t('pages.finance.currencies.currencies.totalCurrencies') }}
               </span>
               <h3 class="text-h4 font-weight-bold mt-1">{{ totalCurrenciesCount }}</h3>
             </div>
@@ -260,7 +253,7 @@ const toggleStatus = async (currency: Currency) => {
           <div class="d-flex align-center justify-space-between">
             <div>
               <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
-                Base Currency
+                {{ $t('common.messages.baseCurrency') }}
               </span>
               <h3 class="text-h4 font-weight-bold mt-1 text-primary">
                 {{ currentBaseCurrency?.code || 'N/A' }} ({{ currentBaseCurrency?.symbol || '' }})
@@ -278,7 +271,7 @@ const toggleStatus = async (currency: Currency) => {
           <div class="d-flex align-center justify-space-between">
             <div>
               <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
-                Active Currencies
+                {{ $t('pages.finance.currencies.currencies.activeCurrencies') }}
               </span>
               <h3 class="text-h4 font-weight-bold mt-1">{{ activeCurrenciesCount }}</h3>
             </div>
@@ -294,14 +287,14 @@ const toggleStatus = async (currency: Currency) => {
       <v-card-text class="pa-4 border-b">
         <v-row density="compact" align="center">
           <v-col cols="12" sm="6" md="4">
-            <v-text-field v-model="searchQuery" placeholder="Search by name, short code, or symbol..."
+            <v-text-field v-model="searchQuery" :placeholder="$t('pages.finance.currencies.currencies.searchByNameShortCodeOrSymbol')"
               prepend-inner-icon="tabler-search" hide-details density="compact" variant="outlined" clearable />
           </v-col>
           <v-col cols="12" sm="6" md="3">
             <v-select v-model="statusFilter" :items="[
-              { title: 'All Statuses', value: 'all' },
-              { title: 'Active Only', value: 'active' },
-              { title: 'Inactive Only', value: 'inactive' }
+              { title: translate('pages.finance.currencies.currencies.allStatuses'), value: 'all' },
+              { title: translate('pages.finance.currencies.currencies.activeOnly'), value: 'active' },
+              { title: translate('pages.finance.currencies.currencies.inactiveOnly'), value: 'inactive' }
             ]" hide-details density="compact" variant="outlined" />
           </v-col>
         </v-row>
@@ -310,14 +303,14 @@ const toggleStatus = async (currency: Currency) => {
       <v-table class="text-no-wrap">
         <thead>
           <tr>
-            <th class="text-left font-weight-bold text-uppercase text-caption">Currency</th>
-            <th class="text-left font-weight-bold text-uppercase text-caption">Symbol</th>
+            <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('common.fields.currency') }}</th>
+            <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('pages.finance.currencies.currencies.symbol') }}</th>
             <th class="text-left font-weight-bold text-uppercase text-caption">
-              Rate to Base ({{ currentBaseCurrency?.code || 'N/A' }})
+                {{ $t('pages.finance.currencies.rateToBase', { currency: currentBaseCurrency?.code || $t('common.messages.notAvailable') }) }}
             </th>
-            <th class="text-left font-weight-bold text-uppercase text-caption">Decimals</th>
-            <th class="text-left font-weight-bold text-uppercase text-caption">Status</th>
-            <th class="text-center font-weight-bold text-uppercase text-caption">Actions</th>
+            <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('pages.finance.currencies.currencies.decimals') }}</th>
+            <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('common.fields.status') }}</th>
+            <th class="text-center font-weight-bold text-uppercase text-caption">{{ $t('common.messages.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -335,7 +328,7 @@ const toggleStatus = async (currency: Currency) => {
                     </v-chip>
                     <v-chip v-if="currency.isBase" size="x-small" color="warning" variant="tonal"
                       prepend-icon="tabler-star">
-                      Base Currency
+                      {{ $t('common.messages.baseCurrency') }}
                     </v-chip>
                   </div>
                 </div>
@@ -350,34 +343,34 @@ const toggleStatus = async (currency: Currency) => {
 
             <td>
               <div class="font-weight-medium">
-                <span v-if="currency.isBase" class="text-success font-weight-bold">1.0000 (Base)</span>
+                <span v-if="currency.isBase" class="text-success font-weight-bold">{{ $t('pages.finance.currencies.baseRate') }}</span>
                 <span v-else>1 {{ currentBaseCurrency?.code || 'N/A' }} = {{ currency.rateToBase }} {{
                   currency.code }}</span>
               </div>
-              <div class="text-caption text-medium-emphasis">Updated: {{ currency.updatedAt }}</div>
+                <div class="text-caption text-medium-emphasis">{{ $t('pages.finance.currencies.updatedAt', { date: formatLocalizedDate(currency.updatedAt, 'long') }) }}</div>
             </td>
 
             <td>
-              <span class="text-body-2">{{ currency.decimalPlaces }} places</span>
+                <span class="text-body-2">{{ $t('pages.finance.currencies.decimalPlaces', { count: currency.decimalPlaces }) }}</span>
             </td>
 
             <td>
               <v-chip :color="currency.isActive ? 'success' : 'secondary'" size="small" variant="tonal"
                 class="cursor-pointer" @click="toggleStatus(currency)">
-                {{ currency.isActive ? 'Active' : 'Inactive' }}
+                  {{ translateBackendValue(currency.isActive ? 'active' : 'inactive') }}
               </v-chip>
             </td>
 
             <td class="text-center">
               <div class="d-flex justify-center align-center gap-1">
-                <v-tooltip text="Set as Base Currency" location="top" v-if="!currency.isBase">
+                <v-tooltip :text="$t('pages.finance.currencies.currencies.setAsBaseCurrency')" location="top" v-if="!currency.isBase">
                   <template #activator="{ props }">
                     <v-btn v-bind="props" icon="tabler-star" size="small" variant="text" color="warning"
                       @click="setAsBaseCurrency(currency.id)" />
                   </template>
                 </v-tooltip>
 
-                <v-tooltip text="Edit Currency" location="top">
+                <v-tooltip :text="$t('pages.finance.currencies.currencies.editCurrency')" location="top">
                   <template #activator="{ props }">
                     <v-btn v-bind="props" icon="tabler-pencil" size="small" variant="text" color="default"
                       @click="openEditDialog(currency)" />
@@ -397,14 +390,14 @@ const toggleStatus = async (currency: Currency) => {
           <tr v-if="filteredCurrencies.length === 0">
             <td colspan="6" class="text-center py-8 text-medium-emphasis">
               <v-icon icon="tabler-currency-off" size="40" class="mb-2" />
-              <div>No currencies found matching your search.</div>
+              <div>{{ $t('pages.finance.currencies.currencies.noCurrenciesFoundMatchingYourSearch') }}</div>
             </td>
           </tr>
 
           <tr v-if="isLoading">
             <td colspan="6" class="text-center py-8">
               <v-progress-circular indeterminate color="primary" />
-              <div class="mt-2">Loading currencies...</div>
+              <div class="mt-2">{{ $t('pages.finance.currencies.currencies.loadingCurrencies') }}</div>
             </td>
           </tr>
         </tbody>
@@ -426,40 +419,40 @@ const toggleStatus = async (currency: Currency) => {
           <v-form @submit.prevent="saveCurrency">
             <v-row density="comfortable">
               <v-col cols="12" sm="8">
-                <v-text-field v-model="formData.name" label="Currency Name" placeholder="e.g. Australian Dollar"
+                <v-text-field v-model="formData.name" :label="$t('pages.finance.currencies.currencies.currencyName')" :placeholder="$t('pages.finance.currencies.currencies.eGAustralianDollar')"
                   variant="outlined" required :error-messages="formErrors.name" />
               </v-col>
 
               <v-col cols="12" sm="4">
-                <v-text-field v-model="formData.code" label="Code (Short Name)" placeholder="e.g. AUD"
+                <v-text-field v-model="formData.code" :label="$t('pages.finance.currencies.currencies.codeShortName')" :placeholder="$t('pages.finance.currencies.currencies.eGAUD')"
                   variant="outlined" maxlength="5" required :error-messages="formErrors.code" />
               </v-col>
 
               <v-col cols="12" sm="6">
-                <v-text-field v-model="formData.symbol" label="Symbol" placeholder="e.g. A$" variant="outlined"
+                <v-text-field v-model="formData.symbol" :label="$t('pages.finance.currencies.currencies.symbol')" :placeholder="$t('pages.finance.currencies.symbolExample')" variant="outlined"
                   :error-messages="formErrors.symbol" />
               </v-col>
 
               <v-col cols="12" sm="6">
-                <v-text-field v-model.number="formData.decimalPlaces" label="Decimal Precision" type="number" min="0"
+                <v-text-field v-model.number="formData.decimalPlaces" :label="$t('pages.finance.currencies.currencies.decimalPrecision')" type="number" min="0"
                   max="6" variant="outlined" :error-messages="formErrors.decimal_places" />
               </v-col>
 
               <v-col cols="12">
                 <v-text-field v-model.number="formData.rateToBase"
-                  :label="`Rate to Base (${currentBaseCurrency?.code || 'N/A'})`" placeholder="1.0" type="number"
+              :label="$t('pages.finance.currencies.rateToBase', { currency: currentBaseCurrency?.code || $t('common.messages.notAvailable') })" placeholder="1.0" type="number"
                   step="0.000001" min="0" variant="outlined" :disabled="formData.isBase"
                   :hint="formData.isBase ? 'Base currency rate is always 1.0' : `1 ${currentBaseCurrency?.code || 'N/A'} equals how many units of this currency?`"
                   persistent-hint :error-messages="formErrors.rate_to_base" />
               </v-col>
 
               <v-col cols="12" sm="6" class="pt-2">
-                <v-switch v-model="formData.isBase" label="Set as Primary Base" color="primary" hide-details
+                <v-switch v-model="formData.isBase" :label="$t('pages.finance.currencies.currencies.setAsPrimaryBase')" color="primary" hide-details
                   :error-messages="formErrors.is_base" />
               </v-col>
 
               <v-col cols="12" sm="6" class="pt-2">
-                <v-switch v-model="formData.isActive" label="Active Status" color="success" :disabled="formData.isBase"
+                <v-switch v-model="formData.isActive" :label="$t('pages.finance.currencies.currencies.activeStatus')" color="success" :disabled="formData.isBase"
                   hide-details :error-messages="formErrors.is_active" />
               </v-col>
             </v-row>
@@ -469,7 +462,7 @@ const toggleStatus = async (currency: Currency) => {
         <v-divider />
 
         <v-card-actions class="pa-4 justify-end gap-2">
-          <v-btn variant="outlined" color="secondary" @click="isDialogVisible = false">Cancel</v-btn>
+          <v-btn variant="outlined" color="secondary" @click="isDialogVisible = false">{{ $t('common.actions.cancel') }}</v-btn>
           <v-btn color="primary" elevation="1" @click="saveCurrency">
             {{ editingId ? 'Save Changes' : 'Create Currency' }}
           </v-btn>
@@ -479,15 +472,14 @@ const toggleStatus = async (currency: Currency) => {
 
     <v-dialog v-model="isDeleteDialogVisible" max-width="420">
       <v-card rounded="lg" class="pa-2">
-        <v-card-title class="text-h6 font-weight-bold">Delete Currency</v-card-title>
+        <v-card-title class="text-h6 font-weight-bold">{{ $t('pages.finance.currencies.currencies.deleteCurrency') }}</v-card-title>
         <v-card-text class="pt-2">
-          Are you sure you want to delete
-          <strong>{{ currencyToDelete?.name }} ({{ currencyToDelete?.code }})</strong>? This action cannot be
-          undone.
+          {{ $t('common.confirmations.areYouSureYouWantToDelete') }}
+          <strong>{{ currencyToDelete?.name }} ({{ currencyToDelete?.code }})</strong>{{ $t('common.confirmations.thisActionCannotBeUndone2') }}
         </v-card-text>
         <v-card-actions class="justify-end gap-2 pa-4">
-          <v-btn variant="outlined" color="secondary" @click="isDeleteDialogVisible = false">Cancel</v-btn>
-          <v-btn color="error" elevation="1" @click="handleDelete">Delete</v-btn>
+          <v-btn variant="outlined" color="secondary" @click="isDeleteDialogVisible = false">{{ $t('common.actions.cancel') }}</v-btn>
+          <v-btn color="error" elevation="1" @click="handleDelete">{{ $t('common.actions.delete') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

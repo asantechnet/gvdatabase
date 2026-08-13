@@ -1,5 +1,10 @@
 <script lang="ts" setup>
+import { useLayoutConfigStore } from '@layouts/stores/config'
+import AutomaticAttendanceTracker from '@/components/attendance/AutomaticAttendanceTracker.vue'
+
 const DefaultLayoutWithVerticalNav = defineAsyncComponent(() => import('./components/DefaultLayoutWithVerticalNav.vue'))
+const DefaultLayoutWithHorizontalNav = defineAsyncComponent(() => import('./components/DefaultLayoutWithHorizontalNav.vue'))
+const layoutConfigStore = useLayoutConfigStore()
 
 const { layoutAttrs, injectSkinClasses } = useSkins()
 
@@ -21,8 +26,9 @@ watch([isFallbackStateActive, refLoadingIndicator], () => {
 </script>
 
 <template>
-  <Component v-bind="layoutAttrs" :is="DefaultLayoutWithVerticalNav">
+  <Component v-bind="layoutAttrs" :is="layoutConfigStore.appContentLayoutNav === 'horizontal' ? DefaultLayoutWithHorizontalNav : DefaultLayoutWithVerticalNav">
     <AppLoadingIndicator ref="refLoadingIndicator" />
+    <AutomaticAttendanceTracker />
 
     <RouterView v-slot="{ Component }">
       <Suspense :timeout="0" @fallback="isFallbackStateActive = true" @resolve="isFallbackStateActive = false">
@@ -39,11 +45,13 @@ watch([isFallbackStateActive, refLoadingIndicator], () => {
 .layout-navbar .navbar-content-container,
 .layout-vertical-nav {
   background-color: var(--app-navigation-color, rgb(var(--v-theme-surface))) !important;
+  color: var(--app-navigation-on-color, rgb(var(--v-theme-on-surface))) !important;
   transition: background-color 0.18s ease;
 }
 
 .layout-footer .footer-content-container {
   background-color: var(--app-footer-color, rgb(var(--v-theme-surface))) !important;
+  color: var(--app-footer-on-color, rgb(var(--v-theme-on-surface))) !important;
   transition: background-color 0.18s ease;
 }
 </style>

@@ -1,154 +1,125 @@
 <script setup lang="ts">
-import PositionApi from '@/api/position'
-import PermissionApi from '@/api/permission'
+import PermissionApi, { type Permission, type RolePermissions } from '@/api/permission'
+import { apiErrorMessage } from '@/utils/apiErrors'
+import { computed, onMounted, ref } from 'vue'
+import { useToast } from 'vue-toastification'
 
-interface Permission {
-  id: number
-  name: string
-  category: string
-}
-
-interface Position {
-  id: number
-  title: string
-  description?: string | null
-  salary: number
-  status: string
-  is_sys_user: boolean
-  permissions: Permission[]
-  employee_count?: number
-}
-
-const positions = ref<Position[]>([])
+const toast = useToast()
 const permissions = ref<Permission[]>([])
-const isLoading = ref(false)
-const errorMessage = ref('')
-const isDialogVisible = ref(false)
-const selectedPosition = ref<Position | null>(null)
+const roles = ref<RolePermissions[]>([])
+const loading = ref(false)
+const savingRole = ref<string | null>(null)
+const permissionDialog = ref(false)
+const editingPermission = ref<Permission | null>(null)
+const permissionForm = ref({ name: '', category: 'general' })
 
-const fetchRoles = async () => {
-  isLoading.value = true
-  errorMessage.value = ''
+const categoryLabel = (category: string) => category.replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase())
+const groupedPermissions = computed(() => permissions.value.reduce<Record<string, Permission[]>>((groups, permission) => {
+  ;(groups[permission.category] ??= []).push(permission)
+  return groups
+}, {}))
 
+const roleDescription: Record<string, string> = {
+  super_admin: 'Full system access. This role is intentionally not editable.',
+  admin: 'Operational administration without identity, role, or audit-reversal control.',
+  manager: 'Supervisory access to operational records and all task work.',
+  staff: 'Assigned task work, own subtasks/comments, and personal notifications.',
+  viewer: 'Read-only assigned task access and personal notifications.',
+}
+
+const isGranted = (role: RolePermissions, permission: string) => role.permissions.includes(permission)
+
+const toggle = (role: RolePermissions, permission: string, enabled: boolean) => {
+  if (role.name === 'super_admin') return
+  role.permissions = enabled
+    ? [...new Set([...role.permissions, permission])]
+    : role.permissions.filter(current => current !== permission)
+}
+
+const save = async (role: RolePermissions) => {
+  if (role.name === 'super_admin') return
   try {
-    const [positionsResponse, permissionsResponse] = await Promise.all([
-      PositionApi.getAll(),
-      PermissionApi.getAll(),
-    ])
-
-    positions.value = positionsResponse.data.data
-    permissions.value = permissionsResponse.data.data
-  } catch (error: any) {
-    errorMessage.value = error.message || 'Unable to load roles.'
+    savingRole.value = role.name
+    const saved = await PermissionApi.updateRolePermissions(role.name, role.permissions)
+    role.permissions = saved.permissions
+    toast.success(`${role.name.replace('_', ' ')} permissions saved.`)
+  } catch (error) {
+    toast.error(apiErrorMessage(error, 'Unable to update role permissions.'))
   } finally {
-    isLoading.value = false
+    savingRole.value = null
   }
 }
 
-const openCreate = () => {
-  selectedPosition.value = null
-  isDialogVisible.value = true
+const openPermissionDialog = (permission?: Permission) => {
+  editingPermission.value = permission || null
+  permissionForm.value = permission ? { name: permission.name, category: permission.category } : { name: '', category: 'general' }
+  permissionDialog.value = true
 }
 
-const openEdit = (position: Position) => {
-  selectedPosition.value = position
-  isDialogVisible.value = true
-}
-
-const deletePosition = async (position: Position) => {
-  if (!confirm(`Delete the ${position.title} role?`)) return
-
+const savePermission = async () => {
   try {
-    await PositionApi.delete(position.id)
-    await fetchRoles()
-  } catch (error: any) {
-    errorMessage.value = error.message || 'Unable to delete the role.'
-  }
+    if (editingPermission.value) await PermissionApi.update(editingPermission.value.id, permissionForm.value)
+    else await PermissionApi.create(permissionForm.value)
+    permissions.value = await PermissionApi.getAll()
+    roles.value = await PermissionApi.getRoles()
+    permissionDialog.value = false
+    toast.success('Permission saved.')
+  } catch (error) { toast.error(apiErrorMessage(error, 'Unable to save permission.')) }
 }
 
-const formatSalary = (salary: number) => new Intl.NumberFormat().format(salary || 0)
+const deletePermission = async (permission: Permission) => {
+  if (!confirm(`Delete permission ${permission.name}?`)) return
+  try { await PermissionApi.delete(permission.id); permissions.value = await PermissionApi.getAll(); roles.value = await PermissionApi.getRoles() }
+  catch (error) { toast.error(apiErrorMessage(error, 'Unable to delete permission.')) }
+}
 
-await fetchRoles()
+onMounted(async () => {
+  try {
+    loading.value = true
+    ;[permissions.value, roles.value] = await Promise.all([PermissionApi.getAll(), PermissionApi.getRoles()])
+  } catch (error) {
+    toast.error(apiErrorMessage(error, 'Unable to load roles and permissions.'))
+  } finally {
+    loading.value = false
+  }
+})
 </script>
 
 <template>
-  <VAlert
-    v-if="errorMessage"
-    type="error"
-    class="mb-4"
-    closable
-    @click:close="errorMessage = ''"
-  >
-    {{ errorMessage }}
+  <div class="d-flex justify-end mb-4"><VBtn prepend-icon="tabler-plus" @click="openPermissionDialog()">Add permission</VBtn></div>
+  <VAlert type="info" variant="tonal" class="mb-6">
+    {{ $t('pages.settings.rolecards.rolecards.rolesGrantPermissionsPositionsRemainHRJobTitlesChangesTakeEffectWhenAf') }}
   </VAlert>
 
-  <VProgressLinear v-if="isLoading" indeterminate class="mb-4" />
+  <VProgressLinear v-if="loading" indeterminate class="mb-4" />
 
-  <VRow>
-    <VCol
-      v-for="position in positions"
-      :key="position.id"
-      cols="12"
-      sm="6"
-      lg="4"
-    >
-      <VCard class="h-100">
-        <VCardText>
-          <div class="d-flex justify-space-between align-start gap-3">
-            <div>
-              <h5 class="text-h5">{{ position.title }}</h5>
-              <div class="text-body-2 text-medium-emphasis mt-1">
-                {{ position.description || 'No description provided.' }}
-              </div>
-            </div>
-            <VChip size="small" :color="position.status === 'active' ? 'success' : 'secondary'" label>
-              {{ position.status }}
-            </VChip>
-          </div>
-
-          <div class="d-flex justify-space-between text-body-2 mt-5">
-            <span>{{ position.permissions?.length || 0 }} permissions</span>
-            <span>Salary: {{ formatSalary(position.salary) }}</span>
-          </div>
-
-          <div class="d-flex flex-wrap gap-2 mt-4">
-            <VChip
-              v-for="permission in position.permissions"
-              :key="permission.id"
-              size="small"
-              variant="tonal"
-            >
-              {{ permission.name }}
-            </VChip>
-            <span v-if="!position.permissions?.length" class="text-body-2 text-medium-emphasis">
-              No permissions assigned.
-            </span>
-          </div>
-        </VCardText>
-
-        <VCardActions>
-          <VBtn variant="text" @click="openEdit(position)">Edit</VBtn>
-          <VBtn color="error" variant="text" @click="deletePosition(position)">Delete</VBtn>
-        </VCardActions>
-      </VCard>
-    </VCol>
-
-    <VCol cols="12" sm="6" lg="4">
-      <VCard class="h-100 d-flex align-center justify-center" :ripple="false">
-        <VCardText class="text-center">
-          <VIcon icon="tabler-shield-plus" size="42" class="mb-3" />
-          <h5 class="text-h5 mb-2">Add New Role</h5>
-          <p class="text-body-2 text-medium-emphasis mb-4">Create a position and assign its permissions.</p>
-          <VBtn @click="openCreate">Add New Role</VBtn>
-        </VCardText>
-      </VCard>
-    </VCol>
-  </VRow>
-
-  <AddEditRoleDialog
-    v-model:is-dialog-visible="isDialogVisible"
-    :position="selectedPosition"
-    :permissions="permissions"
-    @saved="fetchRoles"
-  />
+  <VExpansionPanels v-else variant="accordion">
+    <VExpansionPanel v-for="role in roles" :key="role.name">
+      <VExpansionPanelTitle>
+        <div>
+          <div class="text-h6 text-capitalize">{{ role.name.replace('_', ' ') }}</div>
+          <div class="text-caption text-medium-emphasis">{{ roleDescription[role.name] }}</div>
+        </div>
+      </VExpansionPanelTitle>
+      <VExpansionPanelText>
+        <VRow>
+          <VCol v-for="(categoryPermissions, category) in groupedPermissions" :key="String(category)" cols="12" md="6" lg="4">
+            <VCard variant="tonal" class="h-100">
+              <VCardItem><VCardTitle class="text-subtitle-1">{{ categoryLabel(String(category)) }}</VCardTitle></VCardItem>
+              <VCardText class="pt-0">
+                <div v-for="permission in categoryPermissions" :key="permission.name" class="d-flex align-center">
+                  <VCheckbox :model-value="isGranted(role, permission.name)" :label="permission.name.replaceAll('_', ' ')" density="compact" hide-details class="flex-grow-1" :disabled="role.name === 'super_admin'" @update:model-value="toggle(role, permission.name, Boolean($event))" />
+                  <template v-if="role.name === 'super_admin'"><VBtn icon="tabler-edit" size="x-small" variant="text" @click="openPermissionDialog(permission)" /><VBtn icon="tabler-trash" size="x-small" variant="text" color="error" @click="deletePermission(permission)" /></template>
+                </div>
+              </VCardText>
+            </VCard>
+          </VCol>
+        </VRow>
+        <div v-if="role.name !== 'super_admin'" class="d-flex justify-end mt-5">
+          <VBtn color="primary" :loading="savingRole === role.name" @click="save(role)">{{ $t('pages.settings.rolecards.rolecards.savePermissions') }}</VBtn>
+        </div>
+      </VExpansionPanelText>
+    </VExpansionPanel>
+  </VExpansionPanels>
+  <VDialog v-model="permissionDialog" max-width="520"><VCard :title="editingPermission ? 'Edit permission' : 'Add permission'"><VCardText><VTextField v-model="permissionForm.name" label="Machine name" class="mb-3" /><VTextField v-model="permissionForm.category" label="Category" /></VCardText><VCardActions><VSpacer /><VBtn variant="tonal" @click="permissionDialog=false">Cancel</VBtn><VBtn :disabled="!permissionForm.name.trim() || !permissionForm.category.trim()" @click="savePermission">Save</VBtn></VCardActions></VCard></VDialog>
 </template>

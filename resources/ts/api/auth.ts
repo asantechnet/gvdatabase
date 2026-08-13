@@ -1,15 +1,5 @@
 import api from './axios'
 
-export type ApiKeyPermission = 'full-control' | 'modify' | 'read-execute' | 'list-folders' | 'read-only' | 'read-write'
-
-export interface ApiKey {
-  id: number
-  name: string
-  permission: ApiKeyPermission
-  last_used_at: string | null
-  created_at: string
-}
-
 export interface Account {
   id: number
   name: string
@@ -18,6 +8,8 @@ export interface Account {
   address: string | null
   avatar: string | null
   acc_status: string
+  roles: string[]
+  permissions: string[]
   organization?: string | null
   state?: string | null
   zip?: string | null
@@ -26,15 +18,12 @@ export interface Account {
   timezone?: string | null
   currency?: string | null
   notifications?: NotificationPreferences
-  notification_frequency?: 'online' | 'anytime'
-  connections: Record<string, boolean>
   two_factor_enabled: boolean
-  api_keys: ApiKey[]
+  email_verified: boolean
+  email_verified_at: string | null
 }
 
-export interface NotificationPreferences {
-  [event: string]: { email: boolean; browser: boolean; app: boolean }
-}
+export interface NotificationPreferences { [event: string]: { in_app: boolean } }
 
 export interface AccountUpdatePayload {
   name?: string
@@ -51,10 +40,14 @@ export interface AccountUpdatePayload {
 }
 
 const AuthApi = {
-  register: (data: { name: string; email: string; password: string; password_confirmation: string; phone: string; roles: string[]; address: string }) => api.post('/auth/register', data),
-  login: (credentials: { email: string; password: string; two_factor_code?: string }) => api.post('/auth/login', credentials),
-  logout: () => api.post('/auth/logout'),
-  refreshToken: () => api.post('/auth/refresh-token'),
+  register: (data: { name: string; email: string; password: string; password_confirmation: string; phone: string; address: string }) => api.post('/auth/register', data),
+  login: (credentials: { email: string; password: string; remember?: boolean; two_factor_code?: string }) => api.post('/auth/login', credentials),
+  logout: (refreshToken?: string | null) => api.post('/auth/logout', { refresh_token: refreshToken }),
+  refreshToken: (refreshToken: string, remember: boolean) => api.post('/auth/refresh-token', { refresh_token: refreshToken, remember }),
+  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (data: { email: string; token: string; password: string; password_confirmation: string }) => api.post('/auth/reset-password', data),
+  completeInvitation: (data: { email: string; token: string; password: string; password_confirmation: string }) => api.post('/auth/complete-invitation', data),
+  resendEmailVerification: (email: string) => api.post('/auth/email/verification-notification', { email }),
   me: () => api.get('/auth/me'),
   updateAccount: (data: AccountUpdatePayload) => api.put('/auth/account', data),
   uploadAvatar: (avatar: File) => {
@@ -64,15 +57,11 @@ const AuthApi = {
   },
   removeAvatar: () => api.delete('/auth/account/avatar'),
   updatePassword: (data: { current_password: string; password: string; password_confirmation: string }) => api.put('/auth/account/password', data),
-  updateNotifications: (data: { notifications: NotificationPreferences; notification_frequency: 'online' | 'anytime' }) => api.put('/auth/account/notifications', data),
-  updateConnections: (connections: Record<string, boolean>) => api.put('/auth/account/connections', { connections }),
+  updateNotifications: (data: { notifications: NotificationPreferences }) => api.put('/auth/account/notifications', data),
   beginTwoFactor: () => api.post('/auth/account/two-factor'),
   confirmTwoFactor: (code: string) => api.post('/auth/account/two-factor/confirm', { code }),
   disableTwoFactor: (password: string) => api.delete('/auth/account/two-factor', { data: { password } }),
-  createApiKey: (data: { name: string; permission: ApiKeyPermission }) => api.post('/auth/account/api-keys', data),
-  revokeApiKey: (id: number) => api.delete(`/auth/account/api-keys/${id}`),
   logoutOtherDevices: (password: string) => api.post('/auth/account/logout-other-devices', { password }),
-  deactivate: (password: string) => api.post('/auth/account/deactivate', { password, confirm: true }),
 }
 
 export default AuthApi

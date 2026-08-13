@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Currency;
 use App\Models\Expense;
 use App\Http\Resources\ExpenseResource;
 use Illuminate\Http\Request;
@@ -11,14 +12,14 @@ class ExpenseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Expense::query();
+        $query = Expense::with('expenseCurrency');
 
         if ($request->has('type') && $request->type) {
             $query->where('type', $request->type);
         }
 
-        if ($request->has('currency') && $request->currency) {
-            $query->where('currency', $request->currency);
+        if ($request->filled('currency_id')) {
+            $query->where('currency_id', $request->integer('currency_id'));
         }
 
         if ($request->has('search') && $request->search) {
@@ -42,30 +43,25 @@ class ExpenseController extends Controller
             'description' => 'required|string',
             'amount' => 'required|numeric|min:0',
             'quantity' => 'required|integer|min:1',
-            'currency' => 'required|string|max:3',
+            'currency_id' => 'required|exists:currencies,id',
             'rate_to_base' => 'required|numeric|min:0',
             'date' => 'required|date',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $validator->validate();
 
-        // Calculate total_amount before creating the expense
-        $data = $request->all();
-        $data['total_amount'] = $data['amount'] * $data['quantity'] * $data['rate_to_base'];
+        $data = $validator->validated();
+        $this->applyCurrencySnapshot($data);
 
         $expense = Expense::create($data);
 
         // Return the created expense with 201 status code
-        return response()->json(new ExpenseResource($expense), 201);
+        return (new ExpenseResource($expense->load('expenseCurrency')))->response()->setStatusCode(201);
     }
 
     public function show(Expense $expense)
     {
-        return new ExpenseResource($expense);
+        return new ExpenseResource($expense->load('expenseCurrency'));
     }
 
     public function update(Request $request, Expense $expense)
@@ -76,29 +72,22 @@ class ExpenseController extends Controller
             'description' => 'sometimes|string',
             'amount' => 'sometimes|numeric|min:0',
             'quantity' => 'sometimes|integer|min:1',
-            'currency' => 'sometimes|string|max:3',
+            'currency_id' => 'sometimes|exists:currencies,id',
             'rate_to_base' => 'sometimes|numeric|min:0',
             'date' => 'sometimes|date',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $validator->validate();
 
-        $data = $request->all();
+        $data = $validator->validated();
 
-        // Recalculate total_amount if any of the relevant fields changed
-        if ($request->hasAny(['amount', 'quantity', 'rate_to_base'])) {
-            $data['total_amount'] = $request->input('amount', $expense->amount) *
-                                  $request->input('quantity', $expense->quantity) *
-                                  $request->input('rate_to_base', $expense->rate_to_base);
+        if (array_key_exists('currency_id', $data)) {
+            $this->applyCurrencySnapshot($data);
         }
 
         $expense->update($data);
 
-        return new ExpenseResource($expense);
+        return new ExpenseResource($expense->load('expenseCurrency'));
     }
 
     public function destroy(Expense $expense)
@@ -106,5 +95,12 @@ class ExpenseController extends Controller
         $expense->delete();
 
         return response()->noContent();
+    }
+
+    /** @param array<string, mixed> $data */
+    private function applyCurrencySnapshot(array &$data): void
+    {
+        $currency = Currency::findOrFail($data['currency_id']);
+        $data['rate_to_base'] = $currency->rate_against_base;
     }
 }

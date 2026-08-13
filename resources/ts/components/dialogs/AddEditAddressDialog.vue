@@ -59,13 +59,13 @@ const selectedAddress = ref('Home')
 const addressTypes = [
   {
     icon: { icon: home, size: '28' },
-    title: 'Home',
+    title: translate('components.dialogs.addeditaddressdialog.home'),
     desc: 'Delivery Time (9am - 9pm)',
     value: 'Home',
   },
   {
     icon: { icon: office, size: '28' },
-    title: 'Office',
+    title: translate('common.fields.office'),
     desc: 'Delivery Time (9am - 5pm)',
     value: 'Office',
   },
@@ -88,10 +88,12 @@ const addressTypes = [
       <VCardText>
         <!-- 👉 Title -->
         <h4 class="text-h4 text-center mb-2">
-          {{ (props.billingAddress.addressLine1 || props.billingAddress.addressLine2) ? 'Edit' : 'Add New' }} Address
+          {{ $t((props.billingAddress.addressLine1 || props.billingAddress.addressLine2)
+            ? 'components.dialogs.addeditaddressdialog.editAddress'
+            : 'components.dialogs.addeditaddressdialog.addAddress') }}
         </h4>
         <p class="text-body-1 text-center mb-6">
-          Add new address for express delivery
+          {{ $t('components.dialogs.addeditaddressdialog.addNewAddressForExpressDelivery') }}
         </p>
 
         <div class="d-flex mb-6">
@@ -112,8 +114,8 @@ const addressTypes = [
             >
               <AppTextField
                 v-model="billingAddress.firstName"
-                label="First Name"
-                placeholder="John"
+                :label="$t('common.messages.firstName')"
+                :placeholder="$t('common.messages.john')"
               />
             </VCol>
 
@@ -124,8 +126,8 @@ const addressTypes = [
             >
               <AppTextField
                 v-model="billingAddress.lastName"
-                label="Last Name"
-                placeholder="Doe"
+                :label="$t('common.messages.lastName')"
+                :placeholder="$t('common.messages.doe')"
               />
             </VCol>
 
@@ -133,8 +135,8 @@ const addressTypes = [
             <VCol cols="12">
               <AppSelect
                 v-model="billingAddress.selectedCountry"
-                label="Select Country"
-                placeholder="Select Country"
+                :label="$t('common.messages.selectCountry')"
+                :placeholder="$t('common.messages.selectCountry')"
                 :items="['USA', 'Aus', 'Canada', 'NZ']"
               />
             </VCol>
@@ -143,8 +145,8 @@ const addressTypes = [
             <VCol cols="12">
               <AppTextField
                 v-model="billingAddress.addressLine1"
-                label="Address Line 1"
-                placeholder="12, Business Park"
+                :label="$t('components.dialogs.addeditaddressdialog.addressLine1')"
+                :placeholder="$t('components.dialogs.addeditaddressdialog.n12BusinessPark')"
               />
             </VCol>
 
@@ -152,8 +154,8 @@ const addressTypes = [
             <VCol cols="12">
               <AppTextField
                 v-model="billingAddress.addressLine2"
-                label="Address Line 2"
-                placeholder="Mall Road"
+                :label="$t('components.dialogs.addeditaddressdialog.addressLine2')"
+                :placeholder="$t('components.dialogs.addeditaddressdialog.mallRoad')"
               />
             </VCol>
 
@@ -164,8 +166,8 @@ const addressTypes = [
             >
               <AppTextField
                 v-model="billingAddress.landmark"
-                label="Landmark"
-                placeholder="Nr. Hard Rock Cafe"
+                :label="$t('components.dialogs.addeditaddressdialog.landmark')"
+                :placeholder="$t('components.dialogs.addeditaddressdialog.nrHardRockCafe')"
               />
             </VCol>
 
@@ -176,8 +178,8 @@ const addressTypes = [
             >
               <AppTextField
                 v-model="billingAddress.city"
-                label="City"
-                placeholder="Los Angeles"
+                :label="$t('components.dialogs.addeditaddressdialog.city')"
+                :placeholder="$t('components.dialogs.addeditaddressdialog.losAngeles')"
               />
             </VCol>
 
@@ -188,8 +190,8 @@ const addressTypes = [
             >
               <AppTextField
                 v-model="billingAddress.state"
-                label="State"
-                placeholder="California"
+                :label="$t('components.dialogs.addeditaddressdialog.state')"
+                :placeholder="$t('components.dialogs.addeditaddressdialog.california')"
               />
             </VCol>
 
@@ -200,14 +202,14 @@ const addressTypes = [
             >
               <AppTextField
                 v-model="billingAddress.zipCode"
-                label="Zip Code"
+                :label="$t('components.dialogs.addeditaddressdialog.zipCode')"
                 placeholder="99950"
                 type="number"
               />
             </VCol>
 
             <VCol cols="12">
-              <VSwitch label="Use as a billing address?" />
+              <VSwitch :label="$t('common.messages.useAsABillingAddress')" />
             </VCol>
 
             <!-- 👉 Submit and Cancel button -->
@@ -219,7 +221,7 @@ const addressTypes = [
                 type="submit"
                 class="me-3"
               >
-                submit
+                {{ $t('common.actions.submit') }}
               </VBtn>
 
               <VBtn
@@ -227,7 +229,7 @@ const addressTypes = [
                 color="secondary"
                 @click="resetForm"
               >
-                Cancel
+                {{ $t('common.actions.cancel') }}
               </VBtn>
             </VCol>
           </VRow>

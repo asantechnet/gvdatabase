@@ -2,33 +2,37 @@
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { useRouter } from 'vue-router'
 import AuthApi from '@/api/auth'
+import { clearAuthTokens, getRefreshToken } from '@/utils/authStorage'
+import { applyPermissions, clearPermissions } from '@/utils/authorization'
+import WorkdayControl from '@/components/workday/WorkdayControl.vue'
+import MyPaidTimeOffDialog from '@/components/paid-time-off/MyPaidTimeOffDialog.vue'
 
 const router = useRouter()
-const ability = useAbility()
 const userData = useCookie<any>('userData')
+const paidTimeOffDialog = ref(false)
 
 const userProfileList = [
-  { type: 'navItem', icon: 'tabler-user', title: 'My Account', to: { name: 'account-settings', params: { tab: 'account' } } },
-  { type: 'navItem', icon: 'tabler-lock', title: 'Security', to: { name: 'account-settings', params: { tab: 'security' } } },
-  { type: 'navItem', icon: 'tabler-bell', title: 'Notification Preferences', to: { name: 'account-settings', params: { tab: 'notifications' } } },
-  { type: 'navItem', icon: 'tabler-link', title: 'Connected Accounts', to: { name: 'account-settings', params: { tab: 'connections' } } },
+  { type: 'navItem', icon: 'tabler-user', title: translate('components.navigation.userprofile.myAccount'), to: { name: 'account-settings', params: { tab: 'account' } } },
+  { type: 'navItem', icon: 'tabler-lock', title: translate('common.messages.security'), to: { name: 'account-settings', params: { tab: 'security' } } },
+  { type: 'navItem', icon: 'tabler-bell', title: translate('components.navigation.userprofile.notificationPreferences'), to: { name: 'account-settings', params: { tab: 'notifications' } } },
   { type: 'divider' },
-  { type: 'navItem', icon: 'tabler-bell-ringing', title: 'My Notifications', to: { name: 'notifications' } },
+  { type: 'navItem', icon: 'tabler-bell-ringing', title: translate('components.navigation.userprofile.myNotifications'), to: { name: 'notifications' } },
 ]
 
 async function refreshUser() {
-  try { userData.value = (await AuthApi.me()).data.data }
+  try {
+    userData.value = (await AuthApi.me()).data.data
+    applyPermissions(userData.value.permissions ?? [])
+  }
   catch { /* The auth guard handles an expired session. */ }
 }
 
 async function logout() {
-  try { await AuthApi.logout() } catch { /* Clear local state even if the token has already expired. */ }
+  try { await AuthApi.logout(getRefreshToken()) } catch { /* Clear local state even if the token has already expired. */ }
   useCookie('accessToken').value = null
   userData.value = null
-  localStorage.removeItem('access_token')
-  localStorage.removeItem('refresh_token')
-  useCookie('userAbilityRules').value = null
-  ability.update([])
+  clearAuthTokens()
+  clearPermissions()
   await router.replace('/login')
 }
 
@@ -50,10 +54,13 @@ onMounted(refreshUser)
               <VListItem v-if="item.type === 'navItem'" :to="item.to"><template #prepend><VIcon :icon="item.icon" size="22" /></template><VListItemTitle>{{ item.title }}</VListItemTitle></VListItem>
               <VDivider v-else class="my-2" />
             </template>
-            <div class="px-4 py-2"><VBtn block size="small" color="error" append-icon="tabler-logout" @click="logout">Logout</VBtn></div>
+            <VListItem prepend-icon="tabler-beach" @click="paidTimeOffDialog = true"><VListItemTitle>Paid-off days</VListItemTitle></VListItem>
+            <WorkdayControl />
+            <div class="px-4 py-2"><VBtn block size="small" color="error" append-icon="tabler-logout" @click="logout">{{ $t('components.navigation.userprofile.logout') }}</VBtn></div>
           </PerfectScrollbar>
         </VList>
       </VMenu>
     </VAvatar>
   </VBadge>
+  <MyPaidTimeOffDialog v-model="paidTimeOffDialog" />
 </template>

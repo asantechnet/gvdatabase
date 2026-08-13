@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EditKanbanItem, KanbanItem } from '@db/apps/kanban/types';
+import { canAccess } from '@/utils/authorization'
 
 const props = defineProps<{
   item: KanbanItem | undefined
@@ -21,22 +22,6 @@ const resolveLabelColor: any = {
   'Charts & Maps': 'primary',
 }
 
-const moreOptions = [
-  {
-    title: 'Copy Task link',
-    href: '#',
-  },
-  {
-    title: 'Duplicate Task',
-    href: '#',
-  },
-  {
-    title: 'Delete',
-    onClick: () => {
-      emit('deleteKanbanItem', { item: props.item, boardId: props.boardId, boardName: props.boardName })
-    },
-  },
-]
 </script>
 
 <template>
@@ -49,16 +34,6 @@ const moreOptions = [
           </VChip>
         </div>
 
-        <VSpacer />
-
-        <VMenu>
-          <template #activator="{ props: p, isActive }">
-            <VIcon v-bind="p" icon="tabler-dots-vertical" class="position-absolute more-options"
-              style="inset-block-start: 16px; inset-inline-end: 10px;" :style="isActive ? 'opacity: 1' : ''" size="20"
-              @click.stop />
-          </template>
-          <VList :items="moreOptions" item-props />
-        </VMenu>
       </div>
 
       <!-- Task Img -->
@@ -71,18 +46,13 @@ const moreOptions = [
 
       <!-- Footer -->
       <div class="task-footer d-flex align-center flex-wrap justify-space-between">
-        <div v-if="item.attachments || item.commentsCount" class="d-flex align-center gap-4">
-          <div v-if="item.attachments">
-            <VIcon size="20" icon="tabler-paperclip" class="me-1" />
-            <span class="text-body-1 d-inline-block">{{ item.attachments }}</span>
-          </div>
-
-          <!-- Built-in Comments Section with click handler -->
-          <div v-if="item.commentsCount" class="cursor-pointer d-flex align-center"
+        <div class="d-flex align-center gap-3">
+          <div v-if="canAccess('create_comments_on_assigned_tasks')" class="cursor-pointer d-flex align-center"
             @click.stop="emit('commentsClick', { item: props.item, boardId: props.boardId, boardName: props.boardName })">
             <VIcon size="20" icon="tabler-message-2" class="me-1 text-primary" />
-            <span class="text-body-1 d-inline-block">{{ item.commentsCount }}</span>
+            <span class="text-body-1 d-inline-block">{{ item.commentsCount ?? 0 }}</span>
           </div>
+          <TaskCompletionChip :progress="Number((item as any).progress ?? 0)" />
         </div>
 
         <div v-if="item.members && item.members.length" class="v-avatar-group">
@@ -108,14 +78,6 @@ const moreOptions = [
 
   &[style^="z-index"] {
     cursor: grabbing !important;
-  }
-
-  .more-options {
-    opacity: 0;
-  }
-
-  &:hover .more-options {
-    opacity: 1;
   }
 }
 </style>

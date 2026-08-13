@@ -5,13 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Position;
 use App\Http\Resources\PositionResource;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\JsonResponse;
 
 class PositionController extends Controller
 {
-    public function index()
+    public function index(): JsonResponse
     {
-        $positions = Position::with('permissions')->get();
+        $positions = Position::query()
+            ->withCount(['employees', 'users'])
+            ->orderBy('title')
+            ->get();
         return response()->json([
             'success' => true,
             'data' => PositionResource::collection($positions)
@@ -20,40 +23,24 @@ class PositionController extends Controller
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $data = $request->validate([
             'title' => 'required|string|max:255|unique:positions,title',
             'salary' => 'required|integer|min:0',
-            'status' => 'required|string|max:255',
-            'is_sys_user' => 'required|boolean',
+            'status' => 'required|in:active,inactive',
             'description' => 'nullable|string',
-            'permission_ids' => 'nullable|array',
-            'permission_ids.*' => 'exists:permissions,id',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $position = Position::create($request->all());
-
-        if ($request->has('permission_ids')) {
-            $position->permissions()->sync($request->permission_ids);
-        }
-
-        $position->load('permissions');
+        $position = Position::create($data);
 
         return response()->json([
             'success' => true,
-            'data' => new PositionResource($position)
+            'data' => new PositionResource($position->loadCount(['employees', 'users']))
         ], 201);
     }
 
     public function show($id)
     {
-        $position = Position::with('permissions')->find($id);
+        $position = Position::withCount(['employees', 'users'])->find($id);
         if (!$position) {
             return response()->json([
                 'success' => false,
@@ -62,7 +49,7 @@ class PositionController extends Controller
         }
         return response()->json([
             'success' => true,
-            'data' => new PositionResource($position)
+            'data' => new PositionResource($position->loadCount(['employees', 'users']))
         ]);
     }
 
@@ -76,34 +63,18 @@ class PositionController extends Controller
             ], 404);
         }
 
-        $validator = Validator::make($request->all(), [
+        $data = $request->validate([
             'title' => 'sometimes|string|max:255|unique:positions,title,'.$id,
             'salary' => 'sometimes|integer|min:0',
-            'status' => 'sometimes|string|max:255',
-            'is_sys_user' => 'sometimes|boolean',
+            'status' => 'sometimes|in:active,inactive',
             'description' => 'nullable|string',
-            'permission_ids' => 'nullable|array',
-            'permission_ids.*' => 'exists:permissions,id',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $position->update($request->all());
-
-        if ($request->has('permission_ids')) {
-            $position->permissions()->sync($request->permission_ids);
-        }
-
-        $position->load('permissions');
+        $position->update($data);
 
         return response()->json([
             'success' => true,
-            'data' => new PositionResource($position)
+            'data' => new PositionResource($position->loadCount(['employees', 'users']))
         ]);
     }
 
@@ -117,6 +88,13 @@ class PositionController extends Controller
             ], 404);
         }
 
+        if ($position->employees()->exists() || $position->users()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This position is assigned to employees or users and cannot be deleted.'
+            ], 422);
+        }
+
         $position->delete();
         return response()->json([
             'success' => true,
@@ -124,63 +102,4 @@ class PositionController extends Controller
         ]);
     }
 
-    public function attachPermission(Request $request, $id)
-    {
-        $position = Position::find($id);
-        if (!$position) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Position not found'
-            ], 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'permission_id' => 'required|exists:permissions,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $position->permissions()->attach($request->permission_id);
-        $position->load('permissions');
-
-        return response()->json([
-            'success' => true,
-            'data' => new PositionResource($position)
-        ]);
-    }
-
-    public function detachPermission(Request $request, $id)
-    {
-        $position = Position::find($id);
-        if (!$position) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Position not found'
-            ], 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'permission_id' => 'required|exists:permissions,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $position->permissions()->detach($request->permission_id);
-        $position->load('permissions');
-
-        return response()->json([
-            'success' => true,
-            'data' => new PositionResource($position)
-        ]);
-    }
 }

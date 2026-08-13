@@ -25,6 +25,8 @@ class DatabaseSeeder extends Seeder
         DB::table('stocks')->truncate();
         DB::table('visitors')->truncate();
         DB::table('task_user')->truncate();
+        DB::table('board_user')->truncate();
+        DB::table('board_user')->truncate();
         DB::table('task_tag')->truncate();
         DB::table('task_dependencies')->truncate();
         DB::table('comments')->truncate();
@@ -32,7 +34,9 @@ class DatabaseSeeder extends Seeder
         DB::table('tasks')->truncate();
         DB::table('tags')->truncate();
         DB::table('boards')->truncate();
+        DB::table('notification_user')->truncate();
         DB::table('notifications')->truncate();
+        DB::table('role_permissions')->truncate();
 
         // Reset auto-increments
         DB::statement('ALTER TABLE currencies AUTO_INCREMENT = 1');
@@ -64,12 +68,13 @@ class DatabaseSeeder extends Seeder
             SalarySeeder::class,
             WorthyEmployeeSeeder::class,
             PermissionSeeder::class,
+            RolePermissionSeeder::class,
             BoardSeeder::class,
             TagSeeder::class,
             TaskSeeder::class,
+            TaskUserSeeder::class,
             SubtaskSeeder::class,
             CommentSeeder::class,
-            TaskUserSeeder::class, // Now users exist
             TaskTagSeeder::class,
             TaskDependencySeeder::class,
             KanbanSeeder::class,

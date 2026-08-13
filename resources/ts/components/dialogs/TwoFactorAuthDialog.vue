@@ -19,14 +19,14 @@ const emit = defineEmits<Emit>()
 const authMethods = [
   {
     icon: 'tabler-settings',
-    title: 'Authenticator Apps',
-    desc: 'Get code from an app like Google Authenticator or Microsoft Authenticator.',
+    title: translate('common.messages.authenticatorApps'),
+    desc: translate('components.dialogs.twofactorauthdialog.authenticatorDescription'),
     value: 'authApp',
   },
   {
     icon: 'tabler-message',
-    title: 'SMS',
-    desc: 'We will send a code via SMS if you need to use your backup login method.',
+    title: translate('components.dialogs.twofactorauthdialog.sms'),
+    desc: translate('components.dialogs.twofactorauthdialog.smsDescription'),
     value: 'sms',
   },
 ]
@@ -63,10 +63,10 @@ const openSelectedMethodDialog = () => {
         <!-- 👉 Title -->
         <div class="mb-6">
           <h4 class="text-h4 text-center mb-2">
-            Select Authentication Method
+            {{ $t('components.dialogs.twofactorauthdialog.selectAuthenticationMethod') }}
           </h4>
           <p class="text-body-1 text-center mb-6">
-            You also need to select a method by which the proxy authenticates to the directory serve.
+            {{ $t('components.dialogs.twofactorauthdialog.youAlsoNeedToSelectAMethodByWhichTheProxyAuthenticatesToTheDirectorySe') }}
           </p>
           <CustomRadios
             v-model:selected-radio="selectedMethod"
@@ -95,14 +95,14 @@ const openSelectedMethodDialog = () => {
 
         <div class="d-flex gap-4 justify-center">
           <VBtn @click="openSelectedMethodDialog">
-            submit
+            {{ $t('common.actions.submit4') }}
           </VBtn>
           <VBtn
             color="secondary"
             variant="tonal"
             @click="$emit('update:isDialogVisible', false)"
           >
-            Cancel
+            {{ $t('common.actions.cancel') }}
           </VBtn>
         </div>
       </VCardText>

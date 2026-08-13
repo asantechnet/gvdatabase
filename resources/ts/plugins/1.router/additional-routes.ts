@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from "vue-router";
+import { getAccessToken } from '@/utils/authStorage'
 
 // 👉 Redirects
 export const redirects: RouteRecordRaw[] = [
@@ -6,7 +7,7 @@ export const redirects: RouteRecordRaw[] = [
     path: "/",
     name: "index",
     redirect: (to) => {
-      const token = localStorage.getItem("access_token");
+      const token = getAccessToken();
 
       if (!token) {
         return { name: "login", query: to.query };

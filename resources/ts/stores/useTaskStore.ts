@@ -6,6 +6,7 @@ import KanbanApi, {
   type User,
   type Tag,
   type Comment,
+  type Subtask,
   type CreateTaskData,
   type UpdateTaskData,
   type MoveTaskData
@@ -15,6 +16,8 @@ import SubtaskApi from '@/api/subtask'
 import BoardApi from '@/api/board'
 import CommentApi from '@/api/comment'
 import TagApi from '@/api/tag'
+import { canAccess } from '@/utils/authorization'
+import { useCookie } from '@core/composable/useCookie'
 import type {
   TaskPriority,
   TaskTag,
@@ -27,11 +30,24 @@ import type {
   KanbanDataGroup
 } from '@/types/taskManager'
 
+const addCalendarDays = (date: string, days: number) => {
+  const [year, month, day] = date.split('-').map(Number)
+  const value = new Date(Date.UTC(year, month - 1, day + days))
+
+  return value.toISOString().slice(0, 10)
+}
+
 export const useTaskStore = defineStore("taskManager", () => {
+  const userData = useCookie<{ id?: string | number } | null>('userData')
+  const currentUserId = () => String(userData.value?.id ?? '')
+  const canUpdateSubtask = (subtask: Subtask) => canAccess('edit_all_subtasks')
+    || (canAccess('edit_own_subtasks') && subtask.userId === currentUserId())
+  const canDeleteSubtask = (subtask: Subtask) => canAccess('delete_all_subtasks')
+    || (canAccess('delete_own_subtasks') && subtask.userId === currentUserId())
   // State
   const boards = ref<Board[]>([])
   const tasks = ref<Task[]>([])
-  const activeView = ref<'kanban' | 'calendar' | 'gantt' | 'todos'>('kanban')
+  const activeView = ref<'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings'>('kanban')
   const selectedTaskId = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -55,15 +71,25 @@ export const useTaskStore = defineStore("taskManager", () => {
   const rawTasks = computed(() => tasks.value)
 
   const ganttTasks = computed<FrappeGanttTask[]>(() => {
-    return tasks.value.map(task => ({
-      id: task.id,
-      name: task.title,
-      start: task.startDate,
-      end: task.dueDate,
-      progress: task.progress,
-      dependencies: task.dependencies.join(','),
-      custom_class: `gantt-priority-${task.priority}`
-    }))
+    const today = new Date().toISOString().slice(0, 10)
+
+    return tasks.value.map(task => {
+      // Old tasks can legitimately have no dates. Never pass missing or
+      // backwards dates to Frappe Gantt because it drops them internally
+      // without rebuilding its task indexes.
+      const start = task.startDate || today
+      const end = task.dueDate && task.dueDate >= start ? task.dueDate : start
+
+      return {
+        id: task.id,
+        name: task.title,
+        start,
+        end,
+        progress: task.progress,
+        dependencies: task.dependencies.join(','),
+        custom_class: `gantt-priority-${task.priority}`
+      }
+    })
   })
 
   const calendarEvents = computed<CalendarEventAdapter[]>(() => {
@@ -71,7 +97,9 @@ export const useTaskStore = defineStore("taskManager", () => {
       id: task.id,
       title: task.title,
       start: task.startDate,
-      end: task.dueDate,
+      // FullCalendar treats all-day end dates as exclusive. Tasks store an
+      // inclusive due date, so add one day to render same-day tasks correctly.
+      end: task.dueDate ? addCalendarDays(task.dueDate, 1) : task.startDate,
       allDay: true,
       extendedProps: {
         description: task.description,
@@ -162,7 +190,8 @@ export const useTaskStore = defineStore("taskManager", () => {
     }
   }
 
-  const addTask = async (taskData: Omit<CreateTaskData, 'board_id'> & { boardId: string }) => {
+  const addTask = async (taskData: Omit<CreateTaskData, 'board_id'> & { boardId: string }): Promise<Task | null> => {
+    if (!canAccess('create_tasks')) return null
     try {
       isLoading.value = true
       error.value = null
@@ -171,15 +200,18 @@ export const useTaskStore = defineStore("taskManager", () => {
         board_id: taskData.boardId
       })
       tasks.value.push(response.data.data)
+      return response.data.data
     } catch (err) {
       error.value = 'Failed to create task'
       console.error('Failed to create task:', err)
+      return null
     } finally {
       isLoading.value = false
     }
   }
 
   const updateTask = async (id: string, data: UpdateTaskData) => {
+    if (!canAccess('edit_assigned_tasks')) return
     try {
       isLoading.value = true
       error.value = null
@@ -234,6 +266,10 @@ export const useTaskStore = defineStore("taskManager", () => {
           })
         }
 
+        if (data.dependencies !== undefined) {
+          updatedTask.dependencies = data.dependencies
+        }
+
         // Replace the task in the array
         tasks.value[index] = updatedTask
       }
@@ -246,24 +282,34 @@ export const useTaskStore = defineStore("taskManager", () => {
   }
 
   const updateTaskDates = async (id: string, startDate: string, dueDate: string) => {
+    if (!canAccess('edit_assigned_tasks')) return false
+    const index = tasks.value.findIndex(task => task.id === id)
+    if (index === -1) return false
+
+    const previousTask = { ...tasks.value[index] }
+    tasks.value[index] = {
+      ...tasks.value[index],
+      startDate,
+      dueDate,
+    }
+
     try {
       isLoading.value = true
       error.value = null
       await TaskApi.update(id, { start_date: startDate, due_date: dueDate })
-      const index = tasks.value.findIndex(task => task.id === id)
-      if (index !== -1) {
-        tasks.value[index].startDate = startDate
-        tasks.value[index].dueDate = dueDate
-      }
+      return true
     } catch (err) {
+      tasks.value[index] = previousTask
       error.value = 'Failed to update task dates'
       console.error('Failed to update task dates:', err)
+      return false
     } finally {
       isLoading.value = false
     }
   }
 
   const deleteTask = async (id: string) => {
+    if (!canAccess('delete_assigned_tasks')) return
     try {
       isLoading.value = true
       error.value = null
@@ -281,20 +327,48 @@ export const useTaskStore = defineStore("taskManager", () => {
   }
 
   const moveTaskBoard = async (taskId: string, boardId: string, order: number) => {
+    if (!canAccess('move_assigned_tasks')) return
     try {
       isLoading.value = true
       error.value = null
       const data: MoveTaskData = { board_id: boardId, order }
-      await TaskApi.move(taskId, data)
+      const response = await TaskApi.move(taskId, data)
 
-      const taskIndex = tasks.value.findIndex(task => task.id === taskId)
-      if (taskIndex !== -1) {
-        tasks.value[taskIndex].boardId = boardId
-        tasks.value[taskIndex].order = order
-      }
+      response.data.positions.forEach(position => {
+        const task = tasks.value.find(candidate => candidate.id === position.id)
+        if (task) {
+          task.boardId = position.boardId
+          task.order = position.order
+        }
+      })
     } catch (err) {
       error.value = 'Failed to move task'
       console.error('Failed to move task:', err)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const reorderBoards = async (boardIds: string[]) => {
+    if (!canAccess('reorder_boards')) return
+    const currentIds = [...boards.value]
+      .sort((a, b) => a.order - b.order)
+      .map(board => board.id)
+
+    if (currentIds.length !== boardIds.length || currentIds.every((id, index) => id === boardIds[index])) return
+
+    try {
+      isLoading.value = true
+      error.value = null
+      await BoardApi.reorder(boardIds)
+      const orderById = new Map(boardIds.map((id, index) => [id, index]))
+      boards.value.forEach(board => {
+        board.order = orderById.get(board.id) ?? board.order
+      })
+    } catch (err) {
+      error.value = 'Failed to reorder boards'
+      console.error('Failed to reorder boards:', err)
+      await fetchBoardData()
     } finally {
       isLoading.value = false
     }
@@ -306,6 +380,7 @@ export const useTaskStore = defineStore("taskManager", () => {
     category: string = 'General',
     priority: TaskPriority = 'medium'
   ) => {
+    if (!canAccess('create_subtasks_on_assigned_tasks')) return
     try {
       isLoading.value = true
       error.value = null
@@ -332,6 +407,7 @@ export const useTaskStore = defineStore("taskManager", () => {
 
       const subtask = task.subtasks.find(st => st.id === subtaskId)
       if (!subtask) return
+      if (!canUpdateSubtask(subtask)) return
 
       const response = await SubtaskApi.update(taskId, subtaskId, {
         is_completed: !subtask.isCompleted,
@@ -352,6 +428,8 @@ export const useTaskStore = defineStore("taskManager", () => {
       error.value = null
       const task = tasks.value.find(t => t.id === taskId)
       if (!task) return
+      const subtask = task.subtasks.find(st => st.id === subtaskId)
+      if (!subtask || !canDeleteSubtask(subtask)) return
 
       const response = await SubtaskApi.delete(taskId, subtaskId)
       task.subtasks = task.subtasks.filter(st => st.id !== subtaskId)
@@ -364,7 +442,17 @@ export const useTaskStore = defineStore("taskManager", () => {
     }
   }
 
+  const updateSubTask = async (taskId: string, subtaskId: string, data: { title: string; category: string; priority: TaskPriority }) => {
+    const task = tasks.value.find(candidate => candidate.id === taskId)
+    const subtask = task?.subtasks.find(candidate => candidate.id === subtaskId)
+    if (!task || !subtask || !subtask.canEdit) return
+    const response = await SubtaskApi.update(taskId, subtaskId, data)
+    Object.assign(subtask, response.data.data)
+    task.progress = response.data.taskProgress
+  }
+
   const addComment = async (taskId: string, content: string) => {
+    if (!canAccess('create_comments_on_assigned_tasks')) return
     try {
       isLoading.value = true
       error.value = null
@@ -384,7 +472,16 @@ export const useTaskStore = defineStore("taskManager", () => {
     }
   }
 
+  const updateComment = async (taskId: string, commentId: string, content: string) => {
+    const task = tasks.value.find(candidate => candidate.id === taskId)
+    const comment = task?.comments.find(candidate => candidate.id === commentId)
+    if (!comment || !comment.canEdit) return
+    const response = await CommentApi.update(taskId, commentId, content)
+    Object.assign(comment, response.data.data)
+  }
+
   const createBoard = async (title: string) => {
+    if (!canAccess('create_boards')) return
     try {
       isLoading.value = true
       error.value = null
@@ -399,6 +496,7 @@ export const useTaskStore = defineStore("taskManager", () => {
   }
 
   const updateBoard = async (id: string, title: string) => {
+    if (!canAccess('edit_assigned_boards')) return
     try {
       isLoading.value = true
       error.value = null
@@ -416,6 +514,7 @@ export const useTaskStore = defineStore("taskManager", () => {
   }
 
   const deleteBoard = async (id: string) => {
+    if (!canAccess('delete_assigned_boards')) return
     try {
       isLoading.value = true
       error.value = null
@@ -430,7 +529,7 @@ export const useTaskStore = defineStore("taskManager", () => {
     }
   }
 
-  const setView = (view: 'kanban' | 'calendar' | 'gantt' | 'todos') => {
+  const setView = (view: 'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings') => {
     activeView.value = view
   }
 
@@ -460,10 +559,13 @@ export const useTaskStore = defineStore("taskManager", () => {
     updateTaskDates,
     deleteTask,
     moveTaskBoard,
+    reorderBoards,
     addSubTask,
     toggleSubTask,
+    updateSubTask,
     deleteSubTask,
     addComment,
+    updateComment,
     createBoard,
     updateBoard,
     deleteBoard,

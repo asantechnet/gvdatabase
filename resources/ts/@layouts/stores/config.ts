@@ -38,7 +38,10 @@ export const useLayoutConfigStore = defineStore("layoutConfig", () => {
   );
 
   // 👉 App Content Layout Nav
-  const appContentLayoutNav = ref(layoutConfig.app.contentLayoutNav);
+  const appContentLayoutNav = cookieRef(
+    "appContentLayoutNav",
+    layoutConfig.app.contentLayoutNav,
+  );
 
   watch(appContentLayoutNav, (val) => {
     // If Navbar type is hidden while switching to horizontal nav => Reset it to sticky
@@ -79,6 +82,11 @@ export const useLayoutConfigStore = defineStore("layoutConfig", () => {
       breakpointRef.value = value; // Allow manual mutation
     },
   });
+
+  watch(isLessThanOverlayNavBreakpoint, isMobile => {
+    if (isMobile)
+      appContentLayoutNav.value = AppContentLayoutNav.Vertical;
+  }, { immediate: true });
 
   // 👉 Layout Classes
   const _layoutClasses = computed(() => {

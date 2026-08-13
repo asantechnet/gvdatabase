@@ -15,7 +15,7 @@ class CustomerServiceResource extends JsonResource
             'type' => $this->service->type,
             'fee' => (float) $this->service->fee,
             'currency' => new CurrencyResource($this->service->currency),
-            'deadline' => $this->deadline->toDateString(),
+            'deadline' => $this->deadline?->toDateString(),
             'status' => $this->service->status,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

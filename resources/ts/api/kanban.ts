@@ -23,6 +23,10 @@ export interface Task {
   subtasks: Subtask[];
   comments: Comment[];
   dependencies: string[];
+  completedAt: string | null;
+  reopenedCount: number;
+  rejectedCount: number;
+  managerQualityScore: number | null;
 }
 
 export interface User {
@@ -30,6 +34,7 @@ export interface User {
   name: string;
   email: string;
   avatar: string;
+  contributionPercent?: number | null;
 }
 
 export interface Tag {
@@ -41,10 +46,15 @@ export interface Tag {
 export interface Subtask {
   id: string;
   taskId: string;
+  userId: string;
   title: string;
   category: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   isCompleted: boolean;
+  createdAt: string;
+  editableUntil: string;
+  canEdit: boolean;
+  editWindowExpired: boolean;
 }
 
 export interface Comment {
@@ -55,6 +65,9 @@ export interface Comment {
   content: string;
   timestamp: string;
   createdAt: string | null;
+  editableUntil: string;
+  canEdit: boolean;
+  editWindowExpired: boolean;
 }
 
 export interface CreateBoardData {
@@ -85,6 +98,7 @@ export interface UpdateTaskData {
   due_date?: string;
   assignees?: string[];
   tags?: string[];
+  dependencies?: string[];
 }
 
 export interface MoveTaskData {
@@ -194,17 +208,3 @@ const KanbanApi = {
 };
 
 export default KanbanApi;
-export type {
-  Board,
-  Task,
-  User,
-  Tag,
-  Subtask,
-  Comment,
-  CreateBoardData,
-  UpdateBoardData,
-  CreateTaskData,
-  UpdateTaskData,
-  MoveTaskData,
-  CreateCommentData
-};

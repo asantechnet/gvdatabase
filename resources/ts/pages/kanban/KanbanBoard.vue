@@ -2,6 +2,7 @@
 import type { AddNewKanbanItem, EditKanbanItem, KanbanBoard, KanbanData, KanbanState, RenameKanbanBoard } from '@db/apps/kanban/types'
 import { animations, remapNodes } from '@formkit/drag-and-drop'
 import { dragAndDrop } from '@formkit/drag-and-drop/vue'
+import { canAccess } from '@/utils/authorization'
 import { VForm } from 'vuetify/components/VForm'
 import KanbanBoardEditDrawer from './KanbanBoardEditDrawer.vue'
 import KanbanItems from './KanbanItems.vue'
@@ -9,6 +10,7 @@ import KanbanItems from './KanbanItems.vue'
 const props = withDefaults(defineProps<{
   kanbanData: KanbanData
   groupName?: string
+  openItemId?: string | null
 }>(), {
   groupName: 'kanban',
 })
@@ -64,20 +66,42 @@ const editKanbanItemFn = (item: EditKanbanItem | undefined) => {
   }
 }
 
+// A task created from a column should be immediately editable. The parent
+// supplies its id after the API call and this component owns the editor drawer.
+watch(() => props.openItemId, itemId => {
+  if (!itemId) return
+
+  const item = props.kanbanData.items.find(candidate => String(candidate.id) === itemId)
+  const board = props.kanbanData.boards.find(candidate =>
+    candidate.itemsIds.some(candidateId => String(candidateId) === itemId),
+  )
+
+  if (item && board) {
+    editKanbanItemFn({
+      item,
+      boardId: board.id,
+      boardName: board.title,
+    })
+  }
+}, { flush: 'post' })
+
 const updateStateFn = (kanbanState: KanbanState) => {
   emit('updateItemsState', kanbanState)
 }
 
-dragAndDrop({
-  parent: kanbanWrapper,
-  values: localKanbanData,
-  dragHandle: '.drag-handler',
-  plugins: [animations()],
-})
+if (canAccess('reorder_boards')) {
+  dragAndDrop({
+    parent: kanbanWrapper,
+    values: localKanbanData,
+    dragHandle: '.drag-handler',
+    plugins: [animations()],
+  })
+}
 
 watch(() => props, () => {
   localKanbanData.value = props.kanbanData.boards
-  remapNodes(kanbanWrapper.value as any)
+  if (canAccess('reorder_boards'))
+    remapNodes(kanbanWrapper.value as any)
 }, { deep: true })
 
 const emitUpdatedTaskFn = (item: EditKanbanItem) => {
@@ -117,23 +141,23 @@ onClickOutside(refAddNewBoard, hideAddNewForm)
       </template>
     </div>
 
-    <div class="add-new-form text-no-wrap" style="inline-size: 10rem;">
+    <div v-if="canAccess('create_boards')" class="add-new-form text-no-wrap" style="inline-size: 10rem;">
       <h6 class="text-lg font-weight-medium cursor-pointer" @click="isAddNewFormVisible = !isAddNewFormVisible">
-        <VIcon size="18" icon="tabler-plus" /> Add New
+        <VIcon size="18" icon="tabler-plus" /> {{ $t('pages.tasks.kanbanboard.kanbanboard.addNew') }}
       </h6>
 
       <VForm v-if="isAddNewFormVisible" ref="refAddNewBoard" class="mt-4" validate-on="submit"
         @submit.prevent="addNewBoard">
         <div class="mb-4">
           <VTextField v-model="boardTitle" :rules="[requiredValidator, validateBoardTitle]" autofocus
-            placeholder="Add Board Title" @keydown.esc="hideAddNewForm" />
+            :placeholder="$t('pages.tasks.kanbanboard.kanbanboard.addBoardTitle')" @keydown.esc="hideAddNewForm" />
         </div>
         <div class="d-flex gap-3">
           <VBtn size="small" type="submit">
-            Add
+            {{ $t('common.actions.add') }}
           </VBtn>
           <VBtn size="small" variant="tonal" color="secondary" type="reset" @click="hideAddNewForm">
-            Cancel
+            {{ $t('common.actions.cancel') }}
           </VBtn>
         </div>
       </VForm>
@@ -149,9 +173,7 @@ onClickOutside(refAddNewBoard, hideAddNewForm)
 
 .kanban-main-wrapper {
   overflow: auto hidden;
-  margin-inline-start: -0.6rem;
   min-block-size: calc(100vh - 10.5rem);
-  padding-inline-start: 0.6rem;
 
   .kanban-board {
     inline-size: 16.875rem;

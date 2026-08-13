@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class CustomerService extends Pivot
 {
-    use HasFactory;
+    use Auditable, HasFactory;
 
     protected $table = 'customer_service';
 
@@ -32,5 +33,4 @@ class CustomerService extends Pivot
     {
         return $this->belongsTo(Service::class);
     }
-
 }

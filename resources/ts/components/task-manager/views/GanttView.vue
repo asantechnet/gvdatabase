@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useTaskStore } from '@/stores/useTaskStore'
+import { canAccess } from '@/utils/authorization'
 import type { FrappeGanttTask } from '@/types/taskManager'
 import { ref } from 'vue'
 import FrappeGanttWrapper from '../components/FrappeGanttWrapper.vue'
@@ -24,10 +25,18 @@ const handleTaskClick = (ganttTask: FrappeGanttTask) => {
   isDrawerOpen.value = true //
 }
 
+const localDateString = (date: Date) => [
+  date.getFullYear(),
+  String(date.getMonth() + 1).padStart(2, '0'),
+  String(date.getDate()).padStart(2, '0'),
+].join('-')
+
 const handleDateChange = (ganttTask: FrappeGanttTask, start: Date, end: Date) => {
-  // Format dates back to ISO strings for our standardized JSON backend
-  const startStr = start.toISOString().split('T')[0] //
-  const endStr = end.toISOString().split('T')[0] //
+  if (!canAccess('edit_assigned_tasks')) return
+  // Frappe emits local calendar dates. Formatting through toISOString can
+  // shift the task by a day in positive-offset timezones.
+  const startStr = localDateString(start) //
+  const endStr = localDateString(end) //
   store.updateTaskDates(ganttTask.id, startStr, endStr) //
 }
 
@@ -37,15 +46,11 @@ const handleProgressChange = (ganttTask: FrappeGanttTask, attemptedProgress: num
 
   snackbar.value = {
     show: true,
-    message: 'Progress is calculated automatically from sub-tasks (Todos). Edit the task to manage them!'
+    message: translate('components.taskManager.ganttview.progressIsCalculatedAutomaticallyFromSubTasksTodosEditTheTaskToManageT')
   } //
 
-  // Force a Pinia reactivity tick to snap the Gantt bar back to its true calculated percentage
-  const originalTask = store.rawTasks.find(t => t.id === ganttTask.id) //
-  if (originalTask) {
-    // A harmless reactive "nudge" to force the computed property to re-evaluate and send data down to the wrapper
-    store.updateTask(ganttTask.id, { updatedAt: new Date().toISOString() }) //
-  }
+  // The wrapper restores the authoritative subtask-derived progress after
+  // Frappe's drag preview; no unnecessary backend update is needed here.
 }
 </script>
 
@@ -57,7 +62,7 @@ const handleProgressChange = (ganttTask: FrappeGanttTask, attemptedProgress: num
         <template #title>
           <div class="d-flex align-center">
             <VIcon icon="tabler-chart-bar" color="primary" class="mr-2" />
-            <span class="text-h5 font-weight-bold">Project Gantt Timeline</span>
+            <span class="text-h5 font-weight-bold">{{ $t('components.taskManager.ganttview.projectGanttTimeline') }}</span>
           </div>
         </template>
         <template #append>
@@ -70,8 +75,7 @@ const handleProgressChange = (ganttTask: FrappeGanttTask, attemptedProgress: num
 
       <!-- Gantt Component Wrapper -->
       <VCardText class="pa-0 bg-surface">
-        <!-- FIX: Added a dedicated scroll container for the SVG canvas -->
-        <div class="gantt-scroll-container overflow-x-auto">
+        <div class="gantt-scroll-container">
           <FrappeGanttWrapper :tasks="store.ganttTasks" :view-mode="activeViewMode" @task-click="handleTaskClick"
             @date-change="handleDateChange" @progress-change="handleProgressChange" />
         </div>
@@ -97,10 +101,7 @@ const handleProgressChange = (ganttTask: FrappeGanttTask, attemptedProgress: num
 <style scoped>
 /* Ensures the SVG canvas does not collapse vertically and handles horizontal bounds properly */
 .gantt-scroll-container {
-  min-height: 450px;
   width: 100%;
   position: relative;
-  /* Adds momentum scrolling on mobile devices */
-  -webkit-overflow-scrolling: touch;
 }
 </style>

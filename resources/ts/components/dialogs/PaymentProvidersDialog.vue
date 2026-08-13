@@ -32,35 +32,35 @@ const dialogVisibleUpdate = (val: boolean) => {
 
 const paymentProvidersData = [
   {
-    title: 'Adyen',
+    title: translate('components.dialogs.paymentprovidersdialog.adyen'),
     providers: [visa, masterCard, americanEx, jcb, dc],
   },
   {
-    title: '2Checkout',
+    title: translate('components.dialogs.paymentprovidersdialog.n2checkout'),
     providers: [visa, americanEx, jcb, dc],
   },
   {
-    title: 'Airpay',
+    title: translate('components.dialogs.paymentprovidersdialog.airpay'),
     providers: [visa, americanEx, masterCard, jcb],
   },
   {
-    title: 'Authorize.net',
+    title: translate('components.dialogs.paymentprovidersdialog.authorizeNet'),
     providers: [americanEx, jcb, dc],
   },
   {
-    title: 'Bambora',
+    title: translate('common.messages.bambora'),
     providers: [masterCard, americanEx, jcb],
   },
   {
-    title: 'Bambora',
+    title: translate('common.messages.bambora'),
     providers: [visa, masterCard, americanEx, jcb, dc],
   },
   {
-    title: 'Chase Paymentech (Orbital)',
+    title: translate('components.dialogs.paymentprovidersdialog.chasePaymentechOrbital'),
     providers: [visa, americanEx, jcb, dc],
   },
   {
-    title: 'Checkout.com',
+    title: translate('components.dialogs.paymentprovidersdialog.checkoutCom'),
     providers: [visa, masterCard],
   },
 ]
@@ -78,10 +78,10 @@ const paymentProvidersData = [
       <VCardText>
         <!-- 👉 Title -->
         <h4 class="text-h4 text-center mb-2">
-          Select Payment Providers
+          {{ $t('components.dialogs.paymentprovidersdialog.selectPaymentProviders') }}
         </h4>
         <p class="text-body-1 text-center mb-6">
-          Third-party payment providers
+          {{ $t('components.dialogs.paymentprovidersdialog.thirdPartyPaymentProviders') }}
         </p>
 
         <div

@@ -1,0 +1,40 @@
+<?php
+
+return [
+    'types' => [
+        'financial' => 'Financial report',
+        'payroll' => 'HR and payroll report',
+        'attendance' => 'Attendance report',
+        'operations' => 'Operations report',
+    ],
+    'sections' => [
+        'invoices' => 'Invoices and outstanding balances',
+        'income' => 'Income',
+        'expenses' => 'Expenses',
+        'net_cash_flow' => 'Net cash flow',
+        'salary_payments' => 'Salary payments and deductions',
+        'bonuses' => 'Bonuses',
+        'attendance' => 'Attendance, working hours and overtime',
+        'contracts' => 'Contracts',
+        'customers' => 'Customers',
+        'visitors' => 'Visitors',
+        'tasks' => 'Tasks and employee performance inputs',
+    ],
+    'columns' => [
+        'number' => 'Number', 'date' => 'Date', 'customer' => 'Customer', 'status' => 'Status',
+        'amount' => 'Amount', 'currency' => 'Currency', 'rate_to_base' => 'Rate to base', 'base_amount' => 'Base amount',
+        'paid_base' => 'Paid (base)', 'outstanding_base' => 'Outstanding (base)', 'reference' => 'Reference',
+        'type' => 'Type', 'description' => 'Description', 'quantity' => 'Quantity', 'income_base' => 'Income (base)',
+        'expense_base' => 'Expenses (base)', 'net_base' => 'Net cash flow (base)', 'payslip' => 'Payslip',
+        'payment_date' => 'Payment date', 'salary_month' => 'Salary month', 'employee' => 'Employee', 'office' => 'Office',
+        'bonus' => 'Bonus', 'deductions' => 'Deductions', 'net_amount' => 'Net amount', 'deductions_base' => 'Deductions (base)',
+        'month' => 'Month', 'reason' => 'Reason', 'performance_score' => 'Performance score', 'achievement_details' => 'Achievement details', 'source' => 'Source', 'check_in_utc' => 'Check-in',
+        'check_out_utc' => 'Check-out', 'gross_minutes' => 'Gross duration', 'break_minutes' => 'Break duration',
+        'worked_minutes' => 'Worked duration', 'required_minutes' => 'Required duration', 'late_minutes' => 'Late arrival',
+        'early_minutes' => 'Early departure', 'overtime_minutes' => 'Overtime', 'punch_state' => 'Punch state',
+        'overnight' => 'Overnight', 'title' => 'Title', 'counterparty' => 'Counterparty', 'name' => 'Name',
+        'company' => 'Company', 'contact' => 'Contact', 'marketer' => 'Marketer', 'service' => 'Service',
+        'board' => 'Board', 'start_date' => 'Start date', 'due_date' => 'Due date', 'priority' => 'Priority',
+        'progress' => 'Progress', 'employees' => 'Assigned employees',
+    ],
+];

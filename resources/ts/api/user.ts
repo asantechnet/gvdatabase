@@ -1,52 +1,46 @@
 import api from './axios'
 
-// User API endpoints
-const UserApi = {
-  // Get all users
-  getAll: () => api.get('/users'),
+export type UserRole = 'super_admin' | 'admin' | 'manager' | 'staff' | 'viewer'
+export type UserStatus = 'active' | 'inactive' | 'suspended' | 'deactivated'
 
-  // Get single user
-  getById: (id: number) => api.get(`/users/${id}`),
-
-  // Create user
-  create: (data: {
-    name: string;
-    email: string;
-    password: string;
-    phone: string;
-    address: string;
-    acc_status: string;
-    position_ids?: number[];
-  }) => api.post('/users', data),
-
-  // Update user
-  update: (id: number, data: {
-    name?: string;
-    email?: string;
-    password?: string;
-    phone?: string;
-    address?: string;
-    acc_status?: string;
-    position_ids?: number[];
-  }) => api.put(`/users/${id}`, data),
-
-  // Update user status
-  updateStatus: (id: number, status: string) =>
-    api.put(`/users/${id}/status`, { acc_status: status }),
-
-  // Delete user
-  delete: (id: number) => api.delete(`/users/${id}`),
-
-  // Attach position to user
-  attachPosition: (userId: number, data: {
-    position_id: number;
-    assigned_at?: string;
-    ended_at?: string;
-  }) => api.post(`/users/${userId}/positions/attach`, data),
-
-  // Detach position from user
-  detachPosition: (userId: number, positionId: number) =>
-    api.post(`/users/${userId}/positions/detach`, { position_id: positionId }),
+export interface ManagedUser {
+  id: number
+  name: string
+  email: string
+  phone: string | null
+  address: string | null
+  roles: UserRole[]
+  acc_status: UserStatus
+  email_verified: boolean
+  password_setup_pending: boolean
+  created_at: string | null
+  updated_at: string | null
 }
 
-export default UserApi
+export interface UserPayload {
+  name: string
+  email: string
+  phone: string | null
+  address: string | null
+  roles: UserRole[]
+  acc_status: UserStatus
+}
+
+export class UserApiError extends Error {
+  public readonly validationErrors: Record<string, string[]> | undefined
+  constructor(error: any) { super(error?.message || 'User request failed.'); this.name = 'UserApiError'; this.validationErrors = error?.errors }
+}
+
+const request = async <T>(operation: () => Promise<any>): Promise<T> => {
+  try { return (await operation()).data.data as T }
+  catch (error) { throw new UserApiError(error) }
+}
+
+export const getUsers = (): Promise<ManagedUser[]> => request(() => api.get('/users'))
+export const getUser = (id: number): Promise<ManagedUser> => request(() => api.get(`/users/${id}`))
+export const createUser = (data: UserPayload): Promise<ManagedUser> => request(() => api.post('/users', data))
+export const updateUser = (id: number, data: Partial<UserPayload>): Promise<ManagedUser> => request(() => api.put(`/users/${id}`, data))
+export const updateUserStatus = (id: number, acc_status: Exclude<UserStatus, 'deactivated'>): Promise<ManagedUser> => request(() => api.put(`/users/${id}/status`, { acc_status }))
+export const deleteUser = (id: number): Promise<void> => request(() => api.delete(`/users/${id}`))
+
+export default { getUsers, getUser, createUser, updateUser, updateUserStatus, deleteUser }

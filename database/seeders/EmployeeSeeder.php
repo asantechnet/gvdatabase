@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class EmployeeSeeder extends Seeder
 {
@@ -21,7 +22,6 @@ class EmployeeSeeder extends Seeder
                 'addr' => '123 Main St, Cityville',
                 'position_id' => 1,
                 'salary' => 5000,
-                'bonus' => true,
                 'ID_file' => 'id_001.pdf',
                 'join_date' => '2022-01-15',
                 'contract_duration' => '2 years',
@@ -35,7 +35,6 @@ class EmployeeSeeder extends Seeder
                 'addr' => '456 Oak Ave, Townsville',
                 'position_id' => 1,
                 'salary' => 6500,
-                'bonus' => true,
                 'ID_file' => 'id_002.pdf',
                 'join_date' => '2021-11-01',
                 'contract_duration' => '3 years',
@@ -49,7 +48,6 @@ class EmployeeSeeder extends Seeder
                 'addr' => '789 Pine Rd, Villagetown',
                 'position_id' => 1,
                 'salary' => 3500,
-                'bonus' => false,
                 'ID_file' => 'id_003.pdf',
                 'join_date' => '2023-02-20',
                 'contract_duration' => '1 year',
@@ -61,7 +59,7 @@ class EmployeeSeeder extends Seeder
                 ['email' => $staffMember['email']],
                 [
                     'name' => $staffMember['name'],
-                    'password' => Hash::make('1234'),
+                    'password' => Hash::make(Str::random(64)),
                     'phone' => $staffMember['contact'],
                     'address' => $staffMember['addr'],
                     'acc_status' => 'active',

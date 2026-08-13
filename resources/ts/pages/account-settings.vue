@@ -2,23 +2,26 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AccountSettingsAccount from '@/views/pages/account-settings/AccountSettingsAccount.vue'
-import AccountSettingsConnections from '@/views/pages/account-settings/AccountSettingsConnections.vue'
 import AccountSettingsNotification from '@/views/pages/account-settings/AccountSettingsNotification.vue'
 import AccountSettingsSecurity from '@/views/pages/account-settings/AccountSettingsSecurity.vue'
+import AccountDeactivationRequests from '@/views/pages/account-settings/AccountDeactivationRequests.vue'
+import { canAccess } from '@/utils/authorization'
 
 const route = useRoute()
 const router = useRouter()
-const tabs = [
-  { value: 'account', title: 'Account', icon: 'tabler-user', component: AccountSettingsAccount },
-  { value: 'security', title: 'Security', icon: 'tabler-lock', component: AccountSettingsSecurity },
-  { value: 'notifications', title: 'Notifications', icon: 'tabler-bell', component: AccountSettingsNotification },
-  { value: 'connections', title: 'Connections', icon: 'tabler-link', component: AccountSettingsConnections },
-]
-const activeTab = computed(() => tabs.find(tab => tab.value === route.params.tab)?.value ?? 'account')
-const activeComponent = computed(() => tabs.find(tab => tab.value === activeTab.value)?.component ?? AccountSettingsAccount)
+const tabs = computed(() => [
+  { value: 'account', title: translate('pages.settings.accountSettings.accountSettings.account'), icon: 'tabler-user', component: AccountSettingsAccount },
+  { value: 'security', title: translate('common.messages.security'), icon: 'tabler-lock', component: AccountSettingsSecurity },
+  { value: 'notifications', title: translate('common.messages.notifications'), icon: 'tabler-bell', component: AccountSettingsNotification },
+  ...(canAccess('view_account_deactivation_requests')
+    ? [{ value: 'deactivation-requests', title: translate('pages.settings.accountSettings.accountSettings.deactivationRequests'), icon: 'tabler-user-cancel', component: AccountDeactivationRequests }]
+    : []),
+])
+const activeTab = computed(() => tabs.value.find(tab => tab.value === route.params.tab)?.value ?? 'account')
+const activeComponent = computed(() => tabs.value.find(tab => tab.value === activeTab.value)?.component ?? AccountSettingsAccount)
 
-function selectTab(tab: string) {
-  router.push({ name: 'account-settings', params: { tab } })
+function selectTab(tab: unknown) {
+  if (typeof tab === 'string') router.push({ name: 'account-settings', params: { tab } })
 }
 </script>
 

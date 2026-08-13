@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Permission;
 use App\Http\Resources\PermissionResource;
+use App\Models\Permission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -12,9 +12,10 @@ class PermissionController extends Controller
     public function index()
     {
         $permissions = Permission::all();
+
         return response()->json([
             'success' => true,
-            'data' => PermissionResource::collection($permissions)
+            'data' => PermissionResource::collection($permissions),
         ]);
     }
 
@@ -25,42 +26,39 @@ class PermissionController extends Controller
             'category' => 'required|string|max:255',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $validator->validate();
 
-        $permission = Permission::create($request->all());
+        $permission = Permission::create([...$validator->validated(), 'guard_name' => 'api']);
+
         return response()->json([
             'success' => true,
-            'data' => new PermissionResource($permission)
+            'data' => new PermissionResource($permission),
         ], 201);
     }
 
     public function show($id)
     {
         $permission = Permission::find($id);
-        if (!$permission) {
+        if (! $permission) {
             return response()->json([
                 'success' => false,
-                'message' => 'Permission not found'
+                'message' => 'Permission not found',
             ], 404);
         }
+
         return response()->json([
             'success' => true,
-            'data' => new PermissionResource($permission)
+            'data' => new PermissionResource($permission),
         ]);
     }
 
     public function update(Request $request, $id)
     {
         $permission = Permission::find($id);
-        if (!$permission) {
+        if (! $permission) {
             return response()->json([
                 'success' => false,
-                'message' => 'Permission not found'
+                'message' => 'Permission not found',
             ], 404);
         }
 
@@ -69,34 +67,31 @@ class PermissionController extends Controller
             'category' => 'sometimes|string|max:255',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $validator->validate();
 
-        $permission->update($request->all());
+        $permission->update($validator->validated());
+
         return response()->json([
             'success' => true,
-            'data' => new PermissionResource($permission)
+            'data' => new PermissionResource($permission),
         ]);
     }
 
     public function destroy($id)
     {
         $permission = Permission::find($id);
-        if (!$permission) {
+        if (! $permission) {
             return response()->json([
                 'success' => false,
-                'message' => 'Permission not found'
+                'message' => 'Permission not found',
             ], 404);
         }
 
         $permission->delete();
+
         return response()->json([
             'success' => true,
-            'message' => 'Permission deleted successfully'
+            'message' => 'Permission deleted successfully',
         ]);
     }
 }

@@ -1,41 +1,21 @@
-import { ofetch } from 'ofetch'
-
-// Create a base fetch instance with token handling
-const baseFetch = ofetch.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
-  async onRequest({ options }) {
-    const accessToken = useCookie('accessToken').value
-    if (accessToken) {
-      options.headers = new Headers(options.headers)
-      options.headers.set('Authorization', `Bearer ${accessToken}`)
-    }
-  },
-})
+import api from '@/api/axios'
 
 // Export a function that returns the HTTP method wrappers
 export const useApi = () => {
   const get = <T>(url: string) => {
-    return baseFetch<T>(url)
+    return api.get<T>(url).then(response => response.data.data)
   }
 
   const post = <T>(url: string, payload?: any) => {
-    return baseFetch<T>(url, {
-      method: 'POST',
-      body: payload,
-    })
+    return api.post<T>(url, payload).then(response => response.data.data)
   }
 
   const put = <T>(url: string, payload?: any) => {
-    return baseFetch<T>(url, {
-      method: 'PUT',
-      body: payload,
-    })
+    return api.put<T>(url, payload).then(response => response.data.data)
   }
 
   const destroy = <T>(url: string) => {
-    return baseFetch<T>(url, {
-      method: 'DELETE',
-    })
+    return api.delete<T>(url).then(response => response.data.data)
   }
 
   return {

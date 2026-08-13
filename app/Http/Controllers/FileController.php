@@ -15,12 +15,7 @@ class FileController extends Controller
             'folder' => 'sometimes|string|max:100',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $validator->validate();
 
         $file = $request->file('file');
         $folder = $request->input('folder', 'uploads');
@@ -55,12 +50,7 @@ class FileController extends Controller
             'file_path' => 'required|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $validator->validate();
 
         $filePath = $request->input('file_path');
         

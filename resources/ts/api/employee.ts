@@ -7,16 +7,29 @@ export interface Employee {
   name: string;
   father_name: string;
   contact: string;
+  id_number: string | null;
+  tax_number: string | null;
+  bank_account_number: string | null;
+  guarantor_id_number: string | null;
+  guarantor_phone: string | null;
+  guarantor_address: string | null;
+  guarantor_licence: string | null;
   education_lvl: string;
   email: string | null;
   addr: string;
   position_id: number;
+  employment_type: 'salaried' | 'commission';
+  office_id: number | null;
+  office: { id: number; name: string; code: string } | null;
+  department: string | null;
   position?: {
     id: number;
     name: string;
   };
   salary: number | null;
-  bonus: boolean;
+  commissions: Array<{ service_id: number; service: string; percentage: number }>;
+  commission_earned_base: number;
+  total_worked_hours: number;
   ID_file: string | null;
   assure_file: string | null;
   join_date: string | null;
@@ -25,7 +38,7 @@ export interface Employee {
   work_end_time: string | null;
   created_at: string | null;
   updated_at: string | null;
-  avatar_url?: string | null;
+  avatar?: string | null;
 }
 
 export interface EmployeeParams {
@@ -33,19 +46,27 @@ export interface EmployeeParams {
   perPage?: number;
   search?: string;
   position?: string;
-  bonus?: string;
 }
 
 export interface CreateEmployeeData {
   name: string;
   father_name: string;
   contact: string;
+  id_number: string;
+  tax_number?: string | null;
+  bank_account_number?: string | null;
+  guarantor_id_number?: string | null;
+  guarantor_phone?: string | null;
+  guarantor_address?: string | null;
+  guarantor_licence?: string | null;
   create_user?: boolean;
   email?: string | null;
   education_lvl: string;
   position_id: number;
-  salary: number;
-  bonus: boolean;
+  employment_type: 'salaried' | 'commission';
+  office_id?: number | null;
+  salary?: number | null;
+  commissions?: Array<{ service_id: number; percentage: number }>;
   addr: string;
   ID_file?: string | null;
   assure_file?: string | null;
@@ -57,12 +78,21 @@ export interface UpdateEmployeeData {
   name?: string;
   father_name?: string;
   contact?: string;
+  id_number?: string;
+  tax_number?: string | null;
+  bank_account_number?: string | null;
+  guarantor_id_number?: string | null;
+  guarantor_phone?: string | null;
+  guarantor_address?: string | null;
+  guarantor_licence?: string | null;
   create_user?: boolean;
   email?: string | null;
   education_lvl?: string;
   position_id?: number;
-  salary?: number;
-  bonus?: boolean;
+  employment_type?: 'salaried' | 'commission';
+  office_id?: number | null;
+  salary?: number | null;
+  commissions?: Array<{ service_id: number; percentage: number }>;
   addr?: string;
   ID_file?: string | null;
   assure_file?: string | null;
@@ -72,6 +102,12 @@ export interface UpdateEmployeeData {
 
 // Employee API endpoints
 const EmployeeApi = {
+  // Normalized list for selectors; keep legacy getAll response until its consumers are migrated.
+  getOptions: async (): Promise<Employee[]> => {
+    const response = await api.get<{ data: Employee[] }>("/employees");
+    return Array.isArray(response.data.data) ? response.data.data : [];
+  },
+
   // Get all employees
   getAll: async (params?: EmployeeParams) => {
     try {

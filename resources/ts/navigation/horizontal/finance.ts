@@ -1,24 +1,32 @@
 export default [
   {
-    title: "Finance",
+    title: "common.navigation.finance",
     icon: { icon: "tabler-coins" },
     to: "finance",
     children: [
       {
-        title: "Income",
+        title: "common.navigation.income",
         to: "income",
+        action: 'read',
+        subject: 'view_incomes',
       },
       {
-        title: "Expenses",
+        title: "common.navigation.expenses",
         to: "expenses",
+        action: 'read',
+        subject: 'view_expenses',
       },
       {
-        title: "Stock",
+        title: "common.navigation.stock",
         to: "stock",
+        action: 'read',
+        subject: 'view_stocks',
       },
       {
-        title: "Reports",
+        title: "common.navigation.reports",
         to: "reports",
+        action: 'read',
+        subject: 'view_reports',
       },
     ],
   },

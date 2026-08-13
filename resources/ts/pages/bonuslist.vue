@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import BonusListApi, { type WorthyEmployee, type EligibilityReason, type BonusType } from '@/api/bonuslist'
+import BonusListApi, { type WorthyEmployee, type EligibilityReason, type BonusType, type CurrencySnapshot } from '@/api/bonuslist'
 import EmployeeApi, { type Employee } from '@/api/employee'
+import CurrencyApi, { type Currency } from '@/api/currency'
+import { apiFieldErrors, apiErrorMessage } from '@/utils/apiErrors'
+import { canAccess } from '@/utils/authorization'
+import BonusRulesDialog from '@/components/bonus/BonusRulesDialog.vue'
 
 // --------------------------------------------------------------------------
 // State & Mock Data
@@ -14,10 +18,15 @@ const monthFilter = ref<string>('All')
 
 const isNominateDialogVisible = ref(false)
 const isConfirmGrantVisible = ref(false)
+const isCalculationDialogVisible = ref(false)
+const isRulesDialogVisible = ref(false)
+const selectedCalculation = ref<WorthyEmployee | null>(null)
 const selectedForGrant = ref<WorthyEmployee | null>(null)
 const worthyEmployees = ref<WorthyEmployee[]>([])
 const employees = ref<Employee[]>([])
+const currencies = ref<Currency[]>([])
 const isLoadingEmployees = ref(false)
+const nominationErrors = ref<Record<string, string>>({})
 
 // Options for Dropdowns
 const departments = ['Engineering', 'Product Design', 'Sales & Marketing', 'Operations', 'Finance']
@@ -32,13 +41,13 @@ const monthOptions = computed(() => {
   const currentDate = new Date()
 
   // Add "All" option first
-  options.push({ value: 'All', title: 'All Months' })
+  options.push({ value: 'All', title: translate('common.messages.allMonths') })
 
   for (let i = 0; i < 12; i++) {
     const date = new Date(currentDate)
     date.setMonth(currentDate.getMonth() - i)
     const yearMonth = date.toISOString().slice(0, 7)
-    const displayText = date.toLocaleString('default', { month: 'long', year: 'numeric' })
+    const displayText = formatLocalizedDate(date, { month: 'long', year: 'numeric' })
     options.push({ value: yearMonth, title: displayText })
   }
 
@@ -46,17 +55,28 @@ const monthOptions = computed(() => {
 })
 
 const defaultNomination = {
-    employeeId: '',
+    employeeId: null as number | null,
     performanceScore: 4.5,
     eligibilityReason: 'Manager Nomination' as EligibilityReason,
     achievementDetails: '',
     suggestedAmount: 1000,
     selectedAmount: 1000,
+    currencyId: null as number | null,
+    selectedCurrencyId: null as number | null,
     selectedType: 'Spot Bonus' as BonusType,
     bonusMonth: new Date().toISOString().slice(0, 7) // Current month in YYYY-MM format
 }
 
 const nominationForm = ref({ ...defaultNomination })
+const baseCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? currencies.value[0] ?? null)
+
+const resetNominationForm = () => {
+    nominationForm.value = {
+        ...defaultNomination,
+        currencyId: baseCurrency.value?.id ?? null,
+        selectedCurrencyId: baseCurrency.value?.id ?? null,
+    }
+}
 
 // --------------------------------------------------------------------------
 // API Integration
@@ -82,35 +102,66 @@ const fetchEmployees = async () => {
     }
 }
 
+const fetchCurrencies = async () => {
+    try {
+        const response = await CurrencyApi.getAll()
+        currencies.value = response.data.filter(currency => currency.isActive)
+        resetNominationForm()
+    } catch (error) {
+        console.error('Failed to fetch currencies:', error)
+    }
+}
+
 const submitNomination = async () => {
-    if (!nominationForm.value.employeeId || !nominationForm.value.suggestedAmount) return
+    const employeeId = nominationForm.value.employeeId
+    nominationErrors.value = {}
+    if (!employeeId) nominationErrors.value.employeeId = translate('pages.bonuses.bonuslist.bonuslist.selectAnEmployee')
+    if (!nominationForm.value.currencyId) nominationErrors.value.currencyId = translate('pages.bonuses.bonuslist.bonuslist.selectTheSuggestedCurrency')
+    if (!nominationForm.value.selectedCurrencyId) nominationErrors.value.selectedCurrencyId = translate('pages.bonuses.bonuslist.bonuslist.selectThePayoutCurrency')
+    if (!nominationForm.value.achievementDetails.trim()) nominationErrors.value.achievementDetails = translate('pages.bonuses.bonuslist.bonuslist.addAnAchievementOrJustification')
+    if (nominationForm.value.performanceScore < 1 || nominationForm.value.performanceScore > 5) nominationErrors.value.performanceScore = translate('pages.bonuses.bonuslist.bonuslist.performanceScoreMustBeBetween1And5')
+    if (nominationForm.value.suggestedAmount < 0) nominationErrors.value.suggestedAmount = translate('pages.bonuses.bonuslist.bonuslist.suggestedAmountCannotBeNegative')
+    if (nominationForm.value.selectedAmount < 0) nominationErrors.value.selectedAmount = translate('pages.bonuses.bonuslist.bonuslist.selectedAmountCannotBeNegative')
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(nominationForm.value.bonusMonth)) nominationErrors.value.bonusMonth = translate('pages.bonuses.bonuslist.bonuslist.selectAValidBonusMonth')
+    if (Object.keys(nominationErrors.value).length || !nominationForm.value.currencyId || !nominationForm.value.selectedCurrencyId) return
+    if (!employeeId) return
+    const currencyId = nominationForm.value.currencyId
+    const selectedCurrencyId = nominationForm.value.selectedCurrencyId
 
     try {
         const response = await BonusListApi.create({
-            employeeId: nominationForm.value.employeeId,
+            employeeId,
             performanceScore: nominationForm.value.performanceScore,
             eligibilityReason: nominationForm.value.eligibilityReason,
             achievementDetails: nominationForm.value.achievementDetails,
             suggestedAmount: nominationForm.value.suggestedAmount,
+            currencyId,
             selectedAmount: nominationForm.value.selectedAmount,
+            selectedCurrencyId,
             selectedType: nominationForm.value.selectedType,
             bonusMonth: nominationForm.value.bonusMonth,
         })
 
         worthyEmployees.value.unshift(response.data.data)
         isNominateDialogVisible.value = false
-        nominationForm.value = { ...defaultNomination }
+        resetNominationForm()
     } catch (error) {
         console.error('Failed to submit nomination:', error)
+        nominationErrors.value = apiFieldErrors(error)
+        if (!Object.keys(nominationErrors.value).length)
+            nominationErrors.value.form = apiErrorMessage(error, 'Unable to add this nomination.')
     }
 }
 
 const updateEmployee = async (employee: WorthyEmployee) => {
     try {
-        await BonusListApi.update(employee.id, {
+        const response = await BonusListApi.update(employee.id, {
             selectedAmount: employee.selectedAmount,
+            selectedCurrencyId: employee.selectedCurrency.id ?? undefined,
             selectedType: employee.selectedType,
         })
+        const index = worthyEmployees.value.findIndex(item => item.id === employee.id)
+        if (index >= 0) worthyEmployees.value[index] = response.data.data
     } catch (error) {
         console.error('Failed to update employee:', error)
     }
@@ -125,15 +176,13 @@ const confirmGrantBonus = async () => {
     if (!selectedForGrant.value) return
 
     try {
-        await BonusListApi.update(selectedForGrant.value.id, {
+        const response = await BonusListApi.update(selectedForGrant.value.id, {
             isGranted: true
         })
 
         // Update the local state to reflect the granted status
-        const target = worthyEmployees.value.find((e) => e.id === selectedForGrant.value?.id)
-        if (target) {
-            target.isGranted = true
-        }
+        const index = worthyEmployees.value.findIndex((e) => e.id === selectedForGrant.value?.id)
+        if (index >= 0) worthyEmployees.value[index] = response.data.data
 
         isConfirmGrantVisible.value = false
         selectedForGrant.value = null
@@ -149,6 +198,11 @@ const dismissEmployee = async (id: string) => {
     } catch (error) {
         console.error('Failed to dismiss employee:', error)
     }
+}
+
+const showCalculation = (employee: WorthyEmployee) => {
+    selectedCalculation.value = employee
+    isCalculationDialogVisible.value = true
 }
 
 // --------------------------------------------------------------------------
@@ -188,24 +242,24 @@ const totalGrantedCount = computed(() => {
 const totalRecommendedPool = computed(() => {
     return worthyEmployees.value
         .filter(e => !e.isGranted && (monthFilter.value === 'All' || e.bonusMonth === monthFilter.value))
-        .reduce((sum, item) => sum + (Number(item.selectedAmount) || 0), 0)
+        .reduce((sum, item) => sum + (Number(item.selectedBaseAmount) || 0), 0)
 })
 
 const totalGrantedPool = computed(() => {
     return worthyEmployees.value
         .filter(e => e.isGranted && (monthFilter.value === 'All' || e.bonusMonth === monthFilter.value))
-        .reduce((sum, item) => sum + (Number(item.selectedAmount) || 0), 0)
+        .reduce((sum, item) => sum + (Number(item.grantedBaseAmount) || 0), 0)
 })
 
-const getEmployeeName = (employeeId: string) => {
-    const employee = employees.value.find(e => e.id.toString() === employeeId)
+const getEmployeeName = (employeeId: number) => {
+    const employee = employees.value.find(e => e.id === employeeId)
     return employee ? `${employee.name} (${employee.email})` : 'Unknown Employee'
 }
 
 const formatMonth = (monthString: string) => {
     const [year, month] = monthString.split('-')
     const date = new Date(parseInt(year), parseInt(month) - 1)
-    return date.toLocaleString('default', { month: 'long', year: 'numeric' })
+    return formatLocalizedDate(date, { month: 'long', year: 'numeric' })
 }
 
 // --------------------------------------------------------------------------
@@ -214,17 +268,20 @@ const formatMonth = (monthString: string) => {
 onMounted(() => {
     fetchWorthyEmployees()
     fetchEmployees()
+    fetchCurrencies()
 })
 
 // --------------------------------------------------------------------------
 // Actions & Helpers
 // --------------------------------------------------------------------------
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 0,
-    }).format(amount || 0)
+const formatCurrency = (amount: number, currency: CurrencySnapshot | Currency | null = baseCurrency.value) => {
+    const decimalPlaces = currency?.decimalPlaces ?? 2
+    const formatted = formatLocalizedNumber(Number(amount || 0), {
+        minimumFractionDigits: decimalPlaces,
+        maximumFractionDigits: decimalPlaces,
+    })
+
+    return `${currency?.symbol ?? ''}${formatted}${currency?.code ? ` ${currency.code}` : ''}`
 }
 
 const getAvatarInitials = (name: string) => {
@@ -256,16 +313,15 @@ const getStatusColor = (isGranted: boolean) => {
         <!-- Header Section -->
         <div class="d-flex flex-column flex-sm-row justify-space-between align-sm-center mb-6 gap-4">
             <div>
-                <h2 class="text-h4 font-weight-bold mb-1">Bonus Eligibility & Nominations</h2>
+                <h2 class="text-h4 font-weight-bold mb-1">{{ $t('pages.bonuses.bonuslist.bonuslist.bonusEligibilityNominations') }}</h2>
                 <p class="text-body-2 text-medium-emphasis mb-0">
-                    Review high-performing employees worthy of recognition, customize payout amounts inline, and grant
-                    bonuses.
+                    {{ $t('pages.bonuses.bonuslist.bonuslist.reviewHighPerformingEmployeesWorthyOfRecognitionCustomizePayoutAmounts') }}
                 </p>
             </div>
-            <v-btn color="primary" prepend-icon="tabler-user-plus" elevation="2" size="large"
-                @click="isNominateDialogVisible = true">
-                Nominate Employee
-            </v-btn>
+            <div class="d-flex gap-2">
+                <v-btn v-if="canAccess('manage_bonus_rules')" variant="outlined" prepend-icon="tabler-adjustments" size="large" @click="isRulesDialogVisible = true">{{ $t('pages.bonuses.bonuslist.bonuslist.bonusRules') }}</v-btn>
+                <v-btn color="primary" prepend-icon="tabler-user-plus" elevation="2" size="large" @click="isNominateDialogVisible = true">{{ $t('pages.bonuses.bonuslist.bonuslist.nominateEmployee') }}</v-btn>
+            </div>
         </div>
 
         <!-- Summary KPI Cards -->
@@ -276,7 +332,7 @@ const getStatusColor = (isGranted: boolean) => {
                     <div class="d-flex align-center justify-space-between">
                         <div>
                             <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
-                                Eligible Candidates
+                                {{ $t('pages.bonuses.bonuslist.bonuslist.eligibleCandidates') }}
                             </span>
                             <h3 class="text-h4 font-weight-bold mt-1">{{ totalEligibleCount }}</h3>
                         </div>
@@ -293,7 +349,7 @@ const getStatusColor = (isGranted: boolean) => {
                     <div class="d-flex align-center justify-space-between">
                         <div>
                             <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
-                                Projected Grant Pool
+                                {{ $t('pages.bonuses.bonuslist.bonuslist.projectedGrantPoolBase') }}
                             </span>
                             <h3 class="text-h4 font-weight-bold mt-1 text-primary">
                                 {{ formatCurrency(totalRecommendedPool) }}
@@ -312,7 +368,7 @@ const getStatusColor = (isGranted: boolean) => {
                     <div class="d-flex align-center justify-space-between">
                         <div>
                             <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
-                                Granted Bonuses
+                                {{ $t('pages.bonuses.bonuslist.bonuslist.grantedBonuses') }}
                             </span>
                             <h3 class="text-h4 font-weight-bold mt-1 text-success">
                                 {{ totalGrantedCount }}
@@ -331,7 +387,7 @@ const getStatusColor = (isGranted: boolean) => {
                     <div class="d-flex align-center justify-space-between">
                         <div>
                             <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
-                                Granted Pool
+                                {{ $t('pages.bonuses.bonuslist.bonuslist.grantedPoolBase') }}
                             </span>
                             <h3 class="text-h4 font-weight-bold mt-1 text-success">
                                 {{ formatCurrency(totalGrantedPool) }}
@@ -351,27 +407,27 @@ const getStatusColor = (isGranted: boolean) => {
             <v-card-text class="pa-4 border-b">
                 <v-row density="compact" align="center">
                     <v-col cols="12" md="3">
-                        <v-text-field v-model="searchQuery" placeholder="Search candidate, email, or achievement..."
+                        <v-text-field v-model="searchQuery" :placeholder="$t('pages.bonuses.bonuslist.bonuslist.searchCandidateEmailOrAchievement')"
                             prepend-inner-icon="tabler-search" hide-details density="compact" variant="outlined"
                             clearable />
                     </v-col>
                     <v-col cols="12" sm="6" md="2">
-                        <v-select v-model="departmentFilter" :items="['All', ...departments]" label="Department"
+                        <v-select v-model="departmentFilter" :items="['All', ...departments]" :label="$t('common.fields.department')"
                             hide-details density="compact" variant="outlined" />
                     </v-col>
                     <v-col cols="12" sm="6" md="2">
-                        <v-select v-model="reasonFilter" :items="['All', ...reasons]" label="Eligibility Reason"
+                    <v-select v-model="reasonFilter" :items="['All', ...reasons]" :item-title="translateBackendValue" :label="$t('pages.bonuses.bonuslist.bonuslist.eligibilityReason')"
                             hide-details density="compact" variant="outlined" />
                     </v-col>
                     <v-col cols="12" sm="6" md="2">
-                        <v-select v-model="statusFilter" :items="['All', 'Eligible', 'Granted']" label="Status"
+                    <v-select v-model="statusFilter" :items="['All', 'Eligible', 'Granted']" :item-title="translateBackendValue" :label="$t('common.fields.status')"
                             hide-details density="compact" variant="outlined" />
                     </v-col>
                     <v-col cols="12" sm="6" md="3">
                         <v-select
                             v-model="monthFilter"
                             :items="monthOptions"
-                            label="Bonus Month"
+                            :label="$t('common.messages.bonusMonth')"
                             item-title="title"
                             item-value="value"
                             hide-details
@@ -386,19 +442,19 @@ const getStatusColor = (isGranted: boolean) => {
             <v-table class="text-no-wrap">
                 <thead>
                     <tr>
-                        <th class="text-left font-weight-bold text-uppercase text-caption">Candidate</th>
-                        <th class="text-left font-weight-bold text-uppercase text-caption">Eligibility & Achievements
+                        <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('pages.bonuses.bonuslist.bonuslist.candidate') }}</th>
+                        <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('pages.bonuses.bonuslist.bonuslist.eligibilityAchievements') }}
                         </th>
-                        <th class="text-left font-weight-bold text-uppercase text-caption">Performance</th>
-                        <th class="text-left font-weight-bold text-uppercase text-caption">Bonus Month</th>
+                        <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('pages.bonuses.bonuslist.bonuslist.performance') }}</th>
+                        <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('common.messages.bonusMonth') }}</th>
                         <th class="text-left font-weight-bold text-uppercase text-caption" style="min-width: 180px;">
-                            Select Amount ($)
+                            {{ $t('pages.bonuses.bonuslist.bonuslist.selectedPayout') }}
                         </th>
                         <th class="text-left font-weight-bold text-uppercase text-caption" style="min-width: 160px;">
-                            Bonus Type
+                            {{ $t('pages.bonuses.bonuslist.bonuslist.bonusType') }}
                         </th>
-                        <th class="text-left font-weight-bold text-uppercase text-caption">Status</th>
-                        <th class="text-center font-weight-bold text-uppercase text-caption">Actions</th>
+                        <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('common.fields.status') }}</th>
+                        <th class="text-center font-weight-bold text-uppercase text-caption">{{ $t('common.messages.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -422,7 +478,7 @@ const getStatusColor = (isGranted: boolean) => {
                             <div class="mb-1">
                                 <v-chip :color="getReasonColor(employee.eligibilityReason)" size="small" variant="flat"
                                     class="font-weight-bold">
-                                    {{ employee.eligibilityReason }}
+                                    {{ translateBackendValue(employee.eligibilityReason) }}
                                 </v-chip>
                             </div>
                             <div class="text-caption text-medium-emphasis achievement-text"
@@ -453,7 +509,6 @@ const getStatusColor = (isGranted: boolean) => {
                             <v-combobox
                                 v-model.number="employee.selectedAmount"
                                 :items="quickAmounts"
-                                prefix="$"
                                 density="compact"
                                 variant="outlined"
                                 hide-details
@@ -464,15 +519,28 @@ const getStatusColor = (isGranted: boolean) => {
                                 @update:modelValue="!employee.isGranted && updateEmployee(employee)"
                             />
                             <div class="text-caption text-medium-emphasis mt-1">
-                                Suggested: {{ formatCurrency(employee.suggestedAmount) }}
+                                {{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: formatCurrency(employee.suggestedAmount, employee.originalCurrency) }) }}
                             </div>
+                            <v-select
+                                v-model="employee.selectedCurrency.id"
+                                :items="currencies"
+                                item-title="code"
+                                item-value="id"
+                                :label="$t('pages.bonuses.bonuslist.bonuslist.payoutCurrency')"
+                                density="compact"
+                                variant="outlined"
+                                hide-details
+                                class="mt-2"
+                                :disabled="employee.isGranted"
+                                @update:modelValue="!employee.isGranted && updateEmployee(employee)"
+                            />
                         </td>
 
                         <!-- Interactive Inline Bonus Type -->
                         <td class="py-4">
                             <v-select
                                 v-model="employee.selectedType"
-                                :items="bonusTypes"
+                                :items="bonusTypes" :item-title="translateBackendValue"
                                 density="compact"
                                 variant="outlined"
                                 hide-details
@@ -492,14 +560,16 @@ const getStatusColor = (isGranted: boolean) => {
                         <!-- Actions -->
                         <td class="text-center py-4">
                             <div class="d-flex justify-center align-center gap-2">
+                                <v-btn v-if="employee.isAutomatic" icon="tabler-calculator" size="small" variant="tonal" color="info"
+                                    :title="$t('pages.bonuses.bonuslist.bonuslist.viewCalculationEvidence')" @click="showCalculation(employee)" />
                                 <!-- Grant Button (only for eligible employees) -->
                                 <v-btn v-if="!employee.isGranted" color="primary" variant="elevated" size="small" prepend-icon="tabler-check"
                                     @click="triggerGrantConfirmation(employee)">
-                                    Grant
+                                    {{ $t('common.actions.grant') }}
                                 </v-btn>
 
                                 <!-- Dismiss/Ignore Tooltip -->
-                                <v-tooltip text="Dismiss from List" location="top">
+                                <v-tooltip :text="$t('pages.bonuses.bonuslist.bonuslist.dismissFromList')" location="top">
                                     <template #activator="{ props }">
                                         <v-btn v-bind="props" icon="tabler-x" size="small" variant="text"
                                             color="medium-emphasis" @click="dismissEmployee(employee.id)" />
@@ -513,8 +583,8 @@ const getStatusColor = (isGranted: boolean) => {
                     <tr v-if="filteredEmployees.length === 0">
                         <td colspan="8" class="text-center py-10 text-medium-emphasis">
                             <v-icon icon="tabler-award-off" size="48" class="mb-2" />
-                            <div class="text-h6">No matching candidates found</div>
-                            <div class="text-caption">Try adjusting your filters or nominate a new employee.</div>
+                            <div class="text-h6">{{ $t('pages.bonuses.bonuslist.bonuslist.noMatchingCandidatesFound') }}</div>
+                            <div class="text-caption">{{ $t('pages.bonuses.bonuslist.bonuslist.tryAdjustingYourFiltersOrNominateANewEmployee') }}</div>
                         </td>
                     </tr>
                 </tbody>
@@ -526,37 +596,62 @@ const getStatusColor = (isGranted: boolean) => {
             <v-card rounded="lg">
                 <v-card-title class="pa-5 pb-3 d-flex align-center gap-2 text-h5 font-weight-bold">
                     <v-icon icon="tabler-gift" color="primary" />
-                    Confirm Bonus Grant
+                    {{ $t('pages.bonuses.bonuslist.bonuslist.confirmBonusGrant') }}
                 </v-card-title>
 
                 <v-divider />
 
                 <v-card-text class="pa-5 text-body-1">
-                    You are about to grant a <strong>{{ selectedForGrant?.selectedType }}</strong> bonus to
-                    <strong>{{ selectedForGrant?.employeeName }}</strong> for
-                    <strong>{{ selectedForGrant ? formatMonth(selectedForGrant.bonusMonth) : '' }}</strong>.
+                    {{ $t('pages.bonuses.bonuslist.grantConfirmation', {
+                        type: translateBackendValue(selectedForGrant?.selectedType),
+                        employee: selectedForGrant?.employeeName,
+                        month: selectedForGrant ? formatMonth(selectedForGrant.bonusMonth) : '',
+                    }) }}
 
                     <div
                         class="d-flex justify-space-between align-center pa-4 mt-4 bg-var-theme-surface rounded border">
-                        <span class="text-medium-emphasis font-weight-medium">Final Amount:</span>
+                        <span class="text-medium-emphasis font-weight-medium">{{ $t('pages.bonuses.bonuslist.bonuslist.finalAmount') }}</span>
                         <span class="text-h5 font-weight-bold text-primary">
-                            {{ formatCurrency(selectedForGrant?.selectedAmount || 0) }}
+                            {{ formatCurrency(selectedForGrant?.selectedAmount || 0, selectedForGrant?.selectedCurrency) }}
                         </span>
                     </div>
                 </v-card-text>
 
                 <v-card-actions class="pa-4 justify-end gap-2">
-                    <v-btn variant="outlined" color="secondary" @click="isConfirmGrantVisible = false">Cancel</v-btn>
-                    <v-btn color="primary" elevation="1" @click="confirmGrantBonus">Confirm & Grant</v-btn>
+                    <v-btn variant="outlined" color="secondary" @click="isConfirmGrantVisible = false">{{ $t('common.actions.cancel') }}</v-btn>
+                    <v-btn color="primary" elevation="1" @click="confirmGrantBonus">{{ $t('pages.bonuses.bonuslist.bonuslist.confirmGrant') }}</v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
+
+        <v-dialog v-model="isCalculationDialogVisible" max-width="900">
+            <v-card rounded="lg">
+                <v-card-title class="pa-5 d-flex align-center justify-space-between">
+                    <div><div class="text-h5 font-weight-bold">{{ $t('pages.bonuses.bonuslist.bonuslist.bonusCalculationEvidence') }}</div><div class="text-caption">{{ $t('pages.bonuses.bonuslist.calculationSummary', { version: selectedCalculation?.ruleSnapshot?.version, score: selectedCalculation?.calculationScore }) }}</div></div>
+                    <v-btn icon="tabler-x" variant="text" @click="isCalculationDialogVisible = false" />
+                </v-card-title>
+                <v-divider />
+                <v-card-text class="pa-5">
+                    <v-alert type="info" variant="tonal" class="mb-4">{{ selectedCalculation?.achievementDetails }}</v-alert>
+                    <v-table density="compact">
+                        <thead><tr><th>{{ $t('pages.bonuses.bonuslist.bonuslist.task') }}</th><th>{{ $t('common.fields.priority') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.participation') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.quality') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.timing') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.penalties') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.score') }}</th></tr></thead>
+                        <tbody><tr v-for="task in selectedCalculation?.calculationInputs?.tasks ?? []" :key="String(task.task_id)">
+                            <td>{{ task.task_title }}</td><td>{{ translateBackendValue(task.priority) }} × {{ task.priority_weight }}</td><td>{{ task.participation_percent }}%</td>
+                            <td>{{ task.quality_score }}/5</td><td>{{ task.timing_points }}</td><td>{{ Number(task.reopened_points || 0) + Number(task.rejected_points || 0) }}</td><td>{{ task.score }}</td>
+                        </tr></tbody>
+                    </v-table>
+                    <div class="text-caption text-medium-emphasis mt-4">{{ selectedCalculation?.calculationInputs?.formula }}</div>
+                </v-card-text>
+            </v-card>
+        </v-dialog>
+
+        <BonusRulesDialog v-model="isRulesDialogVisible" />
 
         <!-- Nominate Employee Modal -->
         <v-dialog v-model="isNominateDialogVisible" max-width="600">
             <v-card rounded="lg">
                 <v-card-title class="pa-5 d-flex justify-space-between align-center">
-                    <span class="text-h5 font-weight-bold">Nominate for Bonus</span>
+                    <span class="text-h5 font-weight-bold">{{ $t('pages.bonuses.bonuslist.bonuslist.nominateForBonus') }}</span>
                     <v-btn icon="tabler-x" variant="text" density="compact" @click="isNominateDialogVisible = false" />
                 </v-card-title>
 
@@ -564,6 +659,9 @@ const getStatusColor = (isGranted: boolean) => {
 
                 <v-card-text class="pa-5">
                     <v-form @submit.prevent="submitNomination">
+                        <v-alert v-if="nominationErrors.form" type="error" variant="tonal" class="mb-4">
+                            {{ nominationErrors.form }}
+                        </v-alert>
                         <v-row density="comfortable">
                             <v-col cols="12">
                                 <v-select
@@ -571,11 +669,12 @@ const getStatusColor = (isGranted: boolean) => {
                                     :items="employees"
                                     item-title="name"
                                     item-value="id"
-                                    label="Select Employee"
+                                    :label="$t('pages.bonuses.bonuslist.bonuslist.selectEmployee')"
                                     :loading="isLoadingEmployees"
                                     :hint="nominationForm.employeeId ? getEmployeeName(nominationForm.employeeId) : ''"
                                     persistent-hint
                                     variant="outlined"
+                                    :error-messages="nominationErrors.employeeId"
                                     required
                                 >
                                     <template v-slot:item="{ props, item }">
@@ -589,48 +688,62 @@ const getStatusColor = (isGranted: boolean) => {
                             </v-col>
 
                             <v-col cols="12" sm="6">
-                                <v-select v-model="nominationForm.eligibilityReason" :items="reasons"
-                                    label="Eligibility Trigger" variant="outlined" />
+                                <v-select v-model="nominationForm.eligibilityReason" :items="reasons" :item-title="translateBackendValue"
+                                    :label="$t('pages.bonuses.bonuslist.bonuslist.eligibilityTrigger')" variant="outlined" />
                             </v-col>
 
                             <v-col cols="12" sm="6">
                                 <v-select
                                     v-model="nominationForm.bonusMonth"
                                     :items="monthOptions.filter(m => m.value !== 'All')"
-                                    label="Bonus Month"
+                                    :label="$t('pages.bonuses.bonuslist.bonuslist.bonusMonth')"
                                     item-title="title"
                                     item-value="value"
                                     variant="outlined"
+                                    :error-messages="nominationErrors.bonusMonth"
                                 />
                             </v-col>
 
                             <v-col cols="12" sm="6">
                                 <v-select v-model="nominationForm.performanceScore" :items="performanceScores"
-                                    label="Performance Score" variant="outlined" suffix="/5.0" />
+                                    :label="$t('pages.bonuses.bonuslist.bonuslist.performanceScore')" variant="outlined" suffix="/5.0" :error-messages="nominationErrors.performanceScore" />
                             </v-col>
 
                             <v-col cols="12" sm="6">
-                                <v-select v-model="nominationForm.selectedType" :items="bonusTypes"
-                                    label="Bonus Category" variant="outlined" />
+                                <v-select v-model="nominationForm.selectedType" :items="bonusTypes" :item-title="translateBackendValue"
+                                    :label="$t('pages.bonuses.bonuslist.bonuslist.bonusCategory')" variant="outlined" />
                             </v-col>
 
                             <v-col cols="12" sm="6">
                                 <v-text-field v-model.number="nominationForm.suggestedAmount"
-                                    label="Suggested Amount ($)" type="number" prefix="$" step="100" variant="outlined"
-                                    required />
+                                    :label="$t('pages.bonuses.bonuslist.bonuslist.suggestedAmount')" type="number" step="100" variant="outlined"
+                                    readonly :hint="$t('pages.bonuses.bonuslist.bonuslist.calculatedRecommendationAdjustTheSelectedAmountIfNeeded')"
+                                    persistent-hint required :error-messages="nominationErrors.suggestedAmount" />
+                            </v-col>
+
+                            <v-col cols="12" sm="6">
+                                <v-select v-model="nominationForm.currencyId" :items="currencies" item-title="code"
+                                    item-value="id" :label="$t('pages.bonuses.bonuslist.bonuslist.suggestedCurrency')" variant="outlined" required
+                                    :error-messages="nominationErrors.currencyId" />
                             </v-col>
 
                             <v-col cols="12" sm="6">
                                 <v-text-field v-model.number="nominationForm.selectedAmount"
-                                    label="Selected Amount ($)" type="number" prefix="$" step="100" variant="outlined"
-                                    required />
+                                    :label="$t('pages.bonuses.bonuslist.bonuslist.selectedAmount')" type="number" step="100" variant="outlined"
+                                    required :error-messages="nominationErrors.selectedAmount" />
+                            </v-col>
+
+                            <v-col cols="12" sm="6">
+                                <v-select v-model="nominationForm.selectedCurrencyId" :items="currencies" item-title="code"
+                                    item-value="id" :label="$t('pages.bonuses.bonuslist.bonuslist.payoutCurrency')" variant="outlined" required
+                                    :error-messages="nominationErrors.selectedCurrencyId" />
                             </v-col>
 
                             <v-col cols="12">
                                 <v-textarea v-model="nominationForm.achievementDetails"
-                                    label="Achievement / Justification"
-                                    placeholder="Explain why this employee deserves recognition..." variant="outlined"
-                                    rows="3" />
+                                    :label="$t('pages.bonuses.bonuslist.bonuslist.achievementJustification')"
+                                    :placeholder="$t('pages.bonuses.bonuslist.bonuslist.explainWhyThisEmployeeDeservesRecognition')" variant="outlined"
+                                    rows="3" :error-messages="nominationErrors.achievementDetails" />
                             </v-col>
                         </v-row>
                     </v-form>
@@ -639,8 +752,8 @@ const getStatusColor = (isGranted: boolean) => {
                 <v-divider />
 
                 <v-card-actions class="pa-4 justify-end gap-2">
-                    <v-btn variant="outlined" color="secondary" @click="isNominateDialogVisible = false">Cancel</v-btn>
-                    <v-btn color="primary" elevation="1" @click="submitNomination">Add to Worthy List</v-btn>
+                    <v-btn variant="outlined" color="secondary" @click="isNominateDialogVisible = false">{{ $t('common.actions.cancel') }}</v-btn>
+                    <v-btn color="primary" elevation="1" @click="submitNomination">{{ $t('pages.bonuses.bonuslist.bonuslist.addToWorthyList') }}</v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>

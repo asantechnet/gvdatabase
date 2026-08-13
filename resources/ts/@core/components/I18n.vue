@@ -38,7 +38,7 @@ const { locale } = useI18n({ useScope: 'global' })
         >
           <!-- Language label -->
           <VListItemTitle>
-            {{ lang.label }}
+            {{ $t(lang.label) }}
           </VListItemTitle>
         </VListItem>
       </VList>

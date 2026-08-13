@@ -1,93 +1,60 @@
-import api from "./axios";
+import api from './axios'
 
 export interface Attendance {
-  id: number;
-  staff_id: number;
-  name: string;
-  role: string;
-  date: string;
-  status: "present" | "absent";
-  timestamp: string;
+  id: number
+  staff_id: number
+  name: string
+  role: string
+  office_id: number | null
+  office: string | null
+  date: string
+  status: 'present' | 'absent' | 'paid-off-day' | 'unpaid-off-day'
+  timestamp: string
+  check_in_time: string | null
+  check_out_time: string | null
+  checked_in_at: string | null
+  checked_out_at: string | null
+  check_in_state: 'early' | 'on_time' | 'late' | null
+  check_out_state: 'early_departure' | 'on_time' | 'overtime' | null
+  break_minutes: number
+  gross_minutes: number | null
+  net_worked_minutes: number | null
+  required_minutes: number | null
+  late_arrival_minutes: number
+  early_departure_minutes: number
+  overtime_minutes: number
+  missing_punch_state: 'none' | 'check_in' | 'check_out' | 'both'
+  is_overnight_shift: boolean
+  timezone: string
 }
 
-export interface UnmarkedStaff {
-  id: number;
-  name: string;
-  position: string;
-}
-
-export interface AttendanceParams {
-  start_date?: string;
-  end_date?: string;
-}
-
+export interface UnmarkedStaff { id: number; name: string; position: string; role?: string }
+export interface AttendanceParams { start_date?: string; end_date?: string; employee_id?: number; office_id?: number; status?: Attendance['status'] | 'incomplete' }
 export interface CreateAttendanceData {
-  staff_id: number;
-  date: string;
-  status: "present" | "absent";
+  staff_id: number
+  date: string
+  status: 'present' | 'absent'
+  check_in_time?: string | null
+  check_out_time?: string | null
+  break_minutes?: number | null
 }
 
-// Attendance API endpoints
 const AttendanceApi = {
-  // Get all attendance records
-  getAll: async (params?: AttendanceParams) => {
-    try {
-      const response = await api.get<{ data: Attendance[] }>("/attendances", {
-        params,
-      });
-      return response;
-    } catch (error) {
-      console.error("API getAll error:", error);
-      throw error;
-    }
+  async getAll(params?: AttendanceParams): Promise<Attendance[]> {
+    const response = await api.get<{ data: Attendance[] }>('/attendances', { params })
+    return response.data.data
   },
-
-  // Get unmarked staff for a specific date
-  getUnmarkedStaff: async (date: string) => {
-    try {
-      const response = await api.get<{ data: UnmarkedStaff[] }>(
-        `/attendances/unmarked-staff?date=${date}`,
-      );
-      return response;
-    } catch (error) {
-      console.error("API getUnmarkedStaff error:", error);
-      throw error;
-    }
+  async getUnmarkedStaff(date: string): Promise<UnmarkedStaff[]> {
+    const response = await api.get<{ data: UnmarkedStaff[] }>('/attendances/unmarked-staff', { params: { date } })
+    return response.data.data
   },
-
-  // Create attendance record
-  create: async (data: CreateAttendanceData) => {
-    console.log("data", data);
-    try {
-      const response = await api.post<{ data: Attendance }>(
-        "/attendances",
-        data,
-      );
-      return response;
-    } catch (error) {
-      console.error("API create error:", error);
-      throw error;
-    }
+  async create(data: CreateAttendanceData): Promise<Attendance> {
+    const response = await api.post<{ data: Attendance }>('/attendances', data)
+    return response.data.data
   },
-
-  // Delete attendance record
-  delete: async (id: number) => {
-    try {
-      const response = await api.delete<{ success: boolean; message: string }>(
-        `/attendances/${id}`,
-      );
-      return response;
-    } catch (error) {
-      console.error("API delete error:", error);
-      throw error;
-    }
+  async delete(id: number): Promise<void> {
+    await api.delete(`/attendances/${id}`)
   },
-};
+}
 
-export default AttendanceApi;
-export type {
-  Attendance,
-  AttendanceParams,
-  CreateAttendanceData,
-  UnmarkedStaff,
-};
+export default AttendanceApi

@@ -19,6 +19,10 @@ class TaskResource extends JsonResource
             'progress' => (int) $this->progress,
             'startDate' => $this->start_date ? Carbon::parse($this->start_date)->format('Y-m-d') : '',
             'dueDate' => $this->due_date ? Carbon::parse($this->due_date)->format('Y-m-d') : '',
+            'completedAt' => $this->completed_at?->toISOString(),
+            'reopenedCount' => (int) $this->reopened_count,
+            'rejectedCount' => (int) $this->rejected_count,
+            'managerQualityScore' => $this->manager_quality_score === null ? null : (float) $this->manager_quality_score,
             'order' => (int) $this->order,
 
             // Relational collections (loaded dynamically)

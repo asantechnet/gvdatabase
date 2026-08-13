@@ -11,9 +11,9 @@ interface HROption {
 }
 
 const hrOptions = ref<HROption[]>([
-  { id: 1, name: 'Leave Policy', category: 'Policies', description: 'Standard leave policy', active: true },
-  { id: 2, name: 'Work Hours', category: 'Settings', description: 'Default work hours', active: true },
-  { id: 3, name: 'Holiday Calendar', category: 'Policies', description: 'Company holidays', active: true },
+  { id: 1, name: 'Leave Policy', category: 'Policies', description: translate('pages.settings.optionsHr.optionsHr.standardLeavePolicy'), active: true },
+  { id: 2, name: 'Work Hours', category: 'Settings', description: translate('pages.settings.optionsHr.optionsHr.defaultWorkHours'), active: true },
+  { id: 3, name: 'Holiday Calendar', category: 'Policies', description: translate('pages.settings.optionsHr.optionsHr.companyHolidays'), active: true },
 ])
 
 // Placeholder reactive states
@@ -36,7 +36,7 @@ const statusOptions = ['Active', 'Inactive']
             <VTextField
               v-model="searchQuery"
               prepend-inner-icon="tabler-search"
-              placeholder="Search HR options..."
+              :placeholder="$t('pages.settings.optionsHr.optionsHr.searchHROptions')"
               density="compact"
               clearable
               hide-details
@@ -47,7 +47,7 @@ const statusOptions = ['Active', 'Inactive']
             <VSelect
               v-model="filter1"
               :items="categoryOptions"
-              label="Filter by Category"
+              :label="$t('common.messages.filterByCategory')"
               density="compact"
               clearable
               hide-details
@@ -58,7 +58,7 @@ const statusOptions = ['Active', 'Inactive']
             <VSelect
               v-model="filter2"
               :items="statusOptions"
-              label="Filter by Status"
+              :label="$t('common.messages.filterByStatus')"
               density="compact"
               clearable
               hide-details
@@ -68,7 +68,7 @@ const statusOptions = ['Active', 'Inactive']
           <VCol cols="12" md="4" class="d-flex justify-md-end">
             <VBtn color="primary">
               <VIcon icon="tabler-plus" class="me-1" />
-              Add New
+              {{ $t('common.messages.addNew') }}
             </VBtn>
           </VCol>
         </VRow>
@@ -80,12 +80,12 @@ const statusOptions = ['Active', 'Inactive']
         <VDataTable
           :items="hrOptions"
           :headers="[
-            { title: 'ID', key: 'id' },
-            { title: 'Name', key: 'name' },
-            { title: 'Category', key: 'category' },
-            { title: 'Description', key: 'description' },
-            { title: 'Active', key: 'active' },
-            { title: 'Actions', key: 'actions', sortable: false }
+            { title: translate('common.messages.id'), key: 'id' },
+            { title: translate('common.fields.name'), key: 'name' },
+            { title: translate('common.fields.category'), key: 'category' },
+            { title: translate('common.fields.description'), key: 'description' },
+            { title: translate('common.statuses.active'), key: 'active' },
+            { title: translate('common.messages.actions'), key: 'actions', sortable: false }
           ]"
           item-value="id"
           class="text-no-wrap"

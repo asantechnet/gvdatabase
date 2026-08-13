@@ -18,7 +18,6 @@ class EmployeeFactory extends Factory
             'education_lvl' => 'Bachelor',
             'position_id' => Position::factory(),
             'salary' => fake()->numberBetween(20000, 100000),
-            'bonus' => false,
             'addr' => fake()->address(),
             'department' => 'Operations',
             'join_date' => fake()->date(),

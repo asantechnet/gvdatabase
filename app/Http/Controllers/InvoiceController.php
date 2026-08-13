@@ -27,6 +27,10 @@ class InvoiceController extends Controller
             $query->where('status', $request->string('status'))
         );
 
+        $query->when($request->boolean('unpaid'), fn ($query) =>
+            $query->where('status', '!=', 'Paid')->where('status', '!=', 'Void')
+        );
+
         if ($request->filled('search')) {
             $search = $request->string('search');
             $query->where(function ($query) use ($search) {
@@ -48,6 +52,8 @@ class InvoiceController extends Controller
                 Rule::exists('currencies', 'id')->where('is_active', true),
             ],
             'class_type' => ['required', Rule::in(['Standard', 'Proforma', 'Credit Note', 'Debit Note'])],
+            'issue_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'services' => ['required', 'array', 'min:1'],
             'services.*.id' => ['required', 'integer', 'distinct', 'exists:services,id'],
             'services.*.quantity' => ['sometimes', 'integer', 'min:1'],
@@ -70,13 +76,13 @@ class InvoiceController extends Controller
 
             if ($requestedIds->contains(fn ($id) => !$assignedServices->has($id))) {
                 throw ValidationException::withMessages([
-                    'services' => 'Every invoiced service must be assigned to the selected customer.',
+                    'services' => 'business.invoice_service_not_assigned',
                 ]);
             }
 
             if ((float) $invoiceCurrency->rate_against_base <= 0) {
                 throw ValidationException::withMessages([
-                    'currency_id' => 'The invoice currency must have a positive exchange rate.',
+                    'currency_id' => 'business.currency_rate_invalid',
                 ]);
             }
 
@@ -89,7 +95,7 @@ class InvoiceController extends Controller
 
                 if (!$sourceCurrency || (float) $sourceCurrency->rate_against_base <= 0) {
                     throw ValidationException::withMessages([
-                        'services' => "Service {$service->type} has no valid currency rate.",
+                        'services' => 'business.service_currency_rate_invalid',
                     ]);
                 }
 
@@ -125,7 +131,14 @@ class InvoiceController extends Controller
                 'currency_id' => $invoiceCurrency->id,
                 'class_type' => $validated['class_type'],
                 'deptor' => $customer->name,
+                'customer_company' => $customer->company,
+                'customer_email' => $customer->email,
+                'customer_contact' => $customer->contact,
+                'customer_address' => $customer->address,
+                'customer_tax_number' => $customer->tax_number,
                 'status' => 'Issued',
+                'issue_date' => $validated['issue_date'] ?? now()->toDateString(),
+                'due_date' => $validated['due_date'] ?? now()->addDays(30)->toDateString(),
                 'tax_percent' => $validated['tax_percent'],
                 'currency_name' => $invoiceCurrency->name,
                 'currency_rate' => $invoiceCurrency->rate_against_base,
@@ -175,7 +188,7 @@ class InvoiceController extends Controller
 
         if ($invoice->voided_at) {
             throw ValidationException::withMessages([
-                'invoice' => 'This invoice is already void.',
+                'invoice' => 'business.invoice_already_void',
             ]);
         }
 

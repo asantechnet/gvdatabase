@@ -16,15 +16,14 @@ class CustomerServiceController extends Controller
         $validated = $request->validate([
             'services' => ['required', 'array', 'min:1'],
             'services.*.service_id' => ['required', 'integer', 'distinct', 'exists:services,id'],
+            'services.*.deadline' => ['nullable', 'date'],
         ]);
 
         $records = DB::transaction(function () use ($customer, $validated) {
             return collect($validated['services'])->map(function (array $data) use ($customer) {
-                $service = Service::findOrFail($data['service_id']);
-
                 return $customer->customerServices()->create([
                     'service_id' => $data['service_id'],
-                    'deadline' => now()->addMonthsNoOverflow($service->duration)->toDateString(),
+                    'deadline' => $data['deadline'] ?? null,
                 ])->load('service.currency');
             });
         });
@@ -37,7 +36,7 @@ class CustomerServiceController extends Controller
         abort_unless($customerService->customer_id === $customer->id, 404);
 
         $validated = $request->validate([
-            'deadline' => ['required', 'date'],
+            'deadline' => ['nullable', 'date'],
         ]);
 
         $customerService->update($validated);

@@ -25,22 +25,29 @@ export interface ContractTemplateUpdateData {
 }
 
 const ContractTemplateApi = {
-  // Get all contract templates
-  getAll: () => api.get<{ success: boolean; data: ContractTemplate[] }>('/contract-templates'),
+  async getAll(): Promise<ContractTemplate[]> {
+    const response = await api.get<{ success: boolean; data: ContractTemplate[] }>('/contract-templates')
+    return response.data.data
+  },
 
-  // Get single contract template
-  getById: (id: number) => api.get<{ success: boolean; data: ContractTemplate }>(`/contract-templates/${id}`),
+  async getById(id: number): Promise<ContractTemplate> {
+    const response = await api.get<{ success: boolean; data: ContractTemplate }>(`/contract-templates/${id}`)
+    return response.data.data
+  },
 
-  // Create contract template
-  create: (data: ContractTemplateCreateData) =>
-    api.post<{ success: boolean; data: ContractTemplate }>('/contract-templates', data),
+  async create(data: ContractTemplateCreateData): Promise<ContractTemplate> {
+    const response = await api.post<{ success: boolean; data: ContractTemplate }>('/contract-templates', data)
+    return response.data.data
+  },
 
-  // Update contract template
-  update: (id: number, data: ContractTemplateUpdateData) =>
-    api.put<{ success: boolean; data: ContractTemplate }>(`/contract-templates/${id}`, data),
+  async update(id: number, data: ContractTemplateUpdateData): Promise<ContractTemplate> {
+    const response = await api.put<{ success: boolean; data: ContractTemplate }>(`/contract-templates/${id}`, data)
+    return response.data.data
+  },
 
-  // Delete contract template
-  delete: (id: number) => api.delete<{ success: boolean; message: string }>(`/contract-templates/${id}`),
+  async delete(id: number): Promise<void> {
+    await api.delete(`/contract-templates/${id}`)
+  },
 }
 
 export default ContractTemplateApi

@@ -1,34 +1,55 @@
 <script setup lang="ts">
 import AttendanceApi, { type Attendance, type UnmarkedStaff } from '@/api/attendance'
 import { printDocument } from '@/utils/printDocument'
-import { computed, onMounted, ref } from 'vue'
-import { VAvatar, VBtn, VCard, VCardText, VChip, VCol, VIcon, VRow, VSelect, VTextField } from 'vuetify/components'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { VAvatar, VBtn, VCard, VCardText, VChip, VCol, VIcon, VRow, VSelect } from 'vuetify/components'
 import TimesheetTemplate from './templates/timesheet_template.vue'
+import EmployeeApi, { type Employee } from '@/api/employee'
+import OfficeApi, { type Office } from '@/api/office'
+import SettingApi from '@/api/setting'
 
 // Operational Date Range States (For Filter & Printing)
 const startDate = ref<string>(new Date().toISOString().substring(0, 10))
 const endDate = ref<string>(new Date().toISOString().substring(0, 10))
 
-// Dedicated Date State for Logging Attendance (Fixes the coupling quirk)
-const logDate = ref<string>(new Date().toISOString().substring(0, 10))
+const getCurrentDate = () => {
+  const date = new Date()
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+// Attendance records are always added for the current date.
+const logDate = ref<string>(getCurrentDate())
 
 const selectedStaffId = ref<number | null>(null)
+const checkInTime = ref<string>('')
+const checkOutTime = ref<string>('')
+const breakMinutes = ref<number>(0)
+const employeeFilter = ref<number | null>(null)
+const officeFilter = ref<number | null>(null)
+const statusFilter = ref<Attendance['status'] | 'incomplete' | null>(null)
+const employees = ref<Employee[]>([])
+const offices = ref<Office[]>([])
 const attendanceRecords = ref<Attendance[]>([])
 const unmarkedStaff = ref<UnmarkedStaff[]>([])
 const loading = ref<boolean>(false)
 const error = ref<string | null>(null)
+const { locale } = useI18n()
 
 // Fetch attendance records within the date range
 const fetchAttendanceRecords = async () => {
   try {
     loading.value = true
-    const response = await AttendanceApi.getAll({
+    attendanceRecords.value = await AttendanceApi.getAll({
       start_date: startDate.value,
-      end_date: endDate.value
+      end_date: endDate.value,
+      employee_id: employeeFilter.value || undefined,
+      office_id: officeFilter.value || undefined,
+      status: statusFilter.value || undefined,
     })
-    attendanceRecords.value = response.data.data
   } catch (err) {
-    error.value = 'Failed to fetch attendance records'
+    error.value = translate('pages.attendance.timesheet.timesheet.failedToFetchAttendanceRecords')
     console.error(err)
   } finally {
     loading.value = false
@@ -41,13 +62,13 @@ const fetchUnmarkedStaff = async () => {
     loading.value = true
     const response = await AttendanceApi.getUnmarkedStaff(logDate.value)
 
-    unmarkedStaff.value = response.data.data.map(staff => ({
+    unmarkedStaff.value = response.map(staff => ({
       id: staff.id,
       name: staff.name,
-      position: staff.role
+      position: staff.position || staff.role || 'Unassigned'
     }))
   } catch (err) {
-    error.value = 'Failed to fetch unmarked staff'
+    error.value = translate('pages.attendance.timesheet.timesheet.failedToFetchUnmarkedStaff')
     console.error(err)
   } finally {
     loading.value = false
@@ -63,15 +84,22 @@ const logAttendance = async (status: 'present' | 'absent') => {
     await AttendanceApi.create({
       staff_id: selectedStaffId.value,
       date: logDate.value,
-      status: status
+      status,
+      check_in_time: status === 'present' ? checkInTime.value || null : null,
+      check_out_time: status === 'present' ? checkOutTime.value || null : null,
+      break_minutes: status === 'present' ? breakMinutes.value : null,
     })
 
     // Refresh data after logging
     await fetchAttendanceRecords()
     await fetchUnmarkedStaff()
     selectedStaffId.value = null
+    const setting = (await SettingApi.getCompanyProfile()).data
+    checkInTime.value = setting?.office_open_time || ''
+    checkOutTime.value = setting?.office_close_time || ''
+    breakMinutes.value = setting?.default_break_minutes || 0
   } catch (err) {
-    error.value = 'Failed to log attendance'
+    error.value = translate('pages.attendance.timesheet.timesheet.failedToLogAttendance')
     console.error(err)
   } finally {
     loading.value = false
@@ -88,7 +116,7 @@ const deleteRecord = async (id: number) => {
     await fetchAttendanceRecords()
     await fetchUnmarkedStaff()
   } catch (err) {
-    error.value = 'Failed to delete attendance record'
+    error.value = translate('pages.attendance.timesheet.timesheet.failedToDeleteAttendanceRecord')
     console.error(err)
   } finally {
     loading.value = false
@@ -108,6 +136,14 @@ const availableStaff = computed(() => {
   return unmarkedStaff.value
 })
 
+const timeOptions = Array.from({ length: 96 }, (_, index) => {
+  const hours = Math.floor(index / 4)
+  const minutes = (index % 4) * 15
+  const value = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+
+  return { title: value, value }
+})
+
 const displayedRecords = computed(() => {
   return attendanceRecords.value
     .filter(record => record.date >= startDate.value && record.date <= endDate.value)
@@ -121,17 +157,60 @@ const stats = computed(() => {
 
   const pendingOnLogDate = unmarkedStaff.value.length
 
-  return { present, absent, totalInView, pendingOnLogDate }
+  const workedMinutes = displayedRecords.value.reduce((sum, row) => sum + (row.net_worked_minutes ?? 0), 0)
+  const overtimeMinutes = displayedRecords.value.reduce((sum, row) => sum + row.overtime_minutes, 0)
+  const incomplete = displayedRecords.value.filter(row => row.status === 'present' && row.missing_punch_state !== 'none').length
+  return { present, absent, totalInView, pendingOnLogDate, workedMinutes, overtimeMinutes, incomplete }
 })
+
+const formatDuration = (minutes: number | null) => {
+  if (minutes === null) return '—'
+  const hours = Math.floor(minutes / 60)
+  const remainder = minutes % 60
+  const hoursText = new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'hour', unitDisplay: 'narrow' }).format(hours)
+  const minutesText = new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'minute', unitDisplay: 'narrow' }).format(remainder)
+  return `${hoursText} ${minutesText}`
+}
+
+const formatTime = (instant: string | null, fallback: string | null, timezone: string) => {
+  if (!instant) return fallback
+  return new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit', timeZone: timezone }).format(new Date(instant))
+}
+
+const timeColors: Record<NonNullable<Attendance['check_in_state'] | Attendance['check_out_state']>, string> = {
+  on_time: 'success',
+  early: 'teal-darken-1',
+  overtime: 'green-darken-2',
+  late: 'error',
+  early_departure: 'error',
+}
+const timeColor = (state: Attendance['check_in_state'] | Attendance['check_out_state']) => state ? timeColors[state] : 'secondary'
+
+const statusColor = (status: Attendance['status']) => ({ present: 'success', absent: 'error', 'paid-off-day': 'info', 'unpaid-off-day': 'warning' }[status])
+const statusIcon = (status: Attendance['status']) => ({ present: 'tabler-circle-check', absent: 'tabler-circle-x', 'paid-off-day': 'tabler-beach', 'unpaid-off-day': 'tabler-calendar-dollar' }[status])
+
+const timeHints: Record<NonNullable<Attendance['check_in_state'] | Attendance['check_out_state']>, string> = {
+  early: 'Early arrival',
+  on_time: 'On time',
+  late: 'Late arrival',
+  early_departure: 'Left before office closing time',
+  overtime: 'Left after office closing time',
+}
+const timeHint = (state: Attendance['check_in_state'] | Attendance['check_out_state']) => state ? timeHints[state] : 'Office hours are not configured'
 
 // Lifecycle hooks
 onMounted(async () => {
-  await fetchAttendanceRecords()
-  await fetchUnmarkedStaff()
+  const [employeeResponse, officeResponse, settingResponse] = await Promise.all([EmployeeApi.getAll(), OfficeApi.getAll(), SettingApi.getCompanyProfile()])
+  employees.value = employeeResponse.data.data
+  offices.value = officeResponse
+  checkInTime.value = settingResponse.data?.office_open_time || ''
+  checkOutTime.value = settingResponse.data?.office_close_time || ''
+  breakMinutes.value = settingResponse.data?.default_break_minutes || 0
+  await Promise.all([fetchAttendanceRecords(), fetchUnmarkedStaff()])
 })
 
 // Watch range changes for attendance fetching
-watch([startDate, endDate], async () => {
+watch([startDate, endDate, employeeFilter, officeFilter, statusFilter], async () => {
   await fetchAttendanceRecords()
 })
 
@@ -146,7 +225,8 @@ watch(logDate, async () => {
 
     <!-- PRINT ENGINE COMPONENT (Visible ONLY during print output) -->
     <div class="timesheet-print-host" aria-hidden="true">
-      <TimesheetTemplate :attendances="attendanceRecords" :start-date="startDate" :end-date="endDate" />
+      <TimesheetTemplate :attendances="displayedRecords" :start-date="startDate" :end-date="endDate"
+        :total-worked-minutes="stats.workedMinutes" :total-overtime-minutes="stats.overtimeMinutes" />
     </div>
 
     <!-- MAIN INTERACTIVE UI (Hidden during print output) -->
@@ -155,10 +235,10 @@ watch(logDate, async () => {
       <!-- TOP ROW: Range Metric Indicators -->
       <VRow class="mb-6">
         <VCol cols="12" sm="4">
-          <VCard elevation="2" class="stats-card border-left-success">
+          <VCard elevation="2" class="stats-card border-inline-start-success">
             <VCardText class="d-flex align-center justify-space-between py-4">
               <div>
-                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">TOTAL PRESENT (RANGE)</h6>
+                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">{{ $t('pages.attendance.timesheet.timesheet.totalPRESENTRANGE') }}</h6>
                 <h4 class="text-h4 font-weight-bold text-success">{{ stats.present }}</h4>
               </div>
               <VAvatar color="success" variant="tonal" rounded size="42">
@@ -167,12 +247,15 @@ watch(logDate, async () => {
             </VCardText>
           </VCard>
         </VCol>
+        <VCol cols="12" sm="4"><VCard elevation="2" class="stats-card"><VCardText><div class="text-caption">{{ $t('pages.attendance.timesheet.timesheet.totalWORKED') }}</div><div class="text-h5 font-weight-bold">{{ formatDuration(stats.workedMinutes) }}</div></VCardText></VCard></VCol>
+        <VCol cols="12" sm="4"><VCard elevation="2" class="stats-card"><VCardText><div class="text-caption">{{ $t('pages.attendance.timesheet.timesheet.overtime') }}</div><div class="text-h5 font-weight-bold text-success">{{ formatDuration(stats.overtimeMinutes) }}</div></VCardText></VCard></VCol>
+        <VCol cols="12" sm="4"><VCard elevation="2" class="stats-card"><VCardText><div class="text-caption">{{ $t('pages.attendance.timesheet.timesheet.incompleteSESSIONS') }}</div><div class="text-h5 font-weight-bold text-warning">{{ stats.incomplete }}</div></VCardText></VCard></VCol>
 
         <VCol cols="12" sm="4">
-          <VCard elevation="2" class="stats-card border-left-error">
+          <VCard elevation="2" class="stats-card border-inline-start-error">
             <VCardText class="d-flex align-center justify-space-between py-4">
               <div>
-                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">TOTAL ABSENT (RANGE)</h6>
+                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">{{ $t('pages.attendance.timesheet.timesheet.totalABSENTRANGE') }}</h6>
                 <h4 class="text-h4 font-weight-bold text-error">{{ stats.absent }}</h4>
               </div>
               <VAvatar color="error" variant="tonal" rounded size="42">
@@ -183,10 +266,10 @@ watch(logDate, async () => {
         </VCol>
 
         <VCol cols="12" sm="4">
-          <VCard elevation="2" class="stats-card border-left-warning">
+          <VCard elevation="2" class="stats-card border-inline-start-warning">
             <VCardText class="d-flex align-center justify-space-between py-4">
               <div>
-                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">UNMARKED FOR {{ logDate }}</h6>
+        <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">{{ $t('pages.attendance.timesheet.unmarkedFor', { date: formatLocalizedDate(`${logDate}T00:00:00`) }) }}</h6>
                 <h4 class="text-h4 font-weight-bold text-warning">{{ stats.pendingOnLogDate }}</h4>
               </div>
               <VAvatar color="warning" variant="tonal" rounded size="42">
@@ -208,16 +291,12 @@ watch(logDate, async () => {
               <VAvatar color="primary" variant="flat" size="36" class="mr-3">
                 <VIcon icon="tabler-user-plus" size="20" color="white" />
               </VAvatar>
-              <h3 class="text-h5 font-weight-bold">1. Log Attendance</h3>
+              <h3 class="text-h5 font-weight-bold">{{ $t('pages.attendance.timesheet.steps.logAttendance') }}</h3>
             </div>
-
-            <!-- Target Log Date Selector -->
-            <VTextField v-model="logDate" label="Attendance Date" type="date" density="comfortable" variant="outlined"
-              class="mb-4" :loading="loading" />
 
             <!-- Dropdown Staff Selection -->
             <VSelect v-model="selectedStaffId" :items="availableStaff" item-title="name" item-value="id"
-              label="Select Employee" placeholder="Search or pick an option..." variant="outlined" density="comfortable"
+              :label="$t('pages.attendance.timesheet.timesheet.selectEmployee')" :placeholder="$t('pages.attendance.timesheet.timesheet.searchOrPickAnOption')" variant="outlined" density="comfortable"
               class="mb-5" :loading="loading"
               :no-data-text="stats.pendingOnLogDate === 0 ? '🎉 All staff filled for this date!' : 'Select an employee'">
               <template #item="{ props, item }">
@@ -231,13 +310,37 @@ watch(logDate, async () => {
               </template>
             </VSelect>
 
+            <VRow class="mb-2">
+              <VCol cols="6">
+                <AppSelect
+                  v-model="checkInTime"
+                  :items="timeOptions"
+                  :label="$t('common.messages.inTime')"
+                  density="comfortable"
+                  hide-details
+                  clearable
+                />
+              </VCol>
+              <VCol cols="6">
+                <AppSelect
+                  v-model="checkOutTime"
+                  :items="timeOptions"
+                  :label="$t('common.messages.outTime')"
+                  density="comfortable"
+                  hide-details
+                  clearable
+                />
+              </VCol>
+            </VRow>
+            <VTextField v-model.number="breakMinutes" :label="$t('pages.attendance.timesheet.timesheet.breakMinutes')" type="number" min="0" max="720" class="mb-3" />
+
             <!-- Logger Submission Buttons -->
             <VRow class="ma-0 ga-3">
               <VCol class="pa-0">
                 <VBtn color="success" block size="large" variant="flat" :disabled="!selectedStaffId || loading"
                   @click="logAttendance('present')" class="action-btn-success font-weight-bold">
                   <VIcon icon="tabler-check" class="mr-2" size="18" />
-                  Present
+                  {{ $t('common.statuses.present') }}
                 </VBtn>
               </VCol>
 
@@ -245,7 +348,7 @@ watch(logDate, async () => {
                 <VBtn color="error" block size="large" variant="flat" :disabled="!selectedStaffId || loading"
                   @click="logAttendance('absent')" class="action-btn-error font-weight-bold">
                   <VIcon icon="tabler-x" class="mr-2" size="18" />
-                  Absent
+                  {{ $t('pages.attendance.timesheet.timesheet.absent') }}
                 </VBtn>
               </VCol>
             </VRow>
@@ -257,24 +360,41 @@ watch(logDate, async () => {
               <VAvatar color="primary" variant="flat" size="36" class="mr-3">
                 <VIcon icon="tabler-calendar" size="20" color="white" />
               </VAvatar>
-              <h3 class="text-h5 font-weight-bold">2. Print Range Filter</h3>
+              <h3 class="text-h5 font-weight-bold">{{ $t('pages.attendance.timesheet.steps.printRangeFilter') }}</h3>
             </div>
 
             <VRow class="mb-4">
               <VCol cols="12" sm="6" lg="12" class="py-1">
-                <VTextField v-model="startDate" label="Start Date" type="date" density="comfortable" variant="outlined"
-                  hide-details :loading="loading" />
+                <AppDateTimePicker
+                  v-model="startDate"
+                  :label="$t('common.fields.startDate')"
+                  density="comfortable"
+                  variant="outlined"
+                  hide-details
+                  :loading="loading"
+                  :config="{ dateFormat: 'Y-m-d' }"
+                />
               </VCol>
               <VCol cols="12" sm="6" lg="12" class="py-1">
-                <VTextField v-model="endDate" label="End Date" type="date" density="comfortable" variant="outlined"
-                  hide-details :loading="loading" />
+                <AppDateTimePicker
+                  v-model="endDate"
+                  :label="$t('common.fields.endDate')"
+                  density="comfortable"
+                  variant="outlined"
+                  hide-details
+                  :loading="loading"
+                  :config="{ dateFormat: 'Y-m-d' }"
+                />
               </VCol>
             </VRow>
+            <VSelect v-model="employeeFilter" :items="employees" item-title="name" item-value="id" :label="$t('common.fields.employee')" clearable class="mb-2" />
+            <VSelect v-model="officeFilter" :items="offices" item-title="name" item-value="id" :label="$t('common.fields.office')" clearable class="mb-2" />
+            <VSelect v-model="statusFilter" :items="[{title: translate('common.statuses.present'),value:'present'},{title: translate('pages.attendance.timesheet.timesheet.absent'),value:'absent'},{title: translate('pages.attendance.timesheet.timesheet.paidLeave'),value:'paid-off-day'},{title:'Unpaid off-day',value:'unpaid-off-day'},{title: translate('pages.attendance.timesheet.timesheet.incomplete'),value:'incomplete'}]" :label="$t('common.fields.status')" clearable class="mb-2" />
 
             <VBtn color="primary" variant="elevated" size="large" block @click="printTimesheet"
               class="font-weight-bold shadow-primary mt-2" :loading="loading">
               <VIcon icon="tabler-printer" class="mr-2" size="20" />
-              Print Timesheet Report
+              {{ $t('pages.attendance.timesheet.timesheet.printTimesheetReport') }}
             </VBtn>
           </VCard>
         </VCol>
@@ -285,10 +405,9 @@ watch(logDate, async () => {
 
             <!-- Heading Descriptor Info -->
             <div class="mb-5 border-bottom pb-4">
-              <h3 class="text-h4 font-weight-bold mb-1">Attendance Roll Ledger</h3>
+              <h3 class="text-h4 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.attendanceRollLedger') }}</h3>
               <p class="text-body-2 text-medium-emphasis mb-0">
-                Filtered View Frame: From <span class="text-primary font-weight-semibold">{{ startDate }}</span> to
-                <span class="text-primary font-weight-semibold">{{ endDate }}</span>
+                {{ $t('pages.attendance.timesheet.filteredRange', { start: formatLocalizedDate(`${startDate}T00:00:00`), end: formatLocalizedDate(`${endDate}T00:00:00`) }) }}
               </p>
             </div>
 
@@ -296,36 +415,41 @@ watch(logDate, async () => {
             <div class="attendance-table-wrapper">
               <div v-if="displayedRecords.length === 0" class="text-center py-12 border-dashed rounded-lg grey-bg">
                 <VIcon icon="tabler-notebook-off" size="48" class="text-disabled mb-3" />
-                <h4 class="text-h5 font-weight-medium text-medium-emphasis mb-1">No Records Found inside Range</h4>
-                <p class="text-body-2 text-disabled mb-0">Adjust your range limits or select team members to build data
-                  points.
+                <h4 class="text-h5 font-weight-medium text-medium-emphasis mb-1">{{ $t('pages.attendance.timesheet.timesheet.noRecordsFoundInsideRange') }}</h4>
+                <p class="text-body-2 text-disabled mb-0">{{ $t('pages.attendance.timesheet.timesheet.adjustYourRangeLimitsOrSelectTeamMembersToBuildDataPoints') }}
                 </p>
               </div>
 
               <table v-else class="custom-attendance-table w-100">
                 <thead>
                   <tr>
-                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">Date
+                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">{{ $t('common.fields.date') }}
                     </th>
                     <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
-                      Employee</th>
-                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">Role
+                      {{ $t('common.fields.employee') }}</th>
+                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">{{ $t('common.fields.role') }}
+                    </th>
+                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">{{ $t('common.fields.office') }}</th>
+                    <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
+                      {{ $t('common.fields.status') }}</th>
+                    <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
+                      {{ $t('common.messages.inTime') }}
                     </th>
                     <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
-                      Status</th>
-                    <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
-                      Logged At
+                      {{ $t('common.messages.outTime') }}
                     </th>
+                    <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">{{ $t('pages.attendance.timesheet.timesheet.worked') }}</th>
+                    <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">{{ $t('pages.attendance.timesheet.timesheet.overtime') }}</th>
                     <th class="text-right py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
-                      Action</th>
+                      {{ $t('pages.attendance.timesheet.timesheet.action') }}</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="record in displayedRecords" :key="`${record.id}-${record.date}`"
-                    class="table-row-hover transition-all">
+                    class="table-row-hover transition-all" :class="{ 'incomplete-session': record.status === 'present' && record.missing_punch_state !== 'none' }">
                     <!-- Date Marked -->
                     <td class="py-3 px-4 font-weight-bold text-body-2 text-primary">
-                      {{ record.date }}
+                      {{ formatLocalizedDate(`${record.date}T00:00:00`) }}
                     </td>
 
                     <!-- Employee Name -->
@@ -342,26 +466,35 @@ watch(logDate, async () => {
                     <td class="py-3 px-4 text-medium-emphasis text-body-2">
                       {{ record.role }}
                     </td>
+                    <td class="py-3 px-4 text-medium-emphasis text-body-2">{{ record.office || '—' }}</td>
 
                     <!-- Status Pill Badge -->
                     <td class="py-3 px-4 text-center">
-                      <VChip :color="record.status === 'present' ? 'success' : 'error'" variant="flat" size="small"
+                      <VChip :color="statusColor(record.status)" variant="flat" size="small"
                         class="font-weight-bold text-uppercase px-3" style="min-width: 90px; justify-content: center;">
-                        <VIcon :icon="record.status === 'present' ? 'tabler-circle-check' : 'tabler-circle-x'" size="14"
+                        <VIcon :icon="statusIcon(record.status)" size="14"
                           class="mr-1" />
-                        {{ record.status }}
+                        {{ translateBackendValue(record.status) }}
                       </VChip>
                     </td>
 
-                    <!-- Clock Entry Timestamp -->
-                    <td class="py-3 px-4 text-center text-body-2 text-medium-emphasis">
-                      {{ record.timestamp }}
+                    <!-- Office-hour state is conveyed by both color and a tooltip. -->
+                    <td class="py-3 px-4 text-center text-body-2 font-weight-medium" :title="timeHint(record.check_in_state)">
+                      <VChip v-if="record.check_in_time" :color="timeColor(record.check_in_state)" variant="tonal" size="small">{{ formatTime(record.checked_in_at, record.check_in_time, record.timezone) }}</VChip>
+                      <span v-else class="text-medium-emphasis">—</span>
                     </td>
+
+                    <td class="py-3 px-4 text-center text-body-2 font-weight-medium" :title="timeHint(record.check_out_state)">
+                      <VChip v-if="record.check_out_time" :color="timeColor(record.check_out_state)" variant="tonal" size="small">{{ formatTime(record.checked_out_at, record.check_out_time, record.timezone) }}</VChip>
+                      <span v-else class="text-medium-emphasis">—</span>
+                    </td>
+                    <td class="py-3 px-4 text-center font-weight-medium"><VChip v-if="record.missing_punch_state !== 'none'" color="warning" size="small">{{ $t('pages.attendance.timesheet.timesheet.incomplete') }}</VChip><span v-else>{{ formatDuration(record.net_worked_minutes) }}</span></td>
+                    <td class="py-3 px-4 text-center text-success font-weight-medium">{{ formatDuration(record.overtime_minutes) }}</td>
 
                     <!-- Row Contextual Eraser -->
                     <td class="py-3 px-4 text-right">
                       <VBtn icon="tabler-trash" variant="text" color="error" size="small" density="comfortable"
-                        @click="deleteRecord(record.id)" title="Remove Record" :loading="loading" />
+                        @click="deleteRecord(record.id)" :title="$t('pages.attendance.timesheet.timesheet.removeRecord')" :loading="loading" />
                     </td>
                   </tr>
                 </tbody>
@@ -381,16 +514,16 @@ watch(logDate, async () => {
 }
 
 /* Accent Card Aesthetics */
-.border-left-success {
-  border-left: 4px solid rgb(var(--v-theme-success)) !important;
+.border-inline-start-success {
+  border-inline-start: 4px solid rgb(var(--v-theme-success)) !important;
 }
 
-.border-left-error {
-  border-left: 4px solid rgb(var(--v-theme-error)) !important;
+.border-inline-start-error {
+  border-inline-start: 4px solid rgb(var(--v-theme-error)) !important;
 }
 
-.border-left-warning {
-  border-left: 4px solid rgb(var(--v-theme-warning)) !important;
+.border-inline-start-warning {
+  border-inline-start: 4px solid rgb(var(--v-theme-warning)) !important;
 }
 
 /* Micro interactions */
@@ -435,6 +568,8 @@ watch(logDate, async () => {
 .custom-attendance-table th {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
+
+.incomplete-session { background: rgba(var(--v-theme-warning), 0.1); }
 
 .table-row-hover:hover {
   background-color: rgba(var(--v-theme-primary), 0.03);

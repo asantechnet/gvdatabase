@@ -40,14 +40,14 @@ const resetAuthCode = () => {
       <VCardText>
         <!-- 👉 Title -->
         <h4 class="text-h4 text-center mb-6">
-          Add Authenticator App
+          {{ $t('components.dialogs.addauthenticatorappdialog.addAuthenticatorApp') }}
         </h4>
         <h5 class="text-h5 mb-2">
-          Authenticator Apps
+          {{ $t('common.messages.authenticatorApps') }}
         </h5>
 
         <p class="text-body-1 mb-6">
-          Using an authenticator app like Google Authenticator, Microsoft Authenticator, Authy, or 1Password, scan the QR code. It will generate a 6 digit code for you to enter below.
+          {{ $t('components.dialogs.addauthenticatorappdialog.usingAnAuthenticatorAppLikeGoogleAuthenticatorMicrosoftAuthenticatorAu') }}
         </p>
 
         <div class="mb-6">
@@ -59,8 +59,8 @@ const resetAuthCode = () => {
         </div>
 
         <VAlert
-          title="ASDLKNASDA9AHS678dGhASD78AB"
-          text="If you are unable to scan the QR code, you can manually enter the secret key below."
+          :title="$t('components.dialogs.addauthenticatorappdialog.asdlknasda9ahs678dghasd78ab')"
+          :text="$t('components.dialogs.addauthenticatorappdialog.ifYouAreUnableToScanTheQRCodeYouCanManuallyEnterTheSecretKeyBelow')"
           variant="tonal"
           color="warning"
         />
@@ -68,7 +68,7 @@ const resetAuthCode = () => {
           <AppTextField
             v-model="authCode"
             name="auth-code"
-            label="Enter Authentication Code"
+            :label="$t('components.dialogs.addauthenticatorappdialog.enterAuthenticationCode')"
             placeholder="123 456"
             class="mt-4 mb-6"
           />
@@ -79,14 +79,14 @@ const resetAuthCode = () => {
               variant="tonal"
               @click="resetAuthCode"
             >
-              Cancel
+              {{ $t('common.actions.cancel') }}
             </VBtn>
 
             <VBtn
               type="submit"
               @click="formSubmit"
             >
-              Continue
+              {{ $t('common.actions.continue') }}
               <VIcon
                 end
                 icon="tabler-arrow-right"

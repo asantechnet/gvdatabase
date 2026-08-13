@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('employee_id')->constrained('employees')->onDelete('cascade');
             $table->date('date');
-            $table->enum('status', ['present', 'absent']);
+            $table->enum('status', ['present', 'absent', 'paid-off-day']);
             $table->time('logged_at');
             $table->timestamps();
 

@@ -42,17 +42,17 @@ const dialogModelValueUpdate = (val: boolean) => {
       <VCardText>
         <!-- 👉 Title -->
         <h5 class="text-h5 mb-2">
-          Verify Your Mobile Number for SMS
+          {{ $t('components.dialogs.enableonetimepassworddialog.verifyYourMobileNumberForSMS') }}
         </h5>
         <p class="text-body-1 mb-6">
-          Enter your mobile phone number with country code and  we will send you a verification code.
+          {{ $t('components.dialogs.enableonetimepassworddialog.enterYourMobilePhoneNumberWithCountryCodeAndWeWillSendYouAVerification') }}
         </p>
 
         <VForm @submit.prevent="() => {}">
           <AppTextField
             v-model="phoneNumber"
             name="mobile"
-            label="Phone Number"
+            :label="$t('common.messages.phoneNumber')"
             placeholder="+1 123 456 7890"
             type="number"
             class="mb-6"
@@ -64,13 +64,13 @@ const dialogModelValueUpdate = (val: boolean) => {
               variant="tonal"
               @click="resetPhoneNumber"
             >
-              Cancel
+              {{ $t('common.actions.cancel') }}
             </VBtn>
             <VBtn
               type="submit"
               @click="formSubmit"
             >
-              continue
+              {{ $t('common.actions.continue2') }}
               <VIcon
                 end
                 icon="tabler-arrow-right"

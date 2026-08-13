@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { useTaskStore } from '@/stores/useTaskStore'
 import KanbanBoard from '@/pages/kanban/KanbanBoard.vue'
-import type { AddNewKanbanItem, EditKanbanItem, KanbanState, RenameKanbanBoard } from '@db/apps/kanban/types'
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import TaskCommentsDrawer from '../components/TaskCommentsDrawer.vue'
 import TaskDetailDrawer from '../components/TaskDetailDrawer.vue'
+
+interface AddNewKanbanItem { boardId: string | number; itemTitle: string }
+interface EditKanbanItem { item: { id: string | number } }
+interface KanbanState { boardId: string | number; ids: Array<string | number> }
+interface RenameKanbanBoard { boardId: string | number; newName: string }
 
 const store = useTaskStore()
 const isDetailDrawerOpen = ref(false)
 const isCommentsDrawerOpen = ref(false)
 const isLoading = ref(true)
+const editorItemId = ref<string | null>(null)
 
 // Load data when component mounts
 onMounted(async () => {
@@ -38,8 +43,8 @@ const vuexyKanbanData = computed(() => {
       dueDate: task.dueDate,
       labels: task.tags.map(t => t.name),
       members: task.assignees,
-      attachments: task.dependencies.length,
       commentsCount: task.comments.length,
+      progress: task.progress,
       image: '',
       comments: task.description.replace(/<[^>]*>?/gm, '').substring(0, 50) + '...'
     }))
@@ -47,22 +52,31 @@ const vuexyKanbanData = computed(() => {
 })
 
 // Handle Vuexy Drag/Drop and Event Emissions
-const handleUpdateItemsState = (payload: KanbanState) => {
-  payload.ids.forEach((itemId, index) => {
-    store.moveTaskBoard(String(itemId), String(payload.boardId), index)
-  })
+const handleUpdateItemsState = async (payload: KanbanState) => {
+  // Persist in order. Sending every move at once lets requests overtake each
+  // other and leaves the column order different from the UI.
+  for (const [index, itemId] of payload.ids.entries()) {
+    await store.moveTaskBoard(String(itemId), String(payload.boardId), index)
+  }
 }
 
-const handleAddNewItem = (payload: AddNewKanbanItem) => {
-  store.addTask({
+const handleAddNewItem = async (payload: AddNewKanbanItem) => {
+  const task = await store.addTask({
     title: payload.itemTitle,
     boardId: String(payload.boardId),
     description: '',
     priority: 'medium',
-    startDate: new Date().toISOString().substring(0, 10),
-    dueDate: new Date().toISOString().substring(0, 10),
-    order: 999
+    start_date: new Date().toISOString().substring(0, 10),
+    due_date: new Date().toISOString().substring(0, 10),
   })
+
+  if (task) {
+    store.selectTask(task.id)
+    // Wait until the new card has been rendered before asking the Kanban
+    // component to open its own editor drawer for it.
+    await nextTick()
+    editorItemId.value = task.id
+  }
 }
 
 // Opens the original Task Detail Drawer when clicking card
@@ -82,7 +96,7 @@ const handleDeleteItem = (payload: EditKanbanItem) => {
 }
 
 const handleRenameBoard = (payload: RenameKanbanBoard) => {
-  store.updateBoard(payload.boardId, payload.newName)
+  store.updateBoard(String(payload.boardId), payload.newName)
 }
 
 const handleAddNewBoard = (title: string) => {
@@ -91,6 +105,10 @@ const handleAddNewBoard = (title: string) => {
 
 const handleDeleteBoard = (boardId: number) => {
   store.deleteBoard(String(boardId))
+}
+
+const handleUpdateBoardState = async (boardIds: number[]) => {
+  await store.reorderBoards(boardIds.map(String))
 }
 </script>
 
@@ -103,12 +121,12 @@ const handleDeleteBoard = (boardId: number) => {
             <template #title>
               <div class="d-flex align-center">
                 <VIcon icon="tabler-layout-kanban" color="primary" class="mr-2" />
-                <span class="text-h5 font-weight-bold">Project Board</span>
+                <span class="text-h5 font-weight-bold">{{ $t('components.taskManager.kanbanview.projectBoard') }}</span>
               </div>
             </template>
           </VCardItem>
 
-          <VCardText class="pa-0 kanban-scroll-area bg-grey-50">
+          <VCardText class="kanban-scroll-area bg-grey-50">
             <VProgressLinear
               v-if="isLoading"
               indeterminate
@@ -119,6 +137,7 @@ const handleDeleteBoard = (boardId: number) => {
 
             <KanbanBoard
               :kanban-data="vuexyKanbanData"
+              :open-item-id="editorItemId"
               @add-new-item="handleAddNewItem"
               @edit-item="handleEditItem"
               @delete-item="handleDeleteItem"
@@ -127,6 +146,7 @@ const handleDeleteBoard = (boardId: number) => {
               @comments-click="handleCommentsClick"
               @add-new-board="handleAddNewBoard"
               @delete-board="handleDeleteBoard"
+              @update-board-state="handleUpdateBoardState"
             />
           </VCardText>
         </VCard>
@@ -146,5 +166,6 @@ const handleDeleteBoard = (boardId: number) => {
   min-height: 65vh;
   overflow-x: auto;
   position: relative;
+  padding: 1.5rem;
 }
 </style>
