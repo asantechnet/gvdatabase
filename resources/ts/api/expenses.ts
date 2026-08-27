@@ -9,9 +9,8 @@ export interface Expense {
   description: string;
   amount: number;
   quantity: number;
-  currency: Pick<Currency, "id" | "code" | "symbol" | "rateToBase" | "decimalPlaces"> | null;
-  rate_to_base: number;
-  total_amount: number;
+  currency: Pick<Currency, "id" | "code" | "symbol" | "rate" | "decimalPlaces"> | null;
+  cnv_curr_shrt: string; base_curr_shrt: string; rate: number; base_amount: number;
   date: string;
   created_at?: string;
   updated_at?: string;
@@ -24,8 +23,7 @@ export interface ExpenseCreateData {
   description: string;
   amount: number;
   quantity: number;
-  rate_to_base: number;
-  total_amount?: number;
+  rate: number;
   date: string;
 }
 
@@ -36,7 +34,7 @@ export interface ExpenseUpdateData {
   description?: string;
   amount?: number;
   quantity?: number;
-  rate_to_base?: number;
+  rate?: number;
   date?: string;
 }
 

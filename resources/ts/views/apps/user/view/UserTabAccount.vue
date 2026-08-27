@@ -129,7 +129,7 @@ const moreList = [
 
         <!-- SECTION Datatable -->
 
-        <VDataTable
+        <ResponsiveDataTable
           v-model:page="options.page"
           :headers="projectTableHeaders"
           :items-per-page="options.itemsPerPage"
@@ -218,7 +218,7 @@ const moreList = [
               :total-items="projects.length"
             />
           </template>
-        </VDataTable>
+        </ResponsiveDataTable>
         <!-- !SECTION -->
       </VCard>
     </VCol>

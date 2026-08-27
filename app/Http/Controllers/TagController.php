@@ -30,7 +30,7 @@ class TagController extends Controller
 
         $tag = Tag::withTrashed()->where('name', $validated['name'])->first();
         if ($tag && ! $tag->trashed()) {
-            throw ValidationException::withMessages(['name' => ['This task label already exists.']]);
+            throw ValidationException::withMessages(['name' => ['business.task_label_exists']]);
         }
         if ($tag) {
             $tag->fill($validated);

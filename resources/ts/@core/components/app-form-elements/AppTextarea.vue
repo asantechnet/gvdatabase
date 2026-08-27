@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { clearFieldError, mergeFieldErrorMessages } from '@/utils/formErrors'
 defineOptions({
   name: 'AppTextarea',
   inheritAttrs: false,
@@ -15,6 +16,10 @@ const elementId = computed (() => {
 })
 
 const label = computed(() => useAttrs().label as string | undefined)
+const attrs = useAttrs()
+const fieldName = computed(() => (attrs.name || attrs.id) as string | undefined)
+const externalErrors = computed(() => mergeFieldErrorMessages(fieldName.value, attrs.errorMessages))
+watch(() => attrs.modelValue, () => clearFieldError(fieldName.value))
 </script>
 
 <template>
@@ -35,6 +40,7 @@ const label = computed(() => useAttrs().label as string | undefined)
         label: undefined,
         variant: 'outlined',
         id: elementId,
+        errorMessages: externalErrors,
       }"
     >
       <template

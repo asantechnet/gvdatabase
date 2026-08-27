@@ -1,10 +1,7 @@
 import { ref } from 'vue'
-import ContractApi, {
-  type Contract,
-  type ContractCreateData,
-  type ContractUpdateData,
-  type ContractTemplate
-} from '@/api/contracts'
+import ContractApi from '@/api/contracts'
+import ContractTemplateApi, { type ContractTemplate } from '@/api/contractTemplate'
+import type { Contract, ContractCreateData, ContractParams, ContractUpdateData } from '@/api/contracts'
 
 export function useContracts() {
   const contracts = ref<Contract[]>([])
@@ -12,12 +9,21 @@ export function useContracts() {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  const fetchContracts = async (onlyCancelled?: boolean) => {
+  const fetchContracts = async (params?: ContractParams | boolean | 'customers' | 'employees' | 'companies' | 'other') => {
     try {
       isLoading.value = true
       error.value = null
-      const response = await ContractApi.getAll(onlyCancelled)
-      contracts.value = response.data
+
+      let request: ContractParams | undefined
+      if (typeof params === 'object' && params !== null) {
+        request = params
+      } else if (params === true) {
+        request = { only_cancelled: true }
+      } else if (params === 'customers' || params === 'employees' || params === 'companies' || params === 'other') {
+        request = { audience: params }
+      }
+
+      contracts.value = await ContractApi.getAll(request)
     } catch (err) {
       console.error('Failed to fetch contracts:', err)
       error.value = err instanceof Error ? err.message : 'Failed to fetch contracts'
@@ -30,8 +36,7 @@ export function useContracts() {
     try {
       isLoading.value = true
       error.value = null
-      const response = await ContractApi.getTemplates()
-      templates.value = response.data
+      templates.value = await ContractTemplateApi.getAll()
     } catch (err) {
       console.error('Failed to fetch templates:', err)
       error.value = err instanceof Error ? err.message : 'Failed to fetch templates'
@@ -44,9 +49,9 @@ export function useContracts() {
     try {
       isLoading.value = true
       error.value = null
-      const response = await ContractApi.create(contractData)
-      contracts.value.push(response.data)
-      return response.data
+      const contract = await ContractApi.create(contractData)
+      contracts.value.push(contract)
+      return contract
     } catch (err) {
       console.error('Failed to create contract:', err)
       error.value = err instanceof Error ? err.message : 'Failed to create contract'
@@ -60,12 +65,11 @@ export function useContracts() {
     try {
       isLoading.value = true
       error.value = null
-      const response = await ContractApi.update(id, contractData)
+      const contract = await ContractApi.update(id, contractData)
       const index = contracts.value.findIndex(c => c.id === id)
-      if (index !== -1) {
-        contracts.value[index] = response.data
-      }
-      return response.data
+      if (index !== -1)
+        contracts.value[index] = contract
+      return contract
     } catch (err) {
       console.error('Failed to update contract:', err)
       error.value = err instanceof Error ? err.message : 'Failed to update contract'
@@ -79,11 +83,9 @@ export function useContracts() {
     try {
       isLoading.value = true
       error.value = null
-      const response = await ContractApi.delete(id)
-      if (response.success) {
-        contracts.value = contracts.value.filter(c => c.id !== id)
-      }
-      return response.success
+      await ContractApi.delete(id)
+      contracts.value = contracts.value.filter(c => c.id !== id)
+      return true
     } catch (err) {
       console.error('Failed to delete contract:', err)
       error.value = err instanceof Error ? err.message : 'Failed to delete contract'
@@ -102,6 +104,6 @@ export function useContracts() {
     fetchTemplates,
     addContract,
     editContract,
-    removeContract
+    removeContract,
   }
 }

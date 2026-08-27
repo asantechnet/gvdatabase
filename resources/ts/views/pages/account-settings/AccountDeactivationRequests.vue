@@ -106,7 +106,7 @@ onMounted(loadRequests)
         />
         <VBtn variant="tonal" prepend-icon="tabler-refresh" :loading="loading" @click="loadRequests">{{ $t('common.actions.refresh') }}</VBtn>
       </div>
-      <VDataTable :headers="headers" :items="displayedRequests" :loading="loading" item-value="id">
+      <ResponsiveDataTable :headers="headers" :items="displayedRequests" :loading="loading" item-value="id">
         <template #item.requester="{ item }">
           <div class="py-2">
             <div class="font-weight-medium">{{ item.requester?.name }}</div>
@@ -136,7 +136,7 @@ onMounted(loadRequests)
             @click="reactivate(item)"
           >{{ $t('components.account.accountdeactivationrequests.reactivate') }}</VBtn>
         </template>
-      </VDataTable>
+      </ResponsiveDataTable>
     </VCardText>
   </VCard>
 

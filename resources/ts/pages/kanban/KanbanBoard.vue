@@ -25,6 +25,7 @@ const emit = defineEmits<{
   (e: 'updateItemsState', value: KanbanState): void
   (e: 'updateBoardState', value: number[]): void
   (e: 'commentsClick', value: any): void
+  (e: 'attachmentsClick', value: any): void
 }>()
 
 const kanbanWrapper = ref<HTMLElement>()
@@ -137,7 +138,8 @@ onClickOutside(refAddNewBoard, hideAddNewForm)
           :kanban-items="kanbanData.items" :kanban-data="kanbanData" @delete-board="deleteBoard"
           @rename-board="renameBoard" @add-new-item="addNewItem" @edit-item="editKanbanItemFn"
           @update-items-state="updateStateFn" @delete-item="deleteKanbanItemFn"
-          @comments-click="emit('commentsClick', $event)" />
+          @comments-click="emit('commentsClick', $event)"
+          @attachments-click="emit('attachmentsClick', $event)" />
       </template>
     </div>
 
@@ -146,7 +148,7 @@ onClickOutside(refAddNewBoard, hideAddNewForm)
         <VIcon size="18" icon="tabler-plus" /> {{ $t('pages.tasks.kanbanboard.kanbanboard.addNew') }}
       </h6>
 
-      <VForm v-if="isAddNewFormVisible" ref="refAddNewBoard" class="mt-4" validate-on="submit"
+      <VForm v-if="isAddNewFormVisible" ref="refAddNewBoard" class="app-form mt-4" validate-on="submit"
         @submit.prevent="addNewBoard">
         <div class="mb-4">
           <VTextField v-model="boardTitle" :rules="[requiredValidator, validateBoardTitle]" autofocus

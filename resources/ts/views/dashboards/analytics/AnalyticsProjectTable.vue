@@ -59,7 +59,7 @@ const moreList = [
     <VDivider />
 
     <!-- SECTION Table -->
-    <VDataTableServer
+    <ResponsiveDataTableServer
       v-model:items-per-page="itemsPerPage"
       v-model:page="page"
       :items="projects"
@@ -151,7 +151,7 @@ const moreList = [
           :total-items="totalProjects"
         />
       </template>
-    </VDataTableServer>
+    </ResponsiveDataTableServer>
     <!-- !SECTION -->
   </VCard>
 </template>

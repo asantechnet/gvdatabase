@@ -74,7 +74,7 @@ const deleteOrder = async (id: number) => {
     </VCardText>
 
     <VDivider />
-    <VDataTableServer
+    <ResponsiveDataTableServer
       v-model:items-per-page="itemsPerPage"
       v-model:page="page"
       :headers="headers"
@@ -143,6 +143,6 @@ const deleteOrder = async (id: number) => {
           :total-items="totalOrder"
         />
       </template>
-    </VDataTableServer>
+    </ResponsiveDataTableServer>
   </VCard>
 </template>

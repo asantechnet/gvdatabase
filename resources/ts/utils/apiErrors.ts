@@ -63,7 +63,7 @@ const errorMessages: Record<string, string> = {
   'business.audit_row_deleted': 'Restore the deleted record before discarding this edit.',
   'business.audit_event_not_revertible': 'This audit entry cannot be reverted.',
   'business.audit_model_invalid': 'This audit entry refers to an invalid record type.',
-  'business.paid_time_off_limit_reached': 'The paid-off day allowance for this year has been used.',
+  'business.paid_time_off_limit_reached': 'Your paid time-off allowance for this year has been used.',
   'business.current_password_invalid': 'The current password is incorrect.',
   'business.account_not_active': 'Only an active account can request deactivation.',
   'business.account_not_deactivated': 'This account is not currently deactivated.',
@@ -84,8 +84,26 @@ const errorMessages: Record<string, string> = {
   'business.workday_not_started': 'Start your workday before ending it.',
   'business.daily_report_already_submitted': 'Your report for this workday has already been submitted.',
   'business.office_geofence_unavailable': 'Automatic attendance is unavailable because your office geofence is not configured.',
+  'business.paid_time_off_date_exists': 'A time-off request already exists for one or more selected dates.',
+  'business.commission_employee_salary_forbidden': 'Commission employees are paid through service income and cannot receive salary records.',
+  'business.task_label_exists': 'A task label with this name already exists.',
+  'business.task_bonus_review_requires_completion': 'Only completed tasks can receive bonus review inputs.',
+  'business.task_contributions_must_total_100': 'Contribution percentages must total 100%.',
+  'business.task_contributions_assignees_mismatch': 'Provide one contribution percentage for every assigned user.',
+  'business.task_contribution_user_not_assigned': 'Every contribution user must be assigned to the task.',
+  'business.employee_profile_missing': 'No employee profile is associated with this account.',
+  'business.two_factor_code_invalid': 'The authentication code is invalid or expired.',
+  'business.customer_has_invoice_history': 'Customers with invoice history cannot be deleted.',
+  'business.marketer_in_use': 'This marketer is assigned to customers or visitors and cannot be deleted.',
+  'business.position_in_use': 'This position is assigned to employees or users and cannot be deleted.',
+  'business.office_has_stock': 'This office has stock assigned to it and cannot be deleted.',
+  'business.contract_template_in_use': 'Templates used by contracts cannot be deleted.',
+  'business.base_currency_cannot_be_deleted': 'The base currency cannot be deleted.',
+  'business.currency_in_use': 'Currencies referenced by services, invoices, salaries, incomes, or expenses cannot be deleted.',
   'auth.email_verification_required': 'Verify your email address before signing in.',
   'auth.two_factor_required': 'Enter your current authenticator code.',
+  'auth.refresh_token_invalid': 'Your session renewal has expired. Please sign in again.',
+  'auth.password_setup_required': 'Create your password before signing in.',
   'auth.unauthenticated': 'Your session has ended. Please sign in again.',
   'auth.invalid_credentials': 'The email address or password is incorrect.',
   'auth.account_inactive': 'This account is not active.',
@@ -98,7 +116,9 @@ const errorMessages: Record<string, string> = {
 export const humanizeApiError = (code?: string, fallback = translate('common.messages.unableToSaveChanges')): string => {
   if (!code) return fallback
   const translated = translate(`backend.errors.${code}`)
-  return translated && !translated.startsWith('[missing:') ? translated : (errorMessages[code] ?? fallback)
+  // Error codes are the API contract. Do not fall back to an English literal
+  // here: a missing catalog entry should use the caller's localized fallback.
+  return translated && !translated.startsWith('[missing:') ? translated : fallback
 }
 
 export const apiFieldErrors = (error: unknown): Record<string, string> => {

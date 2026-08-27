@@ -59,6 +59,20 @@ const TaskApi = {
     const response = await api.patch<{ data: Task }>(`/tasks/${id}/bonus-review`, data)
     return response.data.data
   },
+
+  uploadAttachment: async (taskId: string, file: File, section: 'input' | 'results' = 'results') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('section', section)
+    return api.post(`/tasks/${taskId}/attachments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
+
+  deleteAttachment: async (taskId: string, attachmentId: string) => api.delete(`/tasks/${taskId}/attachments/${attachmentId}`),
+
+  downloadAttachment: async (taskId: string, attachmentId: string) => api.get(
+    `/tasks/${taskId}/attachments/${attachmentId}/download`,
+    { responseType: 'blob' },
+  ),
 };
 
 export default TaskApi;

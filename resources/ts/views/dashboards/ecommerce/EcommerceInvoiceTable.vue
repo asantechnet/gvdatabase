@@ -154,7 +154,7 @@ const deleteInvoice = async (id: number) => {
     <VDivider />
 
     <!-- SECTION Datatable -->
-    <VDataTableServer
+    <ResponsiveDataTableServer
       v-model="selectedRows"
       v-model:items-per-page="itemsPerPage"
       v-model:page="page"
@@ -255,7 +255,7 @@ const deleteInvoice = async (id: number) => {
           :total-items="totalInvoices"
         />
       </template>
-    </VDataTableServer>
+    </ResponsiveDataTableServer>
     <!-- !SECTION -->
   </VCard>
 </template>

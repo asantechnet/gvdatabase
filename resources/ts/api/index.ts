@@ -1,5 +1,7 @@
 // Export all API modules
 import AuthApi from "./auth";
+import CompanyApi from "./company";
+import ContractApi from "./contracts";
 import ContractTemplateApi from "./contractTemplate";
 import CurrencyApi from "./currency";
 import DashboardApi from "./dashboard";
@@ -21,7 +23,9 @@ export type {
 
 export {
   AuthApi,
+  ContractApi,
   ContractTemplateApi,
+  CompanyApi,
   CurrencyApi,
   DashboardApi,
   EmployeeApi,
@@ -45,7 +49,9 @@ export default {
   InvoiceApi,
   CurrencyApi,
   SettingApi,
+  ContractApi,
   ContractTemplateApi,
+  CompanyApi,
   NotificationApi,
   AuditLogApi,
   DashboardApi,

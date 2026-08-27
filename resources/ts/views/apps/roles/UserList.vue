@@ -124,82 +124,50 @@ const deleteUser = async (id: number) => {
           <p class="text-body-1 mb-0">
             Show
           </p>
-          <AppSelect
-            :model-value="itemsPerPage"
-            :items="[
-              { value: 10, title: '10' },
-              { value: 25, title: '25' },
-              { value: 50, title: '50' },
-              { value: 100, title: '100' },
-              { value: -1, title: 'All' },
-            ]"
-            style="inline-size: 5.5rem;"
-            @update:model-value="itemsPerPage = parseInt($event, 10)"
-          />
+          <AppSelect :model-value="itemsPerPage" :items="[
+            { value: 10, title: '10' },
+            { value: 25, title: '25' },
+            { value: 50, title: '50' },
+            { value: 100, title: '100' },
+            { value: -1, title: 'All' },
+          ]" style="inline-size: 5.5rem;" @update:model-value="itemsPerPage = parseInt($event, 10)" />
         </div>
 
         <VSpacer />
 
         <div class="d-flex align-center flex-wrap gap-4">
           <!-- 👉 Search  -->
-          <AppTextField
-            v-model="searchQuery"
-            placeholder="Search User"
-            style="inline-size: 15.625rem;"
-          />
+          <AppTextField v-model="searchQuery" placeholder="Search User" style="inline-size: 15.625rem;" />
 
           <!-- 👉 Add user button -->
-          <AppSelect
-            v-model="selectedRole"
-            placeholder="Select Role"
-            :items="roles"
-            clearable
-            clear-icon="tabler-x"
-            style="inline-size: 10rem;"
-          />
+          <AppSelect v-model="selectedRole" placeholder="Select Role" :items="roles" clearable clear-icon="tabler-x"
+            style="inline-size: 10rem;" />
         </div>
       </VCardText>
 
       <VDivider />
 
       <!-- SECTION datatable -->
-      <VDataTableServer
-        v-model:items-per-page="itemsPerPage"
-        v-model:model-value="selectedRows"
-        v-model:page="page"
+      <ResponsiveDataTableServer v-model:items-per-page="itemsPerPage" v-model:model-value="selectedRows" v-model:page="page"
         :items-per-page-options="[
           { value: 10, title: '10' },
           { value: 20, title: '20' },
           { value: 50, title: '50' },
           { value: -1, title: '$vuetify.dataFooter.itemsPerPageAll' },
-        ]"
-        :items="users"
-        :items-length="totalUsers"
-        :headers="headers"
-        class="text-no-wrap"
-        show-select
-        @update:options="updateOptions"
-      >
+        ]" :items="users" :items-length="totalUsers" :headers="headers" class="text-no-wrap" show-select
+        @update:options="updateOptions">
         <!-- User -->
         <template #item.user="{ item }">
           <div class="d-flex align-center gap-x-4">
-            <VAvatar
-              size="34"
-              :variant="!item.avatar ? 'tonal' : undefined"
-              :color="!item.avatar ? resolveUserRoleVariant(item.role).color : undefined"
-            >
-              <VImg
-                v-if="item.avatar"
-                :src="item.avatar"
-              />
+            <VAvatar size="34" :variant="!item.avatar ? 'tonal' : undefined"
+              :color="!item.avatar ? resolveUserRoleVariant(item.role).color : undefined">
+              <VImg v-if="item.avatar" :src="item.avatar" />
               <span v-else>{{ avatarText(item.fullName) }}</span>
             </VAvatar>
             <div class="d-flex flex-column">
               <h6 class="text-base">
-                <RouterLink
-                  :to="{ name: 'apps-user-view-id', params: { id: item.id } }"
-                  class="font-weight-medium text-link"
-                >
+                <RouterLink :to="{ name: 'apps-user-view-id', params: { id: item.id } }"
+                  class="font-weight-medium text-link">
                   {{ item.fullName }}
                 </RouterLink>
               </h6>
@@ -213,11 +181,8 @@ const deleteUser = async (id: number) => {
         <!-- 👉 Role -->
         <template #item.role="{ item }">
           <div class="d-flex align-center gap-x-2">
-            <VIcon
-              :size="22"
-              :icon="resolveUserRoleVariant(item.role).icon"
-              :color="resolveUserRoleVariant(item.role).color"
-            />
+            <VIcon :size="22" :icon="resolveUserRoleVariant(item.role).icon"
+              :color="resolveUserRoleVariant(item.role).color" />
 
             <div class="text-capitalize text-high-emphasis text-body-1">
               {{ item.role }}
@@ -234,12 +199,7 @@ const deleteUser = async (id: number) => {
 
         <!-- Status -->
         <template #item.status="{ item }">
-          <VChip
-            :color="resolveUserStatusVariant(item.status)"
-            size="small"
-            label
-            class="text-capitalize"
-          >
+          <VChip :color="resolveUserStatusVariant(item.status)" size="small" label class="text-capitalize">
             {{ item.status }}
           </VChip>
         </template>
@@ -254,11 +214,7 @@ const deleteUser = async (id: number) => {
             <VIcon icon="tabler-eye" />
           </IconBtn>
 
-          <VBtn
-            icon
-            variant="text"
-            color="medium-emphasis"
-          >
+          <VBtn icon variant="text" color="medium-emphasis">
             <VIcon icon="tabler-dots-vertical" />
             <VMenu activator="parent">
               <VList>
@@ -289,21 +245,14 @@ const deleteUser = async (id: number) => {
         </template>
 
         <template #bottom>
-          <TablePagination
-            v-model:page="page"
-            :items-per-page="itemsPerPage"
-            :total-items="totalUsers"
-          />
+          <TablePagination v-model:page="page" :items-per-page="itemsPerPage" :total-items="totalUsers" />
         </template>
-      </VDataTableServer>
+      </ResponsiveDataTableServer>
       <!-- SECTION -->
     </VCard>
 
     <!-- 👉 Add New User -->
-    <AddNewUserDrawer
-      v-model:is-drawer-open="isAddNewUserDrawerVisible"
-      @user-data="addNewUser"
-    />
+    <AddNewUserDrawer v-model:is-drawer-open="isAddNewUserDrawerVisible" @user-data="addNewUser" />
   </section>
 </template>
 

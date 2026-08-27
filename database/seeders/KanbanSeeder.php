@@ -50,11 +50,11 @@ class KanbanSeeder extends Seeder
                 // Attach random users (assignees)
                 $assignedUsers = $users->random(rand(1, 3));
                 $assignedUserIds = $assignedUsers->pluck('id')->toArray();
-                $task->users()->attach($assignedUserIds);
+                $task->users()->syncWithoutDetaching($assignedUserIds);
                 $board->users()->syncWithoutDetaching($assignedUserIds);
 
                 // Attach random tags
-                $task->tags()->attach(
+                $task->tags()->syncWithoutDetaching(
                     $tags->random(rand(1, 3))->pluck('id')->toArray()
                 );
 

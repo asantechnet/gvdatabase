@@ -20,3 +20,5 @@ Schedule::command('analytics:sync')
     ->dailyAt('01:10')->timezone($companyTimezone)->withoutOverlapping()->onOneServer();
 Schedule::command('bonuses:calculate')
     ->monthlyOn(1, '02:00')->timezone($companyTimezone)->withoutOverlapping()->onOneServer();
+Schedule::command('recurring-events:process')
+    ->hourly()->timezone($companyTimezone)->withoutOverlapping()->onOneServer();

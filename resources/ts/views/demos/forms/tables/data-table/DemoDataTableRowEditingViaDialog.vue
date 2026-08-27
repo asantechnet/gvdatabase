@@ -104,7 +104,7 @@ onMounted(() => {
 
 <template>
   <!-- 👉 Datatable  -->
-  <VDataTable
+  <ResponsiveDataTable
     :headers="headers"
     :items="userList"
     :items-per-page="5"
@@ -154,7 +154,7 @@ onMounted(() => {
         </IconBtn>
       </div>
     </template>
-  </VDataTable>
+  </ResponsiveDataTable>
 
   <!-- 👉 Edit Dialog  -->
   <VDialog

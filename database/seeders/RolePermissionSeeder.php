@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Permission;
-use App\Models\RolePermission;
+use App\Models\Role;
 use Illuminate\Database\Seeder;
 
 /** Seeds conservative defaults; super administrators retain the policy bypass. */
@@ -12,6 +12,8 @@ class RolePermissionSeeder extends Seeder
     public function run(): void
     {
         $all = PermissionSeeder::catalogNames();
+
+        $roleIds = Role::query()->pluck('id', 'name')->all();
 
         $grants = [
             // Day-to-day operations, but never identity/role control or audit reversal.
@@ -36,10 +38,13 @@ class RolePermissionSeeder extends Seeder
                 'view_positions', 'view_marketers', 'view_offices',
                 'view_customers', 'create_customers', 'edit_customers', 'manage_customer_services',
                 'view_contracts', 'create_contracts', 'edit_contracts', 'cancel_contracts', 'download_contracts',
-                'view_contract_templates', 'view_services',
+                'view_contract_templates', 'view_contract_policies', 'view_services',
+                'view_contract_types', 'view_companies',
                 'view_invoices', 'create_invoices', 'edit_invoices',
+                'view_payment_details', 'create_payment_details', 'edit_payment_details', 'delete_payment_details',
                 'view_incomes', 'create_incomes', 'edit_incomes',
                 'view_expenses', 'create_expenses', 'edit_expenses',
+                'view_recurring_events', 'create_recurring_events', 'edit_recurring_events', 'delete_recurring_events', 'manage_recurring_events', 'execute_recurring_events', 'create_recurring_incomes', 'create_recurring_expenses', 'create_recurring_tasks',
                 'view_stocks', 'create_stocks', 'edit_stocks',
                 'view_currencies', 'view_financial_reports',
                 'view_all_boards', 'view_assigned_boards', 'create_boards', 'edit_all_boards', 'edit_assigned_boards', 'reorder_boards', 'assign_board_members',
@@ -75,12 +80,16 @@ class RolePermissionSeeder extends Seeder
 
         $permissionIds = Permission::query()->whereIn('name', $all)->pluck('id', 'name');
 
-        foreach ($grants as $role => $permissionNames) {
+        foreach ($grants as $roleName => $permissionNames) {
+            $roleId = $roleIds[$roleName] ?? null;
+            if ($roleId === null) {
+                continue;
+            }
             foreach (array_unique($permissionNames) as $permissionName) {
                 $permissionId = $permissionIds[$permissionName] ?? null;
                 if ($permissionId) {
-                    RolePermission::query()->firstOrCreate([
-                        'role' => $role,
+                    \App\Models\RolePermission::query()->firstOrCreate([
+                        'role_id' => $roleId,
                         'permission_id' => $permissionId,
                     ]);
                 }

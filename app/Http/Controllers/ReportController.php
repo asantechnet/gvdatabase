@@ -28,7 +28,7 @@ class ReportController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        abort_unless($reports->canExport($user, $type), 403, 'You are not authorized to export this report.');
+        abort_unless($reports->canExport($user, $type), 403, 'auth.forbidden');
         $report = $reports->generate($type, $request->validated(), $user);
 
         if (($request->validated('format') ?? 'csv') === 'print') {

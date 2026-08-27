@@ -52,6 +52,7 @@ export interface Invoice {
   balance: number
   discount: number
   notes?: string
+  payment_detail_id?: number | null
   payment_method?: string | null
   payment_instructions: string[]
   voided_at?: string | null
@@ -70,6 +71,7 @@ export interface InvoiceParams {
 export interface CreateInvoiceData {
   customer_id: number
   currency_id: number
+  rate: number
   class_type: Invoice['class-type']
   issue_date?: string
   due_date?: string
@@ -77,6 +79,7 @@ export interface CreateInvoiceData {
   tax_percent: number
   discount?: number
   notes?: string
+  payment_detail_id?: number | null
   payment_method?: string
   payment_instructions?: string[]
 }

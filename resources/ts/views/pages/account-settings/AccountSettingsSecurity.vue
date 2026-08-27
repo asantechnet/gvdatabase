@@ -1,11 +1,12 @@
 <script lang="ts" setup>
 import AuthApi, { type Account } from '@/api/auth'
+import { useToast } from 'vue-toastification'
 
 const currentPassword = ref('')
+const logoutPassword = ref('')
 const password = ref('')
 const passwordConfirmation = ref('')
-const status = ref('')
-const error = ref('')
+const toast = useToast()
 const savingPassword = ref(false)
 const twoFactorEnabled = ref(false)
 const twoFactorSecret = ref('')
@@ -13,8 +14,8 @@ const twoFactorUri = ref('')
 const twoFactorCode = ref('')
 
 function accountFrom(response: any) { return response.data.data as Account }
-function announce(message: string) { status.value = message; error.value = '' }
-function fail(e: any) { error.value = e.errors?.current_password?.[0] || e.message || 'The request could not be completed.'; status.value = '' }
+function announce(message: string) { toast.success(message) }
+function fail(e: any) { toast.error(e.errors?.current_password?.[0] || e.message || 'The request could not be completed.') }
 
 async function load() {
   try {
@@ -24,7 +25,7 @@ async function load() {
 }
 
 async function savePassword() {
-  if (password.value !== passwordConfirmation.value) { error.value = translate('components.account.accountsettingssecurity.newPasswordConfirmationDoesNotMatch'); return }
+  if (password.value !== passwordConfirmation.value) { toast.error(translate('components.account.accountsettingssecurity.newPasswordConfirmationDoesNotMatch')); return }
   savingPassword.value = true
   try {
     await AuthApi.updatePassword({ current_password: currentPassword.value, password: password.value, password_confirmation: passwordConfirmation.value })
@@ -47,14 +48,14 @@ async function confirmTwoFactor() {
 }
 
 async function disableTwoFactor() {
-  if (!currentPassword.value) { error.value = translate('components.account.accountsettingssecurity.enterYourCurrentPasswordToDisableTwoFactorAuthentication'); return }
+  if (!currentPassword.value) { toast.error(translate('components.account.accountsettingssecurity.enterYourCurrentPasswordToDisableTwoFactorAuthentication')); return }
   try { await AuthApi.disableTwoFactor(currentPassword.value); twoFactorEnabled.value = false; announce('Two-factor authentication is disabled.') }
   catch (e: any) { fail(e) }
 }
 
 async function logoutOtherDevices() {
-  if (!currentPassword.value) { error.value = translate('components.account.accountsettingssecurity.enterYourCurrentPasswordToSignOutOtherDevices'); return }
-  try { await AuthApi.logoutOtherDevices(currentPassword.value); announce('Other devices have been signed out.') }
+  if (!logoutPassword.value) { toast.error(translate('components.account.accountsettingssecurity.enterYourCurrentPasswordToSignOutOtherDevices')); return }
+  try { await AuthApi.logoutOtherDevices(logoutPassword.value); logoutPassword.value = ''; announce('Other devices have been signed out.') }
   catch (e: any) { fail(e) }
 }
 
@@ -63,7 +64,6 @@ onMounted(load)
 
 <template>
   <VRow>
-    <VCol cols="12"><VAlert v-if="status" type="success">{{ status }}</VAlert><VAlert v-if="error" type="error">{{ error }}</VAlert></VCol>
     <VCol cols="12">
       <VCard :title="$t('common.messages.changePassword')"><VForm @submit.prevent="savePassword"><VCardText><VRow>
         <VCol cols="12" md="6"><AppTextField v-model="currentPassword" type="password" :label="$t('components.account.accountsettingssecurity.currentPassword')" name="account-security-current-password" autocomplete="new-password" data-1p-ignore data-lpignore="true" data-form-type="other" /></VCol>
@@ -79,6 +79,10 @@ onMounted(load)
         <VBtn v-if="twoFactorEnabled" color="error" variant="tonal" @click="disableTwoFactor">{{ $t('components.account.accountsettingssecurity.disableTwoFactorAuthentication') }}</VBtn>
       </VCardText></VCard>
     </VCol>
-    <VCol cols="12"><VCard :title="$t('components.account.accountsettingssecurity.sessions')"><VCardText><p>{{ $t('components.account.accountsettingssecurity.useYourCurrentPasswordAboveToSignOutAllOtherDevices') }}</p><VBtn variant="tonal" @click="logoutOtherDevices">{{ $t('components.account.accountsettingssecurity.signOutOtherDevices') }}</VBtn></VCardText></VCard></VCol>
+    <VCol cols="12"><VCard :title="$t('components.account.accountsettingssecurity.sessions')"><VForm @submit.prevent="logoutOtherDevices"><VCardText>
+      <p>{{ $t('components.account.accountsettingssecurity.enterYourCurrentPasswordToSignOutOtherDevices') }}</p>
+      <AppTextField v-model="logoutPassword" type="password" :label="$t('components.account.accountsettingssecurity.currentPassword')" name="account-security-logout-password" autocomplete="current-password" />
+      <VBtn class="mt-4" type="submit" variant="tonal">{{ $t('components.account.accountsettingssecurity.signOutOtherDevices') }}</VBtn>
+    </VCardText></VForm></VCard></VCol>
   </VRow>
 </template>

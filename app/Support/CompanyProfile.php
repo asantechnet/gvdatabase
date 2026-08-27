@@ -27,8 +27,39 @@ class CompanyProfile
 
         return [
             'address' => $setting->company_email,
-            'name' => $setting->short_company_name ?: $setting->website_title,
+            'name' => $setting->mail_from_name ?: $setting->short_company_name ?: $setting->website_title,
         ];
+    }
+
+    /** Configure and return the company SMTP mailer, or null when .env should be used. */
+    public function configureMailer(): ?string
+    {
+        $setting = $this->current();
+
+        if (! $setting?->mail_host || ! $setting->mail_port || ! $setting->mail_username || ! $setting->mail_password) {
+            return null;
+        }
+
+        $mailer = 'company_smtp';
+        config(["mail.mailers.{$mailer}" => [
+            'transport' => 'smtp',
+            'host' => $setting->mail_host,
+            'port' => (int) $setting->mail_port,
+            'scheme' => $setting->mail_encryption,
+            'username' => $setting->mail_username,
+            'password' => $setting->mail_password,
+            'timeout' => null,
+            'local_domain' => null,
+        ]]);
+
+        app('mail.manager')->purge($mailer);
+
+        return $mailer;
+    }
+
+    public function replyTo(): ?string
+    {
+        return $this->current()?->mail_reply_to;
     }
 
     public function timezone(): string

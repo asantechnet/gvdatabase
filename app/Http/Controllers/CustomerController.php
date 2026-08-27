@@ -60,7 +60,7 @@ class CustomerController extends Controller
     {
         if ($customer->invoices()->exists()) {
             return response()->json([
-                'message' => 'Customers with invoice history cannot be deleted.',
+                'code' => 'business.customer_has_invoice_history',
             ], 409);
         }
 
@@ -80,7 +80,7 @@ class CustomerController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
             'tax_number' => ['nullable', 'string', 'max:100'],
-            'marketer' => [$presence, 'string', 'max:255'],
+            'marketer' => ['nullable', 'string', 'max:255'],
             'date' => [$presence, 'date'],
         ]);
     }

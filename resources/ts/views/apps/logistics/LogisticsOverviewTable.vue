@@ -55,7 +55,7 @@ const resolveChipColor = (warning: string) => {
     </VCardItem>
 
     <VDivider />
-    <VDataTableServer
+    <ResponsiveDataTableServer
       v-model:items-per-page="itemsPerPage"
       v-model:page="page"
       :items-per-page-options="[
@@ -136,6 +136,6 @@ const resolveChipColor = (warning: string) => {
           :total-items="totalVehicles"
         />
       </template>
-    </VDataTableServer>
+    </ResponsiveDataTableServer>
   </VCard>
 </template>

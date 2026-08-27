@@ -20,16 +20,15 @@ class Income extends Model
         'description',
         'amount',
         'quantity',
-        'rate_to_base',
-        'total_amount',
+        'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',
         'date',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'quantity' => 'integer',
-        'rate_to_base' => 'decimal:6',
-        'total_amount' => 'decimal:2',
+        'rate' => 'decimal:8',
+        'base_amount' => 'decimal:4',
         'date' => 'date',
         'customer_id' => 'integer',
         'invoice_id' => 'integer',
@@ -64,12 +63,12 @@ class Income extends Model
     protected static function booted()
     {
         static::creating(function ($income) {
-            $income->total_amount = $income->amount * $income->quantity * $income->rate_to_base;
+            $income->base_amount = $income->amount * $income->quantity * $income->rate;
         });
 
         static::updating(function ($income) {
-            if ($income->isDirty(['amount', 'quantity', 'rate_to_base'])) {
-                $income->total_amount = $income->amount * $income->quantity * $income->rate_to_base;
+            if ($income->isDirty(['amount', 'quantity', 'rate'])) {
+                $income->base_amount = $income->amount * $income->quantity * $income->rate;
             }
         });
     }

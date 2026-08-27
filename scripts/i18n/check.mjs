@@ -4,17 +4,21 @@ import path from 'node:path'
 const root = process.cwd()
 const scopedRoots = [
   'resources/ts/pages', 'resources/ts/components', 'resources/ts/layouts',
-  'resources/ts/navigation', 'resources/ts/views/apps/roles/RoleCards.vue', 'resources/ts/views/pages/account-settings/AccountSettingsAccount.vue',
-  'resources/ts/views/pages/account-settings/AccountSettingsNotification.vue', 'resources/ts/views/pages/account-settings/AccountSettingsSecurity.vue',
-  'resources/ts/views/pages/account-settings/AccountDeactivationRequests.vue',
-  'resources/ts/api', 'resources/ts/utils',
+  'resources/ts/navigation', 'resources/ts/api', 'resources/ts/utils',
 ]
 const walk = directory => fs.existsSync(directory) ? fs.statSync(directory).isFile() ? [directory] : fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
   const target = path.join(directory, entry.name)
   return entry.isDirectory() ? walk(target) : [target]
 }) : []
 const files = scopedRoots.flatMap(directory => walk(path.join(root, directory))).filter(file => /\.(vue|ts)$/.test(file))
-const locales = Object.fromEntries(['en', 'fa-AF', 'ps-AF'].map(locale => [locale, JSON.parse(fs.readFileSync(path.join(root, `resources/ts/plugins/i18n/locales/${locale}.json`), 'utf8'))]))
+const locales = Object.fromEntries(['en', 'fa-AF', 'ps-AF'].map(locale => {
+  const messages = JSON.parse(fs.readFileSync(path.join(root, `resources/ts/plugins/i18n/locales/${locale}.json`), 'utf8'))
+  if (messages.legacyPages) {
+    messages.pages = { ...messages.pages, ...messages.legacyPages }
+    delete messages.legacyPages
+  }
+  return [locale, messages]
+}))
 const flatten = (object, prefix = '') => Object.entries(object).flatMap(([key, value]) => {
   const next = prefix ? `${prefix}.${key}` : key
   return value && typeof value === 'object' && !Array.isArray(value) ? flatten(value, next) : [[next, value]]

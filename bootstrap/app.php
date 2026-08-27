@@ -1,10 +1,11 @@
 <?php
 
+use App\Support\ApiMessage;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -27,12 +28,14 @@ $apiErrorCode = static function (int $status, ?string $message = null): string {
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__ . '/../routes/web.php',
-        commands: __DIR__ . '/../routes/console.php',
+        web: __DIR__.'/../routes/web.php',
+        commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
+        $middleware->append(\App\Http\Middleware\SetLocaleFromRequest::class);
+        $middleware->append(\App\Http\Middleware\LocalizeApiSuccessResponse::class);
         $middleware->append(\App\Http\Middleware\NormalizeApiErrorResponse::class);
         $middleware->alias([
             'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
@@ -45,17 +48,22 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) use ($apiErrorCode): void {
         $exceptions->render(function (ValidationException $exception, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
-                $errors = collect($exception->errors())->map(fn (array $messages) => array_map(
-                    fn (string $message) => str_starts_with($message, 'validation.') || str_starts_with($message, 'business.')
-                        ? $message
-                        : 'validation.invalid',
+                $originalErrors = $exception->errors();
+                $errors = collect($originalErrors)->map(fn (array $messages) => array_map(
+                    fn (string $message) => str_starts_with($message, 'validation.') || str_starts_with($message, 'business.') ? $message : 'validation.invalid',
                     $messages,
+                ));
+                $messages = collect($originalErrors)->map(fn (array $fieldMessages) => array_map(
+                    fn (string $message) => str_starts_with($message, 'validation.') || str_starts_with($message, 'business.') ? ApiMessage::forCode($message) : $message,
+                    $fieldMessages,
                 ));
 
                 return response()->json([
                     'success' => false,
                     'code' => 'validation_failed',
                     'errors' => $errors,
+                    'messages' => $messages,
+                    'message' => ApiMessage::forCode('validation_failed'),
                 ], 422);
             }
         });

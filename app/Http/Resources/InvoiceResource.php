@@ -10,12 +10,11 @@ class InvoiceResource extends JsonResource
     public function toArray(Request $request): array
     {
         $paidAmount = $this->incomes->sum(function ($income) {
-            if ((float) $income->rate_to_base <= 0) {
+            if ((float) $income->rate <= 0) {
                 return 0;
             }
 
-            return ((float) $income->amount * $income->quantity / (float) $income->rate_to_base)
-                * (float) $this->currency_rate;
+            return ((float) $income->base_amount / (float) $this->rate);
         });
 
         return [
@@ -40,7 +39,7 @@ class InvoiceResource extends JsonResource
             'currency' => [
                 'id' => $this->currency_id,
                 'name' => $this->currency_name,
-                'rate' => (float) $this->currency_rate,
+                'rate' => (float) $this->rate,
                 'symbol' => $this->currency_symbol,
                 'shortname' => $this->currency_shortname,
             ],
@@ -51,6 +50,7 @@ class InvoiceResource extends JsonResource
             'balance' => max(0, round((float) $this->amount - $paidAmount, 2)),
             'discount' => (float) $this->discount,
             'notes' => $this->notes,
+            'payment_detail_id' => $this->payment_detail_id,
             'payment_method' => $this->payment_method,
             'payment_instructions' => $this->payment_instructions ?? [],
             'services' => $this->services->map(fn ($service) => [
@@ -63,12 +63,12 @@ class InvoiceResource extends JsonResource
                 'source_currency' => [
                     'code' => $service->pivot->snapshot_service_currency_code,
                     'symbol' => $service->pivot->snapshot_service_currency_symbol,
-                    'rate' => (float) $service->pivot->snapshot_service_currency_rate,
+                    'rate' => (float) $service->pivot->snapshot_rate,
                 ],
                 'currency' => [
                     'id' => $this->currency_id,
                     'name' => $this->currency_name,
-                    'rate' => (float) $service->pivot->snapshot_invoice_currency_rate,
+                    'rate' => (float) $service->pivot->snapshot_rate,
                     'symbol' => $this->currency_symbol,
                     'shortname' => $this->currency_shortname,
                 ],

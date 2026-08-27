@@ -34,6 +34,7 @@ const headers = [
   { title: translate('common.messages.client'), key: 'counterparty', sortable: true },
   { title: translate('common.fields.startDate'), key: 'start_date', sortable: true },
   { title: translate('common.fields.status'), key: 'status', sortable: true },
+  { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
 ]
 
 const printTable = () => {
@@ -46,18 +47,18 @@ onMounted(() => {
 </script>
 
 <template>
+  <DataTablePageKpis :items="filtered" title="Cancelled contracts" description="Review closed agreements and keep cancellation records easy to audit." icon="tabler-file-off" />
   <VCard>
     <VCardText>
       <VRow align="center">
-        <VCol cols="12" md="4">
-          <VTextField v-model="search" prepend-inner-icon="tabler-search" :placeholder="$t('pages.contracts.cancelledContracts.cancelledContracts.searchCancelledContracts')"
+        <VCol cols="12" md="9">
+          <VTextField v-model="search" class="data-table-search" prepend-inner-icon="tabler-search" :placeholder="$t('pages.contracts.cancelledContracts.cancelledContracts.searchCancelledContracts')"
             density="compact" clearable hide-details />
         </VCol>
-        <VCol cols="12" sm="6" md="3">
-          <VSelect v-model="filterClient" :items="clients" :label="$t('pages.contracts.cancelledContracts.cancelledContracts.filterByClient')" density="compact" clearable
-            hide-details />
-        </VCol>
-        <VCol cols="12" md="2" class="text-end">
+        <VCol cols="12" md="3" class="text-end d-flex justify-end ga-2">
+          <DataTableFilterMenu :active="Boolean(filterClient)" @reset="filterClient = null">
+            <VSelect v-model="filterClient" :items="clients" :label="$t('pages.contracts.cancelledContracts.cancelledContracts.filterByClient')" density="compact" clearable hide-details />
+          </DataTableFilterMenu>
           <VBtn icon="tabler-printer" variant="text" @click="printTable" />
         </VCol>
       </VRow>
@@ -67,13 +68,13 @@ onMounted(() => {
       {{ error }}
     </VAlert>
 
-    <VDataTable :headers="headers" :items="filtered" item-value="id" class="text-no-wrap" mobile-breakpoint="sm"
-      :loading="isLoading" loading-text="Loading cancelled contracts..." style="overflow-x: auto;">
+    <ResponsiveDataTable :headers="headers" :items="filtered" item-value="id" class="text-no-wrap" mobile-breakpoint="sm"
+      :loading="isLoading" :loading-text="$t('pages.contracts.cancelledContracts.cancelledContracts.loadingCancelledContracts')" style="overflow-x: auto;">
       <template #item.contract="{ item }">
-        {{ item.contract || item.contract_template?.name || 'Untitled Contract' }}
+        {{ item.contract || item.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract') }}
       </template>
       <template #item.counterparty="{ item }">
-        {{ item.counterparty || 'Unknown Counterparty' }}
+        {{ item.counterparty || $t('pages.contracts.allContracts.allContracts.unknownCounterparty') }}
       </template>
       <template #item.start_date="{ item }">
                 {{ formatLocalizedDate(item.start_date) }}
@@ -83,7 +84,8 @@ onMounted(() => {
           {{ $t('common.statuses.cancelled') }}
         </VChip>
       </template>
-    </VDataTable>
+      <template #item.actions="{ item }"><FullDetailsButton :item="item" :title="item.contract_number || item.contract" /></template>
+    </ResponsiveDataTable>
   </VCard>
 </template>
 

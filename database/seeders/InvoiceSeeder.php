@@ -26,9 +26,10 @@ class InvoiceSeeder extends Seeder
             $pivotRows = [];
 
             foreach ($customer->services as $service) {
+                $serviceRate = max((float) ($service->currency?->rate ?? 1), 0.00000001);
+                $invoiceRate = max((float) $currency->rate, 0.00000001);
                 $convertedFee = round(
-                    ((float) $service->fee / (float) $service->currency->rate_against_base)
-                    * (float) $currency->rate_against_base,
+                    ((float) $service->fee * $serviceRate) / $invoiceRate,
                     $currency->decimal_places
                 );
                 $subtotal += $convertedFee;
@@ -38,8 +39,9 @@ class InvoiceSeeder extends Seeder
                     'snapshot_service_fee' => $service->fee,
                     'snapshot_service_currency_code' => $service->currency->code,
                     'snapshot_service_currency_symbol' => $service->currency->symbol,
-                    'snapshot_service_currency_rate' => $service->currency->rate_against_base,
-                    'snapshot_invoice_currency_rate' => $currency->rate_against_base,
+                    'snapshot_cnv_curr_shrt' => $currency->code,
+                    'snapshot_base_curr_shrt' => $currency->code,
+                    'snapshot_rate' => 1,
                     'snapshot_converted_fee' => $convertedFee,
                     'quantity' => 1,
                     'line_total' => $convertedFee,
@@ -54,9 +56,12 @@ class InvoiceSeeder extends Seeder
                 'status' => 'Issued',
                 'tax_percent' => 0,
                 'currency_name' => $currency->name,
-                'currency_rate' => $currency->rate_against_base,
                 'currency_symbol' => $currency->symbol,
                 'currency_shortname' => $currency->code,
+                'cnv_curr_shrt' => $currency->code,
+                'base_curr_shrt' => $currency->code,
+                'rate' => 1,
+                'base_amount' => $subtotal,
                 'subtotal' => $subtotal,
                 'amount' => $subtotal,
                 'discount' => 0,

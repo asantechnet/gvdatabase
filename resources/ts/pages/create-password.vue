@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AuthApi from '@/api/auth'
 import { useRoute, useRouter } from 'vue-router'
+import CreatePasswordForm from '@/components/forms/CreatePasswordForm.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,12 +38,7 @@ const submit = async () => {
       <VCardText>
         <p class="text-body-2 text-medium-emphasis mb-4">{{ $t('pages.auth.createPassword.createPassword.yourEmailIsVerifiedChooseAPasswordToFinishSettingUpYourAccount') }}</p>
         <VAlert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</VAlert>
-        <VForm @submit.prevent="submit">
-          <VTextField v-model="email" type="email" :label="$t('common.fields.email')" readonly class="mb-3" />
-          <VTextField v-model="password" :type="showPassword ? 'text' : 'password'" :label="$t('common.fields.password')" autocomplete="new-password" :append-inner-icon="showPassword ? 'tabler-eye-off' : 'tabler-eye'" class="mb-3" @click:append-inner="showPassword = !showPassword" />
-          <VTextField v-model="passwordConfirmation" :type="showPassword ? 'text' : 'password'" :label="$t('pages.auth.createPassword.createPassword.confirmPassword')" autocomplete="new-password" class="mb-4" />
-          <VBtn block type="submit" :loading="loading" :disabled="!token">{{ $t('pages.auth.createPassword.createPassword.createPassword') }}</VBtn>
-        </VForm>
+        <CreatePasswordForm v-model:password="password" v-model:password-confirmation="passwordConfirmation" :email="email" :loading="loading" :show-password="showPassword" :disabled="!token" @submit="submit" @toggle-password="showPassword = !showPassword" />
       </VCardText>
     </VCard>
   </div>

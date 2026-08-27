@@ -5,7 +5,7 @@ export interface Currency {
   name: string;
   code: string;
   symbol: string;
-  rateToBase: number;
+  rate: number;
   isBase: boolean;
   isActive: boolean;
   decimalPlaces: number;
@@ -48,13 +48,12 @@ const CurrencyApi = {
   create: async (
     data: CurrencyForm,
   ): Promise<ApiResponse<Currency>> => {
-    // Ensure rateToBase is always included and is a number
-    const rateToBase = data.isBase ? 1.0 : Number(data.rateToBase || 1.0);
+    const rate = data.isBase ? 1.0 : Number(data.rate || 1.0);
     const payload = {
       name: data.name,
       code: data.code.toUpperCase(),
       symbol: data.symbol,
-      rate_to_base: rateToBase,
+      rate,
       is_active: data.isActive,
       decimal_places: data.decimalPlaces,
       is_base: data.isBase,
@@ -76,8 +75,8 @@ const CurrencyApi = {
     if (data.name !== undefined) payload.name = data.name;
     if (data.code !== undefined) payload.code = data.code.toUpperCase();
     if (data.symbol !== undefined) payload.symbol = data.symbol;
-    if (data.rateToBase !== undefined) {
-      payload.rate_to_base = data.isBase ? 1.0 : Number(data.rateToBase);
+    if (data.rate !== undefined) {
+      payload.rate = data.isBase ? 1.0 : Number(data.rate);
     }
     if (data.isActive !== undefined) payload.is_active = data.isActive;
     if (data.decimalPlaces !== undefined)

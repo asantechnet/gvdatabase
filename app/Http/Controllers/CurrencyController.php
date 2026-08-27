@@ -26,7 +26,7 @@ class CurrencyController extends Controller
             'name' => 'required|string|max:255|unique:currencies,name',
             'code' => 'required|string|max:5|unique:currencies,code',
             'symbol' => 'nullable|string|max:5',
-            'rate_to_base' => 'required|numeric|min:0',
+            'rate' => 'required|numeric|gt:0',
             'is_base' => 'boolean',
             'is_active' => 'boolean',
             'decimal_places' => 'integer|min:0|max:6',
@@ -35,8 +35,6 @@ class CurrencyController extends Controller
         $validator->validate();
 
         $data = $validator->validated();
-        $data['rate_against_base'] = $data['rate_to_base'];
-        unset($data['rate_to_base']);
 
         $currency = DB::transaction(function () use ($data) {
             if ($data['is_base'] ?? false) {
@@ -90,7 +88,7 @@ class CurrencyController extends Controller
                 Rule::unique('currencies', 'code')->ignore($id)
             ],
             'symbol' => 'nullable|string|max:5',
-            'rate_to_base' => 'sometimes|numeric|min:0',
+            'rate' => 'sometimes|numeric|gt:0',
             'is_base' => 'boolean',
             'is_active' => 'boolean',
             'decimal_places' => 'integer|min:0|max:6',
@@ -99,10 +97,6 @@ class CurrencyController extends Controller
         $validator->validate();
 
         $data = $validator->validated();
-        if (isset($data['rate_to_base'])) {
-            $data['rate_against_base'] = $data['rate_to_base'];
-            unset($data['rate_to_base']);
-        }
 
         DB::transaction(function () use ($currency, $data) {
             if (($data['is_base'] ?? false) && ! $currency->is_base) {
@@ -130,14 +124,14 @@ class CurrencyController extends Controller
         if ($currency->is_base) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete base currency'
+                'code' => 'business.base_currency_cannot_be_deleted'
             ], 400);
         }
 
         if ($currency->invoices()->exists() || $currency->services()->exists() || $currency->salaries()->exists() || $currency->incomes()->exists() || $currency->expenses()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Currencies referenced by services, invoices, salaries, incomes, or expenses cannot be deleted.',
+                'code' => 'business.currency_in_use',
             ], 409);
         }
 
@@ -150,7 +144,7 @@ class CurrencyController extends Controller
 
     protected function setAsBaseCurrency(&$data, $currentCurrency = null)
     {
-        $newBaseRate = (float) ($currentCurrency?->rate_against_base ?? $data['rate_against_base'] ?? 1);
+        $newBaseRate = (float) ($currentCurrency?->rate ?? $data['rate'] ?? 1);
         $otherCurrencies = Currency::query()
             ->when($currentCurrency, fn ($query) => $query->where('id', '!=', $currentCurrency->id))
             ->get();
@@ -161,12 +155,12 @@ class CurrencyController extends Controller
 
         // Set this currency as base
         $data['is_base'] = true;
-        $data['rate_against_base'] = 1.0;
+        $data['rate'] = 1.0;
         $data['is_active'] = true;
 
         if ($newBaseRate > 0) {
             foreach ($otherCurrencies as $currency) {
-                $currency->rate_against_base = $currency->rate_against_base / $newBaseRate;
+                $currency->rate = $currency->rate / $newBaseRate;
                 $currency->save();
             }
         }

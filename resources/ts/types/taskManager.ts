@@ -9,7 +9,7 @@ export interface TaskTag {
 export interface TaskAssignee {
   id: string;
   name: string;
-  avatar: string;
+  avatar: string | null;
   email: string;
   contributionPercent?: number | null;
 }
@@ -44,7 +44,7 @@ export interface Task {
   boardId: string; // Maps to Kanban Column ID ('todo', 'in_progress', 'review', 'done')
   order: number; // Drag-and-drop ordering within column
   title: string;
-  description: string; // Rich HTML string from Quill Editor
+  description: string; // Rich HTML string from the TipTap editor
   priority: TaskPriority;
   startDate: string; // ISO format: 'YYYY-MM-DD'
   dueDate: string; // ISO format: 'YYYY-MM-DD'

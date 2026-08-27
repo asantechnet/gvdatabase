@@ -18,6 +18,7 @@ class TaskController extends Controller
             'board_id' => 'required|exists:boards,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'results' => 'nullable|string',
             'priority' => 'nullable|in:low,medium,high,urgent',
             'start_date' => 'nullable|date',
             'due_date' => 'nullable|date',
@@ -50,7 +51,7 @@ class TaskController extends Controller
         $board->users()->syncWithoutDetaching($assignees);
 
         // Load empty relations so the resource doesn't fail
-        $task->load(['users', 'tags', 'subtasks', 'comments', 'dependencies']);
+        $task->load(['users.employee', 'tags', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
 
         return new TaskResource($task);
     }
@@ -60,6 +61,7 @@ class TaskController extends Controller
         $validated = $request->validate([
             'title' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
+            'results' => 'nullable|string',
             'priority' => 'sometimes|in:low,medium,high,urgent',
             'progress' => 'prohibited',
             'start_date' => 'nullable|date',
@@ -119,7 +121,7 @@ class TaskController extends Controller
     public function reviewBonusInputs(Request $request, Task $task)
     {
         abort_unless($request->user()->hasPermission('edit_all_tasks'), 403, 'auth.forbidden');
-        abort_unless((int) $task->progress === 100, 422, 'Only completed tasks can receive bonus review inputs.');
+        abort_unless((int) $task->progress === 100, 422, 'business.task_bonus_review_requires_completion');
         $validated = $request->validate([
             'quality_score' => ['required', 'numeric', 'between:1,5'],
             'rejected' => ['sometimes', 'boolean'],
@@ -128,13 +130,13 @@ class TaskController extends Controller
         ]);
         $contributions = $validated['contributions'] ?? [];
         if ($contributions !== [] && abs(array_sum($contributions) - 100) > 0.01) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['contributions' => ['Contribution percentages must total 100.']]);
+            throw \Illuminate\Validation\ValidationException::withMessages(['contributions' => ['business.task_contributions_must_total_100']]);
         }
         if ($contributions !== []) {
             $assignedIds = $task->users()->pluck('users.id')->map(fn ($id) => (string) $id)->sort()->values()->all();
             $contributionIds = collect(array_keys($contributions))->map(fn ($id) => (string) $id)->sort()->values()->all();
             if ($assignedIds !== $contributionIds) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['contributions' => ['Provide one contribution percentage for every assigned user.']]);
+                throw \Illuminate\Validation\ValidationException::withMessages(['contributions' => ['business.task_contributions_assignees_mismatch']]);
             }
         }
 
@@ -147,12 +149,12 @@ class TaskController extends Controller
                 'rejected_count' => (int) $locked->rejected_count + (($validated['rejected'] ?? false) ? 1 : 0),
             ]);
             foreach ($contributions as $userId => $percent) {
-                abort_unless($locked->users()->whereKey($userId)->exists(), 422, 'Contribution user must be assigned to the task.');
+                abort_unless($locked->users()->whereKey($userId)->exists(), 422, 'business.task_contribution_user_not_assigned');
                 $locked->users()->updateExistingPivot($userId, ['contribution_percent' => $percent]);
             }
         });
 
-        return new TaskResource($task->fresh()->load(['users', 'tags', 'subtasks', 'comments', 'dependencies']));
+        return new TaskResource($task->fresh()->load(['users.employee', 'tags', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']));
     }
 
     /**

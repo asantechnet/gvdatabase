@@ -4,16 +4,21 @@ namespace App\Services;
 
 use App\Models\Attendance;
 use App\Models\Board;
+use App\Models\Company;
 use App\Models\Contract;
 use App\Models\Currency;
 use App\Models\Customer;
+use App\Models\CustomerService;
+use App\Models\DailyReport;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
 use App\Models\Invoice;
 use App\Models\Office;
+use App\Models\PaidTimeOff;
 use App\Models\Salary;
 use App\Models\Setting;
+use App\Models\Stock;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Visitor;
@@ -56,9 +61,9 @@ class ReportService
         abort_unless($this->canView($user, $type), 403, 'You are not authorized to view this report.');
         [$start, $end] = $this->range($filters);
         $sections = match ($type) {
-            'financial' => $this->financial($filters, $start, $end),
+            'financial' => $this->financial($filters, $start, $end, $user),
             'payroll' => $this->payroll($filters, $start, $end, $user),
-            'attendance' => $this->attendance($filters, $start, $end),
+            'attendance' => $this->attendance($filters, $start, $end, $user),
             'operations' => $this->operations($filters, $start, $end, $user),
         };
         $setting = Setting::query()->latest('id')->first();
@@ -105,45 +110,70 @@ class ReportService
         return $type === 'financial' ? $user->hasPermission('export_financial_reports') : $this->canView($user, $type);
     }
 
-    private function financial(array $filters, Carbon $start, Carbon $end): array
+    private function financial(array $filters, Carbon $start, Carbon $end, User $user): array
     {
         $invoiceQuery = Invoice::query()->with('customer')->whereBetween('created_at', [$start->copy()->utc(), $end->copy()->utc()])
             ->when($filters['customer_id'] ?? null, fn (Builder $q, $id) => $q->where('customer_id', $id))
             ->when($filters['currency_id'] ?? null, fn (Builder $q, $id) => $q->where('currency_id', $id))
             ->when($filters['status'] ?? null, fn (Builder $q, $status) => $q->where('status', $status));
-        $paid = Income::query()->whereNotNull('invoice_id')->selectRaw('invoice_id, SUM(total_amount) AS paid_base')->groupBy('invoice_id')->pluck('paid_base', 'invoice_id');
+        $paid = Income::query()
+            ->whereNotNull('invoice_id')
+            ->selectRaw('invoice_id, base_curr_shrt, SUM(base_amount) AS paid_base')
+            ->groupBy('invoice_id', 'base_curr_shrt')
+            ->get()
+            ->groupBy('invoice_id')
+            ->map(fn (Collection $rows) => $rows->pluck('paid_base', 'base_curr_shrt'));
         $invoices = $invoiceQuery->latest()->get()->map(function (Invoice $invoice) use ($paid) {
-            $base = round((float) $invoice->amount * (float) $invoice->currency_rate, 4);
-            $paidBase = min($base, (float) ($paid[$invoice->id] ?? 0));
+            $base = round((float) $invoice->base_amount, 4);
+            $paidBase = min($base, (float) ($paid[$invoice->id][$invoice->base_curr_shrt] ?? 0));
             return [
                 'number' => $invoice->invoice_number, 'date' => $invoice->created_at?->toDateString(),
                 'customer' => $invoice->customer?->name ?? $invoice->deptor, 'status' => $invoice->status,
                 'amount' => (float) $invoice->amount, 'currency' => $invoice->currency_shortname,
-                'rate_to_base' => (float) $invoice->currency_rate, 'base_amount' => $base,
+                'base_currency' => $invoice->base_curr_shrt, 'rate' => (float) $invoice->rate, 'base_amount' => $base,
                 'paid_base' => round($paidBase, 4), 'outstanding_base' => round(max(0, $base - $paidBase), 4),
             ];
         });
         $income = $this->cashRows(Income::query(), $filters, $start, $end, 'incomeCurrency')->map(fn (Income $row) => $this->cashRow($row));
         $expenses = $this->cashRows(Expense::query(), $filters, $start, $end, 'expenseCurrency')->map(fn (Expense $row) => $this->cashRow($row));
-        $invoiceBase = (float) $invoices->sum('base_amount');
-        $incomeBase = (float) $income->sum('base_amount');
-        $expenseBase = (float) $expenses->sum('base_amount');
+        $invoiceBase = $this->byBaseCurrency($invoices, 'base_amount');
+        $incomeBase = $this->byBaseCurrency($income, 'base_amount');
+        $expenseBase = $this->byBaseCurrency($expenses, 'base_amount');
+        $netBase = $this->netByBaseCurrency($incomeBase, $expenseBase);
 
-        return [
-            $this->section('invoices', ['number', 'date', 'customer', 'status', 'amount', 'currency', 'rate_to_base', 'base_amount', 'paid_base', 'outstanding_base'], $invoices, [
-                'count' => $invoices->count(), 'base_amount' => round($invoiceBase, 4),
-                'outstanding_base' => round((float) $invoices->sum('outstanding_base'), 4), 'by_currency' => $this->byCurrency($invoices),
+        $sections = [
+            $this->section('invoices', ['number', 'date', 'customer', 'status', 'amount', 'currency', 'base_currency', 'rate', 'base_amount', 'paid_base', 'outstanding_base'], $invoices, [
+                'count' => $invoices->count(), 'base_amount_by_base' => $invoiceBase,
+                'outstanding_by_base' => $this->byBaseCurrency($invoices, 'outstanding_base'), 'by_currency' => $this->byCurrency($invoices),
             ]),
-            $this->section('income', ['date', 'reference', 'customer', 'type', 'description', 'amount', 'quantity', 'currency', 'rate_to_base', 'base_amount'], $income, [
-                'count' => $income->count(), 'base_amount' => round($incomeBase, 4), 'by_currency' => $this->byCurrency($income),
+            $this->section('income', ['date', 'reference', 'customer', 'type', 'description', 'amount', 'quantity', 'currency', 'base_currency', 'rate', 'base_amount'], $income, [
+                'count' => $income->count(), 'base_amount_by_base' => $incomeBase, 'by_currency' => $this->byCurrency($income),
             ]),
-            $this->section('expenses', ['date', 'customer', 'type', 'description', 'amount', 'quantity', 'currency', 'rate_to_base', 'base_amount'], $expenses, [
-                'count' => $expenses->count(), 'base_amount' => round($expenseBase, 4), 'by_currency' => $this->byCurrency($expenses),
+            $this->section('expenses', ['date', 'customer', 'type', 'description', 'amount', 'quantity', 'currency', 'base_currency', 'rate', 'base_amount'], $expenses, [
+                'count' => $expenses->count(), 'base_amount_by_base' => $expenseBase, 'by_currency' => $this->byCurrency($expenses),
             ]),
             $this->section('net_cash_flow', ['income_base', 'expense_base', 'net_base'], collect([[
-                'income_base' => round($incomeBase, 4), 'expense_base' => round($expenseBase, 4), 'net_base' => round($incomeBase - $expenseBase, 4),
-            ]]), ['invoiced_base' => round($invoiceBase, 4), 'net_base' => round($incomeBase - $expenseBase, 4)]),
+                'income_base' => $incomeBase, 'expense_base' => $expenseBase, 'net_base' => $netBase,
+            ]]), ['invoiced_base' => $invoiceBase, 'net_base' => $netBase]),
         ];
+
+        if ($user->hasPermission('view_stocks')) {
+            $stock = Stock::query()->with(['office:id,name', 'staff:id,name'])
+                ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->where('office_id', $id))
+                ->orderBy('item')->get()->map(fn (Stock $row) => [
+                    'item' => $row->item, 'model' => $row->model, 'serial_number' => $row->serial_number,
+                    'office' => $row->office?->name, 'assigned_to' => $row->staff?->name,
+                    'condition' => $row->condition, 'quantity' => (int) $row->quantity,
+                    'unit_price' => (float) $row->price, 'asset_value' => round((float) $row->price * (int) $row->quantity, 2),
+                ]);
+            $sections[] = $this->section('stock_assets', ['item', 'model', 'serial_number', 'office', 'assigned_to', 'condition', 'quantity', 'unit_price', 'asset_value'], $stock, [
+                'records' => $stock->count(), 'units' => (int) $stock->sum('quantity'),
+                'asset_value' => round((float) $stock->sum('asset_value'), 2),
+                'needs_attention' => $stock->whereIn('condition', ['poor', 'damaged'])->sum('quantity'),
+            ]);
+        }
+
+        return $sections;
     }
 
     private function payroll(array $filters, Carbon $start, Carbon $end, User $user): array
@@ -156,7 +186,7 @@ class ReportService
                 ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('employee', fn (Builder $e) => $e->where('office_id', $id)))
                 ->when($filters['currency_id'] ?? null, fn (Builder $q, $id) => $q->where('currency_id', $id))->latest('payment_date')->get()
                 ->map(function (Salary $salary) {
-                    $rate = (float) ($salary->exchange_rate_to_base ?: 1);
+                    $rate = (float) ($salary->rate ?: 1);
                     $deductions = (float) $salary->deductions->sum('amount');
                     return [
                         'payslip' => $salary->payslip_number, 'payment_date' => $salary->payment_date?->format('Y-m-d'),
@@ -164,22 +194,20 @@ class ReportService
                         'office' => $salary->employee?->office?->name, 'amount' => (float) $salary->amount_paid,
                         'bonus' => (float) $salary->bonus, 'deductions' => $deductions,
                         'net_amount' => (float) $salary->total_amount - $deductions, 'currency' => $salary->currency_code,
-                        'rate_to_base' => $rate, 'base_amount' => (float) ($salary->total_amount_base ?? ((float) $salary->total_amount * $rate)),
+                        'base_currency' => $salary->base_curr_shrt, 'rate' => $rate, 'base_amount' => (float) $salary->base_amount,
                         'deductions_base' => round($deductions * $rate, 4),
                     ];
                 });
-            $sections[] = $this->section('salary_payments', ['payslip', 'payment_date', 'salary_month', 'employee', 'office', 'amount', 'bonus', 'deductions', 'net_amount', 'currency', 'rate_to_base', 'base_amount', 'deductions_base'], $salaries, [
-                'count' => $salaries->count(), 'base_amount' => round((float) $salaries->sum('base_amount'), 4),
-                'deductions_base' => round((float) $salaries->sum('deductions_base'), 4), 'by_currency' => $this->byCurrency($salaries),
+            $sections[] = $this->section('salary_payments', ['payslip', 'payment_date', 'salary_month', 'employee', 'office', 'amount', 'bonus', 'deductions', 'net_amount', 'currency', 'base_currency', 'rate', 'base_amount', 'deductions_base'], $salaries, [
+                'count' => $salaries->count(), 'base_amount_by_base' => $this->byBaseCurrency($salaries, 'base_amount'),
+                'deductions_by_base' => $this->byBaseCurrency($salaries, 'deductions_base'), 'by_currency' => $this->byCurrency($salaries),
             ]);
         }
         if ($user->hasPermission('view_bonuses')) {
+            $baseCurrency = Currency::query()->where('is_base', true)->first() ?? Currency::query()->orderBy('id')->first();
             $bonuses = WorthyEmployee::query()->with(['employee.office'])->whereBetween('bonus_month', [$start->toDateString(), $end->toDateString()])
                 ->when($filters['employee_id'] ?? null, fn (Builder $q, $id) => $q->where('employee_id', $id))
                 ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('employee', fn (Builder $e) => $e->where('office_id', $id)))
-                ->when($filters['currency_id'] ?? null, fn (Builder $q, $id) => $q->where(function (Builder $currency) use ($id) {
-                    $currency->where('granted_currency_id', $id)->orWhere('selected_currency_id', $id)->orWhere('currency_id', $id);
-                }))
                 ->when(isset($filters['status']), fn (Builder $q) => $q->where('is_granted', $filters['status'] === 'granted'))
                 ->latest('bonus_month')->get()->map(fn (WorthyEmployee $bonus) => [
                     'month' => $bonus->bonus_month?->format('Y-m-d'), 'employee' => $bonus->employee?->name,
@@ -187,19 +215,53 @@ class ReportService
                     'performance_score' => (float) $bonus->performance_score, 'achievement_details' => $bonus->achievement_details,
                     'status' => $bonus->is_granted ? 'granted' : 'pending',
                     'amount' => (float) ($bonus->granted_amount ?? $bonus->selected_amount),
-                    'currency' => $bonus->granted_currency_code ?? $bonus->selected_currency_code,
-                    'rate_to_base' => (float) ($bonus->granted_rate_to_base ?? $bonus->selected_rate_to_base),
-                    'base_amount' => (float) ($bonus->granted_base_amount ?? $bonus->selected_base_amount),
+                    'currency' => $baseCurrency?->code ?? 'BASE',
+                    'base_currency' => $baseCurrency?->code ?? 'BASE',
+                    'rate' => 1.0,
+                    'base_amount' => (float) ($bonus->granted_amount ?? $bonus->selected_amount),
                     'source' => $bonus->is_automatic ? 'automatic_task_nomination' : 'manual_nomination',
                 ]);
-            $sections[] = $this->section('bonuses', ['month', 'employee', 'office', 'reason', 'performance_score', 'achievement_details', 'status', 'amount', 'currency', 'rate_to_base', 'base_amount', 'source'], $bonuses, [
-                'count' => $bonuses->count(), 'base_amount' => round((float) $bonuses->sum('base_amount'), 4), 'by_currency' => $this->byCurrency($bonuses),
+            $sections[] = $this->section('bonuses', ['month', 'employee', 'office', 'reason', 'performance_score', 'achievement_details', 'status', 'amount', 'currency', 'base_currency', 'base_amount', 'source'], $bonuses, [
+                'count' => $bonuses->count(), 'base_amount_by_base' => $this->byBaseCurrency($bonuses, 'base_amount'), 'by_currency' => $this->byCurrency($bonuses),
+            ]);
+        }
+
+        if ($user->hasPermission('view_employees')) {
+            $employees = Employee::selectable()->with(['office:id,name', 'position:id,title'])
+                ->whereBetween('join_date', [$start->toDateString(), $end->toDateString()])
+                ->when($filters['employee_id'] ?? null, fn (Builder $q, $id) => $q->whereKey($id))
+                ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->where('office_id', $id))
+                ->latest('join_date')->get()->map(fn (Employee $row) => [
+                    'join_date' => $row->join_date?->format('Y-m-d'), 'employee' => $row->name,
+                    'office' => $row->office?->name, 'position' => $row->position?->title,
+                    'department' => $row->department, 'employment_type' => $row->employment_type,
+                ]);
+            $sections[] = $this->section('employee_roster', ['join_date', 'employee', 'office', 'position', 'department', 'employment_type'], $employees, [
+                'joined_in_period' => $employees->count(),
+                'company_headcount' => Employee::selectable()->count(),
+            ]);
+        }
+
+        if ($user->hasPermission('view_paid_time_off')) {
+            $leave = PaidTimeOff::query()->with(['employee.office:id,name'])
+                ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+                ->when($filters['employee_id'] ?? null, fn (Builder $q, $id) => $q->where('employee_id', $id))
+                ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('employee', fn (Builder $e) => $e->where('office_id', $id)))
+                ->latest('date')->get()->map(fn (PaidTimeOff $row) => [
+                    'date' => $row->date?->format('Y-m-d'), 'employee' => $row->employee?->name,
+                    'office' => $row->employee?->office?->name, 'reason' => $row->reason,
+                    'status' => $row->is_granted ? 'granted' : 'pending',
+                    'classification' => $row->is_paid === null ? 'unclassified' : ($row->is_paid ? 'paid' : 'unpaid'),
+                ]);
+            $sections[] = $this->section('paid_time_off', ['date', 'employee', 'office', 'reason', 'status', 'classification'], $leave, [
+                'requests' => $leave->count(), 'granted' => $leave->where('status', 'granted')->count(),
+                'pending' => $leave->where('status', 'pending')->count(), 'unpaid' => $leave->where('classification', 'unpaid')->count(),
             ]);
         }
         return $sections;
     }
 
-    private function attendance(array $filters, Carbon $start, Carbon $end): array
+    private function attendance(array $filters, Carbon $start, Carbon $end, User $user): array
     {
         $rows = Attendance::query()->with(['staff.office', 'office'])->whereBetween('date', [$start->toDateString(), $end->toDateString()])
             ->when($filters['employee_id'] ?? null, fn (Builder $q, $id) => $q->where('employee_id', $id))
@@ -219,12 +281,30 @@ class ReportService
                 'overnight' => (bool) $row->is_overnight_shift,
             ]);
 
-        return [$this->section('attendance', ['date', 'employee', 'office', 'status', 'check_in_utc', 'check_out_utc', 'gross_minutes', 'break_minutes', 'worked_minutes', 'required_minutes', 'late_minutes', 'early_minutes', 'overtime_minutes', 'punch_state', 'overnight'], $rows, [
+        $sections = [$this->section('attendance', ['date', 'employee', 'office', 'status', 'check_in_utc', 'check_out_utc', 'gross_minutes', 'break_minutes', 'worked_minutes', 'required_minutes', 'late_minutes', 'early_minutes', 'overtime_minutes', 'punch_state', 'overnight'], $rows, [
             'records' => $rows->count(), 'present' => $rows->where('status', 'present')->count(),
             'absent' => $rows->where('status', 'absent')->count(), 'paid_leave' => $rows->where('status', 'paid-off-day')->count(),
             'incomplete' => $rows->where('status', 'present')->where('punch_state', '!=', 'none')->count(),
             'worked_minutes' => (int) $rows->sum('worked_minutes'), 'overtime_minutes' => (int) $rows->sum('overtime_minutes'),
         ])];
+
+        $dailyReports = DailyReport::query()->with(['user.employee.office:id,name'])
+            ->whereBetween('report_date', [$start->toDateString(), $end->toDateString()])
+            ->when($filters['employee_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('user.employee', fn (Builder $e) => $e->whereKey($id)))
+            ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('user.employee', fn (Builder $e) => $e->where('office_id', $id)))
+            ->latest('report_date')->get()->map(fn (DailyReport $row) => [
+                'date' => $row->report_date?->format('Y-m-d'),
+                'employee' => $row->user?->employee?->name ?? $row->user?->name,
+                'office' => $row->user?->employee?->office?->name,
+                'summary' => $row->summary, 'achievements' => $row->achievements,
+                'challenges' => $row->challenges, 'support_needed' => $row->support_needed,
+            ]);
+        $sections[] = $this->section('daily_reports', ['date', 'employee', 'office', 'summary', 'achievements', 'challenges', 'support_needed'], $dailyReports, [
+            'submitted' => $dailyReports->count(),
+            'support_requested' => $dailyReports->filter(fn (array $row) => filled($row['support_needed']))->count(),
+        ]);
+
+        return $sections;
     }
 
     private function operations(array $filters, Carbon $start, Carbon $end, User $user): array
@@ -246,6 +326,34 @@ class ReportService
                 ->when($filters['customer_id'] ?? null, fn (Builder $q, $id) => $q->whereKey($id))->latest('date')->get()
                 ->map(fn (Customer $row) => ['date' => $row->date?->format('Y-m-d'), 'name' => $row->name, 'company' => $row->company, 'contact' => $row->contact, 'marketer' => $row->marketer]);
             $sections[] = $this->section('customers', ['date', 'name', 'company', 'contact', 'marketer'], $rows, ['count' => $rows->count()]);
+
+            $services = CustomerService::query()->with(['customer:id,name,company', 'service:id,type', 'currency:id,code'])
+                ->where(function (Builder $q) use ($start, $end) {
+                    $q->whereBetween('created_at', [$start->copy()->utc(), $end->copy()->utc()])
+                        ->orWhereBetween('deadline', [$start->toDateString(), $end->toDateString()]);
+                })
+                ->when($filters['customer_id'] ?? null, fn (Builder $q, $id) => $q->where('customer_id', $id))
+                ->when($filters['status'] ?? null, fn (Builder $q, $status) => $q->where('status', $status))
+                ->latest('deadline')->get()->map(fn (CustomerService $row) => [
+                    'customer' => $row->customer?->company ?: $row->customer?->name,
+                    'service' => $row->service?->type, 'status' => $row->status,
+                    'deadline' => $row->deadline?->format('Y-m-d'), 'fee' => $row->fee === null ? null : (float) $row->fee,
+                    'currency' => $row->currency?->code,
+                ]);
+            $sections[] = $this->section('customer_services', ['customer', 'service', 'status', 'deadline', 'fee', 'currency'], $services, [
+                'commitments' => $services->count(), 'active' => $services->where('status', 'active')->count(),
+            ]);
+        }
+        if ($user->hasPermission('view_companies')) {
+            $companies = Company::query()->whereBetween('created_at', [$start->copy()->utc(), $end->copy()->utc()])
+                ->latest()->get()->map(fn (Company $row) => [
+                    'company' => $row->trade_name ?: $row->legal_name, 'industry' => $row->industry,
+                    'city' => $row->city, 'contact' => $row->phone ?: $row->email,
+                    'representative' => $row->representative_name, 'status' => $row->is_active ? 'active' : 'inactive',
+                ]);
+            $sections[] = $this->section('companies', ['company', 'industry', 'city', 'contact', 'representative', 'status'], $companies, [
+                'count' => $companies->count(), 'active' => $companies->where('status', 'active')->count(),
+            ]);
         }
         if ($user->hasPermission('view_visitors')) {
             $rows = Visitor::query()->whereBetween('date', [$start->toDateString(), $end->toDateString()])->latest('date')->get()
@@ -290,8 +398,10 @@ class ReportService
             'date' => $row->date?->format('Y-m-d'), 'reference' => $row instanceof Income ? $row->receipt_number : null,
             'customer' => $row->customer?->name, 'type' => $row->type, 'description' => $row->description,
             'amount' => (float) $row->amount, 'quantity' => (int) $row->quantity,
-            'currency' => $currency?->code ?? 'UNK', 'rate_to_base' => (float) $row->rate_to_base,
-            'base_amount' => (float) $row->total_amount,
+            'currency' => $currency?->code ?? $row->cnv_curr_shrt ?? 'UNK',
+            'base_currency' => $row->base_curr_shrt,
+            'rate' => (float) $row->rate,
+            'base_amount' => (float) $row->base_amount,
         ];
     }
 
@@ -303,6 +413,21 @@ class ReportService
     private function byCurrency(Collection $rows): array
     {
         return $rows->groupBy(fn (array $row) => $row['currency'] ?: 'UNK')->map(fn (Collection $items) => round((float) $items->sum(fn (array $row) => ((float) ($row['amount'] ?? 0)) * ((int) ($row['quantity'] ?? 1))), 4))->all();
+    }
+
+    private function byBaseCurrency(Collection $rows, string $amountKey): array
+    {
+        return $rows
+            ->groupBy(fn (array $row) => $row['base_currency'] ?: 'UNK')
+            ->map(fn (Collection $items) => round((float) $items->sum(fn (array $row) => (float) ($row[$amountKey] ?? 0)), 4))
+            ->all();
+    }
+
+    private function netByBaseCurrency(array $income, array $expenses): array
+    {
+        return collect(array_unique([...array_keys($income), ...array_keys($expenses)]))
+            ->mapWithKeys(fn (string $base) => [$base => round((float) ($income[$base] ?? 0) - (float) ($expenses[$base] ?? 0), 4)])
+            ->all();
     }
 
     private function range(array $filters): array

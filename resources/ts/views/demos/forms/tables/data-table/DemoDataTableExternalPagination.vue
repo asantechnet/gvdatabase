@@ -34,7 +34,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <VDataTable
+  <ResponsiveDataTable
     :headers="headers"
     :items="userList"
     :items-per-page="options.itemsPerPage"
@@ -93,5 +93,5 @@ onMounted(() => {
         </div>
       </VCardText>
     </template>
-  </VDataTable>
+  </ResponsiveDataTable>
 </template>

@@ -1,9 +1,10 @@
 <template>
-  <div class="payslip-container print-document" ref="payslipContainerRef" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'">
+  <div class="payslip-container print-document" :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale) }" ref="payslipContainerRef" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'">
     <!-- Corporate Header -->
     <header class="payslip-header">
       <div class="company-info">
         <div class="brand-wrapper">
+          <img v-if="company.logo" :src="company.logo" :alt="company.name" class="company-logo" />
           <h1 class="company-name">{{ company.name }}</h1>
           <span class="brand-badge">{{ company.brandName }}</span>
         </div>
@@ -139,8 +140,9 @@
         <span>{{ $t('documents.payslip_template.payslipTemplate.hrPayrollOfficer') }}</span>
       </div>
       <div class="signature-box">
+        <img v-if="company.signature" :src="company.signature" :alt="$t('documents.payslip_template.payslipTemplate.companySignature')" class="company-signature" />
         <div class="signature-line"></div>
-        <span>{{ $t('documents.payslip_template.payslipTemplate.financeDirectorApproval') }}</span>
+        <span>{{ $t('documents.payslip_template.payslipTemplate.companySignature') }}</span>
       </div>
     </footer>
 
@@ -161,6 +163,8 @@ export interface Company {
   email: string
   phone: string
   tinNumber?: string
+  logo?: string
+  signature?: string
 }
 
 export interface Employee {
@@ -246,12 +250,17 @@ const printSalarySlip = () => {
     return
   }
 
+  const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+    .map(element => element.outerHTML)
+    .join('\n')
+
   // Self-contained A4 Print Stylesheet with 180mm printable width protection
   const htmlContent = `
     <!DOCTYPE html>
     <html lang="${document.documentElement.lang}" dir="${document.documentElement.dir}">
       <head>
         <title>Payslip - ${props.employee.name} - ${props.employee.payPeriod}</title>
+        ${styles}
         <style>
           @page {
             size: A4 portrait;
@@ -277,6 +286,12 @@ const printSalarySlip = () => {
             max-width: 100%;
             margin: 0 auto;
           }
+          .payslip-container.persian-document {
+            font-family: Vazirmatn, 'Public Sans', sans-serif;
+          }
+          .payslip-container[dir="rtl"] { direction: rtl; text-align: right; }
+          .payslip-container[dir="rtl"] .document-title,
+          .payslip-container[dir="rtl"] .text-right { text-align: left !important; }
           .payslip-header {
             display: flex;
             justify-content: space-between;
@@ -291,6 +306,7 @@ const printSalarySlip = () => {
             gap: 8px;
             margin-bottom: 4px;
           }
+          .company-logo { width: 44px; height: 44px; object-fit: contain; flex: 0 0 auto; }
           .company-name {
             font-size: 16pt;
             font-weight: 800;
@@ -468,6 +484,7 @@ const printSalarySlip = () => {
             border-top: 1px solid #475569;
             margin-bottom: 6px;
           }
+          .company-signature { display: block; max-width: 120px; max-height: 45px; object-fit: contain; margin: 0 auto 6px; }
           .signature-box span {
             font-size: 8pt;
             color: #475569;
@@ -518,6 +535,10 @@ defineExpose({
   box-sizing: border-box;
 }
 
+.payslip-container.persian-document {
+  font-family: Vazirmatn, 'Public Sans', sans-serif;
+}
+
 .payslip-header {
   display: flex;
   justify-content: space-between;
@@ -532,6 +553,13 @@ defineExpose({
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
+}
+
+.company-logo {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  flex: 0 0 auto;
 }
 
 .company-name {
@@ -734,6 +762,14 @@ defineExpose({
   margin-bottom: 6px;
 }
 
+.company-signature {
+  display: block;
+  max-width: 140px;
+  max-height: 55px;
+  object-fit: contain;
+  margin: 0 auto 6px;
+}
+
 .signature-box span {
   font-size: 11px;
   color: #475569;
@@ -750,5 +786,10 @@ defineExpose({
 .compliance-footer p {
   font-size: 11px;
   color: #64748b;
+}
+
+[dir='rtl'] .document-title,
+[dir='rtl'] .text-right {
+  text-align: left !important;
 }
 </style>

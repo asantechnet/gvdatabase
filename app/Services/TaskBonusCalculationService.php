@@ -46,17 +46,10 @@ class TaskBonusCalculationService
                     'employee_id' => $employee->id, 'source_task_id' => null, 'is_automatic' => true, 'calculation_key' => $key,
                     'calculation_score' => $score, 'calculation_inputs' => ['tasks' => $items->values()->all(), 'formula' => 'sum(task_score) × amount_per_point, capped by maximum_monthly_bonus'],
                     'rule_snapshot' => ['id' => $ruleSet->id, 'version' => $ruleSet->version, 'rules' => $ruleSet->rules], 'calculated_at' => now('UTC'),
-                    'currency_id' => $currency->id, 'currency_code' => $currency->code, 'currency_name' => $currency->name,
-                    'currency_symbol' => $currency->symbol, 'currency_decimal_places' => $currency->decimal_places,
                     'performance_score' => round((float) $items->avg('quality_score'), 1), 'eligibility_reason' => 'Project Milestone',
                     'achievement_details' => $this->explanation($items, $score, $amount, $currency->code),
-                    'suggested_amount' => $amount, 'suggested_rate_to_base' => $currency->rate_against_base, 'suggested_base_amount' => $amount,
-                    'selected_amount' => $amount, 'selected_currency_id' => $currency->id, 'selected_currency_code' => $currency->code,
-                    'selected_currency_name' => $currency->name, 'selected_currency_symbol' => $currency->symbol,
-                    'selected_currency_decimal_places' => $currency->decimal_places, 'selected_rate_to_base' => $currency->rate_against_base,
-                    'selected_base_amount' => $amount, 'selected_type' => 'Project Completion', 'is_granted' => false,
-                    'bonus_month' => "{$month}-01", 'currency_snapshot_source' => 'recorded_at_calculation',
-                    'currency_snapshot_note' => 'Calculated in the base currency. Grant approval is required before payroll inclusion.',
+                    'suggested_amount' => $amount, 'selected_amount' => $amount, 'selected_type' => 'Project Completion', 'is_granted' => false,
+                    'bonus_month' => "{$month}-01",
                 ];
                 if ($row) { $row->update($payload); $updated++; } else { $row = WorthyEmployee::create($payload); $created++; }
                 $this->notifyReviewers($row, $month);
@@ -68,8 +61,7 @@ class TaskBonusCalculationService
             ->where('is_granted', false)->whereDoesntHave('salaries')->get();
         foreach ($stale as $row) {
             $row->update([
-                'calculation_score' => 0, 'suggested_amount' => 0, 'suggested_base_amount' => 0,
-                'selected_amount' => 0, 'selected_base_amount' => 0,
+                'calculation_score' => 0, 'suggested_amount' => 0, 'selected_amount' => 0,
                 'achievement_details' => 'This nomination is no longer eligible after recalculation. The original calculation evidence remains in its audit history.',
                 'calculated_at' => now('UTC'),
             ]);

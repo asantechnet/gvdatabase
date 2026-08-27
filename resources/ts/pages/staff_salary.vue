@@ -8,8 +8,9 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import SettingApi, { type Setting } from '@/api/setting'
 import { apiFieldErrors } from '@/utils/apiErrors'
+import { printDocument } from '@/utils/printDocument'
+import PrintableListReport from '@/components/PrintableListReport.vue'
 import { avatarText } from '@/@core/utils/formatters'
-import type { CurrencySnapshot } from '@/api/bonuslist'
 
 interface FormError {
   field: string
@@ -35,6 +36,7 @@ const isLoading = ref(false)
 // Payslip Printing Reference & State
 const payslipRef = ref<InstanceType<typeof PayslipTemplate> | null>(null)
 const activePayslipProps = ref<SalarySlipProps | null>(null)
+const isPayslipPreviewOpen = ref(false)
 
 const salaryForm = ref({
   id: null as number | null,
@@ -42,6 +44,7 @@ const salaryForm = ref({
   employeeName: '',
   salaryMonth: new Date().toISOString().slice(0, 7),
   currency_id: null as number | null,
+  rate: 1,
   amountPaid: 0,
   bonus: 0,
   workedDays: 30,
@@ -81,16 +84,14 @@ const formDeductionTotal = computed(() => salaryForm.value.deductions.reduce((su
 const formNetAmount = computed(() => salaryForm.value.totalAmount - formDeductionTotal.value)
 
 const defaultCurrencyId = () => currencies.value.find(currency => currency.isBase)?.id ?? currencies.value[0]?.id ?? null
-const selectedFormCurrency = computed(() => currencies.value.find(currency => currency.id === salaryForm.value.currency_id) ?? null)
+const selectedFormCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? null)
 
-const convertedBonusAmount = (bonus: WorthyEmployee, currency = selectedFormCurrency.value) => {
-  const baseAmount = Number(bonus.grantedBaseAmount ?? 0)
-  const rate = Number(currency?.rateToBase ?? 0)
-
-  return rate > 0 ? baseAmount / rate : 0
+const convertedBonusAmount = (bonus: WorthyEmployee, _currency = selectedFormCurrency.value) => {
+  const baseAmount = Number(bonus.grantedAmount ?? bonus.selectedAmount ?? 0)
+  return baseAmount
 }
 
-const formatSalaryAmount = (amount: number, currency?: Salary['currency'] | CurrencySnapshot | null) => {
+const formatSalaryAmount = (amount: number, currency?: Salary['currency'] | Currency | null) => {
   const decimalPlaces = currency?.decimalPlaces ?? 2
   const formattedAmount = formatLocalizedNumber(Number(amount || 0), {
     minimumFractionDigits: decimalPlaces,
@@ -232,6 +233,8 @@ const printEmployeePayslip = async (salary: Salary) => {
       email: companySetting.value?.company_email || '',
       phone: companySetting.value?.phone || '',
       tinNumber: companySetting.value?.business_licence || undefined,
+      logo: companySetting.value?.website_logo_url || undefined,
+      signature: companySetting.value?.company_signature_url || undefined,
     },
     employee: {
       name: salary.employeeName,
@@ -255,11 +258,11 @@ const printEmployeePayslip = async (salary: Salary) => {
     amountInWords: formatAmountInWords(salary.totalAmount - mofTax, salary.currency?.code ?? 'AFN')
   }
 
+  isPayslipPreviewOpen.value = true
   await nextTick()
-  if (payslipRef.value) {
-    payslipRef.value.print()
-  }
 }
+
+const printPreviewedPayslip = () => payslipRef.value?.print()
 
 const openAddSalaryDialog = () => {
   salaryForm.value = {
@@ -268,6 +271,7 @@ const openAddSalaryDialog = () => {
     employeeName: '',
     salaryMonth: new Date().toISOString().slice(0, 7),
     currency_id: defaultCurrencyId(),
+    rate: 1,
     amountPaid: 0,
     bonus: 0,
     workedDays: 30,
@@ -290,6 +294,7 @@ const openEditSalaryDialog = (salary: Salary) => {
     employee_id: salary.employee_id,
     employeeName: salary.employeeName,
     currency_id: salary.currencyId,
+    rate: 1,
     salaryMonth: salary.salaryMonth,
     amountPaid: salary.amountPaid,
     bonus: salary.bonus,
@@ -370,6 +375,7 @@ const addSalary = async () => {
     const payload: CreateSalaryData = {
       employee_id: salaryForm.value.employee_id!,
       currency_id: salaryForm.value.currency_id!,
+      rate: 1,
       salaryMonth: salaryForm.value.salaryMonth,
       amountPaid: salaryForm.value.amountPaid,
       workedDays: salaryForm.value.workedDays,
@@ -400,6 +406,7 @@ const updateSalary = async () => {
     const payload: UpdateSalaryData = {
       employee_id: salaryForm.value.employee_id ?? undefined,
       currency_id: salaryForm.value.currency_id ?? undefined,
+      rate: 1,
       salaryMonth: salaryForm.value.salaryMonth,
       amountPaid: salaryForm.value.amountPaid,
       workedDays: salaryForm.value.workedDays,
@@ -457,6 +464,11 @@ const applySalaryApiErrors = (error: unknown) => {
 }
 
 const printTable = () => {
+  void printDocument({ bodyClass: 'printing-table-salaries', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+
+  // Kept as a server-side fallback only; browser printing is handled above.
+  if (typeof window === 'undefined') {
+
   const printWindow = window.open('', '_blank')
   if (printWindow) {
     const html = `
@@ -521,6 +533,7 @@ const printTable = () => {
     printWindow.focus()
     printWindow.print()
   }
+  }
 }
 
 // Fetch salaries when component mounts
@@ -543,16 +556,18 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
 
 <template>
   <div>
+    <DataTablePageKpis :items="filteredSalaries" title="Staff salaries" description="Review payroll records and surface payments that require attention." icon="tabler-wallet" />
     <VCard class="mb-6">
       <VCardText>
-        <VRow align="center">
-          <VCol cols="12" md="4">
-            <VTextField v-model="searchQuery" prepend-inner-icon="tabler-search" :placeholder="$t('pages.payroll.staffSalary.staffSalary.searchSalaries')"
+        <VRow align="center" class="table-toolbar">
+          <VCol cols="12" md="7" lg="9">
+            <VTextField v-model="searchQuery" class="data-table-search" prepend-inner-icon="tabler-search" :placeholder="$t('pages.payroll.staffSalary.staffSalary.searchSalaries')"
               density="compact" clearable hide-details />
           </VCol>
 
-          <VCol cols="12" sm="6" md="3">
-            <VSelect v-model="salaryMonthFilter" :items="[
+          <VCol cols="12" md="5" lg="3" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2">
+            <DataTableFilterMenu :active="Boolean(salaryMonthFilter || selectedSalaryAmountRange)" @reset="salaryMonthFilter = null; selectedSalaryAmountRange = null">
+              <VSelect v-model="salaryMonthFilter" :items="[
               { title: translate('common.messages.allMonths'), value: null },
               ...Array.from({ length: 12 }, (_, i) => {
                 const date = new Date()
@@ -562,20 +577,15 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
                   value: date.toISOString().slice(0, 7)
                 }
               })
-            ]" :label="$t('pages.payroll.staffSalary.staffSalary.filterByMonth')" density="compact" clearable hide-details />
-          </VCol>
-
-          <VCol cols="12" sm="6" md="3">
-            <VSelect v-model="selectedSalaryAmountRange" :items="[
+              ]" :label="$t('pages.payroll.staffSalary.staffSalary.filterByMonth')" density="compact" clearable hide-details />
+              <VSelect v-model="selectedSalaryAmountRange" :items="[
               { title: translate('pages.payroll.staffSalary.staffSalary.under40000'), value: 'low' },
               { title: '؋40,000 - ؋70,000', value: 'mid' },
               { title: translate('pages.payroll.staffSalary.staffSalary.over70000'), value: 'high' }
-            ]" :label="$t('pages.payroll.staffSalary.staffSalary.filterByAmount')" density="compact" clearable hide-details />
-          </VCol>
-
-          <VCol cols="12" md="2" class="d-flex gap-2 justify-end">
-            <VBtn icon="tabler-table" variant="text" @click="printTable" :title="$t('pages.payroll.staffSalary.staffSalary.printAllSalaryRecords')" />
-            <VBtn color="primary" @click="openAddSalaryDialog">
+              ]" :label="$t('pages.payroll.staffSalary.staffSalary.filterByAmount')" density="compact" clearable hide-details />
+            </DataTableFilterMenu>
+            <VBtn icon="tabler-table" variant="text" class="flex-shrink-0" @click="printTable"><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.printAllSalaryRecords') }}</VTooltip></VBtn>
+            <VBtn color="primary" class="flex-shrink-0" @click="openAddSalaryDialog">
               <VIcon icon="tabler-plus" class="me-1" />
               {{ $t('pages.payroll.staffSalary.staffSalary.addSalary') }}
             </VBtn>
@@ -586,7 +596,7 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
 
     <VCard>
       <div class="table-container">
-        <VDataTable :items="filteredSalaries" :headers="[
+        <ResponsiveDataTable :items="filteredSalaries" :headers="[
           { title: translate('pages.payroll.staffSalary.staffSalary.payslipNumber'), key: 'payslip_number', sortable: true },
           { title: translate('common.fields.employee'), key: 'employeeName', sortable: true },
           { title: translate('pages.payroll.staffSalary.staffSalary.payMonth'), key: 'salaryMonth', sortable: true },
@@ -636,22 +646,41 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
 
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
+              <FullDetailsButton :item="item" />
               <VBtn icon="tabler-printer" variant="text" size="small" color="primary"
-                @click="printEmployeePayslip(item)" :title="$t('pages.payroll.staffSalary.staffSalary.printEmployeePayslip')" />
+                @click="printEmployeePayslip(item)"><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.printEmployeePayslip') }}</VTooltip></VBtn>
               <VBtn icon="tabler-edit" variant="text" size="small" color="medium-emphasis"
-                @click="openEditSalaryDialog(item)" :title="$t('pages.payroll.staffSalary.staffSalary.editSalaryRecord')" />
-              <VBtn icon="tabler-trash" variant="text" size="small" color="error" @click="openDeleteSalaryDialog(item)"
-                :title="$t('pages.payroll.staffSalary.staffSalary.deleteSalaryRecord')" />
+                @click="openEditSalaryDialog(item)"><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.editSalaryRecord') }}</VTooltip></VBtn>
+              <VBtn icon="tabler-trash" variant="text" size="small" color="error" @click="openDeleteSalaryDialog(item)"><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.deleteSalaryRecord') }}</VTooltip></VBtn>
             </div>
           </template>
-        </VDataTable>
+        </ResponsiveDataTable>
       </div>
     </VCard>
 
-    <!-- Hidden Payslip Template Instance for Printing -->
-    <div style="display: none;">
-      <PayslipTemplate v-if="activePayslipProps" ref="payslipRef" v-bind="activePayslipProps" />
-    </div>
+    <PrintableListReport title="Staff Salaries Report" subtitle="Filtered salary payments" :columns="['Payslip', 'Employee', 'Pay month', 'Worked days', 'Currency', 'Total paid', 'Date']" :rows="filteredSalaries.map(salary => [salary.payslip_number, salary.employeeName, salary.salaryMonth, `${salary.workedDays}/${salary.totalDays}`, salary.currency?.code, formatSalaryAmount(salary.totalAmount, salary.currency), salary.date])" />
+
+    <VDialog v-model="isPayslipPreviewOpen" width="80vw" max-width="1280" content-class="document-preview-modal">
+      <VCard class="document-preview-dialog">
+        <VCardTitle class="document-preview-dialog__header" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'">
+          <div class="document-preview-dialog__heading">
+            <VAvatar color="primary" variant="tonal" size="38"><VIcon icon="tabler-file-invoice" /></VAvatar>
+            <div>
+              <div class="text-h6 font-weight-bold">{{ $t('documents.payslip_template.payslipTemplate.officialPAYSLIP') }}</div>
+              <div class="text-caption text-medium-emphasis">{{ activePayslipProps?.documentNumber }}</div>
+            </div>
+          </div>
+          <div class="document-preview-dialog__actions">
+            <VBtn variant="tonal" color="secondary" @click="isPayslipPreviewOpen = false">{{ $t('common.actions.cancel') }}</VBtn>
+            <VBtn color="primary" variant="flat" prepend-icon="tabler-printer" @click="printPreviewedPayslip">{{ $t('common.actions.print') }}</VBtn>
+          </div>
+        </VCardTitle>
+        <VDivider />
+        <VCardText class="document-preview-dialog__body">
+          <PayslipTemplate v-if="activePayslipProps" ref="payslipRef" v-bind="activePayslipProps" />
+        </VCardText>
+      </VCard>
+    </VDialog>
 
     <!-- Add Salary Dialog -->
     <VDialog v-model="isAddSalaryDialogVisible" max-width="800px">
@@ -660,7 +689,7 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
           <span class="headline">{{ $t('pages.payroll.staffSalary.staffSalary.addSalaryPayment') }}</span>
         </VCardTitle>
         <VCardText>
-          <VForm>
+          <VForm class="app-form">
             <VAlert v-if="getSalaryErrorMessage('form') || getSalaryErrorMessage('deductions')" type="error" variant="tonal" class="mb-4">
               {{ getSalaryErrorMessage('form') || getSalaryErrorMessage('deductions') }}
             </VAlert>
@@ -694,8 +723,8 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
                   :error-messages="getSalaryErrorMessage('date')" :config="{ dateFormat: 'Y-m-d' }" />
               </VCol>
               <VCol cols="12" md="4">
-                <VSelect v-model="salaryForm.currency_id" :items="currencies" item-title="code" item-value="id"
-                  :label="$t('common.fields.currency')" :error-messages="getSalaryErrorMessage('currency')" required>
+                <VSelect v-model="salaryForm.currency_id" :items="currencies.filter(currency => currency.isBase)" item-title="code" item-value="id"
+                  :label="$t('common.fields.currency')" :error-messages="getSalaryErrorMessage('currency')" required readonly>
                   <template #selection="{ item }">{{ item.raw.code }} ({{ item.raw.symbol }})</template>
                   <template #item="{ props, item }">
                     <VListItem v-bind="props" :subtitle="item.raw.name" />
@@ -716,7 +745,7 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
                     </div>
                     <div v-if="grantedBonuses.length" class="text-caption">
                       <div v-for="bonus in grantedBonuses" :key="bonus.id">
-                        {{ translateBackendValue(bonus.selectedType) }} · {{ formatSalaryAmount(bonus.grantedAmount ?? bonus.selectedAmount, bonus.grantedCurrency ?? bonus.selectedCurrency) }}
+                        {{ translateBackendValue(bonus.selectedType) }} · {{ formatSalaryAmount(bonus.grantedAmount ?? bonus.selectedAmount) }}
                         → {{ formatSalaryAmount(convertedBonusAmount(bonus), selectedFormCurrency) }}
                       </div>
                     </div>
@@ -773,7 +802,7 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
           <span class="headline">{{ $t('pages.payroll.staffSalary.staffSalary.editSalaryPayment') }}</span>
         </VCardTitle>
         <VCardText>
-          <VForm>
+          <VForm class="app-form">
             <VAlert v-if="getSalaryErrorMessage('form') || getSalaryErrorMessage('deductions')" type="error" variant="tonal" class="mb-4">
               {{ getSalaryErrorMessage('form') || getSalaryErrorMessage('deductions') }}
             </VAlert>
@@ -807,7 +836,7 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
                   :error-messages="getSalaryErrorMessage('date')" :config="{ dateFormat: 'Y-m-d' }" />
               </VCol>
               <VCol cols="12" md="4">
-                <VSelect v-model="salaryForm.currency_id" :items="currencies" item-title="code" item-value="id"
+                <VSelect v-model="salaryForm.currency_id" :items="currencies.filter(currency => currency.isBase)" item-title="code" item-value="id"
                   :label="$t('common.fields.currency')" :error-messages="getSalaryErrorMessage('currency')" disabled>
                   <template #selection="{ item }">{{ item.raw.code }} ({{ item.raw.symbol }})</template>
                   <template #item="{ props, item }">
@@ -829,7 +858,7 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
                     </div>
                     <div v-if="grantedBonuses.length" class="text-caption">
                       <div v-for="bonus in grantedBonuses" :key="bonus.id">
-                        {{ translateBackendValue(bonus.selectedType) }} · {{ formatSalaryAmount(bonus.grantedAmount ?? bonus.selectedAmount, bonus.grantedCurrency ?? bonus.selectedCurrency) }}
+                        {{ translateBackendValue(bonus.selectedType) }} · {{ formatSalaryAmount(bonus.grantedAmount ?? bonus.selectedAmount) }}
                         → {{ formatSalaryAmount(bonus.salaryConversion?.convertedAmount ?? convertedBonusAmount(bonus), selectedFormCurrency) }}
                       </div>
                     </div>
@@ -901,6 +930,46 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
 </template>
 
 <style scoped>
+.document-preview-dialog {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 90vh;
+  background: #edf2f7;
+  overflow: hidden;
+}
+
+.document-preview-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  background: rgb(var(--v-theme-surface));
+}
+
+.document-preview-dialog__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.document-preview-dialog__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-inline-start: auto;
+}
+
+.document-preview-dialog__header[dir='rtl'] {
+  flex-direction: row-reverse;
+}
+
+.document-preview-dialog__body {
+  display: grid;
+  place-items: start center;
+  padding: 2rem;
+  overflow: auto;
+}
 .table-container {
   overflow-x: auto;
 }

@@ -27,11 +27,12 @@ class KanbanController extends Controller
                     ->whereHas('users', fn ($assignees) => $assignees->whereKey($user->id)))
                 ->orderBy('order'),
             // Eager load all relations required by TaskResource
-            'tasks.users',
+            'tasks.users.employee',
             'tasks.tags',
             'tasks.subtasks',
-            'tasks.comments.user', // Nested eager load for sender names
-            'tasks.dependencies'
+            'tasks.comments.user.employee', // Names and avatars for comments
+            'tasks.dependencies',
+            'tasks.attachments'
         ])
         ->orderBy('order')
         ->get();

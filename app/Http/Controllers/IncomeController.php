@@ -48,7 +48,7 @@ class IncomeController extends Controller
             'amount' => 'required|numeric|gt:0',
             'quantity' => 'required|integer|min:1',
             'currency_id' => 'required|exists:currencies,id',
-            'rate_to_base' => 'required|numeric|gt:0',
+            'rate' => 'required|numeric|gt:0',
             'date' => 'required|date',
         ]);
 
@@ -66,7 +66,7 @@ class IncomeController extends Controller
             $invoice = Invoice::whereKey($data['invoice_id'])->lockForUpdate()->firstOrFail();
             $data['customer_id'] = $invoice->customer_id;
             $data['currency_id'] = $invoice->currency_id;
-            $data['rate_to_base'] = $invoice->currency_rate;
+            $this->applyCurrencySnapshot($data);
             $this->ensureInvoiceCanAcceptPayment($invoice, $data);
 
             $income = Income::create($data);
@@ -93,7 +93,7 @@ class IncomeController extends Controller
             'amount' => 'sometimes|numeric|gt:0',
             'quantity' => 'sometimes|integer|min:1',
             'currency_id' => 'sometimes|exists:currencies,id',
-            'rate_to_base' => 'sometimes|numeric|gt:0',
+            'rate' => 'sometimes|numeric|gt:0',
             'date' => 'sometimes|date',
         ]);
 
@@ -118,7 +118,7 @@ class IncomeController extends Controller
 
                 $data['customer_id'] = $invoice->customer_id;
                 $data['currency_id'] = $invoice->currency_id;
-                $data['rate_to_base'] = $invoice->currency_rate;
+                $this->applyCurrencySnapshot($data);
                 $this->ensureInvoiceCanAcceptPayment($invoice, array_merge($income->toArray(), $data), $income->id);
             }
 
@@ -201,7 +201,7 @@ class IncomeController extends Controller
     /** @param array<string, mixed> $payment */
     private function paymentAmountInInvoiceCurrency(array $payment, Invoice $invoice): float
     {
-        $rateToBase = (float) ($payment['rate_to_base'] ?? 0);
+        $rateToBase = (float) ($payment['rate'] ?? 0);
 
         if ($rateToBase <= 0) {
             return 0;
@@ -209,7 +209,7 @@ class IncomeController extends Controller
 
         return round(
             ((float) ($payment['amount'] ?? 0) * (int) ($payment['quantity'] ?? 1) / $rateToBase)
-                * (float) $invoice->currency_rate,
+                * (float) $invoice->rate,
             2
         );
     }
@@ -218,6 +218,9 @@ class IncomeController extends Controller
     private function applyCurrencySnapshot(array &$data): void
     {
         $currency = Currency::findOrFail($data['currency_id']);
-        $data['rate_to_base'] = $currency->rate_against_base;
+        $base = Currency::where('is_base', true)->firstOrFail();
+        $data['cnv_curr_shrt'] = $currency->code;
+        $data['base_curr_shrt'] = $base->code;
+        $data['rate'] = $data['rate'] ?? $currency->rate;
     }
 }

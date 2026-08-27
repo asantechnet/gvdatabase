@@ -22,6 +22,7 @@ const emit = defineEmits<{
   (e: 'updateItemsState', value: KanbanState): void
   (e: 'deleteItem', value: EditKanbanItem): void
   (e: 'commentsClick', value: EditKanbanItem): void
+  (e: 'attachmentsClick', value: EditKanbanItem): void
 }>()
 
 const refKanbanBoard = ref<HTMLElement>()
@@ -120,7 +121,7 @@ const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
 <template>
   <div class="kanban-board">
     <div class="kanban-board-header pb-4">
-      <VForm v-if="isBoardNameEditing" ref="refKanbanBoardTitle" @submit.prevent="renameBoard">
+      <VForm v-if="isBoardNameEditing" ref="refKanbanBoardTitle" class="app-form" @submit.prevent="renameBoard">
         <VTextField v-model="localBoardName" autofocus variant="underlined" :rules="[requiredValidator]" hide-details
           class="border-0" @keydown.esc="hideResetBoardNameForm">
           <template #append-inner>
@@ -130,12 +131,29 @@ const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
         </VTextField>
       </VForm>
 
-      <div v-else class="d-flex align-center justify-space-between ">
+      <div v-else class="d-flex align-center justify-space-between gap-2">
         <h4 class="text-lg font-weight-medium text-truncate">
           {{ boardName }}
         </h4>
 
         <div class="d-flex align-center">
+          <VTooltip v-if="canAccess('create_tasks')" location="top">
+            <template #activator="{ props: tooltipProps }">
+              <VBtn
+                v-bind="tooltipProps"
+                icon
+                size="small"
+                variant="tonal"
+                color="primary"
+                aria-label="Add new task"
+                @click="isAddNewFormVisible = !isAddNewFormVisible"
+              >
+                <VIcon icon="tabler-plus" size="18" />
+              </VBtn>
+            </template>
+            {{ $t('pages.tasks.kanbanitems.kanbanitems.addNewItem') }}
+          </VTooltip>
+
           <VIcon v-if="canAccess('reorder_boards')" class="drag-handler" size="20" icon="tabler-arrows-move" />
 
           <MoreBtn v-if="boardActions.length" size="28" icon-size="20" class="text-high-emphasis" :menu-list="boardActions" item-props />
@@ -143,35 +161,29 @@ const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
       </div>
     </div>
 
+    <VForm v-if="isAddNewFormVisible" ref="refForm" class="app-form kanban-add-new-form mb-4" validate-on="submit" @submit.prevent="addNewItem">
+      <div class="mb-3">
+        <VTextarea v-model="newTaskTitle" :rules="[requiredValidator]" :placeholder="$t('pages.tasks.kanbanitems.kanbanitems.addContent')" autofocus rows="2"
+          @keydown.enter="handleEnterKeydown" @keydown.esc="hideAddNewForm" />
+      </div>
+      <div class="d-flex gap-3 flex-wrap">
+        <VBtn size="small" type="submit">
+          {{ $t('common.actions.add') }}
+        </VBtn>
+        <VBtn size="small" variant="tonal" color="secondary" @click="hideAddNewForm">
+          {{ $t('common.actions.cancel') }}
+        </VBtn>
+      </div>
+    </VForm>
+
     <div v-if="localIds" ref="refKanbanBoard" class="kanban-board-drop-zone rounded d-flex flex-column gap-4"
       :class="localIds.length ? 'mb-4' : ''">
       <template v-for="id in localIds" :key="id">
         <KanbanCard :item="resolveItemUsingId(id)" :board-id="props.boardId" :board-name="props.boardName"
           @delete-kanban-item="deleteItem" @comments-click="emit('commentsClick', $event)"
+          @attachments-click="emit('attachmentsClick', $event)"
           @click="canAccess('edit_assigned_tasks') && emit('editItem', { item: resolveItemUsingId(id), boardId: props.boardId, boardName: props.boardName })" />
       </template>
-
-      <div v-if="canAccess('create_tasks')" class="add-new-form">
-        <h6 class="text-base font-weight-regular cursor-pointer ms-4"
-          @click="isAddNewFormVisible = !isAddNewFormVisible">
-          <VIcon size="15" icon="tabler-plus" /> {{ $t('pages.tasks.kanbanitems.kanbanitems.addNewItem') }}
-        </h6>
-
-        <VForm v-if="isAddNewFormVisible" ref="refForm" class="mt-4" validate-on="submit" @submit.prevent="addNewItem">
-          <div class="mb-4">
-            <VTextarea v-model="newTaskTitle" :rules="[requiredValidator]" :placeholder="$t('pages.tasks.kanbanitems.kanbanitems.addContent')" autofocus rows="2"
-              @keydown.enter="handleEnterKeydown" @keydown.esc="hideAddNewForm" />
-          </div>
-          <div class="d-flex gap-4 flex-wrap">
-            <VBtn size="small" type="submit">
-              {{ $t('common.actions.add') }}
-            </VBtn>
-            <VBtn size="small" variant="tonal" color="secondary" @click="hideAddNewForm">
-              {{ $t('common.actions.cancel') }}
-            </VBtn>
-          </div>
-        </VForm>
-      </div>
     </div>
   </div>
 </template>

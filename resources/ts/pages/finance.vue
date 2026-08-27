@@ -357,25 +357,25 @@ const printTable = (section: 'invoices' | 'expenses') => {
 
           <VCardText class="pb-4">
             <VRow>
-              <VCol cols="12" sm="4">
+              <VCol cols="12" sm="9">
                 <VTextField v-model="invoiceSearch" :label="$t('pages.finance.finance.finance.searchByClientTokenOrProject')" density="compact"
-                  prepend-inner-icon="tabler-search" hide-details clearable />
+                  class="data-table-search" prepend-inner-icon="tabler-search" hide-details clearable />
               </VCol>
-              <VCol cols="12" sm="4">
-                <VSelect v-model="selectedStatusFilter" :items="['Paid', 'Pending', 'Overdue']" :item-title="translateBackendValue"
-                  :label="$t('pages.finance.finance.finance.filterStatus')" density="compact" hide-details clearable />
-              </VCol>
-              <VCol cols="12" sm="4">
-                <VSelect v-model="selectedInvoiceAmountRange" :items="[
+              <VCol cols="12" sm="3" class="d-flex justify-end">
+                <DataTableFilterMenu :active="Boolean(selectedStatusFilter || selectedInvoiceAmountRange)" @reset="selectedStatusFilter = null; selectedInvoiceAmountRange = null">
+                  <VSelect v-model="selectedStatusFilter" :items="['Paid', 'Pending', 'Overdue']" :item-title="translateBackendValue"
+                    :label="$t('pages.finance.finance.finance.filterStatus')" density="compact" hide-details clearable />
+                  <VSelect v-model="selectedInvoiceAmountRange" :items="[
                   { title: translate('pages.finance.finance.finance.under3000'), value: 'low' },
                   { title: '$3,000 - $6,000', value: 'mid' },
                   { title: translate('pages.finance.finance.finance.over6000'), value: 'high' }
-                ]" :label="$t('common.messages.filterByAmount')" density="compact" hide-details clearable />
+                  ]" :label="$t('common.messages.filterByAmount')" density="compact" hide-details clearable />
+                </DataTableFilterMenu>
               </VCol>
             </VRow>
           </VCardText>
 
-          <VDataTable :headers="[
+          <ResponsiveDataTable :headers="[
             { title: translate('pages.finance.finance.finance.tokenID'), key: 'id', sortable: true },
             { title: translate('pages.finance.finance.finance.clientAccounts'), key: 'clientName', sortable: true },
             { title: translate('pages.finance.finance.finance.projectType'), key: 'projectType', sortable: true },
@@ -394,11 +394,12 @@ const printTable = (section: 'invoices' | 'expenses') => {
             </template>
             <template #item.actions="{ item }">
               <div class="d-flex justify-end gap-1">
+                <FullDetailsButton :item="item" />
                 <VBtn icon="tabler-edit" variant="text" size="small" color="medium-emphasis" @click="openEditInvoice(item)" />
                 <VBtn icon="tabler-trash" variant="text" size="small" color="error" @click="deleteInvoice(item.id)" />
               </div>
             </template>
-          </VDataTable>
+          </ResponsiveDataTable>
         </VCard>
       </VCol>
 
@@ -416,26 +417,26 @@ const printTable = (section: 'invoices' | 'expenses') => {
 
           <VCardText class="pb-4">
             <VRow>
-              <VCol cols="12" sm="4">
+              <VCol cols="12" sm="9">
                 <VTextField v-model="expenseSearch" :label="$t('pages.finance.finance.finance.searchDescriptionOrCategory')" density="compact"
-                  prepend-inner-icon="tabler-search" hide-details clearable />
+                  class="data-table-search" prepend-inner-icon="tabler-search" hide-details clearable />
               </VCol>
-              <VCol cols="12" sm="4">
-                <VSelect v-model="expenseCategoryFilter"
-                  :items="['Software', 'Salaries', 'Marketing', 'Supplies', 'Infrastructure']" :item-title="translateBackendValue"
-                  :label="$t('pages.finance.finance.finance.filterCostPool')" density="compact" hide-details clearable />
-              </VCol>
-              <VCol cols="12" sm="4">
-                <VSelect v-model="selectedExpenseAmountRange" :items="[
+              <VCol cols="12" sm="3" class="d-flex justify-end">
+                <DataTableFilterMenu :active="Boolean(expenseCategoryFilter || selectedExpenseAmountRange)" @reset="expenseCategoryFilter = null; selectedExpenseAmountRange = null">
+                  <VSelect v-model="expenseCategoryFilter"
+                    :items="['Software', 'Salaries', 'Marketing', 'Supplies', 'Infrastructure']" :item-title="translateBackendValue"
+                    :label="$t('pages.finance.finance.finance.filterCostPool')" density="compact" hide-details clearable />
+                  <VSelect v-model="selectedExpenseAmountRange" :items="[
                   { title: translate('pages.finance.finance.finance.under500'), value: 'low' },
                   { title: '$500 - $1,500', value: 'mid' },
                   { title: translate('pages.finance.finance.finance.over1500'), value: 'high' }
-                ]" :label="$t('common.messages.filterByAmount')" density="compact" hide-details clearable />
+                  ]" :label="$t('common.messages.filterByAmount')" density="compact" hide-details clearable />
+                </DataTableFilterMenu>
               </VCol>
             </VRow>
           </VCardText>
 
-          <VDataTable :headers="[
+          <ResponsiveDataTable :headers="[
             { title: translate('common.fields.description'), key: 'description', sortable: true },
             { title: translate('pages.finance.finance.finance.costPool'), key: 'category', sortable: true },
             { title: translate('common.fields.date'), key: 'date', sortable: true },
@@ -450,12 +451,13 @@ const printTable = (section: 'invoices' | 'expenses') => {
             </template>
             <template #item.actions="{ item }">
               <div class="d-flex justify-end gap-1">
+                <FullDetailsButton :item="item" />
                 <VBtn icon="tabler-edit" variant="text" size="small" color="medium-emphasis" @click="openEditExpense(item)" />
                 <VBtn icon="tabler-trash" variant="text" size="small" color="error" @click="deleteExpense(item.id)" />
                 <VBtn icon="tabler-printer" variant="text" size="small" color="primary" @click="printTable('expenses')" />
               </div>
             </template>
-          </VDataTable>
+          </ResponsiveDataTable>
         </VCard>
       </VCol>
     </VRow>

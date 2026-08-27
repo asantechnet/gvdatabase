@@ -37,6 +37,9 @@ class AttendanceResource extends JsonResource
             'overtime_minutes' => (int) $this->overtime_minutes,
             'missing_punch_state' => $this->missing_punch_state,
             'is_overnight_shift' => (bool) $this->is_overnight_shift,
+            // This is only a boolean existence flag; daily-report content is
+            // retrieved through GET /attendances/{attendance}/daily-report.
+            'daily_report_exists' => (bool) ($this->daily_report_exists ?? false),
             'timezone' => app(CompanyProfile::class)->timezone(),
         ];
     }

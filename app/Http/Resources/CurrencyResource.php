@@ -19,7 +19,7 @@ class CurrencyResource extends JsonResource
             'name' => $this->name,
             'code' => $this->code,
             'symbol' => $this->symbol,
-            'rateToBase' => (float) $this->rate_against_base,
+            'rate' => (float) $this->rate,
             'isBase' => $this->is_base,
             'isActive' => $this->is_active,
             'decimalPlaces' => $this->decimal_places,

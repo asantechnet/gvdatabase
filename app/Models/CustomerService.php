@@ -17,11 +17,16 @@ class CustomerService extends Pivot
     protected $fillable = [
         'customer_id',
         'service_id',
+        'fee',
+        'currency_id',
         'deadline',
+        'status',
+        'notes',
     ];
 
     protected $casts = [
         'deadline' => 'date',
+        'fee' => 'decimal:2',
     ];
 
     public function customer()
@@ -32,5 +37,10 @@ class CustomerService extends Pivot
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function currency()
+    {
+        return $this->belongsTo(Currency::class);
     }
 }

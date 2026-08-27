@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Task extends Model
 {
@@ -18,6 +19,7 @@ class Task extends Model
         'board_id',
         'title',
         'description',
+        'results',
         'priority',
         'progress',
         'start_date',
@@ -43,6 +45,14 @@ class Task extends Model
 
     protected static function booted(): void
     {
+        static::deleting(function (Task $task): void {
+            if (! $task->isForceDeleting()) return;
+
+            $task->attachments()->each(function (TaskAttachment $attachment): void {
+                Storage::disk($attachment->disk)->delete($attachment->path);
+            });
+        });
+
         static::creating(function (Task $task): void {
             if ((int) $task->progress >= 100 && ! $task->completed_at) {
                 $task->completed_at = now('UTC');
@@ -84,6 +94,11 @@ class Task extends Model
     public function subtasks(): HasMany
     {
         return $this->hasMany(Subtask::class);
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(TaskAttachment::class);
     }
 
     public function dependencies(): BelongsToMany

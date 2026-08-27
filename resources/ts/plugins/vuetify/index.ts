@@ -10,6 +10,10 @@ import { icons } from './icons'
 import { staticPrimaryColor, staticPrimaryDarkenColor, themes } from './theme'
 import { themeConfig } from '@themeConfig'
 import { getI18n } from '@/plugins/i18n/index'
+import { readStoredThemeColors } from '@/utils/themePersistence'
+import { contrastingTextColor } from '@/utils/themeContrast'
+import { ResponsiveDataTable } from '@/components/responsive-data-table/responsiveDataTable'
+import { ResponsiveDataTableServer } from '@/components/responsive-data-table/ResponsiveDataTableServer'
 
 // Styles
 import { cookieRef } from '@/@layouts/stores/config'
@@ -17,6 +21,8 @@ import '@core-scss/template/libs/vuetify/index.scss'
 import 'vuetify/styles'
 
 export default function (app: App) {
+  const storedThemeColors = readStoredThemeColors()
+
   const cookieThemeValues = {
     defaultTheme: resolveVuetifyTheme(themeConfig.app.theme),
     themes: {
@@ -35,13 +41,33 @@ export default function (app: App) {
     },
   }
 
-  const optionTheme = deepMerge({ themes }, cookieThemeValues)
+  const storedColorValues: Record<string, string> = {}
+  if (storedThemeColors.primary_color) {
+    storedColorValues.primary = storedThemeColors.primary_color
+    storedColorValues['on-primary'] = contrastingTextColor(storedThemeColors.primary_color)
+  }
+  if (storedThemeColors.secondary_color) {
+    storedColorValues.secondary = storedThemeColors.secondary_color
+    storedColorValues['on-secondary'] = contrastingTextColor(storedThemeColors.secondary_color)
+  }
+  if (storedThemeColors.tertiary_color) {
+    storedColorValues.tertiary = storedThemeColors.tertiary_color
+    storedColorValues['on-tertiary'] = contrastingTextColor(storedThemeColors.tertiary_color)
+  }
+
+  const storedThemeValues = {
+    themes: Object.fromEntries(Object.keys(themes).map(name => [name, { colors: storedColorValues }])),
+  }
+
+  const optionTheme = deepMerge(deepMerge({ themes }, cookieThemeValues), storedThemeValues)
 
   const vuetify = createVuetify({
     aliases: {
       IconBtn: VBtn,
     },
     components: {
+      VDataTable: ResponsiveDataTable,
+      VDataTableServer: ResponsiveDataTableServer,
       VVideo,
     },
     defaults,

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Stock extends Model
 {
@@ -22,7 +23,7 @@ class Stock extends Model
         'quantity', 'price',
         'model',
         'condition',
-        'office',
+        'office_id',
         'staff_id',
     ];
 
@@ -45,5 +46,10 @@ class Stock extends Model
     public function staff()
     {
         return $this->belongsTo(Employee::class, 'staff_id');
+    }
+
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(Office::class);
     }
 }

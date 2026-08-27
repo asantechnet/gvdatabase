@@ -7,8 +7,10 @@ import {
   type AccountDeactivationRequest,
 } from '@/api/accountDeactivation'
 import { canAccess } from '@/utils/authorization'
+import { useToast } from 'vue-toastification'
 
 const fallbackAvatar = 'https://ui-avatars.com/api/?background=7367f0&color=fff&name=User'
+const toast = useToast()
 const refInputEl = ref<HTMLInputElement>()
 const loading = ref(true)
 const saving = ref(false)
@@ -25,6 +27,17 @@ const emailVerified = ref(false)
 const initial = ref<AccountUpdatePayload>({})
 const account = ref<AccountUpdatePayload & { avatar: string | null }>({ name: '', email: '', phone: '', address: '', avatar: null, organization: '', state: '', zip: '', country: '', language: '', timezone: '', currency: '' })
 const userData = useCookie<Record<string, unknown> | null>('userData')
+
+watch(message, value => {
+  if (!value) return
+  toast.success(value)
+  message.value = ''
+})
+watch(error, value => {
+  if (!value) return
+  toast.error(value)
+  error.value = ''
+})
 
 const displayAvatar = computed(() => account.value.avatar || fallbackAvatar)
 const timezones = Intl.supportedValuesOf?.('timeZone') ?? ['UTC']
@@ -154,8 +167,6 @@ onBeforeUnmount(clearDeactivationSecrets)
 <template>
   <VRow>
     <VCol cols="12">
-      <VAlert v-if="message" type="success" class="mb-4">{{ message }}</VAlert>
-      <VAlert v-if="error" type="error" class="mb-4">{{ error }}</VAlert>
       <VCard :loading="loading">
         <VCardText class="d-flex">
           <VAvatar rounded size="100" class="me-6" :image="displayAvatar" />

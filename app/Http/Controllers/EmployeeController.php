@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\EmployeeResource;
+use App\Http\Resources\UserResource;
 use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +23,14 @@ class EmployeeController extends Controller
         return EmployeeResource::collection(Employee::selectable()->with(['position', 'office', 'user', 'commissionServices'])->get());
     }
 
+    /** User accounts available for linking from the employee form. */
+    public function accountOptions(): AnonymousResourceCollection
+    {
+        return UserResource::collection(
+            User::query()->with('employee:id,user_id,name')->orderBy('name')->get(),
+        );
+    }
+
     public function store(Request $request): EmployeeResource
     {
         $request->mergeIfMissing(['create_user' => true]);
@@ -37,7 +46,8 @@ class EmployeeController extends Controller
             'guarantor_address' => ['nullable', 'string', 'max:2000'],
             'guarantor_licence' => ['nullable', 'string', 'max:255'],
             'create_user' => 'sometimes|boolean',
-            'email' => ['nullable', 'email', 'max:255', Rule::requiredIf($request->boolean('create_user')), 'unique:users,email'],
+            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at'), Rule::unique('employees', 'user_id')->whereNull('deleted_at')],
+            'email' => ['nullable', 'email', 'max:255', Rule::requiredIf($request->boolean('create_user') && ! $request->filled('user_id')), Rule::unique('users', 'email')->ignore($request->input('user_id'))],
             'education_lvl' => 'required|string|max:255',
             'position_id' => 'required|max:255',
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
@@ -53,10 +63,11 @@ class EmployeeController extends Controller
             'contract_duration' => 'required|string|max:255',
         ]);
 
-        $Employee = DB::transaction(function () use ($validated, $request) {
+        $createdUser = false;
+        $Employee = DB::transaction(function () use ($validated, $request, &$createdUser) {
             $employee = Employee::create(collect($validated)->except(['email', 'create_user', 'commissions'])->all());
             $this->syncCommissions($employee, $validated['commissions'] ?? []);
-            if ($request->boolean('create_user', true)) {
+            if (! $employee->user_id && $request->boolean('create_user', true)) {
                 $user = User::create([
                     'name' => $employee->name,
                     'email' => $validated['email'],
@@ -66,12 +77,13 @@ class EmployeeController extends Controller
                     'acc_status' => 'active',
                 ]);
                 $employee->update(['user_id' => $user->id]);
+                $createdUser = true;
             }
 
             return $employee;
         });
 
-        if ($Employee->user) {
+        if ($createdUser && $Employee->user) {
             $Employee->user->sendEmailVerificationNotification();
             Password::sendResetLink(['email' => $Employee->user->email]);
         }
@@ -88,6 +100,7 @@ class EmployeeController extends Controller
     {
         $Employee->loadMissing('user');
         $hadUser = $Employee->user !== null;
+        $previousUserId = $Employee->user_id;
         $previousEmail = $Employee->user?->email;
 
         $validated = $request->validate([
@@ -102,7 +115,8 @@ class EmployeeController extends Controller
             'guarantor_address' => ['nullable', 'string', 'max:2000'],
             'guarantor_licence' => ['nullable', 'string', 'max:255'],
             'create_user' => 'sometimes|boolean',
-            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($Employee->user_id)],
+            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at'), Rule::unique('employees', 'user_id')->whereNull('deleted_at')->ignore($Employee->id)],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($request->input('user_id') ?: $Employee->user_id)],
             'education_lvl' => 'sometimes|required|string|max:255',
             'position_id' => 'sometimes|required|max:255',
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
@@ -118,7 +132,8 @@ class EmployeeController extends Controller
             'contract_duration' => 'sometimes|required|string|max:255',
         ]);
 
-        DB::transaction(function () use ($Employee, $validated, $request) {
+        $createdUser = false;
+        DB::transaction(function () use ($Employee, $validated, $request, $previousUserId, &$createdUser) {
             $Employee->update(collect($validated)->except(['email', 'create_user', 'commissions'])->all());
             if (array_key_exists('commissions', $validated)) {
                 $this->syncCommissions($Employee, $validated['commissions'] ?? []);
@@ -130,8 +145,10 @@ class EmployeeController extends Controller
                     'phone' => $Employee->contact, 'address' => $Employee->addr, 'acc_status' => 'active',
                 ]));
                 $Employee->save();
+                $createdUser = true;
             }
-            if ($Employee->user) {
+            $userWasReassigned = array_key_exists('user_id', $validated) && (int) $Employee->user_id !== (int) $previousUserId;
+            if ($Employee->user && ! $userWasReassigned) {
                 $userData = array_filter([
                     'name' => $validated['name'] ?? null,
                     'email' => $validated['email'] ?? null,
@@ -149,7 +166,7 @@ class EmployeeController extends Controller
 
         $Employee = $Employee->fresh(['position', 'office', 'user', 'commissionServices']);
 
-        if ($Employee->user && ! $hadUser) {
+        if ($Employee->user && $createdUser && ! $hadUser) {
             $Employee->user->sendEmailVerificationNotification();
             Password::sendResetLink(['email' => $Employee->user->email]);
         } elseif ($Employee->user && $previousEmail !== $Employee->user->email) {

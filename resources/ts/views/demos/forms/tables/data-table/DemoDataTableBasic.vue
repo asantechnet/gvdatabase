@@ -12,7 +12,7 @@ const headers = [
 </script>
 
 <template>
-  <VDataTable
+  <ResponsiveDataTable
     :headers="headers"
     :items="data"
     :items-per-page="5"

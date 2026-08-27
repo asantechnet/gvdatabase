@@ -3,18 +3,27 @@ import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { useRouter } from 'vue-router'
 import AuthApi from '@/api/auth'
 import { clearAuthTokens, getRefreshToken } from '@/utils/authStorage'
-import { applyPermissions, clearPermissions } from '@/utils/authorization'
+import { applyPermissions, canAccess, clearPermissions } from '@/utils/authorization'
 import WorkdayControl from '@/components/workday/WorkdayControl.vue'
+import EndDayDialog from '@/components/workday/EndDayDialog.vue'
 import MyPaidTimeOffDialog from '@/components/paid-time-off/MyPaidTimeOffDialog.vue'
+import WorkdayApi from '@/api/workday'
 
 const router = useRouter()
 const userData = useCookie<any>('userData')
 const paidTimeOffDialog = ref(false)
+const startDayDialog = ref(false)
+const endDayDialog = ref(false)
+const startLoading = ref(false)
 
 const userProfileList = [
   { type: 'navItem', icon: 'tabler-user', title: translate('components.navigation.userprofile.myAccount'), to: { name: 'account-settings', params: { tab: 'account' } } },
   { type: 'navItem', icon: 'tabler-lock', title: translate('common.messages.security'), to: { name: 'account-settings', params: { tab: 'security' } } },
   { type: 'navItem', icon: 'tabler-bell', title: translate('components.navigation.userprofile.notificationPreferences'), to: { name: 'account-settings', params: { tab: 'notifications' } } },
+  { type: 'navItem', icon: 'tabler-calendar-stats', title: translate('pages.settings.accountSettings.accountSettings.workHistory'), to: { name: 'account-settings', params: { tab: 'work-history' } } },
+  ...(canAccess('view_recurring_events')
+    ? [{ type: 'navItem', icon: 'tabler-repeat', title: 'Recurring events', to: { name: 'recurring-events' } }]
+    : []),
   { type: 'divider' },
   { type: 'navItem', icon: 'tabler-bell-ringing', title: translate('components.navigation.userprofile.myNotifications'), to: { name: 'notifications' } },
 ]
@@ -36,6 +45,19 @@ async function logout() {
   await router.replace('/login')
 }
 
+async function handleStartDay() {
+  startLoading.value = true
+  try {
+    await WorkdayApi.start()
+    startDayDialog.value = false
+    window.dispatchEvent(new CustomEvent('workday-status-changed'))
+  }
+  catch { /* Global API error handler presents the failure. */ }
+  finally {
+    startLoading.value = false
+  }
+}
+
 onMounted(refreshUser)
 </script>
 
@@ -54,8 +76,8 @@ onMounted(refreshUser)
               <VListItem v-if="item.type === 'navItem'" :to="item.to"><template #prepend><VIcon :icon="item.icon" size="22" /></template><VListItemTitle>{{ item.title }}</VListItemTitle></VListItem>
               <VDivider v-else class="my-2" />
             </template>
-            <VListItem prepend-icon="tabler-beach" @click="paidTimeOffDialog = true"><VListItemTitle>Paid-off days</VListItemTitle></VListItem>
-            <WorkdayControl />
+            <VListItem prepend-icon="tabler-beach" @click="paidTimeOffDialog = true"><VListItemTitle>{{ $t('pages.paidTimeOff.myTitle') }}</VListItemTitle></VListItem>
+            <WorkdayControl @open-start-dialog="startDayDialog = true" @open-end-dialog="endDayDialog = true" />
             <div class="px-4 py-2"><VBtn block size="small" color="error" append-icon="tabler-logout" @click="logout">{{ $t('components.navigation.userprofile.logout') }}</VBtn></div>
           </PerfectScrollbar>
         </VList>
@@ -63,4 +85,19 @@ onMounted(refreshUser)
     </VAvatar>
   </VBadge>
   <MyPaidTimeOffDialog v-model="paidTimeOffDialog" />
+  <EndDayDialog v-model="endDayDialog" />
+  <VDialog v-model="startDayDialog" persistent max-width="560">
+    <VCard>
+      <VCardText class="pa-8 text-center">
+        <VAvatar color="primary" variant="tonal" size="72" class="mb-5">
+          <VIcon icon="tabler-sunrise" size="38" />
+        </VAvatar>
+        <h2 class="text-h4 mb-2">{{ $t('components.account.workday.startTitle') }}</h2>
+        <p class="text-body-1 text-medium-emphasis mb-6">{{ $t('components.account.workday.startDescription') }}</p>
+        <VBtn size="large" color="primary" prepend-icon="tabler-player-play" :loading="startLoading" @click="handleStartDay">
+          {{ $t('components.account.workday.startMyDay') }}
+        </VBtn>
+      </VCardText>
+    </VCard>
+  </VDialog>
 </template>

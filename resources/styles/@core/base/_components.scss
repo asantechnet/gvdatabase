@@ -78,16 +78,6 @@
 }
 
 // 👉 Datatable
-.v-data-table-footer__pagination {
-  @include layoutMixins.rtl {
-    .v-btn {
-      .v-icon {
-        transform: rotate(180deg);
-      }
-    }
-  }
-}
-
 // Dialog responsive width
 .v-dialog {
   // dialog custom close btn

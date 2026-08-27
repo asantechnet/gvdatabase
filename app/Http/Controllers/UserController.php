@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use App\Support\RoleCatalog;
 
 class UserController extends Controller
 {
@@ -28,11 +27,14 @@ class UserController extends Controller
         if (in_array('super_admin', $data['roles'], true) && ! $request->user()->isSuperAdmin()) {
             abort(403, 'auth.forbidden');
         }
+        $roles = $data['roles'];
+        unset($data['roles']);
         $data['password'] = Hash::make(Str::random(64));
         $data['must_set_password'] = true;
         $user = User::create($data);
+        $user->syncRoles($roles);
         $user->sendEmailVerificationNotification();
-        return response()->json(['success' => true, 'data' => new UserResource($user)], 201);
+        return response()->json(['success' => true, 'data' => new UserResource($user->fresh())], 201);
     }
 
     public function show(Request $request, User $user): JsonResponse
@@ -57,7 +59,10 @@ class UserController extends Controller
         $this->guardCurrentSuperAdmin($request, $user, $data);
         $emailChanged = isset($data['email']) && $data['email'] !== $user->email;
         if ($emailChanged) $data['email_verified_at'] = null;
+        $roles = $data['roles'] ?? null;
+        unset($data['roles']);
         $user->update($data);
+        if ($roles !== null) $user->syncRoles($roles);
         if ($emailChanged) $user->sendEmailVerificationNotification();
         return response()->json(['success' => true, 'data' => new UserResource($user->fresh())]);
     }
@@ -92,7 +97,7 @@ class UserController extends Controller
             'phone' => [$user ? 'sometimes' : 'required', 'nullable', 'string', 'max:20'],
             'address' => [$user ? 'sometimes' : 'required', 'nullable', 'string', 'max:2000'],
             'roles' => [$user ? 'sometimes' : 'required', 'array', 'min:1'],
-            'roles.*' => [Rule::in(RoleCatalog::NAMES)],
+            'roles.*' => [Rule::exists('roles', 'name')],
             'acc_status' => [
                 $user ? 'sometimes' : 'required',
                 Rule::in($user ? ['active', 'inactive', 'suspended', 'deactivated'] : ['active', 'inactive', 'suspended']),

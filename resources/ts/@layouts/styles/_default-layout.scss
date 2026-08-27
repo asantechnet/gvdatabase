@@ -9,6 +9,38 @@ body {
   min-block-size: 100%;
 }
 
+// Keep the browser viewport scrollbar aligned with Vuexy's Perfect Scrollbar
+// treatment. Theme variables ensure the thumb adapts to light and dark modes.
+html {
+  scrollbar-color: rgb(var(--v-theme-perfect-scrollbar-thumb)) transparent;
+  scrollbar-width: thin;
+}
+
+html::-webkit-scrollbar {
+  block-size: 6px;
+  inline-size: 6px;
+}
+
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb {
+  background: rgb(var(--v-theme-perfect-scrollbar-thumb));
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--v-theme-primary));
+  background-clip: padding-box;
+}
+
+html::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .layout-page-content {
   @include mixins.boxed-content(true);
 

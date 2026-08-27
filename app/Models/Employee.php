@@ -48,6 +48,11 @@ class Employee extends Model
         return $this->hasMany(Attendance::class);
     }
 
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(Contract::class);
+    }
+
     public function worthyEmployees(): HasMany
     {
         return $this->hasMany(WorthyEmployee::class);
@@ -102,7 +107,7 @@ class Employee extends Model
     {
         return $query->where(function (Builder $query) {
             $query->whereNull('user_id')
-                ->orWhereDoesntHave('user', fn (Builder $userQuery) => $userQuery->whereJsonContains('roles', 'super_admin'));
+                ->orWhereDoesntHave('user.roles', fn (Builder $roleQuery) => $roleQuery->where('name', 'super_admin'));
         });
     }
 

@@ -7,6 +7,7 @@ import type { EditKanbanItem, KanbanItem } from '@db/apps/kanban/types'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { VForm } from 'vuetify/components/VForm'
+import KanbanTaskEditForm from '@/components/forms/KanbanTaskEditForm.vue'
 
 interface Emit {
   (e: 'update:isDrawerOpen', value: boolean): void
@@ -118,11 +119,10 @@ watch(() => props.kanbanItem, () => {
   }
 }, { deep: true })
 
-const updateKanbanItem = async () => {
+const updateKanbanItem = async (updatedItem = localKanbanItem.value) => {
   if (!props.kanbanItem || !currentTask.value) return
 
-  const { valid } = await refEditTaskForm.value?.validate() || { valid: false }
-  if (!valid) return
+  localKanbanItem.value = updatedItem
 
   try {
     // Get tag IDs for selected labels
@@ -191,7 +191,8 @@ onMounted(() => {
     <VDivider />
 
     <PerfectScrollbar :options="{ wheelPropagation: false }" style="block-size: calc(100vh - 4rem);">
-      <VForm v-if="localKanbanItem" ref="refEditTaskForm" @submit.prevent="updateKanbanItem">
+      <KanbanTaskEditForm v-if="localKanbanItem" :item="localKanbanItem" :employees="employees" :tags="store.tags" :loading-employees="isLoadingEmployees" :can-edit="canEditTask()" :can-assign="canAssignMembers()" :can-manage-tags="canManageTags()" :can-delete="canDeleteTask()" @submit="updateKanbanItem" @delete="deleteKanbanItem" />
+      <VForm v-if="false" ref="refEditTaskForm" class="app-form" @submit.prevent="updateKanbanItem">
         <VCardText class="kanban-editor-drawer">
           <VRow>
             <!-- Title -->

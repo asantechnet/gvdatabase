@@ -18,6 +18,7 @@ const editingCommentId = ref<string | null>(null)
 const editingContent = ref('')
 const userData = useCookie<{ id?: string | number } | null>('userData')
 const { t } = useI18n()
+const initials = (name: string) => name.trim().split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase() || '?'
 const canManageComment = (comment: { senderId: string }) => canAccess('edit_all_comments')
   || (canAccess('edit_own_comments') && comment.senderId === String(userData.value?.id ?? ''))
 
@@ -102,8 +103,9 @@ watch(() => store.selectedTask?.comments, () => {
             class="comment mb-4"
           >
             <div class="d-flex">
-              <VAvatar size="32" class="mr-3">
-                <VImg :src="comment.senderId ? `/images/avatars/avatar-${comment.senderId}.png` : ''" />
+              <VAvatar size="32" class="mr-3" color="primary" variant="tonal">
+                <VImg v-if="comment.senderAvatar" :src="comment.senderAvatar" :alt="comment.senderName" />
+                <span v-else class="text-caption font-weight-medium">{{ initials(comment.senderName) }}</span>
               </VAvatar>
               <div class="flex-grow-1">
                 <div class="d-flex justify-space-between align-center mb-1">

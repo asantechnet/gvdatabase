@@ -12,17 +12,39 @@ class ContractTemplate extends Model
 
     protected $fillable = [
         'name',
-        'type',
+        'contract_type_id',
+        'position_id',
         'cover_text',
         'content',
     ];
 
     protected $casts = [
-        'content' => 'array', // Store Quill editor content as JSON
+        'content' => 'string', // Canonical storage is sanitized HTML (TipTap-compatible)
     ];
+
+    public function contractType()
+    {
+        return $this->belongsTo(ContractType::class);
+    }
 
     public function contracts()
     {
         return $this->hasMany(Contract::class, 'template_id');
+    }
+
+    public function position()
+    {
+        return $this->belongsTo(Position::class);
+    }
+
+    public function policies()
+    {
+        return $this->belongsToMany(ContractPolicy::class, 'contract_policy_contract_template')
+            ->withPivot('sort_order')->orderByPivot('sort_order');
+    }
+
+    public function getTypeSlugAttribute(): ?string
+    {
+        return $this->contractType?->slug;
     }
 }

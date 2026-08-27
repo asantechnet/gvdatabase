@@ -36,6 +36,7 @@ class DatabaseSeeder extends Seeder
         DB::table('boards')->truncate();
         DB::table('notification_user')->truncate();
         DB::table('notifications')->truncate();
+        DB::table('user_roles')->truncate();
         DB::table('role_permissions')->truncate();
 
         // Reset auto-increments
@@ -53,22 +54,35 @@ class DatabaseSeeder extends Seeder
         // Re-enable foreign key checks
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        // Seed in the correct order - users must be created first
+        // Seed in the correct order - roles and permissions must exist before users
         $this->call([
             CurrencySeeder::class,
             ServiceSeeder::class,
             CustomerSeeder::class,
             ContractSeeder::class,
             PositionSeeder::class,
-            SuperAdminSeeder::class, // This creates users
+            PermissionSeeder::class,
+            RoleSeeder::class,
+            RolePermissionSeeder::class,
+            SuperAdminSeeder::class, // This creates users (needs roles + permissions to exist)
+            OfficeSeeder::class,
             StockSeeder::class,
             EmployeeSeeder::class,
             VisitorSeeder::class,
             AttendanceSeeder::class,
             SalarySeeder::class,
             WorthyEmployeeSeeder::class,
-            PermissionSeeder::class,
-            RolePermissionSeeder::class,
+            BoardSeeder::class,
+            TagSeeder::class,
+            TaskSeeder::class,
+            TaskUserSeeder::class,
+            SubtaskSeeder::class,
+            CommentSeeder::class,
+            TaskTagSeeder::class,
+            TaskDependencySeeder::class,
+            KanbanSeeder::class,
+            InvoiceSeeder::class,
+            NotificationSeeder::class,
             BoardSeeder::class,
             TagSeeder::class,
             TaskSeeder::class,

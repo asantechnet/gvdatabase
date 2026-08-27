@@ -10,7 +10,13 @@ export interface StockItem {
   price: number
   model: string
   condition: StockCondition
-  office: string
+  office_id: number | null
+  office?: {
+    id: number
+    name: string
+    code: string
+    status: 'active' | 'inactive'
+  }
   staff_id: number | null
   staff?: {
     id: number
@@ -21,11 +27,11 @@ export interface StockItem {
 export interface StockParams {
   search?: string
   model?: string
-  office?: string
+  office_id?: number
   condition?: StockCondition
 }
 
-export type StockPayload = Omit<StockItem, 'id' | 'staff'>
+export type StockPayload = Omit<StockItem, 'id' | 'staff' | 'office'>
 
 const unwrapData = <T>(response: unknown): T => {
   let payload = response

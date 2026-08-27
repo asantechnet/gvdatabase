@@ -44,7 +44,7 @@ class ExpenseController extends Controller
             'amount' => 'required|numeric|min:0',
             'quantity' => 'required|integer|min:1',
             'currency_id' => 'required|exists:currencies,id',
-            'rate_to_base' => 'required|numeric|min:0',
+            'rate' => 'required|numeric|gt:0',
             'date' => 'required|date',
         ]);
 
@@ -73,7 +73,7 @@ class ExpenseController extends Controller
             'amount' => 'sometimes|numeric|min:0',
             'quantity' => 'sometimes|integer|min:1',
             'currency_id' => 'sometimes|exists:currencies,id',
-            'rate_to_base' => 'sometimes|numeric|min:0',
+            'rate' => 'sometimes|numeric|gt:0',
             'date' => 'sometimes|date',
         ]);
 
@@ -101,6 +101,9 @@ class ExpenseController extends Controller
     private function applyCurrencySnapshot(array &$data): void
     {
         $currency = Currency::findOrFail($data['currency_id']);
-        $data['rate_to_base'] = $currency->rate_against_base;
+        $base = Currency::where('is_base', true)->firstOrFail();
+        $data['cnv_curr_shrt'] = $currency->code;
+        $data['base_curr_shrt'] = $base->code;
+        $data['rate'] = $data['rate'] ?? $currency->rate;
     }
 }

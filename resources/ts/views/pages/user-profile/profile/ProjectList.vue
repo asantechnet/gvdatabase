@@ -115,7 +115,7 @@ const options = ref({ page: 1, itemsPerPage: 5 })
     <!-- 👉 User Project List Table -->
 
     <!-- SECTION Datatable -->
-    <VDataTable
+    <ResponsiveDataTable
       v-model:page="options.page"
       :headers="projectTableHeaders"
       :items-per-page="options.itemsPerPage"
@@ -206,7 +206,7 @@ const options = ref({ page: 1, itemsPerPage: 5 })
           :total-items="projects.length"
         />
       </template>
-    </VDataTable>
+    </ResponsiveDataTable>
     <!-- !SECTION -->
   </VCard>
 </template>

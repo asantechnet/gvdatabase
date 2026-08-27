@@ -4,123 +4,177 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\ContractTemplateResource;
 use App\Models\ContractTemplate;
+use App\Models\ContractType;
+use App\Services\Contracts\ContentSanitizer;
+use App\Services\Contracts\PlaceholderRegistry;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Http\JsonResponse;
 
 class ContractTemplateController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    public function __construct(private readonly ContentSanitizer $sanitizer) {}
+
     public function index(): JsonResponse
     {
-        $templates = ContractTemplate::latest()->get();
+        $templates = ContractTemplate::with(['policies', 'contractType', 'position'])->latest('id')->get();
+
         return response()->json([
             'success' => true,
-            'data' => ContractTemplateResource::collection($templates)
+            'data' => ContractTemplateResource::collection($templates),
         ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'type' => 'required|string|in:Employment,Service,Partnership,Lease,NDA',
-            'cover_text' => 'nullable|string',
-            'content' => 'required|string',
-        ]);
+        $data = $this->validated($request);
 
-        $validator->validate();
-
-        $template = ContractTemplate::create($validator->validated());
+        $template = ContractTemplate::create($this->payload($data));
+        $template->policies()->sync($this->policySyncData($data['policy_ids'] ?? []));
 
         return response()->json([
             'success' => true,
-            'data' => new ContractTemplateResource($template)
+            'data' => new ContractTemplateResource($template->load(['policies', 'contractType', 'position'])),
         ], 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id): JsonResponse
+    public function show(ContractTemplate $contractTemplate): JsonResponse
     {
-        $template = ContractTemplate::find($id);
+        return response()->json([
+            'success' => true,
+            'data' => new ContractTemplateResource($contractTemplate->load(['policies', 'contractType', 'position'])),
+        ]);
+    }
 
-        if (!$template) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Contract template not found'
-            ], 404);
+    public function update(Request $request, ContractTemplate $contractTemplate): JsonResponse
+    {
+        $data = $this->validated($request, partial: true);
+
+        $contractTemplate->update($this->payload($data, $contractTemplate));
+
+        if (array_key_exists('policy_ids', $data)) {
+            $contractTemplate->policies()->sync($this->policySyncData($data['policy_ids']));
         }
 
         return response()->json([
             'success' => true,
-            'data' => new ContractTemplateResource($template)
+            'data' => new ContractTemplateResource($contractTemplate->fresh(['policies', 'contractType', 'position'])),
         ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id): JsonResponse
+    public function destroy(ContractTemplate $contractTemplate): JsonResponse
     {
-        $template = ContractTemplate::find($id);
-
-        if (!$template) {
+        if ($contractTemplate->contracts()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Contract template not found'
-            ], 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255',
-            'type' => 'sometimes|string|in:Employment,Service,Partnership,Lease,NDA',
-            'cover_text' => 'nullable|string',
-            'content' => 'sometimes|string',
-        ]);
-
-        $validator->validate();
-
-        $template->update($validator->validated());
-
-        return response()->json([
-            'success' => true,
-            'data' => new ContractTemplateResource($template)
-        ]);
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id): JsonResponse
-    {
-        $template = ContractTemplate::find($id);
-
-        if (!$template) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Contract template not found'
-            ], 404);
-        }
-
-        if ($template->contracts()->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Templates used by contracts cannot be deleted.',
+                'message' => 'This template is used by existing contracts and cannot be deleted.',
+                'code' => 'business.contract_template_in_use',
             ], 409);
         }
 
-        $template->delete();
+        $contractTemplate->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Contract template deleted successfully'
+            'message' => 'Contract template deleted successfully',
         ]);
+    }
+
+    // ------------------------------------------------------------------
+
+    private function validated(Request $request, bool $partial = false): array
+    {
+        $required = $partial ? 'sometimes|' : '';
+
+        $validator = Validator::make($request->all(), [
+            'name' => [$required.'required', 'string', 'max:255'],
+            'contract_type_id' => [$required.'required', 'integer', 'exists:contract_types,id'],
+            'position_id' => ['nullable', 'integer', 'exists:positions,id'],
+            'cover_text' => ['nullable', 'string'],
+            'content' => [$required.'required', 'string'],
+            'policy_ids' => ['nullable', 'array'],
+            'policy_ids.*' => ['integer', 'exists:contract_policies,id'],
+        ]);
+
+        $validator->after(function ($validator) use ($request, $partial) {
+            $typeId = $request->input('contract_type_id');
+            if ($partial && ! $request->filled('contract_type_id')) {
+                return;
+            }
+
+            $type = ContractType::find($typeId);
+            if (! $type) {
+                return;
+            }
+
+            if ($type->slug === 'employment' && ! $request->filled('position_id')) {
+                $validator->errors()->add('position_id', 'A position is required for an employment template.');
+            }
+        });
+
+        $validator->validate();
+
+        return collect($validator->validated())->except('policy_ids')->merge([
+            'policy_ids' => $request->input('policy_ids'),
+        ])->all();
+    }
+
+    private function policySyncData(array $ids): array
+    {
+        return collect($ids)
+            ->values()
+            ->mapWithKeys(fn ($id, $index) => [(int) $id => ['sort_order' => (int) $index]])
+            ->all();
+    }
+
+    private function payload(array $data, ?ContractTemplate $existing = null): array
+    {
+        $type = ContractType::find($data['contract_type_id'] ?? null)
+            ?? $existing?->contractType;
+
+        // Position only makes sense for employment templates; never leave
+        // employment-only data silently attached to other template types.
+        if ($type?->slug !== 'employment') {
+            $data['position_id'] = null;
+        }
+
+        if (array_key_exists('content', $data)) {
+            $data['content'] = $this->sanitizeContent((string) $data['content'], $type?->slug);
+        }
+
+        // Keep the legacy display column populated for old consumers.
+        if ($type && array_key_exists('contract_type_id', $data)) {
+            $data['type'] = $type->name;
+        }
+
+        unset($data['policy_ids']);
+
+        return $data;
+    }
+
+    /**
+     * Validate placeholders against the contract type before saving a
+     * template so unknown or out-of-context placeholders are rejected early.
+     */
+    private function sanitizeContent(string $content, ?string $slug): string
+    {
+        preg_match_all('/{{\s*([a-zA-Z0-9_.]+)\s*}}/', $content, $matches);
+        $allowed = PlaceholderRegistry::keysForSlug($slug);
+        $unknown = collect($matches[1] ?? [])
+            ->map(fn ($key) => strtolower($key))
+            ->unique()
+            ->reject(fn ($key) => in_array($key, $allowed, true));
+
+        if ($unknown->isNotEmpty()) {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'The template contains placeholders that are not valid for this contract type: '
+                    .$unknown->implode(', '),
+                'code' => 'business.unresolved_placeholders',
+                'placeholders' => $unknown->values()->all(),
+            ], 422));
+        }
+
+        return $this->sanitizer->clean($content);
     }
 }

@@ -15,7 +15,7 @@ class StockController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Stock::query()->with('staff');
+        $query = Stock::query()->with(['staff', 'office']);
 
         if ($request->has('search')) {
             $search = $request->input('search');
@@ -29,8 +29,8 @@ class StockController extends Controller
             $query->where('model', $request->input('model'));
         }
 
-        if ($request->has('office')) {
-            $query->where('office', $request->input('office'));
+        if ($request->filled('office_id')) {
+            $query->where('office_id', $request->integer('office_id'));
         }
 
         if ($request->filled('condition')) {
@@ -54,13 +54,13 @@ class StockController extends Controller
             'price' => 'required|numeric|min:0',
             'model' => 'required|string|max:255',
             'condition' => ['required', Rule::in(Stock::conditions())],
-            'office' => 'required|string|max:255',
+            'office_id' => ['required', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
             'staff_id' => 'nullable|exists:employees,id',
         ]);
 
         $stock = DB::transaction(fn () => Stock::create($validated));
 
-        return new StockResource($stock->load('staff'));
+        return new StockResource($stock->load(['staff', 'office']));
     }
 
     /**
@@ -68,7 +68,7 @@ class StockController extends Controller
      */
     public function show(Stock $stock)
     {
-        return new StockResource($stock->load('staff'));
+        return new StockResource($stock->load(['staff', 'office']));
     }
 
     /**
@@ -83,13 +83,13 @@ class StockController extends Controller
             'price' => 'sometimes|numeric|min:0',
             'model' => 'sometimes|string|max:255',
             'condition' => ['sometimes', Rule::in(Stock::conditions())],
-            'office' => 'sometimes|string|max:255',
+            'office_id' => ['sometimes', 'required', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
             'staff_id' => 'nullable|exists:employees,id',
         ]);
 
         DB::transaction(fn () => $stock->update($validated));
 
-        return new StockResource($stock->load('staff'));
+        return new StockResource($stock->load(['staff', 'office']));
     }
 
     /**

@@ -57,7 +57,7 @@ class PaidTimeOffController extends Controller
             Employee::whereKey($employee->id)->lockForUpdate()->firstOrFail();
             $existing = $employee->paidTimeOffs()->whereIn('date', $dates)->pluck('date');
             if ($existing->isNotEmpty()) {
-                throw ValidationException::withMessages(['start_date' => ['A requested date already exists.']]);
+                throw ValidationException::withMessages(['start_date' => ['business.paid_time_off_date_exists']]);
             }
 
             return $dates->map(fn (string $date) => $employee->paidTimeOffs()->create([

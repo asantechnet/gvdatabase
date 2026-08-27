@@ -29,13 +29,14 @@ const statusOptions = ['Active', 'Inactive']
 
 <template>
   <div>
+    <DataTablePageKpis :items="contractOptions" title="Contract options" description="Maintain the reusable templates and defaults that support your contracts." icon="tabler-file-settings" status-key="active" />
     <VCard class="mb-6">
       <VCardText>
         <VRow align="center">
-          <VCol cols="12" md="4">
+          <VCol cols="12" md="8">
             <VTextField
               v-model="searchQuery"
-              prepend-inner-icon="tabler-search"
+              class="data-table-search" prepend-inner-icon="tabler-search"
               :placeholder="$t('pages.contracts.optionsContract.optionsContract.searchContractOptions')"
               density="compact"
               clearable
@@ -43,29 +44,11 @@ const statusOptions = ['Active', 'Inactive']
             />
           </VCol>
 
-          <VCol cols="12" sm="6" md="2">
-            <VSelect
-              v-model="filter1"
-              :items="typeOptions"
-              :label="$t('common.messages.filterByType')"
-              density="compact"
-              clearable
-              hide-details
-            />
-          </VCol>
-
-          <VCol cols="12" sm="6" md="2">
-            <VSelect
-              v-model="filter2"
-              :items="statusOptions"
-              :label="$t('common.messages.filterByStatus')"
-              density="compact"
-              clearable
-              hide-details
-            />
-          </VCol>
-
           <VCol cols="12" md="4" class="d-flex justify-md-end">
+            <DataTableFilterMenu :active="Boolean(filter1 || filter2)" @reset="filter1 = null; filter2 = null">
+              <VSelect v-model="filter1" :items="typeOptions" :label="$t('common.messages.filterByType')" density="compact" clearable hide-details />
+              <VSelect v-model="filter2" :items="statusOptions" :label="$t('common.messages.filterByStatus')" density="compact" clearable hide-details />
+            </DataTableFilterMenu>
             <VBtn color="primary">
               <VIcon icon="tabler-plus" class="me-1" />
               {{ $t('common.messages.addNew') }}
@@ -77,7 +60,7 @@ const statusOptions = ['Active', 'Inactive']
 
     <VCard>
       <div class="table-container">
-        <VDataTable
+        <ResponsiveDataTable
           :items="contractOptions"
           :headers="[
             { title: translate('common.messages.id'), key: 'id' },
@@ -103,13 +86,14 @@ const statusOptions = ['Active', 'Inactive']
             </VChip>
           </template>
 
-          <template #item.actions>
+          <template #item.actions="{ item }">
             <div class="d-flex gap-1">
+              <FullDetailsButton :item="item" :title="item.name" />
               <VBtn icon="tabler-edit" variant="text" size="small" color="medium-emphasis" />
               <VBtn icon="tabler-trash" variant="text" size="small" color="error" />
             </div>
           </template>
-        </VDataTable>
+        </ResponsiveDataTable>
       </div>
     </VCard>
   </div>

@@ -14,7 +14,7 @@ class TaskTagSeeder extends Seeder
         $tags = Tag::all();
 
         foreach ($tasks as $task) {
-            $task->tags()->attach(
+            $task->tags()->syncWithoutDetaching(
                 $tags->random(rand(0, 3))->pluck('id')->toArray()
             );
         }

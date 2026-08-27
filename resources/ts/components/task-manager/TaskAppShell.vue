@@ -42,7 +42,7 @@ const currentComponent = computed(() => {
     <!-- Added elevation="0" and border for a flatter, premium Vuexy look -->
     <VCard elevation="0" class="border mb-6 bg-surface">
       <!-- Added show-arrows for mobile responsiveness and removed "stacked" to save vertical space -->
-      <VTabs v-model="activeTab" color="primary" align-tabs="start" show-arrows height="60" slider-color="primary">
+      <VTabs v-model="activeTab" color="primary" align-tabs="start" show-arrows height="60" slider-color="primary" @update:model-value="store.setView($event as any)">
         <VTab v-for="tab in tabs" :key="tab.value" :value="tab.value" class="px-5 text-none">
           <!-- Shifted icon to the left of the text for a horizontal layout -->
           <VIcon :icon="tab.icon" size="22" class="mr-2" />
@@ -54,7 +54,7 @@ const currentComponent = computed(() => {
     <!-- View Container (Populates the view directly without route changes) -->
     <div class="view-container">
       <Transition name="fade-transition" mode="out-in">
-        <component :is="currentComponent" />
+        <component :is="currentComponent" :key="store.activeView" />
       </Transition>
     </div>
   </div>

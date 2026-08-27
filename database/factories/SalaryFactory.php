@@ -12,6 +12,7 @@ class SalaryFactory extends Factory
     {
         $amountPaid = fake()->numberBetween(20000, 100000);
         $bonus = fake()->numberBetween(0, 10000);
+        $totalAmount = $amountPaid + $bonus;
 
         return [
             'employee_id' => Employee::factory(),
@@ -21,7 +22,15 @@ class SalaryFactory extends Factory
             'bonus' => $bonus,
             'worked_days' => 30,
             'total_days' => 30,
-            'total_amount' => $amountPaid + $bonus,
+            'total_amount' => $totalAmount,
+            'currency_code' => 'USD',
+            'currency_name' => 'United States Dollar',
+            'currency_symbol' => '$',
+            'currency_decimal_places' => 2,
+            'cnv_curr_shrt' => 'USD',
+            'base_curr_shrt' => 'USD',
+            'rate' => 1,
+            'base_amount' => $totalAmount,
             'remarks' => null,
             'payment_date' => fake()->date(),
         ];

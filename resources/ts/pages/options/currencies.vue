@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CurrencyApi, { type Currency, type CurrencyForm } from '@/api/currency'
+import CurrencyFormDialog from '@/components/forms/CurrencyForm.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 
@@ -157,7 +158,10 @@ const openEditDialog = (currency: Currency) => {
   isDialogVisible.value = true
 }
 
-const saveCurrency = async () => {
+const saveCurrency = async (submittedForm?: CurrencyForm & { isBase?: boolean }) => {
+  if (submittedForm)
+    formData.value = { ...formData.value, ...submittedForm }
+
   if (!formData.value.name || !formData.value.code) {
     toast.error(translate('pages.finance.currencies.currencies.nameAndCodeAreRequired'))
     return
@@ -363,6 +367,7 @@ const toggleStatus = async (currency: Currency) => {
 
             <td class="text-center">
               <div class="d-flex justify-center align-center gap-1">
+                <FullDetailsButton :item="currency" :title="currency.name" />
                 <v-tooltip :text="$t('pages.finance.currencies.currencies.setAsBaseCurrency')" location="top" v-if="!currency.isBase">
                   <template #activator="{ props }">
                     <v-btn v-bind="props" icon="tabler-star" size="small" variant="text" color="warning"
@@ -404,71 +409,7 @@ const toggleStatus = async (currency: Currency) => {
       </v-table>
     </v-card>
 
-    <v-dialog v-model="isDialogVisible" max-width="540">
-      <v-card rounded="lg">
-        <v-card-title class="pa-5 d-flex justify-space-between align-center">
-          <span class="text-h5 font-weight-bold">
-            {{ editingId ? 'Edit Currency' : 'Add New Currency' }}
-          </span>
-          <v-btn icon="tabler-x" variant="text" density="compact" @click="isDialogVisible = false" />
-        </v-card-title>
-
-        <v-divider />
-
-        <v-card-text class="pa-5">
-          <v-form @submit.prevent="saveCurrency">
-            <v-row density="comfortable">
-              <v-col cols="12" sm="8">
-                <v-text-field v-model="formData.name" :label="$t('pages.finance.currencies.currencies.currencyName')" :placeholder="$t('pages.finance.currencies.currencies.eGAustralianDollar')"
-                  variant="outlined" required :error-messages="formErrors.name" />
-              </v-col>
-
-              <v-col cols="12" sm="4">
-                <v-text-field v-model="formData.code" :label="$t('pages.finance.currencies.currencies.codeShortName')" :placeholder="$t('pages.finance.currencies.currencies.eGAUD')"
-                  variant="outlined" maxlength="5" required :error-messages="formErrors.code" />
-              </v-col>
-
-              <v-col cols="12" sm="6">
-                <v-text-field v-model="formData.symbol" :label="$t('pages.finance.currencies.currencies.symbol')" :placeholder="$t('pages.finance.currencies.symbolExample')" variant="outlined"
-                  :error-messages="formErrors.symbol" />
-              </v-col>
-
-              <v-col cols="12" sm="6">
-                <v-text-field v-model.number="formData.decimalPlaces" :label="$t('pages.finance.currencies.currencies.decimalPrecision')" type="number" min="0"
-                  max="6" variant="outlined" :error-messages="formErrors.decimal_places" />
-              </v-col>
-
-              <v-col cols="12">
-                <v-text-field v-model.number="formData.rateToBase"
-              :label="$t('pages.finance.currencies.rateToBase', { currency: currentBaseCurrency?.code || $t('common.messages.notAvailable') })" placeholder="1.0" type="number"
-                  step="0.000001" min="0" variant="outlined" :disabled="formData.isBase"
-                  :hint="formData.isBase ? 'Base currency rate is always 1.0' : `1 ${currentBaseCurrency?.code || 'N/A'} equals how many units of this currency?`"
-                  persistent-hint :error-messages="formErrors.rate_to_base" />
-              </v-col>
-
-              <v-col cols="12" sm="6" class="pt-2">
-                <v-switch v-model="formData.isBase" :label="$t('pages.finance.currencies.currencies.setAsPrimaryBase')" color="primary" hide-details
-                  :error-messages="formErrors.is_base" />
-              </v-col>
-
-              <v-col cols="12" sm="6" class="pt-2">
-                <v-switch v-model="formData.isActive" :label="$t('pages.finance.currencies.currencies.activeStatus')" color="success" :disabled="formData.isBase"
-                  hide-details :error-messages="formErrors.is_active" />
-              </v-col>
-            </v-row>
-          </v-form>
-        </v-card-text>
-
-        <v-divider />
-
-        <v-card-actions class="pa-4 justify-end gap-2">
-          <v-btn variant="outlined" color="secondary" @click="isDialogVisible = false">{{ $t('common.actions.cancel') }}</v-btn>
-          <v-btn color="primary" elevation="1" @click="saveCurrency">
-            {{ editingId ? 'Save Changes' : 'Create Currency' }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <CurrencyFormDialog v-model="isDialogVisible" :initial-data="formData" :current-base-currency="currentBaseCurrency" :errors="formErrors" :loading="isLoading" :editing="Boolean(editingId)" @submit="saveCurrency" />
 
     <v-dialog v-model="isDeleteDialogVisible" max-width="420">
       <v-card rounded="lg" class="pa-2">

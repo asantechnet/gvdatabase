@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\OfficeResource;
 use App\Models\Office;
-use App\Models\Stock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -13,35 +12,30 @@ class OfficeController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => OfficeResource::collection(Office::orderBy('name')->get())]);
+        return response()->json(['success' => true, 'data' => OfficeResource::collection(Office::withCount('stocks')->orderBy('name')->get())]);
     }
 
     public function store(Request $request): JsonResponse
     {
         $office = Office::create($this->validated($request));
-        return response()->json(['success' => true, 'data' => new OfficeResource($office)], 201);
+        return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('stocks'))], 201);
     }
 
     public function show(Office $office): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => new OfficeResource($office)]);
+        return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('stocks'))]);
     }
 
     public function update(Request $request, Office $office): JsonResponse
     {
-        $oldName = $office->name;
         $office->update($this->validated($request, $office));
-
-        if ($oldName !== $office->name)
-            Stock::where('office', $oldName)->update(['office' => $office->name]);
-
-        return response()->json(['success' => true, 'data' => new OfficeResource($office->fresh())]);
+        return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('stocks'))]);
     }
 
     public function destroy(Office $office): JsonResponse
     {
-        if (Stock::where('office', $office->name)->exists()) {
-            return response()->json(['success' => false, 'message' => 'This office has stock assigned to it and cannot be deleted.'], 409);
+        if ($office->stocks()->exists()) {
+            return response()->json(['success' => false, 'code' => 'business.office_has_stock'], 409);
         }
 
         $office->delete();

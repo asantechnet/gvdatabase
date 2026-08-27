@@ -55,7 +55,7 @@ const totalCourse = computed(() => courseData.value.total)
     </VCardText>
 
     <VDivider />
-    <VDataTableServer
+    <ResponsiveDataTableServer
       v-model:items-per-page="itemsPerPage"
       v-model:page="page"
       :items-per-page-options="[
@@ -177,6 +177,6 @@ const totalCourse = computed(() => courseData.value.total)
           :total-items="totalCourse"
         />
       </template>
-    </VDataTableServer>
+    </ResponsiveDataTableServer>
   </VCard>
 </template>

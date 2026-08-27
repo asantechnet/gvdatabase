@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan *)",
+      "Bash(php *)",
+      "Bash(npm run *)",
+      "Bash(grep protected \\\\$table *)",
+      "Bash(grep -rn ''\\\\''role'\\\\'' =>\\\\|'\\\\''role'\\\\'' =>\\\\|=> $role\\\\|'\\\\''role'\\\\''' database/migrations/)",
+      "Bash(grep *)"
+    ]
+  }
+}

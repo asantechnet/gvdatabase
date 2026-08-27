@@ -8,15 +8,17 @@ export interface CustomerService {
   service_id: number
   type: string
   fee: number
+  currency_id: number | null
   currency: {
     id: number | string
     name: string
     code: string
     symbol: string
-    rateToBase: number
+    rate: number
   }
   deadline: string | null
   status: string
+  notes?: string | null
   created_at: string
   updated_at: string
 }
@@ -29,7 +31,7 @@ export interface Customer {
   email: string | null
   address: string | null
   tax_number: string | null
-  marketer: string
+  marketer: string | null
   date: string
   services: CustomerService[]
   created_at: string
@@ -49,7 +51,7 @@ export interface CreateCustomerData {
   email?: string | null
   address?: string | null
   tax_number?: string | null
-  marketer: string
+  marketer?: string | null
   date: string
 }
 
@@ -61,7 +63,12 @@ export interface CreateCustomerServiceData {
 }
 
 export interface UpdateCustomerServiceData {
+  service_id: number
+  fee?: number | null
+  currency_id?: number | null
   deadline: string | null
+  status: 'active' | 'paused' | 'completed'
+  notes?: string | null
 }
 
 const emptyCustomer = (): Customer => ({

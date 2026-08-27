@@ -16,8 +16,7 @@ class Salary extends Model
     protected $fillable = [
         'employee_id',
         'currency_id',
-        'currency_code', 'currency_name', 'currency_symbol', 'currency_decimal_places',
-        'exchange_rate_to_base', 'amount_paid_base', 'bonus_base', 'total_amount_base',
+        'currency_code', 'currency_name', 'currency_symbol', 'currency_decimal_places', 'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',
         'currency_snapshot_source', 'currency_snapshot_note',
         'salary_month',
         'amount_paid',
@@ -44,10 +43,7 @@ class Salary extends Model
             'unpaid_off_days' => 'integer',
             'total_days' => 'integer',
             'payment_date' => 'date',
-            'exchange_rate_to_base' => 'decimal:8',
-            'amount_paid_base' => 'decimal:4',
-            'bonus_base' => 'decimal:4',
-            'total_amount_base' => 'decimal:4',
+            'rate' => 'decimal:8', 'base_amount' => 'decimal:4',
             'currency_decimal_places' => 'integer',
         ];
     }
@@ -75,7 +71,7 @@ class Salary extends Model
     public function bonuses()
     {
         return $this->belongsToMany(WorthyEmployee::class, 'salary_worthy_employee')
-            ->withPivot(['source_amount', 'source_currency_code', 'source_rate_to_base', 'base_amount', 'salary_currency_code', 'salary_rate_to_base', 'converted_amount', 'conversion_formula', 'conversion_snapshot_source'])
+            ->withPivot(['source_amount'])
             ->withTimestamps();
     }
 

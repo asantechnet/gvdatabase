@@ -1,5 +1,6 @@
 import type { HorizontalNavItems } from '@layouts/types'
 import contracts from './contracts'
+import crm from './crm'
 import finance from './finance'
 import home from './home'
 import hr from './hr'
@@ -7,15 +8,14 @@ import innvoice from './innvoice'
 import settings from './settings'
 import setup from './setup'
 import tasks from './tasks'
-import visitor from './visitor'
 
 export default [
   ...home,
   ...contracts,
+  ...crm,
   ...innvoice,
   ...finance,
   ...hr,
-  ...visitor,
   ...tasks,
   ...settings,
   ...setup,

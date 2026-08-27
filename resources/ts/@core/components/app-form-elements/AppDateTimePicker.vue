@@ -12,6 +12,7 @@ import { VInput, makeVInputProps } from 'vuetify/lib/components/VInput/VInput'
 import { filterInputAttrs } from 'vuetify/lib/util/helpers'
 
 import { useConfigStore } from '@core/stores/config'
+import { clearFieldError, mergeFieldErrorMessages } from '@/utils/formErrors'
 
 // inherit Attribute make false
 defineOptions({
@@ -58,6 +59,8 @@ interface Emit {
 
 const configStore = useConfigStore()
 const attrs = useAttrs()
+const fieldName = computed(() => (attrs.name || attrs.id) as string | undefined)
+const externalErrors = computed(() => mergeFieldErrorMessages(fieldName.value, attrs.errorMessages))
 
 const [rootAttrs, compAttrs] = filterInputAttrs(attrs)
 const inputProps = ref(VInput.filterProps(props))
@@ -109,6 +112,7 @@ const updateThemeClassInCalendar = () => {
 }
 
 watch(() => configStore.theme, updateThemeClassInCalendar)
+watch(() => props.modelValue, () => clearFieldError(fieldName.value))
 
 onMounted(() => {
   updateThemeClassInCalendar()
@@ -150,6 +154,8 @@ const elementId = computed (() => {
       v-bind="{ ...inputProps, ...rootAttrs }"
       :model-value="props.modelValue"
       :hide-details="props.hideDetails"
+      :error-messages="externalErrors"
+      :error="externalErrors.length > 0"
       :class="[{
         'v-text-field--prefixed': props.prefix,
         'v-text-field--suffixed': props.suffix,

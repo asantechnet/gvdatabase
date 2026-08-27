@@ -178,6 +178,24 @@ class ReportedIssueRegressionTest extends TestCase
             ->assertJsonPath('data.contract_template.cover_text', 'A confidential employment arrangement.');
     }
 
+    public function test_contracts_can_be_split_by_customer_and_employee_template_type(): void
+    {
+        $customerTemplate = \App\Models\ContractTemplate::factory()->create(['type' => 'Service']);
+        $employeeTemplate = \App\Models\ContractTemplate::factory()->create(['type' => 'Employment']);
+        $customerContract = \App\Models\Contract::factory()->create(['template_id' => $customerTemplate->id]);
+        $employeeContract = \App\Models\Contract::factory()->create(['template_id' => $employeeTemplate->id]);
+
+        $this->getJson('/api/contracts?audience=customers')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $customerContract->id);
+
+        $this->getJson('/api/contracts?audience=employees')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $employeeContract->id);
+    }
+
     public function test_paid_time_off_creates_updates_and_removes_attendance(): void
     {
         Setting::create([

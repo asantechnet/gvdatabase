@@ -29,4 +29,9 @@ class Position extends Model
             ->withPivot('assigned_at', 'ended_at')
             ->withTimestamps();
     }
+
+    public function contractTemplate()
+    {
+        return $this->hasOne(ContractTemplate::class);
+    }
 }

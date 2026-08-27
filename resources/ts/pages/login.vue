@@ -5,6 +5,7 @@ import { applyPermissions } from '@/utils/authorization'
 import { useCookie } from '@core/composable/useCookie'
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import LoginForm from '@/components/forms/LoginForm.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -131,41 +132,8 @@ const resendVerification = async () => {
           </template>
         </VAlert>
 
-        <VForm @submit.prevent="handleLogin">
-          <VRow>
-            <VCol cols="12">
-              <VTextField v-model="form.email" :label="$t('common.fields.email')" type="email" autocomplete="email"
-                :placeholder="$t('pages.auth.login.login.enterYourEmail')" required />
-            </VCol>
-
-            <VCol cols="12">
-              <VTextField v-model="form.password" :label="$t('common.fields.password')" :placeholder="$t('pages.auth.login.login.enterYourPassword')"
-                :type="showPassword ? 'text' : 'password'" autocomplete="current-password"
-                :append-inner-icon="showPassword ? 'tabler-eye-off' : 'tabler-eye'"
-                required @click:append-inner="showPassword = !showPassword" />
-            </VCol>
-
-            <VCol v-if="twoFactorRequired" cols="12">
-              <VTextField v-model="form.twoFactorCode" :label="$t('pages.auth.login.login.authenticatorCode')" inputmode="numeric"
-                autocomplete="one-time-code" maxlength="6" prepend-inner-icon="tabler-shield-lock" required />
-            </VCol>
-
-            <VCol cols="12">
-              <div class="d-flex align-center justify-space-between flex-wrap gap-3">
-                <VCheckbox v-model="form.remember" :label="$t('pages.auth.login.login.rememberMe')" hide-details />
-                <RouterLink class="text-primary" :to="{ name: 'forgot-password', query: { email: form.email || undefined } }">
-                  {{ $t('pages.auth.login.login.forgotPassword') }}
-                </RouterLink>
-              </div>
-            </VCol>
-
-            <VCol cols="12">
-              <VBtn block type="submit" :loading="loading">
-                {{ twoFactorRequired ? 'Verify and sign in' : 'Login' }}
-              </VBtn>
-            </VCol>
-          </VRow>
-        </VForm>
+        <LoginForm :form="form" :loading="loading" :show-password="showPassword" :two-factor-required="twoFactorRequired"
+          @submit="handleLogin" @toggle-password="showPassword = !showPassword" />
       </VCardText>
     </VCard>
   </div>

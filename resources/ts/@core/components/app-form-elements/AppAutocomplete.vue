@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { clearFieldError, mergeFieldErrorMessages } from '@/utils/formErrors'
 defineOptions({
   name: 'AppAutocomplete',
   inheritAttrs: false,
@@ -15,6 +16,10 @@ const elementId = computed (() => {
 })
 
 const label = computed(() => useAttrs().label as string | undefined)
+const attrs = useAttrs()
+const fieldName = computed(() => (attrs.name || attrs.id) as string | undefined)
+const externalErrors = computed(() => mergeFieldErrorMessages(fieldName.value, attrs.errorMessages))
+watch(() => attrs.modelValue, () => clearFieldError(fieldName.value))
 </script>
 
 <template>
@@ -34,6 +39,7 @@ const label = computed(() => useAttrs().label as string | undefined)
         class: null,
         label: undefined,
         id: elementId,
+        errorMessages: externalErrors,
         variant: 'outlined',
         menuProps: {
           contentClass: [

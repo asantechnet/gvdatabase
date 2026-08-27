@@ -9,9 +9,30 @@ export type SupportedLocale = typeof supportedLocales[number]
 const messages = Object.fromEntries(
   Object.entries(
     import.meta.glob<{ default: any }>('./locales/*.json', { eager: true }))
-    .map(([key, value]) => [key.slice(10, -5), value.default])
+    .map(([key, value]) => {
+      const localeMessages = value.default
+
+      // Keep compatibility with locale files that historically contained a
+      // second top-level pages object. JSON parsing otherwise overwrites the
+      // main pages namespace and makes settings/contracts appear missing.
+      if (localeMessages.legacyPages) {
+        localeMessages.pages = { ...localeMessages.pages, ...localeMessages.legacyPages }
+        delete localeMessages.legacyPages
+      }
+
+      return [key.slice(10, -5), localeMessages]
+    })
     .filter(([locale]) => supportedLocales.includes(locale as SupportedLocale)),
 )
+
+// Dari is a deliberate fallback for Pashto while newer Pashto copy is being
+// completed. It prevents raw English source text and missing-key markers from
+// reaching end users.
+const fallbackLocale: Record<SupportedLocale, SupportedLocale[]> = {
+  en: [],
+  'fa-AF': ['en'],
+  'ps-AF': ['fa-AF', 'en'],
+}
 
 let _i18n: any = null
 
@@ -21,7 +42,7 @@ export const getI18n = () => {
     _i18n = createI18n({
       legacy: false,
       locale: supportedLocales.includes(storedLocale as SupportedLocale) ? storedLocale : 'en',
-      fallbackLocale: 'en',
+      fallbackLocale,
       messages,
       escapeParameter: true,
       missingWarn: import.meta.env.DEV,

@@ -25,7 +25,7 @@ const resolveStatusVariant = (status: number) => {
 </script>
 
 <template>
-  <VDataTable
+  <ResponsiveDataTable
     :headers="headers"
     :items="data"
     :items-per-page="5"
@@ -63,5 +63,5 @@ const resolveStatusVariant = (status: number) => {
         {{ resolveStatusVariant(item.status).text }}
       </VChip>
     </template>
-  </VDataTable>
+  </ResponsiveDataTable>
 </template>

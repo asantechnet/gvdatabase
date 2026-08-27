@@ -10,6 +10,8 @@ use Carbon\CarbonInterface;
 
 class AttendanceCalculationService
 {
+    private const CALCULATION_VERSION = 2;
+
     public function __construct(private readonly CompanyProfile $companyProfile) {}
 
     /** Recalculate only when raw inputs or schedule settings changed. */
@@ -22,6 +24,7 @@ class AttendanceCalculationService
         $scheduleEnd = $attendance->staff?->work_end_time ?: $setting?->office_close_time;
         $breakMinutes = (int) ($attendance->break_minutes ?? $setting?->default_break_minutes ?? 0);
         $hash = hash('sha256', json_encode([
+            self::CALCULATION_VERSION,
             $attendance->status, $attendance->date?->format('Y-m-d'), $attendance->checked_in_at?->toISOString(),
             $attendance->checked_out_at?->toISOString(), $attendance->check_in_time, $attendance->check_out_time,
             $breakMinutes, $scheduleStart, $scheduleEnd, $timezone,
@@ -66,7 +69,9 @@ class AttendanceCalculationService
             'required_minutes' => $required,
             'late_arrival_minutes' => $late,
             'early_departure_minutes' => $early,
-            'overtime_minutes' => max(0, $net - $required),
+            // A missing schedule is not evidence of overtime. Once office
+            // hours are available, overtime is worked time minus office time.
+            'overtime_minutes' => $required === null ? 0 : max(0, $net - $required),
             'missing_punch_state' => 'none',
             'is_overnight_shift' => $overnight,
         ];
@@ -84,7 +89,7 @@ class AttendanceCalculationService
 
     private function scheduleMetrics(Attendance $attendance, CarbonInterface $actualStart, CarbonInterface $actualEnd, ?string $startClock, ?string $endClock, int $break): array
     {
-        if (! $startClock || ! $endClock) return [0, 0, 0];
+        if (! $startClock || ! $endClock) return [null, 0, 0];
         $date = $attendance->date->format('Y-m-d');
         $scheduledStart = Carbon::parse($date.' '.$startClock, $actualStart->timezoneName);
         $scheduledEnd = Carbon::parse($date.' '.$endClock, $actualStart->timezoneName);

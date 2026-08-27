@@ -25,7 +25,20 @@ export interface Attendance {
   overtime_minutes: number
   missing_punch_state: 'none' | 'check_in' | 'check_out' | 'both'
   is_overnight_shift: boolean
+  daily_report_exists: boolean
   timezone: string
+}
+
+export interface DailyReport {
+  id: number
+  attendanceId: number
+  reportDate: string
+  summary: string
+  achievements: string | null
+  challenges: string | null
+  nextDayPlan: string | null
+  supportNeeded: string | null
+  submittedAt: string
 }
 
 export interface UnmarkedStaff { id: number; name: string; position: string; role?: string }
@@ -44,8 +57,16 @@ const AttendanceApi = {
     const response = await api.get<{ data: Attendance[] }>('/attendances', { params })
     return response.data.data
   },
+  async getMine(params?: Pick<AttendanceParams, 'start_date' | 'end_date'>): Promise<Attendance[]> {
+    const response = await api.get<{ data: Attendance[] }>('/my-work-history', { params })
+    return response.data.data
+  },
   async getUnmarkedStaff(date: string): Promise<UnmarkedStaff[]> {
     const response = await api.get<{ data: UnmarkedStaff[] }>('/attendances/unmarked-staff', { params: { date } })
+    return response.data.data
+  },
+  async getDailyReport(attendanceId: number): Promise<DailyReport> {
+    const response = await api.get<{ data: DailyReport }>(`/attendances/${attendanceId}/daily-report`)
     return response.data.data
   },
   async create(data: CreateAttendanceData): Promise<Attendance> {

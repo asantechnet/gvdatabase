@@ -5,6 +5,9 @@ import { VCheckbox, VDataTable, VSelect, VTextField } from 'vuetify/components'
 import { useRouter } from 'vue-router'
 import moment from 'moment'
 import CustomerApi, { type Customer, type CustomerService, type ApiResponse } from '@/api/customer'
+import { printDocument } from '@/utils/printDocument'
+import PrintableListReport from '@/components/PrintableListReport.vue'
+import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import type { Service } from '@/api/services'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import MarketerApi, { type Marketer } from '@/api/marketer'
@@ -13,8 +16,11 @@ import MarketerApi, { type Marketer } from '@/api/marketer'
 interface ServiceForm {
   id: number
   service_id: number
-  type: string
-  deadline: string
+  fee: number | null
+  currency_id: number | null
+  deadline: string | null
+  status: 'active' | 'paused' | 'completed'
+  notes: string | null
 }
 
 // State
@@ -48,8 +54,11 @@ const currentCustomer = ref<Customer>({
 const currentService = ref<ServiceForm>({
   id: 0,
   service_id: 0,
-  type: '',
-  deadline: '',
+  fee: null,
+  currency_id: null,
+  deadline: null,
+  status: 'active',
+  notes: null,
 })
 const serviceDialog = ref(false)
 const attachServiceDialog = ref(false)
@@ -90,6 +99,7 @@ const availableServiceHeaders = [
   { title: translate('common.messages.deadline'), key: 'duration' },
   { title: translate('common.messages.fee'), key: 'fee', sortable: false },
   { title: translate('common.fields.currency'), key: 'currency.code', sortable: false },
+  { title: translate('common.messages.actions'), key: 'details', sortable: false, align: 'end' as const },
 ]
 
 const deadlineMeta = (deadline: string | null) => {
@@ -117,7 +127,7 @@ const filtered = computed(() => {
     const matchesSearch = c.name.toLowerCase().includes(search.value.toLowerCase()) ||
       c.company.toLowerCase().includes(search.value.toLowerCase()) ||
       c.contact.toLowerCase().includes(search.value.toLowerCase()) ||
-      c.marketer.toLowerCase().includes(search.value.toLowerCase())
+      (c.marketer || '').toLowerCase().includes(search.value.toLowerCase())
 
     const matchesCurrency = !filterCurrency.value ||
       c.services.some(s => s.currency.code === filterCurrency.value)
@@ -241,7 +251,12 @@ const updateService = async (customerId: number, pivotId: number) => {
     serviceLoading.value = true
 
     const response = await CustomerApi.updateService(customerId, pivotId, {
+      service_id: currentService.value.service_id,
+      fee: currentService.value.fee,
+      currency_id: currentService.value.currency_id,
       deadline: currentService.value.deadline,
+      status: currentService.value.status,
+      notes: currentService.value.notes,
     })
 
     if (!response.success) {
@@ -359,7 +374,7 @@ const confirmDeleteCustomer = (customerId: number) => {
 }
 
 const printTable = () => {
-  window.print()
+  void printDocument({ bodyClass: 'printing-table-customers', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 }
 
 // Form methods
@@ -405,8 +420,11 @@ const openEditService = (customerId: number, pivotId: number) => {
       currentService.value = {
         id: service.id,
         service_id: service.service_id,
-        type: service.type,
-        deadline: service.deadline || '',
+        fee: service.fee,
+        currency_id: service.currency_id ?? Number(service.currency.id),
+        deadline: service.deadline,
+        status: service.status as ServiceForm['status'],
+        notes: service.notes ?? null,
       }
       serviceToEdit.value = pivotId
       serviceDialog.value = true
@@ -444,19 +462,21 @@ const issueInvoice = (customerId: number) => {
 // Lifecycle hooks
 onMounted(() => {
   fetchCustomers()
+  fetchAllServices()
   fetchCurrencies()
   fetchMarketers()
 })
 </script>
 
 <template>
+  <DataTablePageKpis :items="filtered" title="Customer directory" description="Track customer relationships and their active services at a glance." icon="tabler-users-group" />
   <VCard>
     <VCardText>
       <VRow align="center">
-        <VCol cols="12" md="4">
+        <VCol cols="12" md="7">
           <VTextField
             v-model="search"
-            prepend-inner-icon="tabler-search"
+            class="data-table-search" prepend-inner-icon="tabler-search"
             :placeholder="$t('pages.contracts.allCustomers.allCustomers.searchCustomers')"
             density="compact"
             clearable
@@ -464,25 +484,16 @@ onMounted(() => {
             @input="fetchCustomers"
           />
         </VCol>
-        <VCol cols="12" sm="6" md="3">
-          <VSelect
-            v-model="filterCurrency"
-            :items="currencies"
-            item-title="code"
-            item-value="code"
-            :label="$t('pages.contracts.allCustomers.allCustomers.filterByCurrency')"
-            density="compact"
-            clearable
-            hide-details
-          />
-        </VCol>
         <VCol cols="12" md="5" class="text-end d-flex gap-2 justify-end">
+          <DataTableFilterMenu :active="Boolean(filterCurrency)" @reset="filterCurrency = null">
+            <VSelect v-model="filterCurrency" :items="currencies" item-title="code" item-value="code"
+              :label="$t('pages.contracts.allCustomers.allCustomers.filterByCurrency')" density="compact" clearable hide-details />
+          </DataTableFilterMenu>
           <VBtn
             icon="tabler-printer"
             variant="text"
             @click="printTable"
-            :title="$t('pages.contracts.allCustomers.allCustomers.printCustomerList')"
-          />
+          ><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allCustomers.allCustomers.printCustomerList') }}</VTooltip></VBtn>
           <VBtn
             color="primary"
             @click="openAddCustomer"
@@ -494,7 +505,7 @@ onMounted(() => {
       </VRow>
     </VCardText>
 
-    <VDataTable
+    <ResponsiveDataTable
       :headers="headers"
       :items="filtered"
       item-value="id"
@@ -503,6 +514,13 @@ onMounted(() => {
       :loading="loading"
       style="overflow-x: auto;"
     >
+      <template #item.contact="{ item }">
+        <div class="d-flex flex-column align-start gap-1">
+          <ContactActionMenu kind="phone" :value="item.contact" />
+          <ContactActionMenu v-if="item.email" kind="email" :value="item.email" />
+        </div>
+      </template>
+
       <template #item.date="{ item }">
         {{ formatLocalizedDate(`${item.date}T00:00:00`) }}
       </template>
@@ -511,7 +529,7 @@ onMounted(() => {
         <div v-if="item.services.length === 0" class="text-disabled">
           {{ $t('pages.contracts.allCustomers.allCustomers.noServices') }}
         </div>
-        <VDataTable
+        <ResponsiveDataTable
           v-else
           :headers="serviceHeaders"
           :items="item.services"
@@ -536,13 +554,13 @@ onMounted(() => {
             {{ item.currency.code }}
           </template>
           <template #item.serviceActions="{ item: service }">
+            <FullDetailsButton :item="service" :title="service.type" />
             <VBtn
               icon="tabler-edit"
               variant="text"
               size="x-small"
               color="primary"
               @click="openEditService(item.id, service.id)"
-              :title="$t('common.messages.editService')"
             >
               <VIcon icon="tabler-edit" />
               <VTooltip activator="parent" location="top">{{ $t('common.messages.editService2') }}</VTooltip>
@@ -553,24 +571,23 @@ onMounted(() => {
               size="x-small"
               color="error"
               @click="removeService(item.id, service.id)"
-              :title="$t('common.messages.removeService')"
             >
               <VIcon icon="tabler-trash" />
               <VTooltip activator="parent" location="top">{{ $t('common.messages.removeService2') }}</VTooltip>
             </VBtn>
           </template>
           <template #bottom></template>
-        </VDataTable>
+        </ResponsiveDataTable>
       </template>
 
       <template #item.actions="{ item }">
+        <FullDetailsButton :item="item" :title="item.name" />
         <VBtn
           icon="tabler-edit"
           variant="text"
           size="small"
           color="primary"
           @click="openEditCustomer(item)"
-          :title="$t('pages.contracts.allCustomers.allCustomers.editCustomer')"
         >
           <VIcon icon="tabler-edit" />
           <VTooltip activator="parent" location="top">{{ $t('pages.contracts.allCustomers.allCustomers.editCustomer2') }}</VTooltip>
@@ -581,7 +598,6 @@ onMounted(() => {
           size="small"
           color="success"
           @click="openAttachServices(item.id)"
-          :title="$t('pages.contracts.allCustomers.allCustomers.attachServices')"
         >
           <VIcon icon="tabler-plus" />
           <VTooltip activator="parent" location="top">{{ $t('common.messages.attachServices') }}</VTooltip>
@@ -605,14 +621,14 @@ onMounted(() => {
           size="small"
           color="error"
           @click="confirmDeleteCustomer(item.id)"
-          :title="$t('pages.contracts.allCustomers.allCustomers.deleteCustomer')"
         >
           <VIcon icon="tabler-trash" />
           <VTooltip activator="parent" location="top">{{ $t('pages.contracts.allCustomers.allCustomers.deleteCustomer2') }}</VTooltip>
         </VBtn>
       </template>
-    </VDataTable>
+    </ResponsiveDataTable>
   </VCard>
+  <PrintableListReport title="Customers Report" subtitle="Filtered customer records" :columns="['Name', 'Company', 'Contact', 'Marketer', 'Registered', 'Services']" :rows="filtered.map(customer => [customer.name, customer.company, customer.contact, customer.marketer, customer.date, customer.services.length ? customer.services.map(service => `${service.type}: ${service.fee} ${service.currency?.code ?? ''}${service.deadline ? ` · ${service.deadline}` : ''}`).join(' | ') : '—'])" />
 
   <!-- Customer Form Dialog -->
   <VDialog v-model="dialog" max-width="800px">
@@ -622,7 +638,7 @@ onMounted(() => {
       </VCardTitle>
 
       <VCardText>
-        <VForm>
+        <VForm class="app-form">
           <VRow>
             <VCol cols="12" md="6">
               <VTextField
@@ -641,7 +657,7 @@ onMounted(() => {
             <VCol cols="12" md="6">
               <VTextField
                 v-model="currentCustomer.contact"
-                :label="$t('pages.contracts.allCustomers.allCustomers.contactEmailPhone')"
+                :label="$t('common.fields.phone')"
                 required
               />
             </VCol>
@@ -657,7 +673,7 @@ onMounted(() => {
                 :label="$t('common.messages.marketer')"
                 :placeholder="$t('common.messages.selectAMarketer')"
                 :no-data-text="$t('pages.contracts.allCustomers.allCustomers.addMarketersFromSetupMarketers')"
-                required
+                clearable
               />
             </VCol>
             <VCol cols="12" md="6">
@@ -688,7 +704,7 @@ onMounted(() => {
                   </div>
                 </VCardTitle>
 
-                <VDataTable
+                <ResponsiveDataTable
                   :headers="serviceHeaders"
                   :items="currentCustomer.services"
                   density="compact"
@@ -712,13 +728,13 @@ onMounted(() => {
                     {{ item.currency.code }}
                   </template>
                   <template #item.serviceActions="{ item }">
+                    <FullDetailsButton :item="item" :title="item.type" />
                     <VBtn
                       icon="tabler-edit"
                       variant="text"
                       size="x-small"
                       color="primary"
                       @click="openEditService(currentCustomer.id, item.id)"
-                      :title="$t('common.messages.editService')"
                     >
                       <VIcon icon="tabler-edit" />
                       <VTooltip activator="parent" location="top">{{ $t('common.messages.editService2') }}</VTooltip>
@@ -729,13 +745,12 @@ onMounted(() => {
                       size="x-small"
                       color="error"
                       @click="removeService(currentCustomer.id, item.id)"
-                      :title="$t('common.messages.removeService')"
                     >
                       <VIcon icon="tabler-trash" />
                       <VTooltip activator="parent" location="top">{{ $t('common.messages.removeService2') }}</VTooltip>
                     </VBtn>
                   </template>
-                </VDataTable>
+                </ResponsiveDataTable>
               </VCard>
             </VCol>
           </VRow>
@@ -769,16 +784,28 @@ onMounted(() => {
       </VCardTitle>
 
       <VCardText>
-        <VForm>
+        <VForm class="app-form">
           <VRow>
             <VCol cols="12" md="6">
-              <VTextField
-                v-model="currentService.type"
+              <VSelect
+                v-model="currentService.service_id"
+                :items="allServices"
+                item-title="type"
+                item-value="id"
                 :label="$t('common.messages.serviceType')"
-                readonly
+                :loading="servicesLoading"
               />
             </VCol>
-            <VCol cols="12">
+            <VCol cols="12" md="6">
+              <VSelect
+                v-model="currentService.currency_id"
+                :items="currencies"
+                item-title="code"
+                item-value="id"
+                :label="$t('common.fields.currency')"
+              />
+            </VCol>
+            <VCol cols="12" md="6">
               <VTextField
                 v-model="currentService.deadline"
                 :label="$t('pages.contracts.allCustomers.allCustomers.deadline')"
@@ -786,6 +813,9 @@ onMounted(() => {
                 clearable
               />
             </VCol>
+            <VCol cols="12" md="6"><VTextField v-model.number="currentService.fee" :label="$t('common.messages.fee')" type="number" min="0" /></VCol>
+            <VCol cols="12" md="6"><VSelect v-model="currentService.status" :items="['active', 'paused', 'completed']" :label="$t('common.fields.status')" /></VCol>
+            <VCol cols="12"><VTextarea v-model="currentService.notes" :label="$t('common.messages.notes')" rows="2" auto-grow /></VCol>
           </VRow>
         </VForm>
       </VCardText>
@@ -820,7 +850,7 @@ onMounted(() => {
       <VCardText>
         <VRow>
           <VCol cols="12">
-            <VDataTable
+            <ResponsiveDataTable
               :headers="availableServiceHeaders"
               :items="availableServices"
               :loading="servicesLoading"
@@ -853,7 +883,8 @@ onMounted(() => {
               <template #item.currency.code="{ item }">
                 {{ item.currency.code }}
               </template>
-            </VDataTable>
+              <template #item.details="{ item }"><FullDetailsButton :item="item" :title="item.type" /></template>
+            </ResponsiveDataTable>
           </VCol>
         </VRow>
       </VCardText>

@@ -95,6 +95,7 @@ function openCreate() {
   editing.value = null
   form.value = { name: '', code: '', email: '', phone: '', status: 'active', notes: '', address: '', latitude: null, longitude: null, geofenceRadiusMeters: 100, geofenceEnabled: false }
   dialogOpen.value = true
+  if (!isMarketer.value) locateCurrentLocation(false)
 }
 
 function openEdit(record: DirectoryRecord) {
@@ -149,7 +150,7 @@ async function save() {
   }
 }
 
-function useCurrentLocation() {
+function locateCurrentLocation(overwriteCoordinates: boolean) {
   if (!navigator.geolocation) {
     toast.error(translate('pages.settings.geofence.notSupported'))
     return
@@ -160,13 +161,19 @@ function useCurrentLocation() {
     const longitude = Number(position.coords.longitude.toFixed(7))
     currentLocation.latitude = latitude
     currentLocation.longitude = longitude
-    form.value.latitude = latitude
-    form.value.longitude = longitude
+    if (overwriteCoordinates || (form.value.latitude == null && form.value.longitude == null)) {
+      form.value.latitude = latitude
+      form.value.longitude = longitude
+    }
     locating.value = false
   }, () => {
     locating.value = false
     toast.error(translate('pages.settings.geofence.locationFailed'))
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 })
+}
+
+function useCurrentLocation() {
+  locateCurrentLocation(true)
 }
 
 async function confirmDelete() {
@@ -211,25 +218,25 @@ onMounted(load)
 
     <VCard :loading="loading">
       <VCardText><VRow align="center">
-        <VCol cols="12" md="5"><VTextField v-model="search" :label="$t('common.actions.search')" prepend-inner-icon="tabler-search" density="compact" hide-details clearable /></VCol>
+        <VCol cols="12" md="5"><VTextField v-model="search" :label="$t('common.actions.search')" class="data-table-search" prepend-inner-icon="tabler-search" density="compact" hide-details clearable /></VCol>
       <VCol cols="12" sm="6" md="3"><VSelect v-model="statusFilter" :items="['active', 'inactive']" :item-title="translateBackendValue" :label="$t('common.fields.status')" density="compact" hide-details clearable /></VCol>
       <VCol cols="12" sm="6" md="4" class="d-flex justify-sm-end"><VBtn prepend-icon="tabler-plus" @click="openCreate">{{ $t('common.actions.addItem', { item: singular }) }}</VBtn></VCol>
       </VRow></VCardText>
 
-      <VDataTable :headers="headers" :items="filteredRecords" item-value="id" :loading="loading">
+      <ResponsiveDataTable :headers="headers" :items="filteredRecords" item-value="id" :loading="loading">
         <template #item.name="{ item }"><div class="d-flex align-center ga-3"><VAvatar color="primary" variant="tonal"><VIcon :icon="icon" /></VAvatar><div><div class="font-weight-bold">{{ item.name }}</div><div v-if="item.code" class="text-caption text-medium-emphasis">{{ item.code }}</div></div></div></template>
         <template #item.contact="{ item }"><div>{{ item.email || 'No email' }}</div><div class="text-caption text-medium-emphasis">{{ item.phone || 'No phone' }}</div></template>
       <template #item.details="{ item }"><span class="text-medium-emphasis">{{ isMarketer ? (item.notes || $t('common.messages.noNotes')) : (item.address || $t('common.messages.noAddress')) }}</span></template>
       <template #item.status="{ item }"><VChip size="small" :color="item.status === 'active' ? 'success' : 'secondary'" variant="tonal" class="text-capitalize">{{ translateBackendValue(item.status) }}</VChip></template>
         <template #item.assigned="{ item }">{{ assignedLabel(item) }}</template>
-        <template #item.actions="{ item }"><IconBtn :aria-label="$t('common.actions.editItem', { item: singular })" @click="openEdit(item)"><VIcon icon="tabler-pencil" /></IconBtn><IconBtn :aria-label="$t('common.actions.deleteItem', { item: singular })" color="error" @click="deleting = item; deleteDialogOpen = true"><VIcon icon="tabler-trash" /></IconBtn></template>
+        <template #item.actions="{ item }"><FullDetailsButton :item="item" :title="item.name" /><IconBtn :aria-label="$t('common.actions.editItem', { item: singular })" @click="openEdit(item)"><VIcon icon="tabler-pencil" /></IconBtn><IconBtn :aria-label="$t('common.actions.deleteItem', { item: singular })" color="error" @click="deleting = item; deleteDialogOpen = true"><VIcon icon="tabler-trash" /></IconBtn></template>
         <template #no-data><div class="py-8 text-center text-medium-emphasis">{{ $t('common.messages.noMatchingRecords') }}</div></template>
-      </VDataTable>
+      </ResponsiveDataTable>
     </VCard>
 
     <VDialog v-model="dialogOpen" max-width="1000">
       <VCard :title="$t(editing ? 'common.actions.editItem' : 'common.actions.addItem', { item: singular })">
-        <VCardText><VForm @submit.prevent="save"><VRow>
+        <VCardText><VForm class="app-form" @submit.prevent="save"><VRow>
           <VCol cols="12" :md="isMarketer ? 8 : 6"><VTextField v-model="form.name" :label="$t('common.fields.itemName', { item: singular })" autofocus required /></VCol>
           <VCol v-if="!isMarketer" cols="12" md="3"><VTextField v-model="form.code" :label="$t('pages.settings.directorycrudpage.officeCode')" required /></VCol>
           <VCol cols="12" :md="isMarketer ? 4 : 3"><VSelect v-model="form.status" :items="['active', 'inactive']" :item-title="translateBackendValue" :label="$t('common.fields.status')" /></VCol>

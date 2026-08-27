@@ -44,6 +44,18 @@ class AppServiceProvider extends ServiceProvider
             ]);
         });
 
+        ResetPassword::toMailUsing(function (object $notifiable, string $resetUrl): MailMessage {
+            $message = (new MailMessage)
+                ->subject('Reset Password Notification')
+                ->greeting('Hello!')
+                ->line('You are receiving this email because we received a password reset request for your account.')
+                ->action('Reset Password', $resetUrl)
+                ->line('This password reset link will expire in 60 minutes.')
+                ->line('If you did not request a password reset, no further action is required.');
+
+            return $this->applyCompanyMailSettings($message);
+        });
+
         VerifyEmail::toMailUsing(function (object $notifiable, string $verificationUrl): MailMessage {
             $message = (new MailMessage)
                 ->subject('Verify Email Address')
@@ -52,12 +64,25 @@ class AppServiceProvider extends ServiceProvider
                 ->action('Verify Email Address', $verificationUrl)
                 ->line('If you did not create this account, no further action is required.');
 
-            $from = app(CompanyProfile::class)->mailFrom();
-            if ($from) {
-                $message->from($from['address'], $from['name']);
-            }
-
-            return $message;
+            return $this->applyCompanyMailSettings($message);
         });
+    }
+
+    private function applyCompanyMailSettings(MailMessage $message): MailMessage
+    {
+        $profile = app(CompanyProfile::class);
+        if ($mailer = $profile->configureMailer()) {
+            $message->mailer($mailer);
+        }
+
+        if ($from = $profile->mailFrom()) {
+            $message->from($from['address'], $from['name']);
+        }
+
+        if ($replyTo = $profile->replyTo()) {
+            $message->replyTo($replyTo);
+        }
+
+        return $message;
     }
 }

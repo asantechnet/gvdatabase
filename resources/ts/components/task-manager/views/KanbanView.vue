@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { useTaskStore } from '@/stores/useTaskStore'
 import KanbanBoard from '@/pages/kanban/KanbanBoard.vue'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import TaskApi from '@/api/task'
+import type { Task, TaskAttachment } from '@/api/kanban'
+import type Viewer from 'viewerjs'
+import 'viewerjs/dist/viewer.css'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import TaskCommentsDrawer from '../components/TaskCommentsDrawer.vue'
 import TaskDetailDrawer from '../components/TaskDetailDrawer.vue'
 
@@ -15,6 +19,11 @@ const isDetailDrawerOpen = ref(false)
 const isCommentsDrawerOpen = ref(false)
 const isLoading = ref(true)
 const editorItemId = ref<string | null>(null)
+const isAttachmentsDialogOpen = ref(false)
+const attachmentTask = ref<Task | null>(null)
+const attachmentImageContainer = ref<HTMLElement>()
+const imagePreviewUrls = ref<Record<string, string>>({})
+let imageViewer: Viewer | null = null
 
 // Load data when component mounts
 onMounted(async () => {
@@ -42,8 +51,13 @@ const vuexyKanbanData = computed(() => {
       title: task.title,
       dueDate: task.dueDate,
       labels: task.tags.map(t => t.name),
-      members: task.assignees,
+      members: task.assignees.map(assignee => ({
+        id: assignee.id,
+        name: assignee.name,
+        img: assignee.avatar,
+      })),
       commentsCount: task.comments.length,
+      attachmentsCount: task.attachments?.length ?? 0,
       progress: task.progress,
       image: '',
       comments: task.description.replace(/<[^>]*>?/gm, '').substring(0, 50) + '...'
@@ -90,6 +104,72 @@ const handleCommentsClick = (payload: EditKanbanItem) => {
   store.selectTask(String(payload.item.id))
   isCommentsDrawerOpen.value = true
 }
+
+const handleAttachmentsClick = (payload: EditKanbanItem) => {
+  attachmentTask.value = store.tasks.find(task => task.id === String(payload.item.id)) ?? null
+  isAttachmentsDialogOpen.value = true
+}
+
+const isImage = (attachment: TaskAttachment) => attachment.mimeType?.startsWith('image/') ?? false
+
+const downloadAttachment = async (attachment: TaskAttachment) => {
+  if (!attachmentTask.value) return
+  const response = await TaskApi.downloadAttachment(attachmentTask.value.id, attachment.id)
+  const url = URL.createObjectURL(response.data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = attachment.name
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+const clearImagePreviews = () => {
+  Object.values(imagePreviewUrls.value).forEach(URL.revokeObjectURL)
+  imagePreviewUrls.value = {}
+}
+
+const loadImagePreviews = async () => {
+  if (!attachmentTask.value) return
+
+  const images = attachmentTask.value.attachments.filter(isImage)
+  const previews = await Promise.all(images.map(async attachment => {
+    try {
+      const response = await TaskApi.downloadAttachment(attachmentTask.value!.id, attachment.id)
+      return [attachment.id, URL.createObjectURL(response.data)] as const
+    } catch {
+      return null
+    }
+  }))
+
+  imagePreviewUrls.value = Object.fromEntries(previews.filter((preview): preview is readonly [string, string] => preview !== null))
+}
+
+watch(isAttachmentsDialogOpen, async isOpen => {
+  imageViewer?.destroy()
+  imageViewer = null
+  clearImagePreviews()
+  if (!isOpen) return
+  await loadImagePreviews()
+  await nextTick()
+  if (attachmentImageContainer.value) {
+    const { default: Viewer } = await import('viewerjs')
+    imageViewer = new Viewer(attachmentImageContainer.value, {
+      navbar: true,
+      title: false,
+      toolbar: true,
+      tooltip: true,
+      movable: true,
+      zoomable: true,
+      rotatable: true,
+      zIndex: 3000,
+    })
+  }
+})
+
+onBeforeUnmount(() => {
+  imageViewer?.destroy()
+  clearImagePreviews()
+})
 
 const handleDeleteItem = (payload: EditKanbanItem) => {
   store.deleteTask(String(payload.item.id))
@@ -144,6 +224,7 @@ const handleUpdateBoardState = async (boardIds: number[]) => {
               @update-items-state="handleUpdateItemsState"
               @rename-board="handleRenameBoard"
               @comments-click="handleCommentsClick"
+              @attachments-click="handleAttachmentsClick"
               @add-new-board="handleAddNewBoard"
               @delete-board="handleDeleteBoard"
               @update-board-state="handleUpdateBoardState"
@@ -158,6 +239,31 @@ const handleUpdateBoardState = async (boardIds: number[]) => {
 
     <!-- Dedicated Task Comments Sliding Drawer -->
     <TaskCommentsDrawer v-model:is-open="isCommentsDrawerOpen" />
+
+    <VDialog v-model="isAttachmentsDialogOpen" max-width="760">
+      <VCard>
+        <VCardItem class="border-b">
+          <template #title><span class="text-h6">Attachments</span></template>
+          <template #subtitle>{{ attachmentTask?.title }}</template>
+          <template #append><VBtn icon="tabler-x" variant="text" @click="isAttachmentsDialogOpen = false" /></template>
+        </VCardItem>
+        <VCardText v-if="attachmentTask" class="pa-5">
+          <div v-if="attachmentTask.attachments.length" ref="attachmentImageContainer" class="attachment-gallery">
+            <div v-for="attachment in attachmentTask.attachments" :key="attachment.id" class="attachment-entry border rounded pa-3">
+              <img v-if="isImage(attachment) && imagePreviewUrls[attachment.id]" :src="imagePreviewUrls[attachment.id]" :alt="attachment.name" class="attachment-preview rounded cursor-pointer" />
+              <VProgressCircular v-else-if="isImage(attachment)" indeterminate size="32" width="3" color="primary" />
+              <VIcon v-else icon="tabler-file" size="36" color="secondary" />
+              <div class="flex-grow-1 min-width-0">
+                <div class="text-body-1 text-truncate">{{ attachment.name }}</div>
+                <div class="text-caption text-medium-emphasis text-capitalize">{{ attachment.section }}</div>
+              </div>
+              <VBtn icon="tabler-download" variant="text" @click="downloadAttachment(attachment)" />
+            </div>
+          </div>
+          <VAlert v-else type="info" variant="tonal">This mega-task has no attached files.</VAlert>
+        </VCardText>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 
@@ -167,5 +273,26 @@ const handleUpdateBoardState = async (boardIds: number[]) => {
   overflow-x: auto;
   position: relative;
   padding: 1.5rem;
+}
+
+.attachment-gallery {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.attachment-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.attachment-preview {
+  width: 72px;
+  height: 56px;
+  object-fit: cover;
+}
+
+:global(.viewer-container) {
+  z-index: 3000 !important;
 }
 </style>

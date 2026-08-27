@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Setting;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -30,7 +31,7 @@ class CompanySettingsTest extends TestCase
 
         $response = $this->post('/api/settings', [
             ...$this->validSettings(),
-            'contract_letterhead' => $this->fakePng('letterhead.png', 1200, 500),
+            'contract_letterhead' => $this->fakePng('letterhead.png', 1200, 1600),
             'contract_cover_design' => $this->fakePng('cover.png', 1200, 1600),
         ], ['Accept' => 'application/json']);
 
@@ -57,7 +58,7 @@ class CompanySettingsTest extends TestCase
 
         $response = $this->post("/api/settings/{$setting->id}", [
             '_method' => 'PUT',
-            'contract_letterhead' => $this->fakePng('new.png', 1200, 500),
+            'contract_letterhead' => $this->fakePng('new.png', 1200, 1600),
             'remove_contract_cover_design' => '1',
         ], ['Accept' => 'application/json']);
 
@@ -81,6 +82,29 @@ class CompanySettingsTest extends TestCase
             'timezone' => 'Kabul/Somewhere',
         ])->assertUnprocessable()
             ->assertJsonValidationErrors(['company_email', 'timezone']);
+    }
+
+    public function test_partial_update_preserves_untouched_theme_colors(): void
+    {
+        $user = User::factory()->create();
+        $user->roles()->attach(Role::query()->firstOrCreate(['name' => 'super_admin']));
+        Sanctum::actingAs($user, ['access']);
+        $setting = Setting::create([
+            ...$this->validSettings(),
+            'navigation_clr' => '#111111',
+            'footer_clr' => '#222222',
+            'cards_clr' => '#333333',
+        ]);
+
+        $this->putJson("/api/settings/{$setting->id}", [
+            'navigation_clr' => '#abcdef',
+            'website_title' => 'Updated company',
+        ])->assertOk();
+
+        $setting->refresh();
+        $this->assertSame('#abcdef', $setting->navigation_clr);
+        $this->assertSame('#222222', $setting->footer_clr);
+        $this->assertSame('#333333', $setting->cards_clr);
     }
 
     public function test_authenticated_users_can_read_company_branding_without_settings_permission(): void

@@ -1,14 +1,18 @@
 <script lang="ts" setup>
+import { onMounted } from 'vue'
 import { useLayoutConfigStore } from '@layouts/stores/config'
 import AutomaticAttendanceTracker from '@/components/attendance/AutomaticAttendanceTracker.vue'
+import { useBranding } from '@/composables/useBranding'
 
 const DefaultLayoutWithVerticalNav = defineAsyncComponent(() => import('./components/DefaultLayoutWithVerticalNav.vue'))
 const DefaultLayoutWithHorizontalNav = defineAsyncComponent(() => import('./components/DefaultLayoutWithHorizontalNav.vue'))
 const layoutConfigStore = useLayoutConfigStore()
+const { loadBranding } = useBranding()
 
 const { layoutAttrs, injectSkinClasses } = useSkins()
 
 injectSkinClasses()
+onMounted(loadBranding)
 
 // SECTION: Loading Indicator
 const isFallbackStateActive = ref(false)

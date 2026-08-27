@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import type { PartyDetails } from '@/utils/contractPartyDetails'
 
 // 1. Interfaces & Props
 export interface CompanyDetails {
@@ -13,6 +14,10 @@ export interface CompanyDetails {
   licence?: string;
   signatureUrl?: string;
   letterheadUrl?: string;
+  letterheadSafeX?: number;
+  letterheadSafeY?: number;
+  letterheadSafeWidth?: number;
+  letterheadSafeHeight?: number;
 }
 
 export interface ContractClause {
@@ -32,6 +37,7 @@ export interface ContractPageProps {
   showSignature?: boolean;
   contracteeName?: string;
   contracteeCompanyName?: string; // Added for flexibility (e.g., "John Doe" vs "Acme Corp")
+  partyDetails?: PartyDetails;
   accentColor?: string;
 }
 
@@ -44,11 +50,18 @@ const props = withDefaults(defineProps<ContractPageProps>(), {
   showSignature: false,
   contracteeName: 'Client / Counterparty',
   contracteeCompanyName: '',
+  partyDetails: undefined,
   accentColor: '#1e293b'
 });
 
 // 2. Template Reference
 const contractRef = ref<HTMLElement | null>(null);
+const letterheadSafeAreaStyle = computed(() => ({
+  '--letterhead-safe-x': `${props.company.letterheadSafeX ?? 8.5}%`,
+  '--letterhead-safe-y': `${props.company.letterheadSafeY ?? 15}%`,
+  '--letterhead-safe-width': `${props.company.letterheadSafeWidth ?? 83}%`,
+  '--letterhead-safe-height': `${props.company.letterheadSafeHeight ?? 70}%`,
+}));
 
 // 3. Helper for legacy structured array/string clauses
 const formatParagraphs = (content: string | string[]) => {
@@ -185,7 +198,7 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="contractRef" class="contract-page-container print-document" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'" :style="{ '--brand-accent': accentColor }">
+  <div ref="contractRef" class="contract-page-container print-document" :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale), 'has-letterhead': company.letterheadUrl }" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'" :style="{ '--brand-accent': accentColor, ...letterheadSafeAreaStyle }">
     <img v-if="company.letterheadUrl" :src="company.letterheadUrl" alt="" class="letterhead-background" aria-hidden="true" />
     <!-- Sleek Margin Accents -->
     <div class="margin-rail-left"></div>
@@ -210,6 +223,30 @@ defineExpose({
 
       <!-- Main Contract Body Area -->
       <main class="contract-body">
+        <section v-if="partyDetails && (partyDetails.ourCompany.length || partyDetails.counterparty.length)" class="party-details">
+          <h2 class="party-details-title">Contract parties</h2>
+          <div class="party-details-grid">
+            <div v-if="partyDetails.ourCompany.length" class="party-details-card">
+              <h3>{{ company.brandName }}</h3>
+              <dl>
+                <template v-for="detail in partyDetails.ourCompany" :key="`company-${detail.label}`">
+                  <dt>{{ detail.label }}</dt>
+                  <dd>{{ detail.value }}</dd>
+                </template>
+              </dl>
+            </div>
+            <div v-if="partyDetails.counterparty.length" class="party-details-card">
+              <h3>{{ contracteeName || 'Counterparty' }}</h3>
+              <dl>
+                <template v-for="detail in partyDetails.counterparty" :key="`counterparty-${detail.label}`">
+                  <dt>{{ detail.label }}</dt>
+                  <dd>{{ detail.value }}</dd>
+                </template>
+              </dl>
+            </div>
+          </div>
+        </section>
+
         <!-- Raw HTML Content -->
         <div v-if="htmlContent" class="html-contract-content" v-html="htmlContent"></div>
 
@@ -288,7 +325,9 @@ defineExpose({
 /* 1. Base Container Setup: Exactly A4 dimensions */
 .contract-page-container {
   --brand-accent: #1e293b;
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  /* Shared contract font stack — must match the TipTap editor so the
+     document looks the same on screen and on paper. */
+  font-family: 'Vazirmatn', 'Noto Sans Arabic', Tahoma, 'Helvetica Neue', sans-serif;
   color: #2b2b2b;
   background: #ffffff;
   width: 100%;
@@ -301,6 +340,14 @@ defineExpose({
   display: flex;
   flex-direction: column;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+/* Keep authored contract text untouched: only the surrounding document chrome
+   receives the application Persian font. */
+.contract-page-container.persian-document .contract-header,
+.contract-page-container.persian-document .signature-section,
+.contract-page-container.persian-document .contract-footer-wrapper {
+  font-family: Vazirmatn, 'Public Sans', sans-serif;
 }
 
 .letterhead-background {
@@ -318,6 +365,18 @@ defineExpose({
 .margin-corner-top-right {
   position: relative;
   z-index: 1;
+}
+
+.has-letterhead .content-wrapper {
+  position: absolute;
+  inset: var(--letterhead-safe-y) auto auto var(--letterhead-safe-x);
+  width: var(--letterhead-safe-width);
+  height: var(--letterhead-safe-height);
+}
+
+.has-letterhead .margin-rail-left,
+.has-letterhead .margin-corner-top-right {
+  display: none;
 }
 
 /* Margin Accents */
@@ -415,6 +474,48 @@ defineExpose({
   color: #334155;
 }
 
+.party-details {
+  margin-bottom: 18px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.party-details-title {
+  margin: 0 0 8px;
+  color: var(--brand-accent);
+  font-size: 1rem;
+}
+
+.party-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.party-details-card {
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  padding: 9px 10px;
+  background: #f8fafc;
+}
+
+.party-details-card h3 {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.party-details-card dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 8px;
+  margin: 0;
+  font-size: 0.76rem;
+}
+
+.party-details-card dt { font-weight: 700; }
+.party-details-card dd { margin: 0; overflow-wrap: anywhere; }
+
 /* --- HTML Prop Styling --- */
 .html-contract-content :deep(h1) {
   font-size: 1.2rem;
@@ -453,7 +554,7 @@ defineExpose({
 .html-contract-content :deep(td) {
   border: 1px solid #cbd5e1;
   padding: 6px 10px;
-  text-align: left;
+  text-align: start;
 }
 
 .html-contract-content :deep(th) {
@@ -578,7 +679,7 @@ defineExpose({
 }
 
 .footer-message {
-  text-align: left;
+  text-align: start;
   font-weight: 500;
   color: #475569;
 }
@@ -588,7 +689,7 @@ defineExpose({
 }
 
 .footer-page {
-  text-align: right;
+  text-align: end;
 }
 
 .page-number {
@@ -636,6 +737,13 @@ defineExpose({
     height: 100% !important;
     justify-content: space-between !important;
     overflow: visible !important;
+  }
+
+  .has-letterhead .content-wrapper {
+    position: absolute !important;
+    inset: var(--letterhead-safe-y) auto auto var(--letterhead-safe-x) !important;
+    width: var(--letterhead-safe-width) !important;
+    height: var(--letterhead-safe-height) !important;
   }
 
   .contract-header {

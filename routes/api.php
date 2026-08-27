@@ -9,6 +9,9 @@ use App\Http\Controllers\BoardController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\ContractTemplateController;
+use App\Http\Controllers\ContractPolicyController;
+use App\Http\Controllers\ContractTypeController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerServiceController;
@@ -18,6 +21,7 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\PaymentDetailController;
 use App\Http\Controllers\KanbanController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\MarketerController;
@@ -26,6 +30,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PositionController;
 use App\Http\Controllers\PaidTimeOffController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RecurringEventController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\SalaryDeductionController;
@@ -36,6 +41,7 @@ use App\Http\Controllers\SubtaskController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskAssigneeController;
+use App\Http\Controllers\TaskAttachmentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VisitorController;
 use App\Http\Controllers\WorthyEmployeeController;
@@ -75,6 +81,7 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
         Route::get('/geofence', [AttendanceGeofenceController::class, 'show'])->middleware('permission:manage_own_workday');
         Route::post('/geofence', [AttendanceGeofenceController::class, 'observe'])->middleware(['permission:manage_own_workday', 'throttle:30,1']);
     });
+    Route::get('my-work-history', [AttendanceController::class, 'mine']);
 
     // Auth routes
     Route::prefix('auth')->group(function () {
@@ -113,6 +120,9 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
     Route::put('/tasks/{task}', [TaskController::class, 'update']);
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
     Route::patch('/tasks/{task}/bonus-review', [TaskController::class, 'reviewBonusInputs'])->middleware('permission:edit_all_tasks');
+    Route::post('/tasks/{task}/attachments', [TaskAttachmentController::class, 'store']);
+    Route::get('/tasks/{task}/attachments/{attachment}/download', [TaskAttachmentController::class, 'download']);
+    Route::delete('/tasks/{task}/attachments/{attachment}', [TaskAttachmentController::class, 'destroy']);
 
     // 4. Task action items (Todos)
     Route::post('/tasks/{task}/subtasks', [SubtaskController::class, 'store']);
@@ -127,13 +137,17 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
     Route::put('/tasks/{task}/comments/{comment}', [CommentController::class, 'update']);
     Route::delete('/tasks/{task}/comments/{comment}', [CommentController::class, 'destroy']);
 
-    // Permission catalog is system-owned; role grants are the editable part.
+    // Role and permission management
+    Route::apiResource('roles', RoleController::class)
+        ->middlewareFor(['index', 'show'], 'permission:view_roles')
+        ->middlewareFor('store', 'permission:create_roles')
+        ->middlewareFor('update', 'permission:edit_roles')
+        ->middlewareFor('destroy', 'permission:delete_roles');
+    Route::put('roles/{role}/permissions', [RoleController::class, 'updatePermissions'])
+        ->middleware('permission:manage_role_permissions');
+
+    // Permission catalog is system-owned and read-only; role grants are the editable part.
     Route::get('permissions', [PermissionController::class, 'index'])->middleware('permission:view_permissions');
-    Route::post('permissions', [PermissionController::class, 'store'])->middleware('permission:manage_role_permissions');
-    Route::put('permissions/{id}', [PermissionController::class, 'update'])->middleware('permission:manage_role_permissions');
-    Route::delete('permissions/{id}', [PermissionController::class, 'destroy'])->middleware('permission:manage_role_permissions');
-    Route::get('roles', [RoleController::class, 'index']);
-    Route::put('roles/{role}/permissions', [RoleController::class, 'updatePermissions']);
 
     // User routes
     Route::apiResource('users', UserController::class)
@@ -159,6 +173,7 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
     Route::post('employees/{employee}/paid-time-offs', [PaidTimeOffController::class, 'store'])->middleware('permission:create_paid_time_off');
     Route::put('employees/{employee}/paid-time-offs/{paidTimeOff}', [PaidTimeOffController::class, 'update'])->middleware('permission:edit_paid_time_off');
     Route::delete('employees/{employee}/paid-time-offs/{paidTimeOff}', [PaidTimeOffController::class, 'destroy'])->middleware('permission:delete_paid_time_off');
+    Route::get('employees/account-options', [EmployeeController::class, 'accountOptions'])->middleware('permission:view_employees');
     Route::apiResource('employees', EmployeeController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_employees')
         ->middlewareFor('store', 'permission:create_employees')
@@ -196,6 +211,11 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
         ->middlewareFor('destroy', 'permission:delete_salaries');
 
     // Invoice routes
+    Route::apiResource('payment-details', PaymentDetailController::class)
+        ->middlewareFor(['index', 'show'], 'permission:view_payment_details')
+        ->middlewareFor('store', 'permission:create_payment_details')
+        ->middlewareFor('update', 'permission:edit_payment_details')
+        ->middlewareFor('destroy', 'permission:delete_payment_details');
     Route::apiResource('invoices', InvoiceController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_invoices')
         ->middlewareFor('store', 'permission:create_invoices')
@@ -217,12 +237,24 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
         ->middlewareFor('update', 'permission:edit_incomes')
         ->middlewareFor('destroy', 'permission:delete_incomes');
 
+    Route::get('recurring-events', [RecurringEventController::class, 'index'])->middleware('permission:view_recurring_events');
+    Route::post('recurring-events', [RecurringEventController::class, 'store'])->middleware('permission:create_recurring_events');
+    Route::get('recurring-events/{recurringEvent}', [RecurringEventController::class, 'show'])->middleware('permission:view_recurring_events');
+    Route::put('recurring-events/{recurringEvent}', [RecurringEventController::class, 'update'])->middleware('permission:edit_recurring_events,manage_recurring_events');
+    Route::delete('recurring-events/{recurringEvent}', [RecurringEventController::class, 'destroy'])->middleware('permission:delete_recurring_events,manage_recurring_events');
+    Route::post('recurring-events/{recurringEvent}/pause', [RecurringEventController::class, 'pause'])->middleware('permission:edit_recurring_events,manage_recurring_events');
+    Route::post('recurring-events/{recurringEvent}/resume', [RecurringEventController::class, 'resume'])->middleware('permission:edit_recurring_events,manage_recurring_events');
+    Route::post('recurring-event-occurrences/{occurrence}/skip', [RecurringEventController::class, 'skip'])->middleware('permission:edit_recurring_events,manage_recurring_events');
+    Route::post('recurring-event-occurrences/{occurrence}/execute', [RecurringEventController::class, 'execute'])->middleware('permission:execute_recurring_events');
+
     // Visitor routes
     Route::apiResource('visitors', VisitorController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_visitors')
         ->middlewareFor('store', 'permission:create_visitors')
         ->middlewareFor('update', 'permission:edit_visitors')
         ->middlewareFor('destroy', 'permission:delete_visitors');
+    Route::post('visitors/{visitor}/convert-to-customer', [VisitorController::class, 'convertToCustomer'])
+        ->middleware('permission:create_customers');
 
     // Tag routes
     Route::apiResource('tags', TagController::class)
@@ -244,6 +276,7 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
         Route::get('/', [AttendanceController::class, 'index'])->middleware('permission:view_attendance');
         Route::post('/', [AttendanceController::class, 'store'])->middleware('permission:record_attendance');
         Route::get('/unmarked-staff', [AttendanceController::class, 'unmarkedStaff'])->middleware('permission:view_unmarked_attendance_staff');
+        Route::get('/{attendance}/daily-report', [AttendanceController::class, 'dailyReport'])->middleware('permission:view_attendance');
         Route::delete('/{attendance}', [AttendanceController::class, 'destroy'])->middleware('permission:delete_attendance');
     });
 
@@ -267,6 +300,25 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
     Route::apiResource('contract-templates', ContractTemplateController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_contract_templates')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_contract_templates');
+    Route::apiResource('contract-policies', ContractPolicyController::class)
+        ->middlewareFor(['index', 'show'], 'permission:view_contract_policies')
+        ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_contract_policies');
+
+    // Contract types (system + user-defined)
+    Route::apiResource('contract-types', ContractTypeController::class)
+        ->middlewareFor(['index', 'show'], 'permission:view_contract_types')
+        ->middlewareFor(['store', 'destroy'], 'permission:manage_contract_types');
+
+    // Context-aware placeholder definitions for the template editor
+    Route::get('contract-placeholders', [ContractController::class, 'placeholders'])
+        ->middleware('permission:view_contract_templates,view_contracts');
+
+    // Counterparty companies
+    Route::apiResource('companies', CompanyController::class)
+        ->middlewareFor(['index', 'show'], 'permission:view_companies')
+        ->middlewareFor('store', 'permission:create_companies')
+        ->middlewareFor('update', 'permission:edit_companies')
+        ->middlewareFor('destroy', 'permission:delete_companies');
 
     // Contract routes
     Route::apiResource('contracts', ContractController::class)
@@ -275,7 +327,6 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
         ->middlewareFor('update', 'permission:edit_contracts')
         ->middlewareFor('destroy', 'permission:delete_contracts');
     Route::put('/contracts/{id}/cancel', [ContractController::class, 'cancel'])->middleware('permission:cancel_contracts');
-    Route::get('/contracts/{contract}/download', [ContractController::class, 'downloadContractFile'])->middleware('permission:download_contracts');
 
     // Notification routes
     Route::patch('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->middleware('permission:update_own_notifications');

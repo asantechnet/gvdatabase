@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useToast } from 'vue-toastification'
 import StockApi, { type StockCondition, type StockItem, type StockParams } from '@/api/stock'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import OfficeApi, { type Office } from '@/api/office'
+import { printDocument } from '@/utils/printDocument'
+import PrintableListReport from '@/components/PrintableListReport.vue'
 
 const toast = useToast()
 
@@ -16,17 +18,27 @@ const isDeleteStockDialogVisible = ref(false)
 const selectedStock = ref<StockItem | null>(null)
 const search = ref('')
 const filterModel = ref<string | null>(null)
-const filterOffice = ref<string | null>(null)
+const filterOffice = ref<number | null>(null)
 const filterCondition = ref<StockCondition | null>(null)
 const isLoading = ref(false)
 const employeesLoading = ref(false)
 const officeDirectory = ref<Office[]>([])
 
 const models = computed(() => [...new Set(stocks.value.map(stock => stock.model).filter(Boolean))].sort())
-const offices = computed(() => [...new Set([
-  ...officeDirectory.value.filter(office => office.status === 'active').map(office => office.name),
-  ...stocks.value.map(stock => stock.office),
-])].filter(Boolean).sort())
+const officeOptions = computed(() => {
+  const byId = new Map<number, { title: string; value: number; active: boolean }>()
+  officeDirectory.value.forEach(office => byId.set(office.id, {
+    title: `${office.name} (${office.code})`,
+    value: office.id,
+    active: office.status === 'active',
+  }))
+  stocks.value.forEach(stock => {
+    if (stock.office && !byId.has(stock.office.id))
+      byId.set(stock.office.id, { title: `${stock.office.name} (${stock.office.code})`, value: stock.office.id, active: stock.office.status === 'active' })
+  })
+  return [...byId.values()].sort((left, right) => left.title.localeCompare(right.title))
+})
+const activeOfficeOptions = computed(() => officeOptions.value.filter(office => office.active || office.value === selectedStock.value?.office_id))
 const conditions: Array<{ title: string; value: StockCondition }> = [
   { title: translate('pages.finance.stock.stock.new'), value: 'new' },
   { title: translate('pages.finance.stock.stock.good'), value: 'good' },
@@ -48,21 +60,20 @@ const filtered = computed(() => {
     const matchesSearch = s.serial_number.toLowerCase().includes(search.value.toLowerCase()) ||
       s.item.toLowerCase().includes(search.value.toLowerCase())
     const matchesModel = !filterModel.value || s.model === filterModel.value
-    const matchesOffice = !filterOffice.value || s.office === filterOffice.value
+    const matchesOffice = !filterOffice.value || s.office_id === filterOffice.value
     const matchesCondition = !filterCondition.value || s.condition === filterCondition.value
     return matchesSearch && matchesModel && matchesOffice && matchesCondition
   })
 })
 
 const headers = [
-  { title: translate('common.messages.id'), key: 'id' },
   { title: translate('pages.finance.stock.stock.serialNumber'), key: 'serial_number', sortable: true },
   { title: translate('pages.finance.stock.stock.item'), key: 'item', sortable: true },
   { title: translate('pages.finance.stock.stock.quantity'), key: 'quantity', sortable: true },
   { title: 'Price', key: 'price', sortable: true },
   { title: translate('pages.finance.stock.stock.model'), key: 'model', sortable: true },
   { title: translate('pages.finance.stock.stock.condition'), key: 'condition', sortable: true },
-  { title: translate('common.fields.office'), key: 'office', sortable: true },
+  { title: translate('common.fields.office'), key: 'office.name', sortable: true },
   { title: translate('pages.finance.stock.stock.assignedTo'), key: 'staff.name', sortable: true },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false },
 ]
@@ -73,7 +84,7 @@ const fetchStocks = async () => {
     const params: StockParams = {}
     if (search.value) params.search = search.value
     if (filterModel.value) params.model = filterModel.value
-    if (filterOffice.value) params.office = filterOffice.value
+    if (filterOffice.value) params.office_id = filterOffice.value
     if (filterCondition.value) params.condition = filterCondition.value
 
     stocks.value = await StockApi.getAll(params)
@@ -98,7 +109,7 @@ const fetchEmployees = async () => {
 }
 
 const printTable = () => {
-  window.print()
+  void printDocument({ bodyClass: 'printing-table-stock', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 }
 
 const openAddStockDialog = () => {
@@ -110,7 +121,7 @@ const openAddStockDialog = () => {
     price: 0,
     model: '',
     condition: 'good',
-    office: '',
+    office_id: officeDirectory.value.find(office => office.status === 'active')?.id ?? null,
     staff_id: null
   }
   isAddStockDialogVisible.value = true
@@ -129,7 +140,7 @@ const openDeleteStockDialog = (stock: StockItem) => {
 const addStock = async () => {
   if (selectedStock.value) {
     try {
-      const { id, staff, ...stockData } = selectedStock.value
+      const { id, staff, office, ...stockData } = selectedStock.value
       const stock = await StockApi.create(stockData)
       stocks.value.unshift(stock)
       isAddStockDialogVisible.value = false
@@ -144,7 +155,7 @@ const addStock = async () => {
 const updateStock = async () => {
   if (selectedStock.value) {
     try {
-      const { id, staff, ...stockData } = selectedStock.value
+      const { id, staff, office, ...stockData } = selectedStock.value
       const stock = await StockApi.update(id, stockData)
       const index = stocks.value.findIndex(s => s.id === selectedStock.value?.id)
       if (index !== -1) {
@@ -173,6 +184,12 @@ const deleteStock = async () => {
   }
 }
 
+const debouncedFetchStocks = useDebounceFn(fetchStocks, 300)
+
+watch([search, filterModel, filterOffice, filterCondition], () => {
+  void debouncedFetchStocks()
+})
+
 onMounted(() => {
   fetchStocks()
   fetchEmployees()
@@ -185,60 +202,31 @@ onMounted(() => {
 
 <template>
   <div>
+    <DataTablePageKpis :items="filtered" title="Stock inventory" description="Keep inventory levels, condition, and assignments visible in one place." icon="tabler-packages" />
     <VCard class="mb-6">
       <VCardText>
         <VRow align="center">
-          <VCol cols="12" md="3">
+          <VCol cols="12" md="7">
             <VTextField
               v-model="search"
-              prepend-inner-icon="tabler-search"
+              class="data-table-search" prepend-inner-icon="tabler-search"
               :placeholder="$t('pages.finance.stock.stock.searchStock')"
               density="compact"
               clearable
               hide-details
-              @input="fetchStocks"
             />
           </VCol>
-          <VCol cols="12" sm="6" md="2">
-            <VSelect
-              v-model="filterModel"
-              :items="models"
-              :label="$t('pages.finance.stock.stock.filterByModel')"
-              density="compact"
-              clearable
-              hide-details
-              @update:modelValue="fetchStocks"
-            />
-          </VCol>
-          <VCol cols="12" sm="6" md="2">
-            <VSelect
-              v-model="filterOffice"
-              :items="offices"
-              :label="$t('pages.finance.stock.stock.filterByOffice')"
-              density="compact"
-              clearable
-              hide-details
-              @update:modelValue="fetchStocks"
-            />
-          </VCol>
-          <VCol cols="12" sm="6" md="2">
-            <VSelect
-              v-model="filterCondition"
-              :items="conditions"
-              :label="$t('pages.finance.stock.stock.filterByCondition')"
-              density="compact"
-              clearable
-              hide-details
-              @update:modelValue="fetchStocks"
-            />
-          </VCol>
-          <VCol cols="12" md="3" class="text-end d-flex gap-2 justify-end">
-            <VBtn
-              icon="tabler-printer"
-              variant="text"
-              @click="printTable"
-              :title="$t('pages.finance.stock.stock.printStockRecords')"
-            />
+          <VCol cols="12" md="5" class="text-end d-flex gap-2 justify-end">
+            <DataTableFilterMenu :active="Boolean(filterModel || filterOffice || filterCondition)"
+              @reset="filterModel = null; filterOffice = null; filterCondition = null">
+              <VSelect v-model="filterModel" :items="models" :label="$t('pages.finance.stock.stock.filterByModel')" density="compact" clearable hide-details />
+              <VSelect v-model="filterOffice" :items="officeOptions" :label="$t('pages.finance.stock.stock.filterByOffice')" density="compact" clearable hide-details />
+              <VSelect v-model="filterCondition" :items="conditions" :label="$t('pages.finance.stock.stock.filterByCondition')" density="compact" clearable hide-details />
+            </DataTableFilterMenu>
+            <VBtn icon variant="text" @click="printTable">
+              <VIcon icon="tabler-printer" />
+              <VTooltip activator="parent" location="top">{{ $t('pages.finance.stock.stock.printStockRecords') }}</VTooltip>
+            </VBtn>
             <VBtn
               color="primary"
               @click="openAddStockDialog"
@@ -253,7 +241,7 @@ onMounted(() => {
 
     <VCard>
       <div class="table-container">
-        <VDataTable
+        <ResponsiveDataTable
           :headers="headers"
           :items="filtered"
           item-value="id"
@@ -261,9 +249,14 @@ onMounted(() => {
           :loading="isLoading"
           mobile-breakpoint="sm"
           density="compact"
+          sticky-last-column
         >
           <template #item.staff.name="{ item }">
             {{ item.staff?.name || '-' }}
+          </template>
+
+          <template #item.office.name="{ item }">
+            {{ item.office ? `${item.office.name} (${item.office.code})` : '—' }}
           </template>
 
           <template #item.condition="{ item }">
@@ -274,27 +267,30 @@ onMounted(() => {
 
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
-              <VBtn
-                icon="tabler-edit"
-                variant="text"
+              <FullDetailsButton :item="item" :title="item.item_name || item.name || item.serial_number" />
+              <VBtn icon variant="text"
                 size="small"
                 color="medium-emphasis"
                 @click="openEditStockDialog(item)"
-                :title="$t('pages.finance.stock.stock.editStockRecord')"
-              />
-              <VBtn
-                icon="tabler-trash"
-                variant="text"
+              >
+                <VIcon icon="tabler-edit" />
+                <VTooltip activator="parent" location="top">{{ $t('pages.finance.stock.stock.editStockRecord') }}</VTooltip>
+              </VBtn>
+              <VBtn icon variant="text"
                 size="small"
                 color="error"
                 @click="openDeleteStockDialog(item)"
-                :title="$t('pages.finance.stock.stock.deleteStockRecord')"
-              />
+              >
+                <VIcon icon="tabler-trash" />
+                <VTooltip activator="parent" location="top">{{ $t('pages.finance.stock.stock.deleteStockRecord') }}</VTooltip>
+              </VBtn>
             </div>
           </template>
-        </VDataTable>
+        </ResponsiveDataTable>
       </div>
     </VCard>
+
+    <PrintableListReport title="Stock Report" subtitle="Filtered stock records" :columns="['Serial number', 'Item', 'Quantity', 'Price', 'Model', 'Condition', 'Office', 'Assigned to']" :rows="filtered.map(stock => [stock.serial_number, stock.item, stock.quantity, stock.price, stock.model, stock.condition, stock.office?.name, stock.staff?.name])" />
 
     <!-- Add Stock Dialog -->
     <VDialog
@@ -307,7 +303,7 @@ onMounted(() => {
         </VCardTitle>
 
         <VCardText>
-          <VForm>
+          <VForm class="app-form">
             <VRow>
               <VCol cols="12" md="6">
                 <VTextField
@@ -341,8 +337,8 @@ onMounted(() => {
               </VCol>
               <VCol cols="12" md="6">
                 <VSelect
-                  v-model="selectedStock.office"
-                  :items="offices"
+                  v-model="selectedStock.office_id"
+                  :items="activeOfficeOptions"
                   :label="$t('common.fields.office')"
                   required
                 />
@@ -400,7 +396,7 @@ onMounted(() => {
         </VCardTitle>
 
         <VCardText>
-          <VForm>
+          <VForm class="app-form">
             <VRow>
               <VCol cols="12" md="6">
                 <VTextField
@@ -434,8 +430,8 @@ onMounted(() => {
               </VCol>
               <VCol cols="12" md="6">
                 <VSelect
-                  v-model="selectedStock.office"
-                  :items="offices"
+                  v-model="selectedStock.office_id"
+                  :items="activeOfficeOptions"
                   :label="$t('common.fields.office')"
                   required
                 />
@@ -516,11 +512,12 @@ onMounted(() => {
         </VCardActions>
       </VCard>
     </VDialog>
+
   </div>
 </template>
 
 <style scoped>
 .table-container {
-  overflow-x: auto;
+  min-inline-size: 0;
 }
 </style>

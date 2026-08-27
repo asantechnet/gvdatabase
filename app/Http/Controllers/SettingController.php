@@ -43,6 +43,7 @@ class SettingController extends Controller
         $data = Arr::except($request->validated(), [
             'remove_contract_letterhead',
             'remove_contract_cover_design',
+            'clear_mail_password',
         ]);
         $storedPaths = [];
 
@@ -79,9 +80,16 @@ class SettingController extends Controller
         $data = Arr::except($request->validated(), [
             'remove_contract_letterhead',
             'remove_contract_cover_design',
+            'clear_mail_password',
         ]);
         $storedPaths = [];
         $supersededPaths = [];
+
+        if ($request->boolean('clear_mail_password')) {
+            $data['mail_password'] = null;
+        } elseif (blank($data['mail_password'] ?? null)) {
+            unset($data['mail_password']);
+        }
 
         try {
             foreach (self::FILES as $field => $directory) {

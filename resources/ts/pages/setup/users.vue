@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { createUser, deleteUser, getUsers, updateUser, type ManagedUser, type UserPayload, type UserRole, type UserStatus } from '@/api/user'
 import { useToast } from 'vue-toastification'
+import UserForm from '@/components/forms/UserForm.vue'
 
 const toast = useToast()
 const users = ref<ManagedUser[]>([])
@@ -83,49 +84,29 @@ onMounted(loadUsers)
 </script>
 
 <template>
+  <DataTablePageKpis :items="filteredUsers" title="Users" description="Manage access, invitations, and the current health of user accounts." icon="tabler-user-cog" status-key="acc_status" />
   <VCard :title="$t('common.messages.users')" :loading="loading">
     <VCardText>
       <VRow align="center">
-        <VCol cols="12" md="4"><VTextField v-model="search" prepend-inner-icon="tabler-search" :label="$t('pages.settings.users.searchUsers')" density="compact" hide-details clearable /></VCol>
-        <VCol cols="12" sm="6" md="3"><VSelect v-model="roleFilter" :items="roles" :label="$t('common.fields.role')" density="compact" hide-details clearable /></VCol>
-        <VCol cols="12" sm="6" md="3"><VSelect v-model="statusFilter" :items="statuses" :label="$t('common.fields.status')" density="compact" hide-details clearable /></VCol>
-        <VCol cols="12" md="2" class="d-flex justify-md-end"><VBtn color="primary" prepend-icon="tabler-plus" @click="openCreate">{{ $t('pages.settings.users.inviteUser') }}</VBtn></VCol>
+        <VCol cols="12" md="8"><VTextField v-model="search" class="data-table-search" prepend-inner-icon="tabler-search" :label="$t('pages.settings.users.searchUsers')" density="compact" hide-details clearable /></VCol>
+        <VCol cols="12" md="4" class="d-flex justify-end ga-2"><DataTableFilterMenu :active="Boolean(roleFilter || statusFilter)" @reset="roleFilter = null; statusFilter = null"><VSelect v-model="roleFilter" :items="roles" :label="$t('common.fields.role')" density="compact" hide-details clearable /><VSelect v-model="statusFilter" :items="statuses" :label="$t('common.fields.status')" density="compact" hide-details clearable /></DataTableFilterMenu><VBtn color="primary" prepend-icon="tabler-plus" @click="openCreate">{{ $t('pages.settings.users.inviteUser') }}</VBtn></VCol>
       </VRow>
     </VCardText>
-    <VDataTable :headers="headers" :items="filteredUsers" :loading="loading" item-value="id" class="text-no-wrap">
+    <ResponsiveDataTable :headers="headers" :items="filteredUsers" :loading="loading" item-value="id" class="text-no-wrap">
       <template #item.name="{ item }"><div><div class="font-weight-medium">{{ item.name }}</div><div class="text-caption text-medium-emphasis">{{ item.email }}</div></div></template>
       <template #item.roles="{ item }"><div class="d-flex flex-wrap ga-1"><VChip v-for="role in item.roles" :key="role" size="small" label>{{ role.replace('_', ' ') }}</VChip></div></template>
       <template #item.acc_status="{ item }"><VChip size="small" label :color="statusColor(item.acc_status)">{{ item.acc_status }}</VChip></template>
       <template #item.email_verified="{ item }"><VChip size="small" label :color="item.email_verified && !item.password_setup_pending ? 'success' : 'warning'">{{ item.password_setup_pending ? 'Invited' : item.email_verified ? 'Verified' : 'Pending verification' }}</VChip></template>
       <template #item.created_at="{ item }">{{ formatDate(item.created_at) }}</template>
-      <template #item.actions="{ item }"><IconBtn :aria-label="$t('pages.settings.users.editUser')" @click="openEdit(item)"><VIcon icon="tabler-pencil" /></IconBtn><IconBtn :aria-label="$t('pages.settings.users.deleteUser')" @click="askDelete(item)"><VIcon icon="tabler-trash" /></IconBtn></template>
-    </VDataTable>
+      <template #item.actions="{ item }"><FullDetailsButton :item="item" :title="item.name" /><IconBtn :aria-label="$t('pages.settings.users.editUser')" @click="openEdit(item)"><VIcon icon="tabler-pencil" /></IconBtn><IconBtn :aria-label="$t('pages.settings.users.deleteUser')" @click="askDelete(item)"><VIcon icon="tabler-trash" /></IconBtn></template>
+    </ResponsiveDataTable>
   </VCard>
 
   <VDialog v-model="dialogOpen" max-width="700">
     <VCard :title="editingUser ? 'Edit User' : 'Invite User'">
       <VCardText>
         <VAlert v-if="!editingUser" type="info" variant="tonal" class="mb-5">{{ $t('pages.settings.users.theUserWillReceiveAVerificationEmailThenCreateTheirOwnPassword') }}</VAlert>
-        <VForm @submit.prevent="save">
-          <VRow>
-            <VCol cols="12" md="6"><VTextField v-model="form.name" :label="$t('common.fields.name')" /></VCol>
-            <VCol cols="12" md="6"><VTextField v-model="form.email" :label="$t('common.fields.email')" type="email" /></VCol>
-            <VCol cols="12" md="6"><VTextField v-model="form.phone" :label="$t('common.fields.phone')" /></VCol>
-            <VCol cols="12" md="6">
-              <VSelect
-                v-model="form.acc_status"
-                :items="editingUser?.acc_status === 'deactivated' ? statuses : editableStatuses"
-                :label="$t('common.fields.status')"
-                :disabled="editingUser?.acc_status === 'deactivated'"
-                :hint="editingUser?.acc_status === 'deactivated' ? 'Use the audited reactivation action in Deactivation Requests.' : undefined"
-                persistent-hint
-              />
-            </VCol>
-            <VCol cols="12"><VTextarea v-model="form.address" :label="$t('common.fields.address')" rows="2" /></VCol>
-            <VCol cols="12"><VSelect v-model="form.roles" :items="roles" :label="$t('pages.settings.users.roles')" multiple chips /></VCol>
-          </VRow>
-          <div class="d-flex justify-end ga-3 mt-4"><VBtn variant="tonal" @click="dialogOpen = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn type="submit" :loading="loading">{{ editingUser ? 'Save' : 'Send invitation' }}</VBtn></div>
-        </VForm>
+        <UserForm :form="form" :roles="roles" :status-items="editingUser?.acc_status === 'deactivated' ? statuses : editableStatuses" :status-disabled="editingUser?.acc_status === 'deactivated'" :status-hint="editingUser?.acc_status === 'deactivated' ? 'Use the audited reactivation action in Deactivation Requests.' : undefined" :editing="Boolean(editingUser)" :loading="loading" @submit="save" @cancel="dialogOpen = false" />
       </VCardText>
     </VCard>
   </VDialog>

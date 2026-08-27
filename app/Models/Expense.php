@@ -19,16 +19,15 @@ class Expense extends Model
         'description',
         'amount',
         'quantity',
-        'rate_to_base',
-        'total_amount',
+        'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',
         'date',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'quantity' => 'integer',
-        'rate_to_base' => 'decimal:6',
-        'total_amount' => 'decimal:2',
+        'rate' => 'decimal:8',
+        'base_amount' => 'decimal:4',
         'date' => 'date',
         'customer_id' => 'integer',
         'currency_id' => 'integer',
@@ -52,12 +51,12 @@ class Expense extends Model
     protected static function booted()
     {
         static::creating(function ($expense) {
-            $expense->total_amount = $expense->amount * $expense->quantity * $expense->rate_to_base;
+            $expense->base_amount = $expense->amount * $expense->quantity * $expense->rate;
         });
 
         static::updating(function ($expense) {
-            if ($expense->isDirty(['amount', 'quantity', 'rate_to_base'])) {
-                $expense->total_amount = $expense->amount * $expense->quantity * $expense->rate_to_base;
+            if ($expense->isDirty(['amount', 'quantity', 'rate'])) {
+                $expense->base_amount = $expense->amount * $expense->quantity * $expense->rate;
             }
         });
     }

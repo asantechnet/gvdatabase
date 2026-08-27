@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import BonusListApi, { type WorthyEmployee, type EligibilityReason, type BonusType, type CurrencySnapshot } from '@/api/bonuslist'
+import BonusListApi, { type WorthyEmployee, type EligibilityReason, type BonusType } from '@/api/bonuslist'
 import EmployeeApi, { type Employee } from '@/api/employee'
-import CurrencyApi, { type Currency } from '@/api/currency'
 import { apiFieldErrors, apiErrorMessage } from '@/utils/apiErrors'
 import { canAccess } from '@/utils/authorization'
 import BonusRulesDialog from '@/components/bonus/BonusRulesDialog.vue'
@@ -24,7 +23,6 @@ const selectedCalculation = ref<WorthyEmployee | null>(null)
 const selectedForGrant = ref<WorthyEmployee | null>(null)
 const worthyEmployees = ref<WorthyEmployee[]>([])
 const employees = ref<Employee[]>([])
-const currencies = ref<Currency[]>([])
 const isLoadingEmployees = ref(false)
 const nominationErrors = ref<Record<string, string>>({})
 
@@ -61,21 +59,14 @@ const defaultNomination = {
     achievementDetails: '',
     suggestedAmount: 1000,
     selectedAmount: 1000,
-    currencyId: null as number | null,
-    selectedCurrencyId: null as number | null,
     selectedType: 'Spot Bonus' as BonusType,
     bonusMonth: new Date().toISOString().slice(0, 7) // Current month in YYYY-MM format
 }
 
 const nominationForm = ref({ ...defaultNomination })
-const baseCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? currencies.value[0] ?? null)
 
 const resetNominationForm = () => {
-    nominationForm.value = {
-        ...defaultNomination,
-        currencyId: baseCurrency.value?.id ?? null,
-        selectedCurrencyId: baseCurrency.value?.id ?? null,
-    }
+    nominationForm.value = { ...defaultNomination }
 }
 
 // --------------------------------------------------------------------------
@@ -102,31 +93,17 @@ const fetchEmployees = async () => {
     }
 }
 
-const fetchCurrencies = async () => {
-    try {
-        const response = await CurrencyApi.getAll()
-        currencies.value = response.data.filter(currency => currency.isActive)
-        resetNominationForm()
-    } catch (error) {
-        console.error('Failed to fetch currencies:', error)
-    }
-}
-
 const submitNomination = async () => {
     const employeeId = nominationForm.value.employeeId
     nominationErrors.value = {}
     if (!employeeId) nominationErrors.value.employeeId = translate('pages.bonuses.bonuslist.bonuslist.selectAnEmployee')
-    if (!nominationForm.value.currencyId) nominationErrors.value.currencyId = translate('pages.bonuses.bonuslist.bonuslist.selectTheSuggestedCurrency')
-    if (!nominationForm.value.selectedCurrencyId) nominationErrors.value.selectedCurrencyId = translate('pages.bonuses.bonuslist.bonuslist.selectThePayoutCurrency')
     if (!nominationForm.value.achievementDetails.trim()) nominationErrors.value.achievementDetails = translate('pages.bonuses.bonuslist.bonuslist.addAnAchievementOrJustification')
     if (nominationForm.value.performanceScore < 1 || nominationForm.value.performanceScore > 5) nominationErrors.value.performanceScore = translate('pages.bonuses.bonuslist.bonuslist.performanceScoreMustBeBetween1And5')
     if (nominationForm.value.suggestedAmount < 0) nominationErrors.value.suggestedAmount = translate('pages.bonuses.bonuslist.bonuslist.suggestedAmountCannotBeNegative')
     if (nominationForm.value.selectedAmount < 0) nominationErrors.value.selectedAmount = translate('pages.bonuses.bonuslist.bonuslist.selectedAmountCannotBeNegative')
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(nominationForm.value.bonusMonth)) nominationErrors.value.bonusMonth = translate('pages.bonuses.bonuslist.bonuslist.selectAValidBonusMonth')
-    if (Object.keys(nominationErrors.value).length || !nominationForm.value.currencyId || !nominationForm.value.selectedCurrencyId) return
+    if (Object.keys(nominationErrors.value).length) return
     if (!employeeId) return
-    const currencyId = nominationForm.value.currencyId
-    const selectedCurrencyId = nominationForm.value.selectedCurrencyId
 
     try {
         const response = await BonusListApi.create({
@@ -135,9 +112,7 @@ const submitNomination = async () => {
             eligibilityReason: nominationForm.value.eligibilityReason,
             achievementDetails: nominationForm.value.achievementDetails,
             suggestedAmount: nominationForm.value.suggestedAmount,
-            currencyId,
             selectedAmount: nominationForm.value.selectedAmount,
-            selectedCurrencyId,
             selectedType: nominationForm.value.selectedType,
             bonusMonth: nominationForm.value.bonusMonth,
         })
@@ -157,7 +132,6 @@ const updateEmployee = async (employee: WorthyEmployee) => {
     try {
         const response = await BonusListApi.update(employee.id, {
             selectedAmount: employee.selectedAmount,
-            selectedCurrencyId: employee.selectedCurrency.id ?? undefined,
             selectedType: employee.selectedType,
         })
         const index = worthyEmployees.value.findIndex(item => item.id === employee.id)
@@ -242,13 +216,13 @@ const totalGrantedCount = computed(() => {
 const totalRecommendedPool = computed(() => {
     return worthyEmployees.value
         .filter(e => !e.isGranted && (monthFilter.value === 'All' || e.bonusMonth === monthFilter.value))
-        .reduce((sum, item) => sum + (Number(item.selectedBaseAmount) || 0), 0)
+        .reduce((sum, item) => sum + (Number(item.selectedAmount) || 0), 0)
 })
 
 const totalGrantedPool = computed(() => {
     return worthyEmployees.value
         .filter(e => e.isGranted && (monthFilter.value === 'All' || e.bonusMonth === monthFilter.value))
-        .reduce((sum, item) => sum + (Number(item.grantedBaseAmount) || 0), 0)
+        .reduce((sum, item) => sum + (Number(item.grantedAmount ?? item.selectedAmount) || 0), 0)
 })
 
 const getEmployeeName = (employeeId: number) => {
@@ -268,20 +242,18 @@ const formatMonth = (monthString: string) => {
 onMounted(() => {
     fetchWorthyEmployees()
     fetchEmployees()
-    fetchCurrencies()
 })
 
 // --------------------------------------------------------------------------
 // Actions & Helpers
 // --------------------------------------------------------------------------
-const formatCurrency = (amount: number, currency: CurrencySnapshot | Currency | null = baseCurrency.value) => {
-    const decimalPlaces = currency?.decimalPlaces ?? 2
+const formatCurrency = (amount: number) => {
     const formatted = formatLocalizedNumber(Number(amount || 0), {
-        minimumFractionDigits: decimalPlaces,
-        maximumFractionDigits: decimalPlaces,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
     })
 
-    return `${currency?.symbol ?? ''}${formatted}${currency?.code ? ` ${currency.code}` : ''}`
+    return formatted
 }
 
 const getAvatarInitials = (name: string) => {
@@ -481,10 +453,13 @@ const getStatusColor = (isGranted: boolean) => {
                                     {{ translateBackendValue(employee.eligibilityReason) }}
                                 </v-chip>
                             </div>
-                            <div class="text-caption text-medium-emphasis achievement-text"
-                                :title="employee.achievementDetails">
-                                {{ employee.achievementDetails }}
-                            </div>
+                            <VTooltip :text="employee.achievementDetails" location="top">
+                                <template #activator="{ props }">
+                                    <div v-bind="props" class="text-caption text-medium-emphasis achievement-text">
+                                        {{ employee.achievementDetails }}
+                                    </div>
+                                </template>
+                            </VTooltip>
                         </td>
 
                         <!-- Performance Rating -->
@@ -519,21 +494,8 @@ const getStatusColor = (isGranted: boolean) => {
                                 @update:modelValue="!employee.isGranted && updateEmployee(employee)"
                             />
                             <div class="text-caption text-medium-emphasis mt-1">
-                                {{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: formatCurrency(employee.suggestedAmount, employee.originalCurrency) }) }}
+                                {{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: formatCurrency(employee.suggestedAmount) }) }}
                             </div>
-                            <v-select
-                                v-model="employee.selectedCurrency.id"
-                                :items="currencies"
-                                item-title="code"
-                                item-value="id"
-                                :label="$t('pages.bonuses.bonuslist.bonuslist.payoutCurrency')"
-                                density="compact"
-                                variant="outlined"
-                                hide-details
-                                class="mt-2"
-                                :disabled="employee.isGranted"
-                                @update:modelValue="!employee.isGranted && updateEmployee(employee)"
-                            />
                         </td>
 
                         <!-- Interactive Inline Bonus Type -->
@@ -560,8 +522,13 @@ const getStatusColor = (isGranted: boolean) => {
                         <!-- Actions -->
                         <td class="text-center py-4">
                             <div class="d-flex justify-center align-center gap-2">
-                                <v-btn v-if="employee.isAutomatic" icon="tabler-calculator" size="small" variant="tonal" color="info"
-                                    :title="$t('pages.bonuses.bonuslist.bonuslist.viewCalculationEvidence')" @click="showCalculation(employee)" />
+                                <FullDetailsButton :item="employee" :title="employee.employeeName" />
+                                <v-tooltip :text="$t('pages.bonuses.bonuslist.bonuslist.viewCalculationEvidence')" location="top">
+                                    <template #activator="{ props }">
+                                        <v-btn v-if="employee.isAutomatic" v-bind="props" icon="tabler-calculator" size="small" variant="tonal" color="info"
+                                            @click="showCalculation(employee)" />
+                                    </template>
+                                </v-tooltip>
                                 <!-- Grant Button (only for eligible employees) -->
                                 <v-btn v-if="!employee.isGranted" color="primary" variant="elevated" size="small" prepend-icon="tabler-check"
                                     @click="triggerGrantConfirmation(employee)">
@@ -612,7 +579,7 @@ const getStatusColor = (isGranted: boolean) => {
                         class="d-flex justify-space-between align-center pa-4 mt-4 bg-var-theme-surface rounded border">
                         <span class="text-medium-emphasis font-weight-medium">{{ $t('pages.bonuses.bonuslist.bonuslist.finalAmount') }}</span>
                         <span class="text-h5 font-weight-bold text-primary">
-                            {{ formatCurrency(selectedForGrant?.selectedAmount || 0, selectedForGrant?.selectedCurrency) }}
+                            {{ formatCurrency(selectedForGrant?.selectedAmount || 0) }}
                         </span>
                     </div>
                 </v-card-text>
@@ -634,10 +601,10 @@ const getStatusColor = (isGranted: boolean) => {
                 <v-card-text class="pa-5">
                     <v-alert type="info" variant="tonal" class="mb-4">{{ selectedCalculation?.achievementDetails }}</v-alert>
                     <v-table density="compact">
-                        <thead><tr><th>{{ $t('pages.bonuses.bonuslist.bonuslist.task') }}</th><th>{{ $t('common.fields.priority') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.participation') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.quality') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.timing') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.penalties') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.score') }}</th></tr></thead>
+                        <thead><tr><th>{{ $t('pages.bonuses.bonuslist.bonuslist.task') }}</th><th>{{ $t('common.fields.priority') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.participation') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.quality') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.timing') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.penalties') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.score') }}</th><th>{{ $t('common.messages.actions') }}</th></tr></thead>
                         <tbody><tr v-for="task in selectedCalculation?.calculationInputs?.tasks ?? []" :key="String(task.task_id)">
                             <td>{{ task.task_title }}</td><td>{{ translateBackendValue(task.priority) }} × {{ task.priority_weight }}</td><td>{{ task.participation_percent }}%</td>
-                            <td>{{ task.quality_score }}/5</td><td>{{ task.timing_points }}</td><td>{{ Number(task.reopened_points || 0) + Number(task.rejected_points || 0) }}</td><td>{{ task.score }}</td>
+                            <td>{{ task.quality_score }}/5</td><td>{{ task.timing_points }}</td><td>{{ Number(task.reopened_points || 0) + Number(task.rejected_points || 0) }}</td><td>{{ task.score }}</td><td><FullDetailsButton :item="task" :title="task.task_title" /></td>
                         </tr></tbody>
                     </v-table>
                     <div class="text-caption text-medium-emphasis mt-4">{{ selectedCalculation?.calculationInputs?.formula }}</div>
@@ -658,7 +625,7 @@ const getStatusColor = (isGranted: boolean) => {
                 <v-divider />
 
                 <v-card-text class="pa-5">
-                    <v-form @submit.prevent="submitNomination">
+                    <v-form class="app-form" @submit.prevent="submitNomination">
                         <v-alert v-if="nominationErrors.form" type="error" variant="tonal" class="mb-4">
                             {{ nominationErrors.form }}
                         </v-alert>
@@ -722,21 +689,9 @@ const getStatusColor = (isGranted: boolean) => {
                             </v-col>
 
                             <v-col cols="12" sm="6">
-                                <v-select v-model="nominationForm.currencyId" :items="currencies" item-title="code"
-                                    item-value="id" :label="$t('pages.bonuses.bonuslist.bonuslist.suggestedCurrency')" variant="outlined" required
-                                    :error-messages="nominationErrors.currencyId" />
-                            </v-col>
-
-                            <v-col cols="12" sm="6">
                                 <v-text-field v-model.number="nominationForm.selectedAmount"
                                     :label="$t('pages.bonuses.bonuslist.bonuslist.selectedAmount')" type="number" step="100" variant="outlined"
                                     required :error-messages="nominationErrors.selectedAmount" />
-                            </v-col>
-
-                            <v-col cols="12" sm="6">
-                                <v-select v-model="nominationForm.selectedCurrencyId" :items="currencies" item-title="code"
-                                    item-value="id" :label="$t('pages.bonuses.bonuslist.bonuslist.payoutCurrency')" variant="outlined" required
-                                    :error-messages="nominationErrors.selectedCurrencyId" />
                             </v-col>
 
                             <v-col cols="12">

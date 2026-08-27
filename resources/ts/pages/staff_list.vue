@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { VDialog } from 'vuetify/components'
-import EmployeeApi, { type Employee, type CreateEmployeeData, type UpdateEmployeeData } from '@/api/employee'
+import EmployeeApi, { type Employee, type EmployeeAccount, type CreateEmployeeData, type UpdateEmployeeData } from '@/api/employee'
 import PositionApi from '@/api/position'
 import OfficeApi, { type Office } from '@/api/office'
 import PaidTimeOffApi, { type PaidTimeOff } from '@/api/paidTimeOff'
 import ServiceApi, { type Service } from '@/api/services'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
+import { printDocument } from '@/utils/printDocument'
+import PrintableListReport from '@/components/PrintableListReport.vue'
+import { useRouter } from 'vue-router'
 
 interface Staff {
   id: number
+  user_id: number | null
   name: string
   father_name: string
   contact: string
@@ -38,6 +42,7 @@ interface Staff {
 }
 
 const staffList = ref<Staff[]>([])
+const router = useRouter()
 const isAddStaffDialogVisible = ref(false)
 const isEditStaffDialogVisible = ref(false)
 const isDeleteStaffDialogVisible = ref(false)
@@ -51,6 +56,8 @@ const positionOptions = ref<string[]>([])
 const positionIdMap = ref<Record<string, number>>({})
 const offices = ref<Office[]>([])
 const services = ref<Service[]>([])
+const userAccounts = ref<EmployeeAccount[]>([])
+const isUserAccountsLoading = ref(false)
 const formSubmissionError = ref('')
 const leaveStaff = ref<Staff | null>(null)
 const paidTimeOffs = ref<PaidTimeOff[]>([])
@@ -85,6 +92,10 @@ const paidTimeOffLimitMessage = computed(() => {
 const educationOptions = ['High School', 'Diploma', 'Bachelor', 'Master', 'PhD']
 const contractDurationOptions = ['6 months', '1 year', '2 years', '3 years', 'Permanent']
 const avatarText = (name: string) => name.split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase()
+
+const printEmployeeContract = (staff: Staff) => {
+  router.push({ name: 'employee-contracts', query: { employeeId: staff.id, print: '1' } })
+}
 
 const formErrors = ref({
   name: '',
@@ -153,10 +164,10 @@ const validateStaffForm = () => {
   }
 
   // Validate Email
-  if (!selectedStaff.value?.email.trim()) {
+  if (!selectedStaff.value?.user_id && !selectedStaff.value?.email.trim()) {
     formErrors.value.email = translate('pages.settings.staffList.staffList.emailIsRequired')
     isValid = false
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(selectedStaff.value.email)) {
+  } else if (!selectedStaff.value?.user_id && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(selectedStaff.value.email)) {
     formErrors.value.email = translate('pages.settings.staffList.staffList.pleaseEnterAValidEmailAddress')
     isValid = false
   } else {
@@ -230,6 +241,7 @@ const validateStaffForm = () => {
 const openAddStaffDialog = () => {
   selectedStaff.value = {
     id: 0,
+    user_id: null,
     name: '',
     father_name: '',
     contact: '',
@@ -412,6 +424,29 @@ const fetchEmployees = async () => {
   }
 }
 
+const fetchUserAccounts = async () => {
+  try {
+    isUserAccountsLoading.value = true
+    userAccounts.value = await EmployeeApi.getAccountOptions()
+  } catch (error) {
+    console.error('Error fetching user accounts:', error)
+  } finally {
+    isUserAccountsLoading.value = false
+  }
+}
+
+const userAccountOptions = computed(() => userAccounts.value.map(user => ({
+  title: `#${user.id} ${user.name} (${user.email})${user.employee ? ` - Linked to ${user.employee.name} (#${user.employee.id})` : ''}`,
+  value: user.id,
+  disabled: Boolean(user.employee && user.employee.id !== selectedStaff.value?.id),
+})))
+
+const updateSelectedAccountEmail = (userId: number | null) => {
+  const user = userAccounts.value.find(account => account.id === userId)
+  if (selectedStaff.value && user)
+    selectedStaff.value.email = user.email
+}
+
 const addStaff = async () => {
   if (!selectedStaff.value) return
   if (!validateStaffForm()) return
@@ -420,6 +455,7 @@ const addStaff = async () => {
     isLoading.value = true
     const positionId = positionIdMap.value[selectedStaff.value.position]
     const data: CreateEmployeeData = {
+      user_id: selectedStaff.value.user_id,
       name: selectedStaff.value.name,
       father_name: selectedStaff.value.father_name,
       contact: selectedStaff.value.contact,
@@ -430,6 +466,7 @@ const addStaff = async () => {
       guarantor_phone: selectedStaff.value.guarantor_phone,
       guarantor_address: selectedStaff.value.guarantor_address,
       guarantor_licence: selectedStaff.value.guarantor_licence,
+      create_user: !selectedStaff.value.user_id,
       email: selectedStaff.value.email,
       education_lvl: selectedStaff.value.education_lvl,
       position_id: positionId,
@@ -471,6 +508,7 @@ const updateStaff = async () => {
     isLoading.value = true
     const positionId = positionIdMap.value[selectedStaff.value.position]
     const data: UpdateEmployeeData = {
+      user_id: selectedStaff.value.user_id,
       name: selectedStaff.value.name,
       father_name: selectedStaff.value.father_name,
       contact: selectedStaff.value.contact,
@@ -481,6 +519,7 @@ const updateStaff = async () => {
       guarantor_phone: selectedStaff.value.guarantor_phone,
       guarantor_address: selectedStaff.value.guarantor_address,
       guarantor_licence: selectedStaff.value.guarantor_licence,
+      create_user: false,
       email: selectedStaff.value.email,
       education_lvl: selectedStaff.value.education_lvl,
       position_id: positionId,
@@ -565,11 +604,11 @@ const filteredStaff = computed(() => {
 })
 
 const printTable = () => {
-  window.print()
+  void printDocument({ bodyClass: 'printing-table-staff', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 }
 
 onMounted(async () => {
-  const [, officeRows, serviceRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), ServiceApi.getAll()])
+  const [, officeRows, serviceRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), ServiceApi.getAll(), fetchUserAccounts()])
   offices.value = officeRows.filter(office => office.status === 'active')
   services.value = serviceRows.data.filter(service => service.status === 'active')
   await fetchEmployees()
@@ -578,13 +617,14 @@ onMounted(async () => {
 
 <template>
   <div>
+    <DataTablePageKpis :items="filteredStaff" title="Staff directory" description="See your team, their assignments, and records that need follow-up." icon="tabler-users" />
     <VCard class="mb-6">
       <VCardText>
         <VRow align="center">
-          <VCol cols="12" md="4">
+          <VCol cols="12" md="6">
             <VTextField
               v-model="searchQuery"
-              prepend-inner-icon="tabler-search"
+              class="data-table-search" prepend-inner-icon="tabler-search"
               :placeholder="$t('pages.settings.staffList.staffList.searchStaff')"
               density="compact"
               clearable
@@ -592,25 +632,16 @@ onMounted(async () => {
             />
           </VCol>
 
-          <VCol cols="12" sm="6" md="2">
-            <VSelect
-              v-model="filterPosition"
-              :items="positionOptions"
-              :label="$t('pages.settings.staffList.staffList.filterByPosition')"
-              density="compact"
-              clearable
-              hide-details
-              :loading="isPositionsLoading"
-            />
-          </VCol>
-
           <VCol cols="12" md="6" class="d-flex gap-2 justify-end">
+            <DataTableFilterMenu :active="Boolean(filterPosition)" @reset="filterPosition = null">
+              <VSelect v-model="filterPosition" :items="positionOptions" :label="$t('pages.settings.staffList.staffList.filterByPosition')"
+                density="compact" clearable hide-details :loading="isPositionsLoading" />
+            </DataTableFilterMenu>
             <VBtn
               icon="tabler-printer"
               variant="text"
               @click="printTable"
-              :title="$t('pages.settings.staffList.staffList.printStaffRecords')"
-            />
+            ><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.printStaffRecords') }}</VTooltip></VBtn>
             <VBtn
               color="primary"
               @click="openAddStaffDialog"
@@ -625,7 +656,7 @@ onMounted(async () => {
 
     <VCard>
       <div class="table-container">
-        <VDataTable
+        <ResponsiveDataTable
           :items="filteredStaff"
           :headers="[
             { title: translate('common.messages.id'), key: 'id' },
@@ -671,35 +702,36 @@ onMounted(async () => {
 
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
+              <FullDetailsButton :item="item" :title="item.name" />
+              <VBtn icon="tabler-file-description" variant="text" size="small" color="primary" @click="printEmployeeContract(item)"><VTooltip activator="parent" location="top">Print employment contract</VTooltip></VBtn>
               <VBtn
                 icon="tabler-calendar-time"
                 variant="text"
                 size="small"
                 color="primary"
                 @click="openPaidTimeOffDialog(item)"
-                :title="$t('pages.settings.staffList.staffList.managePaidOffDays')"
-              />
+              ><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.managePaidOffDays') }}</VTooltip></VBtn>
               <VBtn
                 icon="tabler-edit"
                 variant="text"
                 size="small"
                 color="medium-emphasis"
                 @click="openEditStaffDialog(item)"
-                :title="$t('pages.settings.staffList.staffList.editStaffRecord')"
-              />
+              ><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.editStaffRecord') }}</VTooltip></VBtn>
               <VBtn
                 icon="tabler-trash"
                 variant="text"
                 size="small"
                 color="error"
                 @click="openDeleteStaffDialog(item)"
-                :title="$t('pages.settings.staffList.staffList.deleteStaffRecord')"
-              />
+              ><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.deleteStaffRecord') }}</VTooltip></VBtn>
             </div>
           </template>
-        </VDataTable>
+        </ResponsiveDataTable>
       </div>
     </VCard>
+
+    <PrintableListReport title="Staff Report" subtitle="Filtered staff records" :columns="['ID', 'Name', 'Position', 'Contact', 'Email', 'Office']" :rows="filteredStaff.map(staff => [staff.id, staff.name, staff.position, staff.contact, staff.email, staff.office?.name])" />
 
     <!-- Add Staff Dialog -->
     <VDialog
@@ -712,7 +744,7 @@ onMounted(async () => {
         </VCardTitle>
 
         <VCardText>
-          <VForm>
+          <VForm class="app-form">
             <VAlert v-if="formSubmissionError" type="error" variant="tonal" class="mb-4">
               {{ formSubmissionError }}
             </VAlert>
@@ -742,6 +774,18 @@ onMounted(async () => {
                 />
               </VCol>
               <VCol cols="12" md="6">
+                <VSelect
+                  v-model="selectedStaff.user_id"
+                  :items="userAccountOptions"
+                  label="User account"
+                  hint="Leave empty to create a new account with the employee email."
+                  persistent-hint
+                  clearable
+                  :loading="isUserAccountsLoading"
+                  @update:model-value="updateSelectedAccountEmail"
+                />
+              </VCol>
+              <VCol cols="12" md="6">
                 <VTextField
                   v-model="selectedStaff.id_number"
                   :label="$t('common.messages.governmentIDNumber')"
@@ -755,7 +799,7 @@ onMounted(async () => {
                   :label="$t('common.fields.email')"
                   type="email"
                   :error-messages="formErrors.email"
-                  required
+                  :required="!selectedStaff.user_id"
                 />
               </VCol>
               <VCol cols="12" md="6">
@@ -884,7 +928,7 @@ onMounted(async () => {
         </VCardTitle>
 
         <VCardText>
-          <VForm>
+          <VForm class="app-form">
             <VAlert v-if="formSubmissionError" type="error" variant="tonal" class="mb-4">
               {{ formSubmissionError }}
             </VAlert>
@@ -914,6 +958,18 @@ onMounted(async () => {
                 />
               </VCol>
               <VCol cols="12" md="6">
+                <VSelect
+                  v-model="selectedStaff.user_id"
+                  :items="userAccountOptions"
+                  label="User account"
+                  hint="Linked accounts are labeled with their employee name and ID."
+                  persistent-hint
+                  clearable
+                  :loading="isUserAccountsLoading"
+                  @update:model-value="updateSelectedAccountEmail"
+                />
+              </VCol>
+              <VCol cols="12" md="6">
                 <VTextField
                   v-model="selectedStaff.id_number"
                   :label="$t('common.messages.governmentIDNumber')"
@@ -927,7 +983,7 @@ onMounted(async () => {
                   :label="$t('common.fields.email')"
                   type="email"
                   :error-messages="formErrors.email"
-                  required
+                  :required="!selectedStaff.user_id"
                 />
               </VCol>
               <VCol cols="12" md="6">
@@ -1077,16 +1133,18 @@ onMounted(async () => {
                 color="primary"
                 :loading="isLeaveLoading"
                 :disabled="!canSavePaidTimeOff"
-                :title="!isPaidTimeOffFormComplete ? 'Enter both a date and reason.' : paidTimeOffLimitMessage"
                 @click="savePaidTimeOff"
               >
                 {{ leaveForm.id ? 'Update' : 'Add day' }}
+                <VTooltip activator="parent" location="top">
+                  {{ !isPaidTimeOffFormComplete ? 'Enter both a date and reason.' : paidTimeOffLimitMessage }}
+                </VTooltip>
               </VBtn>
               <VBtn v-if="leaveForm.id" icon="tabler-x" variant="text" @click="resetPaidTimeOffForm" />
             </VCol>
           </VRow>
 
-          <VDataTable
+          <ResponsiveDataTable
             :headers="[
               { title: translate('common.fields.date'), key: 'date' },
               { title: translate('common.fields.reason'), key: 'reason' },
@@ -1098,10 +1156,11 @@ onMounted(async () => {
             density="comfortable"
           >
             <template #item.actions="{ item }">
+              <FullDetailsButton :item="item" />
               <VBtn icon="tabler-edit" size="small" variant="text" @click="editPaidTimeOff(item)" />
               <VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="deletePaidTimeOff(item.id)" />
             </template>
-          </VDataTable>
+          </ResponsiveDataTable>
         </VCardText>
 
         <VCardActions class="pa-5"><VSpacer /><VBtn variant="tonal" @click="isPaidTimeOffDialogVisible = false">{{ $t('common.actions.close') }}</VBtn></VCardActions>

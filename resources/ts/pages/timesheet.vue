@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import AttendanceApi, { type Attendance, type UnmarkedStaff } from '@/api/attendance'
+import AttendanceApi, { type Attendance, type DailyReport, type UnmarkedStaff } from '@/api/attendance'
 import { printDocument } from '@/utils/printDocument'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { VAvatar, VBtn, VCard, VCardText, VChip, VCol, VIcon, VRow, VSelect } from 'vuetify/components'
+import { VAlert, VAvatar, VBtn, VCard, VCardText, VChip, VCol, VDialog, VIcon, VRow, VSelect } from 'vuetify/components'
 import TimesheetTemplate from './templates/timesheet_template.vue'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import OfficeApi, { type Office } from '@/api/office'
@@ -35,6 +35,10 @@ const attendanceRecords = ref<Attendance[]>([])
 const unmarkedStaff = ref<UnmarkedStaff[]>([])
 const loading = ref<boolean>(false)
 const error = ref<string | null>(null)
+const reportDialogOpen = ref(false)
+const reportLoading = ref(false)
+const selectedReport = ref<DailyReport | null>(null)
+const reportError = ref<string | null>(null)
 const { locale } = useI18n()
 
 // Fetch attendance records within the date range
@@ -120,6 +124,23 @@ const deleteRecord = async (id: number) => {
     console.error(err)
   } finally {
     loading.value = false
+  }
+}
+
+// A report is deliberately requested only after its row action is clicked.
+const viewDailyReport = async (attendance: Attendance) => {
+  reportDialogOpen.value = true
+  reportLoading.value = true
+  selectedReport.value = null
+  reportError.value = null
+
+  try {
+    selectedReport.value = await AttendanceApi.getDailyReport(attendance.id)
+  } catch (err) {
+    reportError.value = translate('pages.attendance.timesheet.timesheet.failedToFetchDailyReport')
+    console.error(err)
+  } finally {
+    reportLoading.value = false
   }
 }
 
@@ -479,22 +500,43 @@ watch(logDate, async () => {
                     </td>
 
                     <!-- Office-hour state is conveyed by both color and a tooltip. -->
-                    <td class="py-3 px-4 text-center text-body-2 font-weight-medium" :title="timeHint(record.check_in_state)">
+                    <td class="py-3 px-4 text-center text-body-2 font-weight-medium">
+                      <VTooltip :text="timeHint(record.check_in_state)" location="top">
+                        <template #activator="{ props }">
+                          <span v-bind="props">
                       <VChip v-if="record.check_in_time" :color="timeColor(record.check_in_state)" variant="tonal" size="small">{{ formatTime(record.checked_in_at, record.check_in_time, record.timezone) }}</VChip>
                       <span v-else class="text-medium-emphasis">—</span>
+                          </span>
+                        </template>
+                      </VTooltip>
                     </td>
 
-                    <td class="py-3 px-4 text-center text-body-2 font-weight-medium" :title="timeHint(record.check_out_state)">
+                    <td class="py-3 px-4 text-center text-body-2 font-weight-medium">
+                      <VTooltip :text="timeHint(record.check_out_state)" location="top">
+                        <template #activator="{ props }">
+                          <span v-bind="props">
                       <VChip v-if="record.check_out_time" :color="timeColor(record.check_out_state)" variant="tonal" size="small">{{ formatTime(record.checked_out_at, record.check_out_time, record.timezone) }}</VChip>
                       <span v-else class="text-medium-emphasis">—</span>
+                          </span>
+                        </template>
+                      </VTooltip>
                     </td>
                     <td class="py-3 px-4 text-center font-weight-medium"><VChip v-if="record.missing_punch_state !== 'none'" color="warning" size="small">{{ $t('pages.attendance.timesheet.timesheet.incomplete') }}</VChip><span v-else>{{ formatDuration(record.net_worked_minutes) }}</span></td>
                     <td class="py-3 px-4 text-center text-success font-weight-medium">{{ formatDuration(record.overtime_minutes) }}</td>
 
                     <!-- Row Contextual Eraser -->
                     <td class="py-3 px-4 text-right">
+                      <VBtn
+                        v-if="record.daily_report_exists"
+                        icon="tabler-file-text"
+                        variant="text"
+                        color="primary"
+                        size="small"
+                        density="comfortable"
+                        @click="viewDailyReport(record)"
+                      ><VTooltip activator="parent" location="top">{{ $t('pages.attendance.timesheet.timesheet.viewDailyReport') }}</VTooltip></VBtn>
                       <VBtn icon="tabler-trash" variant="text" color="error" size="small" density="comfortable"
-                        @click="deleteRecord(record.id)" :title="$t('pages.attendance.timesheet.timesheet.removeRecord')" :loading="loading" />
+                        @click="deleteRecord(record.id)" :loading="loading"><VTooltip activator="parent" location="top">{{ $t('pages.attendance.timesheet.timesheet.removeRecord') }}</VTooltip></VBtn>
                     </td>
                   </tr>
                 </tbody>
@@ -504,6 +546,30 @@ watch(logDate, async () => {
         </VCol>
       </VRow>
     </div>
+
+    <VDialog v-model="reportDialogOpen" max-width="720">
+      <VCard>
+        <VCardText class="pa-6">
+          <div class="d-flex align-center justify-space-between mb-5">
+            <div>
+              <h3 class="text-h5 font-weight-bold">{{ $t('pages.attendance.timesheet.timesheet.dailyReport') }}</h3>
+              <p v-if="selectedReport" class="text-body-2 text-medium-emphasis mb-0">{{ formatLocalizedDate(`${selectedReport.reportDate}T00:00:00`) }}</p>
+            </div>
+            <VBtn icon="tabler-x" variant="text" @click="reportDialogOpen = false" />
+          </div>
+
+          <div v-if="reportLoading" class="text-center py-8">{{ $t('common.messages.loading') }}</div>
+          <VAlert v-else-if="reportError" type="error" variant="tonal">{{ reportError }}</VAlert>
+          <div v-else-if="selectedReport" class="d-flex flex-column ga-4">
+            <div><div class="text-subtitle-2 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.summary') }}</div><div class="text-body-1 white-space-pre-wrap">{{ selectedReport.summary }}</div></div>
+            <div v-if="selectedReport.achievements"><div class="text-subtitle-2 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.achievements') }}</div><div class="white-space-pre-wrap">{{ selectedReport.achievements }}</div></div>
+            <div v-if="selectedReport.challenges"><div class="text-subtitle-2 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.challenges') }}</div><div class="white-space-pre-wrap">{{ selectedReport.challenges }}</div></div>
+            <div v-if="selectedReport.nextDayPlan"><div class="text-subtitle-2 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.nextDayPlan') }}</div><div class="white-space-pre-wrap">{{ selectedReport.nextDayPlan }}</div></div>
+            <div v-if="selectedReport.supportNeeded"><div class="text-subtitle-2 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.supportNeeded') }}</div><div class="white-space-pre-wrap">{{ selectedReport.supportNeeded }}</div></div>
+          </div>
+        </VCardText>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 

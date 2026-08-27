@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Stock;
+use App\Models\Office;
 use Illuminate\Database\Seeder;
 
 class StockSeeder extends Seeder
@@ -12,6 +13,8 @@ class StockSeeder extends Seeder
      */
     public function run(): void
     {
+        $offices = Office::whereIn('code', ['HQ', 'BR-A', 'BR-B'])->pluck('id', 'code');
+
         $stocks = [
             [
                 'serial_number' => 'SN-1001',
@@ -19,7 +22,7 @@ class StockSeeder extends Seeder
                 'quantity' => 1,
                 'model' => 'XPS 15',
                 'condition' => 'good',
-                'office' => 'HQ',
+                'office_id' => $offices['HQ'],
                 'staff_id' => null,
             ],
             [
@@ -28,7 +31,7 @@ class StockSeeder extends Seeder
                 'quantity' => 2,
                 'model' => '27f',
                 'condition' => 'new',
-                'office' => 'Branch A',
+                'office_id' => $offices['BR-A'],
                 'staff_id' => null,
             ],
             [
@@ -37,7 +40,7 @@ class StockSeeder extends Seeder
                 'quantity' => 5,
                 'model' => 'MX Master',
                 'condition' => 'fair',
-                'office' => 'Branch B',
+                'office_id' => $offices['BR-B'],
                 'staff_id' => null,
             ],
         ];

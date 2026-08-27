@@ -74,6 +74,37 @@ class PhaseSevenWorkingTimeTest extends TestCase
         $this->assertNull($attendance->net_worked_minutes);
     }
 
+    public function test_missing_office_hours_do_not_count_all_worked_time_as_overtime(): void
+    {
+        Setting::query()->update([
+            'office_open_time' => null,
+            'office_close_time' => null,
+        ]);
+        $employee = Employee::factory()->create(['join_date' => '2026-07-01']);
+        $attendance = Attendance::create([
+            'employee_id' => $employee->id, 'date' => '2026-07-11', 'status' => 'present', 'logged_at' => '09:00:00',
+            'check_in_time' => '09:00', 'check_out_time' => '17:00',
+            'checked_in_at' => Carbon::parse('2026-07-11 04:30:00', 'UTC'),
+            'checked_out_at' => Carbon::parse('2026-07-11 12:30:00', 'UTC'), 'break_minutes' => 0,
+        ]);
+
+        app(AttendanceCalculationService::class)->calculate($attendance);
+        $attendance->refresh();
+
+        $this->assertSame(480, $attendance->net_worked_minutes);
+        $this->assertNull($attendance->required_minutes);
+        $this->assertSame(0, $attendance->overtime_minutes);
+
+        Setting::query()->update([
+            'office_open_time' => '09:00',
+            'office_close_time' => '17:00',
+        ]);
+
+        $this->assertTrue(app(AttendanceCalculationService::class)->calculate($attendance));
+        $this->assertSame(480, $attendance->fresh()->required_minutes);
+        $this->assertSame(0, $attendance->fresh()->overtime_minutes);
+    }
+
     public function test_monthly_command_is_idempotent_handles_paid_leave_and_refreshes_employee_total(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-08-13 12:00:00', 'UTC'));

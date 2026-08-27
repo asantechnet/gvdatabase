@@ -13,12 +13,17 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
+            'avatar' => $this->whenLoaded('employee', fn () => $this->employee?->avatar),
             'phone' => $this->phone,
             'address' => $this->address,
             'roles' => $this->roleNames(),
             'acc_status' => $this->acc_status,
             'email_verified' => $this->hasVerifiedEmail(),
             'password_setup_pending' => (bool) $this->must_set_password,
+            'employee' => $this->whenLoaded('employee', fn () => $this->employee ? [
+                'id' => $this->employee->id,
+                'name' => $this->employee->name,
+            ] : null),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
             'contributionPercent' => $this->when(

@@ -4,6 +4,9 @@ import { VDialog } from 'vuetify/components'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import { createExpense, deleteExpense, getExpenses, updateExpense, type Expense, type ExpenseCreateData, type ExpenseUpdateData } from '@/api/expenses'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
+import { printDocument } from '@/utils/printDocument'
+import PrintableListReport from '@/components/PrintableListReport.vue'
+import ExpenseFormDialog from '@/components/forms/ExpenseFormDialog.vue'
 
 const expenses = ref<Expense[]>([])
 const currencies = ref<Currency[]>([])
@@ -22,19 +25,20 @@ const typeOptions = ['Utilities', 'Software/SaaS', 'Marketing', 'Office Supplies
 const currencyOptions = computed(() => currencies.value.map(currency => ({
   title: `${currency.code} — ${currency.name}`,
   value: currency.id,
+  rate: currency.rate,
 })))
-const totalSpent = computed(() => expenses.value.reduce((total, expense) => total + Number(expense.total_amount || 0), 0))
+const totalSpent = computed(() => expenses.value.reduce((total, expense) => total + Number(expense.base_amount || 0), 0))
 const averageExpense = computed(() => expenses.value.length ? totalSpent.value / expenses.value.length : 0)
 const currentMonthSpent = computed(() => {
   const now = new Date()
   return expenses.value.reduce((total, expense) => {
     const date = new Date(`${expense.date}T00:00:00`)
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-      ? total + Number(expense.total_amount || 0)
+      ? total + Number(expense.base_amount || 0)
       : total
   }, 0)
 })
-const largestExpense = computed(() => Math.max(0, ...expenses.value.map(expense => Number(expense.total_amount || 0))))
+const largestExpense = computed(() => Math.max(0, ...expenses.value.map(expense => Number(expense.base_amount || 0))))
 
 const fetchCurrencies = async () => {
   const response = await CurrencyApi.getAll()
@@ -62,7 +66,7 @@ const setDefaultCurrency = () => {
   const currency = currencies.value.find(item => item.isBase) ?? currencies.value[0]
   if (currency) {
     selectedExpense.value.currency_id = currency.id
-    selectedExpense.value.rate_to_base = currency.rateToBase
+    selectedExpense.value.rate = currency.rate
   }
 }
 
@@ -76,7 +80,7 @@ const openAddExpenseDialog = async () => {
     description: '',
     amount: 0,
     quantity: 1,
-    rate_to_base: 1,
+    rate: 1,
     date: new Date().toISOString().slice(0, 10),
   }
   await fetchCurrencies()
@@ -101,14 +105,14 @@ const handleCurrencyChange = (currencyId: number) => {
   if (!selectedExpense.value) return
   const currency = currencies.value.find(item => item.id === currencyId)
   if (currency) {
-    selectedExpense.value.rate_to_base = currency.rateToBase
+    selectedExpense.value.rate = currency.rate
     calculateTotal()
   }
 }
 
 const calculateTotal = () => {
   if (selectedExpense.value)
-    selectedExpense.value.total_amount = Number(selectedExpense.value.amount) * Number(selectedExpense.value.quantity) * Number(selectedExpense.value.rate_to_base)
+    selectedExpense.value.base_amount = Number(selectedExpense.value.amount) * Number(selectedExpense.value.quantity) * Number(selectedExpense.value.rate)
 }
 
 const validateExpense = () => {
@@ -121,12 +125,16 @@ const validateExpense = () => {
   if (!expense.description?.trim()) fieldErrors.value.description = translate('pages.finance.expenses.expenses.enterADescription')
   if (!Number.isFinite(Number(expense.amount)) || Number(expense.amount) < 0) fieldErrors.value.amount = translate('pages.finance.expenses.expenses.enterAnAmountOfZeroOrMore')
   if (!Number.isInteger(Number(expense.quantity)) || Number(expense.quantity) < 1) fieldErrors.value.quantity = translate('pages.finance.expenses.expenses.enterAWholeQuantityOfAtLeast1')
+  if (!Number.isFinite(Number(expense.rate)) || Number(expense.rate) <= 0) fieldErrors.value.rate = translate('common.messages.exchangeRate')
   if (!expense.date || Number.isNaN(Date.parse(expense.date))) fieldErrors.value.date = translate('pages.finance.expenses.expenses.chooseAValidExpenseDate')
 
   return Object.keys(fieldErrors.value).length === 0
 }
 
-const saveExpense = async (isEditing = false) => {
+const saveExpense = async (isEditing = false, submittedExpense?: Expense | ExpenseCreateData) => {
+  if (submittedExpense)
+    selectedExpense.value = submittedExpense
+
   if (!selectedExpense.value) return
   if (!validateExpense()) {
     formError.value = translate('pages.finance.expenses.expenses.pleaseCorrectTheHighlightedFields')
@@ -143,7 +151,7 @@ const saveExpense = async (isEditing = false) => {
       description: selectedExpense.value.description,
       amount: selectedExpense.value.amount,
       quantity: selectedExpense.value.quantity,
-      rate_to_base: selectedExpense.value.rate_to_base,
+      rate: selectedExpense.value.rate,
       date: selectedExpense.value.date,
     }
     const savedExpense = isEditing && 'id' in selectedExpense.value
@@ -180,7 +188,7 @@ const formatExpenseCurrency = (value: number, currency: Expense['currency']) => 
 }
 const formatDate = (date: string) => formatLocalizedDate(`${date}T00:00:00`, { day: '2-digit', month: 'short', year: 'numeric' })
 const expenseTypeColor = (type: string) => ({ Utilities: 'info', 'Software/SaaS': 'primary', Marketing: 'warning', 'Office Supplies': 'secondary', 'Travel & Dining': 'success', Salaries: 'error' }[type] ?? 'secondary')
-const printTable = () => window.print()
+const printTable = () => void printDocument({ bodyClass: 'printing-table-expenses', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 
 onMounted(() => {
   fetchExpenses()
@@ -192,86 +200,69 @@ onMounted(() => {
   <div class="expense-page">
     <VCard class="expense-command-deck mb-6" elevation="0">
       <VCardText class="pa-6 pa-md-8">
-        <div class="d-flex flex-wrap align-center justify-space-between gap-5">
-          <div>
+        <div class="hero-topline d-flex flex-wrap align-center justify-space-between gap-5">
+          <div class="hero-copy">
             <div class="eyebrow mb-2"><VIcon icon="tabler-activity-heartbeat" size="15" /> {{ $t('pages.finance.expenses.expenses.spendCONTROLCENTER') }}</div>
             <h2 class="text-h4 font-weight-black mb-1">{{ $t('pages.finance.expenses.expenses.expenseLedger') }}</h2>
             <p class="text-body-2 opacity-80 mb-0">{{ $t('pages.finance.expenses.expenses.trackOutgoingCashRecurringCostsAndSpendPatternsInOneFocusedView') }}</p>
           </div>
-          <div class="d-flex align-center gap-2">
-            <VBtn icon="tabler-printer" variant="text" color="white" @click="printTable" :title="$t('pages.finance.expenses.expenses.printExpenseRecords')" />
-            <VBtn color="white" class="text-error font-weight-bold" @click="openAddExpenseDialog"><VIcon icon="tabler-plus" class="me-1" /> {{ $t('pages.finance.expenses.expenses.recordExpense') }}</VBtn>
+          <div class="hero-actions d-flex align-center gap-2">
+            <VBtn class="hero-print" icon variant="text" color="white" @click="printTable">
+              <VIcon icon="tabler-printer" />
+              <VTooltip activator="parent" location="top">{{ $t('pages.finance.expenses.expenses.printExpenseRecords') }}</VTooltip>
+            </VBtn>
+            <VBtn color="white" class="hero-primary-action text-error font-weight-bold" @click="openAddExpenseDialog"><VIcon icon="tabler-plus" class="me-1" /> {{ $t('pages.finance.expenses.expenses.recordExpense') }}</VBtn>
           </div>
         </div>
         <VRow class="mt-4">
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile"><VIcon icon="tabler-credit-card-pay" color="error" /><div><div class="metric-label">{{ $t('pages.finance.expenses.expenses.recordedBaseValue') }}</div><div class="metric-value">{{ formatBaseCurrency(totalSpent) }}</div></div></div></VCol>
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile"><VIcon icon="tabler-calendar-month" color="warning" /><div><div class="metric-label">{{ $t('common.messages.thisMonth') }}</div><div class="metric-value">{{ formatBaseCurrency(currentMonthSpent) }}</div></div></div></VCol>
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile"><VIcon icon="tabler-chart-arrows-vertical" color="info" /><div><div class="metric-label">{{ $t('pages.finance.expenses.expenses.largestRecord') }}</div><div class="metric-value">{{ formatBaseCurrency(largestExpense) }}</div></div></div></VCol>
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile"><VIcon icon="tabler-chart-bar" color="secondary" /><div><div class="metric-label">{{ $t('pages.finance.expenses.expenses.averageExpense') }}</div><div class="metric-value">{{ formatBaseCurrency(averageExpense) }}</div></div></div></VCol>
+          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--error"><VIcon icon="tabler-credit-card-pay" color="error" /><div><div class="metric-label">{{ $t('pages.finance.expenses.expenses.recordedBaseValue') }}</div><div class="metric-value">{{ formatBaseCurrency(totalSpent) }}</div></div></div></VCol>
+          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--warning"><VIcon icon="tabler-calendar-month" color="warning" /><div><div class="metric-label">{{ $t('common.messages.thisMonth') }}</div><div class="metric-value">{{ formatBaseCurrency(currentMonthSpent) }}</div></div></div></VCol>
+          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--info"><VIcon icon="tabler-chart-arrows-vertical" color="info" /><div><div class="metric-label">{{ $t('pages.finance.expenses.expenses.largestRecord') }}</div><div class="metric-value">{{ formatBaseCurrency(largestExpense) }}</div></div></div></VCol>
+          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--secondary"><VIcon icon="tabler-chart-bar" color="secondary" /><div><div class="metric-label">{{ $t('pages.finance.expenses.expenses.averageExpense') }}</div><div class="metric-value">{{ formatBaseCurrency(averageExpense) }}</div></div></div></VCol>
         </VRow>
       </VCardText>
     </VCard>
 
-    <VCard class="mb-6 filter-deck" elevation="0"><VCardText><VRow align="center">
-      <VCol cols="12" md="5"><VTextField v-model="searchQuery" prepend-inner-icon="tabler-search" :placeholder="$t('pages.finance.expenses.expenses.searchExpenseDescriptionsOrTypes')" density="compact" clearable hide-details @keyup.enter="fetchExpenses" /></VCol>
-      <VCol cols="12" sm="6" md="2"><VSelect v-model="filterType" :items="typeOptions" :label="$t('pages.finance.expenses.expenses.filterByType')" density="compact" clearable hide-details @update:model-value="fetchExpenses" /></VCol>
-      <VCol cols="12" sm="6" md="2"><VSelect v-model="filterCurrency" :items="currencyOptions" :label="$t('common.messages.filterByCurrency')" density="compact" clearable hide-details @update:model-value="fetchExpenses" /></VCol>
-      <VCol cols="12" md="3" class="d-flex align-center justify-md-end"><div class="text-caption text-medium-emphasis"><strong class="text-high-emphasis">{{ expenses.length }}</strong> {{ $t('pages.finance.expenses.expenses.expenseRecordsShown') }}</div></VCol>
+    <VCard class="mb-6 filter-deck" elevation="0"><VCardText class="filter-deck__content"><VRow align="center">
+      <VCol cols="12" md="8"><VTextField v-model="searchQuery" class="data-table-search" prepend-inner-icon="tabler-search" :placeholder="$t('pages.finance.expenses.expenses.searchExpenseDescriptionsOrTypes')" density="compact" clearable hide-details @keyup.enter="fetchExpenses" /></VCol>
+      <VCol cols="12" md="4" class="d-flex align-center justify-md-end ga-2"><DataTableFilterMenu :active="Boolean(filterType || filterCurrency)" @reset="filterType = null; filterCurrency = null; fetchExpenses()"><VSelect v-model="filterType" :items="typeOptions" :label="$t('pages.finance.expenses.expenses.filterByType')" density="compact" clearable hide-details @update:model-value="fetchExpenses" /><VSelect v-model="filterCurrency" :items="currencyOptions" :label="$t('common.messages.filterByCurrency')" density="compact" clearable hide-details @update:model-value="fetchExpenses" /></DataTableFilterMenu><div class="text-caption text-medium-emphasis"><strong class="text-high-emphasis">{{ expenses.length }}</strong> {{ $t('pages.finance.expenses.expenses.expenseRecordsShown') }}</div></VCol>
     </VRow></VCardText></VCard>
 
     <VCard class="ledger-card" elevation="0">
-      <VCardItem><VCardTitle class="font-weight-bold">{{ $t('pages.finance.expenses.expenses.outgoingStream') }}</VCardTitle><template #append><VChip size="small" color="error" variant="tonal">{{ $t('pages.finance.expenses.expenses.spendLedger') }}</VChip></template></VCardItem>
-      <div class="table-container"><VDataTable :items="expenses" :headers="[
-        { title: translate('pages.finance.expenses.expenses.expense'), key: 'id', align: 'start' }, { title: translate('common.fields.type'), key: 'type', align: 'start' }, { title: translate('common.messages.details'), key: 'description', align: 'start' }, { title: translate('common.fields.currency'), key: 'currency', align: 'start' }, { title: translate('common.fields.amount'), key: 'total_amount', align: 'end' }, { title: translate('common.fields.date'), key: 'date', align: 'center' }, { title: translate('common.messages.actions'), key: 'actions', align: 'center', sortable: false }
+      <VCardItem class="ledger-card__header"><VCardTitle class="ledger-card__title font-weight-bold"><VIcon icon="tabler-receipt-2" size="20" />{{ $t('pages.finance.expenses.expenses.outgoingStream') }}</VCardTitle><template #append><VChip size="small" color="error" variant="tonal">{{ $t('pages.finance.expenses.expenses.spendLedger') }}</VChip></template></VCardItem>
+      <div class="table-container"><ResponsiveDataTable :items="expenses" :headers="[
+        { title: translate('pages.finance.expenses.expenses.expense'), key: 'id', align: 'start' }, { title: translate('common.fields.type'), key: 'type', align: 'start' }, { title: translate('common.messages.details'), key: 'description', align: 'start' }, { title: translate('common.fields.currency'), key: 'currency', align: 'start' }, { title: translate('common.fields.amount'), key: 'base_amount', align: 'end' }, { title: translate('common.fields.date'), key: 'date', align: 'center' }, { title: translate('common.messages.actions'), key: 'actions', align: 'center', sortable: false }
       ]" item-value="id" class="text-no-wrap" :loading="isLoading" mobile-breakpoint="sm" density="compact">
         <template #item.id="{ item }"><div class="font-weight-bold"><bdi>{{ `EXP-${String(item.id).padStart(6, '0')}` }}</bdi></div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.quantityValue', { value: item.quantity }) }}</div></template>
         <template #item.type="{ item }"><VChip size="small" :color="expenseTypeColor(item.type)" variant="tonal">{{ translateBackendValue(item.type) }}</VChip></template>
         <template #item.description="{ item }"><div class="detail-copy">{{ item.description }}</div></template>
         <template #item.currency="{ item }"><VChip v-if="item.currency" size="small" variant="outlined">{{ item.currency.code }}</VChip><span v-else>—</span></template>
-        <template #item.total_amount="{ item }"><div class="font-weight-bold text-error">{{ formatExpenseCurrency(item.amount * item.quantity, item.currency) }}</div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.rateValue', { value: item.rate_to_base }) }}</div></template>
+        <template #item.base_amount="{ item }"><div class="font-weight-bold text-error">{{ formatExpenseCurrency(item.amount * item.quantity, item.currency) }}</div><div class="text-caption text-medium-emphasis">{{ item.base_amount }} {{ item.base_curr_shrt }} · rate {{ item.rate }}</div></template>
         <template #item.date="{ item }">{{ formatDate(item.date) }}</template>
-        <template #item.actions="{ item }"><div class="d-flex gap-1"><VBtn icon="tabler-edit" variant="text" size="small" color="medium-emphasis" @click="openEditExpenseDialog(item)" /><VBtn icon="tabler-trash" variant="text" size="small" color="error" @click="openDeleteExpenseDialog(item)" /></div></template>
-      </VDataTable></div>
+        <template #item.actions="{ item }"><div class="d-flex gap-1"><FullDetailsButton :item="item" /><VBtn icon="tabler-edit" variant="text" size="small" color="medium-emphasis" @click="openEditExpenseDialog(item)" /><VBtn icon="tabler-trash" variant="text" size="small" color="error" @click="openDeleteExpenseDialog(item)" /></div></template>
+        <template #no-data><div class="ledger-empty"><VAvatar size="48" color="error" variant="tonal" icon="tabler-receipt" /><div><div class="text-subtitle-1 font-weight-bold">Your expense ledger is clear</div><p class="text-body-2 text-medium-emphasis mb-0">Record an expense to start building a clear picture of your spending.</p></div><VBtn color="error" variant="tonal" prepend-icon="tabler-plus" @click="openAddExpenseDialog">Record expense</VBtn></div></template>
+      </ResponsiveDataTable></div>
     </VCard>
 
-    <VDialog v-model="isAddExpenseDialogVisible" max-width="900px"><VCard class="expense-dialog"><VCardTitle class="pa-6 pb-2"><div class="d-flex align-center gap-3"><VAvatar color="error" variant="tonal" icon="tabler-receipt-2" /><div><div class="text-h5 font-weight-bold">{{ $t('pages.finance.expenses.expenses.recordExpense2') }}</div><div class="text-caption text-medium-emphasis">{{ $t('pages.finance.expenses.expenses.captureOutgoingCashWithItsLiveCurrencyRelationship') }}</div></div></div></VCardTitle>
-      <VCardText><VAlert v-if="formError" type="error" variant="tonal" class="mb-4">{{ formError }}</VAlert><VForm><VRow>
-        <VCol cols="12" md="6"><VSelect v-model="selectedExpense.type" :items="typeOptions" :label="$t('common.messages.expenseType')" :error-messages="fieldErrors.type" required /></VCol>
-        <VCol cols="12" md="6"><VSelect v-model="selectedExpense.currency_id" :items="currencyOptions" :label="$t('common.fields.currency')" :error-messages="fieldErrors.currency_id" required @update:model-value="handleCurrencyChange" /></VCol>
-        <VCol cols="12"><VTextarea v-model="selectedExpense.description" :label="$t('common.fields.description')" :error-messages="fieldErrors.description" :placeholder="$t('common.messages.whatWasThisExpenseFor')" rows="2" auto-grow required /></VCol>
-        <VCol cols="12" md="4"><VTextField v-model.number="selectedExpense.amount" :label="$t('common.fields.amount')" :error-messages="fieldErrors.amount" type="number" min="0" step="0.01" required @input="calculateTotal" /></VCol>
-        <VCol cols="12" md="4"><VTextField v-model.number="selectedExpense.quantity" :label="$t('common.messages.quantity')" :error-messages="fieldErrors.quantity" type="number" min="1" required @input="calculateTotal" /></VCol>
-        <VCol cols="12" md="4"><VTextField v-model.number="selectedExpense.rate_to_base" :label="$t('common.messages.exchangeRateSnapshot')" type="number" readonly /></VCol>
-        <VCol cols="12" md="6"><VTextField :model-value="selectedExpense.total_amount" :label="$t('common.messages.baseCurrencyTotal')" type="number" readonly /></VCol>
-        <VCol cols="12" md="6"><AppDateTimePicker v-model="selectedExpense.date" :label="$t('common.messages.expenseDate')" :error-messages="fieldErrors.date" :config="{ dateFormat: 'Y-m-d' }" required /></VCol>
-      </VRow></VForm></VCardText>
-      <VCardActions class="pa-5"><VSpacer /><VBtn color="secondary" variant="tonal" @click="isAddExpenseDialogVisible = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="error" @click="saveExpense()">{{ $t('pages.finance.expenses.expenses.saveExpense') }}</VBtn></VCardActions>
-    </VCard></VDialog>
+    <PrintableListReport title="Expenses Report" subtitle="Expense records" :columns="['Expense', 'Type', 'Details', 'Currency', 'Amount', 'Date']" :rows="expenses.map(expense => [`EXP-${String(expense.id).padStart(6, '0')}`, expense.type, expense.description, expense.currency?.code, formatExpenseCurrency(expense.amount * expense.quantity, expense.currency), formatDate(expense.date)])" />
 
-    <VDialog v-model="isEditExpenseDialogVisible" max-width="900px"><VCard class="expense-dialog"><VCardTitle class="pa-6 pb-2"><div class="d-flex align-center gap-3"><VAvatar color="error" variant="tonal" icon="tabler-pencil" /><div><div class="text-h5 font-weight-bold">{{ $t('pages.finance.expenses.expenses.editExpense') }}</div><div class="text-caption text-medium-emphasis">{{ $t('pages.finance.expenses.expenses.updateTheRecordedSpendAndItsCurrency') }}</div></div></div></VCardTitle>
-      <VCardText><VAlert v-if="formError" type="error" variant="tonal" class="mb-4">{{ formError }}</VAlert><VForm><VRow>
-        <VCol cols="12" md="6"><VSelect v-model="selectedExpense.type" :items="typeOptions" :label="$t('common.messages.expenseType')" :error-messages="fieldErrors.type" required /></VCol>
-        <VCol cols="12" md="6"><VSelect v-model="selectedExpense.currency_id" :items="currencyOptions" :label="$t('common.fields.currency')" :error-messages="fieldErrors.currency_id" required @update:model-value="handleCurrencyChange" /></VCol>
-        <VCol cols="12"><VTextarea v-model="selectedExpense.description" :label="$t('common.fields.description')" :error-messages="fieldErrors.description" :placeholder="$t('common.messages.whatWasThisExpenseFor')" rows="2" auto-grow required /></VCol>
-        <VCol cols="12" md="4"><VTextField v-model.number="selectedExpense.amount" :label="$t('common.fields.amount')" :error-messages="fieldErrors.amount" type="number" min="0" step="0.01" required @input="calculateTotal" /></VCol>
-        <VCol cols="12" md="4"><VTextField v-model.number="selectedExpense.quantity" :label="$t('common.messages.quantity')" :error-messages="fieldErrors.quantity" type="number" min="1" required @input="calculateTotal" /></VCol>
-        <VCol cols="12" md="4"><VTextField v-model.number="selectedExpense.rate_to_base" :label="$t('common.messages.exchangeRateSnapshot')" type="number" readonly /></VCol>
-        <VCol cols="12" md="6"><VTextField :model-value="selectedExpense.total_amount" :label="$t('common.messages.baseCurrencyTotal')" type="number" readonly /></VCol>
-        <VCol cols="12" md="6"><AppDateTimePicker v-model="selectedExpense.date" :label="$t('common.messages.expenseDate')" :error-messages="fieldErrors.date" :config="{ dateFormat: 'Y-m-d' }" required /></VCol>
-      </VRow></VForm></VCardText>
-      <VCardActions class="pa-5"><VSpacer /><VBtn color="secondary" variant="tonal" @click="isEditExpenseDialogVisible = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="error" @click="saveExpense(true)">{{ $t('common.messages.saveChanges4') }}</VBtn></VCardActions>
-    </VCard></VDialog>
+    <ExpenseFormDialog v-model="isAddExpenseDialogVisible" :initial-expense="selectedExpense" :currency-options="currencyOptions" mode="create" @submit="saveExpense(false, $event)" />
+    <ExpenseFormDialog v-model="isEditExpenseDialogVisible" :initial-expense="selectedExpense" :currency-options="currencyOptions" mode="edit" @submit="saveExpense(true, $event)" />
 
     <VDialog v-model="isDeleteExpenseDialogVisible" max-width="500px"><VCard><VCardTitle class="pa-5">{{ $t('pages.finance.expenses.expenses.deleteExpense') }}</VCardTitle><VCardText>{{ $t('pages.finance.expenses.expenses.thisRemovesTheSelectedExpenseRecordPermanently') }}</VCardText><VCardActions class="pa-5"><VSpacer /><VBtn color="secondary" variant="tonal" @click="isDeleteExpenseDialogVisible = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="error" @click="deleteExpenseRecord">{{ $t('common.actions.delete') }}</VBtn></VCardActions></VCard></VDialog>
   </div>
 </template>
 
 <style scoped>
-.expense-page { padding-bottom: 24px; }
-.expense-command-deck { color: white; overflow: hidden; background: radial-gradient(circle at 90% 5%, #ef4444aa, transparent 28%), radial-gradient(circle at 8% 100%, #f97316aa, transparent 38%), linear-gradient(115deg, #31202c, #522537 58%, #42213a); }
+.expense-page { padding-bottom: 32px; }
+.expense-command-deck { position: relative; isolation: isolate; color: white; overflow: hidden; border-radius: 20px; box-shadow: 0 18px 45px rgb(72 28 51 / .2); background: radial-gradient(circle at 90% 5%, #ef4444aa, transparent 28%), radial-gradient(circle at 8% 100%, #f97316aa, transparent 38%), linear-gradient(115deg, #31202c, #522537 58%, #42213a); }
+.expense-command-deck::after { position: absolute; z-index: -1; top: -80px; right: 8%; width: 230px; height: 230px; border: 1px solid rgb(255 255 255 / .12); border-radius: 50%; box-shadow: 0 0 0 35px rgb(255 255 255 / .035), 0 0 0 70px rgb(255 255 255 / .025); content: ''; }
+.hero-copy { max-width: 660px; }.hero-copy h2 { letter-spacing: -.035em; }.hero-actions { flex-shrink: 0; }.hero-print { border: 1px solid rgb(255 255 255 / .22); }.hero-primary-action { min-height: 42px; padding-inline: 18px !important; border-radius: 10px; box-shadow: 0 8px 22px rgb(52 13 28 / .22); }
 .eyebrow { display: flex; align-items: center; gap: 6px; font-size: .68rem; font-weight: 800; letter-spacing: .12em; opacity: .78; }
-.metric-tile { min-height: 86px; display: flex; align-items: center; gap: 13px; padding: 15px; border: 1px solid rgb(255 255 255 / .14); border-radius: 14px; background: rgb(255 255 255 / .09); backdrop-filter: blur(12px); }
-.metric-tile :deep(.v-icon) { padding: 10px; border-radius: 10px; background: rgb(255 255 255 / .94); }
+.metric-tile { min-height: 92px; display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px solid rgb(255 255 255 / .15); border-radius: 15px; background: linear-gradient(135deg, rgb(255 255 255 / .14), rgb(255 255 255 / .055)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .1); backdrop-filter: blur(12px); transition: transform .2s ease, background .2s ease; }.metric-tile:hover { transform: translateY(-3px); background: rgb(255 255 255 / .16); }.metric-tile :deep(.v-icon) { padding: 10px; border-radius: 11px; background: rgb(255 255 255 / .94); box-shadow: 0 5px 12px rgb(52 13 28 / .16); }
 .metric-label { font-size: .72rem; letter-spacing: .04em; opacity: .72; text-transform: uppercase; }.metric-value { font-size: 1.15rem; font-weight: 800; line-height: 1.4; }
-.filter-deck, .ledger-card { border: 1px solid rgb(var(--v-border-color)); }.detail-copy { max-width: 290px; overflow: hidden; text-overflow: ellipsis; }.expense-dialog { overflow: hidden; }.table-container { overflow-x: auto; }
+.filter-deck, .ledger-card { overflow: hidden; border: 0; border-radius: 16px; box-shadow: 0 10px 28px rgb(36 20 31 / .08); }.filter-deck { background: rgb(var(--v-theme-surface)); }.filter-deck__content { padding: 14px 18px !important; }.filter-deck :deep(.v-field) { border-radius: 10px; background: rgb(var(--v-theme-on-surface) / .025); }.ledger-card__header { min-height: 68px; padding-inline: 20px; }.ledger-card__title { display: flex; align-items: center; gap: 9px; }.detail-copy { max-width: 290px; overflow: hidden; color: rgb(var(--v-theme-on-surface) / .76); text-overflow: ellipsis; }.expense-dialog { overflow: hidden; }.table-container { overflow-x: auto; }
+.ledger-card :deep(thead th) { height: 48px !important; color: rgb(var(--v-theme-on-surface) / .58) !important; font-size: .68rem !important; font-weight: 800 !important; letter-spacing: .075em; text-transform: uppercase; background: rgb(var(--v-theme-on-surface) / .018); }.ledger-card :deep(tbody td) { height: 66px !important; border-bottom-color: rgb(var(--v-border-color) / .7) !important; }.ledger-card :deep(tbody tr) { transition: background .16s ease; }.ledger-card :deep(tbody tr:hover) { background: rgb(var(--v-theme-error) / .035) !important; }
+.ledger-empty { display: flex; align-items: center; gap: 14px; min-height: 176px; padding: 28px 32px; text-align: start; background: linear-gradient(90deg, rgb(var(--v-theme-error) / .07), transparent 58%); }.ledger-empty :deep(.v-btn) { margin-inline-start: auto; }
+@media (max-width: 600px) { .ledger-empty { align-items: flex-start; flex-direction: column; padding: 24px; }.ledger-empty :deep(.v-btn) { margin-inline-start: 0; } }
 </style>

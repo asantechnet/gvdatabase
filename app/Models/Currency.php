@@ -14,14 +14,14 @@ class Currency extends Model
         'name',
         'code',
         'symbol',
-        'rate_against_base',
+        'rate',
         'is_base',
         'is_active',
         'decimal_places',
     ];
 
     protected $casts = [
-        'rate_against_base' => 'float',
+        'rate' => 'float',
         'is_base' => 'boolean',
         'is_active' => 'boolean',
         'decimal_places' => 'integer',
@@ -31,14 +31,14 @@ class Currency extends Model
     {
         static::creating(function ($currency) {
             if ($currency->is_base) {
-                $currency->rate_against_base = 1.0;
+                $currency->rate = 1.0;
                 $currency->is_active = true;
             }
         });
 
         static::updating(function ($currency) {
             if ($currency->isDirty('is_base') && $currency->is_base) {
-                $currency->rate_against_base = 1.0;
+                $currency->rate = 1.0;
                 $currency->is_active = true;
             }
         });

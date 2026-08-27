@@ -14,7 +14,7 @@ class CurrencyFactory extends Factory
             'name' => $code,
             'code' => $code,
             'symbol' => $code,
-            'rate_against_base' => 1,
+            'rate' => 1,
             'is_base' => false,
             'is_active' => true,
             'decimal_places' => 2,

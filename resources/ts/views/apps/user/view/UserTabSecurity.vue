@@ -145,7 +145,7 @@ const recentDevices = [
 
       <VCard title="Recent devices">
         <VDivider />
-        <VDataTable
+        <ResponsiveDataTable
           :items="recentDevices"
           :headers="recentDeviceHeader"
           hide-default-footer
@@ -165,7 +165,7 @@ const recentDevices = [
           </template>
           <!-- TODO Refactor this after vuetify provides proper solution for removing default footer -->
           <template #bottom />
-        </VDataTable>
+        </ResponsiveDataTable>
       </VCard>
     </VCol>
   </VRow>

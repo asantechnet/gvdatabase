@@ -3,148 +3,542 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\ContractResource;
+use App\Models\Company;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
+use App\Models\ContractType;
+use App\Models\Customer;
+use App\Models\Employee;
+use App\Services\Contracts\ContentSanitizer;
+use App\Services\Contracts\PlaceholderRegistry;
+use App\Services\Contracts\PlaceholderResolver;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Http\JsonResponse;
 
 class ContractController extends Controller
 {
+    public function __construct(
+        private readonly PlaceholderResolver $resolver,
+        private readonly ContentSanitizer $sanitizer,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
-        $query = Contract::with('template');
+        $request->validate([
+            'audience' => 'sometimes|string|in:customers,employees,companies,other',
+            'type_slug' => 'sometimes|string',
+            'status' => 'sometimes|string|in:'.implode(',', Contract::STATUSES),
+        ]);
+
+        $query = Contract::with(['template.contractType', 'contractType', 'employee.position', 'employee.office', 'employee.user', 'customer', 'company']);
+
+        if ($slug = $request->input('type_slug')) {
+            $query->where(function ($q) use ($slug) {
+                $q->whereHas('contractType', fn ($t) => $t->where('slug', $slug))
+                    ->orWhereHas('template.contractType', fn ($t) => $t->where('slug', $slug));
+                if ($slug === 'employment') {
+                    $q->orWhere(function ($legacy) {
+                        $legacy->whereNull('contract_type_id')->whereNull('template_id')
+                            ->whereRaw('LOWER(COALESCE(type, "")) = "employment"');
+                    });
+                }
+            });
+        } elseif ($request->input('audience') === 'employees') {
+            $query->where(function ($query) {
+                $query->where(function ($q) {
+                    $q->whereHas('contractType', fn ($t) => $t->where('slug', 'employment'))
+                        ->orWhereHas('template.contractType', fn ($t) => $t->where('slug', 'employment'));
+                })->orWhere(function ($legacy) {
+                    $legacy->whereNull('contract_type_id')->whereNull('template_id')
+                        ->whereRaw('LOWER(COALESCE(type, "")) = "employment"');
+                });
+            });
+        } elseif ($request->input('audience') === 'customers') {
+            // Customer contracts have their own section; companies and custom
+            // contract types must not appear in this list.
+            $query->where(function ($query) {
+                $query->where(function ($q) {
+                    $q->whereHas('contractType', fn ($t) => $t->where('slug', 'customer'))
+                        ->orWhereHas('template.contractType', fn ($t) => $t->where('slug', 'customer'));
+                })->orWhereDoesntHave('contractType');
+            })->where(function ($query) {
+                $query->where(function ($q) {
+                    $q->whereNull('contract_type_id')->whereNull('template_id')
+                        ->whereRaw('LOWER(COALESCE(type, "")) = "customer"');
+                })->orWhereHas('contractType', fn ($t) => $t->where('slug', 'customer'))
+                    ->orWhereHas('template.contractType', fn ($t) => $t->where('slug', 'customer'));
+            });
+        } elseif ($request->input('audience') === 'companies') {
+            $query->where(function ($query) {
+                $query->whereHas('contractType', fn ($t) => $t->where('slug', 'company'))
+                    ->orWhereHas('template.contractType', fn ($t) => $t->where('slug', 'company'))
+                    ->orWhere(function ($legacy) {
+                        $legacy->whereNull('contract_type_id')->whereNull('template_id')
+                            ->whereRaw('LOWER(COALESCE(type, "")) = "company"');
+                    });
+            });
+        } elseif ($request->input('audience') === 'other') {
+            $systemTypes = ['employment', 'customer', 'company'];
+            $query->where(function ($query) use ($systemTypes) {
+                $query->whereHas('contractType', fn ($t) => $t->whereNotIn('slug', $systemTypes))
+                    ->orWhereHas('template.contractType', fn ($t) => $t->whereNotIn('slug', $systemTypes))
+                    ->orWhere(function ($legacy) {
+                        $legacy->whereNull('contract_type_id')->whereNull('template_id')
+                            ->whereRaw('LOWER(COALESCE(type, "")) NOT IN ("employment", "customer", "company")');
+                    });
+            });
+        }
+
+        if ($status = $request->input('status')) {
+            $query->where('status', $status);
+        }
 
         if ($request->filled('search')) {
             $search = $request->input('search');
             $query->where(function ($query) use ($search) {
                 $query->where('contract_number', 'like', "%{$search}%")
-                    ->orWhere('counterparty', 'like', "%{$search}%");
+                    ->orWhere('counterparty', 'like', "%{$search}%")
+                    ->orWhere('name', 'like', "%{$search}%");
             });
         }
 
-        if ($request->has('only-cancelled') && $request->input('only-cancelled') === 'true') {
-            $query->where('is_cancelled', true);
+        if ($request->boolean('only-cancelled')) {
+            $query->where(fn ($q) => $q->where('is_cancelled', true)->orWhere('status', 'cancelled'));
         }
 
-        $contracts = $query->get();
         return response()->json([
             'success' => true,
-            'data' => ContractResource::collection($contracts)
+            'data' => ContractResource::collection($query->get()),
         ]);
     }
 
     public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'template_id' => 'required|exists:contract_templates,id',
-            'status' => 'required|string|in:Active,Expired,Pending',
-            'start_date' => 'required|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'counterparty' => 'required|string|max:255',
-            'counterparty_company' => 'nullable|string|max:255',
-            'counterparty_email' => 'nullable|email|max:255',
-            'counterparty_contact' => 'nullable|string|max:255',
-            'counterparty_address' => 'nullable|string|max:2000',
-            'is_cancelled' => 'sometimes|boolean',
+        $data = $this->validatedData($request);
+
+        [$template, $type] = $this->resolveTemplateAndType($data);
+        $contextEntity = $this->resolveContextEntity($type?->slug, $data);
+
+        $content = $data['content'] ?? '';
+        $snapshot = null;
+
+        if ($template) {
+            $content = $template->content ?? '';
+        }
+
+        $rendered = $this->resolver->resolve(
+            $content,
+            $contextEntity['context'] + [
+                'start_date' => $data['start_date'],
+                'end_date' => $data['end_date'] ?? null,
+                'status' => $data['status'],
+            ],
+            $type?->slug,
+        );
+
+        // Unresolved placeholders must never reach a finalized document.
+        if ($rendered['unresolved'] !== []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The document contains placeholders that are not valid for this contract type: '
+                    .implode(', ', $rendered['unresolved']),
+                'code' => 'business.unresolved_placeholders',
+                'placeholders' => $rendered['unresolved'],
+            ], 422);
+        }
+
+        if ($rendered['missing'] !== []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Some contract fields have no value and cannot be left empty in a finalized document: '
+                    .implode(', ', $rendered['missing']),
+                'code' => 'business.missing_placeholder_values',
+                'placeholders' => $rendered['missing'],
+            ], 422);
+        }
+
+        $counterparty = $this->buildCounterparty($type?->slug, $contextEntity);
+
+        $snapshot = [
+            'parties' => [
+                'our_company' => PlaceholderRegistry::ourCompanyValues(),
+                'counterparty' => $counterparty,
+            ],
+            'entity' => $contextEntity['snapshot'],
+        ];
+
+        $contract = Contract::create([
+            ...$data,
+            'name' => $data['name'] ?? $template?->name,
+            'cover_text' => $data['cover_text'] ?? $template?->cover_text,
+            'content' => $this->sanitizer->clean($rendered['content']),
+            'contract_type_id' => $type?->id,
+            'type' => $type?->name,
+            'is_custom' => ! $template,
+            ...$counterparty['fields'],
+            ...$contextEntity['foreign_keys'],
+            'snapshot_data' => $snapshot,
         ]);
 
-        $validator->validate();
-
-        $contract = Contract::create($validator->validated());
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($contract->load('template'))
+            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'employee', 'customer', 'company'])),
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $contract = Contract::with('template')->find($id);
-        if (!$contract) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Contract not found'
-            ], 404);
+        $contract = Contract::with(['template.contractType', 'contractType', 'employee.position', 'customer', 'company'])->find($id);
+        if (! $contract) {
+            return $this->notFound();
         }
+
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($contract)
+            'data' => new ContractResource($contract),
         ]);
     }
 
     public function update(Request $request, $id): JsonResponse
     {
         $contract = Contract::find($id);
-        if (!$contract) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Contract not found'
-            ], 404);
+        if (! $contract) {
+            return $this->notFound();
         }
 
-        $validator = Validator::make($request->all(), [
-            'template_id' => 'sometimes|exists:contract_templates,id',
-            'status' => 'sometimes|string|in:Active,Expired,Pending',
-            'start_date' => 'sometimes|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'counterparty' => 'sometimes|string|max:255',
-            'counterparty_company' => 'nullable|string|max:255',
-            'counterparty_email' => 'nullable|email|max:255',
-            'counterparty_contact' => 'nullable|string|max:255',
-            'counterparty_address' => 'nullable|string|max:2000',
-            'is_cancelled' => 'sometimes|boolean',
-        ]);
+        $data = $this->validatedData($request, partial: true);
 
-        $validator->validate();
+        $templateId = $data['template_id'] ?? $contract->template_id;
+        $template = $templateId ? ContractTemplate::find($templateId) : null;
+        $type = $template?->contractType ?? ($template ? null : $contract->contractType);
+        if (array_key_exists('contract_type_id', $data)) {
+            $type = ContractType::find($data['contract_type_id']) ?? $type;
+        }
+        $slug = $type?->slug;
 
-        $contract->update($validator->validated());
+        // Re-render from the template when it changed or entity data was updated.
+        $shouldRender = $template !== null || isset($data['employee_id']) || isset($data['customer_id'])
+            || isset($data['company_id']) || array_key_exists('content', $data);
+
+        if ($template && $slug === 'employment') {
+            $employeeId = $data['employee_id'] ?? $contract->employee_id;
+            if (! Employee::find($employeeId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'An employee is required for an employment contract.',
+                ], 422);
+            }
+            $data['employee_id'] = $employeeId;
+        }
+
+        if ($shouldRender) {
+            $contextEntity = $this->resolveContextEntity($slug, [
+                'employee_id' => $data['employee_id'] ?? $contract->employee_id,
+                'customer_id' => $data['customer_id'] ?? $contract->customer_id,
+                'company_id' => $data['company_id'] ?? $contract->company_id,
+                'contract_type_id' => $type?->id,
+            ]);
+
+            $content = $template?->content ?? ($data['content'] ?? $contract->content);
+            $rendered = $this->resolver->resolve((string) $content, $contextEntity['context'], $slug);
+            $counterparty = $this->buildCounterparty($slug, $contextEntity);
+
+            $data += [
+                'content' => $this->sanitizer->clean($rendered['content']),
+                'contract_type_id' => $type?->id,
+                'type' => $type?->name,
+                'snapshot_data' => [
+                    'parties' => [
+                        'our_company' => PlaceholderRegistry::ourCompanyValues(),
+                        'counterparty' => $counterparty,
+                    ],
+                    'entity' => $contextEntity['snapshot'],
+                ],
+                ...$counterparty['fields'],
+                ...$contextEntity['foreign_keys'],
+            ];
+        }
+
+        $contract->update($data);
+
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($contract->load('template'))
+            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'employee', 'customer', 'company'])),
         ]);
     }
 
     public function cancel($id): JsonResponse
     {
         $contract = Contract::find($id);
-        if (!$contract) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Contract not found'
-            ], 404);
+        if (! $contract) {
+            return $this->notFound();
         }
 
-        $contract->update(['is_cancelled' => true, 'cancelled_at' => now('UTC')]);
+        $contract->update(['is_cancelled' => true, 'cancelled_at' => now('UTC'), 'status' => 'cancelled']);
+
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($contract->load('template'))
+            'data' => new ContractResource($contract->load(['template.contractType', 'contractType'])),
         ]);
     }
 
     public function destroy($id): JsonResponse
     {
         $contract = Contract::find($id);
-        if (!$contract) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Contract not found'
-            ], 404);
+        if (! $contract) {
+            return $this->notFound();
         }
 
         $contract->delete();
+
         return response()->json([
             'success' => true,
-            'message' => 'Contract deleted successfully'
+            'message' => 'Contract deleted successfully',
         ]);
     }
 
     public function templates(): JsonResponse
     {
-        $templates = ContractTemplate::all();
+        $templates = ContractTemplate::with('contractType')->get();
+
         return response()->json([
             'success' => true,
-            'data' => $templates
+            'data' => $templates,
         ]);
+    }
+
+    /**
+     * Available placeholder groups for a contract type. The frontend editor
+     * consumes this instead of maintaining its own placeholder lists.
+     */
+    public function placeholders(Request $request): JsonResponse
+    {
+        $request->validate([
+            'contract_type_id' => 'nullable|integer|exists:contract_types,id',
+            'template_id' => 'nullable|integer|exists:contract_templates,id',
+        ]);
+
+        $slug = null;
+        if ($request->filled('template_id')) {
+            $slug = ContractTemplate::with('contractType')->find($request->input('template_id'))?->getTypeSlugAttribute();
+        } elseif ($request->filled('contract_type_id')) {
+            $slug = ContractType::find($request->input('contract_type_id'))?->slug;
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => PlaceholderRegistry::groupsForSlug($slug),
+        ]);
+    }
+
+    // ------------------------------------------------------------------
+
+    private function validatedData(Request $request, bool $partial = false): array
+    {
+        $required = $partial ? 'sometimes|' : '';
+
+        $validator = Validator::make($request->all(), [
+            'template_id' => ['nullable', 'integer', 'exists:contract_templates,id'],
+            'contract_type_id' => ['nullable', 'integer', 'exists:contract_types,id'],
+            'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
+            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
+            'is_custom' => ['sometimes', 'boolean'],
+            'name' => [$required.'string', 'max:255'],
+            'cover_text' => ['nullable', 'string'],
+            'content' => [$required.'string'],
+            'status' => [$required.'string', 'in:'.implode(',', Contract::STATUSES)],
+            'start_date' => [$required.'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'is_cancelled' => ['sometimes', 'boolean'],
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            if (! $request->filled('template_id') && ! $request->boolean('is_custom')) {
+                $validator->errors()->add('template_id', 'Select a template or create a custom contract.');
+            }
+        });
+
+        $validator->validate();
+
+        return collect($validator->validated())->except([
+            'counterparty', 'counterparty_company', 'counterparty_email',
+            'counterparty_contact', 'counterparty_address',
+        ])->all();
+    }
+
+    /** @return array{0: ?ContractTemplate, 1: ?ContractType} */
+    private function resolveTemplateAndType(array $data): array
+    {
+        $template = isset($data['template_id']) ? ContractTemplate::with('contractType')->find($data['template_id']) : null;
+
+        if ($template) {
+            return [$template, $template->contractType];
+        }
+
+        $type = isset($data['contract_type_id'])
+            ? ContractType::find($data['contract_type_id'])
+            : null;
+
+        return [null, $type];
+    }
+
+    /**
+     * Enforce the contract-type → entity mapping on the backend:
+     * employment ⇒ employee, customer ⇒ customer, company ⇒ company.
+     *
+     * @return array{context: array, snapshot: array, foreign_keys: array}
+     */
+    private function resolveContextEntity(?string $slug, array $data): array
+    {
+        $employeeId = isset($data['employee_id']) ? (int) $data['employee_id'] : null;
+        $customerId = isset($data['customer_id']) ? (int) $data['customer_id'] : null;
+        $companyId = isset($data['company_id']) ? (int) $data['company_id'] : null;
+
+        switch ($slug) {
+            case 'employment':
+                if (! $employeeId) {
+                    abort(response()->json([
+                        'success' => false,
+                        'message' => 'An employee is required for an employment contract.',
+                    ], 422));
+                }
+                $employee = Employee::with(['position', 'office', 'user'])->findOrFail($employeeId);
+
+                return [
+                    'context' => ['employee' => $employee],
+                    'snapshot' => ['employee' => $this->employeeSnapshot($employee)],
+                    'foreign_keys' => ['employee_id' => $employeeId, 'customer_id' => null, 'company_id' => null],
+                ];
+
+            case 'customer':
+                if (! $customerId) {
+                    abort(response()->json([
+                        'success' => false,
+                        'message' => 'A customer is required for a customer contract.',
+                    ], 422));
+                }
+                $customer = Customer::findOrFail($customerId);
+
+                return [
+                    'context' => ['customer' => $customer],
+                    'snapshot' => ['customer' => $customer->only(['id', 'name', 'company', 'contact', 'email', 'address', 'tax_number'])],
+                    'foreign_keys' => ['employee_id' => null, 'customer_id' => $customerId, 'company_id' => null],
+                ];
+
+            case 'company':
+                if (! $companyId) {
+                    abort(response()->json([
+                        'success' => false,
+                        'message' => 'A counterparty company is required for a company contract.',
+                    ], 422));
+                }
+                $company = Company::findOrFail($companyId);
+
+                return [
+                    'context' => ['company' => $company],
+                    'snapshot' => ['company' => $company->only([
+                        'id', 'legal_name', 'trade_name', 'registration_number', 'tax_number',
+                        'legal_form', 'email', 'phone', 'city', 'country', 'address_line',
+                        'representative_name', 'representative_title',
+                    ])],
+                    'foreign_keys' => ['employee_id' => null, 'customer_id' => null, 'company_id' => $companyId],
+                ];
+
+            default:
+                // Custom types carry no mandatory entity; clear stale links.
+                return [
+                    'context' => [],
+                    'snapshot' => [],
+                    'foreign_keys' => [
+                        'employee_id' => $employeeId,
+                        'customer_id' => $customerId,
+                        'company_id' => $companyId,
+                    ],
+                ];
+        }
+    }
+
+    /**
+     * Counterparty display fields derived from the selected entity so the
+     * user never retypes data that already exists in the system.
+     *
+     * @return array{label: string, fields: array}
+     */
+    private function buildCounterparty(?string $slug, array $contextEntity): array
+    {
+        $fields = [
+            'counterparty' => '',
+            'counterparty_company' => null,
+            'counterparty_email' => null,
+            'counterparty_contact' => null,
+            'counterparty_address' => null,
+        ];
+        $label = '';
+
+        if (($employee = $contextEntity['context']['employee'] ?? null) !== null) {
+            $label = $employee->name;
+            $fields = [
+                ...$fields,
+                'counterparty' => $employee->name,
+                'counterparty_company' => $employee->position?->title,
+                'counterparty_email' => $employee->user?->email,
+                'counterparty_contact' => $employee->contact,
+                'counterparty_address' => $employee->addr,
+            ];
+        } elseif (($customer = $contextEntity['context']['customer'] ?? null) !== null) {
+            $label = $customer->name;
+            $fields = [
+                ...$fields,
+                'counterparty' => $customer->name,
+                'counterparty_company' => $customer->company ?: null,
+                'counterparty_email' => $customer->email,
+                'counterparty_contact' => $customer->contact,
+                'counterparty_address' => $customer->address,
+            ];
+        } elseif (($company = $contextEntity['context']['company'] ?? null) !== null) {
+            $label = $company->legal_name;
+            $representative = trim((string) $company->representative_name);
+            $fields = [
+                ...$fields,
+                'counterparty' => $representative !== '' ? $representative : $company->legal_name,
+                'counterparty_company' => $company->legal_name,
+                'counterparty_email' => $company->representative_email ?: $company->email,
+                'counterparty_contact' => $company->representative_phone ?: $company->phone,
+                'counterparty_address' => collect([
+                    $company->address_line, $company->city, $company->province,
+                    $company->postal_code, $company->country,
+                ])->filter()->implode(', ') ?: null,
+            ];
+        }
+
+        return ['label' => $label, 'fields' => $fields];
+    }
+
+    private function employeeSnapshot(Employee $employee): array
+    {
+        return [
+            'id' => $employee->id,
+            'name' => $employee->name,
+            'father_name' => $employee->father_name,
+            'national_id' => $employee->id_number,
+            'phone' => $employee->contact,
+            'email' => $employee->user?->email,
+            'address' => $employee->addr,
+            'position' => $employee->position?->title,
+            'department' => $employee->department,
+            'office' => $employee->office?->name,
+            'start_date' => $employee->join_date?->format('Y-m-d'),
+            'salary' => $employee->salary,
+        ];
+    }
+
+    private function notFound(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'Contract not found',
+        ], 404);
     }
 }

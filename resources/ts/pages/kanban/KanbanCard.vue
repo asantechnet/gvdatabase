@@ -11,6 +11,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'deleteKanbanItem', value: EditKanbanItem): void
   (e: 'commentsClick', value: EditKanbanItem): void
+  (e: 'attachmentsClick', value: EditKanbanItem): void
 }>()
 
 const resolveLabelColor: any = {
@@ -52,12 +53,21 @@ const resolveLabelColor: any = {
             <VIcon size="20" icon="tabler-message-2" class="me-1 text-primary" />
             <span class="text-body-1 d-inline-block">{{ item.commentsCount ?? 0 }}</span>
           </div>
+          <VBadge :model-value="Number((item as any).attachmentsCount ?? 0) > 0"
+            :content="Number((item as any).attachmentsCount)" color="primary" location="top end" offset-x="2" offset-y="2">
+            <VBtn icon variant="tonal" color="secondary" size="small" class="kanban-attachment-button"
+              @click.stop="emit('attachmentsClick', { item: props.item, boardId: props.boardId, boardName: props.boardName })">
+              <VIcon icon="tabler-paperclip" size="18" />
+              <VTooltip activator="parent" location="top">View attachments</VTooltip>
+            </VBtn>
+          </VBadge>
           <TaskCompletionChip :progress="Number((item as any).progress ?? 0)" />
         </div>
 
         <div v-if="item.members && item.members.length" class="v-avatar-group">
-          <VAvatar v-for="avatar in item.members" :key="avatar.name" size="30">
-            <VImg :src="avatar.img" />
+          <VAvatar v-for="avatar in item.members" :key="avatar.name" size="30" color="primary" variant="tonal">
+            <VImg v-if="avatar.img" :src="avatar.img" :alt="avatar.name" />
+            <span v-else class="text-caption font-weight-medium">{{ avatar.name.split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase() }}</span>
             <VTooltip activator="parent">
               {{ avatar.name }}
             </VTooltip>
@@ -79,5 +89,10 @@ const resolveLabelColor: any = {
   &[style^="z-index"] {
     cursor: grabbing !important;
   }
+}
+
+.kanban-attachment-button {
+  inline-size: 30px;
+  block-size: 30px;
 }
 </style>

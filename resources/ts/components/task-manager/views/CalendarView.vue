@@ -147,7 +147,7 @@ const calendarOptions = computed(() => ({
 
   eventClassNames: (arg: any) => {
     const priority = arg.event.extendedProps.priority || 'medium'
-    return [`bg-light-${priorityColorMap[priority]}`, `text-${priorityColorMap[priority]}`]
+    return [`task-calendar-event`, `task-calendar-event--${priorityColorMap[priority]}`]
   }
 }))
 
@@ -325,6 +325,16 @@ const executeDeleteTask = () => {
   font-weight: 600;
   font-size: 0.825rem;
 }
+
+:deep(.task-calendar-event) {
+  border: none !important;
+  opacity: 1 !important;
+}
+
+:deep(.task-calendar-event--success) { background-color: rgb(var(--v-theme-success)) !important; color: rgb(var(--v-theme-on-success)) !important; }
+:deep(.task-calendar-event--info) { background-color: rgb(var(--v-theme-info)) !important; color: rgb(var(--v-theme-on-info)) !important; }
+:deep(.task-calendar-event--warning) { background-color: rgb(var(--v-theme-warning)) !important; color: rgb(var(--v-theme-on-warning)) !important; }
+:deep(.task-calendar-event--error) { background-color: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
 
 :deep(.fc-event:active) {
   cursor: grabbing;

@@ -16,21 +16,21 @@ class ContractSeeder extends Seeder
             [
                 'contract' => 'Service Agreement',
                 'start_date' => '2023-01-01',
-                'status' => 'Active',
+                'status' => 'active',
                 'counterparty' => 'Acme Corp',
                 'is_cancelled' => false
             ],
             [
                 'contract' => 'Maintenance Contract',
                 'start_date' => '2023-03-15',
-                'status' => 'Expired',
+                'status' => 'expired',
                 'counterparty' => 'Globex',
                 'is_cancelled' => true
             ],
             [
                 'contract' => 'Consulting Agreement',
                 'start_date' => '2023-05-20',
-                'status' => 'Pending',
+                'status' => 'draft',
                 'counterparty' => 'Initech',
                 'is_cancelled' => false
             ],

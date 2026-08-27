@@ -6,10 +6,72 @@
   src: url('../fonts/Vazirmatn-Regular.woff2') format('woff2');
 }
 
+@font-face {
+  font-family: Estedad;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/Estedad-Variable.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: Sahel;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/Sahel-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Samim;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/Samim-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Shabnam;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/Shabnam-Regular.woff2') format('woff2');
+}
+
 html.locale-persian-script,
 html.locale-persian-script body,
 html.locale-persian-script .v-application {
   font-family: Vazirmatn, 'Public Sans', sans-serif;
+}
+
+html.locale-persian-script .Vue-Toastification__container,
+html.locale-persian-script .Vue-Toastification__toast,
+html.locale-persian-script .Vue-Toastification__toast-body {
+  font-family: Vazirmatn, 'Public Sans', sans-serif !important;
+}
+
+// vue-toastification is rendered outside the app tree, so it does not inherit
+// Vuetify's RTL layout. Mirror the library's RTL rules for Persian-script
+// locales: status icon on the inline start, text in the middle, close button
+// on the inline end, and a right-to-left timeout indicator.
+html[dir='rtl'] .Vue-Toastification__toast {
+  direction: rtl;
+  text-align: start;
+}
+
+html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__icon {
+  margin: auto 0 auto 18px;
+}
+
+html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__close-button {
+  padding-left: 0;
+  padding-right: 10px;
+}
+
+html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__progress-bar {
+  right: 0;
+  left: unset;
+  transform-origin: right;
 }
 
 /* Values whose reading order must remain stable inside an RTL interface. */
@@ -25,9 +87,400 @@ html.locale-persian-script .v-application {
   transform: scaleX(-1);
 }
 
+// Shared form rhythm for the application's operational workflows.
+.app-form {
+  .v-row {
+    row-gap: 0.25rem;
+  }
+
+  .v-field {
+    min-block-size: 48px;
+  }
+
+  .v-input--density-comfortable .v-field--variant-outlined {
+    --v-field-padding-start: 14px;
+    --v-field-padding-end: 14px;
+  }
+}
+
+// A single visual grammar for page, drawer, and dialog forms.
+.v-form {
+  .v-label {
+    font-weight: 500;
+    letter-spacing: 0.005em;
+  }
+
+  .v-field--variant-outlined {
+    border-radius: 0.625rem;
+  }
+
+  .v-input__details {
+    padding-block-start: 0.35rem;
+    padding-inline: 0.25rem;
+  }
+}
+
+.v-dialog .v-card:not(.record-details-dialog) {
+  border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 0.875rem;
+
+  > .v-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+}
+
+.v-data-table {
+  .v-data-table-header__content {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.025em;
+  }
+
+  tbody tr {
+    transition: background-color 150ms ease;
+  }
+}
+
+// ResponsiveDataTable preserves real table rows at every viewport. Narrow
+// screens scroll horizontally so no labels or values are hidden in a card view.
+.responsive-data-table__root {
+  inline-size: 100%;
+}
+
+// A consistent, touch-friendly scroll affordance for wide data tables. The
+// palette derives from Vuetify's active theme, avoiding hard-coded light or
+// dark colours. Logical properties keep the treatment neutral in RTL and LTR.
+.responsive-data-table .v-table__wrapper {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  scrollbar-color: rgba(var(--v-theme-on-surface), 0.34) rgba(var(--v-theme-on-surface), 0.055);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.responsive-data-table .v-table__wrapper::-webkit-scrollbar {
+  block-size: 12px;
+  inline-size: 12px;
+}
+
+.responsive-data-table .v-table__wrapper::-webkit-scrollbar-track {
+  background: rgba(var(--v-theme-on-surface), 0.055);
+  border: 4px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.responsive-data-table .v-table__wrapper::-webkit-scrollbar-thumb {
+  background: rgba(var(--v-theme-on-surface), 0.3);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  min-inline-size: 42px;
+}
+
+.responsive-data-table .v-table__wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--v-theme-on-surface), 0.48);
+  background-clip: padding-box;
+}
+
+.responsive-data-table .v-table__wrapper::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+// Opt-in pinning keeps an identifier or action column reachable while wide
+// operational tables scroll. Logical inset properties preserve RTL layouts.
+.responsive-data-table--sticky-first .v-table__wrapper > table > thead > tr > th:first-child,
+.responsive-data-table--sticky-first .v-table__wrapper > table > tbody > tr > td:first-child {
+  background: rgb(var(--v-theme-surface));
+  box-shadow: 2px 0 3px rgb(var(--v-theme-on-surface) / 0.06);
+  inset-inline-start: 0;
+  position: sticky;
+  z-index: 2;
+}
+
+.responsive-data-table--sticky-first .v-table__wrapper > table > thead > tr > th:first-child {
+  z-index: 3;
+}
+
+.responsive-data-table--sticky-last .v-table__wrapper > table > thead > tr > th:last-child,
+.responsive-data-table--sticky-last .v-table__wrapper > table > tbody > tr > td:last-child {
+  background: rgb(var(--v-theme-surface));
+  box-shadow: -2px 0 3px rgb(var(--v-theme-on-surface) / 0.06);
+  inset-inline-end: 0;
+  position: sticky;
+  z-index: 2;
+}
+
+.responsive-data-table--sticky-last .v-table__wrapper > table > thead > tr > th:last-child {
+  z-index: 3;
+}
+
+.data-table-kpis {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 1rem 1rem 0;
+}
+
+.data-table-page-summary__heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.data-table-page-summary__hint {
+  align-items: center;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  display: inline-flex;
+  flex: none;
+  font-size: 0.75rem;
+  gap: 0.3rem;
+  padding-block-start: 0.5rem;
+}
+
+.data-table-kpi {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 0.875rem;
+  box-shadow: 0 4px 12px rgba(var(--v-theme-on-surface), 0.06);
+  min-block-size: 124px;
+  min-inline-size: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.data-table-kpi .v-card-text {
+  block-size: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-block-size: inherit;
+  padding: 0.875rem 1rem;
+  position: relative;
+}
+
+.data-table-kpi__background-icon {
+  bottom: -1.1rem;
+  color: currentColor;
+  font-size: 6.75rem;
+  opacity: 0.065;
+  position: absolute;
+  right: -0.85rem;
+}
+
+.data-table-kpi--primary { background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.09), rgb(var(--v-theme-surface)) 65%); border-block-start: 3px solid rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-primary)); }
+.data-table-kpi--status { background: linear-gradient(135deg, rgba(var(--v-theme-success), 0.09), rgb(var(--v-theme-surface)) 65%); border-block-start: 3px solid rgb(var(--v-theme-success)); color: rgb(var(--v-theme-success)); }
+.data-table-kpi--attention { background: linear-gradient(135deg, rgba(var(--v-theme-warning), 0.1), rgb(var(--v-theme-surface)) 65%); border-block-start: 3px solid rgb(var(--v-theme-warning)); color: rgb(var(--v-theme-warning)); }
+.data-table-kpi--insight { background: linear-gradient(135deg, rgba(var(--v-theme-info), 0.09), rgb(var(--v-theme-surface)) 65%); border-block-start: 3px solid rgb(var(--v-theme-info)); color: rgb(var(--v-theme-info)); }
+
+.data-table-kpi__content {
+  margin-block: auto;
+  padding-inline-end: 2.75rem;
+  position: relative;
+  z-index: 1;
+}
+
+.data-table-kpi__value {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: clamp(1.85rem, 2.7vw, 2.35rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(var(--v-theme-surface), 0.5);
+}
+
+.data-table-kpi__label {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin-block-start: 0.35rem;
+  white-space: nowrap;
+}
+
+// The Services page already uses this width for compact table searches. Reuse
+// it for every DataTable toolbar, while retaining a full-width control on
+// phones where a fixed desktop measure would reduce usability.
+.data-table-search {
+  inline-size: 100%;
+  max-inline-size: 280px;
+}
+
+@media (max-width: 599px) {
+  .data-table-search {
+    max-inline-size: none;
+  }
+
+  .responsive-data-table .v-table__wrapper {
+    -webkit-overflow-scrolling: touch;
+    // Enough breathing space to make the horizontal handle easy to grab
+    // without obscuring the final table row.
+    padding-block-end: 0.25rem;
+    overflow-x: auto !important;
+    overscroll-behavior-inline: contain;
+  }
+
+  .responsive-data-table .v-table__wrapper > table {
+    min-inline-size: max-content;
+  }
+
+  .responsive-data-table .v-table__wrapper > table th,
+  .responsive-data-table .v-table__wrapper > table td {
+    white-space: nowrap;
+  }
+
+  .data-table-kpis {
+    grid-template-columns: 1fr;
+    padding: 0.75rem 0.75rem 0;
+  }
+
+  .data-table-kpi {
+    min-block-size: 116px;
+  }
+
+  .data-table-kpi .v-card-text {
+    padding: 0.75rem;
+  }
+
+  .data-table-page-summary__heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.app-form__section {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin-block: 0 0.25rem;
+}
+
+.app-form__section-help {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: 0.75rem;
+  line-height: 1.45;
+  margin-block: 0 0.75rem;
+}
+
+.app-form__actions {
+  align-items: center;
+  border-block-start: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  display: flex;
+  flex-wrap: wrap-reverse;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-block-start: 1.5rem;
+  padding-block-start: 1rem;
+
+  .v-btn {
+    min-inline-size: 112px;
+  }
+}
+
+.app-form-dialog {
+  max-block-size: calc(100dvh - 2rem);
+  overflow: auto;
+
+  .v-card-title {
+    padding: 1.25rem 1.5rem 0.75rem;
+  }
+
+  .v-card-text {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .v-card-actions {
+    border-block-start: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+    padding: 1rem 1.5rem;
+  }
+}
+
+@media (max-width: 599px) {
+  .app-form__actions {
+    .v-btn {
+      flex: 1 1 0;
+      min-inline-size: 0;
+    }
+  }
+
+  .app-form-dialog {
+    max-block-size: 100dvh;
+
+    .v-card-title,
+    .v-card-text,
+    .v-card-actions {
+      padding-inline: 1rem;
+    }
+  }
+
+  .v-dialog > .v-overlay__content {
+    margin: 0.75rem;
+    max-inline-size: calc(100% - 1.5rem) !important;
+    inline-size: calc(100% - 1.5rem) !important;
+  }
+
+}
+
 @media print {
+  // Dashboard context belongs on screen. Printed reports begin with their
+  // report title/table and never include the page KPI heading or cards.
+  .data-table-page-summary {
+    display: none !important;
+  }
+
   html[dir='rtl'] .print-document {
     direction: rtl;
     text-align: start;
+  }
+
+  // List reports use the same managed print lifecycle as paid-off days.
+  // Keep the current table while removing interactive application chrome.
+  body[class*='printing-table-'] {
+    .v-card {
+      display: none !important;
+    }
+
+    .layout-navbar,
+    .layout-menu,
+    .layout-footer,
+    .v-navigation-drawer,
+    .v-app-bar,
+    .v-dialog,
+    .v-overlay-container,
+    .v-card > .v-card-text,
+    .v-data-table__td:last-child,
+    .v-data-table__th:last-child,
+    .v-data-table-footer {
+      display: none !important;
+    }
+
+    .v-main,
+    .layout-page-content,
+    .layout-content-wrapper {
+      padding: 0 !important;
+      margin: 0 !important;
+      min-height: 0 !important;
+    }
+
+    .v-card,
+    .v-table,
+    .v-table__wrapper {
+      overflow: visible !important;
+      box-shadow: none !important;
+    }
+
+    table {
+      width: 100% !important;
+      font-size: 9px;
+    }
+
+    th,
+    td {
+      white-space: normal !important;
+    }
   }
 }

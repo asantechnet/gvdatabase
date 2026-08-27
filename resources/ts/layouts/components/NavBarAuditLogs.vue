@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useToast } from 'vue-toastification'
 import { getAuditLog, getAuditLogs, reviewAuditLog, type AuditEvent, type AuditLog } from '@/api/auditLog'
+import { canAccess } from '@/utils/authorization'
 
 const toast = useToast()
-const userData = useCookie<{ roles?: string[] | string } | null>('userData')
 const dialogOpen = ref(false)
 const loading = ref(false)
 const reviewingId = ref<number | null>(null)
@@ -28,16 +28,9 @@ const comparisonHeaders = [
   { title: translate('components.navigation.navbarauditlogs.value'), key: 'value' },
 ] as const
 
-const isSuperAdmin = computed(() => {
-  let roles = userData.value?.roles
-
-  for (let attempt = 0; attempt < 2 && typeof roles === 'string'; attempt++) {
-    try { roles = JSON.parse(roles) }
-    catch { roles = [] }
-  }
-
-  return Array.isArray(roles) && roles.includes('super_admin')
-})
+const userData = useCookie<any>('userData')
+const isSuperAdmin = computed(() => userData.value?.roles?.includes('super_admin') ?? false)
+const canViewAudit = computed(() => isSuperAdmin.value || canAccess('view_audit_logs'))
 
 const eventColor = (event: AuditLog['event']) => ({ created: 'success', updated: 'info', deleted: 'error', restored: 'warning' }[event] ?? 'secondary')
 const reviewColor = (status: AuditLog['review_status']) => ({ pending: 'warning', approved: 'success', discarded: 'error' }[status])
@@ -130,12 +123,11 @@ async function review(log: AuditLog, decision: 'approved' | 'discarded') {
 }
 
 watch(eventFilter, () => loadLogs())
-watch(isSuperAdmin, active => { if (active) loadLogs() }, { immediate: true })
 
 let refreshTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   window.addEventListener('open-audit-log', handleAuditNotification)
-  refreshTimer = setInterval(() => { if (isSuperAdmin.value) loadLogs() }, 60_000)
+  refreshTimer = setInterval(() => { if (canViewAudit.value) loadLogs() }, 60_000)
 })
 onUnmounted(() => {
   window.removeEventListener('open-audit-log', handleAuditNotification)
@@ -144,7 +136,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <template v-if="isSuperAdmin">
+  <template v-if="canViewAudit">
     <VBadge :color="hasNewAudits ? 'error' : 'success'" dot bordered location="top end" offset-x="4" offset-y="4">
       <IconBtn :aria-label="$t('components.navigation.navbarauditlogs.openAuditHistory')" @click="openAuditDialog()">
         <VIcon icon="tabler-history" />
@@ -154,10 +146,10 @@ onUnmounted(() => {
 
     <VDialog v-model="dialogOpen" max-width="1200" width="96vw">
       <VCard :loading="loading">
-        <VCardItem :title="$t('common.messages.auditHistory')" subtitle="Review saved changes, including edits and deletions.">
+        <VCardItem class="audit-card-header" :title="$t('common.messages.auditHistory')" subtitle="Review saved changes, including edits and deletions.">
           <template #append>
-            <div class="d-flex align-center gap-2">
-              <VBtnToggle v-model="eventFilter" mandatory density="compact" color="primary" divided>
+            <div class="audit-filter-bar d-flex align-center gap-2">
+              <VBtnToggle v-model="eventFilter" class="audit-filter-toggle" mandatory density="compact" color="primary" divided>
                 <VBtn value="all">{{ $t('components.navigation.navbarauditlogs.all') }}</VBtn>
                 <VBtn value="created">{{ $t('components.navigation.navbarauditlogs.creates') }}</VBtn>
                 <VBtn value="updated">{{ $t('components.navigation.navbarauditlogs.edits') }}</VBtn>
@@ -170,7 +162,7 @@ onUnmounted(() => {
           </template>
         </VCardItem>
 
-        <VDataTable :headers="headers" :items="logs" item-value="id" :loading="loading" :items-per-page="10" density="compact" class="audit-table">
+        <ResponsiveDataTable :headers="headers" :items="logs" item-value="id" :loading="loading" :items-per-page="10" density="compact" sticky-first-column sticky-last-column class="audit-table">
           <template #item.event="{ item }">
             <VChip size="small" :color="eventColor(item.event)" variant="tonal" class="text-capitalize">{{ item.event }}</VChip>
           </template>
@@ -195,17 +187,17 @@ onUnmounted(() => {
                     <VCardText class="audit-values">
                       <div>
                         <div class="text-subtitle-2 mb-2 text-error">{{ $t('common.messages.previousValues') }}</div>
-                        <VDataTable :headers="comparisonHeaders" :items="comparisonRows(item, 'before')" :items-per-page="-1" hide-default-footer density="compact" class="comparison-table">
+                        <ResponsiveDataTable :headers="comparisonHeaders" :items="comparisonRows(item, 'before')" :items-per-page="-1" hide-default-footer density="compact" class="comparison-table">
                           <template #item.field="{ item: row }"><span :class="`comparison-${row.state}`">{{ row.field }}</span></template>
                           <template #item.value="{ item: row }"><span :class="`comparison-${row.state}`">{{ row.value }}</span></template>
-                        </VDataTable>
+                        </ResponsiveDataTable>
                       </div>
                       <div>
                         <div class="text-subtitle-2 mb-2 text-success">{{ $t('common.messages.currentValues') }}</div>
-                        <VDataTable :headers="comparisonHeaders" :items="comparisonRows(item, 'after')" :items-per-page="-1" hide-default-footer density="compact" class="comparison-table">
+                        <ResponsiveDataTable :headers="comparisonHeaders" :items="comparisonRows(item, 'after')" :items-per-page="-1" hide-default-footer density="compact" class="comparison-table">
                           <template #item.field="{ item: row }"><span :class="`comparison-${row.state}`">{{ row.field }}</span></template>
                           <template #item.value="{ item: row }"><span :class="`comparison-${row.state}`">{{ row.value }}</span></template>
-                        </VDataTable>
+                        </ResponsiveDataTable>
                       </div>
                     </VCardText>
                   </VCard>
@@ -218,7 +210,7 @@ onUnmounted(() => {
             </div>
           </template>
           <template #no-data><div class="py-8 text-center text-medium-emphasis">{{ $t('components.navigation.navbarauditlogs.noAuditRecordsMatchThisFilter') }}</div></template>
-        </VDataTable>
+        </ResponsiveDataTable>
 
         <VDialog v-model="auditDetailsOpen" max-width="920" width="94vw">
           <VCard v-if="selectedAudit">
@@ -231,17 +223,17 @@ onUnmounted(() => {
             <VCardText class="audit-values">
               <div>
                 <div class="text-subtitle-2 mb-2 text-error">{{ $t('common.messages.previousValues') }}</div>
-                <VDataTable :headers="comparisonHeaders" :items="comparisonRows(selectedAudit, 'before')" :items-per-page="-1" hide-default-footer density="compact" class="comparison-table">
+                <ResponsiveDataTable :headers="comparisonHeaders" :items="comparisonRows(selectedAudit, 'before')" :items-per-page="-1" hide-default-footer density="compact" class="comparison-table">
                   <template #item.field="{ item }"><span :class="`comparison-${item.state}`">{{ item.field }}</span></template>
                   <template #item.value="{ item }"><span :class="`comparison-${item.state}`">{{ item.value }}</span></template>
-                </VDataTable>
+                </ResponsiveDataTable>
               </div>
               <div>
                 <div class="text-subtitle-2 mb-2 text-success">{{ $t('common.messages.currentValues') }}</div>
-                <VDataTable :headers="comparisonHeaders" :items="comparisonRows(selectedAudit, 'after')" :items-per-page="-1" hide-default-footer density="compact" class="comparison-table">
+                <ResponsiveDataTable :headers="comparisonHeaders" :items="comparisonRows(selectedAudit, 'after')" :items-per-page="-1" hide-default-footer density="compact" class="comparison-table">
                   <template #item.field="{ item }"><span :class="`comparison-${item.state}`">{{ item.field }}</span></template>
                   <template #item.value="{ item }"><span :class="`comparison-${item.state}`">{{ item.value }}</span></template>
-                </VDataTable>
+                </ResponsiveDataTable>
               </div>
             </VCardText>
           </VCard>
@@ -257,5 +249,12 @@ onUnmounted(() => {
 .comparison-record { color: rgb(var(--v-theme-primary)); }
 .comparison-new { color: rgb(var(--v-theme-success)); font-weight: 700; }
 .comparison-changed { color: rgb(var(--v-theme-error)); font-weight: 700; }
-@media (max-width: 600px) { .audit-values { grid-template-columns: 1fr; } }
+.audit-filter-bar { min-width: 0; max-width: 100%; }
+.audit-filter-toggle { max-width: 100%; overflow-x: auto; }
+.audit-filter-toggle :deep(.v-btn) { flex: 0 0 auto; min-width: max-content; padding-inline: 0.75rem; }
+@media (max-width: 600px) {
+  .audit-values { grid-template-columns: 1fr; }
+  .audit-card-header :deep(.v-card-item__append) { width: 100%; margin-block-start: 0.75rem; }
+  .audit-filter-bar { width: 100%; justify-content: flex-end; }
+}
 </style>

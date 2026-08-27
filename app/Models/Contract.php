@@ -11,8 +11,20 @@ class Contract extends Model
 {
     use HasDocumentNumber, HasFactory, Auditable;
 
+    public const STATUSES = ['draft', 'active', 'expired', 'terminated', 'cancelled'];
+
     protected $fillable = [
         'template_id',
+        'contract_type_id',
+        'employee_id',
+        'customer_id',
+        'company_id',
+        'name',
+        'type',
+        'cover_text',
+        'content',
+        'snapshot_data',
+        'is_custom',
         'status',
         'start_date',
         'end_date',
@@ -30,6 +42,8 @@ class Contract extends Model
         'end_date' => 'date',
         'is_cancelled' => 'boolean',
         'cancelled_at' => 'immutable_datetime',
+        'is_custom' => 'boolean',
+        'snapshot_data' => 'array',
     ];
 
     protected function documentNumberColumn(): string
@@ -47,13 +61,51 @@ class Contract extends Model
         return $this->belongsTo(ContractTemplate::class);
     }
 
+    public function contractType()
+    {
+        return $this->belongsTo(ContractType::class);
+    }
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * Resolved contract-type slug. Falls back to the legacy free-text
+     * `type` column for rows created before the contract_types migration.
+     */
+    public function getTypeSlugAttribute(): ?string
+    {
+        if ($slug = $this->contractType?->slug) {
+            return $slug;
+        }
+
+        return match (strtolower((string) ($this->attributes['type'] ?? ''))) {
+            'employment' => 'employment',
+            'customer' => 'customer',
+            'company' => 'company',
+            default => null,
+        };
+    }
+
     public function getNameAttribute()
     {
-        return $this->template->name;
+        return $this->attributes['name'] ?? $this->template?->name;
     }
 
     public function getTypeAttribute()
     {
-        return $this->template->type;
+        return $this->contractType?->name ?? $this->attributes['type'] ?? $this->template?->type;
     }
 }

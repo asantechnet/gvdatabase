@@ -22,7 +22,13 @@ class StockResource extends JsonResource
             'price' => (float) $this->price,
             'model' => $this->model,
             'condition' => $this->condition,
-            'office' => $this->office,
+            'office_id' => $this->office_id,
+            'office' => $this->whenLoaded('office', fn () => [
+                'id' => $this->office->id,
+                'name' => $this->office->name,
+                'code' => $this->office->code,
+                'status' => $this->office->status,
+            ]),
             'staff_id' => $this->staff_id,
             'staff' => $this->whenLoaded('staff', function () {
                 return [

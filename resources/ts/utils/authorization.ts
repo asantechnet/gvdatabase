@@ -1,5 +1,6 @@
 import { ability, type Rule } from '@/plugins/casl/ability'
 import { useCookie } from '@core/composable/useCookie'
+import { clearStoredPermissions, storePermissions } from '@/utils/authStorage'
 
 const impliedPermissions: Record<string, string[]> = {
   view_all_boards: ['view_assigned_boards'],
@@ -25,11 +26,12 @@ export const permissionRules = (permissions: string[]): Rule[] => [...new Set(
 export const applyPermissions = (permissions: string[]) => {
   const rules = permissionRules(permissions)
   ability.update(rules)
-  useCookie<Rule[]>('userAbilityRules').value = rules
+  storePermissions(permissions)
 }
 
 export const clearPermissions = () => {
   ability.update([])
+  clearStoredPermissions()
   useCookie<Rule[] | null>('userAbilityRules').value = null
 }
 

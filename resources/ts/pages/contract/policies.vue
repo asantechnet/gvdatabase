@@ -1,150 +1,129 @@
 <script setup lang="ts">
+import { getPlaceholders, type PlaceholderGroup } from '@/api/contractPlaceholders'
 import ContractTemplateApi from '@/api/contractTemplate'
-import Quill from 'quill'
-import 'quill/dist/quill.snow.css'
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import ContractPolicyApi, { type ContractPolicy } from '@/api/contractPolicy'
+import ContractTypeApi, { SYSTEM_TYPE_SLUGS, type ContractType } from '@/api/contractType'
+import PositionApi, { type Position } from '@/api/position'
+import ContractContentEditor from '@/components/contract/ContractContentEditor.vue'
+import ContractTypeSelector from '@/components/contract/ContractTypeSelector.vue'
+import { extractPlaceholderKeys, hydratePlaceholders, legacyContentToHtml, serializePlaceholders } from '@/utils/contractPlaceholders'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import { useRtl } from 'vuetify'
 
-// Routing & Theme Utilities
 const route = useRoute()
 const toast = useToast()
-const { isRtl } = useRtl()
 
+// ---------------------------------------------------------------------
 // State
+// ---------------------------------------------------------------------
 const formRef = ref()
 const contractName = ref('')
-const contractType = ref<'Employment' | 'Service' | 'Partnership' | 'Lease' | 'NDA'>('Employment')
+const contractTypeId = ref<number | null>(null)
 const coverText = ref('')
+const positionId = ref<number | null>(null)
+const policyIds = ref<number[]>([])
+const contentHtml = ref('')
+const selectedPolicyId = ref<number | null>(null)
+
+const contractTypes = ref<ContractType[]>([])
+const allPolicies = ref<ContractPolicy[]>([])
+const policies = computed(() =>
+  allPolicies.value.filter(policy => !policyIds.value.includes(policy.id)),
+)
+const positions = ref<Position[]>([])
 const templateId = ref<number | null>(null)
 const templates = ref<any[]>([])
 const isLoading = ref(false)
 const deleteDialog = ref(false)
 const templateToDelete = ref<number | null>(null)
+const placeholderGroups = ref<PlaceholderGroup[]>([])
+
+const typeSelectorRef = ref<InstanceType<typeof ContractTypeSelector> | null>(null)
+const editorRef = ref<InstanceType<typeof ContractContentEditor> | null>(null)
+
+// ---------------------------------------------------------------------
+// Context: the contract type drives which selectors and placeholders
+// appear. No scattered `if employment ... else if customer` chains.
+// ---------------------------------------------------------------------
+const selectedType = computed(() => contractTypes.value.find(type => type.id === contractTypeId.value) ?? null)
+
+const isEmployment = computed(() => {
+  const slug = selectedType.value?.slug
+  return slug ? SYSTEM_TYPE_SLUGS.includes(slug as typeof SYSTEM_TYPE_SLUGS[number]) && slug === 'employment' : false
+})
+
+const typeLabel = computed(() =>
+  isEmployment.value ? `${selectedType.value?.name} — System type` : selectedType.value?.name ?? '')
+
+watch(contractTypeId, async () => {
+  // Employment templates require a position; other types must never keep
+  // employment-specific data attached.
+  if (!isEmployment.value) positionId.value = null
+
+  await loadPlaceholders()
+})
+
+const loadPlaceholders = async () => {
+  if (!contractTypeId.value) {
+    placeholderGroups.value = []
+    return
+  }
+  try {
+    placeholderGroups.value = await getPlaceholders({ contract_type_id: contractTypeId.value })
+  } catch (error) {
+    console.error('Failed to load placeholders:', error)
+    placeholderGroups.value = []
+  }
+}
+
+const insertPolicy = () => {
+  const policy = policies.value.find(item => item.id === selectedPolicyId.value)
+  if (!policy) return
+  const header = policy.header ? `<h2>${policy.header}</h2>` : ''
+  const html = `${header}<p>${policy.content}</p>`
+  contentHtml.value += html
+  editorRef.value?.getEditor()?.commands.setContent(contentHtml.value, false)
+  if (!policyIds.value.includes(policy.id)) policyIds.value.push(policy.id)
+  selectedPolicyId.value = null
+}
+
+const knownKeys = computed(() => new Set(placeholderGroups.value.flatMap(group => group.fields.map(field => field.key))))
+
+const onTypesChanged = (types: ContractType[]) => {
+  contractTypes.value = types
+}
+
+// ---------------------------------------------------------------------
+// Data loading
+// ---------------------------------------------------------------------
+onMounted(async () => {
+  await Promise.all([loadTemplates(), loadPolicies(), loadPositions(), loadContractTypes()])
+
+  if (route.query.positionId) {
+    positionId.value = Number(route.query.positionId)
+    const position = positions.value.find(item => item.id === positionId.value)
+    const template = templates.value.find(item => item.position_id === positionId.value)
+    if (template) loadTemplate(template.id)
+    else if (position) {
+      const employmentType = contractTypes.value.find(type => type.slug === 'employment')
+      contractName.value = `${position.title} Employment Contract`
+      contractTypeId.value = employmentType?.id ?? null
+    }
+  } else if (route.params.id) {
+    await loadTemplate(Number(route.params.id))
+  }
+})
 
 const showToast = (message: string, color: 'success' | 'error' | 'warning' = 'success') => {
   toast[color](message)
 }
 
-let quillEditor: any = null
-
-// Register Inline Style Attributor for Fonts
-const registerQuillFonts = () => {
-  const FontStyle = Quill.import('attributors/style/font')
-
-  // Use dependable system fonts. Remote font CDNs made saved templates render
-  // differently depending on network and provider availability.
-  FontStyle.whitelist = [
-    'arial', 'times-new-roman', 'georgia', 'verdana', 'tahoma', 'segoe-ui'
-  ]
-
-  Quill.register(FontStyle, true)
-}
-
-onMounted(async () => {
-  await nextTick()
-  registerQuillFonts()
-  initializeEditor()
-  loadTemplates()
-
-  if (route.params.id) {
-    loadTemplate(Number(route.params.id))
-  }
-})
-
-onBeforeUnmount(() => {
-  if (quillEditor) {
-    quillEditor = null
-  }
-})
-
-const initializeEditor = () => {
-  const editorElement = document.getElementById('contract-policies-editor')
-
-  if (editorElement && !quillEditor) {
-    const FontStyle = Quill.import('attributors/style/font')
-
-    quillEditor = new Quill(editorElement, {
-      theme: 'snow',
-      modules: {
-        toolbar: [
-          [{ 'font': FontStyle.whitelist }],
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ 'color': [] }, { 'background': [] }],
-          [{ 'script': 'super' }, { 'script': 'sub' }],
-          [{ 'header': [1, 2, 3, false] }],
-          [{ 'align': [] }],
-          ['blockquote', 'code-block'],
-          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-          ['link', 'image'],
-          ['clean']
-        ],
-        history: {
-          delay: 2000,
-          maxStack: 500,
-          userOnly: true
-        }
-      },
-      placeholder: translate('pages.settings.policies.policies.writeYourContractPoliciesHere')
-    })
-
-    // Respect direction without writing an unexpected font into the document.
-    quillEditor.format('direction', isRtl.value ? 'rtl' : 'ltr')
-    if (isRtl.value) {
-      quillEditor.format('align', 'right')
-    }
-  }
-}
-
-// Populate Quill using HTML input (with legacy Delta fallback support)
-const setEditorContent = (content: any) => {
-  if (!quillEditor) return
-
-  // 1. Clear editor and reset state
-  quillEditor.setText('')
-
-  if (!content) return
-
+const loadContractTypes = async () => {
   try {
-    // 2. Handle HTML string input
-    if (typeof content === 'string') {
-      const trimmed = content.trim()
-
-      // Backward compatibility check for legacy JSON Deltas stored in DB
-      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-        try {
-          const parsed = JSON.parse(trimmed)
-          const ops = Array.isArray(parsed) ? parsed : parsed?.ops
-          if (Array.isArray(ops)) {
-            const cleanOps = ops.filter(op => op && op.insert !== null && op.insert !== undefined)
-            quillEditor.setContents({ ops: cleanOps })
-            return
-          }
-        } catch {
-          // Not JSON, continue to paste HTML below
-        }
-      }
-
-      // Paste HTML directly into editor
-      quillEditor.clipboard.dangerouslyPasteHTML(trimmed)
-      return
-    }
-
-    // 3. Backward compatibility for legacy Delta object records
-    if (typeof content === 'object') {
-      const ops = Array.isArray(content) ? content : content?.ops
-      if (Array.isArray(ops)) {
-        const cleanOps = ops.filter((op: any) => op && op.insert !== null && op.insert !== undefined)
-        quillEditor.setContents({ ops: cleanOps })
-        return
-      }
-    }
-
-    // Fallback paste
-    quillEditor.clipboard.dangerouslyPasteHTML(String(content))
-  } catch (err) {
-    console.error('Error pasting content to Quill:', err)
+    contractTypes.value = await ContractTypeApi.getAll({ include_inactive: true })
+  } catch (error) {
+    console.error('Load contract types failed:', error)
   }
 }
 
@@ -160,18 +139,52 @@ const loadTemplates = async () => {
   }
 }
 
+const loadPolicies = async () => {
+  try {
+    allPolicies.value = await ContractPolicyApi.getAll()
+  } catch (error) {
+    console.error('Load policies failed:', error)
+  }
+}
+
+const loadPositions = async () => {
+  try {
+    positions.value = (await PositionApi.getAll()).data.data
+  } catch (error) {
+    console.error('Load positions failed:', error)
+  }
+}
+
+// ---------------------------------------------------------------------
+// Save / edit / delete
+// ---------------------------------------------------------------------
 const saveContract = async () => {
   const { valid } = await formRef.value.validate()
-  if (!valid || !quillEditor) return
+  if (!valid) return
 
-  // Grabs the raw HTML output from Quill instead of Delta JSON
-  const htmlContent = quillEditor.root.innerHTML
+  if (!contractTypeId.value) {
+    toast.warning('Select a contract type before saving the template.')
+    return
+  }
+
+  if (!isEmployment.value) positionId.value = null
+
+  // Editor chips become stable machine keys; unknown/out-of-context tokens
+  // are rejected by the backend before anything is persisted.
+  const serialized = serializePlaceholders(contentHtml.value)
+  const usedKeys = extractPlaceholderKeys(serialized).filter(key => !knownKeys.value.has(key))
+  if (usedKeys.length > 0) {
+    toast.warning(`Unknown or unavailable placeholders: ${usedKeys.join(', ')}`)
+    return
+  }
 
   const payload = {
     name: contractName.value.trim(),
-    type: contractType.value,
+    contract_type_id: contractTypeId.value!,
+    position_id: positionId.value,
+    policy_ids: policyIds.value,
     cover_text: coverText.value,
-    content: htmlContent
+    content: serialized,
   }
 
   try {
@@ -206,12 +219,17 @@ const loadTemplate = async (id: number) => {
     const template = await ContractTemplateApi.getById(id)
 
     contractName.value = template.name
-    contractType.value = template.type
+    contractTypeId.value = template.contract_type_id ?? null
+    positionId.value = template.position_id ?? null
+    policyIds.value = template.policies?.map(policy => policy.id) ?? []
     coverText.value = template.cover_text ?? ''
     templateId.value = template.id
 
-    // Load stored HTML into editor
-    setEditorContent(template.content)
+    await loadPlaceholders()
+
+    // Legacy Quill Delta content and plain HTML both normalize to HTML;
+    // {{ key }} tokens become editable chips again.
+    contentHtml.value = hydratePlaceholders(legacyContentToHtml(template.content), placeholderGroups.value, knownKeys.value)
   } catch (error) {
     showToast('Failed to load template details', 'error')
     console.error('Load failed:', error)
@@ -233,11 +251,9 @@ const deleteTemplate = async () => {
     await ContractTemplateApi.delete(templateToDelete.value)
     showToast('Template deleted successfully', 'success')
     templates.value = templates.value.filter(template => template.id !== templateToDelete.value)
-    if (templateId.value === templateToDelete.value) {
-      resetForm()
-    }
+    if (templateId.value === templateToDelete.value) resetForm()
   } catch (error) {
-    showToast('Failed to delete template', 'error')
+    showToast('This template is used by existing contracts and cannot be deleted.', 'warning')
     console.error('Delete failed:', error)
   } finally {
     isLoading.value = false
@@ -248,17 +264,14 @@ const deleteTemplate = async () => {
 
 const resetForm = () => {
   contractName.value = ''
-  contractType.value = 'Employment'
+  contractTypeId.value = null
   coverText.value = ''
+  positionId.value = route.query.positionId ? Number(route.query.positionId) : null
+  policyIds.value = []
   templateId.value = null
+  contentHtml.value = ''
+  placeholderGroups.value = []
 
-  if (quillEditor) {
-    quillEditor.setText('')
-    quillEditor.format('direction', isRtl.value ? 'rtl' : 'ltr')
-  }
-
-  // Reset after the model values settle so the empty new form does not
-  // immediately inherit the previous submit's red required state.
   nextTick(() => formRef.value?.resetValidation())
 }
 
@@ -283,49 +296,43 @@ const editTemplate = (id: number) => {
         <VDivider />
 
         <VCardText class="pa-0 flex-grow-1 template-list-container">
-          <!-- Loading State -->
           <div v-if="isLoading && !templates.length" class="d-flex justify-center align-center pa-6">
             <VProgressCircular indeterminate color="primary" />
           </div>
 
-          <!-- Empty State -->
           <div v-else-if="!templates.length" class="text-center pa-8 text-medium-emphasis">
             <VIcon icon="tabler-folder-off" size="48" class="mb-2 opacity-50" />
             <div class="text-body-1 font-weight-medium">{{ $t('pages.settings.policies.policies.noTemplatesFound') }}</div>
             <div class="text-caption">{{ $t('pages.settings.policies.policies.useTheFormToCreateYourFirstTemplate') }}</div>
           </div>
 
-          <!-- List -->
           <VList v-else lines="two" class="pa-2">
             <VListItem v-for="template in templates" :key="template.id" :active="templateId === template.id"
-              color="primary" rounded="lg" class="mb-1 transition-fast-in-fast-out" @click="editTemplate(template.id)">
+              color="primary" rounded="lg" class="mb-1" @click="editTemplate(template.id)">
               <template #prepend>
                 <VAvatar color="primary" variant="tonal" size="38" class="mr-3">
                   <VIcon icon="tabler-file-description" size="20" />
                 </VAvatar>
               </template>
 
-              <VListItemTitle class="font-weight-medium">
-                {{ template.name }}
-              </VListItemTitle>
-              <VListItemSubtitle class="mt-1">
-                <VChip size="x-small" color="secondary" variant="elevated" class="font-weight-medium">
-                  {{ translateBackendValue(template.type) }}
+              <VListItemTitle class="font-weight-medium">{{ template.name }}</VListItemTitle>
+              <VListItemSubtitle class="mt-1 d-flex align-center gap-2">
+                <VChip size="x-small" color="secondary" variant="elevated">
+                  {{ translateBackendValue(template.type || 'Custom') }}
+                </VChip>
+                <VChip v-if="template.type_slug === 'employment' && template.position_id" size="x-small"
+                  variant="tonal" color="info">
+                  {{ positions.find(p => p.id === template.position_id)?.title || 'Position' }}
                 </VChip>
               </VListItemSubtitle>
 
               <template #append>
                 <div class="d-flex align-center gap-1">
-                  <!-- Edit Action Button -->
-                  <VBtn icon variant="text" size="small" color="primary" class="opacity-75 hover-opacity-100"
-                    @click.stop="editTemplate(template.id)">
+                  <VBtn icon variant="text" size="small" color="primary" @click.stop="editTemplate(template.id)">
                     <VIcon icon="tabler-edit" size="18" />
                     <VTooltip activator="parent" location="top">{{ $t('pages.settings.policies.policies.editTemplate') }}</VTooltip>
                   </VBtn>
-
-                  <!-- Delete Action Button -->
-                  <VBtn icon variant="text" size="small" color="error" class="opacity-75 hover-opacity-100"
-                    @click.stop="confirmDelete(template.id)">
+                  <VBtn icon variant="text" size="small" color="error" @click.stop="confirmDelete(template.id)">
                     <VIcon icon="tabler-trash" size="18" />
                     <VTooltip activator="parent" location="top">{{ $t('pages.settings.policies.policies.deleteTemplate') }}</VTooltip>
                   </VBtn>
@@ -351,17 +358,47 @@ const editTemplate = (id: number) => {
         <VDivider />
 
         <VCardText class="pt-6 flex-grow-1">
-          <VForm ref="formRef" @submit.prevent="saveContract">
+          <VForm ref="formRef" class="app-form contract-template-form" @submit.prevent="saveContract">
             <VRow>
               <VCol cols="12" sm="6">
-                <VTextField v-model="contractName" :label="$t('pages.settings.policies.policies.contractName')" :placeholder="$t('pages.settings.policies.policies.eGStandardNDA2026')"
+                <VTextField v-model="contractName" :label="$t('pages.settings.policies.policies.contractName')"
+                  :placeholder="$t('pages.settings.policies.policies.eGStandardNDA2026')"
                   prepend-inner-icon="tabler-file-text" variant="outlined" :rules="[v => !!v || 'Name is required']" />
               </VCol>
 
-              <VCol cols="12" sm="6">
-                <VSelect v-model="contractType" :label="$t('pages.settings.policies.policies.contractType')"
-                :items="['Employment', 'Service', 'Partnership', 'Lease', 'NDA']" :item-title="translateBackendValue" prepend-inner-icon="tabler-settings"
-                  variant="outlined" :rules="[v => !!v || 'Type is required']" />
+              <!-- Step 1: contract type -->
+              <VCol cols="12">
+                <ContractTypeSelector ref="typeSelectorRef" v-model="contractTypeId" required
+                  @types-changed="onTypesChanged" />
+              </VCol>
+
+              <!-- Step 2: context entity. Employment ⇒ position (required);
+                   Customer/Company contexts are handled at contract creation,
+                   so no entity selector belongs on their templates. -->
+              <VCol v-if="isEmployment" cols="12" sm="6">
+                <VSelect v-model="positionId" :items="positions" item-title="title" item-value="id"
+                  label="Position" prepend-inner-icon="tabler-briefcase" variant="outlined"
+                  :rules="[v => !!v || 'A position is required for an employment template']"
+                  hint="The template becomes dedicated to this job position." persistent-hint />
+              </VCol>
+
+              <VCol v-if="typeLabel" cols="12">
+                <VAlert type="info" variant="tonal" density="compact">
+                  Template context: <strong>{{ typeLabel }}</strong>.
+                  <span v-if="isEmployment"> Employee, position and employer placeholders are available below.</span>
+                  <span v-else> Only general contract placeholders are available for custom types.</span>
+                </VAlert>
+              </VCol>
+
+              <VCol cols="12">
+                <div class="text-caption text-medium-emphasis mb-2 font-weight-medium">Policy helpers</div>
+                <div class="d-flex flex-wrap align-center gap-2">
+                  <VAutocomplete v-model="selectedPolicyId"
+                    :items="policies.map(p => ({ title: `${p.type} · ${p.label}`, value: p.id }))"
+                    label="Insert a policy clause" density="compact" variant="outlined" hide-details max-width="320"
+                    clearable @update:model-value="value => { if (value) insertPolicy() }" />
+                  <span v-if="!policies.length" class="text-caption text-medium-emphasis">No reusable clauses yet.</span>
+                </div>
               </VCol>
 
               <VCol cols="12">
@@ -370,24 +407,20 @@ const editTemplate = (id: number) => {
                   prepend-inner-icon="tabler-align-left" variant="outlined" rows="2" auto-grow />
               </VCol>
 
-              <!-- Quill Editor Section -->
+              <!-- TipTap editor section -->
               <VCol cols="12">
                 <div class="text-caption text-medium-emphasis mb-1 font-weight-medium">
                   {{ $t('pages.settings.policies.policies.contractPOLICIESTERMS') }}
                 </div>
-                <div class="editor-container">
-                  <div id="contract-policies-editor" class="quill-editor" />
-                </div>
+                <ContractContentEditor ref="editorRef" v-model="contentHtml" :placeholder-groups="placeholderGroups" />
               </VCol>
             </VRow>
 
             <div class="d-flex justify-end gap-3 mt-6">
-              <VBtn color="secondary" variant="tonal" prepend-icon="tabler-refresh" :disabled="isLoading"
-                @click="resetForm">
+              <VBtn color="secondary" variant="tonal" prepend-icon="tabler-refresh" :disabled="isLoading" @click="resetForm">
                 {{ $t('pages.settings.policies.policies.reset') }}
               </VBtn>
-              <VBtn type="submit" color="primary" variant="elevated" prepend-icon="tabler-device-floppy"
-                :loading="isLoading">
+              <VBtn type="submit" color="primary" variant="elevated" prepend-icon="tabler-device-floppy" :loading="isLoading">
                 {{ templateId ? 'Update Template' : 'Save Template' }}
               </VBtn>
             </div>
@@ -421,11 +454,9 @@ const editTemplate = (id: number) => {
       </VCardActions>
     </VCard>
   </VDialog>
-
 </template>
 
 <style lang="scss">
-// Handle responsive template list height for tablet/desktop
 .template-list-container {
   max-height: 400px;
   overflow-y: auto;
@@ -435,116 +466,15 @@ const editTemplate = (id: number) => {
   }
 }
 
-// Modernized Theme-Agnostic Quill Editor Styling
-.contract-policies-form {
-  .editor-container {
-    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 6px;
-    background-color: rgb(var(--v-theme-surface));
-    transition: border-color 0.2s ease-in-out;
-
-    &:focus-within {
-      border-color: rgb(var(--v-theme-primary));
-    }
-
-    // Modernize Toolbar for Light/Dark Mode
-    .ql-toolbar.ql-snow {
-      border: none;
-      border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-      background-color: rgba(var(--v-theme-on-surface), 0.02);
-      padding: 12px;
-
-      // Font Picker Dropdown Sizing
-      .ql-picker.ql-font {
-        width: 150px !important;
-
-        .ql-picker-label {
-          padding-inline-end: 24px;
-        }
-      }
-
-      .ql-picker-label,
-      .ql-picker-item,
-      .ql-stroke {
-        color: rgb(var(--v-theme-on-surface));
-        stroke: rgb(var(--v-theme-on-surface));
-      }
-
-      .ql-fill {
-        fill: rgb(var(--v-theme-on-surface));
-      }
-
-      .ql-active .ql-stroke,
-      button:hover .ql-stroke {
-        stroke: rgb(var(--v-theme-primary));
-      }
-    }
-
-    .quill-editor {
-      min-height: 320px;
-      max-height: 500px;
-      overflow-y: auto;
-
-      .ql-container.ql-snow {
-        border: none !important;
-        font-family: inherit;
-        color: rgb(var(--v-theme-on-surface));
-      }
-
-      .ql-editor {
-        padding: 16px !important;
-        line-height: 1.8;
-        font-size: 0.95rem;
-
-        &.ql-blank::before {
-          color: rgba(var(--v-theme-on-surface), 0.38);
-          font-style: normal;
-        }
-      }
-    }
-  }
-
-}
-
-// System font choices render reliably without remote requests and include
-// dependable Arabic/Persian fallbacks on Windows, macOS, and Linux.
-$quill-fonts: (
-  'arial': ('Arial', Arial, sans-serif),
-  'times-new-roman': ('Times New Roman', 'Times New Roman', serif),
-  'georgia': ('Georgia', Georgia, serif),
-  'verdana': ('Verdana', Verdana, sans-serif),
-  'tahoma': ('Tahoma (Persian)', Tahoma, sans-serif),
-  'segoe-ui': ('Segoe UI (Persian)', 'Segoe UI', sans-serif)
-);
-
-@each $key, $val in $quill-fonts {
-  $label: nth($val, 1);
-  $family: nth($val, 2);
-  $fallback: nth($val, 3);
-
-  .ql-picker.ql-font {
-
-    .ql-picker-label[data-value="#{$key}"]::before,
-    .ql-picker-item[data-value="#{$key}"]::before {
-      content: "#{$label}" !important;
-      font-family: $family, $fallback !important;
-    }
-  }
-
-  // Ensure inline-styled elements render in the editor correctly
-  [style*="font-family: #{$key}"],
-  [style*="font-family: \"#{$key}\""] {
-    font-family: $family, $fallback !important;
-  }
-}
-
-// Set default label if no data-value is selected
-.ql-picker.ql-font {
-
-    .ql-picker-label:not([data-value])::before,
-  .ql-picker-item:not([data-value])::before {
-    content: "Default" !important;
-    font-family: inherit !important;
+// Vuetify reserves 16px below a value when an outlined field has a floating
+// label. Its input remains aligned to the top of that remaining space, so the
+// value sits above the centre. Move the visible value slightly below the
+// geometric centre; the field, icon, outline, and floating label retain their
+// standard geometry.
+.contract-template-form .v-input:not(.v-textarea) .v-field--variant-outlined {
+  .v-field__input > input,
+  .v-select__selection {
+    transform: translateY(12px);
   }
 }
 </style>

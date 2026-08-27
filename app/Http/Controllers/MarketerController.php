@@ -44,7 +44,7 @@ class MarketerController extends Controller
     public function destroy(Marketer $marketer): JsonResponse
     {
         if (Customer::where('marketer', $marketer->name)->exists() || Visitor::where('marketer', $marketer->name)->exists()) {
-            return response()->json(['success' => false, 'message' => 'This marketer is assigned to customers or visitors and cannot be deleted.'], 409);
+            return response()->json(['success' => false, 'code' => 'business.marketer_in_use'], 409);
         }
 
         $marketer->delete();

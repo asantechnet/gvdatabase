@@ -41,6 +41,7 @@ export interface UpdateVisitorData {
 
 // Visitor API endpoints
 const VisitorApi = {
+  convertToCustomer: async (id: number) => (await api.post(`/visitors/${id}/convert-to-customer`)).data.data,
   // Get all visitors
   getAll: async (params?: VisitorParams) => {
     try {

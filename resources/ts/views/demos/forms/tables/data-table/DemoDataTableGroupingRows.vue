@@ -317,7 +317,7 @@ const getIcon = (props: Record<string, unknown>) => props.icon as any
 </script>
 
 <template>
-  <VDataTable
+  <ResponsiveDataTable
     :headers="headers"
     :items="userList"
     :items-per-page="10"
@@ -373,5 +373,5 @@ const getIcon = (props: Record<string, unknown>) => props.icon as any
         <span>({{ count }})</span>
       </td>
     </template>
-  </VDataTable>
+  </ResponsiveDataTable>
 </template>

@@ -21,6 +21,7 @@ class CommentResource extends JsonResource
             'taskId' => (string) $this->task_id,
             'senderName' => $this->user->name ?? 'Unknown User',
             'senderId' => (string) $this->user_id,
+            'senderAvatar' => $this->whenLoaded('user', fn () => $this->user?->employee?->avatar),
             'content' => $this->content,
             'timestamp' => $this->created_at ? $this->created_at->format('g:i A') : '',
             'createdAt' => $this->created_at ? $this->created_at->toIso8601String() : null,

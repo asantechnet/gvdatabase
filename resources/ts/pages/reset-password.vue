@@ -2,6 +2,7 @@
 import AuthApi from '@/api/auth'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ResetPasswordForm from '@/components/forms/ResetPasswordForm.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -53,15 +54,8 @@ const submit = async () => {
       </VCardItem>
       <VCardText>
         <VAlert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</VAlert>
-        <VForm @submit.prevent="submit">
-          <VTextField v-model="email" type="email" :label="$t('common.fields.email')" autocomplete="email" required class="mb-3" />
-          <VTextField v-model="password" :type="showPassword ? 'text' : 'password'" :label="$t('pages.auth.resetPassword.resetPassword.newPassword')"
-            autocomplete="new-password" :append-inner-icon="showPassword ? 'tabler-eye-off' : 'tabler-eye'"
-            required class="mb-3" @click:append-inner="showPassword = !showPassword" />
-          <VTextField v-model="passwordConfirmation" :type="showPassword ? 'text' : 'password'"
-            :label="$t('pages.auth.resetPassword.resetPassword.confirmNewPassword')" autocomplete="new-password" required class="mb-4" />
-          <VBtn block type="submit" :loading="loading" :disabled="!token">{{ $t('pages.auth.resetPassword.resetPassword.resetPassword') }}</VBtn>
-        </VForm>
+        <ResetPasswordForm v-model:email="email" v-model:password="password" v-model:password-confirmation="passwordConfirmation"
+          :loading="loading" :show-password="showPassword" :disabled="!token" @submit="submit" @toggle-password="showPassword = !showPassword" />
         <div class="text-center mt-5"><RouterLink :to="{ name: 'login' }">{{ $t('common.messages.backToLogin') }}</RouterLink></div>
       </VCardText>
     </VCard>

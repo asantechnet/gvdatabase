@@ -116,7 +116,7 @@ trait Auditable
 
             $recipients = User::query()
                 ->where('acc_status', 'active')
-                ->whereJsonContains('roles', 'super_admin')
+                ->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', 'super_admin'))
                 ->get()
                 ->filter(fn (User $user) => data_get($user->account_settings, 'notifications.audit_activity.in_app', true))
                 ->pluck('id');

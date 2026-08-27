@@ -312,7 +312,7 @@ const printReport = () => {
   padding-top: 1rem;
   font-size: 0.75rem;
   color: var(--text-muted);
-  text-align: right;
+  text-align: end;
   border-top: 1px solid var(--border-light);
 }
 
@@ -428,6 +428,14 @@ const printReport = () => {
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+[dir='rtl'] .calendar-grid {
+  direction: rtl;
+}
+
+[dir='rtl'] .attendance-item {
+  flex-direction: row-reverse;
 }
 
 /* ==========================================

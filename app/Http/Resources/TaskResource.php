@@ -15,6 +15,7 @@ class TaskResource extends JsonResource
             'boardId' => (string) $this->board_id,
             'title' => $this->title,
             'description' => $this->description ?? '',
+            'results' => $this->results ?? '',
             'priority' => $this->priority,
             'progress' => (int) $this->progress,
             'startDate' => $this->start_date ? Carbon::parse($this->start_date)->format('Y-m-d') : '',
@@ -30,6 +31,16 @@ class TaskResource extends JsonResource
             'tags' => TagResource::collection($this->whenLoaded('tags')),
             'subtasks' => SubtaskResource::collection($this->whenLoaded('subtasks')),
             'comments' => CommentResource::collection($this->whenLoaded('comments')),
+            'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($attachment) => [
+                'id' => (string) $attachment->id,
+                'section' => $attachment->section,
+                'name' => $attachment->original_name,
+                'mimeType' => $attachment->mime_type,
+                'size' => (int) $attachment->size,
+                'uploadedAt' => $attachment->created_at?->toISOString(),
+                'downloadUrl' => "/api/tasks/{$this->id}/attachments/{$attachment->id}/download",
+                'url' => \Illuminate\Support\Facades\Storage::disk($attachment->disk)->url($attachment->path),
+            ]), []),
 
             // Pluck dependency IDs as string array for easy frontend lookup
             'dependencies' => $this->whenLoaded('dependencies', function () {

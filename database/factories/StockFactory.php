@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Stock;
+use App\Models\Office;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class StockFactory extends Factory
@@ -17,7 +18,7 @@ class StockFactory extends Factory
             'quantity' => fake()->numberBetween(1, 10),
             'model' => fake()->bothify('MDL-###'),
             'condition' => fake()->randomElement(Stock::conditions()),
-            'office' => fake()->randomElement(['HQ', 'Branch A', 'Branch B', 'Remote']),
+            'office_id' => Office::factory(),
             'staff_id' => null,
         ];
     }

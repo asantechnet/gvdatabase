@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import AuthApi, { type Account, type NotificationPreferences } from '@/api/auth'
+import { useToast } from 'vue-toastification'
 
 type NotificationEvent = { key: string; title: string; description: string; in_app: boolean }
 
@@ -12,8 +13,7 @@ const notificationEvents = ref<NotificationEvent[]>([
 
 const initialPreferences = ref<NotificationPreferences>()
 const saving = ref(false)
-const message = ref('')
-const error = ref('')
+const toast = useToast()
 
 const preferences = (): NotificationPreferences => Object.fromEntries(notificationEvents.value.map(event => [event.key, { in_app: event.in_app }]))
 
@@ -31,7 +31,7 @@ async function load() {
     applyPreferences(account.notifications)
     initialPreferences.value = structuredClone(preferences())
   } catch (exception: any) {
-    error.value = exception.message || 'Unable to load notification preferences.'
+    toast.error(exception.message || 'Unable to load notification preferences.')
   }
 }
 
@@ -41,10 +41,9 @@ async function save() {
     const notifications = preferences()
     await AuthApi.updateNotifications({ notifications })
     initialPreferences.value = structuredClone(notifications)
-    message.value = translate('components.account.accountsettingsnotification.notificationPreferencesSaved')
-    error.value = ''
+    toast.success(translate('components.account.accountsettingsnotification.notificationPreferencesSaved'))
   } catch (exception: any) {
-    error.value = exception.message || 'Unable to save notification preferences.'
+    toast.error(exception.message || 'Unable to save notification preferences.')
   } finally {
     saving.value = false
   }
@@ -59,9 +58,6 @@ onMounted(load)
 
 <template>
   <VCard>
-    <VAlert v-if="message" type="success" class="ma-4">{{ message }}</VAlert>
-    <VAlert v-if="error" type="error" class="ma-4">{{ error }}</VAlert>
-
     <VCardItem :title="$t('components.account.accountsettingsnotification.notificationPreferences')" subtitle="Choose which Asantech Mini Management events appear in your in-app inbox." />
 
     <VCardText class="px-0">

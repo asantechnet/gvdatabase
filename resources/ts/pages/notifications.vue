@@ -35,7 +35,15 @@ async function open(notification: AppNotification) {
     catch { await load(); toast.error(translate('pages.settings.notifications.notifications.couldNotMarkNotificationAsRead')); return }
   }
   if (openAuditNotification(notification)) return
+  if (notification.data?.action === 'execute_recurring_event' && notification.data.recurring_event_id) {
+    await router.push({ name: 'recurring-events', params: { id: String(notification.data.recurring_event_id) } })
+    return
+  }
   if (notification.go_to_url) await router.push(notification.go_to_url)
+}
+
+async function reviewRecurring(notification: AppNotification) {
+  await open(notification)
 }
 
 async function markAllRead() {
@@ -65,7 +73,7 @@ onMounted(load)
         <template #prepend><VAvatar :color="colorFor(notification.type)" variant="tonal"><VIcon :icon="iconFor(notification.type)" /></VAvatar></template>
         <VListItemTitle class="d-flex align-center flex-wrap gap-2">{{ titleFor(notification) }}<VChip v-if="notification.is_read !== true" size="x-small" color="primary">{{ $t('pages.settings.notifications.notifications.new') }}</VChip></VListItemTitle>
         <VListItemSubtitle class="notification-message">{{ messageFor(notification) }}</VListItemSubtitle>
-        <template #append><div class="d-flex align-center ga-2"><span class="text-caption text-disabled d-none d-sm-inline">{{ formatDate(notification.date_time) }}</span><IconBtn :aria-label="$t('pages.settings.notifications.notifications.deleteNotification')" @click.stop="remove(notification)"><VIcon icon="tabler-x" /></IconBtn></div></template>
+        <template #append><div class="d-flex align-center ga-2"><VBtn v-if="notification.data?.action === 'execute_recurring_event'" size="small" @click.stop="reviewRecurring(notification)">Review</VBtn><span class="text-caption text-disabled d-none d-sm-inline">{{ formatDate(notification.date_time) }}</span><IconBtn :aria-label="$t('pages.settings.notifications.notifications.deleteNotification')" @click.stop="remove(notification)"><VIcon icon="tabler-x" /></IconBtn></div></template>
       </VListItem>
       <VListItem v-if="!loading && !visibleNotifications.length" :title="$t('pages.settings.notifications.notifications.noNotificationsFound')" subtitle="You are all caught up." />
     </VList>

@@ -10,6 +10,7 @@ declare global {
   const COOKIE_MAX_AGE_1_YEAR: typeof import('./resources/ts/utils/constants')['COOKIE_MAX_AGE_1_YEAR']
   const CreateUrl: typeof import('./src/@core/composable/CreateUrl')['CreateUrl']
   const EffectScope: typeof import('vue')['EffectScope']
+  const PLACEHOLDER_SPAN_PATTERN: typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
   const alphaDashValidator: typeof import('./resources/ts/@core/utils/validators')['alphaDashValidator']
   const alphaValidator: typeof import('./resources/ts/@core/utils/validators')['alphaValidator']
@@ -17,20 +18,26 @@ declare global {
   const apiFieldErrors: typeof import('./resources/ts/utils/apiErrors')['apiFieldErrors']
   const applyAccessibleThemeColors: typeof import('./resources/ts/utils/themeContrast')['applyAccessibleThemeColors']
   const applyPermissions: typeof import('./resources/ts/utils/authorization')['applyPermissions']
+  const applyThemeColorCssVariables: typeof import('./resources/ts/utils/themePersistence')['applyThemeColorCssVariables']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
   const auditLogIdFromNotification: typeof import('./resources/ts/utils/auditNotification')['auditLogIdFromNotification']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
   const avatarText: typeof import('./resources/ts/@core/utils/formatters')['avatarText']
   const betweenValidator: typeof import('./resources/ts/@core/utils/validators')['betweenValidator']
   const canAccess: typeof import('./resources/ts/utils/authorization')['canAccess']
+  const canPrintPartyDetails: typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']
   const clearAuthTokens: typeof import('./resources/ts/utils/authStorage')['clearAuthTokens']
+  const clearFieldError: typeof import('./resources/ts/utils/formErrors')['clearFieldError']
+  const clearFormErrors: typeof import('./resources/ts/utils/formErrors')['clearFormErrors']
   const clearPermissions: typeof import('./resources/ts/utils/authorization')['clearPermissions']
+  const clearStoredPermissions: typeof import('./resources/ts/utils/authStorage')['clearStoredPermissions']
   const computed: typeof import('vue')['computed']
   const computedAsync: typeof import('@vueuse/core')['computedAsync']
   const computedEager: typeof import('@vueuse/core')['computedEager']
   const computedInject: typeof import('@vueuse/core')['computedInject']
   const computedWithControl: typeof import('@vueuse/core')['computedWithControl']
   const confirmedValidator: typeof import('./resources/ts/@core/utils/validators')['confirmedValidator']
+  const contractTypeSlug: typeof import('./resources/ts/utils/contractPartyDetails')['contractTypeSlug']
   const contrastingTextColor: typeof import('./resources/ts/utils/themeContrast')['contrastingTextColor']
   const controlledComputed: typeof import('@vueuse/core')['controlledComputed']
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
@@ -56,11 +63,15 @@ declare global {
   const defineLoader: typeof import('vue-router/auto')['defineLoader']
   const definePage: typeof import('unplugin-vue-router/runtime')['definePage']
   const defineStore: typeof import('pinia')['defineStore']
+  const displayInlineFormErrors: typeof import('./resources/ts/utils/formErrors')['displayInlineFormErrors']
   const eagerComputed: typeof import('@vueuse/core')['eagerComputed']
   const effectScope: typeof import('vue')['effectScope']
   const emailValidator: typeof import('./resources/ts/@core/utils/validators')['emailValidator']
   const extendRef: typeof import('@vueuse/core')['extendRef']
+  const extractPlaceholderKeys: typeof import('./resources/ts/utils/contractPlaceholders')['extractPlaceholderKeys']
+  const fieldErrorMessages: typeof import('./resources/ts/utils/formErrors')['fieldErrorMessages']
   const fieldLabel: typeof import('./resources/ts/utils/apiValidation')['fieldLabel']
+  const formErrors: typeof import('./resources/ts/utils/formErrors')['formErrors']
   const formatDate: typeof import('./resources/ts/@core/utils/formatters')['formatDate']
   const formatDateToMonthShort: typeof import('./resources/ts/@core/utils/formatters')['formatDateToMonthShort']
   const formatLocalizedDate: typeof import('./resources/ts/utils/localization')['formatLocalizedDate']
@@ -70,9 +81,11 @@ declare global {
   const getCurrentInstance: typeof import('vue')['getCurrentInstance']
   const getCurrentScope: typeof import('vue')['getCurrentScope']
   const getRefreshToken: typeof import('./resources/ts/utils/authStorage')['getRefreshToken']
+  const getStoredPermissions: typeof import('./resources/ts/utils/authStorage')['getStoredPermissions']
   const h: typeof import('vue')['h']
   const hexToRgb: typeof import('./resources/ts/@core/utils/colorConverter')['hexToRgb']
   const humanizeApiError: typeof import('./resources/ts/utils/apiErrors')['humanizeApiError']
+  const hydratePlaceholders: typeof import('./resources/ts/utils/contractPlaceholders')['hydratePlaceholders']
   const ignorableWatch: typeof import('@vueuse/core')['ignorableWatch']
   const inject: typeof import('vue')['inject']
   const injectLocal: typeof import('@vueuse/core')['injectLocal']
@@ -91,6 +104,7 @@ declare global {
   const isRememberedSession: typeof import('./resources/ts/utils/authStorage')['isRememberedSession']
   const isToday: typeof import('./resources/ts/@core/utils/helpers')['isToday']
   const kFormatter: typeof import('./resources/ts/@core/utils/formatters')['kFormatter']
+  const legacyContentToHtml: typeof import('./resources/ts/utils/contractPlaceholders')['legacyContentToHtml']
   const lengthValidator: typeof import('./resources/ts/@core/utils/validators')['lengthValidator']
   const logicAnd: typeof import('@vueuse/math')['logicAnd']
   const logicNot: typeof import('@vueuse/math')['logicNot']
@@ -102,6 +116,7 @@ declare global {
   const mapStores: typeof import('pinia')['mapStores']
   const mapWritableState: typeof import('pinia')['mapWritableState']
   const markRaw: typeof import('vue')['markRaw']
+  const mergeFieldErrorMessages: typeof import('./resources/ts/utils/formErrors')['mergeFieldErrorMessages']
   const nextTick: typeof import('vue')['nextTick']
   const notificationText: typeof import('./resources/ts/utils/notificationText')['notificationText']
   const onActivated: typeof import('vue')['onActivated']
@@ -126,10 +141,13 @@ declare global {
   const onWatcherCleanup: typeof import('vue')['onWatcherCleanup']
   const openAuditNotification: typeof import('./resources/ts/utils/auditNotification')['openAuditNotification']
   const paginationMeta: typeof import('./resources/ts/utils/paginationMeta')['paginationMeta']
+  const partyDetailsFor: typeof import('./resources/ts/utils/contractPartyDetails')['partyDetailsFor']
   const passwordValidator: typeof import('./resources/ts/@core/utils/validators')['passwordValidator']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
   const permissionRules: typeof import('./resources/ts/utils/authorization')['permissionRules']
   const permissionsForApiRequest: typeof import('./resources/ts/utils/apiAuthorization')['permissionsForApiRequest']
+  const persistThemeColors: typeof import('./resources/ts/utils/themePersistence')['persistThemeColors']
+  const placeholderLabels: typeof import('./resources/ts/utils/contractPlaceholders')['placeholderLabels']
   const prefixWithPlus: typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']
   const printDocument: typeof import('./resources/ts/utils/printDocument')['printDocument']
   const provide: typeof import('vue')['provide']
@@ -140,6 +158,7 @@ declare global {
   const reactiveComputed: typeof import('@vueuse/core')['reactiveComputed']
   const reactiveOmit: typeof import('@vueuse/core')['reactiveOmit']
   const reactivePick: typeof import('@vueuse/core')['reactivePick']
+  const readStoredThemeColors: typeof import('./resources/ts/utils/themePersistence')['readStoredThemeColors']
   const readonly: typeof import('vue')['readonly']
   const ref: typeof import('vue')['ref']
   const refAutoReset: typeof import('@vueuse/core')['refAutoReset']
@@ -150,22 +169,26 @@ declare global {
   const regexValidator: typeof import('./resources/ts/@core/utils/validators')['regexValidator']
   const registerPlugins: typeof import('./resources/ts/@core/utils/plugins')['registerPlugins']
   const registerPlugins_: typeof import('./src/@core/utils/plugins')['registerPlugins_']
+  const replaceFormErrors: typeof import('./resources/ts/utils/formErrors')['replaceFormErrors']
   const requiredValidator: typeof import('./resources/ts/@core/utils/validators')['requiredValidator']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
   const resolveVuetifyTheme: typeof import('./resources/ts/@core/utils/vuetify')['resolveVuetifyTheme']
   const rgbaToHex: typeof import('./resources/ts/@core/utils/colorConverter')['rgbaToHex']
+  const serializePlaceholders: typeof import('./resources/ts/utils/contractPlaceholders')['serializePlaceholders']
   const setActivePinia: typeof import('pinia')['setActivePinia']
   const setMapStoreSuffix: typeof import('pinia')['setMapStoreSuffix']
   const shallowReactive: typeof import('vue')['shallowReactive']
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
   const storeAuthTokens: typeof import('./resources/ts/utils/authStorage')['storeAuthTokens']
+  const storePermissions: typeof import('./resources/ts/utils/authStorage')['storePermissions']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const syncRef: typeof import('@vueuse/core')['syncRef']
   const syncRefs: typeof import('@vueuse/core')['syncRefs']
   const templateRef: typeof import('@vueuse/core')['templateRef']
+  const themeColorFields: typeof import('./resources/ts/utils/themePersistence')['themeColorFields']
   const throttledRef: typeof import('@vueuse/core')['throttledRef']
   const throttledWatch: typeof import('@vueuse/core')['throttledWatch']
   const toCalendarFormat: typeof import('./resources/ts/utils/taskTransformers')['toCalendarFormat']
@@ -411,6 +434,7 @@ declare module 'vue' {
   interface ComponentCustomProperties {
     readonly COOKIE_MAX_AGE_1_YEAR: UnwrapRef<typeof import('./resources/ts/utils/constants')['COOKIE_MAX_AGE_1_YEAR']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly PLACEHOLDER_SPAN_PATTERN: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly alphaDashValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['alphaDashValidator']>
     readonly alphaValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['alphaValidator']>
@@ -418,20 +442,26 @@ declare module 'vue' {
     readonly apiFieldErrors: UnwrapRef<typeof import('./resources/ts/utils/apiErrors')['apiFieldErrors']>
     readonly applyAccessibleThemeColors: UnwrapRef<typeof import('./resources/ts/utils/themeContrast')['applyAccessibleThemeColors']>
     readonly applyPermissions: UnwrapRef<typeof import('./resources/ts/utils/authorization')['applyPermissions']>
+    readonly applyThemeColorCssVariables: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['applyThemeColorCssVariables']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly auditLogIdFromNotification: UnwrapRef<typeof import('./resources/ts/utils/auditNotification')['auditLogIdFromNotification']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly avatarText: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['avatarText']>
     readonly betweenValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['betweenValidator']>
     readonly canAccess: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canAccess']>
+    readonly canPrintPartyDetails: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']>
     readonly clearAuthTokens: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['clearAuthTokens']>
+    readonly clearFieldError: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['clearFieldError']>
+    readonly clearFormErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['clearFormErrors']>
     readonly clearPermissions: UnwrapRef<typeof import('./resources/ts/utils/authorization')['clearPermissions']>
+    readonly clearStoredPermissions: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['clearStoredPermissions']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
     readonly computedInject: UnwrapRef<typeof import('@vueuse/core')['computedInject']>
     readonly computedWithControl: UnwrapRef<typeof import('@vueuse/core')['computedWithControl']>
     readonly confirmedValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['confirmedValidator']>
+    readonly contractTypeSlug: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['contractTypeSlug']>
     readonly contrastingTextColor: UnwrapRef<typeof import('./resources/ts/utils/themeContrast')['contrastingTextColor']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
@@ -455,11 +485,15 @@ declare module 'vue' {
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
+    readonly displayInlineFormErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['displayInlineFormErrors']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly emailValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['emailValidator']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
+    readonly extractPlaceholderKeys: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['extractPlaceholderKeys']>
+    readonly fieldErrorMessages: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['fieldErrorMessages']>
     readonly fieldLabel: UnwrapRef<typeof import('./resources/ts/utils/apiValidation')['fieldLabel']>
+    readonly formErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['formErrors']>
     readonly formatDate: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['formatDate']>
     readonly formatDateToMonthShort: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['formatDateToMonthShort']>
     readonly formatLocalizedDate: UnwrapRef<typeof import('./resources/ts/utils/localization')['formatLocalizedDate']>
@@ -469,9 +503,11 @@ declare module 'vue' {
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getRefreshToken: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['getRefreshToken']>
+    readonly getStoredPermissions: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['getStoredPermissions']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hexToRgb: UnwrapRef<typeof import('./resources/ts/@core/utils/colorConverter')['hexToRgb']>
     readonly humanizeApiError: UnwrapRef<typeof import('./resources/ts/utils/apiErrors')['humanizeApiError']>
+    readonly hydratePlaceholders: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['hydratePlaceholders']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
@@ -489,6 +525,7 @@ declare module 'vue' {
     readonly isRememberedSession: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['isRememberedSession']>
     readonly isToday: UnwrapRef<typeof import('./resources/ts/@core/utils/helpers')['isToday']>
     readonly kFormatter: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['kFormatter']>
+    readonly legacyContentToHtml: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['legacyContentToHtml']>
     readonly lengthValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['lengthValidator']>
     readonly logicAnd: UnwrapRef<typeof import('@vueuse/math')['logicAnd']>
     readonly logicNot: UnwrapRef<typeof import('@vueuse/math')['logicNot']>
@@ -500,6 +537,7 @@ declare module 'vue' {
     readonly mapStores: UnwrapRef<typeof import('pinia')['mapStores']>
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
+    readonly mergeFieldErrorMessages: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['mergeFieldErrorMessages']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly notificationText: UnwrapRef<typeof import('./resources/ts/utils/notificationText')['notificationText']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
@@ -522,10 +560,13 @@ declare module 'vue' {
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
     readonly openAuditNotification: UnwrapRef<typeof import('./resources/ts/utils/auditNotification')['openAuditNotification']>
     readonly paginationMeta: UnwrapRef<typeof import('./resources/ts/utils/paginationMeta')['paginationMeta']>
+    readonly partyDetailsFor: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['partyDetailsFor']>
     readonly passwordValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['passwordValidator']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly permissionRules: UnwrapRef<typeof import('./resources/ts/utils/authorization')['permissionRules']>
     readonly permissionsForApiRequest: UnwrapRef<typeof import('./resources/ts/utils/apiAuthorization')['permissionsForApiRequest']>
+    readonly persistThemeColors: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['persistThemeColors']>
+    readonly placeholderLabels: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['placeholderLabels']>
     readonly prefixWithPlus: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']>
     readonly printDocument: UnwrapRef<typeof import('./resources/ts/utils/printDocument')['printDocument']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
@@ -536,6 +577,7 @@ declare module 'vue' {
     readonly reactiveComputed: UnwrapRef<typeof import('@vueuse/core')['reactiveComputed']>
     readonly reactiveOmit: UnwrapRef<typeof import('@vueuse/core')['reactiveOmit']>
     readonly reactivePick: UnwrapRef<typeof import('@vueuse/core')['reactivePick']>
+    readonly readStoredThemeColors: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['readStoredThemeColors']>
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>
     readonly ref: UnwrapRef<typeof import('vue')['ref']>
     readonly refAutoReset: UnwrapRef<typeof import('@vueuse/core')['refAutoReset']>
@@ -545,22 +587,26 @@ declare module 'vue' {
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
     readonly regexValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['regexValidator']>
     readonly registerPlugins: UnwrapRef<typeof import('./resources/ts/@core/utils/plugins')['registerPlugins']>
+    readonly replaceFormErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['replaceFormErrors']>
     readonly requiredValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['requiredValidator']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
     readonly resolveVuetifyTheme: UnwrapRef<typeof import('./resources/ts/@core/utils/vuetify')['resolveVuetifyTheme']>
     readonly rgbaToHex: UnwrapRef<typeof import('./resources/ts/@core/utils/colorConverter')['rgbaToHex']>
+    readonly serializePlaceholders: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['serializePlaceholders']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly storeAuthTokens: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['storeAuthTokens']>
+    readonly storePermissions: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['storePermissions']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
     readonly templateRef: UnwrapRef<typeof import('@vueuse/core')['templateRef']>
+    readonly themeColorFields: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['themeColorFields']>
     readonly throttledRef: UnwrapRef<typeof import('@vueuse/core')['throttledRef']>
     readonly throttledWatch: UnwrapRef<typeof import('@vueuse/core')['throttledWatch']>
     readonly toCalendarFormat: UnwrapRef<typeof import('./resources/ts/utils/taskTransformers')['toCalendarFormat']>

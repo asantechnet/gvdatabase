@@ -13,11 +13,12 @@ return new class extends Migration
             $table->string('name');
             $table->string('symbol');
             $table->string('code');
-            $table->float('rate_against_base')->default(1.0);
             $table->boolean('is_base')->default(false);
             $table->boolean('is_active')->default(true);
             $table->integer('decimal_places')->default(2);
             $table->timestamps();
+            $table->softDeletes();
+            $table->decimal('rate', 20, 8)->default(1);
         });
     }
 

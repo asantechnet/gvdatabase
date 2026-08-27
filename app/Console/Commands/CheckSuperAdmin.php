@@ -26,7 +26,7 @@ class CheckSuperAdmin extends Command
             ['Email', $user->email],
             ['Password Hash', $user->password],
             ['Account Status', $user->acc_status],
-            ['Roles', $user->roles],
+            ['Roles', implode(', ', $user->roleNames())],
             ['Created At', $user->created_at],
         ]);
 

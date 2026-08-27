@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { useToast } from 'vue-toastification'
 import PositionApi, { type Position, type PositionPayload } from '@/api/position'
+import PositionForm from '@/components/forms/PositionForm.vue'
+import { useRouter } from 'vue-router'
 
 const toast = useToast()
+const router = useRouter()
 const positions = ref<Position[]>([])
 const search = ref('')
 const statusFilter = ref<Position['status'] | null>(null)
@@ -58,6 +61,10 @@ function openEdit(position: Position) {
   dialogOpen.value = true
 }
 
+function editPositionContract(position: Position) {
+  router.push({ name: 'contract-templates', query: { positionId: position.id } })
+}
+
 async function save() {
   if (!form.value.title.trim()) return toast.error(translate('pages.settings.positions.positionTitleIsRequired'))
   if (!Number.isFinite(Number(form.value.salary)) || Number(form.value.salary) < 0) return toast.error(translate('pages.settings.positions.defaultSalaryMustBeZeroOrGreater'))
@@ -105,51 +112,43 @@ onMounted(loadPositions)
 </script>
 
 <template>
+  <DataTablePageKpis :items="filteredPositions" title="Positions" description="Review team roles, staffing levels, and position availability." icon="tabler-briefcase" />
   <VCard :title="$t('pages.settings.positions.positions')" :loading="loading">
     <template #subtitle>{{ $t('pages.settings.positions.hrJobTitlesAreSeparateFromAccountAccessRoles') }}</template>
     <VCardText>
       <VRow align="center">
-        <VCol cols="12" md="5">
-          <VTextField v-model="search" :label="$t('pages.settings.positions.searchPositions')" prepend-inner-icon="tabler-search" density="compact" hide-details clearable />
+        <VCol cols="12" md="8">
+          <VTextField v-model="search" :label="$t('pages.settings.positions.searchPositions')" class="data-table-search" prepend-inner-icon="tabler-search" density="compact" hide-details clearable />
         </VCol>
-        <VCol cols="12" sm="6" md="3">
-      <VSelect v-model="statusFilter" :label="$t('common.fields.status')" :items="['active', 'inactive']" :item-title="translateBackendValue" density="compact" hide-details clearable />
-        </VCol>
-        <VCol cols="12" sm="6" md="4" class="d-flex justify-sm-end">
+        <VCol cols="12" md="4" class="d-flex justify-end ga-2">
+          <DataTableFilterMenu :active="Boolean(statusFilter)" @reset="statusFilter = null">
+            <VSelect v-model="statusFilter" :label="$t('common.fields.status')" :items="['active', 'inactive']" :item-title="translateBackendValue" density="compact" hide-details clearable />
+          </DataTableFilterMenu>
           <VBtn color="primary" prepend-icon="tabler-plus" @click="openCreate">{{ $t('pages.settings.positions.addPosition') }}</VBtn>
         </VCol>
       </VRow>
     </VCardText>
 
-    <VDataTable :headers="headers" :items="filteredPositions" :loading="loading" item-value="id" class="text-no-wrap">
+    <ResponsiveDataTable :headers="headers" :items="filteredPositions" :loading="loading" item-value="id" class="text-no-wrap">
       <template #item.title="{ item }"><div class="font-weight-medium">{{ item.title }}</div></template>
       <template #item.description="{ item }"><span class="text-medium-emphasis">{{ item.description || '--' }}</span></template>
       <template #item.salary="{ item }">{{ currency.format(Number(item.salary)) }}</template>
       <template #item.status="{ item }"><VChip size="small" label :color="item.status === 'active' ? 'success' : 'secondary'">{{ translateBackendValue(item.status) }}</VChip></template>
       <template #item.employee_count="{ item }">{{ assignedLabel(item) }}</template>
       <template #item.actions="{ item }">
+        <FullDetailsButton :item="item" :title="item.title" />
+        <VBtn size="small" color="primary" variant="tonal" class="mx-1" prepend-icon="tabler-file-pencil" @click="editPositionContract(item)">Edit contract</VBtn>
         <IconBtn :aria-label="$t('pages.settings.positions.editPosition')" @click="openEdit(item)"><VIcon icon="tabler-pencil" /></IconBtn>
         <IconBtn :aria-label="$t('common.messages.deletePosition')" @click="askDelete(item)"><VIcon icon="tabler-trash" /></IconBtn>
       </template>
       <template #no-data><div class="py-6 text-medium-emphasis">{{ $t('pages.settings.positions.noPositionsMatchTheCurrentFilters') }}</div></template>
-    </VDataTable>
+    </ResponsiveDataTable>
   </VCard>
 
   <VDialog v-model="dialogOpen" max-width="620">
     <VCard :title="editingPosition ? 'Edit position' : 'Add position'">
       <VCardText>
-        <VForm @submit.prevent="save">
-          <VRow>
-            <VCol cols="12" md="7"><VTextField v-model="form.title" :label="$t('pages.settings.positions.positionTitle')" autofocus /></VCol>
-          <VCol cols="12" md="5"><VSelect v-model="form.status" :label="$t('common.fields.status')" :items="['active', 'inactive']" :item-title="translateBackendValue" /></VCol>
-            <VCol cols="12"><VTextarea v-model="form.description" :label="$t('common.fields.description')" rows="3" /></VCol>
-            <VCol cols="12"><VTextField v-model.number="form.salary" :label="$t('pages.settings.positions.defaultSalary2')" type="number" min="0" :hint="$t('pages.settings.positions.thisIsTheSuggestedSalaryForThePositionEachStaffRecordCanStillHaveItsOw')" persistent-hint /></VCol>
-          </VRow>
-          <div class="d-flex justify-end ga-3 mt-4">
-            <VBtn variant="tonal" @click="dialogOpen = false">{{ $t('common.actions.cancel') }}</VBtn>
-            <VBtn type="submit" :loading="loading">{{ $t('common.actions.save') }}</VBtn>
-          </div>
-        </VForm>
+        <PositionForm :form="form" :loading="loading" @submit="save" @cancel="dialogOpen = false" />
       </VCardText>
     </VCard>
   </VDialog>

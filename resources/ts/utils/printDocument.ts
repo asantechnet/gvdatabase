@@ -21,6 +21,7 @@ export const printDocument = async ({
 }: PrintDocumentOptions) => {
   activePrintCleanup?.()
   await beforePrint?.()
+  document.dispatchEvent(new Event('app:before-print'))
 
   const pageStyleElement = document.createElement('style')
   pageStyleElement.dataset.appPrintPage = bodyClass

@@ -2,14 +2,14 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ApiMessage;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Keeps every API failure language-neutral. Controllers return state and
- * stable codes; the SPA owns the human-readable, localized text.
+ * Provides stable API error codes together with localized text.
  */
 class NormalizeApiErrorResponse
 {
@@ -27,9 +27,9 @@ class NormalizeApiErrorResponse
         }
 
         $messageCode = is_string($payload['message'] ?? null) ? $payload['message'] : null;
-        unset($payload['message']);
         $payload['success'] = false;
         $payload['code'] ??= $this->codeFor($response->getStatusCode(), $payload, $messageCode);
+        $payload['message'] = ApiMessage::forCode($payload['code']);
 
         return response()->json($payload, $response->getStatusCode());
     }
@@ -41,8 +41,12 @@ class NormalizeApiErrorResponse
             return $messageCode;
         }
 
-        if (! empty($payload['email_verification_required'])) return 'auth.email_verification_required';
-        if (! empty($payload['two_factor_required'])) return 'auth.two_factor_required';
+        if (! empty($payload['email_verification_required'])) {
+            return 'auth.email_verification_required';
+        }
+        if (! empty($payload['two_factor_required'])) {
+            return 'auth.two_factor_required';
+        }
 
         return match ($status) {
             401 => 'auth.unauthenticated',

@@ -97,7 +97,7 @@ if (error.value)
     </VCardText>
 
     <!-- 👉 Data Table  -->
-    <VDataTable
+    <ResponsiveDataTable
       :headers="headers"
       :items="productList || []"
       :search="search"
@@ -190,6 +190,6 @@ if (error.value)
           <VIcon icon="tabler-trash" />
         </IconBtn>
       </template>
-    </VDataTable>
+    </ResponsiveDataTable>
   </div>
 </template>

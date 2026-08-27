@@ -1,8 +1,10 @@
 import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { clearAuthTokens, getAccessToken, getRefreshToken, isRememberedSession, storeAuthTokens } from '@/utils/authStorage'
-import { apiErrorMessage, type ApiError } from '@/utils/apiErrors'
+import { apiErrorMessage, apiFieldErrors, type ApiError } from '@/utils/apiErrors'
 import { isApiRequestAllowed, permissionsForApiRequest } from '@/utils/apiAuthorization'
 import { validateApiRequest } from '@/utils/apiValidation'
+import { clearFormErrors, replaceFormErrors } from '@/utils/formErrors'
+import { currentLocale } from '@/utils/localization'
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
@@ -16,8 +18,13 @@ const api: AxiosInstance = axios.create({
 // Request interceptor for adding the authorization token
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (['post', 'put', 'patch', 'delete'].includes((config.method ?? '').toLowerCase()))
+      clearFormErrors()
+    config.headers['Accept-Language'] = currentLocale()
+
     const errors = validateApiRequest(config)
     if (Object.keys(errors).length) {
+      replaceFormErrors(errors)
       const apiError: ApiError = {
         code: 'validation_failed',
         errors,
@@ -101,6 +108,10 @@ api.interceptors.response.use(
           const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || '/api'}/auth/refresh-token`, {
             refresh_token: refreshToken,
             remember: isRememberedSession(),
+          }, {
+            headers: {
+              'Accept-Language': currentLocale(),
+            },
           })
 
           const tokens = response.data.data
@@ -127,6 +138,9 @@ api.interceptors.response.use(
       } as ApiError
 
       apiError.message = apiErrorMessage(apiError)
+
+      if (apiError.status === 422 && apiError.errors)
+        replaceFormErrors(apiFieldErrors(apiError))
 
       if (typeof window !== 'undefined')
         window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))

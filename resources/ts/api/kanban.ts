@@ -13,6 +13,8 @@ export interface Task {
   boardId: string;
   title: string;
   description: string;
+  results: string;
+  attachments: TaskAttachment[];
   priority: 'low' | 'medium' | 'high' | 'urgent';
   progress: number;
   startDate: string;
@@ -29,11 +31,22 @@ export interface Task {
   managerQualityScore: number | null;
 }
 
+export interface TaskAttachment {
+  id: string;
+  section: 'input' | 'results';
+  name: string;
+  mimeType: string | null;
+  size: number;
+  uploadedAt: string | null;
+  downloadUrl: string;
+  url: string;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  avatar: string;
+  avatar: string | null;
   contributionPercent?: number | null;
 }
 
@@ -62,6 +75,7 @@ export interface Comment {
   taskId: string;
   senderName: string;
   senderId: string;
+  senderAvatar: string | null;
   content: string;
   timestamp: string;
   createdAt: string | null;
@@ -84,6 +98,7 @@ export interface CreateTaskData {
   board_id: string;
   title: string;
   description?: string;
+  results?: string;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   start_date?: string;
   due_date?: string;
@@ -92,6 +107,7 @@ export interface CreateTaskData {
 export interface UpdateTaskData {
   title?: string;
   description?: string;
+  results?: string;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   progress?: number;
   start_date?: string;

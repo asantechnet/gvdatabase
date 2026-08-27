@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Visitor;
+use App\Models\Customer;
 use App\Http\Resources\VisitorResource;
+use App\Http\Resources\CustomerResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class VisitorController extends Controller
 {
@@ -94,5 +97,24 @@ class VisitorController extends Controller
         $visitor->delete();
 
         return response()->json(null, 204);
+    }
+
+    public function convertToCustomer(Visitor $visitor): CustomerResource
+    {
+        $customer = DB::transaction(function () use ($visitor) {
+            $customer = Customer::create([
+                'name' => $visitor->name,
+                'company' => $visitor->company,
+                'contact' => $visitor->contact,
+                'marketer' => $visitor->marketer,
+                'date' => now()->toDateString(),
+            ]);
+
+            $visitor->delete();
+
+            return $customer;
+        });
+
+        return new CustomerResource($customer->load('customerServices.service.currency'));
     }
 }

@@ -21,13 +21,14 @@ class Invoice extends Model
         'issue_date', 'due_date',
         'tax_percent',
         'currency_name',
-        'currency_rate',
+        'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',
         'currency_symbol',
         'currency_shortname',
         'subtotal',
         'amount',
         'discount',
         'notes',
+        'payment_detail_id',
         'payment_method',
         'payment_instructions',
         'voided_at',
@@ -40,7 +41,7 @@ class Invoice extends Model
         'amount' => 'decimal:2',
         'subtotal' => 'decimal:2',
         'discount' => 'decimal:2',
-        'currency_rate' => 'decimal:6',
+        'rate' => 'decimal:8', 'base_amount' => 'decimal:4',
         'voided_at' => 'datetime',
         'issue_date' => 'date',
         'due_date' => 'date',
@@ -48,7 +49,7 @@ class Invoice extends Model
 
     protected $attributes = [
         'currency_name' => 'US Dollar',
-        'currency_rate' => 1,
+        'rate' => 1,
         'currency_symbol' => '$',
         'currency_shortname' => 'USD',
         'discount' => 0,
@@ -73,8 +74,7 @@ class Invoice extends Model
                 'snapshot_service_fee',
                 'snapshot_service_currency_code',
                 'snapshot_service_currency_symbol',
-                'snapshot_service_currency_rate',
-                'snapshot_invoice_currency_rate',
+                'snapshot_cnv_curr_shrt', 'snapshot_base_curr_shrt', 'snapshot_rate',
                 'snapshot_converted_fee',
                 'quantity',
                 'line_total',
@@ -95,5 +95,10 @@ class Invoice extends Model
     public function incomes()
     {
         return $this->hasMany(Income::class);
+    }
+
+    public function paymentDetail()
+    {
+        return $this->belongsTo(PaymentDetail::class);
     }
 }

@@ -1,7 +1,8 @@
 import type { Router } from "vue-router";
-import { getAccessToken } from '@/utils/authStorage'
+import { getAccessToken, getStoredPermissions } from '@/utils/authStorage'
 import { canNavigate } from '@layouts/plugins/casl'
-import { canAccess } from '@/utils/authorization'
+import { applyPermissions, canAccess } from '@/utils/authorization'
+import { useCookie } from '@core/composable/useCookie'
 
 const authorizedLandingRoute = () => {
   if (canAccess('view_dashboard')) return { name: 'home' }
@@ -13,6 +14,19 @@ const authorizedLandingRoute = () => {
 }
 
 export const setupGuards = (router: Router) => {
+  // The router is installed before the CASL Vue plugin. Restore permissions
+  // here so a browser refresh authorizes the current URL instead of treating
+  // the still-unhydrated ability as empty and redirecting to account settings.
+  const persistedPermissions = getStoredPermissions()
+  if (persistedPermissions.length) {
+    applyPermissions(persistedPermissions)
+  }
+  else {
+    const persistedUser = useCookie<{ permissions?: string[] } | null>('userData')
+    if (persistedUser.value?.permissions)
+      applyPermissions(persistedUser.value.permissions)
+  }
+
   router.beforeEach((to) => {
     if (to.meta.public) return true;
 

@@ -6,6 +6,7 @@ use App\Http\Resources\InvoiceResource;
 use App\Models\Currency;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\PaymentDetail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -51,6 +52,7 @@ class InvoiceController extends Controller
                 'integer',
                 Rule::exists('currencies', 'id')->where('is_active', true),
             ],
+            'rate' => ['required', 'numeric', 'gt:0'],
             'class_type' => ['required', Rule::in(['Standard', 'Proforma', 'Credit Note', 'Debit Note'])],
             'issue_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
@@ -60,6 +62,11 @@ class InvoiceController extends Controller
             'tax_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'discount' => ['sometimes', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
+            'payment_detail_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('payment_details', 'id')->whereNull('deleted_at'),
+            ],
             'payment_method' => ['nullable', 'string', 'max:255'],
             'payment_instructions' => ['nullable', 'array'],
             'payment_instructions.*' => ['string'],
@@ -80,11 +87,7 @@ class InvoiceController extends Controller
                 ]);
             }
 
-            if ((float) $invoiceCurrency->rate_against_base <= 0) {
-                throw ValidationException::withMessages([
-                    'currency_id' => 'business.currency_rate_invalid',
-                ]);
-            }
+            $baseCurrency = Currency::query()->where('is_base', true)->firstOrFail();
 
             $pivotRows = [];
             $subtotal = 0.0;
@@ -93,7 +96,7 @@ class InvoiceController extends Controller
                 $service = $assignedServices->get($row['id'])->service;
                 $sourceCurrency = $service->currency;
 
-                if (!$sourceCurrency || (float) $sourceCurrency->rate_against_base <= 0) {
+                if (!$sourceCurrency || (float) $sourceCurrency->rate <= 0) {
                     throw ValidationException::withMessages([
                         'services' => 'business.service_currency_rate_invalid',
                     ]);
@@ -101,8 +104,8 @@ class InvoiceController extends Controller
 
                 $quantity = $row['quantity'] ?? 1;
                 $convertedFee = round(
-                    ((float) $service->fee / (float) $sourceCurrency->rate_against_base)
-                    * (float) $invoiceCurrency->rate_against_base,
+                    ((float) $service->fee / (float) $sourceCurrency->rate)
+                    * (float) $validated['rate'],
                     $invoiceCurrency->decimal_places
                 );
                 $lineTotal = round($convertedFee * $quantity, 2);
@@ -113,8 +116,9 @@ class InvoiceController extends Controller
                     'snapshot_service_fee' => $service->fee,
                     'snapshot_service_currency_code' => $sourceCurrency->code,
                     'snapshot_service_currency_symbol' => $sourceCurrency->symbol,
-                    'snapshot_service_currency_rate' => $sourceCurrency->rate_against_base,
-                    'snapshot_invoice_currency_rate' => $invoiceCurrency->rate_against_base,
+                    'snapshot_cnv_curr_shrt' => $invoiceCurrency->code,
+                    'snapshot_base_curr_shrt' => $baseCurrency->code,
+                    'snapshot_rate' => $validated['rate'],
                     'snapshot_converted_fee' => $convertedFee,
                     'quantity' => $quantity,
                     'line_total' => $lineTotal,
@@ -125,6 +129,9 @@ class InvoiceController extends Controller
             $taxAmount = round($subtotal * ((float) $validated['tax_percent'] / 100), 2);
             $discount = round((float) ($validated['discount'] ?? 0), 2);
             $amount = max(0, round($subtotal + $taxAmount - $discount, 2));
+            $paymentDetail = isset($validated['payment_detail_id'])
+                ? PaymentDetail::findOrFail($validated['payment_detail_id'])
+                : null;
 
             $invoice = Invoice::create([
                 'customer_id' => $customer->id,
@@ -141,15 +148,21 @@ class InvoiceController extends Controller
                 'due_date' => $validated['due_date'] ?? now()->addDays(30)->toDateString(),
                 'tax_percent' => $validated['tax_percent'],
                 'currency_name' => $invoiceCurrency->name,
-                'currency_rate' => $invoiceCurrency->rate_against_base,
+                'cnv_curr_shrt' => $invoiceCurrency->code,
+                'base_curr_shrt' => $baseCurrency->code,
+                'rate' => $validated['rate'],
+                'base_amount' => round($amount * (float) $validated['rate'], 4),
                 'currency_symbol' => $invoiceCurrency->symbol,
                 'currency_shortname' => $invoiceCurrency->code,
                 'subtotal' => $subtotal,
                 'amount' => $amount,
                 'discount' => $discount,
                 'notes' => $validated['notes'] ?? null,
-                'payment_method' => $validated['payment_method'] ?? null,
-                'payment_instructions' => $validated['payment_instructions'] ?? [],
+                'payment_detail_id' => $paymentDetail?->id,
+                'payment_method' => $paymentDetail?->method ?? ($validated['payment_method'] ?? null),
+                'payment_instructions' => $paymentDetail
+                    ? preg_split('/\R/u', $paymentDetail->instruction, -1, PREG_SPLIT_NO_EMPTY)
+                    : ($validated['payment_instructions'] ?? []),
             ]);
 
             $invoice->assignDocumentNumber();

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Http\Resources\AttendanceResource;
+use App\Http\Resources\DailyReportResource;
 use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ class AttendanceController extends Controller
     /**
      * Fetch attendance records within a given date range.
      */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request, AttendanceCalculationService $calculator): AnonymousResourceCollection
     {
         $request->validate([
             'start_date' => 'sometimes|date',
@@ -34,7 +35,10 @@ class AttendanceController extends Controller
         $startDate = $request->input('start_date', now()->format('Y-m-d'));
         $endDate = $request->input('end_date', now()->format('Y-m-d'));
 
+        // Daily-report contents deliberately stay out of this list query. The
+        // timesheet fetches an individual report only when it is opened.
         $records = Attendance::with(['staff.position', 'office'])
+            ->withExists('dailyReport')
             ->betweenDates($startDate, $endDate)
             ->when($request->filled('employee_id'), fn ($query) => $query->where('employee_id', $request->integer('employee_id')))
             ->when($request->filled('office_id'), fn ($query) => $query->where('office_id', $request->integer('office_id')))
@@ -46,6 +50,32 @@ class AttendanceController extends Controller
             ->orderBy('logged_at', 'desc')
             ->get();
 
+        // Office hours can change after a row was recorded. Refresh stale
+        // summaries before returning them so overtime always reflects the
+        // current worked-time-minus-office-time calculation.
+        $records->each(fn (Attendance $attendance) => $calculator->calculate($attendance));
+
+        return AttendanceResource::collection($records);
+    }
+
+    /** Fetch the daily report for one attendance row, on demand. */
+    public function dailyReport(Attendance $attendance): DailyReportResource
+    {
+        $report = $attendance->dailyReport()->firstOrFail();
+
+        return new DailyReportResource($report);
+    }
+
+    /** Current users can only access their own attendance and submitted reports. */
+    public function mine(Request $request, AttendanceCalculationService $calculator): AnonymousResourceCollection
+    {
+        $request->validate(['start_date' => ['sometimes', 'date'], 'end_date' => ['sometimes', 'date', 'after_or_equal:start_date']]);
+        $employeeId = $request->user()->employee?->id;
+        abort_unless($employeeId, 404, 'Employee profile not found.');
+        $records = Attendance::with(['staff.position', 'office', 'dailyReport'])
+            ->betweenDates($request->input('start_date', now()->startOfMonth()->toDateString()), $request->input('end_date', now()->toDateString()))
+            ->where('employee_id', $employeeId)->latest('date')->get();
+        $records->each(fn (Attendance $attendance) => $calculator->calculate($attendance));
         return AttendanceResource::collection($records);
     }
 

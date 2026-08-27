@@ -2,6 +2,7 @@
 import AuthApi from '@/api/auth'
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
+import ForgotPasswordForm from '@/components/forms/ForgotPasswordForm.vue'
 
 const route = useRoute()
 const email = ref(typeof route.query.email === 'string' ? route.query.email : '')
@@ -38,10 +39,7 @@ const submit = async () => {
         <p class="text-medium-emphasis">{{ $t('pages.auth.forgotPassword.forgotPassword.enterYourAccountEmailAndWeLlSendYouASecureResetLink') }}</p>
         <VAlert v-if="status" type="success" variant="tonal" class="mb-4">{{ status }}</VAlert>
         <VAlert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</VAlert>
-        <VForm @submit.prevent="submit">
-          <VTextField v-model="email" type="email" :label="$t('common.fields.email')" autocomplete="email" required class="mb-4" />
-          <VBtn block type="submit" :loading="loading">{{ $t('pages.auth.forgotPassword.forgotPassword.sendResetLink') }}</VBtn>
-        </VForm>
+        <ForgotPasswordForm v-model:email="email" :loading="loading" @submit="submit" />
         <div class="text-center mt-5"><RouterLink :to="{ name: 'login' }">{{ $t('common.messages.backToLogin') }}</RouterLink></div>
       </VCardText>
     </VCard>

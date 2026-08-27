@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import PrintableListReport from '@/components/PrintableListReport.vue'
 import { ref, computed, onMounted } from 'vue'
+import { useToast } from 'vue-toastification'
 import VisitorApi, { type Visitor, type CreateVisitorData, type UpdateVisitorData } from '@/api/visitor'
 import MarketerApi, { type Marketer } from '@/api/marketer'
+import { printDocument } from '@/utils/printDocument'
+import ContactActionMenu from '@/components/ContactActionMenu.vue'
 
 const visitors = ref<Visitor[]>([])
 const search = ref('')
@@ -12,7 +16,9 @@ const isEditVisitorDialogVisible = ref(false)
 const isDeleteVisitorDialogVisible = ref(false)
 const selectedVisitor = ref<Visitor | null>(null)
 const isLoading = ref(false)
+const convertingVisitorId = ref<number | null>(null)
 const marketerDirectory = ref<Marketer[]>([])
+const toast = useToast()
 
 const visitorData = ref<Omit<Visitor, 'id' | 'date'>>({
   name: '',
@@ -148,7 +154,7 @@ const headers = [
 ]
 
 const printTable = () => {
-  window.print()
+  void printDocument({ bodyClass: 'printing-visitor-list', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 }
 
 const addNewVisitor = async () => {
@@ -225,6 +231,19 @@ const openDeleteDialog = (visitor: Visitor) => {
   isDeleteVisitorDialogVisible.value = true
 }
 
+const convertToCustomer = async (visitor: Visitor) => {
+  try {
+    convertingVisitorId.value = visitor.id
+    await VisitorApi.convertToCustomer(visitor.id)
+    visitors.value = visitors.value.filter(item => item.id !== visitor.id)
+    toast.success(translate('pages.contracts.visitor.visitor.convertedToCustomer'))
+  } catch {
+    toast.error(translate('pages.contracts.visitor.visitor.unableToConvertToCustomer'))
+  } finally {
+    convertingVisitorId.value = null
+  }
+}
+
 const deleteVisitor = async () => {
   if (!selectedVisitor.value) return
 
@@ -261,13 +280,14 @@ onMounted(() => {
 </script>
 
 <template>
+  <DataTablePageKpis :items="filtered" title="Visitors" description="Review visitor activity and maintain a clear record of every entry." icon="tabler-door-enter" />
   <VCard>
     <VCardText>
-      <VRow align="center">
-        <VCol cols="12" md="4">
+      <VRow align="center" class="table-toolbar">
+        <VCol cols="12" md="7">
           <VTextField
             v-model="search"
-            prepend-inner-icon="tabler-search"
+            class="data-table-search" prepend-inner-icon="tabler-search"
             :placeholder="$t('pages.contracts.visitor.visitor.searchVisitors')"
             density="compact"
             clearable
@@ -275,29 +295,12 @@ onMounted(() => {
             @input="fetchVisitors"
           />
         </VCol>
-        <VCol cols="12" sm="6" md="3">
-          <VSelect
-            v-model="filterCompany"
-            :items="companies"
-            :label="$t('pages.contracts.visitor.visitor.filterByCompany')"
-            density="compact"
-            clearable
-            hide-details
-            @update:modelValue="fetchVisitors"
-          />
-        </VCol>
-        <VCol cols="12" sm="6" md="3">
-          <VSelect
-            v-model="filterMarketer"
-            :items="marketers"
-            :label="$t('pages.contracts.visitor.visitor.filterByMarketer')"
-            density="compact"
-            clearable
-            hide-details
-            @update:modelValue="fetchVisitors"
-          />
-        </VCol>
-        <VCol cols="12" md="2" class="text-end d-flex gap-2 justify-end">
+        <VCol cols="12" md="5" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2">
+          <DataTableFilterMenu :active="Boolean(filterCompany || filterMarketer)"
+            @reset="filterCompany = null; filterMarketer = null; fetchVisitors()">
+            <VSelect v-model="filterCompany" :items="companies" :label="$t('pages.contracts.visitor.visitor.filterByCompany')" density="compact" clearable hide-details @update:modelValue="fetchVisitors" />
+            <VSelect v-model="filterMarketer" :items="marketers" :label="$t('pages.contracts.visitor.visitor.filterByMarketer')" density="compact" clearable hide-details @update:modelValue="fetchVisitors" />
+          </DataTableFilterMenu>
           <VBtn
             icon="tabler-printer"
             variant="text"
@@ -315,7 +318,7 @@ onMounted(() => {
       </VRow>
     </VCardText>
 
-    <VDataTable
+    <ResponsiveDataTable
       :headers="headers"
       :items="filtered"
       item-value="id"
@@ -324,30 +327,35 @@ onMounted(() => {
       mobile-breakpoint="sm"
       style="overflow-x: auto;"
     >
+      <template #item.contact="{ item }">
+        <ContactActionMenu kind="phone" :value="item.contact" />
+      </template>
+
       <template #item.actions="{ item }">
         <div class="d-flex gap-1">
+          <FullDetailsButton :item="item" :title="item.name" />
+          <VBtn icon="tabler-user-check" variant="text" size="small" color="success" @click="convertToCustomer(item)" :loading="convertingVisitorId === item.id" :disabled="convertingVisitorId !== null"><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.convertToCustomer') }}</VTooltip></VBtn>
           <VBtn
             icon="tabler-edit"
             variant="text"
             size="small"
             color="medium-emphasis"
             @click="openEditDialog(item)"
-            :title="$t('pages.contracts.visitor.visitor.editVisitor')"
             :loading="isLoading"
-          />
+          ><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.editVisitor') }}</VTooltip></VBtn>
           <VBtn
             icon="tabler-trash"
             variant="text"
             size="small"
             color="error"
             @click="openDeleteDialog(item)"
-            :title="$t('pages.contracts.visitor.visitor.deleteVisitor')"
             :loading="isLoading"
-          />
+          ><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.deleteVisitor') }}</VTooltip></VBtn>
         </div>
       </template>
-    </VDataTable>
+    </ResponsiveDataTable>
   </VCard>
+  <PrintableListReport title="Visitors Report" subtitle="Filtered visitor records" :columns="headers.slice(0, -1).map(header => header.title)" :rows="filtered.map(visitor => [visitor.name, visitor.company, visitor.contact, visitor.service, visitor.marketer, visitor.date])" />
 
   <!-- Add New Visitor Dialog -->
   <VDialog v-model="isAddNewVisitorDialogVisible" max-width="600">
@@ -357,7 +365,7 @@ onMounted(() => {
       </VCardTitle>
 
       <VCardText>
-        <VForm @submit.prevent="addNewVisitor">
+        <VForm class="app-form" @submit.prevent="addNewVisitor">
           <VRow>
             <VCol cols="12" md="6">
               <VTextField
@@ -448,7 +456,7 @@ onMounted(() => {
       </VCardTitle>
 
       <VCardText>
-        <VForm @submit.prevent="editVisitor">
+        <VForm class="app-form" @submit.prevent="editVisitor">
           <VRow>
             <VCol cols="12" md="6">
               <VTextField
@@ -563,3 +571,19 @@ onMounted(() => {
     </VCard>
   </VDialog>
 </template>
+
+<style>
+@media print {
+  body.printing-visitor-list .v-card,
+  body.printing-visitor-list .v-card > .v-card-text,
+  body.printing-visitor-list .v-data-table__td:last-child,
+  body.printing-visitor-list .v-data-table__th:last-child,
+  body.printing-visitor-list .v-data-table-footer,
+  body.printing-visitor-list .layout-navbar,
+  body.printing-visitor-list .layout-menu,
+  body.printing-visitor-list .layout-footer { display: none !important; }
+  body.printing-visitor-list .v-main,
+  body.printing-visitor-list .layout-page-content { padding: 0 !important; margin: 0 !important; }
+}
+@media (max-width: 1279px) { .table-toolbar-actions { justify-content: flex-start; } }
+</style>

@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\RoleResource;
 use App\Models\Permission;
-use App\Models\RolePermission;
-use App\Support\RoleCatalog;
+use App\Models\Role;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+
+
 
 class RoleController extends Controller
 {
@@ -14,26 +17,89 @@ class RoleController extends Controller
     {
         abort_unless($request->user()->hasPermission('view_roles'), 403, 'auth.forbidden');
 
-        $permissions = Permission::query()->orderBy('category')->orderBy('name')->get(['id', 'name', 'category']);
-        $grants = RolePermission::query()->get()->groupBy('role');
+        $roles = Role::query()
+            ->with(['permissions', 'users' => function ($query) {
+                // Eager load only the necessary user fields and their related employee avatar
+                $query->select('users.id', 'users.name')
+                    ->with('employee:id,user_id,avatar');
+            }])
+            ->withCount('users')
+            ->orderBy('name')
+            ->get();
 
-        return response()->json(['success' => true, 'data' => collect(RoleCatalog::NAMES)->map(function (string $role) use ($permissions, $grants) {
-            $permissionIds = $role === 'super_admin'
-                ? $permissions->pluck('id')->all()
-                : $grants->get($role, collect())->pluck('permission_id')->all();
+        $allPermissions = Permission::query()->orderBy('name')->get();
 
-            return [
-                'name' => $role,
-                'permissions' => $permissions->whereIn('id', $permissionIds)->pluck('name')->values(),
-            ];
-        })->values()]);
+        $roles->each(function (Role $role) use ($allPermissions) {
+            if ($role->name === 'super_admin') {
+                $role->setRelation('permissions', $allPermissions);
+            }
+        });
+
+        return response()->json(['success' => true, 'data' => RoleResource::collection($roles)]);
     }
 
-    public function updatePermissions(Request $request, string $role): JsonResponse
+    public function show(Request $request, Role $role): JsonResponse
+    {
+        abort_unless($request->user()->hasPermission('view_roles'), 403, 'auth.forbidden');
+
+        $role->load('permissions');
+
+        return response()->json(['success' => true, 'data' => new RoleResource($role)]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->hasPermission('create_roles'), 403, 'auth.forbidden');
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255|unique:roles,name',
+        ]);
+        $validator->validate();
+
+        $role = Role::create($validator->validated());
+
+        return response()->json([
+            'success' => true,
+            'data' => new RoleResource($role),
+        ], 201);
+    }
+
+    public function update(Request $request, Role $role): JsonResponse
+    {
+        abort_unless($request->user()->hasPermission('edit_roles'), 403, 'auth.forbidden');
+        abort_if($role->name === 'super_admin', 422, 'business.request_rejected');
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'sometimes|string|max:255|unique:roles,name,' . $role->id,
+        ]);
+        $validator->validate();
+
+        $role->update($validator->validated());
+
+        return response()->json([
+            'success' => true,
+            'data' => new RoleResource($role),
+        ]);
+    }
+
+    public function destroy(Request $request, Role $role): JsonResponse
+    {
+        abort_unless($request->user()->hasPermission('delete_roles'), 403, 'auth.forbidden');
+        abort_if($role->name === 'super_admin', 422, 'business.request_rejected');
+
+        $role->delete();
+
+        return response()->json(['success' => true, 'message' => 'Role deleted successfully.']);
+    }
+
+    /**
+     * Assign which existing permissions a role has (writes the role_permissions
+     * pivot). The permission catalog itself is system-owned and read-only.
+     */
+    public function updatePermissions(Request $request, Role $role): JsonResponse
     {
         abort_unless($request->user()->hasPermission('manage_role_permissions'), 403, 'auth.forbidden');
-        abort_unless(RoleCatalog::isKnown($role), 404);
-        abort_if($role === 'super_admin', 422, 'business.request_rejected');
+        abort_if($role->name === 'super_admin', 422, 'business.request_rejected');
 
         $data = $request->validate([
             'permissions' => ['required', 'array'],
@@ -41,17 +107,13 @@ class RoleController extends Controller
         ]);
 
         $ids = Permission::query()->whereIn('name', $data['permissions'])->pluck('id')->all();
-        RolePermission::query()->where('role', $role)->delete();
-        RolePermission::query()->insert(array_map(fn (int $permissionId) => [
-            'role' => $role,
-            'permission_id' => $permissionId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ], $ids));
+        $role->permissions()->sync($ids);
 
-        return response()->json(['success' => true, 'data' => [
-            'name' => $role,
-            'permissions' => Permission::query()->whereIn('id', $ids)->orderBy('name')->pluck('name')->values(),
-        ]]);
+        $role->load('permissions');
+
+        return response()->json([
+            'success' => true,
+            'data' => new RoleResource($role),
+        ]);
     }
 }

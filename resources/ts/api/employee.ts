@@ -41,6 +41,13 @@ export interface Employee {
   avatar?: string | null;
 }
 
+export interface EmployeeAccount {
+  id: number
+  name: string
+  email: string
+  employee: { id: number; name: string } | null
+}
+
 export interface EmployeeParams {
   page?: number;
   perPage?: number;
@@ -49,6 +56,7 @@ export interface EmployeeParams {
 }
 
 export interface CreateEmployeeData {
+  user_id?: number | null;
   name: string;
   father_name: string;
   contact: string;
@@ -75,6 +83,7 @@ export interface CreateEmployeeData {
 }
 
 export interface UpdateEmployeeData {
+  user_id?: number | null;
   name?: string;
   father_name?: string;
   contact?: string;
@@ -102,6 +111,11 @@ export interface UpdateEmployeeData {
 
 // Employee API endpoints
 const EmployeeApi = {
+  getAccountOptions: async (): Promise<EmployeeAccount[]> => {
+    const response = await api.get<{ data: EmployeeAccount[] }>('/employees/account-options')
+    return Array.isArray(response.data.data) ? response.data.data : []
+  },
+
   // Normalized list for selectors; keep legacy getAll response until its consumers are migrated.
   getOptions: async (): Promise<Employee[]> => {
     const response = await api.get<{ data: Employee[] }>("/employees");

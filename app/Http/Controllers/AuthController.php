@@ -208,7 +208,7 @@ class AuthController extends Controller
             || ! $user instanceof User
             || $user->acc_status !== 'active'
             || ! $user->hasVerifiedEmail()) {
-            return response()->json(['success' => false, 'message' => 'The refresh token is invalid or expired.'], 401);
+            return response()->json(['success' => false, 'code' => 'auth.refresh_token_invalid'], 401);
         }
 
         $remember = $request->has('remember')
@@ -250,7 +250,7 @@ class AuthController extends Controller
         $request->validate(['avatar' => 'required|file|image|mimes:jpg,jpeg,png,gif,webp|max:800']);
         $employee = $this->employeeFor($request->user());
         if (! $employee) {
-            return response()->json(['success' => false, 'message' => 'No employee profile is associated with this account.'], 404);
+            return response()->json(['success' => false, 'code' => 'business.employee_profile_missing'], 404);
         }
 
         $file = $request->file('avatar');
@@ -267,7 +267,7 @@ class AuthController extends Controller
     {
         $employee = $this->employeeFor($request->user());
         if (! $employee) {
-            return response()->json(['success' => false, 'message' => 'No employee profile is associated with this account.'], 404);
+            return response()->json(['success' => false, 'code' => 'business.employee_profile_missing'], 404);
         }
         $this->deleteAvatar($employee->avatar);
         $employee->update(['avatar' => null]);
@@ -280,7 +280,7 @@ class AuthController extends Controller
         $data = $request->validate(['current_password' => 'required|string', 'password' => 'required|string|min:8|confirmed']);
         $user = $request->user();
         if (! Hash::check($data['current_password'], $user->password)) {
-            return response()->json(['success' => false, 'errors' => ['current_password' => ['The current password is incorrect.']]], 422);
+            return response()->json(['success' => false, 'code' => 'validation_failed', 'errors' => ['current_password' => ['business.current_password_invalid']]], 422);
         }
         $user->forceFill(['password' => Hash::make($data['password'])])->save();
         $user->tokens()->whereKeyNot($user->currentAccessToken()?->id)->delete();
@@ -319,7 +319,7 @@ class AuthController extends Controller
         $request->validate(['code' => 'required|digits:6']);
         $user = $request->user();
         if (! $user->two_factor_secret || ! $this->validTotp($user->two_factor_secret, $request->code)) {
-            return response()->json(['success' => false, 'message' => 'Invalid authentication code.'], 422);
+            return response()->json(['success' => false, 'code' => 'validation_failed', 'errors' => ['code' => ['business.two_factor_code_invalid']]], 422);
         }
         $user->forceFill(['two_factor_confirmed_at' => now()])->save();
 
@@ -331,7 +331,7 @@ class AuthController extends Controller
         $request->validate(['password' => 'required|string']);
         $user = $request->user();
         if (! Hash::check($request->password, $user->password)) {
-            return response()->json(['success' => false, 'message' => 'Invalid password.'], 422);
+            return response()->json(['success' => false, 'code' => 'validation_failed', 'errors' => ['password' => ['business.current_password_invalid']]], 422);
         }
         $user->forceFill(['two_factor_secret' => null, 'two_factor_confirmed_at' => null])->save();
 
@@ -343,7 +343,7 @@ class AuthController extends Controller
         $request->validate(['password' => 'required|string']);
         $user = $request->user();
         if (! Hash::check($request->password, $user->password)) {
-            return response()->json(['success' => false, 'message' => 'Invalid password.'], 422);
+            return response()->json(['success' => false, 'code' => 'validation_failed', 'errors' => ['password' => ['business.current_password_invalid']]], 422);
         }
         $user->tokens()->whereKeyNot($user->currentAccessToken()?->id)->delete();
 

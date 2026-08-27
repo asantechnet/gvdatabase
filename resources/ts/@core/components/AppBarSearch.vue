@@ -27,7 +27,7 @@ const { ctrl_k, meta_k } = useMagicKeys({
 })
 
 const refSearchList = ref<VList>()
-const refSearchInput = ref<HTMLInputElement>()
+const refSearchInput = ref<{ focus?: () => void }>()
 const searchQueryLocal = ref('')
 
 // 👉 watching control + / to open dialog
@@ -42,6 +42,7 @@ watch([
 // 👉 clear search result and close the dialog
 const clearSearchAndCloseDialog = () => {
   searchQueryLocal.value = ''
+  emit('search', '')
   emit('update:isDialogVisible', false)
 }
 
@@ -59,23 +60,29 @@ const getFocusOnSearchList = (e: KeyboardEvent) => {
 
 const dialogModelValueUpdate = (val: boolean) => {
   searchQueryLocal.value = ''
+  emit('search', '')
   emit('update:isDialogVisible', val)
 }
 
 // 👉 clear search query when redirect to another page
 watch(
   () => props.isDialogVisible,
-  () => { searchQueryLocal.value = '' },
+  isVisible => {
+    searchQueryLocal.value = ''
+    emit('search', '')
+    if (isVisible) nextTick(() => refSearchInput.value?.focus?.())
+  },
 )
 </script>
 
 <template>
   <VDialog
-    max-width="600"
+    max-width="680"
     :model-value="props.isDialogVisible"
     :height="$vuetify.display.smAndUp ? '531' : '100%'"
     :fullscreen="$vuetify.display.width < 600"
     class="app-bar-search-dialog"
+    aria-label="Command palette"
     @update:model-value="dialogModelValueUpdate"
     @keyup.esc="clearSearchAndCloseDialog"
   >
@@ -96,6 +103,7 @@ watch(
           density="compact"
           variant="plain"
           class="app-bar-search-input"
+          aria-label="Search commands and modules"
           @keyup.esc="clearSearchAndCloseDialog"
           @keydown="getFocusOnSearchList"
           @update:model-value="$emit('search', searchQueryLocal)"

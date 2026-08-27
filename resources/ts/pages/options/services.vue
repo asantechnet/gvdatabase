@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ServiceForm from '@/components/forms/ServiceForm.vue'
 import ServiceApi, { type CreateServiceData, type UpdateServiceData } from '@/api/services'
 import CurrencyApi from '@/api/currency'
 import { computed, onMounted, ref } from 'vue'
@@ -206,7 +207,10 @@ const openEditModal = (item: ServiceItem) => {
   isDialogVisible.value = true
 }
 
-const saveService = async () => {
+const saveService = async (formData?: Omit<ServiceItem, 'id' | 'currency'>) => {
+  if (formData)
+    editedItem.value = { ...editedItem.value, ...formData }
+
   try {
     if (editedItemId.value === null) {
       await createService()
@@ -238,12 +242,13 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
 </script>
 
 <template>
+  <DataTablePageKpis :items="services" title="Services" description="Manage your service catalogue and quickly review its current availability." icon="tabler-tools" />
   <VCard>
     <!-- Card Header & Actions -->
     <VCardText class="d-flex flex-wrap gap-4 align-center justify-space-between">
       <div class="d-flex align-center gap-4 flex-wrap">
         <VTextField v-model="searchQuery" :placeholder="$t('pages.contracts.services.services.searchService')" density="compact" hide-details
-          prepend-inner-icon="tabler-search" style="max-inline-size: 280px; min-inline-size: 220px;" />
+          class="data-table-search" prepend-inner-icon="tabler-search" style="max-inline-size: 280px; min-inline-size: 220px;" />
       </div>
 
       <VBtn color="primary" prepend-icon="tabler-plus" @click="openCreateModal">
@@ -254,7 +259,7 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
     <VDivider />
 
     <!-- Data Table -->
-    <VDataTable :headers="headers" :items="services" :search="searchQuery" :loading="isLoading" item-value="id"
+    <ResponsiveDataTable :headers="headers" :items="services" :search="searchQuery" :loading="isLoading" item-value="id"
       class="text-no-wrap">
       <!-- FEE Slot -->
       <template #item.fee="{ item }">
@@ -276,6 +281,7 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
       <!-- ACTIONS Slot -->
       <template #item.actions="{ item }">
         <div class="d-flex justify-end gap-2">
+          <FullDetailsButton :item="item" :title="item.type" />
           <VBtn icon variant="text" size="small" color="default" @click="openEditModal(item)">
             <VIcon icon="tabler-edit" />
           </VBtn>
@@ -292,48 +298,10 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
           <VProgressCircular indeterminate color="primary" />
         </div>
       </template>
-    </VDataTable>
+    </ResponsiveDataTable>
   </VCard>
 
-  <!-- Create / Edit Dialog -->
-  <VDialog v-model="isDialogVisible" max-width="600" persistent>
-    <VCard :title="formTitle">
-      <VCardText>
-        <VRow>
-          <VCol cols="12" md="8">
-            <VTextField v-model="editedItem.type" :label="$t('common.messages.serviceType')" :placeholder="$t('pages.contracts.services.services.eGWebsiteMaintenance')"
-              required />
-          </VCol>
-
-          <VCol cols="12" md="4">
-            <VSelect v-model="editedItem.currency_id" :items="currencyOptions" :label="$t('common.fields.currency')" item-title="title"
-              item-value="value" />
-          </VCol>
-
-          <VCol cols="12" md="6">
-            <VTextField v-model.number="editedItem.fee" :label="$t('pages.contracts.services.services.fee')" type="number" min="0" step="0.01" />
-          </VCol>
-
-          <VCol cols="12" md="6">
-            <VTextField v-model.number="editedItem.duration" :label="$t('pages.contracts.services.services.durationMonths')" type="number" min="1" />
-          </VCol>
-
-          <VCol cols="12" md="6">
-            <VSelect v-model="editedItem.status" :items="statusOptions" :label="$t('common.fields.status')" />
-          </VCol>
-        </VRow>
-      </VCardText>
-
-      <VCardActions class="justify-end gap-2 pa-4">
-        <VBtn variant="tonal" color="secondary" @click="isDialogVisible = false" :disabled="isLoading">
-          {{ $t('common.actions.cancel') }}
-        </VBtn>
-        <VBtn color="primary" @click="saveService" :loading="isLoading">
-          {{ $t('common.actions.save') }}
-        </VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
+  <ServiceForm v-model="isDialogVisible" :initial-item="editedItem" :currency-options="currencyOptions" :loading="isLoading" :title="formTitle" @submit="saveService" />
 
   <!-- Delete Confirmation Dialog -->
   <VDialog v-model="isDeleteDialogVisible" max-width="400">

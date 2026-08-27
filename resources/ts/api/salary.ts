@@ -18,7 +18,7 @@ export interface Salary {
   employeeAvatar: string | null
   salaryMonth: string
   currencyId: number
-  currency: Pick<Currency, 'id' | 'code' | 'name' | 'symbol' | 'decimalPlaces' | 'rateToBase'> | null
+  currency: Pick<Currency, 'id' | 'code' | 'name' | 'symbol' | 'decimalPlaces' | 'rate'> | null
   currencySnapshotSource: string
   currencySnapshotNote: string | null
   amountPaid: number
@@ -53,6 +53,7 @@ export interface CreateSalaryData {
   employee_id: number
   salaryMonth: string
   currency_id: number
+  rate: number
   amountPaid: number
   workedDays: number
   totalDays?: number
@@ -65,6 +66,7 @@ export interface UpdateSalaryData {
   employee_id?: number
   salaryMonth?: string
   currency_id?: number
+  rate?: number
   amountPaid?: number
   workedDays?: number
   totalDays?: number

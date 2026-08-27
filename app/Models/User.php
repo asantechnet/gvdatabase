@@ -30,7 +30,6 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'password',
         'phone',
         'address',
-        'roles',
         'acc_status',
         'account_settings',
         'two_factor_secret',
@@ -58,7 +57,6 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'account_settings' => 'array',
-        'roles' => 'array',
         'two_factor_secret' => 'encrypted',
         'two_factor_confirmed_at' => 'datetime',
         'must_set_password' => 'boolean',
@@ -100,16 +98,24 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->belongsToMany(Board::class, 'board_user');
     }
 
-    /** Supports both the current JSON cast and legacy JSON-string role values. */
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'user_roles')
+            ->using(RoleUser::class)
+            ->withTimestamps();
+    }
+
+    /** Reads a user's role names from the user_roles pivot table. */
     public function roleNames(): array
     {
-        $roles = $this->roles;
+        return $this->roles()->pluck('roles.name')->all();
+    }
 
-        for ($attempt = 0; $attempt < 2 && is_string($roles); $attempt++) {
-            $roles = json_decode($roles, true);
-        }
-
-        return is_array($roles) ? $roles : [];
+    /** Replaces the user's roles from the user_roles pivot table. */
+    public function syncRoles(array $names): void
+    {
+        $ids = Role::query()->whereIn('name', $names)->pluck('id')->all();
+        $this->roles()->sync($ids);
     }
 
     public function isSuperAdmin(): bool
@@ -124,14 +130,14 @@ class User extends Authenticatable implements MustVerifyEmailContract
             return Permission::query()->orderBy('name')->pluck('name')->all();
         }
 
-        $roles = $this->roleNames();
-        if ($roles === []) {
+        $roleIds = $this->roles()->pluck('roles.id')->all();
+        if ($roleIds === []) {
             return [];
         }
 
         return DB::table('role_permissions')
             ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->whereIn('role_permissions.role', $roles)
+            ->whereIn('role_permissions.role_id', $roleIds)
             ->distinct()
             ->orderBy('permissions.name')
             ->pluck('permissions.name')

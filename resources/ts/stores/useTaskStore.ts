@@ -154,7 +154,11 @@ export const useTaskStore = defineStore("taskManager", () => {
       error.value = null
       const response = await KanbanApi.getBoard()
       boards.value = response.data.data
-      tasks.value = response.data.data.flatMap(board => board.tasks)
+      tasks.value = response.data.data.flatMap(board => board.tasks).map(task => ({
+        ...task,
+        results: task.results ?? '',
+        attachments: task.attachments ?? [],
+      }))
     } catch (err) {
       error.value = 'Failed to fetch board data'
       console.error('Failed to fetch board data:', err)
@@ -223,7 +227,8 @@ export const useTaskStore = defineStore("taskManager", () => {
 
         // Update basic fields
         if (data.title) updatedTask.title = data.title
-        if (data.description) updatedTask.description = data.description
+        if (data.description !== undefined) updatedTask.description = data.description
+        if (data.results !== undefined) updatedTask.results = data.results
         if (data.priority) updatedTask.priority = data.priority
         if (data.progress !== undefined) updatedTask.progress = data.progress
         if (data.start_date) updatedTask.startDate = data.start_date

@@ -127,7 +127,7 @@ const confirmAndDelete = () => {
 
           <VDivider class="my-5" />
 
-          <!-- Raw HTML Quill Output (Contract/Task Content) -->
+          <!-- Raw HTML task content -->
           <div class="text-subtitle-2 font-weight-bold mb-2">{{ $t('components.taskManager.taskeventmodal.descriptionScope') }}</div>
           <div v-if="task.description" class="task-html-preview pa-4 rounded bg-surface border text-body-1" v-html="task.description"></div>
           <div v-else class="task-html-preview pa-4 rounded bg-surface border text-body-1">

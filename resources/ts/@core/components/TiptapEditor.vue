@@ -2,12 +2,14 @@
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Underline } from '@tiptap/extension-underline'
+import { Image } from '@tiptap/extension-image'
 import { StarterKit } from '@tiptap/starter-kit'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 
 const props = defineProps<{
   modelValue: string
   placeholder?: string
+  imageUpload?: (file: File) => Promise<string>
 }>()
 
 const emit = defineEmits<{
@@ -15,6 +17,7 @@ const emit = defineEmits<{
 }>()
 
 const editorRef = ref()
+const imageInput = ref<HTMLInputElement>()
 
 const editor = useEditor({
   content: props.modelValue,
@@ -27,6 +30,7 @@ const editor = useEditor({
       placeholder: props.placeholder ?? 'Write something here...',
     }),
     Underline,
+    Image,
   ],
   onUpdate() {
     if (!editor.value)
@@ -35,6 +39,25 @@ const editor = useEditor({
     emit('update:modelValue', editor.value.getHTML())
   },
 })
+
+const chooseImage = () => imageInput.value?.click()
+
+const insertImage = async (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file || !editor.value) return
+
+  const src = props.imageUpload
+    ? await props.imageUpload(file)
+    : await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+
+  editor.value.chain().focus().setImage({ src }).run()
+  ;(event.target as HTMLInputElement).value = ''
+}
 
 watch(() => props.modelValue, () => {
   const isSame = editor.value?.getHTML() === props.modelValue
@@ -60,6 +83,10 @@ watch(() => props.modelValue, () => {
         @click="editor.chain().focus().toggleBold().run()"
       >
         <VIcon icon="tabler-bold" />
+      </IconBtn>
+
+      <IconBtn size="small" rounded variant="text" @click="chooseImage">
+        <VIcon icon="tabler-photo-plus" />
       </IconBtn>
 
       <IconBtn
@@ -137,6 +164,7 @@ watch(() => props.modelValue, () => {
     </div>
 
     <VDivider />
+    <input ref="imageInput" class="d-none" type="file" accept="image/*" @change="insertImage">
 
     <EditorContent
       ref="editorRef"

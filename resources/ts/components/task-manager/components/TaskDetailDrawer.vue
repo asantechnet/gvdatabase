@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import QuillEditor from '@/components/QuillEditor.vue'
 import { useTaskStore } from '@/stores/useTaskStore'
 import { canAccess } from '@/utils/authorization'
 import { computed, ref, watch } from 'vue'
@@ -28,6 +27,13 @@ const contributions = ref<Record<string, number>>({})
 const bonusReviewError = ref('')
 const isSavingBonusReview = ref(false)
 
+const uploadTaskImage = (section: 'input' | 'results') => async (file: File) => {
+  if (!store.selectedTask) throw new Error('No task selected')
+  const response = await TaskApi.uploadAttachment(store.selectedTask.id, file, section)
+  store.selectedTask.attachments.push(response.data.data)
+  return response.data.data.url as string
+}
+
 // Priority options
 const priorityOptions = [
   { title: translate('components.taskManager.taskdetaildrawer.low'), value: 'low' },
@@ -40,6 +46,7 @@ const priorityOptions = [
 const localTask = ref({
   title: '',
   description: '',
+  results: '',
   priority: 'medium' as TaskPriority,
   startDate: '',
   dueDate: '',
@@ -61,6 +68,7 @@ watch(() => store.selectedTask, (newTask) => {
     localTask.value = {
       title: newTask.title,
       description: newTask.description,
+      results: newTask.results,
       priority: newTask.priority,
       startDate: newTask.startDate,
       dueDate: newTask.dueDate,
@@ -87,6 +95,7 @@ const updateTask = async () => {
     await store.updateTask(store.selectedTaskId, {
       title: localTask.value.title,
       description: localTask.value.description,
+      results: localTask.value.results,
       priority: localTask.value.priority,
       start_date: localTask.value.startDate,
       due_date: localTask.value.dueDate,
@@ -215,16 +224,27 @@ const saveBonusReview = async () => {
               />
             </VCol>
 
-            <!-- Description -->
+            <!-- Input -->
             <VCol cols="12">
               <div class="mb-2 d-flex align-center gap-2">
                 <VIcon icon="tabler-align-justified" size="20" />
-                <span class="text-subtitle-1 font-weight-bold">{{ $t('common.fields.description') }}</span>
+                <span class="text-subtitle-1 font-weight-bold">Input</span>
               </div>
 
-              <div class="quill-wrapper border rounded">
-                <QuillEditor v-if="canEditTask()" v-model:content="localTask.description" contentType="html" theme="snow" />
+              <div class="markup-editor border rounded">
+                <TiptapEditor v-if="canEditTask()" v-model="localTask.description" :image-upload="uploadTaskImage('input')" placeholder="Describe the task input..." />
                 <div v-else v-html="localTask.description" />
+              </div>
+            </VCol>
+
+            <VCol cols="12">
+              <div class="mb-2 d-flex align-center gap-2">
+                <VIcon icon="tabler-file-description" size="20" />
+                <span class="text-subtitle-1 font-weight-bold">Results</span>
+              </div>
+              <div class="markup-editor border rounded">
+                <TiptapEditor v-if="canEditTask()" v-model="localTask.results" :image-upload="uploadTaskImage('results')" placeholder="Record the task results..." />
+                <div v-else v-html="localTask.results" />
               </div>
             </VCol>
           </VRow>
@@ -275,21 +295,8 @@ const saveBonusReview = async () => {
   z-index: 1001;
 }
 
-.quill-wrapper {
+.markup-editor {
   min-height: 250px;
 }
 
-:deep(.ql-toolbar) {
-  border-top: none !important;
-  border-inline-start: none !important;
-  border-inline-end: none !important;
-  background-color: rgb(var(--v-theme-surface));
-}
-
-:deep(.ql-container) {
-  border-inline-start: none !important;
-  border-inline-end: none !important;
-  border-bottom: none !important;
-  min-height: 200px;
-}
 </style>

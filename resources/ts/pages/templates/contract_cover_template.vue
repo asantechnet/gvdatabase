@@ -226,7 +226,7 @@ onMounted(() => {
 }
 
 .contract-cover {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Vazirmatn', 'Noto Sans Arabic', Tahoma, sans-serif;
   width: 100%;
   aspect-ratio: 210 / 297;
   max-width: 800px;
@@ -298,6 +298,10 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-start;
   color: white;
+}
+
+[dir='rtl'] .top-section .content-container {
+  flex-direction: row-reverse;
 }
 
 .cover-page-text {

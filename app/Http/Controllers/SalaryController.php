@@ -62,12 +62,12 @@ class SalaryController extends Controller
             $bonuses = $this->availableGrantedBonusesQuery($validated['employee_id'], $validated['salary_month'])
                 ->lockForUpdate()
                 ->get();
-            $rate = $this->validRate($currency);
-            $bonusBase = (float) $bonuses->sum(fn (WorthyEmployee $bonus) => (float) $bonus->granted_base_amount);
+            $rate = (float) $validated['rate'];
+            $bonusBase = (float) $bonuses->sum(fn (WorthyEmployee $bonus) => (float) $bonus->granted_amount);
             $validated['bonus'] = round($bonusBase / $rate, $currency->decimal_places);
             $validated['total_amount'] = $validated['amount_paid'] + $validated['bonus'];
             $validated = array_merge($validated, $this->attendanceBreakdown($validated['employee_id'], $validated['salary_month'], $validated['total_days']));
-            $validated += $this->salaryCurrencySnapshot($currency, $validated['amount_paid'], $bonusBase);
+            $validated += $this->salaryCurrencySnapshot($currency, $validated['amount_paid'], $bonusBase, $rate);
 
             $salary = Salary::create($validated);
             foreach ($bonuses as $bonus) {
@@ -97,10 +97,8 @@ class SalaryController extends Controller
             // keeps partial-payment edits from duplicating bonus amounts.
             $validated['bonus'] = $salary->bonus;
             $validated['total_amount'] = $validated['amount_paid'] + $validated['bonus'];
-            $rate = $this->storedSalaryRate($salary);
-            $validated['amount_paid_base'] = round((float) $validated['amount_paid'] * $rate, 4);
-            $validated['bonus_base'] = $salary->bonus_base;
-            $validated['total_amount_base'] = round((float) $validated['amount_paid_base'] + (float) $salary->bonus_base, 4);
+            $rate = (float) $validated['rate'];
+            $validated = array_merge($validated, $this->salaryCurrencySnapshot($salary->currency, (float) $validated['amount_paid'], (float) $salary->bonus * $rate, $rate));
             $validated = array_merge($validated, $this->attendanceBreakdown($validated['employee_id'], $validated['salary_month'], $validated['total_days']));
 
             $salary->update($validated);
@@ -156,6 +154,7 @@ class SalaryController extends Controller
                     ? Rule::exists('currencies', 'id')
                     : Rule::exists('currencies', 'id')->where('is_active', true),
             ],
+            'rate' => ['required', 'numeric', 'gt:0'],
             'salaryMonth' => ['required', 'string', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
             'amountPaid' => 'required|numeric|gt:0',
             'workedDays' => 'required|integer|between:0,31',
@@ -169,10 +168,14 @@ class SalaryController extends Controller
         ]);
 
         $this->ensureSelectableEmployee($validated['employee_id']);
+        // Payroll is recorded in the company's base currency.  A salary must
+        // never carry a secondary-currency rate or conversion interpretation.
+        $baseCurrency = Currency::query()->where('is_base', true)->firstOrFail();
 
         return [
             'employee_id' => $validated['employee_id'],
-            'currency_id' => $validated['currency_id'],
+            'currency_id' => $baseCurrency->id,
+            'rate' => 1,
             'salary_month' => $validated['salaryMonth'],
             'amount_paid' => $validated['amountPaid'],
             'worked_days' => $validated['workedDays'],
@@ -193,7 +196,7 @@ class SalaryController extends Controller
         }
         if ($employee->employment_type === 'commission') {
             throw ValidationException::withMessages([
-                'employee_id' => ['Commission employees are paid through service income and cannot receive salary records.'],
+                'employee_id' => ['business.commission_employee_salary_forbidden'],
             ]);
         }
     }
@@ -243,33 +246,25 @@ class SalaryController extends Controller
 
     private function validRate(Currency $currency): float
     {
-        $rate = (float) $currency->rate_against_base;
+        $rate = (float) $currency->rate;
         abort_unless($rate > 0, 422, 'business.currency_rate_invalid');
 
         return $rate;
     }
 
-    private function storedSalaryRate(Salary $salary): float
+    private function salaryCurrencySnapshot(Currency $currency, float $amountPaid, float $bonusBase, float $rate): array
     {
-        $rate = (float) $salary->exchange_rate_to_base;
-        abort_unless($rate > 0, 422, 'business.currency_rate_invalid');
-
-        return $rate;
-    }
-
-    private function salaryCurrencySnapshot(Currency $currency, float $amountPaid, float $bonusBase): array
-    {
-        $rate = $this->validRate($currency);
+        $base = Currency::query()->where('is_base', true)->firstOrFail();
 
         return [
             'currency_code' => $currency->code,
             'currency_name' => $currency->name,
             'currency_symbol' => $currency->symbol,
             'currency_decimal_places' => $currency->decimal_places,
-            'exchange_rate_to_base' => $rate,
-            'amount_paid_base' => round($amountPaid * $rate, 4),
-            'bonus_base' => round($bonusBase, 4),
-            'total_amount_base' => round(($amountPaid * $rate) + $bonusBase, 4),
+            'cnv_curr_shrt' => $currency->code,
+            'base_curr_shrt' => $base->code,
+            'rate' => $rate,
+            'base_amount' => round(($amountPaid * $rate) + $bonusBase, 4),
             'currency_snapshot_source' => 'recorded_at_creation',
             'currency_snapshot_note' => null,
         ];
@@ -277,19 +272,8 @@ class SalaryController extends Controller
 
     private function conversionSnapshot(WorthyEmployee $bonus, Currency $salaryCurrency): array
     {
-        $sourceRate = (float) $bonus->granted_rate_to_base;
-        $targetRate = $this->validRate($salaryCurrency);
-        abort_unless($sourceRate > 0 && $bonus->granted_amount !== null, 422, 'business.bonus_currency_snapshot_invalid');
-        $baseAmount = (float) $bonus->granted_base_amount;
-
         return [
             'source_amount' => $bonus->granted_amount,
-            'source_currency_code' => $bonus->granted_currency_code,
-            'source_rate_to_base' => $sourceRate,
-            'base_amount' => $baseAmount,
-            'salary_currency_code' => $salaryCurrency->code,
-            'salary_rate_to_base' => $targetRate,
-            'converted_amount' => round($baseAmount / $targetRate, $salaryCurrency->decimal_places),
             'conversion_formula' => '(source_amount × source_rate_to_base) ÷ salary_rate_to_base',
             'conversion_snapshot_source' => 'recorded_at_inclusion',
         ];
@@ -326,11 +310,13 @@ class SalaryController extends Controller
         $expense->fill([
             'currency_id' => $salary->currency_id,
             'currency' => $salary->currency_code,
-            'type' => 'Salary payment',
+            'type' => 'Salaries',
             'description' => $details,
             'amount' => $netAmount,
             'quantity' => 1,
-            'rate_to_base' => $salary->exchange_rate_to_base,
+            'cnv_curr_shrt' => $salary->cnv_curr_shrt,
+            'base_curr_shrt' => $salary->base_curr_shrt,
+            'rate' => $salary->rate,
             'date' => $salary->payment_date,
         ]);
         $expense->save();

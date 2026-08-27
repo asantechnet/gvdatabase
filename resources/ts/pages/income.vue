@@ -5,6 +5,8 @@ import { getIncomes, createIncome, updateIncome, deleteIncome, type Income, type
 import InvoiceApi, { type Invoice } from '@/api/invoice'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import { apiErrorMessage } from '@/utils/apiErrors'
+import { printDocument } from '@/utils/printDocument'
+import PrintableListReport from '@/components/PrintableListReport.vue'
 
 const incomes = ref<Income[]>([])
 const isAddIncomeDialogVisible = ref(false)
@@ -29,7 +31,7 @@ const emptyIncomeForm = (): IncomeForm => ({
   amount: 0,
   quantity: 1,
   currency_id: 0,
-  rate_to_base: 1,
+  rate: 1,
   total_amount: 0,
   date: new Date().toISOString().split('T')[0],
 })
@@ -86,7 +88,7 @@ const setDefaultCurrency = () => {
   const currency = currencies.value.find(item => item.isBase) ?? currencies.value[0]
   if (currency) {
     selectedIncome.value.currency_id = currency.id
-    selectedIncome.value.rate_to_base = currency.rateToBase
+    selectedIncome.value.rate = currency.rate
   }
 }
 
@@ -147,7 +149,7 @@ const handleInvoiceChange = (invoiceId: number | null) => {
   selectedIncome.value.type = 'Service'
   selectedIncome.value.description = `Payment for ${invoice.invoice_number} — ${invoice.customer.name}`
   selectedIncome.value.currency_id = invoice.currency.id
-  selectedIncome.value.rate_to_base = invoice.currency.rate
+  selectedIncome.value.rate = invoice.currency.rate
   selectedIncome.value.quantity = 1
   selectedIncome.value.amount = invoice.balance
   calculateTotal()
@@ -156,7 +158,7 @@ const handleInvoiceChange = (invoiceId: number | null) => {
 const handleCurrencyChange = (currencyId: number) => {
   const currency = currencies.value.find(item => item.id === currencyId)
   if (currency) {
-    selectedIncome.value.rate_to_base = currency.rateToBase
+    selectedIncome.value.rate = currency.rate
     calculateTotal()
   }
 }
@@ -170,7 +172,7 @@ const validateIncomeForm = () => {
     return translate('pages.finance.income.income.amountMustBeGreaterThanZero')
   if (!Number.isInteger(Number(selectedIncome.value.quantity)) || selectedIncome.value.quantity < 1)
     return translate('pages.finance.income.income.quantityMustBeAWholeNumberOfAtLeastOne')
-  if (!Number.isFinite(Number(selectedIncome.value.rate_to_base)) || selectedIncome.value.rate_to_base <= 0)
+  if (!Number.isFinite(Number(selectedIncome.value.rate)) || selectedIncome.value.rate <= 0)
     return translate('pages.finance.income.income.exchangeRateMustBeGreaterThanZero')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedIncome.value.date)) return translate('pages.finance.income.income.selectAValidIncomeDate')
 
@@ -235,7 +237,7 @@ const deleteIncomeRecord = async () => {
 }
 
 const calculateTotal = () => {
-  selectedIncome.value.total_amount = selectedIncome.value.amount * selectedIncome.value.quantity * selectedIncome.value.rate_to_base
+  selectedIncome.value.total_amount = selectedIncome.value.amount * selectedIncome.value.quantity * selectedIncome.value.rate
 }
 
 const formatCurrency = (value: number | string | undefined | null): string => {
@@ -275,9 +277,7 @@ const formatDate = (dateString: string | undefined | null): string => {
   })
 }
 
-const printTable = () => {
-  window.print()
-}
+const printTable = () => void printDocument({ bodyClass: 'printing-table-income', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 
 onMounted(() => {
   fetchIncomes()
@@ -289,35 +289,38 @@ onMounted(() => {
   <div class="income-page">
     <VCard class="income-command-deck mb-6" elevation="0">
       <VCardText class="pa-6 pa-md-8">
-        <div class="d-flex flex-wrap align-center justify-space-between gap-5">
-          <div>
+        <div class="hero-topline d-flex flex-wrap align-center justify-space-between gap-5">
+          <div class="hero-copy">
             <div class="eyebrow mb-2"><VIcon icon="tabler-sparkles" size="15" /> {{ $t('pages.finance.income.income.cashflowCOMMANDCENTER') }}</div>
             <h2 class="text-h4 font-weight-black mb-1">{{ $t('pages.finance.income.income.incomeLedger') }}</h2>
             <p class="text-body-2 opacity-80 mb-0">{{ $t('pages.finance.income.income.liveReceiptActivityInvoiceCollectionsAndCurrencyTotalsInOneView') }}</p>
           </div>
-          <div class="d-flex align-center gap-2">
-            <VBtn icon="tabler-printer" variant="text" color="white" @click="printTable" :title="$t('pages.finance.income.income.printIncomeRecords')" />
-            <VBtn color="white" class="text-primary font-weight-bold" @click="openAddIncomeDialog">
+          <div class="hero-actions d-flex align-center gap-2">
+            <VBtn class="hero-print" icon variant="text" color="white" @click="printTable">
+              <VIcon icon="tabler-printer" />
+              <VTooltip activator="parent" location="top">{{ $t('pages.finance.income.income.printIncomeRecords') }}</VTooltip>
+            </VBtn>
+            <VBtn color="white" class="hero-primary-action income-primary-action font-weight-bold" @click="openAddIncomeDialog">
               <VIcon icon="tabler-plus" class="me-1" /> {{ $t('pages.finance.income.income.recordIncome') }}
             </VBtn>
           </div>
         </div>
         <VRow class="mt-4">
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile"><VIcon icon="tabler-wallet" color="success" /><div><div class="metric-label">{{ $t('pages.finance.income.income.recordedValue') }}</div><div class="metric-value">{{ formatCurrency(totalReceived) }}</div></div></div></VCol>
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile"><VIcon icon="tabler-calendar-month" color="info" /><div><div class="metric-label">{{ $t('common.messages.thisMonth') }}</div><div class="metric-value">{{ formatCurrency(currentMonthIncome) }}</div></div></div></VCol>
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile"><VIcon icon="tabler-link" color="warning" /><div><div class="metric-label">{{ $t('pages.finance.income.income.invoicePayments') }}</div><div class="metric-value">{{ linkedIncomeCount }} <span>{{ $t('pages.finance.income.income.linked') }}</span></div></div></div></VCol>
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile"><VIcon icon="tabler-chart-bar" color="secondary" /><div><div class="metric-label">{{ $t('pages.finance.income.income.averageReceipt') }}</div><div class="metric-value">{{ formatCurrency(averageIncome) }}</div></div></div></VCol>
+          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--success"><VIcon icon="tabler-wallet" color="success" /><div><div class="metric-label">{{ $t('pages.finance.income.income.recordedValue') }}</div><div class="metric-value">{{ formatCurrency(totalReceived) }}</div></div></div></VCol>
+          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--info"><VIcon icon="tabler-calendar-month" color="info" /><div><div class="metric-label">{{ $t('common.messages.thisMonth') }}</div><div class="metric-value">{{ formatCurrency(currentMonthIncome) }}</div></div></div></VCol>
+          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--warning"><VIcon icon="tabler-link" color="warning" /><div><div class="metric-label">{{ $t('pages.finance.income.income.invoicePayments') }}</div><div class="metric-value">{{ linkedIncomeCount }} <span>{{ $t('pages.finance.income.income.linked') }}</span></div></div></div></VCol>
+          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--secondary"><VIcon icon="tabler-chart-bar" color="secondary" /><div><div class="metric-label">{{ $t('pages.finance.income.income.averageReceipt') }}</div><div class="metric-value">{{ formatCurrency(averageIncome) }}</div></div></div></VCol>
         </VRow>
       </VCardText>
     </VCard>
 
     <VCard class="mb-6 filter-deck" elevation="0">
-      <VCardText>
+      <VCardText class="filter-deck__content">
         <VRow align="center">
-          <VCol cols="12" md="5">
+          <VCol cols="12" md="8">
             <VTextField
               v-model="searchQuery"
-              prepend-inner-icon="tabler-search"
+              class="data-table-search" prepend-inner-icon="tabler-search"
               :placeholder="$t('pages.finance.income.income.searchIncome')"
               density="compact"
               clearable
@@ -326,31 +329,12 @@ onMounted(() => {
             />
           </VCol>
 
-          <VCol cols="12" sm="6" md="2">
-            <VSelect
-              v-model="filterType"
-              :items="typeOptions"
-              :label="$t('common.messages.filterByType')"
-              density="compact"
-              clearable
-              hide-details
-              @update:modelValue="fetchIncomes"
-            />
-          </VCol>
-
-          <VCol cols="12" sm="6" md="2">
-            <VSelect
-              v-model="filterCurrency"
-              :items="currencyOptions"
-              :label="$t('common.messages.filterByCurrency')"
-              density="compact"
-              clearable
-              hide-details
-              @update:modelValue="fetchIncomes"
-            />
-          </VCol>
-
-          <VCol cols="12" md="3" class="d-flex align-center justify-md-end">
+          <VCol cols="12" md="4" class="d-flex align-center justify-md-end ga-2">
+            <DataTableFilterMenu :active="Boolean(filterType || filterCurrency)"
+              @reset="filterType = null; filterCurrency = null; fetchIncomes()">
+              <VSelect v-model="filterType" :items="typeOptions" :label="$t('common.messages.filterByType')" density="compact" clearable hide-details @update:modelValue="fetchIncomes" />
+              <VSelect v-model="filterCurrency" :items="currencyOptions" :label="$t('common.messages.filterByCurrency')" density="compact" clearable hide-details @update:modelValue="fetchIncomes" />
+            </DataTableFilterMenu>
             <div class="text-caption text-medium-emphasis"><strong class="text-high-emphasis">{{ incomes.length }}</strong> {{ $t('pages.finance.income.income.recordsCurrentlyShown') }}</div>
           </VCol>
         </VRow>
@@ -358,12 +342,12 @@ onMounted(() => {
     </VCard>
 
     <VCard class="ledger-card" elevation="0">
-      <VCardItem>
-        <VCardTitle class="font-weight-bold">{{ $t('pages.finance.income.income.receiptStream') }}</VCardTitle>
+      <VCardItem class="ledger-card__header">
+        <VCardTitle class="ledger-card__title font-weight-bold"><VIcon icon="tabler-receipt-2" size="20" />{{ $t('pages.finance.income.income.receiptStream') }}</VCardTitle>
         <template #append><VChip size="small" color="primary" variant="tonal">{{ $t('pages.finance.income.income.liveLedger') }}</VChip></template>
       </VCardItem>
       <div class="table-container">
-        <VDataTable
+        <ResponsiveDataTable
           :items="incomes"
           :headers="[
             { title: translate('pages.finance.income.income.receipt'), key: 'receipt_number', align: 'start' },
@@ -400,7 +384,7 @@ onMounted(() => {
 
           <template #item.total_amount="{ item }">
             <div class="font-weight-bold text-success">{{ formatIncomeCurrency(item.amount * item.quantity, item.currency) }}</div>
-            <div class="text-caption text-medium-emphasis">{{ $t('common.messages.quantityExchangeRate', { quantity: item.quantity, rate: formatRate(item.rate_to_base) }) }}</div>
+            <div class="text-caption text-medium-emphasis">{{ $t('common.messages.quantityExchangeRate', { quantity: item.quantity, rate: formatRate(item.rate) }) }}</div>
           </template>
 
           <template #item.date="{ item }">
@@ -409,27 +393,39 @@ onMounted(() => {
 
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
+              <FullDetailsButton :item="item" />
               <VBtn
                 icon="tabler-edit"
                 variant="text"
                 size="small"
                 color="medium-emphasis"
                 @click="openEditIncomeDialog(item)"
-                :title="$t('pages.finance.income.income.editIncomeRecord')"
-              />
+              ><VTooltip activator="parent" location="top">{{ $t('pages.finance.income.income.editIncomeRecord') }}</VTooltip></VBtn>
               <VBtn
                 icon="tabler-trash"
                 variant="text"
                 size="small"
                 color="error"
                 @click="openDeleteIncomeDialog(item)"
-                :title="$t('pages.finance.income.income.deleteIncomeRecord')"
-              />
+              ><VTooltip activator="parent" location="top">{{ $t('pages.finance.income.income.deleteIncomeRecord') }}</VTooltip></VBtn>
             </div>
           </template>
-        </VDataTable>
+
+          <template #no-data>
+            <div class="ledger-empty">
+              <VAvatar size="48" color="success" variant="tonal" icon="tabler-cash-banknote" />
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">Your income ledger is ready</div>
+                <p class="text-body-2 text-medium-emphasis mb-0">Record a receipt to begin tracking incoming cash flow.</p>
+              </div>
+              <VBtn color="success" variant="tonal" prepend-icon="tabler-plus" @click="openAddIncomeDialog">Record income</VBtn>
+            </div>
+          </template>
+        </ResponsiveDataTable>
       </div>
     </VCard>
+
+    <PrintableListReport title="Income Report" subtitle="Income records" :columns="['Receipt', 'Type', 'Details', 'Invoice', 'Amount', 'Date']" :rows="incomes.map(income => [income.receipt_number, income.type, income.description, income.invoice?.invoice_number, formatIncomeCurrency(income.amount * income.quantity, income.currency), formatDate(income.date)])" />
 
     <!-- Add Income Dialog -->
     <VDialog
@@ -442,7 +438,7 @@ onMounted(() => {
         </VCardTitle>
 
         <VCardText>
-          <VForm>
+          <VForm class="app-form">
             <VAlert v-if="formError" type="error" variant="tonal" class="mb-4">
               {{ formError }}
             </VAlert>
@@ -518,7 +514,7 @@ onMounted(() => {
               </VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model.number="selectedIncome.rate_to_base"
+                  v-model.number="selectedIncome.rate"
                   :label="$t('common.messages.exchangeRate')"
                   type="number"
                   step="0.01"
@@ -577,7 +573,7 @@ onMounted(() => {
         </VCardTitle>
 
         <VCardText>
-          <VForm>
+          <VForm class="app-form">
             <VAlert v-if="formError" type="error" variant="tonal" class="mb-4">
               {{ formError }}
             </VAlert>
@@ -653,7 +649,7 @@ onMounted(() => {
               </VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model.number="selectedIncome.rate_to_base"
+                  v-model.number="selectedIncome.rate"
                   :label="$t('common.messages.exchangeRate')"
                   type="number"
                   step="0.01"
@@ -739,27 +735,52 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.income-page { padding-bottom: 24px; }
+.income-page { padding-bottom: 32px; }
 .income-command-deck {
   color: white;
+  position: relative;
+  isolation: isolate;
   overflow: hidden;
+  border-radius: 20px;
+  box-shadow: 0 18px 45px rgb(23 43 77 / .2);
   background:
-    radial-gradient(circle at 90% 5%, rgb(var(--v-theme-primary) / .65), transparent 27%),
-    radial-gradient(circle at 6% 100%, #0ea5e9aa, transparent 35%),
-    linear-gradient(115deg, #18233f, #1e2f58 58%, #172b4d);
+    radial-gradient(circle at 90% 5%, #34d399aa, transparent 28%),
+    radial-gradient(circle at 6% 100%, #22c55e88, transparent 38%),
+    linear-gradient(115deg, #064e3b, #047857 55%, #14532d);
 }
+.income-command-deck::after { position: absolute; z-index: -1; top: -80px; right: 8%; width: 230px; height: 230px; border: 1px solid rgb(255 255 255 / .12); border-radius: 50%; box-shadow: 0 0 0 35px rgb(255 255 255 / .035), 0 0 0 70px rgb(255 255 255 / .025); content: ''; }
+.hero-copy { max-width: 660px; }
+.hero-copy h2 { letter-spacing: -.035em; }
+.hero-actions { flex-shrink: 0; }
+.hero-print { border: 1px solid rgb(255 255 255 / .22); }
+.hero-primary-action { min-height: 42px; padding-inline: 18px !important; border-radius: 10px; box-shadow: 0 8px 22px rgb(8 20 48 / .22); }
+.income-primary-action { color: #86efac !important; }
+.income-primary-action :deep(.v-icon) { color: #86efac !important; }
 .eyebrow { display: flex; align-items: center; gap: 6px; font-size: .68rem; font-weight: 800; letter-spacing: .12em; opacity: .78; }
-.metric-tile { min-height: 86px; display: flex; align-items: center; gap: 13px; padding: 15px; border: 1px solid rgb(255 255 255 / .14); border-radius: 14px; background: rgb(255 255 255 / .09); backdrop-filter: blur(12px); }
-.metric-tile :deep(.v-icon) { padding: 10px; border-radius: 10px; background: rgb(255 255 255 / .94); }
+.metric-tile { min-height: 92px; display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px solid rgb(255 255 255 / .15); border-radius: 15px; background: linear-gradient(135deg, rgb(255 255 255 / .14), rgb(255 255 255 / .055)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .1); backdrop-filter: blur(12px); transition: transform .2s ease, background .2s ease; }
+.metric-tile:hover { transform: translateY(-3px); background: rgb(255 255 255 / .16); }
+.metric-tile :deep(.v-icon) { padding: 10px; border-radius: 11px; background: rgb(255 255 255 / .94); box-shadow: 0 5px 12px rgb(8 20 48 / .16); }
 .metric-label { font-size: .72rem; letter-spacing: .04em; opacity: .72; text-transform: uppercase; }
 .metric-value { font-size: 1.15rem; font-weight: 800; line-height: 1.4; }
 .metric-value span { font-size: .7rem; font-weight: 500; opacity: .75; }
-.filter-deck, .ledger-card { border: 1px solid rgb(var(--v-border-color)); }
-.detail-copy { max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
+.filter-deck, .ledger-card { overflow: hidden; border: 0; border-radius: 16px; box-shadow: 0 10px 28px rgb(15 23 42 / .08); }
+.filter-deck { background: rgb(var(--v-theme-surface)); }
+.filter-deck__content { padding: 14px 18px !important; }
+.filter-deck :deep(.v-field) { border-radius: 10px; background: rgb(var(--v-theme-on-surface) / .025); }
+.ledger-card__header { min-height: 68px; padding-inline: 20px; }
+.ledger-card__title { display: flex; align-items: center; gap: 9px; }
+.detail-copy { max-width: 250px; overflow: hidden; color: rgb(var(--v-theme-on-surface) / .76); text-overflow: ellipsis; }
 .invoice-payment-panel { display: flex; align-items: center; gap: 18px; padding: 13px 16px; border: 1px solid rgb(var(--v-theme-primary) / .22); border-radius: 12px; background: rgb(var(--v-theme-primary) / .06); }
 .income-dialog { overflow: hidden; }
 .table-container {
   overflow-x: auto;
 }
+.ledger-card :deep(thead th) { height: 48px !important; color: rgb(var(--v-theme-on-surface) / .58) !important; font-size: .68rem !important; font-weight: 800 !important; letter-spacing: .075em; text-transform: uppercase; background: rgb(var(--v-theme-on-surface) / .018); }
+.ledger-card :deep(tbody td) { height: 66px !important; border-bottom-color: rgb(var(--v-border-color) / .7) !important; }
+.ledger-card :deep(tbody tr) { transition: background .16s ease; }
+.ledger-card :deep(tbody tr:hover) { background: rgb(var(--v-theme-primary) / .035) !important; }
+.ledger-empty { display: flex; align-items: center; gap: 14px; min-height: 176px; padding: 28px 32px; text-align: start; background: linear-gradient(90deg, rgb(var(--v-theme-success) / .07), transparent 58%); }
+.ledger-empty :deep(.v-btn) { margin-inline-start: auto; }
 @media (max-width: 600px) { .invoice-payment-panel { align-items: flex-start; flex-direction: column; gap: 7px; } .invoice-payment-panel :deep(.v-divider) { display: none; } }
+@media (max-width: 600px) { .ledger-empty { align-items: flex-start; flex-direction: column; padding: 24px; } .ledger-empty :deep(.v-btn) { margin-inline-start: 0; } }
 </style>

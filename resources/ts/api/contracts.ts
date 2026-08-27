@@ -1,157 +1,127 @@
-import api from "./axios";
+import api from './axios'
+import type { ContractType } from './contractType'
 
-export interface Contract {
-  id: number;
-  contract_number: string;
-  contract: string;
-  status: "Active" | "Expired" | "Pending";
-  start_date: string;
-  end_date?: string | null;
-  counterparty: string;
-  counterparty_company?: string | null;
-  counterparty_email?: string | null;
-  counterparty_contact?: string | null;
-  counterparty_address?: string | null;
-  is_cancelled: boolean;
-  cancelled_at?: string | null;
-  template_id: number;
-  contract_template?: {
-    id: number;
-    name: string;
-    type: "Employment" | "Service" | "Partnership" | "Lease" | "NDA";
-    cover_text: string | null;
-    content: any;
-    created_at: string;
-    updated_at: string;
-  };
+export type ContractStatus = 'draft' | 'active' | 'expired' | 'terminated' | 'cancelled'
+
+export interface ContractPartySnapshot {
+  our_company?: {
+    name?: string | null
+    short_name?: string | null
+    email?: string | null
+    phone?: string | null
+    address?: string | null
+    business_licence?: string | null
+  }
+  counterparty: {
+    name?: string | null
+    company?: string | null
+    email?: string | null
+    phone?: string | null
+    address?: string | null
+    representative?: { name?: string | null; title?: string | null } | null
+  }
+  [key: string]: unknown
 }
 
-export interface ContractTemplate {
-  id: number;
-  name: string;
-  type: "Employment" | "Service" | "Partnership" | "Lease" | "NDA";
-  cover_text: string | null;
-  content: any;
-  created_at: string;
-  updated_at: string;
+export interface Contract {
+  id: number
+  contract_number: string | null
+  contract: string
+  status: ContractStatus
+  start_date: string | null
+  end_date: string | null
+  counterparty: string | null
+  counterparty_company?: string | null
+  counterparty_email?: string | null
+  counterparty_contact?: string | null
+  counterparty_address?: string | null
+  is_cancelled: boolean
+  cancelled_at?: string | null
+  template_id: number | null
+  contract_type_id?: number | null
+  employee_id?: number | null
+  customer_id?: number | null
+  company_id?: number | null
+  type_slug?: string | null
+  type?: string | null
+  cover_text?: string | null
+  content?: string | null
+  is_custom?: boolean
+  snapshot_data?: { parties?: Record<string, unknown>; entity?: Record<string, unknown> } | null
+  parties?: ContractPartySnapshot | null
+  employee?: Record<string, unknown> | null
+  customer?: Record<string, unknown> | null
+  company?: Record<string, unknown> | null
+  contract_type?: ContractType | null
+  contract_template?: {
+    id: number
+    name: string
+    type: string | null
+    type_slug?: string | null
+    cover_text: string | null
+    content: string | null
+  }
 }
 
 export interface ContractCreateData {
-  template_id: number;
-  status: "Active" | "Expired" | "Pending";
-  start_date: string;
-  end_date?: string | null;
-  counterparty: string;
-  counterparty_company?: string | null;
-  counterparty_email?: string | null;
-  counterparty_contact?: string | null;
-  counterparty_address?: string | null;
+  template_id?: number | null
+  contract_type_id?: number | null
+  employee_id?: number | null
+  customer_id?: number | null
+  company_id?: number | null
+  is_custom?: boolean
+  name?: string
+  cover_text?: string | null
+  content?: string
+  status: ContractStatus
+  start_date: string
+  end_date?: string | null
 }
 
-export interface ContractUpdateData {
-  template_id?: number;
-  status?: "Active" | "Expired" | "Pending";
-  start_date?: string;
-  end_date?: string | null;
-  counterparty?: string;
-  counterparty_company?: string | null;
-  counterparty_email?: string | null;
-  counterparty_contact?: string | null;
-  counterparty_address?: string | null;
-  is_cancelled?: boolean;
+export interface ContractUpdateData extends Partial<Omit<ContractCreateData, 'status'>> {
+  status?: ContractStatus
 }
+
+export interface ContractParams {
+  audience?: 'customers' | 'employees' | 'companies' | 'other'
+  type_slug?: string
+  status?: ContractStatus
+  search?: string
+  only_cancelled?: boolean
+}
+
+const normalizeList = (payload: unknown): Contract[] =>
+  Array.isArray(payload) ? (payload as Contract[]) : []
 
 const ContractApi = {
-  // Get all contracts with optional filter
-  getAll: async (onlyCancelled?: boolean) => {
-    try {
-      const params = onlyCancelled ? { 'only-cancelled': 'true' } : {};
-      const response = await api.get<{ success: boolean; data: Contract[] }>("/contracts", { params });
-      return response.data;
-    } catch (error) {
-      console.error('API getAll error:', error);
-      throw error;
-    }
+  async getAll(params?: ContractParams): Promise<Contract[]> {
+    const response = await api.get<{ success: boolean; data: Contract[] }>('/contracts', { params })
+    return normalizeList(response.data.data)
   },
 
-  // Get single contract
-  getById: async (id: number) => {
-    try {
-      const response = await api.get<{ success: boolean; data: Contract }>(`/contracts/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error('API getById error:', error);
-      throw error;
-    }
+  async getById(id: number): Promise<Contract> {
+    const response = await api.get<{ success: boolean; data: Contract }>(`/contracts/${id}`)
+    return response.data.data
   },
 
-  // Create contract
-  create: async (data: ContractCreateData) => {
-    try {
-      const response = await api.post<{ success: boolean; data: Contract }>("/contracts", data);
-      return response.data;
-    } catch (error) {
-      console.error('API create error:', error);
-      throw error;
-    }
+  async create(data: ContractCreateData): Promise<Contract> {
+    const response = await api.post<{ success: boolean; data: Contract }>('/contracts', data)
+    return response.data.data
   },
 
-  // Update contract
-  update: async (id: number, data: ContractUpdateData) => {
-    try {
-      const response = await api.put<{ success: boolean; data: Contract }>(`/contracts/${id}`, data);
-      return response.data;
-    } catch (error) {
-      console.error('API update error:', error);
-      throw error;
-    }
+  async update(id: number, data: ContractUpdateData): Promise<Contract> {
+    const response = await api.put<{ success: boolean; data: Contract }>(`/contracts/${id}`, data)
+    return response.data.data
   },
 
-  // Cancel contract
-  cancel: async (id: number) => {
-    try {
-      const response = await api.put<{ success: boolean; data: Contract }>(`/contracts/${id}/cancel`, {
-        is_cancelled: true
-      });
-      return response.data;
-    } catch (error) {
-      console.error('API cancel error:', error);
-      throw error;
-    }
+  async cancel(id: number): Promise<Contract> {
+    const response = await api.put<{ success: boolean; data: Contract }>(`/contracts/${id}/cancel`)
+    return response.data.data
   },
 
-  // Delete contract
-  delete: async (id: number) => {
-    try {
-      const response = await api.delete<{ success: boolean; message: string }>(`/contracts/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error('API delete error:', error);
-      throw error;
-    }
+  async delete(id: number): Promise<void> {
+    await api.delete(`/contracts/${id}`)
   },
+}
 
-  // Get all contract templates
-  getTemplates: async () => {
-    try {
-      const response = await api.get<{ success: boolean; data: ContractTemplate[] }>("/contract-templates");
-      return response.data;
-    } catch (error) {
-      console.error('API getTemplates error:', error);
-      throw error;
-    }
-  },
-
-  // Get single contract template
-  getTemplateById: async (id: number) => {
-    try {
-      const response = await api.get<{ success: boolean; data: ContractTemplate }>(`/contract-templates/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error('API getTemplateById error:', error);
-      throw error;
-    }
-  },
-};
-
-export default ContractApi;
+export default ContractApi

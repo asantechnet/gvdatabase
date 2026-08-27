@@ -9,12 +9,15 @@ import NavBarAuditLogs from '@/layouts/components/NavBarAuditLogs.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import NavBarI18n from '@core/components/I18n.vue'
 import { HorizontalNavLayout } from '@layouts'
-import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
 import NavbarFullscreenToggle from '@/layouts/components/NavbarFullscreenToggle.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
 import NavbarLayoutSwitcher from '@/layouts/components/NavbarLayoutSwitcher.vue'
+import { useBranding } from '@/composables/useBranding'
 
+const { logoUrl, shortCompanyName, loadBranding } = useBranding()
+
+onMounted(loadBranding)
 </script>
 
 <template>
@@ -22,10 +25,10 @@ import NavbarLayoutSwitcher from '@/layouts/components/NavbarLayoutSwitcher.vue'
     <!-- 👉 navbar -->
     <template #navbar>
       <RouterLink to="/" class="app-logo d-flex align-center gap-x-3 navbar-brand">
-        <VNodeRenderer :nodes="themeConfig.app.logo" />
+        <img :src="logoUrl" :alt="shortCompanyName" class="navbar-logo">
 
         <h1 class="app-title font-weight-bold leading-normal text-xl text-capitalize">
-          {{ themeConfig.app.title }}
+          {{ shortCompanyName }}
         </h1>
       </RouterLink>
       <VSpacer />
@@ -58,6 +61,12 @@ import NavbarLayoutSwitcher from '@/layouts/components/NavbarLayoutSwitcher.vue'
 </template>
 
 <style scoped>
+.navbar-logo {
+  block-size: 2rem;
+  inline-size: 2rem;
+  object-fit: contain;
+}
+
 @media (max-width: 599px) {
   .navbar-brand { display: none !important; }
 }

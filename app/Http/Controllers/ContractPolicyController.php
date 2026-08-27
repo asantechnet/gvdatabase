@@ -1,0 +1,51 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Resources\ContractPolicyResource;
+use App\Models\ContractPolicy;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class ContractPolicyController extends Controller
+{
+    public function index(): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => ContractPolicyResource::collection(
+            ContractPolicy::query()->orderBy('type')->orderBy('label')->get()
+        )]);
+    }
+
+    public function show(ContractPolicy $contractPolicy): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => new ContractPolicyResource($contractPolicy)]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $policy = ContractPolicy::create($this->validated($request));
+        return response()->json(['success' => true, 'data' => new ContractPolicyResource($policy)], 201);
+    }
+
+    public function update(Request $request, ContractPolicy $contractPolicy): JsonResponse
+    {
+        $contractPolicy->update($this->validated($request, true));
+        return response()->json(['success' => true, 'data' => new ContractPolicyResource($contractPolicy)]);
+    }
+
+    public function destroy(ContractPolicy $contractPolicy): JsonResponse
+    {
+        $contractPolicy->delete();
+        return response()->json(['success' => true]);
+    }
+
+    private function validated(Request $request, bool $partial = false): array
+    {
+        return $request->validate([
+            'label' => ($partial ? 'sometimes' : 'required').'|string|max:255',
+            'type' => ($partial ? 'sometimes' : 'required').'|string|max:100',
+            'header' => 'nullable|string|max:255',
+            'content' => ($partial ? 'sometimes' : 'required').'|string',
+        ]);
+    }
+}

@@ -91,7 +91,7 @@ class PositionController extends Controller
         if ($position->employees()->exists() || $position->users()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'This position is assigned to employees or users and cannot be deleted.'
+                'code' => 'business.position_in_use'
             ], 422);
         }
 
