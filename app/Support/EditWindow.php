@@ -28,7 +28,9 @@ class EditWindow
 
     public function enforce(User $user, Model $record): void
     {
-        if ($this->isOpen($record)) return;
+        if ($this->isOpen($record)) {
+            return;
+        }
         abort_unless($user->hasPermission('override_edit_window'), 422, 'business.edit_window_expired');
 
         AuditLog::create([
@@ -36,6 +38,8 @@ class EditWindow
             'table_name' => $record->getTable(),
             'auditable_type' => $record::class,
             'auditable_id' => $record->getKey(),
+            'subject_type' => AuditRegistry::keyFor($record),
+            'subject_label' => AuditRegistry::subjectLabel($record),
             'user_id' => $user->id,
             'employee_id' => $user->employee()->value('id'),
             'old_values' => ['editable_until' => $this->editableUntil($record)->toISOString()],

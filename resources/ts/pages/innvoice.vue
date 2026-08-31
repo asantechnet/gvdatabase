@@ -55,6 +55,7 @@ const headers = [
   { title: translate('common.fields.amountPaid'), key: 'paid_amount' },
   { title: translate('common.messages.balance'), key: 'balance' },
   { title: translate('common.fields.status'), key: 'status' },
+  { title: 'Recorded by', key: 'recordedBy.name' },
   { title: translate('common.messages.services'), key: 'data-table-expand', sortable: false },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
 ]
@@ -83,6 +84,7 @@ const selectedCustomer = computed(() =>
 const invoiceCurrency = computed(() =>
   currencies.value.find(currency => Number(currency.id) === Number(invoiceForm.value.currency_id)) ?? null,
 )
+const currentBaseCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? null)
 
 const selectedPaymentDetail = computed(() =>
   paymentDetails.value.find(detail => detail.id === Number(invoiceForm.value.payment_detail_id)) ?? null,
@@ -297,7 +299,7 @@ onMounted(async () => {
 
 <template>
   <div class="invoice-management-wrapper">
-    <DataTablePageKpis :items="filteredInvoices" title="Invoices" description="Keep billing activity visible, from paid invoices to items that need attention." icon="tabler-file-invoice" />
+    <DataTablePageKpis :items="filteredInvoices" :base-currency="currentBaseCurrency" title="Invoices" description="Keep billing activity visible, from paid invoices to items that need attention." icon="tabler-file-invoice" />
     <VCard class="mb-6">
       <VCardText>
         <VRow align="center">

@@ -26,6 +26,8 @@ class TaskController extends Controller
             'assignees.*' => 'integer|distinct|exists:users,id',
             'tags' => 'sometimes|array',
             'tags.*' => 'integer|distinct|exists:tags,id',
+            'service_ids' => 'sometimes|array',
+            'service_ids.*' => 'integer|distinct|exists:services,id',
         ]);
 
         $board = Board::findOrFail($validated['board_id']);
@@ -40,7 +42,8 @@ class TaskController extends Controller
 
         $assignees = $validated['assignees'] ?? [$request->user()->id];
         $tags = $validated['tags'] ?? [];
-        unset($validated['assignees'], $validated['tags']);
+        $serviceIds = $validated['service_ids'] ?? [];
+        unset($validated['assignees'], $validated['tags'], $validated['service_ids']);
 
         // Place at the bottom of the column by default
         $validated['order'] = (Task::where('board_id', $validated['board_id'])->max('order') ?? -1) + 1;
@@ -48,10 +51,11 @@ class TaskController extends Controller
         $task = Task::create($validated);
         $task->users()->sync($assignees);
         $task->tags()->sync($tags);
+        $this->syncServices($task, $serviceIds, $board);
         $board->users()->syncWithoutDetaching($assignees);
 
         // Load empty relations so the resource doesn't fail
-        $task->load(['users.employee', 'tags', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
+        $task->load(['users.employee', 'tags', 'services.currency', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
 
         return new TaskResource($task);
     }
@@ -77,6 +81,8 @@ class TaskController extends Controller
             'assignees.*' => 'integer|distinct|exists:users,id',
             'tags' => 'sometimes|array',
             'tags.*' => 'integer|distinct|exists:tags,id',
+            'service_ids' => 'sometimes|array',
+            'service_ids.*' => 'integer|distinct|exists:services,id',
         ]);
 
         Gate::authorize('update', $task);
@@ -92,7 +98,8 @@ class TaskController extends Controller
         }
 
         $dependencies = $validated['dependencies'] ?? null;
-        unset($validated['dependencies']);
+        $serviceIds = $validated['service_ids'] ?? null;
+        unset($validated['dependencies'], $validated['service_ids']);
         $task->update($validated);
 
         // Optional: Handle syncing tags or assignees here if passed in the payload
@@ -106,8 +113,11 @@ class TaskController extends Controller
         if ($request->has('dependencies')) {
             $task->dependencies()->sync($dependencies ?? []);
         }
+        if ($serviceIds !== null) {
+            $this->syncServices($task, $serviceIds, $task->board);
+        }
 
-        return response()->json(['message' => 'Task updated successfully']);
+        return new TaskResource($task->fresh()->load(['users.employee', 'tags', 'services.currency', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']));
     }
 
     public function destroy(Task $task)
@@ -168,6 +178,7 @@ class TaskController extends Controller
         ]);
         $destination = Board::findOrFail($validated['board_id']);
         Gate::authorize('move', [$task, $destination]);
+        abort_unless($task->board->project_id === $destination->project_id, 422, 'business.task_cross_project_move');
 
         $positions = DB::transaction(function () use ($task, $validated) {
             // Lock both affected columns. This prevents overlapping drag
@@ -225,5 +236,16 @@ class TaskController extends Controller
         });
 
         return response()->json(['message' => 'Task repositioned', 'positions' => $positions]);
+    }
+
+    /** @param list<int> $serviceIds */
+    private function syncServices(Task $task, array $serviceIds, Board $board): void
+    {
+        if ($board->project_id && $serviceIds !== []) {
+            $allowedCount = $board->project->services()->whereKey($serviceIds)->count();
+            abort_unless($allowedCount === count($serviceIds), 422, 'business.task_service_not_linked_to_project');
+        }
+
+        $task->services()->sync($serviceIds);
     }
 }

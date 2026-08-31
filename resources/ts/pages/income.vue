@@ -14,7 +14,7 @@ const isEditIncomeDialogVisible = ref(false)
 const isDeleteIncomeDialogVisible = ref(false)
 type IncomeForm = IncomeCreateData & {
   id: number
-  total_amount: number
+  base_amount: number
   receipt_number?: string
   invoice_number?: string | null
   currency?: Income['currency']
@@ -32,7 +32,7 @@ const emptyIncomeForm = (): IncomeForm => ({
   quantity: 1,
   currency_id: 0,
   rate: 1,
-  total_amount: 0,
+  base_amount: 0,
   date: new Date().toISOString().split('T')[0],
 })
 
@@ -46,6 +46,10 @@ const currencies = ref<Currency[]>([])
 const formError = ref('')
 
 const typeOptions = ['Service', 'Product', 'Investment', 'Other']
+const filterTypeOptions = computed(() => typeOptions.map(value => ({
+  title: translateBackendValue(value),
+  value,
+})))
 const currencyOptions = computed(() => currencies.value
   .filter(currency => currency.isActive)
   .map(currency => ({ title: `${currency.code} — ${currency.name}`, value: currency.id })))
@@ -56,8 +60,9 @@ const selectedInvoice = computed(() => {
 })
 
 const selectedInvoiceBalance = computed(() => selectedInvoice.value?.balance ?? 0)
+const currentBaseCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? null)
 
-const totalReceived = computed(() => incomes.value.reduce((total, income) => total + Number(income.total_amount || 0), 0))
+const totalReceived = computed(() => incomes.value.reduce((total, income) => total + Number(income.currentBaseAmount ?? income.base_amount ?? 0), 0))
 const linkedIncomeCount = computed(() => incomes.value.filter(income => income.invoice_id).length)
 const averageIncome = computed(() => incomes.value.length ? totalReceived.value / incomes.value.length : 0)
 const currentMonthIncome = computed(() => {
@@ -65,7 +70,7 @@ const currentMonthIncome = computed(() => {
   return incomes.value.reduce((total, income) => {
     const date = new Date(income.date)
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-      ? total + Number(income.total_amount || 0)
+      ? total + Number(income.currentBaseAmount ?? income.base_amount ?? 0)
       : total
   }, 0)
 })
@@ -237,19 +242,15 @@ const deleteIncomeRecord = async () => {
 }
 
 const calculateTotal = () => {
-  selectedIncome.value.total_amount = selectedIncome.value.amount * selectedIncome.value.quantity * selectedIncome.value.rate
+  selectedIncome.value.base_amount = selectedIncome.value.amount * selectedIncome.value.quantity / selectedIncome.value.rate
 }
 
 const formatCurrency = (value: number | string | undefined | null): string => {
-  if (value === undefined || value === null || value === '') return '$0.00'
-
-  // Convert string to number if needed
-  const numericValue = typeof value === 'string' ? parseFloat(value) : value
-
-  // Check if the conversion resulted in a valid number
-  if (isNaN(numericValue)) return '$0.00'
-
-  return `$${numericValue.toFixed(2)}`
+  const numericValue = Number(value ?? 0)
+  const currency = currentBaseCurrency.value
+  const decimals = currency?.decimalPlaces ?? 2
+  const formatted = Number.isFinite(numericValue) ? numericValue.toFixed(decimals) : (0).toFixed(decimals)
+  return `${currency?.symbol ?? ''}${formatted}${currency?.code ? ` ${currency.code}` : ''}`.trim()
 }
 
 const formatIncomeCurrency = (value: number | string, currency: Income['currency']): string => {
@@ -332,7 +333,7 @@ onMounted(() => {
           <VCol cols="12" md="4" class="d-flex align-center justify-md-end ga-2">
             <DataTableFilterMenu :active="Boolean(filterType || filterCurrency)"
               @reset="filterType = null; filterCurrency = null; fetchIncomes()">
-              <VSelect v-model="filterType" :items="typeOptions" :label="$t('common.messages.filterByType')" density="compact" clearable hide-details @update:modelValue="fetchIncomes" />
+              <VSelect v-model="filterType" :items="filterTypeOptions" :label="$t('common.messages.filterByType')" density="compact" clearable hide-details @update:modelValue="fetchIncomes" />
               <VSelect v-model="filterCurrency" :items="currencyOptions" :label="$t('common.messages.filterByCurrency')" density="compact" clearable hide-details @update:modelValue="fetchIncomes" />
             </DataTableFilterMenu>
             <div class="text-caption text-medium-emphasis"><strong class="text-high-emphasis">{{ incomes.length }}</strong> {{ $t('pages.finance.income.income.recordsCurrentlyShown') }}</div>
@@ -354,8 +355,9 @@ onMounted(() => {
             { title: translate('common.fields.type'), key: 'type', align: 'start' },
             { title: translate('common.messages.details'), key: 'description', align: 'start' },
             { title: translate('pages.finance.income.income.invoice'), key: 'invoice_number', align: 'start' },
-            { title: translate('common.fields.amount'), key: 'total_amount', align: 'end' },
+            { title: translate('common.fields.amount'), key: 'base_amount', align: 'end' },
             { title: translate('common.fields.date'), key: 'date', align: 'center' },
+            { title: translate('common.messages.recordedBy'), key: 'recordedBy.name', align: 'start' },
             { title: translate('common.messages.actions'), key: 'actions', align: 'center', sortable: false }
           ]"
           item-value="id"
@@ -382,7 +384,7 @@ onMounted(() => {
             <span v-else class="text-caption text-medium-emphasis">{{ $t('pages.finance.income.income.standalone') }}</span>
           </template>
 
-          <template #item.total_amount="{ item }">
+          <template #item.base_amount="{ item }">
             <div class="font-weight-bold text-success">{{ formatIncomeCurrency(item.amount * item.quantity, item.currency) }}</div>
             <div class="text-caption text-medium-emphasis">{{ $t('common.messages.quantityExchangeRate', { quantity: item.quantity, rate: formatRate(item.rate) }) }}</div>
           </template>
@@ -390,6 +392,7 @@ onMounted(() => {
           <template #item.date="{ item }">
             <span>{{ formatDate(item.date) }}</span>
           </template>
+          <template #item.recordedBy.name="{ item }"><span>{{ item.recordedBy?.name || $t('common.messages.systemLegacy') }}</span></template>
 
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
@@ -400,14 +403,14 @@ onMounted(() => {
                 size="small"
                 color="medium-emphasis"
                 @click="openEditIncomeDialog(item)"
-              ><VTooltip activator="parent" location="top">{{ $t('pages.finance.income.income.editIncomeRecord') }}</VTooltip></VBtn>
+              ><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">{{ $t('pages.finance.income.income.editIncomeRecord') }}</VTooltip></VBtn>
               <VBtn
                 icon="tabler-trash"
                 variant="text"
                 size="small"
                 color="error"
                 @click="openDeleteIncomeDialog(item)"
-              ><VTooltip activator="parent" location="top">{{ $t('pages.finance.income.income.deleteIncomeRecord') }}</VTooltip></VBtn>
+              ><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">{{ $t('pages.finance.income.income.deleteIncomeRecord') }}</VTooltip></VBtn>
             </div>
           </template>
 
@@ -517,15 +520,13 @@ onMounted(() => {
                   v-model.number="selectedIncome.rate"
                   :label="$t('common.messages.exchangeRate')"
                   type="number"
-                  step="0.01"
-                  :disabled="Boolean(selectedInvoice)"
-                  @input="calculateTotal"
+                  readonly
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model="selectedIncome.total_amount"
+                  v-model="selectedIncome.base_amount"
                   :label="$t('common.messages.totalAmount')"
                   type="number"
                   readonly
@@ -652,15 +653,13 @@ onMounted(() => {
                   v-model.number="selectedIncome.rate"
                   :label="$t('common.messages.exchangeRate')"
                   type="number"
-                  step="0.01"
-                  :disabled="Boolean(selectedInvoice)"
-                  @input="calculateTotal"
+                  readonly
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model="selectedIncome.total_amount"
+                  v-model="selectedIncome.base_amount"
                   :label="$t('common.messages.totalAmount')"
                   type="number"
                   readonly
@@ -738,17 +737,16 @@ onMounted(() => {
 .income-page { padding-bottom: 32px; }
 .income-command-deck {
   color: white;
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
+  border: 1px solid rgb(52 211 153 / .18);
   border-radius: 20px;
   box-shadow: 0 18px 45px rgb(23 43 77 / .2);
-  background:
-    radial-gradient(circle at 90% 5%, #34d399aa, transparent 28%),
-    radial-gradient(circle at 6% 100%, #22c55e88, transparent 38%),
-    linear-gradient(115deg, #064e3b, #047857 55%, #14532d);
+  background: linear-gradient(115deg, #064e3b, #047857 55%, #14532d);
 }
-.income-command-deck::after { position: absolute; z-index: -1; top: -80px; right: 8%; width: 230px; height: 230px; border: 1px solid rgb(255 255 255 / .12); border-radius: 50%; box-shadow: 0 0 0 35px rgb(255 255 255 / .035), 0 0 0 70px rgb(255 255 255 / .025); content: ''; }
+/* Do not use :global(.v-theme--light) here: Vue reduces that mixed scoped
+   selector to bare .v-theme--light and paints every Vuetify overlay. */
+.income-command-deck.v-theme--light { color: #16312a; border-color: #a7f3d0; box-shadow: 0 16px 34px rgb(15 118 110 / .12); background: #e9fbf3; }
+.income-command-deck.v-theme--light .metric-tile { border-color: #c9ecdc; background: #fffefa; box-shadow: inset 0 1px 0 #fff; }
+.income-command-deck.v-theme--light .hero-print { color: #166534 !important; border-color: #86d9b5; }
 .hero-copy { max-width: 660px; }
 .hero-copy h2 { letter-spacing: -.035em; }
 .hero-actions { flex-shrink: 0; }
@@ -756,8 +754,10 @@ onMounted(() => {
 .hero-primary-action { min-height: 42px; padding-inline: 18px !important; border-radius: 10px; box-shadow: 0 8px 22px rgb(8 20 48 / .22); }
 .income-primary-action { color: #86efac !important; }
 .income-primary-action :deep(.v-icon) { color: #86efac !important; }
+.income-command-deck.v-theme--light .income-primary-action,
+.income-command-deck.v-theme--light .income-primary-action :deep(.v-icon) { color: #166534 !important; }
 .eyebrow { display: flex; align-items: center; gap: 6px; font-size: .68rem; font-weight: 800; letter-spacing: .12em; opacity: .78; }
-.metric-tile { min-height: 92px; display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px solid rgb(255 255 255 / .15); border-radius: 15px; background: linear-gradient(135deg, rgb(255 255 255 / .14), rgb(255 255 255 / .055)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .1); backdrop-filter: blur(12px); transition: transform .2s ease, background .2s ease; }
+.metric-tile { min-height: 92px; display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px solid rgb(255 255 255 / .15); border-radius: 15px; background: linear-gradient(135deg, rgb(255 255 255 / .14), rgb(255 255 255 / .055)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .1); transition: transform .2s ease, background .2s ease; }
 .metric-tile:hover { transform: translateY(-3px); background: rgb(255 255 255 / .16); }
 .metric-tile :deep(.v-icon) { padding: 10px; border-radius: 11px; background: rgb(255 255 255 / .94); box-shadow: 0 5px 12px rgb(8 20 48 / .16); }
 .metric-label { font-size: .72rem; letter-spacing: .04em; opacity: .72; text-transform: uppercase; }

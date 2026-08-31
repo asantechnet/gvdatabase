@@ -10,8 +10,10 @@ const searchQuery = ref('')
 const statusFilter = ref<StatusFilter>('all')
 const isDialogVisible = ref(false)
 const isDeleteDialogVisible = ref(false)
+const isBaseCurrencyDialogVisible = ref(false)
 const editingId = ref<number | null>(null)
 const currencyToDelete = ref<Currency | null>(null)
+const currencyToSetAsBase = ref<Currency | null>(null)
 const currencies = ref<Currency[]>([])
 const isLoading = ref(false)
 const toast = useToast()
@@ -20,9 +22,10 @@ const defaultFormData: CurrencyForm = {
   name: '',
   code: '',
   symbol: '',
-  rateToBase: 1.0,
+  rate: 1.0,
   isActive: true,
   decimalPlaces: 2,
+  isBase: false,
 }
 
 const formData = ref<CurrencyForm>({ ...defaultFormData })
@@ -149,7 +152,7 @@ const openEditDialog = (currency: Currency) => {
     name: currency.name,
     code: currency.code,
     symbol: currency.symbol,
-    rateToBase: currency.rateToBase,
+    rate: currency.rate,
     isActive: currency.isActive,
     decimalPlaces: currency.decimalPlaces,
     isBase: currency.isBase,
@@ -180,13 +183,25 @@ const setAsBaseCurrency = async (targetId: number) => {
   const target = currencies.value.find((c) => c.id === targetId)
   if (!target || target.isBase) return
 
+  currencyToSetAsBase.value = target
+  isBaseCurrencyDialogVisible.value = true
+}
+
+const confirmSetAsBaseCurrency = async () => {
+  const target = currencyToSetAsBase.value
+  if (!target) return
+
+  isBaseCurrencyDialogVisible.value = false
+
   try {
-    await CurrencyApi.update(targetId, { isBase: true })
+    await CurrencyApi.update(target.id, { isBase: true })
     await fetchCurrencies()
     toast.success(`Successfully set ${target.code} as base currency`)
   } catch (error: any) {
     toast.error(error.message || 'Failed to set as base currency')
     console.error('Error setting base currency:', error)
+  } finally {
+    currencyToSetAsBase.value = null
   }
 }
 
@@ -348,7 +363,7 @@ const toggleStatus = async (currency: Currency) => {
             <td>
               <div class="font-weight-medium">
                 <span v-if="currency.isBase" class="text-success font-weight-bold">{{ $t('pages.finance.currencies.baseRate') }}</span>
-                <span v-else>1 {{ currentBaseCurrency?.code || 'N/A' }} = {{ currency.rateToBase }} {{
+                <span v-else>1 {{ currentBaseCurrency?.code || 'N/A' }} = {{ currency.rate }} {{
                   currency.code }}</span>
               </div>
                 <div class="text-caption text-medium-emphasis">{{ $t('pages.finance.currencies.updatedAt', { date: formatLocalizedDate(currency.updatedAt, 'long') }) }}</div>
@@ -421,6 +436,32 @@ const toggleStatus = async (currency: Currency) => {
         <v-card-actions class="justify-end gap-2 pa-4">
           <v-btn variant="outlined" color="secondary" @click="isDeleteDialogVisible = false">{{ $t('common.actions.cancel') }}</v-btn>
           <v-btn color="error" elevation="1" @click="handleDelete">{{ $t('common.actions.delete') }}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="isBaseCurrencyDialogVisible" max-width="460">
+      <v-card rounded="lg" class="pa-2">
+        <v-card-title class="d-flex align-center ga-2 text-h6 font-weight-bold">
+          <v-avatar color="warning" variant="tonal" size="36">
+            <v-icon icon="tabler-star" size="20" />
+          </v-avatar>
+          <span>Change base currency?</span>
+        </v-card-title>
+        <v-card-text class="pt-3">
+          <v-alert type="warning" variant="tonal" density="comfortable" class="mb-3">
+            Dashboard and report totals will be displayed in
+            <strong>{{ currencyToSetAsBase?.code }}</strong>.
+          </v-alert>
+          This will update the base currency for the application.
+        </v-card-text>
+        <v-card-actions class="justify-end gap-2 pa-4">
+          <v-btn variant="outlined" color="secondary" @click="isBaseCurrencyDialogVisible = false">
+            {{ $t('common.actions.cancel') }}
+          </v-btn>
+          <v-btn color="warning" variant="flat" @click="confirmSetAsBaseCurrency">
+            Set as base currency
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

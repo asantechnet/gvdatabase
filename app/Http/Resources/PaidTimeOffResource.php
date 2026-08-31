@@ -18,6 +18,11 @@ class PaidTimeOffResource extends JsonResource
             'is_granted' => $this->is_granted,
             'is_paid' => $this->is_paid,
             'granted_at' => $this->granted_at?->toISOString(),
+            'approved_by' => $this->granted_by,
+            'approvedBy' => $this->whenLoaded('grantor', fn () => $this->grantor ? [
+                'id' => $this->grantor->id,
+                'name' => $this->grantor->name,
+            ] : null),
             'employee' => $this->whenLoaded('employee', fn () => [
                 'id' => $this->employee->id,
                 'name' => $this->employee->name,

@@ -78,7 +78,7 @@ watch(() => store.selectedTask?.comments, () => {
       <VCardItem class="border-b">
         <template #title>
           <div class="d-flex align-center">
-            <VIcon icon="tabler-message-circle" class="mr-2" />
+          <VIcon icon="tabler-message-circle" class="me-2" />
             <span class="text-h6 font-weight-bold">{{ $t('components.taskManager.taskcommentsdrawer.taskComments') }}</span>
           </div>
         </template>

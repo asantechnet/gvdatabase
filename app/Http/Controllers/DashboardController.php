@@ -15,6 +15,7 @@ use App\Models\PaidTimeOff;
 use App\Models\Salary;
 use App\Models\Service;
 use App\Models\Stock;
+use App\Models\StockAllocation;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Visitor;
@@ -55,12 +56,13 @@ class DashboardController extends Controller
             ?? Currency::query()->orderBy('id')->first();
 
         $currentMonthIncomeByBase = $canViewFinance
-            ? $this->incomeByBase($now->copy()->startOfMonth(), $now->copy()->endOfMonth())
+            ? $this->incomeByBase($now->copy()->startOfMonth(), $now->copy()->endOfMonth(), $baseCurrency)
             : [];
         $previousMonthIncomeByBase = $canViewFinance
             ? $this->incomeByBase(
                 $now->copy()->subMonthNoOverflow()->startOfMonth(),
                 $now->copy()->subMonthNoOverflow()->endOfMonth(),
+                $baseCurrency,
             )
             : [];
         $displayBase = $baseCurrency?->code ?? (array_key_first($currentMonthIncomeByBase) ?: 'USD');
@@ -303,15 +305,10 @@ class DashboardController extends Controller
     private function dailyIncome(Carbon $now): array
     {
         $values = [];
-        $baseCode = Currency::query()->where('is_base', true)->value('code');
 
         for ($offset = 6; $offset >= 0; $offset--) {
             $date = $now->copy()->subDays($offset)->toDateString();
-            $query = Income::query()->whereDate('date', $date);
-            if ($baseCode) {
-                $query->where('base_curr_shrt', $baseCode);
-            }
-            $values[] = round((float) $query->sum('base_amount'), 2);
+            $values[] = round($this->incomeSum(Income::query()->whereDate('date', $date)), 2);
         }
 
         return $values;
@@ -325,15 +322,10 @@ class DashboardController extends Controller
         for ($offset = 4; $offset >= 0; $offset--) {
             $month = $now->copy()->subMonthsNoOverflow($offset);
             $range = [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()];
-            $baseCode = Currency::query()->where('is_base', true)->value('code');
             $incomeQuery = Income::query()->whereBetween('date', $range);
             $expenseQuery = Expense::query()->whereBetween('date', $range);
-            if ($baseCode) {
-                $incomeQuery->where('base_curr_shrt', $baseCode);
-                $expenseQuery->where('base_curr_shrt', $baseCode);
-            }
-            $income = (float) $incomeQuery->sum('base_amount');
-            $expenses = (float) $expenseQuery->sum('base_amount');
+            $income = $this->incomeSum($incomeQuery);
+            $expenses = $this->expenseSum($expenseQuery);
             $labels[] = $month->copy()->startOfMonth()->toDateString();
             $values[] = round($income - $expenses, 2);
         }
@@ -351,20 +343,15 @@ class DashboardController extends Controller
         $labels = [];
         $income = [];
         $expenses = [];
-        $baseCode = Currency::query()->where('is_base', true)->value('code');
 
         for ($offset = 5; $offset >= 0; $offset--) {
             $month = $now->copy()->subMonthsNoOverflow($offset);
             $range = [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()];
             $incomeQuery = Income::query()->whereBetween('date', $range);
             $expenseQuery = Expense::query()->whereBetween('date', $range);
-            if ($baseCode) {
-                $incomeQuery->where('base_curr_shrt', $baseCode);
-                $expenseQuery->where('base_curr_shrt', $baseCode);
-            }
             $labels[] = $month->copy()->startOfMonth()->toDateString();
-            $income[] = round((float) $incomeQuery->sum('base_amount'), 2);
-            $expenses[] = round((float) $expenseQuery->sum('base_amount'), 2);
+            $income[] = round($this->incomeSum($incomeQuery), 2);
+            $expenses[] = round($this->expenseSum($expenseQuery), 2);
         }
 
         return compact('labels', 'income', 'expenses');
@@ -374,72 +361,54 @@ class DashboardController extends Controller
     {
         $start = $now->copy()->startOfMonth();
         $end = $now->copy()->endOfMonth();
-        $baseCode = Currency::query()->where('is_base', true)->value('code');
         $income = Income::query()->whereBetween('date', [$start, $end]);
         $expenses = Expense::query()->whereBetween('date', [$start, $end]);
-        if ($baseCode) {
-            $income->where('base_curr_shrt', $baseCode);
-            $expenses->where('base_curr_shrt', $baseCode);
-        }
-        $incomeTotal = round((float) $income->sum('base_amount'), 2);
-        $expenseTotal = round((float) $expenses->sum('base_amount'), 2);
+        $incomeTotal = round($this->incomeSum($income), 2);
+        $expenseTotal = round($this->expenseSum($expenses), 2);
 
         return ['income' => $incomeTotal, 'expenses' => $expenseTotal, 'net_cash' => round($incomeTotal - $expenseTotal, 2)];
     }
 
     private function expenseBreakdown(Carbon $now): array
     {
-        $baseCode = Currency::query()->where('is_base', true)->value('code');
-        $query = Expense::query()
+        return Expense::query()
+            ->with('expenseCurrency:id,rate')
             ->whereBetween('date', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
-            ->selectRaw('type, SUM(base_amount) as total')
-            ->groupBy('type')
-            ->orderByDesc('total')
-            ->limit(5);
-        if ($baseCode) {
-            $query->where('base_curr_shrt', $baseCode);
-        }
-
-        return $query->get()->map(fn (Expense $expense) => [
-            'label' => $expense->type ?: 'Other',
-            'value' => round((float) $expense->total, 2),
-        ])->values()->all();
+            ->get()
+            ->groupBy(fn (Expense $expense) => $expense->type ?: 'Other')
+            ->map(fn ($rows, string $type) => ['label' => $type, 'value' => round($rows->sum(fn (Expense $expense) => $this->currentBaseAmount((float) $expense->amount * $expense->quantity, $expense->expenseCurrency)), 2)])
+            ->sortByDesc('value')->take(5)->values()->all();
     }
 
     private function topCustomers(Carbon $now): array
     {
-        $baseCode = Currency::query()->where('is_base', true)->value('code');
-        $query = Income::query()
-            ->with('customer:id,name,company')
+        return Income::query()
+            ->with(['customer:id,name,company', 'incomeCurrency:id,rate'])
             ->whereNotNull('customer_id')
             ->whereBetween('date', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
-            ->selectRaw('customer_id, SUM(base_amount) as total')
+            ->get()
             ->groupBy('customer_id')
-            ->orderByDesc('total')
-            ->limit(5);
-        if ($baseCode) {
-            $query->where('base_curr_shrt', $baseCode);
-        }
-
-        return $query->get()->map(fn (Income $income) => [
-            'id' => (string) $income->customer_id,
-            'name' => $income->customer?->company ?: ($income->customer?->name ?? 'Unknown customer'),
-            'value' => round((float) $income->total, 2),
-        ])->values()->all();
+            ->map(function ($rows) {
+                $income = $rows->first();
+                return [
+                    'id' => (string) $income->customer_id,
+                    'name' => $income->customer?->company ?: ($income->customer?->name ?? 'Unknown customer'),
+                    'value' => round($rows->sum(fn (Income $row) => $this->currentBaseAmount((float) $row->amount * $row->quantity, $row->incomeCurrency)), 2),
+                ];
+            })->sortByDesc('value')->take(5)->values()->all();
     }
 
     private function receivables(Carbon $now, bool $limited = true): array
     {
         $invoices = Invoice::query()
-            ->with('customer:id,name,company')
-            ->withSum('incomes', 'base_amount')
+            ->with(['customer:id,name,company', 'currency:id,rate', 'incomes'])
             ->whereNull('voided_at')
             ->orderBy('due_date')
             ->get();
 
         $rows = $invoices->map(function (Invoice $invoice) use ($now) {
-            $paid = (float) $invoice->incomes_sum_base_amount;
-            $balance = max(0, (float) $invoice->base_amount - $paid);
+            $paid = (float) $invoice->incomes->sum(fn (Income $income) => (float) ($income->invoice_amount ?? ((float) $income->amount * $income->quantity)));
+            $balance = $this->currentBaseAmount(max(0, (float) $invoice->amount - $paid), $invoice->currency);
             return [
                 'id' => (string) $invoice->id,
                 'number' => $invoice->invoice_number ?: 'Invoice #'.$invoice->id,
@@ -459,7 +428,7 @@ class DashboardController extends Controller
     {
         $all = Stock::query();
         $total = (clone $all)->sum('quantity');
-        $assigned = (clone $all)->whereNotNull('staff_id')->sum('quantity');
+        $assigned = StockAllocation::query()->sum('quantity');
         $damaged = (clone $all)->whereIn('condition', [Stock::CONDITION_DAMAGED, Stock::CONDITION_POOR])->sum('quantity');
         $byCondition = (clone $all)->select('condition')->selectRaw('SUM(quantity) as total')->groupBy('condition')->get()
             ->map(fn (Stock $stock) => ['label' => ucfirst($stock->condition ?: 'unknown'), 'value' => (int) $stock->total])->values()->all();
@@ -493,12 +462,8 @@ class DashboardController extends Controller
         bool $canViewContracts,
         bool $canViewVisitors,
     ): array {
-        $invoiceTotal = $canViewInvoices
-            ? round((float) Invoice::query()->whereNull('voided_at')->sum('base_amount'), 2)
-            : null;
-        $collectedTotal = $canViewInvoices
-            ? round((float) Income::query()->whereNotNull('invoice_id')->sum('base_amount'), 2)
-            : null;
+        $invoiceTotal = $canViewInvoices ? round($this->invoiceSum(Invoice::query()->whereNull('voided_at')), 2) : null;
+        $collectedTotal = $canViewInvoices ? round($this->incomeSum(Income::query()->whereNotNull('invoice_id')), 2) : null;
         $activeServices = $canViewServices ? CustomerService::query()->where('status', 'active')->count() : null;
         $serviceDeadlines = $canViewServices ? CustomerService::query()
             ->where('status', 'active')
@@ -551,8 +516,8 @@ class DashboardController extends Controller
                 ->sum('overtime_minutes') : null,
             'pending_leave_requests' => $canViewEmployees ? PaidTimeOff::query()->where('is_granted', false)->whereDate('date', '>=', $now->toDateString())->count() : null,
             'latest_payroll_period' => $latestPayrollPeriod,
-            'latest_payroll_total' => $latestPayrollPeriod ? round((float) Salary::query()
-                ->where('salary_month', $latestPayrollPeriod)->sum('base_amount'), 2) : null,
+            'latest_payroll_total' => $latestPayrollPeriod ? round($this->salarySum(Salary::query()
+                ->where('salary_month', $latestPayrollPeriod)), 2) : null,
         ];
     }
 
@@ -576,9 +541,9 @@ class DashboardController extends Controller
             $start = $month->copy()->startOfMonth();
             $end = $month->copy()->endOfMonth();
             $labels[] = $month->copy()->startOfMonth()->toDateString();
-            $invoiceValue[] = $canViewFinance ? round((float) $this->invoicesForPeriod($start, $end)->sum('base_amount'), 2) : 0;
+            $invoiceValue[] = $canViewFinance ? round($this->invoiceSum($this->invoicesForPeriod($start, $end)), 2) : 0;
             $customers[] = $canViewCustomers ? Customer::query()->whereBetween('date', [$start, $end])->count() : 0;
-            $payroll[] = $canViewPayroll ? round((float) Salary::query()->where('salary_month', $month->format('Y-m'))->sum('base_amount'), 2) : 0;
+            $payroll[] = $canViewPayroll ? round($this->salarySum(Salary::query()->where('salary_month', $month->format('Y-m'))), 2) : 0;
             $visitors[] = $canViewVisitors ? Visitor::query()->whereBetween('date', [$start, $end])->count() : 0;
             $completedTasks[] = (clone $tasks)->where('progress', 100)->whereBetween('completed_at', $this->utcRange($start, $end))->count();
         }
@@ -592,7 +557,6 @@ class DashboardController extends Controller
         $billed = [];
         $collected = [];
         $spent = [];
-        $baseCode = Currency::query()->where('is_base', true)->value('code');
 
         for ($offset = 5; $offset >= 0; $offset--) {
             $month = $now->copy()->subMonthsNoOverflow($offset);
@@ -600,14 +564,10 @@ class DashboardController extends Controller
             $end = $month->copy()->endOfMonth();
             $income = Income::query()->whereBetween('date', [$start, $end]);
             $expense = Expense::query()->whereBetween('date', [$start, $end]);
-            if ($baseCode) {
-                $income->where('base_curr_shrt', $baseCode);
-                $expense->where('base_curr_shrt', $baseCode);
-            }
             $labels[] = $month->copy()->startOfMonth()->toDateString();
-            $billed[] = round((float) $this->invoicesForPeriod($start, $end)->sum('base_amount'), 2);
-            $collected[] = round((float) $income->sum('base_amount'), 2);
-            $spent[] = round((float) $expense->sum('base_amount'), 2);
+            $billed[] = round($this->invoiceSum($this->invoicesForPeriod($start, $end)), 2);
+            $collected[] = round($this->incomeSum($income), 2);
+            $spent[] = round($this->expenseSum($expense), 2);
         }
 
         return compact('labels', 'billed', 'collected', 'spent');
@@ -776,15 +736,44 @@ class DashboardController extends Controller
         return $denominator > 0 ? round(($numerator / $denominator) * 100, 1) : 0.0;
     }
 
-    private function incomeByBase(Carbon $start, Carbon $end): array
+    private function incomeByBase(Carbon $start, Carbon $end, ?Currency $base): array
     {
-        return Income::query()
-            ->whereBetween('date', [$start, $end])
-            ->selectRaw('base_curr_shrt, SUM(base_amount) as total')
-            ->groupBy('base_curr_shrt')
-            ->pluck('total', 'base_curr_shrt')
-            ->map(fn ($value) => round((float) $value, 4))
-            ->all();
+        $code = $base?->code ?? 'BASE';
+        return [$code => round($this->incomeSum(Income::query()->whereBetween('date', [$start, $end])), 4)];
+    }
+
+    private function incomeSum(Builder $query): float
+    {
+        return (float) $query->with('incomeCurrency:id,rate')->get()->sum(
+            fn (Income $income) => $this->currentBaseAmount((float) $income->amount * $income->quantity, $income->incomeCurrency),
+        );
+    }
+
+    private function expenseSum(Builder $query): float
+    {
+        return (float) $query->with('expenseCurrency:id,rate')->get()->sum(
+            fn (Expense $expense) => $this->currentBaseAmount((float) $expense->amount * $expense->quantity, $expense->expenseCurrency),
+        );
+    }
+
+    private function invoiceSum(Builder $query): float
+    {
+        return (float) $query->with('currency:id,rate')->get()->sum(
+            fn (Invoice $invoice) => $this->currentBaseAmount((float) $invoice->amount, $invoice->currency),
+        );
+    }
+
+    private function salarySum(Builder $query): float
+    {
+        return (float) $query->with('currency:id,rate')->get()->sum(
+            fn (Salary $salary) => $this->currentBaseAmount((float) $salary->total_amount, $salary->currency),
+        );
+    }
+
+    private function currentBaseAmount(float $amount, ?Currency $currency): float
+    {
+        $rate = (float) ($currency?->rate ?? 0);
+        return $rate > 0 ? $amount / $rate : 0.0;
     }
 
     /** @return array{0: Carbon, 1: Carbon} */

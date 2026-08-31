@@ -27,7 +27,7 @@ class CompanySettingsTest extends TestCase
 
     public function test_authorized_user_can_save_timezone_email_and_contract_artwork(): void
     {
-        Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
+        Sanctum::actingAs($this->superAdmin(), ['access']);
 
         $response = $this->post('/api/settings', [
             ...$this->validSettings(),
@@ -47,7 +47,7 @@ class CompanySettingsTest extends TestCase
 
     public function test_artwork_replacement_and_removal_clean_up_superseded_files(): void
     {
-        Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
+        Sanctum::actingAs($this->superAdmin(), ['access']);
         Storage::disk('public')->put('contract-letterheads/old.jpg', 'old letterhead');
         Storage::disk('public')->put('contract-cover-designs/old.jpg', 'old cover');
         $setting = Setting::create([
@@ -56,8 +56,7 @@ class CompanySettingsTest extends TestCase
             'contract_cover_design' => 'contract-cover-designs/old.jpg',
         ]);
 
-        $response = $this->post("/api/settings/{$setting->id}", [
-            '_method' => 'PUT',
+        $response = $this->patch("/api/settings/{$setting->id}", [
             'contract_letterhead' => $this->fakePng('new.png', 1200, 1600),
             'remove_contract_cover_design' => '1',
         ], ['Accept' => 'application/json']);
@@ -74,7 +73,7 @@ class CompanySettingsTest extends TestCase
 
     public function test_invalid_company_email_and_timezone_are_rejected(): void
     {
-        Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
+        Sanctum::actingAs($this->superAdmin(), ['access']);
 
         $this->postJson('/api/settings', [
             ...$this->validSettings(),
@@ -84,27 +83,54 @@ class CompanySettingsTest extends TestCase
             ->assertJsonValidationErrors(['company_email', 'timezone']);
     }
 
-    public function test_partial_update_preserves_untouched_theme_colors(): void
+    public function test_patch_updates_only_the_submitted_theme_token(): void
     {
-        $user = User::factory()->create();
-        $user->roles()->attach(Role::query()->firstOrCreate(['name' => 'super_admin']));
-        Sanctum::actingAs($user, ['access']);
+        Sanctum::actingAs($this->superAdmin(), ['access']);
         $setting = Setting::create([
             ...$this->validSettings(),
-            'navigation_clr' => '#111111',
-            'footer_clr' => '#222222',
-            'cards_clr' => '#333333',
+            'primary_color' => '#111111',
+            'secondary_color' => '#222222',
+            'success_color' => '#333333',
         ]);
 
-        $this->putJson("/api/settings/{$setting->id}", [
-            'navigation_clr' => '#abcdef',
-            'website_title' => 'Updated company',
-        ])->assertOk();
+        $this->patchJson("/api/settings/{$setting->id}", [
+            'primary_color' => '#abcdef',
+        ])->assertOk()
+            ->assertJsonPath('data.primary_color', '#abcdef');
 
         $setting->refresh();
-        $this->assertSame('#abcdef', $setting->navigation_clr);
-        $this->assertSame('#222222', $setting->footer_clr);
-        $this->assertSame('#333333', $setting->cards_clr);
+        $this->assertSame('#abcdef', $setting->primary_color);
+        $this->assertSame('#222222', $setting->secondary_color);
+        $this->assertSame('#333333', $setting->success_color);
+    }
+
+    public function test_patch_can_restore_a_theme_token_to_its_vuexy_default(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $setting = Setting::create([
+            ...$this->validSettings(),
+            'primary_color' => '#111111',
+        ]);
+
+        $this->patchJson("/api/settings/{$setting->id}", [
+            'primary_color' => null,
+        ])->assertOk()
+            ->assertJsonPath('data.primary_color', '#7367F0');
+
+        $this->assertSame('#7367F0', $setting->fresh()->primary_color);
+    }
+
+    public function test_theme_palette_returns_vuexy_defaults_and_tertiary_is_removed(): void
+    {
+        $setting = Setting::create($this->validSettings());
+
+        $resource = (new \App\Http\Resources\SettingResource($setting))->resolve();
+
+        $this->assertSame('#28C76F', $resource['success_color']);
+        $this->assertSame('#F8F7FA', $resource['light_background_color']);
+        $this->assertSame('#2F3349', $resource['dark_surface_color']);
+        $this->assertArrayNotHasKey('tertiary_color', $resource);
+        $this->assertFalse(\Schema::hasColumn('settings', 'tertiary_color'));
     }
 
     public function test_authenticated_users_can_read_company_branding_without_settings_permission(): void
@@ -162,5 +188,13 @@ class CompanySettingsTest extends TestCase
             .$chunk('IEND', '');
 
         return UploadedFile::fake()->createWithContent($name, $contents);
+    }
+
+    private function superAdmin(): User
+    {
+        $user = User::factory()->create();
+        $user->roles()->attach(Role::query()->firstOrCreate(['name' => 'super_admin']));
+
+        return $user;
     }
 }

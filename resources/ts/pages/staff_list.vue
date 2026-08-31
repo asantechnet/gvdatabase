@@ -18,7 +18,6 @@ interface Staff {
   father_name: string
   contact: string
   id_number: string | null
-  tax_number: string | null
   bank_account_number: string | null
   guarantor_id_number: string | null
   guarantor_phone: string | null
@@ -246,7 +245,6 @@ const openAddStaffDialog = () => {
     father_name: '',
     contact: '',
     id_number: '',
-    tax_number: '',
     bank_account_number: '',
     guarantor_id_number: '',
     guarantor_phone: '',
@@ -460,7 +458,6 @@ const addStaff = async () => {
       father_name: selectedStaff.value.father_name,
       contact: selectedStaff.value.contact,
       id_number: selectedStaff.value.id_number ?? '',
-      tax_number: selectedStaff.value.tax_number,
       bank_account_number: selectedStaff.value.bank_account_number,
       guarantor_id_number: selectedStaff.value.guarantor_id_number,
       guarantor_phone: selectedStaff.value.guarantor_phone,
@@ -513,7 +510,6 @@ const updateStaff = async () => {
       father_name: selectedStaff.value.father_name,
       contact: selectedStaff.value.contact,
       id_number: selectedStaff.value.id_number ?? '',
-      tax_number: selectedStaff.value.tax_number,
       bank_account_number: selectedStaff.value.bank_account_number,
       guarantor_id_number: selectedStaff.value.guarantor_id_number,
       guarantor_phone: selectedStaff.value.guarantor_phone,
@@ -641,7 +637,7 @@ onMounted(async () => {
               icon="tabler-printer"
               variant="text"
               @click="printTable"
-            ><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.printStaffRecords') }}</VTooltip></VBtn>
+            ><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.printStaffRecords') }}</VTooltip></VBtn>
             <VBtn
               color="primary"
               @click="openAddStaffDialog"
@@ -703,28 +699,28 @@ onMounted(async () => {
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
               <FullDetailsButton :item="item" :title="item.name" />
-              <VBtn icon="tabler-file-description" variant="text" size="small" color="primary" @click="printEmployeeContract(item)"><VTooltip activator="parent" location="top">Print employment contract</VTooltip></VBtn>
+              <VBtn icon="tabler-file-description" variant="text" size="small" color="primary" @click="printEmployeeContract(item)"><VIcon icon="tabler-file-description" /><VTooltip activator="parent" location="top">Print employment contract</VTooltip></VBtn>
               <VBtn
                 icon="tabler-calendar-time"
                 variant="text"
                 size="small"
                 color="primary"
                 @click="openPaidTimeOffDialog(item)"
-              ><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.managePaidOffDays') }}</VTooltip></VBtn>
+              ><VIcon icon="tabler-calendar-time" /><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.managePaidOffDays') }}</VTooltip></VBtn>
               <VBtn
                 icon="tabler-edit"
                 variant="text"
                 size="small"
                 color="medium-emphasis"
                 @click="openEditStaffDialog(item)"
-              ><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.editStaffRecord') }}</VTooltip></VBtn>
+              ><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.editStaffRecord') }}</VTooltip></VBtn>
               <VBtn
                 icon="tabler-trash"
                 variant="text"
                 size="small"
                 color="error"
                 @click="openDeleteStaffDialog(item)"
-              ><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.deleteStaffRecord') }}</VTooltip></VBtn>
+              ><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.deleteStaffRecord') }}</VTooltip></VBtn>
             </div>
           </template>
         </ResponsiveDataTable>
@@ -839,7 +835,6 @@ onMounted(async () => {
                 <div class="d-flex justify-space-between align-center mb-2"><span class="text-subtitle-2">Service commissions</span><VBtn size="small" variant="tonal" prepend-icon="tabler-plus" @click="addCommission">Add service</VBtn></div>
                 <VRow v-for="(commission, index) in selectedStaff.commissions" :key="index"><VCol cols="8"><VSelect v-model="commission.service_id" :items="services" item-title="type" item-value="id" label="Service" /></VCol><VCol cols="3"><VTextField v-model.number="commission.percentage" type="number" min="0.01" max="100" label="Percentage" suffix="%" /></VCol><VCol cols="1"><VBtn icon="tabler-x" variant="text" color="error" @click="removeCommission(index)" /></VCol></VRow>
               </VCol>
-              <VCol cols="12" md="6"><VTextField v-model="selectedStaff.tax_number" label="Tax number" /></VCol>
               <VCol cols="12" md="6"><VTextField v-model="selectedStaff.bank_account_number" label="Bank account number" /></VCol>
               <VCol cols="12" md="6">
                 <VSelect
@@ -1023,7 +1018,6 @@ onMounted(async () => {
                 <div class="d-flex justify-space-between align-center mb-2"><span class="text-subtitle-2">Service commissions</span><VBtn size="small" variant="tonal" prepend-icon="tabler-plus" @click="addCommission">Add service</VBtn></div>
                 <VRow v-for="(commission, index) in selectedStaff.commissions" :key="index"><VCol cols="8"><VSelect v-model="commission.service_id" :items="services" item-title="type" item-value="id" label="Service" /></VCol><VCol cols="3"><VTextField v-model.number="commission.percentage" type="number" min="0.01" max="100" label="Percentage" suffix="%" /></VCol><VCol cols="1"><VBtn icon="tabler-x" variant="text" color="error" @click="removeCommission(index)" /></VCol></VRow>
               </VCol>
-              <VCol cols="12" md="6"><VTextField v-model="selectedStaff.tax_number" label="Tax number" /></VCol>
               <VCol cols="12" md="6"><VTextField v-model="selectedStaff.bank_account_number" label="Bank account number" /></VCol>
               <VCol cols="12" md="6">
                 <VSelect

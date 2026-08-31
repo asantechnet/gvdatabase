@@ -15,6 +15,7 @@ const store = useTaskStore()
 const isDetailModalOpen = ref(false)
 const isDeleteConfirmOpen = ref(false)
 const selectedTask = ref<Task | null>(null)
+const resultAttachments = computed(() => selectedTask.value?.attachments.filter(attachment => attachment.section === 'results') ?? [])
 
 // Map priorities to Vuexy badge colors
 const priorityColorMap: Record<string, string> = {
@@ -175,13 +176,13 @@ const executeDeleteTask = () => {
       <VCardItem class="bg-surface border-b pb-4">
         <template #title>
           <div class="d-flex align-center">
-            <VIcon icon="tabler-calendar-event" color="primary" class="mr-2" />
+            <VIcon icon="tabler-calendar-event" color="primary" class="me-2" />
             <span class="text-h5 font-weight-bold">{{ $t('components.taskManager.calendarview.scheduleTimelineView') }}</span>
           </div>
         </template>
         <template #append>
           <VChip variant="tonal" color="success" size="small">
-            <VIcon icon="tabler-arrows-move" size="14" class="mr-1" /> {{ $t('components.taskManager.calendarview.dragDropActive') }}
+            <VIcon icon="tabler-arrows-move" size="14" class="me-1" /> {{ $t('components.taskManager.calendarview.dragDropActive') }}
           </VChip>
         </template>
       </VCardItem>
@@ -215,12 +216,12 @@ const executeDeleteTask = () => {
             <TaskCompletionChip :progress="selectedTask.progress" />
             <VChip :color="priorityColorMap[selectedTask.priority]" size="small"
               class="text-uppercase font-weight-bold">
-              <VIcon icon="tabler-flag" size="14" class="mr-1" />
+              <VIcon icon="tabler-flag" size="14" class="me-1" />
               {{ $t('components.taskManager.event.priority', { priority: translateBackendValue(selectedTask.priority) }) }}
             </VChip>
 
             <VChip color="secondary" size="small" variant="tonal">
-              <VIcon icon="tabler-calendar-time" size="14" class="mr-1" />
+              <VIcon icon="tabler-calendar-time" size="14" class="me-1" />
               {{ $t('components.taskManager.event.dateRange', { start: formatLocalizedDate(`${selectedTask.startDate}T00:00:00`), end: formatLocalizedDate(`${selectedTask.dueDate}T00:00:00`) }) }}
             </VChip>
 
@@ -245,13 +246,32 @@ const executeDeleteTask = () => {
             </div>
           </div>
 
-          <!-- HTML Content Display (Label Fixed) -->
+          <!-- Task Content -->
           <div class="mb-2">
-            <span class="text-subtitle-1 font-weight-bold">{{ $t('common.fields.description') }}</span>
+            <span class="text-subtitle-1 font-weight-bold">{{ $t('components.taskManager.calendarview.taskContent') }}</span>
           </div>
           <div class="html-preview-box pa-4 border rounded bg-surface text-body-1">
             <div v-if="selectedTask.description" v-html="selectedTask.description"></div>
             <span v-else class="text-disabled italic">{{ $t('components.taskManager.calendarview.noDescriptionProvidedForThisTask') }}</span>
+          </div>
+
+          <div class="mt-5">
+            <div class="mb-2 d-flex align-center gap-2">
+              <VIcon icon="tabler-file-description" size="20" />
+              <span class="text-subtitle-1 font-weight-bold">{{ $t('components.taskManager.calendarview.results') }}</span>
+            </div>
+            <div v-if="selectedTask.results" class="html-preview-box pa-4 border rounded bg-surface text-body-1" v-html="selectedTask.results" />
+            <div v-else class="text-body-2 text-disabled">{{ $t('components.taskManager.calendarview.noResultsRecorded') }}</div>
+
+            <VList v-if="resultAttachments.length" class="border rounded pa-0 mt-3">
+              <VListItem v-for="attachment in resultAttachments" :key="attachment.id">
+                <template #prepend><VIcon icon="tabler-paperclip" /></template>
+                <VListItemTitle>{{ attachment.name }}</VListItemTitle>
+                <template #append>
+                  <VBtn :href="attachment.url" target="_blank" icon="tabler-download" variant="text" size="small" :aria-label="$t('components.taskManager.calendarview.downloadAttachment')" :title="$t('components.taskManager.calendarview.downloadAttachment')" />
+                </template>
+              </VListItem>
+            </VList>
           </div>
         </VCardText>
 

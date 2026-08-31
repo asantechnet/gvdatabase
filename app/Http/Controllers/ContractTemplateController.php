@@ -53,7 +53,7 @@ class ContractTemplateController extends Controller
         $contractTemplate->update($this->payload($data, $contractTemplate));
 
         if (array_key_exists('policy_ids', $data)) {
-            $contractTemplate->policies()->sync($this->policySyncData($data['policy_ids']));
+            $contractTemplate->policies()->sync($this->policySyncData($data['policy_ids'] ?? []));
         }
 
         return response()->json([
@@ -84,14 +84,14 @@ class ContractTemplateController extends Controller
 
     private function validated(Request $request, bool $partial = false): array
     {
-        $required = $partial ? 'sometimes|' : '';
+        $presenceRules = $partial ? ['sometimes', 'required'] : ['required'];
 
         $validator = Validator::make($request->all(), [
-            'name' => [$required.'required', 'string', 'max:255'],
-            'contract_type_id' => [$required.'required', 'integer', 'exists:contract_types,id'],
+            'name' => [...$presenceRules, 'string', 'max:255'],
+            'contract_type_id' => [...$presenceRules, 'integer', 'exists:contract_types,id'],
             'position_id' => ['nullable', 'integer', 'exists:positions,id'],
             'cover_text' => ['nullable', 'string'],
-            'content' => [$required.'required', 'string'],
+            'content' => [...$presenceRules, 'string'],
             'policy_ids' => ['nullable', 'array'],
             'policy_ids.*' => ['integer', 'exists:contract_policies,id'],
         ]);
@@ -114,9 +114,7 @@ class ContractTemplateController extends Controller
 
         $validator->validate();
 
-        return collect($validator->validated())->except('policy_ids')->merge([
-            'policy_ids' => $request->input('policy_ids'),
-        ])->all();
+        return $validator->validated();
     }
 
     private function policySyncData(array $ids): array

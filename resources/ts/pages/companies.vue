@@ -333,9 +333,9 @@ const saveContract = async (payload: ContractFormPayload) => {
         ${item.representative_title}` : ''}` : '—' }}
       </template>
       <template #item.actions="{ item }">
-        <VBtn icon="tabler-file-plus" variant="text" size="small" color="primary" class="me-2" @click="createContract(item)"><VTooltip activator="parent" location="top">Create contract</VTooltip></VBtn>
-        <VBtn icon="tabler-edit" variant="text" size="small" class="me-2" @click="openEdit(item)"><VTooltip activator="parent" location="top">Edit company</VTooltip></VBtn>
-        <VBtn icon="tabler-trash" variant="text" size="small" color="error" @click="companyPendingDeletion = item"><VTooltip activator="parent" location="top">Delete company</VTooltip></VBtn>
+        <VBtn icon="tabler-file-plus" variant="text" size="small" color="primary" class="me-2" @click="createContract(item)"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent" location="top">Create contract</VTooltip></VBtn>
+        <VBtn icon="tabler-edit" variant="text" size="small" class="me-2" @click="openEdit(item)"><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">Edit company</VTooltip></VBtn>
+        <VBtn icon="tabler-trash" variant="text" size="small" color="error" @click="companyPendingDeletion = item"><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">Delete company</VTooltip></VBtn>
       </template>
     </ResponsiveDataTable>
   </VCard>
@@ -383,8 +383,8 @@ const saveContract = async (payload: ContractFormPayload) => {
         </VChip>
       </template>
       <template #item.actions="{ item }">
-        <VBtn icon="tabler-printer" variant="text" size="small" @click="printCompanyContract(item)"><VTooltip activator="parent" location="top">Print contract</VTooltip></VBtn>
-        <VBtn icon="tabler-edit" variant="text" size="small" @click="editContract(item)"><VTooltip activator="parent" location="top">Edit contract</VTooltip></VBtn>
+        <VBtn icon="tabler-printer" variant="text" size="small" @click="printCompanyContract(item)"><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">Print contract</VTooltip></VBtn>
+        <VBtn icon="tabler-edit" variant="text" size="small" @click="editContract(item)"><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">Edit contract</VTooltip></VBtn>
       </template>
     </ResponsiveDataTable>
   </VCard>

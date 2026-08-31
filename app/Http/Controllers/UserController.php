@@ -82,7 +82,7 @@ class UserController extends Controller
         $this->authorizePermission($request, 'manage_user_status');
         $this->guardSuperAdminTarget($request, $user);
         abort_if($user->acc_status === 'deactivated', 422, 'business.use_account_reactivation_workflow');
-        $data = $request->validate(['acc_status' => ['required', Rule::in(['active', 'inactive', 'suspended'])]]);
+        $data = $request->validate(['acc_status' => ['required', Rule::in(['active', 'inactive'])]]);
         $this->guardCurrentSuperAdmin($request, $user, $data);
         abort_if($data['acc_status'] !== 'active' && $this->isLastSuperAdmin($user), 422, 'business.last_super_admin_required');
         $user->update($data);
@@ -100,7 +100,7 @@ class UserController extends Controller
             'roles.*' => [Rule::exists('roles', 'name')],
             'acc_status' => [
                 $user ? 'sometimes' : 'required',
-                Rule::in($user ? ['active', 'inactive', 'suspended', 'deactivated'] : ['active', 'inactive', 'suspended']),
+                Rule::in($user ? ['active', 'inactive', 'deactivated'] : ['active', 'inactive']),
             ],
         ]);
         return $data;

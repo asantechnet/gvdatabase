@@ -50,6 +50,11 @@ html.locale-persian-script .Vue-Toastification__toast-body {
   font-family: Vazirmatn, 'Public Sans', sans-serif !important;
 }
 
+html.locale-persian-script .apexcharts-canvas,
+html.locale-persian-script .apexcharts-canvas * {
+  font-family: Vazirmatn, 'Public Sans', sans-serif !important;
+}
+
 // vue-toastification is rendered outside the app tree, so it does not inherit
 // Vuetify's RTL layout. Mirror the library's RTL rules for Persian-script
 // locales: status icon on the inline start, text in the middle, close button
@@ -85,6 +90,32 @@ html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__progress-bar {
 
 [dir='rtl'] .flip-in-rtl {
   transform: scaleX(-1);
+}
+
+// Vuetify's physical utility margins leave several icon-and-label controls
+// visually cramped after direction changes. Give every inline text icon a
+// directional gap without changing the LTR layout.
+[dir='rtl'] .v-btn > .v-icon + span,
+[dir='rtl'] .v-tab > .v-icon + span,
+[dir='rtl'] .v-list-item-title > .v-icon + span {
+  margin-inline-start: 0.35rem;
+}
+
+// Horizontal navigation renders the icon and label as adjacent flex children.
+// A flex gap is direction-safe, including Persian labels and nested groups.
+[dir='rtl'] .layout-horizontal-nav .nav-link > a,
+[dir='rtl'] .layout-horizontal-nav .nav-group-label,
+[dir='rtl'] .layout-vertical-nav .nav-link > a,
+[dir='rtl'] .layout-vertical-nav .nav-group-label {
+  column-gap: 0.5rem;
+}
+
+// The navigation components put their icon before the label in the DOM. In
+// RTL that icon is on the right, so its physical left edge needs the gutter.
+[dir='rtl'] .layout-horizontal-nav .nav-item-icon,
+[dir='rtl'] .layout-vertical-nav .nav-item-icon {
+  margin-left: 0.5rem !important;
+  margin-inline-end: 0.5rem !important;
 }
 
 // Shared form rhythm for the application's operational workflows.
@@ -440,6 +471,26 @@ html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__progress-bar {
   // List reports use the same managed print lifecycle as paid-off days.
   // Keep the current table while removing interactive application chrome.
   body[class*='printing-table-'] {
+    // The printable report is rendered as a dedicated sibling of the live
+    // table. Visibility, rather than a list of layout class names, prevents
+    // navigation/header chrome from leaking into the browser print preview.
+    .v-application {
+      visibility: hidden !important;
+    }
+
+    .list-print-report,
+    .list-print-report * {
+      visibility: visible !important;
+    }
+
+    .list-print-report {
+      display: block !important;
+      inset: 0 !important;
+      margin: 0 !important;
+      position: fixed !important;
+      width: auto !important;
+    }
+
     .v-card {
       display: none !important;
     }

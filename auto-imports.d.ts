@@ -19,6 +19,7 @@ declare global {
   const applyAccessibleThemeColors: typeof import('./resources/ts/utils/themeContrast')['applyAccessibleThemeColors']
   const applyPermissions: typeof import('./resources/ts/utils/authorization')['applyPermissions']
   const applyThemeColorCssVariables: typeof import('./resources/ts/utils/themePersistence')['applyThemeColorCssVariables']
+  const applyThemePalette: typeof import('./resources/ts/utils/themePersistence')['applyThemePalette']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
   const auditLogIdFromNotification: typeof import('./resources/ts/utils/auditNotification')['auditLogIdFromNotification']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
@@ -102,6 +103,7 @@ declare global {
   const isReadonly: typeof import('vue')['isReadonly']
   const isRef: typeof import('vue')['isRef']
   const isRememberedSession: typeof import('./resources/ts/utils/authStorage')['isRememberedSession']
+  const isThemeColor: typeof import('./resources/ts/utils/themePersistence')['isThemeColor']
   const isToday: typeof import('./resources/ts/@core/utils/helpers')['isToday']
   const kFormatter: typeof import('./resources/ts/@core/utils/formatters')['kFormatter']
   const legacyContentToHtml: typeof import('./resources/ts/utils/contractPlaceholders')['legacyContentToHtml']
@@ -188,7 +190,9 @@ declare global {
   const syncRef: typeof import('@vueuse/core')['syncRef']
   const syncRefs: typeof import('@vueuse/core')['syncRefs']
   const templateRef: typeof import('@vueuse/core')['templateRef']
+  const themeColorDefaults: typeof import('./resources/ts/utils/themePersistence')['themeColorDefaults']
   const themeColorFields: typeof import('./resources/ts/utils/themePersistence')['themeColorFields']
+  const themeWithPalette: typeof import('./resources/ts/utils/themePersistence')['themeWithPalette']
   const throttledRef: typeof import('@vueuse/core')['throttledRef']
   const throttledWatch: typeof import('@vueuse/core')['throttledWatch']
   const toCalendarFormat: typeof import('./resources/ts/utils/taskTransformers')['toCalendarFormat']
@@ -442,7 +446,7 @@ declare module 'vue' {
     readonly apiFieldErrors: UnwrapRef<typeof import('./resources/ts/utils/apiErrors')['apiFieldErrors']>
     readonly applyAccessibleThemeColors: UnwrapRef<typeof import('./resources/ts/utils/themeContrast')['applyAccessibleThemeColors']>
     readonly applyPermissions: UnwrapRef<typeof import('./resources/ts/utils/authorization')['applyPermissions']>
-    readonly applyThemeColorCssVariables: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['applyThemeColorCssVariables']>
+    readonly applyThemePalette: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['applyThemePalette']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly auditLogIdFromNotification: UnwrapRef<typeof import('./resources/ts/utils/auditNotification')['auditLogIdFromNotification']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
@@ -523,6 +527,7 @@ declare module 'vue' {
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
     readonly isRememberedSession: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['isRememberedSession']>
+    readonly isThemeColor: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['isThemeColor']>
     readonly isToday: UnwrapRef<typeof import('./resources/ts/@core/utils/helpers')['isToday']>
     readonly kFormatter: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['kFormatter']>
     readonly legacyContentToHtml: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['legacyContentToHtml']>
@@ -606,7 +611,9 @@ declare module 'vue' {
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
     readonly templateRef: UnwrapRef<typeof import('@vueuse/core')['templateRef']>
+    readonly themeColorDefaults: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['themeColorDefaults']>
     readonly themeColorFields: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['themeColorFields']>
+    readonly themeWithPalette: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['themeWithPalette']>
     readonly throttledRef: UnwrapRef<typeof import('@vueuse/core')['throttledRef']>
     readonly throttledWatch: UnwrapRef<typeof import('@vueuse/core')['throttledWatch']>
     readonly toCalendarFormat: UnwrapRef<typeof import('./resources/ts/utils/taskTransformers')['toCalendarFormat']>

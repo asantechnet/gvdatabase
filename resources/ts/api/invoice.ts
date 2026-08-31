@@ -8,6 +8,13 @@ export interface InvoiceCurrency {
   shortname: string
 }
 
+export interface CurrentBaseCurrency {
+  id: number
+  code: string
+  symbol: string
+  decimalPlaces: number
+}
+
 export interface InvoiceService {
   id: number
   name: string
@@ -50,6 +57,10 @@ export interface Invoice {
   total_amount: number
   paid_amount: number
   balance: number
+  currentBaseAmount: number | null
+  currentBasePaidAmount: number | null
+  currentBaseBalance: number | null
+  currentBaseCurrency: CurrentBaseCurrency | null
   discount: number
   notes?: string
   payment_detail_id?: number | null
@@ -57,6 +68,8 @@ export interface Invoice {
   payment_instructions: string[]
   voided_at?: string | null
   void_reason?: string | null
+  recorded_by?: number | null
+  recordedBy?: { id: number; name: string } | null
   created_at?: string
   updated_at?: string
 }

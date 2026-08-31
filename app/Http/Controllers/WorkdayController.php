@@ -28,6 +28,15 @@ class WorkdayController extends Controller
         }
 
         $localNow = now($company->timezone());
+        if ($localNow->isFriday()) {
+            return response()->json(['data' => [
+                'eligible' => false,
+                'state' => 'weekend',
+                'timezone' => $company->timezone(),
+                'attendance' => null,
+                'report' => null,
+            ]]);
+        }
         $attendance = Attendance::query()
             ->with('dailyReport')
             ->where('employee_id', $employee->id)
@@ -57,6 +66,7 @@ class WorkdayController extends Controller
         $employee = $request->user()->employee;
         abort_unless($employee, 422, 'business.employee_has_no_account');
         $localNow = now($company->timezone());
+        abort_if($localNow->isFriday(), 422, 'business.friday_weekend_no_attendance');
         $utcNow = now('UTC');
 
         $attendance = DB::transaction(function () use ($employee, $localNow, $utcNow) {
@@ -129,6 +139,7 @@ class WorkdayController extends Controller
         $employee = $request->user()->employee;
         abort_unless($employee, 422, 'business.employee_has_no_account');
         $localNow = now($company->timezone());
+        abort_if($localNow->isFriday(), 422, 'business.friday_weekend_no_attendance');
         $utcNow = now('UTC');
         $localDayStartUtc = $localNow->copy()->startOfDay()->utc();
 

@@ -36,7 +36,7 @@ const AttendanceGeofenceApi = {
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
       accuracy_meters: position.coords.accuracy,
-    })
+    }, { headers: { 'X-Suppress-Error-Notification': 'true' } })
     return response.data.data
   },
 }

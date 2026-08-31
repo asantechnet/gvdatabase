@@ -151,6 +151,10 @@
       "spotBonus": "پاداش فوری",
       "all": "همه",
       "software": "نرم‌افزار",
+      "utilities": "خدمات عامه",
+      "softwareSaas": "نرم‌افزار / SaaS",
+      "officeSupplies": "لوازم دفتری",
+      "travelDining": "سفر و غذا",
       "salaries": "معاشات",
       "marketing": "بازاریابی",
       "supplies": "تدارکات",
@@ -180,6 +184,8 @@
       "serviceScheduleHint": "نوع خدمت ثابت است. مهلت توافق‌شده را انتخاب کنید یا در صورت نداشتن مهلت، آن را خالی بگذارید.",
       "taskFormHint": "یک عنوان عملی روشن بنویسید، مهلت واقع‌بینانه تعیین کنید و سپس برچسب‌ها و مسئولان را اضافه کنید.",
       "notAvailable": "در دسترس نیست",
+      "yes": "بلی",
+      "no": "نخیر",
       "noRecordsFound": "رکوردی یافت نشد",
       "loading": "در حال بارگذاری...",
       "security": "امنیت",
@@ -190,6 +196,8 @@
       "couldNotOpenPrintWindowPleaseAllowPopUpsForThisSite": "پنجره چاپ باز نشد، لطفاً پاپ‌آپ‌ها را برای این سایت مجاز کنید",
       "filterByStatus": "فیلتر بر اساس وضعیت",
       "filters": "فیلترها",
+      "recordedBy": "ثبت شده توسط",
+      "systemLegacy": "سیستم / نسخه قدیمی",
       "contact": "تماس",
       "marketer": "بازاریاب",
       "services": "خدمات",
@@ -400,7 +408,8 @@
       "visitor": "بازدیدکنندگان",
       "companies": "شرکت‌ها",
       "otherContracts": "قراردادهای دیگر",
-      "contractTemplates": "قالب‌های قرارداد"
+      "contractTemplates": "قالب‌های قرارداد",
+      "audits": "تفتیش‌ها"
     },
     "tables": {},
     "dateTime": {},
@@ -598,7 +607,182 @@
           "briefOverviewOrIntroductoryStatementOfTheContract": "مرور کوتاه یا بیانیه مقدماتی قرارداد...",
           "contractPOLICIESTERMS": "پالیسی‌ها و شرایط قرارداد",
           "reset": "تنظیم مجدد",
-          "deleteTemplate2": "حذف قالب؟"
+          "deleteTemplate2": "حذف قالب؟",
+          "contractTemplate": {
+            "contractType": "نوع قرارداد",
+            "selectContractType": "یک نوع قرارداد را انتخاب کنید",
+            "system": "سیستمی",
+            "custom": "سفارشی",
+            "inactive": "غیرفعال",
+            "systemType": "نوع سیستمی",
+            "systemTypeAvailable": "نوع سیستمی — همیشه در دسترس",
+            "customType": "نوع سفارشی",
+            "currentlyInactive": "فعلاً غیرفعال",
+            "protectedSystemType": "نوع سیستمی محافظت‌شده",
+            "deleteCustomType": "حذف نوع سفارشی",
+            "addContractType": "افزودن نوع قرارداد",
+            "typeName": "نام نوع",
+            "typeNameExample": "مثلاً قرارداد خدمات",
+            "create": "ایجاد",
+            "deleteContractType": "حذف نوع قرارداد",
+            "deleteTypePrompt": "نوع قرارداد سفارشی «{name}» حذف شود؟",
+            "deleteTypeHint": "نوع‌هایی که در قالب‌ها یا قراردادها استفاده شده‌اند حذف نمی‌شوند و به‌جای آن غیرفعال خواهند شد.",
+            "position": "وظیفه",
+            "positionHint": "این قالب به این وظیفه اختصاص داده می‌شود.",
+            "templateContext": "زمینه قالب:",
+            "employmentPlaceholderHint": "جای‌گیرهای کارمند، وظیفه و کارفرما در پایین در دسترس‌اند.",
+            "generalPlaceholderHint": "برای نوع‌های سفارشی فقط جای‌گیرهای عمومی قرارداد در دسترس‌اند.",
+            "policyHelpers": "ابزارهای پالیسی",
+            "insertPolicyClause": "درج یک بند پالیسی",
+            "noReusableClauses": "هنوز هیچ بند قابل استفاده مجدد وجود ندارد.",
+            "editTemplate": "ویرایش قالب",
+            "createNewTemplate": "ایجاد قالب جدید",
+            "updateTemplate": "به‌روزرسانی قالب",
+            "saveTemplate": "ذخیره قالب",
+            "employmentContractName": "قرارداد استخدام {position}",
+            "types": {
+              "employment": "استخدام",
+              "customer": "مشتری",
+              "company": "شرکت"
+            },
+            "validation": {
+              "contractTypeRequired": "نوع قرارداد الزامی است",
+              "nameRequired": "نام الزامی است",
+              "maximumCharacters": "حداکثر {count} نویسه",
+              "positionRequired": "برای قالب استخدام، انتخاب وظیفه الزامی است"
+            },
+            "messages": {
+              "loadTypesError": "بارگذاری نوع‌های قرارداد ناموفق بود.",
+              "typeCreated": "نوع قرارداد «{name}» ایجاد شد.",
+              "createTypeError": "ایجاد نوع قرارداد ناموفق بود.",
+              "typeDeleted": "نوع قرارداد حذف شد.",
+              "typeDeactivated": "این نوع قرارداد در حال استفاده است و به‌جای حذف، غیرفعال شد.",
+              "loadTemplatesError": "بارگذاری قالب‌ها ناموفق بود.",
+              "selectTypeBeforeSaving": "پیش از ذخیره قالب، نوع قرارداد را انتخاب کنید.",
+              "unknownPlaceholders": "جای‌گیرهای ناشناخته یا غیرقابل دسترس: {placeholders}",
+              "templateUpdated": "قالب با موفقیت به‌روزرسانی شد.",
+              "templateCreated": "قالب با موفقیت ایجاد شد.",
+              "saveTemplateError": "ذخیره قالب ناموفق بود.",
+              "loadTemplateDetailsError": "بارگذاری جزئیات قالب ناموفق بود.",
+              "templateDeleted": "قالب با موفقیت حذف شد.",
+              "templateInUse": "این قالب در قراردادهای موجود استفاده شده و قابل حذف نیست."
+            },
+            "editor": {
+              "font": "قلم",
+              "size": "اندازه",
+              "startWriting": "نوشتن قرارداد را آغاز کنید…",
+              "linkUrl": "نشانی پیوند",
+              "undo": "واگرد",
+              "redo": "انجام دوباره",
+              "bold": "پررنگ",
+              "italic": "مایل",
+              "underline": "زیرخط",
+              "strikethrough": "خط‌خورده",
+              "heading": "عنوان {level}",
+              "align": {
+                "left": "چپ‌چین",
+                "center": "وسط‌چین",
+                "right": "راست‌چین",
+                "justify": "هم‌تراز"
+              },
+              "bulletList": "فهرست نشانه‌دار",
+              "numberedList": "فهرست شماره‌دار",
+              "quote": "نقل‌قول",
+              "insertLink": "درج پیوند",
+              "rtlParagraph": "پاراگراف راست‌به‌چپ",
+              "ltrParagraph": "پاراگراف چپ‌به‌راست",
+              "fontFamily": "نوع قلم",
+              "fontSize": "اندازه قلم",
+              "textColor": "رنگ متن",
+              "insertPlaceholder": "درج جای‌گیر",
+              "noPlaceholders": "برای این نوع قرارداد جای‌گیری در دسترس نیست"
+            },
+            "placeholders": {
+              "employee": {
+                "label": "کارمند",
+                "fields": {
+                  "name": "نام کامل",
+                  "father_name": "نام پدر",
+                  "national_id": "شماره تذکره",
+                  "phone": "شماره تماس",
+                  "email": "ایمیل",
+                  "address": "نشانی",
+                  "position": "وظیفه",
+                  "department": "بخش",
+                  "office": "دفتر",
+                  "start_date": "تاریخ آغاز",
+                  "contract_duration": "مدت قرارداد",
+                  "salary": "معاش",
+                  "identity": "جدول هویت"
+                }
+              },
+              "position": {
+                "label": "وظیفه",
+                "fields": {
+                  "name": "عنوان وظیفه",
+                  "description": "توضیحات",
+                  "salary": "معاش پایه"
+                }
+              },
+              "customer": {
+                "label": "مشتری",
+                "fields": {
+                  "name": "نام",
+                  "company_name": "شرکت",
+                  "phone": "شماره تماس",
+                  "email": "ایمیل",
+                  "address": "نشانی",
+                  "tax_number": "شماره مالیاتی"
+                }
+              },
+              "company": {
+                "label": "شرکت طرف قرارداد",
+                "fields": {
+                  "legal_name": "نام قانونی",
+                  "trade_name": "نام تجارتی",
+                  "registration_number": "شماره ثبت",
+                  "tax_number": "شماره مالیاتی",
+                  "national_id": "شناسه ملی",
+                  "legal_form": "نوع حقوقی",
+                  "email": "ایمیل",
+                  "phone": "شماره تماس",
+                  "website": "وب‌سایت",
+                  "address_line": "خط نشانی",
+                  "city": "شهر",
+                  "province": "ولایت",
+                  "postal_code": "کد پستی",
+                  "country": "کشور",
+                  "address": "نشانی کامل",
+                  "industry": "صنعت",
+                  "representative_name": "نام نماینده",
+                  "representative_title": "عنوان نماینده",
+                  "representative_phone": "شماره تماس نماینده",
+                  "representative_email": "ایمیل نماینده"
+                }
+              },
+              "our_company": {
+                "label": "شرکت ما",
+                "fields": {
+                  "name": "نام شرکت",
+                  "short_name": "نام کوتاه",
+                  "email": "ایمیل",
+                  "phone": "شماره تماس",
+                  "address": "نشانی",
+                  "website": "وب‌سایت",
+                  "business_licence": "جواز فعالیت"
+                }
+              },
+              "contract": {
+                "label": "قرارداد",
+                "fields": {
+                  "number": "شماره قرارداد",
+                  "start_date": "تاریخ آغاز",
+                  "end_date": "تاریخ پایان",
+                  "status": "وضعیت"
+                }
+              }
+            }
+          }
         }
       },
       "innvoice": {
@@ -736,6 +920,25 @@
         "assetHint": "{hint} · PNG، JPG، یا WEBP تا ۸ مگابایت",
         "resetDefaults": "بازنشانی به پیش‌فرض‌ها",
           "saveSettings": "ذخیره تنظیمات",
+          "themeColorsPreviewHint": "Changes preview immediately in the application and are saved only when you select Save changes.",
+          "restoreVuexyDefaults": "Restore Vuexy defaults",
+          "brandColors": "Brand colours",
+          "brandColorsHint": "The colours used for primary and secondary actions.",
+          "feedbackColors": "Feedback colours",
+          "feedbackColorsHint": "Status colours used for successful, informational, warning, and error states.",
+          "lightModeSurfaces": "Light-mode canvas and surfaces",
+          "lightModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in light mode.",
+          "darkModeSurfaces": "Dark-mode canvas and surfaces",
+          "darkModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in dark mode.",
+          "successColor": "Success",
+          "infoColor": "Info",
+          "warningColor": "Warning",
+          "errorColor": "Error",
+          "applicationBackground": "Application background",
+          "cardsAndMenus": "Cards and menus",
+          "live": "Live",
+          "noChangesToSave": "There are no changes to save on this page.",
+          "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings.",
           "settings": "تنظیمات",
           "manageCompanyPreferences": "تنظیمات شرکت و پیش‌فرض‌های سیستم را مدیریت کنید.",
           "companyPageDescription": "هویت، اطلاعات تماس و برند.",
@@ -1019,6 +1222,13 @@
       }
     },
     "contracts": {
+      "shared": {
+        "contractAgreement": "توافق‌نامه قرارداد",
+        "contractParties": "طرف‌های قرارداد",
+        "printPreview": "جلد و صفحات قرارداد را با استفاده از قالب ذخیره‌شده پیش‌نمایش کنید.",
+        "includePartyDetails": "جزئیات اصلی هر دو طرف قرارداد را شامل کنید",
+        "defaultTerms": "این توافق‌نامه میان طرف‌های نام‌برده در این قرارداد منعقد می‌شود."
+      },
       "allContracts": {
         "allContracts": {
           "counterparty": "جانب مقابل",
@@ -1138,6 +1348,11 @@
           "serviceLevelAgreement": "توافق‌نامه سطح خدمات",
           "standardEmploymentTerms": "شرایط استاندارد استخدام",
           "searchContractOptions": "جستجوی گزینه‌های قرارداد"
+        }
+      },
+      "cancelledContracts": {
+        "cancelledContracts": {
+          "reviewClosedAgreements": "توافق‌نامه‌های بسته‌شده را مرور کنید و سوابق لغو را برای بررسی آسان نگه دارید."
         }
       },
       "visitor": {
@@ -1527,9 +1742,275 @@
       "to": "تا",
       "requestDays": "درخواست {count}",
       "rangeExceeds": "این بازه از {count} روز باقی‌مانده شما بیشتر است."
+    },
+    "audits": {
+      "title": "تفتیش‌ها",
+      "subtitle": "تغییرات مهم را بررسی کنید و تعیین نمایید کدام بخش‌های کاری تفتیش شوند.",
+      "openPage": "باز کردن تفتیش‌ها",
+      "sections": {
+        "records": "موارد نیازمند تفتیش",
+        "resources": "بخش‌های تفتیش‌شونده"
+      },
+      "columns": {
+        "action": "عملیات",
+        "record": "مورد",
+        "change": "چه تغییر کرده",
+        "changedBy": "تغییر توسط",
+        "when": "زمان",
+        "auditedBy": "تفتیش توسط",
+        "status": "وضعیت تفتیش",
+        "resource": "بخش کاری",
+        "auditEnabled": "تفتیش تغییرات جدید",
+        "lastChangedBy": "تنظیم توسط",
+        "lastChanged": "زمان تنظیم",
+        "field": "معلومات",
+        "before": "قبل",
+        "after": "بعد"
+      },
+      "filters": {
+        "notAudited": "نیازمند تفتیش",
+        "audited": "تفتیش‌شده",
+        "all": "همه",
+        "enabled": "فعال",
+        "disabled": "غیرفعال",
+        "search": "جستجو با نام مورد یا شخص",
+        "searchResources": "جستجوی بخش‌های کاری",
+        "resource": "بخش کاری",
+        "action": "عملیات",
+        "allResources": "همه بخش‌های کاری",
+        "allActions": "همه عملیات"
+      },
+      "events": {
+        "created": "ایجاد شد",
+        "updated": "تغییر کرد",
+        "deleted": "حذف شد",
+        "restored": "بازیابی شد",
+        "audit_scope_enabled": "تفتیش فعال شد",
+        "audit_scope_disabled": "تفتیش غیرفعال شد",
+        "edit_window_overridden": "ویرایش دیرهنگام اجازه داده شد",
+        "account_deactivation_requested": "غیرفعال‌سازی درخواست شد",
+        "account_deactivation_cancelled": "غیرفعال‌سازی لغو شد",
+        "account_deactivation_approved": "غیرفعال‌سازی تایید شد",
+        "account_deactivation_rejected": "غیرفعال‌سازی رد شد",
+        "account_deactivated": "حساب غیرفعال شد",
+        "account_reactivated": "حساب دوباره فعال شد",
+        "other": "تغییر کرد"
+      },
+      "states": {
+        "pending": "نیازمند تفتیش",
+        "approved": "نگه‌داشته شد",
+        "discarded": "برگردانده شد"
+      },
+      "actions": {
+        "view": "دیدن جزئیات تفتیش",
+        "close": "بستن جزئیات تفتیش",
+        "keep": "نگه‌داشتن تغییر",
+        "undo": "برگرداندن تغییر",
+        "toggleResource": "تغییر تنظیم تفتیش برای {resource}"
+      },
+      "confirm": {
+        "keepTitle": "این تغییر نگه‌داشته شود؟",
+        "keepText": "با این کار درست‌بودن تغییر تایید می‌شود. سابقه تفتیش برای همیشه باقی می‌ماند.",
+        "undoTitle": "این تغییر برگردانده شود؟",
+        "undoText": "مورد مربوط به حالت قبلی برمی‌گردد. سابقه تفتیش برای همیشه باقی می‌ماند."
+      },
+      "messages": {
+        "kept": "تغییر نگه‌داشته شد و تفتیش تکمیل گردید.",
+        "reverted": "تغییر برگردانده شد و تفتیش تکمیل گردید.",
+        "enabled": "تغییرات جدید {resource} از این پس تفتیش می‌شود.",
+        "disabled": "تغییرات جدید {resource} دیگر تفتیش نمی‌شود. سابقه قبلی باقی می‌ماند."
+      },
+      "errors": {
+        "load": "بارگیری تفتیش‌ها ممکن نشد.",
+        "loadResources": "بارگیری بخش‌های تفتیش‌شونده ممکن نشد.",
+        "review": "تکمیل این تفتیش ممکن نشد.",
+        "scope": "تغییر تنظیم تفتیش ممکن نشد.",
+        "notFound": "این مورد تفتیش دیگر در دسترس نیست."
+      },
+      "empty": {
+        "records": "هیچ مورد تفتیش با این فیلترها مطابقت ندارد.",
+        "resources": "هیچ بخش کاری با این فیلترها مطابقت ندارد."
+      },
+      "resources": {
+        "attendances": "حاضری",
+        "boards": "تابلوهای وظایف",
+        "comments": "نظرات وظایف",
+        "companies": "شرکت‌ها",
+        "contract_policies": "پالیسی‌های قرارداد",
+        "contract_templates": "قالب‌های قرارداد",
+        "contract_types": "انواع قرارداد",
+        "contracts": "قراردادها",
+        "currencies": "ارزها",
+        "customer_services": "خدمات مشتریان",
+        "customers": "مشتریان",
+        "daily_reports": "گزارش‌های روزانه",
+        "employees": "کارمندان",
+        "expenses": "مصارف",
+        "incomes": "درآمدها",
+        "invoices": "فاکتورها",
+        "marketers": "بازاریاب‌ها",
+        "offices": "دفاتر",
+        "paid_time_offs": "رخصتی با معاش",
+        "payment_details": "روش‌های پرداخت",
+        "permissions": "دسترسی‌ها",
+        "positions": "سمت‌ها",
+        "salaries": "معاش‌ها",
+        "services": "خدمات",
+        "settings": "تنظیمات شرکت",
+        "stocks": "موجودی گدام",
+        "subtasks": "وظایف فرعی",
+        "tags": "برچسب‌های وظایف",
+        "task_attachments": "ضمیمه‌های وظایف",
+        "tasks": "وظایف",
+        "users": "کاربران",
+        "visitors": "بازدیدکنندگان",
+        "worthy_employees": "نامزدی‌های پاداش",
+        "account_deactivations": "غیرفعال‌سازی حساب‌ها",
+        "audit_settings": "تنظیمات تفتیش",
+        "other": "مورد کاری"
+      },
+      "fields": {
+        "employee": "کارمند",
+        "user": "کاربر",
+        "customer": "مشتری",
+        "invoice": "فاکتور",
+        "currency": "ارز",
+        "office": "دفتر",
+        "position": "سمت",
+        "service": "خدمت",
+        "task": "وظیفه",
+        "contractTemplate": "قالب قرارداد",
+        "contractType": "نوع قرارداد",
+        "company": "شرکت",
+        "paymentMethod": "روش پرداخت",
+        "enabled": "تفتیش",
+        "name": "نام",
+        "title": "عنوان",
+        "status": "وضعیت",
+        "type": "نوع",
+        "description": "توضیحات",
+        "content": "محتوا",
+        "email": "ایمیل",
+        "phone": "شماره تماس",
+        "contact": "تماس",
+        "address": "آدرس",
+        "date": "تاریخ",
+        "amount": "مبلغ",
+        "quantity": "تعداد",
+        "rate": "نرخ تبدیل",
+        "salary": "معاش",
+        "priority": "اولویت",
+        "progress": "پیشرفت",
+        "reason": "دلیل",
+        "notes": "یادداشت‌ها",
+        "isActive": "فعال",
+        "isGranted": "تاییدشده",
+        "isCompleted": "تکمیل‌شده",
+        "startDate": "تاریخ شروع",
+        "endDate": "تاریخ پایان",
+        "dueDate": "مهلت",
+        "issueDate": "تاریخ صدور",
+        "serialNumber": "شماره سریال",
+        "item": "جنس",
+        "model": "مدل",
+        "condition": "حالت",
+        "editableUntil": "مهلت ویرایش",
+        "overrideUsedAt": "ویرایش دیرهنگام"
+      },
+      "scopeNotice": "غیرفعال‌کردن یک بخش تنها بر تغییرات آینده اثر دارد. سوابق قبلی و موارد در انتظار هرگز حذف نمی‌شوند.",
+      "unknownRecord": "مورد کاری",
+      "system": "سیستم",
+      "notAuditedYet": "هنوز تفتیش نشده",
+      "noCreateColumns": "ایجاد شد — نیازی به نمایش ستون‌ها نیست",
+      "createExplanation": "این مورد ایجاد شده است. در تفتیش ایجاد، فیلدهای دیتابیس عمداً نمایش داده نمی‌شوند.",
+      "noUserFacingChanges": "معلومات قابل‌نمایش برای کاربر وجود ندارد.",
+      "otherInformation": "معلومات دیگر",
+      "moreChanges": "و {count} مورد دیگر",
+      "valueSeparator": "·"
     }
   },
   "components": {
+    "dataTablePageKpis": {
+      "overview": "نمای کلی {title}",
+      "scrollHint": "در صفحه‌های کوچک جدول‌ها را به‌صورت افقی پیمایش کنید",
+      "recordsShown": "رکوردهای نمایش‌داده‌شده",
+      "recordedValueCurrentBase": "ارزش ثبت‌شده (ارز پایه فعلی)",
+      "invoiceLinked": "مرتبط با فاکتور",
+      "incomeTypes": "انواع درآمد",
+      "customerLinked": "مرتبط با مشتری",
+      "expenseTypes": "انواع هزینه",
+      "invoiceValueCurrentBase": "ارزش فاکتور (ارز پایه فعلی)",
+      "collectedCurrentBase": "دریافت‌شده (ارز پایه فعلی)",
+      "outstandingCurrentBase": "باقی‌مانده (ارز پایه فعلی)",
+      "unitsInStock": "واحدهای موجود در انبار",
+      "inventoryValue": "ارزش موجودی",
+      "needsReview": "نیازمند بررسی",
+      "netPayrollCurrentBase": "خالص معاش (ارز پایه فعلی)",
+      "workedDays": "روزهای کاری",
+      "absentDays": "روزهای غیبت",
+      "baseSalaries": "معاش‌های پایه",
+      "assignedStaff": "کارمندان تعیین‌شده",
+      "activePositions": "موقعیت‌های فعال",
+      "companies": "شرکت‌ها",
+      "activeServices": "خدمات فعال",
+      "pausedServices": "خدمات متوقف‌شده",
+      "awaitingDecision": "در انتظار تصمیم",
+      "paidLeave": "رخصتی با معاش",
+      "teamMembers": "اعضای تیم",
+      "activeContracts": "قراردادهای فعال",
+      "expiringEnded": "در حال انقضا / پایان‌یافته",
+      "counterparties": "طرف‌های قرارداد",
+      "companiesRepresented": "شرکت‌های نمایندگی‌شده",
+      "customersRepresented": "مشتریان نمایندگی‌شده",
+      "employeesRepresented": "کارمندان نمایندگی‌شده",
+      "staffRepresented": "کارمندان نمایندگی‌شده",
+      "officesRepresented": "دفترهای نمایندگی‌شده",
+      "positionsRepresented": "موقعیت‌های نمایندگی‌شده",
+      "servicesRequested": "خدمات درخواستی",
+      "marketingSources": "منابع بازاریابی",
+      "paymentMethods": "روش‌های پرداخت",
+      "instructionsSet": "دستورالعمل‌های ثبت‌شده",
+      "recentlyAdded": "اخیراً افزوده‌شده",
+      "activeAutomations": "خودکارسازی‌های فعال",
+      "pausedAutomations": "خودکارسازی‌های متوقف‌شده",
+      "eventTypes": "انواع رویداد",
+      "inactiveServices": "خدمات غیرفعال",
+      "averageDuration": "مدت متوسط",
+      "months": "{count} ماه",
+      "withoutOffice": "بدون دفتر",
+      "activeCompanies": "شرکت‌های فعال",
+      "withRepresentative": "دارای نماینده",
+      "profileIncomplete": "پروفایل ناقص",
+      "activeComplete": "فعال / تکمیل‌شده",
+      "needAttention": "نیازمند توجه",
+      "total": "مجموع {key}",
+      "typesRepresented": "انواع نمایندگی‌شده",
+      "categoriesRepresented": "دسته‌بندی‌های نمایندگی‌شده",
+      "conditionsRepresented": "وضعیت‌های نمایندگی‌شده",
+      "currenciesRepresented": "ارزهای نمایندگی‌شده",
+      "recordsCovered": "رکوردهای پوشش‌داده‌شده",
+      "pages": {
+        "visitors": { "title": "بازدیدکنندگان", "description": "فعالیت بازدیدکنندگان را بررسی و برای هر ورود یک رکورد روشن نگهداری کنید." },
+        "stockInventory": { "title": "موجودی انبار", "description": "سطح موجودی، وضعیت و تخصیص‌ها را در یک مکان مشاهده کنید." },
+        "staffSalaries": { "title": "معاش کارمندان", "description": "رکوردهای معاش را بررسی و پرداخت‌های نیازمند توجه را پیدا کنید." },
+        "staffDirectory": { "title": "فهرست کارمندان", "description": "تیم، تخصیص‌ها و رکوردهای نیازمند پیگیری را مشاهده کنید." },
+        "users": { "title": "کاربران", "description": "دسترسی، دعوت‌نامه‌ها و وضعیت فعلی حساب‌های کاربری را مدیریت کنید." },
+        "positions": { "title": "موقعیت‌ها", "description": "نقش‌های تیم، سطح کارمندان و دسترس‌پذیری موقعیت‌ها را بررسی کنید." },
+        "paymentDetails": { "title": "جزئیات پرداخت", "description": "فعالیت پرداخت را بررسی و هر تراکنش را به‌سادگی قابل پیگیری نگه دارید." },
+        "paidTimeOff": { "title": "رخصتی با معاش", "description": "درخواست‌های رخصتی را بررسی و تأییدهای باقی‌مانده را آسان پیدا کنید." },
+        "invoiceOptions": { "title": "گزینه‌های فاکتور", "description": "گزینه‌های قابل استفاده مجدد صورتحساب را پیکربندی و روند فاکتور را یکسان نگه دارید." },
+        "hrOptions": { "title": "گزینه‌های منابع بشری", "description": "تنظیمات قابل استفاده مجدد برای عملیات منابع بشری را مدیریت کنید." },
+        "financeOptions": { "title": "گزینه‌های مالی", "description": "پیش‌فرض‌های مالی را برای عملیات روزمره منظم و آماده نگه دارید." },
+        "contractOptions": { "title": "گزینه‌های قرارداد", "description": "الگوها و پیش‌فرض‌های قابل استفاده مجدد برای قراردادها را نگهداری کنید." },
+        "services": { "title": "خدمات", "description": "فهرست خدمات را مدیریت و وضعیت فعلی آن را به‌سرعت بررسی کنید." },
+        "invoices": { "title": "فاکتورها", "description": "فعالیت صورتحساب را از فاکتورهای پرداخت‌شده تا موارد نیازمند توجه قابل مشاهده نگه دارید." },
+        "companies": { "title": "شرکت‌ها", "description": "طرف‌های قرارداد، جزئیات آن‌ها و توافق‌های مرتبط را مدیریت کنید." },
+        "cancelledContracts": { "title": "قراردادهای لغوشده", "description": "توافق‌های بسته‌شده را بررسی و سوابق لغو را به‌سادگی قابل تفتیش نگه دارید." },
+        "customerDirectory": { "title": "فهرست مشتریان", "description": "رابطه با مشتریان و خدمات فعال آن‌ها را در یک نگاه پیگیری کنید." },
+        "contracts": { "title": "قراردادها", "description": "سبد فعلی قراردادها را ببینید و رکوردهای نیازمند پیگیری را پیدا کنید." },
+        "policyLibrary": { "title": "کتابخانه پالیسی", "description": "بندهای قابل استفاده مجدد قرارداد را برای هر توافق منظم و آماده نگه دارید." }
+      }
+    },
     "taskManager": {
       "frappeganttwrapper": {
         "noTasksAvailableToPlotOnTheTimeline": "هیچ وظیفه‌ای برای نمایش در خط زمانی موجود نیست"
@@ -1556,7 +2037,11 @@
         "saveBonusInputs": "ذخیره ورودی‌های پاداش",
         "dueDate": "تاریخ موعد",
         "dependsOn": "وابسته به",
-        "selectTasksThatMustBeCompletedBeforeThisOne": "وظایفی را انتخاب کنید که باید قبل از این وظیفه تکمیل شوند."
+        "selectTasksThatMustBeCompletedBeforeThisOne": "وظایفی را انتخاب کنید که باید قبل از این وظیفه تکمیل شوند.",
+        "linkedServices": "خدمات مرتبط",
+        "projectServiceHint": "در بردهای پروژه، تنها خدمات انتخاب‌شده برای پروژه قابل اتصال هستند.",
+        "taskContent": "محتوای وظیفه",
+        "noTaskContent": "برای این وظیفه محتوایی ثبت نشده است."
       },
       "event": {
         "priority": "اولویت {priority}",
@@ -1574,7 +2059,16 @@
       "taskappshell": {
         "kanbanBoard": "بورد کانبان",
         "ganttTimeline": "خط زمانی گانت",
-        "todoMatrix": "ماتریکس کارهای روزمره (Todo)"
+        "todoMatrix": "ماتریکس کارهای روزمره (Todo)",
+        "allWork": "همه کارها",
+        "newProject": "پروژه جدید",
+        "createProject": "ایجاد پروژه",
+        "createProjectWorkspace": "ایجاد فضای کاری پروژه",
+        "projectWorkspaceDescription": "هر پروژه بوردهای کانبان، وظایف، وظایف فرعی و خدمات مرتبط خودش را دارد.",
+        "projectName": "نام پروژه",
+        "targetDate": "تاریخ هدف",
+        "linkedServices": "خدمات مرتبط",
+        "selectProjectWorkspace": "انتخاب فضای کاری پروژه"
       },
       "calendarview": {
         "scheduleTimelineView": "نمای خط زمانی برنامه‌ریزی",
@@ -1583,6 +2077,10 @@
         "subTasksCompleted": "وظایف فرعی تکمیل‌شده",
         "itemProgress": "{completed} / {total} مورد",
         "noDescriptionProvidedForThisTask": "هیچ توضیحاتی برای این وظیفه ارائه نشده است.",
+        "taskContent": "محتوای وظیفه",
+        "results": "نتایج",
+        "noResultsRecorded": "هنوز نتیجه‌ای ثبت نشده است.",
+        "downloadAttachment": "دریافت پیوست",
         "youAreAboutToDelete": "شما در حال حذف کردن هستید",
         "yesDeleteIt": "بله، آن را حذف کن!"
       },
@@ -1591,7 +2089,13 @@
         "projectGanttTimeline": "خط زمانی گانت پروژه"
       },
       "kanbanview": {
-        "projectBoard": "بورد پروژه"
+        "projectBoard": "بورد پروژه",
+        "attachments": "پیوست‌ها",
+        "viewAttachments": "نمایش پیوست‌ها",
+        "downloadAttachment": "دریافت پیوست",
+        "taskFiles": "فایل‌های وظیفه",
+        "resultFiles": "فایل‌های نتیجه",
+        "noAttachments": "برای این وظیفه فایلی پیوست نشده است."
       },
       "tasksettingsview": {
         "label": "برچسب",
@@ -1614,6 +2118,20 @@
         "descriptionNotes": "توضیحات / یادداشت‌ها",
         "actionItemsTodos": "کارهای اجرایی (Todos)",
         "completedProgress": "{completed} / {total} تکمیل‌شده",
+        "taskContent": "محتوای وظیفه",
+        "noTaskContent": "برای این وظیفه محتوایی ثبت نشده است.",
+        "attachTaskFile": "پیوست کردن فایل وظیفه",
+        "attach": "پیوست",
+        "results": "نتایج",
+        "saveResults": "ذخیره نتایج",
+        "recordTaskResults": "نتایج وظیفه را ثبت کنید...",
+        "noResultsRecorded": "هنوز نتیجه‌ای ثبت نشده است.",
+        "attachResultFile": "پیوست کردن فایل نتیجه",
+        "taskAttachments": "فایل‌های وظیفه",
+        "resultAttachments": "فایل‌های نتیجه",
+        "downloadAttachment": "دریافت پیوست",
+        "removeAttachment": "حذف پیوست",
+        "attachmentUploadFailed": "بارگذاری پیوست ممکن نشد.",
         "addANewSubTask": "افزودن وظیفه فرعی جدید...",
         "noTaskSelected": "هیچ وظیفه‌ای انتخاب نشده است",
         "selectAMegaTaskFromTheListToManageItsActionItems": "یک وظیفه کلان را از لیست انتخاب کنید تا کارهای اجرایی آن را مدیریت کنید.",
@@ -2296,19 +2814,19 @@
     "audit": {
       "created": {
         "title": "رکورد ایجاد شد",
-        "message": "یک رکورد {table} به شماره #{row} ایجاد شد."
+        "message": "{resource} {record} ایجاد شد."
       },
       "updated": {
         "title": "رکورد بروزرسانی شد",
-        "message": "رکورد {table} به شماره #{row} تغییر کرد: {columns}."
+        "message": "{resource} {record} تغییر کرد."
       },
       "deleted": {
         "title": "رکورد حذف شد",
-        "message": "رکورد {table} به شماره #{row} حذف شد."
+        "message": "{resource} {record} حذف شد."
       },
       "restored": {
         "title": "رکورد بازیابی شد",
-        "message": "رکورد {table} به شماره #{row} بازیابی شد."
+        "message": "{resource} {record} بازیابی شد."
       }
     },
     "account_deactivation": {

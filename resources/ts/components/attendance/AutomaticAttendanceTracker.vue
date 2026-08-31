@@ -9,6 +9,8 @@ let pollTimer: number | undefined
 let requestInFlight = false
 let locationErrorReported = false
 let inaccurateReported = false
+let geofenceUnavailableReported = false
+let isInitialLocationCheck = true
 
 function stop() {
   if (pollTimer !== undefined) window.clearInterval(pollTimer)
@@ -42,12 +44,17 @@ function locate() {
   if (requestInFlight || document.visibilityState !== 'visible') return
   navigator.geolocation.getCurrentPosition(position => {
     locationErrorReported = false
+    isInitialLocationCheck = false
     processPosition(position)
   }, () => {
-    if (!locationErrorReported) {
+    // Permission guidance belongs to the initial post-login check. Repeating
+    // it on every background poll is disruptive and gives the user no new
+    // action to take.
+    if (isInitialLocationCheck && !locationErrorReported) {
       locationErrorReported = true
       toast.warning(t('components.account.geofence.permissionRequired'))
     }
+    isInitialLocationCheck = false
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 })
 }
 
@@ -55,7 +62,13 @@ async function start() {
   if (!canAccess('manage_own_workday') || !navigator.geolocation) return
   try {
     const configuration = await AttendanceGeofenceApi.configuration()
-    if (!configuration.eligible) return
+    if (!configuration.eligible) {
+      if (configuration.reason === 'geofence_not_configured' && !geofenceUnavailableReported) {
+        geofenceUnavailableReported = true
+        toast.warning(t('backend.errors.office_geofence_unavailable'))
+      }
+      return
+    }
     locate()
     pollTimer = window.setInterval(locate, 30_000)
   }

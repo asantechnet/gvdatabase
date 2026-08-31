@@ -12,9 +12,15 @@ export interface Currency {
   updatedAt: string;
 }
 
-export type CurrencyForm = Omit<Currency, "id" | "updatedAt" | "isBase"> & {
-  isBase?: boolean;
-};
+export interface CurrencyForm {
+  name: string
+  code: string
+  symbol: string
+  rate: number
+  isActive: boolean
+  decimalPlaces: number
+  isBase?: boolean
+}
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -48,12 +54,11 @@ const CurrencyApi = {
   create: async (
     data: CurrencyForm,
   ): Promise<ApiResponse<Currency>> => {
-    const rate = data.isBase ? 1.0 : Number(data.rate || 1.0);
     const payload = {
       name: data.name,
       code: data.code.toUpperCase(),
       symbol: data.symbol,
-      rate,
+      rate: data.isBase ? 1 : Number(data.rate),
       is_active: data.isActive,
       decimal_places: data.decimalPlaces,
       is_base: data.isBase,
@@ -75,9 +80,8 @@ const CurrencyApi = {
     if (data.name !== undefined) payload.name = data.name;
     if (data.code !== undefined) payload.code = data.code.toUpperCase();
     if (data.symbol !== undefined) payload.symbol = data.symbol;
-    if (data.rate !== undefined) {
+    if (data.rate !== undefined)
       payload.rate = data.isBase ? 1.0 : Number(data.rate);
-    }
     if (data.isActive !== undefined) payload.is_active = data.isActive;
     if (data.decimalPlaces !== undefined)
       payload.decimal_places = data.decimalPlaces;
@@ -102,4 +106,3 @@ const CurrencyApi = {
 };
 
 export default CurrencyApi;
-export type { CurrencyForm, Currency, ApiResponse };

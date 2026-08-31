@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AutomationApi, { type BonusRules, type BonusRuleSet } from '@/api/automation'
 import EmployeeApi, { type Employee } from '@/api/employee'
+import OfficeApi, { type Office } from '@/api/office'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { computed, ref, watch } from 'vue'
 
@@ -10,6 +11,7 @@ const dialog = computed({ get: () => props.modelValue, set: value => emit('updat
 const ruleSet = ref<BonusRuleSet | null>(null)
 const form = ref<BonusRules | null>(null)
 const employees = ref<Employee[]>([])
+const offices = ref<Office[]>([])
 const isLoading = ref(false)
 const isSaving = ref(false)
 const errors = ref<Record<string, string>>({})
@@ -19,10 +21,11 @@ watch(() => props.modelValue, async open => {
   isLoading.value = true
   errors.value = {}
   try {
-    const [rules, employeeResponse] = await Promise.all([AutomationApi.getBonusRules(), EmployeeApi.getAll()])
+    const [rules, employeeResponse, officeRows] = await Promise.all([AutomationApi.getBonusRules(), EmployeeApi.getAll(), OfficeApi.getAll()])
     ruleSet.value = rules
     form.value = structuredClone(rules.rules)
     employees.value = employeeResponse.data.data
+    offices.value = officeRows.filter(office => office.status === 'active')
   } catch (error) {
     errors.value.form = apiErrorMessage(error, 'Unable to load bonus rules.')
   } finally {
@@ -80,7 +83,7 @@ const save = async () => {
             <VCol cols="6" md="3"><VTextField v-model.number="form.amount_per_point" type="number" min="0" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.baseAmountPerPoint')" /></VCol>
             <VCol cols="12" md="4"><VTextField v-model.number="form.maximum_monthly_bonus" type="number" min="0" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.maximumMonthlyBonus')" /></VCol>
             <VCol cols="12" md="8"><VSelect v-model="form.excluded_employee_ids" :items="employees" item-title="name" item-value="id" multiple chips closable-chips :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.excludedEmployees')" /></VCol>
-            <VCol cols="12"><VCombobox v-model="form.excluded_departments" multiple chips closable-chips :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.excludedDepartments')" :hint="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.enterADepartmentAndPressEnter')" persistent-hint /></VCol>
+            <VCol cols="12"><VSelect v-model="form.excluded_office_ids" :items="offices" item-title="name" item-value="id" multiple chips closable-chips label="Excluded offices" hint="Choose offices whose employees should not be nominated automatically." persistent-hint /></VCol>
           </VRow>
         </VForm>
       </VCardText>

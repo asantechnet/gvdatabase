@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UpsertSettingRequest;
 use App\Http\Resources\SettingResource;
 use App\Models\Setting;
+use App\Support\ThemePalette;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +46,7 @@ class SettingController extends Controller
             'remove_contract_cover_design',
             'clear_mail_password',
         ]);
+        $data = $this->withThemeDefaults($data);
         $storedPaths = [];
 
         try {
@@ -82,6 +84,7 @@ class SettingController extends Controller
             'remove_contract_cover_design',
             'clear_mail_password',
         ]);
+        $data = $this->withThemeDefaults($data);
         $storedPaths = [];
         $supersededPaths = [];
 
@@ -142,5 +145,20 @@ class SettingController extends Controller
             'success' => true,
             'message' => 'Setting deleted successfully',
         ]);
+    }
+
+    /**
+     * A null palette field is an intentional "restore Vuexy default" command,
+     * not an unusable empty theme token.
+     */
+    private function withThemeDefaults(array $data): array
+    {
+        foreach (ThemePalette::fields() as $field) {
+            if (array_key_exists($field, $data) && blank($data[$field])) {
+                $data[$field] = ThemePalette::DEFAULTS[$field];
+            }
+        }
+
+        return $data;
     }
 }

@@ -8,7 +8,6 @@ export interface Employee {
   father_name: string;
   contact: string;
   id_number: string | null;
-  tax_number: string | null;
   bank_account_number: string | null;
   guarantor_id_number: string | null;
   guarantor_phone: string | null;
@@ -61,7 +60,6 @@ export interface CreateEmployeeData {
   father_name: string;
   contact: string;
   id_number: string;
-  tax_number?: string | null;
   bank_account_number?: string | null;
   guarantor_id_number?: string | null;
   guarantor_phone?: string | null;
@@ -88,7 +86,6 @@ export interface UpdateEmployeeData {
   father_name?: string;
   contact?: string;
   id_number?: string;
-  tax_number?: string | null;
   bank_account_number?: string | null;
   guarantor_id_number?: string | null;
   guarantor_phone?: string | null;

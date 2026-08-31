@@ -15,6 +15,9 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const { t } = useI18n()
+const tr = (key: string, values: Record<string, unknown> = {}) =>
+  t(`pages.settings.policies.policies.contractTemplate.${key}`, values)
 const types = ref<ContractType[]>([])
 const loading = ref(false)
 const isAddDialogVisible = ref(false)
@@ -36,7 +39,7 @@ interface TypeItem {
 const systemItems = computed<TypeItem[]>(() =>
   types.value
     .filter(type => isSystemSlug(type.slug))
-    .map(type => ({ title: type.name, value: type.id, isSystem: true, inactive: !type.is_active })))
+    .map(type => ({ title: tr(`types.${type.slug}`), value: type.id, isSystem: true, inactive: !type.is_active })))
 
 const customItems = computed<TypeItem[]>(() =>
   types.value
@@ -49,7 +52,7 @@ const selectItems = computed(() => [
 ])
 
 const rules = computed(() =>
-  props.required ? [(v: unknown) => !!v || 'Contract type is required'] : [])
+  props.required ? [(v: unknown) => !!v || tr('validation.contractTypeRequired')] : [])
 
 const fetchTypes = async () => {
   loading.value = true
@@ -58,7 +61,7 @@ const fetchTypes = async () => {
     emit('types-changed', types.value)
   } catch (error) {
     console.error('Failed to load contract types:', error)
-    toast.error('Failed to load contract types.')
+    toast.error(tr('messages.loadTypesError'))
   } finally {
     loading.value = false
   }
@@ -78,10 +81,10 @@ const addType = async () => {
     emit('update:modelValue', created.id)
     isAddDialogVisible.value = false
     newTypeName.value = ''
-    toast.success(`Contract type "${created.name}" was created.`)
+    toast.success(tr('messages.typeCreated', { name: created.name }))
   } catch (error) {
     console.error('Failed to create contract type:', error)
-    toast.error('Failed to create the contract type.')
+    toast.error(tr('messages.createTypeError'))
   }
 }
 
@@ -98,12 +101,12 @@ const confirmDelete = async () => {
     await ContractTypeApi.delete(target.id)
     await fetchTypes()
     if (props.modelValue === target.id) emit('update:modelValue', null)
-    toast.success('Contract type deleted.')
+    toast.success(tr('messages.typeDeleted'))
   } catch {
     // Referenced or protected types are rejected by the backend with a
     // meaningful message; the backend deactivates in-use types instead.
     await fetchTypes()
-    toast.warning('This contract type is in use and has been deactivated instead of deleted.')
+    toast.warning(tr('messages.typeDeactivated'))
   }
 }
 
@@ -124,16 +127,16 @@ defineExpose({ fetchTypes })
     <VRow dense align="center">
       <VCol cols="12" sm="8">
         <VSelect :model-value="modelValue" :items="selectItems" item-title="title" item-value="value"
-          :loading="loading" label="Contract Type" placeholder="Select a contract type" density="comfortable"
+          :loading="loading" :label="tr('contractType')" :placeholder="tr('selectContractType')" density="comfortable"
           :disabled="disabled" :rules="rules" clearable @update:model-value="emit('update:modelValue', $event)">
           <template #selection="{ item }">
             <span class="d-inline-flex align-center gap-2">
               {{ item.raw.title }}
               <VChip size="x-small" :color="item.raw.isSystem ? 'primary' : 'secondary'" variant="tonal">
-                {{ item.raw.isSystem ? 'System' : 'Custom' }}
+                {{ item.raw.isSystem ? tr('system') : tr('custom') }}
               </VChip>
               <VChip v-if="item.raw.inactive" size="x-small" color="warning" variant="tonal">
-                inactive
+                {{ tr('inactive') }}
               </VChip>
             </span>
           </template>
@@ -141,19 +144,19 @@ defineExpose({ fetchTypes })
           <template #item="{ item, props: itemProps }">
             <VListItem v-bind="itemProps">
               <VListItemSubtitle class="text-caption">
-                {{ item.raw.isSystem ? 'System type — always available' : 'Custom type' }}
-                <template v-if="item.raw.inactive"> · currently inactive</template>
+                {{ item.raw.isSystem ? tr('systemTypeAvailable') : tr('customType') }}
+                <template v-if="item.raw.inactive"> · {{ tr('currentlyInactive') }}</template>
               </VListItemSubtitle>
 
               <template #append>
                 <span v-if="item.raw.isSystem" class="d-inline-flex">
                   <VIcon icon="tabler-shield-lock" size="16" class="text-disabled" />
-                  <VTooltip activator="parent" location="top">Protected system type</VTooltip>
+                  <VTooltip activator="parent" location="top">{{ tr('protectedSystemType') }}</VTooltip>
                 </span>
                 <VBtn v-else-if="findType(item.raw.value)?.id" icon size="x-small" variant="text" color="error"
                   @click.stop="requestDelete(findType(item.raw.value)!)">
                   <VIcon icon="tabler-trash" />
-                  <VTooltip activator="parent" location="top">Delete custom type</VTooltip>
+                  <VTooltip activator="parent" location="top">{{ tr('deleteCustomType') }}</VTooltip>
                 </VBtn>
               </template>
             </VListItem>
@@ -163,7 +166,7 @@ defineExpose({ fetchTypes })
       <VCol cols="12" sm="4" class="pt-sm-7">
         <VBtn variant="tonal" color="primary" prepend-icon="tabler-plus" block :disabled="disabled"
           @click="isAddDialogVisible = true">
-          Add Contract Type
+          {{ tr('addContractType') }}
         </VBtn>
       </VCol>
     </VRow>
@@ -171,32 +174,31 @@ defineExpose({ fetchTypes })
     <!-- Inline "add new type" dialog; no navigation away required -->
     <VDialog v-model="isAddDialogVisible" max-width="420px">
       <VCard>
-        <VCardTitle>Add Contract Type</VCardTitle>
+        <VCardTitle>{{ tr('addContractType') }}</VCardTitle>
         <VCardText>
           <VForm ref="newNameForm" @submit.prevent="addType">
-            <VTextField v-model="newTypeName" label="Type name" autofocus placeholder="e.g. Service Agreement"
-              :rules="[v => !!v?.trim() || 'A name is required',
-                       v => v.trim().length <= 100 || 'Maximum 100 characters']" counter="100" />
+            <VTextField v-model="newTypeName" :label="tr('typeName')" autofocus :placeholder="tr('typeNameExample')"
+              :rules="[v => !!v?.trim() || tr('validation.nameRequired'),
+                       v => v.trim().length <= 100 || tr('validation.maximumCharacters', { count: 100 })]" counter="100" />
           </VForm>
         </VCardText>
         <VCardActions class="justify-end">
-          <VBtn variant="text" color="secondary" @click="isAddDialogVisible = false">Cancel</VBtn>
-          <VBtn color="primary" @click="addType">Create</VBtn>
+          <VBtn variant="text" color="secondary" @click="isAddDialogVisible = false">{{ t('common.actions.cancel') }}</VBtn>
+          <VBtn color="primary" @click="addType">{{ tr('create') }}</VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
     <VDialog :model-value="typePendingDeletion !== null" max-width="440px" @update:model-value="typePendingDeletion = null">
       <VCard>
-        <VCardTitle>Delete contract type</VCardTitle>
+        <VCardTitle>{{ tr('deleteContractType') }}</VCardTitle>
         <VCardText>
-          Delete the custom contract type
-          <strong>{{ typePendingDeletion?.name }}</strong>?
-          Types used by templates or contracts cannot be removed and will be deactivated instead.
+          {{ tr('deleteTypePrompt', { name: typePendingDeletion?.name ?? '' }) }}
+          {{ tr('deleteTypeHint') }}
         </VCardText>
         <VCardActions class="justify-end">
-          <VBtn variant="text" color="secondary" @click="typePendingDeletion = null">Cancel</VBtn>
-          <VBtn color="error" @click="confirmDelete">Delete</VBtn>
+          <VBtn variant="text" color="secondary" @click="typePendingDeletion = null">{{ t('common.actions.cancel') }}</VBtn>
+          <VBtn color="error" @click="confirmDelete">{{ t('common.actions.delete') }}</VBtn>
         </VCardActions>
       </VCard>
     </VDialog>

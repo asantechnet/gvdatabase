@@ -61,7 +61,7 @@ const handleProgressChange = (ganttTask: FrappeGanttTask, attemptedProgress: num
       <VCardItem class="bg-surface border-b pb-4">
         <template #title>
           <div class="d-flex align-center">
-            <VIcon icon="tabler-chart-bar" color="primary" class="mr-2" />
+            <VIcon icon="tabler-chart-bar" color="primary" class="me-2" />
             <span class="text-h5 font-weight-bold">{{ $t('components.taskManager.ganttview.projectGanttTimeline') }}</span>
           </div>
         </template>
@@ -88,7 +88,7 @@ const handleProgressChange = (ganttTask: FrappeGanttTask, attemptedProgress: num
     <!-- Constraint Enforcement Toast -->
     <VSnackbar v-model="snackbar.show" color="warning" location="top right" :timeout="4000">
       <div class="d-flex align-center">
-        <VIcon icon="tabler-alert-circle" class="mr-2" />
+        <VIcon icon="tabler-alert-circle" class="me-2" />
         {{ snackbar.message }}
       </div>
       <template #actions>

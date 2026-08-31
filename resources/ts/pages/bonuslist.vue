@@ -213,17 +213,29 @@ const totalGrantedCount = computed(() => {
     return worthyEmployees.value.filter((e) => e.isGranted && (monthFilter.value === 'All' || e.bonusMonth === monthFilter.value)).length
 })
 
-const totalRecommendedPool = computed(() => {
-    return worthyEmployees.value
-        .filter(e => !e.isGranted && (monthFilter.value === 'All' || e.bonusMonth === monthFilter.value))
-        .reduce((sum, item) => sum + (Number(item.selectedAmount) || 0), 0)
-})
+const currentBaseCurrency = computed(() => worthyEmployees.value.find(item => item.currentBaseCurrency)?.currentBaseCurrency ?? null)
+const totalCurrentBase = (granted: boolean) => worthyEmployees.value
+    .filter(item => item.isGranted === granted && (monthFilter.value === 'All' || item.bonusMonth === monthFilter.value))
+    .reduce((total, item) => total + Number(item.currentBaseAmount ?? 0), 0)
+const recommendedCurrentBaseTotal = computed(() => totalCurrentBase(false))
+const grantedCurrentBaseTotal = computed(() => totalCurrentBase(true))
 
-const totalGrantedPool = computed(() => {
-    return worthyEmployees.value
-        .filter(e => e.isGranted && (monthFilter.value === 'All' || e.bonusMonth === monthFilter.value))
-        .reduce((sum, item) => sum + (Number(item.grantedAmount ?? item.selectedAmount) || 0), 0)
-})
+const poolByCurrency = (granted: boolean) => worthyEmployees.value
+    .filter(item => item.isGranted === granted && (monthFilter.value === 'All' || item.bonusMonth === monthFilter.value))
+    .reduce<Record<string, { amount: number; symbol: string; code: string; decimals: number }>>((pools, item) => {
+        const code = item.currencyCode ?? 'Legacy'
+        if (!pools[code]) pools[code] = {
+            amount: 0,
+            symbol: item.currencySymbol ?? '',
+            code,
+            decimals: item.currencyDecimalPlaces ?? 2,
+        }
+        pools[code].amount += Number(granted ? (item.grantedAmount ?? item.selectedAmount) : item.selectedAmount) || 0
+        return pools
+    }, {})
+
+const recommendedPoolsByCurrency = computed(() => poolByCurrency(false))
+const grantedPoolsByCurrency = computed(() => poolByCurrency(true))
 
 const getEmployeeName = (employeeId: number) => {
     const employee = employees.value.find(e => e.id === employeeId)
@@ -254,6 +266,19 @@ const formatCurrency = (amount: number) => {
     })
 
     return formatted
+}
+
+const formatBonusAmount = (employee: WorthyEmployee, amount: number | null | undefined) => {
+    const decimals = employee.currencyDecimalPlaces ?? 2
+    const formatted = formatLocalizedNumber(Number(amount || 0), { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+    return `${employee.currencySymbol ?? ''}${formatted}${employee.currencyCode ? ` ${employee.currencyCode}` : ''}`
+}
+
+const formatCurrentBaseAmount = (amount: number) => {
+    const currency = currentBaseCurrency.value
+    const decimals = currency?.decimalPlaces ?? 2
+    const formatted = formatLocalizedNumber(Number(amount || 0), { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+    return `${currency?.symbol ?? ''}${formatted}${currency?.code ? ` ${currency.code}` : ''}`.trim()
 }
 
 const getAvatarInitials = (name: string) => {
@@ -324,7 +349,7 @@ const getStatusColor = (isGranted: boolean) => {
                                 {{ $t('pages.bonuses.bonuslist.bonuslist.projectedGrantPoolBase') }}
                             </span>
                             <h3 class="text-h4 font-weight-bold mt-1 text-primary">
-                                {{ formatCurrency(totalRecommendedPool) }}
+                                {{ formatCurrentBaseAmount(recommendedCurrentBaseTotal) }}
                             </h3>
                         </div>
                         <v-avatar color="success" variant="tonal" size="48" rounded="lg">
@@ -359,10 +384,10 @@ const getStatusColor = (isGranted: boolean) => {
                     <div class="d-flex align-center justify-space-between">
                         <div>
                             <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
-                                {{ $t('pages.bonuses.bonuslist.bonuslist.grantedPoolBase') }}
+                                Granted payout pool (current base)
                             </span>
                             <h3 class="text-h4 font-weight-bold mt-1 text-success">
-                                {{ formatCurrency(totalGrantedPool) }}
+                                {{ formatCurrentBaseAmount(grantedCurrentBaseTotal) }}
                             </h3>
                         </div>
                         <v-avatar color="success" variant="tonal" size="48" rounded="lg">
@@ -494,7 +519,8 @@ const getStatusColor = (isGranted: boolean) => {
                                 @update:modelValue="!employee.isGranted && updateEmployee(employee)"
                             />
                             <div class="text-caption text-medium-emphasis mt-1">
-                                {{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: formatCurrency(employee.suggestedAmount) }) }}
+                                {{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: formatBonusAmount(employee, employee.suggestedAmount) }) }}
+                                <span class="d-block">Payment currency: {{ employee.currencySymbol || '' }} {{ employee.currencyCode || 'legacy record' }} · booked rate {{ employee.rate ?? '—' }}</span>
                             </div>
                         </td>
 
@@ -579,7 +605,7 @@ const getStatusColor = (isGranted: boolean) => {
                         class="d-flex justify-space-between align-center pa-4 mt-4 bg-var-theme-surface rounded border">
                         <span class="text-medium-emphasis font-weight-medium">{{ $t('pages.bonuses.bonuslist.bonuslist.finalAmount') }}</span>
                         <span class="text-h5 font-weight-bold text-primary">
-                            {{ formatCurrency(selectedForGrant?.selectedAmount || 0) }}
+                            {{ selectedForGrant ? formatBonusAmount(selectedForGrant, selectedForGrant.selectedAmount) : formatCurrency(0) }}
                         </span>
                     </div>
                 </v-card-text>

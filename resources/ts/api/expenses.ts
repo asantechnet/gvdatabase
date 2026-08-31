@@ -11,7 +11,11 @@ export interface Expense {
   quantity: number;
   currency: Pick<Currency, "id" | "code" | "symbol" | "rate" | "decimalPlaces"> | null;
   cnv_curr_shrt: string; base_curr_shrt: string; rate: number; base_amount: number;
+  currentBaseAmount: number | null;
+  currentBaseCurrency: Pick<Currency, "id" | "code" | "symbol" | "decimalPlaces"> | null;
   date: string;
+  recorded_by?: number | null;
+  recordedBy?: { id: number; name: string } | null;
   created_at?: string;
   updated_at?: string;
 }

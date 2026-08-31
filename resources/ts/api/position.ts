@@ -5,6 +5,8 @@ export interface Position {
   title: string
   description: string | null
   salary: number
+  currencyId: number | null
+  currency: { code: string | null; symbol: string | null; decimalPlaces: number | null; rate: number | null }
   status: 'active' | 'inactive'
   employee_count: number
   user_count: number

@@ -29,6 +29,7 @@ class TaskResource extends JsonResource
             // Relational collections (loaded dynamically)
             'assignees' => UserResource::collection($this->whenLoaded('users')),
             'tags' => TagResource::collection($this->whenLoaded('tags')),
+            'services' => ServiceResource::collection($this->whenLoaded('services')),
             'subtasks' => SubtaskResource::collection($this->whenLoaded('subtasks')),
             'comments' => CommentResource::collection($this->whenLoaded('comments')),
             'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($attachment) => [

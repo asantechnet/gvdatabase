@@ -334,7 +334,7 @@ onMounted(() => {
       <template #item.actions="{ item }">
         <div class="d-flex gap-1">
           <FullDetailsButton :item="item" :title="item.name" />
-          <VBtn icon="tabler-user-check" variant="text" size="small" color="success" @click="convertToCustomer(item)" :loading="convertingVisitorId === item.id" :disabled="convertingVisitorId !== null"><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.convertToCustomer') }}</VTooltip></VBtn>
+          <VBtn icon="tabler-user-check" variant="text" size="small" color="success" @click="convertToCustomer(item)" :loading="convertingVisitorId === item.id" :disabled="convertingVisitorId !== null"><VIcon icon="tabler-user-check" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.convertToCustomer') }}</VTooltip></VBtn>
           <VBtn
             icon="tabler-edit"
             variant="text"
@@ -342,7 +342,7 @@ onMounted(() => {
             color="medium-emphasis"
             @click="openEditDialog(item)"
             :loading="isLoading"
-          ><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.editVisitor') }}</VTooltip></VBtn>
+          ><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.editVisitor') }}</VTooltip></VBtn>
           <VBtn
             icon="tabler-trash"
             variant="text"
@@ -350,7 +350,7 @@ onMounted(() => {
             color="error"
             @click="openDeleteDialog(item)"
             :loading="isLoading"
-          ><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.deleteVisitor') }}</VTooltip></VBtn>
+          ><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.deleteVisitor') }}</VTooltip></VBtn>
         </div>
       </template>
     </ResponsiveDataTable>

@@ -431,16 +431,13 @@ onMounted(loadAll)
                                   isProtected ? 'permission-row--disabled' : ''
                                 ]"
                                 @click.prevent="!isProtected && (selectedPermissions.includes(permission.name) ? selectedPermissions = selectedPermissions.filter(p => p !== permission.name) : selectedPermissions = [...selectedPermissions, permission.name])">
-                                <VCheckboxBtn :model-value="selectedPermissions.includes(permission.name)"
-                                  :value="permission.name" color="primary" density="compact" hide-details
-                                  :disabled="isProtected" tabindex="-1" class="permission-checkbox" />
+                                <VCheckboxBtn v-model="selectedPermissions" :value="permission.name" color="primary" density="compact" hide-details
+                                  :disabled="isProtected" tabindex="-1" class="permission-checkbox" @click.stop />
                                 <span class="text-body-2 flex-grow-1"
                                   :class="selectedPermissions.includes(permission.name) ? 'text-high-emphasis font-weight-medium' : 'text-medium-emphasis'"
                                   style="line-height: 1.4;">
                                   {{ permissionLabel(permission as Permission) }}
                                 </span>
-                                <VIcon v-if="selectedPermissions.includes(permission.name)" icon="tabler-check" size="14"
-                                  color="primary" class="flex-shrink-0" />
                               </label>
                             </div>
                           </div>

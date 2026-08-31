@@ -6,6 +6,7 @@ use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasDocumentNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Income extends Model
 {
@@ -16,12 +17,14 @@ class Income extends Model
         'customer_id',
         'invoice_id',
         'currency_id',
+        'base_currency_id',
         'type',
         'description',
         'amount',
         'quantity',
-        'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',
+        'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount', 'invoice_amount',
         'date',
+        'recorded_by',
     ];
 
     protected $casts = [
@@ -29,10 +32,12 @@ class Income extends Model
         'quantity' => 'integer',
         'rate' => 'decimal:8',
         'base_amount' => 'decimal:4',
+        'invoice_amount' => 'decimal:4',
         'date' => 'date',
         'customer_id' => 'integer',
         'invoice_id' => 'integer',
         'currency_id' => 'integer',
+        'base_currency_id' => 'integer',
     ];
 
     public function customer()
@@ -47,7 +52,17 @@ class Income extends Model
 
     public function incomeCurrency()
     {
-        return $this->belongsTo(Currency::class);
+        return $this->belongsTo(Currency::class, 'currency_id');
+    }
+
+    public function baseCurrency()
+    {
+        return $this->belongsTo(Currency::class, 'base_currency_id');
+    }
+
+    public function recorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
     }
 
     protected function documentNumberColumn(): string
@@ -63,12 +78,12 @@ class Income extends Model
     protected static function booted()
     {
         static::creating(function ($income) {
-            $income->base_amount = $income->amount * $income->quantity * $income->rate;
+            $income->base_amount = ($income->amount * $income->quantity) / $income->rate;
         });
 
         static::updating(function ($income) {
             if ($income->isDirty(['amount', 'quantity', 'rate'])) {
-                $income->base_amount = $income->amount * $income->quantity * $income->rate;
+                $income->base_amount = ($income->amount * $income->quantity) / $income->rate;
             }
         });
     }

@@ -17,7 +17,7 @@ watch(() => props.modelValue, open => {
 })
 
 function calculateTotal() {
-  form.value.total_amount = Number(form.value.amount || 0) * Number(form.value.quantity || 0) * Number(form.value.rate || 0)
+  form.value.base_amount = Number(form.value.amount || 0) * Number(form.value.quantity || 0) / Number(form.value.rate || 1)
 }
 
 function updateCurrency(currencyId: number) {
@@ -50,12 +50,12 @@ function submit() { if (validate()) emit('submit', { ...form.value }) }
     <VCard class="expense-dialog app-form-dialog">
       <VCardTitle class="pa-6 pb-2"><div class="d-flex align-center gap-3"><VAvatar color="error" variant="tonal" :icon="mode === 'create' ? 'tabler-receipt-2' : 'tabler-pencil'" /><div><div class="text-h5 font-weight-bold">{{ mode === 'create' ? $t('pages.finance.expenses.expenses.recordExpense2') : $t('pages.finance.expenses.expenses.editExpense') }}</div><div class="text-caption text-medium-emphasis">{{ mode === 'create' ? $t('pages.finance.expenses.expenses.captureOutgoingCashWithItsLiveCurrencyRelationship') : $t('pages.finance.expenses.expenses.updateTheRecordedSpendAndItsCurrency') }}</div></div></div></VCardTitle>
       <VForm class="app-form" @submit.prevent="submit"><VCardText><VAlert v-if="formError" type="error" variant="tonal" class="mb-4">{{ formError }}</VAlert><VRow>
-        <VCol cols="12"><p class="app-form__section">Expense details</p><p class="app-form__section-help">Enter the original purchase amount and quantity. The total updates automatically using the selected currency rate.</p></VCol>
+        <VCol cols="12"><p class="app-form__section">Expense details</p><p class="app-form__section-help">Enter the original amount and quantity. The exchange rate is supplied by the selected currency and the preview is shown in the current base currency.</p></VCol>
         <VCol cols="12" md="6"><VSelect v-model="form.type" :items="['Utilities', 'Software/SaaS', 'Marketing', 'Office Supplies', 'Travel & Dining', 'Salaries']" :label="$t('common.messages.expenseType')" :error-messages="errors.type" required /></VCol>
         <VCol cols="12" md="6"><VSelect v-model="form.currency_id" :items="currencyOptions" :label="$t('common.fields.currency')" :error-messages="errors.currency_id" required @update:model-value="updateCurrency" /></VCol>
         <VCol cols="12"><VTextarea v-model="form.description" :label="$t('common.fields.description')" :error-messages="errors.description" :placeholder="$t('common.messages.whatWasThisExpenseFor')" rows="2" auto-grow required /></VCol>
-        <VCol cols="12" md="4"><VTextField v-model.number="form.amount" :label="$t('common.fields.amount')" :error-messages="errors.amount" type="number" min="0" step="0.01" required @input="calculateTotal" /></VCol><VCol cols="12" md="4"><VTextField v-model.number="form.quantity" :label="$t('common.messages.quantity')" :error-messages="errors.quantity" type="number" min="1" required @input="calculateTotal" /></VCol><VCol cols="12" md="4"><VTextField v-model.number="form.rate" :label="$t('common.messages.exchangeRate')" :error-messages="errors.rate" type="number" min="0.00000001" step="any" required @input="calculateTotal" /></VCol>
-        <VCol cols="12" md="6"><VTextField :model-value="form.total_amount" :label="$t('common.messages.baseCurrencyTotal')" type="number" readonly /></VCol><VCol cols="12" md="6"><AppDateTimePicker v-model="form.date" :label="$t('common.messages.expenseDate')" :error-messages="errors.date" :config="{ dateFormat: 'Y-m-d' }" required /></VCol>
+        <VCol cols="12" md="4"><VTextField v-model.number="form.amount" :label="$t('common.fields.amount')" :error-messages="errors.amount" type="number" min="0" step="0.01" required @input="calculateTotal" /></VCol><VCol cols="12" md="4"><VTextField v-model.number="form.quantity" :label="$t('common.messages.quantity')" :error-messages="errors.quantity" type="number" min="1" required @input="calculateTotal" /></VCol><VCol cols="12" md="4"><VTextField v-model.number="form.rate" :label="$t('common.messages.exchangeRate')" :error-messages="errors.rate" type="number" readonly /></VCol>
+        <VCol cols="12" md="6"><VTextField :model-value="form.base_amount" :label="$t('common.messages.baseCurrencyTotal')" type="number" readonly /></VCol><VCol cols="12" md="6"><AppDateTimePicker v-model="form.date" :label="$t('common.messages.expenseDate')" :error-messages="errors.date" :config="{ dateFormat: 'Y-m-d' }" required /></VCol>
       </VRow></VCardText><VCardActions class="pa-5"><VSpacer /><VBtn color="secondary" variant="tonal" @click="emit('update:modelValue', false)">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="error" type="submit">{{ mode === 'create' ? $t('pages.finance.expenses.expenses.saveExpense') : $t('common.messages.saveChanges4') }}</VBtn></VCardActions></VForm>
     </VCard>
   </VDialog>

@@ -29,6 +29,7 @@ const resources: Record<string, ResourcePermissions> = {
   contracts: { view: 'view_contracts', create: 'create_contracts', update: 'edit_contracts', delete: 'delete_contracts' },
   companies: { view: 'view_companies', create: 'create_companies', update: 'edit_companies', delete: 'delete_companies' },
   stocks: { view: 'view_stocks', create: 'create_stocks', update: 'edit_stocks', delete: 'delete_stocks' },
+  projects: { view: 'view_projects', create: 'create_projects', update: 'edit_projects', delete: 'delete_projects' },
 }
 
 const normalizedPath = (url = '') => `/${url.replace(/^\/?api\/?/, '').replace(/^\//, '').split('?')[0]}`
@@ -120,10 +121,13 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'DELETE /contract-types/:id': ['manage_contract_types'],
     'PATCH /notifications/mark-all-read': ['update_own_notifications'],
     'GET /audit-logs': ['view_audit_logs'],
+    'GET /audit-logs/pending-count': ['view_audit_logs'],
     'GET /audit-logs/deleted': ['view_deleted_records'],
     'GET /audit-logs/:id': ['view_audit_logs'],
     'PATCH /audit-logs/:id/review': ['review_audit_logs'],
     'POST /audit-logs/:id/revert': ['revert_audit_changes'],
+    'GET /audit-resources': ['view_audit_logs'],
+    'PATCH /audit-resources/:id': ['manage_audit_scope'],
     'GET /dashboard/stats': ['view_dashboard'],
     'GET /dashboard/chart-data': ['view_dashboard'],
     'GET /reports/invoices': ['view_financial_reports'],

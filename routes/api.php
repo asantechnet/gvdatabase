@@ -1,17 +1,19 @@
 <?php
 
+use App\Http\Controllers\AccountDeactivationRequestController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceGeofenceController;
-use App\Http\Controllers\AccountDeactivationRequestController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\AuditResourceController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AutomationController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\CommentController;
-use App\Http\Controllers\ContractController;
-use App\Http\Controllers\ContractTemplateController;
-use App\Http\Controllers\ContractPolicyController;
-use App\Http\Controllers\ContractTypeController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\ContractController;
+use App\Http\Controllers\ContractPolicyController;
+use App\Http\Controllers\ContractTemplateController;
+use App\Http\Controllers\ContractTypeController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerServiceController;
@@ -21,16 +23,17 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\InvoiceController;
-use App\Http\Controllers\PaymentDetailController;
 use App\Http\Controllers\KanbanController;
-use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\MarketerController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficeController;
+use App\Http\Controllers\PaidTimeOffController;
+use App\Http\Controllers\PaymentDetailController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PositionController;
-use App\Http\Controllers\PaidTimeOffController;
-use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RecurringEventController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\SalaryDeductionController;
@@ -39,14 +42,13 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\SubtaskController;
 use App\Http\Controllers\TagController;
-use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskAssigneeController;
 use App\Http\Controllers\TaskAttachmentController;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VisitorController;
-use App\Http\Controllers\WorthyEmployeeController;
 use App\Http\Controllers\WorkdayController;
-use App\Http\Controllers\AutomationController;
+use App\Http\Controllers\WorthyEmployeeController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -108,6 +110,11 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
 
     // 2. Board Management (Columns)
     Route::get('/boards', [BoardController::class, 'index'])->middleware('permission:view_all_boards,view_assigned_boards');
+    Route::apiResource('projects', ProjectController::class)
+        ->middlewareFor(['index', 'show'], 'permission:view_projects')
+        ->middlewareFor('store', 'permission:create_projects')
+        ->middlewareFor('update', 'permission:edit_projects')
+        ->middlewareFor('destroy', 'permission:delete_projects');
     Route::post('/boards', [BoardController::class, 'store']);
     Route::put('/boards/reorder', [BoardController::class, 'reorder']);
     Route::put('/boards/{board}/members', [BoardController::class, 'syncMembers']);
@@ -338,7 +345,10 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
 
     // Immutable audit history, deleted-row report, and supervised undo.
     Route::get('audit-logs', [AuditLogController::class, 'index'])->middleware('permission:view_audit_logs');
+    Route::get('audit-logs/pending-count', [AuditLogController::class, 'pendingCount'])->middleware('permission:view_audit_logs');
     Route::get('audit-logs/deleted', [AuditLogController::class, 'deleted'])->middleware('permission:view_deleted_records');
+    Route::get('audit-resources', [AuditResourceController::class, 'index'])->middleware('permission:view_audit_logs');
+    Route::patch('audit-resources/{auditResourceSetting}', [AuditResourceController::class, 'update'])->middleware('permission:manage_audit_scope');
     Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show'])->middleware('permission:view_audit_logs');
     Route::patch('audit-logs/{auditLog}/review', [AuditLogController::class, 'review'])->middleware('permission:review_audit_logs');
     Route::post('audit-logs/{auditLog}/revert', [AuditLogController::class, 'revert'])->middleware('permission:revert_audit_changes');

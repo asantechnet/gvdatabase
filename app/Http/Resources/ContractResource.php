@@ -19,6 +19,8 @@ class ContractResource extends JsonResource
             'status' => $this->status,
             'start_date' => $this->start_date?->toDateString(),
             'end_date' => $this->end_date?->toDateString(),
+            'duration_months' => $this->duration_months,
+            'company_signatory_name' => $this->company_signatory_name,
             'counterparty' => $this->counterparty,
             'counterparty_company' => $this->counterparty_company,
             'counterparty_email' => $this->counterparty_email,
@@ -46,6 +48,12 @@ class ContractResource extends JsonResource
             'contract_template' => $this->whenLoaded('template', function () {
                 return new ContractTemplateResource($this->template);
             }),
+            // Services are inferred from the customer's current assignments.
+            'services' => ServiceResource::collection(
+                $this->relationLoaded('customer') && $this->customer?->relationLoaded('customerServices')
+                    ? $this->customer->customerServices->map->service->filter()
+                    : collect(),
+            ),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

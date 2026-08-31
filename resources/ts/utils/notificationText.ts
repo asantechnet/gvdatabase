@@ -5,10 +5,11 @@ type Translate = (key: string, values?: Record<string, string>) => string
 
 export function notificationText(notification: AppNotification, translate: Translate) {
   const key = notification.notification_key
+  const resourceKey = String(notification.data?.resource ?? notification.data?.table ?? 'other')
+  const localizedResource = translate(`pages.audits.resources.${resourceKey}`)
   const values = {
-    table: String(notification.data?.table ?? ''),
-    row: String(notification.data?.row_id ?? ''),
-    columns: Array.isArray(notification.data?.columns) ? notification.data.columns.map(column => translateBackendValue(column, 'backend.values')).join(', ') : '',
+    resource: localizedResource && !localizedResource.startsWith('[missing:') ? localizedResource : translate('pages.audits.unknownRecord'),
+    record: String(notification.data?.record ?? ''),
     requester: String(notification.data?.requester ?? ''),
     reviewer: String(notification.data?.reviewer ?? ''),
   }

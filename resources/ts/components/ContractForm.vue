@@ -20,6 +20,8 @@ export interface ContractFormPayload {
   status: ContractStatus
   start_date: string
   end_date: string | null
+  duration_months: number | null
+  company_signatory_name: string | null
 }
 
 interface TemplateOption {
@@ -36,6 +38,8 @@ const props = defineProps<{
     status: ContractStatus
     start_date: string | null
     end_date?: string | null
+    duration_months?: number | null
+    company_signatory_name?: string | null
     template_id: number | null
     contract_type_id?: number | null
     employee_id?: number | null
@@ -75,6 +79,8 @@ const form = ref({
   status: (props.contract?.status || 'active') as ContractStatus,
   start_date: props.contract?.start_date || new Date().toISOString().slice(0, 10),
   end_date: (props.contract?.end_date || null) as string | null,
+  duration_months: props.contract?.duration_months ?? null,
+  company_signatory_name: props.contract?.company_signatory_name ?? null,
 })
 
 // ---------------------------------------------------------------------
@@ -242,6 +248,17 @@ watch(context, currentContext => {
   form.value.company_id = currentContext === 'company' ? (props.contract?.company_id ?? form.value.company_id) : null
 })
 
+watch([() => form.value.start_date, () => form.value.duration_months], ([startDate, duration]) => {
+  if (!startDate || !duration) {
+    form.value.end_date = null
+    return
+  }
+
+  const [year, month, day] = startDate.split('-').map(Number)
+  const lastDay = new Date(Date.UTC(year, month - 1 + Number(duration) + 1, 0)).getUTCDate()
+  form.value.end_date = new Date(Date.UTC(year, month - 1 + Number(duration), Math.min(day, lastDay))).toISOString().slice(0, 10)
+}, { immediate: true })
+
 const onTypesChanged = (types: ContractType[]) => {
   contractTypes.value = types
 }
@@ -344,6 +361,7 @@ defineExpose({ submit })
         <CounterpartyCard :details="counterpartyDetails" />
       </VCol>
 
+
       <VCol cols="12" sm="6" md="4">
         <VSelect v-model="form.status" :items="statusOptions" label="Status"
           :rules="[v => !!v || 'Status is required']" required />
@@ -353,8 +371,15 @@ defineExpose({ submit })
           :rules="[v => !!v || 'Start date is required']" required />
       </VCol>
       <VCol cols="12" md="4">
-        <VTextField v-model="form.end_date" label="End Date" type="date"
-          hint="Leave blank for an open-ended contract." persistent-hint />
+        <VTextField v-model.number="form.duration_months" label="Duration (months)" type="number" min="1"
+          :rules="[v => !!v || 'Duration is required']" hint="The end date is calculated from the start date." persistent-hint required />
+      </VCol>
+      <VCol cols="12" md="4">
+        <VTextField v-model="form.end_date" label="Calculated End Date" type="date" readonly />
+      </VCol>
+      <VCol cols="12" md="6">
+        <VTextField v-model="form.company_signatory_name" label="Our company signatory"
+          hint="The authorized person signing on behalf of our company." persistent-hint />
       </VCol>
     </VRow>
 

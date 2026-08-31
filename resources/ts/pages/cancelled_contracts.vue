@@ -47,7 +47,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <DataTablePageKpis :items="filtered" title="Cancelled contracts" description="Review closed agreements and keep cancellation records easy to audit." icon="tabler-file-off" />
+  <DataTablePageKpis :items="filtered" :title="$t('navigation.cancelledContracts')" :description="$t('pages.contracts.cancelledContracts.cancelledContracts.reviewClosedAgreements')" icon="tabler-file-off" />
   <VCard>
     <VCardText>
       <VRow align="center">

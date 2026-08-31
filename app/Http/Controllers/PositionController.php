@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Position;
+use App\Models\Currency;
 use App\Http\Resources\PositionResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -25,12 +26,12 @@ class PositionController extends Controller
     {
         $data = $request->validate([
             'title' => 'required|string|max:255|unique:positions,title',
-            'salary' => 'required|integer|min:0',
+            'salary' => 'required|numeric|min:0',
             'status' => 'required|in:active,inactive',
             'description' => 'nullable|string',
         ]);
 
-        $position = Position::create($data);
+        $position = Position::create([...$data, ...$this->currencySnapshot()]);
 
         return response()->json([
             'success' => true,
@@ -65,12 +66,14 @@ class PositionController extends Controller
 
         $data = $request->validate([
             'title' => 'sometimes|string|max:255|unique:positions,title,'.$id,
-            'salary' => 'sometimes|integer|min:0',
+            'salary' => 'sometimes|numeric|min:0',
             'status' => 'sometimes|in:active,inactive',
             'description' => 'nullable|string',
         ]);
 
-        $position->update($data);
+        // A position's suggested salary is always denominated in the current
+        // company base currency, with its own display snapshot.
+        $position->update([...$data, ...$this->currencySnapshot()]);
 
         return response()->json([
             'success' => true,
@@ -100,6 +103,19 @@ class PositionController extends Controller
             'success' => true,
             'message' => 'Position deleted successfully'
         ]);
+    }
+
+    private function currencySnapshot(): array
+    {
+        $currency = Currency::query()->where('is_base', true)->firstOrFail();
+
+        return [
+            'currency_id' => $currency->id,
+            'currency_code' => $currency->code,
+            'currency_symbol' => $currency->symbol,
+            'currency_decimal_places' => $currency->decimal_places,
+            'rate' => 1,
+        ];
     }
 
 }

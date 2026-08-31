@@ -17,6 +17,7 @@ const { t } = useI18n()
     <template #activator="{ props: menuProps }">
       <VBtn v-bind="menuProps" icon="tabler-filter" variant="text" size="small"
         :color="active ? 'primary' : undefined" :aria-label="t('common.messages.filters')">
+        <VIcon icon="tabler-filter" />
         <VTooltip activator="parent" location="top">{{ t('common.messages.filters') }}</VTooltip>
       </VBtn>
     </template>

@@ -16,6 +16,7 @@ class Salary extends Model
     protected $fillable = [
         'employee_id',
         'currency_id',
+        'base_currency_id',
         'currency_code', 'currency_name', 'currency_symbol', 'currency_decimal_places', 'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',
         'currency_snapshot_source', 'currency_snapshot_note',
         'salary_month',
@@ -29,6 +30,7 @@ class Salary extends Model
         'total_amount',
         'remarks',
         'payment_date',
+        'recorded_by',
     ];
 
     protected function casts(): array
@@ -71,7 +73,7 @@ class Salary extends Model
     public function bonuses()
     {
         return $this->belongsToMany(WorthyEmployee::class, 'salary_worthy_employee')
-            ->withPivot(['source_amount'])
+            ->withPivot(['source_amount', 'source_currency_code', 'source_rate', 'salary_currency_code', 'salary_rate', 'converted_amount', 'conversion_formula', 'conversion_snapshot_source'])
             ->withTimestamps();
     }
 
@@ -83,5 +85,10 @@ class Salary extends Model
     public function expense()
     {
         return $this->hasOne(Expense::class);
+    }
+
+    public function recorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
     }
 }

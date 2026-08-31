@@ -52,6 +52,7 @@ export const useTaskStore = defineStore("taskManager", () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const tags = ref<Tag[]>([])
+  const selectedProjectId = ref<number | null>(null)
 
   // Getters
   const selectedTask = computed(() => {
@@ -152,7 +153,7 @@ export const useTaskStore = defineStore("taskManager", () => {
     try {
       isLoading.value = true
       error.value = null
-      const response = await KanbanApi.getBoard()
+      const response = await KanbanApi.getBoard(selectedProjectId.value ? { project_id: selectedProjectId.value } : undefined)
       boards.value = response.data.data
       tasks.value = response.data.data.flatMap(board => board.tasks).map(task => ({
         ...task,
@@ -184,7 +185,7 @@ export const useTaskStore = defineStore("taskManager", () => {
     try {
       isLoading.value = true
       error.value = null
-      const response = await BoardApi.getAll()
+      const response = await BoardApi.getAll(selectedProjectId.value ? { project_id: selectedProjectId.value } : undefined)
       boards.value = response.data.data
     } catch (err) {
       error.value = 'Failed to fetch boards'
@@ -219,9 +220,14 @@ export const useTaskStore = defineStore("taskManager", () => {
     try {
       isLoading.value = true
       error.value = null
-      await TaskApi.update(id, data)
+      const response = await TaskApi.update(id, data)
       const index = tasks.value.findIndex(task => task.id === id)
       if (index !== -1) {
+        const returnedTask = response.data.data
+        if (returnedTask) {
+          tasks.value[index] = { ...returnedTask, results: returnedTask.results ?? '', attachments: returnedTask.attachments ?? [] }
+          return
+        }
         // Create a new object with the updated data
         const updatedTask = { ...tasks.value[index] }
 
@@ -365,7 +371,7 @@ export const useTaskStore = defineStore("taskManager", () => {
     try {
       isLoading.value = true
       error.value = null
-      await BoardApi.reorder(boardIds)
+      await BoardApi.reorder(boardIds, selectedProjectId.value)
       const orderById = new Map(boardIds.map((id, index) => [id, index]))
       boards.value.forEach(board => {
         board.order = orderById.get(board.id) ?? board.order
@@ -490,7 +496,7 @@ export const useTaskStore = defineStore("taskManager", () => {
     try {
       isLoading.value = true
       error.value = null
-      const response = await BoardApi.create({ title })
+      const response = await BoardApi.create({ title, project_id: selectedProjectId.value })
       boards.value.push(response.data.data)
     } catch (err) {
       error.value = 'Failed to create board'
@@ -538,6 +544,13 @@ export const useTaskStore = defineStore("taskManager", () => {
     activeView.value = view
   }
 
+  const selectProject = async (projectId: number | null) => {
+    if (selectedProjectId.value === projectId) return
+    selectedProjectId.value = projectId
+    selectedTaskId.value = null
+    await fetchBoardData()
+  }
+
   const selectTask = (id: string | null) => {
     selectedTaskId.value = id
   }
@@ -546,6 +559,7 @@ export const useTaskStore = defineStore("taskManager", () => {
     boards,
     tasks,
     tags,
+    selectedProjectId,
     activeView,
     selectedTaskId,
     selectedTask,
@@ -575,6 +589,7 @@ export const useTaskStore = defineStore("taskManager", () => {
     updateBoard,
     deleteBoard,
     setView,
+    selectProject,
     selectTask
   }
 })

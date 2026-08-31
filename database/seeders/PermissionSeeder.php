@@ -45,6 +45,7 @@ class PermissionSeeder extends Seeder
         ['name' => 'view_deleted_records', 'category' => 'core'],
         ['name' => 'review_audit_logs', 'category' => 'core'],
         ['name' => 'revert_audit_changes', 'category' => 'core'],
+        ['name' => 'manage_audit_scope', 'category' => 'core'],
 
         // Identity and access management. Roles and permissions are
         // system-owned catalog data; access assignments are managed separately.
@@ -169,6 +170,10 @@ class PermissionSeeder extends Seeder
         // Task management. Assigned scope is based on the task/board member
         // relationship; all scope is supervisory. These scopes are enforced
         // by backend policies, never by the frontend alone.
+        ['name' => 'view_projects', 'category' => 'task_management'],
+        ['name' => 'create_projects', 'category' => 'task_management'],
+        ['name' => 'edit_projects', 'category' => 'task_management'],
+        ['name' => 'delete_projects', 'category' => 'task_management'],
         ['name' => 'view_assigned_boards', 'category' => 'task_management'],
         ['name' => 'view_all_boards', 'category' => 'task_management'],
         ['name' => 'create_boards', 'category' => 'task_management'],

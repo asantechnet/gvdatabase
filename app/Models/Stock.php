@@ -6,6 +6,7 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Stock extends Model
 {
@@ -24,7 +25,6 @@ class Stock extends Model
         'model',
         'condition',
         'office_id',
-        'staff_id',
     ];
 
     protected function casts(): array
@@ -43,9 +43,9 @@ class Stock extends Model
         ];
     }
 
-    public function staff()
+    public function allocations(): HasMany
     {
-        return $this->belongsTo(Employee::class, 'staff_id');
+        return $this->hasMany(StockAllocation::class);
     }
 
     public function office(): BelongsTo

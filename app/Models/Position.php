@@ -14,8 +14,24 @@ class Position extends Model
         'title',
         'description',
         'salary',
+        'currency_id', 'currency_code', 'currency_symbol', 'currency_decimal_places', 'rate',
         'status',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'salary' => 'float',
+            'currency_id' => 'integer',
+            'currency_decimal_places' => 'integer',
+            'rate' => 'float',
+        ];
+    }
+
+    public function currency()
+    {
+        return $this->belongsTo(Currency::class);
+    }
 
     public function employees()
     {

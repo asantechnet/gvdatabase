@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Currency;
 use App\Models\Income;
 use App\Models\Invoice;
+use App\Services\CurrencyConversionService;
 use App\Http\Resources\IncomeResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,9 +15,13 @@ use Illuminate\Validation\Rule;
 
 class IncomeController extends Controller
 {
+    public function __construct(private readonly CurrencyConversionService $currencies)
+    {
+    }
+
     public function index(Request $request)
     {
-        $query = Income::with(['invoice', 'incomeCurrency']);
+        $query = Income::with(['invoice', 'incomeCurrency', 'recorder']);
 
         if ($request->has('type') && $request->type) {
             $query->where('type', $request->type);
@@ -48,13 +53,15 @@ class IncomeController extends Controller
             'amount' => 'required|numeric|gt:0',
             'quantity' => 'required|integer|min:1',
             'currency_id' => 'required|exists:currencies,id',
-            'rate' => 'required|numeric|gt:0',
+            'rate' => 'nullable|numeric|gt:0',
             'date' => 'required|date',
         ]);
 
         $validator->validate();
 
         $data = $validator->validated();
+        unset($data['rate']);
+        $data['recorded_by'] = $request->user()->id;
         $data['description'] = $data['description'] ?? '';
         $this->applyCurrencySnapshot($data);
 
@@ -67,6 +74,7 @@ class IncomeController extends Controller
             $data['customer_id'] = $invoice->customer_id;
             $data['currency_id'] = $invoice->currency_id;
             $this->applyCurrencySnapshot($data);
+            $data['invoice_amount'] = round((float) $data['amount'] * (int) $data['quantity'], 4);
             $this->ensureInvoiceCanAcceptPayment($invoice, $data);
 
             $income = Income::create($data);
@@ -75,12 +83,12 @@ class IncomeController extends Controller
             return $income;
         });
 
-        return new IncomeResource($income->load(['invoice', 'incomeCurrency']));
+        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'recorder']));
     }
 
     public function show(Income $income)
     {
-        return new IncomeResource($income->load(['invoice', 'incomeCurrency']));
+        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'recorder']));
     }
 
     public function update(Request $request, Income $income)
@@ -93,13 +101,14 @@ class IncomeController extends Controller
             'amount' => 'sometimes|numeric|gt:0',
             'quantity' => 'sometimes|integer|min:1',
             'currency_id' => 'sometimes|exists:currencies,id',
-            'rate' => 'sometimes|numeric|gt:0',
+            'rate' => 'nullable|numeric|gt:0',
             'date' => 'sometimes|date',
         ]);
 
         $validator->validate();
 
         $data = $validator->validated();
+        unset($data['rate']);
 
         if (array_key_exists('currency_id', $data)) {
             $this->applyCurrencySnapshot($data);
@@ -119,6 +128,7 @@ class IncomeController extends Controller
                 $data['customer_id'] = $invoice->customer_id;
                 $data['currency_id'] = $invoice->currency_id;
                 $this->applyCurrencySnapshot($data);
+                $data['invoice_amount'] = round((float) ($data['amount'] ?? $income->amount) * (int) ($data['quantity'] ?? $income->quantity), 4);
                 $this->ensureInvoiceCanAcceptPayment($invoice, array_merge($income->toArray(), $data), $income->id);
             }
 
@@ -131,7 +141,7 @@ class IncomeController extends Controller
             return $income;
         });
 
-        return new IncomeResource($income->load(['invoice', 'incomeCurrency']));
+        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'recorder']));
     }
 
     public function destroy(Income $income)
@@ -194,33 +204,22 @@ class IncomeController extends Controller
         }
 
         return round($query->get()->sum(fn (Income $income) =>
-            $this->paymentAmountInInvoiceCurrency($income->toArray(), $invoice)
+            (float) ($income->invoice_amount ?? ((float) $income->amount * (int) $income->quantity))
         ), 2);
     }
 
     /** @param array<string, mixed> $payment */
     private function paymentAmountInInvoiceCurrency(array $payment, Invoice $invoice): float
     {
-        $rateToBase = (float) ($payment['rate'] ?? 0);
-
-        if ($rateToBase <= 0) {
-            return 0;
-        }
-
-        return round(
-            ((float) ($payment['amount'] ?? 0) * (int) ($payment['quantity'] ?? 1) / $rateToBase)
-                * (float) $invoice->rate,
-            2
-        );
+        // Linked payments are deliberately recorded in the invoice currency.
+        // This makes the paid balance independent of later base-currency changes.
+        return round((float) ($payment['invoice_amount'] ?? ((float) ($payment['amount'] ?? 0) * (int) ($payment['quantity'] ?? 1))), 2);
     }
 
     /** @param array<string, mixed> $data */
     private function applyCurrencySnapshot(array &$data): void
     {
-        $currency = Currency::findOrFail($data['currency_id']);
-        $base = Currency::where('is_base', true)->firstOrFail();
-        $data['cnv_curr_shrt'] = $currency->code;
-        $data['base_curr_shrt'] = $base->code;
-        $data['rate'] = $data['rate'] ?? $currency->rate;
+        $currency = Currency::query()->where('is_active', true)->findOrFail($data['currency_id']);
+        $data = [...$data, ...$this->currencies->snapshot($currency)];
     }
 }

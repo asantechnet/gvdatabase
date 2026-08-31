@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Expense extends Model
 {
@@ -14,6 +15,7 @@ class Expense extends Model
         'customer_id',
         'salary_id',
         'currency_id',
+        'base_currency_id',
         'currency',
         'type',
         'description',
@@ -21,6 +23,7 @@ class Expense extends Model
         'quantity',
         'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',
         'date',
+        'recorded_by',
     ];
 
     protected $casts = [
@@ -31,6 +34,7 @@ class Expense extends Model
         'date' => 'date',
         'customer_id' => 'integer',
         'currency_id' => 'integer',
+        'base_currency_id' => 'integer',
     ];
 
     public function customer()
@@ -43,20 +47,30 @@ class Expense extends Model
         return $this->belongsTo(Currency::class, 'currency_id');
     }
 
+    public function baseCurrency()
+    {
+        return $this->belongsTo(Currency::class, 'base_currency_id');
+    }
+
     public function salary()
     {
         return $this->belongsTo(Salary::class);
     }
 
+    public function recorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
+    }
+
     protected static function booted()
     {
         static::creating(function ($expense) {
-            $expense->base_amount = $expense->amount * $expense->quantity * $expense->rate;
+            $expense->base_amount = ($expense->amount * $expense->quantity) / $expense->rate;
         });
 
         static::updating(function ($expense) {
             if ($expense->isDirty(['amount', 'quantity', 'rate'])) {
-                $expense->base_amount = $expense->amount * $expense->quantity * $expense->rate;
+                $expense->base_amount = ($expense->amount * $expense->quantity) / $expense->rate;
             }
         });
     }

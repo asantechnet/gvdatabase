@@ -54,6 +54,9 @@ const conditionColor = (condition: StockCondition) => ({
   poor: 'orange-darken-2',
   damaged: 'error',
 }[condition])
+const allocationTotal = (stock: StockItem | null) => stock?.allocations.reduce((total, allocation) => total + Number(allocation.quantity || 0), 0) ?? 0
+const addAllocation = () => selectedStock.value?.allocations.push({ employee_id: 0, quantity: 1 })
+const removeAllocation = (index: number) => selectedStock.value?.allocations.splice(index, 1)
 
 const filtered = computed(() => {
   return stocks.value.filter(s => {
@@ -74,7 +77,7 @@ const headers = [
   { title: translate('pages.finance.stock.stock.model'), key: 'model', sortable: true },
   { title: translate('pages.finance.stock.stock.condition'), key: 'condition', sortable: true },
   { title: translate('common.fields.office'), key: 'office.name', sortable: true },
-  { title: translate('pages.finance.stock.stock.assignedTo'), key: 'staff.name', sortable: true },
+  { title: 'Allocated to', key: 'allocations', sortable: false },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false },
 ]
 
@@ -122,7 +125,7 @@ const openAddStockDialog = () => {
     model: '',
     condition: 'good',
     office_id: officeDirectory.value.find(office => office.status === 'active')?.id ?? null,
-    staff_id: null
+    allocations: []
   }
   isAddStockDialogVisible.value = true
 }
@@ -140,7 +143,7 @@ const openDeleteStockDialog = (stock: StockItem) => {
 const addStock = async () => {
   if (selectedStock.value) {
     try {
-      const { id, staff, office, ...stockData } = selectedStock.value
+      const { id, office, allocated_quantity, available_quantity, ...stockData } = selectedStock.value
       const stock = await StockApi.create(stockData)
       stocks.value.unshift(stock)
       isAddStockDialogVisible.value = false
@@ -155,7 +158,7 @@ const addStock = async () => {
 const updateStock = async () => {
   if (selectedStock.value) {
     try {
-      const { id, staff, office, ...stockData } = selectedStock.value
+      const { id, office, allocated_quantity, available_quantity, ...stockData } = selectedStock.value
       const stock = await StockApi.update(id, stockData)
       const index = stocks.value.findIndex(s => s.id === selectedStock.value?.id)
       if (index !== -1) {
@@ -251,8 +254,13 @@ onMounted(() => {
           density="compact"
           sticky-last-column
         >
-          <template #item.staff.name="{ item }">
-            {{ item.staff?.name || '-' }}
+          <template #item.allocations="{ item }">
+            <div class="d-flex flex-wrap ga-1">
+              <VChip v-for="allocation in item.allocations" :key="allocation.employee_id" size="x-small" color="primary" variant="tonal">
+                {{ allocation.employee?.name || 'Employee' }}: {{ allocation.quantity }}
+              </VChip>
+              <span v-if="!item.allocations.length" class="text-medium-emphasis">Unassigned</span>
+            </div>
           </template>
 
           <template #item.office.name="{ item }">
@@ -290,7 +298,7 @@ onMounted(() => {
       </div>
     </VCard>
 
-    <PrintableListReport title="Stock Report" subtitle="Filtered stock records" :columns="['Serial number', 'Item', 'Quantity', 'Price', 'Model', 'Condition', 'Office', 'Assigned to']" :rows="filtered.map(stock => [stock.serial_number, stock.item, stock.quantity, stock.price, stock.model, stock.condition, stock.office?.name, stock.staff?.name])" />
+    <PrintableListReport title="Stock Report" subtitle="Filtered stock records" :columns="['Serial number', 'Item', 'Quantity', 'Price', 'Model', 'Condition', 'Office', 'Allocations']" :rows="filtered.map(stock => [stock.serial_number, stock.item, stock.quantity, stock.price, stock.model, stock.condition, stock.office?.name, stock.allocations.map(allocation => `${allocation.employee?.name || 'Employee'}: ${allocation.quantity}`).join(', ')])" />
 
     <!-- Add Stock Dialog -->
     <VDialog
@@ -351,16 +359,14 @@ onMounted(() => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
-                <VAutocomplete
-                  v-model="selectedStock.staff_id"
-                  :label="$t('common.messages.assignToStaffOptional')"
-                  :items="employees"
-                  item-title="name"
-                  item-value="id"
-                  :loading="employeesLoading"
-                  clearable
-                />
+              <VCol cols="12">
+                <div class="d-flex justify-space-between align-center mb-2"><span class="text-subtitle-2">Employee allocations</span><VBtn size="small" variant="tonal" prepend-icon="tabler-plus" @click="addAllocation">Add employee</VBtn></div>
+                <VAlert type="info" variant="tonal" density="compact" class="mb-3">Allocated: {{ allocationTotal(selectedStock) }} / {{ selectedStock.quantity }}. The total cannot exceed inventory quantity.</VAlert>
+                <VRow v-for="(allocation, index) in selectedStock.allocations" :key="index">
+                  <VCol cols="12" sm="7"><VAutocomplete v-model="allocation.employee_id" label="Employee" :items="employees" item-title="name" item-value="id" :loading="employeesLoading" /></VCol>
+                  <VCol cols="9" sm="4"><VTextField v-model.number="allocation.quantity" label="Quantity" type="number" min="1" :max="selectedStock.quantity" /></VCol>
+                  <VCol cols="3" sm="1" class="d-flex align-center"><VBtn icon="tabler-trash" variant="text" color="error" @click="removeAllocation(index)" /></VCol>
+                </VRow>
               </VCol>
             </VRow>
           </VForm>
@@ -444,16 +450,14 @@ onMounted(() => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
-                <VAutocomplete
-                  v-model="selectedStock.staff_id"
-                  :label="$t('common.messages.assignToStaffOptional')"
-                  :items="employees"
-                  item-title="name"
-                  item-value="id"
-                  :loading="employeesLoading"
-                  clearable
-                />
+              <VCol cols="12">
+                <div class="d-flex justify-space-between align-center mb-2"><span class="text-subtitle-2">Employee allocations</span><VBtn size="small" variant="tonal" prepend-icon="tabler-plus" @click="addAllocation">Add employee</VBtn></div>
+                <VAlert type="info" variant="tonal" density="compact" class="mb-3">Allocated: {{ allocationTotal(selectedStock) }} / {{ selectedStock.quantity }}. Reduce allocations before lowering inventory quantity.</VAlert>
+                <VRow v-for="(allocation, index) in selectedStock.allocations" :key="index">
+                  <VCol cols="12" sm="7"><VAutocomplete v-model="allocation.employee_id" label="Employee" :items="employees" item-title="name" item-value="id" :loading="employeesLoading" /></VCol>
+                  <VCol cols="9" sm="4"><VTextField v-model.number="allocation.quantity" label="Quantity" type="number" min="1" :max="selectedStock.quantity" /></VCol>
+                  <VCol cols="3" sm="1" class="d-flex align-center"><VBtn icon="tabler-trash" variant="text" color="error" @click="removeAllocation(index)" /></VCol>
+                </VRow>
               </VCol>
             </VRow>
           </VForm>

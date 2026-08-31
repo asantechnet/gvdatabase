@@ -4,9 +4,9 @@ import { Board, CreateBoardData, UpdateBoardData } from "./kanban";
 // Board API endpoints
 const BoardApi = {
   // Get all boards
-  getAll: async () => {
+  getAll: async (params?: { project_id?: number }) => {
     try {
-      const response = await api.get<{ data: Board[] }>("/boards");
+      const response = await api.get<{ data: Board[] }>("/boards", { params });
       return response;
     } catch (error) {
       console.error('API getAll error:', error);
@@ -48,9 +48,9 @@ const BoardApi = {
   },
 
   // Persist the complete column order after a board drag-and-drop.
-  reorder: async (boardIds: string[]) => {
+  reorder: async (boardIds: string[], projectId?: number | null) => {
     try {
-      return await api.put<{ message: string }>("/boards/reorder", { board_ids: boardIds });
+      return await api.put<{ message: string }>("/boards/reorder", { board_ids: boardIds, project_id: projectId ?? null });
     } catch (error) {
       console.error('API reorder error:', error);
       throw error;

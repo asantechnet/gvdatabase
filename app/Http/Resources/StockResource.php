@@ -29,13 +29,14 @@ class StockResource extends JsonResource
                 'code' => $this->office->code,
                 'status' => $this->office->status,
             ]),
-            'staff_id' => $this->staff_id,
-            'staff' => $this->whenLoaded('staff', function () {
-                return [
-                    'id' => $this->staff->id,
-                    'name' => $this->staff->name,
-                ];
-            }),
+            'allocated_quantity' => $this->whenLoaded('allocations', fn () => $this->allocations->sum('quantity')),
+            'available_quantity' => $this->whenLoaded('allocations', fn () => max(0, $this->quantity - $this->allocations->sum('quantity'))),
+            'allocations' => $this->whenLoaded('allocations', fn () => $this->allocations->map(fn ($allocation) => [
+                'id' => $allocation->id,
+                'employee_id' => $allocation->employee_id,
+                'employee' => $allocation->employee ? ['id' => $allocation->employee->id, 'name' => $allocation->employee->name] : null,
+                'quantity' => $allocation->quantity,
+            ])->values()),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

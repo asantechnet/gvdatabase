@@ -22,7 +22,7 @@ const TaskApi = {
   // Update a task
   update: async (id: string, data: UpdateTaskData) => {
     try {
-      const response = await api.put<{ message: string }>(`/tasks/${id}`, data);
+      const response = await api.put<{ data: Task }>(`/tasks/${id}`, data);
       return response;
     } catch (error) {
       console.error('API update error:', error);

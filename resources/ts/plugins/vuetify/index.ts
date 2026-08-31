@@ -10,8 +10,7 @@ import { icons } from './icons'
 import { staticPrimaryColor, staticPrimaryDarkenColor, themes } from './theme'
 import { themeConfig } from '@themeConfig'
 import { getI18n } from '@/plugins/i18n/index'
-import { readStoredThemeColors } from '@/utils/themePersistence'
-import { contrastingTextColor } from '@/utils/themeContrast'
+import { applyThemePalette, readStoredThemeColors } from '@/utils/themePersistence'
 import { ResponsiveDataTable } from '@/components/responsive-data-table/responsiveDataTable'
 import { ResponsiveDataTableServer } from '@/components/responsive-data-table/ResponsiveDataTableServer'
 
@@ -41,25 +40,7 @@ export default function (app: App) {
     },
   }
 
-  const storedColorValues: Record<string, string> = {}
-  if (storedThemeColors.primary_color) {
-    storedColorValues.primary = storedThemeColors.primary_color
-    storedColorValues['on-primary'] = contrastingTextColor(storedThemeColors.primary_color)
-  }
-  if (storedThemeColors.secondary_color) {
-    storedColorValues.secondary = storedThemeColors.secondary_color
-    storedColorValues['on-secondary'] = contrastingTextColor(storedThemeColors.secondary_color)
-  }
-  if (storedThemeColors.tertiary_color) {
-    storedColorValues.tertiary = storedThemeColors.tertiary_color
-    storedColorValues['on-tertiary'] = contrastingTextColor(storedThemeColors.tertiary_color)
-  }
-
-  const storedThemeValues = {
-    themes: Object.fromEntries(Object.keys(themes).map(name => [name, { colors: storedColorValues }])),
-  }
-
-  const optionTheme = deepMerge(deepMerge({ themes }, cookieThemeValues), storedThemeValues)
+  const optionTheme = deepMerge({ themes }, cookieThemeValues)
 
   const vuetify = createVuetify({
     aliases: {
@@ -77,6 +58,10 @@ export default function (app: App) {
       adapter: createVueI18nAdapter({ i18n: getI18n(), useI18n }),
     },
   })
+
+  // Apply the last saved company palette before the app renders. The profile
+  // request later refreshes this with the authoritative API value.
+  Object.values(vuetify.theme.themes.value).forEach(theme => applyThemePalette(theme, storedThemeColors))
 
   app.use(vuetify)
 }

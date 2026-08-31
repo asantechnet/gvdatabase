@@ -2,20 +2,21 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\PresentsCurrentBaseMoney;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class InvoiceResource extends JsonResource
 {
+    use PresentsCurrentBaseMoney;
+
     public function toArray(Request $request): array
     {
-        $paidAmount = $this->incomes->sum(function ($income) {
-            if ((float) $income->rate <= 0) {
-                return 0;
-            }
-
-            return ((float) $income->base_amount / (float) $this->rate);
-        });
+        $paidAmount = $this->incomes->sum(fn ($income) =>
+            (float) ($income->invoice_amount ?? ((float) $income->amount * (int) $income->quantity))
+        );
+        $currentCurrency = $this->resource->currency;
+        $balance = max(0, round((float) $this->amount - $paidAmount, 2));
 
         return [
             'id' => $this->id,
@@ -48,11 +49,17 @@ class InvoiceResource extends JsonResource
             'total_amount' => (float) $this->amount,
             'paid_amount' => round($paidAmount, 2),
             'balance' => max(0, round((float) $this->amount - $paidAmount, 2)),
+            'currentBaseAmount' => $this->currentBaseAmount((float) $this->amount, $currentCurrency),
+            'currentBasePaidAmount' => $this->currentBaseAmount((float) $paidAmount, $currentCurrency),
+            'currentBaseBalance' => $this->currentBaseAmount($balance, $currentCurrency),
+            'currentBaseCurrency' => $this->currentBaseCurrencyData(),
             'discount' => (float) $this->discount,
             'notes' => $this->notes,
             'payment_detail_id' => $this->payment_detail_id,
             'payment_method' => $this->payment_method,
             'payment_instructions' => $this->payment_instructions ?? [],
+            'recorded_by' => $this->recorded_by,
+            'recordedBy' => $this->whenLoaded('recorder', fn () => $this->recorder ? ['id' => $this->recorder->id, 'name' => $this->recorder->name] : null),
             'services' => $this->services->map(fn ($service) => [
                 'id' => $service->id,
                 'name' => $service->pivot->snapshot_name,
@@ -63,12 +70,12 @@ class InvoiceResource extends JsonResource
                 'source_currency' => [
                     'code' => $service->pivot->snapshot_service_currency_code,
                     'symbol' => $service->pivot->snapshot_service_currency_symbol,
-                    'rate' => (float) $service->pivot->snapshot_rate,
+                    'rate' => (float) ($service->pivot->snapshot_service_rate ?? $service->pivot->snapshot_rate),
                 ],
                 'currency' => [
                     'id' => $this->currency_id,
                     'name' => $this->currency_name,
-                    'rate' => (float) $service->pivot->snapshot_rate,
+                    'rate' => (float) ($service->pivot->snapshot_invoice_rate ?? $service->pivot->snapshot_rate),
                     'symbol' => $this->currency_symbol,
                     'shortname' => $this->currency_shortname,
                 ],

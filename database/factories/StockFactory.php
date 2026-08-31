@@ -19,7 +19,6 @@ class StockFactory extends Factory
             'model' => fake()->bothify('MDL-###'),
             'condition' => fake()->randomElement(Stock::conditions()),
             'office_id' => Office::factory(),
-            'staff_id' => null,
         ];
     }
 }

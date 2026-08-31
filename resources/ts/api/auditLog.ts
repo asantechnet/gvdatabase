@@ -1,36 +1,72 @@
 import api from './axios'
 
-export type AuditEvent = 'created' | 'updated' | 'deleted' | 'restored'
-export type AuditReviewStatus = 'pending' | 'approved' | 'discarded'
+export type AuditEvent = 'created' | 'updated' | 'deleted' | 'restored' | 'audit_scope_enabled' | 'audit_scope_disabled' | string
+export type AuditResolution = 'pending' | 'approved' | 'discarded'
+export type AuditState = 'pending' | 'audited'
+
+export interface AuditPerson {
+  id: number | null
+  name: string
+}
+
+export interface AuditChange {
+  field: string
+  before: unknown
+  after: unknown
+}
 
 export interface AuditLog {
   id: number
   event: AuditEvent
-  table_name: string
-  auditable_id: number
-  changed_columns: string[]
-  old_values: Record<string, unknown> | null
-  new_values: Record<string, unknown> | null
-  review_status: AuditReviewStatus
-  reviewed_at: string | null
+  resource_key: string
+  subject_label: string
+  changes: AuditChange[]
+  changed_by: AuditPerson | null
+  audited_by: AuditPerson | null
+  audit_state: AuditState
+  resolution: AuditResolution
+  audited_at: string | null
   created_at: string
-  user: { id: number; name: string; email: string } | null
-  employee: { id: number; name: string } | null
-  reviewer: { id: number; name: string; email: string } | null
+  can_revert: boolean
 }
 
-export interface AuditLogPage {
-  data: AuditLog[]
+export interface AuditResource {
+  id: number
+  resource_key: string
+  enabled: boolean
+  updated_by: AuditPerson | null
+  updated_at: string | null
+}
+
+export interface Paginated<T> {
+  data: T[]
+  current_page: number
+  last_page: number
+  per_page: number
   total: number
+  from: number | null
+  to: number | null
 }
 
-export const getAuditLogs = async (params?: { per_page?: number; table?: string; event?: AuditEvent; review_status?: AuditReviewStatus }): Promise<AuditLogPage> => {
-  const response = await api.get('/audit-logs', { params })
+export interface AuditLogParams {
+  page?: number
+  per_page?: number
+  resource?: string
+  event?: string
+  audit_state?: AuditState
+  resolution?: AuditResolution
+  changed_by?: number
+  audited_by?: number
+  from?: string
+  to?: string
+  search?: string
+  sort?: 'created_at' | 'audited_at'
+  direction?: 'asc' | 'desc'
+}
 
-  return {
-    data: response.data.data as AuditLog[],
-    total: response.data.total as number,
-  }
+export const getAuditLogs = async (params?: AuditLogParams): Promise<Paginated<AuditLog>> => {
+  const response = await api.get('/audit-logs', { params })
+  return response.data as Paginated<AuditLog>
 }
 
 export const getAuditLog = async (id: number): Promise<AuditLog> => {
@@ -38,8 +74,24 @@ export const getAuditLog = async (id: number): Promise<AuditLog> => {
   return response.data.data as AuditLog
 }
 
-export const reviewAuditLog = async (id: number, decision: 'approved' | 'discarded'): Promise<void> => {
-  await api.patch(`/audit-logs/${id}/review`, { decision })
+export const getPendingAuditCount = async (): Promise<number> => {
+  const response = await api.get('/audit-logs/pending-count')
+  return Number(response.data.data?.count ?? 0)
 }
 
-export default { getAuditLogs, getAuditLog, reviewAuditLog }
+export const reviewAuditLog = async (id: number, decision: 'approved' | 'discarded'): Promise<AuditLog> => {
+  const response = await api.patch(`/audit-logs/${id}/review`, { decision })
+  return response.data.data as AuditLog
+}
+
+export const getAuditResources = async (params?: { page?: number; per_page?: number; state?: 'enabled' | 'disabled'; search?: string }): Promise<Paginated<AuditResource>> => {
+  const response = await api.get('/audit-resources', { params })
+  return response.data as Paginated<AuditResource>
+}
+
+export const updateAuditResource = async (id: number, enabled: boolean): Promise<AuditResource> => {
+  const response = await api.patch(`/audit-resources/${id}`, { enabled })
+  return response.data.data as AuditResource
+}
+
+export default { getAuditLogs, getAuditLog, getPendingAuditCount, reviewAuditLog, getAuditResources, updateAuditResource }

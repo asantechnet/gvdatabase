@@ -4,7 +4,8 @@ import { TextAlign } from '@tiptap/extension-text-align'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Underline } from '@tiptap/extension-underline'
 import { StarterKit } from '@tiptap/starter-kit'
-import { EditorContent, useEditor, type Editor } from '@tiptap/vue-3'
+import type { Editor } from '@tiptap/core'
+import { EditorContent, useEditor } from '@tiptap/vue-3'
 import type { PlaceholderGroup } from '@/api/contractPlaceholders'
 import { ContractPlaceholderMark, type InsertContractPlaceholderOptions } from '@/extensions/contract/ContractPlaceholderMark'
 import { ParagraphDirection } from '@/extensions/contract/ParagraphDirection'
@@ -25,10 +26,14 @@ const emit = defineEmits<{
   (e: 'placeholder-inserted', key: string): void
 }>()
 
+const { t } = useI18n()
+const tr = (key: string, values: Record<string, unknown> = {}) =>
+  t(`pages.settings.policies.policies.contractTemplate.${key}`, values)
+
 const defaultFontFamily = '__default_font_family__'
 const defaultFontSize = '__default_font_size__'
-const fontFamilies = [
-  { title: 'Font', value: defaultFontFamily },
+const fontFamilies = computed(() => [
+  { title: tr('editor.font'), value: defaultFontFamily },
   { title: 'Vazirmatn', value: 'Vazirmatn' },
   { title: 'Estedad', value: 'Estedad' },
   { title: 'Sahel', value: 'Sahel' },
@@ -38,11 +43,11 @@ const fontFamilies = [
   { title: 'Tahoma', value: 'Tahoma' },
   { title: 'Times New Roman', value: 'Times New Roman' },
   { title: 'Courier New', value: 'Courier New' },
-]
-const fontSizes = [
-  { title: 'Size', value: defaultFontSize },
+])
+const fontSizes = computed(() => [
+  { title: tr('editor.size'), value: defaultFontSize },
   ...['11px', '12px', '14px', '16px', '18px', '20px', '24px', '28px'].map(value => ({ title: value, value })),
-]
+])
 
 const toolbarState = ref({
   fontFamily: defaultFontFamily,
@@ -64,11 +69,11 @@ const normalizeColor = (color?: string) => {
 
 const normalizeFontFamily = (family?: string | null) => {
   const value = family?.split(',')[0]?.replace(/['"]/g, '').trim()
-  return fontFamilies.some(font => font.value === value) ? value! : defaultFontFamily
+  return fontFamilies.value.some(font => font.value === value) ? value! : defaultFontFamily
 }
 
 const normalizeFontSize = (size?: string | null) =>
-  fontSizes.some(fontSize => fontSize.value === size) ? size! : defaultFontSize
+  fontSizes.value.some(fontSize => fontSize.value === size) ? size! : defaultFontSize
 
 const syncToolbarState = (editorInstance: Editor) => {
   const textStyle = editorInstance.getAttributes('textStyle') as {
@@ -136,7 +141,7 @@ const editor = useEditor({
     ParagraphDirection,
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
     Underline,
-    Placeholder.configure({ placeholder: 'Start writing the contract…' }),
+    Placeholder.configure({ placeholder: () => tr('editor.startWriting') }),
   ],
   onCreate: ({ editor: editorInstance }) => syncToolbarState(editorInstance),
   onUpdate: ({ editor: editorInstance }) => {
@@ -162,25 +167,32 @@ const activeFontSize = computed(() => toolbarState.value.fontSize)
 
 const activeColor = computed(() => toolbarState.value.color)
 
-// A mark at a collapsed cursor only affects future typing. Formatting the
-// current paragraph in that case gives font, size, and color controls an
-// immediate, visible effect without requiring the author to select its text.
+// At a collapsed cursor TipTap uses stored marks. Keeping the cursor collapsed
+// means a brand-new/empty editor immediately adopts the selected typography
+// for the next text the author types, instead of requiring placeholder text
+// or an existing selection first.
 const applyTextStyle = (attributes: Record<string, string | null>) => {
   const editorInstance = editor.value
   if (!editorInstance)
     return
 
   const { selection } = editorInstance.state
-  const from = selection.empty ? selection.$from.start() : selection.from
-  const to = selection.empty ? selection.$from.end() : selection.to
-  const restoreSelection = selection.empty ? selection.from : { from: selection.from, to: selection.to }
+  if (selection.empty) {
+    editorInstance.chain().focus().setMark('textStyle', attributes).run()
+    syncToolbarState(editorInstance)
+    toolbarState.value = {
+      ...toolbarState.value,
+      fontFamily: attributes.fontFamily === undefined ? toolbarState.value.fontFamily : normalizeFontFamily(attributes.fontFamily),
+      fontSize: attributes.fontSize === undefined ? toolbarState.value.fontSize : normalizeFontSize(attributes.fontSize),
+      color: attributes.color === undefined ? toolbarState.value.color : normalizeColor(attributes.color),
+    }
+    return
+  }
 
   editorInstance
     .chain()
     .focus()
-    .setTextSelection({ from, to })
     .setMark('textStyle', attributes)
-    .setTextSelection(restoreSelection)
     .run()
 }
 
@@ -229,7 +241,7 @@ const setLink = () => {
 
   const previous = editorRef.getAttributes('link').href as string | undefined
   // eslint-disable-next-line no-alert
-  const url = window.prompt('Link URL', previous || 'https://')
+  const url = window.prompt(tr('editor.linkUrl'), previous || 'https://')
   if (url === null)
     return
   if (url === '') {
@@ -250,12 +262,12 @@ defineExpose({
       <IconBtn size="small" rounded variant="text" :disabled="disabled"
         @click="editor.chain().focus().undo().run()">
         <VIcon icon="tabler-arrow-back-up" />
-        <VTooltip activator="parent" location="top">Undo</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.undo') }}</VTooltip>
       </IconBtn>
       <IconBtn size="small" rounded variant="text" :disabled="disabled"
         @click="editor.chain().focus().redo().run()">
         <VIcon icon="tabler-arrow-forward" />
-        <VTooltip activator="parent" location="top">Redo</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.redo') }}</VTooltip>
       </IconBtn>
 
       <VDivider vertical inset class="mx-1" />
@@ -264,25 +276,25 @@ defineExpose({
         :color="editor.isActive('bold') ? 'primary' : 'default'" :disabled="disabled"
         @click="editor.chain().focus().toggleBold().run()">
         <VIcon icon="tabler-bold" />
-        <VTooltip activator="parent" location="top">Bold</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.bold') }}</VTooltip>
       </IconBtn>
       <IconBtn size="small" rounded :variant="editor.isActive('italic') ? 'tonal' : 'text'"
         :color="editor.isActive('italic') ? 'primary' : 'default'" :disabled="disabled"
         @click="editor.chain().focus().toggleItalic().run()">
         <VIcon icon="tabler-italic" />
-        <VTooltip activator="parent" location="top">Italic</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.italic') }}</VTooltip>
       </IconBtn>
       <IconBtn size="small" rounded :variant="editor.isActive('underline') ? 'tonal' : 'text'"
         :color="editor.isActive('underline') ? 'primary' : 'default'" :disabled="disabled"
         @click="editor.chain().focus().toggleUnderline().run()">
         <VIcon icon="tabler-underline" />
-        <VTooltip activator="parent" location="top">Underline</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.underline') }}</VTooltip>
       </IconBtn>
       <IconBtn size="small" rounded :variant="editor.isActive('strike') ? 'tonal' : 'text'"
         :color="editor.isActive('strike') ? 'primary' : 'default'" :disabled="disabled"
         @click="editor.chain().focus().toggleStrike().run()">
         <VIcon icon="tabler-strikethrough" />
-        <VTooltip activator="parent" location="top">Strikethrough</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.strikethrough') }}</VTooltip>
       </IconBtn>
 
       <VDivider vertical inset class="mx-1" />
@@ -293,7 +305,7 @@ defineExpose({
           :color="editor.isActive('heading', { level }) ? 'primary' : 'default'" :disabled="disabled"
           @click="editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 }).run()">
           <span class="text-sm font-weight-bold">H{{ level }}</span>
-          <VTooltip activator="parent" location="top">Heading {{ level }}</VTooltip>
+          <VTooltip activator="parent" location="top">{{ tr('editor.heading', { level }) }}</VTooltip>
         </IconBtn>
       </template>
 
@@ -304,7 +316,7 @@ defineExpose({
         :color="editor.isActive({ textAlign: align }) ? 'primary' : 'default'" :disabled="disabled"
         @click="editor.chain().focus().setTextAlign(align).run()">
         <VIcon :icon="`tabler-align-${align === 'justify' ? 'justified' : align}`" />
-        <VTooltip activator="parent" location="top">Align {{ align }}</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr(`editor.align.${align}`) }}</VTooltip>
       </IconBtn>
 
       <VDivider vertical inset class="mx-1" />
@@ -313,25 +325,25 @@ defineExpose({
         :color="editor.isActive('bulletList') ? 'primary' : 'default'" :disabled="disabled"
         @click="editor.chain().focus().toggleBulletList().run()">
         <VIcon icon="tabler-list" />
-        <VTooltip activator="parent" location="top">Bullet list</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.bulletList') }}</VTooltip>
       </IconBtn>
       <IconBtn size="small" rounded :variant="editor.isActive('orderedList') ? 'tonal' : 'text'"
         :color="editor.isActive('orderedList') ? 'primary' : 'default'" :disabled="disabled"
         @click="editor.chain().focus().toggleOrderedList().run()">
         <VIcon icon="tabler-list-numbers" />
-        <VTooltip activator="parent" location="top">Numbered list</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.numberedList') }}</VTooltip>
       </IconBtn>
       <IconBtn size="small" rounded :variant="editor.isActive('blockquote') ? 'tonal' : 'text'"
         :color="editor.isActive('blockquote') ? 'primary' : 'default'" :disabled="disabled"
         @click="editor.chain().focus().toggleBlockquote().run()">
         <VIcon icon="tabler-quote" />
-        <VTooltip activator="parent" location="top">Quote</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.quote') }}</VTooltip>
       </IconBtn>
       <IconBtn size="small" rounded :variant="editor.isActive('link') ? 'tonal' : 'text'"
         :color="editor.isActive('link') ? 'primary' : 'default'" :disabled="disabled"
         @click="setLink">
         <VIcon icon="tabler-link" />
-        <VTooltip activator="parent" location="top">Insert link</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.insertLink') }}</VTooltip>
       </IconBtn>
 
       <VDivider vertical inset class="mx-1" />
@@ -341,24 +353,24 @@ defineExpose({
         :color="currentDir === 'rtl' ? 'primary' : 'default'" :disabled="disabled"
         @click="setParagraphDirection(currentDir === 'rtl' ? null : 'rtl')">
         <VIcon icon="tabler-language-katakana" class="flip-in-rtl" />
-        <VTooltip activator="parent" location="top">Right-to-left paragraph</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.rtlParagraph') }}</VTooltip>
       </IconBtn>
       <IconBtn size="small" rounded :variant="currentDir === 'ltr' ? 'tonal' : 'text'"
         :color="currentDir === 'ltr' ? 'primary' : 'default'" :disabled="disabled"
         @click="setParagraphDirection(currentDir === 'ltr' ? null : 'ltr')">
         <VIcon icon="tabler-language" class="flip-in-rtl" />
-        <VTooltip activator="parent" location="top">Left-to-right paragraph</VTooltip>
+        <VTooltip activator="parent" location="top">{{ tr('editor.ltrParagraph') }}</VTooltip>
       </IconBtn>
 
       <VDivider vertical inset class="mx-1" />
 
-      <VTooltip location="top" text="Font family">
+      <VTooltip location="top" :text="tr('editor.fontFamily')">
         <template #activator="{ props }">
           <VSelect v-bind="props" class="contract-editor__toolbar-select" :model-value="activeFontFamily" :items="fontFamilies" item-title="title" item-value="value" density="compact" variant="outlined"
             hide-details style="max-width: 130px" :disabled="disabled" @update:model-value="setFontFamily" />
         </template>
       </VTooltip>
-      <VTooltip location="top" text="Font size">
+      <VTooltip location="top" :text="tr('editor.fontSize')">
         <template #activator="{ props }">
           <VSelect v-bind="props" class="contract-editor__toolbar-select" :model-value="activeFontSize" :items="fontSizes" item-title="title" item-value="value" density="compact" variant="outlined" hide-details
             style="max-width: 86px" :disabled="disabled" @update:model-value="setFontSize" />
@@ -369,7 +381,7 @@ defineExpose({
           <VBtn v-bind="menuProps" icon variant="text" size="small">
             <VIcon icon="tabler-palette" />
             <span class="contract-editor__color-dot" :style="{ backgroundColor: activeColor }" />
-            <VTooltip activator="parent" location="top">Text color</VTooltip>
+            <VTooltip activator="parent" location="top">{{ tr('editor.textColor') }}</VTooltip>
           </VBtn>
         </template>
         <VCard elevation="8">
@@ -387,7 +399,7 @@ defineExpose({
         <template #activator="{ props: menuProps }">
           <VBtn v-bind="menuProps" variant="tonal" color="primary" size="small" prepend-icon="tabler-braces"
             :disabled="disabled || placeholderGroups.length === 0">
-            Insert Placeholder
+            {{ tr('editor.insertPlaceholder') }}
           </VBtn>
         </template>
         <VList density="compact" max-height="360" min-width="240" class="py-0">
@@ -399,7 +411,7 @@ defineExpose({
               density="compact" @click="insertPlaceholder({ key: field.key, label: field.label }); emit('placeholder-inserted', field.key)" />
             <VDivider v-if="group !== placeholderGroups[placeholderGroups.length - 1]" />
           </template>
-          <VListItem v-if="placeholderGroups.length === 0" title="No placeholders available for this contract type" />
+          <VListItem v-if="placeholderGroups.length === 0" :title="tr('editor.noPlaceholders')" />
         </VList>
       </VMenu>
     </div>
@@ -424,9 +436,6 @@ defineExpose({
     background: rgba(var(--v-theme-surface), 1);
   }
 
-  // Vuetify's fields reserve more space above the value than below it. That
-  // is useful for labelled form fields, but makes compact toolbar selects look
-  // vertically off-centre. Remove that form-specific padding here only.
   &__toolbar-select {
     flex: 0 0 auto;
 
@@ -439,7 +448,7 @@ defineExpose({
     .v-select__selection {
       align-self: center;
       margin-block: 0;
-      transform: translateY(6px);
+      transform: translateY(12px);
     }
   }
 

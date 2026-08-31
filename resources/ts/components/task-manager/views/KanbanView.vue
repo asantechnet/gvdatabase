@@ -200,7 +200,7 @@ const handleUpdateBoardState = async (boardIds: number[]) => {
           <VCardItem class="bg-surface pb-4">
             <template #title>
               <div class="d-flex align-center">
-                <VIcon icon="tabler-layout-kanban" color="primary" class="mr-2" />
+                <VIcon icon="tabler-layout-kanban" color="primary" class="me-2" />
                 <span class="text-h5 font-weight-bold">{{ $t('components.taskManager.kanbanview.projectBoard') }}</span>
               </div>
             </template>
@@ -243,9 +243,9 @@ const handleUpdateBoardState = async (boardIds: number[]) => {
     <VDialog v-model="isAttachmentsDialogOpen" max-width="760">
       <VCard>
         <VCardItem class="border-b">
-          <template #title><span class="text-h6">Attachments</span></template>
+          <template #title><span class="text-h6">{{ $t('components.taskManager.kanbanview.attachments') }}</span></template>
           <template #subtitle>{{ attachmentTask?.title }}</template>
-          <template #append><VBtn icon="tabler-x" variant="text" @click="isAttachmentsDialogOpen = false" /></template>
+          <template #append><VBtn icon="tabler-x" variant="text" :aria-label="$t('common.actions.close')" :title="$t('common.actions.close')" @click="isAttachmentsDialogOpen = false" /></template>
         </VCardItem>
         <VCardText v-if="attachmentTask" class="pa-5">
           <div v-if="attachmentTask.attachments.length" ref="attachmentImageContainer" class="attachment-gallery">
@@ -255,12 +255,12 @@ const handleUpdateBoardState = async (boardIds: number[]) => {
               <VIcon v-else icon="tabler-file" size="36" color="secondary" />
               <div class="flex-grow-1 min-width-0">
                 <div class="text-body-1 text-truncate">{{ attachment.name }}</div>
-                <div class="text-caption text-medium-emphasis text-capitalize">{{ attachment.section }}</div>
+                <div class="text-caption text-medium-emphasis">{{ attachment.section === 'input' ? $t('components.taskManager.kanbanview.taskFiles') : $t('components.taskManager.kanbanview.resultFiles') }}</div>
               </div>
-              <VBtn icon="tabler-download" variant="text" @click="downloadAttachment(attachment)" />
+              <VBtn icon="tabler-download" variant="text" :aria-label="$t('components.taskManager.kanbanview.downloadAttachment')" :title="$t('components.taskManager.kanbanview.downloadAttachment')" @click="downloadAttachment(attachment)" />
             </div>
           </div>
-          <VAlert v-else type="info" variant="tonal">This mega-task has no attached files.</VAlert>
+          <VAlert v-else type="info" variant="tonal">{{ $t('components.taskManager.kanbanview.noAttachments') }}</VAlert>
         </VCardText>
       </VCard>
     </VDialog>

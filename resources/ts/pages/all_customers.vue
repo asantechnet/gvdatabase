@@ -493,7 +493,7 @@ onMounted(() => {
             icon="tabler-printer"
             variant="text"
             @click="printTable"
-          ><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allCustomers.allCustomers.printCustomerList') }}</VTooltip></VBtn>
+          ><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allCustomers.allCustomers.printCustomerList') }}</VTooltip></VBtn>
           <VBtn
             color="primary"
             @click="openAddCustomer"

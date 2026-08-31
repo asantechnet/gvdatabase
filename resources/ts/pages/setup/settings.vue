@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useTheme } from 'vuetify'
 import type { ApiResponse, Setting, SettingForm } from '@/api/setting'
@@ -8,7 +9,7 @@ import { useAppApi } from '@/composables/useAppApi'
 import { useBranding } from '@/composables/useBranding'
 import { canAccess } from '@/utils/authorization'
 import { contrastingTextColor } from '@/utils/themeContrast'
-import { type ThemeColorField, persistThemeColors, themeColorFields } from '@/utils/themePersistence'
+import { applyThemePalette, persistThemeColors, themeColorDefaults, themeColorFields, type ThemeColorField, type ThemeColorPreferences } from '@/utils/themePersistence'
 
 type UploadField = 'website_logo' | 'company_signature' | 'contract_letterhead' | 'contract_cover_design'
 type SettingsPage = 'company' | 'email' | 'operations' | 'appearance' | 'documents'
@@ -17,16 +18,16 @@ const toast = useToast()
 const { settings } = useAppApi()
 const { updateBranding } = useBranding()
 const vuetifyTheme = useTheme()
-const currentThemeName = computed(() => vuetifyTheme.name.value)
+const route = useRoute()
+const router = useRouter()
 const canEditSettings = computed(() => canAccess('edit_settings'))
-const activeSettingsPage = ref<SettingsPage>('company')
+const settingsPageNames: SettingsPage[] = ['company', 'email', 'operations', 'appearance', 'documents']
+const activeSettingsPage = ref<SettingsPage>(settingsPageNames.includes(route.params.section as SettingsPage) ? route.params.section as SettingsPage : 'company')
 
 const { t: translate } = useI18n()
 
 const defaultForm = (): SettingForm => ({
-  primary_color: null,
-  secondary_color: null,
-  tertiary_color: null,
+  ...themeColorDefaults,
   paid_off_days_per_year: 0,
   website_title: 'Asantech',
   website_logo: null,
@@ -61,6 +62,7 @@ const defaultForm = (): SettingForm => ({
 })
 
 const form = ref<SettingForm>(defaultForm())
+const persistedForm = ref<SettingForm>(defaultForm())
 const savedSetting = ref<Setting | null>(null)
 const settingId = ref<number | null>(null)
 const logoPreview = ref('/images/logo.png')
@@ -69,11 +71,6 @@ const letterheadPreview = ref<string | null>(null)
 const coverDesignPreview = ref<string | null>(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
-const touchedColorFields = reactive<Record<ThemeColorField, boolean>>({
-  primary_color: false,
-  secondary_color: false,
-  tertiary_color: false,
-})
 const objectUrls = new Set<string>()
 
 const settingsPages = computed(() => [
@@ -86,11 +83,48 @@ const settingsPages = computed(() => [
 
 const activePage = computed(() => settingsPages.value.find(page => page.value === activeSettingsPage.value)!)
 
+const appearanceGroups = computed(() => [
+  {
+    title: translate('pages.settings.settings.brandColors'),
+    description: translate('pages.settings.settings.brandColorsHint'),
+    fields: [
+      { label: translate('pages.settings.settings.primaryColor'), field: 'primary_color' as const },
+      { label: translate('pages.settings.settings.secondaryColor'), field: 'secondary_color' as const },
+    ],
+  },
+  {
+    title: translate('pages.settings.settings.feedbackColors'),
+    description: translate('pages.settings.settings.feedbackColorsHint'),
+    fields: [
+      { label: translate('pages.settings.settings.successColor'), field: 'success_color' as const },
+      { label: translate('pages.settings.settings.infoColor'), field: 'info_color' as const },
+      { label: translate('pages.settings.settings.warningColor'), field: 'warning_color' as const },
+      { label: translate('pages.settings.settings.errorColor'), field: 'error_color' as const },
+    ],
+  },
+  {
+    title: translate('pages.settings.settings.lightModeSurfaces'),
+    description: translate('pages.settings.settings.lightModeSurfacesHint'),
+    fields: [
+      { label: translate('pages.settings.settings.applicationBackground'), field: 'light_background_color' as const },
+      { label: translate('pages.settings.settings.cardsAndMenus'), field: 'light_surface_color' as const },
+    ],
+  },
+  {
+    title: translate('pages.settings.settings.darkModeSurfaces'),
+    description: translate('pages.settings.settings.darkModeSurfacesHint'),
+    fields: [
+      { label: translate('pages.settings.settings.applicationBackground'), field: 'dark_background_color' as const },
+      { label: translate('pages.settings.settings.cardsAndMenus'), field: 'dark_surface_color' as const },
+    ],
+  },
+])
+
 const pageFields: Record<SettingsPage, (keyof SettingForm)[]> = {
   company: ['website_title', 'website_logo', 'company_signature', 'website_address', 'timezone', 'phone', 'physical_address', 'short_company_name', 'original_company_name'],
   email: ['company_email', 'mail_host', 'mail_port', 'mail_encryption', 'mail_username', 'mail_password', 'clear_mail_password', 'mail_from_name', 'mail_reply_to'],
   operations: ['paid_off_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes'],
-  appearance: ['primary_color', 'secondary_color', 'tertiary_color'],
+  appearance: themeColorFields,
   documents: ['contract_letterhead', 'contract_cover_design', 'remove_contract_letterhead', 'remove_contract_cover_design', 'contract_letterhead_safe_x', 'contract_letterhead_safe_y', 'contract_letterhead_safe_width', 'contract_letterhead_safe_height'],
 }
 
@@ -104,27 +138,25 @@ const timeOptions = Array.from({ length: 96 }, (_, index) => {
 })
 
 const applyTheme = () => {
-  const theme = vuetifyTheme.themes.value[currentThemeName.value]
-  if (!theme) return
-
-  const colors = {
-    primary_color: 'primary',
-    secondary_color: 'secondary',
-    tertiary_color: 'tertiary',
-  } as const
-
-  themeColorFields.forEach(field => {
+  const palette = themeColorFields.reduce<ThemeColorPreferences>((colors, field) => {
     const color = form.value[field]
-    if (!color) return
-    const themeKey = colors[field]
-    theme.colors[themeKey] = color
-    theme.colors[`on-${themeKey}`] = contrastingTextColor(color)
-  })
+    if (typeof color === 'string') colors[field] = color
+
+    return colors
+  }, {})
+
+  Object.values(vuetifyTheme.themes.value).forEach(theme => applyThemePalette(theme, palette))
 }
 
-function clearTouchedColorFields() {
-  themeColorFields.forEach(field => touchedColorFields[field] = false)
+function applyRouteSection(section: unknown) {
+  activeSettingsPage.value = settingsPageNames.includes(section as SettingsPage) ? section as SettingsPage : 'company'
 }
+
+watch(() => route.params.section, applyRouteSection)
+watch(activeSettingsPage, section => {
+  if (route.params.section !== section)
+    router.replace({ name: 'setup-settings', params: { section } })
+})
 
 function revokeObjectUrls() {
   objectUrls.forEach(url => URL.revokeObjectURL(url))
@@ -140,11 +172,18 @@ function previewFile(file: File): string {
 function applySavedSetting(setting: Setting) {
   savedSetting.value = setting
   settingId.value = setting.id
-  form.value = {
+  const savedForm: SettingForm = {
     ...defaultForm(),
     primary_color: setting.primary_color,
     secondary_color: setting.secondary_color,
-    tertiary_color: setting.tertiary_color,
+    success_color: setting.success_color,
+    info_color: setting.info_color,
+    warning_color: setting.warning_color,
+    error_color: setting.error_color,
+    light_background_color: setting.light_background_color,
+    light_surface_color: setting.light_surface_color,
+    dark_background_color: setting.dark_background_color,
+    dark_surface_color: setting.dark_surface_color,
     paid_off_days_per_year: Number(setting.paid_off_days_per_year ?? 0),
     website_title: setting.website_title,
     website_address: setting.website_address || '',
@@ -171,6 +210,8 @@ function applySavedSetting(setting: Setting) {
     contract_letterhead_safe_width: setting.contract_letterhead_safe_width ?? 83,
     contract_letterhead_safe_height: setting.contract_letterhead_safe_height ?? 70,
   }
+  form.value = savedForm
+  persistedForm.value = { ...savedForm }
   logoPreview.value = setting.website_logo_url || setting.website_logo || '/images/logo.png'
   signaturePreview.value = setting.company_signature_url
   letterheadPreview.value = setting.contract_letterhead_url
@@ -186,7 +227,6 @@ async function loadSettings() {
       applySavedSetting(existing)
     else
       resetSettings()
-    clearTouchedColorFields()
   }
   catch (error: any) {
     toast.error(error?.message || 'Failed to load settings')
@@ -285,10 +325,17 @@ const colorPreviewStyle = (color: string | null | undefined) => color
   ? { backgroundColor: color, color: contrastingTextColor(color) }
   : {}
 
-// Do not apply values while loading the form. Only an actual picker update
-// should preview colors across the application before saving.
 function handleColorPickerUpdate(field: ThemeColorField) {
-  touchedColorFields[field] = true
+  applyTheme()
+}
+
+function restoreThemeColor(field: ThemeColorField) {
+  form.value[field] = themeColorDefaults[field]
+  applyTheme()
+}
+
+function restoreThemeDefaults() {
+  themeColorFields.forEach(field => form.value[field] = themeColorDefaults[field])
   applyTheme()
 }
 
@@ -325,7 +372,6 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
     coverDesignPreview.value = null
   }
 
-  clearTouchedColorFields()
   if (apply) applyTheme()
 }
 
@@ -333,15 +379,28 @@ function activePagePayload(): Partial<SettingForm> {
   const payload: Partial<SettingForm> = {}
   pageFields[activeSettingsPage.value].forEach(field => {
     const value = form.value[field]
-    if (value === null || value instanceof File || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+    const savedValue = persistedForm.value[field]
+
+    // Files and explicit removal flags are the only non-scalar updates.
+    if (value instanceof File) {
+      payload[field] = value as never
+      return
+    }
+    if (field === 'remove_contract_letterhead' || field === 'remove_contract_cover_design') {
+      if (value === true) payload[field] = true as never
+      return
+    }
+    if (field === 'mail_password') {
+      if (typeof value === 'string' && value.length > 0) payload[field] = value as never
+      return
+    }
+    if (field === 'clear_mail_password') {
+      if (value === true) payload[field] = true as never
+      return
+    }
+    if (value !== savedValue && (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'))
       payload[field] = value as never
   })
-
-  if (activeSettingsPage.value === 'appearance') {
-    themeColorFields.forEach(field => {
-      if (!touchedColorFields[field]) delete payload[field]
-    })
-  }
 
   return payload
 }
@@ -357,16 +416,25 @@ async function saveSettings() {
     let response: ApiResponse<Setting>
 
     if (settingId.value) {
+      if (Object.keys(payload).length === 0) {
+        toast.info(translate('pages.settings.settings.noChangesToSave'))
+        return
+      }
       response = await settings.update(settingId.value, payload)
     }
     else {
+      if (activeSettingsPage.value !== 'company') {
+        activeSettingsPage.value = 'company'
+        toast.info(translate('pages.settings.settings.completeCompanyProfileFirst'))
+        return
+      }
       // A first record must satisfy the server's required company defaults.
       response = await settings.create(form.value)
     }
 
     const colorsToPersist = isCreating
       ? themeColorFields
-      : themeColorFields.filter(field => touchedColorFields[field])
+      : themeColorFields.filter(field => field in payload)
 
     persistThemeColors(Object.fromEntries(colorsToPersist.map(field => [field, response.data[field]])))
 
@@ -387,7 +455,6 @@ async function saveSettings() {
       coverDesignPreview.value = previews.cover
     }
     updateBranding(response.data)
-    clearTouchedColorFields()
     toast.success(translate('pages.settings.settings.settingsSavedSuccessfully'))
   }
   catch (error: any) {
@@ -420,7 +487,7 @@ onBeforeUnmount(revokeObjectUrls)
         </div>
         <VList nav density="comfortable" class="px-3 pb-5">
           <VListItem v-for="page in settingsPages" :key="page.value" :active="activeSettingsPage === page.value"
-            :prepend-icon="page.icon" rounded="lg" @click="activeSettingsPage = page.value">
+            :prepend-icon="page.icon" rounded="lg" :to="{ name: 'setup-settings', params: { section: page.value } }">
             <VListItemTitle>{{ page.title }}</VListItemTitle>
             <VListItemSubtitle>{{ page.description }}</VListItemSubtitle>
           </VListItem>
@@ -527,31 +594,55 @@ onBeforeUnmount(revokeObjectUrls)
           </VRow>
 
           <template v-else-if="activeSettingsPage === 'appearance'">
-              <h4 class="text-h6 mb-2 font-weight-medium">{{ $t('pages.settings.settings.vuexyThemeColors') }}</h4>
-              <p class="text-body-2 text-medium-emphasis mb-4">{{ $t('pages.settings.settings.themeColorsHint') }}</p>
-              <VRow>
-                <VCol v-for="item in [
-                  { label: translate('pages.settings.settings.primaryColor'), field: 'primary_color' as const },
-                  { label: translate('pages.settings.settings.secondaryColor'), field: 'secondary_color' as const },
-                  { label: translate('pages.settings.settings.tertiaryColor'), field: 'tertiary_color' as const },
-                ]" :key="item.field" cols="12" sm="4" class="d-flex flex-column align-center">
-                  <span class="text-subtitle-2 mb-2">{{ item.label }}</span>
-                  <VColorPicker v-model="form[item.field]" mode="hex" hide-inputs canvas-height="100" width="100%"
-                    :disabled="!canEditSettings" @update:model-value="handleColorPickerUpdate(item.field)" />
-                  <div class="color-swatch text-caption font-mono mt-2 px-2 py-1 rounded"
-                    :style="colorPreviewStyle(form[item.field])">{{ form[item.field] || $t('pages.settings.settings.notSet') }}</div>
-                </VCol>
-              </VRow>
+            <div class="d-flex flex-wrap align-start justify-space-between ga-3 mb-5">
+              <div>
+                <h4 class="text-h6 mb-2 font-weight-medium">{{ $t('pages.settings.settings.vuexyThemeColors') }}</h4>
+                <p class="text-body-2 text-medium-emphasis mb-0">{{ $t('pages.settings.settings.themeColorsHint') }}</p>
+              </div>
+              <VBtn variant="tonal" color="secondary" :disabled="!canEditSettings" @click="restoreThemeDefaults">
+                <VIcon icon="tabler-restore" class="me-2" />{{ $t('pages.settings.settings.restoreVuexyDefaults') }}
+              </VBtn>
+            </div>
+
+            <VAlert type="info" variant="tonal" density="compact" class="mb-5">
+              {{ $t('pages.settings.settings.themeColorsPreviewHint') }}
+            </VAlert>
+
+            <VCard v-for="group in appearanceGroups" :key="group.title" variant="outlined" class="appearance-group mb-5">
+              <VCardItem>
+                <VCardTitle class="text-subtitle-1 font-weight-medium">{{ group.title }}</VCardTitle>
+                <VCardSubtitle>{{ group.description }}</VCardSubtitle>
+              </VCardItem>
+              <VCardText class="pt-0">
+                <VRow>
+                  <VCol v-for="item in group.fields" :key="item.field" cols="12" sm="6" md="4"
+                    class="d-flex flex-column">
+                    <div class="d-flex align-center justify-space-between mb-2 ga-2">
+                      <span class="text-subtitle-2">{{ item.label }}</span>
+                      <VBtn icon="tabler-restore" size="x-small" variant="text" :disabled="!canEditSettings"
+                        :aria-label="`${$t('pages.settings.settings.restoreVuexyDefaults')}: ${item.label}`"
+                        @click="restoreThemeColor(item.field)" />
+                    </div>
+                    <VColorPicker v-model="form[item.field]" mode="hex" hide-inputs canvas-height="90" width="100%"
+                      :disabled="!canEditSettings" @update:model-value="handleColorPickerUpdate(item.field)" />
+                    <div class="color-swatch text-caption font-mono mt-2 px-2 py-1 rounded d-flex align-center justify-space-between"
+                      :style="colorPreviewStyle(form[item.field])">
+                      <span>{{ form[item.field] }}</span><span>{{ $t('pages.settings.settings.live') }}</span>
+                    </div>
+                  </VCol>
+                </VRow>
+              </VCardText>
+            </VCard>
           </template>
 
           <template v-else>
           <VAlert type="info" variant="tonal" class="mb-5">
-            {{ $t('pages.settings.settings.uploadCleanA4PortraitArtworkContractTextIsLayeredOverTheseImagesAndThe') }}
+            Upload a clear letterhead or cover image in any practical size. It is scaled proportionally for the contract preview and print layout.
           </VAlert>
           <VRow>
             <VCol v-for="asset in [
-              { field: 'contract_letterhead' as const, title: translate('pages.settings.settings.contractLetterhead'), preview: letterheadPreview, hint: translate('pages.settings.settings.minimum10001400Pixels') },
-              { field: 'contract_cover_design' as const, title: translate('pages.settings.settings.contractCoverDesign'), preview: coverDesignPreview, hint: translate('pages.settings.settings.minimum10001400Pixels') },
+              { field: 'contract_letterhead' as const, title: translate('pages.settings.settings.contractLetterhead'), preview: letterheadPreview, hint: 'Any clear image size; portrait is recommended.' },
+              { field: 'contract_cover_design' as const, title: translate('pages.settings.settings.contractCoverDesign'), preview: coverDesignPreview, hint: 'Any clear image size; portrait is recommended.' },
             ]" :key="asset.field" cols="12" md="6">
               <div class="text-subtitle-1 font-weight-medium mb-2">{{ asset.title }}</div>
               <div class="document-artwork-preview mb-3">
@@ -619,6 +710,10 @@ onBeforeUnmount(revokeObjectUrls)
   border-radius: 8px;
 }
 
+.appearance-group {
+  background: rgba(var(--v-theme-surface), 0.62);
+}
+
 .letterhead-safe-preview {
   position: relative;
   width: 100%;
@@ -631,7 +726,7 @@ onBeforeUnmount(revokeObjectUrls)
 .letterhead-safe-preview > :first-child { height: 100%; }
 .letterhead-preview-placeholder { display: grid; height: 100%; place-items: center; padding: 1rem; text-align: center; color: rgba(var(--v-theme-on-surface), 0.55); font-size: 0.78rem; }
 .letterhead-safe-box { position: absolute; z-index: 1; border: 2px dashed rgb(var(--v-theme-primary)); background: rgb(var(--v-theme-primary) / 0.08); min-width: 5%; min-height: 5%; padding: 8px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; pointer-events: none; }
-.preview-copy { color: rgb(var(--v-theme-on-surface)); font-size: clamp(0.55rem, 2vw, 0.75rem); line-height: 1.45; }
+.preview-copy { color: #000; font-size: clamp(0.55rem, 2vw, 0.75rem); line-height: 1.45; }
 .safe-area-handle { position: absolute; z-index: 2; border: 0; background: transparent; pointer-events: auto; touch-action: none; }
 .safe-area-handle--top, .safe-area-handle--bottom { left: 0; width: 100%; height: 12px; cursor: ns-resize; }
 .safe-area-handle--top { top: -7px; }.safe-area-handle--bottom { bottom: -7px; }

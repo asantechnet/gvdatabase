@@ -54,12 +54,14 @@ class SyncAnalytics extends Command
             'attendance_paid_leave' => (clone $attendance)->where('status', 'paid-off-day')->count(),
             'attendance_incomplete' => (clone $attendance)->where('status', 'present')->where('missing_punch_state', '!=', 'none')->count(),
             'worked_minutes' => (int) (clone $attendance)->sum('net_worked_minutes'), 'overtime_minutes' => (int) (clone $attendance)->sum('overtime_minutes'),
-            'income_total' => (float) Income::whereDate('date', $date)->sum('total_amount'), 'expense_total' => (float) Expense::whereDate('date', $date)->sum('total_amount'),
+            // These are booked snapshot totals for the analytics archive. Live
+            // dashboard and report totals are converted from source currency.
+            'income_total' => (float) Income::whereDate('date', $date)->sum('base_amount'), 'expense_total' => (float) Expense::whereDate('date', $date)->sum('base_amount'),
             'tasks_created' => Task::whereBetween('created_at', [$utcStart, $utcEnd])->count(), 'tasks_completed' => Task::whereBetween('completed_at', [$utcStart, $utcEnd])->count(),
             'contracts_created' => Contract::whereBetween('created_at', [$utcStart, $utcEnd])->count(), 'contracts_cancelled' => Contract::whereBetween('cancelled_at', [$utcStart, $utcEnd])->count(),
             'employees_onboarded' => Employee::whereDate('join_date', $date)->count(), 'bonus_nominations' => WorthyEmployee::whereBetween('created_at', [$utcStart, $utcEnd])->count(),
             'bonuses_granted' => WorthyEmployee::whereBetween('granted_at', [$utcStart, $utcEnd])->count(),
-            'bonus_base_total' => (float) WorthyEmployee::whereBetween('granted_at', [$utcStart, $utcEnd])->sum('granted_base_amount'), 'calculated_at' => now('UTC'),
+            'bonus_base_total' => (float) WorthyEmployee::whereBetween('granted_at', [$utcStart, $utcEnd])->sum('base_amount'), 'calculated_at' => now('UTC'),
         ]);
     }
 

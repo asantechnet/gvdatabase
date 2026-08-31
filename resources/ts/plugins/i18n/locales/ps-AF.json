@@ -17,6 +17,139 @@
       "sortBy": "مرتب کول د"
     }
   },
+  "components": {
+    "dataTablePageKpis": {
+      "overview": "د {title} لنډیز",
+      "scrollHint": "په وړو پردو کې جدولونه افقي وخوځوئ",
+      "recordsShown": "ښودل شوي ریکارډونه",
+      "recordedValueCurrentBase": "ثبت شوی ارزښت (اوسنۍ اساسي کرنسي)",
+      "invoiceLinked": "له بل سره تړلی",
+      "incomeTypes": "د عاید ډولونه",
+      "customerLinked": "له پېرودونکي سره تړلی",
+      "expenseTypes": "د لګښت ډولونه",
+      "invoiceValueCurrentBase": "د بل ارزښت (اوسنۍ اساسي کرنسي)",
+      "collectedCurrentBase": "ترلاسه شوی (اوسنۍ اساسي کرنسي)",
+      "outstandingCurrentBase": "پاتې (اوسنۍ اساسي کرنسي)",
+      "unitsInStock": "په ګدام کې واحدونه",
+      "inventoryValue": "د موجودۍ ارزښت",
+      "needsReview": "بیاکتنې ته اړتیا لري",
+      "netPayrollCurrentBase": "خالص معاش (اوسنۍ اساسي کرنسي)",
+      "workedDays": "کاري ورځې",
+      "absentDays": "د غیرحاضرۍ ورځې",
+      "baseSalaries": "اساسي معاشونه",
+      "assignedStaff": "ټاکل شوي کارکوونکي",
+      "activePositions": "فعال بستونه",
+      "companies": "شرکتونه",
+      "activeServices": "فعال خدمتونه",
+      "pausedServices": "ځنډول شوي خدمتونه",
+      "awaitingDecision": "د پرېکړې په تمه",
+      "paidLeave": "له معاش سره رخصتي",
+      "teamMembers": "د ټیم غړي",
+      "activeContracts": "فعال قراردادونه",
+      "expiringEnded": "د پای ته رسېدو په حال / پای ته رسېدلي",
+      "counterparties": "قراردادي اړخونه",
+      "companiesRepresented": "استازولي شوي شرکتونه",
+      "customersRepresented": "استازولي شوي پېرودونکي",
+      "employeesRepresented": "استازولي شوي کارکوونکي",
+      "staffRepresented": "استازولي شوي کارکوونکي",
+      "officesRepresented": "استازولي شوي دفترونه",
+      "positionsRepresented": "استازولي شوي بستونه",
+      "servicesRequested": "غوښتل شوي خدمتونه",
+      "marketingSources": "د بازارموندنې سرچینې",
+      "paymentMethods": "د ورکړې لارې",
+      "instructionsSet": "ټاکل شوې لارښوونې",
+      "recentlyAdded": "تازه اضافه شوي",
+      "activeAutomations": "فعال اتوماتونه",
+      "pausedAutomations": "ځنډول شوي اتوماتونه",
+      "eventTypes": "د پېښې ډولونه",
+      "inactiveServices": "غیرفعال خدمتونه",
+      "averageDuration": "اوسطه موده",
+      "months": "{count} میاشتې",
+      "withoutOffice": "بې له دفتره",
+      "activeCompanies": "فعال شرکتونه",
+      "withRepresentative": "له استازي سره",
+      "profileIncomplete": "نیمګړی پروفایل",
+      "activeComplete": "فعال / بشپړ",
+      "needAttention": "پاملرنې ته اړتیا لري",
+      "total": "ټول {key}",
+      "typesRepresented": "استازولي شوي ډولونه",
+      "categoriesRepresented": "استازولي شوې کتګورۍ",
+      "conditionsRepresented": "استازولي شوي حالتونه",
+      "currenciesRepresented": "استازولي شوې کرنسۍ",
+      "recordsCovered": "پوښل شوي ریکارډونه",
+      "pages": {
+        "visitors": { "title": "لیدونکي", "description": "د لیدونکو فعالیت وڅېړئ او د هرې ننوتنې روښانه ریکارډ وساتئ." },
+        "stockInventory": { "title": "د ګدام موجودي", "description": "د موجودۍ کچه، حالت او سپارنې په یو ځای کې وګورئ." },
+        "staffSalaries": { "title": "د کارکوونکو معاشونه", "description": "د معاشونو ریکارډونه وڅېړئ او د پام وړ تادیات ومومئ." },
+        "staffDirectory": { "title": "د کارکوونکو فهرست", "description": "خپل ټیم، سپارنې او د تعقیب وړ ریکارډونه وګورئ." },
+        "users": { "title": "کارنان", "description": "لاسرسی، بلنې او د کارن حسابونو اوسنی حالت اداره کړئ." },
+        "positions": { "title": "بستونه", "description": "د ټیم دندې، د کارکوونکو کچه او د بستونو شتون وڅېړئ." },
+        "paymentDetails": { "title": "د ورکړې جزیات", "description": "د ورکړې فعالیت وڅېړئ او هره معامله په اسانه د تعقیب وړ وساتئ." },
+        "paidTimeOff": { "title": "له معاش سره رخصتي", "description": "د رخصتۍ غوښتنې وڅېړئ او پاتې تاییدونه په اسانه ومومئ." },
+        "invoiceOptions": { "title": "د بل انتخابونه", "description": "د بیا کارېدونکو بل انتخابونه تنظیم او د بل بهیرونه یو شان وساتئ." },
+        "hrOptions": { "title": "د بشري سرچینو انتخابونه", "description": "هغه بیا کارېدونکي تنظیمات اداره کړئ چې د خلکو عملیات ملاتړ کوي." },
+        "financeOptions": { "title": "مالي انتخابونه", "description": "مالي مخکینۍ ټاکنې د ورځنیو عملیاتو لپاره منظمې او چمتو وساتئ." },
+        "contractOptions": { "title": "د قرارداد انتخابونه", "description": "د قراردادونو لپاره بیا کارېدونکي نمونې او مخکینۍ ټاکنې وساتئ." },
+        "services": { "title": "خدمتونه", "description": "د خدمتونو کتلاګ اداره او اوسنی شتون یې ژر وڅېړئ." },
+        "invoices": { "title": "بلونه", "description": "د بلونو فعالیت، له ورکړل شویو بلونو تر د پام وړ توکو پورې، ښکاره وساتئ." },
+        "companies": { "title": "شرکتونه", "description": "قراردادي اړخونه، د هغوی جزیات او ورسره تړونونه اداره کړئ." },
+        "cancelledContracts": { "title": "لغوه شوي قراردادونه", "description": "تړل شوي تړونونه وڅېړئ او د لغوه کېدو ریکارډونه د پلټنې لپاره اسانه وساتئ." },
+        "customerDirectory": { "title": "د پېرودونکو فهرست", "description": "له پېرودونکو سره اړیکې او فعال خدمتونه په یو نظر وڅارئ." },
+        "contracts": { "title": "قراردادونه", "description": "د قراردادونو اوسنی ټولګه وګورئ او د تعقیب وړ ریکارډونه ومومئ." },
+        "policyLibrary": { "title": "د پالیسۍ کتابتون", "description": "د بیا کارېدونکو قرارداد بندونه د هر تړون لپاره منظم او چمتو وساتئ." }
+      }
+    },
+    "taskManager": {
+      "taskdetaildrawer": {
+        "linkedServices": "تړلي خدمتونه",
+        "projectServiceHint": "د پروژې په بورډونو کې یوازې د پروژې ټاکل شوي خدمتونه تړل کېدای شي.",
+        "taskContent": "د دندې منځپانګه",
+        "noTaskContent": "د دې دندې لپاره منځپانګه نه ده ثبت شوې."
+      },
+      "taskappshell": {
+        "allWork": "ټول کارونه",
+        "newProject": "نوې پروژه",
+        "createProject": "پروژه جوړه کړئ",
+        "createProjectWorkspace": "د پروژې کاري فضا جوړه کړئ",
+        "projectWorkspaceDescription": "هره پروژه خپل کانبان بورډونه، دندې، فرعي دندې او تړلي خدمتونه لري.",
+        "projectName": "د پروژې نوم",
+        "targetDate": "موخه نېټه",
+        "linkedServices": "تړلي خدمتونه",
+        "selectProjectWorkspace": "د پروژې کاري فضا وټاکئ"
+      },
+      "kanbanview": {
+        "projectBoard": "د پروژې بورډ",
+        "attachments": "نښلونکي فایلونه",
+        "viewAttachments": "نښلونکي فایلونه وګورئ",
+        "downloadAttachment": "نښلونکی فایل ښکته کړئ",
+        "taskFiles": "د دندې فایلونه",
+        "resultFiles": "د پایلو فایلونه",
+        "noAttachments": "له دې دندې سره کوم فایل نه دی نښلول شوی."
+      },
+      "calendarview": {
+        "taskContent": "د دندې منځپانګه",
+        "results": "پایلې",
+        "noResultsRecorded": "تر اوسه پایلې نه دي ثبت شوي.",
+        "downloadAttachment": "نښلونکی فایل ښکته کړئ"
+      },
+      "todomatrixview": {
+        "taskContent": "د دندې منځپانګه",
+        "noTaskContent": "د دې دندې لپاره منځپانګه نه ده ثبت شوې.",
+        "attachTaskFile": "د دندې فایل ونښلوئ",
+        "attach": "ونښلوئ",
+        "results": "پایلې",
+        "saveResults": "پایلې خوندي کړئ",
+        "recordTaskResults": "د دندې پایلې ثبت کړئ...",
+        "noResultsRecorded": "تر اوسه پایلې نه دي ثبت شوي.",
+        "attachResultFile": "د پایلې فایل ونښلوئ",
+        "taskAttachments": "د دندې نښلونکي فایلونه",
+        "resultAttachments": "د پایلو نښلونکي فایلونه",
+        "downloadAttachment": "نښلونکی فایل ښکته کړئ",
+        "removeAttachment": "نښلونکی فایل لرې کړئ",
+        "attachmentUploadFailed": "نښلونکی فایل پورته نه شو لېږل کېدای."
+      }
+    }
+  },
   "common": {
     "actions": {
       "create": "جوړول",
@@ -169,6 +302,10 @@
       "spotBonus": "فوري بونس",
       "all": "ټول",
       "software": "سافټویر",
+      "utilities": "عامه خدمتونه",
+      "softwareSaas": "سافټویر / SaaS",
+      "officeSupplies": "د دفتر سامان",
+      "travelDining": "سفر او خواړه",
       "salaries": "معاشات",
       "marketing": "بازار موندنه",
       "supplies": "اکمالات",
@@ -208,6 +345,8 @@
       "couldNotOpenPrintWindowPleaseAllowPopUpsForThisSite": "د چاپ کړکۍ خلاصه نشوه. مهرباني وکړئ د دې سایټ لپاره پاپ اپ (Pop-ups) ته اجازه ورکړئ.",
       "filterByStatus": "د حالت له مخې فلټر کړئ",
       "filters": "فلټرونه",
+      "recordedBy": "له خوا ثبت شوی",
+      "systemLegacy": "سیستم / پخوانۍ نسخه",
       "contact": "اړیکه",
       "marketer": "بازار موندونکی",
       "services": "خدمتونه",
@@ -615,7 +754,182 @@
           "briefOverviewOrIntroductoryStatementOfTheContract": "د قرارداد لنډیز یا د پېژندنې بیان...",
           "contractPOLICIESTERMS": "د قرارداد پالیسۍ او شرایط",
           "reset": "بېرته اصلي حالت ته راوستل",
-          "deleteTemplate2": "ټیمپلیټ حذف کړئ؟"
+          "deleteTemplate2": "ټیمپلیټ حذف کړئ؟",
+          "contractTemplate": {
+            "contractType": "د قرارداد ډول",
+            "selectContractType": "د قرارداد یو ډول وټاکئ",
+            "system": "سیسټمي",
+            "custom": "دودیز",
+            "inactive": "غیرفعال",
+            "systemType": "سیسټمي ډول",
+            "systemTypeAvailable": "سیسټمي ډول — تل د لاسرسي وړ",
+            "customType": "دودیز ډول",
+            "currentlyInactive": "اوس غیرفعال",
+            "protectedSystemType": "خوندي سیسټمي ډول",
+            "deleteCustomType": "دودیز ډول ړنګ کړئ",
+            "addContractType": "د قرارداد ډول زیات کړئ",
+            "typeName": "د ډول نوم",
+            "typeNameExample": "لکه: د خدمتونو تړون",
+            "create": "جوړول",
+            "deleteContractType": "د قرارداد ډول ړنګول",
+            "deleteTypePrompt": "د قرارداد دودیز ډول «{name}» ړنګ شي؟",
+            "deleteTypeHint": "هغه ډولونه چې په ټیمپلیټونو یا قراردادونو کې کارول شوي، نه ړنګېږي؛ پر ځای یې غیرفعالېږي.",
+            "position": "بست",
+            "positionHint": "دا ټیمپلیټ دې دندې ته ځانګړی کېږي.",
+            "templateContext": "د ټیمپلیټ شرایط:",
+            "employmentPlaceholderHint": "د کارکوونکي، بست او کارورکوونکي ځای‌نیونکي لاندې شته.",
+            "generalPlaceholderHint": "د دودیزو ډولونو لپاره یوازې د قرارداد عمومي ځای‌نیونکي شته.",
+            "policyHelpers": "د پالیسۍ مرستندویه توکي",
+            "insertPolicyClause": "د پالیسۍ یوه ماده ورزیاته کړئ",
+            "noReusableClauses": "تر اوسه د بیا کارولو وړ ماده نشته.",
+            "editTemplate": "ټیمپلیټ سمول",
+            "createNewTemplate": "نوی ټیمپلیټ جوړول",
+            "updateTemplate": "ټیمپلیټ تازه کول",
+            "saveTemplate": "ټیمپلیټ ساتل",
+            "employmentContractName": "د {position} د کار قرارداد",
+            "types": {
+              "employment": "استخدام",
+              "customer": "پېرودونکی",
+              "company": "شرکت"
+            },
+            "validation": {
+              "contractTypeRequired": "د قرارداد ډول اړین دی",
+              "nameRequired": "نوم اړین دی",
+              "maximumCharacters": "تر ټولو ډېر {count} توري",
+              "positionRequired": "د استخدام ټیمپلیټ لپاره د بست ټاکل اړین دي"
+            },
+            "messages": {
+              "loadTypesError": "د قرارداد ډولونه پورته نه شول.",
+              "typeCreated": "د قرارداد ډول «{name}» جوړ شو.",
+              "createTypeError": "د قرارداد ډول جوړ نه شو.",
+              "typeDeleted": "د قرارداد ډول ړنګ شو.",
+              "typeDeactivated": "دا ډول په کار کې دی؛ د ړنګېدو پر ځای غیرفعال شو.",
+              "loadTemplatesError": "ټیمپلیټونه پورته نه شول.",
+              "selectTypeBeforeSaving": "د ټیمپلیټ تر ساتلو مخکې د قرارداد ډول وټاکئ.",
+              "unknownPlaceholders": "ناپېژندل شوي یا نه‌موجود ځای‌نیونکي: {placeholders}",
+              "templateUpdated": "ټیمپلیټ په بریالیتوب تازه شو.",
+              "templateCreated": "ټیمپلیټ په بریالیتوب جوړ شو.",
+              "saveTemplateError": "ټیمپلیټ ونه ساتل شو.",
+              "loadTemplateDetailsError": "د ټیمپلیټ جزییات پورته نه شول.",
+              "templateDeleted": "ټیمپلیټ په بریالیتوب ړنګ شو.",
+              "templateInUse": "دا ټیمپلیټ په شته قراردادونو کې کارول شوی او نه شي ړنګېدای."
+            },
+            "editor": {
+              "font": "لیکنه",
+              "size": "اندازه",
+              "startWriting": "د قرارداد لیکل پیل کړئ…",
+              "linkUrl": "د لینک پته",
+              "undo": "بېرته ګرځول",
+              "redo": "بیا ترسره کول",
+              "bold": "پنډ",
+              "italic": "کوږ",
+              "underline": "لاندې کرښه",
+              "strikethrough": "منځ‌کرښه",
+              "heading": "سرلیک {level}",
+              "align": {
+                "left": "چپ برابر",
+                "center": "منځ برابر",
+                "right": "ښي برابر",
+                "justify": "دواړو غاړو ته برابر"
+              },
+              "bulletList": "نښه‌لرونکی لېست",
+              "numberedList": "شمېره‌لرونکی لېست",
+              "quote": "اقتباس",
+              "insertLink": "لینک ورزیات کړئ",
+              "rtlParagraph": "له ښي څخه چپ پاراګراف",
+              "ltrParagraph": "له چپ څخه ښي پاراګراف",
+              "fontFamily": "د لیکنې ډول",
+              "fontSize": "د لیکنې اندازه",
+              "textColor": "د متن رنګ",
+              "insertPlaceholder": "ځای‌نیونکی ورزیات کړئ",
+              "noPlaceholders": "د دې قرارداد ډول لپاره ځای‌نیونکی نشته"
+            },
+            "placeholders": {
+              "employee": {
+                "label": "کارکوونکی",
+                "fields": {
+                  "name": "بشپړ نوم",
+                  "father_name": "د پلار نوم",
+                  "national_id": "د تذکرې شمېره",
+                  "phone": "د ټیلیفون شمېره",
+                  "email": "برېښنالیک",
+                  "address": "پته",
+                  "position": "بست",
+                  "department": "څانګه",
+                  "office": "دفتر",
+                  "start_date": "د پیل نېټه",
+                  "contract_duration": "د قرارداد موده",
+                  "salary": "معاش",
+                  "identity": "د پېژندنې جدول"
+                }
+              },
+              "position": {
+                "label": "بست",
+                "fields": {
+                  "name": "د بست نوم",
+                  "description": "توضیحات",
+                  "salary": "بنسټیز معاش"
+                }
+              },
+              "customer": {
+                "label": "پېرودونکی",
+                "fields": {
+                  "name": "نوم",
+                  "company_name": "شرکت",
+                  "phone": "د ټیلیفون شمېره",
+                  "email": "برېښنالیک",
+                  "address": "پته",
+                  "tax_number": "د مالیې شمېره"
+                }
+              },
+              "company": {
+                "label": "مقابل شرکت",
+                "fields": {
+                  "legal_name": "قانوني نوم",
+                  "trade_name": "سوداګریز نوم",
+                  "registration_number": "د ثبت شمېره",
+                  "tax_number": "د مالیې شمېره",
+                  "national_id": "ملي پېژندشمېره",
+                  "legal_form": "قانوني بڼه",
+                  "email": "برېښنالیک",
+                  "phone": "د ټیلیفون شمېره",
+                  "website": "وېب‌پاڼه",
+                  "address_line": "د پتې کرښه",
+                  "city": "ښار",
+                  "province": "ولایت",
+                  "postal_code": "پوستي کوډ",
+                  "country": "هېواد",
+                  "address": "بشپړه پته",
+                  "industry": "صنعت",
+                  "representative_name": "د استازي نوم",
+                  "representative_title": "د استازي دنده",
+                  "representative_phone": "د استازي ټیلیفون",
+                  "representative_email": "د استازي برېښنالیک"
+                }
+              },
+              "our_company": {
+                "label": "زموږ شرکت",
+                "fields": {
+                  "name": "د شرکت نوم",
+                  "short_name": "لنډ نوم",
+                  "email": "برېښنالیک",
+                  "phone": "د ټیلیفون شمېره",
+                  "address": "پته",
+                  "website": "وېب‌پاڼه",
+                  "business_licence": "د فعالیت جواز"
+                }
+              },
+              "contract": {
+                "label": "قرارداد",
+                "fields": {
+                  "number": "د قرارداد شمېره",
+                  "start_date": "د پیل نېټه",
+                  "end_date": "د پای نېټه",
+                  "status": "حالت"
+                }
+              }
+            }
+          }
         }
       },
       "innvoice": {
@@ -753,6 +1067,25 @@
         "assetHint": "{hint} · تر ۸ مېګابایټ پورې PNG, JPG, یا WEBP فایل",
         "resetDefaults": "بېرته اصلي حالت (ډیفالټ) ته راوستل",
           "saveSettings": "تنظیمات خوندي کړئ",
+          "themeColorsPreviewHint": "Changes preview immediately in the application and are saved only when you select Save changes.",
+          "restoreVuexyDefaults": "Restore Vuexy defaults",
+          "brandColors": "Brand colours",
+          "brandColorsHint": "The colours used for primary and secondary actions.",
+          "feedbackColors": "Feedback colours",
+          "feedbackColorsHint": "Status colours used for successful, informational, warning, and error states.",
+          "lightModeSurfaces": "Light-mode canvas and surfaces",
+          "lightModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in light mode.",
+          "darkModeSurfaces": "Dark-mode canvas and surfaces",
+          "darkModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in dark mode.",
+          "successColor": "Success",
+          "infoColor": "Info",
+          "warningColor": "Warning",
+          "errorColor": "Error",
+          "applicationBackground": "Application background",
+          "cardsAndMenus": "Cards and menus",
+          "live": "Live",
+          "noChangesToSave": "There are no changes to save on this page.",
+          "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings.",
           "settings": "امستنې",
           "manageCompanyPreferences": "د شرکت غوره‌توبونه او د سیسټم اصلي امستنې اداره کړئ.",
           "companyPageDescription": "هویت، د اړیکو معلومات او نښه.",
@@ -1036,6 +1369,13 @@
       }
     },
     "contracts": {
+      "shared": {
+        "contractAgreement": "د قرارداد هوکړه",
+        "contractParties": "د قرارداد لوري",
+        "printPreview": "د خوندي شوي ټیمپلېټ په کارولو د قرارداد پوښ او پاڼې مخکتنه وکړئ.",
+        "includePartyDetails": "د قرارداد د دواړو لورو اساسي جزیات شامل کړئ",
+        "defaultTerms": "دا هوکړه د دې قرارداد د نومول شویو لورو ترمنځ کېږي."
+      },
       "allContracts": {
         "allContracts": {
           "counterparty": "مقابل لوری",
@@ -1155,6 +1495,11 @@
           "serviceLevelAgreement": "د خدمت د کچې تړون (SLA)",
           "standardEmploymentTerms": "د استخدام معیاري شرایط",
           "searchContractOptions": "د قرارداد اختیارونه وپلټئ"
+        }
+      },
+      "cancelledContracts": {
+        "cancelledContracts": {
+          "reviewClosedAgreements": "تړل شوې هوکړې وڅېړئ او د لغوه کولو ریکارډونه د اسانه پلټنې لپاره وساتئ."
         }
       },
       "visitor": {

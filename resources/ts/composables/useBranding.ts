@@ -2,8 +2,7 @@ import { ref } from 'vue'
 import { useTheme } from 'vuetify'
 import fallbackLogo from '@images/logo.svg'
 import SettingApi from '@/api/setting'
-import { contrastingTextColor } from '@/utils/themeContrast'
-import { type ThemeColorPreferences, persistThemeColors, readStoredThemeColors, themeColorFields } from '@/utils/themePersistence'
+import { type ThemeColorPreferences, persistThemeColors, readStoredThemeColors, themeColorFields, themeWithPalette } from '@/utils/themePersistence'
 
 const logoUrl = ref(fallbackLogo)
 const shortCompanyName = ref('Asantech')
@@ -21,7 +20,14 @@ interface BrandingSettings {
   contract_cover_design_url?: string | null
   primary_color?: string | null
   secondary_color?: string | null
-  tertiary_color?: string | null
+  success_color?: string | null
+  info_color?: string | null
+  warning_color?: string | null
+  error_color?: string | null
+  light_background_color?: string | null
+  light_surface_color?: string | null
+  dark_background_color?: string | null
+  dark_surface_color?: string | null
 }
 
 export const useBranding = () => {
@@ -42,32 +48,19 @@ export const useBranding = () => {
       return colors
     }, {})
 
-    const resolvedThemeColors = { ...apiThemeColors, ...storedThemeColors }
+    // Local storage prevents a flash during app boot, but the company record
+    // remains authoritative once it is available (including for other users).
+    const resolvedThemeColors = { ...storedThemeColors, ...apiThemeColors }
 
     if (persistApiFallbacks) {
-      const missingStoredColors = themeColorFields.reduce<ThemeColorPreferences>((colors, field) => {
-        if (!storedThemeColors[field] && apiThemeColors[field])
-          colors[field] = apiThemeColors[field]
-
-        return colors
-      }, {})
-
-      persistThemeColors(missingStoredColors)
+      persistThemeColors(apiThemeColors)
     }
 
-    Object.values(vuetifyTheme.themes.value).forEach(theme => {
-      if (resolvedThemeColors.primary_color) {
-        theme.colors.primary = resolvedThemeColors.primary_color
-        theme.colors['on-primary'] = contrastingTextColor(resolvedThemeColors.primary_color)
-      }
-      if (resolvedThemeColors.secondary_color) {
-        theme.colors.secondary = resolvedThemeColors.secondary_color
-        theme.colors['on-secondary'] = contrastingTextColor(resolvedThemeColors.secondary_color)
-      }
-      if (resolvedThemeColors.tertiary_color) {
-        theme.colors.tertiary = resolvedThemeColors.tertiary_color
-        theme.colors['on-tertiary'] = contrastingTextColor(resolvedThemeColors.tertiary_color)
-      }
+    Object.entries(vuetifyTheme.themes.value).forEach(([themeName, theme]) => {
+      // Replace the whole definition so Vuetify updates every generated CSS
+      // variable in one reactive change instead of exposing a half-updated
+      // palette while the company profile request is resolving.
+      vuetifyTheme.themes.value[themeName] = themeWithPalette(theme, resolvedThemeColors)
     })
 
   }

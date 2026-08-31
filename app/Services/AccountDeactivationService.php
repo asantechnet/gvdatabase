@@ -6,6 +6,7 @@ use App\Models\AccountDeactivationRequest;
 use App\Models\AuditLog;
 use App\Models\Notification;
 use App\Models\User;
+use App\Support\AuditRegistry;
 use App\Support\RoleHierarchy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,7 @@ class AccountDeactivationService
 
     public function request(User $user, string $password, ?string $reason, Request $httpRequest): AccountDeactivationRequest
     {
+        abort_if($user->isSuperAdmin(), 422, 'business.super_admin_deactivation_forbidden');
         abort_unless(Hash::check($password, $user->password), 422, 'business.current_password_invalid');
         abort_unless($user->acc_status === 'active', 422, 'business.account_not_active');
 
@@ -198,6 +200,10 @@ class AccountDeactivationService
             'table_name' => $subject->getTable(),
             'auditable_type' => $subject::class,
             'auditable_id' => $subject->getKey(),
+            'subject_type' => $subject instanceof User ? AuditRegistry::keyFor($subject) : 'account_deactivations',
+            'subject_label' => $subject instanceof User
+                ? AuditRegistry::subjectLabel($subject)
+                : (string) ($subject->user?->name ?? $actor->name),
             'user_id' => $actor->id,
             'employee_id' => $actor->employee()->value('id'),
             'old_values' => $oldValues,

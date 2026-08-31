@@ -3,6 +3,7 @@ import { useTaskStore } from '@/stores/useTaskStore'
 import { canAccess } from '@/utils/authorization'
 import { useCookie } from '@core/composable/useCookie'
 import TaskApi from '@/api/task'
+import { apiErrorMessage } from '@/utils/apiErrors'
 import type { Subtask, Task, TaskAttachment } from '@/api/kanban'
 import type { TaskPriority } from '@/types/taskManager'
 import { computed, ref, watch } from 'vue'
@@ -39,59 +40,54 @@ const canDeleteSubtask = (userId: string) => canAccess('delete_all_subtasks')
 const { t } = useI18n()
 const editingTodo = ref<Subtask | null>(null)
 const editTodoForm = ref({ title: '', category: '', priority: 'medium' as TaskPriority })
-const inputContent = ref('')
 const resultsContent = ref('')
-const inputFile = ref<File | null>(null)
+const taskAttachmentFile = ref<File | null>(null)
 const resultFile = ref<File | null>(null)
-const isSavingInput = ref(false)
 const isSavingResults = ref(false)
 const isUploadingResult = ref(false)
 const attachmentError = ref('')
 const canEditTask = () => canAccess('edit_assigned_tasks')
 
 watch(() => store.selectedTask, task => {
-  inputContent.value = task?.description ?? ''
   resultsContent.value = task?.results ?? ''
+  taskAttachmentFile.value = null
   resultFile.value = null
   attachmentError.value = ''
 }, { immediate: true })
 
-const inputAttachments = computed(() => store.selectedTask?.attachments.filter(attachment => attachment.section === 'input') ?? [])
+const taskAttachments = computed(() => store.selectedTask?.attachments.filter(attachment => attachment.section === 'input') ?? [])
 const resultAttachments = computed(() => store.selectedTask?.attachments.filter(attachment => attachment.section === 'results') ?? [])
 
-const saveContent = async (section: 'input' | 'results') => {
+const saveResults = async () => {
   if (!store.selectedTaskId) return
-  const saving = section === 'input' ? isSavingInput : isSavingResults
-  saving.value = true
+  isSavingResults.value = true
   try {
-    await store.updateTask(store.selectedTaskId, section === 'input'
-      ? { description: inputContent.value }
-      : { results: resultsContent.value })
+    await store.updateTask(store.selectedTaskId, { results: resultsContent.value })
   } finally {
-    saving.value = false
+    isSavingResults.value = false
   }
 }
 
 const uploadAttachment = async (section: 'input' | 'results') => {
-  const file = section === 'input' ? inputFile.value : resultFile.value
+  const file = section === 'input' ? taskAttachmentFile.value : resultFile.value
   if (!store.selectedTask || !file) return
   attachmentError.value = ''
   isUploadingResult.value = true
   try {
     const response = await TaskApi.uploadAttachment(store.selectedTask.id, file, section)
     store.selectedTask.attachments.push(response.data.data as TaskAttachment)
-    if (section === 'input') inputFile.value = null
+    if (section === 'input') taskAttachmentFile.value = null
     else resultFile.value = null
-  } catch (error: any) {
-    attachmentError.value = error?.response?.data?.message ?? 'Unable to upload the attachment.'
+  } catch (error: unknown) {
+    attachmentError.value = apiErrorMessage(error, t('components.taskManager.todomatrixview.attachmentUploadFailed'))
   } finally {
     isUploadingResult.value = false
   }
 }
 
-const uploadTaskImage = (section: 'input' | 'results') => async (file: File) => {
-  if (!store.selectedTask) throw new Error('No task selected')
-  const response = await TaskApi.uploadAttachment(store.selectedTask.id, file, section)
+const uploadResultImage = async (file: File) => {
+  if (!store.selectedTask) throw new Error(t('components.taskManager.todomatrixview.noTaskSelected'))
+  const response = await TaskApi.uploadAttachment(store.selectedTask.id, file, 'results')
   const attachment = response.data.data as TaskAttachment
   store.selectedTask.attachments.push(attachment)
   return attachment.url
@@ -158,7 +154,7 @@ const handleAddTodo = () => {
             <VListItem v-for="task in store.tasks" :key="task.id" :value="task.id"
               :active="store.selectedTaskId === task.id" @click="store.selectTask(task.id)" class="border-b">
               <template #prepend>
-                <VAvatar :color="getSubtaskProgress(task) === 100 ? 'success' : 'primary'" variant="tonal" class="mr-3">
+                <VAvatar :color="getSubtaskProgress(task) === 100 ? 'success' : 'primary'" variant="tonal" class="me-3">
                   <VIcon :icon="getSubtaskProgress(task) === 100 ? 'tabler-check' : 'tabler-list-details'" />
                 </VAvatar>
               </template>
@@ -169,7 +165,7 @@ const handleAddTodo = () => {
 
               <VListItemSubtitle>
                 <VChip size="x-small" color="secondary" variant="tonal" class="mb-2">
-                  <VIcon icon="tabler-layout-kanban" size="13" class="mr-1" />
+                  <VIcon icon="tabler-layout-kanban" size="13" class="me-1" />
                   {{ getBoardTitle(task.boardId) }}
                 </VChip>
                 <div class="d-flex align-center gap-2 mt-1">
@@ -200,7 +196,7 @@ const handleAddTodo = () => {
                 variant="elevated">
                 {{ tag.name }}
               </VChip>
-              <span class="text-caption text-medium-emphasis ml-2">
+              <span class="text-caption text-medium-emphasis ms-2">
                 {{ $t('components.taskManager.todos.dueDate', { date: formatLocalizedDate(`${store.selectedTask.dueDate}T00:00:00`) }) }}
               </span>
             </div>
@@ -208,24 +204,22 @@ const handleAddTodo = () => {
         </VCardItem>
 
         <VCardText class="pa-5 border-b">
-          <div class="d-flex align-center justify-space-between mb-3">
-            <div class="text-subtitle-1 font-weight-bold">Input</div>
-            <VBtn v-if="canEditTask()" size="small" color="primary" :loading="isSavingInput" @click="saveContent('input')">Save input</VBtn>
-          </div>
-          <TiptapEditor v-if="canEditTask()" v-model="inputContent" :image-upload="uploadTaskImage('input')" placeholder="Describe the task input..." class="border rounded" />
-          <div v-else class="html-content text-body-1 text-medium-emphasis" v-html="store.selectedTask.description"></div>
+          <div class="text-subtitle-1 font-weight-bold mb-3">{{ $t('components.taskManager.todomatrixview.taskContent') }}</div>
+          <div v-if="store.selectedTask.description" class="html-content text-body-1 text-medium-emphasis" v-html="store.selectedTask.description" />
+          <div v-else class="text-body-2 text-disabled">{{ $t('components.taskManager.todomatrixview.noTaskContent') }}</div>
           <div v-if="canEditTask()" class="d-flex flex-column flex-sm-row align-sm-center gap-2 mt-3">
-            <VFileInput v-model="inputFile" label="Attach input file" density="compact" hide-details prepend-icon="tabler-paperclip" :disabled="isUploadingResult" />
-            <VBtn color="secondary" :disabled="!inputFile" :loading="isUploadingResult" @click="uploadAttachment('input')">Attach</VBtn>
+            <VFileInput v-model="taskAttachmentFile" :label="$t('components.taskManager.todomatrixview.attachTaskFile')" density="compact" hide-details prepend-icon="tabler-paperclip" :disabled="isUploadingResult" />
+            <VBtn color="secondary" :disabled="!taskAttachmentFile" :loading="isUploadingResult" @click="uploadAttachment('input')">{{ $t('components.taskManager.todomatrixview.attach') }}</VBtn>
           </div>
-          <VList v-if="inputAttachments.length" class="border rounded pa-0 mt-3">
-            <VListItem v-for="attachment in inputAttachments" :key="attachment.id">
+          <div v-if="taskAttachments.length" class="text-caption text-medium-emphasis mt-3 mb-1">{{ $t('components.taskManager.todomatrixview.taskAttachments') }}</div>
+          <VList v-if="taskAttachments.length" class="border rounded pa-0">
+            <VListItem v-for="attachment in taskAttachments" :key="attachment.id">
               <template #prepend><VIcon icon="tabler-paperclip" /></template>
               <VListItemTitle>{{ attachment.name }}</VListItemTitle>
               <VListItemSubtitle>{{ formatFileSize(attachment.size) }}</VListItemSubtitle>
               <template #append>
-                <VBtn icon="tabler-download" variant="text" size="small" @click="downloadAttachment(attachment)" />
-                <VBtn v-if="canEditTask()" icon="tabler-trash" variant="text" color="error" size="small" @click="deleteAttachment(attachment)" />
+                <VBtn icon="tabler-download" variant="text" size="small" :aria-label="$t('components.taskManager.todomatrixview.downloadAttachment')" :title="$t('components.taskManager.todomatrixview.downloadAttachment')" @click="downloadAttachment(attachment)" />
+                <VBtn v-if="canEditTask()" icon="tabler-trash" variant="text" color="error" size="small" :aria-label="$t('components.taskManager.todomatrixview.removeAttachment')" :title="$t('components.taskManager.todomatrixview.removeAttachment')" @click="deleteAttachment(attachment)" />
               </template>
             </VListItem>
           </VList>
@@ -313,26 +307,27 @@ const handleAddTodo = () => {
 
         <VCardText class="pa-5 border-t">
           <div class="d-flex align-center justify-space-between mb-3">
-            <div class="text-subtitle-1 font-weight-bold">Results</div>
-            <VBtn v-if="canEditTask()" size="small" color="primary" :loading="isSavingResults" @click="saveContent('results')">Save results</VBtn>
+            <div class="text-subtitle-1 font-weight-bold">{{ $t('components.taskManager.todomatrixview.results') }}</div>
+            <VBtn v-if="canEditTask()" size="small" color="primary" :loading="isSavingResults" @click="saveResults">{{ $t('components.taskManager.todomatrixview.saveResults') }}</VBtn>
           </div>
-          <TiptapEditor v-if="canEditTask()" v-model="resultsContent" :image-upload="uploadTaskImage('results')" placeholder="Record the task results..." class="border rounded mb-4" />
+          <TiptapEditor v-if="canEditTask()" v-model="resultsContent" :image-upload="uploadResultImage" :placeholder="$t('components.taskManager.todomatrixview.recordTaskResults')" class="border rounded mb-4" />
           <div v-else-if="store.selectedTask.results" class="html-content text-body-1 text-medium-emphasis mb-4" v-html="store.selectedTask.results"></div>
-          <div v-else class="text-body-2 text-disabled mb-4">No results have been recorded yet.</div>
+          <div v-else class="text-body-2 text-disabled mb-4">{{ $t('components.taskManager.todomatrixview.noResultsRecorded') }}</div>
 
           <VAlert v-if="attachmentError" type="error" density="compact" class="mb-3">{{ attachmentError }}</VAlert>
           <div v-if="canEditTask()" class="d-flex flex-column flex-sm-row align-sm-center gap-2 mb-3">
-            <VFileInput v-model="resultFile" label="Attach result file" density="compact" hide-details prepend-icon="tabler-paperclip" :disabled="isUploadingResult" />
-            <VBtn color="secondary" :disabled="!resultFile" :loading="isUploadingResult" @click="uploadAttachment('results')">Attach</VBtn>
+            <VFileInput v-model="resultFile" :label="$t('components.taskManager.todomatrixview.attachResultFile')" density="compact" hide-details prepend-icon="tabler-paperclip" :disabled="isUploadingResult" />
+            <VBtn color="secondary" :disabled="!resultFile" :loading="isUploadingResult" @click="uploadAttachment('results')">{{ $t('components.taskManager.todomatrixview.attach') }}</VBtn>
           </div>
+          <div v-if="resultAttachments.length" class="text-caption text-medium-emphasis mb-1">{{ $t('components.taskManager.todomatrixview.resultAttachments') }}</div>
           <VList v-if="resultAttachments.length" class="border rounded pa-0">
             <VListItem v-for="attachment in resultAttachments" :key="attachment.id">
               <template #prepend><VIcon icon="tabler-paperclip" /></template>
               <VListItemTitle>{{ attachment.name }}</VListItemTitle>
               <VListItemSubtitle>{{ formatFileSize(attachment.size) }}</VListItemSubtitle>
               <template #append>
-                <VBtn icon="tabler-download" variant="text" size="small" @click="downloadAttachment(attachment)" />
-                <VBtn v-if="canEditTask()" icon="tabler-trash" variant="text" color="error" size="small" @click="deleteAttachment(attachment)" />
+                <VBtn icon="tabler-download" variant="text" size="small" :aria-label="$t('components.taskManager.todomatrixview.downloadAttachment')" :title="$t('components.taskManager.todomatrixview.downloadAttachment')" @click="downloadAttachment(attachment)" />
+                <VBtn v-if="canEditTask()" icon="tabler-trash" variant="text" color="error" size="small" :aria-label="$t('components.taskManager.todomatrixview.removeAttachment')" :title="$t('components.taskManager.todomatrixview.removeAttachment')" @click="deleteAttachment(attachment)" />
               </template>
             </VListItem>
           </VList>

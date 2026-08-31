@@ -32,6 +32,18 @@ export interface WorthyEmployee {
     grantedAt: string | null;
     grantedBy: number | null;
     grantedAmount: number | null;
+    currencyId: number | null;
+    baseCurrencyId: number | null;
+    currencyCode: string | null;
+    currencyName: string | null;
+    currencySymbol: string | null;
+    currencyDecimalPlaces: number | null;
+    currency: { id: number | null; code: string | null; name: string | null; symbol: string | null; decimalPlaces: number | null; rate: number | null };
+    baseCurrencyCode: string | null;
+    rate: number | null;
+    baseAmount: number | null;
+    currentBaseAmount: number | null;
+    currentBaseCurrency: { id: number; code: string; symbol: string; decimalPlaces: number } | null;
     isAutomatic: boolean;
     calculationKey: string | null;
     calculationScore: number | null;

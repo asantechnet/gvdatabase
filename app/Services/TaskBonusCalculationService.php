@@ -33,7 +33,7 @@ class TaskBonusCalculationService
         foreach ($contributions->groupBy('employee_id') as $employeeId => $items) {
             $employee = Employee::selectable()->find($employeeId);
             if (! $employee || in_array((int) $employeeId, $rules['excluded_employee_ids'], true)
-                || in_array($employee->department, $rules['excluded_departments'], true)) { $ineligible++; continue; }
+                || in_array((int) $employee->office_id, $rules['excluded_office_ids'] ?? [], true)) { $ineligible++; continue; }
             $score = round((float) $items->sum('score'), 4);
             if ($items->count() < $rules['minimum_completed_tasks'] || $score < $rules['monthly_score_threshold']) { $ineligible++; continue; }
             $amount = round(min($score * $rules['amount_per_point'], $rules['maximum_monthly_bonus']), $currency->decimal_places);
@@ -49,6 +49,13 @@ class TaskBonusCalculationService
                     'performance_score' => round((float) $items->avg('quality_score'), 1), 'eligibility_reason' => 'Project Milestone',
                     'achievement_details' => $this->explanation($items, $score, $amount, $currency->code),
                     'suggested_amount' => $amount, 'selected_amount' => $amount, 'selected_type' => 'Project Completion', 'is_granted' => false,
+                    // A nomination is money too: retain the currency in which it was
+                    // calculated so later base-currency changes cannot reinterpret it.
+                    'currency_id' => $currency->id, 'base_currency_id' => $currency->id,
+                    'currency_code' => $currency->code, 'currency_name' => $currency->name,
+                    'currency_symbol' => $currency->symbol, 'currency_decimal_places' => $currency->decimal_places,
+                    'base_currency_code' => $currency->code,
+                    'rate' => 1, 'base_amount' => $amount,
                     'bonus_month' => "{$month}-01",
                 ];
                 if ($row) { $row->update($payload); $updated++; } else { $row = WorthyEmployee::create($payload); $created++; }

@@ -38,7 +38,11 @@ export interface Salary {
   deductions: SalaryDeduction[]
   totalDeductions: number
   netAmount: number
+  currentBaseAmount: number | null
+  currentBaseNetAmount: number | null
+  currentBaseCurrency: Pick<Currency, 'id' | 'code' | 'symbol' | 'decimalPlaces'> | null
   expenseId: number | null
+  recordedBy?: { id: number; name: string } | null
 }
 
 export interface SalaryParams {

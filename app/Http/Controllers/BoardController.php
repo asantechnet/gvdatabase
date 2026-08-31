@@ -17,6 +17,7 @@ class BoardController extends Controller
     {
         $user = $request->user();
         $boards = Board::query()
+            ->when($request->filled('project_id'), fn ($query) => $query->where('project_id', $request->integer('project_id')))
             ->when(! $user->hasPermission('view_all_boards'), fn ($query) => $query
                 ->whereHas('users', fn ($members) => $members->whereKey($user->id)))
             ->with(['tasks' => function ($query) use ($user) {
@@ -35,6 +36,7 @@ class BoardController extends Controller
         Gate::authorize('create', Board::class);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
+            'project_id' => 'nullable|integer|exists:projects,id',
             'order' => 'nullable|integer',
             'user_ids' => 'sometimes|array',
             'user_ids.*' => 'integer|exists:users,id',
@@ -46,7 +48,7 @@ class BoardController extends Controller
 
         // Default to the end of the board list if order isn't provided
         if (!isset($validated['order'])) {
-            $validated['order'] = Board::max('order') + 1;
+            $validated['order'] = Board::query()->where('project_id', $validated['project_id'] ?? null)->max('order') + 1;
         }
 
         $memberIds = $validated['user_ids'] ?? [];
@@ -67,10 +69,15 @@ class BoardController extends Controller
         $validated = $request->validate([
             'board_ids' => 'required|array',
             'board_ids.*' => 'integer|distinct|exists:boards,id',
+            'project_id' => 'nullable|integer|exists:projects,id',
         ]);
 
         DB::transaction(function () use ($validated) {
-            $boards = Board::query()->orderBy('id')->lockForUpdate()->get();
+            $boards = Board::query()
+                ->where('project_id', $validated['project_id'] ?? null)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
             $boardIds = collect($validated['board_ids'])->map(fn ($id) => (int) $id);
 
             abort_unless(

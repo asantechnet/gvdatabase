@@ -70,7 +70,8 @@ const configStore = useLayoutConfigStore()
 
     .layout-navbar {
       z-index: variables.$layout-horizontal-nav-layout-navbar-z-index;
-      block-size: variables.$layout-horizontal-nav-navbar-height;
+      block-size: 64px;
+      min-block-size: 64px;
 
       // ℹ️ For now we are not independently managing navbar and horizontal nav so we won't use below style to avoid conflicting with combo style of navbar and horizontal nav
       // If we add independent style of navbar & horizontal nav then we have to add :not for avoiding conflict with combo styles
@@ -88,6 +89,7 @@ const configStore = useLayoutConfigStore()
     // 👉 Navbar
     .navbar-content-container {
       @include mixins.boxed-content;
+      min-block-size: 64px;
     }
 
     // 👉   Content height fixed

@@ -10,12 +10,14 @@ use App\Models\RecurringEvent;
 use App\Models\RecurringEventOccurrence;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\CurrencyConversionService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class RecurringEventService
 {
+    public function __construct(private readonly CurrencyConversionService $currencies) {}
     public function processDueEvents(): int
     {
         $processed = 0;
@@ -107,16 +109,18 @@ class RecurringEventService
     {
         $data = $event->payload;
         $currency = Currency::findOrFail($data['currency_id']);
-        $base = Currency::where('is_base', true)->firstOrFail();
-        return Income::create([...$data, 'date' => $occurrence->occurrence_date, 'quantity' => $data['quantity'] ?? 1, 'rate' => $data['rate'] ?? $currency->rate, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $base->code]);
+        $snapshot = $this->currencies->snapshot($currency);
+        unset($data['rate'], $data['base_amount'], $data['base_currency_id']);
+        return Income::create([...$data, 'date' => $occurrence->occurrence_date, 'quantity' => $data['quantity'] ?? 1, ...$snapshot]);
     }
 
     private function createExpense(RecurringEvent $event, RecurringEventOccurrence $occurrence): Expense
     {
         $data = $event->payload;
         $currency = Currency::findOrFail($data['currency_id']);
-        $base = Currency::where('is_base', true)->firstOrFail();
-        return Expense::create([...$data, 'date' => $occurrence->occurrence_date, 'quantity' => $data['quantity'] ?? 1, 'rate' => $data['rate'] ?? $currency->rate, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $base->code]);
+        $snapshot = $this->currencies->snapshot($currency);
+        unset($data['rate'], $data['base_amount'], $data['base_currency_id']);
+        return Expense::create([...$data, 'date' => $occurrence->occurrence_date, 'quantity' => $data['quantity'] ?? 1, ...$snapshot]);
     }
 
     private function createTask(RecurringEvent $event, RecurringEventOccurrence $occurrence, User $user): Task

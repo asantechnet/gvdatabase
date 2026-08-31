@@ -7,6 +7,7 @@ use App\Models\Currency;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\PaymentDetail;
+use App\Services\CurrencyConversionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -14,11 +15,15 @@ use Illuminate\Validation\ValidationException;
 
 class InvoiceController extends Controller
 {
+    public function __construct(private readonly CurrencyConversionService $currencies)
+    {
+    }
+
     public function index(Request $request)
     {
         $this->repairMissingInvoiceNumbers();
 
-        $query = Invoice::with(['customer', 'currency', 'services', 'incomes']);
+        $query = Invoice::with(['customer', 'currency', 'services', 'incomes', 'recorder']);
 
         $query->when($request->filled('customer_id'), fn ($query) =>
             $query->where('customer_id', $request->integer('customer_id'))
@@ -52,7 +57,7 @@ class InvoiceController extends Controller
                 'integer',
                 Rule::exists('currencies', 'id')->where('is_active', true),
             ],
-            'rate' => ['required', 'numeric', 'gt:0'],
+            'rate' => ['nullable', 'numeric', 'gt:0'],
             'class_type' => ['required', Rule::in(['Standard', 'Proforma', 'Credit Note', 'Debit Note'])],
             'issue_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
@@ -72,7 +77,10 @@ class InvoiceController extends Controller
             'payment_instructions.*' => ['string'],
         ]);
 
-        $invoice = DB::transaction(function () use ($validated) {
+        unset($validated['rate']);
+
+        $recordedBy = $request->user()->id;
+        $invoice = DB::transaction(function () use ($validated, $recordedBy) {
             $customer = Customer::with('customerServices.service.currency')
                 ->findOrFail($validated['customer_id']);
             $invoiceCurrency = Currency::findOrFail($validated['currency_id']);
@@ -87,7 +95,8 @@ class InvoiceController extends Controller
                 ]);
             }
 
-            $baseCurrency = Currency::query()->where('is_base', true)->firstOrFail();
+            $baseCurrency = $this->currencies->currentBase();
+            $invoiceRate = $this->currencies->rate($invoiceCurrency);
 
             $pivotRows = [];
             $subtotal = 0.0;
@@ -104,8 +113,7 @@ class InvoiceController extends Controller
 
                 $quantity = $row['quantity'] ?? 1;
                 $convertedFee = round(
-                    ((float) $service->fee / (float) $sourceCurrency->rate)
-                    * (float) $validated['rate'],
+                    $this->currencies->convert((float) $service->fee, $sourceCurrency, $invoiceCurrency, $invoiceCurrency->decimal_places),
                     $invoiceCurrency->decimal_places
                 );
                 $lineTotal = round($convertedFee * $quantity, 2);
@@ -116,9 +124,11 @@ class InvoiceController extends Controller
                     'snapshot_service_fee' => $service->fee,
                     'snapshot_service_currency_code' => $sourceCurrency->code,
                     'snapshot_service_currency_symbol' => $sourceCurrency->symbol,
+                    'snapshot_service_rate' => $this->currencies->rate($sourceCurrency),
                     'snapshot_cnv_curr_shrt' => $invoiceCurrency->code,
                     'snapshot_base_curr_shrt' => $baseCurrency->code,
-                    'snapshot_rate' => $validated['rate'],
+                    'snapshot_rate' => $invoiceRate,
+                    'snapshot_invoice_rate' => $invoiceRate,
                     'snapshot_converted_fee' => $convertedFee,
                     'quantity' => $quantity,
                     'line_total' => $lineTotal,
@@ -134,6 +144,7 @@ class InvoiceController extends Controller
                 : null;
 
             $invoice = Invoice::create([
+                'recorded_by' => $recordedBy,
                 'customer_id' => $customer->id,
                 'currency_id' => $invoiceCurrency->id,
                 'class_type' => $validated['class_type'],
@@ -150,8 +161,9 @@ class InvoiceController extends Controller
                 'currency_name' => $invoiceCurrency->name,
                 'cnv_curr_shrt' => $invoiceCurrency->code,
                 'base_curr_shrt' => $baseCurrency->code,
-                'rate' => $validated['rate'],
-                'base_amount' => round($amount * (float) $validated['rate'], 4),
+                'base_currency_id' => $baseCurrency->id,
+                'rate' => $invoiceRate,
+                'base_amount' => $this->currencies->toCurrentBase($amount, $invoiceCurrency),
                 'currency_symbol' => $invoiceCurrency->symbol,
                 'currency_shortname' => $invoiceCurrency->code,
                 'subtotal' => $subtotal,
@@ -172,7 +184,7 @@ class InvoiceController extends Controller
             return $invoice;
         });
 
-        return (new InvoiceResource($invoice->load(['customer', 'currency', 'services', 'incomes'])))
+        return (new InvoiceResource($invoice->load(['customer', 'currency', 'services', 'incomes', 'recorder'])))
             ->response()
             ->setStatusCode(201);
     }
@@ -181,7 +193,7 @@ class InvoiceController extends Controller
     {
         $invoice->assignDocumentNumber();
 
-        return new InvoiceResource($invoice->load(['customer', 'currency', 'services', 'incomes']));
+        return new InvoiceResource($invoice->load(['customer', 'currency', 'services', 'incomes', 'recorder']));
     }
 
     public function update()
@@ -211,7 +223,7 @@ class InvoiceController extends Controller
             'void_reason' => $validated['reason'],
         ]);
 
-        return new InvoiceResource($invoice->load(['customer', 'currency', 'services', 'incomes']));
+        return new InvoiceResource($invoice->load(['customer', 'currency', 'services', 'incomes', 'recorder']));
     }
 
     public function destroy()

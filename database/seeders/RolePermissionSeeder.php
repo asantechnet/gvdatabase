@@ -20,7 +20,7 @@ class RolePermissionSeeder extends Seeder
             'admin' => array_values(array_diff($all, [
                 'view_users', 'create_users', 'edit_users', 'delete_users', 'manage_user_status', 'assign_user_roles',
                 'view_roles', 'manage_role_permissions', 'view_permissions',
-                'view_audit_logs', 'view_deleted_records', 'review_audit_logs', 'revert_audit_changes',
+                'view_audit_logs', 'view_deleted_records', 'review_audit_logs', 'revert_audit_changes', 'manage_audit_scope',
             ])),
 
             // Supervises operational work and all task work. Destructive financial and system actions remain excluded.
@@ -48,6 +48,7 @@ class RolePermissionSeeder extends Seeder
                 'view_stocks', 'create_stocks', 'edit_stocks',
                 'view_currencies', 'view_financial_reports',
                 'view_all_boards', 'view_assigned_boards', 'create_boards', 'edit_all_boards', 'edit_assigned_boards', 'reorder_boards', 'assign_board_members',
+                'view_projects', 'create_projects', 'edit_projects', 'delete_projects',
                 'view_all_tasks', 'view_assigned_tasks', 'create_tasks', 'edit_all_tasks', 'edit_assigned_tasks', 'move_all_tasks', 'move_assigned_tasks',
                 'assign_task_members', 'manage_task_dependencies', 'manage_task_tags', 'view_task_tags',
                 'create_subtasks_on_assigned_tasks', 'edit_all_subtasks', 'edit_own_subtasks', 'delete_all_subtasks', 'delete_own_subtasks',

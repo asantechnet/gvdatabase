@@ -12,7 +12,8 @@ class AuditLog extends Model
 
     protected $fillable = [
         'event', 'table_name', 'auditable_type', 'auditable_id', 'user_id', 'employee_id',
-        'old_values', 'new_values', 'changed_columns', 'review_status', 'reviewed_by', 'reviewed_at',
+        'subject_type', 'subject_label', 'old_values', 'new_values', 'changed_columns',
+        'review_status', 'reviewed_by', 'reviewed_at', 'audited_by', 'audited_at',
         'url', 'method', 'ip_address',
     ];
 
@@ -23,6 +24,7 @@ class AuditLog extends Model
             'new_values' => 'array',
             'changed_columns' => 'array',
             'reviewed_at' => 'datetime',
+            'audited_at' => 'datetime',
         ];
     }
 
@@ -39,5 +41,10 @@ class AuditLog extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by')->withTrashed();
+    }
+
+    public function auditor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'audited_by')->withTrashed();
     }
 }

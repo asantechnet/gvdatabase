@@ -15,7 +15,7 @@ export interface BonusRules {
   amount_per_point: number
   maximum_monthly_bonus: number
   excluded_employee_ids: number[]
-  excluded_departments: string[]
+  excluded_office_ids: number[]
 }
 
 export interface BonusRuleSet { id: number; name: string; version: number; is_active: boolean; rules: BonusRules; updated_at: string }

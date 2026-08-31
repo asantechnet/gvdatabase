@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
-import { clearAuthTokens, getAccessToken, getRefreshToken, isRememberedSession, storeAuthTokens } from '@/utils/authStorage'
+import { clearAuthTokens, getAccessToken, getRefreshToken, isRememberedSession, storeAuthTokens, type AuthTokens } from '@/utils/authStorage'
 import { apiErrorMessage, apiFieldErrors, type ApiError } from '@/utils/apiErrors'
 import { isApiRequestAllowed, permissionsForApiRequest } from '@/utils/apiAuthorization'
 import { validateApiRequest } from '@/utils/apiValidation'
@@ -14,6 +14,29 @@ const api: AxiosInstance = axios.create({
     'Accept': 'application/json',
   },
 })
+
+// Refresh tokens are single-use. A shared renewal promise prevents several
+// expired requests from racing and accidentally rotating the same token twice.
+let refreshRequest: Promise<AuthTokens> | null = null
+
+const renewSession = (refreshToken: string): Promise<AuthTokens> => {
+  if (!refreshRequest) {
+    refreshRequest = axios.post(`${import.meta.env.VITE_API_BASE_URL || '/api'}/auth/refresh-token`, {
+      refresh_token: refreshToken,
+      remember: isRememberedSession(),
+    }, {
+      headers: { 'Accept-Language': currentLocale() },
+    }).then(response => {
+      const tokens = response.data.data as AuthTokens
+      storeAuthTokens(tokens, isRememberedSession())
+      return tokens
+    }).finally(() => {
+      refreshRequest = null
+    })
+  }
+
+  return refreshRequest
+}
 
 // Request interceptor for adding the authorization token
 api.interceptors.request.use(
@@ -32,7 +55,8 @@ api.interceptors.request.use(
         handled: true,
       }
 
-      if (typeof window !== 'undefined')
+      const suppressErrorNotification = config.headers?.['X-Suppress-Error-Notification'] === 'true'
+      if (typeof window !== 'undefined' && !suppressErrorNotification)
         window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))
 
       return Promise.reject(apiError)
@@ -93,29 +117,19 @@ api.interceptors.response.use(
     if ((error as ApiError).handled)
       return Promise.reject(error)
 
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined
 
     // Handle 401 Unauthorized (token expired)
-    const isPublicAuthRequest = originalRequest.url?.includes('/auth/login')
-      || originalRequest.url?.includes('/auth/refresh-token')
+    const isPublicAuthRequest = originalRequest?.url?.includes('/auth/login')
+      || originalRequest?.url?.includes('/auth/refresh-token')
 
-    if (error.response?.status === 401 && !originalRequest._retry && !isPublicAuthRequest) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isPublicAuthRequest) {
       originalRequest._retry = true
 
       try {
         const refreshToken = getRefreshToken()
         if (refreshToken) {
-          const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || '/api'}/auth/refresh-token`, {
-            refresh_token: refreshToken,
-            remember: isRememberedSession(),
-          }, {
-            headers: {
-              'Accept-Language': currentLocale(),
-            },
-          })
-
-          const tokens = response.data.data
-          storeAuthTokens(tokens, isRememberedSession())
+          const tokens = await renewSession(refreshToken)
 
           // Retry the original request with the new token
           originalRequest.headers.Authorization = `Bearer ${tokens.access_token}`

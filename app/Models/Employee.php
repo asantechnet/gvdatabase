@@ -31,7 +31,6 @@ class Employee extends Model
         'employment_type',
         'office_id',
         'salary',
-        'tax_number',
         'bank_account_number',
         'total_worked_hours',
         'ID_file',
@@ -51,6 +50,11 @@ class Employee extends Model
     public function contracts(): HasMany
     {
         return $this->hasMany(Contract::class);
+    }
+
+    public function stockAllocations(): HasMany
+    {
+        return $this->hasMany(StockAllocation::class);
     }
 
     public function worthyEmployees(): HasMany

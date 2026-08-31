@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Notification;
 use App\Models\User;
+use App\Support\AuditRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -24,7 +25,7 @@ trait Auditable
             }
 
             $changes = collect($model->getChanges())
-                ->except(['updated_at', 'deleted_at'])
+                ->except($model->auditExcludedAttributes())
                 ->all();
 
             if ($changes !== []) {
@@ -52,7 +53,10 @@ trait Auditable
 
     protected function auditExcludedAttributes(): array
     {
-        return ['created_at', 'updated_at', 'deleted_at', 'password', 'remember_token', 'two_factor_secret'];
+        return [
+            'id', 'created_at', 'updated_at', 'deleted_at', 'password', 'remember_token',
+            'two_factor_secret', 'mail_password', 'calculation_hash',
+        ];
     }
 
     /** Do not audit a user or employee updating their own profile. */
@@ -81,12 +85,18 @@ trait Auditable
 
     private function writeAudit(string $event, array $oldValues, array $newValues, bool $notify = false): void
     {
+        if (! AuditRegistry::enabled($this)) {
+            return;
+        }
+
         $request = app()->bound('request') ? request() : null;
         $audit = AuditLog::create([
             'event' => $event,
             'table_name' => $this->getTable(),
             'auditable_type' => static::class,
             'auditable_id' => $this->getKey(),
+            'subject_type' => AuditRegistry::keyFor($this),
+            'subject_label' => AuditRegistry::subjectLabel($this),
             'user_id' => auth()->id(),
             'employee_id' => auth()->check()
                 ? Employee::withTrashed()->where('user_id', auth()->id())->value('id')
@@ -100,18 +110,16 @@ trait Auditable
         ]);
 
         if ($notify && auth()->check()) {
-            $columns = $audit->changed_columns === [] ? 'the record' : implode(', ', $audit->changed_columns);
             $notification = Notification::create([
                 'type' => 'audit',
                 'notification_key' => "audit.{$event}",
                 'data' => [
                     'audit_log_id' => $audit->id,
-                    'table' => $audit->table_name,
-                    'row_id' => $audit->auditable_id,
-                    'columns' => $columns,
+                    'resource' => $audit->subject_type,
+                    'record' => $audit->subject_label,
                 ],
                 'date_time' => now(),
-                'go_to_url' => '/audit-logs/'.$audit->id,
+                'go_to_url' => '/audits?audit='.$audit->id,
             ]);
 
             $recipients = User::query()

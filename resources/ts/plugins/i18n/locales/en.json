@@ -151,6 +151,10 @@
       "spotBonus": "Spot bonus",
       "all": "All",
       "software": "Software",
+      "utilities": "Utilities",
+      "softwareSaas": "Software / SaaS",
+      "officeSupplies": "Office supplies",
+      "travelDining": "Travel & dining",
       "salaries": "Salaries",
       "marketing": "Marketing",
       "supplies": "Supplies",
@@ -180,6 +184,8 @@
       "serviceScheduleHint": "The service type is fixed. Choose the agreed delivery deadline, or leave it empty when there is no deadline.",
       "taskFormHint": "Use a clear action title, set a realistic deadline, then add labels and owners.",
       "notAvailable": "Not available",
+      "yes": "Yes",
+      "no": "No",
       "noRecordsFound": "No records found",
       "loading": "Loading…",
       "security": "Security",
@@ -190,6 +196,8 @@
       "couldNotOpenPrintWindowPleaseAllowPopUpsForThisSite": "Could not open print window. Please allow pop-ups for this site.",
       "filterByStatus": "Filter By Status",
       "filters": "Filters",
+      "recordedBy": "Recorded by",
+      "systemLegacy": "System / legacy",
       "contact": "Contact",
       "marketer": "Marketer",
       "services": "Services",
@@ -399,7 +407,8 @@
       "visitor": "Visitors",
       "companies": "Companies",
       "otherContracts": "Other contracts",
-      "contractTemplates": "Contract templates"
+      "contractTemplates": "Contract templates",
+      "audits": "Audits"
     },
     "tables": {},
     "dateTime": {},
@@ -572,6 +581,181 @@
           "contractPOLICIESTERMS": "CONTRACT POLICIES & TERMS",
           "reset": "Reset",
           "deleteTemplate2": "Delete Template?",
+          "contractTemplate": {
+            "contractType": "Contract Type",
+            "selectContractType": "Select a contract type",
+            "system": "System",
+            "custom": "Custom",
+            "inactive": "Inactive",
+            "systemType": "System type",
+            "systemTypeAvailable": "System type — always available",
+            "customType": "Custom type",
+            "currentlyInactive": "currently inactive",
+            "protectedSystemType": "Protected system type",
+            "deleteCustomType": "Delete custom type",
+            "addContractType": "Add Contract Type",
+            "typeName": "Type name",
+            "typeNameExample": "e.g. Service Agreement",
+            "create": "Create",
+            "deleteContractType": "Delete contract type",
+            "deleteTypePrompt": "Delete the custom contract type “{name}”?",
+            "deleteTypeHint": "Types used by templates or contracts cannot be removed and will be deactivated instead.",
+            "position": "Position",
+            "positionHint": "The template becomes dedicated to this job position.",
+            "templateContext": "Template context:",
+            "employmentPlaceholderHint": "Employee, position, and employer placeholders are available below.",
+            "generalPlaceholderHint": "Only general contract placeholders are available for custom types.",
+            "policyHelpers": "Policy helpers",
+            "insertPolicyClause": "Insert a policy clause",
+            "noReusableClauses": "No reusable clauses yet.",
+            "editTemplate": "Edit Template",
+            "createNewTemplate": "Create New Template",
+            "updateTemplate": "Update Template",
+            "saveTemplate": "Save Template",
+            "employmentContractName": "{position} Employment Contract",
+            "types": {
+              "employment": "Employment",
+              "customer": "Customer",
+              "company": "Company"
+            },
+            "validation": {
+              "contractTypeRequired": "Contract type is required",
+              "nameRequired": "A name is required",
+              "maximumCharacters": "Maximum {count} characters",
+              "positionRequired": "A position is required for an employment template"
+            },
+            "messages": {
+              "loadTypesError": "Failed to load contract types.",
+              "typeCreated": "Contract type “{name}” was created.",
+              "createTypeError": "Failed to create the contract type.",
+              "typeDeleted": "Contract type deleted.",
+              "typeDeactivated": "This contract type is in use and has been deactivated instead of deleted.",
+              "loadTemplatesError": "Failed to load templates.",
+              "selectTypeBeforeSaving": "Select a contract type before saving the template.",
+              "unknownPlaceholders": "Unknown or unavailable placeholders: {placeholders}",
+              "templateUpdated": "Template updated successfully.",
+              "templateCreated": "Template created successfully.",
+              "saveTemplateError": "Failed to save template.",
+              "loadTemplateDetailsError": "Failed to load template details.",
+              "templateDeleted": "Template deleted successfully.",
+              "templateInUse": "This template is used by existing contracts and cannot be deleted."
+            },
+            "editor": {
+              "font": "Font",
+              "size": "Size",
+              "startWriting": "Start writing the contract…",
+              "linkUrl": "Link URL",
+              "undo": "Undo",
+              "redo": "Redo",
+              "bold": "Bold",
+              "italic": "Italic",
+              "underline": "Underline",
+              "strikethrough": "Strikethrough",
+              "heading": "Heading {level}",
+              "align": {
+                "left": "Align left",
+                "center": "Align center",
+                "right": "Align right",
+                "justify": "Justify"
+              },
+              "bulletList": "Bullet list",
+              "numberedList": "Numbered list",
+              "quote": "Quote",
+              "insertLink": "Insert link",
+              "rtlParagraph": "Right-to-left paragraph",
+              "ltrParagraph": "Left-to-right paragraph",
+              "fontFamily": "Font family",
+              "fontSize": "Font size",
+              "textColor": "Text color",
+              "insertPlaceholder": "Insert Placeholder",
+              "noPlaceholders": "No placeholders are available for this contract type"
+            },
+            "placeholders": {
+              "employee": {
+                "label": "Employee",
+                "fields": {
+                  "name": "Full Name",
+                  "father_name": "Father Name",
+                  "national_id": "National ID",
+                  "phone": "Phone",
+                  "email": "Email",
+                  "address": "Address",
+                  "position": "Position",
+                  "department": "Department",
+                  "office": "Office",
+                  "start_date": "Start Date",
+                  "contract_duration": "Contract Duration",
+                  "salary": "Salary",
+                  "identity": "Identity Table"
+                }
+              },
+              "position": {
+                "label": "Position",
+                "fields": {
+                  "name": "Position Title",
+                  "description": "Description",
+                  "salary": "Base Salary"
+                }
+              },
+              "customer": {
+                "label": "Customer",
+                "fields": {
+                  "name": "Name",
+                  "company_name": "Company",
+                  "phone": "Phone",
+                  "email": "Email",
+                  "address": "Address",
+                  "tax_number": "Tax Number"
+                }
+              },
+              "company": {
+                "label": "Counterparty Company",
+                "fields": {
+                  "legal_name": "Legal Name",
+                  "trade_name": "Trade Name",
+                  "registration_number": "Registration Number",
+                  "tax_number": "Tax Number",
+                  "national_id": "National ID",
+                  "legal_form": "Legal Form",
+                  "email": "Email",
+                  "phone": "Phone",
+                  "website": "Website",
+                  "address_line": "Address Line",
+                  "city": "City",
+                  "province": "Province",
+                  "postal_code": "Postal Code",
+                  "country": "Country",
+                  "address": "Full Address",
+                  "industry": "Industry",
+                  "representative_name": "Representative Name",
+                  "representative_title": "Representative Title",
+                  "representative_phone": "Representative Phone",
+                  "representative_email": "Representative Email"
+                }
+              },
+              "our_company": {
+                "label": "Our Company",
+                "fields": {
+                  "name": "Company Name",
+                  "short_name": "Short Name",
+                  "email": "Email",
+                  "phone": "Phone",
+                  "address": "Address",
+                  "website": "Website",
+                  "business_licence": "Business Licence"
+                }
+              },
+              "contract": {
+                "label": "Contract",
+                "fields": {
+                  "number": "Contract Number",
+                  "start_date": "Start Date",
+                  "end_date": "End Date",
+                  "status": "Status"
+                }
+              }
+            }
+          },
           "policyLibrary": {
             "title": "Contract policies",
             "subtitle": "Reusable clauses that help authors build contract templates.",
@@ -743,10 +927,26 @@
         "appearancePage": "Appearance",
         "documentsPage": "Documents",
         "vuexyThemeColors": "Vuexy theme colors",
-        "themeColorsHint": "Choose only the theme colors you want to override. Unselected colors keep Vuexy's defaults.",
-        "primaryColor": "Primary",
-        "secondaryColor": "Secondary",
-        "tertiaryColor": "Tertiary",
+          "themeColorsHint": "Choose only the theme colors you want to override. Unselected colors keep Vuexy's defaults.",
+          "themeColorsPreviewHint": "Changes preview immediately in the application and are saved only when you select Save changes.",
+          "restoreVuexyDefaults": "Restore Vuexy defaults",
+          "brandColors": "Brand colours",
+          "brandColorsHint": "The colours used for primary and secondary actions.",
+          "feedbackColors": "Feedback colours",
+          "feedbackColorsHint": "Status colours used for successful, informational, warning, and error states.",
+          "lightModeSurfaces": "Light-mode canvas and surfaces",
+          "lightModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in light mode.",
+          "darkModeSurfaces": "Dark-mode canvas and surfaces",
+          "darkModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in dark mode.",
+          "primaryColor": "Primary",
+          "secondaryColor": "Secondary",
+          "successColor": "Success",
+          "infoColor": "Info",
+          "warningColor": "Warning",
+          "errorColor": "Error",
+          "applicationBackground": "Application background",
+          "cardsAndMenus": "Cards and menus",
+          "live": "Live",
         "notSet": "Not set",
         "headerNavbar": "Header Navbar",
         "footerBar": "Footer Bar",
@@ -760,7 +960,9 @@
         "builtInDesignWillBeUsed": "Built In Design Will Be Used",
         "assetHint": "{hint} · PNG, JPG, or WEBP up to 8 MB",
         "resetDefaults": "Reset Defaults",
-        "saveSettings": "Save Settings"
+          "saveSettings": "Save Settings",
+          "noChangesToSave": "There are no changes to save on this page.",
+          "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings."
       },
       "users": {
         "user": "User",
@@ -1033,6 +1235,13 @@
       }
     },
     "contracts": {
+      "shared": {
+        "contractAgreement": "Contract agreement",
+        "contractParties": "Contract parties",
+        "printPreview": "Preview the contract cover and pages using its saved template.",
+        "includePartyDetails": "Include core details for both contract parties",
+        "defaultTerms": "This agreement is made between the parties named in this contract."
+      },
       "allContracts": {
         "allContracts": {
           "counterparty": "Counterparty",
@@ -1152,6 +1361,11 @@
           "serviceLevelAgreement": "Service level agreement",
           "standardEmploymentTerms": "Standard employment terms",
           "searchContractOptions": "Search Contract Options"
+        }
+      },
+      "cancelledContracts": {
+        "cancelledContracts": {
+          "reviewClosedAgreements": "Review closed agreements and keep cancellation records easy to audit."
         }
       },
       "visitor": {
@@ -1541,9 +1755,275 @@
       "to": "To",
       "requestDays": "Request {count} day(s)",
       "rangeExceeds": "This range exceeds your remaining allowance of {count} day(s)."
+    },
+    "audits": {
+      "title": "Audits",
+      "subtitle": "Review important changes and choose which business areas should be audited.",
+      "openPage": "Open audits",
+      "sections": {
+        "records": "Rows to audit",
+        "resources": "Audited tables"
+      },
+      "columns": {
+        "action": "Action",
+        "record": "Record",
+        "change": "What changed",
+        "changedBy": "Changed by",
+        "when": "When",
+        "auditedBy": "Audited by",
+        "status": "Audit status",
+        "resource": "Business area",
+        "auditEnabled": "Audit new changes",
+        "lastChangedBy": "Setting changed by",
+        "lastChanged": "Setting changed",
+        "field": "Information",
+        "before": "Before",
+        "after": "After"
+      },
+      "filters": {
+        "notAudited": "Needs audit",
+        "audited": "Audited",
+        "all": "All",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "search": "Search by record or person",
+        "searchResources": "Search business areas",
+        "resource": "Business area",
+        "action": "Action",
+        "allResources": "All business areas",
+        "allActions": "All actions"
+      },
+      "events": {
+        "created": "Created",
+        "updated": "Changed",
+        "deleted": "Deleted",
+        "restored": "Restored",
+        "audit_scope_enabled": "Auditing enabled",
+        "audit_scope_disabled": "Auditing disabled",
+        "edit_window_overridden": "Late edit allowed",
+        "account_deactivation_requested": "Deactivation requested",
+        "account_deactivation_cancelled": "Deactivation cancelled",
+        "account_deactivation_approved": "Deactivation approved",
+        "account_deactivation_rejected": "Deactivation rejected",
+        "account_deactivated": "Account deactivated",
+        "account_reactivated": "Account reactivated",
+        "other": "Changed"
+      },
+      "states": {
+        "pending": "Needs audit",
+        "approved": "Kept",
+        "discarded": "Undone"
+      },
+      "actions": {
+        "view": "View audit details",
+        "close": "Close audit details",
+        "keep": "Keep change",
+        "undo": "Undo change",
+        "toggleResource": "Change auditing for {resource}"
+      },
+      "confirm": {
+        "keepTitle": "Keep this change?",
+        "keepText": "This confirms that the change is correct. The audit record will remain permanently.",
+        "undoTitle": "Undo this change?",
+        "undoText": "The affected record will be restored to its previous state. The audit record will remain permanently."
+      },
+      "messages": {
+        "kept": "Change kept and audit completed.",
+        "reverted": "Change undone and audit completed.",
+        "enabled": "New changes to {resource} will now be audited.",
+        "disabled": "New changes to {resource} will no longer be audited. Existing history remains available."
+      },
+      "errors": {
+        "load": "Could not load audits.",
+        "loadResources": "Could not load audited tables.",
+        "review": "Could not complete this audit.",
+        "scope": "Could not change the audit setting.",
+        "notFound": "That audit entry is no longer available."
+      },
+      "empty": {
+        "records": "No audit records match these filters.",
+        "resources": "No business areas match these filters."
+      },
+      "resources": {
+        "attendances": "Attendance",
+        "boards": "Task boards",
+        "comments": "Task comments",
+        "companies": "Companies",
+        "contract_policies": "Contract policies",
+        "contract_templates": "Contract templates",
+        "contract_types": "Contract types",
+        "contracts": "Contracts",
+        "currencies": "Currencies",
+        "customer_services": "Customer services",
+        "customers": "Customers",
+        "daily_reports": "Daily reports",
+        "employees": "Employees",
+        "expenses": "Expenses",
+        "incomes": "Income",
+        "invoices": "Invoices",
+        "marketers": "Marketers",
+        "offices": "Offices",
+        "paid_time_offs": "Paid time off",
+        "payment_details": "Payment methods",
+        "permissions": "Permissions",
+        "positions": "Positions",
+        "salaries": "Salaries",
+        "services": "Services",
+        "settings": "Company settings",
+        "stocks": "Stock",
+        "subtasks": "Subtasks",
+        "tags": "Task tags",
+        "task_attachments": "Task attachments",
+        "tasks": "Tasks",
+        "users": "Users",
+        "visitors": "Visitors",
+        "worthy_employees": "Bonus nominations",
+        "account_deactivations": "Account deactivations",
+        "audit_settings": "Audit settings",
+        "other": "Business record"
+      },
+      "fields": {
+        "employee": "Employee",
+        "user": "User",
+        "customer": "Customer",
+        "invoice": "Invoice",
+        "currency": "Currency",
+        "office": "Office",
+        "position": "Position",
+        "service": "Service",
+        "task": "Task",
+        "contractTemplate": "Contract template",
+        "contractType": "Contract type",
+        "company": "Company",
+        "paymentMethod": "Payment method",
+        "enabled": "Auditing",
+        "name": "Name",
+        "title": "Title",
+        "status": "Status",
+        "type": "Type",
+        "description": "Description",
+        "content": "Content",
+        "email": "Email",
+        "phone": "Phone",
+        "contact": "Contact",
+        "address": "Address",
+        "date": "Date",
+        "amount": "Amount",
+        "quantity": "Quantity",
+        "rate": "Exchange rate",
+        "salary": "Salary",
+        "priority": "Priority",
+        "progress": "Progress",
+        "reason": "Reason",
+        "notes": "Notes",
+        "isActive": "Active",
+        "isGranted": "Granted",
+        "isCompleted": "Completed",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "dueDate": "Due date",
+        "issueDate": "Issue date",
+        "serialNumber": "Serial number",
+        "item": "Item",
+        "model": "Model",
+        "condition": "Condition",
+        "editableUntil": "Editing deadline",
+        "overrideUsedAt": "Late edit used"
+      },
+      "scopeNotice": "Turning a business area off affects future changes only. Existing and pending audit records are never removed.",
+      "unknownRecord": "Business record",
+      "system": "System",
+      "notAuditedYet": "Not audited yet",
+      "noCreateColumns": "Created — no field list needed",
+      "createExplanation": "This record was created. Creation audits intentionally do not show database fields.",
+      "noUserFacingChanges": "No user-facing information to show.",
+      "otherInformation": "Other information",
+      "moreChanges": "and {count} more",
+      "valueSeparator": "·"
     }
   },
   "components": {
+    "dataTablePageKpis": {
+      "overview": "{title} overview",
+      "scrollHint": "Scroll tables sideways on small screens",
+      "recordsShown": "Records shown",
+      "recordedValueCurrentBase": "Recorded value (current base)",
+      "invoiceLinked": "Invoice-linked",
+      "incomeTypes": "Income types",
+      "customerLinked": "Customer-linked",
+      "expenseTypes": "Expense types",
+      "invoiceValueCurrentBase": "Invoice value (current base)",
+      "collectedCurrentBase": "Collected (current base)",
+      "outstandingCurrentBase": "Outstanding (current base)",
+      "unitsInStock": "Units in stock",
+      "inventoryValue": "Inventory value",
+      "needsReview": "Needs review",
+      "netPayrollCurrentBase": "Net payroll (current base)",
+      "workedDays": "Worked days",
+      "absentDays": "Absent days",
+      "baseSalaries": "Base salaries",
+      "assignedStaff": "Assigned staff",
+      "activePositions": "Active positions",
+      "companies": "Companies",
+      "activeServices": "Active services",
+      "pausedServices": "Paused services",
+      "awaitingDecision": "Awaiting decision",
+      "paidLeave": "Paid leave",
+      "teamMembers": "Team members",
+      "activeContracts": "Active contracts",
+      "expiringEnded": "Expiring / ended",
+      "counterparties": "Counterparties",
+      "companiesRepresented": "Companies represented",
+      "customersRepresented": "Customers represented",
+      "employeesRepresented": "Employees represented",
+      "staffRepresented": "Staff represented",
+      "officesRepresented": "Offices represented",
+      "positionsRepresented": "Positions represented",
+      "servicesRequested": "Services requested",
+      "marketingSources": "Marketing sources",
+      "paymentMethods": "Payment methods",
+      "instructionsSet": "Instructions set",
+      "recentlyAdded": "Recently added",
+      "activeAutomations": "Active automations",
+      "pausedAutomations": "Paused automations",
+      "eventTypes": "Event types",
+      "inactiveServices": "Inactive services",
+      "averageDuration": "Average duration",
+      "months": "{count} months",
+      "withoutOffice": "Without an office",
+      "activeCompanies": "Active companies",
+      "withRepresentative": "With a representative",
+      "profileIncomplete": "Profile incomplete",
+      "activeComplete": "Active / complete",
+      "needAttention": "Need attention",
+      "total": "Total {key}",
+      "typesRepresented": "Types represented",
+      "categoriesRepresented": "Categories represented",
+      "conditionsRepresented": "Conditions represented",
+      "currenciesRepresented": "Currencies represented",
+      "recordsCovered": "Records covered",
+      "pages": {
+        "visitors": { "title": "Visitors", "description": "Review visitor activity and maintain a clear record of every entry." },
+        "stockInventory": { "title": "Stock inventory", "description": "Keep inventory levels, condition, and assignments visible in one place." },
+        "staffSalaries": { "title": "Staff salaries", "description": "Review payroll records and surface payments that require attention." },
+        "staffDirectory": { "title": "Staff directory", "description": "See your team, their assignments, and records that need follow-up." },
+        "users": { "title": "Users", "description": "Manage access, invitations, and the current health of user accounts." },
+        "positions": { "title": "Positions", "description": "Review team roles, staffing levels, and position availability." },
+        "paymentDetails": { "title": "Payment details", "description": "Review payment activity and keep every transaction easy to trace." },
+        "paidTimeOff": { "title": "Paid time off", "description": "Review leave requests and make outstanding approvals easy to find." },
+        "invoiceOptions": { "title": "Invoice options", "description": "Configure reusable billing options and keep invoice workflows consistent." },
+        "hrOptions": { "title": "HR options", "description": "Manage the reusable settings that support your people operations." },
+        "financeOptions": { "title": "Finance options", "description": "Keep financial defaults organized and ready for everyday operations." },
+        "contractOptions": { "title": "Contract options", "description": "Maintain reusable templates and defaults that support your contracts." },
+        "services": { "title": "Services", "description": "Manage your service catalogue and quickly review its current availability." },
+        "invoices": { "title": "Invoices", "description": "Keep billing activity visible, from paid invoices to items that need attention." },
+        "companies": { "title": "Companies", "description": "Manage counterparties, their details, and the agreements connected to them." },
+        "cancelledContracts": { "title": "Cancelled contracts", "description": "Review closed agreements and keep cancellation records easy to audit." },
+        "customerDirectory": { "title": "Customer directory", "description": "Track customer relationships and their active services at a glance." },
+        "contracts": { "title": "Contracts", "description": "See the current contract portfolio and spot records that need follow-up." },
+        "policyLibrary": { "title": "Policy library", "description": "Keep reusable contract clauses organized and ready for every agreement." }
+      }
+    },
     "taskManager": {
       "frappeganttwrapper": {
         "noTasksAvailableToPlotOnTheTimeline": "No Tasks Available To Plot On The Timeline"
@@ -1570,7 +2050,11 @@
         "saveBonusInputs": "Save bonus inputs",
         "dueDate": "Due Date",
         "dependsOn": "Depends on",
-        "selectTasksThatMustBeCompletedBeforeThisOne": "Select tasks that must be completed before this one."
+        "selectTasksThatMustBeCompletedBeforeThisOne": "Select tasks that must be completed before this one.",
+        "linkedServices": "Linked services",
+        "projectServiceHint": "For project boards, only services selected on the project can be attached.",
+        "taskContent": "Task content",
+        "noTaskContent": "No task content has been provided."
       },
       "event": {
         "priority": "{priority} priority",
@@ -1588,7 +2072,16 @@
       "taskappshell": {
         "kanbanBoard": "Kanban Board",
         "ganttTimeline": "Gantt Timeline",
-        "todoMatrix": "Todo Matrix"
+        "todoMatrix": "Todo Matrix",
+        "allWork": "All work",
+        "newProject": "New project",
+        "createProject": "Create project",
+        "createProjectWorkspace": "Create a project workspace",
+        "projectWorkspaceDescription": "A project contains its own Kanban boards, tasks, subtasks, and linked services.",
+        "projectName": "Project name",
+        "targetDate": "Target date",
+        "linkedServices": "Linked services",
+        "selectProjectWorkspace": "Select project workspace"
       },
       "calendarview": {
         "scheduleTimelineView": "Schedule Timeline View",
@@ -1597,6 +2090,10 @@
         "subTasksCompleted": "Sub-tasks Completed",
         "itemProgress": "{completed} / {total} items",
         "noDescriptionProvidedForThisTask": "No description provided for this task.",
+        "taskContent": "Task content",
+        "results": "Results",
+        "noResultsRecorded": "No results have been recorded yet.",
+        "downloadAttachment": "Download attachment",
         "youAreAboutToDelete": "You are about to delete",
         "yesDeleteIt": "Yes, Delete It!"
       },
@@ -1605,7 +2102,13 @@
         "projectGanttTimeline": "Project Gantt Timeline"
       },
       "kanbanview": {
-        "projectBoard": "Project Board"
+        "projectBoard": "Project Board",
+        "attachments": "Attachments",
+        "viewAttachments": "View attachments",
+        "downloadAttachment": "Download attachment",
+        "taskFiles": "Task files",
+        "resultFiles": "Result files",
+        "noAttachments": "This task has no attached files."
       },
       "tasksettingsview": {
         "label": "Label",
@@ -1628,6 +2131,20 @@
         "descriptionNotes": "Description / Notes",
         "actionItemsTodos": "Action Items (Todos)",
         "completedProgress": "{completed} / {total} completed",
+        "taskContent": "Task content",
+        "noTaskContent": "No task content has been provided.",
+        "attachTaskFile": "Attach task file",
+        "attach": "Attach",
+        "results": "Results",
+        "saveResults": "Save results",
+        "recordTaskResults": "Record the task results...",
+        "noResultsRecorded": "No results have been recorded yet.",
+        "attachResultFile": "Attach result file",
+        "taskAttachments": "Task attachments",
+        "resultAttachments": "Result attachments",
+        "downloadAttachment": "Download attachment",
+        "removeAttachment": "Remove attachment",
+        "attachmentUploadFailed": "Unable to upload the attachment.",
         "addANewSubTask": "Add a new sub-task...",
         "noTaskSelected": "No Task Selected",
         "selectAMegaTaskFromTheListToManageItsActionItems": "Select a Mega-Task from the list to manage its action items.",
@@ -2310,19 +2827,19 @@
     "audit": {
       "created": {
         "title": "Record created",
-        "message": "A {table} record #{row} was created."
+        "message": "{resource} {record} was created."
       },
       "updated": {
         "title": "Record updated",
-        "message": "{table} record #{row} changed: {columns}."
+        "message": "{resource} {record} was changed."
       },
       "deleted": {
         "title": "Record deleted",
-        "message": "{table} record #{row} was deleted."
+        "message": "{resource} {record} was deleted."
       },
       "restored": {
         "title": "Record restored",
-        "message": "{table} record #{row} was restored."
+        "message": "{resource} {record} was restored."
       }
     },
     "account_deactivation": {

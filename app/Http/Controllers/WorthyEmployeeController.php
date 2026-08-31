@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\WorthyEmployeeResource;
 use App\Models\Employee;
 use App\Models\WorthyEmployee;
+use App\Services\CurrencyConversionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -13,8 +14,12 @@ use Illuminate\Validation\ValidationException;
 
 class WorthyEmployeeController extends Controller
 {
-    public function index(): AnonymousResourceCollection { return WorthyEmployeeResource::collection(WorthyEmployee::with('employee.user')->latest('bonus_month')->latest()->get()); }
-    public function show(WorthyEmployee $worthyEmployee): WorthyEmployeeResource { return new WorthyEmployeeResource($worthyEmployee->load('employee.user')); }
+    public function __construct(private readonly CurrencyConversionService $currencies)
+    {
+    }
+
+    public function index(): AnonymousResourceCollection { return WorthyEmployeeResource::collection(WorthyEmployee::with(['employee.user', 'currency'])->latest('bonus_month')->latest()->get()); }
+    public function show(WorthyEmployee $worthyEmployee): WorthyEmployeeResource { return new WorthyEmployeeResource($worthyEmployee->load(['employee.user', 'currency'])); }
 
     public function store(Request $request): WorthyEmployeeResource
     {
@@ -26,8 +31,18 @@ class WorthyEmployeeController extends Controller
         ]);
         if (!Employee::selectable()->whereKey($data['employeeId'])->exists()) throw ValidationException::withMessages(['employeeId' => ['business.employee_not_selectable']]);
         $suggested = (float) $data['suggestedAmount'];
-        $row = WorthyEmployee::create(['employee_id' => $data['employeeId'], 'performance_score' => $data['performanceScore'], 'eligibility_reason' => $data['eligibilityReason'], 'achievement_details' => $data['achievementDetails'], 'suggested_amount' => $suggested, 'selected_amount' => (float) ($data['selectedAmount'] ?? $suggested), 'selected_type' => $data['selectedType'], 'is_granted' => false, 'bonus_month' => ($data['bonusMonth'] ?? now()->format('Y-m')).'-01']);
-        return new WorthyEmployeeResource($row->load('employee.user'));
+        $base = $this->currencies->currentBase();
+        $selected = (float) ($data['selectedAmount'] ?? $suggested);
+        $row = WorthyEmployee::create([
+            'employee_id' => $data['employeeId'], 'performance_score' => $data['performanceScore'],
+            'eligibility_reason' => $data['eligibilityReason'], 'achievement_details' => $data['achievementDetails'],
+            'suggested_amount' => $suggested, 'selected_amount' => $selected, 'selected_type' => $data['selectedType'],
+            'is_granted' => false, 'bonus_month' => ($data['bonusMonth'] ?? now()->format('Y-m')).'-01',
+            'currency_id' => $base->id, 'base_currency_id' => $base->id, 'currency_code' => $base->code,
+            'currency_name' => $base->name, 'currency_symbol' => $base->symbol, 'currency_decimal_places' => $base->decimal_places,
+            'base_currency_code' => $base->code, 'rate' => 1, 'base_amount' => $selected,
+        ]);
+        return new WorthyEmployeeResource($row->load(['employee.user', 'currency']));
     }
 
     public function update(Request $request, WorthyEmployee $worthyEmployee): WorthyEmployeeResource
@@ -38,8 +53,8 @@ class WorthyEmployeeController extends Controller
         abort_if($worthyEmployee->salaries()->exists(), 422, 'business.bonus_already_in_salary');
         if (isset($data['selectedAmount'])) $worthyEmployee->selected_amount = $data['selectedAmount'];
         if (isset($data['selectedType'])) $worthyEmployee->selected_type = $data['selectedType'];
-        if (($data['isGranted'] ?? false) === true) { $worthyEmployee->is_granted = true; $worthyEmployee->granted_amount = $worthyEmployee->selected_amount; $worthyEmployee->granted_at = now('UTC'); $worthyEmployee->granted_by = $request->user()->id; }
-        $worthyEmployee->save(); return new WorthyEmployeeResource($worthyEmployee->fresh()->load('employee.user'));
+        if (($data['isGranted'] ?? false) === true) { $worthyEmployee->is_granted = true; $worthyEmployee->granted_amount = $worthyEmployee->selected_amount; $worthyEmployee->base_amount = round((float) $worthyEmployee->granted_amount / max((float) ($worthyEmployee->rate ?: 1), 0.00000001), 4); $worthyEmployee->granted_at = now('UTC'); $worthyEmployee->granted_by = $request->user()->id; }
+        $worthyEmployee->save(); return new WorthyEmployeeResource($worthyEmployee->fresh()->load(['employee.user', 'currency']));
     }
 
     public function destroy(WorthyEmployee $worthyEmployee): JsonResponse { abort_if($worthyEmployee->is_granted || $worthyEmployee->salaries()->exists(), 422, 'business.granted_bonus_immutable'); $worthyEmployee->delete(); return response()->json(['message' => 'Candidate successfully dismissed.']); }

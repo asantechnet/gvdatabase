@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\ThemePalette;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,21 +21,19 @@ class UpsertSettingRequest extends FormRequest
             'navigation_clr' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'cards_clr' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'footer_clr' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'primary_color' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'secondary_color' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'tertiary_color' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            ...collect(ThemePalette::fields())
+                ->mapWithKeys(fn (string $field) => [$field => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/']])
+                ->all(),
             'paid_off_days_per_year' => [$required, 'integer', 'min:0', 'max:366'],
             'website_title' => [$required, 'string', 'max:255'],
             'website_logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:2048'],
             'company_signature' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
             'contract_letterhead' => [
                 'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192',
-                'dimensions:min_width=1000,min_height=1400',
                 Rule::prohibitedIf(fn () => $this->boolean('remove_contract_letterhead')),
             ],
             'contract_cover_design' => [
                 'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192',
-                'dimensions:min_width=1000,min_height=1400',
                 Rule::prohibitedIf(fn () => $this->boolean('remove_contract_cover_design')),
             ],
             'contract_letterhead_safe_x' => ['sometimes', 'numeric', 'min:0', 'max:95'],

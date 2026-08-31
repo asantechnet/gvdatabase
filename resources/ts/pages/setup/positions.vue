@@ -34,8 +34,12 @@ const filteredPositions = computed(() => {
   })
 })
 
-const currency = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 const assignedLabel = (position: Position) => `${position.employee_count} staff / ${position.user_count} users`
+const formatSalary = (position: Position) => {
+  const precision = position.currency?.decimalPlaces ?? 2
+  const value = formatLocalizedNumber(Number(position.salary || 0), { minimumFractionDigits: precision, maximumFractionDigits: precision })
+  return `${position.currency?.symbol ?? ''}${value}${position.currency?.code ? ` ${position.currency.code}` : ''}`
+}
 
 async function loadPositions() {
   loading.value = true
@@ -112,7 +116,7 @@ onMounted(loadPositions)
 </script>
 
 <template>
-  <DataTablePageKpis :items="filteredPositions" title="Positions" description="Review team roles, staffing levels, and position availability." icon="tabler-briefcase" />
+  <DataTablePageKpis :items="filteredPositions" :base-currency="filteredPositions[0]?.currency ?? null" title="Positions" description="Review team roles, staffing levels, and position availability." icon="tabler-briefcase" />
   <VCard :title="$t('pages.settings.positions.positions')" :loading="loading">
     <template #subtitle>{{ $t('pages.settings.positions.hrJobTitlesAreSeparateFromAccountAccessRoles') }}</template>
     <VCardText>
@@ -132,7 +136,7 @@ onMounted(loadPositions)
     <ResponsiveDataTable :headers="headers" :items="filteredPositions" :loading="loading" item-value="id" class="text-no-wrap">
       <template #item.title="{ item }"><div class="font-weight-medium">{{ item.title }}</div></template>
       <template #item.description="{ item }"><span class="text-medium-emphasis">{{ item.description || '--' }}</span></template>
-      <template #item.salary="{ item }">{{ currency.format(Number(item.salary)) }}</template>
+      <template #item.salary="{ item }"><div class="font-weight-medium">{{ formatSalary(item) }}</div><div class="text-caption text-medium-emphasis">{{ item.currency?.code ? `Current-base salary · ${item.currency.code}` : 'Legacy currency not recorded' }}</div></template>
       <template #item.status="{ item }"><VChip size="small" label :color="item.status === 'active' ? 'success' : 'secondary'">{{ translateBackendValue(item.status) }}</VChip></template>
       <template #item.employee_count="{ item }">{{ assignedLabel(item) }}</template>
       <template #item.actions="{ item }">

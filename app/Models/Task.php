@@ -105,4 +105,9 @@ class Task extends Model
     {
         return $this->belongsToMany(Task::class, 'task_dependencies', 'task_id', 'depends_on_task_id');
     }
+
+    public function services(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class, 'task_service')->withTimestamps();
+    }
 }

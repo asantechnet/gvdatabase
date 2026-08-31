@@ -98,6 +98,9 @@ class AttendanceController extends Controller
                 'staff_id' => ['business.employee_not_selectable'],
             ]);
         }
+        if (Carbon::parse($validated['date'])->isFriday()) {
+            throw ValidationException::withMessages(['date' => ['business.friday_weekend_no_attendance']]);
+        }
 
         $employee = Employee::findOrFail($validated['staff_id']);
         $timezone = $company->timezone();
@@ -170,6 +173,9 @@ class AttendanceController extends Controller
         ]);
 
         $date = $request->input('date');
+        if (Carbon::parse($date)->isFriday()) {
+            return EmployeeResource::collection(collect());
+        }
 
         $unmarkedStaff = Employee::selectable()->whereDoesntHave('attendances', function ($query) use ($date) {
             $query->where('date', $date);

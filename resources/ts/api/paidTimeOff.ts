@@ -9,6 +9,8 @@ export interface PaidTimeOff {
   is_granted: boolean
   is_paid: boolean | null
   granted_at: string | null
+  approved_by?: number | null
+  approvedBy?: { id: number; name: string } | null
   employee?: { id: number; name: string; position: string | null }
 }
 

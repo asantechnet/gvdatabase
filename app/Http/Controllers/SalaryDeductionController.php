@@ -5,12 +5,15 @@ namespace App\Http\Controllers;
 use App\Http\Resources\SalaryDeductionResource;
 use App\Models\Salary;
 use App\Models\SalaryDeduction;
+use App\Services\SalaryExpenseSynchronizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class SalaryDeductionController extends Controller
 {
+    public function __construct(private readonly SalaryExpenseSynchronizer $expenses) {}
+
     public function index(Salary $salary): AnonymousResourceCollection
     {
         return SalaryDeductionResource::collection($salary->deductions()->orderBy('sort_order')->get());
@@ -18,13 +21,16 @@ class SalaryDeductionController extends Controller
 
     public function store(Request $request, Salary $salary): SalaryDeductionResource
     {
-        return new SalaryDeductionResource($salary->deductions()->create($this->validated($request)));
+        $deduction = $salary->deductions()->create($this->validated($request));
+        $this->expenses->sync($salary);
+        return new SalaryDeductionResource($deduction);
     }
 
     public function update(Request $request, Salary $salary, SalaryDeduction $deduction): SalaryDeductionResource
     {
         abort_unless($deduction->salary_id === $salary->id, 404);
         $deduction->update($this->validated($request));
+        $this->expenses->sync($salary);
 
         return new SalaryDeductionResource($deduction->fresh());
     }
@@ -33,6 +39,7 @@ class SalaryDeductionController extends Controller
     {
         abort_unless($deduction->salary_id === $salary->id, 404);
         $deduction->delete();
+        $this->expenses->sync($salary);
 
         return response()->json(['message' => 'Salary deduction deleted.']);
     }

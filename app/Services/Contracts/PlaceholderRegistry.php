@@ -107,6 +107,7 @@ class PlaceholderRegistry
                     ['key' => 'our_company.address', 'label' => 'Address'],
                     ['key' => 'our_company.website', 'label' => 'Website'],
                     ['key' => 'our_company.business_licence', 'label' => 'Business Licence'],
+                    ['key' => 'our_company.signatory_name', 'label' => 'Authorized Signatory'],
                 ],
             ],
             [
@@ -158,7 +159,7 @@ class PlaceholderRegistry
      * Our-company values come from the application's own settings record,
      * so there is no second "owner company" concept to maintain.
      */
-    public static function ourCompanyValues(): array
+    public static function ourCompanyValues(?string $signatoryName = null): array
     {
         $setting = Setting::query()->latest('id')->first();
 
@@ -170,6 +171,7 @@ class PlaceholderRegistry
             'address' => $setting?->physical_address,
             'website' => $setting?->website_address,
             'business_licence' => $setting?->business_licence,
+            'signatory_name' => $signatoryName,
         ];
     }
 }

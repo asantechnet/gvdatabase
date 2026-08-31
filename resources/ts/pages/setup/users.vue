@@ -17,8 +17,8 @@ const emptyForm = (): UserPayload => ({ name: '', email: '', phone: '', address:
 const form = ref<UserPayload>(emptyForm())
 
 const roles: UserRole[] = ['super_admin', 'admin', 'manager', 'staff', 'viewer']
-const statuses: UserStatus[] = ['active', 'inactive', 'suspended', 'deactivated']
-const editableStatuses: UserStatus[] = ['active', 'inactive', 'suspended']
+const statuses: UserStatus[] = ['active', 'inactive', 'deactivated']
+const editableStatuses: UserStatus[] = ['active', 'inactive']
 const headers = [
   { title: translate('pages.settings.users.user'), key: 'name' },
   { title: translate('common.messages.roles'), key: 'roles', sortable: false },
@@ -32,7 +32,7 @@ const filteredUsers = computed(() => users.value.filter(user => {
   const matchesSearch = `${user.name} ${user.email}`.toLowerCase().includes(search.value.toLowerCase())
   return matchesSearch && (!roleFilter.value || user.roles.includes(roleFilter.value)) && (!statusFilter.value || user.acc_status === statusFilter.value)
 }))
-const statusColor = (status: UserStatus) => ({ active: 'success', inactive: 'secondary', suspended: 'error', deactivated: 'warning' }[status])
+const statusColor = (status: UserStatus) => ({ active: 'success', inactive: 'secondary', deactivated: 'warning' }[status])
 const formatDate = (date: string | null) => date ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(date)) : '—'
 
 async function loadUsers() {

@@ -52,6 +52,7 @@ const emptyDashboard = (): DashboardData => ({
 
 const { global } = useTheme()
 const { locale } = useI18n()
+const isRtl = computed(() => ['fa-AF', 'ps-AF'].includes(locale.value))
 const t = (key: string, values?: Record<string, unknown>) => translate(`pages.dashboard.executive.${key}`, values)
 const dashboard = ref<DashboardData>(emptyDashboard())
 const isLoading = ref(false)
@@ -166,9 +167,11 @@ const serviceSeries = computed(() => [{ name: t('charts.activeCustomers'), data:
 const serviceOptions = computed(() => ({
   chart: { type: 'bar', toolbar: { show: false }, parentHeightOffset: 0 }, colors: [colorHex.primary],
   plotOptions: { bar: { horizontal: true, borderRadius: 5, barHeight: '58%', distributed: true } },
-  dataLabels: { enabled: false }, grid: { show: false }, legend: { show: false },
+  dataLabels: { enabled: false },
+  grid: { show: false, padding: isRtl.value ? { right: 128 } : { left: 128 } },
+  legend: { show: false },
   xaxis: { categories: dashboard.value.service_portfolio.map(item => item.label), labels: { style: { colors: chartTextColor.value }, formatter: (value: string) => formatNumber(Number(value)) }, axisBorder: { show: false }, axisTicks: { show: false } },
-  yaxis: { labels: { style: { colors: chartTextColor.value } } },
+  yaxis: { opposite: isRtl.value, labels: { minWidth: 112, maxWidth: 124, align: isRtl.value ? 'right' : 'left', offsetX: isRtl.value ? -8 : 8, style: { colors: chartTextColor.value } } },
   tooltip: { theme: global.current.value.dark ? 'dark' : 'light' }, noData: { text: t('charts.noActiveServices'), style: { color: chartTextColor.value } },
 }))
 const taskSeries = computed(() => dashboard.value.task_mix.map(item => item.value))

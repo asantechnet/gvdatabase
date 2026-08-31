@@ -60,7 +60,7 @@ class PlaceholderResolver
     {
         $values = [];
 
-        foreach (PlaceholderRegistry::ourCompanyValues() as $key => $value) {
+        foreach (PlaceholderRegistry::ourCompanyValues($context['company_signatory_name'] ?? null) as $key => $value) {
             $values["our_company.{$key}"] = $value;
         }
 

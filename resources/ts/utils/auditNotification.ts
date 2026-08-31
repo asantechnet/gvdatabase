@@ -5,14 +5,18 @@ export const auditLogIdFromNotification = (notification: AppNotification): numbe
   if (Number.isInteger(dataId) && dataId > 0)
     return dataId
 
-  const routeMatch = notification.go_to_url?.match(/^\/audit-logs\/(\d+)$/)
-  return routeMatch ? Number(routeMatch[1]) : null
+  const legacyMatch = notification.go_to_url?.match(/^\/audit-logs\/(\d+)$/)
+  if (legacyMatch) return Number(legacyMatch[1])
+
+  const pageMatch = notification.go_to_url?.match(/^\/audits\?(?:[^#]*&)?audit=(\d+)(?:&|$)/)
+  return pageMatch ? Number(pageMatch[1]) : null
 }
 
 export const openAuditNotification = (notification: AppNotification): boolean => {
   const isAudit = notification.type === 'audit'
     || notification.notification_key?.startsWith('audit.')
     || notification.go_to_url?.startsWith('/audit-logs/')
+    || notification.go_to_url?.startsWith('/audits?')
 
   if (!isAudit)
     return false

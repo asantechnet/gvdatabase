@@ -29,7 +29,7 @@ class InvoiceSeeder extends Seeder
                 $serviceRate = max((float) ($service->currency?->rate ?? 1), 0.00000001);
                 $invoiceRate = max((float) $currency->rate, 0.00000001);
                 $convertedFee = round(
-                    ((float) $service->fee * $serviceRate) / $invoiceRate,
+                    ((float) $service->fee / $serviceRate) * $invoiceRate,
                     $currency->decimal_places
                 );
                 $subtotal += $convertedFee;
@@ -39,9 +39,11 @@ class InvoiceSeeder extends Seeder
                     'snapshot_service_fee' => $service->fee,
                     'snapshot_service_currency_code' => $service->currency->code,
                     'snapshot_service_currency_symbol' => $service->currency->symbol,
+                    'snapshot_service_rate' => $serviceRate,
                     'snapshot_cnv_curr_shrt' => $currency->code,
                     'snapshot_base_curr_shrt' => $currency->code,
-                    'snapshot_rate' => 1,
+                    'snapshot_rate' => $invoiceRate,
+                    'snapshot_invoice_rate' => $invoiceRate,
                     'snapshot_converted_fee' => $convertedFee,
                     'quantity' => 1,
                     'line_total' => $convertedFee,
@@ -51,6 +53,7 @@ class InvoiceSeeder extends Seeder
             $invoice = Invoice::create([
                 'customer_id' => $customer->id,
                 'currency_id' => $currency->id,
+                'base_currency_id' => $currency->id,
                 'class_type' => 'Standard',
                 'deptor' => $customer->name,
                 'status' => 'Issued',

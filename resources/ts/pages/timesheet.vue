@@ -21,6 +21,7 @@ const getCurrentDate = () => {
 
 // Attendance records are always added for the current date.
 const logDate = ref<string>(getCurrentDate())
+const isFriday = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay() === 5
 
 const selectedStaffId = ref<number | null>(null)
 const checkInTime = ref<string>('')
@@ -82,6 +83,10 @@ const fetchUnmarkedStaff = async () => {
 // Log attendance for an employee on the dedicated logDate
 const logAttendance = async (status: 'present' | 'absent') => {
   if (!selectedStaffId.value) return
+  if (isFriday(logDate.value)) {
+    error.value = 'Friday is the Afghanistan weekend. Attendance cannot be recorded.'
+    return
+  }
 
   try {
     loading.value = true
@@ -314,11 +319,14 @@ watch(logDate, async () => {
               </VAvatar>
               <h3 class="text-h5 font-weight-bold">{{ $t('pages.attendance.timesheet.steps.logAttendance') }}</h3>
             </div>
+            <VAlert v-if="isFriday(logDate)" type="info" variant="tonal" class="mb-4">
+              Friday is the Afghanistan weekend. Attendance is not required or recorded today.
+            </VAlert>
 
             <!-- Dropdown Staff Selection -->
             <VSelect v-model="selectedStaffId" :items="availableStaff" item-title="name" item-value="id"
               :label="$t('pages.attendance.timesheet.timesheet.selectEmployee')" :placeholder="$t('pages.attendance.timesheet.timesheet.searchOrPickAnOption')" variant="outlined" density="comfortable"
-              class="mb-5" :loading="loading"
+              class="mb-5" :loading="loading" :disabled="isFriday(logDate)"
               :no-data-text="stats.pendingOnLogDate === 0 ? '🎉 All staff filled for this date!' : 'Select an employee'">
               <template #item="{ props, item }">
                 <VListItem v-bind="props" :title="item.raw.name" :subtitle="item.raw.position">
@@ -358,7 +366,7 @@ watch(logDate, async () => {
             <!-- Logger Submission Buttons -->
             <VRow class="ma-0 ga-3">
               <VCol class="pa-0">
-                <VBtn color="success" block size="large" variant="flat" :disabled="!selectedStaffId || loading"
+                <VBtn color="success" block size="large" variant="flat" :disabled="!selectedStaffId || loading || isFriday(logDate)"
                   @click="logAttendance('present')" class="action-btn-success font-weight-bold">
                   <VIcon icon="tabler-check" class="mr-2" size="18" />
                   {{ $t('common.statuses.present') }}
@@ -366,7 +374,7 @@ watch(logDate, async () => {
               </VCol>
 
               <VCol class="pa-0">
-                <VBtn color="error" block size="large" variant="flat" :disabled="!selectedStaffId || loading"
+                <VBtn color="error" block size="large" variant="flat" :disabled="!selectedStaffId || loading || isFriday(logDate)"
                   @click="logAttendance('absent')" class="action-btn-error font-weight-bold">
                   <VIcon icon="tabler-x" class="mr-2" size="18" />
                   {{ $t('pages.attendance.timesheet.timesheet.absent') }}
@@ -467,10 +475,11 @@ watch(logDate, async () => {
                 </thead>
                 <tbody>
                   <tr v-for="record in displayedRecords" :key="`${record.id}-${record.date}`"
-                    class="table-row-hover transition-all" :class="{ 'incomplete-session': record.status === 'present' && record.missing_punch_state !== 'none' }">
+                    class="table-row-hover transition-all" :class="{ 'incomplete-session': record.status === 'present' && record.missing_punch_state !== 'none', 'friday-weekend': isFriday(record.date) }">
                     <!-- Date Marked -->
                     <td class="py-3 px-4 font-weight-bold text-body-2 text-primary">
                       {{ formatLocalizedDate(`${record.date}T00:00:00`) }}
+                      <VChip v-if="isFriday(record.date)" size="x-small" color="info" variant="tonal" class="ml-2">Weekend</VChip>
                     </td>
 
                     <!-- Employee Name -->
@@ -534,9 +543,9 @@ watch(logDate, async () => {
                         size="small"
                         density="comfortable"
                         @click="viewDailyReport(record)"
-                      ><VTooltip activator="parent" location="top">{{ $t('pages.attendance.timesheet.timesheet.viewDailyReport') }}</VTooltip></VBtn>
+                      ><VIcon icon="tabler-file-text" /><VTooltip activator="parent" location="top">{{ $t('pages.attendance.timesheet.timesheet.viewDailyReport') }}</VTooltip></VBtn>
                       <VBtn icon="tabler-trash" variant="text" color="error" size="small" density="comfortable"
-                        @click="deleteRecord(record.id)" :loading="loading"><VTooltip activator="parent" location="top">{{ $t('pages.attendance.timesheet.timesheet.removeRecord') }}</VTooltip></VBtn>
+                        @click="deleteRecord(record.id)" :loading="loading"><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">{{ $t('pages.attendance.timesheet.timesheet.removeRecord') }}</VTooltip></VBtn>
                     </td>
                   </tr>
                 </tbody>

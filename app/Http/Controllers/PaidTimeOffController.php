@@ -89,7 +89,7 @@ class PaidTimeOffController extends Controller
                 $this->markAttendanceAsTimeOff($row->employee, $row->date->format('Y-m-d'), $isPaid);
             }
 
-            return $rows->load('employee.position');
+            return $rows->load(['employee.position', 'grantor']);
         });
 
         return response()->json(['success' => true, 'data' => PaidTimeOffResource::collection($rows)->resolve(), 'exceeded' => $exceeded]);

@@ -2,9 +2,16 @@ import api from './axios'
 
 export interface Setting {
   id: number
-  primary_color: string | null
-  secondary_color: string | null
-  tertiary_color: string | null
+  primary_color: string
+  secondary_color: string
+  success_color: string
+  info_color: string
+  warning_color: string
+  error_color: string
+  light_background_color: string
+  light_surface_color: string
+  dark_background_color: string
+  dark_surface_color: string
   paid_off_days_per_year: number
   website_title: string
   website_logo: string | null
@@ -44,7 +51,14 @@ export interface Setting {
 export interface SettingForm {
   primary_color?: string | null
   secondary_color?: string | null
-  tertiary_color?: string | null
+  success_color?: string | null
+  info_color?: string | null
+  warning_color?: string | null
+  error_color?: string | null
+  light_background_color?: string | null
+  light_surface_color?: string | null
+  dark_background_color?: string | null
+  dark_surface_color?: string | null
   paid_off_days_per_year: number
   website_title: string
   website_logo?: File | null
@@ -86,7 +100,7 @@ export interface ApiResponse<T> {
 
 const unwrap = <T>(response: any): T => response.data.data
 
-function toFormData(data: Partial<SettingForm>, method?: 'PUT') {
+function toFormData(data: Partial<SettingForm>) {
   const formData = new FormData()
 
   Object.entries(data).forEach(([key, value]) => {
@@ -107,10 +121,10 @@ function toFormData(data: Partial<SettingForm>, method?: 'PUT') {
     formData.append(key, String(value))
   })
 
-  if (method) formData.append('_method', method)
-
   return formData
 }
+
+const hasFiles = (data: Partial<SettingForm>) => Object.values(data).some(value => value instanceof File)
 
 const SettingApi = {
   getCompanyProfile: async (): Promise<ApiResponse<Setting | null>> => {
@@ -149,9 +163,7 @@ const SettingApi = {
   },
 
   update: async (id: number, data: Partial<SettingForm>): Promise<ApiResponse<Setting>> => {
-    const response = await api.post(`/settings/${id}`, toFormData(data, 'PUT'), {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const response = await api.patch(`/settings/${id}`, hasFiles(data) ? toFormData(data) : data)
 
     return {
       success: true,

@@ -2,11 +2,14 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\PresentsCurrentBaseMoney;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class IncomeResource extends JsonResource
 {
+    use PresentsCurrentBaseMoney;
+
     public function toArray(Request $request): array
     {
         $currency = $this->resource->incomeCurrency;
@@ -17,6 +20,7 @@ class IncomeResource extends JsonResource
             'customer_id' => $this->customer_id,
             'invoice_id' => $this->invoice_id,
             'currency_id' => $this->currency_id,
+            'base_currency_id' => $this->base_currency_id,
             'invoice_number' => $this->invoice?->invoice_number,
             'type' => $this->type,
             'description' => $this->description,
@@ -33,6 +37,11 @@ class IncomeResource extends JsonResource
             'base_curr_shrt' => $this->base_curr_shrt,
             'rate' => (float) $this->rate,
             'base_amount' => (float) $this->base_amount,
+            'currentBaseAmount' => $this->currentBaseAmount((float) $this->amount * (int) $this->quantity, $currency),
+            'currentBaseCurrency' => $this->currentBaseCurrencyData(),
+            'invoice_amount' => $this->invoice_amount === null ? null : (float) $this->invoice_amount,
+            'recorded_by' => $this->recorded_by,
+            'recordedBy' => $this->whenLoaded('recorder', fn () => $this->recorder ? ['id' => $this->recorder->id, 'name' => $this->recorder->name] : null),
             'date' => $this->date->toDateString(),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

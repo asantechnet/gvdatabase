@@ -6,6 +6,7 @@ use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasDocumentNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Invoice extends Model
 {
@@ -21,7 +22,7 @@ class Invoice extends Model
         'issue_date', 'due_date',
         'tax_percent',
         'currency_name',
-        'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',
+        'base_currency_id', 'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',
         'currency_symbol',
         'currency_shortname',
         'subtotal',
@@ -33,6 +34,7 @@ class Invoice extends Model
         'payment_instructions',
         'voided_at',
         'void_reason',
+        'recorded_by',
     ];
 
     protected $casts = [
@@ -73,8 +75,8 @@ class Invoice extends Model
                 'snapshot_name',
                 'snapshot_service_fee',
                 'snapshot_service_currency_code',
-                'snapshot_service_currency_symbol',
-                'snapshot_cnv_curr_shrt', 'snapshot_base_curr_shrt', 'snapshot_rate',
+                'snapshot_service_currency_symbol', 'snapshot_service_rate',
+                'snapshot_cnv_curr_shrt', 'snapshot_base_curr_shrt', 'snapshot_rate', 'snapshot_invoice_rate',
                 'snapshot_converted_fee',
                 'quantity',
                 'line_total',
@@ -92,6 +94,11 @@ class Invoice extends Model
         return $this->belongsTo(Currency::class);
     }
 
+    public function baseCurrency()
+    {
+        return $this->belongsTo(Currency::class, 'base_currency_id');
+    }
+
     public function incomes()
     {
         return $this->hasMany(Income::class);
@@ -100,5 +107,10 @@ class Invoice extends Model
     public function paymentDetail()
     {
         return $this->belongsTo(PaymentDetail::class);
+    }
+
+    public function recorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
     }
 }

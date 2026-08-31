@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Concerns\Auditable;
+use App\Support\AuditPresenter;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,85 +12,127 @@ use Illuminate\Support\Facades\DB;
 
 class AuditLogController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, AuditPresenter $presenter): JsonResponse
     {
-        return $this->list($request, 'view_audit_logs');
-    }
-
-    public function deleted(Request $request): JsonResponse
-    {
-        $request->merge(['event' => 'deleted']);
-
-        return $this->list($request, 'view_deleted_records');
-    }
-
-    private function list(Request $request, string $permission): JsonResponse
-    {
-        $this->authorizePermission($request, $permission);
+        $this->authorizePermission($request, 'view_audit_logs');
         $data = $request->validate([
-            'table' => ['nullable', 'string', 'max:255'],
-            'event' => ['nullable', 'in:created,updated,deleted,restored'],
-            'review_status' => ['nullable', 'in:pending,approved,discarded'],
-            'row_id' => ['nullable', 'integer'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'resource' => ['nullable', 'string', 'max:80'],
+            'event' => ['nullable', 'string', 'max:64'],
+            'audit_state' => ['nullable', 'in:pending,audited'],
+            'resolution' => ['nullable', 'in:pending,approved,discarded'],
+            'changed_by' => ['nullable', 'integer'],
+            'audited_by' => ['nullable', 'integer'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'search' => ['nullable', 'string', 'max:255'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
+            'sort' => ['nullable', 'in:created_at,audited_at'],
+            'direction' => ['nullable', 'in:asc,desc'],
         ]);
 
-        $logs = AuditLog::query()->with(['user:id,name,email', 'employee:id,name', 'reviewer:id,name,email'])
-            ->when(isset($data['table']), fn ($query) => $query->where('table_name', $data['table']))
+        $query = AuditLog::query()->with(['user:id,name,email', 'employee:id,name', 'auditor:id,name,email'])
+            ->when(isset($data['resource']), fn ($query) => $query->where('subject_type', $data['resource']))
             ->when(isset($data['event']), fn ($query) => $query->where('event', $data['event']))
-            ->when(isset($data['review_status']), fn ($query) => $query->where('review_status', $data['review_status']))
-            ->when(isset($data['row_id']), fn ($query) => $query->where('auditable_id', $data['row_id']))
-            ->latest()->paginate($data['per_page'] ?? 50);
+            ->when(($data['audit_state'] ?? null) === 'pending', fn ($query) => $query->whereNull('audited_at'))
+            ->when(($data['audit_state'] ?? null) === 'audited', fn ($query) => $query->whereNotNull('audited_at'))
+            ->when(isset($data['resolution']), fn ($query) => $query->where('review_status', $data['resolution']))
+            ->when(isset($data['changed_by']), fn ($query) => $query->where('user_id', $data['changed_by']))
+            ->when(isset($data['audited_by']), fn ($query) => $query->where('audited_by', $data['audited_by']))
+            ->when(isset($data['from']), fn ($query) => $query->whereDate('created_at', '>=', $data['from']))
+            ->when(isset($data['to']), fn ($query) => $query->whereDate('created_at', '<=', $data['to']))
+            ->when(isset($data['search']), function ($query) use ($data) {
+                $search = '%'.addcslashes($data['search'], '%_\\').'%';
+                $query->where(function ($nested) use ($search) {
+                    $nested->where('subject_label', 'like', $search)
+                        ->orWhereHas('user', fn ($user) => $user->where('name', 'like', $search))
+                        ->orWhereHas('employee', fn ($employee) => $employee->where('name', 'like', $search))
+                        ->orWhereHas('auditor', fn ($auditor) => $auditor->where('name', 'like', $search));
+                });
+            });
 
-        return response()->json($logs);
+        $paginator = $query
+            ->orderBy($data['sort'] ?? 'created_at', $data['direction'] ?? 'desc')
+            ->orderByDesc('id')
+            ->paginate($data['per_page'] ?? 25);
+        $paginator->setCollection($paginator->getCollection()->map(fn (AuditLog $audit) => $presenter->present($audit)));
+
+        return response()->json($paginator);
     }
 
-    public function show(Request $request, AuditLog $auditLog): JsonResponse
+    public function pendingCount(Request $request): JsonResponse
     {
         $this->authorizePermission($request, 'view_audit_logs');
 
-        return response()->json([
-            'success' => true,
-            'data' => $auditLog->load(['user:id,name,email', 'employee:id,name', 'reviewer:id,name,email']),
-        ]);
+        return response()->json(['data' => ['count' => AuditLog::query()->whereNull('audited_at')->count()]]);
     }
 
-    public function revert(Request $request, AuditLog $auditLog): JsonResponse
+    public function deleted(Request $request, AuditPresenter $presenter): JsonResponse
+    {
+        $request->merge(['event' => 'deleted']);
+
+        return $this->index($request, $presenter);
+    }
+
+    public function show(Request $request, AuditLog $auditLog, AuditPresenter $presenter): JsonResponse
+    {
+        $this->authorizePermission($request, 'view_audit_logs');
+
+        return response()->json(['success' => true, 'data' => $presenter->present($auditLog)]);
+    }
+
+    public function revert(Request $request, AuditLog $auditLog, AuditPresenter $presenter): JsonResponse
     {
         $this->authorizePermission($request, 'revert_audit_changes');
-        $model = $this->discard($auditLog, $request->user()->id);
+        $model = $this->discard($auditLog);
+        $this->markAudited($auditLog, $request->user()->id, 'discarded');
 
         return response()->json([
             'success' => true,
-            'message' => 'Change reverted. The revert has been added to the audit trail.',
-            'data' => $model->fresh(),
+            'message' => 'Change reverted and retained in the audit history.',
+            'data' => $presenter->present($auditLog->fresh()),
+            'record' => $model->fresh(),
         ]);
     }
 
-    public function review(Request $request, AuditLog $auditLog): JsonResponse
+    public function review(Request $request, AuditLog $auditLog, AuditPresenter $presenter): JsonResponse
     {
         $this->authorizePermission($request, 'review_audit_logs');
         $data = $request->validate(['decision' => ['required', 'in:approved,discarded']]);
-        abort_unless($auditLog->review_status === 'pending', 409, 'business.audit_already_reviewed');
+        abort_if($auditLog->audited_at, 409, 'business.audit_already_reviewed');
 
         if ($data['decision'] === 'discarded') {
             $this->discard($auditLog);
-        } else {
-            $auditLog->delete();
         }
+        $this->markAudited($auditLog, $request->user()->id, $data['decision']);
 
         return response()->json([
             'success' => true,
-            'message' => 'Audit change '.$data['decision'].' and removed.',
-            'audit_log_id' => $auditLog->id,
+            'message' => $data['decision'] === 'approved'
+                ? 'Change kept and retained in the audit history.'
+                : 'Change reverted and retained in the audit history.',
+            'data' => $presenter->present($auditLog->fresh()),
         ]);
+    }
+
+    private function markAudited(AuditLog $auditLog, int $userId, string $resolution): void
+    {
+        $auditLog->forceFill([
+            'review_status' => $resolution,
+            'audited_by' => $userId,
+            'audited_at' => now(),
+            // Keep legacy readers correct during the transition.
+            'reviewed_by' => $userId,
+            'reviewed_at' => now(),
+        ])->save();
     }
 
     private function discard(AuditLog $auditLog): Model
     {
         return DB::transaction(function () use ($auditLog) {
+            $auditLog->refresh();
             $model = $this->auditedModel($auditLog);
-            abort_if($auditLog->review_status !== 'pending', 409, 'business.audit_already_reviewed');
+            abort_if($auditLog->audited_at, 409, 'business.audit_already_reviewed');
             abort_if(
                 AuditLog::query()
                     ->where('auditable_type', $auditLog->auditable_type)
@@ -102,15 +145,13 @@ class AuditLogController extends Controller
 
             if ($auditLog->event === 'deleted') {
                 abort_unless($model->trashed(), 409, 'business.audit_row_not_deleted');
-                $model->restore();
+                Model::withoutEvents(fn () => $model->restore());
             } elseif ($auditLog->event === 'updated') {
                 abort_if($model->trashed(), 409, 'business.audit_row_deleted');
-                $model->forceFill($auditLog->old_values ?? [])->save();
+                Model::withoutEvents(fn () => $model->forceFill($auditLog->old_values ?? [])->save());
             } else {
                 abort(422, 'business.audit_event_not_revertible');
             }
-
-            $auditLog->delete();
 
             return $model;
         });

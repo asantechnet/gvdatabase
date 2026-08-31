@@ -23,13 +23,17 @@ class BonusRuleService
         'amount_per_point' => 10,
         'maximum_monthly_bonus' => 1000,
         'excluded_employee_ids' => [],
-        'excluded_departments' => [],
+        'excluded_office_ids' => [],
     ];
 
     public function active(): BonusRuleSet
     {
-        return BonusRuleSet::query()->where('is_active', true)->latest('version')->first()
+        $active = BonusRuleSet::query()->where('is_active', true)->latest('version')->first()
             ?? BonusRuleSet::create(['rules' => self::DEFAULTS]);
+        if (array_key_exists('excluded_departments', $active->rules ?? [])) {
+            $active->update(['rules' => [...self::DEFAULTS, ...$active->rules, 'excluded_office_ids' => $active->rules['excluded_office_ids'] ?? []]]);
+        }
+        return $active;
     }
 
     public function update(array $rules, User $user): BonusRuleSet

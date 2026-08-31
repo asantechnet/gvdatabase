@@ -35,8 +35,8 @@ class AutomationController extends Controller
             'maximum_monthly_bonus' => ['required', 'numeric', 'min:0'],
             'excluded_employee_ids' => ['present', 'array'],
             'excluded_employee_ids.*' => ['integer', 'exists:employees,id'],
-            'excluded_departments' => ['present', 'array'],
-            'excluded_departments.*' => ['string', 'max:255'],
+            'excluded_office_ids' => ['present', 'array'],
+            'excluded_office_ids.*' => ['integer', 'exists:offices,id'],
         ]);
         return response()->json(['success' => true, 'data' => $rules->update($validated, $request->user())]);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\ThemePalette;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
 
@@ -14,9 +15,9 @@ class SettingResource extends JsonResource
             'navigation_clr' => $this->navigation_clr,
             'cards_clr' => $this->cards_clr,
             'footer_clr' => $this->footer_clr,
-            'primary_color' => $this->primary_color,
-            'secondary_color' => $this->secondary_color,
-            'tertiary_color' => $this->tertiary_color,
+            ...collect(ThemePalette::fields())
+                ->mapWithKeys(fn (string $field) => [$field => ThemePalette::value($field, $this->{$field})])
+                ->all(),
             'paid_off_days_per_year' => $this->paid_off_days_per_year,
             'website_title' => $this->website_title,
             'website_logo' => $this->website_logo,

@@ -23,7 +23,6 @@ class StockSeeder extends Seeder
                 'model' => 'XPS 15',
                 'condition' => 'good',
                 'office_id' => $offices['HQ'],
-                'staff_id' => null,
             ],
             [
                 'serial_number' => 'SN-1002',
@@ -32,7 +31,6 @@ class StockSeeder extends Seeder
                 'model' => '27f',
                 'condition' => 'new',
                 'office_id' => $offices['BR-A'],
-                'staff_id' => null,
             ],
             [
                 'serial_number' => 'SN-1003',
@@ -41,7 +39,6 @@ class StockSeeder extends Seeder
                 'model' => 'MX Master',
                 'condition' => 'fair',
                 'office_id' => $offices['BR-B'],
-                'staff_id' => null,
             ],
         ];
 

@@ -112,30 +112,25 @@ class ReportService
 
     private function financial(array $filters, Carbon $start, Carbon $end, User $user): array
     {
-        $invoiceQuery = Invoice::query()->with('customer')->whereBetween('created_at', [$start->copy()->utc(), $end->copy()->utc()])
+        $base = $this->currentBase();
+        $invoiceQuery = Invoice::query()->with(['customer', 'currency', 'incomes'])->whereBetween('created_at', [$start->copy()->utc(), $end->copy()->utc()])
             ->when($filters['customer_id'] ?? null, fn (Builder $q, $id) => $q->where('customer_id', $id))
             ->when($filters['currency_id'] ?? null, fn (Builder $q, $id) => $q->where('currency_id', $id))
             ->when($filters['status'] ?? null, fn (Builder $q, $status) => $q->where('status', $status));
-        $paid = Income::query()
-            ->whereNotNull('invoice_id')
-            ->selectRaw('invoice_id, base_curr_shrt, SUM(base_amount) AS paid_base')
-            ->groupBy('invoice_id', 'base_curr_shrt')
-            ->get()
-            ->groupBy('invoice_id')
-            ->map(fn (Collection $rows) => $rows->pluck('paid_base', 'base_curr_shrt'));
-        $invoices = $invoiceQuery->latest()->get()->map(function (Invoice $invoice) use ($paid) {
-            $base = round((float) $invoice->base_amount, 4);
-            $paidBase = min($base, (float) ($paid[$invoice->id][$invoice->base_curr_shrt] ?? 0));
+        $invoices = $invoiceQuery->latest()->get()->map(function (Invoice $invoice) use ($base) {
+            $amountBase = $this->currentBaseAmount((float) $invoice->amount, $invoice->currency);
+            $paidInvoiceAmount = (float) $invoice->incomes->sum(fn (Income $income) => (float) ($income->invoice_amount ?? ((float) $income->amount * $income->quantity)));
+            $paidBase = min($amountBase, $this->currentBaseAmount($paidInvoiceAmount, $invoice->currency));
             return [
                 'number' => $invoice->invoice_number, 'date' => $invoice->created_at?->toDateString(),
                 'customer' => $invoice->customer?->name ?? $invoice->deptor, 'status' => $invoice->status,
                 'amount' => (float) $invoice->amount, 'currency' => $invoice->currency_shortname,
-                'base_currency' => $invoice->base_curr_shrt, 'rate' => (float) $invoice->rate, 'base_amount' => $base,
-                'paid_base' => round($paidBase, 4), 'outstanding_base' => round(max(0, $base - $paidBase), 4),
+                'base_currency' => $base?->code ?? 'BASE', 'rate' => (float) ($invoice->currency?->rate ?? 0), 'base_amount' => round($amountBase, 4),
+                'paid_base' => round($paidBase, 4), 'outstanding_base' => round(max(0, $amountBase - $paidBase), 4),
             ];
         });
-        $income = $this->cashRows(Income::query(), $filters, $start, $end, 'incomeCurrency')->map(fn (Income $row) => $this->cashRow($row));
-        $expenses = $this->cashRows(Expense::query(), $filters, $start, $end, 'expenseCurrency')->map(fn (Expense $row) => $this->cashRow($row));
+        $income = $this->cashRows(Income::query(), $filters, $start, $end, 'incomeCurrency')->map(fn (Income $row) => $this->cashRow($row, $base));
+        $expenses = $this->cashRows(Expense::query(), $filters, $start, $end, 'expenseCurrency')->map(fn (Expense $row) => $this->cashRow($row, $base));
         $invoiceBase = $this->byBaseCurrency($invoices, 'base_amount');
         $incomeBase = $this->byBaseCurrency($income, 'base_amount');
         $expenseBase = $this->byBaseCurrency($expenses, 'base_amount');
@@ -158,11 +153,16 @@ class ReportService
         ];
 
         if ($user->hasPermission('view_stocks')) {
-            $stock = Stock::query()->with(['office:id,name', 'staff:id,name'])
+            $stock = Stock::query()->with(['office:id,name', 'allocations.employee:id,name'])
                 ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->where('office_id', $id))
                 ->orderBy('item')->get()->map(fn (Stock $row) => [
                     'item' => $row->item, 'model' => $row->model, 'serial_number' => $row->serial_number,
-                    'office' => $row->office?->name, 'assigned_to' => $row->staff?->name,
+                    'office' => $row->office?->name,
+                    'assigned_to' => $row->allocations
+                        ->pluck('employee.name')
+                        ->filter()
+                        ->unique()
+                        ->implode(', '),
                     'condition' => $row->condition, 'quantity' => (int) $row->quantity,
                     'unit_price' => (float) $row->price, 'asset_value' => round((float) $row->price * (int) $row->quantity, 2),
                 ]);
@@ -180,13 +180,14 @@ class ReportService
     {
         $sections = [];
         if ($user->hasPermission('view_salaries')) {
-            $salaries = Salary::query()->with(['employee.office', 'deductions'])
+            $baseCurrency = $this->currentBase();
+            $salaries = Salary::query()->with(['employee.office', 'deductions', 'currency'])
                 ->whereBetween('payment_date', [$start->toDateString(), $end->toDateString()])
                 ->when($filters['employee_id'] ?? null, fn (Builder $q, $id) => $q->where('employee_id', $id))
                 ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('employee', fn (Builder $e) => $e->where('office_id', $id)))
                 ->when($filters['currency_id'] ?? null, fn (Builder $q, $id) => $q->where('currency_id', $id))->latest('payment_date')->get()
-                ->map(function (Salary $salary) {
-                    $rate = (float) ($salary->rate ?: 1);
+                ->map(function (Salary $salary) use ($baseCurrency) {
+                    $rate = (float) ($salary->currency?->rate ?: 1);
                     $deductions = (float) $salary->deductions->sum('amount');
                     return [
                         'payslip' => $salary->payslip_number, 'payment_date' => $salary->payment_date?->format('Y-m-d'),
@@ -194,8 +195,8 @@ class ReportService
                         'office' => $salary->employee?->office?->name, 'amount' => (float) $salary->amount_paid,
                         'bonus' => (float) $salary->bonus, 'deductions' => $deductions,
                         'net_amount' => (float) $salary->total_amount - $deductions, 'currency' => $salary->currency_code,
-                        'base_currency' => $salary->base_curr_shrt, 'rate' => $rate, 'base_amount' => (float) $salary->base_amount,
-                        'deductions_base' => round($deductions * $rate, 4),
+                        'base_currency' => $baseCurrency?->code ?? 'BASE', 'rate' => $rate, 'base_amount' => $this->currentBaseAmount((float) $salary->total_amount, $salary->currency),
+                        'deductions_base' => $this->currentBaseAmount($deductions, $salary->currency),
                     ];
                 });
             $sections[] = $this->section('salary_payments', ['payslip', 'payment_date', 'salary_month', 'employee', 'office', 'amount', 'bonus', 'deductions', 'net_amount', 'currency', 'base_currency', 'rate', 'base_amount', 'deductions_base'], $salaries, [
@@ -391,7 +392,7 @@ class ReportService
             ->latest('date')->get();
     }
 
-    private function cashRow(Income|Expense $row): array
+    private function cashRow(Income|Expense $row, ?Currency $base): array
     {
         $currency = $row instanceof Income ? $row->incomeCurrency : $row->expenseCurrency;
         return [
@@ -399,9 +400,9 @@ class ReportService
             'customer' => $row->customer?->name, 'type' => $row->type, 'description' => $row->description,
             'amount' => (float) $row->amount, 'quantity' => (int) $row->quantity,
             'currency' => $currency?->code ?? $row->cnv_curr_shrt ?? 'UNK',
-            'base_currency' => $row->base_curr_shrt,
-            'rate' => (float) $row->rate,
-            'base_amount' => (float) $row->base_amount,
+            'base_currency' => $base?->code ?? 'BASE',
+            'rate' => (float) ($currency?->rate ?? 0),
+            'base_amount' => $this->currentBaseAmount((float) $row->amount * $row->quantity, $currency),
         ];
     }
 
@@ -428,6 +429,18 @@ class ReportService
         return collect(array_unique([...array_keys($income), ...array_keys($expenses)]))
             ->mapWithKeys(fn (string $base) => [$base => round((float) ($income[$base] ?? 0) - (float) ($expenses[$base] ?? 0), 4)])
             ->all();
+    }
+
+    private function currentBase(): ?Currency
+    {
+        return Currency::query()->where('is_base', true)->first()
+            ?? Currency::query()->orderBy('id')->first();
+    }
+
+    private function currentBaseAmount(float $amount, ?Currency $currency): float
+    {
+        $rate = (float) ($currency?->rate ?? 0);
+        return $rate > 0 ? round($amount / $rate, 4) : 0.0;
     }
 
     private function range(array $filters): array

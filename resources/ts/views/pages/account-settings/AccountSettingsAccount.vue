@@ -26,6 +26,7 @@ const deactivationRequests = ref<AccountDeactivationRequest[]>([])
 const emailVerified = ref(false)
 const initial = ref<AccountUpdatePayload>({})
 const account = ref<AccountUpdatePayload & { avatar: string | null }>({ name: '', email: '', phone: '', address: '', avatar: null, organization: '', state: '', zip: '', country: '', language: '', timezone: '', currency: '' })
+const isSuperAdmin = ref(false)
 const userData = useCookie<Record<string, unknown> | null>('userData')
 
 watch(message, value => {
@@ -43,7 +44,7 @@ const displayAvatar = computed(() => account.value.avatar || fallbackAvatar)
 const timezones = Intl.supportedValuesOf?.('timeZone') ?? ['UTC']
 const currencies = ['USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR']
 const pendingDeactivation = computed(() => deactivationRequests.value.find(item => item.status === 'pending') ?? null)
-const canRequestDeactivation = computed(() => canAccess('request_account_deactivation'))
+const canRequestDeactivation = computed(() => !isSuperAdmin.value && canAccess('request_account_deactivation'))
 const canCancelDeactivation = computed(() => canAccess('cancel_own_deactivation_request'))
 
 function responseData(response: any) {
@@ -53,6 +54,7 @@ function responseData(response: any) {
 function setAccount(data: Account) {
   const { avatar, ...values } = data
   emailVerified.value = data.email_verified
+  isSuperAdmin.value = data.roles.includes('super_admin')
   account.value = { ...account.value, ...values, avatar }
   initial.value = { ...values }
 }

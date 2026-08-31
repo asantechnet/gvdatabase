@@ -28,11 +28,13 @@ class Contract extends Model
         'status',
         'start_date',
         'end_date',
+        'duration_months',
         'counterparty',
         'counterparty_company',
         'counterparty_email',
         'counterparty_contact',
         'counterparty_address',
+        'company_signatory_name',
         'is_cancelled',
         'cancelled_at',
     ];
@@ -40,6 +42,7 @@ class Contract extends Model
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'duration_months' => 'integer',
         'is_cancelled' => 'boolean',
         'cancelled_at' => 'immutable_datetime',
         'is_custom' => 'boolean',

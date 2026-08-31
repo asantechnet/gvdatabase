@@ -58,7 +58,7 @@ const resolveLabelColor: any = {
             <VBtn icon variant="tonal" color="secondary" size="small" class="kanban-attachment-button"
               @click.stop="emit('attachmentsClick', { item: props.item, boardId: props.boardId, boardName: props.boardName })">
               <VIcon icon="tabler-paperclip" size="18" />
-              <VTooltip activator="parent" location="top">View attachments</VTooltip>
+              <VTooltip activator="parent" location="top">{{ $t('components.taskManager.kanbanview.viewAttachments') }}</VTooltip>
             </VBtn>
           </VBadge>
           <TaskCompletionChip :progress="Number((item as any).progress ?? 0)" />

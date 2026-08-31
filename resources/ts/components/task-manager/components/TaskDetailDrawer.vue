@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { useTaskStore } from '@/stores/useTaskStore'
 import { canAccess } from '@/utils/authorization'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import ServiceApi, { type Service } from '@/api/services'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { VForm } from 'vuetify/components/VForm'
 import type { TaskPriority } from '@/types/taskManager'
-import TaskApi from '@/api/task'
 
 const props = defineProps<{
   isOpen: boolean
@@ -27,13 +27,6 @@ const contributions = ref<Record<string, number>>({})
 const bonusReviewError = ref('')
 const isSavingBonusReview = ref(false)
 
-const uploadTaskImage = (section: 'input' | 'results') => async (file: File) => {
-  if (!store.selectedTask) throw new Error('No task selected')
-  const response = await TaskApi.uploadAttachment(store.selectedTask.id, file, section)
-  store.selectedTask.attachments.push(response.data.data)
-  return response.data.data.url as string
-}
-
 // Priority options
 const priorityOptions = [
   { title: translate('components.taskManager.taskdetaildrawer.low'), value: 'low' },
@@ -46,12 +39,13 @@ const priorityOptions = [
 const localTask = ref({
   title: '',
   description: '',
-  results: '',
   priority: 'medium' as TaskPriority,
   startDate: '',
   dueDate: '',
   dependencies: [] as string[],
+  serviceIds: [] as number[],
 })
+const services = ref<Service[]>([])
 
 const dependencyOptions = computed(() => {
   return store.tasks
@@ -62,17 +56,26 @@ const dependencyOptions = computed(() => {
     }))
 })
 
+const serviceOptions = computed(() => services.value
+  .filter(service => service.status === 'active')
+  .map(service => ({ title: service.type, value: service.id })))
+
+onMounted(async () => {
+  const response = await ServiceApi.getAll()
+  if (response.success) services.value = response.data
+})
+
 // Watch for changes in selected task
 watch(() => store.selectedTask, (newTask) => {
   if (newTask) {
     localTask.value = {
       title: newTask.title,
-      description: newTask.description,
-      results: newTask.results,
+      description: newTask.description ?? '',
       priority: newTask.priority,
       startDate: newTask.startDate,
       dueDate: newTask.dueDate,
       dependencies: [...newTask.dependencies],
+      serviceIds: newTask.services?.map(service => service.id) ?? [],
     }
     bonusQuality.value = newTask.managerQualityScore ?? 3
     markRejected.value = false
@@ -95,11 +98,11 @@ const updateTask = async () => {
     await store.updateTask(store.selectedTaskId, {
       title: localTask.value.title,
       description: localTask.value.description,
-      results: localTask.value.results,
       priority: localTask.value.priority,
       start_date: localTask.value.startDate,
       due_date: localTask.value.dueDate,
       dependencies: localTask.value.dependencies,
+      service_ids: localTask.value.serviceIds,
     })
     emit('update:isOpen', false)
   } catch (error) {
@@ -124,12 +127,6 @@ const confirmDelete = () => {
 
 const cancelDelete = () => {
   isDeleteConfirmOpen.value = false
-}
-
-const saveDescription = (htmlContent: string) => {
-  if (store.selectedTaskId) {
-    store.updateTask(store.selectedTaskId, { description: htmlContent })
-  }
 }
 
 const saveBonusReview = async () => {
@@ -164,7 +161,7 @@ const saveBonusReview = async () => {
       <VCardItem class="border-b">
         <template #title>
           <div class="d-flex align-center">
-            <VIcon icon="tabler-edit" class="mr-2" />
+            <VIcon icon="tabler-edit" class="me-2" />
             <span class="text-h6 font-weight-bold">{{ $t('common.messages.editTask') }}</span>
             <TaskCompletionChip v-if="store.selectedTask" :progress="store.selectedTask.progress" class="ms-3" />
           </div>
@@ -224,28 +221,21 @@ const saveBonusReview = async () => {
               />
             </VCol>
 
-            <!-- Input -->
             <VCol cols="12">
-              <div class="mb-2 d-flex align-center gap-2">
-                <VIcon icon="tabler-align-justified" size="20" />
-                <span class="text-subtitle-1 font-weight-bold">Input</span>
-              </div>
-
-              <div class="markup-editor border rounded">
-                <TiptapEditor v-if="canEditTask()" v-model="localTask.description" :image-upload="uploadTaskImage('input')" placeholder="Describe the task input..." />
-                <div v-else v-html="localTask.description" />
-              </div>
+              <VAutocomplete v-model="localTask.serviceIds" :items="serviceOptions" :label="$t('components.taskManager.taskdetaildrawer.linkedServices')"
+                multiple chips closable-chips clearable prepend-inner-icon="tabler-briefcase"
+                :hint="$t('components.taskManager.taskdetaildrawer.projectServiceHint')" persistent-hint
+                :disabled="!canEditTask()" />
             </VCol>
 
             <VCol cols="12">
               <div class="mb-2 d-flex align-center gap-2">
-                <VIcon icon="tabler-file-description" size="20" />
-                <span class="text-subtitle-1 font-weight-bold">Results</span>
+                <VIcon icon="tabler-align-justified" size="20" />
+                <span class="text-subtitle-1 font-weight-bold">{{ $t('components.taskManager.taskdetaildrawer.taskContent') }}</span>
               </div>
-              <div class="markup-editor border rounded">
-                <TiptapEditor v-if="canEditTask()" v-model="localTask.results" :image-upload="uploadTaskImage('results')" placeholder="Record the task results..." />
-                <div v-else v-html="localTask.results" />
-              </div>
+              <VTextarea v-model="localTask.description" auto-grow rows="5"
+                :placeholder="$t('components.taskManager.taskdetaildrawer.noTaskContent')"
+                :disabled="!canEditTask()" hide-details />
             </VCol>
           </VRow>
         </VForm>
@@ -295,8 +285,13 @@ const saveBonusReview = async () => {
   z-index: 1001;
 }
 
-.markup-editor {
-  min-height: 250px;
+.task-content-preview {
+  min-height: 7.5rem;
+}
+
+.task-content-preview :deep(img) {
+  max-width: 100%;
+  border-radius: 0.5rem;
 }
 
 </style>

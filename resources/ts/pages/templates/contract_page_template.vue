@@ -224,7 +224,7 @@ defineExpose({
       <!-- Main Contract Body Area -->
       <main class="contract-body">
         <section v-if="partyDetails && (partyDetails.ourCompany.length || partyDetails.counterparty.length)" class="party-details">
-          <h2 class="party-details-title">Contract parties</h2>
+          <h2 class="party-details-title">{{ $t('pages.contracts.shared.contractParties') }}</h2>
           <div class="party-details-grid">
             <div v-if="partyDetails.ourCompany.length" class="party-details-card">
               <h3>{{ company.brandName }}</h3>
@@ -236,7 +236,7 @@ defineExpose({
               </dl>
             </div>
             <div v-if="partyDetails.counterparty.length" class="party-details-card">
-              <h3>{{ contracteeName || 'Counterparty' }}</h3>
+              <h3>{{ contracteeName || $t('pages.contracts.allContracts.allContracts.counterparty') }}</h3>
               <dl>
                 <template v-for="detail in partyDetails.counterparty" :key="`counterparty-${detail.label}`">
                   <dt>{{ detail.label }}</dt>

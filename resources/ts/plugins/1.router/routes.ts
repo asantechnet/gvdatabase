@@ -9,11 +9,15 @@ const pageComponents: Record<string, Component> = {
   resetPassword: () => import("@/pages/reset-password.vue"),
   createPassword: () => import("@/pages/create-password.vue"),
   verifyEmail: () => import("@/pages/verify-email.vue"),
-  finance: () => import("@/pages/finance.vue"),
+  // The old Finance page was a mock ledger with hard-coded USD amounts. Route the
+  // finance entry point to the real reporting view so its KPIs always come from
+  // the current-base calculations on the server.
+  finance: () => import("@/pages/reports.vue"),
   income: () => import("@/pages/income.vue"),
   expenses: () => import("@/pages/expenses.vue"),
   stock: () => import("@/pages/stock.vue"),
   reports: () => import("@/pages/reports.vue"),
+  audits: () => import("@/pages/audits.vue"),
   hr: () => import("@/pages/hr.vue"),
   staffList: () => import("@/pages/staff_list.vue"),
   timesheet: () => import("@/pages/timesheet.vue"),
@@ -69,6 +73,7 @@ const routeDefinitions: Array<
   { path: "/recurring-events/:id?", component: "recurringEvents", name: "recurring-events", meta: { requiresAuth: true, action: 'read', subject: 'view_recurring_events' } },
   { path: "/stock", component: "stock", name: "stock", meta: { requiresAuth: true, action: 'read', subject: 'view_stocks' } },
   { path: "/reports", component: "reports", name: "reports", meta: { requiresAuth: true, action: 'read', subject: 'view_reports' } },
+  { path: "/audits", component: "audits", name: "audits", meta: { requiresAuth: true, action: 'read', subject: 'view_audit_logs' } },
   { path: "/hr", component: "hr", name: "hr", meta: { requiresAuth: true, action: 'read', subject: 'view_employees' } },
   { path: "/staff-list", component: "staffList", name: "staff-list", meta: { requiresAuth: true, action: 'read', subject: 'view_employees' } },
   { path: "/timesheet", component: "timesheet", name: "timesheet", meta: { requiresAuth: true, action: 'read', subject: 'view_attendance' } },
@@ -168,7 +173,7 @@ const routeDefinitions: Array<
     meta: { requiresAuth: true, action: 'read', subject: 'view_positions' },
   },
   {
-    path: "/setup/settings",
+    path: "/setup/settings/:section?",
     component: "setupSettings",
     name: "setup-settings",
     meta: { requiresAuth: true, action: 'read', subject: 'view_settings' },

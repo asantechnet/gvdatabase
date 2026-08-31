@@ -15,7 +15,7 @@ import {
 
 export const { themeConfig, layoutConfig } = defineThemeConfig({
   app: {
-    title: "vuexy",
+    title: "Asantech Workspace",
     logo: h("div", {
       innerHTML: logo,
       style: "line-height:0; color: rgb(var(--v-global-theme-primary))",

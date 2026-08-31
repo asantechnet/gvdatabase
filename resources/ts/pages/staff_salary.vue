@@ -87,8 +87,11 @@ const defaultCurrencyId = () => currencies.value.find(currency => currency.isBas
 const selectedFormCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? null)
 
 const convertedBonusAmount = (bonus: WorthyEmployee, _currency = selectedFormCurrency.value) => {
-  const baseAmount = Number(bonus.grantedAmount ?? bonus.selectedAmount ?? 0)
-  return baseAmount
+  const bookedBase = currencies.value.find(currency => currency.id === bonus.baseCurrencyId)
+  const bookedBaseAmount = Number(bonus.baseAmount ?? bonus.grantedAmount ?? bonus.selectedAmount ?? 0)
+  const sourceRate = Number(bookedBase?.rate ?? 1)
+  const targetRate = Number(_currency?.rate ?? 1)
+  return sourceRate > 0 ? (bookedBaseAmount / sourceRate) * targetRate : bookedBaseAmount
 }
 
 const formatSalaryAmount = (amount: number, currency?: Salary['currency'] | Currency | null) => {
@@ -249,7 +252,6 @@ const printEmployeePayslip = async (salary: Salary) => {
       absentDays: salary.absentDays,
       unpaidOffDays: salary.unpaidOffDays,
       tazkiraNumber: emp?.id_number || 'N/A',
-      tinNumber: emp?.tax_number || 'N/A',
       accountNumber: emp?.bank_account_number || 'N/A'
     },
     earnings: earningsList,
@@ -556,7 +558,7 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
 
 <template>
   <div>
-    <DataTablePageKpis :items="filteredSalaries" title="Staff salaries" description="Review payroll records and surface payments that require attention." icon="tabler-wallet" />
+    <DataTablePageKpis :items="filteredSalaries" :base-currency="currencies.find(currency => currency.isBase) ?? null" title="Staff salaries" description="Review payroll records and surface payments that require attention." icon="tabler-wallet" />
     <VCard class="mb-6">
       <VCardText>
         <VRow align="center" class="table-toolbar">
@@ -584,7 +586,7 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
               { title: translate('pages.payroll.staffSalary.staffSalary.over70000'), value: 'high' }
               ]" :label="$t('pages.payroll.staffSalary.staffSalary.filterByAmount')" density="compact" clearable hide-details />
             </DataTableFilterMenu>
-            <VBtn icon="tabler-table" variant="text" class="flex-shrink-0" @click="printTable"><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.printAllSalaryRecords') }}</VTooltip></VBtn>
+            <VBtn icon="tabler-table" variant="text" class="flex-shrink-0" @click="printTable"><VIcon icon="tabler-table" /><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.printAllSalaryRecords') }}</VTooltip></VBtn>
             <VBtn color="primary" class="flex-shrink-0" @click="openAddSalaryDialog">
               <VIcon icon="tabler-plus" class="me-1" />
               {{ $t('pages.payroll.staffSalary.staffSalary.addSalary') }}
@@ -607,6 +609,7 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
           { title: translate('pages.payroll.staffSalary.staffSalary.totalPaid'), key: 'totalAmount', sortable: true },
           { title: translate('pages.payroll.staffSalary.staffSalary.remarks'), key: 'remarks', sortable: false },
           { title: translate('common.fields.date'), key: 'date', sortable: true },
+          { title: 'Recorded by', key: 'recordedBy.name', sortable: false },
           { title: translate('common.messages.actions'), key: 'actions', sortable: false }
         ]" item-value="id" class="text-no-wrap" :loading="isLoading" mobile-breakpoint="sm" density="compact">
 
@@ -630,10 +633,20 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
               {{ $t('documents.payslip.workedDays', { worked: item.workedDays, total: item.totalDays }) }}
             </VChip>
           </template>
+          <template #item.recordedBy.name="{ item }"><span>{{ item.recordedBy?.name || 'System / legacy' }}</span></template>
 
           <template #item.bonus="{ item }">
             <span v-if="item.bonus > 0" class="text-info font-weight-medium">+{{ formatSalaryAmount(item.bonus, item.currency) }}</span>
             <span v-else class="text-muted text-xs">—</span>
+          </template>
+
+          <template #item.currency.code="{ item }">
+            <VChip size="small" color="primary" variant="tonal" prepend-icon="tabler-cash">
+              {{ item.currency?.symbol || '' }} {{ item.currency?.code || item.cnvCurrShrt || '—' }}
+            </VChip>
+            <div class="text-caption text-medium-emphasis mt-1">
+              Payment currency at booking · rate {{ item.rate }}
+            </div>
           </template>
 
           <template #item.amountPaid="{ item }">
@@ -648,10 +661,10 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
             <div class="d-flex gap-1">
               <FullDetailsButton :item="item" />
               <VBtn icon="tabler-printer" variant="text" size="small" color="primary"
-                @click="printEmployeePayslip(item)"><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.printEmployeePayslip') }}</VTooltip></VBtn>
+                @click="printEmployeePayslip(item)"><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.printEmployeePayslip') }}</VTooltip></VBtn>
               <VBtn icon="tabler-edit" variant="text" size="small" color="medium-emphasis"
-                @click="openEditSalaryDialog(item)"><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.editSalaryRecord') }}</VTooltip></VBtn>
-              <VBtn icon="tabler-trash" variant="text" size="small" color="error" @click="openDeleteSalaryDialog(item)"><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.deleteSalaryRecord') }}</VTooltip></VBtn>
+                @click="openEditSalaryDialog(item)"><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.editSalaryRecord') }}</VTooltip></VBtn>
+              <VBtn icon="tabler-trash" variant="text" size="small" color="error" @click="openDeleteSalaryDialog(item)"><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.deleteSalaryRecord') }}</VTooltip></VBtn>
             </div>
           </template>
         </ResponsiveDataTable>

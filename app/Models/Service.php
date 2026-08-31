@@ -69,4 +69,14 @@ class Service extends Model
             ])
             ->withTimestamps();
     }
+
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class)->withTimestamps();
+    }
+
+    public function tasks(): BelongsToMany
+    {
+        return $this->belongsToMany(Task::class, 'task_service')->withTimestamps();
+    }
 }

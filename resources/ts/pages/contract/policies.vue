@@ -13,6 +13,9 @@ import { useToast } from 'vue-toastification'
 
 const route = useRoute()
 const toast = useToast()
+const { locale, t } = useI18n()
+const tr = (key: string, values: Record<string, unknown> = {}) =>
+  t(`pages.settings.policies.policies.contractTemplate.${key}`, values)
 
 // ---------------------------------------------------------------------
 // State
@@ -37,7 +40,16 @@ const templates = ref<any[]>([])
 const isLoading = ref(false)
 const deleteDialog = ref(false)
 const templateToDelete = ref<number | null>(null)
-const placeholderGroups = ref<PlaceholderGroup[]>([])
+const rawPlaceholderGroups = ref<PlaceholderGroup[]>([])
+
+const placeholderGroups = computed<PlaceholderGroup[]>(() => rawPlaceholderGroups.value.map(group => ({
+  ...group,
+  label: tr(`placeholders.${group.key}.label`),
+  fields: group.fields.map(field => ({
+    ...field,
+    label: tr(`placeholders.${group.key}.fields.${field.key.slice(group.key.length + 1)}`),
+  })),
+})))
 
 const typeSelectorRef = ref<InstanceType<typeof ContractTypeSelector> | null>(null)
 const editorRef = ref<InstanceType<typeof ContractContentEditor> | null>(null)
@@ -48,13 +60,29 @@ const editorRef = ref<InstanceType<typeof ContractContentEditor> | null>(null)
 // ---------------------------------------------------------------------
 const selectedType = computed(() => contractTypes.value.find(type => type.id === contractTypeId.value) ?? null)
 
+const isSystemSlug = (slug: string) => SYSTEM_TYPE_SLUGS.includes(slug as typeof SYSTEM_TYPE_SLUGS[number])
+
+const contractTypeName = (type: ContractType | null) => {
+  if (!type) return ''
+  return isSystemSlug(type.slug) ? tr(`types.${type.slug}`) : type.name
+}
+
+const templateTypeName = (template: any) =>
+  template.type_slug && isSystemSlug(template.type_slug)
+    ? tr(`types.${template.type_slug}`)
+    : template.type || tr('custom')
+
 const isEmployment = computed(() => {
   const slug = selectedType.value?.slug
   return slug ? SYSTEM_TYPE_SLUGS.includes(slug as typeof SYSTEM_TYPE_SLUGS[number]) && slug === 'employment' : false
 })
 
-const typeLabel = computed(() =>
-  isEmployment.value ? `${selectedType.value?.name} — System type` : selectedType.value?.name ?? '')
+const typeLabel = computed(() => {
+  const name = contractTypeName(selectedType.value)
+  return name && selectedType.value && isSystemSlug(selectedType.value.slug)
+    ? `${name} — ${tr('systemType')}`
+    : name
+})
 
 watch(contractTypeId, async () => {
   // Employment templates require a position; other types must never keep
@@ -66,14 +94,14 @@ watch(contractTypeId, async () => {
 
 const loadPlaceholders = async () => {
   if (!contractTypeId.value) {
-    placeholderGroups.value = []
+    rawPlaceholderGroups.value = []
     return
   }
   try {
-    placeholderGroups.value = await getPlaceholders({ contract_type_id: contractTypeId.value })
+    rawPlaceholderGroups.value = await getPlaceholders({ contract_type_id: contractTypeId.value })
   } catch (error) {
     console.error('Failed to load placeholders:', error)
-    placeholderGroups.value = []
+    rawPlaceholderGroups.value = []
   }
 }
 
@@ -107,7 +135,7 @@ onMounted(async () => {
     if (template) loadTemplate(template.id)
     else if (position) {
       const employmentType = contractTypes.value.find(type => type.slug === 'employment')
-      contractName.value = `${position.title} Employment Contract`
+      contractName.value = tr('employmentContractName', { position: position.title })
       contractTypeId.value = employmentType?.id ?? null
     }
   } else if (route.params.id) {
@@ -132,7 +160,7 @@ const loadTemplates = async () => {
     isLoading.value = true
     templates.value = await ContractTemplateApi.getAll()
   } catch (error) {
-    showToast('Failed to load templates', 'error')
+    showToast(tr('messages.loadTemplatesError'), 'error')
     console.error('Load templates failed:', error)
   } finally {
     isLoading.value = false
@@ -163,7 +191,7 @@ const saveContract = async () => {
   if (!valid) return
 
   if (!contractTypeId.value) {
-    toast.warning('Select a contract type before saving the template.')
+    toast.warning(tr('messages.selectTypeBeforeSaving'))
     return
   }
 
@@ -174,7 +202,7 @@ const saveContract = async () => {
   const serialized = serializePlaceholders(contentHtml.value)
   const usedKeys = extractPlaceholderKeys(serialized).filter(key => !knownKeys.value.has(key))
   if (usedKeys.length > 0) {
-    toast.warning(`Unknown or unavailable placeholders: ${usedKeys.join(', ')}`)
+    toast.warning(tr('messages.unknownPlaceholders', { placeholders: usedKeys.join(', ') }))
     return
   }
 
@@ -192,10 +220,10 @@ const saveContract = async () => {
     let savedTemplate
     if (templateId.value) {
       savedTemplate = await ContractTemplateApi.update(templateId.value, payload)
-      showToast('Template updated successfully', 'success')
+      showToast(tr('messages.templateUpdated'), 'success')
     } else {
       savedTemplate = await ContractTemplateApi.create(payload)
-      showToast('Template created successfully', 'success')
+      showToast(tr('messages.templateCreated'), 'success')
     }
 
     const index = templates.value.findIndex(template => template.id === savedTemplate.id)
@@ -206,7 +234,7 @@ const saveContract = async () => {
 
     resetForm()
   } catch (error) {
-    showToast('Failed to save template', 'error')
+    showToast(tr('messages.saveTemplateError'), 'error')
     console.error('Save failed:', error)
   } finally {
     isLoading.value = false
@@ -231,7 +259,7 @@ const loadTemplate = async (id: number) => {
     // {{ key }} tokens become editable chips again.
     contentHtml.value = hydratePlaceholders(legacyContentToHtml(template.content), placeholderGroups.value, knownKeys.value)
   } catch (error) {
-    showToast('Failed to load template details', 'error')
+    showToast(tr('messages.loadTemplateDetailsError'), 'error')
     console.error('Load failed:', error)
   } finally {
     isLoading.value = false
@@ -249,11 +277,11 @@ const deleteTemplate = async () => {
   try {
     isLoading.value = true
     await ContractTemplateApi.delete(templateToDelete.value)
-    showToast('Template deleted successfully', 'success')
+    showToast(tr('messages.templateDeleted'), 'success')
     templates.value = templates.value.filter(template => template.id !== templateToDelete.value)
     if (templateId.value === templateToDelete.value) resetForm()
   } catch (error) {
-    showToast('This template is used by existing contracts and cannot be deleted.', 'warning')
+    showToast(tr('messages.templateInUse'), 'warning')
     console.error('Delete failed:', error)
   } finally {
     isLoading.value = false
@@ -270,7 +298,7 @@ const resetForm = () => {
   policyIds.value = []
   templateId.value = null
   contentHtml.value = ''
-  placeholderGroups.value = []
+  rawPlaceholderGroups.value = []
 
   nextTick(() => formRef.value?.resetValidation())
 }
@@ -278,6 +306,16 @@ const resetForm = () => {
 const editTemplate = (id: number) => {
   loadTemplate(id)
 }
+
+watch(locale, async () => {
+  await nextTick()
+  contentHtml.value = hydratePlaceholders(
+    serializePlaceholders(contentHtml.value),
+    placeholderGroups.value,
+    knownKeys.value,
+  )
+  editorRef.value?.getEditor()?.commands.setContent(contentHtml.value, false)
+})
 </script>
 
 <template>
@@ -289,8 +327,8 @@ const editTemplate = (id: number) => {
           <template #prepend>
             <VIcon icon="tabler-files" size="24" class="text-primary mr-2" />
           </template>
-          <VCardTitle>{{ $t('pages.settings.policies.policies.contractTemplates') }}</VCardTitle>
-          <VCardSubtitle>{{ $t('pages.settings.policies.policies.manageSavedLegalStructures') }}</VCardSubtitle>
+          <VCardTitle>{{ t('pages.settings.policies.policies.contractTemplates') }}</VCardTitle>
+          <VCardSubtitle>{{ t('pages.settings.policies.policies.manageSavedLegalStructures') }}</VCardSubtitle>
         </VCardItem>
 
         <VDivider />
@@ -302,8 +340,8 @@ const editTemplate = (id: number) => {
 
           <div v-else-if="!templates.length" class="text-center pa-8 text-medium-emphasis">
             <VIcon icon="tabler-folder-off" size="48" class="mb-2 opacity-50" />
-            <div class="text-body-1 font-weight-medium">{{ $t('pages.settings.policies.policies.noTemplatesFound') }}</div>
-            <div class="text-caption">{{ $t('pages.settings.policies.policies.useTheFormToCreateYourFirstTemplate') }}</div>
+            <div class="text-body-1 font-weight-medium">{{ t('pages.settings.policies.policies.noTemplatesFound') }}</div>
+            <div class="text-caption">{{ t('pages.settings.policies.policies.useTheFormToCreateYourFirstTemplate') }}</div>
           </div>
 
           <VList v-else lines="two" class="pa-2">
@@ -318,11 +356,11 @@ const editTemplate = (id: number) => {
               <VListItemTitle class="font-weight-medium">{{ template.name }}</VListItemTitle>
               <VListItemSubtitle class="mt-1 d-flex align-center gap-2">
                 <VChip size="x-small" color="secondary" variant="elevated">
-                  {{ translateBackendValue(template.type || 'Custom') }}
+                  {{ templateTypeName(template) }}
                 </VChip>
                 <VChip v-if="template.type_slug === 'employment' && template.position_id" size="x-small"
                   variant="tonal" color="info">
-                  {{ positions.find(p => p.id === template.position_id)?.title || 'Position' }}
+                  {{ positions.find(p => p.id === template.position_id)?.title || tr('position') }}
                 </VChip>
               </VListItemSubtitle>
 
@@ -330,11 +368,11 @@ const editTemplate = (id: number) => {
                 <div class="d-flex align-center gap-1">
                   <VBtn icon variant="text" size="small" color="primary" @click.stop="editTemplate(template.id)">
                     <VIcon icon="tabler-edit" size="18" />
-                    <VTooltip activator="parent" location="top">{{ $t('pages.settings.policies.policies.editTemplate') }}</VTooltip>
+                    <VTooltip activator="parent" location="top">{{ t('pages.settings.policies.policies.editTemplate') }}</VTooltip>
                   </VBtn>
                   <VBtn icon variant="text" size="small" color="error" @click.stop="confirmDelete(template.id)">
                     <VIcon icon="tabler-trash" size="18" />
-                    <VTooltip activator="parent" location="top">{{ $t('pages.settings.policies.policies.deleteTemplate') }}</VTooltip>
+                    <VTooltip activator="parent" location="top">{{ t('pages.settings.policies.policies.deleteTemplate') }}</VTooltip>
                   </VBtn>
                 </div>
               </template>
@@ -351,8 +389,8 @@ const editTemplate = (id: number) => {
           <template #prepend>
             <VIcon :icon="templateId ? 'tabler-edit' : 'tabler-file-plus'" size="24" class="text-primary mr-2" />
           </template>
-          <VCardTitle>{{ templateId ? 'Edit Template' : 'Create New Template' }}</VCardTitle>
-          <VCardSubtitle>{{ $t('pages.settings.policies.policies.defineTemplatePropertiesAndContractPolicies') }}</VCardSubtitle>
+          <VCardTitle>{{ templateId ? tr('editTemplate') : tr('createNewTemplate') }}</VCardTitle>
+          <VCardSubtitle>{{ t('pages.settings.policies.policies.defineTemplatePropertiesAndContractPolicies') }}</VCardSubtitle>
         </VCardItem>
 
         <VDivider />
@@ -361,9 +399,9 @@ const editTemplate = (id: number) => {
           <VForm ref="formRef" class="app-form contract-template-form" @submit.prevent="saveContract">
             <VRow>
               <VCol cols="12" sm="6">
-                <VTextField v-model="contractName" :label="$t('pages.settings.policies.policies.contractName')"
-                  :placeholder="$t('pages.settings.policies.policies.eGStandardNDA2026')"
-                  prepend-inner-icon="tabler-file-text" variant="outlined" :rules="[v => !!v || 'Name is required']" />
+                <VTextField v-model="contractName" class="contract-template-form__name" :label="t('pages.settings.policies.policies.contractName')"
+                  :placeholder="t('pages.settings.policies.policies.eGStandardNDA2026')"
+                  prepend-inner-icon="tabler-file-text" variant="outlined" :rules="[v => !!v || tr('validation.nameRequired')]" />
               </VCol>
 
               <!-- Step 1: contract type -->
@@ -377,40 +415,40 @@ const editTemplate = (id: number) => {
                    so no entity selector belongs on their templates. -->
               <VCol v-if="isEmployment" cols="12" sm="6">
                 <VSelect v-model="positionId" :items="positions" item-title="title" item-value="id"
-                  label="Position" prepend-inner-icon="tabler-briefcase" variant="outlined"
-                  :rules="[v => !!v || 'A position is required for an employment template']"
-                  hint="The template becomes dedicated to this job position." persistent-hint />
+                  :label="tr('position')" prepend-inner-icon="tabler-briefcase" variant="outlined"
+                  :rules="[v => !!v || tr('validation.positionRequired')]"
+                  :hint="tr('positionHint')" persistent-hint />
               </VCol>
 
               <VCol v-if="typeLabel" cols="12">
                 <VAlert type="info" variant="tonal" density="compact">
-                  Template context: <strong>{{ typeLabel }}</strong>.
-                  <span v-if="isEmployment"> Employee, position and employer placeholders are available below.</span>
-                  <span v-else> Only general contract placeholders are available for custom types.</span>
+                  {{ tr('templateContext') }} <strong>{{ typeLabel }}</strong>.
+                  <span v-if="isEmployment"> {{ tr('employmentPlaceholderHint') }}</span>
+                  <span v-else> {{ tr('generalPlaceholderHint') }}</span>
                 </VAlert>
               </VCol>
 
               <VCol cols="12">
-                <div class="text-caption text-medium-emphasis mb-2 font-weight-medium">Policy helpers</div>
+                <div class="text-caption text-medium-emphasis mb-2 font-weight-medium">{{ tr('policyHelpers') }}</div>
                 <div class="d-flex flex-wrap align-center gap-2">
                   <VAutocomplete v-model="selectedPolicyId"
                     :items="policies.map(p => ({ title: `${p.type} · ${p.label}`, value: p.id }))"
-                    label="Insert a policy clause" density="compact" variant="outlined" hide-details max-width="320"
+                    :label="tr('insertPolicyClause')" density="compact" variant="outlined" hide-details max-width="320"
                     clearable @update:model-value="value => { if (value) insertPolicy() }" />
-                  <span v-if="!policies.length" class="text-caption text-medium-emphasis">No reusable clauses yet.</span>
+                  <span v-if="!policies.length" class="text-caption text-medium-emphasis">{{ tr('noReusableClauses') }}</span>
                 </div>
               </VCol>
 
               <VCol cols="12">
-                <VTextarea v-model="coverText" :label="$t('pages.settings.policies.policies.coverIntroductionText')"
-                  :placeholder="$t('pages.settings.policies.policies.briefOverviewOrIntroductoryStatementOfTheContract')"
+                <VTextarea v-model="coverText" :label="t('pages.settings.policies.policies.coverIntroductionText')"
+                  :placeholder="t('pages.settings.policies.policies.briefOverviewOrIntroductoryStatementOfTheContract')"
                   prepend-inner-icon="tabler-align-left" variant="outlined" rows="2" auto-grow />
               </VCol>
 
               <!-- TipTap editor section -->
               <VCol cols="12">
                 <div class="text-caption text-medium-emphasis mb-1 font-weight-medium">
-                  {{ $t('pages.settings.policies.policies.contractPOLICIESTERMS') }}
+                  {{ t('pages.settings.policies.policies.contractPOLICIESTERMS') }}
                 </div>
                 <ContractContentEditor ref="editorRef" v-model="contentHtml" :placeholder-groups="placeholderGroups" />
               </VCol>
@@ -418,10 +456,10 @@ const editTemplate = (id: number) => {
 
             <div class="d-flex justify-end gap-3 mt-6">
               <VBtn color="secondary" variant="tonal" prepend-icon="tabler-refresh" :disabled="isLoading" @click="resetForm">
-                {{ $t('pages.settings.policies.policies.reset') }}
+                {{ t('pages.settings.policies.policies.reset') }}
               </VBtn>
               <VBtn type="submit" color="primary" variant="elevated" prepend-icon="tabler-device-floppy" :loading="isLoading">
-                {{ templateId ? 'Update Template' : 'Save Template' }}
+                {{ templateId ? tr('updateTemplate') : tr('saveTemplate') }}
               </VBtn>
             </div>
           </VForm>
@@ -437,19 +475,19 @@ const editTemplate = (id: number) => {
         <VAvatar color="error" variant="tonal" size="56" class="mb-2">
           <VIcon icon="tabler-alert-triangle" size="32" />
         </VAvatar>
-        <VCardTitle class="text-h5">{{ $t('pages.settings.policies.policies.deleteTemplate2') }}</VCardTitle>
+        <VCardTitle class="text-h5">{{ t('pages.settings.policies.policies.deleteTemplate2') }}</VCardTitle>
       </VCardItem>
 
       <VCardText class="text-body-2 text-medium-emphasis">
-        {{ $t('common.confirmations.areYouSureYouWantToDeleteThisContractTemplateThisActionCannotBeUndone') }}
+        {{ t('common.confirmations.areYouSureYouWantToDeleteThisContractTemplateThisActionCannotBeUndone') }}
       </VCardText>
 
       <VCardActions class="justify-center gap-3 mt-2">
         <VBtn color="secondary" variant="tonal" @click="deleteDialog = false">
-          {{ $t('common.actions.cancel') }}
+          {{ t('common.actions.cancel') }}
         </VBtn>
         <VBtn color="error" variant="elevated" :loading="isLoading" @click="deleteTemplate">
-          {{ $t('common.actions.delete') }}
+          {{ t('common.actions.delete') }}
         </VBtn>
       </VCardActions>
     </VCard>
@@ -466,15 +504,16 @@ const editTemplate = (id: number) => {
   }
 }
 
-// Vuetify reserves 16px below a value when an outlined field has a floating
-// label. Its input remains aligned to the top of that remaining space, so the
-// value sits above the centre. Move the visible value slightly below the
-// geometric centre; the field, icon, outline, and floating label retain their
-// standard geometry.
-.contract-template-form .v-input:not(.v-textarea) .v-field--variant-outlined {
+// Keep Vuetify's normal field geometry and move only the visible value down.
+.contract-template-form .v-input:not(.v-textarea) {
   .v-field__input > input,
-  .v-select__selection {
-    transform: translateY(12px);
+  .v-select__selection,
+  .v-autocomplete__selection {
+    transform: translateY(8px);
   }
+}
+
+.contract-template-form__name .v-field__input > input {
+  transform: translateY(12px) !important;
 }
 </style>

@@ -10,6 +10,8 @@ use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Salary;
 use App\Models\WorthyEmployee;
+use App\Services\CurrencyConversionService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -19,9 +21,13 @@ use Illuminate\Validation\ValidationException;
 
 class SalaryController extends Controller
 {
+    public function __construct(private readonly CurrencyConversionService $currencies)
+    {
+    }
+
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'expense']);
+        $query = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'expense', 'recorder']);
 
         // Handle frontend filtering
         if ($request->filled('salaryMonthFilter')) {
@@ -56,6 +62,7 @@ class SalaryController extends Controller
     public function store(Request $request): SalaryResource
     {
         $validated = $this->validateSalaryRequest($request);
+        $validated['recorded_by'] = $request->user()->id;
 
         $salary = DB::transaction(function () use ($validated) {
             $currency = Currency::query()->lockForUpdate()->findOrFail($validated['currency_id']);
@@ -63,8 +70,8 @@ class SalaryController extends Controller
                 ->lockForUpdate()
                 ->get();
             $rate = (float) $validated['rate'];
-            $bonusBase = (float) $bonuses->sum(fn (WorthyEmployee $bonus) => (float) $bonus->granted_amount);
-            $validated['bonus'] = round($bonusBase / $rate, $currency->decimal_places);
+            $bonusBase = (float) $bonuses->sum(fn (WorthyEmployee $bonus) => $this->bonusAmountInSalaryCurrency($bonus, $currency));
+            $validated['bonus'] = round($bonusBase, $currency->decimal_places);
             $validated['total_amount'] = $validated['amount_paid'] + $validated['bonus'];
             $validated = array_merge($validated, $this->attendanceBreakdown($validated['employee_id'], $validated['salary_month'], $validated['total_days']));
             $validated += $this->salaryCurrencySnapshot($currency, $validated['amount_paid'], $bonusBase, $rate);
@@ -79,12 +86,12 @@ class SalaryController extends Controller
             return $salary;
         });
 
-        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'expense']));
+        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'expense', 'recorder']));
     }
 
     public function show(Salary $salary): SalaryResource
     {
-        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'expense']));
+        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'expense', 'recorder']));
     }
 
     public function update(Request $request, Salary $salary): SalaryResource
@@ -98,7 +105,7 @@ class SalaryController extends Controller
             $validated['bonus'] = $salary->bonus;
             $validated['total_amount'] = $validated['amount_paid'] + $validated['bonus'];
             $rate = (float) $validated['rate'];
-            $validated = array_merge($validated, $this->salaryCurrencySnapshot($salary->currency, (float) $validated['amount_paid'], (float) $salary->bonus * $rate, $rate));
+            $validated = array_merge($validated, $this->salaryCurrencySnapshot($salary->currency, (float) $validated['amount_paid'], (float) $salary->bonus, $rate));
             $validated = array_merge($validated, $this->attendanceBreakdown($validated['employee_id'], $validated['salary_month'], $validated['total_days']));
 
             $salary->update($validated);
@@ -107,7 +114,7 @@ class SalaryController extends Controller
         });
 
         // Returns updated resource to populate the form view in place
-        return new SalaryResource($salary->fresh(['employee', 'currency', 'bonuses', 'deductions', 'expense']));
+        return new SalaryResource($salary->fresh(['employee', 'currency', 'bonuses', 'deductions', 'expense', 'recorder']));
     }
 
     public function destroy(Salary $salary): JsonResponse
@@ -235,7 +242,7 @@ class SalaryController extends Controller
         [$year, $month] = explode('-', $salaryMonth);
 
         return WorthyEmployee::query()
-            ->with('employee')
+            ->with(['employee', 'currency', 'baseCurrency'])
             ->where('employee_id', $employeeId)
             ->where('is_granted', true)
             ->whereDoesntHave('salaries')
@@ -263,8 +270,9 @@ class SalaryController extends Controller
             'currency_decimal_places' => $currency->decimal_places,
             'cnv_curr_shrt' => $currency->code,
             'base_curr_shrt' => $base->code,
+            'base_currency_id' => $base->id,
             'rate' => $rate,
-            'base_amount' => round(($amountPaid * $rate) + $bonusBase, 4),
+            'base_amount' => round(($amountPaid + $bonusBase) / $rate, 4),
             'currency_snapshot_source' => 'recorded_at_creation',
             'currency_snapshot_note' => null,
         ];
@@ -272,16 +280,49 @@ class SalaryController extends Controller
 
     private function conversionSnapshot(WorthyEmployee $bonus, Currency $salaryCurrency): array
     {
+        $sourceCurrency = $bonus->currency ?? $bonus->baseCurrency ?? $salaryCurrency;
+        $sourceRate = (float) ($bonus->rate ?: $sourceCurrency->rate ?: 1);
+
         return [
             'source_amount' => $bonus->granted_amount,
-            'conversion_formula' => '(source_amount × source_rate_to_base) ÷ salary_rate_to_base',
+            'source_currency_code' => $sourceCurrency->code,
+            'source_rate' => $sourceRate,
+            'salary_currency_code' => $salaryCurrency->code,
+            'salary_rate' => (float) $salaryCurrency->rate,
+            'converted_amount' => $this->bonusAmountInSalaryCurrency($bonus, $salaryCurrency),
+            'conversion_formula' => '(source_amount ÷ source_rate_to_base) × salary_rate_to_base',
             'conversion_snapshot_source' => 'recorded_at_inclusion',
         ];
+    }
+
+    private function bonusAmountInSalaryCurrency(WorthyEmployee $bonus, Currency $salaryCurrency): float
+    {
+        if ($bonus->base_amount !== null && $bonus->baseCurrency) {
+            return $this->currencies->convert(
+                (float) $bonus->base_amount,
+                $bonus->baseCurrency,
+                $salaryCurrency,
+                $salaryCurrency->decimal_places,
+            );
+        }
+
+        return $this->currencies->convert(
+            (float) $bonus->granted_amount,
+            $bonus->currency ?? $salaryCurrency,
+            $salaryCurrency,
+            $salaryCurrency->decimal_places,
+        );
     }
 
     private function attendanceBreakdown(int $employeeId, string $month, int $totalDays): array
     {
         [$year, $monthNumber] = array_map('intval', explode('-', $month));
+        $monthStart = Carbon::create($year, $monthNumber, 1)->startOfDay();
+        $monthEnd = $monthStart->copy()->endOfMonth()->startOfDay();
+        $workingDays = 0;
+        for ($day = $monthStart->copy(); $day->lte($monthEnd); $day->addDay()) {
+            if (! $day->isFriday()) $workingDays++;
+        }
         $counts = Attendance::query()->where('employee_id', $employeeId)
             ->whereYear('date', $year)->whereMonth('date', $monthNumber)
             ->selectRaw('status, count(*) as aggregate')->groupBy('status')->pluck('aggregate', 'status');
@@ -290,10 +331,11 @@ class SalaryController extends Controller
         $unpaid = (int) ($counts['unpaid-off-day'] ?? 0);
 
         return [
-            'worked_days' => min($totalDays, $present + $paid),
+            'total_days' => $workingDays,
+            'worked_days' => min($workingDays, $present + $paid),
             'paid_off_days' => $paid,
             'unpaid_off_days' => $unpaid,
-            'absent_days' => max(0, $totalDays - $present - $paid - $unpaid),
+            'absent_days' => max(0, $workingDays - $present - $paid - $unpaid),
         ];
     }
 
@@ -309,6 +351,7 @@ class SalaryController extends Controller
         $expense = Expense::firstOrNew(['salary_id' => $salary->id]);
         $expense->fill([
             'currency_id' => $salary->currency_id,
+            'base_currency_id' => $salary->base_currency_id,
             'currency' => $salary->currency_code,
             'type' => 'Salaries',
             'description' => $details,
@@ -318,6 +361,7 @@ class SalaryController extends Controller
             'base_curr_shrt' => $salary->base_curr_shrt,
             'rate' => $salary->rate,
             'date' => $salary->payment_date,
+            'recorded_by' => $salary->recorded_by,
         ]);
         $expense->save();
     }

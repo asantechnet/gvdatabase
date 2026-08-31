@@ -9,6 +9,7 @@ use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\Customer;
 use App\Models\Employee;
+use Carbon\Carbon;
 use App\Services\Contracts\ContentSanitizer;
 use App\Services\Contracts\PlaceholderRegistry;
 use App\Services\Contracts\PlaceholderResolver;
@@ -31,7 +32,7 @@ class ContractController extends Controller
             'status' => 'sometimes|string|in:'.implode(',', Contract::STATUSES),
         ]);
 
-        $query = Contract::with(['template.contractType', 'contractType', 'employee.position', 'employee.office', 'employee.user', 'customer', 'company']);
+        $query = Contract::with(['template.contractType', 'contractType', 'employee.position', 'employee.office', 'employee.user', 'customer.customerServices.service.currency', 'company']);
 
         if ($slug = $request->input('type_slug')) {
             $query->where(function ($q) use ($slug) {
@@ -133,6 +134,7 @@ class ContractController extends Controller
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'] ?? null,
                 'status' => $data['status'],
+                'company_signatory_name' => $data['company_signatory_name'] ?? null,
             ],
             $type?->slug,
         );
@@ -162,7 +164,7 @@ class ContractController extends Controller
 
         $snapshot = [
             'parties' => [
-                'our_company' => PlaceholderRegistry::ourCompanyValues(),
+                'our_company' => PlaceholderRegistry::ourCompanyValues($data['company_signatory_name'] ?? null),
                 'counterparty' => $counterparty,
             ],
             'entity' => $contextEntity['snapshot'],
@@ -180,16 +182,15 @@ class ContractController extends Controller
             ...$contextEntity['foreign_keys'],
             'snapshot_data' => $snapshot,
         ]);
-
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'employee', 'customer', 'company'])),
+            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'employee', 'customer.customerServices.service.currency', 'company'])),
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $contract = Contract::with(['template.contractType', 'contractType', 'employee.position', 'customer', 'company'])->find($id);
+        $contract = Contract::with(['template.contractType', 'contractType', 'employee.position', 'customer.customerServices.service.currency', 'company'])->find($id);
         if (! $contract) {
             return $this->notFound();
         }
@@ -216,6 +217,12 @@ class ContractController extends Controller
             $type = ContractType::find($data['contract_type_id']) ?? $type;
         }
         $slug = $type?->slug;
+        if (array_key_exists('duration_months', $data)) {
+            $startDate = $data['start_date'] ?? $contract->start_date?->toDateString();
+            if ($data['duration_months'] && $startDate) {
+                $data['end_date'] = Carbon::parse($startDate)->addMonthsNoOverflow((int) $data['duration_months'])->toDateString();
+            }
+        }
 
         // Re-render from the template when it changed or entity data was updated.
         $shouldRender = $template !== null || isset($data['employee_id']) || isset($data['customer_id'])
@@ -241,7 +248,12 @@ class ContractController extends Controller
             ]);
 
             $content = $template?->content ?? ($data['content'] ?? $contract->content);
-            $rendered = $this->resolver->resolve((string) $content, $contextEntity['context'], $slug);
+            $rendered = $this->resolver->resolve((string) $content, $contextEntity['context'] + [
+                'start_date' => $data['start_date'] ?? $contract->start_date?->toDateString(),
+                'end_date' => $data['end_date'] ?? $contract->end_date?->toDateString(),
+                'status' => $data['status'] ?? $contract->status,
+                'company_signatory_name' => $data['company_signatory_name'] ?? $contract->company_signatory_name,
+            ], $slug);
             $counterparty = $this->buildCounterparty($slug, $contextEntity);
 
             $data += [
@@ -250,7 +262,7 @@ class ContractController extends Controller
                 'type' => $type?->name,
                 'snapshot_data' => [
                     'parties' => [
-                        'our_company' => PlaceholderRegistry::ourCompanyValues(),
+                        'our_company' => PlaceholderRegistry::ourCompanyValues($data['company_signatory_name'] ?? $contract->company_signatory_name),
                         'counterparty' => $counterparty,
                     ],
                     'entity' => $contextEntity['snapshot'],
@@ -264,7 +276,7 @@ class ContractController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'employee', 'customer', 'company'])),
+            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'employee', 'customer.customerServices.service.currency', 'company'])),
         ]);
     }
 
@@ -349,8 +361,10 @@ class ContractController extends Controller
             'cover_text' => ['nullable', 'string'],
             'content' => [$required.'string'],
             'status' => [$required.'string', 'in:'.implode(',', Contract::STATUSES)],
-            'start_date' => [$required.'date'],
+            'start_date' => [$partial ? 'sometimes' : 'nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'duration_months' => ['nullable', 'integer', 'min:1', 'max:600'],
+            'company_signatory_name' => ['nullable', 'string', 'max:255'],
             'is_cancelled' => ['sometimes', 'boolean'],
         ]);
 
@@ -362,10 +376,22 @@ class ContractController extends Controller
 
         $validator->validate();
 
-        return collect($validator->validated())->except([
+        $data = collect($validator->validated())->except([
             'counterparty', 'counterparty_company', 'counterparty_email',
             'counterparty_contact', 'counterparty_address',
         ])->all();
+
+        if (! $partial && empty($data['start_date'])) {
+            $data['start_date'] = now()->toDateString();
+        }
+
+        if (! $partial && ! empty($data['duration_months'])) {
+            $data['end_date'] = Carbon::parse($data['start_date'])
+                ->addMonthsNoOverflow((int) $data['duration_months'])
+                ->toDateString();
+        }
+
+        return $data;
     }
 
     /** @return array{0: ?ContractTemplate, 1: ?ContractType} */

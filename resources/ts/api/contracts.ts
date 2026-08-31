@@ -1,5 +1,6 @@
 import api from './axios'
 import type { ContractType } from './contractType'
+import type { Service } from './services'
 
 export type ContractStatus = 'draft' | 'active' | 'expired' | 'terminated' | 'cancelled'
 
@@ -30,6 +31,9 @@ export interface Contract {
   status: ContractStatus
   start_date: string | null
   end_date: string | null
+  duration_months?: number | null
+  company_signatory_name?: string | null
+  services?: Service[]
   counterparty: string | null
   counterparty_company?: string | null
   counterparty_email?: string | null
@@ -76,6 +80,8 @@ export interface ContractCreateData {
   status: ContractStatus
   start_date: string
   end_date?: string | null
+  duration_months?: number | null
+  company_signatory_name?: string | null
 }
 
 export interface ContractUpdateData extends Partial<Omit<ContractCreateData, 'status'>> {

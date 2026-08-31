@@ -14,6 +14,7 @@ class WorthyEmployee extends Model
 
     protected $fillable = [
         'employee_id',
+        'currency_id', 'base_currency_id', 'currency_code', 'currency_name', 'currency_symbol', 'currency_decimal_places', 'base_currency_code', 'rate', 'base_amount',
         'source_task_id', 'is_automatic',
         'calculation_key', 'calculation_score', 'calculation_inputs', 'rule_snapshot', 'calculated_at',
         'granted_at', 'granted_by',
@@ -33,6 +34,16 @@ class WorthyEmployee extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public function currency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class);
+    }
+
+    public function baseCurrency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class, 'base_currency_id');
+    }
+
     public function salaries(): BelongsToMany
     {
         return $this->belongsToMany(Salary::class, 'salary_worthy_employee')
@@ -48,6 +59,9 @@ class WorthyEmployee extends Model
             'suggested_amount' => 'float',
             'selected_amount' => 'float',
             'granted_amount' => 'float',
+            'rate' => 'float',
+            'currency_decimal_places' => 'integer',
+            'base_amount' => 'float',
             'is_granted' => 'boolean',
             'is_automatic' => 'boolean',
             'calculation_score' => 'float',

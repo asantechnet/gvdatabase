@@ -52,7 +52,9 @@ class MonthlyAttendanceProcessor
         foreach ($employees as $employee) {
             $employeeStart = $start->copy()->max(Carbon::parse($employee->join_date));
             for ($day = $employeeStart->copy()->startOfDay(); $day->lte($end); $day->addDay()) {
-                if ($day->isWeekend()) continue;
+                // Afghanistan's regular weekly day off is Friday. Saturday and
+                // Sunday remain normal working days unless a future holiday rule says otherwise.
+                if ($day->isFriday()) continue;
                 $date = $day->toDateString();
                 if (Attendance::withTrashed()->where('employee_id', $employee->id)->where('date', $date)->exists()) continue;
                 $leave = PaidTimeOff::query()->where('employee_id', $employee->id)->whereDate('date', $date)

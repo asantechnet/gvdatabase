@@ -87,6 +87,7 @@ const headers = [
   { title: translate('common.messages.contract'), key: 'contract', sortable: true },
   { title: translate('common.fields.type'), key: 'type', sortable: true },
   { title: translate('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true },
+  { title: 'Services', key: 'services', sortable: false },
   { title: translate('common.fields.startDate'), key: 'start_date', sortable: true },
   { title: translate('common.fields.status'), key: 'status', sortable: true },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false },
@@ -498,7 +499,7 @@ onMounted(async () => {
             <VSelect v-model="filterStatus" :items="statuses" :label="$t('common.messages.filterByStatus')"
               density="compact" clearable hide-details />
           </DataTableFilterMenu>
-          <VBtn icon="tabler-printer" variant="text" class="flex-shrink-0" @click="printTable"><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.printTable') }}</VTooltip></VBtn>
+          <VBtn icon="tabler-printer" variant="text" class="flex-shrink-0" @click="printTable"><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.printTable') }}</VTooltip></VBtn>
           <VBtn color="primary" class="flex-shrink-0" @click="addNew" :loading="isLoading">
             <VIcon icon="tabler-plus" class="me-1" />
             {{ $t('pages.contracts.allContracts.allContracts.addContract') }}
@@ -522,6 +523,9 @@ onMounted(async () => {
       <template #item.counterparty="{ item }">
         {{ item.counterparty || $t('pages.contracts.allContracts.allContracts.unknownCounterparty') }}
       </template>
+      <template #item.services="{ item }">
+        {{ item.services?.map(service => service.type).join(', ') || '—' }}
+      </template>
       <template #item.start_date="{ item }">
                   {{ formatLocalizedDate(item.start_date) }}
       </template>
@@ -533,13 +537,13 @@ onMounted(async () => {
       <template #item.actions="{ item }">
         <FullDetailsButton :item="item" :title="item.contract_number || item.contract" />
         <VBtn v-if="!item.is_cancelled" icon="tabler-ban" variant="text" size="small" @click="cancelContract(item)"
-          :loading="isCancelling" class="me-2" color="error"><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.cancelContract') }}</VTooltip></VBtn>
+          :loading="isCancelling" class="me-2" color="error"><VIcon icon="tabler-ban" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.cancelContract') }}</VTooltip></VBtn>
         <VBtn icon="tabler-edit" variant="text" size="small" @click="editContractUI(item)" class="me-2"
-          ><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.editContract') }}</VTooltip></VBtn>
+          ><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.editContract') }}</VTooltip></VBtn>
         <VBtn icon="tabler-trash" variant="text" size="small" @click="deleteContractUI(item)" class="me-2"
-          ><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.deleteContract') }}</VTooltip></VBtn>
+          ><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.deleteContract') }}</VTooltip></VBtn>
         <VBtn icon="tabler-printer" variant="text" size="small" @click="printContract(item)" :loading="isPrintLoading"
-          ><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.printContract') }}</VTooltip></VBtn>
+          ><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.printContract') }}</VTooltip></VBtn>
       </template>
     </ResponsiveDataTable>
   </VCard>
@@ -547,7 +551,7 @@ onMounted(async () => {
     ? $t('pages.contracts.allContracts.allContracts.employeeContractsReport')
     : contractAudience === 'customers'
       ? $t('pages.contracts.allContracts.allContracts.customerContractsReport')
-      : 'Contract records'" :subtitle="$t('pages.contracts.allContracts.allContracts.filteredContractRecords')" :columns="headers.slice(0, -1).map(header => header.title)" :rows="filtered.map(contract => [contract.contract_number, contract.contract || contract.contract_template?.name, contract.type || contract.contract_template?.type, contract.counterparty, contract.start_date, contract.status])" />
+      : 'Contract records'" :subtitle="$t('pages.contracts.allContracts.allContracts.filteredContractRecords')" :columns="headers.slice(0, -1).map(header => header.title)" :rows="filtered.map(contract => [contract.contract_number, contract.contract || contract.contract_template?.name, contract.type || contract.contract_template?.type, contract.counterparty, contract.services?.map(service => service.type).join(', ') || '—', contract.start_date, contract.status])" />
 
   <!-- Contract Form Dialog -->
   <VDialog v-model="isDialogVisible" max-width="600px" persistent>

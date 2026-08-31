@@ -17,11 +17,16 @@ export interface StockItem {
     code: string
     status: 'active' | 'inactive'
   }
-  staff_id: number | null
-  staff?: {
-    id: number
-    name: string
-  }
+  allocated_quantity?: number
+  available_quantity?: number
+  allocations: StockAllocation[]
+}
+
+export interface StockAllocation {
+  id?: number
+  employee_id: number
+  employee?: { id: number; name: string } | null
+  quantity: number
 }
 
 export interface StockParams {
@@ -31,7 +36,7 @@ export interface StockParams {
   condition?: StockCondition
 }
 
-export type StockPayload = Omit<StockItem, 'id' | 'staff' | 'office'>
+export type StockPayload = Omit<StockItem, 'id' | 'office' | 'allocated_quantity' | 'available_quantity'>
 
 const unwrapData = <T>(response: unknown): T => {
   let payload = response
