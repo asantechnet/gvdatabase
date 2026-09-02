@@ -4,6 +4,7 @@ import OfficeApi from '@/api/office'
 import OfficeGeofenceMap from '@/components/setup/OfficeGeofenceMap.vue'
 import { useToast } from 'vue-toastification'
 import { translateBackendValue } from '@/utils/localization'
+import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
 
 type DirectoryRecord = {
   id: number
@@ -16,7 +17,7 @@ type DirectoryRecord = {
   address?: string | null
   customer_count?: number
   visitor_count?: number
-  stock_count?: number
+  asset_count?: number
   latitude?: number | null
   longitude?: number | null
   geofence_radius_meters?: number
@@ -50,6 +51,7 @@ const deleting = ref<DirectoryRecord | null>(null)
 const form = ref<DirectoryForm>({ name: '', code: '', email: '', phone: '', status: 'active', notes: '', address: '', latitude: null, longitude: null, geofenceRadiusMeters: 100, geofenceEnabled: false })
 const locating = ref(false)
 const currentLocation = reactive<{ latitude: number | null; longitude: number | null }>({ latitude: null, longitude: null })
+const { enabled: automaticAttendanceEnabled, load: loadAutomaticAttendance } = useAutomaticAttendance()
 
 const isMarketer = computed(() => props.kind === 'marketers')
 const singular = computed(() => translate(isMarketer.value ? 'common.fields.marketer' : 'common.fields.office'))
@@ -60,7 +62,7 @@ const subtitle = computed(() => isMarketer.value
 const icon = computed(() => isMarketer.value ? 'tabler-speakerphone' : 'tabler-building-community')
 const activeCount = computed(() => records.value.filter(record => record.status === 'active').length)
 const assignmentCount = computed(() => records.value.reduce((sum, record) => sum
-  + (record.customer_count ?? 0) + (record.visitor_count ?? 0) + (record.stock_count ?? 0), 0))
+  + (record.customer_count ?? 0) + (record.visitor_count ?? 0) + (record.asset_count ?? 0), 0))
 const filteredRecords = computed(() => {
   const query = search.value.trim().toLowerCase()
   return records.value.filter(record => {
@@ -195,10 +197,13 @@ async function confirmDelete() {
 function assignedLabel(record: DirectoryRecord) {
   if (isMarketer.value)
     return `${record.customer_count ?? 0} customers · ${record.visitor_count ?? 0} visitors`
-  return `${record.stock_count ?? 0} stock records`
+  return `${record.asset_count ?? 0} asset records`
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadAutomaticAttendance()
+})
 </script>
 
 <template>
@@ -243,7 +248,7 @@ onMounted(load)
           <VCol cols="12" md="6"><VTextField v-model="form.email" :label="$t('common.fields.email')" type="email" /></VCol>
           <VCol cols="12" md="6"><VTextField v-model="form.phone" :label="$t('common.fields.phone')" /></VCol>
           <VCol cols="12"><VTextarea v-if="isMarketer" v-model="form.notes" :label="$t('common.fields.notes')" rows="3" /><VTextarea v-else v-model="form.address" :label="$t('common.fields.address')" rows="3" /></VCol>
-          <template v-if="!isMarketer">
+          <template v-if="!isMarketer && automaticAttendanceEnabled">
             <VCol cols="12"><VDivider class="mb-4" /><div class="d-flex flex-wrap align-center justify-space-between ga-3"><div><h3 class="text-h6">{{ $t('pages.settings.geofence.title') }}</h3><p class="text-body-2 text-medium-emphasis mb-0">{{ $t('pages.settings.geofence.description') }}</p></div><VSwitch v-model="form.geofenceEnabled" color="primary" :label="$t('pages.settings.geofence.enableAutomaticAttendance')" hide-details /></div></VCol>
             <VCol cols="12">
               <OfficeGeofenceMap v-model:latitude="form.latitude" v-model:longitude="form.longitude" v-model:radius-meters="form.geofenceRadiusMeters" :current-latitude="currentLocation.latitude" :current-longitude="currentLocation.longitude" />

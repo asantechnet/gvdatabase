@@ -164,7 +164,7 @@ class SalaryController extends Controller
             'rate' => ['required', 'numeric', 'gt:0'],
             'salaryMonth' => ['required', 'string', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
             'amountPaid' => 'required|numeric|gt:0',
-            'workedDays' => 'required|integer|between:0,31',
+            'workedDays' => ['required', 'numeric', 'between:0,31', 'multiple_of:0.5'],
             'totalDays' => 'required|integer|between:1,31',
             'remarks' => 'nullable|string|max:255',
             'date' => 'required|date',
@@ -323,19 +323,21 @@ class SalaryController extends Controller
         for ($day = $monthStart->copy(); $day->lte($monthEnd); $day->addDay()) {
             if (! $day->isFriday()) $workingDays++;
         }
-        $counts = Attendance::query()->where('employee_id', $employeeId)
-            ->whereYear('date', $year)->whereMonth('date', $monthNumber)
-            ->selectRaw('status, count(*) as aggregate')->groupBy('status')->pluck('aggregate', 'status');
-        $present = (int) ($counts['present'] ?? 0);
-        $paid = (int) ($counts['paid-off-day'] ?? 0);
-        $unpaid = (int) ($counts['unpaid-off-day'] ?? 0);
+        $attendances = Attendance::query()->where('employee_id', $employeeId)
+            ->whereYear('date', $year)->whereMonth('date', $monthNumber)->get();
+        $present = (float) $attendances->sum(fn (Attendance $row) => $row->status === 'present'
+            ? max(0, 1 - (float) $row->leave_duration_days) : 0);
+        $leave = \App\Models\PaidTimeOff::query()->where('employee_id', $employeeId)
+            ->where('is_granted', true)->whereBetween('date', [$monthStart->toDateString(), $monthEnd->toDateString()])->get();
+        $paid = (float) $leave->sum('paid_days');
+        $unpaid = (float) $leave->sum(fn ($row) => max(0, (float) $row->duration_days - (float) $row->paid_days));
 
         return [
             'total_days' => $workingDays,
-            'worked_days' => min($workingDays, $present + $paid),
-            'paid_off_days' => $paid,
-            'unpaid_off_days' => $unpaid,
-            'absent_days' => max(0, $workingDays - $present - $paid - $unpaid),
+            'worked_days' => round(min($workingDays, $present + $paid), 1),
+            'paid_leave_days' => round($paid, 1),
+            'unpaid_leave_days' => round($unpaid, 1),
+            'absent_days' => round(max(0, $workingDays - $present - $paid - $unpaid), 1),
         ];
     }
 
@@ -344,9 +346,9 @@ class SalaryController extends Controller
         $salary->loadMissing(['employee', 'deductions']);
         $netAmount = max(0, (float) $salary->total_amount - (float) $salary->deductions->sum('amount'));
         $details = sprintf(
-            'Payroll %s for %s (%s); present/paid: %d, paid off: %d, absent: %d, unpaid off: %d',
+            'Payroll %s for %s (%s); payable: %.1f, paid leave: %.1f, absent: %.1f, unpaid leave: %.1f',
             $salary->payslip_number, $salary->employee?->name ?? 'employee', $salary->salary_month,
-            $salary->worked_days, $salary->paid_off_days, $salary->absent_days, $salary->unpaid_off_days,
+            $salary->worked_days, $salary->paid_leave_days, $salary->absent_days, $salary->unpaid_leave_days,
         );
         $expense = Expense::firstOrNew(['salary_id' => $salary->id]);
         $expense->fill([

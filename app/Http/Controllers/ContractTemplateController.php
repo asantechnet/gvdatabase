@@ -17,7 +17,9 @@ class ContractTemplateController extends Controller
 
     public function index(): JsonResponse
     {
-        $templates = ContractTemplate::with(['policies', 'contractType', 'position'])->latest('id')->get();
+        $templates = ContractTemplate::whereHas('contractType', fn ($query) =>
+            $query->whereIn('slug', ['employment', 'customer', 'company']))
+            ->with(['policies', 'contractType', 'position'])->latest('id')->get();
 
         return response()->json([
             'success' => true,
@@ -40,6 +42,8 @@ class ContractTemplateController extends Controller
 
     public function show(ContractTemplate $contractTemplate): JsonResponse
     {
+        abort_unless(in_array($contractTemplate->contractType?->slug, ['employment', 'customer', 'company'], true), 404);
+
         return response()->json([
             'success' => true,
             'data' => new ContractTemplateResource($contractTemplate->load(['policies', 'contractType', 'position'])),
@@ -48,6 +52,7 @@ class ContractTemplateController extends Controller
 
     public function update(Request $request, ContractTemplate $contractTemplate): JsonResponse
     {
+        abort_unless(in_array($contractTemplate->contractType?->slug, ['employment', 'customer', 'company'], true), 404);
         $data = $this->validated($request, partial: true);
 
         $contractTemplate->update($this->payload($data, $contractTemplate));
@@ -105,6 +110,10 @@ class ContractTemplateController extends Controller
             $type = ContractType::find($typeId);
             if (! $type) {
                 return;
+            }
+
+            if (! in_array($type->slug, ['employment', 'customer', 'company'], true)) {
+                $validator->errors()->add('contract_type_id', 'Only employment, customer, and company contract types are supported.');
             }
 
             if ($type->slug === 'employment' && ! $request->filled('position_id')) {

@@ -2,7 +2,7 @@ export interface CartItem {
   id: number
   name: string
   seller: string
-  inStock: boolean
+  inAsset: boolean
   rating: number
   price: number
   discountPrice: number

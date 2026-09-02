@@ -379,7 +379,7 @@ onMounted(async () => {
           <VCol v-if="type === 'financial' || type === 'payroll'" cols="12" md="3"><VSelect v-model="filters.currency_id" :items="catalog?.currencies ?? []" item-title="code" item-value="id" :label="rt('filters.currency')" clearable /></VCol>
           <VCol v-if="type === 'operations'" cols="12" md="3"><VSelect v-model="filters.board_id" :items="catalog?.boards ?? []" item-title="title" item-value="id" :label="rt('filters.taskBoard')" clearable /></VCol>
           <VCol v-if="type === 'operations'" cols="12" md="3"><VSelect v-model="filters.contract_type" :items="catalog?.contract_types ?? []" :label="rt('filters.contractType')" clearable /></VCol>
-          <VCol v-if="type === 'attendance'" cols="12" md="3"><VSelect v-model="filters.attendance_state" :items="['present', 'absent', 'paid-off-day', 'complete', 'incomplete']" :item-title="translateBackendValue" :label="rt('filters.attendanceState')" clearable /></VCol>
+          <VCol v-if="type === 'attendance'" cols="12" md="3"><VSelect v-model="filters.attendance_state" :items="['present', 'absent', 'paid-leave', 'unpaid-leave', 'complete', 'incomplete']" :item-title="translateBackendValue" :label="rt('filters.attendanceState')" clearable /></VCol>
           <VCol v-if="type === 'financial' || type === 'payroll'" cols="12" md="3"><VCombobox v-model="filters.status" :items="type === 'financial' ? ['Issued', 'Draft', 'Paid', 'Cancelled'] : ['granted', 'pending']" :label="rt('filters.status')" clearable /></VCol>
         </VRow></div></VExpandTransition>
         <div class="d-flex flex-wrap align-center justify-space-between ga-3 mt-4">

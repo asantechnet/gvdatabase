@@ -10,13 +10,15 @@ class CustomerController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Customer::with('customerServices.service.currency');
+        $query = Customer::with('customerServices.service.currency')
+            ->when(! $request->boolean('compact'), fn ($query) => $query->with('interactions.creator'));
 
         if ($search = $request->input('search')) {
             $query->where(function ($query) use ($search) {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('company', 'like', "%{$search}%")
-                    ->orWhere('contact', 'like', "%{$search}%");
+                    ->orWhere('contact', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -37,6 +39,7 @@ class CustomerController extends Controller
 
         return new CustomerResource($customer->load([
             'customerServices.service.currency',
+            'interactions.creator',
         ]));
     }
 
@@ -44,6 +47,7 @@ class CustomerController extends Controller
     {
         return new CustomerResource($customer->load([
             'customerServices.service.currency',
+            'interactions.creator',
         ]));
     }
 
@@ -53,6 +57,7 @@ class CustomerController extends Controller
 
         return new CustomerResource($customer->load([
             'customerServices.service.currency',
+            'interactions.creator',
         ]));
     }
 
@@ -81,6 +86,7 @@ class CustomerController extends Controller
             'address' => ['nullable', 'string', 'max:2000'],
             'tax_number' => ['nullable', 'string', 'max:100'],
             'marketer' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string', 'max:10000'],
             'date' => [$presence, 'date'],
         ]);
     }

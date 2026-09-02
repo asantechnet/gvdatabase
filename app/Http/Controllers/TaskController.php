@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class TaskController extends Controller
 {
@@ -26,8 +27,7 @@ class TaskController extends Controller
             'assignees.*' => 'integer|distinct|exists:users,id',
             'tags' => 'sometimes|array',
             'tags.*' => 'integer|distinct|exists:tags,id',
-            'service_ids' => 'sometimes|array',
-            'service_ids.*' => 'integer|distinct|exists:services,id',
+            'customer_id' => 'nullable|integer|exists:customers,id',
         ]);
 
         $board = Board::findOrFail($validated['board_id']);
@@ -42,20 +42,26 @@ class TaskController extends Controller
 
         $assignees = $validated['assignees'] ?? [$request->user()->id];
         $tags = $validated['tags'] ?? [];
-        $serviceIds = $validated['service_ids'] ?? [];
-        unset($validated['assignees'], $validated['tags'], $validated['service_ids']);
+        $validated['customer_id'] ??= $board->project?->customer_id;
+        unset($validated['assignees'], $validated['tags']);
 
-        // Place at the bottom of the column by default
-        $validated['order'] = (Task::where('board_id', $validated['board_id'])->max('order') ?? -1) + 1;
+        $task = DB::transaction(function () use ($validated, $assignees, $tags) {
+            $board = Board::whereKey($validated['board_id'])->lockForUpdate()->firstOrFail();
 
-        $task = Task::create($validated);
-        $task->users()->sync($assignees);
-        $task->tags()->sync($tags);
-        $this->syncServices($task, $serviceIds, $board);
-        $board->users()->syncWithoutDetaching($assignees);
+            // Serializing creation per board prevents duplicate ordering when
+            // multiple tasks are added to the same column concurrently.
+            $validated['order'] = (Task::where('board_id', $board->id)->max('order') ?? -1) + 1;
+
+            $task = Task::create($validated);
+            $task->users()->sync($assignees);
+            $task->tags()->sync($tags);
+            $board->users()->syncWithoutDetaching($assignees);
+
+            return $task;
+        });
 
         // Load empty relations so the resource doesn't fail
-        $task->load(['users.employee', 'tags', 'services.currency', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
+        $task->load(['users.employee', 'tags', 'customer.customerServices.service.currency', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
 
         return new TaskResource($task);
     }
@@ -81,8 +87,7 @@ class TaskController extends Controller
             'assignees.*' => 'integer|distinct|exists:users,id',
             'tags' => 'sometimes|array',
             'tags.*' => 'integer|distinct|exists:tags,id',
-            'service_ids' => 'sometimes|array',
-            'service_ids.*' => 'integer|distinct|exists:services,id',
+            'customer_id' => 'nullable|integer|exists:customers,id',
         ]);
 
         Gate::authorize('update', $task);
@@ -97,27 +102,51 @@ class TaskController extends Controller
             Gate::authorize('manageDependencies', $task);
         }
 
-        $dependencies = $validated['dependencies'] ?? null;
-        $serviceIds = $validated['service_ids'] ?? null;
-        unset($validated['dependencies'], $validated['service_ids']);
-        $task->update($validated);
+        $syncAssignees = $request->has('assignees');
+        $syncTags = $request->has('tags');
+        $syncDependencies = $request->has('dependencies');
+        $dependencies = $validated['dependencies'] ?? [];
+        $assignees = $validated['assignees'] ?? [];
+        $tags = $validated['tags'] ?? [];
+        unset($validated['dependencies'], $validated['assignees'], $validated['tags']);
 
-        // Optional: Handle syncing tags or assignees here if passed in the payload
-        if ($request->has('assignees')) {
-            $task->users()->sync($request->input('assignees'));
-            $task->board->users()->syncWithoutDetaching($request->input('assignees'));
-        }
-        if ($request->has('tags')) {
-            $task->tags()->sync($request->input('tags'));
-        }
-        if ($request->has('dependencies')) {
-            $task->dependencies()->sync($dependencies ?? []);
-        }
-        if ($serviceIds !== null) {
-            $this->syncServices($task, $serviceIds, $task->board);
-        }
+        $task = DB::transaction(function () use (
+            $task,
+            $validated,
+            $syncAssignees,
+            $syncTags,
+            $syncDependencies,
+            $dependencies,
+            $assignees,
+            $tags,
+        ) {
+            if ($syncDependencies) {
+                // Every dependency edit follows this lock order, making the
+                // graph check and pivot update one serialized operation.
+                $lockedTasks = Task::query()->orderBy('id')->lockForUpdate()->get();
+                $task = $lockedTasks->firstWhere('id', $task->id) ?? throw new \RuntimeException('Task not found.');
+                $this->assertNoDependencyCycle($task, $dependencies);
+            } else {
+                $task = Task::whereKey($task->id)->lockForUpdate()->firstOrFail();
+            }
 
-        return new TaskResource($task->fresh()->load(['users.employee', 'tags', 'services.currency', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']));
+            $task->update($validated);
+
+            if ($syncAssignees) {
+                $task->users()->sync($assignees);
+                $task->board->users()->syncWithoutDetaching($assignees);
+            }
+            if ($syncTags) {
+                $task->tags()->sync($tags);
+            }
+            if ($syncDependencies) {
+                $task->dependencies()->sync($dependencies);
+            }
+
+            return $task;
+        });
+
+        return new TaskResource($task->fresh()->load(['users.employee', 'tags', 'customer.customerServices.service.currency', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']));
     }
 
     public function destroy(Task $task)
@@ -238,14 +267,28 @@ class TaskController extends Controller
         return response()->json(['message' => 'Task repositioned', 'positions' => $positions]);
     }
 
-    /** @param list<int> $serviceIds */
-    private function syncServices(Task $task, array $serviceIds, Board $board): void
+    /** @param list<int> $dependencyIds */
+    private function assertNoDependencyCycle(Task $task, array $dependencyIds): void
     {
-        if ($board->project_id && $serviceIds !== []) {
-            $allowedCount = $board->project->services()->whereKey($serviceIds)->count();
-            abort_unless($allowedCount === count($serviceIds), 422, 'business.task_service_not_linked_to_project');
-        }
+        $frontier = array_values($dependencyIds);
+        $visited = [];
 
-        $task->services()->sync($serviceIds);
+        while ($frontier !== []) {
+            if (in_array($task->id, $frontier, true)) {
+                throw ValidationException::withMessages([
+                    'dependencies' => ['business.task_dependency_cycle'],
+                ]);
+            }
+
+            $visited = array_values(array_unique([...$visited, ...$frontier]));
+            $frontier = DB::table('task_dependencies')
+                ->whereIn('task_id', $frontier)
+                ->pluck('depends_on_task_id')
+                ->map(fn ($id) => (int) $id)
+                ->reject(fn (int $id) => in_array($id, $visited, true))
+                ->unique()
+                ->values()
+                ->all();
+        }
     }
 }

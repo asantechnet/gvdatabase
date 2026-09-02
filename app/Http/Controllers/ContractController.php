@@ -16,6 +16,7 @@ use App\Services\Contracts\PlaceholderResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class ContractController extends Controller
 {
@@ -27,12 +28,20 @@ class ContractController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'audience' => 'sometimes|string|in:customers,employees,companies,other',
-            'type_slug' => 'sometimes|string',
+            'audience' => 'sometimes|string|in:customers,employees,companies',
+            'type_slug' => 'sometimes|string|in:employment,customer,company',
             'status' => 'sometimes|string|in:'.implode(',', Contract::STATUSES),
         ]);
 
         $query = Contract::with(['template.contractType', 'contractType', 'employee.position', 'employee.office', 'employee.user', 'customer.customerServices.service.currency', 'company']);
+        $query->where(function ($query) {
+            $query->whereHas('contractType', fn ($type) => $type->whereIn('slug', ['employment', 'customer', 'company']))
+                ->orWhereHas('template.contractType', fn ($type) => $type->whereIn('slug', ['employment', 'customer', 'company']))
+                ->orWhere(function ($legacy) {
+                    $legacy->whereNull('contract_type_id')->whereNull('template_id')
+                        ->whereRaw('LOWER(COALESCE(type, "")) IN ("employment", "customer", "company")');
+                });
+        });
 
         if ($slug = $request->input('type_slug')) {
             $query->where(function ($q) use ($slug) {
@@ -77,16 +86,6 @@ class ContractController extends Controller
                     ->orWhere(function ($legacy) {
                         $legacy->whereNull('contract_type_id')->whereNull('template_id')
                             ->whereRaw('LOWER(COALESCE(type, "")) = "company"');
-                    });
-            });
-        } elseif ($request->input('audience') === 'other') {
-            $systemTypes = ['employment', 'customer', 'company'];
-            $query->where(function ($query) use ($systemTypes) {
-                $query->whereHas('contractType', fn ($t) => $t->whereNotIn('slug', $systemTypes))
-                    ->orWhereHas('template.contractType', fn ($t) => $t->whereNotIn('slug', $systemTypes))
-                    ->orWhere(function ($legacy) {
-                        $legacy->whereNull('contract_type_id')->whereNull('template_id')
-                            ->whereRaw('LOWER(COALESCE(type, "")) NOT IN ("employment", "customer", "company")');
                     });
             });
         }
@@ -216,6 +215,7 @@ class ContractController extends Controller
         if (array_key_exists('contract_type_id', $data)) {
             $type = ContractType::find($data['contract_type_id']) ?? $type;
         }
+        abort_unless(in_array($type?->slug, ['employment', 'customer', 'company'], true), 422, 'Only supported contract types may be used.');
         $slug = $type?->slug;
         if (array_key_exists('duration_months', $data)) {
             $startDate = $data['start_date'] ?? $contract->start_date?->toDateString();
@@ -224,9 +224,22 @@ class ContractController extends Controller
             }
         }
 
-        // Re-render from the template when it changed or entity data was updated.
-        $shouldRender = $template !== null || isset($data['employee_id']) || isset($data['customer_id'])
-            || isset($data['company_id']) || array_key_exists('content', $data);
+        $effectiveStartDate = $data['start_date'] ?? $contract->start_date?->toDateString();
+        $effectiveEndDate = array_key_exists('end_date', $data)
+            ? $data['end_date']
+            : $contract->end_date?->toDateString();
+        if ($effectiveStartDate && $effectiveEndDate && Carbon::parse($effectiveEndDate)->lt(Carbon::parse($effectiveStartDate))) {
+            throw ValidationException::withMessages([
+                'end_date' => ['validation.after_or_equal'],
+            ]);
+        }
+
+        // Re-render only when the template or one of its input values changed.
+        $renderInputs = [
+            'template_id', 'employee_id', 'customer_id', 'company_id', 'content',
+            'start_date', 'end_date', 'duration_months', 'status', 'company_signatory_name',
+        ];
+        $shouldRender = collect($renderInputs)->contains(fn (string $field) => array_key_exists($field, $data));
 
         if ($template && $slug === 'employment') {
             $employeeId = $data['employee_id'] ?? $contract->employee_id;
@@ -254,6 +267,27 @@ class ContractController extends Controller
                 'status' => $data['status'] ?? $contract->status,
                 'company_signatory_name' => $data['company_signatory_name'] ?? $contract->company_signatory_name,
             ], $slug);
+
+            if ($rendered['unresolved'] !== []) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The document contains placeholders that are not valid for this contract type: '
+                        .implode(', ', $rendered['unresolved']),
+                    'code' => 'business.unresolved_placeholders',
+                    'placeholders' => $rendered['unresolved'],
+                ], 422);
+            }
+
+            if ($rendered['missing'] !== []) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Some contract fields have no value and cannot be left empty in a finalized document: '
+                        .implode(', ', $rendered['missing']),
+                    'code' => 'business.missing_placeholder_values',
+                    'placeholders' => $rendered['missing'],
+                ], 422);
+            }
+
             $counterparty = $this->buildCounterparty($slug, $contextEntity);
 
             $data += [
@@ -312,7 +346,9 @@ class ContractController extends Controller
 
     public function templates(): JsonResponse
     {
-        $templates = ContractTemplate::with('contractType')->get();
+        $templates = ContractTemplate::whereHas('contractType', fn ($type) =>
+            $type->whereIn('slug', ['employment', 'customer', 'company']))
+            ->with('contractType')->get();
 
         return response()->json([
             'success' => true,
@@ -348,7 +384,9 @@ class ContractController extends Controller
 
     private function validatedData(Request $request, bool $partial = false): array
     {
-        $required = $partial ? 'sometimes|' : '';
+        $this->normalizeLocalizedInteger($request, 'duration_months');
+
+        $sometimes = $partial ? ['sometimes'] : [];
 
         $validator = Validator::make($request->all(), [
             'template_id' => ['nullable', 'integer', 'exists:contract_templates,id'],
@@ -356,21 +394,23 @@ class ContractController extends Controller
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
             'company_id' => ['nullable', 'integer', 'exists:companies,id'],
-            'is_custom' => ['sometimes', 'boolean'],
-            'name' => [$required.'string', 'max:255'],
+            'is_custom' => ['prohibited'],
+            'name' => [...$sometimes, 'string', 'max:255'],
             'cover_text' => ['nullable', 'string'],
-            'content' => [$required.'string'],
-            'status' => [$required.'string', 'in:'.implode(',', Contract::STATUSES)],
+            'content' => [...$sometimes, 'string'],
+            'status' => [...$sometimes, 'string', 'in:'.implode(',', Contract::STATUSES)],
             'start_date' => [$partial ? 'sometimes' : 'nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'end_date' => $partial
+                ? ['sometimes', 'nullable', 'date']
+                : ['nullable', 'date', 'after_or_equal:start_date'],
             'duration_months' => ['nullable', 'integer', 'min:1', 'max:600'],
             'company_signatory_name' => ['nullable', 'string', 'max:255'],
             'is_cancelled' => ['sometimes', 'boolean'],
         ]);
 
-        $validator->after(function ($validator) use ($request) {
-            if (! $request->filled('template_id') && ! $request->boolean('is_custom')) {
-                $validator->errors()->add('template_id', 'Select a template or create a custom contract.');
+        $validator->after(function ($validator) use ($request, $partial) {
+            if (! $partial && ! $request->filled('template_id')) {
+                $validator->errors()->add('template_id', 'Select a supported contract template.');
             }
         });
 
@@ -394,18 +434,45 @@ class ContractController extends Controller
         return $data;
     }
 
+    /**
+     * HTML number inputs can submit Persian or Arabic-Indic digits when the
+     * application is used in a right-to-left locale. Laravel's integer rule
+     * only accepts ASCII digits, so normalize those representations first.
+     */
+    private function normalizeLocalizedInteger(Request $request, string $field): void
+    {
+        $value = $request->input($field);
+        if (! is_string($value)) {
+            return;
+        }
+
+        $normalized = strtr(trim($value), [
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+        ]);
+
+        if ($normalized !== $value) {
+            $request->merge([$field => $normalized]);
+        }
+    }
+
     /** @return array{0: ?ContractTemplate, 1: ?ContractType} */
     private function resolveTemplateAndType(array $data): array
     {
         $template = isset($data['template_id']) ? ContractTemplate::with('contractType')->find($data['template_id']) : null;
 
         if ($template) {
+            abort_unless(in_array($template->contractType?->slug, ['employment', 'customer', 'company'], true), 422, 'Only supported contract types may be used.');
             return [$template, $template->contractType];
         }
 
         $type = isset($data['contract_type_id'])
             ? ContractType::find($data['contract_type_id'])
             : null;
+
+        abort_unless(in_array($type?->slug, ['employment', 'customer', 'company'], true), 422, 'Only supported contract types may be used.');
 
         return [null, $type];
     }

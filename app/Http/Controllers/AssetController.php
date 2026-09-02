@@ -2,21 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\StockResource;
-use App\Models\Stock;
+use App\Http\Resources\AssetResource;
+use App\Models\Asset;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
-class StockController extends Controller
+class AssetController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $query = Stock::query()->with(['allocations.employee', 'office']);
+        $query = Asset::query()->with(['allocations.employee', 'office']);
 
         if ($request->has('search')) {
             $search = $request->input('search');
@@ -38,9 +38,9 @@ class StockController extends Controller
             $query->where('condition', $request->input('condition'));
         }
 
-        $stocks = $query->get();
+        $assets = $query->get();
 
-        return StockResource::collection($stocks);
+        return AssetResource::collection($assets);
     }
 
     /**
@@ -49,90 +49,90 @@ class StockController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'serial_number' => 'required|string|max:255|unique:stocks',
+            'serial_number' => 'required|string|max:255|unique:assets',
             'item' => 'required|string|max:255',
             'quantity' => 'required|integer|min:1',
             'price' => 'required|numeric|min:0',
             'model' => 'required|string|max:255',
-            'condition' => ['required', Rule::in(Stock::conditions())],
+            'condition' => ['required', Rule::in(Asset::conditions())],
             'office_id' => ['required', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
             'allocations' => ['sometimes', 'array'],
             'allocations.*.employee_id' => ['required', 'integer', 'distinct', 'exists:employees,id'],
             'allocations.*.quantity' => ['required', 'integer', 'min:1'],
         ]);
 
-        $stock = DB::transaction(function () use ($validated) {
+        $asset = DB::transaction(function () use ($validated) {
             $allocations = $validated['allocations'] ?? [];
             unset($validated['allocations']);
-            $stock = Stock::create($validated);
-            $this->syncAllocations($stock, $allocations);
+            $asset = Asset::create($validated);
+            $this->syncAllocations($asset, $allocations);
 
-            return $stock;
+            return $asset;
         });
 
-        return new StockResource($stock->load(['allocations.employee', 'office']));
+        return new AssetResource($asset->load(['allocations.employee', 'office']));
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Stock $stock)
+    public function show(Asset $asset)
     {
-        return new StockResource($stock->load(['allocations.employee', 'office']));
+        return new AssetResource($asset->load(['allocations.employee', 'office']));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Stock $stock)
+    public function update(Request $request, Asset $asset)
     {
         $validated = $request->validate([
-            'serial_number' => 'sometimes|string|max:255|unique:stocks,serial_number,'.$stock->id,
+            'serial_number' => 'sometimes|string|max:255|unique:assets,serial_number,'.$asset->id,
             'item' => 'sometimes|string|max:255',
             'quantity' => 'sometimes|integer|min:1',
             'price' => 'sometimes|numeric|min:0',
             'model' => 'sometimes|string|max:255',
-            'condition' => ['sometimes', Rule::in(Stock::conditions())],
+            'condition' => ['sometimes', Rule::in(Asset::conditions())],
             'office_id' => ['sometimes', 'required', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
             'allocations' => ['sometimes', 'array'],
             'allocations.*.employee_id' => ['required', 'integer', 'distinct', 'exists:employees,id'],
             'allocations.*.quantity' => ['required', 'integer', 'min:1'],
         ]);
 
-        DB::transaction(function () use ($stock, $validated) {
-            $locked = Stock::query()->lockForUpdate()->findOrFail($stock->id);
+        DB::transaction(function () use ($asset, $validated) {
+            $locked = Asset::query()->lockForUpdate()->findOrFail($asset->id);
             $allocations = $validated['allocations'] ?? null;
             unset($validated['allocations']);
             $locked->update($validated);
             if ($allocations !== null) {
                 $this->syncAllocations($locked, $allocations);
             } elseif ($locked->allocations()->sum('quantity') > $locked->quantity) {
-                abort(422, 'business.stock_allocation_exceeds_quantity');
+                abort(422, 'business.asset_allocation_exceeds_quantity');
             }
         });
 
-        return new StockResource($stock->fresh()->load(['allocations.employee', 'office']));
+        return new AssetResource($asset->fresh()->load(['allocations.employee', 'office']));
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Stock $stock)
+    public function destroy(Asset $asset)
     {
-        $stock->delete();
+        $asset->delete();
 
         return response()->noContent();
     }
 
     /** @param array<int, array{employee_id: int, quantity: int}> $allocations */
-    private function syncAllocations(Stock $stock, array $allocations): void
+    private function syncAllocations(Asset $asset, array $allocations): void
     {
         $total = array_sum(array_map(fn (array $allocation) => (int) $allocation['quantity'], $allocations));
-        abort_if($total > $stock->quantity, 422, 'business.stock_allocation_exceeds_quantity');
+        abort_if($total > $asset->quantity, 422, 'business.asset_allocation_exceeds_quantity');
 
         $employeeIds = collect($allocations)->pluck('employee_id')->map(fn ($id) => (int) $id)->all();
         abort_unless(Employee::selectable()->whereIn('id', $employeeIds)->count() === count($employeeIds), 422, 'business.employee_not_selectable');
-        $stock->allocations()->delete();
-        $stock->allocations()->createMany($allocations);
+        $asset->allocations()->delete();
+        $asset->allocations()->createMany($allocations);
     }
 }

@@ -16,7 +16,7 @@ class Attendance extends Model
     protected $fillable = [
         'employee_id',
         'date',
-        'status',
+        'status', 'leave_duration_days', 'paid_leave_days', 'unpaid_leave_days',
         'logged_at',
         'check_in_time',
         'check_out_time',
@@ -38,6 +38,7 @@ class Attendance extends Model
     {
         return [
             'date' => 'date:Y-m-d',
+            'leave_duration_days' => 'float', 'paid_leave_days' => 'float', 'unpaid_leave_days' => 'float',
             'checked_in_at' => 'immutable_datetime',
             'checked_out_at' => 'immutable_datetime',
             'break_minutes' => 'integer', 'gross_minutes' => 'integer', 'net_worked_minutes' => 'integer',

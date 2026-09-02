@@ -150,7 +150,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('stocks', function (Blueprint $table) {
+        Schema::create('assets', function (Blueprint $table) {
             $table->id();
             $table->string('serial_number');
             $table->string('item');
@@ -167,7 +167,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('stocks');
+        Schema::dropIfExists('assets');
         Schema::dropIfExists('salary_deductions');
         Schema::dropIfExists('salaries');
         Schema::dropIfExists('paid_time_offs');

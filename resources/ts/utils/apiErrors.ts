@@ -96,7 +96,7 @@ const errorMessages: Record<string, string> = {
   'business.customer_has_invoice_history': 'Customers with invoice history cannot be deleted.',
   'business.marketer_in_use': 'This marketer is assigned to customers or visitors and cannot be deleted.',
   'business.position_in_use': 'This position is assigned to employees or users and cannot be deleted.',
-  'business.office_has_stock': 'This office has stock assigned to it and cannot be deleted.',
+  'business.office_has_asset': 'This office has asset assigned to it and cannot be deleted.',
   'business.contract_template_in_use': 'Templates used by contracts cannot be deleted.',
   'business.base_currency_cannot_be_deleted': 'The base currency cannot be deleted.',
   'business.currency_in_use': 'Currencies referenced by services, invoices, salaries, incomes, or expenses cannot be deleted.',

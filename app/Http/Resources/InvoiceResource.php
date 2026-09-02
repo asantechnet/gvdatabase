@@ -16,7 +16,17 @@ class InvoiceResource extends JsonResource
             (float) ($income->invoice_amount ?? ((float) $income->amount * (int) $income->quantity))
         );
         $currentCurrency = $this->resource->currency;
-        $balance = max(0, round((float) $this->amount - $paidAmount, 2));
+        // Older installations can have issued invoices with a base-currency
+        // snapshot but no currently configured base currency. The issued
+        // snapshot is the only reliable display currency in that situation.
+        $baseCurrency = $this->currentBaseCurrency() ?? $this->resource->baseCurrency;
+        $precision = max(0, min(8, (int) ($currentCurrency?->decimal_places ?? 2)));
+        $balance = max(0, round((float) $this->amount - $paidAmount, $precision));
+        $canMarkPaid = $this->status !== 'Paid'
+            && $this->status !== 'Void'
+            && $paidAmount > 0
+            && $balance > 0
+            && $balance < (float) $this->amount * 0.05;
 
         return [
             'id' => $this->id,
@@ -43,16 +53,30 @@ class InvoiceResource extends JsonResource
                 'rate' => (float) $this->rate,
                 'symbol' => $this->currency_symbol,
                 'shortname' => $this->currency_shortname,
+                'decimalPlaces' => $precision,
             ],
             'subtotal' => (float) $this->subtotal,
             'amount' => (float) $this->amount,
             'total_amount' => (float) $this->amount,
-            'paid_amount' => round($paidAmount, 2),
-            'balance' => max(0, round((float) $this->amount - $paidAmount, 2)),
-            'currentBaseAmount' => $this->currentBaseAmount((float) $this->amount, $currentCurrency),
-            'currentBasePaidAmount' => $this->currentBaseAmount((float) $paidAmount, $currentCurrency),
-            'currentBaseBalance' => $this->currentBaseAmount($balance, $currentCurrency),
-            'currentBaseCurrency' => $this->currentBaseCurrencyData(),
+            'paid_amount' => round($paidAmount, $precision),
+            'balance' => $balance,
+            'can_mark_paid' => $canMarkPaid,
+            'mark_paid_threshold' => round((float) $this->amount * 0.05, $precision),
+            'currentBaseAmount' => $baseCurrency
+                ? ($this->currentBaseCurrency() ? $this->currentBaseAmount((float) $this->amount, $currentCurrency) : (float) $this->base_amount)
+                : null,
+            'currentBasePaidAmount' => $baseCurrency
+                ? ($this->currentBaseCurrency() ? $this->currentBaseAmount((float) $paidAmount, $currentCurrency) : round((float) $this->base_amount * ($paidAmount / max((float) $this->amount, 1)), $baseCurrency->decimal_places))
+                : null,
+            'currentBaseBalance' => $baseCurrency
+                ? ($this->currentBaseCurrency() ? $this->currentBaseAmount($balance, $currentCurrency) : round((float) $this->base_amount * ($balance / max((float) $this->amount, 1)), $baseCurrency->decimal_places))
+                : null,
+            'currentBaseCurrency' => $baseCurrency ? [
+                'id' => $baseCurrency->id,
+                'code' => $baseCurrency->code,
+                'symbol' => $baseCurrency->symbol,
+                'decimalPlaces' => $baseCurrency->decimal_places,
+            ] : null,
             'discount' => (float) $this->discount,
             'notes' => $this->notes,
             'payment_detail_id' => $this->payment_detail_id,
@@ -78,6 +102,7 @@ class InvoiceResource extends JsonResource
                     'rate' => (float) ($service->pivot->snapshot_invoice_rate ?? $service->pivot->snapshot_rate),
                     'symbol' => $this->currency_symbol,
                     'shortname' => $this->currency_shortname,
+                    'decimalPlaces' => $precision,
                 ],
                 'subDescription' => '',
             ]),

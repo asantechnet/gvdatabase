@@ -5,17 +5,27 @@ namespace App\Http\Controllers;
 use App\Http\Resources\DailyReportResource;
 use App\Models\Attendance;
 use App\Models\DailyReport;
+use App\Services\AttendanceCalculationService;
 use App\Support\CompanyProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use App\Services\AttendanceCalculationService;
 
 class WorkdayController extends Controller
 {
     public function status(Request $request, CompanyProfile $company): JsonResponse
     {
+        if (! $company->automaticAttendanceEnabled()) {
+            return response()->json(['data' => [
+                'eligible' => false,
+                'state' => 'disabled',
+                'timezone' => $company->timezone(),
+                'attendance' => null,
+                'report' => null,
+            ]]);
+        }
+
         $employee = $request->user()->employee;
         if (! $employee) {
             return response()->json(['data' => [
@@ -63,6 +73,7 @@ class WorkdayController extends Controller
 
     public function start(Request $request, CompanyProfile $company, AttendanceCalculationService $calculator): JsonResponse
     {
+        abort_if(! $company->automaticAttendanceEnabled(), 422, 'business.automatic_attendance_disabled');
         $employee = $request->user()->employee;
         abort_unless($employee, 422, 'business.employee_has_no_account');
         $localNow = now($company->timezone());
@@ -90,7 +101,10 @@ class WorkdayController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            if ($attendance && ! $attendance->trashed() && $attendance->status !== 'present') {
+            $isOpenHalfLeave = $attendance && ! $attendance->trashed()
+                && (float) $attendance->leave_duration_days > 0
+                && (float) $attendance->leave_duration_days < 1;
+            if ($attendance && ! $attendance->trashed() && $attendance->status !== 'present' && ! $isOpenHalfLeave) {
                 throw ValidationException::withMessages([
                     'workday' => ['business.workday_attendance_conflict'],
                 ]);
@@ -109,7 +123,9 @@ class WorkdayController extends Controller
 
             if ($attendance) {
                 $attendance->fill($values);
-                if ($attendance->trashed()) $attendance->restore();
+                if ($attendance->trashed()) {
+                    $attendance->restore();
+                }
                 $attendance->save();
 
                 return $attendance;
@@ -129,6 +145,7 @@ class WorkdayController extends Controller
 
     public function end(Request $request, CompanyProfile $company, AttendanceCalculationService $calculator): JsonResponse
     {
+        abort_if(! $company->automaticAttendanceEnabled(), 422, 'business.automatic_attendance_disabled');
         $validated = $request->validate([
             'summary' => ['required', 'string', 'max:5000'],
             'achievements' => ['nullable', 'string', 'max:5000'],
@@ -195,7 +212,7 @@ class WorkdayController extends Controller
         $state = ! $attendance
             ? 'not_started'
             : ($attendance->status !== 'present'
-                ? 'blocked'
+                ? ((float) $attendance->leave_duration_days > 0 && (float) $attendance->leave_duration_days < 1 ? 'not_started' : 'blocked')
                 : (($attendance->checked_out_at || $attendance->check_out_time)
                     ? ($attendance->dailyReport ? 'completed' : 'awaiting_report')
                     : 'active'));
@@ -207,6 +224,9 @@ class WorkdayController extends Controller
             'attendance' => $attendance ? [
                 'id' => $attendance->id,
                 'date' => $attendance->date->format('Y-m-d'),
+                'leaveDurationDays' => (float) $attendance->leave_duration_days,
+                'paidLeaveDays' => (float) $attendance->paid_leave_days,
+                'unpaidLeaveDays' => (float) $attendance->unpaid_leave_days,
                 'checkedInAt' => $attendance->checked_in_at?->utc()->toISOString(),
                 'checkedOutAt' => $attendance->checked_out_at?->utc()->toISOString(),
                 'checkInTime' => $attendance->check_in_time ? substr($attendance->check_in_time, 0, 5) : null,

@@ -19,11 +19,11 @@ export default [
         subject: 'view_expenses',
       },
       {
-        title: "common.navigation.stock",
+        title: "common.navigation.asset",
         icon: { icon: "tabler-package" },
-        to: "stock",
+        to: "asset",
         action: 'read',
-        subject: 'view_stocks',
+        subject: 'view_assets',
       },
       {
         title: "common.navigation.reports",

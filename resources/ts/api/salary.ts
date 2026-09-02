@@ -24,9 +24,9 @@ export interface Salary {
   amountPaid: number
   bonus: number
   workedDays: number
-  paidOffDays: number
+  paidLeaveDays: number
   absentDays: number
-  unpaidOffDays: number
+  unpaidLeaveDays: number
   totalDays: number
   totalAmount: number
   amountPaidBase: number

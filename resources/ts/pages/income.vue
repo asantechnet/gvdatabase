@@ -60,6 +60,9 @@ const selectedInvoice = computed(() => {
 })
 
 const selectedInvoiceBalance = computed(() => selectedInvoice.value?.balance ?? 0)
+const selectedCurrency = computed(() => currencies.value.find(currency => currency.id === selectedIncome.value.currency_id) ?? null)
+const selectedCurrencyDecimals = computed(() => selectedInvoice.value?.currency.decimalPlaces ?? selectedCurrency.value?.decimalPlaces ?? 2)
+const selectedCurrencyStep = computed(() => 10 ** -selectedCurrencyDecimals.value)
 const currentBaseCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? null)
 
 const totalReceived = computed(() => incomes.value.reduce((total, income) => total + Number(income.currentBaseAmount ?? income.base_amount ?? 0), 0))
@@ -168,6 +171,8 @@ const handleCurrencyChange = (currencyId: number) => {
   }
 }
 
+const formatSelectedInvoiceAmount = (amount: number) => amount.toFixed(selectedCurrencyDecimals.value)
+
 const messageFromError = (error: unknown): string => apiErrorMessage(error, 'Unable to save the income record.')
 
 const validateIncomeForm = () => {
@@ -181,8 +186,8 @@ const validateIncomeForm = () => {
     return translate('pages.finance.income.income.exchangeRateMustBeGreaterThanZero')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedIncome.value.date)) return translate('pages.finance.income.income.selectAValidIncomeDate')
 
-  if (selectedInvoice.value && selectedIncome.value.amount * selectedIncome.value.quantity > selectedInvoiceBalance.value + 0.00001)
-    return `Payment cannot exceed the remaining invoice balance of ${selectedInvoiceBalance.value.toFixed(2)} ${selectedInvoice.value.currency.code}.`
+  if (selectedInvoice.value && selectedIncome.value.amount * selectedIncome.value.quantity > selectedInvoiceBalance.value + selectedCurrencyStep.value / 2)
+    return `Payment cannot exceed the remaining invoice balance of ${formatSelectedInvoiceAmount(selectedInvoiceBalance.value)} ${selectedInvoice.value.currency.code}.`
 
   return ''
 }
@@ -242,7 +247,19 @@ const deleteIncomeRecord = async () => {
 }
 
 const calculateTotal = () => {
-  selectedIncome.value.base_amount = selectedIncome.value.amount * selectedIncome.value.quantity / selectedIncome.value.rate
+  const decimals = currentBaseCurrency.value?.decimalPlaces ?? 2
+  selectedIncome.value.base_amount = Number((selectedIncome.value.amount * selectedIncome.value.quantity / selectedIncome.value.rate).toFixed(decimals))
+}
+
+const markSelectedInvoicePaid = async () => {
+  if (!selectedInvoice.value?.can_mark_paid) return
+
+  try {
+    const updated = await InvoiceApi.markPaid(selectedInvoice.value.id)
+    invoices.value = invoices.value.map(invoice => invoice.id === updated.id ? updated : invoice)
+  } catch (error) {
+    formError.value = messageFromError(error)
+  }
 }
 
 const formatCurrency = (value: number | string | undefined | null): string => {
@@ -459,9 +476,16 @@ onMounted(() => {
                 <div v-if="selectedInvoice" class="invoice-payment-panel mt-2">
                   <div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.selectedInvoice') }}</div><div class="font-weight-bold">{{ selectedInvoice.invoice_number }}</div></div>
                   <VDivider vertical />
-                  <div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.remainingBalance') }}</div><div class="text-h6 font-weight-black text-primary">{{ selectedInvoice.currency.symbol }}{{ selectedInvoiceBalance.toFixed(2) }}</div></div>
-                  <div class="ms-auto text-right"><div class="text-caption text-medium-emphasis">{{ $t('common.messages.alreadyPaid') }}</div><div class="font-weight-bold">{{ selectedInvoice.currency.symbol }}{{ selectedInvoice.paid_amount.toFixed(2) }}</div></div>
+                  <div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.remainingBalance') }}</div><div class="text-h6 font-weight-black text-primary">{{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoiceBalance) }}</div></div>
+                  <div class="ms-auto text-right"><div class="text-caption text-medium-emphasis">{{ $t('common.messages.alreadyPaid') }}</div><div class="font-weight-bold">{{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoice.paid_amount) }}</div></div>
                 </div>
+                <VAlert v-if="selectedInvoice" :type="selectedInvoice.can_mark_paid ? 'success' : 'info'" variant="tonal" density="compact" class="mt-3">
+                  <div class="d-flex align-center justify-space-between gap-3">
+                    <span v-if="selectedInvoice.can_mark_paid">A small balance remains. You can close this invoice as paid.</span>
+                    <span v-else>Mark as paid becomes available after payment when the remaining balance is under 5% of the invoice total.</span>
+                    <VBtn size="small" color="success" variant="flat" :disabled="!selectedInvoice.can_mark_paid" @click="markSelectedInvoicePaid">Mark paid</VBtn>
+                  </div>
+                </VAlert>
                 <VAlert v-if="selectedInvoice" type="info" variant="tonal" density="compact" class="mt-3">
                   {{ $t('pages.finance.income.income.customerTypeQuantityCurrencyAndExchangeRateComeFromTheInvoiceEnterOnly') }}
                 </VAlert>
@@ -489,7 +513,7 @@ onMounted(() => {
                   v-model.number="selectedIncome.amount"
                   :label="$t('common.fields.amount')"
                   type="number"
-                  step="0.01"
+                  :step="selectedCurrencyStep"
                   :max="selectedInvoice ? selectedInvoiceBalance : undefined"
                   @input="calculateTotal"
                   required
@@ -520,7 +544,7 @@ onMounted(() => {
                   v-model.number="selectedIncome.rate"
                   :label="$t('common.messages.exchangeRate')"
                   type="number"
-                  readonly
+                  step="0.00000001"
                   required
                 />
               </VCol>
@@ -592,9 +616,16 @@ onMounted(() => {
                 <div v-if="selectedInvoice" class="invoice-payment-panel mt-2">
                   <div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.selectedInvoice') }}</div><div class="font-weight-bold">{{ selectedInvoice.invoice_number }}</div></div>
                   <VDivider vertical />
-                  <div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.remainingBalance') }}</div><div class="text-h6 font-weight-black text-primary">{{ selectedInvoice.currency.symbol }}{{ selectedInvoiceBalance.toFixed(2) }}</div></div>
-                  <div class="ms-auto text-right"><div class="text-caption text-medium-emphasis">{{ $t('common.messages.alreadyPaid') }}</div><div class="font-weight-bold">{{ selectedInvoice.currency.symbol }}{{ selectedInvoice.paid_amount.toFixed(2) }}</div></div>
+                  <div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.remainingBalance') }}</div><div class="text-h6 font-weight-black text-primary">{{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoiceBalance) }}</div></div>
+                  <div class="ms-auto text-right"><div class="text-caption text-medium-emphasis">{{ $t('common.messages.alreadyPaid') }}</div><div class="font-weight-bold">{{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoice.paid_amount) }}</div></div>
                 </div>
+                <VAlert v-if="selectedInvoice" :type="selectedInvoice.can_mark_paid ? 'success' : 'info'" variant="tonal" density="compact" class="mt-3">
+                  <div class="d-flex align-center justify-space-between gap-3">
+                    <span v-if="selectedInvoice.can_mark_paid">A small balance remains. You can close this invoice as paid.</span>
+                    <span v-else>Mark as paid becomes available after payment when the remaining balance is under 5% of the invoice total.</span>
+                    <VBtn size="small" color="success" variant="flat" :disabled="!selectedInvoice.can_mark_paid" @click="markSelectedInvoicePaid">Mark paid</VBtn>
+                  </div>
+                </VAlert>
                 <VAlert v-if="selectedInvoice" type="info" variant="tonal" density="compact" class="mt-3">
                   {{ $t('pages.finance.income.income.customerTypeQuantityCurrencyAndExchangeRateAreControlledByTheLinkedInv') }}
                 </VAlert>
@@ -622,7 +653,7 @@ onMounted(() => {
                   v-model.number="selectedIncome.amount"
                   :label="$t('common.fields.amount')"
                   type="number"
-                  step="0.01"
+                  :step="selectedCurrencyStep"
                   :max="selectedInvoice ? selectedInvoiceBalance : undefined"
                   @input="calculateTotal"
                   required
@@ -653,7 +684,7 @@ onMounted(() => {
                   v-model.number="selectedIncome.rate"
                   :label="$t('common.messages.exchangeRate')"
                   type="number"
-                  readonly
+                  step="0.00000001"
                   required
                 />
               </VCol>
@@ -771,7 +802,6 @@ onMounted(() => {
 .ledger-card__title { display: flex; align-items: center; gap: 9px; }
 .detail-copy { max-width: 250px; overflow: hidden; color: rgb(var(--v-theme-on-surface) / .76); text-overflow: ellipsis; }
 .invoice-payment-panel { display: flex; align-items: center; gap: 18px; padding: 13px 16px; border: 1px solid rgb(var(--v-theme-primary) / .22); border-radius: 12px; background: rgb(var(--v-theme-primary) / .06); }
-.income-dialog { overflow: hidden; }
 .table-container {
   overflow-x: auto;
 }

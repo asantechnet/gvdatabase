@@ -28,11 +28,11 @@ class Income extends Model
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:8',
         'quantity' => 'integer',
         'rate' => 'decimal:8',
-        'base_amount' => 'decimal:4',
-        'invoice_amount' => 'decimal:4',
+        'base_amount' => 'decimal:6',
+        'invoice_amount' => 'decimal:6',
         'date' => 'date',
         'customer_id' => 'integer',
         'invoice_id' => 'integer',

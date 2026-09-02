@@ -16,7 +16,7 @@ const used = ref(0)
 const remaining = ref(0)
 const pending = ref(0)
 const loading = ref(false)
-const form = ref({ start_date: new Date().toISOString().slice(0, 10), end_date: new Date().toISOString().slice(0, 10), reason: '' })
+const form = ref({ start_date: new Date().toISOString().slice(0, 10), end_date: new Date().toISOString().slice(0, 10), duration_days: 1 as 0.5 | 1, reason: '' })
 const visible = computed({ get: () => props.modelValue, set: value => emit('update:modelValue', value) })
 
 const requestedDays = computed(() => {
@@ -35,7 +35,7 @@ async function load() {
 }
 
 async function submit() {
-  if (!form.value.reason.trim() || requestedDays.value < 1 || requestedDays.value > remaining.value) return
+  if (!form.value.reason.trim() || requestedDays.value < 1) return
   loading.value = true
   try {
     await PaidTimeOffApi.requestRange({ ...form.value, reason: form.value.reason.trim() })
@@ -90,6 +90,7 @@ watch(year, () => { if (props.modelValue) void load() })
             <VCol cols="12" sm="6" md="3"><AppDateTimePicker v-model="form.start_date" :label="translate('pages.paidTimeOff.from')" :config="{ dateFormat: 'Y-m-d' }" /></VCol>
             <VCol cols="12" sm="6" md="3"><AppDateTimePicker v-model="form.end_date" :label="translate('pages.paidTimeOff.to')" :config="{ dateFormat: 'Y-m-d' }" /></VCol>
             <VCol cols="12" md="3"><VTextField v-model="form.reason" :label="translate('common.fields.reason')" maxlength="1000" /></VCol>
+            <VCol v-if="requestedDays === 1" cols="12" md="2"><VSelect v-model="form.duration_days" :items="[{ title: 'Full day', value: 1 }, { title: 'Half day', value: 0.5 }]" label="Duration" /></VCol>
             <VCol cols="12" md="3"><VBtn block size="large" :disabled="requestedDays < 1 || requestedDays > remaining || !form.reason.trim()" :loading="loading" @click="submit"><VIcon icon="tabler-send" start />{{ translate('pages.paidTimeOff.requestDays', { count: requestedDays || '' }) }}</VBtn></VCol>
           </VRow>
           <VAlert v-if="requestedDays > remaining" type="warning" variant="tonal" density="comfortable" class="mt-2"><VIcon icon="tabler-alert-triangle" start />{{ translate('pages.paidTimeOff.rangeExceeds', { count: remaining }) }}</VAlert>

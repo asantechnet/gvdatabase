@@ -55,7 +55,7 @@ const suggestionGroups: SuggestionGroup[] = [
       { icon: 'tabler-file-invoice', title: translate('components.navigation.navsearchbar.invoices'), url: { name: 'innvoice' } },
       { icon: 'tabler-arrow-down-circle', title: translate('components.navigation.navsearchbar.income'), url: { name: 'income' } },
       { icon: 'tabler-arrow-up-circle', title: translate('components.navigation.navsearchbar.expenses'), url: { name: 'expenses' } },
-      { icon: 'tabler-package', title: translate('components.navigation.navsearchbar.stock'), url: { name: 'stock' } },
+      { icon: 'tabler-package', title: translate('components.navigation.navsearchbar.asset'), url: { name: 'asset' } },
       { icon: 'tabler-user-search', title: translate('components.navigation.navsearchbar.visitors'), url: { name: 'visitor' } },
       { icon: 'tabler-file-description', title: translate('components.navigation.navsearchbar.contracts'), url: { name: 'contracts' } },
       { icon: 'tabler-users-group', title: translate('components.navigation.navsearchbar.customers'), url: { name: 'all-customers' } },

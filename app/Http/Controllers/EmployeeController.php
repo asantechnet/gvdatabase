@@ -56,8 +56,6 @@ class EmployeeController extends Controller
             'commissions.*.service_id' => ['required', 'integer', 'distinct', 'exists:services,id'],
             'commissions.*.percentage' => ['required', 'numeric', 'gt:0', 'lte:100'],
             'addr' => 'required|string|min:5',
-            'ID_file' => 'nullable|string|max:255',
-            'assure_file' => 'nullable|string|max:255',
             'join_date' => 'required|date',
             'contract_duration' => 'required|string|max:255',
         ]);
@@ -124,8 +122,6 @@ class EmployeeController extends Controller
             'commissions.*.service_id' => ['required', 'integer', 'distinct', 'exists:services,id'],
             'commissions.*.percentage' => ['required', 'numeric', 'gt:0', 'lte:100'],
             'addr' => 'sometimes|required|string|min:5',
-            'ID_file' => 'nullable|string|max:255',
-            'assure_file' => 'nullable|string|max:255',
             'join_date' => 'sometimes|required|date',
             'contract_duration' => 'sometimes|required|string|max:255',
         ]);
@@ -179,6 +175,7 @@ class EmployeeController extends Controller
         DB::transaction(function () use ($Employee) {
             $Employee->delete();
             $Employee->user?->update(['acc_status' => 'inactive']);
+            $Employee->user?->tokens()->delete();
         });
 
         return response()->json([

@@ -112,11 +112,11 @@ watch(() => props.currentStep, updateCartData)
                     <span class="d-inline-block text-primary">  {{ item.seller }}</span>
                   </div>
                   <VChip
-                    :color="item.inStock ? 'success' : 'error'"
+                    :color="item.inAsset ? 'success' : 'error'"
                     label
                     size="small"
                   >
-                    {{ item.inStock ? 'In Stock' : 'Out of Stock' }}
+                    {{ item.inAsset ? 'In Asset' : 'Out of Asset' }}
                   </VChip>
                 </div>
 

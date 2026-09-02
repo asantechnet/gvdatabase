@@ -17,12 +17,12 @@ class TaskFactory extends Factory
     public function definition(): array
     {
         return [
-            'title' => $this->faker->sentence(4),
-            'description' => $this->faker->paragraph(),
-            'priority' => $this->faker->randomElement(['low', 'medium', 'high', 'urgent']),
-            'progress' => $this->faker->numberBetween(0, 100),
-            'start_date' => $this->faker->dateTimeBetween('-1 week', 'now')->format('Y-m-d'),
-            'due_date' => $this->faker->dateTimeBetween('now', '+2 weeks')->format('Y-m-d'),
+            'title' => fake('en_US')->sentence(4),
+            'description' => fake('en_US')->paragraph(),
+            'priority' => fake('en_US')->randomElement(['low', 'medium', 'high', 'urgent']),
+            'progress' => fake('en_US')->numberBetween(0, 100),
+            'start_date' => fake('en_US')->dateTimeBetween('-1 week', 'now')->format('Y-m-d'),
+            'due_date' => fake('en_US')->dateTimeBetween('now', '+2 weeks')->format('Y-m-d'),
             'order' => 0,
         ];
     }

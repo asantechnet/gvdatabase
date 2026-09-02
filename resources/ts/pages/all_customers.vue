@@ -79,8 +79,7 @@ const headers = [
   { title: translate('common.fields.name'), key: 'name', sortable: true },
   { title: translate('common.fields.company'), key: 'company', sortable: true },
   { title: translate('common.messages.contact'), key: 'contact', sortable: true },
-  { title: translate('common.messages.marketer'), key: 'marketer', sortable: true },
-  { title: translate('pages.contracts.allCustomers.allCustomers.registered'), key: 'date', sortable: true },
+  { title: translate('common.fields.email'), key: 'email', sortable: true },
   { title: translate('common.messages.services'), key: 'services', sortable: false },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false },
 ]
@@ -127,6 +126,7 @@ const filtered = computed(() => {
     const matchesSearch = c.name.toLowerCase().includes(search.value.toLowerCase()) ||
       c.company.toLowerCase().includes(search.value.toLowerCase()) ||
       c.contact.toLowerCase().includes(search.value.toLowerCase()) ||
+      (c.email || '').toLowerCase().includes(search.value.toLowerCase()) ||
       (c.marketer || '').toLowerCase().includes(search.value.toLowerCase())
 
     const matchesCurrency = !filterCurrency.value ||
@@ -152,6 +152,7 @@ const fetchCustomers = async () => {
       search: search.value,
       company: undefined,
       marketer: undefined
+      , compact: true
     })
     if (response.success) {
       customers.value = response.data
@@ -397,8 +398,9 @@ const openAddCustomer = () => {
   dialog.value = true
 }
 
-const openEditCustomer = (customer: Customer) => {
-  currentCustomer.value = { ...customer }
+const openEditCustomer = async (customer: Customer) => {
+  const response = await CustomerApi.getById(customer.id)
+  currentCustomer.value = response.success ? response.data : { ...customer }
   isEdit.value = true
   dialog.value = true
 }
@@ -411,8 +413,9 @@ const saveCustomer = () => {
   }
 }
 
-const openEditService = (customerId: number, pivotId: number) => {
-  const customer = customers.value.find(c => c.id === customerId)
+const openEditService = async (customerId: number, pivotId: number) => {
+  const response = await CustomerApi.getById(customerId)
+  const customer = response.success ? response.data : customers.value.find(c => c.id === customerId)
   if (customer) {
     const service = customer.services.find(s => s.id === pivotId)
     if (service) {
@@ -433,7 +436,8 @@ const openEditService = (customerId: number, pivotId: number) => {
 }
 
 const openAttachServices = async (customerId: number) => {
-  const customer = customers.value.find(c => c.id === customerId)
+  const response = await CustomerApi.getById(customerId)
+  const customer = response.success ? response.data : customers.value.find(c => c.id === customerId)
   if (customer) {
     currentCustomer.value = { ...customer }
     selectedServices.value = []
@@ -515,10 +519,12 @@ onMounted(() => {
       style="overflow-x: auto;"
     >
       <template #item.contact="{ item }">
-        <div class="d-flex flex-column align-start gap-1">
-          <ContactActionMenu kind="phone" :value="item.contact" />
-          <ContactActionMenu v-if="item.email" kind="email" :value="item.email" />
-        </div>
+        <ContactActionMenu kind="phone" :value="item.contact" contactable-type="customer" :contactable-id="item.id" />
+      </template>
+
+      <template #item.email="{ item }">
+        <ContactActionMenu v-if="item.email" kind="email" :value="item.email" contactable-type="customer" :contactable-id="item.id" />
+        <span v-else class="text-medium-emphasis">—</span>
       </template>
 
       <template #item.date="{ item }">
@@ -526,62 +532,16 @@ onMounted(() => {
       </template>
 
       <template #item.services="{ item }">
-        <div v-if="item.services.length === 0" class="text-disabled">
-          {{ $t('pages.contracts.allCustomers.allCustomers.noServices') }}
+        <div class="d-flex align-center flex-wrap ga-1 customer-services-summary">
+          <span v-if="item.services.length === 0" class="text-medium-emphasis text-body-2">No services</span>
+          <VChip v-for="service in item.services.slice(0, 2)" v-else :key="service.id" size="small" variant="tonal" color="primary">{{ service.type }}</VChip>
+          <VChip v-if="item.services.length > 2" size="small" variant="outlined">+{{ item.services.length - 2 }}</VChip>
+          <VBtn v-if="item.services.length" size="x-small" variant="text" append-icon="tabler-chevron-right" @click="openEditCustomer(item)">Manage</VBtn>
         </div>
-        <ResponsiveDataTable
-          v-else
-          :headers="serviceHeaders"
-          :items="item.services"
-          density="compact"
-          hide-default-footer
-        >
-          <template #item.deadline="{ item }">
-            <VChip v-if="item.deadline"
-              :color="deadlineMeta(item.deadline).color"
-              size="small"
-              label
-              variant="tonal"
-            >
-              {{ formatLocalizedDate(`${item.deadline}T00:00:00`) }}
-              <VTooltip activator="parent" location="top">
-                {{ deadlineMeta(item.deadline).title }}
-              </VTooltip>
-            </VChip>
-            <span v-else class="text-medium-emphasis">{{ $t('common.messages.noDeadline') }}</span>
-          </template>
-          <template #item.currency.code="{ item }">
-            {{ item.currency.code }}
-          </template>
-          <template #item.serviceActions="{ item: service }">
-            <FullDetailsButton :item="service" :title="service.type" />
-            <VBtn
-              icon="tabler-edit"
-              variant="text"
-              size="x-small"
-              color="primary"
-              @click="openEditService(item.id, service.id)"
-            >
-              <VIcon icon="tabler-edit" />
-              <VTooltip activator="parent" location="top">{{ $t('common.messages.editService2') }}</VTooltip>
-            </VBtn>
-            <VBtn
-              icon="tabler-trash"
-              variant="text"
-              size="x-small"
-              color="error"
-              @click="removeService(item.id, service.id)"
-            >
-              <VIcon icon="tabler-trash" />
-              <VTooltip activator="parent" location="top">{{ $t('common.messages.removeService2') }}</VTooltip>
-            </VBtn>
-          </template>
-          <template #bottom></template>
-        </ResponsiveDataTable>
       </template>
 
       <template #item.actions="{ item }">
-        <FullDetailsButton :item="item" :title="item.name" />
+        <CrmRelationshipDetails type="customer" :id="item.id" :title="item.name" />
         <VBtn
           icon="tabler-edit"
           variant="text"

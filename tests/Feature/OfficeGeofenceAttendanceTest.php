@@ -100,6 +100,27 @@ class OfficeGeofenceAttendanceTest extends TestCase
         $this->assertSame('2026-08-13T03:37:01.000000Z', $attendance->fresh()->checked_out_at->toISOString());
     }
 
+    public function test_disabled_automatic_attendance_makes_geofence_ineligible_and_ineffective(): void
+    {
+        Setting::query()->latest('id')->firstOrFail()->update(['automatic_attendance_enabled' => false]);
+        $office = Office::create([
+            'name' => 'Head Office', 'code' => 'HQ', 'status' => 'active',
+            'latitude' => 34.5553, 'longitude' => 69.2075,
+            'geofence_radius_meters' => 100, 'geofence_enabled' => true,
+        ]);
+        $user = User::factory()->create(['roles' => ['staff']]);
+        Employee::factory()->create(['user_id' => $user->id, 'office_id' => $office->id]);
+        Sanctum::actingAs($user, ['access']);
+
+        $this->getJson('/api/workday/geofence')
+            ->assertOk()
+            ->assertJsonPath('data.eligible', false)
+            ->assertJsonPath('data.reason', 'automatic_attendance_disabled');
+        $this->postJson('/api/workday/geofence', ['latitude' => 34.5553, 'longitude' => 69.2075, 'accuracy_meters' => 5])
+            ->assertStatus(422);
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
     public function test_inaccurate_location_does_not_create_attendance(): void
     {
         $office = Office::create([

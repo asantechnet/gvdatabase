@@ -39,7 +39,7 @@ use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\SalaryDeductionController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SettingController;
-use App\Http\Controllers\StockController;
+use App\Http\Controllers\AssetController;
 use App\Http\Controllers\SubtaskController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaskAssigneeController;
@@ -47,6 +47,8 @@ use App\Http\Controllers\TaskAttachmentController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VisitorController;
+use App\Http\Controllers\LeadController;
+use App\Http\Controllers\CrmInteractionController;
 use App\Http\Controllers\WorkdayController;
 use App\Http\Controllers\WorthyEmployeeController;
 use Illuminate\Support\Facades\Route;
@@ -180,6 +182,16 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
     Route::post('employees/{employee}/paid-time-offs', [PaidTimeOffController::class, 'store'])->middleware('permission:create_paid_time_off');
     Route::put('employees/{employee}/paid-time-offs/{paidTimeOff}', [PaidTimeOffController::class, 'update'])->middleware('permission:edit_paid_time_off');
     Route::delete('employees/{employee}/paid-time-offs/{paidTimeOff}', [PaidTimeOffController::class, 'destroy'])->middleware('permission:delete_paid_time_off');
+    // Canonical leave API. Legacy paid-time-off URLs above remain during the
+    // compatibility window for older mobile clients.
+    Route::get('leaves', [PaidTimeOffController::class, 'all'])->middleware('permission:view_paid_time_off');
+    Route::get('my-leaves', [PaidTimeOffController::class, 'mine'])->middleware('permission:request_own_paid_time_off');
+    Route::post('my-leaves', [PaidTimeOffController::class, 'requestRange'])->middleware('permission:request_own_paid_time_off');
+    Route::patch('leaves/grant', [PaidTimeOffController::class, 'grant'])->middleware('permission:grant_paid_time_off');
+    Route::get('employees/{employee}/leaves', [PaidTimeOffController::class, 'index'])->middleware('permission:view_paid_time_off');
+    Route::post('employees/{employee}/leaves', [PaidTimeOffController::class, 'store'])->middleware('permission:create_paid_time_off');
+    Route::put('employees/{employee}/leaves/{paidTimeOff}', [PaidTimeOffController::class, 'update'])->middleware('permission:edit_paid_time_off');
+    Route::delete('employees/{employee}/leaves/{paidTimeOff}', [PaidTimeOffController::class, 'destroy'])->middleware('permission:delete_paid_time_off');
     Route::get('employees/account-options', [EmployeeController::class, 'accountOptions'])->middleware('permission:view_employees');
     Route::apiResource('employees', EmployeeController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_employees')
@@ -229,6 +241,7 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
         ->middlewareFor('update', 'permission:edit_invoices')
         ->middlewareFor('destroy', 'permission:delete_invoices');
     Route::put('/invoices/{invoice}/void', [InvoiceController::class, 'void'])->middleware('permission:void_invoices');
+    Route::put('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markPaid'])->middleware('permission:edit_invoices');
 
     // Expense routes (new correct spelling)
     Route::apiResource('expenses', ExpenseController::class)
@@ -262,6 +275,17 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
         ->middlewareFor('destroy', 'permission:delete_visitors');
     Route::post('visitors/{visitor}/convert-to-customer', [VisitorController::class, 'convertToCustomer'])
         ->middleware('permission:create_customers');
+    Route::post('visitors/{visitor}/convert-to-lead', [LeadController::class, 'fromVisitor'])->middleware('permission:create_customers');
+    Route::apiResource('leads', LeadController::class)->middleware('permission:view_visitors');
+    Route::post('leads/{lead}/convert-to-customer', [LeadController::class, 'convert'])->middleware('permission:create_customers');
+    Route::post('crm/{type}/{id}/interactions', [CrmInteractionController::class, 'store'])
+        ->whereIn('type', ['visitor', 'lead', 'customer'])->middleware('permission:view_visitors,view_customers');
+    Route::patch('crm/{type}/{id}/notes', [CrmInteractionController::class, 'updateNotes'])
+        ->whereIn('type', ['visitor', 'lead', 'customer'])->middleware('permission:view_visitors,view_customers');
+    Route::put('crm/interactions/{interaction}', [CrmInteractionController::class, 'update'])
+        ->middleware('permission:view_visitors,view_customers');
+    Route::delete('crm/interactions/{interaction}', [CrmInteractionController::class, 'destroy'])
+        ->middleware('permission:view_visitors,view_customers');
 
     // Tag routes
     Route::apiResource('tags', TagController::class)
@@ -353,12 +377,12 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
     Route::patch('audit-logs/{auditLog}/review', [AuditLogController::class, 'review'])->middleware('permission:review_audit_logs');
     Route::post('audit-logs/{auditLog}/revert', [AuditLogController::class, 'revert'])->middleware('permission:revert_audit_changes');
 
-    // Stock routes
-    Route::apiResource('stocks', StockController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_stocks')
-        ->middlewareFor('store', 'permission:create_stocks')
-        ->middlewareFor('update', 'permission:edit_stocks')
-        ->middlewareFor('destroy', 'permission:delete_stocks');
+    // Asset routes
+    Route::apiResource('assets', AssetController::class)
+        ->middlewareFor(['index', 'show'], 'permission:view_assets')
+        ->middlewareFor('store', 'permission:create_assets')
+        ->middlewareFor('update', 'permission:edit_assets')
+        ->middlewareFor('destroy', 'permission:delete_assets');
 
     // Dashboard routes
     Route::prefix('dashboard')->group(function () {

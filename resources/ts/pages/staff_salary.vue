@@ -248,9 +248,9 @@ const printEmployeePayslip = async (salary: Salary) => {
       payDate: salary.date,
       workedDays: salary.workedDays,
       totalDays: salary.totalDays,
-      paidOffDays: salary.paidOffDays,
+      paidLeaveDays: salary.paidLeaveDays,
       absentDays: salary.absentDays,
-      unpaidOffDays: salary.unpaidOffDays,
+      unpaidLeaveDays: salary.unpaidLeaveDays,
       tazkiraNumber: emp?.id_number || 'N/A',
       accountNumber: emp?.bank_account_number || 'N/A'
     },
@@ -602,14 +602,8 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
           { title: translate('pages.payroll.staffSalary.staffSalary.payslipNumber'), key: 'payslip_number', sortable: true },
           { title: translate('common.fields.employee'), key: 'employeeName', sortable: true },
           { title: translate('pages.payroll.staffSalary.staffSalary.payMonth'), key: 'salaryMonth', sortable: true },
-          { title: translate('pages.payroll.staffSalary.staffSalary.workedDays'), key: 'workedDays', sortable: true },
           { title: translate('common.fields.currency'), key: 'currency.code', sortable: true },
-          { title: translate('pages.payroll.staffSalary.staffSalary.amountPaid'), key: 'amountPaid', sortable: true },
-          { title: translate('common.messages.grantedBonus'), key: 'bonus', sortable: true },
           { title: translate('pages.payroll.staffSalary.staffSalary.totalPaid'), key: 'totalAmount', sortable: true },
-          { title: translate('pages.payroll.staffSalary.staffSalary.remarks'), key: 'remarks', sortable: false },
-          { title: translate('common.fields.date'), key: 'date', sortable: true },
-          { title: 'Recorded by', key: 'recordedBy.name', sortable: false },
           { title: translate('common.messages.actions'), key: 'actions', sortable: false }
         ]" item-value="id" class="text-no-wrap" :loading="isLoading" mobile-breakpoint="sm" density="compact">
 
@@ -728,7 +722,7 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
                   :error-messages="getSalaryErrorMessage('salaryMonth')" required />
               </VCol>
               <VCol cols="12" md="4">
-                <VTextField v-model.number="salaryForm.workedDays" :label="$t('common.messages.workedDays')" type="number"
+                <VTextField v-model.number="salaryForm.workedDays" :label="$t('common.messages.workedDays')" type="number" step="0.5"
                   :error-messages="getSalaryErrorMessage('workedDays')" required />
               </VCol>
               <VCol cols="12" md="4">
@@ -841,7 +835,7 @@ watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryF
                   :error-messages="getSalaryErrorMessage('salaryMonth')" required />
               </VCol>
               <VCol cols="12" md="4">
-                <VTextField v-model.number="salaryForm.workedDays" :label="$t('common.messages.workedDays')" type="number"
+                <VTextField v-model.number="salaryForm.workedDays" :label="$t('common.messages.workedDays')" type="number" step="0.5"
                   :error-messages="getSalaryErrorMessage('workedDays')" required />
               </VCol>
               <VCol cols="12" md="4">

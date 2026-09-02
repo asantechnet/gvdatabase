@@ -29,7 +29,7 @@ class AttendanceController extends Controller
             'end_date' => 'sometimes|date|after_or_equal:start_date',
             'employee_id' => 'sometimes|integer|exists:employees,id',
             'office_id' => 'sometimes|integer|exists:offices,id',
-            'status' => ['sometimes', Rule::in(['present', 'absent', 'paid-off-day', 'unpaid-off-day', 'incomplete'])],
+            'status' => ['sometimes', Rule::in(['present', 'absent', 'paid-leave', 'unpaid-leave', 'incomplete'])],
         ]);
 
         $startDate = $request->input('start_date', now()->format('Y-m-d'));
@@ -44,6 +44,8 @@ class AttendanceController extends Controller
             ->when($request->filled('office_id'), fn ($query) => $query->where('office_id', $request->integer('office_id')))
             ->when($request->filled('status'), function ($query) use ($request) {
                 if ($request->input('status') === 'incomplete') return $query->where('status', 'present')->where('missing_punch_state', '!=', 'none');
+                if ($request->input('status') === 'paid-leave') return $query->where('paid_leave_days', '>', 0);
+                if ($request->input('status') === 'unpaid-leave') return $query->where('unpaid_leave_days', '>', 0);
                 return $query->where('status', $request->input('status'));
             })
             ->orderBy('date', 'desc')
@@ -120,7 +122,11 @@ class AttendanceController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            if ($attendance && ! $attendance->trashed()) {
+            $isOpenHalfLeave = $attendance && ! $attendance->trashed()
+                && (float) $attendance->leave_duration_days > 0
+                && (float) $attendance->leave_duration_days < 1
+                && in_array($attendance->status, ['paid-leave', 'unpaid-leave'], true);
+            if ($attendance && ! $attendance->trashed() && ! $isOpenHalfLeave) {
                 throw ValidationException::withMessages([
                     'staff_id' => ['business.attendance_already_recorded'],
                 ]);
@@ -137,7 +143,8 @@ class AttendanceController extends Controller
                     'office_id' => $employee->office_id,
                     'break_minutes' => $validated['break_minutes'] ?? null,
                 ]);
-                $attendance->restore();
+                if ($attendance->trashed()) $attendance->restore();
+                else $attendance->save();
 
                 return $attendance;
             }
@@ -178,7 +185,10 @@ class AttendanceController extends Controller
         }
 
         $unmarkedStaff = Employee::selectable()->whereDoesntHave('attendances', function ($query) use ($date) {
-            $query->where('date', $date);
+            $query->where('date', $date)->where(function ($marked) {
+                $marked->whereIn('status', ['present', 'absent'])
+                    ->orWhere('leave_duration_days', '>=', 1);
+            });
         })->get();
 
         return EmployeeResource::collection($unmarkedStaff);
@@ -189,6 +199,20 @@ class AttendanceController extends Controller
      */
     public function destroy(Attendance $attendance): JsonResponse
     {
+        if ((float) $attendance->leave_duration_days > 0) {
+            $attendance->update([
+                'status' => (float) $attendance->paid_leave_days >= (float) $attendance->leave_duration_days
+                    ? 'paid-leave' : 'unpaid-leave',
+                'check_in_time' => null, 'check_out_time' => null,
+                'checked_in_at' => null, 'checked_out_at' => null,
+                'break_minutes' => 0, 'gross_minutes' => null, 'net_worked_minutes' => null,
+                'required_minutes' => null, 'late_arrival_minutes' => 0,
+                'early_departure_minutes' => 0, 'overtime_minutes' => 0,
+                'missing_punch_state' => 'none', 'calculation_hash' => null, 'calculated_at' => null,
+            ]);
+
+            return response()->json(['message' => 'Attendance work entry removed; approved leave was preserved.']);
+        }
         $attendance->delete();
 
         return response()->json([

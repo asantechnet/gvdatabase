@@ -30,7 +30,7 @@ class KanbanController extends Controller
             // Eager load all relations required by TaskResource
             'tasks.users.employee',
             'tasks.tags',
-            'tasks.services.currency',
+            'tasks.customer.customerServices.service.currency',
             'tasks.subtasks',
             'tasks.comments.user.employee', // Names and avatars for comments
             'tasks.dependencies',

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Stock extends Model
+class Asset extends Model
 {
     use HasFactory, Auditable;
 
@@ -45,7 +45,7 @@ class Stock extends Model
 
     public function allocations(): HasMany
     {
-        return $this->hasMany(StockAllocation::class);
+        return $this->hasMany(AssetAllocation::class);
     }
 
     public function office(): BelongsTo

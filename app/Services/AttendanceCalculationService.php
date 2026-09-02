@@ -5,18 +5,22 @@ namespace App\Services;
 use App\Models\Attendance;
 use App\Models\Setting;
 use App\Support\CompanyProfile;
-use Illuminate\Support\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 
 class AttendanceCalculationService
 {
-    private const CALCULATION_VERSION = 2;
+    private const CALCULATION_VERSION = 3;
 
     public function __construct(private readonly CompanyProfile $companyProfile) {}
 
     /** Recalculate only when raw inputs or schedule settings changed. */
     public function calculate(Attendance $attendance, bool $force = false): bool
     {
+        if (! $this->companyProfile->automaticAttendanceEnabled()) {
+            return false;
+        }
+
         $attendance->loadMissing('staff');
         $setting = Setting::query()->latest('id')->first();
         $timezone = $this->companyProfile->timezone();
@@ -27,10 +31,12 @@ class AttendanceCalculationService
             self::CALCULATION_VERSION,
             $attendance->status, $attendance->date?->format('Y-m-d'), $attendance->checked_in_at?->toISOString(),
             $attendance->checked_out_at?->toISOString(), $attendance->check_in_time, $attendance->check_out_time,
-            $breakMinutes, $scheduleStart, $scheduleEnd, $timezone,
+            $breakMinutes, $scheduleStart, $scheduleEnd, $timezone, (float) $attendance->leave_duration_days,
         ], JSON_THROW_ON_ERROR));
 
-        if (! $force && $attendance->calculation_hash === $hash) return false;
+        if (! $force && $attendance->calculation_hash === $hash) {
+            return false;
+        }
 
         $derived = $this->derive($attendance, $timezone, $scheduleStart, $scheduleEnd, $breakMinutes);
         $attendance->forceFill([...$derived, 'calculation_hash' => $hash, 'calculated_at' => now('UTC')])->save();
@@ -52,15 +58,27 @@ class AttendanceCalculationService
             ! $end => 'check_out',
             default => 'none',
         };
-        if ($missing !== 'none') return $this->emptySummary($missing, $breakMinutes);
+        if ($missing !== 'none') {
+            return $this->emptySummary($missing, $breakMinutes);
+        }
 
         $overnight = ! $start->isSameDay($end) || $end->lessThanOrEqualTo($start);
-        if ($end->lessThanOrEqualTo($start)) $end = $end->addDay();
+        if ($end->lessThanOrEqualTo($start)) {
+            $end = $end->addDay();
+        }
         $gross = max(0, (int) $start->diffInMinutes($end));
         $break = min(max(0, $breakMinutes), $gross);
         $net = max(0, $gross - $break);
 
         [$required, $late, $early] = $this->scheduleMetrics($attendance, $start, $end, $scheduleStart, $scheduleEnd, $break);
+        $leaveFraction = min(1, max(0, (float) $attendance->leave_duration_days));
+        if ($required !== null && $leaveFraction > 0) {
+            $required = (int) round($required * (1 - $leaveFraction));
+            // Without a morning/afternoon designation the partial leave is flexible;
+            // punctuality penalties cannot be inferred fairly from the clock alone.
+            $late = 0;
+            $early = 0;
+        }
 
         return [
             'break_minutes' => $break,
@@ -80,20 +98,28 @@ class AttendanceCalculationService
     private function punch(Attendance $attendance, bool $checkIn, string $timezone): ?CarbonInterface
     {
         $instant = $checkIn ? $attendance->checked_in_at : $attendance->checked_out_at;
-        if ($instant) return $instant->copy()->timezone($timezone);
+        if ($instant) {
+            return $instant->copy()->timezone($timezone);
+        }
         $clock = $checkIn ? $attendance->check_in_time : $attendance->check_out_time;
-        if (! $clock) return null;
+        if (! $clock) {
+            return null;
+        }
 
         return Carbon::parse($attendance->date->format('Y-m-d').' '.$clock, $timezone);
     }
 
     private function scheduleMetrics(Attendance $attendance, CarbonInterface $actualStart, CarbonInterface $actualEnd, ?string $startClock, ?string $endClock, int $break): array
     {
-        if (! $startClock || ! $endClock) return [null, 0, 0];
+        if (! $startClock || ! $endClock) {
+            return [null, 0, 0];
+        }
         $date = $attendance->date->format('Y-m-d');
         $scheduledStart = Carbon::parse($date.' '.$startClock, $actualStart->timezoneName);
         $scheduledEnd = Carbon::parse($date.' '.$endClock, $actualStart->timezoneName);
-        if ($scheduledEnd->lessThanOrEqualTo($scheduledStart)) $scheduledEnd->addDay();
+        if ($scheduledEnd->lessThanOrEqualTo($scheduledStart)) {
+            $scheduledEnd->addDay();
+        }
         $required = max(0, (int) $scheduledStart->diffInMinutes($scheduledEnd) - $break);
         $late = $actualStart->greaterThan($scheduledStart) ? (int) $scheduledStart->diffInMinutes($actualStart) : 0;
         $early = $actualEnd->lessThan($scheduledEnd) ? (int) $actualEnd->diffInMinutes($scheduledEnd) : 0;

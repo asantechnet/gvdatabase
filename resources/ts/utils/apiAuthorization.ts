@@ -28,7 +28,7 @@ const resources: Record<string, ResourcePermissions> = {
   'contract-templates': { view: 'view_contract_templates', create: 'manage_contract_templates', update: 'manage_contract_templates', delete: 'manage_contract_templates' },
   contracts: { view: 'view_contracts', create: 'create_contracts', update: 'edit_contracts', delete: 'delete_contracts' },
   companies: { view: 'view_companies', create: 'create_companies', update: 'edit_companies', delete: 'delete_companies' },
-  stocks: { view: 'view_stocks', create: 'create_stocks', update: 'edit_stocks', delete: 'delete_stocks' },
+  assets: { view: 'view_assets', create: 'create_assets', update: 'edit_assets', delete: 'delete_assets' },
   projects: { view: 'view_projects', create: 'create_projects', update: 'edit_projects', delete: 'delete_projects' },
 }
 
@@ -105,6 +105,9 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'POST /customers/:id/services': ['manage_customer_services'],
     'PUT /customers/:id/services/:id': ['manage_customer_services'],
     'DELETE /customers/:id/services/:id': ['manage_customer_services'],
+    'PATCH /crm/customer/:id/notes': ['view_customers'],
+    'PATCH /crm/visitor/:id/notes': ['view_visitors'],
+    'PATCH /crm/lead/:id/notes': ['view_visitors'],
     'GET /attendances': ['view_attendance'],
     'GET /attendances/:id/daily-report': ['view_attendance'],
     'GET /workday/status': ['manage_own_workday'],

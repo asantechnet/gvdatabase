@@ -61,4 +61,5 @@ function submit() { if (validate()) emit('submit', { ...form.value }) }
   </VDialog>
 </template>
 
-<style scoped>.expense-dialog { overflow: hidden; }</style>
+<style scoped>
+</style>

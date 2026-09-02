@@ -14,10 +14,6 @@ export interface ContractType {
 
 export const SYSTEM_TYPE_SLUGS = ['employment', 'customer', 'company'] as const
 
-export interface ContractTypeCreateData {
-  name: string
-}
-
 const ContractTypeApi = {
   async getAll(params?: { include_inactive?: boolean }): Promise<ContractType[]> {
     const response = await api.get<{ success: boolean; data: ContractType[] }>('/contract-types', { params })
@@ -29,14 +25,6 @@ const ContractTypeApi = {
     return response.data.data
   },
 
-  async create(data: ContractTypeCreateData): Promise<ContractType> {
-    const response = await api.post<{ success: boolean; data: ContractType }>('/contract-types', data)
-    return response.data.data
-  },
-
-  async delete(id: number): Promise<void> {
-    await api.delete(`/contract-types/${id}`)
-  },
 }
 
 export default ContractTypeApi

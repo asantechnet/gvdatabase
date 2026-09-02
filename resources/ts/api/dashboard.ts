@@ -15,7 +15,7 @@ export interface DashboardData {
     attendance: boolean
     customers: boolean
     invoices: boolean
-    stock: boolean
+    asset: boolean
     employees: boolean
     contracts: boolean
     payroll: boolean
@@ -51,7 +51,7 @@ export interface DashboardData {
     open_invoice_count: number | null
     open_invoice_value: number | null
     employee_count: number | null
-    stock_asset_value: number | null
+    asset_asset_value: number | null
   }
   sparklines: {
     income: number[]
@@ -88,7 +88,7 @@ export interface DashboardData {
     due_date: string | null
     is_overdue: boolean
   }>
-  stock_health: {
+  asset_health: {
     total_items: number
     assigned_items: number
     available_items: number

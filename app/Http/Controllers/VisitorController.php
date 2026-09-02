@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Visitor;
 use App\Models\Customer;
+use App\Models\CrmInteraction;
 use App\Http\Resources\VisitorResource;
 use App\Http\Resources\CustomerResource;
 use Illuminate\Http\Request;
@@ -28,7 +29,8 @@ class VisitorController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%$search%")
                     ->orWhere('company', 'like', "%$search%")
-                    ->orWhere('contact', 'like', "%$search%");
+                    ->orWhere('contact', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%");
             });
         }
 
@@ -52,14 +54,16 @@ class VisitorController extends Controller
             'name' => 'required|string|max:255',
             'company' => 'required|string|max:255',
             'contact' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255',
             'service' => 'required|string|max:255',
             'marketer' => 'required|string|max:255',
             'date' => 'required|date',
+            'notes' => 'nullable|string|max:10000',
         ]);
 
         $visitor = Visitor::create($validated);
 
-        return new VisitorResource($visitor);
+        return new VisitorResource($visitor->load('interactions.creator'));
     }
 
     /**
@@ -67,7 +71,7 @@ class VisitorController extends Controller
      */
     public function show(Visitor $visitor): VisitorResource
     {
-        return new VisitorResource($visitor);
+        return new VisitorResource($visitor->load('interactions.creator'));
     }
 
     /**
@@ -79,14 +83,16 @@ class VisitorController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'company' => 'sometimes|required|string|max:255',
             'contact' => 'sometimes|required|string|max:255',
+            'email' => 'nullable|email|max:255',
             'service' => 'sometimes|required|string|max:255',
             'marketer' => 'sometimes|required|string|max:255',
             'date' => 'sometimes|required|date',
+            'notes' => 'nullable|string|max:10000',
         ]);
 
         $visitor->update($validated);
 
-        return new VisitorResource($visitor);
+        return new VisitorResource($visitor->load('interactions.creator'));
     }
 
     /**
@@ -106,15 +112,28 @@ class VisitorController extends Controller
                 'name' => $visitor->name,
                 'company' => $visitor->company,
                 'contact' => $visitor->contact,
+                'email' => $visitor->email,
                 'marketer' => $visitor->marketer,
+                'notes' => $visitor->notes,
                 'date' => now()->toDateString(),
             ]);
+
+            CrmInteraction::query()
+                ->where('contactable_type', $visitor->getMorphClass())
+                ->where('contactable_id', $visitor->id)
+                ->update([
+                    'contactable_type' => $customer->getMorphClass(),
+                    'contactable_id' => $customer->id,
+                ]);
 
             $visitor->delete();
 
             return $customer;
         });
 
-        return new CustomerResource($customer->load('customerServices.service.currency'));
+        return new CustomerResource($customer->load([
+            'customerServices.service.currency',
+            'interactions.creator',
+        ]));
     }
 }

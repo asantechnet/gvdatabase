@@ -33,8 +33,6 @@ class Employee extends Model
         'salary',
         'bank_account_number',
         'total_worked_hours',
-        'ID_file',
-        'assure_file',
         'department',
         'join_date',
         'contract_duration',
@@ -52,9 +50,9 @@ class Employee extends Model
         return $this->hasMany(Contract::class);
     }
 
-    public function stockAllocations(): HasMany
+    public function assetAllocations(): HasMany
     {
-        return $this->hasMany(StockAllocation::class);
+        return $this->hasMany(AssetAllocation::class);
     }
 
     public function worthyEmployees(): HasMany
@@ -87,7 +85,7 @@ class Employee extends Model
             ->where('commissions.employee_id', $this->id)
             ->whereNull('incomes.deleted_at')
             ->where('invoices.amount', '>', 0)
-            ->selectRaw('COALESCE(SUM(incomes.total_amount * (lines.line_total / invoices.amount) * (commissions.percentage / 100)), 0) as earned')
+            ->selectRaw('COALESCE(SUM(incomes.base_amount * (lines.line_total * 1.0 / invoices.amount) * (commissions.percentage * 1.0 / 100)), 0) as earned')
             ->value('earned');
     }
 

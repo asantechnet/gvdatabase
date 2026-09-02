@@ -21,7 +21,7 @@ class OfficeResource extends JsonResource
             'longitude' => $this->longitude !== null ? (float) $this->longitude : null,
             'geofence_radius_meters' => (int) $this->geofence_radius_meters,
             'geofence_enabled' => (bool) $this->geofence_enabled,
-            'stock_count' => $this->whenCounted('stocks'),
+            'asset_count' => $this->whenCounted('assets'),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

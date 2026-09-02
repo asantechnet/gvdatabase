@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Customer extends Model
 {
@@ -18,6 +19,7 @@ class Customer extends Model
         'address',
         'tax_number',
         'marketer',
+        'notes',
         'date',
     ];
 
@@ -42,5 +44,15 @@ class Customer extends Model
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function interactions(): MorphMany
+    {
+        return $this->morphMany(CrmInteraction::class, 'contactable')->latest('contacted_at');
+    }
+
+    public function projects()
+    {
+        return $this->hasMany(Project::class);
     }
 }

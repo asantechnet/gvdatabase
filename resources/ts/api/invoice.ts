@@ -6,6 +6,7 @@ export interface InvoiceCurrency {
   rate: number
   symbol: string
   shortname: string
+  decimalPlaces: number
 }
 
 export interface CurrentBaseCurrency {
@@ -57,6 +58,8 @@ export interface Invoice {
   total_amount: number
   paid_amount: number
   balance: number
+  can_mark_paid: boolean
+  mark_paid_threshold: number
   currentBaseAmount: number | null
   currentBasePaidAmount: number | null
   currentBaseBalance: number | null
@@ -159,6 +162,11 @@ const InvoiceApi = {
 
   async void(id: number, reason: string): Promise<Invoice> {
     const response = await api.put(`/invoices/${id}/void`, { reason })
+    return normalizeInvoice(unwrapData<Invoice>(response))
+  },
+
+  async markPaid(id: number): Promise<Invoice> {
+    const response = await api.put(`/invoices/${id}/mark-paid`)
     return normalizeInvoice(unwrapData<Invoice>(response))
   },
 }

@@ -12,30 +12,30 @@ class OfficeController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => OfficeResource::collection(Office::withCount('stocks')->orderBy('name')->get())]);
+        return response()->json(['success' => true, 'data' => OfficeResource::collection(Office::withCount('assets')->orderBy('name')->get())]);
     }
 
     public function store(Request $request): JsonResponse
     {
         $office = Office::create($this->validated($request));
-        return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('stocks'))], 201);
+        return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('assets'))], 201);
     }
 
     public function show(Office $office): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('stocks'))]);
+        return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('assets'))]);
     }
 
     public function update(Request $request, Office $office): JsonResponse
     {
         $office->update($this->validated($request, $office));
-        return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('stocks'))]);
+        return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('assets'))]);
     }
 
     public function destroy(Office $office): JsonResponse
     {
-        if ($office->stocks()->exists()) {
-            return response()->json(['success' => false, 'code' => 'business.office_has_stock'], 409);
+        if ($office->assets()->exists()) {
+            return response()->json(['success' => false, 'code' => 'business.office_has_asset'], 409);
         }
 
         $office->delete();

@@ -11,8 +11,8 @@ use App\Models\Income;
 use App\Models\Invoice;
 use App\Models\Role;
 use App\Models\Setting;
-use App\Models\Stock;
-use App\Models\StockAllocation;
+use App\Models\Asset;
+use App\Models\AssetAllocation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -67,19 +67,19 @@ class PhaseEightReportsTest extends TestCase
         $this->assertSame(30.0, (float) $sections['net_cash_flow']['totals']['net_base']['TST']);
     }
 
-    public function test_financial_report_uses_stock_allocations_instead_of_the_removed_staff_relationship(): void
+    public function test_financial_report_uses_asset_allocations_instead_of_the_removed_staff_relationship(): void
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $employee = Employee::factory()->create(['name' => 'Allocated Employee']);
-        $stock = Stock::factory()->create(['item' => 'Laptop', 'quantity' => 2]);
-        StockAllocation::create(['stock_id' => $stock->id, 'employee_id' => $employee->id, 'quantity' => 1]);
+        $asset = Asset::factory()->create(['item' => 'Laptop', 'quantity' => 2]);
+        AssetAllocation::create(['asset_id' => $asset->id, 'employee_id' => $employee->id, 'quantity' => 1]);
 
         $response = $this->getJson('/api/reports/generate/financial?start_date=2026-08-01&end_date=2026-08-31')
             ->assertOk();
 
-        $stockSection = collect($response->json('data.sections'))->firstWhere('key', 'stock_assets');
-        $this->assertNotNull($stockSection);
-        $this->assertSame('Allocated Employee', $stockSection['rows'][0]['assigned_to']);
+        $assetSection = collect($response->json('data.sections'))->firstWhere('key', 'asset_assets');
+        $this->assertNotNull($assetSection);
+        $this->assertSame('Allocated Employee', $assetSection['rows'][0]['assigned_to']);
     }
 
     public function test_attendance_report_filters_incomplete_sessions_and_preserves_working_totals(): void

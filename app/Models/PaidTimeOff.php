@@ -11,11 +11,13 @@ class PaidTimeOff extends Model
 {
     use Auditable, HasFactory;
 
-    protected $fillable = ['employee_id', 'date', 'year', 'reason', 'is_granted', 'is_paid', 'requested_by', 'granted_by', 'granted_at'];
+    protected $table = 'leaves';
+
+    protected $fillable = ['employee_id', 'date', 'year', 'duration_days', 'reason', 'approval_note', 'is_granted', 'is_paid', 'paid_days', 'paid_override', 'requested_by', 'granted_by', 'granted_at'];
 
     protected function casts(): array
     {
-        return ['date' => 'date:Y-m-d', 'year' => 'integer', 'is_granted' => 'boolean', 'is_paid' => 'boolean', 'granted_at' => 'immutable_datetime'];
+        return ['date' => 'date:Y-m-d', 'year' => 'integer', 'duration_days' => 'float', 'is_granted' => 'boolean', 'is_paid' => 'boolean', 'paid_days' => 'float', 'paid_override' => 'boolean', 'granted_at' => 'immutable_datetime'];
     }
 
     public function employee(): BelongsTo

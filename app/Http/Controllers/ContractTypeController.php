@@ -6,7 +6,6 @@ use App\Http\Resources\ContractTypeResource;
 use App\Models\ContractType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class ContractTypeController extends Controller
 {
@@ -14,6 +13,7 @@ class ContractTypeController extends Controller
     {
         $query = ContractType::query()
             ->withCount(['templates', 'contracts'])
+            ->whereIn('slug', ['employment', 'customer', 'company'])
             ->orderBy('is_system', 'desc')
             ->orderBy('name');
 
@@ -29,23 +29,10 @@ class ContractTypeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:100|unique:contract_types,name',
-        ]);
-
-        $validator->validate();
-
-        $type = ContractType::create([
-            'name' => $validator->validated()['name'],
-            'slug' => ContractType::uniqueSlug($validator->validated()['name']),
-            'is_system' => false,
-            'is_active' => true,
-        ]);
-
         return response()->json([
             'success' => true,
-            'data' => new ContractTypeResource($type),
-        ], 201);
+            'message' => 'Only employment, customer, and company contract types are supported.',
+        ], 422);
     }
 
     public function show(ContractType $contractType): JsonResponse

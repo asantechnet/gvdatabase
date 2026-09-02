@@ -98,6 +98,21 @@ class PhaseSixWorkdayTest extends TestCase
         $this->assertSame(1, DailyReport::count());
     }
 
+    public function test_disabled_automatic_attendance_blocks_self_service_workday_actions(): void
+    {
+        Setting::query()->latest('id')->firstOrFail()->update(['automatic_attendance_enabled' => false]);
+        $user = User::factory()->create(['roles' => ['staff']]);
+        Employee::factory()->create(['user_id' => $user->id]);
+        Sanctum::actingAs($user, ['access']);
+
+        $this->getJson('/api/workday/status')
+            ->assertOk()
+            ->assertJsonPath('data.eligible', false)
+            ->assertJsonPath('data.state', 'disabled');
+        $this->postJson('/api/workday/start')->assertStatus(422);
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
     public function test_non_present_attendance_blocks_self_service_start(): void
     {
         $user = User::factory()->create(['roles' => ['staff']]);

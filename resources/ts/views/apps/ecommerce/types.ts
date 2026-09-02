@@ -1,6 +1,6 @@
 export interface ProductParams {
   q: string
-  stock: string
+  asset: string
   category: string
   status: string
   options: object

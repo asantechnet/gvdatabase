@@ -988,7 +988,7 @@ const ticksLabels = {
 export const validation = {
   ts: `<script lang="ts" setup>
 const value = ref(30)
-const rules = [(v: number) => v <= 40 || 'Only 40 in stock']
+const rules = [(v: number) => v <= 40 || 'Only 40 in asset']
 </script>
 
 <template>
@@ -1004,7 +1004,7 @@ const rules = [(v: number) => v <= 40 || 'Only 40 in stock']
 `,
   js: `<script setup>
 const value = ref(30)
-const rules = [v => v <= 40 || 'Only 40 in stock']
+const rules = [v => v <= 40 || 'Only 40 in asset']
 </script>
 
 <template>

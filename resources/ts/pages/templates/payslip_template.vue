@@ -59,9 +59,9 @@
         <span class="label text-primary">{{ $t('documents.payslip_template.payslipTemplate.workedTotalDays') }}</span>
         <span class="value font-bold text-primary">{{ $t('documents.payslip.workedDays', { worked: employee.workedDays, total: employee.totalDays || 30 }) }}</span>
       </div>
-      <div class="grid-item"><span class="label">Paid-off days</span><span class="value">{{ employee.paidOffDays }}</span></div>
+      <div class="grid-item"><span class="label">Paid leave</span><span class="value">{{ employee.paidLeaveDays }}</span></div>
       <div class="grid-item"><span class="label">Absent days</span><span class="value">{{ employee.absentDays }}</span></div>
-      <div class="grid-item"><span class="label">Unpaid off-days</span><span class="value">{{ employee.unpaidOffDays }}</span></div>
+      <div class="grid-item"><span class="label">Unpaid leave</span><span class="value">{{ employee.unpaidLeaveDays }}</span></div>
     </section>
 
     <!-- Earnings and Deductions Table -->
@@ -177,9 +177,9 @@ export interface Employee {
   accountNumber: string
   workedDays: number
   totalDays: number
-  paidOffDays: number
+  paidLeaveDays: number
   absentDays: number
-  unpaidOffDays: number
+  unpaidLeaveDays: number
   tazkiraNumber?: string
   tinNumber?: string
 }

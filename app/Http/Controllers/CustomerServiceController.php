@@ -33,11 +33,11 @@ class CustomerServiceController extends Controller
                     'currency_id' => $data['currency_id'] ?? null,
                     'status' => $data['status'] ?? 'active',
                     'notes' => $data['notes'] ?? null,
-                ])->load('service.currency');
+                ])->load(['service.currency', 'currency']);
             });
         });
 
-        return CustomerServiceResource::collection($records->load('currency'));
+        return CustomerServiceResource::collection($records);
     }
 
     public function update(Request $request, Customer $customer, CustomerService $customerService)

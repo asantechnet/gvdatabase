@@ -17,6 +17,7 @@ class Task extends Model
 
     protected $fillable = [
         'board_id',
+        'customer_id',
         'title',
         'description',
         'results',
@@ -76,6 +77,8 @@ class Task extends Model
         return $this->belongsTo(Board::class);
     }
 
+    public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'task_user')->withPivot('contribution_percent');
@@ -106,8 +109,4 @@ class Task extends Model
         return $this->belongsToMany(Task::class, 'task_dependencies', 'task_id', 'depends_on_task_id');
     }
 
-    public function services(): BelongsToMany
-    {
-        return $this->belongsToMany(Service::class, 'task_service')->withTimestamps();
-    }
 }

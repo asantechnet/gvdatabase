@@ -17,7 +17,7 @@ interface ExecutiveMetric {
 
 const emptyDashboard = (): DashboardData => ({
   capabilities: {
-    finance: false, attendance: false, customers: false, invoices: false, stock: false, employees: false,
+    finance: false, attendance: false, customers: false, invoices: false, asset: false, employees: false,
     contracts: false, payroll: false, visitors: false, services: false,
   },
   currency: { code: 'USD', symbol: '$', decimal_places: 2 },
@@ -28,14 +28,14 @@ const emptyDashboard = (): DashboardData => ({
     average_task_progress: 0, task_completion_rate: 0, attendance_rate: null, attendance_present: null,
     attendance_marked: null, monthly_expenses: null, monthly_net_cash: null, customer_count: null,
     new_customers_this_month: null, open_invoice_count: null, open_invoice_value: null, employee_count: null,
-    stock_asset_value: null,
+    asset_asset_value: null,
   },
   sparklines: { income: [], active_tasks: [], attendance: [] },
   weekly_activity: { labels: [], created: [], completed: [] },
   secondary_chart: { labels: [], rates: [] },
   tertiary_chart: { labels: [], values: [], current_value: 0 },
   active_tasks: [], financial_chart: null, expense_breakdown: [], top_customers: [], receivables: [],
-  stock_health: null, team_health: null, attention_items: [],
+  asset_health: null, team_health: null, attention_items: [],
   commercial_overview: {
     customers: null, new_customers_this_month: null, invoice_total: null, collected_total: null,
     collection_rate: 0, active_services: null, service_deadlines_30_days: null, active_contracts: null,
@@ -164,14 +164,15 @@ const commercialActivityOptions = computed(() => ({
   legend: { position: 'top', horizontalAlign: 'right', markers: { radius: 12 }, labels: { colors: chartTextColor.value } }, tooltip: { theme: global.current.value.dark ? 'dark' : 'light' },
 }))
 const serviceSeries = computed(() => [{ name: t('charts.activeCustomers'), data: dashboard.value.service_portfolio.map(item => item.value) }])
+const serviceAxisMax = computed(() => Math.max(1, ...dashboard.value.service_portfolio.map(item => item.value)))
 const serviceOptions = computed(() => ({
   chart: { type: 'bar', toolbar: { show: false }, parentHeightOffset: 0 }, colors: [colorHex.primary],
   plotOptions: { bar: { horizontal: true, borderRadius: 5, barHeight: '58%', distributed: true } },
   dataLabels: { enabled: false },
-  grid: { show: false, padding: isRtl.value ? { right: 128 } : { left: 128 } },
+  grid: { show: false, padding: { top: -8, right: 8, bottom: -4, left: 8 } },
   legend: { show: false },
-  xaxis: { categories: dashboard.value.service_portfolio.map(item => item.label), labels: { style: { colors: chartTextColor.value }, formatter: (value: string) => formatNumber(Number(value)) }, axisBorder: { show: false }, axisTicks: { show: false } },
-  yaxis: { opposite: isRtl.value, labels: { minWidth: 112, maxWidth: 124, align: isRtl.value ? 'right' : 'left', offsetX: isRtl.value ? -8 : 8, style: { colors: chartTextColor.value } } },
+  xaxis: { categories: dashboard.value.service_portfolio.map(item => item.label), min: 0, max: serviceAxisMax.value, tickAmount: serviceAxisMax.value, decimalsInFloat: 0, labels: { style: { colors: chartTextColor.value }, formatter: (value: string) => formatNumber(Number(value)) }, axisBorder: { show: false }, axisTicks: { show: false } },
+  yaxis: { opposite: isRtl.value, labels: { minWidth: 96, maxWidth: 112, align: isRtl.value ? 'right' : 'left', offsetX: 0, style: { colors: chartTextColor.value } } },
   tooltip: { theme: global.current.value.dark ? 'dark' : 'light' }, noData: { text: t('charts.noActiveServices'), style: { color: chartTextColor.value } },
 }))
 const taskSeries = computed(() => dashboard.value.task_mix.map(item => item.value))
@@ -342,8 +343,8 @@ onMounted(loadDashboard)
       <VCol v-if="dashboard.people_overview.employees !== null" cols="12" sm="6" lg="3">
         <VCard class="domain-card h-100 pa-5"><div class="d-flex justify-space-between"><div><p class="kpi-label mb-2">{{ t('domains.peopleReadiness') }}</p><h3 class="text-h5 font-weight-bold">{{ t('domains.employeeCount', { count: formatNumber(dashboard.people_overview.employees) }) }}</h3></div><VAvatar color="success" variant="tonal" rounded="lg"><VIcon icon="tabler-users-group" /></VAvatar></div><VDivider class="my-4" /><div class="d-flex justify-space-between text-caption"><span class="text-medium-emphasis">{{ t('domains.pendingLeave') }}</span><strong>{{ formatNumber(dashboard.people_overview.pending_leave_requests) }}</strong></div><div class="d-flex justify-space-between text-caption mt-2"><span class="text-medium-emphasis">{{ t('domains.overtimeMonth') }}</span><strong>{{ formatMinutes(dashboard.people_overview.overtime_minutes_this_month) }}</strong></div></VCard>
       </VCol>
-      <VCol v-if="dashboard.stock_health" cols="12" sm="6" lg="3">
-        <VCard class="domain-card h-100 pa-5"><div class="d-flex justify-space-between"><div><p class="kpi-label mb-2">{{ t('domains.assetControl') }}</p><h3 class="text-h5 font-weight-bold">{{ formatMoney(dashboard.summary.stock_asset_value) }}</h3></div><VAvatar color="warning" variant="tonal" rounded="lg"><VIcon icon="tabler-packages" /></VAvatar></div><VDivider class="my-4" /><div class="d-flex justify-space-between text-caption"><span class="text-medium-emphasis">{{ t('domains.availableAssigned') }}</span><strong>{{ dashboard.stock_health.available_items }} / {{ dashboard.stock_health.assigned_items }}</strong></div><div class="d-flex justify-space-between text-caption mt-2"><span class="text-medium-emphasis">{{ t('domains.needInspection') }}</span><strong :class="dashboard.stock_health.attention_items ? 'text-warning' : ''">{{ dashboard.stock_health.attention_items }}</strong></div></VCard>
+      <VCol v-if="dashboard.asset_health" cols="12" sm="6" lg="3">
+        <VCard class="domain-card h-100 pa-5"><div class="d-flex justify-space-between"><div><p class="kpi-label mb-2">{{ t('domains.assetControl') }}</p><h3 class="text-h5 font-weight-bold">{{ formatMoney(dashboard.summary.asset_asset_value) }}</h3></div><VAvatar color="warning" variant="tonal" rounded="lg"><VIcon icon="tabler-packages" /></VAvatar></div><VDivider class="my-4" /><div class="d-flex justify-space-between text-caption"><span class="text-medium-emphasis">{{ t('domains.availableAssigned') }}</span><strong>{{ dashboard.asset_health.available_items }} / {{ dashboard.asset_health.assigned_items }}</strong></div><div class="d-flex justify-space-between text-caption mt-2"><span class="text-medium-emphasis">{{ t('domains.needInspection') }}</span><strong :class="dashboard.asset_health.attention_items ? 'text-warning' : ''">{{ dashboard.asset_health.attention_items }}</strong></div></VCard>
       </VCol>
       <VCol v-if="dashboard.capabilities.visitors" cols="12" sm="6" lg="3">
         <VCard class="domain-card h-100 pa-5"><div class="d-flex justify-space-between"><div><p class="kpi-label mb-2">{{ t('domains.frontDoor') }}</p><h3 class="text-h5 font-weight-bold">{{ t('domains.visitorCount', { count: formatNumber(dashboard.commercial_overview.visitors_this_month) }) }}</h3></div><VAvatar color="info" variant="tonal" rounded="lg"><VIcon icon="tabler-walk" /></VAvatar></div><VDivider class="my-4" /><div class="d-flex justify-space-between text-caption"><span class="text-medium-emphasis">{{ t('domains.newCustomers') }}</span><strong>{{ formatNumber(dashboard.commercial_overview.new_customers_this_month) }}</strong></div><div class="d-flex justify-space-between text-caption mt-2"><span class="text-medium-emphasis">{{ t('domains.activeServices') }}</span><strong>{{ formatNumber(dashboard.commercial_overview.active_services) }}</strong></div></VCard>

@@ -7,6 +7,7 @@ import { useTheme } from 'vuetify'
 import type { ApiResponse, Setting, SettingForm } from '@/api/setting'
 import { useAppApi } from '@/composables/useAppApi'
 import { useBranding } from '@/composables/useBranding'
+import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
 import { canAccess } from '@/utils/authorization'
 import { contrastingTextColor } from '@/utils/themeContrast'
 import { applyThemePalette, persistThemeColors, themeColorDefaults, themeColorFields, type ThemeColorField, type ThemeColorPreferences } from '@/utils/themePersistence'
@@ -17,6 +18,7 @@ type SettingsPage = 'company' | 'email' | 'operations' | 'appearance' | 'documen
 const toast = useToast()
 const { settings } = useAppApi()
 const { updateBranding } = useBranding()
+const { setEnabled: setAutomaticAttendanceEnabled } = useAutomaticAttendance()
 const vuetifyTheme = useTheme()
 const route = useRoute()
 const router = useRouter()
@@ -28,7 +30,7 @@ const { t: translate } = useI18n()
 
 const defaultForm = (): SettingForm => ({
   ...themeColorDefaults,
-  paid_off_days_per_year: 0,
+  paid_leave_days_per_year: 0,
   website_title: 'Asantech',
   website_logo: null,
   company_signature: null,
@@ -59,6 +61,7 @@ const defaultForm = (): SettingForm => ({
   office_open_time: '09:00',
   office_close_time: '17:00',
   default_break_minutes: 0,
+  automatic_attendance_enabled: true,
 })
 
 const form = ref<SettingForm>(defaultForm())
@@ -123,7 +126,7 @@ const appearanceGroups = computed(() => [
 const pageFields: Record<SettingsPage, (keyof SettingForm)[]> = {
   company: ['website_title', 'website_logo', 'company_signature', 'website_address', 'timezone', 'phone', 'physical_address', 'short_company_name', 'original_company_name'],
   email: ['company_email', 'mail_host', 'mail_port', 'mail_encryption', 'mail_username', 'mail_password', 'clear_mail_password', 'mail_from_name', 'mail_reply_to'],
-  operations: ['paid_off_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes'],
+  operations: ['paid_leave_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes', 'automatic_attendance_enabled'],
   appearance: themeColorFields,
   documents: ['contract_letterhead', 'contract_cover_design', 'remove_contract_letterhead', 'remove_contract_cover_design', 'contract_letterhead_safe_x', 'contract_letterhead_safe_y', 'contract_letterhead_safe_width', 'contract_letterhead_safe_height'],
 }
@@ -184,7 +187,7 @@ function applySavedSetting(setting: Setting) {
     light_surface_color: setting.light_surface_color,
     dark_background_color: setting.dark_background_color,
     dark_surface_color: setting.dark_surface_color,
-    paid_off_days_per_year: Number(setting.paid_off_days_per_year ?? 0),
+    paid_leave_days_per_year: Number(setting.paid_leave_days_per_year ?? 0),
     website_title: setting.website_title,
     website_address: setting.website_address || '',
     company_email: setting.company_email || '',
@@ -205,12 +208,14 @@ function applySavedSetting(setting: Setting) {
     office_open_time: setting.office_open_time || '09:00',
     office_close_time: setting.office_close_time || '17:00',
     default_break_minutes: setting.default_break_minutes ?? 0,
+    automatic_attendance_enabled: setting.automatic_attendance_enabled,
     contract_letterhead_safe_x: setting.contract_letterhead_safe_x ?? 8.5,
     contract_letterhead_safe_y: setting.contract_letterhead_safe_y ?? 15,
     contract_letterhead_safe_width: setting.contract_letterhead_safe_width ?? 83,
     contract_letterhead_safe_height: setting.contract_letterhead_safe_height ?? 70,
   }
   form.value = savedForm
+  setAutomaticAttendanceEnabled(setting.automatic_attendance_enabled)
   persistedForm.value = { ...savedForm }
   logoPreview.value = setting.website_logo_url || setting.website_logo || '/images/logo.png'
   signaturePreview.value = setting.company_signature_url
@@ -587,10 +592,15 @@ onBeforeUnmount(revokeObjectUrls)
 
           <VRow v-else-if="activeSettingsPage === 'operations'">
             <VCol cols="12" sm="6"><VTextField v-model="form.business_licence" :label="$t('pages.settings.settings.businessLicence')" :placeholder="$t('pages.settings.settings.licenceNumber')" /></VCol>
-            <VCol cols="12" sm="6"><VTextField v-model.number="form.paid_off_days_per_year" :label="$t('pages.settings.settings.paidOffDaysPerYear')" type="number" min="0" max="366" /></VCol>
+            <VCol cols="12" sm="6"><VTextField v-model.number="form.paid_leave_days_per_year" label="Paid leave days per year" type="number" min="0" max="366" step="0.5" /></VCol>
             <VCol cols="12" sm="6"><AppSelect v-model="form.office_open_time" :items="timeOptions" :label="$t('pages.settings.settings.officeOpens')" clearable /></VCol>
             <VCol cols="12" sm="6"><AppSelect v-model="form.office_close_time" :items="timeOptions" :label="$t('pages.settings.settings.officeCloses')" clearable /></VCol>
             <VCol cols="12" sm="6"><VTextField v-model.number="form.default_break_minutes" :label="$t('pages.settings.settings.defaultBreakMinutes')" type="number" min="0" max="720" /></VCol>
+            <VCol cols="12">
+              <VSwitch v-model="form.automatic_attendance_enabled" color="primary" inset
+                :label="$t('pages.settings.settings.automaticAttendanceEnabled')"
+                :hint="$t('pages.settings.settings.automaticAttendanceEnabledHint')" persistent-hint />
+            </VCol>
           </VRow>
 
           <template v-else-if="activeSettingsPage === 'appearance'">

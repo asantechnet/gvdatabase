@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Visitor extends Model
 {
@@ -14,12 +15,17 @@ class Visitor extends Model
         'name',
         'company',
         'contact',
+        'email',
         'service',
         'marketer',
+        'notes',
+        'converted_at',
         'date',
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'date', 'converted_at' => 'immutable_datetime',
     ];
+
+    public function interactions(): MorphMany { return $this->morphMany(CrmInteraction::class, 'contactable')->latest('contacted_at'); }
 }

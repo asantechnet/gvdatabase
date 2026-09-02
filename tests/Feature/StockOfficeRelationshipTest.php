@@ -3,14 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Office;
-use App\Models\Stock;
+use App\Models\Asset;
 use App\Http\Middleware\EnsurePermission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Auth\Middleware\Authenticate;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Tests\TestCase;
 
-class StockOfficeRelationshipTest extends TestCase
+class AssetOfficeRelationshipTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -24,11 +24,11 @@ class StockOfficeRelationshipTest extends TestCase
         ]);
     }
 
-    public function test_stock_uses_an_office_foreign_key_and_exposes_the_relationship(): void
+    public function test_asset_uses_an_office_foreign_key_and_exposes_the_relationship(): void
     {
         $office = Office::factory()->create(['name' => 'Central Office', 'code' => 'CENTRAL']);
 
-        $response = $this->postJson('/api/stocks', [
+        $response = $this->postJson('/api/assets', [
             'serial_number' => 'REL-1001',
             'item' => 'Laptop',
             'quantity' => 1,
@@ -42,18 +42,18 @@ class StockOfficeRelationshipTest extends TestCase
             ->assertJsonPath('data.office.id', $office->id)
             ->assertJsonPath('data.office.name', 'Central Office');
 
-        $stockId = $response->json('data.id');
-        $this->assertDatabaseHas('stocks', ['id' => $stockId, 'office_id' => $office->id]);
+        $assetId = $response->json('data.id');
+        $this->assertDatabaseHas('assets', ['id' => $assetId, 'office_id' => $office->id]);
 
-        $this->getJson('/api/stocks?office_id='.$office->id)
+        $this->getJson('/api/assets?office_id='.$office->id)
             ->assertOk()
             ->assertJsonCount(1, 'data');
     }
 
-    public function test_office_renames_flow_through_stock_and_assigned_offices_cannot_be_deleted(): void
+    public function test_office_renames_flow_through_asset_and_assigned_offices_cannot_be_deleted(): void
     {
         $office = Office::factory()->create(['name' => 'Old Office', 'code' => 'OLD']);
-        $stock = Stock::factory()->for($office)->create();
+        $asset = Asset::factory()->for($office)->create();
 
         $this->putJson('/api/offices/'.$office->id, [
             'name' => 'Renamed Office',
@@ -68,7 +68,7 @@ class StockOfficeRelationshipTest extends TestCase
             'geofence_enabled' => false,
         ])->assertOk();
 
-        $this->getJson('/api/stocks/'.$stock->id)
+        $this->getJson('/api/assets/'.$asset->id)
             ->assertOk()
             ->assertJsonPath('data.office.id', $office->id)
             ->assertJsonPath('data.office.name', 'Renamed Office');
@@ -76,9 +76,9 @@ class StockOfficeRelationshipTest extends TestCase
         $this->deleteJson('/api/offices/'.$office->id)->assertConflict();
     }
 
-    public function test_stock_rejects_an_unknown_office(): void
+    public function test_asset_rejects_an_unknown_office(): void
     {
-        $this->postJson('/api/stocks', [
+        $this->postJson('/api/assets', [
             'serial_number' => 'REL-INVALID',
             'item' => 'Monitor',
             'quantity' => 1,

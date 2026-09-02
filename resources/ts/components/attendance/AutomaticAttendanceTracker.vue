@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import AttendanceGeofenceApi from '@/api/attendanceGeofence'
 import { canAccess } from '@/utils/authorization'
+import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
 import { useToast } from 'vue-toastification'
 
 const { t } = useI18n()
 const toast = useToast()
+const { enabled, load: loadAutomaticAttendance } = useAutomaticAttendance()
 let pollTimer: number | undefined
 let requestInFlight = false
 let locationErrorReported = false
@@ -59,6 +61,7 @@ function locate() {
 }
 
 async function start() {
+  if (!await loadAutomaticAttendance() || !enabled.value) return
   if (!canAccess('manage_own_workday') || !navigator.geolocation) return
   try {
     const configuration = await AttendanceGeofenceApi.configuration()

@@ -89,7 +89,7 @@ export interface ContractUpdateData extends Partial<Omit<ContractCreateData, 'st
 }
 
 export interface ContractParams {
-  audience?: 'customers' | 'employees' | 'companies' | 'other'
+  audience?: 'customers' | 'employees' | 'companies'
   type_slug?: string
   status?: ContractStatus
   search?: string

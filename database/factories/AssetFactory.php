@@ -2,13 +2,13 @@
 
 namespace Database\Factories;
 
-use App\Models\Stock;
+use App\Models\Asset;
 use App\Models\Office;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-class StockFactory extends Factory
+class AssetFactory extends Factory
 {
-    protected $model = Stock::class;
+    protected $model = Asset::class;
 
     public function definition(): array
     {
@@ -17,7 +17,7 @@ class StockFactory extends Factory
             'item' => fake()->randomElement(['Laptop', 'Monitor', 'Keyboard', 'Mouse', 'Printer']),
             'quantity' => fake()->numberBetween(1, 10),
             'model' => fake()->bothify('MDL-###'),
-            'condition' => fake()->randomElement(Stock::conditions()),
+            'condition' => fake()->randomElement(Asset::conditions()),
             'office_id' => Office::factory(),
         ];
     }

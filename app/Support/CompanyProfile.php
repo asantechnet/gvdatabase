@@ -70,4 +70,14 @@ class CompanyProfile
             ? $timezone
             : (string) config('app.timezone', 'UTC');
     }
+
+    /**
+     * This is the single feature gate for location/workday automation and
+     * derived in/out-time calculations. A missing profile preserves the
+     * application's legacy enabled behaviour during first-time setup.
+     */
+    public function automaticAttendanceEnabled(): bool
+    {
+        return $this->current()?->automatic_attendance_enabled ?? true;
+    }
 }

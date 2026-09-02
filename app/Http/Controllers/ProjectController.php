@@ -11,7 +11,7 @@ class ProjectController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $projects = Project::query()->with(['services.currency', 'boards'])
+        $projects = Project::query()->with(['customer.customerServices.service.currency', 'boards.tasks'])
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->input('status')))
             ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
             ->orderBy('name')
@@ -25,30 +25,24 @@ class ProjectController extends Controller
         $this->authorize($request, 'create_projects');
         $data = $this->validated($request);
         $data['created_by'] = $request->user()->id;
-        $services = $data['service_ids'] ?? [];
-        unset($data['service_ids']);
         $project = Project::create($data);
-        $project->services()->sync($services);
 
-        return response()->json(['success' => true, 'data' => new ProjectResource($project->load(['services.currency', 'boards']))], 201);
+        return response()->json(['success' => true, 'data' => new ProjectResource($project->load(['customer.customerServices.service.currency', 'boards.tasks']))], 201);
     }
 
     public function show(Request $request, Project $project): JsonResponse
     {
         $this->authorize($request, 'view_projects');
-        return response()->json(['success' => true, 'data' => new ProjectResource($project->load(['services.currency', 'boards.tasks']))]);
+        return response()->json(['success' => true, 'data' => new ProjectResource($project->load(['customer.customerServices.service.currency', 'boards.tasks']))]);
     }
 
     public function update(Request $request, Project $project): JsonResponse
     {
         $this->authorize($request, 'edit_projects');
         $data = $this->validated($request, true);
-        $services = $data['service_ids'] ?? null;
-        unset($data['service_ids']);
         $project->update($data);
-        if ($services !== null) $project->services()->sync($services);
 
-        return response()->json(['success' => true, 'data' => new ProjectResource($project->fresh()->load(['services.currency', 'boards']))]);
+        return response()->json(['success' => true, 'data' => new ProjectResource($project->fresh()->load(['customer.customerServices.service.currency', 'boards.tasks']))]);
     }
 
     public function destroy(Request $request, Project $project): JsonResponse
@@ -73,8 +67,7 @@ class ProjectController extends Controller
             'status' => [$partial ? 'sometimes' : 'nullable', 'in:active,on_hold,completed,archived'],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'service_ids' => ['sometimes', 'array'],
-            'service_ids.*' => ['integer', 'distinct', 'exists:services,id'],
+            'customer_id' => [$required, 'integer', 'exists:customers,id'],
         ]);
     }
 }

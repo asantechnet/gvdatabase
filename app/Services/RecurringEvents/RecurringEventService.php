@@ -73,7 +73,10 @@ class RecurringEventService
             if ($occurrence->status === 'completed') return $occurrence;
             if ($occurrence->status === 'skipped') throw ValidationException::withMessages(['occurrence' => ['This occurrence was skipped.']]);
             $event = $occurrence->recurringEvent;
-            if ($event->status !== 'active') throw ValidationException::withMessages(['event' => ['This recurring event is not active.']]);
+            // A schedule is marked completed as soon as its final occurrence is
+            // generated. That occurrence must remain executable even though no
+            // future occurrences may be created.
+            if (! in_array($event->status, ['active', 'completed'], true)) throw ValidationException::withMessages(['event' => ['This recurring event is not active.']]);
             $this->assertExecutionPermission($event, $user);
             $result = match ($event->event_type) {
                 'income' => $this->createIncome($event, $occurrence),

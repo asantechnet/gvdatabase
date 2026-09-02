@@ -60,7 +60,6 @@ class IncomeController extends Controller
         $validator->validate();
 
         $data = $validator->validated();
-        unset($data['rate']);
         $data['recorded_by'] = $request->user()->id;
         $data['description'] = $data['description'] ?? '';
         $this->applyCurrencySnapshot($data);
@@ -74,7 +73,7 @@ class IncomeController extends Controller
             $data['customer_id'] = $invoice->customer_id;
             $data['currency_id'] = $invoice->currency_id;
             $this->applyCurrencySnapshot($data);
-            $data['invoice_amount'] = round((float) $data['amount'] * (int) $data['quantity'], 4);
+            $data['invoice_amount'] = $this->paymentAmountInInvoiceCurrency($data, $invoice);
             $this->ensureInvoiceCanAcceptPayment($invoice, $data);
 
             $income = Income::create($data);
@@ -108,12 +107,6 @@ class IncomeController extends Controller
         $validator->validate();
 
         $data = $validator->validated();
-        unset($data['rate']);
-
-        if (array_key_exists('currency_id', $data)) {
-            $this->applyCurrencySnapshot($data);
-        }
-
         $income = DB::transaction(function () use ($data, $income) {
             $invoiceId = array_key_exists('invoice_id', $data) ? $data['invoice_id'] : $income->invoice_id;
             $affectedInvoiceIds = array_filter([$income->invoice_id, $invoiceId]);
@@ -127,9 +120,19 @@ class IncomeController extends Controller
 
                 $data['customer_id'] = $invoice->customer_id;
                 $data['currency_id'] = $invoice->currency_id;
-                $this->applyCurrencySnapshot($data);
-                $data['invoice_amount'] = round((float) ($data['amount'] ?? $income->amount) * (int) ($data['quantity'] ?? $income->quantity), 4);
+                if ((int) $invoiceId !== (int) $income->invoice_id || array_key_exists('rate', $data)) {
+                    $this->applyCurrencySnapshot($data);
+                }
+                $data['invoice_amount'] = $this->paymentAmountInInvoiceCurrency(array_merge($income->toArray(), $data), $invoice);
                 $this->ensureInvoiceCanAcceptPayment($invoice, array_merge($income->toArray(), $data), $income->id);
+            } else {
+                if (array_key_exists('currency_id', $data)) {
+                    $this->applyCurrencySnapshot($data);
+                }
+                if (array_key_exists('invoice_id', $data)) {
+                    $data['invoice_amount'] = null;
+                    $data['customer_id'] = $data['customer_id'] ?? $income->customer_id;
+                }
             }
 
             $income->update($data);
@@ -172,7 +175,7 @@ class IncomeController extends Controller
 
         $paidAmount = $this->invoicePaidAmount($invoice, $excludingIncomeId);
         $paymentAmount = $this->paymentAmountInInvoiceCurrency($payment, $invoice);
-        $remainingAmount = round(max(0, (float) $invoice->amount - $paidAmount), 2);
+        $remainingAmount = round(max(0, (float) $invoice->amount - $paidAmount), $this->currencyPrecision($invoice));
 
         if ($paymentAmount > $remainingAmount + 0.00001) {
             throw ValidationException::withMessages([
@@ -188,7 +191,8 @@ class IncomeController extends Controller
         }
 
         $paidAmount = $this->invoicePaidAmount($invoice);
-        $status = $paidAmount >= (float) $invoice->amount - 0.00001
+        $precision = $this->currencyPrecision($invoice);
+        $status = $paidAmount >= (float) $invoice->amount - (10 ** -$precision) / 2
             ? 'Paid'
             : ($paidAmount > 0 ? 'Partially Paid' : 'Issued');
 
@@ -205,7 +209,7 @@ class IncomeController extends Controller
 
         return round($query->get()->sum(fn (Income $income) =>
             (float) ($income->invoice_amount ?? ((float) $income->amount * (int) $income->quantity))
-        ), 2);
+        ), $this->currencyPrecision($invoice));
     }
 
     /** @param array<string, mixed> $payment */
@@ -213,13 +217,27 @@ class IncomeController extends Controller
     {
         // Linked payments are deliberately recorded in the invoice currency.
         // This makes the paid balance independent of later base-currency changes.
-        return round((float) ($payment['invoice_amount'] ?? ((float) ($payment['amount'] ?? 0) * (int) ($payment['quantity'] ?? 1))), 2);
+        return round((float) ($payment['amount'] ?? 0) * (int) ($payment['quantity'] ?? 1), $this->currencyPrecision($invoice));
     }
 
     /** @param array<string, mixed> $data */
+    private function currencyPrecision(Invoice $invoice): int
+    {
+        return max(0, min(8, (int) ($invoice->currency?->decimal_places ?? 2)));
+    }
+
     private function applyCurrencySnapshot(array &$data): void
     {
+        $receiptRate = $data['rate'] ?? null;
         $currency = Currency::query()->where('is_active', true)->findOrFail($data['currency_id']);
         $data = [...$data, ...$this->currencies->snapshot($currency)];
+        if (array_key_exists('amount', $data)) {
+            $data['amount'] = round((float) $data['amount'], $currency->decimal_places);
+        }
+
+        // Preserve the exchange rate agreed for this particular receipt.
+        if ($receiptRate !== null) {
+            $data['rate'] = (float) $receiptRate;
+        }
     }
 }

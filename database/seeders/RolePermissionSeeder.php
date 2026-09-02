@@ -45,7 +45,7 @@ class RolePermissionSeeder extends Seeder
                 'view_incomes', 'create_incomes', 'edit_incomes',
                 'view_expenses', 'create_expenses', 'edit_expenses',
                 'view_recurring_events', 'create_recurring_events', 'edit_recurring_events', 'delete_recurring_events', 'manage_recurring_events', 'execute_recurring_events', 'create_recurring_incomes', 'create_recurring_expenses', 'create_recurring_tasks',
-                'view_stocks', 'create_stocks', 'edit_stocks',
+                'view_assets', 'create_assets', 'edit_assets',
                 'view_currencies', 'view_financial_reports',
                 'view_all_boards', 'view_assigned_boards', 'create_boards', 'edit_all_boards', 'edit_assigned_boards', 'reorder_boards', 'assign_board_members',
                 'view_projects', 'create_projects', 'edit_projects', 'delete_projects',

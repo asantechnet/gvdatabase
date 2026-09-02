@@ -20,7 +20,7 @@ export default [
       },
       {
         title: 'pages.paidTimeOff.title',
-        to: 'paid-time-offs',
+        to: 'leaves',
         icon: { icon: 'tabler-beach' },
         action: 'read',
         subject: 'view_paid_time_off',

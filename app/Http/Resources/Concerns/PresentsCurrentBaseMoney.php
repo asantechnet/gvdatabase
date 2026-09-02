@@ -23,7 +23,9 @@ trait PresentsCurrentBaseMoney
     {
         $rate = (float) ($source?->rate ?? 0);
 
-        return $rate > 0 ? round($amount / $rate, 4) : null;
+        $base = $this->currentBaseCurrency();
+
+        return $rate > 0 ? round($amount / $rate, (int) ($base?->decimal_places ?? 2)) : null;
     }
 
     private function currentBaseCurrencyData(): ?array

@@ -20,13 +20,13 @@ const props = withDefaults(defineProps<{
 const { t } = useI18n()
 const pageTranslationKeys: Record<string, string> = {
   'Visitors': 'visitors',
-  'Stock inventory': 'stockInventory',
+  'Asset inventory': 'assetInventory',
   'Staff salaries': 'staffSalaries',
   'Staff directory': 'staffDirectory',
   'Users': 'users',
   'Positions': 'positions',
   'Payment details': 'paymentDetails',
-  'Paid time off': 'paidTimeOff',
+  'Leave': 'paidTimeOff',
   'Invoice options': 'invoiceOptions',
   'HR options': 'hrOptions',
   'Finance options': 'financeOptions',
@@ -68,7 +68,16 @@ const groupLabel = computed(() => ({
 }[groupKey.value || ''] || t('components.dataTablePageKpis.recordsCovered')))
 const formatAmount = (amount: number) => new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(amount)
 const sum = (...keys: string[]) => props.items.reduce((total, item) => total + (Number(keys.map(key => item[key]).find(value => Number.isFinite(Number(value)))) || 0), 0)
-const resolvedBaseCurrency = computed<BaseCurrency | null>(() => props.baseCurrency ?? props.items.find(item => item.currentBaseCurrency && typeof item.currentBaseCurrency === 'object')?.currentBaseCurrency as BaseCurrency ?? null)
+const resolvedBaseCurrency = computed<BaseCurrency | null>(() => {
+  // Prefer the live currency catalogue, but use the invoice's base-currency
+  // snapshot whenever it is the only source with display details available.
+  if (props.baseCurrency?.symbol || props.baseCurrency?.code)
+    return props.baseCurrency
+
+  const invoiceBase = props.items.find(item => item.currentBaseCurrency && typeof item.currentBaseCurrency === 'object')?.currentBaseCurrency
+
+  return (invoiceBase as BaseCurrency | undefined) ?? props.baseCurrency ?? null
+})
 const formatCurrentBaseMoney = (amount: number) => {
   const currency = resolvedBaseCurrency.value
   const decimals = currency?.decimalPlaces ?? 2
@@ -97,8 +106,8 @@ const metrics = computed<KpiMetric[]>(() => {
     { label: t('components.dataTablePageKpis.collectedCurrentBase'), value: formatCurrentBaseMoney(sum('currentBasePaidAmount', 'paid_amount')), icon: 'tabler-circle-check', tone: 'status' },
     { label: t('components.dataTablePageKpis.outstandingCurrentBase'), value: formatCurrentBaseMoney(sum('currentBaseBalance', 'balance')), icon: 'tabler-alert-circle', tone: 'attention' },
   ]
-  if (page.includes('stock')) return [base,
-    { label: t('components.dataTablePageKpis.unitsInStock'), value: formatAmount(sum('quantity')), icon: 'tabler-packages', tone: 'status' },
+  if (page.includes('asset')) return [base,
+    { label: t('components.dataTablePageKpis.unitsInAsset'), value: formatAmount(sum('quantity')), icon: 'tabler-packages', tone: 'status' },
     { label: t('components.dataTablePageKpis.inventoryValue'), value: formatAmount(props.items.reduce((value, item) => value + (Number(item.quantity) || 0) * (Number(item.price) || 0), 0)), icon: 'tabler-cash', tone: 'insight' },
     { label: t('components.dataTablePageKpis.needsReview'), value: count(item => ['poor', 'damaged'].includes(String(item.condition))), icon: 'tabler-tool', tone: 'attention' },
   ]
@@ -117,7 +126,7 @@ const metrics = computed<KpiMetric[]>(() => {
     { label: t('components.dataTablePageKpis.activeServices'), value: props.items.reduce((total, item) => total + ((item.services as TableRow[] | undefined)?.filter(service => service.status === 'active').length || 0), 0), icon: 'tabler-plug-connected', tone: 'status' },
     { label: t('components.dataTablePageKpis.pausedServices'), value: props.items.reduce((total, item) => total + ((item.services as TableRow[] | undefined)?.filter(service => service.status === 'paused').length || 0), 0), icon: 'tabler-player-pause', tone: 'attention' },
   ]
-  if (page.includes('paid time')) return [base,
+  if (page.includes('leave')) return [base,
     { label: t('components.dataTablePageKpis.awaitingDecision'), value: count(item => !item.is_granted), icon: 'tabler-hourglass', tone: 'attention' },
     { label: t('components.dataTablePageKpis.paidLeave'), value: count(item => item.is_paid === true), icon: 'tabler-circle-check', tone: 'status' },
     { label: t('components.dataTablePageKpis.teamMembers'), value: unique('employee_id'), icon: 'tabler-users', tone: 'insight' },

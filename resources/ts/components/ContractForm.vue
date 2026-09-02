@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import CompanyApi, { type Company } from '@/api/company'
-import ContractTypeApi, { type ContractType } from '@/api/contractType'
 import type { ContractStatus } from '@/api/contracts'
 import CustomerApi, { type Customer } from '@/api/customer'
 import EmployeeApi, { type Employee } from '@/api/employee'
@@ -9,11 +8,9 @@ import CounterpartyCard, { type CounterpartyDetails } from '@/components/contrac
 
 export interface ContractFormPayload {
   template_id: number | null
-  contract_type_id: number | null
   employee_id: number | null
   customer_id: number | null
   company_id: number | null
-  is_custom: boolean
   name: string
   cover_text: string | null
   content?: string
@@ -51,7 +48,7 @@ const props = defineProps<{
     content?: string | null
   }
   templates: TemplateOption[]
-  audience?: 'customers' | 'employees' | 'companies' | 'other'
+  audience?: 'customers' | 'employees' | 'companies'
 }>()
 
 const emit = defineEmits<{
@@ -63,16 +60,13 @@ const formRef = ref()
 const customers = ref<Customer[]>([])
 const employees = ref<Employee[]>([])
 const companies = ref<Company[]>([])
-const contractTypes = ref<ContractType[]>([])
 const loadingEntities = ref(true)
 
 const form = ref({
   template_id: (props.contract?.template_id ?? null) as number | null,
-  contract_type_id: (props.contract?.contract_type_id ?? null) as number | null,
   employee_id: (props.contract?.employee_id ?? null) as number | null,
   customer_id: (props.contract?.customer_id ?? null) as number | null,
   company_id: (props.contract?.company_id ?? null) as number | null,
-  is_custom: Boolean(props.contract?.is_custom),
   name: props.contract?.contract || '',
   cover_text: (props.contract?.cover_text || null) as string | null,
   content: props.contract?.content || '',
@@ -82,6 +76,25 @@ const form = ref({
   duration_months: props.contract?.duration_months ?? null,
   company_signatory_name: props.contract?.company_signatory_name ?? null,
 })
+
+const normalizeWholeNumber = (value: unknown): number | null => {
+  if (typeof value === 'number')
+    return Number.isSafeInteger(value) && value > 0 ? value : null
+
+  if (typeof value !== 'string') return null
+
+  const normalized = value
+    .trim()
+    .replace(/[\u06F0-\u06F9]/g, digit => String(digit.charCodeAt(0) - 0x06F0))
+    .replace(/[\u0660-\u0669]/g, digit => String(digit.charCodeAt(0) - 0x0660))
+
+  return /^\d+$/.test(normalized) && Number(normalized) > 0 && Number.isSafeInteger(Number(normalized))
+    ? Number(normalized)
+    : null
+}
+
+const isPositiveWholeNumber = (value: unknown) =>
+  normalizeWholeNumber(value) !== null || 'Enter a whole number of months.'
 
 // ---------------------------------------------------------------------
 // Context metadata drives the whole form; no scattered if/else chains.
@@ -95,14 +108,8 @@ const CONTEXT_BY_SLUG: Record<string, 'employee' | 'customer' | 'company' | null
 const selectedTemplate = computed(() =>
   props.templates.find(template => template.id === form.value.template_id) ?? null)
 
-const selectedType = computed(() =>
-  contractTypes.value.find(type => type.id === form.value.contract_type_id) ?? null)
-
 const activeSlug = computed<string | null>(() => {
-  if (!form.value.is_custom)
-    return selectedTemplate.value?.type_slug ?? null
-
-  return selectedType.value?.slug ?? null
+  return selectedTemplate.value?.type_slug ?? null
 })
 
 const context = computed<'employee' | 'customer' | 'company' | null>(() => {
@@ -199,11 +206,10 @@ const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
 
 onMounted(async () => {
   try {
-    const [customerResult, employeeResult, companyResult, typeList] = await Promise.allSettled([
+    const [customerResult, employeeResult, companyResult] = await Promise.allSettled([
       CustomerApi.getAll(),
       EmployeeApi.getOptions(),
       CompanyApi.getAll(),
-      ContractTypeApi.getAll({ include_inactive: true }),
     ])
     if (customerResult.status === 'fulfilled' && customerResult.value.success)
       customers.value = customerResult.value.data
@@ -211,32 +217,15 @@ onMounted(async () => {
       employees.value = employeeResult.value
     if (companyResult.status === 'fulfilled')
       companies.value = companyResult.value.filter(company => company.is_active !== false)
-    if (typeList.status === 'fulfilled')
-      contractTypes.value = typeList.value
   } finally {
     loadingEntities.value = false
   }
 })
 
 watch(() => props.templates, () => {
-  if (!form.value.template_id && !form.value.is_custom && visibleTemplates.value[0])
+  if (!form.value.template_id && visibleTemplates.value[0])
     form.value.template_id = visibleTemplates.value[0].id
 }, { immediate: true })
-
-watch(() => form.value.is_custom, isCustom => {
-  if (isCustom) {
-    form.value.template_id = null
-    if (!form.value.contract_type_id) {
-      const fallback = contractTypes.value.find(type => type.slug === 'customer')
-        ?? contractTypes.value[0]
-      form.value.contract_type_id = fallback?.id ?? null
-    }
-  } else {
-    form.value.contract_type_id = null
-    if (!form.value.template_id && visibleTemplates.value[0])
-      form.value.template_id = visibleTemplates.value[0].id
-  }
-})
 
 // Changing context clears entity-specific selections so employment-only
 // data never silently rides along with another contract type.
@@ -249,36 +238,43 @@ watch(context, currentContext => {
 })
 
 watch([() => form.value.start_date, () => form.value.duration_months], ([startDate, duration]) => {
-  if (!startDate || !duration) {
+  const durationMonths = normalizeWholeNumber(duration)
+  if (!startDate || durationMonths === null) {
     form.value.end_date = null
     return
   }
 
   const [year, month, day] = startDate.split('-').map(Number)
-  const lastDay = new Date(Date.UTC(year, month - 1 + Number(duration) + 1, 0)).getUTCDate()
-  form.value.end_date = new Date(Date.UTC(year, month - 1 + Number(duration), Math.min(day, lastDay))).toISOString().slice(0, 10)
+  const lastDay = new Date(Date.UTC(year, month - 1 + durationMonths + 1, 0)).getUTCDate()
+  form.value.end_date = new Date(Date.UTC(year, month - 1 + durationMonths, Math.min(day, lastDay))).toISOString().slice(0, 10)
 }, { immediate: true })
-
-const onTypesChanged = (types: ContractType[]) => {
-  contractTypes.value = types
-}
 
 const submit = async () => {
   const validation = await formRef.value?.validate()
   if (validation?.valid === false) return
 
+  const durationMonths = normalizeWholeNumber(form.value.duration_months)
+  if (durationMonths === null) return
+
+  const { employee_id, customer_id, company_id, ...contractData } = form.value
+  const counterpartyId = context.value === 'employee'
+    ? { employee_id }
+    : context.value === 'customer'
+      ? { customer_id }
+      : context.value === 'company'
+        ? { company_id }
+        : {}
+
   emit('submit', {
-    ...form.value,
+    ...contractData,
+    ...counterpartyId,
+    duration_months: durationMonths,
     // Template contracts inherit their display name from the template. Keep
     // it in the payload as well so older client validators cannot reject an
     // otherwise valid template-based contract because name is blank.
-    name: form.value.is_custom ? form.value.name : (selectedTemplate.value?.name || form.value.name),
-    // The backend derives the type from the template for template contracts.
-    contract_type_id: form.value.is_custom ? form.value.contract_type_id : null,
-    // Template contracts take their content from the selected template. Do
-    // not send an empty string here: Laravel converts it to null and then
-    // rejects it against the string rule before the template can be applied.
-    content: form.value.is_custom ? form.value.content : undefined,
+    name: selectedTemplate.value?.name || form.value.name,
+    // Template contracts take their content from the selected template.
+    content: undefined,
   })
 }
 
@@ -296,37 +292,11 @@ defineExpose({ submit })
         </p>
       </VCol>
 
-      <VCol v-if="audience === 'customers' || audience === 'other'" cols="12">
-        <VSwitch v-model="form.is_custom" color="primary" label="Custom contract"
-          hint="Write a one-off contract without adding it to the shared templates." persistent-hint />
-      </VCol>
-
-      <!-- Template-based -->
-      <VCol v-if="!form.is_custom" cols="12">
+      <VCol cols="12">
         <VSelect v-model="form.template_id" :items="visibleTemplates" item-title="name" item-value="id"
           label="Contract Template" :rules="[v => !!v || 'Template is required']" :loading="loadingEntities"
           required />
       </VCol>
-
-      <!-- Custom: pick a contract type -->
-      <VCol v-else cols="12">
-        <ContractTypeSelector v-model="form.contract_type_id" required @types-changed="onTypesChanged" />
-      </VCol>
-
-      <!-- Custom: free-form name + cover -->
-      <template v-if="form.is_custom">
-        <VCol cols="12" md="7">
-          <VTextField v-model="form.name" label="Contract name" :rules="[v => !!v || 'Contract name is required']" />
-        </VCol>
-        <VCol cols="12">
-          <VTextarea v-model="form.cover_text" label="Cover introduction (optional)" rows="2" />
-        </VCol>
-        <VCol cols="12">
-          <VTextarea v-model="form.content" label="Contract content" rows="8"
-            :rules="[v => !!v || 'Contract content is required']"
-            hint="This content is saved on this contract only." persistent-hint />
-        </VCol>
-      </template>
 
       <!-- Context-driven counterparty selection -->
       <VCol v-if="context === 'employee'" cols="12">
@@ -371,8 +341,8 @@ defineExpose({ submit })
           :rules="[v => !!v || 'Start date is required']" required />
       </VCol>
       <VCol cols="12" md="4">
-        <VTextField v-model.number="form.duration_months" label="Duration (months)" type="number" min="1"
-          :rules="[v => !!v || 'Duration is required']" hint="The end date is calculated from the start date." persistent-hint required />
+        <VTextField v-model="form.duration_months" label="Duration (months)" type="number" min="1" step="1"
+          :rules="[v => !!v || 'Duration is required', isPositiveWholeNumber]" hint="The end date is calculated from the start date." persistent-hint required />
       </VCol>
       <VCol cols="12" md="4">
         <VTextField v-model="form.end_date" label="Calculated End Date" type="date" readonly />

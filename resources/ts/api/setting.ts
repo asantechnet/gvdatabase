@@ -12,7 +12,7 @@ export interface Setting {
   light_surface_color: string
   dark_background_color: string
   dark_surface_color: string
-  paid_off_days_per_year: number
+  paid_leave_days_per_year: number
   website_title: string
   website_logo: string | null
   website_logo_url: string | null
@@ -44,6 +44,7 @@ export interface Setting {
   office_open_time: string | null
   office_close_time: string | null
   default_break_minutes: number
+  automatic_attendance_enabled: boolean
   created_at?: string
   updated_at?: string
 }
@@ -59,7 +60,7 @@ export interface SettingForm {
   light_surface_color?: string | null
   dark_background_color?: string | null
   dark_surface_color?: string | null
-  paid_off_days_per_year: number
+  paid_leave_days_per_year: number
   website_title: string
   website_logo?: File | null
   company_signature?: File | null
@@ -90,6 +91,7 @@ export interface SettingForm {
   office_open_time: string
   office_close_time: string
   default_break_minutes: number
+  automatic_attendance_enabled: boolean
 }
 
 export interface ApiResponse<T> {

@@ -62,6 +62,7 @@ class UserController extends Controller
         $roles = $data['roles'] ?? null;
         unset($data['roles']);
         $user->update($data);
+        if ($user->acc_status !== 'active') $user->tokens()->delete();
         if ($roles !== null) $user->syncRoles($roles);
         if ($emailChanged) $user->sendEmailVerificationNotification();
         return response()->json(['success' => true, 'data' => new UserResource($user->fresh())]);
@@ -73,6 +74,7 @@ class UserController extends Controller
         $this->guardSuperAdminTarget($request, $user);
         abort_if($user->is($request->user()), 422, 'business.cannot_delete_current_user');
         abort_if($this->isLastSuperAdmin($user), 422, 'business.last_super_admin_required');
+        $user->tokens()->delete();
         $user->delete();
         return response()->json(['success' => true, 'message' => 'User deleted successfully.']);
     }
@@ -86,6 +88,7 @@ class UserController extends Controller
         $this->guardCurrentSuperAdmin($request, $user, $data);
         abort_if($data['acc_status'] !== 'active' && $this->isLastSuperAdmin($user), 422, 'business.last_super_admin_required');
         $user->update($data);
+        if ($user->acc_status !== 'active') $user->tokens()->delete();
         return response()->json(['success' => true, 'data' => new UserResource($user)]);
     }
 

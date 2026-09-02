@@ -20,6 +20,7 @@ const companySetting = ref<Setting | null>(null)
 const isLoading = ref(false)
 const searchQuery = ref('')
 const selectedTypeFilter = ref<Invoice['class-type'] | null>(null)
+const selectedStatusFilter = ref<Invoice['status'] | null>(null)
 const isDialogActive = ref(false)
 const voidDialog = ref(false)
 const invoiceToVoid = ref<Invoice | null>(null)
@@ -29,6 +30,7 @@ const isInvoicePreviewOpen = ref(false)
 const invoiceTemplateRef = ref<InstanceType<typeof InvoiceTemplate> | null>(null)
 
 const invoiceTypes: Invoice['class-type'][] = ['Standard', 'Proforma', 'Credit Note', 'Debit Note']
+const invoiceStatuses: Invoice['status'][] = ['Issued', 'Partially Paid', 'Paid', 'Overdue', 'Void']
 
 const defaultForm = () => ({
   customer_id: 0,
@@ -118,8 +120,9 @@ const filteredInvoices = computed(() => invoices.value.filter(invoice => {
   const matchesSearch = invoice.deptor.toLowerCase().includes(query)
     || invoice.invoice_number.toLowerCase().includes(query)
   const matchesType = !selectedTypeFilter.value || invoice['class-type'] === selectedTypeFilter.value
+  const matchesStatus = !selectedStatusFilter.value || invoice.status === selectedStatusFilter.value
 
-  return matchesSearch && matchesType
+  return matchesSearch && matchesType && matchesStatus
 }))
 
 const getStatusColor = (status: Invoice['status']) => ({
@@ -130,8 +133,12 @@ const getStatusColor = (status: Invoice['status']) => ({
   Void: 'secondary',
 }[status])
 
-const formatMoney = (amount: number, currency?: { symbol?: string; shortname?: string }) =>
-  `${currency?.symbol || ''}${Number(amount || 0).toFixed(2)} ${currency?.shortname || ''}`.trim()
+const formatMoney = (amount: number, currency?: { symbol?: string; shortname?: string; decimalPlaces?: number }) => {
+  const decimals = currency?.decimalPlaces ?? invoiceCurrency.value?.decimalPlaces ?? 2
+  const formatted = Number(amount || 0).toFixed(decimals)
+
+  return `${currency?.symbol || ''}${formatted} ${currency?.shortname || ''}`.trim()
+}
 
 const fetchInvoices = async () => {
   invoices.value = await InvoiceApi.getAll()
@@ -308,8 +315,9 @@ onMounted(async () => {
               :placeholder="$t('pages.settings.innvoice.innvoice.searchInvoiceNumberOrCustomer')" density="compact" hide-details clearable />
           </VCol>
           <VCol cols="12" md="4" class="d-flex justify-end ga-2">
-            <DataTableFilterMenu :active="Boolean(selectedTypeFilter)" @reset="selectedTypeFilter = null">
+            <DataTableFilterMenu :active="Boolean(selectedTypeFilter || selectedStatusFilter)" @reset="selectedTypeFilter = null; selectedStatusFilter = null">
               <VSelect v-model="selectedTypeFilter" :items="invoiceTypes" :label="$t('pages.settings.innvoice.innvoice.invoiceType')" density="compact" hide-details clearable />
+              <VSelect v-model="selectedStatusFilter" :items="invoiceStatuses" :label="$t('common.fields.status')" density="compact" hide-details clearable />
             </DataTableFilterMenu>
             <VBtn color="primary" block @click="openCreateDialog()">
               <VIcon icon="tabler-file-invoice" class="me-1" /> {{ $t('common.messages.issueInvoice') }}

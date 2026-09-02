@@ -13,6 +13,8 @@ class TaskResource extends JsonResource
         return [
             'id' => (string) $this->id,
             'boardId' => (string) $this->board_id,
+            'customerId' => $this->customer_id,
+            'customer' => $this->whenLoaded('customer', fn () => $this->customer ? ['id' => $this->customer->id, 'name' => $this->customer->name, 'company' => $this->customer->company] : null),
             'title' => $this->title,
             'description' => $this->description ?? '',
             'results' => $this->results ?? '',
@@ -29,7 +31,7 @@ class TaskResource extends JsonResource
             // Relational collections (loaded dynamically)
             'assignees' => UserResource::collection($this->whenLoaded('users')),
             'tags' => TagResource::collection($this->whenLoaded('tags')),
-            'services' => ServiceResource::collection($this->whenLoaded('services')),
+            'services' => $this->whenLoaded('customer', fn () => $this->customer ? CustomerServiceResource::collection($this->customer->customerServices) : []),
             'subtasks' => SubtaskResource::collection($this->whenLoaded('subtasks')),
             'comments' => CommentResource::collection($this->whenLoaded('comments')),
             'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($attachment) => [

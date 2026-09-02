@@ -18,7 +18,7 @@ use App\Models\Office;
 use App\Models\PaidTimeOff;
 use App\Models\Salary;
 use App\Models\Setting;
-use App\Models\Stock;
+use App\Models\Asset;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Visitor;
@@ -152,10 +152,10 @@ class ReportService
             ]]), ['invoiced_base' => $invoiceBase, 'net_base' => $netBase]),
         ];
 
-        if ($user->hasPermission('view_stocks')) {
-            $stock = Stock::query()->with(['office:id,name', 'allocations.employee:id,name'])
+        if ($user->hasPermission('view_assets')) {
+            $asset = Asset::query()->with(['office:id,name', 'allocations.employee:id,name'])
                 ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->where('office_id', $id))
-                ->orderBy('item')->get()->map(fn (Stock $row) => [
+                ->orderBy('item')->get()->map(fn (Asset $row) => [
                     'item' => $row->item, 'model' => $row->model, 'serial_number' => $row->serial_number,
                     'office' => $row->office?->name,
                     'assigned_to' => $row->allocations
@@ -166,10 +166,10 @@ class ReportService
                     'condition' => $row->condition, 'quantity' => (int) $row->quantity,
                     'unit_price' => (float) $row->price, 'asset_value' => round((float) $row->price * (int) $row->quantity, 2),
                 ]);
-            $sections[] = $this->section('stock_assets', ['item', 'model', 'serial_number', 'office', 'assigned_to', 'condition', 'quantity', 'unit_price', 'asset_value'], $stock, [
-                'records' => $stock->count(), 'units' => (int) $stock->sum('quantity'),
-                'asset_value' => round((float) $stock->sum('asset_value'), 2),
-                'needs_attention' => $stock->whereIn('condition', ['poor', 'damaged'])->sum('quantity'),
+            $sections[] = $this->section('asset_assets', ['item', 'model', 'serial_number', 'office', 'assigned_to', 'condition', 'quantity', 'unit_price', 'asset_value'], $asset, [
+                'records' => $asset->count(), 'units' => (int) $asset->sum('quantity'),
+                'asset_value' => round((float) $asset->sum('asset_value'), 2),
+                'needs_attention' => $asset->whereIn('condition', ['poor', 'damaged'])->sum('quantity'),
             ]);
         }
 
@@ -284,7 +284,7 @@ class ReportService
 
         $sections = [$this->section('attendance', ['date', 'employee', 'office', 'status', 'check_in_utc', 'check_out_utc', 'gross_minutes', 'break_minutes', 'worked_minutes', 'required_minutes', 'late_minutes', 'early_minutes', 'overtime_minutes', 'punch_state', 'overnight'], $rows, [
             'records' => $rows->count(), 'present' => $rows->where('status', 'present')->count(),
-            'absent' => $rows->where('status', 'absent')->count(), 'paid_leave' => $rows->where('status', 'paid-off-day')->count(),
+            'absent' => $rows->where('status', 'absent')->count(), 'paid_leave' => $rows->where('status', 'paid-leave')->count(),
             'incomplete' => $rows->where('status', 'present')->where('punch_state', '!=', 'none')->count(),
             'worked_minutes' => (int) $rows->sum('worked_minutes'), 'overtime_minutes' => (int) $rows->sum('overtime_minutes'),
         ])];

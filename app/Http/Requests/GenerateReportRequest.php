@@ -24,7 +24,7 @@ class GenerateReportRequest extends FormRequest
             'board_id' => ['nullable', 'integer', Rule::exists('boards', 'id')->whereNull('deleted_at')],
             'status' => ['nullable', 'string', 'max:50'],
             'contract_type' => ['nullable', 'string', 'max:100'],
-            'attendance_state' => ['nullable', Rule::in(['present', 'absent', 'paid-off-day', 'incomplete', 'complete'])],
+            'attendance_state' => ['nullable', Rule::in(['present', 'absent', 'paid-leave', 'unpaid-leave', 'incomplete', 'complete'])],
             'format' => ['nullable', Rule::in(['csv', 'print'])],
         ];
     }

@@ -29,8 +29,6 @@ export interface Employee {
   commissions: Array<{ service_id: number; service: string; percentage: number }>;
   commission_earned_base: number;
   total_worked_hours: number;
-  ID_file: string | null;
-  assure_file: string | null;
   join_date: string | null;
   contract_duration: string;
   work_start_time: string | null;
@@ -74,8 +72,6 @@ export interface CreateEmployeeData {
   salary?: number | null;
   commissions?: Array<{ service_id: number; percentage: number }>;
   addr: string;
-  ID_file?: string | null;
-  assure_file?: string | null;
   join_date: string;
   contract_duration: string;
 }
@@ -100,8 +96,6 @@ export interface UpdateEmployeeData {
   salary?: number | null;
   commissions?: Array<{ service_id: number; percentage: number }>;
   addr?: string;
-  ID_file?: string | null;
-  assure_file?: string | null;
   join_date?: string;
   contract_duration?: string;
 }

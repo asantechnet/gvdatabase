@@ -39,8 +39,6 @@ class EmployeeResource extends JsonResource
             'commission_earned_base' => $this->commissionEarnedBase(),
             'total_worked_hours' => (float) $this->total_worked_hours,
             'addr' => $this->addr,
-            'ID_file' => $this->ID_file,
-            'assure_file' => $this->assure_file,
             'avatar' => $this->avatar,
             'join_date' => $this->join_date->format('Y-m-d'),
             'contract_duration' => $this->contract_duration,

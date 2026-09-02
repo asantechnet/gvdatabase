@@ -13,9 +13,9 @@ class SalaryExpenseSynchronizer
         $salary->loadMissing(['employee', 'deductions']);
         $netAmount = max(0, (float) $salary->total_amount - (float) $salary->deductions->sum('amount'));
         $details = sprintf(
-            'Payroll %s for %s (%s); present/paid: %d, paid off: %d, absent: %d, unpaid off: %d',
+            'Payroll %s for %s (%s); payable: %.1f, paid leave: %.1f, absent: %.1f, unpaid leave: %.1f',
             $salary->payslip_number, $salary->employee?->name ?? 'employee', $salary->salary_month,
-            $salary->worked_days, $salary->paid_off_days, $salary->absent_days, $salary->unpaid_off_days,
+            $salary->worked_days, $salary->paid_leave_days, $salary->absent_days, $salary->unpaid_leave_days,
         );
 
         $expense = Expense::firstOrNew(['salary_id' => $salary->id]);

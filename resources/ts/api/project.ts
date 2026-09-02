@@ -1,26 +1,28 @@
 import api from './axios'
-import type { Service } from './services'
+import type { CustomerService } from './customer'
 
 export type ProjectStatus = 'active' | 'on_hold' | 'completed' | 'archived'
 
 export interface Project {
   id: number
+  customer_id: number
+  customer?: { id: number; name: string; company: string }
   name: string
   description: string | null
   status: ProjectStatus
   start_date: string | null
   due_date: string | null
-  services?: Service[]
-  boards?: Array<{ id: string; title: string }>
+  services?: CustomerService[]
+  boards?: Array<{ id: string; title: string; tasks?: unknown[] }>
 }
 
 export interface ProjectPayload {
   name: string
+  customer_id: number
   description?: string | null
   status?: ProjectStatus
   start_date?: string | null
   due_date?: string | null
-  service_ids?: number[]
 }
 
 const ProjectApi = {

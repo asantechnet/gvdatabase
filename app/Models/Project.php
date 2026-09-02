@@ -7,14 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Project extends Model
 {
     use Auditable, HasFactory, SoftDeletes;
 
-    protected $fillable = ['name', 'description', 'status', 'start_date', 'due_date', 'created_by'];
+    protected $fillable = ['customer_id', 'name', 'description', 'status', 'start_date', 'due_date', 'created_by'];
 
     protected function casts(): array
     {
@@ -26,13 +25,11 @@ class Project extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
+
     public function boards(): HasMany
     {
         return $this->hasMany(Board::class)->orderBy('order');
     }
 
-    public function services(): BelongsToMany
-    {
-        return $this->belongsToMany(Service::class)->withTimestamps();
-    }
 }

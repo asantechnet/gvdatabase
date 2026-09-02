@@ -6,22 +6,32 @@ use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\MonthlyAttendanceSummary;
 use App\Models\PaidTimeOff;
+use App\Support\CompanyProfile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class MonthlyAttendanceProcessor
 {
-    public function __construct(private readonly AttendanceCalculationService $calculator) {}
+    public function __construct(
+        private readonly AttendanceCalculationService $calculator,
+        private readonly CompanyProfile $company,
+    ) {}
 
     /** @return array{created_missing: int, recalculated: int, summaries: int} */
     public function process(Carbon $start, Carbon $end, bool $createMissing = true, bool $force = false, bool $alwaysSummarize = true): array
     {
+        if (! $this->company->automaticAttendanceEnabled()) {
+            return ['created_missing' => 0, 'recalculated' => 0, 'summaries' => 0];
+        }
+
         $createdMissing = $createMissing ? $this->materializeMissingDays($start, $end) : 0;
         $recalculated = 0;
         Attendance::query()->with('staff')->whereBetween('date', [$start->toDateString(), $end->toDateString()])
             ->orderBy('id')->chunkById(200, function ($rows) use (&$recalculated, $force): void {
                 foreach ($rows as $attendance) {
-                    if ($this->calculator->calculate($attendance, $force)) $recalculated++;
+                    if ($this->calculator->calculate($attendance, $force)) {
+                        $recalculated++;
+                    }
                 }
             });
 
@@ -54,16 +64,23 @@ class MonthlyAttendanceProcessor
             for ($day = $employeeStart->copy()->startOfDay(); $day->lte($end); $day->addDay()) {
                 // Afghanistan's regular weekly day off is Friday. Saturday and
                 // Sunday remain normal working days unless a future holiday rule says otherwise.
-                if ($day->isFriday()) continue;
+                if ($day->isFriday()) {
+                    continue;
+                }
                 $date = $day->toDateString();
-                if (Attendance::withTrashed()->where('employee_id', $employee->id)->where('date', $date)->exists()) continue;
+                if (Attendance::withTrashed()->where('employee_id', $employee->id)->where('date', $date)->exists()) {
+                    continue;
+                }
                 $leave = PaidTimeOff::query()->where('employee_id', $employee->id)->whereDate('date', $date)
                     ->where('is_granted', true)->first();
                 Attendance::create([
                     'employee_id' => $employee->id,
                     'office_id' => $employee->office_id,
                     'date' => $date,
-                    'status' => $leave ? ($leave->is_paid ? 'paid-off-day' : 'unpaid-off-day') : 'absent',
+                    'status' => $leave ? ($leave->is_paid ? 'paid-leave' : 'unpaid-leave') : 'absent',
+                    'leave_duration_days' => (float) ($leave?->duration_days ?? 0),
+                    'paid_leave_days' => (float) ($leave?->paid_days ?? 0),
+                    'unpaid_leave_days' => $leave ? max(0, (float) $leave->duration_days - (float) $leave->paid_days) : 0,
                     'logged_at' => '00:00:00',
                 ]);
                 $created++;
@@ -77,21 +94,28 @@ class MonthlyAttendanceProcessor
     {
         $employeeIds = Employee::selectable()->whereDate('join_date', '<=', $end)->pluck('id');
         foreach ($employeeIds as $employeeId) {
-            $query = Attendance::query()->where('employee_id', $employeeId)->whereBetween('date', [$start, $end]);
+            $rows = Attendance::query()->where('employee_id', $employeeId)->whereBetween('date', [$start, $end])->get();
+            $present = $rows->sum(fn (Attendance $row) => $row->status === 'present'
+                ? max(0, 1 - (float) $row->leave_duration_days) : 0);
+            $paid = $rows->sum(fn (Attendance $row) => (float) $row->paid_leave_days);
+            $unpaid = $rows->sum(fn (Attendance $row) => (float) $row->unpaid_leave_days);
+            $unworked = $rows->sum(fn (Attendance $row) => $row->status !== 'present'
+                ? max(0, 1 - (float) $row->leave_duration_days) : 0);
             MonthlyAttendanceSummary::updateOrCreate(
                 ['employee_id' => $employeeId, 'year' => $year, 'month' => $month],
                 [
-                    'present_days' => (clone $query)->where('status', 'present')->count(),
-                    'absent_days' => (clone $query)->whereIn('status', ['absent', 'unpaid-off-day'])->count(),
-                    'paid_leave_days' => (clone $query)->where('status', 'paid-off-day')->count(),
-                    'incomplete_days' => (clone $query)->where('status', 'present')->where('missing_punch_state', '!=', 'none')->count(),
-                    'gross_minutes' => (int) (clone $query)->sum('gross_minutes'),
-                    'break_minutes' => (int) (clone $query)->sum('break_minutes'),
-                    'net_worked_minutes' => (int) (clone $query)->sum('net_worked_minutes'),
-                    'required_minutes' => (int) (clone $query)->sum('required_minutes'),
-                    'late_arrival_minutes' => (int) (clone $query)->sum('late_arrival_minutes'),
-                    'early_departure_minutes' => (int) (clone $query)->sum('early_departure_minutes'),
-                    'overtime_minutes' => (int) (clone $query)->sum('overtime_minutes'),
+                    'present_days' => round($present, 1),
+                    'absent_days' => round($unworked + $unpaid, 1),
+                    'paid_leave_days' => round($paid, 1),
+                    'unpaid_leave_days' => round($unpaid, 1),
+                    'incomplete_days' => $rows->where('status', 'present')->where('missing_punch_state', '!=', 'none')->count(),
+                    'gross_minutes' => (int) $rows->sum('gross_minutes'),
+                    'break_minutes' => (int) $rows->sum('break_minutes'),
+                    'net_worked_minutes' => (int) $rows->sum('net_worked_minutes'),
+                    'required_minutes' => (int) $rows->sum('required_minutes'),
+                    'late_arrival_minutes' => (int) $rows->sum('late_arrival_minutes'),
+                    'early_departure_minutes' => (int) $rows->sum('early_departure_minutes'),
+                    'overtime_minutes' => (int) $rows->sum('overtime_minutes'),
                     'calculated_at' => now('UTC'),
                 ],
             );

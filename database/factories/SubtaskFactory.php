@@ -19,10 +19,10 @@ class SubtaskFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'title' => $this->faker->sentence(3),
-            'category' => $this->faker->randomElement(['General', 'Planning', 'Execution', 'Review']),
-            'priority' => $this->faker->randomElement(['low', 'medium', 'high', 'urgent']),
-            'is_completed' => $this->faker->boolean(30),
+            'title' => fake('en_US')->sentence(3),
+            'category' => fake('en_US')->randomElement(['General', 'Planning', 'Execution', 'Review']),
+            'priority' => fake('en_US')->randomElement(['low', 'medium', 'high', 'urgent']),
+            'is_completed' => fake('en_US')->boolean(30),
         ];
     }
 }

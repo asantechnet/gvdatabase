@@ -2,7 +2,7 @@
 import { computed, ref, onMounted, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useToast } from 'vue-toastification'
-import StockApi, { type StockCondition, type StockItem, type StockParams } from '@/api/stock'
+import AssetApi, { type AssetCondition, type AssetItem, type AssetParams } from '@/api/asset'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import OfficeApi, { type Office } from '@/api/office'
 import { printDocument } from '@/utils/printDocument'
@@ -10,21 +10,21 @@ import PrintableListReport from '@/components/PrintableListReport.vue'
 
 const toast = useToast()
 
-const stocks = ref<StockItem[]>([])
+const assets = ref<AssetItem[]>([])
 const employees = ref<Employee[]>([])
-const isAddStockDialogVisible = ref(false)
-const isEditStockDialogVisible = ref(false)
-const isDeleteStockDialogVisible = ref(false)
-const selectedStock = ref<StockItem | null>(null)
+const isAddAssetDialogVisible = ref(false)
+const isEditAssetDialogVisible = ref(false)
+const isDeleteAssetDialogVisible = ref(false)
+const selectedAsset = ref<AssetItem | null>(null)
 const search = ref('')
 const filterModel = ref<string | null>(null)
 const filterOffice = ref<number | null>(null)
-const filterCondition = ref<StockCondition | null>(null)
+const filterCondition = ref<AssetCondition | null>(null)
 const isLoading = ref(false)
 const employeesLoading = ref(false)
 const officeDirectory = ref<Office[]>([])
 
-const models = computed(() => [...new Set(stocks.value.map(stock => stock.model).filter(Boolean))].sort())
+const models = computed(() => [...new Set(assets.value.map(asset => asset.model).filter(Boolean))].sort())
 const officeOptions = computed(() => {
   const byId = new Map<number, { title: string; value: number; active: boolean }>()
   officeDirectory.value.forEach(office => byId.set(office.id, {
@@ -32,34 +32,34 @@ const officeOptions = computed(() => {
     value: office.id,
     active: office.status === 'active',
   }))
-  stocks.value.forEach(stock => {
-    if (stock.office && !byId.has(stock.office.id))
-      byId.set(stock.office.id, { title: `${stock.office.name} (${stock.office.code})`, value: stock.office.id, active: stock.office.status === 'active' })
+  assets.value.forEach(asset => {
+    if (asset.office && !byId.has(asset.office.id))
+      byId.set(asset.office.id, { title: `${asset.office.name} (${asset.office.code})`, value: asset.office.id, active: asset.office.status === 'active' })
   })
   return [...byId.values()].sort((left, right) => left.title.localeCompare(right.title))
 })
-const activeOfficeOptions = computed(() => officeOptions.value.filter(office => office.active || office.value === selectedStock.value?.office_id))
-const conditions: Array<{ title: string; value: StockCondition }> = [
-  { title: translate('pages.finance.stock.stock.new'), value: 'new' },
-  { title: translate('pages.finance.stock.stock.good'), value: 'good' },
-  { title: translate('pages.finance.stock.stock.fair'), value: 'fair' },
-  { title: translate('pages.finance.stock.stock.poor'), value: 'poor' },
-  { title: translate('pages.finance.stock.stock.damaged'), value: 'damaged' },
+const activeOfficeOptions = computed(() => officeOptions.value.filter(office => office.active || office.value === selectedAsset.value?.office_id))
+const conditions: Array<{ title: string; value: AssetCondition }> = [
+  { title: translate('pages.finance.asset.asset.new'), value: 'new' },
+  { title: translate('pages.finance.asset.asset.good'), value: 'good' },
+  { title: translate('pages.finance.asset.asset.fair'), value: 'fair' },
+  { title: translate('pages.finance.asset.asset.poor'), value: 'poor' },
+  { title: translate('pages.finance.asset.asset.damaged'), value: 'damaged' },
 ]
 
-const conditionColor = (condition: StockCondition) => ({
+const conditionColor = (condition: AssetCondition) => ({
   new: 'info',
   good: 'success',
   fair: 'warning',
   poor: 'orange-darken-2',
   damaged: 'error',
 }[condition])
-const allocationTotal = (stock: StockItem | null) => stock?.allocations.reduce((total, allocation) => total + Number(allocation.quantity || 0), 0) ?? 0
-const addAllocation = () => selectedStock.value?.allocations.push({ employee_id: 0, quantity: 1 })
-const removeAllocation = (index: number) => selectedStock.value?.allocations.splice(index, 1)
+const allocationTotal = (asset: AssetItem | null) => asset?.allocations.reduce((total, allocation) => total + Number(allocation.quantity || 0), 0) ?? 0
+const addAllocation = () => selectedAsset.value?.allocations.push({ employee_id: 0, quantity: 1 })
+const removeAllocation = (index: number) => selectedAsset.value?.allocations.splice(index, 1)
 
 const filtered = computed(() => {
-  return stocks.value.filter(s => {
+  return assets.value.filter(s => {
     const matchesSearch = s.serial_number.toLowerCase().includes(search.value.toLowerCase()) ||
       s.item.toLowerCase().includes(search.value.toLowerCase())
     const matchesModel = !filterModel.value || s.model === filterModel.value
@@ -70,30 +70,30 @@ const filtered = computed(() => {
 })
 
 const headers = [
-  { title: translate('pages.finance.stock.stock.serialNumber'), key: 'serial_number', sortable: true },
-  { title: translate('pages.finance.stock.stock.item'), key: 'item', sortable: true },
-  { title: translate('pages.finance.stock.stock.quantity'), key: 'quantity', sortable: true },
+  { title: translate('pages.finance.asset.asset.serialNumber'), key: 'serial_number', sortable: true },
+  { title: translate('pages.finance.asset.asset.item'), key: 'item', sortable: true },
+  { title: translate('pages.finance.asset.asset.quantity'), key: 'quantity', sortable: true },
   { title: 'Price', key: 'price', sortable: true },
-  { title: translate('pages.finance.stock.stock.model'), key: 'model', sortable: true },
-  { title: translate('pages.finance.stock.stock.condition'), key: 'condition', sortable: true },
+  { title: translate('pages.finance.asset.asset.model'), key: 'model', sortable: true },
+  { title: translate('pages.finance.asset.asset.condition'), key: 'condition', sortable: true },
   { title: translate('common.fields.office'), key: 'office.name', sortable: true },
   { title: 'Allocated to', key: 'allocations', sortable: false },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false },
 ]
 
-const fetchStocks = async () => {
+const fetchAssets = async () => {
   isLoading.value = true
   try {
-    const params: StockParams = {}
+    const params: AssetParams = {}
     if (search.value) params.search = search.value
     if (filterModel.value) params.model = filterModel.value
     if (filterOffice.value) params.office_id = filterOffice.value
     if (filterCondition.value) params.condition = filterCondition.value
 
-    stocks.value = await StockApi.getAll(params)
+    assets.value = await AssetApi.getAll(params)
   } catch (error) {
-    console.error('Error fetching stocks:', error)
-    toast.error(translate('pages.finance.stock.stock.failedToFetchStockRecords'))
+    console.error('Error fetching assets:', error)
+    toast.error(translate('pages.finance.asset.asset.failedToFetchAssetRecords'))
   } finally {
     isLoading.value = false
   }
@@ -105,18 +105,18 @@ const fetchEmployees = async () => {
     employees.value = await EmployeeApi.getOptions()
   } catch (error) {
     console.error('Error fetching employees:', error)
-    toast.error(translate('pages.finance.stock.stock.failedToFetchEmployees'))
+    toast.error(translate('pages.finance.asset.asset.failedToFetchEmployees'))
   } finally {
     employeesLoading.value = false
   }
 }
 
 const printTable = () => {
-  void printDocument({ bodyClass: 'printing-table-stock', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  void printDocument({ bodyClass: 'printing-table-asset', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 }
 
-const openAddStockDialog = () => {
-  selectedStock.value = {
+const openAddAssetDialog = () => {
+  selectedAsset.value = {
     id: 0,
     serial_number: '',
     item: '',
@@ -127,85 +127,85 @@ const openAddStockDialog = () => {
     office_id: officeDirectory.value.find(office => office.status === 'active')?.id ?? null,
     allocations: []
   }
-  isAddStockDialogVisible.value = true
+  isAddAssetDialogVisible.value = true
 }
 
-const openEditStockDialog = (stock: StockItem) => {
-  selectedStock.value = {...stock}
-  isEditStockDialogVisible.value = true
+const openEditAssetDialog = (asset: AssetItem) => {
+  selectedAsset.value = {...asset}
+  isEditAssetDialogVisible.value = true
 }
 
-const openDeleteStockDialog = (stock: StockItem) => {
-  selectedStock.value = stock
-  isDeleteStockDialogVisible.value = true
+const openDeleteAssetDialog = (asset: AssetItem) => {
+  selectedAsset.value = asset
+  isDeleteAssetDialogVisible.value = true
 }
 
-const addStock = async () => {
-  if (selectedStock.value) {
+const addAsset = async () => {
+  if (selectedAsset.value) {
     try {
-      const { id, office, allocated_quantity, available_quantity, ...stockData } = selectedStock.value
-      const stock = await StockApi.create(stockData)
-      stocks.value.unshift(stock)
-      isAddStockDialogVisible.value = false
-      toast.success(translate('pages.finance.stock.stock.stockItemAdded'))
+      const { id, office, allocated_quantity, available_quantity, ...assetData } = selectedAsset.value
+      const asset = await AssetApi.create(assetData)
+      assets.value.unshift(asset)
+      isAddAssetDialogVisible.value = false
+      toast.success(translate('pages.finance.asset.asset.assetItemAdded'))
     } catch (error) {
-      console.error('Error adding stock:', error)
-      toast.error(translate('pages.finance.stock.stock.failedToAddStockItem'))
+      console.error('Error adding asset:', error)
+      toast.error(translate('pages.finance.asset.asset.failedToAddAssetItem'))
     }
   }
 }
 
-const updateStock = async () => {
-  if (selectedStock.value) {
+const updateAsset = async () => {
+  if (selectedAsset.value) {
     try {
-      const { id, office, allocated_quantity, available_quantity, ...stockData } = selectedStock.value
-      const stock = await StockApi.update(id, stockData)
-      const index = stocks.value.findIndex(s => s.id === selectedStock.value?.id)
+      const { id, office, allocated_quantity, available_quantity, ...assetData } = selectedAsset.value
+      const asset = await AssetApi.update(id, assetData)
+      const index = assets.value.findIndex(s => s.id === selectedAsset.value?.id)
       if (index !== -1) {
-        stocks.value[index] = stock
+        assets.value[index] = asset
       }
-      isEditStockDialogVisible.value = false
-      toast.success(translate('pages.finance.stock.stock.stockItemUpdated'))
+      isEditAssetDialogVisible.value = false
+      toast.success(translate('pages.finance.asset.asset.assetItemUpdated'))
     } catch (error) {
-      console.error('Error updating stock:', error)
-      toast.error(translate('pages.finance.stock.stock.failedToUpdateStockItem'))
+      console.error('Error updating asset:', error)
+      toast.error(translate('pages.finance.asset.asset.failedToUpdateAssetItem'))
     }
   }
 }
 
-const deleteStock = async () => {
-  if (selectedStock.value) {
+const deleteAsset = async () => {
+  if (selectedAsset.value) {
     try {
-      await StockApi.delete(selectedStock.value.id)
-      stocks.value = stocks.value.filter(s => s.id !== selectedStock.value?.id)
-      isDeleteStockDialogVisible.value = false
-      toast.success(translate('pages.finance.stock.stock.stockItemDeleted'))
+      await AssetApi.delete(selectedAsset.value.id)
+      assets.value = assets.value.filter(s => s.id !== selectedAsset.value?.id)
+      isDeleteAssetDialogVisible.value = false
+      toast.success(translate('pages.finance.asset.asset.assetItemDeleted'))
     } catch (error) {
-      console.error('Error deleting stock:', error)
-      toast.error(translate('pages.finance.stock.stock.failedToDeleteStockItem'))
+      console.error('Error deleting asset:', error)
+      toast.error(translate('pages.finance.asset.asset.failedToDeleteAssetItem'))
     }
   }
 }
 
-const debouncedFetchStocks = useDebounceFn(fetchStocks, 300)
+const debouncedFetchAssets = useDebounceFn(fetchAssets, 300)
 
 watch([search, filterModel, filterOffice, filterCondition], () => {
-  void debouncedFetchStocks()
+  void debouncedFetchAssets()
 })
 
 onMounted(() => {
-  fetchStocks()
+  fetchAssets()
   fetchEmployees()
   OfficeApi.getAll().then(data => { officeDirectory.value = data }).catch(error => {
     console.error('Error fetching offices:', error)
-    toast.error(translate('pages.finance.stock.stock.failedToFetchOffices'))
+    toast.error(translate('pages.finance.asset.asset.failedToFetchOffices'))
   })
 })
 </script>
 
 <template>
   <div>
-    <DataTablePageKpis :items="filtered" title="Stock inventory" description="Keep inventory levels, condition, and assignments visible in one place." icon="tabler-packages" />
+    <DataTablePageKpis :items="filtered" title="Asset inventory" description="Keep inventory levels, condition, and assignments visible in one place." icon="tabler-packages" />
     <VCard class="mb-6">
       <VCardText>
         <VRow align="center">
@@ -213,7 +213,7 @@ onMounted(() => {
             <VTextField
               v-model="search"
               class="data-table-search" prepend-inner-icon="tabler-search"
-              :placeholder="$t('pages.finance.stock.stock.searchStock')"
+              :placeholder="$t('pages.finance.asset.asset.searchAsset')"
               density="compact"
               clearable
               hide-details
@@ -222,20 +222,20 @@ onMounted(() => {
           <VCol cols="12" md="5" class="text-end d-flex gap-2 justify-end">
             <DataTableFilterMenu :active="Boolean(filterModel || filterOffice || filterCondition)"
               @reset="filterModel = null; filterOffice = null; filterCondition = null">
-              <VSelect v-model="filterModel" :items="models" :label="$t('pages.finance.stock.stock.filterByModel')" density="compact" clearable hide-details />
-              <VSelect v-model="filterOffice" :items="officeOptions" :label="$t('pages.finance.stock.stock.filterByOffice')" density="compact" clearable hide-details />
-              <VSelect v-model="filterCondition" :items="conditions" :label="$t('pages.finance.stock.stock.filterByCondition')" density="compact" clearable hide-details />
+              <VSelect v-model="filterModel" :items="models" :label="$t('pages.finance.asset.asset.filterByModel')" density="compact" clearable hide-details />
+              <VSelect v-model="filterOffice" :items="officeOptions" :label="$t('pages.finance.asset.asset.filterByOffice')" density="compact" clearable hide-details />
+              <VSelect v-model="filterCondition" :items="conditions" :label="$t('pages.finance.asset.asset.filterByCondition')" density="compact" clearable hide-details />
             </DataTableFilterMenu>
             <VBtn icon variant="text" @click="printTable">
               <VIcon icon="tabler-printer" />
-              <VTooltip activator="parent" location="top">{{ $t('pages.finance.stock.stock.printStockRecords') }}</VTooltip>
+              <VTooltip activator="parent" location="top">{{ $t('pages.finance.asset.asset.printAssetRecords') }}</VTooltip>
             </VBtn>
             <VBtn
               color="primary"
-              @click="openAddStockDialog"
+              @click="openAddAssetDialog"
             >
               <VIcon icon="tabler-plus" class="me-1" />
-              {{ $t('pages.finance.stock.stock.addStock') }}
+              {{ $t('pages.finance.asset.asset.addAsset') }}
             </VBtn>
           </VCol>
         </VRow>
@@ -279,18 +279,18 @@ onMounted(() => {
               <VBtn icon variant="text"
                 size="small"
                 color="medium-emphasis"
-                @click="openEditStockDialog(item)"
+                @click="openEditAssetDialog(item)"
               >
                 <VIcon icon="tabler-edit" />
-                <VTooltip activator="parent" location="top">{{ $t('pages.finance.stock.stock.editStockRecord') }}</VTooltip>
+                <VTooltip activator="parent" location="top">{{ $t('pages.finance.asset.asset.editAssetRecord') }}</VTooltip>
               </VBtn>
               <VBtn icon variant="text"
                 size="small"
                 color="error"
-                @click="openDeleteStockDialog(item)"
+                @click="openDeleteAssetDialog(item)"
               >
                 <VIcon icon="tabler-trash" />
-                <VTooltip activator="parent" location="top">{{ $t('pages.finance.stock.stock.deleteStockRecord') }}</VTooltip>
+                <VTooltip activator="parent" location="top">{{ $t('pages.finance.asset.asset.deleteAssetRecord') }}</VTooltip>
               </VBtn>
             </div>
           </template>
@@ -298,16 +298,16 @@ onMounted(() => {
       </div>
     </VCard>
 
-    <PrintableListReport title="Stock Report" subtitle="Filtered stock records" :columns="['Serial number', 'Item', 'Quantity', 'Price', 'Model', 'Condition', 'Office', 'Allocations']" :rows="filtered.map(stock => [stock.serial_number, stock.item, stock.quantity, stock.price, stock.model, stock.condition, stock.office?.name, stock.allocations.map(allocation => `${allocation.employee?.name || 'Employee'}: ${allocation.quantity}`).join(', ')])" />
+    <PrintableListReport title="Asset Report" subtitle="Filtered asset records" :columns="['Serial number', 'Item', 'Quantity', 'Price', 'Model', 'Condition', 'Office', 'Allocations']" :rows="filtered.map(asset => [asset.serial_number, asset.item, asset.quantity, asset.price, asset.model, asset.condition, asset.office?.name, asset.allocations.map(allocation => `${allocation.employee?.name || 'Employee'}: ${allocation.quantity}`).join(', ')])" />
 
-    <!-- Add Stock Dialog -->
+    <!-- Add Asset Dialog -->
     <VDialog
-      v-model="isAddStockDialogVisible"
+      v-model="isAddAssetDialogVisible"
       max-width="800px"
     >
       <VCard>
         <VCardTitle class="pa-5">
-          <span class="headline">{{ $t('pages.finance.stock.stock.addNewStockItem') }}</span>
+          <span class="headline">{{ $t('pages.finance.asset.asset.addNewAssetItem') }}</span>
         </VCardTitle>
 
         <VCardText>
@@ -315,37 +315,37 @@ onMounted(() => {
             <VRow>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model="selectedStock.serial_number"
+                  v-model="selectedAsset.serial_number"
                   :label="$t('common.messages.serialNumber')"
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model="selectedStock.item"
+                  v-model="selectedAsset.item"
                   :label="$t('common.messages.itemName')"
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model.number="selectedStock.quantity"
+                  v-model.number="selectedAsset.quantity"
                   :label="$t('common.messages.quantity')"
                   type="number"
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6"><VTextField v-model.number="selectedStock.price" label="Price" type="number" min="0" required /></VCol>
+              <VCol cols="12" md="6"><VTextField v-model.number="selectedAsset.price" label="Price" type="number" min="0" required /></VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model="selectedStock.model"
+                  v-model="selectedAsset.model"
                   :label="$t('common.messages.model')"
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
                 <VSelect
-                  v-model="selectedStock.office_id"
+                  v-model="selectedAsset.office_id"
                   :items="activeOfficeOptions"
                   :label="$t('common.fields.office')"
                   required
@@ -353,7 +353,7 @@ onMounted(() => {
               </VCol>
               <VCol cols="12" md="6">
                 <VSelect
-                  v-model="selectedStock.condition"
+                  v-model="selectedAsset.condition"
                   :items="conditions"
                   :label="$t('common.messages.condition')"
                   required
@@ -361,10 +361,10 @@ onMounted(() => {
               </VCol>
               <VCol cols="12">
                 <div class="d-flex justify-space-between align-center mb-2"><span class="text-subtitle-2">Employee allocations</span><VBtn size="small" variant="tonal" prepend-icon="tabler-plus" @click="addAllocation">Add employee</VBtn></div>
-                <VAlert type="info" variant="tonal" density="compact" class="mb-3">Allocated: {{ allocationTotal(selectedStock) }} / {{ selectedStock.quantity }}. The total cannot exceed inventory quantity.</VAlert>
-                <VRow v-for="(allocation, index) in selectedStock.allocations" :key="index">
+                <VAlert type="info" variant="tonal" density="compact" class="mb-3">Allocated: {{ allocationTotal(selectedAsset) }} / {{ selectedAsset.quantity }}. The total cannot exceed inventory quantity.</VAlert>
+                <VRow v-for="(allocation, index) in selectedAsset.allocations" :key="index">
                   <VCol cols="12" sm="7"><VAutocomplete v-model="allocation.employee_id" label="Employee" :items="employees" item-title="name" item-value="id" :loading="employeesLoading" /></VCol>
-                  <VCol cols="9" sm="4"><VTextField v-model.number="allocation.quantity" label="Quantity" type="number" min="1" :max="selectedStock.quantity" /></VCol>
+                  <VCol cols="9" sm="4"><VTextField v-model.number="allocation.quantity" label="Quantity" type="number" min="1" :max="selectedAsset.quantity" /></VCol>
                   <VCol cols="3" sm="1" class="d-flex align-center"><VBtn icon="tabler-trash" variant="text" color="error" @click="removeAllocation(index)" /></VCol>
                 </VRow>
               </VCol>
@@ -377,13 +377,13 @@ onMounted(() => {
           <VBtn
             color="secondary"
             variant="tonal"
-            @click="isAddStockDialogVisible = false"
+            @click="isAddAssetDialogVisible = false"
           >
             {{ $t('common.actions.cancel') }}
           </VBtn>
           <VBtn
             color="primary"
-            @click="addStock"
+            @click="addAsset"
           >
             {{ $t('common.actions.save') }}
           </VBtn>
@@ -391,14 +391,14 @@ onMounted(() => {
       </VCard>
     </VDialog>
 
-    <!-- Edit Stock Dialog -->
+    <!-- Edit Asset Dialog -->
     <VDialog
-      v-model="isEditStockDialogVisible"
+      v-model="isEditAssetDialogVisible"
       max-width="800px"
     >
       <VCard>
         <VCardTitle class="pa-5">
-          <span class="headline">{{ $t('pages.finance.stock.stock.editStockItem') }}</span>
+          <span class="headline">{{ $t('pages.finance.asset.asset.editAssetItem') }}</span>
         </VCardTitle>
 
         <VCardText>
@@ -406,37 +406,37 @@ onMounted(() => {
             <VRow>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model="selectedStock.serial_number"
+                  v-model="selectedAsset.serial_number"
                   :label="$t('common.messages.serialNumber')"
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model="selectedStock.item"
+                  v-model="selectedAsset.item"
                   :label="$t('common.messages.itemName')"
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model.number="selectedStock.quantity"
+                  v-model.number="selectedAsset.quantity"
                   :label="$t('common.messages.quantity')"
                   type="number"
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6"><VTextField v-model.number="selectedStock.price" label="Price" type="number" min="0" required /></VCol>
+              <VCol cols="12" md="6"><VTextField v-model.number="selectedAsset.price" label="Price" type="number" min="0" required /></VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-model="selectedStock.model"
+                  v-model="selectedAsset.model"
                   :label="$t('common.messages.model')"
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
                 <VSelect
-                  v-model="selectedStock.office_id"
+                  v-model="selectedAsset.office_id"
                   :items="activeOfficeOptions"
                   :label="$t('common.fields.office')"
                   required
@@ -444,7 +444,7 @@ onMounted(() => {
               </VCol>
               <VCol cols="12" md="6">
                 <VSelect
-                  v-model="selectedStock.condition"
+                  v-model="selectedAsset.condition"
                   :items="conditions"
                   :label="$t('common.messages.condition')"
                   required
@@ -452,10 +452,10 @@ onMounted(() => {
               </VCol>
               <VCol cols="12">
                 <div class="d-flex justify-space-between align-center mb-2"><span class="text-subtitle-2">Employee allocations</span><VBtn size="small" variant="tonal" prepend-icon="tabler-plus" @click="addAllocation">Add employee</VBtn></div>
-                <VAlert type="info" variant="tonal" density="compact" class="mb-3">Allocated: {{ allocationTotal(selectedStock) }} / {{ selectedStock.quantity }}. Reduce allocations before lowering inventory quantity.</VAlert>
-                <VRow v-for="(allocation, index) in selectedStock.allocations" :key="index">
+                <VAlert type="info" variant="tonal" density="compact" class="mb-3">Allocated: {{ allocationTotal(selectedAsset) }} / {{ selectedAsset.quantity }}. Reduce allocations before lowering inventory quantity.</VAlert>
+                <VRow v-for="(allocation, index) in selectedAsset.allocations" :key="index">
                   <VCol cols="12" sm="7"><VAutocomplete v-model="allocation.employee_id" label="Employee" :items="employees" item-title="name" item-value="id" :loading="employeesLoading" /></VCol>
-                  <VCol cols="9" sm="4"><VTextField v-model.number="allocation.quantity" label="Quantity" type="number" min="1" :max="selectedStock.quantity" /></VCol>
+                  <VCol cols="9" sm="4"><VTextField v-model.number="allocation.quantity" label="Quantity" type="number" min="1" :max="selectedAsset.quantity" /></VCol>
                   <VCol cols="3" sm="1" class="d-flex align-center"><VBtn icon="tabler-trash" variant="text" color="error" @click="removeAllocation(index)" /></VCol>
                 </VRow>
               </VCol>
@@ -468,13 +468,13 @@ onMounted(() => {
           <VBtn
             color="secondary"
             variant="tonal"
-            @click="isEditStockDialogVisible = false"
+            @click="isEditAssetDialogVisible = false"
           >
             {{ $t('common.actions.cancel') }}
           </VBtn>
           <VBtn
             color="primary"
-            @click="updateStock"
+            @click="updateAsset"
           >
             {{ $t('common.actions.save') }}
           </VBtn>
@@ -482,9 +482,9 @@ onMounted(() => {
       </VCard>
     </VDialog>
 
-    <!-- Delete Stock Dialog -->
+    <!-- Delete Asset Dialog -->
     <VDialog
-      v-model="isDeleteStockDialogVisible"
+      v-model="isDeleteAssetDialogVisible"
       max-width="500px"
     >
       <VCard>
@@ -493,7 +493,7 @@ onMounted(() => {
         </VCardTitle>
 
         <VCardText>
-          {{ $t('common.confirmations.areYouSureYouWantToDeleteThisStockItem') }}
+          {{ $t('common.confirmations.areYouSureYouWantToDeleteThisAssetItem') }}
           <br>
           {{ $t('common.confirmations.thisActionCannotBeUndone') }}
         </VCardText>
@@ -503,13 +503,13 @@ onMounted(() => {
           <VBtn
             color="secondary"
             variant="tonal"
-            @click="isDeleteStockDialogVisible = false"
+            @click="isDeleteAssetDialogVisible = false"
           >
             {{ $t('common.actions.cancel') }}
           </VBtn>
           <VBtn
             color="error"
-            @click="deleteStock"
+            @click="deleteAsset"
           >
             {{ $t('common.actions.delete') }}
           </VBtn>

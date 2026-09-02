@@ -30,7 +30,7 @@
       "invoiceValueCurrentBase": "د بل ارزښت (اوسنۍ اساسي کرنسي)",
       "collectedCurrentBase": "ترلاسه شوی (اوسنۍ اساسي کرنسي)",
       "outstandingCurrentBase": "پاتې (اوسنۍ اساسي کرنسي)",
-      "unitsInStock": "په ګدام کې واحدونه",
+      "unitsInAsset": "په ګدام کې واحدونه",
       "inventoryValue": "د موجودۍ ارزښت",
       "needsReview": "بیاکتنې ته اړتیا لري",
       "netPayrollCurrentBase": "خالص معاش (اوسنۍ اساسي کرنسي)",
@@ -79,7 +79,7 @@
       "recordsCovered": "پوښل شوي ریکارډونه",
       "pages": {
         "visitors": { "title": "لیدونکي", "description": "د لیدونکو فعالیت وڅېړئ او د هرې ننوتنې روښانه ریکارډ وساتئ." },
-        "stockInventory": { "title": "د ګدام موجودي", "description": "د موجودۍ کچه، حالت او سپارنې په یو ځای کې وګورئ." },
+        "assetInventory": { "title": "د ګدام موجودي", "description": "د موجودۍ کچه، حالت او سپارنې په یو ځای کې وګورئ." },
         "staffSalaries": { "title": "د کارکوونکو معاشونه", "description": "د معاشونو ریکارډونه وڅېړئ او د پام وړ تادیات ومومئ." },
         "staffDirectory": { "title": "د کارکوونکو فهرست", "description": "خپل ټیم، سپارنې او د تعقیب وړ ریکارډونه وګورئ." },
         "users": { "title": "کارنان", "description": "لاسرسی، بلنې او د کارن حسابونو اوسنی حالت اداره کړئ." },
@@ -510,7 +510,7 @@
       "areYouSureYouWantToDeleteThisServiceRecordThisActionCannotBeUndone": "ایا ډاډه یاست چې دا د خدمت ریکارډ حذف کړئ؟ دا کړنه بېرته نه شي ګرځېدلی.",
       "areYouSureYouWantToDeleteThisStaffRecord": "ایا ډاډه یاست چې د کارمند دا ریکارډ حذف کړئ؟",
       "areYouSureYouWantToDeleteThisSalaryRecord": "ایا ډاډه یاست چې د معاش دا ریکارډ حذف کړئ؟",
-      "areYouSureYouWantToDeleteThisStockItem": "ایا ډاډه یاست چې د ګدام دا توکی حذف کړئ؟",
+      "areYouSureYouWantToDeleteThisAssetItem": "ایا ډاډه یاست چې د ګدام دا توکی حذف کړئ؟",
       "areYouSureYouWantToDeleteThisVisitor": "ایا ډاډه یاست چې دا لیدونکی حذف کړئ؟",
       "thisActionCannotBeUndoneTheVisitorRecordWillBePermanentlyRemovedFromTh": "دا کړنه بېرته نه شي ګرځېدلی. د لیدونکي ریکارډ به له سیستم څخه د تل لپاره پاک شي.",
       "areYouSureYouWantToDeleteThisTaskThisActionCannotBeUndone": "ایا ډاډه یاست چې دا دنده حذف کړئ؟ دا کړنه بېرته نه شي ګرځېدلی.",
@@ -523,7 +523,7 @@
       "finance": "مالي برخه",
       "income": "عاید",
       "expenses": "لګښتونه",
-      "stock": "ګدام (سټاک)",
+      "asset": "ګدام (سټاک)",
       "reports": "راپورونه",
       "hr": "بشري سرچینې (HR)",
       "staffList": "د کارمندانو نوملړ",
@@ -554,6 +554,7 @@
       "settings": "تنظیمات",
       "tasks": "دندې",
       "visitor": "لیدونکي",
+      "leads": "احتمالي پېرودونکي",
       "companies": "شرکتونه",
       "otherContracts": "نور قراردادونه",
       "contractTemplates": "د قراردادونو بڼې"
@@ -566,6 +567,20 @@
       "english": "English",
       "dari": "دری",
       "pashto": "پښتو"
+    },
+    "crmUi": {
+      "leads": "احتمالي پېرودونکي", "leadSubtitle": "وړ فرصتونه د پېرودونکي اړیکې ته ورسوئ.", "opportunities": "{count} فرصتونه", "searchLeads": "د فرصتونو لټون", "pipelineStage": "د پلور پړاو", "independent": "خپلواک", "confidence": "{value}٪ احتمال", "relationshipNotes": "د اړیکې یادښتونه", "conversationHistory": "د خبرو تاریخچه", "convertCustomer": "پېرودونکي ته اړول", "convertedCustomer": "فرصت پېرودونکي ته واوښت", "stageUpdated": "پړاو تازه شو", "logConversation": "خبرې ثبت کړئ", "conversationTitle": "د خبرو سرلیک", "conversationNotes": "د خبرو یادښتونه", "conversationHint": "پرېکړې، اړتیاوې، خنډونه او راتلونکی ګام ثبت کړئ.", "followUp": "تعقیب (اختیاري)", "saveContinue": "خوندي او دوام", "qualifyLead": "فرصت ته اړول", "visitorNotes": "د لیدونکي یادښتونه", "visitorNotesHint": "د ارزونې مخکې ګټور معلومات او لېوالتیاوې ثبت کړئ."
+    },
+    "crmDetails": {
+      "relationshipDetails": "د اړیکې جزئیات", "entityRelationship": "د {entity} اړیکه", "entities": { "visitor": "لیدونکی", "lead": "احتمالي پېرودونکی", "customer": "پېرودونکی" },
+      "details": "جزئیات", "overview": "یادښتونه او فعالیت", "profileTitle": "د پروفایل جزئیات", "profileHint": "د CRM اوسنی ریکارډ او د راتلونکې اړیکې لپاره اړین معلومات.", "customerServices": "د پېرودونکي خدمتونه", "contextHint": "هغه معلومات چې د CRM په ټولو پړاوونو کې له دې شخص سره پاتې کېږي.", "notesPlaceholder": "اړتیاوې، غوره توبونه، مخینه، خنډونه یا نور تلپاتې معلومات…", "saveNotes": "یادښتونه خوندي کړئ", "activityMix": "د فعالیتونو وېش", "addConversation": "خبرې زیاتول", "all": "ټول", "emptyTitle": "په دې ډله کې خبرې نشته", "emptyHint": "لومړۍ اړیکه زیاته کړئ یا بله ډله وټاکئ.",
+      "followUpAt": "په {date} تعقیب", "editConversation": "خبرې سمول", "category": "ډله", "notesOutcome": "یادښتونه او پایله", "contactedAt": "د اړیکې وخت", "saveConversation": "خبرې خوندي کړئ", "deleteConfirm": "«{title}» حذف شي؟",
+      "notesSaved": "د اړیکې یادښتونه خوندي شول", "notesSaveFailed": "یادښتونه خوندي نه شول.", "loadFailed": "د اړیکې جزئیات پورته نه شول.", "conversationAdded": "خبرې زیاتې شوې", "conversationUpdated": "خبرې تازه شوې", "conversationRemoved": "خبرې حذف شوې", "conversationSaveFailed": "خبرې خوندي نه شوې.", "conversationDeleteFailed": "خبرې حذف نه شوې.",
+      "fields": { "company": "شرکت", "contact": "اړیکه", "email": "برېښنالیک", "marketer": "بازارموندونکی", "service": "د خدمت لېوالتیا", "owner": "د اړیکې مسئول", "stage": "د پلور پړاو", "probability": "احتمال", "estimatedValue": "اټکلي ارزښت", "nextFollowUp": "راتلونکی تعقیب", "taxNumber": "د مالیې شمېره", "since": "د ثبت نېټه", "address": "پته" },
+      "channels": { "calls": "زنګونه", "messages": "پیغامونه", "emails": "برېښنالیکونه", "meetings": "غونډې", "notes": "یادښتونه" }
+    },
+    "leaveApproval": {
+      "paidException": "د با معاشه استثنا په توګه منظورول ({count})", "exceptionTitle": "د با معاشه رخصتۍ استثنا", "exceptionHint": "د یو یا څو ټاکل شوو کارکوونکو د با معاشه رخصتۍ سهمیه کافي نه ده. دا اجازه ټولې ټاکل شوې ورځې با معاشه ساتي او دلیل یې د پلټنې په تاریخچه کې ثبتوي.", "usageSummary": "کارول شوې {used} · پاتې {remaining} · ټاکل شوې {selected} ورځې", "overLimit": "+{count} له حد څخه زیات", "justification": "د منظورۍ دلیل", "approvePaid": "با معاشه رخصتي منظورول", "employeeFallback": "کارکوونکی"
     }
   },
   "pages": {
@@ -660,7 +675,7 @@
         "aging": { "notDue": "لا نه دی رسېدلی", "days1To30": "۱–۳۰ ورځې", "days31To60": "۳۱–۶۰ ورځې", "days61Plus": "۶۱+ ورځې", "noDueDate": "د پای نېټه نشته" },
         "collection": { "noIssuedValue": "تر اوسه د صادر شوو بلونو ارزښت نشته.", "noLinkedIncome": "بلونه صادر شوي، خو اړوند عاید نه دی ثبت شوی.", "trailing": "راټولونه د بل شوي ارزښت څخه وروسته دي او تعقیب غواړي.", "healthy": "راټولونه له بل شوي ارزښت سره هممهاله دي." },
         "sections": { "cashMovement": "بلونه او نغدي بهیر", "cashMovementSubtitle": "په شپږو میاشتو کې بل شوي، راټول شوي او لګول شوي ارزښتونه", "receivablesAging": "د ترلاسه کېدونکو عمر", "receivablesAgingSubtitle": "ناورکړل شوی ارزښت چېرې پاتې دی", "agingInsight": "بې پای نېټې بلونه جلا شوي څو د راټولولو مهالویش سم شي.", "commercialMomentum": "سوداګریز خوځښت", "commercialMomentumSubtitle": "د لیدونکو لېوالتیا او د نوو پېرودونکو پرتله", "servicePortfolio": "د خدمتونو ټولګه", "servicePortfolioSubtitle": "فعال پېرودونکي اوس پر کومو خدمتونو تکیه کوي", "actionCenter": "د مدیریت د کړنو مرکز", "actionCenterSubtitle": "د ټول سیستم لومړیتوب لرونکي استثناوې", "workloadRisk": "د کار خطر", "workloadRiskSubtitle": "پرانیستې دندې د لومړیتوب له مخې" },
-        "actions": { "count": "{count} کړنې", "open": "ریکارډ پرانیستل", "emptyTitle": "بیړنۍ پاملرنې ته اړتیا نشته", "emptyBody": "تر څار لاندې سوداګریز ریکارډونه ښه حالت لري.", "areas": { "delivery": "سپارنه", "finance": "مالي", "contracts": "قراردادونه", "customers": "پېرودونکي", "people": "کارکوونکي", "assets": "شتمنۍ" }, "overdueTasks": "{count} ځنډېدلې دندې", "overdueTasksDetail": "د ژمنو نېټې تېرې دي او مسؤلینو ته اړتیا لري.", "urgentTasks": "{count} بیړنۍ فعالې دندې", "urgentTasksDetail": "لوړ لومړیتوب کار نږدې څارنې ته اړتیا لري.", "missingInvoiceDueDates": "{count} بلونه د پای نېټه نه لري", "missingInvoiceDueDatesDetail": "د ترلاسه کېدونکو لپاره د راټولولو نېټې وټاکئ.", "overdueInvoices": "{count} ځنډېدلي بلونه", "overdueInvoicesDetail": "{amount} د راټولولو له نېټې وروسته پرانیستی دی.", "noContracts": "هیڅ قرارداد نه دی ثبت شوی", "noContractsDetail": "د پېرودونکو ژمنې رسمي قراردادي پوښښ نه لري.", "expiringContracts": "{count} قراردادونه ژر پای ته رسېږي", "expiringContractsDetail": "په ۳۰ ورځو کې ختمېدونکي قراردادونه نوي یا وتړئ.", "serviceDeadlines": "{count} د خدمت نېټې نږدې دي", "serviceDeadlinesDetail": "د پېرودونکو ژمنې په راتلونکو ۳۰ ورځو کې رسېږي.", "unmarkedEmployees": "نن د {count} کارکوونکو حاضري نه ده ثبت", "unmarkedEmployeesDetail": "د ورځې له پای مخکې حاضري بشپړه کړئ.", "stockInspection": "{count} توکي کتنې ته اړتیا لري", "stockInspectionDetail": "منځني، خراب یا زیانمن توکي باید وکتل شي." },
+        "actions": { "count": "{count} کړنې", "open": "ریکارډ پرانیستل", "emptyTitle": "بیړنۍ پاملرنې ته اړتیا نشته", "emptyBody": "تر څار لاندې سوداګریز ریکارډونه ښه حالت لري.", "areas": { "delivery": "سپارنه", "finance": "مالي", "contracts": "قراردادونه", "customers": "پېرودونکي", "people": "کارکوونکي", "assets": "شتمنۍ" }, "overdueTasks": "{count} ځنډېدلې دندې", "overdueTasksDetail": "د ژمنو نېټې تېرې دي او مسؤلینو ته اړتیا لري.", "urgentTasks": "{count} بیړنۍ فعالې دندې", "urgentTasksDetail": "لوړ لومړیتوب کار نږدې څارنې ته اړتیا لري.", "missingInvoiceDueDates": "{count} بلونه د پای نېټه نه لري", "missingInvoiceDueDatesDetail": "د ترلاسه کېدونکو لپاره د راټولولو نېټې وټاکئ.", "overdueInvoices": "{count} ځنډېدلي بلونه", "overdueInvoicesDetail": "{amount} د راټولولو له نېټې وروسته پرانیستی دی.", "noContracts": "هیڅ قرارداد نه دی ثبت شوی", "noContractsDetail": "د پېرودونکو ژمنې رسمي قراردادي پوښښ نه لري.", "expiringContracts": "{count} قراردادونه ژر پای ته رسېږي", "expiringContractsDetail": "په ۳۰ ورځو کې ختمېدونکي قراردادونه نوي یا وتړئ.", "serviceDeadlines": "{count} د خدمت نېټې نږدې دي", "serviceDeadlinesDetail": "د پېرودونکو ژمنې په راتلونکو ۳۰ ورځو کې رسېږي.", "unmarkedEmployees": "نن د {count} کارکوونکو حاضري نه ده ثبت", "unmarkedEmployeesDetail": "د ورځې له پای مخکې حاضري بشپړه کړئ.", "assetInspection": "{count} توکي کتنې ته اړتیا لري", "assetInspectionDetail": "منځني، خراب یا زیانمن توکي باید وکتل شي." },
         "domains": { "contractCoverage": "د قرارداد پوښښ", "activeCount": "{count} فعال", "expiring30Days": "په ۳۰ ورځو کې پای", "drafts": "مسودې", "peopleReadiness": "د کارکوونکو چمتووالی", "employeeCount": "{count} کارکوونکي", "pendingLeave": "پاتې رخصتي", "overtimeMonth": "د دې میاشتې اضافه کار", "assetControl": "د شتمنیو کنټرول", "availableAssigned": "موجود / سپارل شوي", "needInspection": "کتنې ته اړتیا", "frontDoor": "د لیدونکو فعالیت", "visitorCount": "{count} لیدونکي", "newCustomers": "نوي پېرودونکي", "activeServices": "فعال خدمتونه" },
         "receivables": { "title": "تعقیب ته اړ ترلاسه کېدونکي", "subtitle": "د پېرودونکو تر ټولو لوی پرانیستي بیلانسونه", "customerInvoice": "پېرودونکی / بل", "due": "پای نېټه", "openBalance": "پرانیستی بیلانس", "overdueDate": "ځنډېدلی · {date}", "dueMissing": "د پای نېټه نشته", "empty": "د پېرودونکي پرانیستی بیلانس نشته." },
         "delivery": { "title": "د سپارنې ژمنې", "subtitle": "تر ټولو پرمختللی فعال کار", "allTasks": "ټولې دندې", "noBoard": "بورډ نشته", "empty": "فعال کار ونه موندل شو." },
@@ -1043,6 +1058,8 @@
         "officeOpens": "دفتر خلاصیږي",
         "officeCloses": "دفتر تړل کیږي",
         "defaultBreakMinutes": "د دمې (تفرېح) دقیقې",
+        "automaticAttendanceEnabled": "اتومات حاضري فعاله کړئ",
+        "automaticAttendanceEnabledHint": "کله چې بنده وي، د ځای څارنه، شخصي ننوتل/وتل، او د کاري وخت اتومات محاسبې غیرفعالېږي.",
         "layoutColors": "د ډیزاین رنګونه",
         "companyPage": "شرکت",
         "operationsPage": "عملیات",
@@ -1675,7 +1692,7 @@
       "reportTitle": "د {type} راپور",
       "currencyBasis": "تاریخي ریکارډونه؛ بنسټیز ارزښتونه د هر قطار ساتل شوی نرخ کاروي.",
       "types": { "financial": "مالي", "payroll": "کارکوونکي او معاش", "attendance": "حاضري", "operations": "عملیات" },
-      "sections": { "invoices": "بلونه او ترلاسه کېدونکي", "income": "عاید", "expenses": "لګښتونه", "net_cash_flow": "خالص نغدي بهیر", "salary_payments": "د معاش تادیات", "bonuses": "امتیازات", "attendance": "د حاضرۍ ریکارډونه", "contracts": "قراردادونه", "customers": "پېرودونکي", "visitors": "لیدونکي", "tasks": "دندې او سپارنه", "stock_assets": "زېرمه او شتمنۍ", "employee_roster": "د کارکوونکو نوملړ", "paid_time_off": "له معاش سره رخصتي", "daily_reports": "ورځني راپورونه", "customer_services": "د پېرودونکو خدمتونه", "companies": "شرکتونه" }
+      "sections": { "invoices": "بلونه او ترلاسه کېدونکي", "income": "عاید", "expenses": "لګښتونه", "net_cash_flow": "خالص نغدي بهیر", "salary_payments": "د معاش تادیات", "bonuses": "امتیازات", "attendance": "د حاضرۍ ریکارډونه", "contracts": "قراردادونه", "customers": "پېرودونکي", "visitors": "لیدونکي", "tasks": "دندې او سپارنه", "asset_assets": "زېرمه او شتمنۍ", "employee_roster": "د کارکوونکو نوملړ", "paid_time_off": "له معاش سره رخصتي", "daily_reports": "ورځني راپورونه", "customer_services": "د پېرودونکو خدمتونه", "companies": "شرکتونه" }
     },
     "paidTimeOff": {
       "title": "با معاشه رخصتۍ",

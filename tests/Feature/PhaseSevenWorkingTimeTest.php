@@ -74,6 +74,26 @@ class PhaseSevenWorkingTimeTest extends TestCase
         $this->assertNull($attendance->net_worked_minutes);
     }
 
+    public function test_half_day_leave_reduces_required_minutes_without_punctuality_penalties(): void
+    {
+        $employee = Employee::factory()->create(['join_date' => '2026-07-01']);
+        $attendance = Attendance::create([
+            'employee_id' => $employee->id, 'date' => '2026-07-11', 'status' => 'present',
+            'leave_duration_days' => 0.5, 'paid_leave_days' => 0.5, 'logged_at' => '13:00:00',
+            'check_in_time' => '13:00', 'check_out_time' => '17:00',
+            'checked_in_at' => Carbon::parse('2026-07-11 08:30:00', 'UTC'),
+            'checked_out_at' => Carbon::parse('2026-07-11 12:30:00', 'UTC'), 'break_minutes' => 0,
+        ]);
+
+        app(AttendanceCalculationService::class)->calculate($attendance, true);
+        $attendance->refresh();
+
+        $this->assertSame(240, $attendance->required_minutes);
+        $this->assertSame(0, $attendance->late_arrival_minutes);
+        $this->assertSame(0, $attendance->early_departure_minutes);
+        $this->assertSame(0, $attendance->overtime_minutes);
+    }
+
     public function test_missing_office_hours_do_not_count_all_worked_time_as_overtime(): void
     {
         Setting::query()->update([

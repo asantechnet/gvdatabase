@@ -6,8 +6,10 @@ export interface Visitor {
   name: string;
   company: string;
   contact: string;
+  email: string | null;
   service: string;
   marketer: string;
+  notes: string | null;
   date: string;
   created_at?: string;
   updated_at?: string;
@@ -25,18 +27,22 @@ export interface CreateVisitorData {
   name: string;
   company: string;
   contact: string;
+  email?: string | null;
   service: string;
   marketer: string;
   date: string;
+  notes?: string | null;
 }
 
 export interface UpdateVisitorData {
   name?: string;
   company?: string;
   contact?: string;
+  email?: string | null;
   service?: string;
   marketer?: string;
   date?: string;
+  notes?: string | null;
 }
 
 // Visitor API endpoints

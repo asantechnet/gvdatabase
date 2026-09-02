@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\Stock;
+use App\Models\Asset;
 use App\Models\Office;
 use Illuminate\Database\Seeder;
 
-class StockSeeder extends Seeder
+class AssetSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -15,7 +15,7 @@ class StockSeeder extends Seeder
     {
         $offices = Office::whereIn('code', ['HQ', 'BR-A', 'BR-B'])->pluck('id', 'code');
 
-        $stocks = [
+        $assets = [
             [
                 'serial_number' => 'SN-1001',
                 'item' => 'Dell Laptop',
@@ -42,8 +42,8 @@ class StockSeeder extends Seeder
             ],
         ];
 
-        foreach ($stocks as $stock) {
-            Stock::create($stock);
+        foreach ($assets as $asset) {
+            Asset::create($asset);
         }
     }
 }

@@ -3,16 +3,21 @@ import { onMounted } from 'vue'
 import { useLayoutConfigStore } from '@layouts/stores/config'
 import AutomaticAttendanceTracker from '@/components/attendance/AutomaticAttendanceTracker.vue'
 import { useBranding } from '@/composables/useBranding'
+import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
 
 const DefaultLayoutWithVerticalNav = defineAsyncComponent(() => import('./components/DefaultLayoutWithVerticalNav.vue'))
 const DefaultLayoutWithHorizontalNav = defineAsyncComponent(() => import('./components/DefaultLayoutWithHorizontalNav.vue'))
 const layoutConfigStore = useLayoutConfigStore()
 const { loadBranding } = useBranding()
+const { enabled: automaticAttendanceEnabled, load: loadAutomaticAttendance } = useAutomaticAttendance()
 
 const { layoutAttrs, injectSkinClasses } = useSkins()
 
 injectSkinClasses()
-onMounted(loadBranding)
+onMounted(() => {
+  loadBranding()
+  loadAutomaticAttendance()
+})
 
 // SECTION: Loading Indicator
 const isFallbackStateActive = ref(false)
@@ -32,7 +37,7 @@ watch([isFallbackStateActive, refLoadingIndicator], () => {
 <template>
   <Component v-bind="layoutAttrs" :is="layoutConfigStore.appContentLayoutNav === 'horizontal' ? DefaultLayoutWithHorizontalNav : DefaultLayoutWithVerticalNav">
     <AppLoadingIndicator ref="refLoadingIndicator" />
-    <AutomaticAttendanceTracker />
+    <AutomaticAttendanceTracker v-if="automaticAttendanceEnabled" />
 
     <RouterView v-slot="{ Component }">
       <Suspense :timeout="0" @fallback="isFallbackStateActive = true" @resolve="isFallbackStateActive = false">

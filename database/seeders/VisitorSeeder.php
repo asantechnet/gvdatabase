@@ -5,6 +5,9 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Visitor;
 use Carbon\Carbon;
+use App\Models\CrmInteraction;
+use App\Models\Lead;
+use Illuminate\Support\Facades\DB;
 
 class VisitorSeeder extends Seeder
 {
@@ -13,8 +16,16 @@ class VisitorSeeder extends Seeder
      */
     public function run(): void
     {
-        // Clear existing data
-        Visitor::truncate();
+        // TRUNCATE is illegal once leads reference visitors, even when the
+        // referencing table is empty. Delete dependants first and force-delete
+        // visitors so this seeder remains safe and repeatable on its own.
+        DB::transaction(function (): void {
+            CrmInteraction::query()
+                ->where('contactable_type', Visitor::class)
+                ->forceDelete();
+            Lead::withTrashed()->whereNotNull('visitor_id')->forceDelete();
+            Visitor::withTrashed()->forceDelete();
+        });
 
         // Sample visitor data
         $visitors = [

@@ -69,28 +69,28 @@ return new class extends Migration
             $table->index('recorded_by');
         });
 
-        Schema::create('stock_allocations', function (Blueprint $table) {
+        Schema::create('asset_allocations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('stock_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('asset_id')->constrained()->cascadeOnDelete();
             $table->foreignId('employee_id')->constrained()->restrictOnDelete();
             $table->unsignedInteger('quantity');
             $table->timestamps();
-            $table->unique(['stock_id', 'employee_id']);
+            $table->unique(['asset_id', 'employee_id']);
         });
 
         // Preserve every legacy assignment. A legacy row represented one holder
-        // for the whole stock quantity, so its allocation receives that amount.
-        DB::table('stocks')->whereNotNull('staff_id')->orderBy('id')->each(function (object $stock): void {
-            DB::table('stock_allocations')->insert([
-                'stock_id' => $stock->id,
-                'employee_id' => $stock->staff_id,
-                'quantity' => max(1, (int) $stock->quantity),
+        // for the whole asset quantity, so its allocation receives that amount.
+        DB::table('assets')->whereNotNull('staff_id')->orderBy('id')->each(function (object $asset): void {
+            DB::table('asset_allocations')->insert([
+                'asset_id' => $asset->id,
+                'employee_id' => $asset->staff_id,
+                'quantity' => max(1, (int) $asset->quantity),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
         });
 
-        Schema::table('stocks', function (Blueprint $table) {
+        Schema::table('assets', function (Blueprint $table) {
             $table->dropConstrainedForeignId('staff_id');
         });
 
@@ -109,10 +109,10 @@ return new class extends Migration
             $table->string('tax_number')->nullable()->after('contract_duration');
         });
 
-        Schema::table('stocks', function (Blueprint $table) {
+        Schema::table('assets', function (Blueprint $table) {
             $table->foreignId('staff_id')->nullable()->after('condition')->constrained('employees')->nullOnDelete();
         });
-        Schema::dropIfExists('stock_allocations');
+        Schema::dropIfExists('asset_allocations');
 
         Schema::table('salaries', fn (Blueprint $table) => $table->dropConstrainedForeignId('recorded_by'));
         Schema::table('expenses', fn (Blueprint $table) => $table->dropConstrainedForeignId('recorded_by'));

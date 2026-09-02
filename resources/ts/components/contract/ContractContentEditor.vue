@@ -91,7 +91,7 @@ const syncToolbarState = (editorInstance: Editor) => {
   }
 }
 
-// Extends the stock TextStyle mark with the typographic attributes legal
+// Extends the asset TextStyle mark with the typographic attributes legal
 // documents need (family, size, color) without new dependencies.
 const ContractTextStyle = TextStyle.extend({
   addAttributes() {

@@ -36,5 +36,5 @@ class Office extends Model
 
     public function employees(): HasMany { return $this->hasMany(Employee::class); }
     public function attendances(): HasMany { return $this->hasMany(Attendance::class); }
-    public function stocks(): HasMany { return $this->hasMany(Stock::class); }
+    public function assets(): HasMany { return $this->hasMany(Asset::class); }
 }

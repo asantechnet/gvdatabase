@@ -12,7 +12,7 @@ export interface Office {
   longitude: number | null
   geofence_radius_meters: number
   geofence_enabled: boolean
-  stock_count: number
+  asset_count: number
   created_at: string | null
   updated_at: string | null
 }

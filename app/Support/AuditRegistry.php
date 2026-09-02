@@ -28,7 +28,7 @@ use App\Models\Position;
 use App\Models\Salary;
 use App\Models\Service;
 use App\Models\Setting;
-use App\Models\Stock;
+use App\Models\Asset;
 use App\Models\Subtask;
 use App\Models\Tag;
 use App\Models\Task;
@@ -63,14 +63,14 @@ final class AuditRegistry
             'invoices' => Invoice::class,
             'marketers' => Marketer::class,
             'offices' => Office::class,
-            'paid_time_offs' => PaidTimeOff::class,
+            'leaves' => PaidTimeOff::class,
             'payment_details' => PaymentDetail::class,
             'permissions' => Permission::class,
             'positions' => Position::class,
             'salaries' => Salary::class,
             'services' => Service::class,
             'settings' => Setting::class,
-            'stocks' => Stock::class,
+            'assets' => Asset::class,
             'subtasks' => Subtask::class,
             'tags' => Tag::class,
             'task_attachments' => TaskAttachment::class,
@@ -114,7 +114,7 @@ final class AuditRegistry
         $key = self::keyFor($model);
         $contextLabel = match ($key) {
             'attendances' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getRawOriginal('date')),
-            'paid_time_offs' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getRawOriginal('date')),
+            'leaves' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getRawOriginal('date')),
             'daily_reports' => self::joinedLabel(self::relatedLabel($model, 'user'), $model->getRawOriginal('report_date')),
             'customer_services' => self::joinedLabel(self::relatedLabel($model, 'customer'), self::relatedLabel($model, 'service')),
             'comments' => self::relatedLabel($model, 'task'),
@@ -130,7 +130,7 @@ final class AuditRegistry
             'contracts' => ['contract_number', 'name', 'counterparty'],
             'incomes' => ['receipt_number', 'description', 'type'],
             'salaries' => ['payslip_number', 'salary_month'],
-            'stocks' => ['serial_number', 'item', 'model'],
+            'assets' => ['serial_number', 'item', 'model'],
             'companies' => ['trade_name', 'legal_name', 'registration_number'],
             'positions' => ['title'],
             'boards' => ['title'],
@@ -142,7 +142,7 @@ final class AuditRegistry
             'payment_details' => ['method'],
             'daily_reports' => ['report_date'],
             'attendances' => ['date'],
-            'paid_time_offs' => ['date', 'reason'],
+            'leaves' => ['date', 'duration_days', 'reason', 'approval_note'],
             'customer_services' => ['deadline', 'status'],
             'worthy_employees' => ['bonus_month', 'eligibility_reason'],
             'settings' => ['short_company_name', 'website_title'],

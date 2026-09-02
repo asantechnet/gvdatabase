@@ -5,6 +5,7 @@ export default [
     children: [
       { title: 'common.navigation.customers', icon: { icon: 'tabler-users' }, to: 'all-customers', action: 'read', subject: 'view_customers' },
       { title: 'common.navigation.visitor', icon: { icon: 'tabler-user-search' }, to: 'visitor', action: 'read', subject: 'view_visitors' },
+      { title: 'common.navigation.leads', icon: { icon: 'tabler-filter-dollar' }, to: 'leads', action: 'read', subject: 'view_visitors' },
     ],
   },
 ]

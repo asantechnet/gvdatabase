@@ -51,7 +51,7 @@ class SyncAnalytics extends Command
         DailyAnalytics::updateOrCreate(['date' => $date], [
             'attendance_present' => (clone $attendance)->where('status', 'present')->count(),
             'attendance_absent' => (clone $attendance)->where('status', 'absent')->count(),
-            'attendance_paid_leave' => (clone $attendance)->where('status', 'paid-off-day')->count(),
+            'attendance_paid_leave' => (clone $attendance)->where('status', 'paid-leave')->count(),
             'attendance_incomplete' => (clone $attendance)->where('status', 'present')->where('missing_punch_state', '!=', 'none')->count(),
             'worked_minutes' => (int) (clone $attendance)->sum('net_worked_minutes'), 'overtime_minutes' => (int) (clone $attendance)->sum('overtime_minutes'),
             // These are booked snapshot totals for the analytics archive. Live

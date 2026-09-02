@@ -42,6 +42,7 @@ export interface CustomerParams {
   search?: string
   company?: string
   marketer?: string
+  compact?: boolean
 }
 
 export interface CreateCustomerData {

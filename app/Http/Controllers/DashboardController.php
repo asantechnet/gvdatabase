@@ -14,8 +14,8 @@ use App\Models\Invoice;
 use App\Models\PaidTimeOff;
 use App\Models\Salary;
 use App\Models\Service;
-use App\Models\Stock;
-use App\Models\StockAllocation;
+use App\Models\Asset;
+use App\Models\AssetAllocation;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Visitor;
@@ -41,7 +41,7 @@ class DashboardController extends Controller
         $canViewAttendance = $user->hasPermission('view_attendance');
         $canViewCustomers = $user->hasPermission('view_customers') || $canViewFinance;
         $canViewInvoices = $user->hasPermission('view_invoices') || $canViewFinance;
-        $canViewStock = $user->hasPermission('view_stocks');
+        $canViewAsset = $user->hasPermission('view_assets');
         $canViewEmployees = $user->hasPermission('view_employees') || $canViewAttendance;
         $canViewContracts = $user->hasPermission('view_contracts');
         $canViewPayroll = $user->hasPermission('view_salaries');
@@ -97,7 +97,7 @@ class DashboardController extends Controller
                     'attendance' => $canViewAttendance,
                     'customers' => $canViewCustomers,
                     'invoices' => $canViewInvoices,
-                    'stock' => $canViewStock,
+                    'asset' => $canViewAsset,
                     'employees' => $canViewEmployees,
                     'contracts' => $canViewContracts,
                     'payroll' => $canViewPayroll,
@@ -141,7 +141,7 @@ class DashboardController extends Controller
                     'open_invoice_count' => $invoiceOverview['count'] ?? null,
                     'open_invoice_value' => $invoiceOverview['value'] ?? null,
                     'employee_count' => $canViewEmployees ? Employee::query()->count() : null,
-                    'stock_asset_value' => $canViewStock ? round((float) Stock::query()->selectRaw('COALESCE(SUM(quantity * price), 0) as total')->value('total'), 2) : null,
+                    'asset_asset_value' => $canViewAsset ? round((float) Asset::query()->selectRaw('COALESCE(SUM(quantity * price), 0) as total')->value('total'), 2) : null,
                 ],
                 'sparklines' => [
                     'income' => $canViewFinance ? $this->dailyIncome($now) : $dailyTaskCompletion['completed'],
@@ -163,9 +163,9 @@ class DashboardController extends Controller
                 'expense_breakdown' => $canViewFinance ? $this->expenseBreakdown($now) : [],
                 'top_customers' => $canViewCustomers && $canViewFinance ? $this->topCustomers($now) : [],
                 'receivables' => array_slice($allReceivables, 0, 5),
-                'stock_health' => $canViewStock ? $this->stockHealth() : null,
+                'asset_health' => $canViewAsset ? $this->assetHealth() : null,
                 'team_health' => $canViewEmployees ? $this->teamHealth($now, $currentMonthAttendance) : null,
-                'attention_items' => $this->attentionItems($activeTasks, $now, $allReceivables, $canViewStock),
+                'attention_items' => $this->attentionItems($activeTasks, $now, $allReceivables, $canViewAsset),
                 'commercial_overview' => $commercialOverview,
                 'people_overview' => $peopleOverview,
                 'kpi_trends' => $this->kpiTrends($tasks, $now, $canViewFinance, $canViewCustomers, $canViewPayroll, $canViewVisitors),
@@ -181,7 +181,7 @@ class DashboardController extends Controller
                     $canViewContracts,
                     $canViewServices,
                     $canViewAttendance,
-                    $canViewStock,
+                    $canViewAsset,
                 ),
             ],
         ]);
@@ -424,14 +424,14 @@ class DashboardController extends Controller
         return ($limited ? $rows->take(5) : $rows)->values()->all();
     }
 
-    private function stockHealth(): array
+    private function assetHealth(): array
     {
-        $all = Stock::query();
+        $all = Asset::query();
         $total = (clone $all)->sum('quantity');
-        $assigned = StockAllocation::query()->sum('quantity');
-        $damaged = (clone $all)->whereIn('condition', [Stock::CONDITION_DAMAGED, Stock::CONDITION_POOR])->sum('quantity');
+        $assigned = AssetAllocation::query()->sum('quantity');
+        $damaged = (clone $all)->whereIn('condition', [Asset::CONDITION_DAMAGED, Asset::CONDITION_POOR])->sum('quantity');
         $byCondition = (clone $all)->select('condition')->selectRaw('SUM(quantity) as total')->groupBy('condition')->get()
-            ->map(fn (Stock $stock) => ['label' => ucfirst($stock->condition ?: 'unknown'), 'value' => (int) $stock->total])->values()->all();
+            ->map(fn (Asset $asset) => ['label' => ucfirst($asset->condition ?: 'unknown'), 'value' => (int) $asset->total])->values()->all();
 
         return [
             'total_items' => (int) $total,
@@ -636,7 +636,7 @@ class DashboardController extends Controller
         bool $canViewContracts,
         bool $canViewServices,
         bool $canViewAttendance,
-        bool $canViewStock,
+        bool $canViewAsset,
     ): array {
         $actions = [];
         $add = function (bool $condition, string $areaKey, string $titleKey, string $detailKey, array $params, string $severity, string $icon, string $route) use (&$actions) {
@@ -673,9 +673,9 @@ class DashboardController extends Controller
             $unmarked = max(0, $employees - $marked);
             $add($unmarked > 0, 'people', 'unmarkedEmployees', 'unmarkedEmployeesDetail', ['count' => $unmarked], 'medium', 'tabler-user-question', '/timesheet');
         }
-        if ($canViewStock) {
-            $damaged = Stock::query()->whereIn('condition', [Stock::CONDITION_DAMAGED, Stock::CONDITION_POOR])->sum('quantity');
-            $add($damaged > 0, 'assets', 'stockInspection', 'stockInspectionDetail', ['count' => (int) $damaged], 'low', 'tabler-package-off', '/stock');
+        if ($canViewAsset) {
+            $damaged = Asset::query()->whereIn('condition', [Asset::CONDITION_DAMAGED, Asset::CONDITION_POOR])->sum('quantity');
+            $add($damaged > 0, 'assets', 'assetInspection', 'assetInspectionDetail', ['count' => (int) $damaged], 'low', 'tabler-package-off', '/asset');
         }
 
         $rank = ['high' => 0, 'medium' => 1, 'low' => 2];
@@ -683,7 +683,7 @@ class DashboardController extends Controller
         return array_slice($actions, 0, 8);
     }
 
-    private function attentionItems(Builder $activeTasks, Carbon $now, array $receivables, bool $canViewStock): array
+    private function attentionItems(Builder $activeTasks, Carbon $now, array $receivables, bool $canViewAsset): array
     {
         $items = [];
         $overdueTasks = (clone $activeTasks)->whereDate('due_date', '<', $now->toDateString())->count();
@@ -696,10 +696,10 @@ class DashboardController extends Controller
                 $items[] = ['type' => 'invoices', 'color' => 'warning', 'icon' => 'tabler-file-invoice', 'count' => $overdueInvoices, 'title' => 'Invoices are past their due date'];
             }
         }
-        if ($canViewStock) {
-            $attentionStock = Stock::query()->whereIn('condition', [Stock::CONDITION_DAMAGED, Stock::CONDITION_POOR])->sum('quantity');
-            if ($attentionStock > 0) {
-                $items[] = ['type' => 'stock', 'color' => 'warning', 'icon' => 'tabler-package-off', 'count' => (int) $attentionStock, 'title' => 'Stock items need inspection'];
+        if ($canViewAsset) {
+            $attentionAsset = Asset::query()->whereIn('condition', [Asset::CONDITION_DAMAGED, Asset::CONDITION_POOR])->sum('quantity');
+            if ($attentionAsset > 0) {
+                $items[] = ['type' => 'asset', 'color' => 'warning', 'icon' => 'tabler-package-off', 'count' => (int) $attentionAsset, 'title' => 'Asset items need inspection'];
             }
         }
         return $items;

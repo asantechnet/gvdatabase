@@ -1,10 +1,45 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import api from '@/api/axios'
 
 const props = defineProps<{
   kind: 'phone' | 'email'
   value: string | null | undefined
+  contactableType?: 'visitor' | 'lead' | 'customer'
+  contactableId?: number
 }>()
+
+const dialog = ref(false)
+const pendingAction = ref<ContactAction | null>(null)
+const saving = ref(false)
+const form = ref({ title: '', notes: '', follow_up_at: null as string | null })
+
+const begin = (action: ContactAction, event: MouseEvent) => {
+  if (!props.contactableType || !props.contactableId) return
+  event.preventDefault()
+  pendingAction.value = action
+  form.value = { title: `${action.label} conversation`, notes: '', follow_up_at: null }
+  dialog.value = true
+
+  // Launch the user's communication app from the original click so browser
+  // popup protection and mobile deep-link handling continue to work. The CRM
+  // dialog remains in this app for recording the outcome after the contact.
+  if (action.external) window.open(action.href, '_blank', 'noopener,noreferrer')
+  else window.location.href = action.href
+}
+
+const saveConversation = async () => {
+  if (!pendingAction.value || !props.contactableType || !props.contactableId || !form.value.title.trim() || !form.value.notes.trim()) return
+  saving.value = true
+  try {
+    await api.post(`/crm/${props.contactableType}/${props.contactableId}/interactions`, {
+      channel: props.kind === 'email' ? 'email' : pendingAction.value.label === 'Call' ? 'call' : 'message',
+      title: form.value.title.trim(), notes: form.value.notes.trim(), follow_up_at: form.value.follow_up_at,
+    })
+    dialog.value = false
+    pendingAction.value = null
+  } finally { saving.value = false }
+}
 
 interface ContactAction {
   label: string
@@ -37,20 +72,31 @@ const actions = computed<ContactAction[]>(() => {
 <template>
   <VMenu
     v-if="contactValue"
-    open-on-hover
-    location="top"
+    location="bottom start"
     transition="scale-transition"
+    :open-delay="0"
   >
     <template #activator="{ props: activatorProps }">
-      <span
-        v-bind="activatorProps"
-        class="contact-action-menu__trigger text-primary"
-        role="button"
-        tabindex="0"
-        :aria-label="`Contact ${contactValue}`"
+      <div
+        class="contact-action-menu__boundary"
+        @click.stop
+        @pointerdown.stop
+        @touchstart.stop
       >
-        {{ contactValue }}
-      </span>
+        <VBtn
+          v-bind="activatorProps"
+          class="contact-action-menu__trigger"
+          :prepend-icon="kind === 'phone' ? 'tabler-phone' : 'tabler-mail'"
+          color="primary"
+          variant="tonal"
+          size="small"
+          rounded="lg"
+          :aria-label="`Communication options for ${contactValue}`"
+        >
+          <span class="contact-action-menu__value">{{ contactValue }}</span>
+          <VIcon icon="tabler-chevron-down" size="15" class="ml-1" />
+        </VBtn>
+      </div>
     </template>
 
     <VList density="compact" min-width="150">
@@ -61,7 +107,7 @@ const actions = computed<ContactAction[]>(() => {
         :target="action.external ? '_blank' : undefined"
         :rel="action.external ? 'noopener noreferrer' : undefined"
         link
-        @click.stop
+        @click.stop="begin(action, $event)"
       >
         <template #prepend>
           <VIcon :icon="action.icon" size="18" />
@@ -70,13 +116,36 @@ const actions = computed<ContactAction[]>(() => {
       </VListItem>
     </VList>
   </VMenu>
+
+  <VDialog v-model="dialog" max-width="560">
+    <VCard>
+      <VCardTitle class="d-flex align-center gap-2"><VIcon icon="tabler-message-circle" color="primary" />{{ $t('common.crmUi.logConversation') }}</VCardTitle>
+      <VCardText>
+        <VTextField v-model="form.title" :label="$t('common.crmUi.conversationTitle')" autofocus class="mb-3" />
+        <VTextarea v-model="form.notes" :label="$t('common.crmUi.conversationNotes')" rows="5" :hint="$t('common.crmUi.conversationHint')" persistent-hint class="mb-3" />
+        <AppDateTimePicker v-model="form.follow_up_at" :label="$t('common.crmUi.followUp')" :config="{ enableTime: true, dateFormat: 'Y-m-d H:i' }" clearable />
+      </VCardText>
+      <VCardActions><VSpacer /><VBtn variant="text" @click="dialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn prepend-icon="tabler-device-floppy" :loading="saving" :disabled="!form.title.trim() || !form.notes.trim()" @click="saveConversation">{{ $t('common.actions.save') }}</VBtn></VCardActions>
+    </VCard>
+  </VDialog>
 </template>
 
 <style scoped>
 .contact-action-menu__trigger {
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  text-underline-offset: 3px;
+  min-block-size: 36px;
+  max-inline-size: 100%;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.contact-action-menu__boundary,
+.contact-action-menu__value {
+  min-inline-size: 0;
+}
+
+.contact-action-menu__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

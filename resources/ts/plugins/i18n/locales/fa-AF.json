@@ -361,7 +361,7 @@
       "areYouSureYouWantToDeleteThisServiceRecordThisActionCannotBeUndone": "آیا مطمئن هستید که می‌خواهید این رکورد خدمت را حذف کنید؟ این عمل قابل برگشت نیست.",
       "areYouSureYouWantToDeleteThisStaffRecord": "آیا مطمئن هستید که می‌خواهید این رکورد پرسونل را حذف کنید؟",
       "areYouSureYouWantToDeleteThisSalaryRecord": "آیا مطمئن هستید که می‌خواهید این رکورد معاش را حذف کنید؟",
-      "areYouSureYouWantToDeleteThisStockItem": "آیا مطمئن هستید که می‌خواهید این مورد موجودی/گدام را حذف کنید؟",
+      "areYouSureYouWantToDeleteThisAssetItem": "آیا مطمئن هستید که می‌خواهید این مورد موجودی/گدام را حذف کنید؟",
       "areYouSureYouWantToDeleteThisVisitor": "آیا مطمئن هستید که می‌خواهید این بازدیدکننده را حذف کنید؟",
       "thisActionCannotBeUndoneTheVisitorRecordWillBePermanentlyRemovedFromTh": "این عمل قابل برگشت نیست. رکورد بازدیدکننده به طور دائمی از سیستم حذف خواهد شد.",
       "areYouSureYouWantToDeleteThisTaskThisActionCannotBeUndone": "آیا مطمئن هستید که می‌خواهید این وظیفه را حذف کنید؟ این عمل قابل برگشت نیست.",
@@ -374,7 +374,7 @@
       "finance": "مالی",
       "income": "عواید / درآمد",
       "expenses": "مصارف / هزینه‌ها",
-      "stock": "گدام / موجودی",
+      "asset": "گدام / موجودی",
       "reports": "گزارش‌ها",
       "hr": "منابع بشری",
       "staffList": "لیست کارمندان",
@@ -406,6 +406,7 @@
       "settings": "تنظیمات",
       "tasks": "وظایف",
       "visitor": "بازدیدکنندگان",
+      "leads": "سرنخ‌ها",
       "companies": "شرکت‌ها",
       "otherContracts": "قراردادهای دیگر",
       "contractTemplates": "قالب‌های قرارداد",
@@ -419,6 +420,20 @@
       "english": "English",
       "dari": "دری",
       "pashto": "پښتو"
+    },
+    "crmUi": {
+      "leads": "سرنخ‌ها", "leadSubtitle": "فرصت‌های واجد شرایط را به رابطه با مشتری تبدیل کنید.", "opportunities": "{count} فرصت", "searchLeads": "جستجوی سرنخ‌ها", "pipelineStage": "مرحله فروش", "independent": "مستقل", "confidence": "{value}٪ احتمال", "relationshipNotes": "یادداشت‌های رابطه", "conversationHistory": "تاریخچه گفتگو", "convertCustomer": "تبدیل به مشتری", "convertedCustomer": "سرنخ به مشتری تبدیل شد", "stageUpdated": "مرحله سرنخ به‌روزرسانی شد", "logConversation": "ثبت گفتگو", "conversationTitle": "عنوان گفتگو", "conversationNotes": "یادداشت گفتگو", "conversationHint": "تصمیم‌ها، نیازها، موانع و گام بعدی را ثبت کنید.", "followUp": "پیگیری (اختیاری)", "saveContinue": "ذخیره و ادامه", "qualifyLead": "تبدیل به سرنخ", "visitorNotes": "یادداشت بازدیدکننده", "visitorNotesHint": "علایق و اطلاعات مفید پیش از ارزیابی را ثبت کنید."
+    },
+    "crmDetails": {
+      "relationshipDetails": "جزئیات رابطه", "entityRelationship": "رابطه {entity}", "entities": { "visitor": "بازدیدکننده", "lead": "سرنخ", "customer": "مشتری" },
+      "details": "جزئیات", "overview": "یادداشت و فعالیت", "profileTitle": "جزئیات پروفایل", "profileHint": "اطلاعات فعلی CRM و زمینه لازم برای تعامل بعدی.", "customerServices": "خدمات مشتری", "contextHint": "اطلاعاتی که در تمام مراحل CRM همراه این شخص می‌ماند.", "notesPlaceholder": "نیازها، ترجیحات، پیشینه، موانع یا سایر اطلاعات ماندگار…", "saveNotes": "ذخیره یادداشت‌ها", "activityMix": "ترکیب فعالیت‌ها", "addConversation": "افزودن گفتگو", "all": "همه", "emptyTitle": "در این دسته گفتگویی نیست", "emptyHint": "اولین تعامل را اضافه کنید یا دسته دیگری را انتخاب کنید.",
+      "followUpAt": "پیگیری در {date}", "editConversation": "ویرایش گفتگو", "category": "دسته", "notesOutcome": "یادداشت و نتیجه", "contactedAt": "زمان تماس", "saveConversation": "ذخیره گفتگو", "deleteConfirm": "«{title}» حذف شود؟",
+      "notesSaved": "یادداشت‌های رابطه ذخیره شد", "notesSaveFailed": "ذخیره یادداشت‌ها ممکن نشد.", "loadFailed": "بارگذاری جزئیات رابطه ممکن نشد.", "conversationAdded": "گفتگو افزوده شد", "conversationUpdated": "گفتگو به‌روزرسانی شد", "conversationRemoved": "گفتگو حذف شد", "conversationSaveFailed": "ذخیره گفتگو ممکن نشد.", "conversationDeleteFailed": "حذف گفتگو ممکن نشد.",
+      "fields": { "company": "شرکت", "contact": "شماره تماس", "email": "ایمیل", "marketer": "بازاریاب", "service": "خدمت مورد علاقه", "owner": "مسئول رابطه", "stage": "مرحله فروش", "probability": "احتمال", "estimatedValue": "ارزش تخمینی", "nextFollowUp": "پیگیری بعدی", "taxNumber": "شماره مالیاتی", "since": "تاریخ ثبت", "address": "آدرس" },
+      "channels": { "calls": "تماس‌ها", "messages": "پیام‌ها", "emails": "ایمیل‌ها", "meetings": "جلسه‌ها", "notes": "یادداشت‌ها" }
+    },
+    "leaveApproval": {
+      "paidException": "تأیید به‌عنوان استثنای با معاش ({count})", "exceptionTitle": "استثنای رخصتی با معاش", "exceptionHint": "سهمیه رخصتی با معاش یک یا چند کارمند انتخاب‌شده کافی نیست. این مجوز تمام روزهای انتخاب‌شده را با معاش نگه می‌دارد و دلیل آن را در سابقه بررسی ثبت می‌کند.", "usageSummary": "استفاده‌شده {used} · باقی‌مانده {remaining} · انتخاب‌شده {selected} روز", "overLimit": "+{count} بیشتر از سهمیه", "justification": "دلیل تأیید", "approvePaid": "تأیید رخصتی با معاش", "employeeFallback": "کارمند"
     }
   },
   "pages": {
@@ -513,7 +528,7 @@
         "aging": { "notDue": "هنوز سررسید نشده", "days1To30": "۱ تا ۳۰ روز", "days31To60": "۳۱ تا ۶۰ روز", "days61Plus": "بیش از ۶۱ روز", "noDueDate": "بدون تاریخ سررسید" },
         "collection": { "noIssuedValue": "هنوز مبلغی برای بل‌های صادرشده موجود نیست.", "noLinkedIncome": "بل صادر شده، اما عاید مرتبط ثبت نشده است.", "trailing": "وصول از مبلغ صورت‌حساب عقب است و پیگیری می‌خواهد.", "healthy": "وصول با مبلغ صورت‌حساب همگام است." },
         "sections": { "cashMovement": "صورت‌حساب و جریان نقدی", "cashMovementSubtitle": "مبالغ صورت‌حساب‌شده، وصول‌شده و مصرف‌شده در شش ماه", "receivablesAging": "عمر مطالبات", "receivablesAgingSubtitle": "محل توقف مبالغ پرداخت‌نشده", "agingInsight": "بل‌های بدون تاریخ سررسید جدا شده‌اند تا برنامه وصول اصلاح شود.", "commercialMomentum": "روند تجارتی", "commercialMomentumSubtitle": "علاقه مراجعین در مقایسه با جذب مشتری جدید", "servicePortfolio": "سبد خدمات", "servicePortfolioSubtitle": "خدماتی که مشتریان فعال به آن متکی‌اند", "actionCenter": "مرکز اقدامات مدیریتی", "actionCenterSubtitle": "موارد استثنایی اولویت‌دار از سراسر سیستم", "workloadRisk": "ریسک حجم کار", "workloadRiskSubtitle": "وظایف باز بر اساس اولویت" },
-        "actions": { "count": "{count} اقدام", "open": "بازکردن رکورد", "emptyTitle": "مورد بحرانی برای رسیدگی وجود ندارد", "emptyBody": "رکوردهای زیر نظارت در وضعیت مناسب قرار دارند.", "areas": { "delivery": "تحویل", "finance": "مالی", "contracts": "قراردادها", "customers": "مشتریان", "people": "کارمندان", "assets": "دارایی‌ها" }, "overdueTasks": "{count} وظیفه تأخیری", "overdueTasksDetail": "موعد تعهدها گذشته و باید مسئول آن مشخص شود.", "urgentTasks": "{count} وظیفه عاجل فعال", "urgentTasksDetail": "کارهای با اولویت بلند نیازمند نظارت نزدیک‌اند.", "missingInvoiceDueDates": "{count} بل تاریخ سررسید ندارد", "missingInvoiceDueDatesDetail": "برای مدیریت مطالبات، مهلت وصول تعیین کنید.", "overdueInvoices": "{count} بل تأخیری", "overdueInvoicesDetail": "{amount} پس از تاریخ وصول هنوز باز است.", "noContracts": "هیچ قراردادی ثبت نشده", "noContractsDetail": "تعهدهای مشتریان فعلاً پوشش رسمی قرارداد ندارند.", "expiringContracts": "{count} قرارداد به‌زودی ختم می‌شود", "expiringContractsDetail": "قراردادهای ختم‌شونده در ۳۰ روز را تمدید یا بسته کنید.", "serviceDeadlines": "{count} مهلت خدمت نزدیک است", "serviceDeadlinesDetail": "تعهدهای مشتری در ۳۰ روز آینده سررسید می‌شوند.", "unmarkedEmployees": "حضور {count} کارمند امروز ثبت نشده", "unmarkedEmployeesDetail": "ثبت حضور را پیش از ختم روز کامل کنید.", "stockInspection": "{count} قلم جنس نیاز به بررسی دارد", "stockInspectionDetail": "اقلام با وضعیت متوسط، ضعیف یا آسیب‌دیده باید بررسی شوند." },
+        "actions": { "count": "{count} اقدام", "open": "بازکردن رکورد", "emptyTitle": "مورد بحرانی برای رسیدگی وجود ندارد", "emptyBody": "رکوردهای زیر نظارت در وضعیت مناسب قرار دارند.", "areas": { "delivery": "تحویل", "finance": "مالی", "contracts": "قراردادها", "customers": "مشتریان", "people": "کارمندان", "assets": "دارایی‌ها" }, "overdueTasks": "{count} وظیفه تأخیری", "overdueTasksDetail": "موعد تعهدها گذشته و باید مسئول آن مشخص شود.", "urgentTasks": "{count} وظیفه عاجل فعال", "urgentTasksDetail": "کارهای با اولویت بلند نیازمند نظارت نزدیک‌اند.", "missingInvoiceDueDates": "{count} بل تاریخ سررسید ندارد", "missingInvoiceDueDatesDetail": "برای مدیریت مطالبات، مهلت وصول تعیین کنید.", "overdueInvoices": "{count} بل تأخیری", "overdueInvoicesDetail": "{amount} پس از تاریخ وصول هنوز باز است.", "noContracts": "هیچ قراردادی ثبت نشده", "noContractsDetail": "تعهدهای مشتریان فعلاً پوشش رسمی قرارداد ندارند.", "expiringContracts": "{count} قرارداد به‌زودی ختم می‌شود", "expiringContractsDetail": "قراردادهای ختم‌شونده در ۳۰ روز را تمدید یا بسته کنید.", "serviceDeadlines": "{count} مهلت خدمت نزدیک است", "serviceDeadlinesDetail": "تعهدهای مشتری در ۳۰ روز آینده سررسید می‌شوند.", "unmarkedEmployees": "حضور {count} کارمند امروز ثبت نشده", "unmarkedEmployeesDetail": "ثبت حضور را پیش از ختم روز کامل کنید.", "assetInspection": "{count} قلم جنس نیاز به بررسی دارد", "assetInspectionDetail": "اقلام با وضعیت متوسط، ضعیف یا آسیب‌دیده باید بررسی شوند." },
         "domains": { "contractCoverage": "پوشش قرارداد", "activeCount": "{count} فعال", "expiring30Days": "ختم در ۳۰ روز", "drafts": "پیش‌نویس‌ها", "peopleReadiness": "آمادگی کارمندان", "employeeCount": "{count} کارمند", "pendingLeave": "رخصتی در انتظار", "overtimeMonth": "اضافه‌کاری این ماه", "assetControl": "کنترول دارایی", "availableAssigned": "موجود / تحویل‌شده", "needInspection": "نیازمند بررسی", "frontDoor": "فعالیت مراجعین", "visitorCount": "{count} مراجعه‌کننده", "newCustomers": "مشتریان جدید", "activeServices": "خدمات فعال" },
         "receivables": { "title": "مطالبات نیازمند پیگیری", "subtitle": "بزرگ‌ترین مانده‌های باز مشتری", "customerInvoice": "مشتری / بل", "due": "سررسید", "openBalance": "مانده باز", "overdueDate": "تأخیری · {date}", "dueMissing": "تاریخ سررسید ندارد", "empty": "مانده باز مشتری وجود ندارد." },
         "delivery": { "title": "تعهدهای تحویل", "subtitle": "کارهای فعال با بیشترین پیشرفت", "allTasks": "همه وظایف", "noBoard": "بدون بورد", "empty": "کار فعالی یافت نشد." },
@@ -896,6 +911,8 @@
         "officeOpens": "ساعت باز شدن دفتر",
         "officeCloses": "ساعت بسته شدن دفتر",
         "defaultBreakMinutes": "دقایق پیش‌فرض وقفه",
+        "automaticAttendanceEnabled": "حاضری خودکار را فعال کنید",
+        "automaticAttendanceEnabledHint": "با غیرفعال‌کردن، ردیابی موقعیت، ورود/خروج شخصی و محاسبات خودکار زمان کار متوقف می‌شود.",
         "layoutColors": "رنگ‌های طرح / قالب",
         "companyPage": "شرکت",
         "operationsPage": "عملیات",
@@ -1481,10 +1498,10 @@
           "deleteIncomeRecord": "حذف رکورد درآمد",
           "recordIncome2": "ثبت درآمد",
           "captureAStandaloneReceiptOrApplyPaymentToAnInvoice": "ثبت یک رسید مستقل یا اعمال پرداخت به یک فاکتور.",
-          "customerTypeQuantityCurrencyAndExchangeRateComeFromTheInvoiceEnterOnly": "مشتری، نوع، تعداد، ارز و نرخ اسعار از فاکتور می‌آیند. تنها مبلغ دریافتی، تاریخ و یادداشت پرداخت (اختیاری) را وارد کنید.",
+          "customerTypeQuantityCurrencyAndExchangeRateComeFromTheInvoiceEnterOnly": "مشتری، نوع، تعداد و ارز از فاکتور می‌آیند. مبلغ دریافتی، نرخ اسعار، تاریخ و یادداشت پرداخت (اختیاری) را وارد کنید.",
           "editIncome": "ویرایش درآمد",
           "updateReceiptDetailsOrItsInvoiceAllocation": "بروزرسانی جزئیات رسید یا تخصیص فاکتور آن.",
-          "customerTypeQuantityCurrencyAndExchangeRateAreControlledByTheLinkedInv": "مشتری، نوع، تعداد، ارز و نرخ اسعار توسط فاکتور لینک‌شده کنترل می‌شوند."
+          "customerTypeQuantityCurrencyAndExchangeRateAreControlledByTheLinkedInv": "مشتری، نوع، تعداد و ارز توسط فاکتور لینک‌شده کنترل می‌شوند. نرخ اسعار برای این رسید قابل ویرایش است."
         }
       },
       "currencies": {
@@ -1541,8 +1558,8 @@
           "searchInvoiceOptions": "جستجوی گزینه‌های فاکتور"
         }
       },
-      "stock": {
-        "stock": {
+      "asset": {
+        "asset": {
           "new": "جدید",
           "good": "خوب",
           "fair": "قناعت‌بخش",
@@ -1554,25 +1571,25 @@
           "model": "مدل",
           "condition": "وضعیت / حالت",
           "assignedTo": "واگذارشده به",
-          "failedToFetchStockRecords": "دریافت رکوردهای گدام/موجودی ناکام ماند",
+          "failedToFetchAssetRecords": "دریافت رکوردهای گدام/موجودی ناکام ماند",
           "failedToFetchEmployees": "دریافت کارمندان ناکام ماند",
-          "stockItemAdded": "مورد گدام اضافه شد",
-          "failedToAddStockItem": "افزودن مورد به گدام ناکام ماند",
-          "stockItemUpdated": "مورد گدام بروزرسانی شد",
-          "failedToUpdateStockItem": "بروزرسانی مورد گدام ناکام ماند",
-          "stockItemDeleted": "مورد گدام حذف شد",
-          "failedToDeleteStockItem": "حذف مورد از گدام ناکام ماند",
+          "assetItemAdded": "مورد گدام اضافه شد",
+          "failedToAddAssetItem": "افزودن مورد به گدام ناکام ماند",
+          "assetItemUpdated": "مورد گدام بروزرسانی شد",
+          "failedToUpdateAssetItem": "بروزرسانی مورد گدام ناکام ماند",
+          "assetItemDeleted": "مورد گدام حذف شد",
+          "failedToDeleteAssetItem": "حذف مورد از گدام ناکام ماند",
           "failedToFetchOffices": "دریافت دفاتر ناکام ماند",
-          "searchStock": "جستجوی گدام",
+          "searchAsset": "جستجوی گدام",
           "filterByModel": "فیلتر بر اساس مدل",
           "filterByOffice": "فیلتر بر اساس دفتر",
           "filterByCondition": "فیلتر بر اساس وضعیت",
-          "printStockRecords": "چاپ رکوردهای گدام",
-          "addStock": "افزودن به گدام",
-          "editStockRecord": "ویرایش رکورد گدام",
-          "deleteStockRecord": "حذف رکورد گدام",
-          "addNewStockItem": "افزودن مورد جدید به گدام",
-          "editStockItem": "ویرایش مورد گدام"
+          "printAssetRecords": "چاپ رکوردهای گدام",
+          "addAsset": "افزودن به گدام",
+          "editAssetRecord": "ویرایش رکورد گدام",
+          "deleteAssetRecord": "حذف رکورد گدام",
+          "addNewAssetItem": "افزودن مورد جدید به گدام",
+          "editAssetItem": "ویرایش مورد گدام"
         }
       }
     },
@@ -1623,7 +1640,7 @@
         "customers": "مشتریان",
         "visitors": "بازدیدکنندگان",
         "tasks": "وظایف و تحویل",
-        "stock_assets": "موجودی و دارایی‌ها",
+        "asset_assets": "موجودی و دارایی‌ها",
         "employee_roster": "فهرست کارمندان",
         "paid_time_off": "رخصتی با معاش",
         "daily_reports": "گزارش‌های روزانه",
@@ -1857,7 +1874,7 @@
         "salaries": "معاش‌ها",
         "services": "خدمات",
         "settings": "تنظیمات شرکت",
-        "stocks": "موجودی گدام",
+        "assets": "موجودی گدام",
         "subtasks": "وظایف فرعی",
         "tags": "برچسب‌های وظایف",
         "task_attachments": "ضمیمه‌های وظایف",
@@ -1942,7 +1959,7 @@
       "invoiceValueCurrentBase": "ارزش فاکتور (ارز پایه فعلی)",
       "collectedCurrentBase": "دریافت‌شده (ارز پایه فعلی)",
       "outstandingCurrentBase": "باقی‌مانده (ارز پایه فعلی)",
-      "unitsInStock": "واحدهای موجود در انبار",
+      "unitsInAsset": "واحدهای موجود در انبار",
       "inventoryValue": "ارزش موجودی",
       "needsReview": "نیازمند بررسی",
       "netPayrollCurrentBase": "خالص معاش (ارز پایه فعلی)",
@@ -1991,7 +2008,7 @@
       "recordsCovered": "رکوردهای پوشش‌داده‌شده",
       "pages": {
         "visitors": { "title": "بازدیدکنندگان", "description": "فعالیت بازدیدکنندگان را بررسی و برای هر ورود یک رکورد روشن نگهداری کنید." },
-        "stockInventory": { "title": "موجودی انبار", "description": "سطح موجودی، وضعیت و تخصیص‌ها را در یک مکان مشاهده کنید." },
+        "assetInventory": { "title": "موجودی انبار", "description": "سطح موجودی، وضعیت و تخصیص‌ها را در یک مکان مشاهده کنید." },
         "staffSalaries": { "title": "معاش کارمندان", "description": "رکوردهای معاش را بررسی و پرداخت‌های نیازمند توجه را پیدا کنید." },
         "staffDirectory": { "title": "فهرست کارمندان", "description": "تیم، تخصیص‌ها و رکوردهای نیازمند پیگیری را مشاهده کنید." },
         "users": { "title": "کاربران", "description": "دسترسی، دعوت‌نامه‌ها و وضعیت فعلی حساب‌های کاربری را مدیریت کنید." },
@@ -2352,7 +2369,7 @@
         "invoices": "فاکتورها / بل‌ها",
         "income": "درآمد",
         "expenses": "مصارف",
-        "stock": "گدام / موجودی",
+        "asset": "گدام / موجودی",
         "visitors": "بازدیدکنندگان",
         "contracts": "قراردادها",
         "customers": "مشتریان",
@@ -2748,6 +2765,7 @@
         "workday_not_started": "پیش از پایان دادن به روز کاری، آن را شروع کنید.",
         "daily_report_already_submitted": "گزارش شما برای این روز کاری قبلاً ارسال شده است.",
         "office_geofence_unavailable": "حاضری خودکار در دسترس نیست زیرا محدوده جغرافیایی (Geofence) دفتر شما تنظیم نشده است.",
+        "automatic_attendance_disabled": "حاضری خودکار در تنظیمات شرکت غیرفعال است.",
         "paid_time_off_date_exists": "برای یک یا چند تاریخ انتخاب‌شده قبلاً درخواست رخصتی ثبت شده است.",
         "commission_employee_salary_forbidden": "کارمندان کمیسیونی از درآمد خدمات پرداخت می‌شوند و نمی‌توانند سابقه معاش داشته باشند.",
         "task_label_exists": "برچسب وظیفه‌ای با این نام از قبل وجود دارد.",
@@ -2760,7 +2778,7 @@
         "customer_has_invoice_history": "مشتریانی که سابقه فاکتور دارند قابل حذف نیستند.",
         "marketer_in_use": "این بازاریاب به مشتریان یا بازدیدکنندگان اختصاص دارد و قابل حذف نیست.",
         "position_in_use": "این بست به کارمندان یا کاربران اختصاص دارد و قابل حذف نیست.",
-        "office_has_stock": "برای این دفتر موجودی ثبت شده است و قابل حذف نیست.",
+        "office_has_asset": "برای این دفتر موجودی ثبت شده است و قابل حذف نیست.",
         "contract_template_in_use": "قالب‌هایی که در قراردادها استفاده شده‌اند قابل حذف نیستند.",
         "base_currency_cannot_be_deleted": "واحد پول پایه قابل حذف نیست.",
         "currency_in_use": "واحدهای پولی استفاده‌شده در خدمات، فاکتورها، معاش‌ها، درآمدها یا مصارف قابل حذف نیستند."

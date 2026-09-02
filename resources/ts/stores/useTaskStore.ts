@@ -47,7 +47,7 @@ export const useTaskStore = defineStore("taskManager", () => {
   // State
   const boards = ref<Board[]>([])
   const tasks = ref<Task[]>([])
-  const activeView = ref<'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings'>('kanban')
+  const activeView = ref<'portfolio' | 'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings'>('portfolio')
   const selectedTaskId = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -540,7 +540,7 @@ export const useTaskStore = defineStore("taskManager", () => {
     }
   }
 
-  const setView = (view: 'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings') => {
+  const setView = (view: 'portfolio' | 'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings') => {
     activeView.value = view
   }
 

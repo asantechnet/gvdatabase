@@ -212,8 +212,8 @@ const timeColors: Record<NonNullable<Attendance['check_in_state'] | Attendance['
 }
 const timeColor = (state: Attendance['check_in_state'] | Attendance['check_out_state']) => state ? timeColors[state] : 'secondary'
 
-const statusColor = (status: Attendance['status']) => ({ present: 'success', absent: 'error', 'paid-off-day': 'info', 'unpaid-off-day': 'warning' }[status])
-const statusIcon = (status: Attendance['status']) => ({ present: 'tabler-circle-check', absent: 'tabler-circle-x', 'paid-off-day': 'tabler-beach', 'unpaid-off-day': 'tabler-calendar-dollar' }[status])
+const statusColor = (status: Attendance['status']) => ({ present: 'success', absent: 'error', 'paid-leave': 'info', 'unpaid-leave': 'warning' }[status])
+const statusIcon = (status: Attendance['status']) => ({ present: 'tabler-circle-check', absent: 'tabler-circle-x', 'paid-leave': 'tabler-beach', 'unpaid-leave': 'tabler-calendar-dollar' }[status])
 
 const timeHints: Record<NonNullable<Attendance['check_in_state'] | Attendance['check_out_state']>, string> = {
   early: 'Early arrival',
@@ -418,7 +418,7 @@ watch(logDate, async () => {
             </VRow>
             <VSelect v-model="employeeFilter" :items="employees" item-title="name" item-value="id" :label="$t('common.fields.employee')" clearable class="mb-2" />
             <VSelect v-model="officeFilter" :items="offices" item-title="name" item-value="id" :label="$t('common.fields.office')" clearable class="mb-2" />
-            <VSelect v-model="statusFilter" :items="[{title: translate('common.statuses.present'),value:'present'},{title: translate('pages.attendance.timesheet.timesheet.absent'),value:'absent'},{title: translate('pages.attendance.timesheet.timesheet.paidLeave'),value:'paid-off-day'},{title:'Unpaid off-day',value:'unpaid-off-day'},{title: translate('pages.attendance.timesheet.timesheet.incomplete'),value:'incomplete'}]" :label="$t('common.fields.status')" clearable class="mb-2" />
+            <VSelect v-model="statusFilter" :items="[{title: translate('common.statuses.present'),value:'present'},{title: translate('pages.attendance.timesheet.timesheet.absent'),value:'absent'},{title: translate('pages.attendance.timesheet.timesheet.paidLeave'),value:'paid-leave'},{title:'Unpaid leave',value:'unpaid-leave'},{title: translate('pages.attendance.timesheet.timesheet.incomplete'),value:'incomplete'}]" :label="$t('common.fields.status')" clearable class="mb-2" />
 
             <VBtn color="primary" variant="elevated" size="large" block @click="printTimesheet"
               class="font-weight-bold shadow-primary mt-2" :loading="loading">
@@ -506,6 +506,14 @@ watch(logDate, async () => {
                           class="mr-1" />
                         {{ translateBackendValue(record.status) }}
                       </VChip>
+                      <div v-if="record.leave_duration_days" class="d-flex justify-center ga-1 mt-1">
+                        <VChip v-if="record.paid_leave_days" size="x-small" color="success" variant="tonal">
+                          {{ record.paid_leave_days }} {{ translateBackendValue('paid-leave') }}
+                        </VChip>
+                        <VChip v-if="record.unpaid_leave_days" size="x-small" color="warning" variant="tonal">
+                          {{ record.unpaid_leave_days }} {{ translateBackendValue('unpaid-leave') }}
+                        </VChip>
+                      </div>
                     </td>
 
                     <!-- Office-hour state is conveyed by both color and a tooltip. -->

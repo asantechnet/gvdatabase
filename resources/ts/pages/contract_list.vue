@@ -17,7 +17,7 @@ import ContractPageTemplate, { type CompanyDetails } from './templates/contract_
 import { canPrintPartyDetails, partyDetailsFor } from '@/utils/contractPartyDetails'
 
 const props = withDefaults(defineProps<{
-  contractAudience?: 'customers' | 'employees' | 'companies' | 'other'
+  contractAudience?: 'customers' | 'employees' | 'companies'
 }>(), {
   contractAudience: 'customers',
 })
@@ -28,7 +28,6 @@ const currentListRoute = () => ({
   customers: 'contracts',
   employees: 'employee-contracts',
   companies: 'company-contracts',
-  other: 'other-contracts',
 }[props.contractAudience])
 
 const {
@@ -454,9 +453,7 @@ onMounted(async () => {
       ? template.type_slug === 'employment'
       : props.contractAudience === 'customers'
         ? template.type_slug === 'customer'
-        : props.contractAudience === 'companies'
-          ? template.type_slug === 'company'
-        : !['employment', 'customer', 'company'].includes(template.type_slug || ''),
+        : template.type_slug === 'company',
   )
   const employeeId = Number(route.query.employeeId)
   if (props.contractAudience === 'employees' && route.query.print === '1' && employeeId) {

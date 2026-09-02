@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 class OfficeGeofenceService
 {
     private const MAX_ACCURACY_METERS = 100;
+
     private const EXIT_CONFIRMATION_SECONDS = 120;
 
     public function __construct(
@@ -20,6 +21,10 @@ class OfficeGeofenceService
 
     public function configuration(?Employee $employee): array
     {
+        if (! $this->company->automaticAttendanceEnabled()) {
+            return ['eligible' => false, 'reason' => 'automatic_attendance_disabled', 'timezone' => $this->company->timezone(), 'office' => null];
+        }
+
         $employee?->loadMissing('office');
         $office = $employee?->office;
 
@@ -35,6 +40,8 @@ class OfficeGeofenceService
 
     public function observe(Employee $employee, float $latitude, float $longitude, int $accuracyMeters): array
     {
+        abort_if(! $this->company->automaticAttendanceEnabled(), 422, 'business.automatic_attendance_disabled');
+
         $employee->loadMissing('office');
         $office = $employee->office;
         abort_unless($office?->hasActiveGeofence(), 422, 'business.office_geofence_unavailable');
@@ -106,7 +113,9 @@ class OfficeGeofenceService
             if ($attendance) {
                 $checkedInNow = ! $attendance->checked_in_at && ! $attendance->check_in_time;
                 $attendance->fill($values);
-                if ($attendance->trashed()) $attendance->restore();
+                if ($attendance->trashed()) {
+                    $attendance->restore();
+                }
                 $attendance->save();
 
                 return [$attendance, $checkedInNow];
@@ -119,8 +128,12 @@ class OfficeGeofenceService
             ]), true];
         });
 
-        if ($attendance->status !== 'present') return $this->result('blocked', $office, $distance, $accuracy, $attendance);
-        if ($attendance->checked_out_at || $attendance->check_out_time) return $this->result('already_completed', $office, $distance, $accuracy, $attendance);
+        if ($attendance->status !== 'present') {
+            return $this->result('blocked', $office, $distance, $accuracy, $attendance);
+        }
+        if ($attendance->checked_out_at || $attendance->check_out_time) {
+            return $this->result('already_completed', $office, $distance, $accuracy, $attendance);
+        }
 
         $this->calculator->calculate($attendance, true);
 
@@ -138,14 +151,19 @@ class OfficeGeofenceService
             ->latest('date')
             ->first();
 
-        if (! $attendance) return $this->result('outside', $office, $distance, $accuracy);
+        if (! $attendance) {
+            return $this->result('outside', $office, $distance, $accuracy);
+        }
 
-        $action = DB::transaction(function () use ($attendance, $office, $latitude, $longitude, $accuracy, $distance, $utcNow) {
+        $action = DB::transaction(function () use ($attendance, $latitude, $longitude, $accuracy, $distance, $utcNow) {
             $locked = Attendance::query()->lockForUpdate()->findOrFail($attendance->id);
-            if ($locked->checked_out_at || $locked->check_out_time) return ['already_completed', $locked, 0];
+            if ($locked->checked_out_at || $locked->check_out_time) {
+                return ['already_completed', $locked, 0];
+            }
 
             if (! $locked->geofence_exit_detected_at) {
                 $locked->update(['geofence_exit_detected_at' => $utcNow]);
+
                 return ['exit_pending', $locked, self::EXIT_CONFIRMATION_SECONDS];
             }
 
@@ -170,7 +188,9 @@ class OfficeGeofenceService
         });
 
         [$name, $attendance, $remaining] = $action;
-        if ($name === 'checked_out') $this->calculator->calculate($attendance, true);
+        if ($name === 'checked_out') {
+            $this->calculator->calculate($attendance, true);
+        }
 
         return $this->result($name, $office, $distance, $accuracy, $attendance, $remaining);
     }

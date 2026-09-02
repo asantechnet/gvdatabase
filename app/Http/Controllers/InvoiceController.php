@@ -23,7 +23,7 @@ class InvoiceController extends Controller
     {
         $this->repairMissingInvoiceNumbers();
 
-        $query = Invoice::with(['customer', 'currency', 'services', 'incomes', 'recorder']);
+        $query = Invoice::with(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']);
 
         $query->when($request->filled('customer_id'), fn ($query) =>
             $query->where('customer_id', $request->integer('customer_id'))
@@ -116,7 +116,7 @@ class InvoiceController extends Controller
                     $this->currencies->convert((float) $service->fee, $sourceCurrency, $invoiceCurrency, $invoiceCurrency->decimal_places),
                     $invoiceCurrency->decimal_places
                 );
-                $lineTotal = round($convertedFee * $quantity, 2);
+                $lineTotal = round($convertedFee * $quantity, $invoiceCurrency->decimal_places);
                 $subtotal += $lineTotal;
 
                 $pivotRows[$service->id] = [
@@ -135,10 +135,15 @@ class InvoiceController extends Controller
                 ];
             }
 
-            $subtotal = round($subtotal, 2);
-            $taxAmount = round($subtotal * ((float) $validated['tax_percent'] / 100), 2);
-            $discount = round((float) ($validated['discount'] ?? 0), 2);
-            $amount = max(0, round($subtotal + $taxAmount - $discount, 2));
+            $subtotal = round($subtotal, $invoiceCurrency->decimal_places);
+            $taxAmount = round($subtotal * ((float) $validated['tax_percent'] / 100), $invoiceCurrency->decimal_places);
+            $discount = round((float) ($validated['discount'] ?? 0), $invoiceCurrency->decimal_places);
+            if ($discount > $subtotal + $taxAmount) {
+                throw ValidationException::withMessages([
+                    'discount' => 'business.invoice_discount_exceeds_total',
+                ]);
+            }
+            $amount = round($subtotal + $taxAmount - $discount, $invoiceCurrency->decimal_places);
             $paymentDetail = isset($validated['payment_detail_id'])
                 ? PaymentDetail::findOrFail($validated['payment_detail_id'])
                 : null;
@@ -184,7 +189,7 @@ class InvoiceController extends Controller
             return $invoice;
         });
 
-        return (new InvoiceResource($invoice->load(['customer', 'currency', 'services', 'incomes', 'recorder'])))
+        return (new InvoiceResource($invoice->load(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder'])))
             ->response()
             ->setStatusCode(201);
     }
@@ -193,7 +198,7 @@ class InvoiceController extends Controller
     {
         $invoice->assignDocumentNumber();
 
-        return new InvoiceResource($invoice->load(['customer', 'currency', 'services', 'incomes', 'recorder']));
+        return new InvoiceResource($invoice->load(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']));
     }
 
     public function update()
@@ -205,25 +210,56 @@ class InvoiceController extends Controller
 
     public function void(Request $request, Invoice $invoice)
     {
-        $invoice->assignDocumentNumber();
-
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
         ]);
 
-        if ($invoice->voided_at) {
-            throw ValidationException::withMessages([
-                'invoice' => 'business.invoice_already_void',
+        $invoice = DB::transaction(function () use ($invoice, $validated) {
+            $invoice = Invoice::lockForUpdate()->findOrFail($invoice->id);
+            $invoice->assignDocumentNumber();
+
+            if ($invoice->voided_at) {
+                throw ValidationException::withMessages([
+                    'invoice' => 'business.invoice_already_void',
+                ]);
+            }
+
+            if ($invoice->incomes()->exists()) {
+                throw ValidationException::withMessages([
+                    'invoice' => 'business.invoice_with_payments_cannot_be_voided',
+                ]);
+            }
+
+            $invoice->update([
+                'status' => 'Void',
+                'voided_at' => now(),
+                'void_reason' => $validated['reason'],
             ]);
-        }
 
-        $invoice->update([
-            'status' => 'Void',
-            'voided_at' => now(),
-            'void_reason' => $validated['reason'],
-        ]);
+            return $invoice;
+        });
 
-        return new InvoiceResource($invoice->load(['customer', 'currency', 'services', 'incomes', 'recorder']));
+        return new InvoiceResource($invoice->load(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']));
+    }
+
+    public function markPaid(Invoice $invoice)
+    {
+        $invoice = DB::transaction(function () use ($invoice) {
+            $invoice = Invoice::with(['currency', 'incomes'])->lockForUpdate()->findOrFail($invoice->id);
+            $precision = max(0, min(8, (int) ($invoice->currency?->decimal_places ?? 2)));
+            $paid = round($invoice->incomes->sum(fn ($income) => (float) ($income->invoice_amount ?? ((float) $income->amount * (int) $income->quantity))), $precision);
+            $balance = max(0, round((float) $invoice->amount - $paid, $precision));
+
+            if ($invoice->status === 'Void' || $invoice->status === 'Paid' || $paid <= 0 || $balance <= 0 || $balance >= (float) $invoice->amount * 0.05) {
+                throw ValidationException::withMessages(['invoice' => 'business.invoice_balance_not_eligible_for_paid']);
+            }
+
+            $invoice->update(['status' => 'Paid']);
+
+            return $invoice;
+        });
+
+        return new InvoiceResource($invoice->load(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']));
     }
 
     public function destroy()

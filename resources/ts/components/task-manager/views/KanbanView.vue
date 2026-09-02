@@ -206,7 +206,7 @@ const handleUpdateBoardState = async (boardIds: number[]) => {
             </template>
           </VCardItem>
 
-          <VCardText class="kanban-scroll-area bg-grey-50">
+          <VCardText class="kanban-scroll-area bg-background">
             <VProgressLinear
               v-if="isLoading"
               indeterminate
@@ -269,6 +269,7 @@ const handleUpdateBoardState = async (boardIds: number[]) => {
 
 <style scoped>
 .kanban-scroll-area {
+  background: rgb(var(--v-theme-background));
   min-height: 65vh;
   overflow-x: auto;
   position: relative;

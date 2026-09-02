@@ -22,7 +22,9 @@ class DatabaseSeeder extends Seeder
         DB::table('customers')->truncate();
         DB::table('services')->truncate();
         DB::table('currencies')->truncate();
-        DB::table('stocks')->truncate();
+        DB::table('assets')->truncate();
+        DB::table('crm_interactions')->truncate();
+        DB::table('leads')->truncate();
         DB::table('visitors')->truncate();
         DB::table('task_user')->truncate();
         DB::table('board_user')->truncate();
@@ -43,8 +45,9 @@ class DatabaseSeeder extends Seeder
         DB::statement('ALTER TABLE currencies AUTO_INCREMENT = 1');
         DB::statement('ALTER TABLE services AUTO_INCREMENT = 1');
         DB::statement('ALTER TABLE customers AUTO_INCREMENT = 1');
-        DB::statement('ALTER TABLE stocks AUTO_INCREMENT = 1');
+        DB::statement('ALTER TABLE assets AUTO_INCREMENT = 1');
         DB::statement('ALTER TABLE visitors AUTO_INCREMENT = 1');
+        DB::statement('ALTER TABLE leads AUTO_INCREMENT = 1');
         DB::statement('ALTER TABLE boards AUTO_INCREMENT = 1');
         DB::statement('ALTER TABLE tags AUTO_INCREMENT = 1');
         DB::statement('ALTER TABLE tasks AUTO_INCREMENT = 1');
@@ -66,23 +69,12 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             SuperAdminSeeder::class, // This creates users (needs roles + permissions to exist)
             OfficeSeeder::class,
-            StockSeeder::class,
+            AssetSeeder::class,
             EmployeeSeeder::class,
             VisitorSeeder::class,
             AttendanceSeeder::class,
             SalarySeeder::class,
             WorthyEmployeeSeeder::class,
-            BoardSeeder::class,
-            TagSeeder::class,
-            TaskSeeder::class,
-            TaskUserSeeder::class,
-            SubtaskSeeder::class,
-            CommentSeeder::class,
-            TaskTagSeeder::class,
-            TaskDependencySeeder::class,
-            KanbanSeeder::class,
-            InvoiceSeeder::class,
-            NotificationSeeder::class,
             BoardSeeder::class,
             TagSeeder::class,
             TaskSeeder::class,

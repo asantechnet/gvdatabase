@@ -11,6 +11,8 @@ class ProjectResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'customer_id' => $this->customer_id,
+            'customer' => $this->whenLoaded('customer', fn () => $this->customer ? ['id' => $this->customer->id, 'name' => $this->customer->name, 'company' => $this->customer->company] : null),
             'name' => $this->name,
             'description' => $this->description,
             'status' => $this->status,
@@ -18,7 +20,7 @@ class ProjectResource extends JsonResource
             'due_date' => $this->due_date?->toDateString(),
             'created_by' => $this->created_by,
             'creator' => $this->whenLoaded('creator', fn () => ['id' => $this->creator->id, 'name' => $this->creator->name]),
-            'services' => $this->whenLoaded('services', fn () => ServiceResource::collection($this->services)),
+            'services' => $this->whenLoaded('customer', fn () => $this->customer ? CustomerServiceResource::collection($this->customer->customerServices) : []),
             'boards' => $this->whenLoaded('boards', fn () => BoardResource::collection($this->boards)),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

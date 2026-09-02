@@ -8,12 +8,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Setting extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory;
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'mail_password' => 'encrypted',
+        'automatic_attendance_enabled' => 'boolean',
     ];
 
     protected $fillable = [
@@ -30,7 +31,7 @@ class Setting extends Model
         'light_surface_color',
         'dark_background_color',
         'dark_surface_color',
-        'paid_off_days_per_year',
+        'paid_leave_days_per_year',
         'website_title',
         'website_logo',
         'company_signature',
@@ -58,5 +59,6 @@ class Setting extends Model
         'office_open_time',
         'office_close_time',
         'default_break_minutes',
+        'automatic_attendance_enabled',
     ];
 }

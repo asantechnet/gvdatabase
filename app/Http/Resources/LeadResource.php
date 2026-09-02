@@ -1,0 +1,20 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class LeadResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return ['id' => $this->id, 'visitor_id' => $this->visitor_id, 'customer_id' => $this->customer_id, 'name' => $this->name,
+            'company' => $this->company, 'contact' => $this->contact, 'email' => $this->email, 'service_interest' => $this->service_interest,
+            'marketer' => $this->marketer, 'stage' => $this->stage, 'probability' => $this->probability,
+            'estimated_value' => $this->estimated_value, 'next_follow_up_at' => $this->next_follow_up_at?->toDateString(),
+            'notes' => $this->notes, 'converted_at' => $this->converted_at?->toISOString(),
+            'owner' => $this->whenLoaded('owner', fn () => $this->owner?->only(['id', 'name'])),
+            'interactions' => CrmInteractionResource::collection($this->whenLoaded('interactions'))];
+    }
+}

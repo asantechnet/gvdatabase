@@ -6,6 +6,7 @@ import VisitorApi, { type Visitor, type CreateVisitorData, type UpdateVisitorDat
 import MarketerApi, { type Marketer } from '@/api/marketer'
 import { printDocument } from '@/utils/printDocument'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
+import LeadApi from '@/api/lead'
 
 const visitors = ref<Visitor[]>([])
 const search = ref('')
@@ -24,8 +25,10 @@ const visitorData = ref<Omit<Visitor, 'id' | 'date'>>({
   name: '',
   company: '',
   contact: '',
+  email: '',
   service: '',
   marketer: '',
+  notes: '',
 })
 
 const formErrors = ref({
@@ -41,8 +44,10 @@ const resetForm = () => {
     name: '',
     company: '',
     contact: '',
+    email: '',
     service: '',
     marketer: '',
+    notes: '',
   }
   formErrors.value = {
     name: '',
@@ -137,6 +142,7 @@ const filtered = computed(() => {
     const matchesSearch = v.name.toLowerCase().includes(search.value.toLowerCase()) ||
       v.company.toLowerCase().includes(search.value.toLowerCase()) ||
       v.contact.includes(search.value)
+      || (v.email?.toLowerCase().includes(search.value.toLowerCase()) ?? false)
     const matchesCompany = !filterCompany.value || v.company === filterCompany.value
     const matchesMarketer = !filterMarketer.value || v.marketer === filterMarketer.value
     return matchesSearch && matchesCompany && matchesMarketer
@@ -147,6 +153,7 @@ const headers = [
   { title: translate('common.fields.name'), key: 'name', sortable: true },
   { title: translate('common.fields.company'), key: 'company', sortable: true },
   { title: translate('common.messages.contact'), key: 'contact', sortable: true },
+  { title: translate('common.fields.email'), key: 'email', sortable: true },
   { title: translate('common.messages.service'), key: 'service', sortable: true },
   { title: translate('common.messages.marketer'), key: 'marketer', sortable: true },
   { title: translate('common.fields.date'), key: 'date', sortable: true },
@@ -166,8 +173,10 @@ const addNewVisitor = async () => {
       name: visitorData.value.name,
       company: visitorData.value.company,
       contact: visitorData.value.contact,
+      email: visitorData.value.email || null,
       service: visitorData.value.service,
       marketer: visitorData.value.marketer,
+      notes: visitorData.value.notes,
       date: new Date().toISOString().split('T')[0]
     }
 
@@ -194,8 +203,10 @@ const editVisitor = async () => {
       name: visitorData.value.name,
       company: visitorData.value.company,
       contact: visitorData.value.contact,
+      email: visitorData.value.email || null,
       service: visitorData.value.service,
       marketer: visitorData.value.marketer,
+      notes: visitorData.value.notes,
     }
 
     const response = await VisitorApi.update(selectedVisitor.value.id, data)
@@ -220,8 +231,10 @@ const openEditDialog = (visitor: Visitor) => {
     name: visitor.name,
     company: visitor.company,
     contact: visitor.contact,
+    email: visitor.email ?? '',
     service: visitor.service,
     marketer: visitor.marketer,
+    notes: visitor.notes || '',
   }
   isEditVisitorDialogVisible.value = true
 }
@@ -231,14 +244,14 @@ const openDeleteDialog = (visitor: Visitor) => {
   isDeleteVisitorDialogVisible.value = true
 }
 
-const convertToCustomer = async (visitor: Visitor) => {
+const convertToLead = async (visitor: Visitor) => {
   try {
     convertingVisitorId.value = visitor.id
-    await VisitorApi.convertToCustomer(visitor.id)
+    await LeadApi.fromVisitor(visitor.id)
     visitors.value = visitors.value.filter(item => item.id !== visitor.id)
-    toast.success(translate('pages.contracts.visitor.visitor.convertedToCustomer'))
+    toast.success('Visitor qualified as a lead')
   } catch {
-    toast.error(translate('pages.contracts.visitor.visitor.unableToConvertToCustomer'))
+    toast.error('Unable to convert visitor to lead')
   } finally {
     convertingVisitorId.value = null
   }
@@ -328,13 +341,18 @@ onMounted(() => {
       style="overflow-x: auto;"
     >
       <template #item.contact="{ item }">
-        <ContactActionMenu kind="phone" :value="item.contact" />
+        <ContactActionMenu kind="phone" :value="item.contact" contactable-type="visitor" :contactable-id="item.id" />
+      </template>
+
+      <template #item.email="{ item }">
+        <ContactActionMenu v-if="item.email" kind="email" :value="item.email" contactable-type="visitor" :contactable-id="item.id" />
+        <span v-else class="text-medium-emphasis">—</span>
       </template>
 
       <template #item.actions="{ item }">
         <div class="d-flex gap-1">
-          <FullDetailsButton :item="item" :title="item.name" />
-          <VBtn icon="tabler-user-check" variant="text" size="small" color="success" @click="convertToCustomer(item)" :loading="convertingVisitorId === item.id" :disabled="convertingVisitorId !== null"><VIcon icon="tabler-user-check" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.convertToCustomer') }}</VTooltip></VBtn>
+          <CrmRelationshipDetails type="visitor" :id="item.id" :title="item.name" />
+          <VBtn icon="tabler-filter-plus" variant="text" size="small" color="success" @click="convertToLead(item)" :loading="convertingVisitorId === item.id" :disabled="convertingVisitorId !== null"><VIcon icon="tabler-filter-plus" /><VTooltip activator="parent" location="top">Qualify as lead</VTooltip></VBtn>
           <VBtn
             icon="tabler-edit"
             variant="text"
@@ -355,7 +373,7 @@ onMounted(() => {
       </template>
     </ResponsiveDataTable>
   </VCard>
-  <PrintableListReport title="Visitors Report" subtitle="Filtered visitor records" :columns="headers.slice(0, -1).map(header => header.title)" :rows="filtered.map(visitor => [visitor.name, visitor.company, visitor.contact, visitor.service, visitor.marketer, visitor.date])" />
+  <PrintableListReport title="Visitors Report" subtitle="Filtered visitor records" :columns="headers.slice(0, -1).map(header => header.title)" :rows="filtered.map(visitor => [visitor.name, visitor.company, visitor.contact, visitor.email || '—', visitor.service, visitor.marketer, visitor.date])" />
 
   <!-- Add New Visitor Dialog -->
   <VDialog v-model="isAddNewVisitorDialogVisible" max-width="600">
@@ -400,6 +418,7 @@ onMounted(() => {
                 required
               />
             </VCol>
+            <VCol cols="12" md="6"><VTextField v-model="visitorData.email" :label="$t('common.fields.email')" type="email" prepend-inner-icon="tabler-mail" /></VCol>
             <VCol cols="12" md="6">
               <VTextField
                 v-model="visitorData.service"
@@ -423,6 +442,7 @@ onMounted(() => {
                 required
               />
             </VCol>
+            <VCol cols="12"><VTextarea v-model="visitorData.notes" label="Visitor notes" rows="3" hint="Capture interests, context, and anything useful before qualification." persistent-hint /></VCol>
           </VRow>
         </VForm>
       </VCardText>
@@ -491,6 +511,7 @@ onMounted(() => {
                 required
               />
             </VCol>
+            <VCol cols="12" md="6"><VTextField v-model="visitorData.email" :label="$t('common.fields.email')" type="email" prepend-inner-icon="tabler-mail" /></VCol>
             <VCol cols="12" md="6">
               <VTextField
                 v-model="visitorData.service"
@@ -514,6 +535,7 @@ onMounted(() => {
                 required
               />
             </VCol>
+            <VCol cols="12"><VTextarea v-model="visitorData.notes" label="Visitor notes" rows="3" hint="Capture interests, context, and anything useful before qualification." persistent-hint /></VCol>
           </VRow>
         </VForm>
       </VCardText>

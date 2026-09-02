@@ -12,7 +12,7 @@ export interface ReportFilters {
   board_id?: number | null
   status?: string | null
   contract_type?: string | null
-  attendance_state?: 'present' | 'absent' | 'paid-off-day' | 'incomplete' | 'complete' | null
+  attendance_state?: 'present' | 'absent' | 'paid-leave' | 'unpaid-leave' | 'incomplete' | 'complete' | null
 }
 
 export interface ReportSection {

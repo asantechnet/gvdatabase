@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useTaskStore } from '@/stores/useTaskStore'
 import ProjectApi, { type Project } from '@/api/project'
-import ServiceApi, { type Service } from '@/api/services'
+import CustomerApi, { type Customer } from '@/api/customer'
 import { canAccess } from '@/utils/authorization'
 import { computed, onMounted, ref } from 'vue'
 import CalendarView from './views/CalendarView.vue'
@@ -9,13 +9,14 @@ import GanttView from './views/GanttView.vue'
 import KanbanView from './views/KanbanView.vue'
 import TodoMatrixView from './views/TodoMatrixView.vue'
 import TaskSettingsView from './views/TaskSettingsView.vue'
+import ProjectPortfolioView from './views/ProjectPortfolioView.vue'
 
 const store = useTaskStore()
 const projects = ref<Project[]>([])
-const services = ref<Service[]>([])
+const customers = ref<Customer[]>([])
 const isProjectDialogOpen = ref(false)
 const savingProject = ref(false)
-const newProject = ref({ name: '', description: '', due_date: null as string | null, service_ids: [] as number[] })
+const newProject = ref({ name: '', description: '', due_date: null as string | null, customer_id: null as number | null })
 
 const projectOptions = computed(() => [
   { title: translate('components.taskManager.taskappshell.allWork'), value: null },
@@ -25,29 +26,27 @@ const projectOptions = computed(() => [
   })),
 ])
 
-const serviceOptions = computed(() => services.value
-  .filter(service => service.status === 'active')
-  .map(service => ({ title: service.type, value: service.id })))
+const customerOptions = computed(() => customers.value.map(customer => ({ title: `${customer.name} · ${customer.company}`, value: customer.id })))
 
 const changeProject = async (projectId: number | null) => {
   await store.selectProject(projectId)
 }
 
 const createProject = async () => {
-  if (!newProject.value.name.trim()) return
+  if (!newProject.value.name.trim() || !newProject.value.customer_id) return
   savingProject.value = true
   try {
     const project = await ProjectApi.create({
       name: newProject.value.name.trim(),
       description: newProject.value.description || null,
       due_date: newProject.value.due_date,
-      service_ids: newProject.value.service_ids,
+      customer_id: newProject.value.customer_id,
     })
     // Reload from the authoritative list so the new project is visible even
     // when an API response omits fields used by the select's item renderer.
     projects.value = await ProjectApi.getAll()
     isProjectDialogOpen.value = false
-    newProject.value = { name: '', description: '', due_date: null, service_ids: [] }
+    newProject.value = { name: '', description: '', due_date: null, customer_id: null }
     await changeProject(project.id)
   } finally {
     savingProject.value = false
@@ -55,9 +54,9 @@ const createProject = async () => {
 }
 
 onMounted(async () => {
-  const [projectResult, serviceResult] = await Promise.allSettled([ProjectApi.getAll(), ServiceApi.getAll()])
+  const [projectResult, customerResult] = await Promise.allSettled([ProjectApi.getAll(), CustomerApi.getAll()])
   if (projectResult.status === 'fulfilled') projects.value = projectResult.value
-  if (serviceResult.status === 'fulfilled' && serviceResult.value.success) services.value = serviceResult.value.data
+  if (customerResult.status === 'fulfilled' && customerResult.value.success) customers.value = customerResult.value.data
 })
 
 // Bi-directional binding to the Pinia state
@@ -67,6 +66,7 @@ const activeTab = computed({
 })
 
 const tabs = [
+  { title: 'Projects', value: 'portfolio', icon: 'tabler-folders' },
   { title: translate('components.taskManager.taskappshell.kanbanBoard'), value: 'kanban', icon: 'tabler-layout-kanban' },
   { title: translate('common.messages.calendar'), value: 'calendar', icon: 'tabler-calendar-event' },
   { title: translate('components.taskManager.taskappshell.ganttTimeline'), value: 'gantt', icon: 'tabler-chart-bar' },
@@ -77,6 +77,7 @@ const tabs = [
 // Dynamically swap views directly in this layout
 const currentComponent = computed(() => {
   switch (store.activeView) {
+    case 'portfolio': return ProjectPortfolioView
     case 'kanban': return KanbanView
     case 'calendar': return CalendarView
     case 'gantt': return GanttView
@@ -114,7 +115,7 @@ const currentComponent = computed(() => {
     <!-- View Container (Populates the view directly without route changes) -->
     <div class="view-container">
       <Transition name="fade-transition" mode="out-in">
-        <component :is="currentComponent" :key="store.activeView" />
+        <component :is="currentComponent" :key="store.activeView" :projects="projects" @select="changeProject($event); store.setView('kanban')" />
       </Transition>
     </div>
 
@@ -129,8 +130,8 @@ const currentComponent = computed(() => {
           <VTextarea v-model="newProject.description" :label="$t('common.fields.description')" rows="2" class="mb-4" />
           <AppDateTimePicker v-model="newProject.due_date" :label="$t('components.taskManager.taskappshell.targetDate')" class="mb-4"
             :config="{ dateFormat: 'Y-m-d' }" clearable />
-          <VAutocomplete v-model="newProject.service_ids" :items="serviceOptions" :label="$t('components.taskManager.taskappshell.linkedServices')"
-            multiple chips closable-chips clearable prepend-inner-icon="tabler-briefcase" />
+          <VAutocomplete v-model="newProject.customer_id" :items="customerOptions" label="Customer"
+            clearable prepend-inner-icon="tabler-user-dollar" hint="Services are inferred from this customer's service catalog." persistent-hint />
         </VCardText>
         <VCardActions>
           <VSpacer />

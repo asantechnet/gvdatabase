@@ -77,7 +77,7 @@ export interface Attendance {
   name: string
   role: string
   date: string // Format: 'YYYY-MM-DD'
-  status: 'present' | 'absent' | 'paid-off-day' | 'unpaid-off-day'
+  status: 'present' | 'absent' | 'paid-leave' | 'unpaid-leave'
   timestamp: string
   net_worked_minutes: number | null
   overtime_minutes: number

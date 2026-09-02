@@ -8,6 +8,7 @@ import WorkdayControl from '@/components/workday/WorkdayControl.vue'
 import EndDayDialog from '@/components/workday/EndDayDialog.vue'
 import MyPaidTimeOffDialog from '@/components/paid-time-off/MyPaidTimeOffDialog.vue'
 import WorkdayApi from '@/api/workday'
+import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
 
 const router = useRouter()
 const userData = useCookie<any>('userData')
@@ -15,6 +16,7 @@ const paidTimeOffDialog = ref(false)
 const startDayDialog = ref(false)
 const endDayDialog = ref(false)
 const startLoading = ref(false)
+const { enabled: automaticAttendanceEnabled, load: loadAutomaticAttendance } = useAutomaticAttendance()
 
 const userProfileList = [
   { type: 'navItem', icon: 'tabler-user', title: translate('components.navigation.userprofile.myAccount'), to: { name: 'account-settings', params: { tab: 'account' } } },
@@ -58,7 +60,10 @@ async function handleStartDay() {
   }
 }
 
-onMounted(refreshUser)
+onMounted(() => {
+  refreshUser()
+  loadAutomaticAttendance()
+})
 </script>
 
 <template>
@@ -77,7 +82,7 @@ onMounted(refreshUser)
               <VDivider v-else class="my-2" />
             </template>
             <VListItem prepend-icon="tabler-beach" @click="paidTimeOffDialog = true"><VListItemTitle>{{ $t('pages.paidTimeOff.myTitle') }}</VListItemTitle></VListItem>
-            <WorkdayControl @open-start-dialog="startDayDialog = true" @open-end-dialog="endDayDialog = true" />
+            <WorkdayControl v-if="automaticAttendanceEnabled" @open-start-dialog="startDayDialog = true" @open-end-dialog="endDayDialog = true" />
             <div class="px-4 py-2"><VBtn block size="small" color="error" append-icon="tabler-logout" @click="logout">{{ $t('components.navigation.userprofile.logout') }}</VBtn></div>
           </PerfectScrollbar>
         </VList>
@@ -85,8 +90,8 @@ onMounted(refreshUser)
     </VAvatar>
   </VBadge>
   <MyPaidTimeOffDialog v-model="paidTimeOffDialog" />
-  <EndDayDialog v-model="endDayDialog" />
-  <VDialog v-model="startDayDialog" persistent max-width="560">
+  <EndDayDialog v-if="automaticAttendanceEnabled" v-model="endDayDialog" />
+  <VDialog v-if="automaticAttendanceEnabled" v-model="startDayDialog" persistent max-width="560">
     <VCard>
       <VCardText class="pa-8 text-center">
         <VAvatar color="primary" variant="tonal" size="72" class="mb-5">

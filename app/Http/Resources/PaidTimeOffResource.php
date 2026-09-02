@@ -14,9 +14,13 @@ class PaidTimeOffResource extends JsonResource
             'employee_id' => $this->employee_id,
             'date' => $this->date->format('Y-m-d'),
             'year' => $this->year,
+            'duration_days' => (float) $this->duration_days,
             'reason' => $this->reason,
             'is_granted' => $this->is_granted,
             'is_paid' => $this->is_paid,
+            'paid_days' => $this->paid_days === null ? null : (float) $this->paid_days,
+            'paid_override' => (bool) $this->paid_override,
+            'approval_note' => $this->approval_note,
             'granted_at' => $this->granted_at?->toISOString(),
             'approved_by' => $this->granted_by,
             'approvedBy' => $this->whenLoaded('grantor', fn () => $this->grantor ? [

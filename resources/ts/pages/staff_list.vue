@@ -33,8 +33,6 @@ interface Staff {
   commissions: Array<{ service_id: number; service?: string; percentage: number }>
   total_worked_hours: number
   addr: string
-  ID_file: string | null
-  assure_file: string | null
   join_date: string
   contract_duration: string
   avatar?: string | null
@@ -64,7 +62,7 @@ const paidTimeOffYear = ref(new Date().getFullYear())
 const leaveAllowance = ref(0)
 const leaveUsed = ref(0)
 const leaveRemaining = ref(0)
-const leaveForm = ref({ id: null as number | null, date: new Date().toISOString().slice(0, 10), reason: '' })
+const leaveForm = ref({ id: null as number | null, date: new Date().toISOString().slice(0, 10), duration_days: 1 as 0.5 | 1, reason: '' })
 const leaveError = ref('')
 const isLeaveLoading = ref(false)
 
@@ -76,7 +74,7 @@ const isPaidTimeOffFormComplete = computed(() => Boolean(
 const canSavePaidTimeOff = computed(() => Boolean(
   !isLeaveLoading.value
   && isPaidTimeOffFormComplete.value
-  && (leaveForm.value.id || leaveRemaining.value > 0),
+  ,
 ))
 
 const paidTimeOffLimitMessage = computed(() => {
@@ -84,8 +82,8 @@ const paidTimeOffLimitMessage = computed(() => {
     return ''
 
   return leaveAllowance.value === 0
-    ? 'No paid-off days are configured. Set Paid-off days per year in Settings before adding a record.'
-    : `This employee has used all ${leaveAllowance.value} paid-off days for ${paidTimeOffYear.value}.`
+    ? 'No paid leave is configured. Set paid leave days per year in Settings.'
+    : `The ${leaveAllowance.value}-day paid allowance is used; new leave will be unpaid unless an authority overrides it.`
 })
 
 const educationOptions = ['High School', 'Diploma', 'Bachelor', 'Master', 'PhD']
@@ -260,8 +258,6 @@ const openAddStaffDialog = () => {
     salary: 0,
     commissions: [],
     total_worked_hours: 0,
-    ID_file: null,
-    assure_file: null,
     join_date: new Date().toISOString().split('T')[0],
     contract_duration: ''
   }
@@ -293,7 +289,7 @@ const loadPaidTimeOffs = async () => {
     leaveUsed.value = ledger.used
     leaveRemaining.value = ledger.remaining
   } catch (error) {
-    leaveError.value = apiErrorMessage(error, 'Unable to load paid-off days.')
+    leaveError.value = apiErrorMessage(error, 'Unable to load leave records.')
   } finally {
     isLeaveLoading.value = false
   }
@@ -308,12 +304,12 @@ const openPaidTimeOffDialog = async (staff: Staff) => {
 }
 
 const editPaidTimeOff = (record: PaidTimeOff) => {
-  leaveForm.value = { id: record.id, date: record.date, reason: record.reason }
+  leaveForm.value = { id: record.id, date: record.date, duration_days: record.duration_days, reason: record.reason }
   leaveError.value = ''
 }
 
 const resetPaidTimeOffForm = () => {
-  leaveForm.value = { id: null, date: `${paidTimeOffYear.value}-01-01`, reason: '' }
+  leaveForm.value = { id: null, date: `${paidTimeOffYear.value}-01-01`, duration_days: 1, reason: '' }
   leaveError.value = ''
 }
 
@@ -334,15 +330,10 @@ const savePaidTimeOff = async () => {
     leaveError.value = `Date: Choose a date in ${paidTimeOffYear.value}.`
     return
   }
-  if (!leaveForm.value.id && leaveRemaining.value < 1) {
-    leaveError.value = translate('pages.settings.staffList.staffList.paidOffDaysTheYearlyAllowanceHasBeenUsed')
-    return
-  }
-
   isLeaveLoading.value = true
   leaveError.value = ''
   try {
-    const payload = { date: leaveForm.value.date, reason: leaveForm.value.reason.trim() }
+    const payload = { date: leaveForm.value.date, duration_days: leaveForm.value.duration_days, reason: leaveForm.value.reason.trim() }
     if (leaveForm.value.id)
       await PaidTimeOffApi.update(leaveStaff.value.id, leaveForm.value.id, payload)
     else
@@ -350,7 +341,7 @@ const savePaidTimeOff = async () => {
     resetPaidTimeOffForm()
     await loadPaidTimeOffs()
   } catch (error) {
-    leaveError.value = apiErrorMessage(error, 'Unable to save paid-off day.')
+    leaveError.value = apiErrorMessage(error, 'Unable to save leave.')
   } finally {
     isLeaveLoading.value = false
   }
@@ -364,7 +355,7 @@ const deletePaidTimeOff = async (id: number) => {
     if (leaveForm.value.id === id) resetPaidTimeOffForm()
     await loadPaidTimeOffs()
   } catch (error) {
-    leaveError.value = apiErrorMessage(error, 'Unable to remove paid-off day.')
+    leaveError.value = apiErrorMessage(error, 'Unable to remove leave.')
   } finally {
     isLeaveLoading.value = false
   }
@@ -472,8 +463,6 @@ const addStaff = async () => {
       salary: selectedStaff.value.salary,
       commissions: selectedStaff.value.commissions.map(row => ({ service_id: row.service_id, percentage: row.percentage })),
       addr: selectedStaff.value.addr,
-      ID_file: selectedStaff.value.ID_file,
-      assure_file: selectedStaff.value.assure_file,
       join_date: selectedStaff.value.join_date,
       contract_duration: selectedStaff.value.contract_duration
     }
@@ -524,8 +513,6 @@ const updateStaff = async () => {
       salary: selectedStaff.value.salary,
       commissions: selectedStaff.value.commissions.map(row => ({ service_id: row.service_id, percentage: row.percentage })),
       addr: selectedStaff.value.addr,
-      ID_file: selectedStaff.value.ID_file,
-      assure_file: selectedStaff.value.assure_file,
       join_date: selectedStaff.value.join_date,
       contract_duration: selectedStaff.value.contract_duration
     }
@@ -745,6 +732,7 @@ onMounted(async () => {
               {{ formSubmissionError }}
             </VAlert>
             <VRow>
+              <FormSection title-key="common.fields.employee" description-key="common.messages.contact" icon="tabler-user" />
               <VCol cols="12" md="6">
                 <VTextField
                   v-model="selectedStaff.name"
@@ -807,6 +795,7 @@ onMounted(async () => {
                   required
                 />
               </VCol>
+              <FormSection title-key="common.messages.position" description-key="common.messages.contractDuration" icon="tabler-briefcase" />
               <VCol cols="12" md="6">
                 <VSelect
                   v-model="selectedStaff.position"
@@ -836,6 +825,7 @@ onMounted(async () => {
                 <VRow v-for="(commission, index) in selectedStaff.commissions" :key="index"><VCol cols="8"><VSelect v-model="commission.service_id" :items="services" item-title="type" item-value="id" label="Service" /></VCol><VCol cols="3"><VTextField v-model.number="commission.percentage" type="number" min="0.01" max="100" label="Percentage" suffix="%" /></VCol><VCol cols="1"><VBtn icon="tabler-x" variant="text" color="error" @click="removeCommission(index)" /></VCol></VRow>
               </VCol>
               <VCol cols="12" md="6"><VTextField v-model="selectedStaff.bank_account_number" label="Bank account number" /></VCol>
+              <FormSection title-key="common.fields.address" description-key="common.messages.guarantorAddress" icon="tabler-shield-check" />
               <VCol cols="12" md="6">
                 <VSelect
                   v-model="selectedStaff.contract_duration"
@@ -843,20 +833,6 @@ onMounted(async () => {
                   :label="$t('common.messages.contractDuration')"
                   :error-messages="formErrors.contract_duration"
                   required
-                />
-              </VCol>
-              <VCol cols="12" md="6">
-                <VTextField
-                  v-model="selectedStaff.ID_file"
-                  :label="$t('common.messages.idFile')"
-                  :placeholder="$t('common.messages.uploadFileName')"
-                />
-              </VCol>
-              <VCol cols="12" md="6">
-                <VTextField
-                  v-model="selectedStaff.assure_file"
-                  :label="$t('common.messages.assuranceFile')"
-                  :placeholder="$t('common.messages.uploadFileName')"
                 />
               </VCol>
               <VCol cols="12" md="6">
@@ -1029,20 +1005,6 @@ onMounted(async () => {
                 />
               </VCol>
               <VCol cols="12" md="6">
-                <VTextField
-                  v-model="selectedStaff.ID_file"
-                  :label="$t('common.messages.idFile')"
-                  :placeholder="$t('common.messages.uploadFileName')"
-                />
-              </VCol>
-              <VCol cols="12" md="6">
-                <VTextField
-                  v-model="selectedStaff.assure_file"
-                  :label="$t('common.messages.assuranceFile')"
-                  :placeholder="$t('common.messages.uploadFileName')"
-                />
-              </VCol>
-              <VCol cols="12" md="6">
                 <VTextField v-model="selectedStaff.guarantor_id_number" :label="$t('common.messages.guarantorGovernmentID')" />
               </VCol>
               <VCol cols="12" md="6">
@@ -1122,6 +1084,7 @@ onMounted(async () => {
             <VCol cols="12" md="6">
               <VTextField v-model="leaveForm.reason" :label="$t('common.fields.reason')" maxlength="1000" />
             </VCol>
+            <VCol cols="12" md="2"><VSelect v-model="leaveForm.duration_days" :items="[{ title: 'Full day', value: 1 }, { title: 'Half day', value: 0.5 }]" label="Duration" /></VCol>
             <VCol cols="12" md="3" class="d-flex gap-2">
               <VBtn
                 color="primary"

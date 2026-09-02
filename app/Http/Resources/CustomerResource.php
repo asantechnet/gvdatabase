@@ -23,8 +23,16 @@ class CustomerResource extends JsonResource
             'address' => $this->address,
             'tax_number' => $this->tax_number,
             'marketer' => $this->marketer,
+            'notes' => $this->notes,
             'date' => $this->date->toDateString(),
-            'services' => CustomerServiceResource::collection($this->whenLoaded('customerServices')),
+            'services' => $request->boolean('compact')
+                ? $this->whenLoaded('customerServices', fn () => $this->customerServices->map(fn ($item) => [
+                    'id' => $item->id, 'service_id' => $item->service_id, 'type' => $item->service?->type,
+                    'status' => $item->status, 'deadline' => $item->deadline?->toDateString(),
+                    'currency' => $item->service?->currency?->only(['id', 'code', 'symbol']),
+                ]), [])
+                : CustomerServiceResource::collection($this->whenLoaded('customerServices')),
+            'interactions' => CrmInteractionResource::collection($this->whenLoaded('interactions')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
