@@ -1,6 +1,10 @@
 import api from "./axios";
 
-// Types matching the frontend requirements
+export interface CrmMarketer {
+  id: number;
+  name: string;
+}
+
 export interface Visitor {
   id: number;
   name: string;
@@ -8,7 +12,11 @@ export interface Visitor {
   contact: string;
   email: string | null;
   service: string;
-  marketer: string;
+  // `marketer` remains a display label for legacy records. New requests use
+  // the relational marketer_id instead of trying to match a name.
+  marketer: string | null;
+  marketer_id: number | null;
+  marketer_employee: CrmMarketer | null;
   notes: string | null;
   date: string;
   created_at?: string;
@@ -20,7 +28,7 @@ export interface VisitorParams {
   perPage?: number;
   search?: string;
   company?: string;
-  marketer?: string;
+  marketer_id?: number | null;
 }
 
 export interface CreateVisitorData {
@@ -29,7 +37,7 @@ export interface CreateVisitorData {
   contact: string;
   email?: string | null;
   service: string;
-  marketer: string;
+  marketer_id?: number | null;
   date: string;
   notes?: string | null;
 }
@@ -40,7 +48,7 @@ export interface UpdateVisitorData {
   contact?: string;
   email?: string | null;
   service?: string;
-  marketer?: string;
+  marketer_id?: number | null;
   date?: string;
   notes?: string | null;
 }

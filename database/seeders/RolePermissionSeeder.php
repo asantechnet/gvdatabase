@@ -35,6 +35,7 @@ class RolePermissionSeeder extends Seeder
                 'grant_paid_time_off', 'print_paid_time_off',
                 'view_attendance', 'record_attendance', 'view_unmarked_attendance_staff',
                 'view_bonuses', 'nominate_bonus_candidates', 'edit_bonus_nominations',
+                'view_commissions', 'manage_commission_settlements', 'approve_commissions',
                 'view_positions', 'view_marketers', 'view_offices',
                 'view_customers', 'create_customers', 'edit_customers', 'manage_customer_services',
                 'view_contracts', 'create_contracts', 'edit_contracts', 'cancel_contracts', 'download_contracts',

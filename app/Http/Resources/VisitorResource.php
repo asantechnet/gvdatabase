@@ -17,6 +17,11 @@ class VisitorResource extends JsonResource
             'email' => $this->email,
             'service' => $this->service,
             'marketer' => $this->marketer,
+            'marketer_id' => $this->marketer_id,
+            'marketer_employee' => $this->whenLoaded('marketerEmployee', fn () => $this->marketerEmployee ? [
+                'id' => $this->marketerEmployee->id,
+                'name' => $this->marketerEmployee->name,
+            ] : null),
             'notes' => $this->notes,
             'converted_at' => $this->converted_at?->toISOString(),
             'interactions' => CrmInteractionResource::collection($this->whenLoaded('interactions')),

@@ -7,6 +7,8 @@ use App\Models\Concerns\HasDocumentNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Services\CommissionAccrualService;
 
 class Income extends Model
 {
@@ -15,6 +17,7 @@ class Income extends Model
     protected $fillable = [
         'receipt_number',
         'customer_id',
+        'company_id',
         'invoice_id',
         'currency_id',
         'base_currency_id',
@@ -35,6 +38,7 @@ class Income extends Model
         'invoice_amount' => 'decimal:6',
         'date' => 'date',
         'customer_id' => 'integer',
+        'company_id' => 'integer',
         'invoice_id' => 'integer',
         'currency_id' => 'integer',
         'base_currency_id' => 'integer',
@@ -50,6 +54,11 @@ class Income extends Model
         return $this->belongsTo(Invoice::class);
     }
 
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
     public function incomeCurrency()
     {
         return $this->belongsTo(Currency::class, 'currency_id');
@@ -63,6 +72,11 @@ class Income extends Model
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    public function commissionAccruals(): HasMany
+    {
+        return $this->hasMany(CommissionAccrual::class);
     }
 
     protected function documentNumberColumn(): string
@@ -81,10 +95,25 @@ class Income extends Model
             $income->base_amount = ($income->amount * $income->quantity) / $income->rate;
         });
 
+        static::created(fn (Income $income) => app(CommissionAccrualService::class)->syncForIncome($income));
+
         static::updating(function ($income) {
+            if ($income->isDirty(['invoice_id', 'amount', 'quantity', 'rate', 'date', 'base_currency_id'])) {
+                app(CommissionAccrualService::class)->assertIncomeMutable($income);
+            }
             if ($income->isDirty(['amount', 'quantity', 'rate'])) {
                 $income->base_amount = ($income->amount * $income->quantity) / $income->rate;
             }
+        });
+
+        static::updated(function (Income $income) {
+            if ($income->wasChanged(['invoice_id', 'amount', 'quantity', 'rate', 'date', 'base_currency_id', 'base_amount'])) {
+                app(CommissionAccrualService::class)->syncForIncome($income->fresh());
+            }
+        });
+
+        static::deleting(function (Income $income) {
+            app(CommissionAccrualService::class)->voidForIncome($income);
         });
     }
 }

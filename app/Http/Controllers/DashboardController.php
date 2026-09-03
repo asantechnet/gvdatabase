@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\Contract;
+use App\Models\CommissionSettlement;
 use App\Models\Customer;
 use App\Models\CustomerService;
 use App\Models\Currency;
@@ -30,9 +31,15 @@ class DashboardController extends Controller
 {
     public function stats(Request $request, CompanyProfile $companyProfile): JsonResponse
     {
+        $request->validate([
+            'period' => 'nullable|in:1m,3m,1y,2y,custom',
+            'start_date' => 'nullable|required_if:period,custom|date',
+            'end_date' => 'nullable|required_if:period,custom|date|after_or_equal:start_date',
+        ]);
         /** @var User $user */
         $user = $request->user();
         $now = now($companyProfile->timezone());
+        [$periodStart, $periodEnd] = $this->dashboardPeriod($request, $now);
         $tasks = $this->visibleTasks($user);
         $canViewAllTasks = $user->hasPermission('view_all_tasks');
         $activeTasks = (clone $tasks)->where('progress', '<', 100);
@@ -44,7 +51,9 @@ class DashboardController extends Controller
         $canViewAsset = $user->hasPermission('view_assets');
         $canViewEmployees = $user->hasPermission('view_employees') || $canViewAttendance;
         $canViewContracts = $user->hasPermission('view_contracts');
-        $canViewPayroll = $user->hasPermission('view_salaries');
+        $canViewSalaries = $user->hasPermission('view_salaries');
+        $canViewCommissions = $user->hasPermission('view_commissions');
+        $canViewPayroll = $canViewSalaries || $canViewCommissions;
         $canViewVisitors = $user->hasPermission('view_visitors');
         $canViewServices = $user->hasPermission('view_services') || $user->hasPermission('manage_customer_services');
 
@@ -56,12 +65,12 @@ class DashboardController extends Controller
             ?? Currency::query()->orderBy('id')->first();
 
         $currentMonthIncomeByBase = $canViewFinance
-            ? $this->incomeByBase($now->copy()->startOfMonth(), $now->copy()->endOfMonth(), $baseCurrency)
+            ? $this->incomeByBase($periodStart, $periodEnd, $baseCurrency)
             : [];
         $previousMonthIncomeByBase = $canViewFinance
             ? $this->incomeByBase(
-                $now->copy()->subMonthNoOverflow()->startOfMonth(),
-                $now->copy()->subMonthNoOverflow()->endOfMonth(),
+                $periodStart->copy()->subDays((int) $periodStart->diffInDays($periodEnd) + 1),
+                $periodStart->copy()->subDay(),
                 $baseCurrency,
             )
             : [];
@@ -70,15 +79,15 @@ class DashboardController extends Controller
         $previousMonthIncome = $canViewFinance ? ($previousMonthIncomeByBase[$displayBase] ?? 0.0) : null;
 
         $currentMonthAttendance = $canViewAttendance
-            ? $this->attendanceSummary($now->copy()->startOfMonth(), $now->copy()->endOfMonth())
+            ? $this->attendanceSummary($periodStart, $periodEnd)
             : null;
-        $financialOverview = $canViewFinance ? $this->financialOverview($now) : null;
+        $financialOverview = $canViewFinance ? $this->financialOverview($periodStart, $periodEnd) : null;
         $allReceivables = $canViewInvoices ? $this->receivables($now, false) : [];
         $invoiceOverview = $canViewInvoices
             ? ['count' => count($allReceivables), 'value' => round(array_sum(array_column($allReceivables, 'balance')), 2)]
             : null;
         $commercialOverview = $this->commercialOverview($now, $canViewCustomers, $canViewInvoices, $canViewServices, $canViewContracts, $canViewVisitors);
-        $peopleOverview = $this->peopleOverview($now, $canViewEmployees, $canViewAttendance, $canViewPayroll);
+        $peopleOverview = $this->peopleOverview($now, $canViewEmployees, $canViewAttendance, $canViewSalaries, $canViewCommissions);
 
         $activeTaskRows = (clone $activeTasks)
             ->with('board:id,title')
@@ -121,7 +130,7 @@ class DashboardController extends Controller
                     'nearing_completion_tasks' => (clone $activeTasks)->where('progress', '>=', 75)->count(),
                     'completed_tasks_this_month' => (clone $tasks)
                         ->where('progress', 100)
-                        ->whereBetween('completed_at', $this->utcRange($now->copy()->startOfMonth(), $now->copy()->endOfMonth()))
+                        ->whereBetween('completed_at', $this->utcRange($periodStart, $periodEnd))
                         ->count(),
                     'overdue_tasks' => (clone $activeTasks)->whereDate('due_date', '<', $now->toDateString())->count(),
                     'average_task_progress' => round((float) ((clone $tasks)->avg('progress') ?? 0), 1),
@@ -168,7 +177,7 @@ class DashboardController extends Controller
                 'attention_items' => $this->attentionItems($activeTasks, $now, $allReceivables, $canViewAsset),
                 'commercial_overview' => $commercialOverview,
                 'people_overview' => $peopleOverview,
-                'kpi_trends' => $this->kpiTrends($tasks, $now, $canViewFinance, $canViewCustomers, $canViewPayroll, $canViewVisitors),
+                'kpi_trends' => $this->kpiTrends($tasks, $now, $canViewFinance, $canViewCustomers, $canViewSalaries, $canViewCommissions, $canViewVisitors),
                 'business_trend' => $canViewFinance ? $this->businessTrend($now) : null,
                 'invoice_aging' => $canViewInvoices ? $this->invoiceAging($allReceivables, $now) : null,
                 'service_portfolio' => $canViewServices ? $this->servicePortfolio() : [],
@@ -357,16 +366,34 @@ class DashboardController extends Controller
         return compact('labels', 'income', 'expenses');
     }
 
-    private function financialOverview(Carbon $now): array
+    private function financialOverview(Carbon $start, Carbon $end): array
     {
-        $start = $now->copy()->startOfMonth();
-        $end = $now->copy()->endOfMonth();
         $income = Income::query()->whereBetween('date', [$start, $end]);
         $expenses = Expense::query()->whereBetween('date', [$start, $end]);
         $incomeTotal = round($this->incomeSum($income), 2);
         $expenseTotal = round($this->expenseSum($expenses), 2);
 
         return ['income' => $incomeTotal, 'expenses' => $expenseTotal, 'net_cash' => round($incomeTotal - $expenseTotal, 2)];
+    }
+
+    /** @return array{0: Carbon, 1: Carbon} */
+    private function dashboardPeriod(Request $request, Carbon $now): array
+    {
+        if ($request->input('period') === 'custom') {
+            return [
+                Carbon::parse($request->input('start_date'), $now->timezone)->startOfDay(),
+                Carbon::parse($request->input('end_date'), $now->timezone)->endOfDay(),
+            ];
+        }
+
+        $start = match ($request->input('period', '1m')) {
+            '3m' => $now->copy()->subMonthsNoOverflow(3),
+            '1y' => $now->copy()->subYear(),
+            '2y' => $now->copy()->subYears(2),
+            default => $now->copy()->subMonthNoOverflow(),
+        };
+
+        return [$start->startOfDay(), $now->copy()->endOfDay()];
     }
 
     private function expenseBreakdown(Carbon $now): array
@@ -495,11 +522,30 @@ class DashboardController extends Controller
         ];
     }
 
-    private function peopleOverview(Carbon $now, bool $canViewEmployees, bool $canViewAttendance, bool $canViewPayroll): array
+    private function peopleOverview(Carbon $now, bool $canViewEmployees, bool $canViewAttendance, bool $canViewSalaries, bool $canViewCommissions): array
     {
         $employeeCount = $canViewEmployees ? Employee::query()->count() : null;
         $todayAttendance = $canViewAttendance ? Attendance::query()->whereDate('date', $now->toDateString()) : null;
-        $latestPayrollPeriod = $canViewPayroll ? Salary::query()->max('salary_month') : null;
+        $latestSalaryPeriod = $canViewSalaries ? Salary::query()->max('salary_month') : null;
+        $latestCommissionPayment = $canViewCommissions
+            ? CommissionSettlement::query()->where('status', 'paid')->max('payment_date')
+            : null;
+        $latestPayrollPeriod = max(
+            $latestSalaryPeriod ?? '',
+            $latestCommissionPayment ? Carbon::parse($latestCommissionPayment)->format('Y-m') : '',
+        ) ?: null;
+        $latestPayrollTotal = 0.0;
+        if ($latestPayrollPeriod) {
+            if ($canViewSalaries) {
+                $latestPayrollTotal += $this->salarySum(Salary::query()->where('salary_month', $latestPayrollPeriod));
+            }
+            if ($canViewCommissions) {
+                $latestPayrollTotal += (float) CommissionSettlement::query()
+                    ->where('status', 'paid')
+                    ->whereBetween('payment_date', ["{$latestPayrollPeriod}-01", Carbon::parse("{$latestPayrollPeriod}-01")->endOfMonth()->toDateString()])
+                    ->sum('gross_base_amount');
+            }
+        }
 
         return [
             'employees' => $employeeCount,
@@ -516,8 +562,7 @@ class DashboardController extends Controller
                 ->sum('overtime_minutes') : null,
             'pending_leave_requests' => $canViewEmployees ? PaidTimeOff::query()->where('is_granted', false)->whereDate('date', '>=', $now->toDateString())->count() : null,
             'latest_payroll_period' => $latestPayrollPeriod,
-            'latest_payroll_total' => $latestPayrollPeriod ? round($this->salarySum(Salary::query()
-                ->where('salary_month', $latestPayrollPeriod)), 2) : null,
+            'latest_payroll_total' => $latestPayrollPeriod ? round($latestPayrollTotal, 2) : null,
         ];
     }
 
@@ -526,7 +571,8 @@ class DashboardController extends Controller
         Carbon $now,
         bool $canViewFinance,
         bool $canViewCustomers,
-        bool $canViewPayroll,
+        bool $canViewSalaries,
+        bool $canViewCommissions,
         bool $canViewVisitors,
     ): array {
         $labels = [];
@@ -543,7 +589,16 @@ class DashboardController extends Controller
             $labels[] = $month->copy()->startOfMonth()->toDateString();
             $invoiceValue[] = $canViewFinance ? round($this->invoiceSum($this->invoicesForPeriod($start, $end)), 2) : 0;
             $customers[] = $canViewCustomers ? Customer::query()->whereBetween('date', [$start, $end])->count() : 0;
-            $payroll[] = $canViewPayroll ? round($this->salarySum(Salary::query()->where('salary_month', $month->format('Y-m'))), 2) : 0;
+            $salaryAmount = $canViewSalaries
+                ? $this->salarySum(Salary::query()->where('salary_month', $month->format('Y-m')))
+                : 0;
+            $commissionAmount = $canViewCommissions
+                ? (float) CommissionSettlement::query()
+                    ->where('status', 'paid')
+                    ->whereBetween('payment_date', [$start->toDateString(), $end->toDateString()])
+                    ->sum('gross_base_amount')
+                : 0;
+            $payroll[] = round($salaryAmount + $commissionAmount, 2);
             $visitors[] = $canViewVisitors ? Visitor::query()->whereBetween('date', [$start, $end])->count() : 0;
             $completedTasks[] = (clone $tasks)->where('progress', 100)->whereBetween('completed_at', $this->utcRange($start, $end))->count();
         }

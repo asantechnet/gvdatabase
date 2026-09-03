@@ -23,6 +23,11 @@ class CustomerResource extends JsonResource
             'address' => $this->address,
             'tax_number' => $this->tax_number,
             'marketer' => $this->marketer,
+            'marketer_id' => $this->marketer_id,
+            'marketer_employee' => $this->whenLoaded('marketerEmployee', fn () => $this->marketerEmployee ? [
+                'id' => $this->marketerEmployee->id,
+                'name' => $this->marketerEmployee->name,
+            ] : null),
             'notes' => $this->notes,
             'date' => $this->date->toDateString(),
             'services' => $request->boolean('compact')

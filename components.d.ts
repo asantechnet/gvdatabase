@@ -433,6 +433,7 @@ declare module 'vue' {
     TiptapEditor: typeof import('./resources/ts/@core/components/TiptapEditor.vue')['default']
     TodoMatrixView: typeof import('./resources/ts/components/task-manager/views/TodoMatrixView.vue')['default']
     TwoFactorAuthDialog: typeof import('./resources/ts/components/dialogs/TwoFactorAuthDialog.vue')['default']
+    UserAccountSelect: typeof import('./resources/ts/components/UserAccountSelect.vue')['default']
     UserForm: typeof import('./resources/ts/components/forms/UserForm.vue')['default']
     UserInfoEditDialog: typeof import('./resources/ts/components/dialogs/UserInfoEditDialog.vue')['default']
     UserUpgradePlanDialog: typeof import('./resources/ts/components/dialogs/UserUpgradePlanDialog.vue')['default']

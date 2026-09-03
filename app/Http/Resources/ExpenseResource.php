@@ -17,6 +17,14 @@ class ExpenseResource extends JsonResource
         return [
             'id' => $this->id,
             'customer_id' => $this->customer_id,
+            'company_id' => $this->company_id,
+            'company' => $this->whenLoaded('company', fn () => $this->company ? [
+                'id' => $this->company->id, 'name' => $this->company->trade_name ?: $this->company->legal_name,
+            ] : null),
+            'project_id' => $this->project_id,
+            'project' => $this->whenLoaded('project', fn () => $this->project ? [
+                'id' => $this->project->id, 'name' => $this->project->name,
+            ] : null),
             'currency_id' => $this->currency_id,
             'base_currency_id' => $this->base_currency_id,
             'type' => $this->type,

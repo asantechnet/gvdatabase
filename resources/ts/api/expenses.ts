@@ -1,9 +1,15 @@
 import api from "./axios";
 import type { Currency } from "./currency";
+import type { Company } from './company';
+import type { Project } from './project';
 
 export interface Expense {
   id: number;
   customer_id: number | null;
+  company_id: number | null;
+  company?: Pick<Company, 'id' | 'legal_name' | 'trade_name'> | { id: number; name: string } | null;
+  project_id: number | null;
+  project?: Pick<Project, 'id' | 'name'> | null;
   currency_id: number;
   type: string;
   description: string;
@@ -22,6 +28,8 @@ export interface Expense {
 
 export interface ExpenseCreateData {
   customer_id?: number | null;
+  company_id?: number | null;
+  project_id?: number | null;
   currency_id: number;
   type: string;
   description: string;
@@ -33,6 +41,8 @@ export interface ExpenseCreateData {
 
 export interface ExpenseUpdateData {
   customer_id?: number | null;
+  company_id?: number | null;
+  project_id?: number | null;
   currency_id?: number;
   type?: string;
   description?: string;
@@ -46,6 +56,8 @@ export interface ExpenseParams {
   search?: string;
   type?: string;
   currency_id?: number;
+  company_id?: number;
+  project_id?: number;
 }
 
 export const getExpenses = async (

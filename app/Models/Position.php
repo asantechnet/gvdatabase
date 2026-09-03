@@ -16,6 +16,7 @@ class Position extends Model
         'salary',
         'currency_id', 'currency_code', 'currency_symbol', 'currency_decimal_places', 'rate',
         'status',
+        'system_key',
     ];
 
     protected function casts(): array

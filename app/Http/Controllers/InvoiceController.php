@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\InvoiceResource;
 use App\Models\Currency;
 use App\Models\Customer;
+use App\Models\CustomerService;
 use App\Models\Invoice;
 use App\Models\PaymentDetail;
 use App\Services\CurrencyConversionService;
@@ -48,6 +49,47 @@ class InvoiceController extends Controller
         return InvoiceResource::collection($query->latest()->get());
     }
 
+    public function commissionCandidates()
+    {
+        // Kept for API compatibility. Candidates are now derived from the
+        // customer-service delivery assignment plus the employee's catalogue
+        // capability, never from the retired customer-specific rate table.
+        $assignments = CustomerService::query()
+            ->where('status', 'active')
+            ->whereNotNull('employee_id')
+            ->with(['employee.commissionServices'])
+            ->orderBy('employee_id')
+            ->get()
+            ->map(function (CustomerService $customerService): ?array {
+                $employee = $customerService->employee;
+                $capability = $employee?->commissionServices->firstWhere('id', $customerService->service_id);
+
+                if (! $employee || $employee->employment_type !== 'commission' || ! $capability) {
+                    return null;
+                }
+
+                return [
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employee->name,
+                    'customer_service_id' => $customerService->id,
+                    'percentage' => (float) $capability->pivot->percentage,
+                ];
+            })
+            ->filter()
+            ->groupBy('employee_id')
+            ->map(fn ($rows) => [
+                'id' => $rows->first()['employee_id'],
+                'name' => $rows->first()['employee_name'],
+                'customer_services' => $rows->map(fn (array $row) => [
+                    'customer_service_id' => $row['customer_service_id'],
+                    'percentage' => $row['percentage'],
+                ])->values(),
+            ])
+            ->values();
+
+        return response()->json(['data' => $assignments]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -62,7 +104,7 @@ class InvoiceController extends Controller
             'issue_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'services' => ['required', 'array', 'min:1'],
-            'services.*.id' => ['required', 'integer', 'distinct', 'exists:services,id'],
+            'services.*.customer_service_id' => ['required', 'integer', 'distinct', 'exists:customer_service,id'],
             'services.*.quantity' => ['sometimes', 'integer', 'min:1'],
             'tax_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'discount' => ['sometimes', 'numeric', 'min:0'],
@@ -81,13 +123,16 @@ class InvoiceController extends Controller
 
         $recordedBy = $request->user()->id;
         $invoice = DB::transaction(function () use ($validated, $recordedBy) {
-            $customer = Customer::with('customerServices.service.currency')
+            $customer = Customer::with([
+                'customerServices.service.currency',
+                'customerServices.currency',
+                'customerServices.employee.commissionServices',
+            ])
                 ->findOrFail($validated['customer_id']);
             $invoiceCurrency = Currency::findOrFail($validated['currency_id']);
-            $assignedServices = $customer->customerServices
-                ->keyBy('service_id');
+            $assignedServices = $customer->customerServices->keyBy('id');
             $serviceRows = collect($validated['services']);
-            $requestedIds = $serviceRows->pluck('id');
+            $requestedIds = $serviceRows->pluck('customer_service_id');
 
             if ($requestedIds->contains(fn ($id) => !$assignedServices->has($id))) {
                 throw ValidationException::withMessages([
@@ -102,8 +147,32 @@ class InvoiceController extends Controller
             $subtotal = 0.0;
 
             foreach ($serviceRows as $row) {
-                $service = $assignedServices->get($row['id'])->service;
-                $sourceCurrency = $service->currency;
+                $customerService = $assignedServices->get($row['customer_service_id']);
+                $service = $customerService->service;
+                $sourceCurrency = $customerService->currency ?? $service->currency;
+                $contractedFee = (float) ($customerService->fee ?? $service->fee);
+                $commissionableInvoice = in_array($validated['class_type'], ['Standard', 'Debit Note'], true);
+                $commissionEmployee = null;
+                $commissionPercentage = null;
+
+                // A customer service is the delivery decision. It names the
+                // responsible employee; the employee's service capability
+                // supplies the rate. Invoice users never choose a commission
+                // recipient manually, and the resolved rate is snapshotted.
+                if ($commissionableInvoice && $customerService->employee) {
+                    $deliveryEmployee = $customerService->employee;
+                    $capability = $deliveryEmployee->commissionServices
+                        ->firstWhere('id', $service->id);
+
+                    if ($deliveryEmployee->employment_type !== 'commission' || ! $capability) {
+                        throw ValidationException::withMessages([
+                            'services' => 'business.customer_service_delivery_employee_ineligible',
+                        ]);
+                    }
+
+                    $commissionEmployee = $deliveryEmployee;
+                    $commissionPercentage = (float) $capability->pivot->percentage;
+                }
 
                 if (!$sourceCurrency || (float) $sourceCurrency->rate <= 0) {
                     throw ValidationException::withMessages([
@@ -113,15 +182,16 @@ class InvoiceController extends Controller
 
                 $quantity = $row['quantity'] ?? 1;
                 $convertedFee = round(
-                    $this->currencies->convert((float) $service->fee, $sourceCurrency, $invoiceCurrency, $invoiceCurrency->decimal_places),
+                    $this->currencies->convert($contractedFee, $sourceCurrency, $invoiceCurrency, $invoiceCurrency->decimal_places),
                     $invoiceCurrency->decimal_places
                 );
                 $lineTotal = round($convertedFee * $quantity, $invoiceCurrency->decimal_places);
                 $subtotal += $lineTotal;
 
                 $pivotRows[$service->id] = [
+                    'customer_service_id' => $customerService->id,
                     'snapshot_name' => $service->type,
-                    'snapshot_service_fee' => $service->fee,
+                    'snapshot_service_fee' => $contractedFee,
                     'snapshot_service_currency_code' => $sourceCurrency->code,
                     'snapshot_service_currency_symbol' => $sourceCurrency->symbol,
                     'snapshot_service_rate' => $this->currencies->rate($sourceCurrency),
@@ -130,6 +200,8 @@ class InvoiceController extends Controller
                     'snapshot_rate' => $invoiceRate,
                     'snapshot_invoice_rate' => $invoiceRate,
                     'snapshot_converted_fee' => $convertedFee,
+                    'employee_id' => $commissionEmployee?->id,
+                    'snapshot_commission_percentage' => $commissionPercentage,
                     'quantity' => $quantity,
                     'line_total' => $lineTotal,
                 ];

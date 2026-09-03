@@ -353,11 +353,18 @@ class AuthController extends Controller
     private function accountData(User $user): array
     {
         $employee = $this->employeeFor($user);
+        $isMarketer = $employee?->position?->system_key === 'marketer';
 
         return array_merge($user->only(['id', 'name', 'email', 'phone', 'address', 'acc_status']), $user->account_settings ?? [], [
             'roles' => $user->roleNames(),
             'permissions' => $user->permissionNames(),
             'avatar' => $employee?->avatar,
+            'employee' => $employee ? [
+                'id' => $employee->id,
+                'position_id' => $employee->position_id,
+                'is_marketer' => $isMarketer,
+            ] : null,
+            'is_marketer' => $isMarketer,
             'two_factor_enabled' => (bool) $user->two_factor_confirmed_at,
             'email_verified' => $user->hasVerifiedEmail(),
             'email_verified_at' => $user->email_verified_at?->toISOString(),
@@ -383,7 +390,7 @@ class AuthController extends Controller
 
     private function employeeFor(User $user): ?Employee
     {
-        return Employee::where('user_id', $user->id)->first();
+        return Employee::with('position:id,system_key')->where('user_id', $user->id)->first();
     }
 
     private function deleteAvatar(?string $url): void

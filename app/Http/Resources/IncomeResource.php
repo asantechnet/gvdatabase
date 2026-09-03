@@ -18,6 +18,10 @@ class IncomeResource extends JsonResource
             'id' => $this->id,
             'receipt_number' => $this->receipt_number,
             'customer_id' => $this->customer_id,
+            'company_id' => $this->company_id,
+            'company' => $this->whenLoaded('company', fn () => $this->company ? [
+                'id' => $this->company->id, 'name' => $this->company->trade_name ?: $this->company->legal_name,
+            ] : null),
             'invoice_id' => $this->invoice_id,
             'currency_id' => $this->currency_id,
             'base_currency_id' => $this->base_currency_id,

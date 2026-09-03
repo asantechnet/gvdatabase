@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import BonusListApi, { type WorthyEmployee, type EligibilityReason, type BonusType } from '@/api/bonuslist'
+import BonusListApi, { type WorthyEmployee, type BonusType } from '@/api/bonuslist'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { apiFieldErrors, apiErrorMessage } from '@/utils/apiErrors'
 import { canAccess } from '@/utils/authorization'
@@ -28,10 +28,8 @@ const nominationErrors = ref<Record<string, string>>({})
 
 // Options for Dropdowns
 const departments = ['Engineering', 'Product Design', 'Sales & Marketing', 'Operations', 'Finance']
-const reasons: EligibilityReason[] = ['Top Performer', 'Project Milestone', 'Client Praise', 'Work Anniversary', 'Manager Nomination']
-const bonusTypes: BonusType[] = ['Performance', 'Spot Bonus', 'Project Completion', 'Retention']
+const bonusTypes: BonusType[] = ['Performance', 'Customer Appreciation', 'Task Completion', 'Work Anniversary', 'Manager Recognition']
 const quickAmounts = [500, 1000, 1500, 2500, 4000, 5000]
-const performanceScores = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 
 // Generate month options for the last 12 months
 const monthOptions = computed(() => {
@@ -54,12 +52,10 @@ const monthOptions = computed(() => {
 
 const defaultNomination = {
     employeeId: null as number | null,
-    performanceScore: 4.5,
-    eligibilityReason: 'Manager Nomination' as EligibilityReason,
     achievementDetails: '',
     suggestedAmount: 1000,
     selectedAmount: 1000,
-    selectedType: 'Spot Bonus' as BonusType,
+    selectedType: 'Manager Recognition' as BonusType,
     bonusMonth: new Date().toISOString().slice(0, 7) // Current month in YYYY-MM format
 }
 
@@ -98,8 +94,6 @@ const submitNomination = async () => {
     nominationErrors.value = {}
     if (!employeeId) nominationErrors.value.employeeId = translate('pages.bonuses.bonuslist.bonuslist.selectAnEmployee')
     if (!nominationForm.value.achievementDetails.trim()) nominationErrors.value.achievementDetails = translate('pages.bonuses.bonuslist.bonuslist.addAnAchievementOrJustification')
-    if (nominationForm.value.performanceScore < 1 || nominationForm.value.performanceScore > 5) nominationErrors.value.performanceScore = translate('pages.bonuses.bonuslist.bonuslist.performanceScoreMustBeBetween1And5')
-    if (nominationForm.value.suggestedAmount < 0) nominationErrors.value.suggestedAmount = translate('pages.bonuses.bonuslist.bonuslist.suggestedAmountCannotBeNegative')
     if (nominationForm.value.selectedAmount < 0) nominationErrors.value.selectedAmount = translate('pages.bonuses.bonuslist.bonuslist.selectedAmountCannotBeNegative')
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(nominationForm.value.bonusMonth)) nominationErrors.value.bonusMonth = translate('pages.bonuses.bonuslist.bonuslist.selectAValidBonusMonth')
     if (Object.keys(nominationErrors.value).length) return
@@ -108,11 +102,8 @@ const submitNomination = async () => {
     try {
         const response = await BonusListApi.create({
             employeeId,
-            performanceScore: nominationForm.value.performanceScore,
-            eligibilityReason: nominationForm.value.eligibilityReason,
             achievementDetails: nominationForm.value.achievementDetails,
-            suggestedAmount: nominationForm.value.suggestedAmount,
-            selectedAmount: nominationForm.value.selectedAmount,
+            amount: nominationForm.value.selectedAmount,
             selectedType: nominationForm.value.selectedType,
             bonusMonth: nominationForm.value.bonusMonth,
         })
@@ -132,7 +123,7 @@ const updateEmployee = async (employee: WorthyEmployee) => {
     try {
         const response = await BonusListApi.update(employee.id, {
             selectedAmount: employee.selectedAmount,
-            selectedType: employee.selectedType,
+            amount: employee.selectedAmount,
         })
         const index = worthyEmployees.value.findIndex(item => item.id === employee.id)
         if (index >= 0) worthyEmployees.value[index] = response.data.data
@@ -191,7 +182,7 @@ const filteredEmployees = computed(() => {
             item.achievementDetails.toLowerCase().includes(query)
 
         const matchesDept = departmentFilter.value === 'All' || item.department === departmentFilter.value
-        const matchesReason = reasonFilter.value === 'All' || item.eligibilityReason === reasonFilter.value
+        const matchesReason = reasonFilter.value === 'All' || item.selectedType === reasonFilter.value
         const matchesMonth = monthFilter.value === 'All' || item.bonusMonth === monthFilter.value
 
         let matchesStatus = true
@@ -290,11 +281,11 @@ const getAvatarInitials = (name: string) => {
         .slice(0, 2)
 }
 
-const getReasonColor = (reason: EligibilityReason) => {
+const getReasonColor = (reason: BonusType) => {
     switch (reason) {
-        case 'Top Performer': return 'primary'
-        case 'Project Milestone': return 'success'
-        case 'Client Praise': return 'info'
+        case 'Performance': return 'primary'
+        case 'Task Completion': return 'success'
+        case 'Customer Appreciation': return 'info'
         case 'Work Anniversary': return 'warning'
         default: return 'secondary'
     }
@@ -413,7 +404,7 @@ const getStatusColor = (isGranted: boolean) => {
                             hide-details density="compact" variant="outlined" />
                     </v-col>
                     <v-col cols="12" sm="6" md="2">
-                    <v-select v-model="reasonFilter" :items="['All', ...reasons]" :item-title="translateBackendValue" :label="$t('pages.bonuses.bonuslist.bonuslist.eligibilityReason')"
+                    <v-select v-model="reasonFilter" :items="['All', ...bonusTypes]" :item-title="translateBackendValue" label="Bonus category"
                             hide-details density="compact" variant="outlined" />
                     </v-col>
                     <v-col cols="12" sm="6" md="2">
@@ -442,13 +433,9 @@ const getStatusColor = (isGranted: boolean) => {
                         <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('pages.bonuses.bonuslist.bonuslist.candidate') }}</th>
                         <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('pages.bonuses.bonuslist.bonuslist.eligibilityAchievements') }}
                         </th>
-                        <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('pages.bonuses.bonuslist.bonuslist.performance') }}</th>
                         <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('common.messages.bonusMonth') }}</th>
                         <th class="text-left font-weight-bold text-uppercase text-caption" style="min-width: 180px;">
                             {{ $t('pages.bonuses.bonuslist.bonuslist.selectedPayout') }}
-                        </th>
-                        <th class="text-left font-weight-bold text-uppercase text-caption" style="min-width: 160px;">
-                            {{ $t('pages.bonuses.bonuslist.bonuslist.bonusType') }}
                         </th>
                         <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('common.fields.status') }}</th>
                         <th class="text-center font-weight-bold text-uppercase text-caption">{{ $t('common.messages.actions') }}</th>
@@ -473,9 +460,9 @@ const getStatusColor = (isGranted: boolean) => {
                         <!-- Achievements & Reason -->
                         <td class="py-4">
                             <div class="mb-1">
-                                <v-chip :color="getReasonColor(employee.eligibilityReason)" size="small" variant="flat"
+                                <v-chip :color="getReasonColor(employee.selectedType)" size="small" variant="flat"
                                     class="font-weight-bold">
-                                    {{ translateBackendValue(employee.eligibilityReason) }}
+                                    {{ translateBackendValue(employee.selectedType) }}
                                 </v-chip>
                             </div>
                             <VTooltip :text="employee.achievementDetails" location="top">
@@ -485,16 +472,6 @@ const getStatusColor = (isGranted: boolean) => {
                                     </div>
                                 </template>
                             </VTooltip>
-                        </td>
-
-                        <!-- Performance Rating -->
-                        <td class="py-4">
-                            <div class="d-flex align-center gap-1">
-                                <v-icon icon="tabler-star-filled" color="warning" size="18" />
-                                <span class="font-weight-bold text-body-1">{{ employee.performanceScore.toFixed(1)
-                                    }}</span>
-                                <span class="text-caption text-medium-emphasis">/ 5.0</span>
-                            </div>
                         </td>
 
                         <!-- Bonus Month -->
@@ -522,19 +499,6 @@ const getStatusColor = (isGranted: boolean) => {
                                 {{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: formatBonusAmount(employee, employee.suggestedAmount) }) }}
                                 <span class="d-block">Payment currency: {{ employee.currencySymbol || '' }} {{ employee.currencyCode || 'legacy record' }} · booked rate {{ employee.rate ?? '—' }}</span>
                             </div>
-                        </td>
-
-                        <!-- Interactive Inline Bonus Type -->
-                        <td class="py-4">
-                            <v-select
-                                v-model="employee.selectedType"
-                                :items="bonusTypes" :item-title="translateBackendValue"
-                                density="compact"
-                                variant="outlined"
-                                hide-details
-                                :disabled="employee.isGranted"
-                                @update:modelValue="!employee.isGranted && updateEmployee(employee)"
-                            />
                         </td>
 
                         <!-- Status -->
@@ -627,10 +591,9 @@ const getStatusColor = (isGranted: boolean) => {
                 <v-card-text class="pa-5">
                     <v-alert type="info" variant="tonal" class="mb-4">{{ selectedCalculation?.achievementDetails }}</v-alert>
                     <v-table density="compact">
-                        <thead><tr><th>{{ $t('pages.bonuses.bonuslist.bonuslist.task') }}</th><th>{{ $t('common.fields.priority') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.participation') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.quality') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.timing') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.penalties') }}</th><th>{{ $t('pages.bonuses.bonuslist.bonuslist.score') }}</th><th>{{ $t('common.messages.actions') }}</th></tr></thead>
+                        <thead><tr><th>{{ $t('pages.bonuses.bonuslist.bonuslist.task') }}</th><th>Completed on</th><th>{{ $t('common.messages.actions') }}</th></tr></thead>
                         <tbody><tr v-for="task in selectedCalculation?.calculationInputs?.tasks ?? []" :key="String(task.task_id)">
-                            <td>{{ task.task_title }}</td><td>{{ translateBackendValue(task.priority) }} × {{ task.priority_weight }}</td><td>{{ task.participation_percent }}%</td>
-                            <td>{{ task.quality_score }}/5</td><td>{{ task.timing_points }}</td><td>{{ Number(task.reopened_points || 0) + Number(task.rejected_points || 0) }}</td><td>{{ task.score }}</td><td><FullDetailsButton :item="task" :title="task.task_title" /></td>
+                            <td>{{ task.task_title }}</td><td>{{ task.completed_at ? formatLocalizedDate(task.completed_at) : '—' }}</td><td><FullDetailsButton :item="task" :title="task.task_title" /></td>
                         </tr></tbody>
                     </v-table>
                     <div class="text-caption text-medium-emphasis mt-4">{{ selectedCalculation?.calculationInputs?.formula }}</div>
@@ -681,11 +644,6 @@ const getStatusColor = (isGranted: boolean) => {
                             </v-col>
 
                             <v-col cols="12" sm="6">
-                                <v-select v-model="nominationForm.eligibilityReason" :items="reasons" :item-title="translateBackendValue"
-                                    :label="$t('pages.bonuses.bonuslist.bonuslist.eligibilityTrigger')" variant="outlined" />
-                            </v-col>
-
-                            <v-col cols="12" sm="6">
                                 <v-select
                                     v-model="nominationForm.bonusMonth"
                                     :items="monthOptions.filter(m => m.value !== 'All')"
@@ -698,25 +656,13 @@ const getStatusColor = (isGranted: boolean) => {
                             </v-col>
 
                             <v-col cols="12" sm="6">
-                                <v-select v-model="nominationForm.performanceScore" :items="performanceScores"
-                                    :label="$t('pages.bonuses.bonuslist.bonuslist.performanceScore')" variant="outlined" suffix="/5.0" :error-messages="nominationErrors.performanceScore" />
-                            </v-col>
-
-                            <v-col cols="12" sm="6">
                                 <v-select v-model="nominationForm.selectedType" :items="bonusTypes" :item-title="translateBackendValue"
-                                    :label="$t('pages.bonuses.bonuslist.bonuslist.bonusCategory')" variant="outlined" />
-                            </v-col>
-
-                            <v-col cols="12" sm="6">
-                                <v-text-field v-model.number="nominationForm.suggestedAmount"
-                                    :label="$t('pages.bonuses.bonuslist.bonuslist.suggestedAmount')" type="number" step="100" variant="outlined"
-                                    readonly :hint="$t('pages.bonuses.bonuslist.bonuslist.calculatedRecommendationAdjustTheSelectedAmountIfNeeded')"
-                                    persistent-hint required :error-messages="nominationErrors.suggestedAmount" />
+                                    label="Bonus category" variant="outlined" />
                             </v-col>
 
                             <v-col cols="12" sm="6">
                                 <v-text-field v-model.number="nominationForm.selectedAmount"
-                                    :label="$t('pages.bonuses.bonuslist.bonuslist.selectedAmount')" type="number" step="100" variant="outlined"
+                                    label="Bonus amount" type="number" step="100" variant="outlined"
                                     required :error-messages="nominationErrors.selectedAmount" />
                             </v-col>
 

@@ -13,6 +13,8 @@ class DatabaseSeeder extends Seeder
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
         // Clear all tables
+        DB::table('commission_accruals')->truncate();
+        DB::table('commission_settlements')->truncate();
         DB::table('invoice_service')->truncate();
         DB::table('salary_worthy_employee')->truncate();
         DB::table('salaries')->truncate();

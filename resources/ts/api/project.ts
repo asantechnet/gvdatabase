@@ -1,5 +1,5 @@
 import api from './axios'
-import type { CustomerService } from './customer'
+import type { Service } from './services'
 
 export type ProjectStatus = 'active' | 'on_hold' | 'completed' | 'archived'
 
@@ -12,7 +12,9 @@ export interface Project {
   status: ProjectStatus
   start_date: string | null
   due_date: string | null
-  services?: CustomerService[]
+  /** Explicit catalogue services covered by this delivery project. */
+  services?: Service[]
+  service_ids?: number[]
   boards?: Array<{ id: string; title: string; tasks?: unknown[] }>
 }
 
@@ -23,6 +25,7 @@ export interface ProjectPayload {
   status?: ProjectStatus
   start_date?: string | null
   due_date?: string | null
+  service_ids?: number[]
 }
 
 const ProjectApi = {

@@ -233,9 +233,6 @@ async function loadSettings() {
     else
       resetSettings()
   }
-  catch (error: any) {
-    toast.error(error?.message || 'Failed to load settings')
-  }
   finally {
     isLoading.value = false
   }
@@ -461,12 +458,6 @@ async function saveSettings() {
     }
     updateBranding(response.data)
     toast.success(translate('pages.settings.settings.settingsSavedSuccessfully'))
-  }
-  catch (error: any) {
-    if (error?.errors)
-      Object.values(error.errors).flat().forEach(message => toast.error(String(message)))
-    else
-      toast.error(error?.message || 'Failed to save settings')
   }
   finally {
     isSaving.value = false

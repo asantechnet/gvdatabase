@@ -10,6 +10,7 @@ use App\Http\Controllers\AutomationController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\ContractPolicyController;
 use App\Http\Controllers\ContractTemplateController;
@@ -193,6 +194,8 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
     Route::put('employees/{employee}/leaves/{paidTimeOff}', [PaidTimeOffController::class, 'update'])->middleware('permission:edit_paid_time_off');
     Route::delete('employees/{employee}/leaves/{paidTimeOff}', [PaidTimeOffController::class, 'destroy'])->middleware('permission:delete_paid_time_off');
     Route::get('employees/account-options', [EmployeeController::class, 'accountOptions'])->middleware('permission:view_employees');
+    Route::get('employees/commission-options', [EmployeeController::class, 'commissionOptions'])->middleware('permission:view_employees');
+    Route::get('employees/marketer-options', [EmployeeController::class, 'marketerOptions'])->middleware('permission:view_employees');
     Route::apiResource('employees', EmployeeController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_employees')
         ->middlewareFor('store', 'permission:create_employees')
@@ -203,6 +206,7 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
     Route::apiResource('positions', PositionController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_positions')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_positions');
+    Route::get('marketers/account-options', [MarketerController::class, 'accountOptions'])->middleware('permission:view_marketers');
     Route::apiResource('marketers', MarketerController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_marketers')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_marketers');
@@ -229,12 +233,23 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
         ->middlewareFor('update', 'permission:edit_salaries')
         ->middlewareFor('destroy', 'permission:delete_salaries');
 
+    Route::get('commissions/accruals', [CommissionController::class, 'accruals'])->middleware('permission:view_commissions');
+    Route::get('commissions/summary', [CommissionController::class, 'summary'])->middleware('permission:view_commissions');
+    Route::post('commissions/adjustments', [CommissionController::class, 'storeAdjustment'])->middleware('permission:manage_commission_settlements');
+    Route::get('commission-settlements', [CommissionController::class, 'settlements'])->middleware('permission:view_commissions');
+    Route::post('commission-settlements', [CommissionController::class, 'storeSettlement'])->middleware('permission:manage_commission_settlements');
+    Route::get('commission-settlements/{commissionSettlement}', [CommissionController::class, 'show'])->middleware('permission:view_commissions');
+    Route::post('commission-settlements/{commissionSettlement}/approve', [CommissionController::class, 'approve'])->middleware('permission:approve_commissions');
+    Route::post('commission-settlements/{commissionSettlement}/pay', [CommissionController::class, 'pay'])->middleware('permission:pay_commissions');
+    Route::post('commission-settlements/{commissionSettlement}/cancel', [CommissionController::class, 'cancel'])->middleware('permission:manage_commission_settlements');
+
     // Invoice routes
     Route::apiResource('payment-details', PaymentDetailController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_payment_details')
         ->middlewareFor('store', 'permission:create_payment_details')
         ->middlewareFor('update', 'permission:edit_payment_details')
         ->middlewareFor('destroy', 'permission:delete_payment_details');
+    Route::get('invoices/commission-candidates', [InvoiceController::class, 'commissionCandidates'])->middleware('permission:view_invoices');
     Route::apiResource('invoices', InvoiceController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_invoices')
         ->middlewareFor('store', 'permission:create_invoices')

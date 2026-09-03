@@ -17,7 +17,7 @@ class BoardFactory extends Factory
     public function definition(): array
     {
         return [
-            'title' => $this->faker->words(2, true),
+            'title' => fake('en_US')->words(2, true),
             'order' => 0,
         ];
     }

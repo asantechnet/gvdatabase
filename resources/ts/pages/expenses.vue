@@ -2,6 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { VDialog } from 'vuetify/components'
 import CurrencyApi, { type Currency } from '@/api/currency'
+import CompanyApi, { type Company } from '@/api/company'
+import ProjectApi, { type Project } from '@/api/project'
 import { createExpense, deleteExpense, getExpenses, updateExpense, type Expense, type ExpenseCreateData, type ExpenseUpdateData } from '@/api/expenses'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
@@ -10,6 +12,8 @@ import ExpenseFormDialog from '@/components/forms/ExpenseFormDialog.vue'
 
 const expenses = ref<Expense[]>([])
 const currencies = ref<Currency[]>([])
+const companies = ref<Company[]>([])
+const projects = ref<Project[]>([])
 const selectedExpense = ref<Expense | ExpenseCreateData | null>(null)
 const isAddExpenseDialogVisible = ref(false)
 const isEditExpenseDialogVisible = ref(false)
@@ -32,6 +36,12 @@ const currencyOptions = computed(() => currencies.value.map(currency => ({
   rate: currency.rate,
 })))
 const currentBaseCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? null)
+const companyOptions = computed(() => companies.value
+  .filter(company => company.is_active)
+  .map(company => ({ title: company.trade_name || company.legal_name, value: company.id })))
+const projectOptions = computed(() => projects.value
+  .filter(project => project.status !== 'archived')
+  .map(project => ({ title: project.customer ? `${project.name} - ${project.customer.name}` : project.name, value: project.id })))
 const totalSpent = computed(() => expenses.value.reduce((total, expense) => total + Number(expense.currentBaseAmount ?? expense.base_amount ?? 0), 0))
 const averageExpense = computed(() => expenses.value.length ? totalSpent.value / expenses.value.length : 0)
 const currentMonthSpent = computed(() => {
@@ -48,6 +58,12 @@ const largestExpense = computed(() => Math.max(0, ...expenses.value.map(expense 
 const fetchCurrencies = async () => {
   const response = await CurrencyApi.getAll()
   currencies.value = response.data.filter(currency => currency.isActive)
+}
+
+const fetchLinkOptions = async () => {
+  const [companyRecords, projectRecords] = await Promise.all([CompanyApi.getAll(), ProjectApi.getAll()])
+  companies.value = companyRecords
+  projects.value = projectRecords
 }
 
 const fetchExpenses = async () => {
@@ -80,6 +96,8 @@ const openAddExpenseDialog = async () => {
   fieldErrors.value = {}
   selectedExpense.value = {
     customer_id: null,
+    company_id: null,
+    project_id: null,
     currency_id: 0,
     type: '',
     description: '',
@@ -88,7 +106,7 @@ const openAddExpenseDialog = async () => {
     rate: 1,
     date: new Date().toISOString().slice(0, 10),
   }
-  await fetchCurrencies()
+  await Promise.all([fetchCurrencies(), fetchLinkOptions()])
   setDefaultCurrency()
   isAddExpenseDialogVisible.value = true
 }
@@ -97,7 +115,7 @@ const openEditExpenseDialog = async (expense: Expense) => {
   formError.value = ''
   fieldErrors.value = {}
   selectedExpense.value = { ...expense }
-  await fetchCurrencies()
+  await Promise.all([fetchCurrencies(), fetchLinkOptions()])
   isEditExpenseDialogVisible.value = true
 }
 
@@ -151,6 +169,8 @@ const saveExpense = async (isEditing = false, submittedExpense?: Expense | Expen
     fieldErrors.value = {}
     const payload = {
       customer_id: selectedExpense.value.customer_id,
+      company_id: selectedExpense.value.company_id,
+      project_id: selectedExpense.value.project_id,
       currency_id: selectedExpense.value.currency_id,
       type: selectedExpense.value.type,
       description: selectedExpense.value.description,
@@ -203,6 +223,7 @@ const printTable = () => void printDocument({ bodyClass: 'printing-table-expense
 onMounted(() => {
   fetchExpenses()
   fetchCurrencies()
+  fetchLinkOptions()
 })
 </script>
 
@@ -257,8 +278,8 @@ onMounted(() => {
 
     <PrintableListReport title="Expenses Report" subtitle="Expense records" :columns="['Expense', 'Type', 'Details', 'Currency', 'Amount', 'Date']" :rows="expenses.map(expense => [`EXP-${String(expense.id).padStart(6, '0')}`, expense.type, expense.description, expense.currency?.code, formatExpenseCurrency(expense.amount * expense.quantity, expense.currency), formatDate(expense.date)])" />
 
-    <ExpenseFormDialog v-model="isAddExpenseDialogVisible" :initial-expense="selectedExpense" :currency-options="currencyOptions" mode="create" @submit="saveExpense(false, $event)" />
-    <ExpenseFormDialog v-model="isEditExpenseDialogVisible" :initial-expense="selectedExpense" :currency-options="currencyOptions" mode="edit" @submit="saveExpense(true, $event)" />
+    <ExpenseFormDialog v-model="isAddExpenseDialogVisible" :initial-expense="selectedExpense" :currency-options="currencyOptions" :company-options="companyOptions" :project-options="projectOptions" mode="create" @submit="saveExpense(false, $event)" />
+    <ExpenseFormDialog v-model="isEditExpenseDialogVisible" :initial-expense="selectedExpense" :currency-options="currencyOptions" :company-options="companyOptions" :project-options="projectOptions" mode="edit" @submit="saveExpense(true, $event)" />
 
     <VDialog v-model="isDeleteExpenseDialogVisible" max-width="500px"><VCard><VCardTitle class="pa-5">{{ $t('pages.finance.expenses.expenses.deleteExpense') }}</VCardTitle><VCardText>{{ $t('pages.finance.expenses.expenses.thisRemovesTheSelectedExpenseRecordPermanently') }}</VCardText><VCardActions class="pa-5"><VSpacer /><VBtn color="secondary" variant="tonal" @click="isDeleteExpenseDialogVisible = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="error" @click="deleteExpenseRecord">{{ $t('common.actions.delete') }}</VBtn></VCardActions></VCard></VDialog>
   </div>

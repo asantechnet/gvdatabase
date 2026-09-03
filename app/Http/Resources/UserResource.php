@@ -24,6 +24,10 @@ class UserResource extends JsonResource
                 'id' => $this->employee->id,
                 'name' => $this->employee->name,
             ] : null),
+            'marketer' => $this->whenLoaded('marketer', fn () => $this->marketer ? [
+                'id' => $this->marketer->id,
+                'name' => $this->marketer->name,
+            ] : null),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
             'contributionPercent' => $this->when(

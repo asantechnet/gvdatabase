@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Service extends Model
 {
@@ -51,6 +52,15 @@ class Service extends Model
         return $this->hasMany(CustomerService::class);
     }
 
+    /**
+     * Delivery projects that include this catalogue service.
+     */
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class)
+            ->withTimestamps();
+    }
+
     public function invoices()
     {
         return $this->belongsToMany(Invoice::class)
@@ -64,6 +74,8 @@ class Service extends Model
                 'snapshot_base_curr_shrt',
                 'snapshot_rate',
                 'snapshot_converted_fee',
+                'employee_id',
+                'snapshot_commission_percentage',
                 'quantity',
                 'line_total',
             ])

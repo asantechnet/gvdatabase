@@ -6,6 +6,7 @@ import { deleteNotification, getNotifications, markAllNotificationsRead, updateN
 import { notificationText } from '@/utils/notificationText'
 import { openAuditNotification } from '@/utils/auditNotification'
 import type { Notification } from '@layouts/types'
+import { canAccess } from '@/utils/authorization'
 
 const router = useRouter()
 const toast = useToast()
@@ -26,6 +27,8 @@ const notifications = computed<Notification[]>(() => rawNotifications.value.map(
 }))
 
 async function loadNotifications() {
+  if (!canAccess('view_own_notifications')) return
+
   try { rawNotifications.value = await getNotifications({ limit: 20 }) }
   catch { /* Preserve the visible inbox during a temporary background failure. */ }
 }

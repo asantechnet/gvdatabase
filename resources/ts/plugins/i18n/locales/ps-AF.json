@@ -189,6 +189,14 @@
       "yes": "هو",
       "no": "نه"
     },
+    "accountPicker": {
+      "label": "کارن حساب",
+      "placeholder": "د نوم، پېژند یا برېښنالیک له مخې لټون",
+      "linkedEmployee": "کارکوونکی: {name} (#{id})",
+      "linkedMarketer": "بازار موندونکی: {name} (#{id})",
+      "available": "د نښلولو لپاره چمتو",
+      "noResults": "ورته کارن حساب ونه موندل شو"
+    },
     "fields": {
       "startDate": "د پیل نېټه",
       "status": "حالت",
@@ -529,6 +537,7 @@
       "staffList": "د کارمندانو نوملړ",
       "timesheet": "د حاضریو جدول",
       "staffSalary": "د کارمندانو معاشات",
+      "commissions": "کمېشنونه",
       "bonusList": "د بونس نوملړ",
       "invoice": "انوایس (بل)",
       "invoiceList": "انوایسونه (بلونه)",
@@ -668,6 +677,7 @@
     "dashboard": {
       "executive": {
         "header": { "eyebrow": "اجرائیوي ډشبورډ", "title": "د شرکت نبض", "subtitle": "پیسې، پېرودونکي، کارکوونکي، شتمنۍ او سپارنه—ټول په یوه عملي لید کې.", "updated": "تازه شوی {time}", "refresh": "تازه کول" },
+        "filters": { "label": "د ډشبورډ موده", "oneMonth": "۱ میاشت", "threeMonths": "۳ میاشتې", "oneYear": "۱ کال", "twoYears": "۲ کاله", "custom": "ځانګړې", "customTitle": "ځانګړې نېټه", "from": "له", "to": "تر", "apply": "موده پلي کړئ", "selectBothDates": "د ځانګړې مودې لپاره دواړه نېټې وټاکئ." },
         "common": { "notSet": "نه دی ټاکل شوی", "noPayroll": "معاش نشته", "minutesShort": "{value} دقیقې", "hoursShort": "{value} ساعته" },
         "metrics": { "activeWork": "فعال کار", "nearingCompletion": "{count} بشپړېدو ته نږدې", "completedThisMonth": "پدې میاشت کې بشپړ", "completionRate": "{rate}٪ د بشپړېدو کچه", "overdueWork": "ځنډېدلی کار", "pastDueDates": "له نېټې تېر", "averageProgress": "منځنی پرمختګ", "accessibleWork": "د لاسرسي وړ کار", "receivableExposure": "پرانیستې غوښتنې", "openInvoices": "{count} پرانیستي بلونه", "cashCollection": "نغدي راټولونه", "collectedOf": "له {total} څخه {collected} راټول شوي", "customerBase": "د پېرودونکو بنسټ", "activeCommitments": "{count} فعالې ژمنې", "latestPayroll": "وروستی معاش", "payrollContext": "{period} · {count} کارکوونکي", "visitorsThisMonth": "د دې میاشتې لیدونکي", "newCustomers": "{count} نوي پېرودونکي" },
         "answers": { "eyebrow": "شمېرې څه وایي", "title": "د نن لپاره څلور ځوابونه", "liveData": "ژوندي عملیاتي معلومات", "collectingQuestion": "ایا پیسې راټولوو؟", "issuedValue": "د صادر شوي ارزښت {rate}٪", "customersQuestion": "ایا پېرودونکي فعال دي؟", "liveCommitments": "{count} روانې ژمنې", "customerContext": "د {customers} پېرودونکو لپاره؛ {due} ژر پای ته رسېږي.", "teamQuestion": "ایا د ټیم حاضري ثبت ده؟", "markedToday": "نن {rate}٪ ثبت شوي", "attendanceMissing": "د {count} کسانو حاضري لا نه ده ثبت شوې.", "deliveryQuestion": "ایا سپارنه له خطر سره مخ ده؟", "overdueCommitments": "{count} ځنډېدلې ژمنې", "nearingDone": "{count} دندې بشپړېدو ته نږدې دي." },

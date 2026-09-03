@@ -205,21 +205,24 @@ defineExpose({
     <div class="margin-corner-top-right"></div>
 
     <div class="content-wrapper">
-      <!-- Compact Header -->
-      <header class="contract-header">
-        <div class="header-left">
-          <h1 class="document-title">{{ documentTitle }}</h1>
-          <p>{{ documentNumber }}</p>
-          <p v-if="company.slogan" class="company-slogan">{{ company.slogan }}</p>
+      <!-- The custom letterhead already contains the document chrome. -->
+      <template v-if="!company.letterheadUrl">
+        <!-- Compact Header -->
+        <header class="contract-header">
+          <div class="header-left">
+            <h1 class="document-title">{{ documentTitle }}</h1>
+            <p>{{ documentNumber }}</p>
+            <p v-if="company.slogan" class="company-slogan">{{ company.slogan }}</p>
             <p v-if="company.licence" class="company-slogan">{{ $t('documents.contract.licence', { licence: company.licence }) }}</p>
-        </div>
+          </div>
 
-        <div class="header-right">
-          <img v-if="company.logo" :src="company.logo" :alt="company.brandName" class="company-logo" />
-          <span class="brand-name">{{ company.brandName }}</span>
-        </div>
-      </header>
-      <div class="header-divider"></div>
+          <div class="header-right">
+            <img v-if="company.logo" :src="company.logo" :alt="company.brandName" class="company-logo" />
+            <span class="brand-name">{{ company.brandName }}</span>
+          </div>
+        </header>
+        <div class="header-divider"></div>
+      </template>
 
       <!-- Main Contract Body Area -->
       <main class="contract-body">
@@ -297,26 +300,26 @@ defineExpose({
       </main>
 
       <!-- Fixed Bottom Footer -->
-      <footer class="contract-footer-wrapper">
-        <div class="footer-divider"></div>
-        <div class="contract-footer">
-          <div class="footer-col footer-message">
-            <span>{{ footerText }}</span>
-          </div>
+      <footer v-if="!company.letterheadUrl" class="contract-footer-wrapper">
+          <div class="footer-divider"></div>
+          <div class="contract-footer">
+            <div class="footer-col footer-message">
+              <span>{{ footerText }}</span>
+            </div>
 
-          <div class="footer-col footer-contact">
-            <span v-if="company.address">{{ company.address }}</span>
-            <span v-if="company.address && company.phone"> {{ $t('common.messages.text') }} </span>
-            <span v-if="company.phone">{{ $t('documents.contract.telephone', { phone: company.phone }) }}</span>
-            <span v-if="company.email && (company.address || company.phone)"> {{ $t('common.messages.text') }} </span>
-            <span v-if="company.email">{{ company.email }}</span>
-          </div>
+            <div class="footer-col footer-contact">
+              <span v-if="company.address">{{ company.address }}</span>
+              <span v-if="company.address && company.phone"> {{ $t('common.messages.text') }} </span>
+              <span v-if="company.phone">{{ $t('documents.contract.telephone', { phone: company.phone }) }}</span>
+              <span v-if="company.email && (company.address || company.phone)"> {{ $t('common.messages.text') }} </span>
+              <span v-if="company.email">{{ company.email }}</span>
+            </div>
 
-          <div class="footer-col footer-page">
-            <span class="page-number">{{ pageNumberString }}</span>
+            <div class="footer-col footer-page">
+              <span class="page-number">{{ pageNumberString }}</span>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
     </div>
   </div>
 </template>

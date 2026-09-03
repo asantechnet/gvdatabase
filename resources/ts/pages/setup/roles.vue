@@ -546,6 +546,16 @@ onMounted(loadAll)
   border-radius: 10px;
 }
 
+.permission-toolbar :deep(.v-field__field),
+.permission-toolbar :deep(.v-field__input) {
+  align-items: center;
+}
+
+.app-form :deep(.v-field__field),
+.app-form :deep(.v-field__input) {
+  align-items: center;
+}
+
 .toolbar-select-all :deep(.v-label) {
   font-size: 0.8125rem;
   font-weight: 500;

@@ -165,7 +165,23 @@ const SettingApi = {
   },
 
   update: async (id: number, data: Partial<SettingForm>): Promise<ApiResponse<Setting>> => {
-    const response = await api.patch(`/settings/${id}`, hasFiles(data) ? toFormData(data) : data)
+    if (hasFiles(data)) {
+      // PHP only reliably populates uploaded files for multipart POST requests.
+      // Laravel honours this override and still dispatches to the PATCH route.
+      const formData = toFormData(data)
+      formData.append('_method', 'PATCH')
+
+      const response = await api.post(`/settings/${id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+
+      return {
+        success: true,
+        data: unwrap<Setting>(response),
+      }
+    }
+
+    const response = await api.patch(`/settings/${id}`, data)
 
     return {
       success: true,

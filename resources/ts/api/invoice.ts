@@ -18,10 +18,13 @@ export interface CurrentBaseCurrency {
 
 export interface InvoiceService {
   id: number
+  customer_service_id?: number | null
   name: string
   price: number
   quantity: number
   line_total: number
+  commission_employee_id?: number | null
+  commission_percentage?: number | null
   source_fee: number
   source_currency: {
     code: string
@@ -91,7 +94,7 @@ export interface CreateInvoiceData {
   class_type: Invoice['class-type']
   issue_date?: string
   due_date?: string
-  services: Array<{ id: number; quantity: number }>
+  services: Array<{ customer_service_id: number; quantity: number }>
   tax_percent: number
   discount?: number
   notes?: string

@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Attendance;
 use App\Models\Board;
 use App\Models\Company;
+use App\Models\CommissionAccrual;
+use App\Models\CommissionSettlement;
 use App\Models\Contract;
 use App\Models\Currency;
 use App\Models\Customer;
@@ -96,7 +98,7 @@ class ReportService
 
         return match ($type) {
             'financial' => $user->hasPermission('view_financial_reports'),
-            'payroll' => $user->hasPermission('view_salaries') || $user->hasPermission('view_bonuses'),
+            'payroll' => $user->hasPermission('view_salaries') || $user->hasPermission('view_bonuses') || $user->hasPermission('view_commissions'),
             'attendance' => $user->hasPermission('view_attendance'),
             'operations' => $user->hasPermission('view_contracts') || $user->hasPermission('view_customers')
                 || $user->hasPermission('view_visitors') || $user->hasPermission('view_all_tasks'),
@@ -212,7 +214,7 @@ class ReportService
                 ->when(isset($filters['status']), fn (Builder $q) => $q->where('is_granted', $filters['status'] === 'granted'))
                 ->latest('bonus_month')->get()->map(fn (WorthyEmployee $bonus) => [
                     'month' => $bonus->bonus_month?->format('Y-m-d'), 'employee' => $bonus->employee?->name,
-                    'office' => $bonus->employee?->office?->name, 'reason' => $bonus->eligibility_reason,
+                    'office' => $bonus->employee?->office?->name, 'reason' => $bonus->selected_type,
                     'performance_score' => (float) $bonus->performance_score, 'achievement_details' => $bonus->achievement_details,
                     'status' => $bonus->is_granted ? 'granted' : 'pending',
                     'amount' => (float) ($bonus->granted_amount ?? $bonus->selected_amount),
@@ -224,6 +226,48 @@ class ReportService
                 ]);
             $sections[] = $this->section('bonuses', ['month', 'employee', 'office', 'reason', 'performance_score', 'achievement_details', 'status', 'amount', 'currency', 'base_currency', 'base_amount', 'source'], $bonuses, [
                 'count' => $bonuses->count(), 'base_amount_by_base' => $this->byBaseCurrency($bonuses, 'base_amount'), 'by_currency' => $this->byCurrency($bonuses),
+            ]);
+        }
+
+        if ($user->hasPermission('view_commissions')) {
+            $settlements = CommissionSettlement::query()->with(['employee.office', 'baseCurrency'])
+                ->whereBetween('period_end', [$start->toDateString(), $end->toDateString()])
+                ->when($filters['employee_id'] ?? null, fn (Builder $q, $id) => $q->where('employee_id', $id))
+                ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('employee', fn (Builder $e) => $e->where('office_id', $id)))
+                ->when($filters['currency_id'] ?? null, fn (Builder $q, $id) => $q->where('base_currency_id', $id))
+                ->latest('period_end')->get()->map(fn (CommissionSettlement $row) => [
+                    'settlement' => $row->settlement_number,
+                    'period_end' => $row->period_end?->format('Y-m-d'),
+                    'employee' => $row->employee?->name,
+                    'office' => $row->employee?->office?->name,
+                    'status' => $row->status,
+                    'amount' => (float) $row->gross_base_amount,
+                    'currency' => $row->baseCurrency?->code,
+                    'base_currency' => $row->baseCurrency?->code,
+                    'base_amount' => (float) $row->gross_base_amount,
+                    'payment_date' => $row->payment_date?->format('Y-m-d'),
+                ]);
+            $sections[] = $this->section('commission_settlements', ['settlement', 'period_end', 'employee', 'office', 'status', 'amount', 'currency', 'base_currency', 'base_amount', 'payment_date'], $settlements, [
+                'count' => $settlements->count(),
+                'base_amount_by_base' => $this->byBaseCurrency($settlements, 'base_amount'),
+                'by_currency' => $this->byCurrency($settlements),
+            ]);
+
+            $pending = CommissionAccrual::query()->with(['employee.office', 'baseCurrency', 'invoice', 'service'])
+                ->whereBetween('earned_at', [$start->toDateString(), $end->toDateString()])
+                ->whereIn('status', ['pending', 'approved'])
+                ->when($filters['employee_id'] ?? null, fn (Builder $q, $id) => $q->where('employee_id', $id))
+                ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('employee', fn (Builder $e) => $e->where('office_id', $id)))
+                ->when($filters['currency_id'] ?? null, fn (Builder $q, $id) => $q->where('base_currency_id', $id))
+                ->latest('earned_at')->get()->map(fn (CommissionAccrual $row) => [
+                    'earned_at' => $row->earned_at?->format('Y-m-d'), 'employee' => $row->employee?->name,
+                    'office' => $row->employee?->office?->name, 'invoice' => $row->invoice?->invoice_number,
+                    'service' => $row->service?->type, 'status' => $row->status,
+                    'amount' => (float) $row->commission_base_amount, 'currency' => $row->baseCurrency?->code,
+                    'base_currency' => $row->baseCurrency?->code, 'base_amount' => (float) $row->commission_base_amount,
+                ]);
+            $sections[] = $this->section('commission_liabilities', ['earned_at', 'employee', 'office', 'invoice', 'service', 'status', 'amount', 'currency', 'base_currency', 'base_amount'], $pending, [
+                'count' => $pending->count(), 'base_amount_by_base' => $this->byBaseCurrency($pending, 'base_amount'), 'by_currency' => $this->byCurrency($pending),
             ]);
         }
 
@@ -453,6 +497,7 @@ class ReportService
 
     private function canSeeEmployees(User $user): bool
     {
-        return $user->hasPermission('view_employees') || $user->hasPermission('view_attendance') || $user->hasPermission('view_salaries');
+        return $user->hasPermission('view_employees') || $user->hasPermission('view_attendance')
+            || $user->hasPermission('view_salaries') || $user->hasPermission('view_commissions');
     }
 }

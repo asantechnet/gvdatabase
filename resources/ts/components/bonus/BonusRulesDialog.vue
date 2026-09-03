@@ -27,7 +27,7 @@ watch(() => props.modelValue, async open => {
     employees.value = employeeResponse.data.data
     offices.value = officeRows.filter(office => office.status === 'active')
   } catch (error) {
-    errors.value.form = apiErrorMessage(error, 'Unable to load bonus rules.')
+    errors.value.form = apiErrorMessage(error, 'Unable to load bonus settings.')
   } finally {
     isLoading.value = false
   }
@@ -43,7 +43,7 @@ const save = async () => {
     dialog.value = false
   } catch (error) {
     errors.value = apiFieldErrors(error)
-    if (!Object.keys(errors.value).length) errors.value.form = apiErrorMessage(error, 'Unable to save bonus rules.')
+    if (!Object.keys(errors.value).length) errors.value.form = apiErrorMessage(error, 'Unable to save bonus settings.')
   } finally {
     isSaving.value = false
   }
@@ -51,13 +51,10 @@ const save = async () => {
 </script>
 
 <template>
-  <VDialog v-model="dialog" max-width="980" persistent>
+  <VDialog v-model="dialog" max-width="720" persistent>
     <VCard>
       <VCardTitle class="pa-5 d-flex justify-space-between align-center">
-        <div>
-          <div class="text-h5 font-weight-bold">{{ $t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.taskBonusRules') }}</div>
-          <div class="text-caption text-medium-emphasis">{{ $t('components.dialogs.bonusRules.currentVersion', { version: ruleSet?.version ?? '—' }) }}</div>
-        </div>
+        <div><div class="text-h5 font-weight-bold">Automatic bonus</div><div class="text-caption text-medium-emphasis">Version {{ ruleSet?.version ?? '—' }}</div></div>
         <VBtn icon="tabler-x" variant="text" :disabled="isSaving" @click="dialog = false" />
       </VCardTitle>
       <VDivider />
@@ -65,33 +62,21 @@ const save = async () => {
         <VProgressLinear v-if="isLoading" indeterminate class="mb-4" />
         <VAlert v-if="errors.form" type="error" variant="tonal" class="mb-4">{{ errors.form }}</VAlert>
         <VForm v-if="form" @submit.prevent="save">
+          <VAlert type="info" variant="tonal" class="mb-5" icon="tabler-sparkles">
+            Each completed task earns the reward below. When the monthly limit is reached, no more is suggested for that month.
+          </VAlert>
           <VRow>
-            <VCol cols="12"><div class="text-subtitle-1 font-weight-bold">{{ $t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.scoring') }}</div></VCol>
-            <VCol cols="12" md="3"><VTextField v-model.number="form.completed_task_points" type="number" min="0" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.completedTaskPoints')" :error-messages="errors.completed_task_points" /></VCol>
-            <VCol v-for="priority in (['low', 'medium', 'high', 'urgent'] as const)" :key="priority" cols="6" md="2"><VTextField v-model.number="form.priority_weights[priority]" type="number" min="0" step="0.1" :label="$t('components.dialogs.bonusRules.priorityWeight', { priority: translateBackendValue(priority) })" /></VCol>
-            <VCol cols="6" md="3"><VTextField v-model.number="form.before_deadline_points" type="number" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.onTimePoints')" /></VCol>
-            <VCol cols="6" md="3"><VTextField v-model.number="form.after_deadline_points" type="number" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.latePoints')" /></VCol>
-            <VCol cols="6" md="3"><VTextField v-model.number="form.reopened_penalty" type="number" max="0" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.reopenPenalty')" /></VCol>
-            <VCol cols="6" md="3"><VTextField v-model.number="form.rejected_penalty" type="number" max="0" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.rejectionPenalty')" /></VCol>
-            <VCol cols="6" md="3"><VTextField v-model.number="form.default_quality_score" type="number" min="1" max="5" step="0.5" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.defaultQuality15')" /></VCol>
-            <VCol cols="6" md="3"><VSwitch v-model="form.quality_multiplier_enabled" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.applyQualityMultiplier')" color="primary" /></VCol>
-
-            <VCol cols="12"><VDivider class="my-2" /><div class="text-subtitle-1 font-weight-bold mt-4">{{ $t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.eligibilityAndPayout') }}</div></VCol>
-            <VCol cols="6" md="3"><VTextField v-model.number="form.minimum_participation_percent" type="number" min="0" max="100" suffix="%" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.minimumParticipation')" /></VCol>
-            <VCol cols="6" md="3"><VTextField v-model.number="form.minimum_completed_tasks" type="number" min="1" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.minimumTasks')" /></VCol>
-            <VCol cols="6" md="3"><VTextField v-model.number="form.monthly_score_threshold" type="number" min="0" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.scoreThreshold')" /></VCol>
-            <VCol cols="6" md="3"><VTextField v-model.number="form.amount_per_point" type="number" min="0" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.baseAmountPerPoint')" /></VCol>
-            <VCol cols="12" md="4"><VTextField v-model.number="form.maximum_monthly_bonus" type="number" min="0" :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.maximumMonthlyBonus')" /></VCol>
-            <VCol cols="12" md="8"><VSelect v-model="form.excluded_employee_ids" :items="employees" item-title="name" item-value="id" multiple chips closable-chips :label="$t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.excludedEmployees')" /></VCol>
-            <VCol cols="12"><VSelect v-model="form.excluded_office_ids" :items="offices" item-title="name" item-value="id" multiple chips closable-chips label="Excluded offices" hint="Choose offices whose employees should not be nominated automatically." persistent-hint /></VCol>
+            <VCol cols="12" sm="6"><VTextField v-model.number="form.minimum_completed_tasks" type="number" min="1" label="Completed tasks needed" hint="A person must complete at least this many tasks before a bonus is suggested." persistent-hint :error-messages="errors.minimum_completed_tasks" /></VCol>
+            <VCol cols="12" sm="6"><VTextField v-model.number="form.amount_per_completed_task" type="number" min="0" label="Reward for each completed task" :error-messages="errors.amount_per_completed_task" /></VCol>
+            <VCol cols="12"><VTextField v-model.number="form.maximum_monthly_bonus" type="number" min="0" label="Maximum bonus per person each month" :error-messages="errors.maximum_monthly_bonus" /></VCol>
+            <VCol cols="12"><VDivider class="my-2" /><div class="text-subtitle-2 mt-4">Optional exclusions</div><p class="text-caption text-medium-emphasis">Choose people or offices that should never receive automatic bonus suggestions.</p></VCol>
+            <VCol cols="12"><VSelect v-model="form.excluded_employee_ids" :items="employees" item-title="name" item-value="id" multiple chips closable-chips label="Do not suggest for these employees" /></VCol>
+            <VCol cols="12"><VSelect v-model="form.excluded_office_ids" :items="offices" item-title="name" item-value="id" multiple chips closable-chips label="Do not suggest for these offices" /></VCol>
           </VRow>
         </VForm>
       </VCardText>
       <VDivider />
-      <VCardActions class="pa-4 justify-end">
-        <VBtn variant="outlined" :disabled="isSaving" @click="dialog = false">{{ $t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="isSaving" :disabled="!form" @click="save">{{ $t('pages.bonuses.bonusrulesdialog.bonusrulesdialog.saveAsNewVersion') }}</VBtn>
-      </VCardActions>
+      <VCardActions class="pa-4 justify-end"><VBtn variant="outlined" :disabled="isSaving" @click="dialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="primary" :loading="isSaving" :disabled="!form" @click="save">Save bonus settings</VBtn></VCardActions>
     </VCard>
   </VDialog>
 </template>

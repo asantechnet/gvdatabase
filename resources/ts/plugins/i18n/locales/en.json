@@ -38,6 +38,14 @@
       "yes": "Yes",
       "no": "No"
     },
+    "accountPicker": {
+      "label": "User account",
+      "placeholder": "Search by name, ID, or email",
+      "linkedEmployee": "Employee: {name} (#{id})",
+      "linkedMarketer": "Marketer: {name} (#{id})",
+      "available": "Available to link",
+      "noResults": "No matching user accounts"
+    },
     "fields": {
       "startDate": "Start Date",
       "status": "Status",
@@ -380,6 +388,7 @@
       "staffList": "Staff list",
       "timesheet": "Timesheet",
       "staffSalary": "Staff salary",
+      "commissions": "Commissions",
       "bonusList": "Bonus list",
       "invoice": "Invoice",
       "invoiceList": "Invoices",
@@ -520,6 +529,7 @@
     "dashboard": {
       "executive": {
         "header": { "eyebrow": "Executive dashboard", "title": "Company pulse", "subtitle": "Money, customers, people, assets, and delivery—one practical view.", "updated": "Updated {time}", "refresh": "Refresh" },
+        "filters": { "label": "Dashboard period", "oneMonth": "1 month", "threeMonths": "3 months", "oneYear": "1 year", "twoYears": "2 years", "custom": "Custom", "customTitle": "Custom date range", "from": "From", "to": "To", "apply": "Apply range", "selectBothDates": "Select both dates for a custom range." },
         "common": { "notSet": "Not set", "noPayroll": "No payroll", "minutesShort": "{value} min", "hoursShort": "{value} hr" },
         "metrics": { "activeWork": "Active work", "nearingCompletion": "{count} nearing completion", "completedThisMonth": "Completed this month", "completionRate": "{rate}% completion rate", "overdueWork": "Overdue work", "pastDueDates": "Past due dates", "averageProgress": "Average progress", "accessibleWork": "Accessible work", "receivableExposure": "Receivable exposure", "openInvoices": "{count} open invoices", "cashCollection": "Cash collection", "collectedOf": "{collected} collected of {total}", "customerBase": "Customer base", "activeCommitments": "{count} active commitments", "latestPayroll": "Latest payroll", "payrollContext": "{period} · {count} employees", "visitorsThisMonth": "Visitors this month", "newCustomers": "{count} new customers" },
         "answers": { "eyebrow": "What the numbers say", "title": "Four answers for today", "liveData": "Live operational data", "collectingQuestion": "Are we collecting?", "issuedValue": "{rate}% of issued value", "customersQuestion": "Are customers active?", "liveCommitments": "{count} live commitments", "customerContext": "Across {customers} customers; {due} due soon.", "teamQuestion": "Is the team accounted for?", "markedToday": "{rate}% marked today", "attendanceMissing": "{count} people still need an attendance record.", "deliveryQuestion": "Is delivery at risk?", "overdueCommitments": "{count} overdue commitments", "nearingDone": "{count} tasks are close to done." },

@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Resources\CustomerServiceResource;
 use App\Models\Customer;
 use App\Models\CustomerService;
-use App\Models\Service;
+use App\Models\Employee;
+use App\Support\CrmMarketerAttribution;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CustomerServiceController extends Controller
 {
@@ -17,6 +19,8 @@ class CustomerServiceController extends Controller
         $validated = $request->validate([
             'services' => ['required', 'array', 'min:1'],
             'services.*.service_id' => ['required', 'integer', 'distinct', 'exists:services,id'],
+            'services.*.employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
+            'services.*.marketer_id' => CrmMarketerAttribution::marketerIdRules(),
             'services.*.deadline' => ['nullable', 'date'],
             'services.*.fee' => ['nullable', 'numeric', 'min:0'],
             'services.*.currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
@@ -24,16 +28,25 @@ class CustomerServiceController extends Controller
             'services.*.notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        $this->assertDeliveryCapabilities($validated['services']);
+
         $records = DB::transaction(function () use ($customer, $validated) {
             return collect($validated['services'])->map(function (array $data) use ($customer) {
                 return $customer->customerServices()->create([
                     'service_id' => $data['service_id'],
+                    'employee_id' => $data['employee_id'] ?? null,
+                    // A service normally inherits the customer acquisition
+                    // owner. Sending marketer_id explicitly (including null)
+                    // lets an authorised user override that attribution.
+                    'marketer_id' => array_key_exists('marketer_id', $data)
+                        ? $data['marketer_id']
+                        : $customer->marketer_id,
                     'deadline' => $data['deadline'] ?? null,
                     'fee' => $data['fee'] ?? null,
                     'currency_id' => $data['currency_id'] ?? null,
                     'status' => $data['status'] ?? 'active',
                     'notes' => $data['notes'] ?? null,
-                ])->load(['service.currency', 'currency']);
+                ])->load(['service.currency', 'currency', 'employee', 'marketer']);
             });
         });
 
@@ -53,6 +66,8 @@ class CustomerServiceController extends Controller
                     ->where(fn ($query) => $query->where('customer_id', $customer->id))
                     ->ignore($customerService->id),
             ],
+            'employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
+            'marketer_id' => CrmMarketerAttribution::marketerIdRules(),
             'fee' => ['nullable', 'numeric', 'min:0'],
             'currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
             'deadline' => ['nullable', 'date'],
@@ -60,9 +75,15 @@ class CustomerServiceController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        $this->assertDeliveryCapability(
+            $validated['employee_id'] ?? $customerService->employee_id,
+            (int) ($validated['service_id'] ?? $customerService->service_id),
+            'employee_id',
+        );
+
         $customerService->update($validated);
 
-        return new CustomerServiceResource($customerService->load(['service.currency', 'currency']));
+        return new CustomerServiceResource($customerService->load(['service.currency', 'currency', 'employee', 'marketer']));
     }
 
     public function destroy(Customer $customer, CustomerService $customerService)
@@ -72,5 +93,46 @@ class CustomerServiceController extends Controller
         $customerService->delete();
 
         return response()->noContent();
+    }
+
+    /** @param array<int, array<string, mixed>> $services */
+    private function assertDeliveryCapabilities(array $services): void
+    {
+        $errors = [];
+
+        foreach ($services as $index => $service) {
+            $employeeId = $service['employee_id'] ?? null;
+            if ($employeeId === null) {
+                continue;
+            }
+
+            if (! $this->employeeCanDeliver((int) $employeeId, (int) $service['service_id'])) {
+                $errors["services.{$index}.employee_id"] = [
+                    'Choose a commission employee who is configured to deliver this service.',
+                ];
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    private function assertDeliveryCapability(?int $employeeId, int $serviceId, string $field): void
+    {
+        if ($employeeId !== null && ! $this->employeeCanDeliver($employeeId, $serviceId)) {
+            throw ValidationException::withMessages([
+                $field => ['Choose a commission employee who is configured to deliver this service.'],
+            ]);
+        }
+    }
+
+    private function employeeCanDeliver(int $employeeId, int $serviceId): bool
+    {
+        return Employee::query()
+            ->whereKey($employeeId)
+            ->where('employment_type', 'commission')
+            ->whereHas('commissionServices', fn ($query) => $query->whereKey($serviceId))
+            ->exists();
     }
 }

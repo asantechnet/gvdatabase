@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\EmployeeResource;
+use App\Http\Resources\ServiceResource;
 use App\Http\Resources\UserResource;
 use App\Models\Employee;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,20 +16,41 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class EmployeeController extends Controller
 {
     public function index(): AnonymousResourceCollection
     {
         // Ordering by latest and paginating is standard practice for lists
-        return EmployeeResource::collection(Employee::selectable()->with(['position', 'office', 'user', 'commissionServices'])->get());
+        return EmployeeResource::collection(Employee::selectable()->with(['position', 'office', 'user', 'commissionServices.currency'])->get());
+    }
+
+    /** Active catalogue services available for commission capability setup. */
+    public function commissionOptions(): AnonymousResourceCollection
+    {
+        return ServiceResource::collection(Service::query()
+            ->with('currency')
+            ->where('status', Service::STATUS_ACTIVE)
+            ->orderBy('type')
+            ->get());
+    }
+
+    /** Employees assigned to the built-in Marketer position for CRM ownership. */
+    public function marketerOptions(): AnonymousResourceCollection
+    {
+        return EmployeeResource::collection(Employee::selectable()
+            ->whereHas('position', fn ($query) => $query->where('system_key', 'marketer'))
+            ->with(['position', 'office', 'user'])
+            ->orderBy('name')
+            ->get());
     }
 
     /** User accounts available for linking from the employee form. */
     public function accountOptions(): AnonymousResourceCollection
     {
         return UserResource::collection(
-            User::query()->with('employee:id,user_id,name')->orderBy('name')->get(),
+            User::query()->with(['employee:id,user_id,name', 'marketer:id,user_id,name'])->orderBy('name')->get(),
         );
     }
 
@@ -51,18 +74,23 @@ class EmployeeController extends Controller
             'position_id' => 'required|max:255',
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
             'employment_type' => ['required', Rule::in(['salaried', 'commission'])],
-            'salary' => [Rule::requiredIf($request->input('employment_type', 'salaried') === 'salaried'), 'nullable', 'numeric', 'gt:0'],
-            'commissions' => ['nullable', 'array'],
-            'commissions.*.service_id' => ['required', 'integer', 'distinct', 'exists:services,id'],
+            'salary' => ['required', 'numeric', 'min:0'],
+            'commissions' => [Rule::requiredIf($request->input('employment_type') === 'commission'), 'array', 'min:1'],
+            'commissions.*.service_id' => ['required', 'integer', 'distinct', Rule::exists('services', 'id')->where('status', Service::STATUS_ACTIVE)],
             'commissions.*.percentage' => ['required', 'numeric', 'gt:0', 'lte:100'],
             'addr' => 'required|string|min:5',
             'join_date' => 'required|date',
-            'contract_duration' => 'required|string|max:255',
+            // Contract terms are managed in the contract workspace, not the
+            // employee profile. Keep a harmless legacy value for the existing
+            // non-null database column while new profiles no longer expose it.
+            'contract_duration' => 'nullable|string|max:255',
         ]);
 
         $createdUser = false;
         $Employee = DB::transaction(function () use ($validated, $request, &$createdUser) {
-            $employee = Employee::create(collect($validated)->except(['email', 'create_user', 'commissions'])->all());
+            $employeeData = collect($validated)->except(['email', 'create_user', 'commissions'])->all();
+            $employeeData['contract_duration'] = $employeeData['contract_duration'] ?? '';
+            $employee = Employee::create($employeeData);
             $this->syncCommissions($employee, $validated['commissions'] ?? []);
             if (! $employee->user_id && $request->boolean('create_user', true)) {
                 $user = User::create([
@@ -85,12 +113,12 @@ class EmployeeController extends Controller
             Password::sendResetLink(['email' => $Employee->user->email]);
         }
 
-        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'commissionServices']));
+        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'commissionServices.currency']));
     }
 
     public function show(Employee $Employee): EmployeeResource
     {
-        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'commissionServices']));
+        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'commissionServices.currency']));
     }
 
     public function update(Request $request, Employee $Employee): EmployeeResource
@@ -99,6 +127,18 @@ class EmployeeController extends Controller
         $hadUser = $Employee->user !== null;
         $previousUserId = $Employee->user_id;
         $previousEmail = $Employee->user?->email;
+
+        $targetEmploymentType = $request->input('employment_type', $Employee->employment_type);
+
+        if ($Employee->employment_type === 'commission'
+            && $targetEmploymentType !== 'commission'
+            && $Employee->customerServices()->whereNull('deleted_at')->exists()) {
+            throw ValidationException::withMessages([
+                'employment_type' => [
+                    'Reassign or clear this employee from their customer services before changing them to salaried.',
+                ],
+            ]);
+        }
 
         $validated = $request->validate([
             'name' => 'sometimes|required|string|min:2|max:255',
@@ -117,19 +157,20 @@ class EmployeeController extends Controller
             'position_id' => 'sometimes|required|max:255',
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
             'employment_type' => ['sometimes', Rule::in(['salaried', 'commission'])],
-            'salary' => ['nullable', 'numeric', 'gt:0'],
-            'commissions' => ['nullable', 'array'],
-            'commissions.*.service_id' => ['required', 'integer', 'distinct', 'exists:services,id'],
+            'salary' => ['nullable', 'numeric', 'min:0'],
+            'commissions' => [Rule::requiredIf($targetEmploymentType === 'commission'), 'array', 'min:1'],
+            'commissions.*.service_id' => ['required', 'integer', 'distinct', Rule::exists('services', 'id')->where('status', Service::STATUS_ACTIVE)],
             'commissions.*.percentage' => ['required', 'numeric', 'gt:0', 'lte:100'],
             'addr' => 'sometimes|required|string|min:5',
             'join_date' => 'sometimes|required|date',
-            'contract_duration' => 'sometimes|required|string|max:255',
+            'contract_duration' => 'sometimes|nullable|string|max:255',
         ]);
 
         $createdUser = false;
         DB::transaction(function () use ($Employee, $validated, $request, $previousUserId, &$createdUser) {
-            $Employee->update(collect($validated)->except(['email', 'create_user', 'commissions'])->all());
-            if (array_key_exists('commissions', $validated)) {
+            $employeeData = collect($validated)->except(['email', 'create_user', 'commissions'])->all();
+            $Employee->update($employeeData);
+            if (array_key_exists('commissions', $validated) || array_key_exists('employment_type', $validated)) {
                 $this->syncCommissions($Employee, $validated['commissions'] ?? []);
             }
             if (! $Employee->user && $request->boolean('create_user')) {
@@ -158,7 +199,7 @@ class EmployeeController extends Controller
             }
         });
 
-        $Employee = $Employee->fresh(['position', 'office', 'user', 'commissionServices']);
+        $Employee = $Employee->fresh(['position', 'office', 'user', 'commissionServices.currency']);
 
         if ($Employee->user && $createdUser && ! $hadUser) {
             $Employee->user->sendEmailVerificationNotification();

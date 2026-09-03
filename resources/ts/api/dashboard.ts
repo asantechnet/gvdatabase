@@ -166,8 +166,8 @@ const DashboardApi = {
   // should use getData so response unwrapping remains inside this contract.
   getStats: () => api.get('/dashboard/stats'),
 
-  async getData(): Promise<DashboardData> {
-    const response = await api.get('/dashboard/stats')
+  async getData(params?: { period?: '1m' | '3m' | '1y' | '2y' | 'custom'; start_date?: string; end_date?: string }): Promise<DashboardData> {
+    const response = await api.get('/dashboard/stats', { params })
 
     return response.data.data
   },

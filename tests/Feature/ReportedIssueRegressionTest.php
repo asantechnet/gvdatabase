@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\Board;
 use App\Models\Currency;
 use App\Models\Employee;
+use App\Models\Expense;
 use App\Models\Notification;
 use App\Models\Setting;
 use App\Models\Subtask;
@@ -65,6 +66,35 @@ class ReportedIssueRegressionTest extends TestCase
 
         $this->assertFalse($oldBase->fresh()->is_base);
         $this->assertTrue($newBase->fresh()->is_base);
+    }
+
+    public function test_expense_exchange_rate_can_be_overridden_and_updated(): void
+    {
+        $currency = Currency::factory()->create([
+            'code' => 'AFN',
+            'rate' => 70,
+            'is_base' => true,
+        ]);
+
+        $expenseId = $this->postJson('/api/expenses', [
+            'type' => 'Utilities',
+            'description' => 'Power bill',
+            'amount' => 130,
+            'quantity' => 1,
+            'currency_id' => $currency->id,
+            'rate' => 65,
+            'date' => '2026-09-02',
+        ])->assertCreated()
+            ->assertJsonPath('data.rate', 65)
+            ->assertJsonPath('data.base_amount', 2)
+            ->json('data.id');
+
+        $this->putJson("/api/expenses/{$expenseId}", ['rate' => 52])
+            ->assertOk()
+            ->assertJsonPath('data.rate', 52)
+            ->assertJsonPath('data.base_amount', 2.5);
+
+        $this->assertSame(52.0, (float) Expense::findOrFail($expenseId)->rate);
     }
 
     public function test_in_app_notification_preferences_filter_future_deliveries(): void

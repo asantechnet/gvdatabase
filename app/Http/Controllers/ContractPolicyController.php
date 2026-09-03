@@ -43,7 +43,10 @@ class ContractPolicyController extends Controller
     {
         return $request->validate([
             'label' => ($partial ? 'sometimes' : 'required').'|string|max:255',
-            'type' => ($partial ? 'sometimes' : 'required').'|string|max:100',
+            // A policy clause is reusable only within one of the contract
+            // contexts the resolver understands. Keep API callers aligned
+            // with the restricted select shown in the policy editor.
+            'type' => ($partial ? 'sometimes' : 'required').'|in:employment,company,customer',
             'header' => 'nullable|string|max:255',
             'content' => ($partial ? 'sometimes' : 'required').'|string',
         ]);

@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Service;
 use App\Http\Resources\ServiceResource;
+use App\Models\Service;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Http\JsonResponse;
 
 class ServiceController extends Controller
 {
@@ -17,11 +17,12 @@ class ServiceController extends Controller
     {
         try {
             $services = Service::with('currency')->get();
+
             return response()->json(ServiceResource::collection($services));
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to retrieve services',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -39,7 +40,7 @@ class ServiceController extends Controller
                 'status' => [
                     'required',
                     'string',
-                    Rule::in(Service::getValidStatuses())
+                    Rule::in(Service::getValidStatuses()),
                 ],
                 'currency_id' => 'required|exists:currencies,id',
             ]);
@@ -50,12 +51,12 @@ class ServiceController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to create service',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -70,7 +71,7 @@ class ServiceController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to retrieve service',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -89,7 +90,7 @@ class ServiceController extends Controller
                     'sometimes',
                     'required',
                     'string',
-                    Rule::in(Service::getValidStatuses())
+                    Rule::in(Service::getValidStatuses()),
                 ],
                 'currency_id' => 'sometimes|required|exists:currencies,id',
             ]);
@@ -100,12 +101,12 @@ class ServiceController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to update service',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -116,18 +117,19 @@ class ServiceController extends Controller
     public function destroy(Service $service): JsonResponse
     {
         try {
-            if ($service->invoices()->exists() || $service->customerServices()->exists()) {
+            if ($service->invoices()->exists() || $service->customerServices()->exists() || $service->projects()->exists()) {
                 return response()->json([
-                    'message' => 'Assigned or invoiced services cannot be deleted. Mark the service inactive instead.',
+                    'message' => 'Assigned, projected, or invoiced services cannot be deleted. Mark the service inactive instead.',
                 ], 409);
             }
 
             $service->delete();
+
             return response()->json(null, 204);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to delete service',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

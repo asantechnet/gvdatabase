@@ -10,6 +10,8 @@ export interface Account {
   acc_status: string
   roles: string[]
   permissions: string[]
+  employee: { id: number; position_id: number; is_marketer: boolean } | null
+  is_marketer: boolean
   organization?: string | null
   state?: string | null
   zip?: string | null

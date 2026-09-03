@@ -6,6 +6,8 @@ use App\Http\Resources\CurrencyResource;
 use App\Models\Currency;
 use App\Models\CurrencyRateHistory;
 use App\Models\Position;
+use App\Models\CommissionAccrual;
+use App\Models\CommissionSettlement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -124,7 +126,9 @@ class CurrencyController extends Controller
             ], 400);
         }
 
-        if ($currency->invoices()->exists() || $currency->services()->exists() || $currency->salaries()->exists() || $currency->incomes()->exists() || $currency->expenses()->exists()) {
+        if ($currency->invoices()->exists() || $currency->services()->exists() || $currency->salaries()->exists() || $currency->incomes()->exists() || $currency->expenses()->exists()
+            || CommissionAccrual::where('base_currency_id', $currency->id)->exists()
+            || CommissionSettlement::where('base_currency_id', $currency->id)->exists()) {
             return response()->json([
                 'success' => false,
                 'code' => 'business.currency_in_use',

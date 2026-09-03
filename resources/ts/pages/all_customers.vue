@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { VCheckbox, VDataTable, VSelect, VTextField } from 'vuetify/components'
 import { useRouter } from 'vue-router'
@@ -10,12 +10,16 @@ import PrintableListReport from '@/components/PrintableListReport.vue'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import type { Service } from '@/api/services'
 import CurrencyApi, { type Currency } from '@/api/currency'
-import MarketerApi, { type Marketer } from '@/api/marketer'
+import EmployeeApi, { type Employee } from '@/api/employee'
+import ProjectApi from '@/api/project'
+import { canAccess } from '@/utils/authorization'
 
 // Types
 interface ServiceForm {
   id: number
   service_id: number
+  employee_id: number | null
+  marketer_id: number | null
   fee: number | null
   currency_id: number | null
   deadline: string | null
@@ -32,7 +36,9 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const servicesLoading = ref(false)
 const currencies = ref<Currency[]>([])
-const marketers = ref<Marketer[]>([])
+const marketers = ref<Employee[]>([])
+const deliveryEmployees = ref<Employee[]>([])
+const userData = useCookie<{ is_marketer?: boolean; employee?: { id: number; is_marketer?: boolean } | null } | null>('userData')
 
 // Form state
 const dialog = ref(false)
@@ -46,6 +52,8 @@ const currentCustomer = ref<Customer>({
   address: null,
   tax_number: null,
   marketer: '',
+  marketer_id: null,
+  marketer_employee: null,
   date: new Date().toISOString().split('T')[0],
   services: [],
   created_at: '',
@@ -54,6 +62,8 @@ const currentCustomer = ref<Customer>({
 const currentService = ref<ServiceForm>({
   id: 0,
   service_id: 0,
+  employee_id: null,
+  marketer_id: null,
   fee: null,
   currency_id: null,
   deadline: null,
@@ -69,6 +79,10 @@ const serviceLoading = ref(false)
 const selectedServices = ref<{
   service_id: number
 }[]>([])
+const selectedProjectServiceIds = ref<number[]>([])
+const projectDialog = ref(false)
+const projectLoading = ref(false)
+const projectDraft = ref({ name: '', description: '', due_date: null as string | null })
 
 // Search and filters
 const search = ref('')
@@ -85,7 +99,10 @@ const headers = [
 ]
 
 const serviceHeaders = [
+  ...(canAccess('create_projects') ? [{ title: '', key: 'projectSelect', sortable: false, width: '44px' }] : []),
   { title: translate('common.fields.type'), key: 'type' },
+  { title: 'Delivery owner', key: 'employee', sortable: false },
+  { title: 'Acquisition', key: 'marketer', sortable: false },
   { title: translate('common.messages.fee'), key: 'fee' },
   { title: translate('common.messages.deadline'), key: 'deadline' },
   { title: translate('common.fields.currency'), key: 'currency.code' },
@@ -144,6 +161,43 @@ const availableServices = computed(() => {
   return allServices.value.filter(s => !attachedServiceIds.includes(s.id))
 })
 
+const isCurrentUserMarketer = computed(() => Boolean(
+  userData.value?.is_marketer || userData.value?.employee?.is_marketer,
+))
+
+const currentUserEmployeeId = computed(() => userData.value?.employee?.id ?? null)
+
+const currentMarketerName = computed(() => {
+  const employeeId = currentUserEmployeeId.value
+  return marketers.value.find(marketer => marketer.id === employeeId)?.name ?? 'You'
+})
+
+const eligibleDeliveryEmployees = computed(() => deliveryEmployees.value.filter(employee =>
+  employee.commissions.some(commission => commission.service_id === currentService.value.service_id),
+))
+
+const deliveryEmployeeLabel = (employee: Employee) => {
+  const capability = employee.commissions.find(commission => commission.service_id === currentService.value.service_id)
+  return capability ? `${employee.name} · ${capability.percentage}% commission` : employee.name
+}
+
+const selectedProjectServices = computed(() => currentCustomer.value.services.filter(service =>
+  selectedProjectServiceIds.value.includes(service.service_id),
+))
+
+const canCreateProject = computed(() => Boolean(
+  currentCustomer.value.id && selectedProjectServices.value.length && projectDraft.value.name.trim(),
+))
+
+watch(() => currentService.value.service_id, serviceId => {
+  if (currentService.value.employee_id && !deliveryEmployees.value.some(employee =>
+    employee.id === currentService.value.employee_id
+    && employee.commissions.some(commission => commission.service_id === serviceId),
+  )) {
+    currentService.value.employee_id = null
+  }
+})
+
 // API methods
 const fetchCustomers = async () => {
   try {
@@ -151,8 +205,7 @@ const fetchCustomers = async () => {
     const response: ApiResponse<Customer[]> = await CustomerApi.getAll({
       search: search.value,
       company: undefined,
-      marketer: undefined
-      , compact: true
+      marketer: undefined,
     })
     if (response.success) {
       customers.value = response.data
@@ -203,8 +256,8 @@ const createCustomer = async () => {
       email: currentCustomer.value.email,
       address: currentCustomer.value.address,
       tax_number: currentCustomer.value.tax_number,
-      marketer: currentCustomer.value.marketer,
       date: currentCustomer.value.date,
+      ...(isCurrentUserMarketer.value ? {} : { marketer_id: currentCustomer.value.marketer_id }),
     })
     if (response.success) {
       customers.value.push(response.data)
@@ -229,8 +282,11 @@ const updateCustomer = async () => {
       email: currentCustomer.value.email,
       address: currentCustomer.value.address,
       tax_number: currentCustomer.value.tax_number,
-      marketer: currentCustomer.value.marketer,
       date: currentCustomer.value.date,
+      // Marketer users never submit an alternative owner. On creation the
+      // server assigns them automatically; on ordinary edits it preserves the
+      // existing relationship owner.
+      ...(isCurrentUserMarketer.value ? {} : { marketer_id: currentCustomer.value.marketer_id }),
     })
     if (response.success) {
       const index = customers.value.findIndex(c => c.id === currentCustomer.value.id)
@@ -253,6 +309,8 @@ const updateService = async (customerId: number, pivotId: number) => {
 
     const response = await CustomerApi.updateService(customerId, pivotId, {
       service_id: currentService.value.service_id,
+      employee_id: currentService.value.employee_id,
+      marketer_id: currentService.value.marketer_id,
       fee: currentService.value.fee,
       currency_id: currentService.value.currency_id,
       deadline: currentService.value.deadline,
@@ -276,6 +334,9 @@ const updateService = async (customerId: number, pivotId: number) => {
       // Also update the current customer in the dialog if it's the same customer
       if (currentCustomer.value.id === customerId) {
         currentCustomer.value = customerResponse.data
+        selectedProjectServiceIds.value = selectedProjectServiceIds.value.filter(serviceId =>
+          customerResponse.data.services.some(service => service.service_id === serviceId),
+        )
       }
     }
 
@@ -314,6 +375,7 @@ const attachSelectedServices = async () => {
 
       // Reset selected services and close dialog
       selectedServices.value = []
+      selectedProjectServiceIds.value = []
       attachServiceDialog.value = false
       toast.success(translate('pages.contracts.allCustomers.allCustomers.servicesAttached'))
     }
@@ -361,6 +423,9 @@ const removeService = async (customerId: number, pivotId: number) => {
       // Also update the current customer in the dialog if it's the same customer
       if (currentCustomer.value.id === customerId) {
         currentCustomer.value = customerResponse.data
+        selectedProjectServiceIds.value = selectedProjectServiceIds.value.filter(serviceId =>
+          customerResponse.data.services.some(service => service.service_id === serviceId),
+        )
       }
     }
   } catch (err) {
@@ -389,6 +454,8 @@ const openAddCustomer = () => {
     address: null,
     tax_number: null,
     marketer: '',
+    marketer_id: isCurrentUserMarketer.value ? currentUserEmployeeId.value : null,
+    marketer_employee: null,
     date: new Date().toISOString().split('T')[0],
     services: [],
     created_at: '',
@@ -401,6 +468,7 @@ const openAddCustomer = () => {
 const openEditCustomer = async (customer: Customer) => {
   const response = await CustomerApi.getById(customer.id)
   currentCustomer.value = response.success ? response.data : { ...customer }
+  selectedProjectServiceIds.value = []
   isEdit.value = true
   dialog.value = true
 }
@@ -423,6 +491,8 @@ const openEditService = async (customerId: number, pivotId: number) => {
       currentService.value = {
         id: service.id,
         service_id: service.service_id,
+        employee_id: service.employee_id ?? null,
+        marketer_id: service.marketer_id ?? customer.marketer_id ?? null,
         fee: service.fee,
         currency_id: service.currency_id ?? Number(service.currency.id),
         deadline: service.deadline,
@@ -453,9 +523,64 @@ const saveService = async () => {
 
 const fetchMarketers = async () => {
   try {
-    marketers.value = await MarketerApi.getAll()
+    marketers.value = await EmployeeApi.getMarketerOptions()
   } catch (err) {
     console.error('Failed to fetch marketers:', err)
+  }
+}
+
+const fetchDeliveryEmployees = async () => {
+  try {
+    deliveryEmployees.value = (await EmployeeApi.getOptions())
+      .filter(employee => employee.employment_type === 'commission')
+  } catch (err) {
+    console.error('Failed to fetch commission-capable employees:', err)
+  }
+}
+
+const toggleProjectService = (serviceId: number, selected: boolean | null) => {
+  if (selected && !selectedProjectServiceIds.value.includes(serviceId))
+    selectedProjectServiceIds.value.push(serviceId)
+  else if (!selected)
+    selectedProjectServiceIds.value = selectedProjectServiceIds.value.filter(id => id !== serviceId)
+}
+
+const openProjectDialog = () => {
+  if (!currentCustomer.value.id || !selectedProjectServices.value.length) return
+
+  const serviceNames = selectedProjectServices.value.map(service => service.type).join(' + ')
+  const earliestDeadline = selectedProjectServices.value
+    .map(service => service.deadline)
+    .filter((deadline): deadline is string => Boolean(deadline))
+    .sort()[0] ?? null
+
+  projectDraft.value = {
+    name: `${currentCustomer.value.name} — ${serviceNames}`.slice(0, 255),
+    description: `Delivery workspace for ${serviceNames}.`,
+    due_date: earliestDeadline,
+  }
+  projectDialog.value = true
+}
+
+const createProjectFromSelectedServices = async () => {
+  if (!canCreateProject.value) return
+
+  projectLoading.value = true
+  try {
+    const project = await ProjectApi.create({
+      name: projectDraft.value.name.trim(),
+      description: projectDraft.value.description.trim() || null,
+      due_date: projectDraft.value.due_date,
+      customer_id: currentCustomer.value.id,
+      service_ids: selectedProjectServices.value.map(service => service.service_id),
+    })
+    toast.success(`Project “${project.name}” created with ${selectedProjectServices.value.length} selected service${selectedProjectServices.value.length === 1 ? '' : 's'}.`)
+    selectedProjectServiceIds.value = []
+    projectDialog.value = false
+  } catch (err: any) {
+    toast.error(err?.response?.data?.errors?.service_ids?.[0] || err?.response?.data?.message || 'Unable to create the project from these services.')
+  } finally {
+    projectLoading.value = false
   }
 }
 
@@ -469,6 +594,7 @@ onMounted(() => {
   fetchAllServices()
   fetchCurrencies()
   fetchMarketers()
+  fetchDeliveryEmployees()
 })
 </script>
 
@@ -624,15 +750,27 @@ onMounted(() => {
             <VCol cols="12" md="6"><VTextField v-model="currentCustomer.email" label="Email" type="email" /></VCol>
             <VCol cols="12"><VTextarea v-model="currentCustomer.address" label="Address" rows="2" /></VCol>
             <VCol cols="12" md="6"><VTextField v-model="currentCustomer.tax_number" label="Tax number" /></VCol>
-            <VCol cols="12" md="6">
+            <VCol v-if="isCurrentUserMarketer" cols="12" md="6">
+              <VTextField
+                :model-value="currentMarketerName"
+                :label="$t('common.messages.marketer')"
+                prepend-inner-icon="tabler-user-check"
+                hint="Your marketer attribution is applied automatically."
+                persistent-hint
+                readonly
+              />
+            </VCol>
+            <VCol v-else cols="12" md="6">
               <VAutocomplete
-                v-model="currentCustomer.marketer"
+                v-model="currentCustomer.marketer_id"
                 :items="marketers"
                 item-title="name"
-                item-value="name"
+                item-value="id"
                 :label="$t('common.messages.marketer')"
                 :placeholder="$t('common.messages.selectAMarketer')"
-                :no-data-text="$t('pages.contracts.allCustomers.allCustomers.addMarketersFromSetupMarketers')"
+                no-data-text="Create an employee with the Marketer position to assign them here."
+                hint="This employee receives acquisition credit; delivery ownership is chosen per service."
+                persistent-hint
                 clearable
               />
             </VCol>
@@ -649,18 +787,28 @@ onMounted(() => {
           <VRow v-if="isEdit">
             <VCol cols="12">
               <VCard>
-                <VCardTitle class="d-flex justify-space-between align-center">
-                  <span>{{ $t('pages.contracts.allCustomers.allCustomers.services') }}</span>
-                  <div v-if="currentCustomer.id">
+                <VCardTitle class="d-flex flex-wrap justify-space-between align-center ga-3 py-4">
+                  <div>
+                    <div class="text-subtitle-1 font-weight-semibold">{{ $t('pages.contracts.allCustomers.allCustomers.services') }}</div>
+                    <div class="text-caption text-medium-emphasis">Choose delivery owners, then select the purchased services that belong in a project.</div>
+                  </div>
+                  <div v-if="currentCustomer.id" class="d-flex flex-wrap align-center ga-2">
+                    <VChip v-if="selectedProjectServices.length" size="small" color="primary" variant="tonal">{{ selectedProjectServices.length }} selected</VChip>
+                    <VBtn
+                      v-if="canAccess('create_projects')"
+                      color="secondary"
+                      size="small"
+                      variant="tonal"
+                      prepend-icon="tabler-folders-plus"
+                      :disabled="!selectedProjectServices.length"
+                      @click="openProjectDialog"
+                    >Create project</VBtn>
                     <VBtn
                       color="primary"
                       size="small"
-                      class="me-2"
+                      prepend-icon="tabler-plus"
                       @click="openAttachServices(currentCustomer.id)"
-                    >
-                      <VIcon icon="tabler-plus" class="me-1" />
-                      {{ $t('common.messages.attachServices') }}
-                    </VBtn>
+                    >{{ $t('common.messages.attachServices') }}</VBtn>
                   </div>
                 </VCardTitle>
 
@@ -670,6 +818,26 @@ onMounted(() => {
                   density="compact"
                   hide-default-footer
                 >
+                  <template #item.projectSelect="{ item }">
+                    <VCheckbox
+                      :model-value="selectedProjectServiceIds.includes(item.service_id)"
+                      density="compact"
+                      hide-details
+                      :aria-label="`Include ${item.type} in a new project`"
+                      @update:model-value="toggleProjectService(item.service_id, $event)"
+                    />
+                  </template>
+                  <template #item.employee="{ item }">
+                    <div v-if="item.employee" class="d-flex align-center ga-2">
+                      <VAvatar size="28" color="primary" variant="tonal"><VIcon icon="tabler-user-check" size="15" /></VAvatar>
+                      <span class="text-body-2">{{ item.employee.name }}</span>
+                    </div>
+                    <span v-else class="text-caption text-warning">Unassigned</span>
+                  </template>
+                  <template #item.marketer="{ item }">
+                    <span v-if="item.marketer" class="text-body-2">{{ item.marketer.name }}</span>
+                    <span v-else class="text-medium-emphasis">—</span>
+                  </template>
                   <template #item.deadline="{ item }">
                     <VChip v-if="item.deadline"
                       :color="deadlineMeta(item.deadline).color"
@@ -736,6 +904,33 @@ onMounted(() => {
     </VCard>
   </VDialog>
 
+  <!-- Create a delivery project from the purchased services selected above. -->
+  <VDialog v-model="projectDialog" max-width="640px">
+    <VCard>
+      <VCardTitle class="d-flex align-center ga-3 py-5">
+        <VAvatar color="primary" variant="tonal" size="40"><VIcon icon="tabler-folders-plus" /></VAvatar>
+        <div>
+          <div class="text-h6">Create delivery project</div>
+          <div class="text-caption text-medium-emphasis">{{ currentCustomer.name }} · {{ selectedProjectServices.length }} selected service{{ selectedProjectServices.length === 1 ? '' : 's' }}</div>
+        </div>
+      </VCardTitle>
+      <VCardText>
+        <VAlert type="info" variant="tonal" density="compact" class="mb-4">This project will cover only the selected purchased services. You can plan tasks without exposing the customer's other services.</VAlert>
+        <div class="d-flex flex-wrap ga-2 mb-5">
+          <VChip v-for="service in selectedProjectServices" :key="service.id" size="small" color="primary" variant="tonal">{{ service.type }}</VChip>
+        </div>
+        <VTextField v-model="projectDraft.name" label="Project name" prepend-inner-icon="tabler-folder" class="mb-4" autofocus />
+        <VTextarea v-model="projectDraft.description" label="Delivery brief" rows="3" auto-grow class="mb-4" />
+        <AppDateTimePicker v-model="projectDraft.due_date" label="Target date" clearable :config="{ dateFormat: 'Y-m-d' }" />
+      </VCardText>
+      <VCardActions class="pa-5">
+        <VSpacer />
+        <VBtn variant="tonal" color="secondary" @click="projectDialog = false">Cancel</VBtn>
+        <VBtn color="primary" prepend-icon="tabler-folders-plus" :loading="projectLoading" :disabled="!canCreateProject" @click="createProjectFromSelectedServices">Create project</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+
   <!-- Service Form Dialog -->
   <VDialog v-model="serviceDialog" max-width="600px">
     <VCard>
@@ -763,6 +958,43 @@ onMounted(() => {
                 item-title="code"
                 item-value="id"
                 :label="$t('common.fields.currency')"
+              />
+            </VCol>
+            <VCol cols="12">
+              <VAutocomplete
+                v-model="currentService.employee_id"
+                :items="eligibleDeliveryEmployees"
+                :item-title="deliveryEmployeeLabel"
+                item-value="id"
+                label="Delivery owner (optional)"
+                prepend-inner-icon="tabler-user-check"
+                clearable
+                no-data-text="No commission employee is enabled for this service yet. Add the service to an employee's capabilities first."
+                hint="Only employees with a configured rate for this catalogue service can be assigned."
+                persistent-hint
+              />
+            </VCol>
+            <VCol v-if="isCurrentUserMarketer" cols="12" md="6">
+              <VTextField
+                :model-value="currentMarketerName"
+                label="Acquisition marketer"
+                prepend-inner-icon="tabler-speakerphone"
+                hint="Your attribution is applied automatically."
+                persistent-hint
+                readonly
+              />
+            </VCol>
+            <VCol v-else cols="12" md="6">
+              <VAutocomplete
+                v-model="currentService.marketer_id"
+                :items="marketers"
+                item-title="name"
+                item-value="id"
+                label="Acquisition marketer (optional)"
+                prepend-inner-icon="tabler-speakerphone"
+                clearable
+                hint="Defaults to the customer marketer when the service is attached."
+                persistent-hint
               />
             </VCol>
             <VCol cols="12" md="6">

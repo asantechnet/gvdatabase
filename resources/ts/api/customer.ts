@@ -6,8 +6,13 @@ export type ApiResponse<T> = ServiceApiResponse<T>
 export interface CustomerService {
   id: number
   service_id: number
+  customer_id: number
   type: string
   fee: number
+  employee_id: number | null
+  employee: { id: number; name: string } | null
+  marketer_id: number | null
+  marketer: { id: number; name: string } | null
   currency_id: number | null
   currency: {
     id: number | string
@@ -32,6 +37,8 @@ export interface Customer {
   address: string | null
   tax_number: string | null
   marketer: string | null
+  marketer_id: number | null
+  marketer_employee: { id: number; name: string } | null
   date: string
   services: CustomerService[]
   created_at: string
@@ -42,6 +49,7 @@ export interface CustomerParams {
   search?: string
   company?: string
   marketer?: string
+  marketer_id?: number
   compact?: boolean
 }
 
@@ -52,7 +60,9 @@ export interface CreateCustomerData {
   email?: string | null
   address?: string | null
   tax_number?: string | null
+  /** Legacy display label retained for older integrations. */
   marketer?: string | null
+  marketer_id?: number | null
   date: string
 }
 
@@ -60,11 +70,19 @@ export type UpdateCustomerData = Partial<CreateCustomerData>
 
 export interface CreateCustomerServiceData {
   service_id: number
+  employee_id?: number | null
+  marketer_id?: number | null
+  fee?: number | null
+  currency_id?: number | null
   deadline?: string | null
+  status?: 'active' | 'paused' | 'completed'
+  notes?: string | null
 }
 
 export interface UpdateCustomerServiceData {
   service_id: number
+  employee_id?: number | null
+  marketer_id?: number | null
   fee?: number | null
   currency_id?: number | null
   deadline: string | null
@@ -81,6 +99,8 @@ const emptyCustomer = (): Customer => ({
   address: null,
   tax_number: null,
   marketer: '',
+  marketer_id: null,
+  marketer_employee: null,
   date: '',
   services: [],
   created_at: '',

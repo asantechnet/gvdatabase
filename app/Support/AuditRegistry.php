@@ -7,6 +7,8 @@ use App\Models\AuditResourceSetting;
 use App\Models\Board;
 use App\Models\Comment;
 use App\Models\Company;
+use App\Models\CommissionAccrual;
+use App\Models\CommissionSettlement;
 use App\Models\Contract;
 use App\Models\ContractPolicy;
 use App\Models\ContractTemplate;
@@ -49,6 +51,8 @@ final class AuditRegistry
             'boards' => Board::class,
             'comments' => Comment::class,
             'companies' => Company::class,
+            'commission_accruals' => CommissionAccrual::class,
+            'commission_settlements' => CommissionSettlement::class,
             'contract_policies' => ContractPolicy::class,
             'contract_templates' => ContractTemplate::class,
             'contract_types' => ContractType::class,
@@ -119,6 +123,8 @@ final class AuditRegistry
             'customer_services' => self::joinedLabel(self::relatedLabel($model, 'customer'), self::relatedLabel($model, 'service')),
             'comments' => self::relatedLabel($model, 'task'),
             'worthy_employees' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getAttribute('bonus_month')),
+            'commission_accruals' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getAttribute('earned_at')),
+            'commission_settlements' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getAttribute('settlement_number')),
             default => '',
         };
         if ($contextLabel !== '') {
@@ -130,6 +136,8 @@ final class AuditRegistry
             'contracts' => ['contract_number', 'name', 'counterparty'],
             'incomes' => ['receipt_number', 'description', 'type'],
             'salaries' => ['payslip_number', 'salary_month'],
+            'commission_settlements' => ['settlement_number', 'period_start'],
+            'commission_accruals' => ['earned_at', 'status'],
             'assets' => ['serial_number', 'item', 'model'],
             'companies' => ['trade_name', 'legal_name', 'registration_number'],
             'positions' => ['title'],
@@ -144,7 +152,7 @@ final class AuditRegistry
             'attendances' => ['date'],
             'leaves' => ['date', 'duration_days', 'reason', 'approval_note'],
             'customer_services' => ['deadline', 'status'],
-            'worthy_employees' => ['bonus_month', 'eligibility_reason'],
+            'worthy_employees' => ['bonus_month', 'selected_type'],
             'settings' => ['short_company_name', 'website_title'],
         ][$key] ?? ['name', 'title', 'code', 'serial_number', 'email', 'date', 'type'];
 

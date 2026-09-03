@@ -4,6 +4,7 @@ import { VDialog } from 'vuetify/components'
 import { getIncomes, createIncome, updateIncome, deleteIncome, type Income, type IncomeCreateData, type IncomeUpdateData } from '@/api/incomes'
 import InvoiceApi, { type Invoice } from '@/api/invoice'
 import CurrencyApi, { type Currency } from '@/api/currency'
+import CompanyApi, { type Company } from '@/api/company'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
@@ -25,6 +26,7 @@ type IncomeForm = IncomeCreateData & {
 const emptyIncomeForm = (): IncomeForm => ({
   id: 0,
   customer_id: null,
+  company_id: null,
   invoice_id: null,
   type: '',
   description: '',
@@ -43,6 +45,7 @@ const filterCurrency = ref<number | null>(null)
 const isLoading = ref(false)
 const invoices = ref<Invoice[]>([])
 const currencies = ref<Currency[]>([])
+const companies = ref<Company[]>([])
 const formError = ref('')
 
 const typeOptions = ['Service', 'Product', 'Investment', 'Other']
@@ -58,6 +61,9 @@ const selectedInvoice = computed(() => {
   const invoiceId = selectedIncome.value?.invoice_id
   return invoiceId ? invoices.value.find(invoice => invoice.id === invoiceId) : undefined
 })
+const companyOptions = computed(() => companies.value
+  .filter(company => company.is_active)
+  .map(company => ({ title: company.trade_name || company.legal_name, value: company.id })))
 
 const selectedInvoiceBalance = computed(() => selectedInvoice.value?.balance ?? 0)
 const selectedCurrency = computed(() => currencies.value.find(currency => currency.id === selectedIncome.value.currency_id) ?? null)
@@ -88,6 +94,10 @@ const fetchUnpaidInvoices = async (includeInvoiceId?: number | null) => {
 const fetchCurrencies = async () => {
   const response = await CurrencyApi.getAll()
   currencies.value = response.data.filter(currency => currency.isActive)
+}
+
+const fetchCompanies = async () => {
+  companies.value = await CompanyApi.getAll()
 }
 
 const setDefaultCurrency = () => {
@@ -122,7 +132,7 @@ const fetchIncomes = async () => {
 const openAddIncomeDialog = () => {
   formError.value = ''
   selectedIncome.value = emptyIncomeForm()
-  Promise.all([fetchUnpaidInvoices(), fetchCurrencies()]).then(() => {
+  Promise.all([fetchUnpaidInvoices(), fetchCurrencies(), fetchCompanies()]).then(() => {
     setDefaultCurrency()
     isAddIncomeDialogVisible.value = true
   }).catch(error => {
@@ -135,7 +145,7 @@ const openAddIncomeDialog = () => {
 const openEditIncomeDialog = (income: Income) => {
   formError.value = ''
   selectedIncome.value = {...income}
-  Promise.all([fetchUnpaidInvoices(income.invoice_id), fetchCurrencies()]).then(() => {
+  Promise.all([fetchUnpaidInvoices(income.invoice_id), fetchCurrencies(), fetchCompanies()]).then(() => {
     isEditIncomeDialogVisible.value = true
   }).catch(error => {
     console.error('Error fetching unpaid invoices:', error)
@@ -300,6 +310,7 @@ const printTable = () => void printDocument({ bodyClass: 'printing-table-income'
 onMounted(() => {
   fetchIncomes()
   fetchCurrencies()
+  fetchCompanies()
 })
 </script>
 
@@ -499,6 +510,9 @@ onMounted(() => {
                   required
                 />
               </VCol>
+              <VCol cols="12" md="6">
+                <VSelect v-model="selectedIncome.company_id" :items="companyOptions" label="Company (optional)" clearable />
+              </VCol>
               <VCol cols="12">
                 <VTextarea
                   v-model="selectedIncome.description"
@@ -638,6 +652,9 @@ onMounted(() => {
                   :disabled="Boolean(selectedInvoice)"
                   required
                 />
+              </VCol>
+              <VCol cols="12" md="6">
+                <VSelect v-model="selectedIncome.company_id" :items="companyOptions" label="Company (optional)" clearable />
               </VCol>
               <VCol cols="12">
                 <VTextarea
@@ -802,6 +819,9 @@ onMounted(() => {
 .ledger-card__title { display: flex; align-items: center; gap: 9px; }
 .detail-copy { max-width: 250px; overflow: hidden; color: rgb(var(--v-theme-on-surface) / .76); text-overflow: ellipsis; }
 .invoice-payment-panel { display: flex; align-items: center; gap: 18px; padding: 13px 16px; border: 1px solid rgb(var(--v-theme-primary) / .22); border-radius: 12px; background: rgb(var(--v-theme-primary) / .06); }
+.income-dialog :deep(.v-field__field),
+.income-dialog :deep(.v-field__input),
+.income-dialog :deep(.v-select__selection) { align-items: center; }
 .table-container {
   overflow-x: auto;
 }

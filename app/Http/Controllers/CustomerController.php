@@ -4,13 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
+use App\Support\CrmMarketerAttribution;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Customer::with('customerServices.service.currency')
+        $query = Customer::with([
+            'customerServices.service.currency',
+            'customerServices.employee',
+            'customerServices.marketer',
+            'marketerEmployee',
+        ])
             ->when(! $request->boolean('compact'), fn ($query) => $query->with('interactions.creator'));
 
         if ($search = $request->input('search')) {
@@ -26,7 +32,9 @@ class CustomerController extends Controller
             $query->where('company', $company);
         }
 
-        if ($marketer = $request->input('marketer')) {
+        if ($marketerId = $request->integer('marketer_id')) {
+            $query->where('marketer_id', $marketerId);
+        } elseif ($marketer = $request->input('marketer')) {
             $query->where('marketer', $marketer);
         }
 
@@ -35,11 +43,18 @@ class CustomerController extends Controller
 
     public function store(Request $request)
     {
-        $customer = Customer::create($this->validateCustomer($request));
+        $customer = Customer::create(CrmMarketerAttribution::apply(
+            $request,
+            $this->validateCustomer($request),
+            creating: true,
+        ));
 
         return new CustomerResource($customer->load([
             'customerServices.service.currency',
+            'customerServices.employee',
+            'customerServices.marketer',
             'interactions.creator',
+            'marketerEmployee',
         ]));
     }
 
@@ -47,17 +62,27 @@ class CustomerController extends Controller
     {
         return new CustomerResource($customer->load([
             'customerServices.service.currency',
+            'customerServices.employee',
+            'customerServices.marketer',
             'interactions.creator',
+            'marketerEmployee',
         ]));
     }
 
     public function update(Request $request, Customer $customer)
     {
-        $customer->update($this->validateCustomer($request, true));
+        $customer->update(CrmMarketerAttribution::apply(
+            $request,
+            $this->validateCustomer($request, true),
+            creating: false,
+        ));
 
         return new CustomerResource($customer->load([
             'customerServices.service.currency',
+            'customerServices.employee',
+            'customerServices.marketer',
             'interactions.creator',
+            'marketerEmployee',
         ]));
     }
 
@@ -86,6 +111,7 @@ class CustomerController extends Controller
             'address' => ['nullable', 'string', 'max:2000'],
             'tax_number' => ['nullable', 'string', 'max:100'],
             'marketer' => ['nullable', 'string', 'max:255'],
+            'marketer_id' => CrmMarketerAttribution::marketerIdRules(),
             'notes' => ['nullable', 'string', 'max:10000'],
             'date' => [$presence, 'date'],
         ]);

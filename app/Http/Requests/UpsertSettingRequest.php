@@ -64,4 +64,18 @@ class UpsertSettingRequest extends FormRequest
             'automatic_attendance_enabled' => ['sometimes', 'boolean'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'contract_letterhead.image' => 'validation.image',
+            'contract_letterhead.mimes' => 'validation.mimes',
+            'contract_letterhead.max' => 'validation.max',
+            'contract_letterhead.uploaded' => 'validation.uploaded',
+            'contract_cover_design.image' => 'validation.image',
+            'contract_cover_design.mimes' => 'validation.mimes',
+            'contract_cover_design.max' => 'validation.max',
+            'contract_cover_design.uploaded' => 'validation.uploaded',
+        ];
+    }
 }

@@ -38,6 +38,14 @@
       "yes": "بله",
       "no": "خیر"
     },
+    "accountPicker": {
+      "label": "حساب کاربری",
+      "placeholder": "جستجو بر اساس نام، شناسه یا ایمیل",
+      "linkedEmployee": "کارمند: {name} (#{id})",
+      "linkedMarketer": "بازاریاب: {name} (#{id})",
+      "available": "آماده برای اتصال",
+      "noResults": "حساب کاربری مطابق یافت نشد"
+    },
     "fields": {
       "startDate": "تاریخ شروع",
       "status": "وضعیت",
@@ -380,6 +388,7 @@
       "staffList": "لیست کارمندان",
       "timesheet": "جدول حاضری",
       "staffSalary": "معاش کارمندان",
+      "commissions": "حق‌العمل‌ها",
       "bonusList": "لیست پاداش‌ها",
       "invoice": "فاکتور / بل",
       "invoiceList": "فاکتورها / بل‌ها",
@@ -521,6 +530,7 @@
     "dashboard": {
       "executive": {
         "header": { "eyebrow": "داشبورد مدیریتی", "title": "نبض شرکت", "subtitle": "پول، مشتریان، کارمندان، دارایی‌ها و تحویل کار—همه در یک نمای کاربردی.", "updated": "به‌روزرسانی {time}", "refresh": "تازه‌سازی" },
+        "filters": { "label": "دوره داشبورد", "oneMonth": "۱ ماه", "threeMonths": "۳ ماه", "oneYear": "۱ سال", "twoYears": "۲ سال", "custom": "دلخواه", "customTitle": "بازه زمانی دلخواه", "from": "از", "to": "تا", "apply": "اعمال بازه", "selectBothDates": "برای بازه دلخواه هر دو تاریخ را انتخاب کنید." },
         "common": { "notSet": "تعیین نشده", "noPayroll": "بدون معاش", "minutesShort": "{value} دقیقه", "hoursShort": "{value} ساعت" },
         "metrics": { "activeWork": "کارهای فعال", "nearingCompletion": "{count} نزدیک به تکمیل", "completedThisMonth": "تکمیل‌شده این ماه", "completionRate": "نرخ تکمیل {rate}٪", "overdueWork": "کارهای تأخیری", "pastDueDates": "گذشته از موعد", "averageProgress": "میانگین پیشرفت", "accessibleWork": "کارهای قابل دسترس", "receivableExposure": "مطالبات باز", "openInvoices": "{count} بل باز", "cashCollection": "وصول نقدی", "collectedOf": "{collected} از {total} وصول شده", "customerBase": "پایگاه مشتریان", "activeCommitments": "{count} تعهد فعال", "latestPayroll": "آخرین پرداخت معاش", "payrollContext": "{period} · {count} کارمند", "visitorsThisMonth": "مراجعین این ماه", "newCustomers": "{count} مشتری جدید" },
         "answers": { "eyebrow": "اعداد چه می‌گویند", "title": "چهار پاسخ برای امروز", "liveData": "داده زنده عملیاتی", "collectingQuestion": "آیا مطالبات وصول می‌شوند؟", "issuedValue": "{rate}٪ از مبلغ صادرشده", "customersQuestion": "آیا مشتریان فعال‌اند؟", "liveCommitments": "{count} تعهد جاری", "customerContext": "برای {customers} مشتری؛ {due} مورد به‌زودی سررسید می‌شود.", "teamQuestion": "آیا حضور تیم ثبت شده؟", "markedToday": "{rate}٪ امروز ثبت شده", "attendanceMissing": "حضور {count} نفر هنوز ثبت نشده است.", "deliveryQuestion": "آیا تحویل کار در خطر است؟", "overdueCommitments": "{count} تعهد تأخیری", "nearingDone": "{count} وظیفه نزدیک به تکمیل است." },

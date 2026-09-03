@@ -30,13 +30,29 @@ class EmployeeResource extends JsonResource
             'office_id' => $this->office_id,
             'office' => $this->office ? ['id' => $this->office->id, 'name' => $this->office->name, 'code' => $this->office->code] : null,
             'department' => $this->department,
-            'salary' => (float) $this->salary,
+            'salary' => $this->salary !== null ? (float) $this->salary : null,
             'commissions' => $this->whenLoaded('commissionServices', fn () => $this->commissionServices->map(fn ($service) => [
                 'service_id' => $service->id,
                 'service' => $service->type,
+                'fee' => (float) $service->fee,
+                'currency' => $service->currency ? [
+                    'id' => $service->currency->id,
+                    'code' => $service->currency->code,
+                    'symbol' => $service->currency->symbol,
+                    'decimalPlaces' => $service->currency->decimal_places,
+                ] : null,
                 'percentage' => (float) $service->pivot->percentage,
             ])),
             'commission_earned_base' => $this->commissionEarnedBase(),
+            'commission_balances' => $this->employment_type === 'commission'
+                ? $this->commissionAccruals()->where('status', '!=', 'void')
+                    ->selectRaw('base_currency_id, status, SUM(commission_base_amount) as amount')
+                    ->groupBy('base_currency_id', 'status')->get()->map(fn ($row) => [
+                        'base_currency_id' => $row->base_currency_id,
+                        'status' => $row->status,
+                        'amount' => (float) $row->amount,
+                    ])->values()
+                : [],
             'total_worked_hours' => (float) $this->total_worked_hours,
             'addr' => $this->addr,
             'avatar' => $this->avatar,

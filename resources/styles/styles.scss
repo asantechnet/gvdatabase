@@ -134,6 +134,46 @@ html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__progress-bar {
   }
 }
 
+// Keep every single-line control vertically centered inside its field. A
+// textarea is intentionally excluded so multi-row text remains top-aligned
+// and continues to behave like an editor instead of a centered label.
+.v-input:not(.v-textarea),
+.v-input.v-textarea:has(textarea[rows='1']) {
+  .v-field__field,
+  .v-field__input {
+    align-items: center;
+  }
+
+  .v-field__input > input,
+  .v-field__input > select {
+    align-self: center;
+  }
+
+  .v-select__selection,
+  .v-autocomplete__selection,
+  .v-combobox__selection {
+    align-self: center;
+    line-height: 24px;
+    margin-block: 0;
+    transform: none;
+  }
+}
+
+// Center the visible content in contract-template selects/autocomplete fields.
+.contract-template-form {
+  .v-field__field,
+  .v-field__input {
+    align-items: center;
+  }
+
+  .v-select__selection,
+  .v-autocomplete__selection {
+    align-self: center;
+    margin-block: 0;
+    transform: none;
+  }
+}
+
 // A single visual grammar for page, drawer, and dialog forms.
 .v-form {
   .v-label {

@@ -75,6 +75,7 @@ const serviceHeaders = [
   { title: translate('common.messages.service'), key: 'type' },
   { title: translate('pages.settings.innvoice.innvoice.originalFee'), key: 'fee' },
   { title: translate('pages.settings.innvoice.innvoice.invoiceAmount'), key: 'converted' },
+  { title: 'Delivery owner', key: 'commission_employee', sortable: false },
   { title: translate('common.messages.deadline'), key: 'deadline' },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
 ]
@@ -95,7 +96,7 @@ const selectedPaymentDetail = computed(() =>
 const assignedServices = computed(() => selectedCustomer.value?.services ?? [])
 
 const selectedServices = computed(() =>
-  assignedServices.value.filter(service => invoiceForm.value.service_ids.includes(service.service_id)),
+  assignedServices.value.filter(service => invoiceForm.value.service_ids.includes(service.id)),
 )
 
 const convertServiceFee = (service: CustomerService) => {
@@ -182,13 +183,13 @@ const openCreateDialog = (customerId?: number) => {
   isDialogActive.value = true
 }
 
-const toggleService = (serviceId: number, selected: boolean | null) => {
+const toggleService = (customerServiceId: number, selected: boolean | null) => {
   if (selected) {
-    if (!invoiceForm.value.service_ids.includes(serviceId))
-      invoiceForm.value.service_ids.push(serviceId)
+    if (!invoiceForm.value.service_ids.includes(customerServiceId))
+      invoiceForm.value.service_ids.push(customerServiceId)
   }
   else {
-    invoiceForm.value.service_ids = invoiceForm.value.service_ids.filter(id => id !== serviceId)
+    invoiceForm.value.service_ids = invoiceForm.value.service_ids.filter(id => id !== customerServiceId)
   }
 }
 
@@ -202,7 +203,10 @@ const createInvoice = async () => {
       class_type: invoiceForm.value.class_type,
       issue_date: invoiceForm.value.issue_date || undefined,
       due_date: invoiceForm.value.due_date || undefined,
-      services: invoiceForm.value.service_ids.map(id => ({ id, quantity: 1 })),
+      services: invoiceForm.value.service_ids.map(id => ({
+        customer_service_id: id,
+        quantity: 1,
+      })),
       tax_percent: Number(invoiceForm.value.tax_percent),
       discount: Number(invoiceForm.value.discount),
       notes: invoiceForm.value.notes,
@@ -430,11 +434,21 @@ onMounted(async () => {
               </VAlert>
               <div v-else class="invoice-service-picker">
                 <ResponsiveDataTable :headers="serviceHeaders" :items="assignedServices" density="comfortable" hide-default-footer>
-                  <template #item.selected="{ item }"><VCheckbox :model-value="invoiceForm.service_ids.includes(item.service_id)"
-                    hide-details @update:model-value="toggleService(item.service_id, $event)" /></template>
+                  <template #item.selected="{ item }"><VCheckbox :model-value="invoiceForm.service_ids.includes(item.id)"
+                    hide-details @update:model-value="toggleService(item.id, $event)" /></template>
                   <template #item.type="{ item }"><div class="font-weight-medium">{{ item.type }}</div><div v-if="item.deadline" class="text-caption text-medium-emphasis">{{ formatLocalizedDate(item.deadline) }}</div></template>
                   <template #item.fee="{ item }">{{ item.currency.symbol }}{{ Number(item.fee).toFixed(2) }} {{ item.currency.code }}</template>
                   <template #item.converted="{ item }"><span class="font-weight-bold text-primary">{{ formatMoney(convertServiceFee(item), invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined) }}</span></template>
+                  <template #item.commission_employee="{ item }">
+                    <div v-if="item.employee" class="d-flex align-center ga-2 py-1">
+                      <VAvatar size="28" color="primary" variant="tonal"><VIcon icon="tabler-user-check" size="16" /></VAvatar>
+                      <div>
+                        <div class="text-body-2 font-weight-medium">{{ item.employee.name }}</div>
+                        <div class="text-caption text-medium-emphasis">Rate is resolved from this service capability</div>
+                      </div>
+                    </div>
+                    <div v-else class="text-caption text-warning d-flex align-center ga-1"><VIcon icon="tabler-alert-circle" size="16" /> Assign a delivery owner in the customer service first</div>
+                  </template>
                   <template #item.actions="{ item }"><FullDetailsButton :item="item" :title="item.type" /></template>
                 </ResponsiveDataTable>
               </div>

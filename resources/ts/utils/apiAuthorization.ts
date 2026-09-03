@@ -58,6 +58,16 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
   const path = normalizedPath(url)
 
   const special: Record<string, string[]> = {
+    'GET /invoices/commission-candidates': ['view_invoices'],
+    'GET /commissions/accruals': ['view_commissions'],
+    'GET /commissions/summary': ['view_commissions'],
+    'POST /commissions/adjustments': ['manage_commission_settlements'],
+    'GET /commission-settlements': ['view_commissions'],
+    'GET /commission-settlements/:id': ['view_commissions'],
+    'POST /commission-settlements': ['manage_commission_settlements'],
+    'POST /commission-settlements/:id/approve': ['approve_commissions'],
+    'POST /commission-settlements/:id/pay': ['pay_commissions'],
+    'POST /commission-settlements/:id/cancel': ['manage_commission_settlements'],
     'GET /kanban': ['view_all_boards', 'view_assigned_boards'],
     'GET /boards': ['view_all_boards', 'view_assigned_boards'],
     'POST /boards': ['create_boards'],

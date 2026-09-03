@@ -1,18 +1,8 @@
 import api from './axios'
 
 export interface BonusRules {
-  completed_task_points: number
-  priority_weights: Record<'low' | 'medium' | 'high' | 'urgent', number>
-  before_deadline_points: number
-  after_deadline_points: number
-  reopened_penalty: number
-  rejected_penalty: number
-  default_quality_score: number
-  quality_multiplier_enabled: boolean
-  minimum_participation_percent: number
   minimum_completed_tasks: number
-  monthly_score_threshold: number
-  amount_per_point: number
+  amount_per_completed_task: number
   maximum_monthly_bonus: number
   excluded_employee_ids: number[]
   excluded_office_ids: number[]

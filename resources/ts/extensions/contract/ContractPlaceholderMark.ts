@@ -4,7 +4,7 @@ import { Mark, mergeAttributes } from '@tiptap/core'
  * First-class placeholder node for contract templates.
  *
  * Placeholders are inserted as dedicated inline marks showing a friendly
- * "[ Employee Full Name ]" chip instead of raw {{ machine_key }} text.
+ * "{{ Employee Full Name }}" chip instead of raw {{ machine_key }} text.
  * The stable machine key is preserved in a data attribute and serialized
  * on save (see utils/contractPlaceholders.ts).
  */
@@ -34,7 +34,7 @@ export const ContractPlaceholderMark = Mark.create({
   renderHTML({ HTMLAttributes }) {
     const label = HTMLAttributes['data-placeholder-label'] || HTMLAttributes['data-placeholder-key']
 
-    return ['span', mergeAttributes(HTMLAttributes, { class: 'contract-placeholder', dir: 'auto' }), `[ ${label} ]`]
+    return ['span', mergeAttributes(HTMLAttributes, { class: 'contract-placeholder', dir: 'auto' }), `{{ ${label} }}`]
   },
 })
 

@@ -48,6 +48,13 @@ class PositionController extends Controller
                 'message' => 'Position not found'
             ], 404);
         }
+
+        if ($position->system_key && ($request->has('title') || $request->has('status'))) {
+            return response()->json([
+                'success' => false,
+                'code' => 'business.system_position_locked',
+            ], 422);
+        }
         return response()->json([
             'success' => true,
             'data' => new PositionResource($position->loadCount(['employees', 'users']))
@@ -62,6 +69,13 @@ class PositionController extends Controller
                 'success' => false,
                 'message' => 'Position not found'
             ], 404);
+        }
+
+        if ($position->system_key) {
+            return response()->json([
+                'success' => false,
+                'code' => 'business.system_position_cannot_be_deleted',
+            ], 422);
         }
 
         $data = $request->validate([

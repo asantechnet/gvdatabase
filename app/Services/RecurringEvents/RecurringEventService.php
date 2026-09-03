@@ -114,7 +114,7 @@ class RecurringEventService
         $currency = Currency::findOrFail($data['currency_id']);
         $snapshot = $this->currencies->snapshot($currency);
         unset($data['rate'], $data['base_amount'], $data['base_currency_id']);
-        return Income::create([...$data, 'date' => $occurrence->occurrence_date, 'quantity' => $data['quantity'] ?? 1, ...$snapshot]);
+        return Income::create([...$data, 'date' => $occurrence->occurrence_date, 'quantity' => $data['quantity'] ?? 1, 'recorded_by' => $event->owner_id, ...$snapshot]);
     }
 
     private function createExpense(RecurringEvent $event, RecurringEventOccurrence $occurrence): Expense
@@ -123,7 +123,7 @@ class RecurringEventService
         $currency = Currency::findOrFail($data['currency_id']);
         $snapshot = $this->currencies->snapshot($currency);
         unset($data['rate'], $data['base_amount'], $data['base_currency_id']);
-        return Expense::create([...$data, 'date' => $occurrence->occurrence_date, 'quantity' => $data['quantity'] ?? 1, ...$snapshot]);
+        return Expense::create([...$data, 'date' => $occurrence->occurrence_date, 'quantity' => $data['quantity'] ?? 1, 'recorded_by' => $event->owner_id, ...$snapshot]);
     }
 
     private function createTask(RecurringEvent $event, RecurringEventOccurrence $occurrence, User $user): Task

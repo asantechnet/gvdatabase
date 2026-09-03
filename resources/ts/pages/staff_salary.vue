@@ -321,6 +321,17 @@ const calculateSalaryTotal = () => {
   salaryForm.value.totalAmount = salaryForm.value.amountPaid + salaryForm.value.bonus
 }
 
+// A new payslip begins with the agreed employee salary. It remains a normal,
+// editable amount so adjustments and partial-month payments are still possible.
+const applyEmployeeSalary = (employeeId: number | null) => {
+  const employee = employees.value.find(item => item.id === employeeId)
+  if (!employee || !isAddSalaryDialogVisible.value) return
+
+  salaryForm.value.amountPaid = Number(employee.salary ?? 0)
+  salaryForm.value.employeeName = employee.name
+  calculateSalaryTotal()
+}
+
 const addDeduction = () => {
   salaryForm.value.deductions.push({ description: '', amount: 0 })
 }
@@ -554,6 +565,8 @@ watch([searchQuery, salaryMonthFilter, selectedSalaryAmountRange], () => {
 watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryForm.value.currency_id], () => {
   if (isAddSalaryDialogVisible.value) fetchGrantedBonuses()
 })
+
+watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
 </script>
 
 <template>

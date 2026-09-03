@@ -67,7 +67,6 @@ const inputProps = ref(VInput.filterProps(props))
 const fieldProps = ref(VField.filterProps(props))
 
 const refFlatPicker = ref()
-const pickerRoot = ref<HTMLElement | null>(null)
 
 const { focused } = useFocus(refFlatPicker)
 const isCalendarOpen = ref(false)
@@ -81,26 +80,15 @@ if (compAttrs.config && compAttrs.config.inline) {
 
 const suppliedConfig = compAttrs.config ?? {}
 const suppliedReady = suppliedConfig.onReady
-const dockCalendarToOverlay = (_dates: unknown, _value: string, instance: any) => {
-  const overlay = pickerRoot.value?.closest('.v-overlay__content') as HTMLElement | null
-  if (!overlay || !instance?.calendarContainer) return
-
-  // Flatpickr's body portal is positioned against the document and its static
-  // mode is clipped by Vuetify dialogs. Keeping the calendar in the active
-  // overlay gives it the same coordinate system and stacking context as its input.
-  if (instance.calendarContainer.parentElement !== overlay)
-    overlay.appendChild(instance.calendarContainer)
-  instance.config.appendTo = overlay
-}
 
 compAttrs.config = {
   ...suppliedConfig,
+  // Keep Flatpickr in its document portal. Moving its calendar after Flatpickr
+  // has calculated coordinates changes the offset parent and causes the popup
+  // to appear at the edge of dialogs/menus, especially in RTL layouts.
   static: false,
   disableMobile: suppliedConfig.disableMobile ?? true,
-  onReady: [
-    dockCalendarToOverlay,
-    ...(Array.isArray(suppliedReady) ? suppliedReady : suppliedReady ? [suppliedReady] : []),
-  ],
+  onReady: suppliedReady,
   prevArrow: '<i class="tabler-chevron-left v-icon" style="font-size: 20px; height: 20px; width: 20px;"></i>',
   nextArrow: '<i class="tabler-chevron-right v-icon" style="font-size: 20px; height: 20px; width: 20px;"></i>',
 }
@@ -162,7 +150,7 @@ const elementId = computed (() => {
 </script>
 
 <template>
-  <div ref="pickerRoot" class="app-picker-field">
+  <div class="app-picker-field">
     <!-- v-input -->
     <VLabel
       v-if="fieldProps.label"

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class CustomerService extends Pivot
@@ -17,6 +18,8 @@ class CustomerService extends Pivot
     protected $fillable = [
         'customer_id',
         'service_id',
+        'employee_id',
+        'marketer_id',
         'fee',
         'currency_id',
         'deadline',
@@ -29,18 +32,31 @@ class CustomerService extends Pivot
         'fee' => 'decimal:2',
     ];
 
-    public function customer()
+    public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
-    public function service()
+    public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
     }
 
-    public function currency()
+    /** The employee responsible for delivering this customer's service. */
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    /** The employee credited with winning this customer's service. */
+    public function marketer(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'marketer_id');
+    }
+
+    public function currency(): BelongsTo
     {
         return $this->belongsTo(Currency::class);
     }
+
 }

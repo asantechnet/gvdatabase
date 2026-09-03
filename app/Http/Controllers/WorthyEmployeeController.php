@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class WorthyEmployeeController extends Controller
 {
+    private const BONUS_CATEGORIES = ['Performance', 'Customer Appreciation', 'Task Completion', 'Work Anniversary', 'Manager Recognition'];
+
     public function __construct(private readonly CurrencyConversionService $currencies)
     {
     }
@@ -24,19 +26,20 @@ class WorthyEmployeeController extends Controller
     public function store(Request $request): WorthyEmployeeResource
     {
         $data = $request->validate([
-            'employeeId' => 'required|exists:employees,id', 'performanceScore' => 'required|numeric|between:1,5',
-            'eligibilityReason' => ['required', Rule::in(['Top Performer', 'Project Milestone', 'Client Praise', 'Work Anniversary', 'Manager Nomination'])],
-            'achievementDetails' => 'required|string', 'suggestedAmount' => 'required|numeric|min:0', 'selectedAmount' => 'nullable|numeric|min:0',
-            'selectedType' => ['required', Rule::in(['Performance', 'Spot Bonus', 'Project Completion', 'Retention'])], 'bonusMonth' => 'sometimes|date_format:Y-m|before_or_equal:now',
+            'employeeId' => 'required|exists:employees,id', 'performanceScore' => 'nullable|numeric|between:1,5',
+            'achievementDetails' => 'required|string', 'amount' => 'nullable|numeric|min:0', 'suggestedAmount' => 'nullable|numeric|min:0', 'selectedAmount' => 'nullable|numeric|min:0',
+            'bonusCategory' => ['nullable', Rule::in(self::BONUS_CATEGORIES)], 'selectedType' => ['nullable', Rule::in(self::BONUS_CATEGORIES)], 'bonusMonth' => 'sometimes|date_format:Y-m|before_or_equal:now',
         ]);
         if (!Employee::selectable()->whereKey($data['employeeId'])->exists()) throw ValidationException::withMessages(['employeeId' => ['business.employee_not_selectable']]);
-        $suggested = (float) $data['suggestedAmount'];
+        $category = $data['bonusCategory'] ?? $data['selectedType'] ?? null;
+        if (! $category) throw ValidationException::withMessages(['bonusCategory' => ['Select a bonus category.']]);
+        $suggested = (float) ($data['amount'] ?? $data['suggestedAmount'] ?? $data['selectedAmount'] ?? 0);
         $base = $this->currencies->currentBase();
-        $selected = (float) ($data['selectedAmount'] ?? $suggested);
+        $selected = (float) ($data['amount'] ?? $data['selectedAmount'] ?? $suggested);
         $row = WorthyEmployee::create([
-            'employee_id' => $data['employeeId'], 'performance_score' => $data['performanceScore'],
-            'eligibility_reason' => $data['eligibilityReason'], 'achievement_details' => $data['achievementDetails'],
-            'suggested_amount' => $suggested, 'selected_amount' => $selected, 'selected_type' => $data['selectedType'],
+            'employee_id' => $data['employeeId'], 'performance_score' => $data['performanceScore'] ?? 3,
+            'achievement_details' => $data['achievementDetails'],
+            'suggested_amount' => $suggested, 'selected_amount' => $selected, 'selected_type' => $category,
             'is_granted' => false, 'bonus_month' => ($data['bonusMonth'] ?? now()->format('Y-m')).'-01',
             'currency_id' => $base->id, 'base_currency_id' => $base->id, 'currency_code' => $base->code,
             'currency_name' => $base->name, 'currency_symbol' => $base->symbol, 'currency_decimal_places' => $base->decimal_places,
@@ -48,11 +51,11 @@ class WorthyEmployeeController extends Controller
     public function update(Request $request, WorthyEmployee $worthyEmployee): WorthyEmployeeResource
     {
         abort_unless($request->user()->hasPermission($request->has('isGranted') ? 'grant_bonuses' : 'edit_bonus_nominations'), 403, 'auth.forbidden');
-        $data = $request->validate(['selectedAmount' => 'sometimes|required|numeric|min:0', 'selectedType' => ['sometimes', 'required', Rule::in(['Performance', 'Spot Bonus', 'Project Completion', 'Retention'])], 'isGranted' => 'sometimes|required|boolean']);
+        $data = $request->validate(['amount' => 'sometimes|required|numeric|min:0', 'selectedAmount' => 'sometimes|required|numeric|min:0', 'bonusCategory' => ['sometimes', 'required', Rule::in(self::BONUS_CATEGORIES)], 'selectedType' => ['sometimes', 'required', Rule::in(self::BONUS_CATEGORIES)], 'isGranted' => 'sometimes|required|boolean']);
         abort_if($worthyEmployee->is_granted && $data !== [], 422, 'business.granted_bonus_immutable');
         abort_if($worthyEmployee->salaries()->exists(), 422, 'business.bonus_already_in_salary');
-        if (isset($data['selectedAmount'])) $worthyEmployee->selected_amount = $data['selectedAmount'];
-        if (isset($data['selectedType'])) $worthyEmployee->selected_type = $data['selectedType'];
+        if (isset($data['amount']) || isset($data['selectedAmount'])) $worthyEmployee->selected_amount = $data['amount'] ?? $data['selectedAmount'];
+        if (isset($data['bonusCategory']) || isset($data['selectedType'])) $worthyEmployee->selected_type = $data['bonusCategory'] ?? $data['selectedType'];
         if (($data['isGranted'] ?? false) === true) { $worthyEmployee->is_granted = true; $worthyEmployee->granted_amount = $worthyEmployee->selected_amount; $worthyEmployee->base_amount = round((float) $worthyEmployee->granted_amount / max((float) ($worthyEmployee->rate ?: 1), 0.00000001), 4); $worthyEmployee->granted_at = now('UTC'); $worthyEmployee->granted_by = $request->user()->id; }
         $worthyEmployee->save(); return new WorthyEmployeeResource($worthyEmployee->fresh()->load(['employee.user', 'currency']));
     }

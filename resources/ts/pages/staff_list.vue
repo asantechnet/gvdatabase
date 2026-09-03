@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { VDialog } from 'vuetify/components'
-import EmployeeApi, { type Employee, type EmployeeAccount, type CreateEmployeeData, type UpdateEmployeeData } from '@/api/employee'
-import PositionApi from '@/api/position'
+import EmployeeApi, { type CommissionServiceOption, type Employee, type EmployeeAccount, type CreateEmployeeData, type UpdateEmployeeData } from '@/api/employee'
+import PositionApi, { type Position } from '@/api/position'
 import OfficeApi, { type Office } from '@/api/office'
 import PaidTimeOffApi, { type PaidTimeOff } from '@/api/paidTimeOff'
-import ServiceApi, { type Service } from '@/api/services'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
@@ -30,11 +29,10 @@ interface Staff {
   office_id: number | null
   office: Employee['office']
   salary: number | null
-  commissions: Array<{ service_id: number; service?: string; percentage: number }>
+  commissions: Array<{ service_id: number; service?: string; fee?: number; percentage: number }>
   total_worked_hours: number
   addr: string
   join_date: string
-  contract_duration: string
   avatar?: string | null
 }
 
@@ -51,8 +49,9 @@ const isLoading = ref(false)
 const isPositionsLoading = ref(false)
 const positionOptions = ref<string[]>([])
 const positionIdMap = ref<Record<string, number>>({})
+const positionSalaryMap = ref<Record<string, number>>({})
 const offices = ref<Office[]>([])
-const services = ref<Service[]>([])
+const commissionServices = ref<CommissionServiceOption[]>([])
 const userAccounts = ref<EmployeeAccount[]>([])
 const isUserAccountsLoading = ref(false)
 const formSubmissionError = ref('')
@@ -87,7 +86,6 @@ const paidTimeOffLimitMessage = computed(() => {
 })
 
 const educationOptions = ['High School', 'Diploma', 'Bachelor', 'Master', 'PhD']
-const contractDurationOptions = ['6 months', '1 year', '2 years', '3 years', 'Permanent']
 const avatarText = (name: string) => name.split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase()
 
 const printEmployeeContract = (staff: Staff) => {
@@ -103,8 +101,8 @@ const formErrors = ref({
   addr: '',
   position: '',
   salary: '',
+  commissions: '',
   education_lvl: '',
-  contract_duration: '',
   join_date: ''
 })
 
@@ -118,8 +116,8 @@ const resetFormErrors = () => {
     addr: '',
     position: '',
     salary: '',
+    commissions: '',
     education_lvl: '',
-    contract_duration: '',
     join_date: ''
   }
 }
@@ -198,14 +196,22 @@ const validateStaffForm = () => {
   }
 
   // Validate Salary
-  if (selectedStaff.value?.employment_type === 'salaried' && (selectedStaff.value?.salary === null || selectedStaff.value?.salary === undefined)) {
+  if (selectedStaff.value?.salary === null || selectedStaff.value?.salary === undefined) {
     formErrors.value.salary = translate('pages.settings.staffList.staffList.salaryIsRequired')
     isValid = false
-  } else if (selectedStaff.value?.employment_type === 'salaried' && Number(selectedStaff.value.salary) <= 0) {
-    formErrors.value.salary = translate('pages.settings.staffList.staffList.salaryMustBeGreaterThan0')
+  } else if (Number(selectedStaff.value.salary) < 0) {
+    formErrors.value.salary = 'Salary cannot be negative.'
     isValid = false
   } else {
     formErrors.value.salary = ''
+  }
+
+  if (selectedStaff.value?.employment_type === 'commission' && selectedStaff.value.commissions.length === 0) {
+    formErrors.value.commissions = 'Assign at least one service and commission percentage.'
+    isValid = false
+  }
+  else {
+    formErrors.value.commissions = ''
   }
 
   // Validate Education Level
@@ -214,14 +220,6 @@ const validateStaffForm = () => {
     isValid = false
   } else {
     formErrors.value.education_lvl = ''
-  }
-
-  // Validate Contract Duration
-  if (!selectedStaff.value?.contract_duration) {
-    formErrors.value.contract_duration = translate('pages.settings.staffList.staffList.contractDurationIsRequired')
-    isValid = false
-  } else {
-    formErrors.value.contract_duration = ''
   }
 
   // Validate Join Date
@@ -259,7 +257,6 @@ const openAddStaffDialog = () => {
     commissions: [],
     total_worked_hours: 0,
     join_date: new Date().toISOString().split('T')[0],
-    contract_duration: ''
   }
   resetFormErrors()
   formSubmissionError.value = ''
@@ -267,7 +264,9 @@ const openAddStaffDialog = () => {
 }
 
 const openEditStaffDialog = (staff: Staff) => {
-  selectedStaff.value = {...staff}
+  // Keep edits local until Save; nested commission rows otherwise mutate the
+  // table record even when the dialog is cancelled.
+  selectedStaff.value = { ...staff, commissions: staff.commissions.map(commission => ({ ...commission })) }
   resetFormErrors()
   formSubmissionError.value = ''
   isEditStaffDialogVisible.value = true
@@ -366,15 +365,23 @@ const fetchPositions = async () => {
     isPositionsLoading.value = true
     const response = await PositionApi.getAll()
     if (response.data && Array.isArray(response.data.data)) {
-      positionOptions.value = response.data.data.map((pos: any) => pos.title)
-      positionIdMap.value = response.data.data.reduce((map: Record<string, number>, pos: any) => {
+      positionOptions.value = response.data.data.map((pos: Position) => pos.title)
+      positionIdMap.value = response.data.data.reduce((map: Record<string, number>, pos: Position) => {
         map[pos.title] = pos.id
         return map
       }, {})
+      positionSalaryMap.value = response.data.data.reduce((map: Record<string, number>, pos: Position) => {
+        map[pos.title] = Number(pos.salary ?? 0)
+        return map
+      }, {})
     } else if (Array.isArray(response.data)) {
-      positionOptions.value = response.data.map((pos: any) => pos.title)
-      positionIdMap.value = response.data.reduce((map: Record<string, number>, pos: any) => {
+      positionOptions.value = response.data.map((pos: Position) => pos.title)
+      positionIdMap.value = response.data.reduce((map: Record<string, number>, pos: Position) => {
         map[pos.title] = pos.id
+        return map
+      }, {})
+      positionSalaryMap.value = response.data.reduce((map: Record<string, number>, pos: Position) => {
+        map[pos.title] = Number(pos.salary ?? 0)
         return map
       }, {})
     }
@@ -395,7 +402,7 @@ const fetchEmployees = async () => {
         email: emp.email ?? '',
         salary: emp.salary ?? 0,
         join_date: emp.join_date ?? '',
-        position: emp.position?.name || positionOptions.value[emp.position_id - 1] || emp.position_id.toString()
+        position: emp.position || positionOptions.value[emp.position_id - 1] || emp.position_id.toString()
       }))
     } else if (Array.isArray(response.data)) {
       staffList.value = response.data.map(emp => ({
@@ -403,7 +410,7 @@ const fetchEmployees = async () => {
         email: emp.email ?? '',
         salary: emp.salary ?? 0,
         join_date: emp.join_date ?? '',
-        position: emp.position?.name || positionOptions.value[emp.position_id - 1] || emp.position_id.toString()
+        position: emp.position || positionOptions.value[emp.position_id - 1] || emp.position_id.toString()
       }))
     }
   } catch (error) {
@@ -425,7 +432,8 @@ const fetchUserAccounts = async () => {
 }
 
 const userAccountOptions = computed(() => userAccounts.value.map(user => ({
-  title: `#${user.id} ${user.name} (${user.email})${user.employee ? ` - Linked to ${user.employee.name} (#${user.employee.id})` : ''}`,
+  ...user,
+  title: user.name,
   value: user.id,
   disabled: Boolean(user.employee && user.employee.id !== selectedStaff.value?.id),
 })))
@@ -434,6 +442,11 @@ const updateSelectedAccountEmail = (userId: number | null) => {
   const user = userAccounts.value.find(account => account.id === userId)
   if (selectedStaff.value && user)
     selectedStaff.value.email = user.email
+}
+
+const applyPositionSalary = (position: string) => {
+  if (position in positionSalaryMap.value)
+    selectedStaff.value.salary = positionSalaryMap.value[position]
 }
 
 const addStaff = async () => {
@@ -464,7 +477,6 @@ const addStaff = async () => {
       commissions: selectedStaff.value.commissions.map(row => ({ service_id: row.service_id, percentage: row.percentage })),
       addr: selectedStaff.value.addr,
       join_date: selectedStaff.value.join_date,
-      contract_duration: selectedStaff.value.contract_duration
     }
 
     const response = await EmployeeApi.create(data)
@@ -474,7 +486,7 @@ const addStaff = async () => {
         email: response.data.data.email ?? '',
         salary: response.data.data.salary ?? 0,
         join_date: response.data.data.join_date ?? '',
-        position: response.data.data.position?.name || positionOptions.value[response.data.data.position_id - 1] || response.data.data.position_id.toString()
+        position: response.data.data.position || positionOptions.value[response.data.data.position_id - 1] || response.data.data.position_id.toString()
       })
     }
     isAddStaffDialogVisible.value = false
@@ -514,7 +526,6 @@ const updateStaff = async () => {
       commissions: selectedStaff.value.commissions.map(row => ({ service_id: row.service_id, percentage: row.percentage })),
       addr: selectedStaff.value.addr,
       join_date: selectedStaff.value.join_date,
-      contract_duration: selectedStaff.value.contract_duration
     }
 
     const response = await EmployeeApi.update(selectedStaff.value.id, data)
@@ -526,7 +537,7 @@ const updateStaff = async () => {
           email: response.data.data.email ?? '',
           salary: response.data.data.salary ?? 0,
           join_date: response.data.data.join_date ?? '',
-          position: response.data.data.position?.name || positionOptions.value[response.data.data.position_id - 1] || response.data.data.position_id.toString()
+          position: response.data.data.position || positionOptions.value[response.data.data.position_id - 1] || response.data.data.position_id.toString()
         }
       }
     }
@@ -556,6 +567,17 @@ const applyStaffApiErrors = (error: unknown) => {
 
 const addCommission = () => selectedStaff.value?.commissions.push({ service_id: 0, percentage: 1 })
 const removeCommission = (index: number) => selectedStaff.value?.commissions.splice(index, 1)
+const commissionLabel = (service: CommissionServiceOption) => {
+  const currency = service.currency
+  const amount = Number(service.fee).toFixed(currency?.decimalPlaces ?? 2)
+
+  return `${service.type} · ${currency?.symbol ?? ''}${amount} ${currency?.code ?? ''}`.trim()
+}
+
+const availableCommissionServices = (currentServiceId: number) => commissionServices.value.filter(service =>
+  service.id === currentServiceId
+  || !selectedStaff.value?.commissions.some(commission => commission.service_id === service.id),
+)
 
 const deleteStaff = async () => {
   if (!selectedStaff.value) return
@@ -591,9 +613,9 @@ const printTable = () => {
 }
 
 onMounted(async () => {
-  const [, officeRows, serviceRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), ServiceApi.getAll(), fetchUserAccounts()])
+  const [, officeRows, commissionRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), EmployeeApi.getCommissionOptions(), fetchUserAccounts()])
   offices.value = officeRows.filter(office => office.status === 'active')
-  services.value = serviceRows.data.filter(service => service.status === 'active')
+  commissionServices.value = commissionRows
   await fetchEmployees()
 })
 </script>
@@ -661,7 +683,8 @@ onMounted(async () => {
           density="comfortable"
         >
           <template #item.salary="{ item }">
-            <span>{{ item.employment_type === 'commission' ? 'Commission' : `$${Number(item.salary || 0).toFixed(2)}` }}</span>
+            <div>${{ Number(item.salary || 0).toFixed(2) }}</div>
+            <VChip v-if="item.employment_type === 'commission'" size="x-small" color="primary" variant="tonal">Base + commission</VChip>
           </template>
 
           <template #item.office="{ item }">
@@ -736,7 +759,7 @@ onMounted(async () => {
               <VCol cols="12" md="6">
                 <VTextField
                   v-model="selectedStaff.name"
-                  :label="$t('common.fields.name')"
+                  :label="$t('common.messages.fullName')"
                   :error-messages="formErrors.name"
                   required
                 />
@@ -752,22 +775,24 @@ onMounted(async () => {
               <VCol cols="12" md="6">
                 <VTextField
                   v-model="selectedStaff.contact"
-                  :label="$t('common.messages.contactPhone')"
+                  :label="$t('common.fields.phone')"
                   :error-messages="formErrors.contact"
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
-                <VSelect
+                <VSelect class="employee-account-select"
                   v-model="selectedStaff.user_id"
                   :items="userAccountOptions"
-                  label="User account"
-                  hint="Leave empty to create a new account with the employee email."
-                  persistent-hint
+                  :label="$t('common.accountPicker.label')"
+                  :placeholder="$t('common.accountPicker.placeholder')"
                   clearable
                   :loading="isUserAccountsLoading"
                   @update:model-value="updateSelectedAccountEmail"
-                />
+                >
+                  <template #selection="{ item }"><div class="account-selection"><span class="account-selection__name">{{ item.raw.name }}</span><span class="account-selection__meta">#{{ item.raw.id }} · {{ item.raw.email }}</span></div></template>
+                  <template #item="{ props, item }"><VListItem v-bind="props" class="account-option" :title="item.raw.name"><template #prepend><VAvatar color="primary" variant="tonal" size="38">{{ avatarText(item.raw.name) }}</VAvatar></template><template #subtitle><div class="account-option__details"><span>#{{ item.raw.id }} · {{ item.raw.email }}</span><span v-if="item.raw.employee"><VIcon icon="tabler-id-badge-2" size="14" /> {{ $t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span><span v-if="item.raw.marketer"><VIcon icon="tabler-speakerphone" size="14" /> {{ $t('common.accountPicker.linkedMarketer', { name: item.raw.marketer.name, id: item.raw.marketer.id }) }}</span><span v-if="!item.raw.employee && !item.raw.marketer">{{ $t('common.accountPicker.available') }}</span></div></template><template #append><span class="account-option__id">#{{ item.raw.id }}</span></template></VListItem></template>
+                </VSelect>
               </VCol>
               <VCol cols="12" md="6">
                 <VTextField
@@ -804,37 +829,48 @@ onMounted(async () => {
                   :error-messages="formErrors.position"
                   required
                   :loading="isPositionsLoading"
+                  @update:model-value="applyPositionSalary"
                 />
               </VCol>
               <VCol cols="12" md="6">
-                <VSelect v-model="selectedStaff.office_id" :items="offices" item-title="name" item-value="id" :label="$t('common.fields.office')" clearable />
+                <AppDateTimePicker v-model="selectedStaff.join_date" :label="$t('common.messages.joinDate')" :error-messages="formErrors.join_date" required :config="{ dateFormat: 'Y-m-d' }" />
               </VCol>
+              <VCol cols="12" md="6"><VSelect v-model="selectedStaff.office_id" :items="offices" item-title="name" item-value="id" :label="$t('common.fields.office')" clearable /></VCol>
               <VCol cols="12" md="6"><VSelect v-model="selectedStaff.employment_type" :items="[{title:'Salaried',value:'salaried'},{title:'On commission',value:'commission'}]" label="Employment type" /></VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-if="selectedStaff.employment_type === 'salaried'"
                   v-model.number="selectedStaff.salary"
-                  :label="$t('common.messages.salary')"
+                  :label="selectedStaff.employment_type === 'commission' ? 'Base salary' : $t('common.messages.salary')"
                   type="number"
+                  min="0"
                   :error-messages="formErrors.salary"
                   required
                 />
               </VCol>
               <VCol v-if="selectedStaff.employment_type === 'commission'" cols="12">
-                <div class="d-flex justify-space-between align-center mb-2"><span class="text-subtitle-2">Service commissions</span><VBtn size="small" variant="tonal" prepend-icon="tabler-plus" @click="addCommission">Add service</VBtn></div>
-                <VRow v-for="(commission, index) in selectedStaff.commissions" :key="index"><VCol cols="8"><VSelect v-model="commission.service_id" :items="services" item-title="type" item-value="id" label="Service" /></VCol><VCol cols="3"><VTextField v-model.number="commission.percentage" type="number" min="0.01" max="100" label="Percentage" suffix="%" /></VCol><VCol cols="1"><VBtn icon="tabler-x" variant="text" color="error" @click="removeCommission(index)" /></VCol></VRow>
+                <VCard variant="outlined" class="bg-surface-variant">
+                  <VCardText class="pa-4">
+                    <div class="d-flex flex-wrap justify-space-between align-start ga-3 mb-3">
+                      <div>
+                        <div class="text-subtitle-1 font-weight-semibold">Service capabilities &amp; commission rates</div>
+                        <p class="text-caption text-medium-emphasis mb-0">Select the catalogue services this person can deliver. Customer assignments choose which eligible employee earns the rate below.</p>
+                      </div>
+                      <VBtn size="small" color="primary" variant="tonal" prepend-icon="tabler-plus" @click="addCommission">Add service</VBtn>
+                    </div>
+                    <VAlert v-if="formErrors.commissions" type="error" variant="tonal" density="compact" class="mb-3">{{ formErrors.commissions }}</VAlert>
+                    <VAlert type="info" variant="tonal" density="compact" class="mb-3">Rates are configured once per catalogue service. The actual commission is calculated from the assigned customer service and saved on the invoice.</VAlert>
+                    <VRow v-for="(commission, index) in selectedStaff.commissions" :key="index" align="center">
+                      <VCol cols="12" sm="8">
+                        <VSelect v-model="commission.service_id" :items="availableCommissionServices(commission.service_id)" :item-title="commissionLabel" item-value="id" label="Service this employee can deliver" placeholder="Choose a service" density="comfortable" />
+                      </VCol>
+                      <VCol cols="10" sm="3"><VTextField v-model.number="commission.percentage" type="number" min="0.01" max="100" label="Commission rate" suffix="%" density="comfortable" /></VCol>
+                      <VCol cols="2" sm="1" class="text-end"><VBtn icon="tabler-x" variant="text" color="error" @click="removeCommission(index)"><VTooltip activator="parent">Remove service</VTooltip></VBtn></VCol>
+                    </VRow>
+                  </VCardText>
+                </VCard>
               </VCol>
               <VCol cols="12" md="6"><VTextField v-model="selectedStaff.bank_account_number" label="Bank account number" /></VCol>
               <FormSection title-key="common.fields.address" description-key="common.messages.guarantorAddress" icon="tabler-shield-check" />
-              <VCol cols="12" md="6">
-                <VSelect
-                  v-model="selectedStaff.contract_duration"
-                  :items="contractDurationOptions"
-                  :label="$t('common.messages.contractDuration')"
-                  :error-messages="formErrors.contract_duration"
-                  required
-                />
-              </VCol>
               <VCol cols="12" md="6">
                 <VTextField v-model="selectedStaff.guarantor_id_number" :label="$t('common.messages.guarantorGovernmentID')" />
               </VCol>
@@ -853,15 +889,6 @@ onMounted(async () => {
                   :label="$t('common.fields.address')"
                   :error-messages="formErrors.addr"
                   required
-                />
-              </VCol>
-              <VCol cols="12" md="6">
-                <AppDateTimePicker
-                  v-model="selectedStaff.join_date"
-                  :label="$t('common.messages.joinDate')"
-                  :error-messages="formErrors.join_date"
-                  required
-                  :config="{ dateFormat: 'Y-m-d' }"
                 />
               </VCol>
             </VRow>
@@ -907,7 +934,7 @@ onMounted(async () => {
               <VCol cols="12" md="6">
                 <VTextField
                   v-model="selectedStaff.name"
-                  :label="$t('common.fields.name')"
+                  :label="$t('common.messages.fullName')"
                   :error-messages="formErrors.name"
                   required
                 />
@@ -923,22 +950,24 @@ onMounted(async () => {
               <VCol cols="12" md="6">
                 <VTextField
                   v-model="selectedStaff.contact"
-                  :label="$t('common.messages.contactPhone')"
+                  :label="$t('common.fields.phone')"
                   :error-messages="formErrors.contact"
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
-                <VSelect
+                <VSelect class="employee-account-select"
                   v-model="selectedStaff.user_id"
                   :items="userAccountOptions"
-                  label="User account"
-                  hint="Linked accounts are labeled with their employee name and ID."
-                  persistent-hint
+                  :label="$t('common.accountPicker.label')"
+                  :placeholder="$t('common.accountPicker.placeholder')"
                   clearable
                   :loading="isUserAccountsLoading"
                   @update:model-value="updateSelectedAccountEmail"
-                />
+                >
+                  <template #selection="{ item }"><div class="account-selection"><span class="account-selection__name">{{ item.raw.name }}</span><span class="account-selection__meta">#{{ item.raw.id }} · {{ item.raw.email }}</span></div></template>
+                  <template #item="{ props, item }"><VListItem v-bind="props" class="account-option" :title="item.raw.name"><template #prepend><VAvatar color="primary" variant="tonal" size="38">{{ avatarText(item.raw.name) }}</VAvatar></template><template #subtitle><div class="account-option__details"><span>#{{ item.raw.id }} · {{ item.raw.email }}</span><span v-if="item.raw.employee"><VIcon icon="tabler-id-badge-2" size="14" /> {{ $t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span><span v-if="item.raw.marketer"><VIcon icon="tabler-speakerphone" size="14" /> {{ $t('common.accountPicker.linkedMarketer', { name: item.raw.marketer.name, id: item.raw.marketer.id }) }}</span><span v-if="!item.raw.employee && !item.raw.marketer">{{ $t('common.accountPicker.available') }}</span></div></template><template #append><span class="account-option__id">#{{ item.raw.id }}</span></template></VListItem></template>
+                </VSelect>
               </VCol>
               <VCol cols="12" md="6">
                 <VTextField
@@ -974,36 +1003,47 @@ onMounted(async () => {
                   :error-messages="formErrors.position"
                   required
                   :loading="isPositionsLoading"
+                  @update:model-value="applyPositionSalary"
                 />
               </VCol>
               <VCol cols="12" md="6">
-                <VSelect v-model="selectedStaff.office_id" :items="offices" item-title="name" item-value="id" :label="$t('common.fields.office')" clearable />
+                <AppDateTimePicker v-model="selectedStaff.join_date" :label="$t('common.messages.joinDate')" :error-messages="formErrors.join_date" required :config="{ dateFormat: 'Y-m-d' }" />
               </VCol>
+              <VCol cols="12" md="6"><VSelect v-model="selectedStaff.office_id" :items="offices" item-title="name" item-value="id" :label="$t('common.fields.office')" clearable /></VCol>
               <VCol cols="12" md="6"><VSelect v-model="selectedStaff.employment_type" :items="[{title:'Salaried',value:'salaried'},{title:'On commission',value:'commission'}]" label="Employment type" /></VCol>
               <VCol cols="12" md="6">
                 <VTextField
-                  v-if="selectedStaff.employment_type === 'salaried'"
                   v-model.number="selectedStaff.salary"
-                  :label="$t('common.messages.salary')"
+                  :label="selectedStaff.employment_type === 'commission' ? 'Base salary' : $t('common.messages.salary')"
                   type="number"
+                  min="0"
                   :error-messages="formErrors.salary"
                   required
                 />
               </VCol>
               <VCol v-if="selectedStaff.employment_type === 'commission'" cols="12">
-                <div class="d-flex justify-space-between align-center mb-2"><span class="text-subtitle-2">Service commissions</span><VBtn size="small" variant="tonal" prepend-icon="tabler-plus" @click="addCommission">Add service</VBtn></div>
-                <VRow v-for="(commission, index) in selectedStaff.commissions" :key="index"><VCol cols="8"><VSelect v-model="commission.service_id" :items="services" item-title="type" item-value="id" label="Service" /></VCol><VCol cols="3"><VTextField v-model.number="commission.percentage" type="number" min="0.01" max="100" label="Percentage" suffix="%" /></VCol><VCol cols="1"><VBtn icon="tabler-x" variant="text" color="error" @click="removeCommission(index)" /></VCol></VRow>
+                <VCard variant="outlined" class="bg-surface-variant">
+                  <VCardText class="pa-4">
+                    <div class="d-flex flex-wrap justify-space-between align-start ga-3 mb-3">
+                      <div>
+                        <div class="text-subtitle-1 font-weight-semibold">Service capabilities &amp; commission rates</div>
+                        <p class="text-caption text-medium-emphasis mb-0">Select the catalogue services this person can deliver. Customer assignments choose which eligible employee earns the rate below.</p>
+                      </div>
+                      <VBtn size="small" color="primary" variant="tonal" prepend-icon="tabler-plus" @click="addCommission">Add service</VBtn>
+                    </div>
+                    <VAlert v-if="formErrors.commissions" type="error" variant="tonal" density="compact" class="mb-3">{{ formErrors.commissions }}</VAlert>
+                    <VAlert type="info" variant="tonal" density="compact" class="mb-3">Rates are configured once per catalogue service. The actual commission is calculated from the assigned customer service and saved on the invoice.</VAlert>
+                    <VRow v-for="(commission, index) in selectedStaff.commissions" :key="index" align="center">
+                      <VCol cols="12" sm="8">
+                        <VSelect v-model="commission.service_id" :items="availableCommissionServices(commission.service_id)" :item-title="commissionLabel" item-value="id" label="Service this employee can deliver" placeholder="Choose a service" density="comfortable" />
+                      </VCol>
+                      <VCol cols="10" sm="3"><VTextField v-model.number="commission.percentage" type="number" min="0.01" max="100" label="Commission rate" suffix="%" density="comfortable" /></VCol>
+                      <VCol cols="2" sm="1" class="text-end"><VBtn icon="tabler-x" variant="text" color="error" @click="removeCommission(index)"><VTooltip activator="parent">Remove service</VTooltip></VBtn></VCol>
+                    </VRow>
+                  </VCardText>
+                </VCard>
               </VCol>
               <VCol cols="12" md="6"><VTextField v-model="selectedStaff.bank_account_number" label="Bank account number" /></VCol>
-              <VCol cols="12" md="6">
-                <VSelect
-                  v-model="selectedStaff.contract_duration"
-                  :items="contractDurationOptions"
-                  :label="$t('common.messages.contractDuration')"
-                  :error-messages="formErrors.contract_duration"
-                  required
-                />
-              </VCol>
               <VCol cols="12" md="6">
                 <VTextField v-model="selectedStaff.guarantor_id_number" :label="$t('common.messages.guarantorGovernmentID')" />
               </VCol>
@@ -1022,15 +1062,6 @@ onMounted(async () => {
                   :label="$t('common.fields.address')"
                   :error-messages="formErrors.addr"
                   required
-                />
-              </VCol>
-              <VCol cols="12" md="6">
-                <AppDateTimePicker
-                  v-model="selectedStaff.join_date"
-                  :label="$t('common.messages.joinDate')"
-                  :error-messages="formErrors.join_date"
-                  required
-                  :config="{ dateFormat: 'Y-m-d' }"
                 />
               </VCol>
             </VRow>
@@ -1161,6 +1192,17 @@ onMounted(async () => {
     </VDialog>
   </div>
 </template>
+
+<style scoped>
+.employee-account-select :deep(.v-field) { background: rgba(var(--v-theme-on-surface), .035); border: 1px solid rgba(var(--v-theme-on-surface), .16); border-radius: 12px; }
+.employee-account-select :deep(.v-field--focused) { border-color: rgb(var(--v-theme-primary)); box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), .12); }
+.account-selection { display: grid; line-height: 1.2; min-width: 0; }
+.account-selection__name { font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
+.account-selection__meta, .account-option__id { color: rgba(var(--v-theme-on-surface), .62); font-size: .75rem; }
+:global(.account-option) { margin: 4px 6px; border-radius: 10px; }
+:global(.account-option:hover) { background: rgba(var(--v-theme-primary), .10); }
+:global(.account-option__details) { display: grid; gap: 2px; margin-top: 2px; color: rgba(var(--v-theme-on-surface), .64); font-size: .75rem; }
+</style>
 
 <style scoped>
 .staff-table :deep(tbody td) {

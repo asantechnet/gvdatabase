@@ -1,8 +1,7 @@
 import api from "./axios";
 
 // Types matching the frontend requirements
-export type EligibilityReason = 'Top Performer' | 'Project Milestone' | 'Client Praise' | 'Work Anniversary' | 'Manager Nomination';
-export type BonusType = 'Performance' | 'Spot Bonus' | 'Project Completion' | 'Retention';
+export type BonusType = 'Performance' | 'Customer Appreciation' | 'Task Completion' | 'Work Anniversary' | 'Manager Recognition';
 
 export interface SalaryConversionSnapshot {
     sourceAmount: number;
@@ -22,8 +21,6 @@ export interface WorthyEmployee {
     employeeName: string;
     employeeEmail: string;
     department: string | null;
-    performanceScore: number;
-    eligibilityReason: EligibilityReason;
     achievementDetails: string;
     suggestedAmount: number;
     selectedAmount: number;
@@ -56,16 +53,14 @@ export interface WorthyEmployee {
 
 export interface CreateNominationData {
     employeeId: number;
-    performanceScore: number;
-    eligibilityReason: EligibilityReason;
     achievementDetails: string;
-    suggestedAmount: number;
+    amount: number;
     selectedType: BonusType;
-    selectedAmount?: number;
     bonusMonth?: string; // Format: YYYY-MM
 }
 
 export interface UpdateEmployeeData {
+    amount?: number;
     selectedAmount?: number;
     selectedType?: BonusType;
     isGranted?: boolean;

@@ -79,6 +79,9 @@ class RecurringEventController extends Controller
             'payload.amount' => ['required_if:event_type,income,expense', 'numeric', 'gt:0'], 'payload.currency_id' => ['required_if:event_type,income,expense', 'exists:currencies,id'],
             'payload.type' => ['required_if:event_type,income,expense', 'string', 'max:255'], 'payload.board_id' => ['required_if:event_type,task', 'exists:boards,id'],
             'payload.title' => ['required_if:event_type,task', 'string', 'max:255'],
+            'payload.customer_id' => ['nullable', 'exists:customers,id'],
+            'payload.company_id' => ['nullable', 'exists:companies,id'],
+            'payload.project_id' => ['nullable', 'exists:projects,id'],
         ];
         return $request->validate($rules);
     }

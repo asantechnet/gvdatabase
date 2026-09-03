@@ -11,7 +11,10 @@ class LeadResource extends JsonResource
     {
         return ['id' => $this->id, 'visitor_id' => $this->visitor_id, 'customer_id' => $this->customer_id, 'name' => $this->name,
             'company' => $this->company, 'contact' => $this->contact, 'email' => $this->email, 'service_interest' => $this->service_interest,
-            'marketer' => $this->marketer, 'stage' => $this->stage, 'probability' => $this->probability,
+            'marketer' => $this->marketer, 'marketer_id' => $this->marketer_id,
+            'marketer_employee' => $this->whenLoaded('marketerEmployee', fn () => $this->marketerEmployee ? [
+                'id' => $this->marketerEmployee->id, 'name' => $this->marketerEmployee->name,
+            ] : null), 'stage' => $this->stage, 'probability' => $this->probability,
             'estimated_value' => $this->estimated_value, 'next_follow_up_at' => $this->next_follow_up_at?->toDateString(),
             'notes' => $this->notes, 'converted_at' => $this->converted_at?->toISOString(),
             'owner' => $this->whenLoaded('owner', fn () => $this->owner?->only(['id', 'name'])),

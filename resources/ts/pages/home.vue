@@ -58,6 +58,13 @@ const dashboard = ref<DashboardData>(emptyDashboard())
 const isLoading = ref(false)
 const error = ref('')
 const refreshedAt = ref<Date | null>(null)
+const selectedPeriod = ref<'1m' | '3m' | '1y' | '2y' | 'custom'>('1m')
+const customStartDate = ref('')
+const customEndDate = ref('')
+const periodOptions = [
+  { titleKey: 'filters.oneMonth', value: '1m' as const }, { titleKey: 'filters.threeMonths', value: '3m' as const },
+  { titleKey: 'filters.oneYear', value: '1y' as const }, { titleKey: 'filters.twoYears', value: '2y' as const },
+]
 
 const formatNumber = (value: number | null | undefined, digits = 0) => formatLocalizedNumber(value ?? 0, { maximumFractionDigits: digits })
 const formatMoney = (value: number | null | undefined) => new Intl.NumberFormat(locale.value, {
@@ -207,7 +214,14 @@ async function loadDashboard() {
   isLoading.value = true
   error.value = ''
   try {
-    dashboard.value = await DashboardApi.getData()
+    if (selectedPeriod.value === 'custom' && (!customStartDate.value || !customEndDate.value)) {
+      error.value = t('filters.selectBothDates')
+      return
+    }
+    dashboard.value = await DashboardApi.getData({
+      period: selectedPeriod.value,
+      ...(selectedPeriod.value === 'custom' ? { start_date: customStartDate.value, end_date: customEndDate.value } : {}),
+    })
     refreshedAt.value = new Date()
   }
   catch (caught: any) {
@@ -229,7 +243,14 @@ onMounted(loadDashboard)
         <h1 class="text-h3 font-weight-bold tracking-tight mb-1">{{ t('header.title') }}</h1>
         <p class="text-body-1 text-medium-emphasis mb-0">{{ t('header.subtitle') }}</p>
       </div>
-      <div class="d-flex align-center ga-3">
+      <div class="dashboard-controls d-flex flex-wrap align-center justify-end ga-2">
+        <div class="period-segments" role="group" :aria-label="t('filters.label')">
+          <button v-for="option in periodOptions" :key="option.value" type="button" class="period-segment" :class="{ 'period-segment--active': selectedPeriod === option.value }" @click="selectedPeriod = option.value; loadDashboard()">{{ t(option.titleKey) }}</button>
+        </div>
+        <VMenu :close-on-content-click="false" location="bottom end" origin="auto">
+          <template #activator="{ props }"><VBtn v-bind="props" :color="selectedPeriod === 'custom' ? 'primary' : 'secondary'" variant="tonal" height="40" prepend-icon="tabler-calendar">{{ t('filters.custom') }}</VBtn></template>
+          <VCard min-width="300" class="pa-4 dashboard-range-card"><div class="text-subtitle-2 font-weight-bold mb-3">{{ t('filters.customTitle') }}</div><AppDateTimePicker v-model="customStartDate" :label="t('filters.from')" density="compact" class="mb-2" :config="{ dateFormat: 'Y-m-d' }" /><AppDateTimePicker v-model="customEndDate" :label="t('filters.to')" density="compact" class="mb-3" :config="{ dateFormat: 'Y-m-d', minDate: customStartDate || undefined }" /><VBtn block color="primary" :disabled="!customStartDate || !customEndDate" @click="selectedPeriod = 'custom'; loadDashboard()">{{ t('filters.apply') }}</VBtn></VCard>
+        </VMenu>
         <span v-if="refreshedAt" class="text-caption text-medium-emphasis d-none d-sm-inline">{{ t('header.updated', { time: formatLocalizedDate(refreshedAt, 'time') }) }}</span>
         <VBtn variant="outlined" color="primary" prepend-icon="tabler-refresh" :loading="isLoading" @click="loadDashboard">{{ t('header.refresh') }}</VBtn>
       </div>
@@ -370,6 +391,13 @@ onMounted(loadDashboard)
 
 <style scoped>
 .executive-dashboard { max-width: 1680px; margin-inline: auto; }
+.dashboard-controls { margin-inline-start: auto; }
+.period-segments { display: grid; grid-template-columns: repeat(4, minmax(76px, 1fr)); gap: 3px; padding: 3px; border: 1px solid rgba(var(--v-theme-on-surface), .14); border-radius: 12px; background: rgba(var(--v-theme-on-surface), .045); }
+.period-segment { min-height: 34px; padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: rgba(var(--v-theme-on-surface), .68); font: inherit; font-size: .78rem; font-weight: 650; line-height: 1.15; white-space: nowrap; cursor: pointer; transition: background .18s ease, color .18s ease, box-shadow .18s ease; }
+.period-segment:hover { background: rgba(var(--v-theme-primary), .08); color: rgb(var(--v-theme-primary)); }
+.period-segment--active { background: rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-on-primary)); box-shadow: 0 2px 8px rgba(var(--v-theme-primary), .28); }
+.dashboard-range-card { border-radius: 14px; }
+@media (max-width: 700px) { .dashboard-controls { justify-content: flex-start !important; margin-inline-start: 0; width: 100%; } .period-segments { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; } .period-segment { white-space: normal; } }
 .tracking-tight { letter-spacing: -.035em !important; }
 .section-eyebrow, .kpi-label { color: rgba(var(--v-theme-on-surface), .56); font-size: .7rem; font-weight: 700; letter-spacing: .105em; line-height: 1.4; text-transform: uppercase; }
 .kpi-card, .domain-card { border: 1px solid rgba(var(--v-theme-on-surface), .065); box-shadow: 0 3px 14px rgba(20, 24, 40, .035) !important; }

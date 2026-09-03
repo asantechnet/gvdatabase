@@ -14,6 +14,7 @@ use App\Models\Setting;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\WorthyEmployee;
+use App\Models\Role;
 use App\Services\AutomationRunService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -45,10 +46,10 @@ class PhaseNineBonusAutomationTest extends TestCase
     public function test_completed_task_inputs_produce_one_explainable_approval_required_nomination(): void
     {
         Carbon::setTestNow('2026-08-13 08:00:00 UTC');
-        $reviewer = User::factory()->create(['roles' => ['super_admin']]);
-        $worker = User::factory()->create(['roles' => ['employee']]);
+        $reviewer = $this->superAdmin();
+        $worker = User::factory()->create();
         $employee = Employee::factory()->create(['user_id' => $worker->id, 'department' => 'Engineering']);
-        $currency = Currency::factory()->create(['code' => 'AFN', 'name' => 'Afghani', 'symbol' => '؋', 'is_base' => true, 'rate_against_base' => 1]);
+        $currency = Currency::factory()->create(['code' => 'AFN', 'name' => 'Afghani', 'symbol' => '؋', 'is_base' => true, 'rate' => 1]);
         $task = Task::factory()->create([
             'board_id' => Board::factory(), 'progress' => 99, 'priority' => 'high',
             'due_date' => '2026-07-25', 'updated_at' => '2026-07-01 00:00:00',
@@ -70,10 +71,10 @@ class PhaseNineBonusAutomationTest extends TestCase
         $this->assertSame($employee->id, $nomination->employee_id);
         $this->assertFalse($nomination->is_granted);
         $this->assertSame('task-bonus:2026-07:'.$employee->id, $nomination->calculation_key);
-        $this->assertEqualsWithDelta(22.6667, $nomination->calculation_score, .0001);
-        $this->assertEqualsWithDelta(226.67, $nomination->suggested_amount, .001);
-        $this->assertSame(4.0, (float) $nomination->calculation_inputs['tasks'][0]['quality_score']);
-        $this->assertSame(100.0, (float) $nomination->calculation_inputs['tasks'][0]['participation_percent']);
+        $this->assertEqualsWithDelta(1, $nomination->calculation_score, .0001);
+        $this->assertEqualsWithDelta(10, $nomination->suggested_amount, .001);
+        $this->assertSame('Task Completion', $nomination->selected_type);
+        $this->assertNotEmpty($nomination->calculation_inputs['tasks'][0]['completed_at']);
         $this->assertSame(1, Notification::where('notification_key', 'bonus.review.2026-07.'.$employee->id)->count());
         $this->assertSame(1, AutomationRun::where(['job' => 'bonus_calculation', 'period_key' => '2026-07', 'status' => 'completed'])->count());
         $this->assertSame($currency->id, $nomination->currency_id);
@@ -81,17 +82,17 @@ class PhaseNineBonusAutomationTest extends TestCase
 
     public function test_rule_updates_are_versioned_and_automation_apis_are_permission_protected(): void
     {
-        $unauthorized = User::factory()->create(['roles' => []]);
+        $unauthorized = User::factory()->create();
         Sanctum::actingAs($unauthorized, ['access']);
         $this->getJson('/api/automation/runs')->assertForbidden();
         $this->getJson('/api/automation/analytics')->assertForbidden();
 
-        $admin = User::factory()->create(['roles' => ['super_admin']]);
+        $admin = $this->superAdmin();
         Sanctum::actingAs($admin, ['access']);
         $rules = BonusRuleSet::where('is_active', true)->firstOrFail()->rules;
-        $rules['amount_per_point'] = 25;
+        $rules['amount_per_completed_task'] = 25;
         $this->putJson('/api/automation/bonus-rules', $rules)
-            ->assertOk()->assertJsonPath('data.version', 2)->assertJsonPath('data.rules.amount_per_point', 25);
+            ->assertOk()->assertJsonPath('data.version', 2)->assertJsonPath('data.rules.amount_per_completed_task', 25);
         $this->assertSame(2, BonusRuleSet::count());
         $this->assertSame(1, BonusRuleSet::where('is_active', true)->count());
     }
@@ -126,5 +127,13 @@ class PhaseNineBonusAutomationTest extends TestCase
         $retry = app(AutomationRunService::class)->execute('test_job', '2026-07', [], false, fn () => ['ok' => true]);
         $this->assertTrue($retry['ok']);
         $this->assertSame(2, $failed->fresh()->attempt);
+    }
+
+    private function superAdmin(): User
+    {
+        $user = User::factory()->create(['acc_status' => 'active']);
+        $user->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
+
+        return $user;
     }
 }

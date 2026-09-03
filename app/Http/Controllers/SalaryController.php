@@ -201,11 +201,6 @@ class SalaryController extends Controller
                 'employee_id' => ['business.employee_not_selectable'],
             ]);
         }
-        if ($employee->employment_type === 'commission') {
-            throw ValidationException::withMessages([
-                'employee_id' => ['business.commission_employee_salary_forbidden'],
-            ]);
-        }
     }
 
     private function syncDeductions(Salary $salary, array $deductions): void

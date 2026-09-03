@@ -3,58 +3,67 @@ import PrintableListReport from '@/components/PrintableListReport.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import VisitorApi, { type Visitor, type CreateVisitorData, type UpdateVisitorData } from '@/api/visitor'
-import MarketerApi, { type Marketer } from '@/api/marketer'
+import EmployeeApi, { type Employee } from '@/api/employee'
+import type { Account } from '@/api/auth'
+import { useCookie } from '@core/composable/useCookie'
 import { printDocument } from '@/utils/printDocument'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import LeadApi from '@/api/lead'
 
+type VisitorForm = {
+  name: string
+  company: string
+  contact: string
+  email: string
+  service: string
+  marketer_id: number | null
+  notes: string
+}
+
 const visitors = ref<Visitor[]>([])
 const search = ref('')
 const filterCompany = ref<string | null>(null)
-const filterMarketer = ref<string | null>(null)
+const filterMarketerId = ref<number | null>(null)
 const isAddNewVisitorDialogVisible = ref(false)
 const isEditVisitorDialogVisible = ref(false)
 const isDeleteVisitorDialogVisible = ref(false)
 const selectedVisitor = ref<Visitor | null>(null)
 const isLoading = ref(false)
 const convertingVisitorId = ref<number | null>(null)
-const marketerDirectory = ref<Marketer[]>([])
+const marketerDirectory = ref<Employee[]>([])
 const toast = useToast()
+const userData = useCookie<Account | null>('userData')
+const isCurrentUserMarketer = computed(() => Boolean(userData.value?.is_marketer || userData.value?.employee?.is_marketer))
+const currentMarketerName = computed(() => {
+  const employeeId = userData.value?.employee?.id
+  return marketerDirectory.value.find(marketer => marketer.id === employeeId)?.name ?? userData.value?.name ?? 'your marketer profile'
+})
 
-const visitorData = ref<Omit<Visitor, 'id' | 'date'>>({
+const emptyVisitorForm = (): VisitorForm => ({
   name: '',
   company: '',
   contact: '',
   email: '',
   service: '',
-  marketer: '',
+  marketer_id: null,
   notes: '',
 })
+const visitorData = ref<VisitorForm>(emptyVisitorForm())
 
 const formErrors = ref({
   name: '',
   company: '',
   contact: '',
   service: '',
-  marketer: '',
 })
 
 const resetForm = () => {
-  visitorData.value = {
-    name: '',
-    company: '',
-    contact: '',
-    email: '',
-    service: '',
-    marketer: '',
-    notes: '',
-  }
+  visitorData.value = emptyVisitorForm()
   formErrors.value = {
     name: '',
     company: '',
     contact: '',
     service: '',
-    marketer: '',
   }
 }
 
@@ -105,19 +114,11 @@ const validateForm = () => {
     formErrors.value.service = ''
   }
 
-  // Validate Marketer
-  if (!visitorData.value.marketer.trim()) {
-    formErrors.value.marketer = translate('pages.contracts.visitor.visitor.marketerIsRequired')
-    isValid = false
-  } else if (visitorData.value.marketer.length < 2) {
-    formErrors.value.marketer = translate('pages.contracts.visitor.visitor.marketerMustBeAtLeast2Characters')
-    isValid = false
-  } else {
-    formErrors.value.marketer = ''
-  }
-
   return isValid
 }
+
+const marketerLabel = (record: Pick<Visitor, 'marketer' | 'marketer_employee'>) => record.marketer_employee?.name || record.marketer || 'Unassigned'
+const marketerPayload = () => isCurrentUserMarketer.value ? {} : { marketer_id: visitorData.value.marketer_id }
 
 const fetchVisitors = async () => {
   try {
@@ -125,7 +126,7 @@ const fetchVisitors = async () => {
     const response = await VisitorApi.getAll({
       search: search.value,
       company: filterCompany.value || undefined,
-      marketer: filterMarketer.value || undefined
+      marketer_id: filterMarketerId.value || undefined,
     })
 
     visitors.value = response
@@ -144,7 +145,7 @@ const filtered = computed(() => {
       v.contact.includes(search.value)
       || (v.email?.toLowerCase().includes(search.value.toLowerCase()) ?? false)
     const matchesCompany = !filterCompany.value || v.company === filterCompany.value
-    const matchesMarketer = !filterMarketer.value || v.marketer === filterMarketer.value
+    const matchesMarketer = !filterMarketerId.value || v.marketer_id === filterMarketerId.value
     return matchesSearch && matchesCompany && matchesMarketer
   })
 })
@@ -175,9 +176,9 @@ const addNewVisitor = async () => {
       contact: visitorData.value.contact,
       email: visitorData.value.email || null,
       service: visitorData.value.service,
-      marketer: visitorData.value.marketer,
       notes: visitorData.value.notes,
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      ...marketerPayload(),
     }
 
     const response = await VisitorApi.create(data)
@@ -205,8 +206,8 @@ const editVisitor = async () => {
       contact: visitorData.value.contact,
       email: visitorData.value.email || null,
       service: visitorData.value.service,
-      marketer: visitorData.value.marketer,
       notes: visitorData.value.notes,
+      ...marketerPayload(),
     }
 
     const response = await VisitorApi.update(selectedVisitor.value.id, data)
@@ -233,7 +234,7 @@ const openEditDialog = (visitor: Visitor) => {
     contact: visitor.contact,
     email: visitor.email ?? '',
     service: visitor.service,
-    marketer: visitor.marketer,
+    marketer_id: visitor.marketer_id,
     notes: visitor.notes || '',
   }
   isEditVisitorDialogVisible.value = true
@@ -277,18 +278,13 @@ const companies = computed(() => {
   return [...new Set(visitors.value.map(v => v.company))].filter(Boolean)
 })
 
-const marketers = computed(() => [...new Set([
-  ...marketerDirectory.value.filter(marketer => marketer.status === 'active').map(marketer => marketer.name),
-  ...visitors.value.map(visitor => visitor.marketer),
-])].filter(Boolean).sort())
-
 const services = computed(() => {
   return [...new Set(visitors.value.map(v => v.service))].filter(Boolean)
 })
 
 onMounted(() => {
   fetchVisitors()
-  MarketerApi.getAll().then(data => { marketerDirectory.value = data }).catch(console.error)
+  EmployeeApi.getMarketerOptions().then(data => { marketerDirectory.value = data }).catch(console.error)
 })
 </script>
 
@@ -309,10 +305,10 @@ onMounted(() => {
           />
         </VCol>
         <VCol cols="12" md="5" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2">
-          <DataTableFilterMenu :active="Boolean(filterCompany || filterMarketer)"
-            @reset="filterCompany = null; filterMarketer = null; fetchVisitors()">
+          <DataTableFilterMenu :active="Boolean(filterCompany || filterMarketerId)"
+            @reset="filterCompany = null; filterMarketerId = null; fetchVisitors()">
             <VSelect v-model="filterCompany" :items="companies" :label="$t('pages.contracts.visitor.visitor.filterByCompany')" density="compact" clearable hide-details @update:modelValue="fetchVisitors" />
-            <VSelect v-model="filterMarketer" :items="marketers" :label="$t('pages.contracts.visitor.visitor.filterByMarketer')" density="compact" clearable hide-details @update:modelValue="fetchVisitors" />
+            <VSelect v-model="filterMarketerId" :items="marketerDirectory" item-title="name" item-value="id" :label="$t('pages.contracts.visitor.visitor.filterByMarketer')" density="compact" clearable hide-details @update:modelValue="fetchVisitors" />
           </DataTableFilterMenu>
           <VBtn
             icon="tabler-printer"
@@ -349,6 +345,13 @@ onMounted(() => {
         <span v-else class="text-medium-emphasis">—</span>
       </template>
 
+      <template #item.marketer="{ item }">
+        <div class="d-flex align-center ga-2">
+          <VAvatar size="28" color="primary" variant="tonal"><VIcon icon="tabler-user-star" size="16" /></VAvatar>
+          <span>{{ marketerLabel(item) }}</span>
+        </div>
+      </template>
+
       <template #item.actions="{ item }">
         <div class="d-flex gap-1">
           <CrmRelationshipDetails type="visitor" :id="item.id" :title="item.name" />
@@ -373,7 +376,7 @@ onMounted(() => {
       </template>
     </ResponsiveDataTable>
   </VCard>
-  <PrintableListReport title="Visitors Report" subtitle="Filtered visitor records" :columns="headers.slice(0, -1).map(header => header.title)" :rows="filtered.map(visitor => [visitor.name, visitor.company, visitor.contact, visitor.email || '—', visitor.service, visitor.marketer, visitor.date])" />
+  <PrintableListReport title="Visitors Report" subtitle="Filtered visitor records" :columns="headers.slice(0, -1).map(header => header.title)" :rows="filtered.map(visitor => [visitor.name, visitor.company, visitor.contact, visitor.email || '—', visitor.service, marketerLabel(visitor), visitor.date])" />
 
   <!-- Add New Visitor Dialog -->
   <VDialog v-model="isAddNewVisitorDialogVisible" max-width="600">
@@ -431,15 +434,20 @@ onMounted(() => {
               />
             </VCol>
             <VCol cols="12">
+              <VAlert v-if="isCurrentUserMarketer" color="primary" variant="tonal" icon="tabler-lock">
+                Marketer attribution is assigned automatically to {{ currentMarketerName }} when this visitor is created.
+              </VAlert>
               <VAutocomplete
-                v-model="visitorData.marketer"
-                :items="marketers"
+                v-else
+                v-model="visitorData.marketer_id"
+                :items="marketerDirectory"
+                item-title="name"
+                item-value="id"
                 :label="$t('common.messages.marketer')"
                 :placeholder="$t('common.messages.selectAMarketer')"
-                :hint="$t('common.messages.manageMarketersFromSetupMarketers')"
+                hint="Optional. Select the employee who brought this visitor to the business."
                 persistent-hint
-                :error-messages="formErrors.marketer"
-                required
+                clearable
               />
             </VCol>
             <VCol cols="12"><VTextarea v-model="visitorData.notes" label="Visitor notes" rows="3" hint="Capture interests, context, and anything useful before qualification." persistent-hint /></VCol>
@@ -524,15 +532,20 @@ onMounted(() => {
               />
             </VCol>
             <VCol cols="12">
+              <VAlert v-if="isCurrentUserMarketer" color="primary" variant="tonal" icon="tabler-lock">
+                Marketer attribution is locked to {{ currentMarketerName }}. Existing ownership is preserved unless an administrator changes it.
+              </VAlert>
               <VAutocomplete
-                v-model="visitorData.marketer"
-                :items="marketers"
+                v-else
+                v-model="visitorData.marketer_id"
+                :items="marketerDirectory"
+                item-title="name"
+                item-value="id"
                 :label="$t('common.messages.marketer')"
                 :placeholder="$t('common.messages.selectAMarketer')"
-                :hint="$t('common.messages.manageMarketersFromSetupMarketers')"
+                hint="Optional. Select the employee who brought this visitor to the business."
                 persistent-hint
-                :error-messages="formErrors.marketer"
-                required
+                clearable
               />
             </VCol>
             <VCol cols="12"><VTextarea v-model="visitorData.notes" label="Visitor notes" rows="3" hint="Capture interests, context, and anything useful before qualification." persistent-hint /></VCol>

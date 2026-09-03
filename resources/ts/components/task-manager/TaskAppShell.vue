@@ -16,7 +16,13 @@ const projects = ref<Project[]>([])
 const customers = ref<Customer[]>([])
 const isProjectDialogOpen = ref(false)
 const savingProject = ref(false)
-const newProject = ref({ name: '', description: '', due_date: null as string | null, customer_id: null as number | null })
+const newProject = ref({
+  name: '',
+  description: '',
+  due_date: null as string | null,
+  customer_id: null as number | null,
+  service_ids: [] as number[],
+})
 
 const projectOptions = computed(() => [
   { title: translate('components.taskManager.taskappshell.allWork'), value: null },
@@ -27,6 +33,18 @@ const projectOptions = computed(() => [
 ])
 
 const customerOptions = computed(() => customers.value.map(customer => ({ title: `${customer.name} · ${customer.company}`, value: customer.id })))
+
+const selectedProjectCustomer = computed(() => customers.value.find(customer => customer.id === newProject.value.customer_id) ?? null)
+
+const projectServiceOptions = computed(() => selectedProjectCustomer.value?.services ?? [])
+
+const projectServiceLabel = (service: { type: string; fee: number; currency?: { symbol?: string; code?: string } | null }) =>
+  `${service.type} · ${service.currency?.symbol ?? ''}${Number(service.fee ?? 0).toFixed(2)} ${service.currency?.code ?? ''}`.trim()
+
+const selectProjectCustomer = (customerId: number | null) => {
+  newProject.value.customer_id = customerId === null ? null : Number(customerId)
+  newProject.value.service_ids = []
+}
 
 const changeProject = async (projectId: number | null) => {
   await store.selectProject(projectId)
@@ -41,12 +59,13 @@ const createProject = async () => {
       description: newProject.value.description || null,
       due_date: newProject.value.due_date,
       customer_id: newProject.value.customer_id,
+      service_ids: newProject.value.service_ids,
     })
     // Reload from the authoritative list so the new project is visible even
     // when an API response omits fields used by the select's item renderer.
     projects.value = await ProjectApi.getAll()
     isProjectDialogOpen.value = false
-    newProject.value = { name: '', description: '', due_date: null, customer_id: null }
+    newProject.value = { name: '', description: '', due_date: null, customer_id: null, service_ids: [] }
     await changeProject(project.id)
   } finally {
     savingProject.value = false
@@ -130,8 +149,12 @@ const currentComponent = computed(() => {
           <VTextarea v-model="newProject.description" :label="$t('common.fields.description')" rows="2" class="mb-4" />
           <AppDateTimePicker v-model="newProject.due_date" :label="$t('components.taskManager.taskappshell.targetDate')" class="mb-4"
             :config="{ dateFormat: 'Y-m-d' }" clearable />
-          <VAutocomplete v-model="newProject.customer_id" :items="customerOptions" label="Customer"
-            clearable prepend-inner-icon="tabler-user-dollar" hint="Services are inferred from this customer's service catalog." persistent-hint />
+          <VAutocomplete :model-value="newProject.customer_id" :items="customerOptions" label="Customer"
+            clearable prepend-inner-icon="tabler-user-dollar" hint="Choose the customer whose purchased services this project will deliver." persistent-hint @update:model-value="selectProjectCustomer" />
+          <VAutocomplete v-if="selectedProjectCustomer" v-model="newProject.service_ids" :items="projectServiceOptions"
+            :item-title="projectServiceLabel" item-value="service_id" label="Services included in this project" multiple chips closable-chips
+            prepend-inner-icon="tabler-briefcase" class="mt-4" hint="Select one or more purchased services. Only these services will be linked to the project." persistent-hint />
+          <VAlert v-else type="info" variant="tonal" density="compact" class="mt-4">Select a customer to choose the services this project covers.</VAlert>
         </VCardText>
         <VCardActions>
           <VSpacer />

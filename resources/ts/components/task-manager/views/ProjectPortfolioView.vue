@@ -12,7 +12,7 @@ const statusColor = (status: string) => ({ active: 'success', on_hold: 'warning'
 <template>
   <div>
     <VRow class="mb-3"><VCol cols="12" sm="4"><VCard border><VCardText><div class="text-caption">Total portfolio</div><div class="text-h4 font-weight-bold">{{ projects.length }}</div></VCardText></VCard></VCol><VCol cols="6" sm="4"><VCard border><VCardText><div class="text-caption">Active delivery</div><div class="text-h4 font-weight-bold text-success">{{ active }}</div></VCardText></VCard></VCol><VCol cols="6" sm="4"><VCard border><VCardText><div class="text-caption">Needs attention</div><div class="text-h4 font-weight-bold text-error">{{ overdue }}</div></VCardText></VCard></VCol></VRow>
-    <VCard border><VCardTitle>Project portfolio</VCardTitle><VCardSubtitle>Customer ownership, inferred services, schedule, and workload in one view.</VCardSubtitle>
+    <VCard border><VCardTitle>Project portfolio</VCardTitle><VCardSubtitle>Customer ownership, selected services, schedule, and workload in one view.</VCardSubtitle>
       <ResponsiveDataTable :items="projects" :headers="[{title:'Project',key:'name'},{title:'Customer',key:'customer.name'},{title:'Services',key:'services'},{title:'Tasks',key:'tasks'},{title:'Due',key:'due_date'},{title:'Status',key:'status'},{title:'',key:'actions',sortable:false}]">
         <template #item.name="{ item }"><div class="font-weight-bold">{{ item.name }}</div><div class="text-caption text-medium-emphasis text-truncate" style="max-width:260px">{{ item.description }}</div></template>
         <template #item.customer.name="{ item }"><div>{{ item.customer?.name }}</div><div class="text-caption">{{ item.customer?.company }}</div></template>

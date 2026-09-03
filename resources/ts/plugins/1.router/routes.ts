@@ -24,6 +24,7 @@ const pageComponents: Record<string, Component> = {
   paidTimeOffs: () => import("@/pages/paid_time_offs.vue"),
   bonuslist: () => import("@/pages/bonuslist.vue"),
   staffSalary: () => import("@/pages/staff_salary.vue"),
+  commissions: () => import("@/pages/commissions.vue"),
   contracts: () => import("@/pages/customer_contracts.vue"),
   employeeContracts: () => import("@/pages/employee_contracts.vue"),
   companyContracts: () => import("@/pages/company_contracts.vue"),
@@ -118,6 +119,7 @@ const routeDefinitions: Array<
     name: "companies",
     meta: { requiresAuth: true, action: 'read', subject: 'view_companies' },
   },
+  { path: "/commissions", component: "commissions", name: "commissions", meta: { requiresAuth: true, action: 'read', subject: 'view_commissions' } },
   {
     path: "/contract-policies",
     component: "contractPolicyLibrary",

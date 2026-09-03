@@ -71,6 +71,21 @@ class CompanySettingsTest extends TestCase
         $this->assertNull($setting->contract_cover_design);
     }
 
+    public function test_multipart_artwork_update_uses_method_override(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $setting = Setting::create($this->validSettings());
+
+        $this->post("/api/settings/{$setting->id}", [
+            '_method' => 'PATCH',
+            'contract_letterhead' => $this->fakePng('letterhead.png', 1200, 1600),
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.contract_letterhead', fn (?string $path) => str_starts_with($path ?? '', 'contract-letterheads/'));
+
+        Storage::disk('public')->assertExists($setting->fresh()->contract_letterhead);
+    }
+
     public function test_invalid_company_email_and_timezone_are_rejected(): void
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Project extends Model
@@ -27,9 +28,28 @@ class Project extends Model
 
     public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
 
+    /**
+     * The catalogue services this delivery project covers.
+     *
+     * A project belongs to one customer, while each service remains a shared
+     * catalogue entry. The controller keeps this relation scoped to services
+     * that are actually assigned to that customer.
+     */
+    public function services(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class)
+            ->withTimestamps()
+            ->orderBy('services.type');
+    }
+
     public function boards(): HasMany
     {
         return $this->hasMany(Board::class)->orderBy('order');
+    }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
     }
 
 }

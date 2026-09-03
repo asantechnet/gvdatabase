@@ -7,7 +7,6 @@ import { VerticalNavGroup, VerticalNavLink, VerticalNavSectionTitle } from '@lay
 import { useLayoutConfigStore } from '@layouts/stores/config'
 import { injectionKeyIsVerticalNavHovered } from '@layouts/symbols'
 import type { NavGroup, NavLink, NavSectionTitle, VerticalNavItems } from '@layouts/types'
-import { useBranding } from '@/composables/useBranding'
 
 interface Props {
   tag?: string | Component
@@ -27,7 +26,6 @@ const isHovered = useElementHover(refNav)
 provide(injectionKeyIsVerticalNavHovered, isHovered)
 
 const configStore = useLayoutConfigStore()
-const { logoUrl, shortCompanyName, loadBranding } = useBranding()
 
 const resolveNavItemComponent = (item: NavLink | NavSectionTitle | NavGroup): unknown => {
   if ('heading' in item)
@@ -55,9 +53,6 @@ const handleNavScroll = (evt: Event) => {
   isVerticalNavScrolled.value = (evt.target as HTMLElement).scrollTop > 0
 }
 
-const hideTitleAndIcon = configStore.isVerticalNavMini(isHovered)
-
-onMounted(loadBranding)
 </script>
 
 <template>
@@ -78,21 +73,6 @@ onMounted(loadBranding)
     <!-- 👉 Header -->
     <div class="nav-header">
       <slot name="nav-header">
-        <RouterLink
-          to="/"
-          class="app-logo app-title-wrapper"
-        >
-          <img :src="logoUrl" :alt="shortCompanyName" class="app-logo-image">
-
-          <Transition name="vertical-nav-app-title">
-            <h1
-              v-show="!hideTitleAndIcon"
-              class="app-logo-title"
-            >
-              {{ shortCompanyName }}
-            </h1>
-          </Transition>
-        </RouterLink>
         <!-- 👉 Vertical nav actions -->
         <!-- Show toggle collapsible in >md and close button in <md -->
         <div class="header-action">
@@ -146,28 +126,6 @@ onMounted(loadBranding)
     <slot name="after-nav-items" />
   </Component>
 </template>
-
-<style lang="scss" scoped>
-.app-logo {
-  display: flex;
-  align-items: center;
-  column-gap: 0.75rem;
-
-  .app-logo-title {
-    font-size: 1.375rem;
-    font-weight: 700;
-    letter-spacing: 0.25px;
-    line-height: 1.5rem;
-    text-transform: capitalize;
-  }
-}
-
-.app-logo-image {
-  block-size: 2rem;
-  inline-size: 2rem;
-  object-fit: contain;
-}
-</style>
 
 <style lang="scss">
 @use "@configured-variables" as variables;

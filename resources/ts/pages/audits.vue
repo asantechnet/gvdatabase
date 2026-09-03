@@ -49,7 +49,7 @@ const resourceSearch = ref('')
 
 const canReview = computed(() => canAccess('review_audit_logs'))
 const canManageScope = computed(() => canAccess('manage_audit_scope'))
-const resourceKeys = ['attendances', 'boards', 'comments', 'companies', 'contract_policies', 'contract_templates', 'contract_types', 'contracts', 'currencies', 'customer_services', 'customers', 'daily_reports', 'employees', 'expenses', 'incomes', 'invoices', 'marketers', 'offices', 'leaves', 'payment_details', 'permissions', 'positions', 'salaries', 'services', 'settings', 'assets', 'subtasks', 'tags', 'task_attachments', 'tasks', 'users', 'visitors', 'leads', 'crm_interactions', 'worthy_employees', 'account_deactivations', 'audit_settings']
+const resourceKeys = ['attendances', 'boards', 'comments', 'companies', 'commission_accruals', 'commission_settlements', 'contract_policies', 'contract_templates', 'contract_types', 'contracts', 'currencies', 'customer_services', 'customers', 'daily_reports', 'employees', 'expenses', 'incomes', 'invoices', 'marketers', 'offices', 'leaves', 'payment_details', 'permissions', 'positions', 'salaries', 'services', 'settings', 'assets', 'subtasks', 'tags', 'task_attachments', 'tasks', 'users', 'visitors', 'leads', 'crm_interactions', 'worthy_employees', 'account_deactivations', 'audit_settings']
 const resourceOptions = computed(() => [...resourceKeys].sort((a, b) => resourceName(a).localeCompare(resourceName(b))).map(value => ({ value, title: resourceName(value) })))
 const eventOptions = computed(() => ['created', 'updated', 'deleted', 'restored', 'audit_scope_enabled', 'audit_scope_disabled'].map(value => ({ value, title: eventLabel(value) })))
 

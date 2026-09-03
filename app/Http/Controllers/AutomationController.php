@@ -19,25 +19,18 @@ class AutomationController extends Controller
     public function updateBonusRules(Request $request, BonusRuleService $rules): JsonResponse
     {
         $validated = $request->validate([
-            'completed_task_points' => ['required', 'numeric', 'min:0'],
-            'priority_weights' => ['required', 'array:low,medium,high,urgent'],
-            'priority_weights.*' => ['numeric', 'min:0'],
-            'before_deadline_points' => ['required', 'numeric'],
-            'after_deadline_points' => ['required', 'numeric'],
-            'reopened_penalty' => ['required', 'numeric', 'max:0'],
-            'rejected_penalty' => ['required', 'numeric', 'max:0'],
-            'default_quality_score' => ['required', 'numeric', 'between:1,5'],
-            'quality_multiplier_enabled' => ['required', 'boolean'],
-            'minimum_participation_percent' => ['required', 'numeric', 'between:0,100'],
             'minimum_completed_tasks' => ['required', 'integer', 'min:1'],
-            'monthly_score_threshold' => ['required', 'numeric', 'min:0'],
-            'amount_per_point' => ['required', 'numeric', 'min:0'],
+            'amount_per_completed_task' => ['required', 'numeric', 'min:0'],
             'maximum_monthly_bonus' => ['required', 'numeric', 'min:0'],
-            'excluded_employee_ids' => ['present', 'array'],
+            // Older saved rule sets have no exclusion lists. Do not make an
+            // upgrade reject an otherwise valid simple rule update.
+            'excluded_employee_ids' => ['sometimes', 'array'],
             'excluded_employee_ids.*' => ['integer', 'exists:employees,id'],
-            'excluded_office_ids' => ['present', 'array'],
+            'excluded_office_ids' => ['sometimes', 'array'],
             'excluded_office_ids.*' => ['integer', 'exists:offices,id'],
         ]);
+        $validated = [...$rules->active()->rules, ...$validated];
+
         return response()->json(['success' => true, 'data' => $rules->update($validated, $request->user())]);
     }
 

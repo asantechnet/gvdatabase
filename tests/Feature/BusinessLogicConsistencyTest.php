@@ -45,9 +45,18 @@ class BusinessLogicConsistencyTest extends TestCase
     {
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
+        $customer = Customer::factory()->create();
         $employee = Employee::factory()->create(['employment_type' => 'commission']);
         $employee->commissionServices()->attach($service->id, ['percentage' => 10]);
+        $customerService = CustomerService::create([
+            'customer_id' => $customer->id,
+            'service_id' => $service->id,
+            'employee_id' => $employee->id,
+            'fee' => 100,
+            'currency_id' => $currency->id,
+        ]);
         $invoice = Invoice::factory()->create([
+            'customer_id' => $customer->id,
             'currency_id' => $currency->id,
             'base_currency_id' => $currency->id,
             'amount' => 100,
@@ -55,6 +64,9 @@ class BusinessLogicConsistencyTest extends TestCase
             'base_amount' => 100,
         ]);
         $invoice->services()->attach($service->id, [
+            'customer_service_id' => $customerService->id,
+            'employee_id' => $employee->id,
+            'snapshot_commission_percentage' => 10,
             'snapshot_name' => $service->type,
             'snapshot_service_fee' => 100,
             'snapshot_service_currency_code' => $currency->code,

@@ -25,13 +25,6 @@ export default [
         subject: 'view_positions',
       },
       {
-        title: "common.navigation.marketers",
-        icon: { icon: "tabler-speakerphone" },
-        to: "setup-marketers",
-        action: 'read',
-        subject: 'view_marketers',
-      },
-      {
         title: "common.navigation.offices",
         icon: { icon: "tabler-building" },
         to: "setup-offices",

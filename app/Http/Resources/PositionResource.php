@@ -22,6 +22,7 @@ class PositionResource extends JsonResource
                 'rate' => $this->rate === null ? null : (float) $this->rate,
             ],
             'status' => $this->status,
+            'is_system' => $this->system_key !== null,
             'employee_count' => $this->whenCounted('employees'),
             'user_count' => $this->whenCounted('users'),
             'created_at' => $this->created_at,

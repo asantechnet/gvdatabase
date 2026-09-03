@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\CrmInteraction;
 use App\Http\Resources\VisitorResource;
 use App\Http\Resources\CustomerResource;
+use App\Support\CrmMarketerAttribution;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +24,7 @@ class VisitorController extends Controller
         $company = $request->input('company');
         $marketer = $request->input('marketer');
 
-        $query = Visitor::query();
+        $query = Visitor::query()->with('marketerEmployee');
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -38,7 +39,9 @@ class VisitorController extends Controller
             $query->where('company', $company);
         }
 
-        if ($marketer) {
+        if ($request->integer('marketer_id')) {
+            $query->where('marketer_id', $request->integer('marketer_id'));
+        } elseif ($marketer) {
             $query->where('marketer', $marketer);
         }
 
@@ -56,14 +59,15 @@ class VisitorController extends Controller
             'contact' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
             'service' => 'required|string|max:255',
-            'marketer' => 'required|string|max:255',
+            'marketer' => 'nullable|string|max:255',
+            'marketer_id' => CrmMarketerAttribution::marketerIdRules(),
             'date' => 'required|date',
             'notes' => 'nullable|string|max:10000',
         ]);
 
-        $visitor = Visitor::create($validated);
+        $visitor = Visitor::create(CrmMarketerAttribution::apply($request, $validated, creating: true));
 
-        return new VisitorResource($visitor->load('interactions.creator'));
+        return new VisitorResource($visitor->load(['marketerEmployee', 'interactions.creator']));
     }
 
     /**
@@ -71,7 +75,7 @@ class VisitorController extends Controller
      */
     public function show(Visitor $visitor): VisitorResource
     {
-        return new VisitorResource($visitor->load('interactions.creator'));
+        return new VisitorResource($visitor->load(['marketerEmployee', 'interactions.creator']));
     }
 
     /**
@@ -85,14 +89,15 @@ class VisitorController extends Controller
             'contact' => 'sometimes|required|string|max:255',
             'email' => 'nullable|email|max:255',
             'service' => 'sometimes|required|string|max:255',
-            'marketer' => 'sometimes|required|string|max:255',
+            'marketer' => 'sometimes|nullable|string|max:255',
+            'marketer_id' => CrmMarketerAttribution::marketerIdRules(),
             'date' => 'sometimes|required|date',
             'notes' => 'nullable|string|max:10000',
         ]);
 
-        $visitor->update($validated);
+        $visitor->update(CrmMarketerAttribution::apply($request, $validated, creating: false));
 
-        return new VisitorResource($visitor->load('interactions.creator'));
+        return new VisitorResource($visitor->load(['marketerEmployee', 'interactions.creator']));
     }
 
     /**
@@ -114,6 +119,7 @@ class VisitorController extends Controller
                 'contact' => $visitor->contact,
                 'email' => $visitor->email,
                 'marketer' => $visitor->marketer,
+                'marketer_id' => $visitor->marketer_id,
                 'notes' => $visitor->notes,
                 'date' => now()->toDateString(),
             ]);
@@ -133,6 +139,7 @@ class VisitorController extends Controller
 
         return new CustomerResource($customer->load([
             'customerServices.service.currency',
+            'marketerEmployee',
             'interactions.creator',
         ]));
     }

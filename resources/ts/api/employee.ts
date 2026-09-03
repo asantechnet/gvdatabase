@@ -1,5 +1,14 @@
 import api from "./axios";
 
+export interface CommissionServiceOption {
+  id: number
+  type: string
+  duration: number
+  fee: number
+  status: 'active' | 'inactive'
+  currency: { id: number; code: string; symbol: string; decimalPlaces: number } | null
+}
+
 // Types matching the frontend requirements
 export interface Employee {
   id: number;
@@ -21,16 +30,14 @@ export interface Employee {
   office_id: number | null;
   office: { id: number; name: string; code: string } | null;
   department: string | null;
-  position?: {
-    id: number;
-    name: string;
-  };
+  position?: string;
   salary: number | null;
-  commissions: Array<{ service_id: number; service: string; percentage: number }>;
+  commissions: Array<{ service_id: number; service: string; fee?: number; currency?: { id: number; code: string; symbol: string; decimalPlaces: number } | null; percentage: number }>;
   commission_earned_base: number;
+  commission_balances: Array<{ base_currency_id: number; status: 'pending' | 'approved' | 'paid'; amount: number }>;
   total_worked_hours: number;
   join_date: string | null;
-  contract_duration: string;
+  contract_duration?: string;
   work_start_time: string | null;
   work_end_time: string | null;
   created_at: string | null;
@@ -43,6 +50,7 @@ export interface EmployeeAccount {
   name: string
   email: string
   employee: { id: number; name: string } | null
+  marketer: { id: number; name: string } | null
 }
 
 export interface EmployeeParams {
@@ -73,7 +81,7 @@ export interface CreateEmployeeData {
   commissions?: Array<{ service_id: number; percentage: number }>;
   addr: string;
   join_date: string;
-  contract_duration: string;
+  contract_duration?: string;
 }
 
 export interface UpdateEmployeeData {
@@ -104,6 +112,16 @@ export interface UpdateEmployeeData {
 const EmployeeApi = {
   getAccountOptions: async (): Promise<EmployeeAccount[]> => {
     const response = await api.get<{ data: EmployeeAccount[] }>('/employees/account-options')
+    return Array.isArray(response.data.data) ? response.data.data : []
+  },
+
+  getCommissionOptions: async (): Promise<CommissionServiceOption[]> => {
+    const response = await api.get<{ data: CommissionServiceOption[] }>('/employees/commission-options')
+    return Array.isArray(response.data.data) ? response.data.data : []
+  },
+
+  getMarketerOptions: async (): Promise<Employee[]> => {
+    const response = await api.get<{ data: Employee[] }>('/employees/marketer-options')
     return Array.isArray(response.data.data) ? response.data.data : []
   },
 

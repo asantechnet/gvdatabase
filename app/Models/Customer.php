@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Customer extends Model
@@ -19,6 +20,7 @@ class Customer extends Model
         'address',
         'tax_number',
         'marketer',
+        'marketer_id',
         'notes',
         'date',
     ];
@@ -44,6 +46,12 @@ class Customer extends Model
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    /** The employee responsible for acquiring this customer. */
+    public function marketerEmployee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'marketer_id');
     }
 
     public function interactions(): MorphMany

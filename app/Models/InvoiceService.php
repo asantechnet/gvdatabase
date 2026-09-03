@@ -13,6 +13,9 @@ class InvoiceService extends Pivot
     protected $fillable = [
         'invoice_id',
         'service_id',
+        'customer_service_id',
+        'employee_id',
+        'snapshot_commission_percentage',
         'snapshot_name',
         'snapshot_service_fee',
         'snapshot_service_currency_code',
@@ -31,6 +34,7 @@ class InvoiceService extends Pivot
         'snapshot_converted_fee' => 'decimal:2',
         'line_total' => 'decimal:2',
         'quantity' => 'integer',
+        'snapshot_commission_percentage' => 'decimal:2',
     ];
 
     public function invoice()
@@ -41,5 +45,15 @@ class InvoiceService extends Pivot
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function customerService()
+    {
+        return $this->belongsTo(CustomerService::class);
+    }
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
     }
 }

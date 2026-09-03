@@ -15,10 +15,13 @@ const props = withDefaults(defineProps<{
   placeholderGroups?: PlaceholderGroup[]
   disabled?: boolean
   minHeight?: string
+  /** Policy clauses share the editor, but retain their own visual identity. */
+  variant?: 'contract' | 'policy'
 }>(), {
   placeholderGroups: () => [],
   disabled: false,
   minHeight: '420px',
+  variant: 'contract',
 })
 
 const emit = defineEmits<{
@@ -56,7 +59,23 @@ const toolbarState = ref({
   direction: null as 'rtl' | 'ltr' | null,
 })
 
-const normalizeColor = (color?: string) => {
+const placeholderSearch = ref('')
+const filteredPlaceholderGroups = computed(() => {
+  const query = placeholderSearch.value.trim().toLocaleLowerCase()
+  if (!query)
+    return props.placeholderGroups
+
+  return props.placeholderGroups
+    .map(group => ({
+      ...group,
+      fields: group.fields.filter(field =>
+        `${group.label} ${field.label} ${field.key}`.toLocaleLowerCase().includes(query),
+      ),
+    }))
+    .filter(group => group.fields.length)
+})
+
+const normalizeColor = (color?: string | null) => {
   if (!color)
     return '#000000'
 
@@ -228,7 +247,7 @@ const insertPlaceholder = ({ key, label }: InsertContractPlaceholderOptions) => 
     .focus()
     .insertContent({
       type: 'text',
-      text: `[ ${label} ]`,
+      text: `{{ ${label} }}`,
       marks: [{ type: 'contractPlaceholder', attrs: { key, label } }],
     })
     .run()
@@ -257,7 +276,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="contract-editor" :class="{ 'contract-editor--disabled': disabled }">
+  <div class="contract-editor" :class="[`contract-editor--${variant}`, { 'contract-editor--disabled': disabled }]">
     <div v-if="editor" class="contract-editor__toolbar d-flex flex-wrap align-center gap-1 pa-2">
       <IconBtn size="small" rounded variant="text" :disabled="disabled"
         @click="editor.chain().focus().undo().run()">
@@ -395,24 +414,50 @@ defineExpose({
       <VDivider vertical inset class="mx-1" />
 
       <!-- Context-aware placeholder picker -->
-      <VMenu :close-on-content-click="false" :disabled="disabled || placeholderGroups.length === 0">
+      <VMenu :close-on-content-click="false" :disabled="disabled || placeholderGroups.length === 0" max-width="480" location="bottom">
         <template #activator="{ props: menuProps }">
-          <VBtn v-bind="menuProps" variant="tonal" color="primary" size="small" prepend-icon="tabler-braces"
+          <VBtn v-bind="menuProps" variant="tonal" :color="variant === 'policy' ? 'secondary' : 'primary'" size="small" prepend-icon="tabler-braces"
             :disabled="disabled || placeholderGroups.length === 0">
             {{ tr('editor.insertPlaceholder') }}
           </VBtn>
         </template>
-        <VList density="compact" max-height="360" min-width="240" class="py-0">
-          <template v-for="group in placeholderGroups" :key="group.key">
-            <VListSubtitle class="font-weight-medium text-primary text-uppercase contract-editor__group-label">
-              {{ group.label }}
-            </VListSubtitle>
-            <VListItem v-for="field in group.fields" :key="field.key" :title="field.label" :subtitle="field.key"
-              density="compact" @click="insertPlaceholder({ key: field.key, label: field.label }); emit('placeholder-inserted', field.key)" />
-            <VDivider v-if="group !== placeholderGroups[placeholderGroups.length - 1]" />
-          </template>
-          <VListItem v-if="placeholderGroups.length === 0" :title="tr('editor.noPlaceholders')" />
-        </VList>
+        <VCard class="contract-editor__placeholder-menu" elevation="12">
+          <div class="contract-editor__placeholder-heading">
+            <VAvatar :color="variant === 'policy' ? 'secondary' : 'primary'" variant="tonal" size="36">
+              <VIcon icon="tabler-sparkles" size="19" />
+            </VAvatar>
+            <div>
+              <div class="text-body-2 font-weight-bold">{{ tr('editor.insertPlaceholder') }}</div>
+              <div class="text-caption text-medium-emphasis">Add a field at the cursor; its value is filled in when the contract is created.</div>
+            </div>
+          </div>
+          <VCardText class="pt-0 px-3 pb-3">
+            <VTextField v-model="placeholderSearch" density="compact" variant="outlined" hide-details clearable
+              prepend-inner-icon="tabler-search" placeholder="Search fields" class="mb-3" />
+            <div class="contract-editor__placeholder-help">
+              <VIcon icon="tabler-info-circle" size="17" />
+              <span>Choose the field you need. The highlighted token stays visible while editing and is replaced with the live value in the final contract.</span>
+            </div>
+            <div class="contract-editor__placeholder-results">
+              <section v-for="group in filteredPlaceholderGroups" :key="group.key" class="contract-editor__placeholder-group">
+                <div class="contract-editor__group-label">{{ group.label }}</div>
+                <div class="contract-editor__placeholder-grid">
+                  <VBtn v-for="field in group.fields" :key="field.key" variant="text" color="default" class="contract-editor__placeholder-option"
+                    @click="insertPlaceholder({ key: field.key, label: field.label }); emit('placeholder-inserted', field.key)">
+                    <span class="contract-editor__placeholder-copy">
+                      <span class="contract-editor__placeholder-name">{{ field.label }}</span>
+                      <code>{{ field.key }}</code>
+                    </span>
+                    <span class="contract-editor__placeholder-add"><VIcon icon="tabler-plus" size="16" /></span>
+                  </VBtn>
+                </div>
+              </section>
+              <div v-if="!filteredPlaceholderGroups.length" class="text-center text-caption text-medium-emphasis py-6">
+                No matching fields
+              </div>
+            </div>
+          </VCardText>
+        </VCard>
       </VMenu>
     </div>
 
@@ -436,6 +481,24 @@ defineExpose({
     background: rgba(var(--v-theme-surface), 1);
   }
 
+  @media (max-width: 760px) {
+    &__toolbar {
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+      scrollbar-width: thin;
+    }
+  }
+
+  &--policy {
+    border-color: rgba(var(--v-theme-secondary), 0.35);
+
+    .contract-editor__toolbar {
+      background: rgba(var(--v-theme-secondary), 0.055);
+      border-block-start: 3px solid rgb(var(--v-theme-secondary));
+    }
+  }
+
   &__toolbar-select {
     flex: 0 0 auto;
 
@@ -448,13 +511,162 @@ defineExpose({
     .v-select__selection {
       align-self: center;
       margin-block: 0;
-      transform: translateY(12px);
+      transform: none;
     }
   }
 
   &__group-label {
     font-size: 0.7rem;
+    font-weight: 700;
     letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgb(var(--v-theme-primary));
+  }
+
+  &--policy .contract-editor__group-label {
+    color: rgb(var(--v-theme-secondary));
+  }
+
+  &__placeholder-menu {
+    inline-size: min(480px, calc(100vw - 24px));
+    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    border-radius: 0.9rem;
+    background: rgb(var(--v-theme-surface));
+  }
+
+  &__placeholder-heading {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 1rem;
+  }
+
+  &__placeholder-results {
+    max-block-size: 310px;
+    overflow: auto;
+    padding: 0.1rem 0.15rem 0.25rem;
+  }
+
+  &__placeholder-help {
+    display: flex;
+    gap: 0.45rem;
+    align-items: flex-start;
+    margin-block-end: 0.85rem;
+    padding: 0.6rem 0.7rem;
+    border-radius: 0.5rem;
+    background: rgba(var(--v-theme-primary), 0.08);
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    font-size: 0.72rem;
+    line-height: 1.45;
+
+    .v-icon { color: rgb(var(--v-theme-primary)); }
+  }
+
+  &--policy .contract-editor__placeholder-help {
+    background: rgba(var(--v-theme-secondary), 0.08);
+
+    .v-icon { color: rgb(var(--v-theme-secondary)); }
+  }
+
+  &__placeholder-group + &__placeholder-group {
+    margin-block-start: 1.15rem;
+  }
+
+  &__placeholder-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.55rem;
+    margin-block-start: 0.55rem;
+  }
+
+  &__placeholder-option {
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-start;
+    min-block-size: 66px;
+    padding: 0.6rem 0.7rem !important;
+    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    border-radius: 0.65rem;
+    background: rgba(var(--v-theme-on-surface), 0.025);
+    font-size: 0.78rem;
+    letter-spacing: normal;
+    text-align: start;
+    text-transform: none;
+
+    &:hover {
+      border-color: rgba(var(--v-theme-primary), 0.5);
+      background: rgba(var(--v-theme-primary), 0.075);
+    }
+
+    .v-btn__content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      inline-size: 100%;
+      min-inline-size: 0;
+      gap: 0.75rem;
+    }
+  }
+
+  &__placeholder-copy {
+    display: flex;
+    flex-direction: column;
+    min-inline-size: 0;
+    align-items: flex-start;
+    gap: 0.28rem;
+    flex: 1 1 auto;
+    text-align: start;
+  }
+
+  &__placeholder-name {
+    overflow: hidden;
+    color: rgb(var(--v-theme-on-surface));
+    font-size: 0.82rem;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__placeholder-copy code {
+    display: block;
+    max-inline-size: 100%;
+    overflow: hidden;
+    inline-size: fit-content;
+    max-inline-size: 100%;
+    padding: 0.18rem 0.38rem;
+    border-radius: 0.3rem;
+    background: rgba(var(--v-theme-on-surface), 0.07);
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.66rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    unicode-bidi: plaintext;
+  }
+
+  &__placeholder-copy code::before { content: '{{ '; }
+  &__placeholder-copy code::after { content: ' }}'; }
+
+  &__placeholder-add {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    inline-size: 30px;
+    block-size: 30px;
+    border-radius: 0.5rem;
+    background: rgba(var(--v-theme-primary), 0.12);
+    color: rgb(var(--v-theme-primary));
+  }
+
+  &--policy .contract-editor__placeholder-add {
+    background: rgba(var(--v-theme-secondary), 0.12);
+    color: rgb(var(--v-theme-secondary));
+  }
+
+  &--policy .contract-editor__placeholder-option:hover {
+    border-color: rgba(var(--v-theme-secondary), 0.5);
+    background: rgba(var(--v-theme-secondary), 0.075);
   }
 
   &__color-wrap {

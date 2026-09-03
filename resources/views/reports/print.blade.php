@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $report['meta']['company']['name'] ?: $report['meta']['company']['short_name'] }} — {{ __($report['title']) }}</title>
     <style>
-        @page { size: A4 landscape; margin: 11mm; }
+        @page { size: A4 landscape; margin: 12mm; }
         * { box-sizing: border-box; }
         :root { --ink:#20243d; --muted:#6d7185; --line:#dfe2eb; --soft:#f6f6fa; --primary:#7367f0; --success:#28c76f; }
         body { margin:0; color:var(--ink); background:#eef0f6; font-family:Vazirmatn,Tahoma,"Segoe UI",Arial,sans-serif; font-size:10px; line-height:1.5; }
@@ -37,7 +37,7 @@
         .total { padding:5px 8px; border-radius:6px; background:rgba(115,103,240,.08); }
         .total span { color:var(--muted); } .total strong { margin-inline-start:4px; }
         footer { display:flex; justify-content:space-between; gap:18px; margin-block-start:24px; padding-block-start:10px; color:var(--muted); border-block-start:1px solid var(--line); font-size:8px; }
-        @media print { body { background:#fff; } .toolbar { display:none; } .document { max-width:none; margin:0; padding:0; box-shadow:none; } }
+        @media print { body { background:#fff; } .toolbar { display:none; } .document { max-width:none; margin:0; padding:4mm; box-shadow:none; } }
     </style>
 </head>
 <body>

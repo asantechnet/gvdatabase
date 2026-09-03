@@ -1,10 +1,13 @@
 import api from './axios'
 import type { Currency } from './currency'
+import type { Company } from './company'
 
 export interface Income {
   id: number
   receipt_number: string
   customer_id: number | null
+  company_id: number | null
+  company?: Pick<Company, 'id' | 'legal_name' | 'trade_name'> | { id: number; name: string } | null
   invoice_id: number | null
   currency_id: number
   invoice_number?: string | null
@@ -28,6 +31,7 @@ export interface Income {
 
 export interface IncomeCreateData {
   customer_id?: number | null
+  company_id?: number | null
   invoice_id?: number | null
   currency_id: number
   type: string
@@ -40,6 +44,7 @@ export interface IncomeCreateData {
 
 export interface IncomeUpdateData {
   customer_id?: number | null
+  company_id?: number | null
   invoice_id?: number | null
   currency_id?: number
   type?: string
@@ -54,6 +59,7 @@ export interface IncomeParams {
   search?: string
   type?: string
   currency_id?: number
+  company_id?: number
 }
 
 export const getIncomes = async (params?: IncomeParams): Promise<Income[]> => {

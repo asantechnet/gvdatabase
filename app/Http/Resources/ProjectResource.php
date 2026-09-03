@@ -20,7 +20,14 @@ class ProjectResource extends JsonResource
             'due_date' => $this->due_date?->toDateString(),
             'created_by' => $this->created_by,
             'creator' => $this->whenLoaded('creator', fn () => ['id' => $this->creator->id, 'name' => $this->creator->name]),
-            'services' => $this->whenLoaded('customer', fn () => $this->customer ? CustomerServiceResource::collection($this->customer->customerServices) : []),
+            // A project owns an explicit subset of its customer's services.
+            // Do not infer these from every service on the customer record.
+            'services' => ServiceResource::collection($this->whenLoaded('services')),
+            'service_ids' => $this->whenLoaded('services', fn () => $this->services
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all(), []),
             'boards' => $this->whenLoaded('boards', fn () => BoardResource::collection($this->boards)),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

@@ -13,6 +13,8 @@ class Expense extends Model
 
     protected $fillable = [
         'customer_id',
+        'company_id',
+        'project_id',
         'salary_id',
         'currency_id',
         'base_currency_id',
@@ -33,6 +35,8 @@ class Expense extends Model
         'base_amount' => 'decimal:4',
         'date' => 'date',
         'customer_id' => 'integer',
+        'company_id' => 'integer',
+        'project_id' => 'integer',
         'currency_id' => 'integer',
         'base_currency_id' => 'integer',
     ];
@@ -40,6 +44,16 @@ class Expense extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     public function expenseCurrency()

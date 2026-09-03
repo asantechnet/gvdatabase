@@ -19,7 +19,6 @@ class WorthyEmployee extends Model
         'calculation_key', 'calculation_score', 'calculation_inputs', 'rule_snapshot', 'calculated_at',
         'granted_at', 'granted_by',
         'performance_score',
-        'eligibility_reason',
         'achievement_details',
         'suggested_amount',
         'selected_amount',

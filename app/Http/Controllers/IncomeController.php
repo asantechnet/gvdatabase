@@ -6,6 +6,7 @@ use App\Models\Currency;
 use App\Models\Income;
 use App\Models\Invoice;
 use App\Services\CurrencyConversionService;
+use App\Services\CommissionAccrualService;
 use App\Http\Resources\IncomeResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,13 +16,14 @@ use Illuminate\Validation\Rule;
 
 class IncomeController extends Controller
 {
-    public function __construct(private readonly CurrencyConversionService $currencies)
-    {
-    }
+    public function __construct(
+        private readonly CurrencyConversionService $currencies,
+        private readonly CommissionAccrualService $commissions,
+    ) {}
 
     public function index(Request $request)
     {
-        $query = Income::with(['invoice', 'incomeCurrency', 'recorder']);
+        $query = Income::with(['invoice', 'incomeCurrency', 'company', 'recorder']);
 
         if ($request->has('type') && $request->type) {
             $query->where('type', $request->type);
@@ -29,6 +31,10 @@ class IncomeController extends Controller
 
         if ($request->filled('currency_id')) {
             $query->where('currency_id', $request->integer('currency_id'));
+        }
+
+        if ($request->filled('company_id')) {
+            $query->where('company_id', $request->integer('company_id'));
         }
 
         if ($request->has('search') && $request->search) {
@@ -47,6 +53,7 @@ class IncomeController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'customer_id' => 'nullable|exists:customers,id',
+            'company_id' => 'nullable|exists:companies,id',
             'invoice_id' => 'nullable|exists:invoices,id',
             'type' => ['required', Rule::in(['Service', 'Product', 'Investment', 'Other'])],
             'description' => 'nullable|string|max:65535',
@@ -82,18 +89,19 @@ class IncomeController extends Controller
             return $income;
         });
 
-        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'recorder']));
+        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'company', 'recorder']));
     }
 
     public function show(Income $income)
     {
-        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'recorder']));
+        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'company', 'recorder']));
     }
 
     public function update(Request $request, Income $income)
     {
         $validator = Validator::make($request->all(), [
             'customer_id' => 'nullable|exists:customers,id',
+            'company_id' => 'nullable|exists:companies,id',
             'invoice_id' => 'nullable|exists:invoices,id',
             'type' => ['sometimes', Rule::in(['Service', 'Product', 'Investment', 'Other'])],
             'description' => 'sometimes|nullable|string|max:65535',
@@ -108,6 +116,7 @@ class IncomeController extends Controller
 
         $data = $validator->validated();
         $income = DB::transaction(function () use ($data, $income) {
+            $this->commissions->assertIncomeMutable($income);
             $invoiceId = array_key_exists('invoice_id', $data) ? $data['invoice_id'] : $income->invoice_id;
             $affectedInvoiceIds = array_filter([$income->invoice_id, $invoiceId]);
             $invoices = Invoice::whereIn('id', $affectedInvoiceIds)->lockForUpdate()->get()->keyBy('id');
@@ -144,12 +153,13 @@ class IncomeController extends Controller
             return $income;
         });
 
-        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'recorder']));
+        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'company', 'recorder']));
     }
 
     public function destroy(Income $income)
     {
         DB::transaction(function () use ($income) {
+            $this->commissions->assertIncomeMutable($income);
             $invoice = $income->invoice_id
                 ? Invoice::whereKey($income->invoice_id)->lockForUpdate()->first()
                 : null;

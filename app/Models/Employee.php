@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\DB;
 
 class Employee extends Model
 {
@@ -65,10 +64,22 @@ class Employee extends Model
         return $this->hasMany(PaidTimeOff::class);
     }
 
+    /**
+     * Catalogue services this commission-based employee can deliver, together
+     * with the rate agreed for each service. Customer-specific responsibility
+     * lives on customer_service; this relation deliberately stays reusable.
+     */
     public function commissionServices(): BelongsToMany
     {
         return $this->belongsToMany(Service::class, 'employee_service_commissions')
-            ->withPivot('percentage')->withTimestamps();
+            ->withPivot('percentage')
+            ->withTimestamps();
+    }
+
+    /** Customer services currently assigned to this delivery employee. */
+    public function customerServices(): HasMany
+    {
+        return $this->hasMany(CustomerService::class);
     }
 
     /** Commission earned from recorded invoice income, in base currency. */
@@ -78,15 +89,22 @@ class Employee extends Model
             return 0.0;
         }
 
-        return (float) DB::table('employee_service_commissions as commissions')
-            ->join('invoice_service as lines', 'lines.service_id', '=', 'commissions.service_id')
-            ->join('invoices', 'invoices.id', '=', 'lines.invoice_id')
-            ->join('incomes', 'incomes.invoice_id', '=', 'invoices.id')
-            ->where('commissions.employee_id', $this->id)
-            ->whereNull('incomes.deleted_at')
-            ->where('invoices.amount', '>', 0)
-            ->selectRaw('COALESCE(SUM(incomes.base_amount * (lines.line_total * 1.0 / invoices.amount) * (commissions.percentage * 1.0 / 100)), 0) as earned')
-            ->value('earned');
+        $currentBaseCurrencyId = Currency::query()->where('is_base', true)->value('id');
+
+        return (float) $this->commissionAccruals()
+            ->whereIn('status', ['pending', 'approved', 'paid'])
+            ->when($currentBaseCurrencyId, fn (Builder $query, int $id) => $query->where('base_currency_id', $id))
+            ->sum('commission_base_amount');
+    }
+
+    public function commissionAccruals(): HasMany
+    {
+        return $this->hasMany(CommissionAccrual::class);
+    }
+
+    public function commissionSettlements(): HasMany
+    {
+        return $this->hasMany(CommissionSettlement::class);
     }
 
     public function position(): BelongsTo

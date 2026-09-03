@@ -3,6 +3,10 @@ import { getAccessToken, getStoredPermissions } from '@/utils/authStorage'
 import { canNavigate } from '@layouts/plugins/casl'
 import { applyPermissions, canAccess } from '@/utils/authorization'
 import { useCookie } from '@core/composable/useCookie'
+import AuthApi from '@/api/auth'
+
+let sessionPermissionRequest: Promise<void> | null = null
+let sessionPermissionRequestAttempted = false
 
 const authorizedLandingRoute = () => {
   if (canAccess('view_dashboard')) return { name: 'home' }
@@ -27,11 +31,41 @@ export const setupGuards = (router: Router) => {
       applyPermissions(persistedUser.value.permissions)
   }
 
-  router.beforeEach((to) => {
+  const hydrateSessionPermissions = async () => {
+    // Login already stores the authoritative permissions. This also covers
+    // navigation immediately after login without making a second request.
+    if (getStoredPermissions().length || sessionPermissionRequestAttempted)
+      return
+
+    if (!sessionPermissionRequest) {
+      sessionPermissionRequest = AuthApi.me()
+        .then(response => {
+          const user = response.data.data as { permissions?: string[] }
+          const permissions = Array.isArray(user.permissions) ? user.permissions : []
+          useCookie<{ permissions?: string[] } | null>('userData').value = user
+          applyPermissions(permissions)
+        })
+        .catch(() => {
+          // Let the normal auth guard decide the fallback when the session
+          // cannot be hydrated (for example, an expired token).
+        })
+        .finally(() => {
+          sessionPermissionRequestAttempted = true
+          sessionPermissionRequest = null
+        })
+    }
+
+    await sessionPermissionRequest
+  }
+
+  router.beforeEach(async (to) => {
     if (to.meta.public) return true;
 
     const token = getAccessToken();
     const isLoggedIn = !!token;
+
+    if (isLoggedIn)
+      await hydrateSessionPermissions()
 
     if (to.meta.unauthenticatedOnly) {
       if (isLoggedIn) return authorizedLandingRoute();

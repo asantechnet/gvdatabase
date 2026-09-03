@@ -78,6 +78,9 @@ class Invoice extends Model
                 'snapshot_service_currency_symbol', 'snapshot_service_rate',
                 'snapshot_cnv_curr_shrt', 'snapshot_base_curr_shrt', 'snapshot_rate', 'snapshot_invoice_rate',
                 'snapshot_converted_fee',
+                'customer_service_id',
+                'employee_id',
+                'snapshot_commission_percentage',
                 'quantity',
                 'line_total',
             ])

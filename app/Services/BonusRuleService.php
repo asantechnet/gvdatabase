@@ -9,18 +9,8 @@ use Illuminate\Support\Facades\DB;
 class BonusRuleService
 {
     public const DEFAULTS = [
-        'completed_task_points' => 10,
-        'priority_weights' => ['low' => 0.75, 'medium' => 1, 'high' => 1.5, 'urgent' => 2],
-        'before_deadline_points' => 2,
-        'after_deadline_points' => -2,
-        'reopened_penalty' => -3,
-        'rejected_penalty' => -5,
-        'default_quality_score' => 3,
-        'quality_multiplier_enabled' => true,
-        'minimum_participation_percent' => 10,
         'minimum_completed_tasks' => 1,
-        'monthly_score_threshold' => 10,
-        'amount_per_point' => 10,
+        'amount_per_completed_task' => 10,
         'maximum_monthly_bonus' => 1000,
         'excluded_employee_ids' => [],
         'excluded_office_ids' => [],
@@ -30,8 +20,9 @@ class BonusRuleService
     {
         $active = BonusRuleSet::query()->where('is_active', true)->latest('version')->first()
             ?? BonusRuleSet::create(['rules' => self::DEFAULTS]);
-        if (array_key_exists('excluded_departments', $active->rules ?? [])) {
-            $active->update(['rules' => [...self::DEFAULTS, ...$active->rules, 'excluded_office_ids' => $active->rules['excluded_office_ids'] ?? []]]);
+        $normalised = $this->normalise($active->rules ?? []);
+        if ($active->rules !== $normalised) {
+            $active->update(['rules' => $normalised]);
         }
         return $active;
     }
@@ -44,8 +35,22 @@ class BonusRuleService
             $current->update(['is_active' => false]);
             return BonusRuleSet::create([
                 'name' => 'Task bonus rules', 'version' => $current->version + 1,
-                'rules' => [...self::DEFAULTS, ...$rules], 'updated_by' => $user->id,
+                'rules' => $this->normalise($rules), 'updated_by' => $user->id,
             ]);
         });
+    }
+
+    private function normalise(array $rules): array
+    {
+        return [
+            ...self::DEFAULTS,
+            'minimum_completed_tasks' => (int) ($rules['minimum_completed_tasks'] ?? self::DEFAULTS['minimum_completed_tasks']),
+            // Preserve the practical value from legacy rule sets while dropping
+            // the old scoring formula and all of its hidden multipliers.
+            'amount_per_completed_task' => (float) ($rules['amount_per_completed_task'] ?? $rules['amount_per_point'] ?? self::DEFAULTS['amount_per_completed_task']),
+            'maximum_monthly_bonus' => (float) ($rules['maximum_monthly_bonus'] ?? self::DEFAULTS['maximum_monthly_bonus']),
+            'excluded_employee_ids' => array_values($rules['excluded_employee_ids'] ?? []),
+            'excluded_office_ids' => array_values($rules['excluded_office_ids'] ?? $rules['excluded_departments'] ?? []),
+        ];
     }
 }

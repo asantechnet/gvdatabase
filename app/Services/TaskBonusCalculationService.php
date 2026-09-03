@@ -26,39 +26,72 @@ class TaskBonusCalculationService
         $end = $localStart->copy()->endOfMonth()->utc();
         $currency = Currency::query()->where('is_base', true)->where('is_active', true)->firstOrFail();
         $tasks = Task::query()->with(['users.employee'])->where('progress', 100)->whereBetween('completed_at', [$start, $end])->get();
-        $contributions = $this->contributions($tasks, $rules);
+        $contributions = $this->contributions($tasks);
         $created = $updated = $ineligible = 0;
         $eligibleKeys = [];
 
         foreach ($contributions->groupBy('employee_id') as $employeeId => $items) {
             $employee = Employee::selectable()->find($employeeId);
             if (! $employee || in_array((int) $employeeId, $rules['excluded_employee_ids'], true)
-                || in_array((int) $employee->office_id, $rules['excluded_office_ids'] ?? [], true)) { $ineligible++; continue; }
-            $score = round((float) $items->sum('score'), 4);
-            if ($items->count() < $rules['minimum_completed_tasks'] || $score < $rules['monthly_score_threshold']) { $ineligible++; continue; }
-            $amount = round(min($score * $rules['amount_per_point'], $rules['maximum_monthly_bonus']), $currency->decimal_places);
+                || in_array((int) $employee->office_id, $rules['excluded_office_ids'] ?? [], true)) {
+                $ineligible++;
+                continue;
+            }
+
+            $completedTasks = $items->count();
+            if ($completedTasks < $rules['minimum_completed_tasks']) {
+                $ineligible++;
+                continue;
+            }
+
+            $amount = round(min($completedTasks * $rules['amount_per_completed_task'], $rules['maximum_monthly_bonus']), $currency->decimal_places);
             $key = "task-bonus:{$month}:{$employeeId}";
             $eligibleKeys[] = $key;
-            DB::transaction(function () use ($employee, $items, $score, $amount, $currency, $month, $key, $ruleSet, &$created, &$updated): void {
+
+            DB::transaction(function () use ($employee, $items, $completedTasks, $amount, $currency, $month, $key, $ruleSet, &$created, &$updated): void {
                 $row = WorthyEmployee::query()->where('calculation_key', $key)->lockForUpdate()->first();
-                if ($row?->is_granted || $row?->salaries()->exists()) return;
+                if ($row?->is_granted || $row?->salaries()->exists()) {
+                    return;
+                }
+
                 $payload = [
-                    'employee_id' => $employee->id, 'source_task_id' => null, 'is_automatic' => true, 'calculation_key' => $key,
-                    'calculation_score' => $score, 'calculation_inputs' => ['tasks' => $items->values()->all(), 'formula' => 'sum(task_score) × amount_per_point, capped by maximum_monthly_bonus'],
-                    'rule_snapshot' => ['id' => $ruleSet->id, 'version' => $ruleSet->version, 'rules' => $ruleSet->rules], 'calculated_at' => now('UTC'),
-                    'performance_score' => round((float) $items->avg('quality_score'), 1), 'eligibility_reason' => 'Project Milestone',
-                    'achievement_details' => $this->explanation($items, $score, $amount, $currency->code),
-                    'suggested_amount' => $amount, 'selected_amount' => $amount, 'selected_type' => 'Project Completion', 'is_granted' => false,
-                    // A nomination is money too: retain the currency in which it was
-                    // calculated so later base-currency changes cannot reinterpret it.
-                    'currency_id' => $currency->id, 'base_currency_id' => $currency->id,
-                    'currency_code' => $currency->code, 'currency_name' => $currency->name,
-                    'currency_symbol' => $currency->symbol, 'currency_decimal_places' => $currency->decimal_places,
+                    'employee_id' => $employee->id,
+                    'source_task_id' => null,
+                    'is_automatic' => true,
+                    'calculation_key' => $key,
+                    'calculation_score' => $completedTasks,
+                    'calculation_inputs' => [
+                        'tasks' => $items->values()->all(),
+                        'formula' => 'completed tasks × reward per completed task (up to the monthly limit)',
+                    ],
+                    'rule_snapshot' => ['id' => $ruleSet->id, 'version' => $ruleSet->version, 'rules' => $ruleSet->rules],
+                    'calculated_at' => now('UTC'),
+                    'performance_score' => 3,
+                    'achievement_details' => $this->explanation($items, $amount, $currency->code),
+                    'suggested_amount' => $amount,
+                    'selected_amount' => $amount,
+                    'selected_type' => 'Task Completion',
+                    'is_granted' => false,
+                    'currency_id' => $currency->id,
+                    'base_currency_id' => $currency->id,
+                    'currency_code' => $currency->code,
+                    'currency_name' => $currency->name,
+                    'currency_symbol' => $currency->symbol,
+                    'currency_decimal_places' => $currency->decimal_places,
                     'base_currency_code' => $currency->code,
-                    'rate' => 1, 'base_amount' => $amount,
+                    'rate' => 1,
+                    'base_amount' => $amount,
                     'bonus_month' => "{$month}-01",
                 ];
-                if ($row) { $row->update($payload); $updated++; } else { $row = WorthyEmployee::create($payload); $created++; }
+
+                if ($row) {
+                    $row->update($payload);
+                    $updated++;
+                } else {
+                    $row = WorthyEmployee::create($payload);
+                    $created++;
+                }
+
                 $this->notifyReviewers($row, $month);
             });
         }
@@ -68,8 +101,10 @@ class TaskBonusCalculationService
             ->where('is_granted', false)->whereDoesntHave('salaries')->get();
         foreach ($stale as $row) {
             $row->update([
-                'calculation_score' => 0, 'suggested_amount' => 0, 'selected_amount' => 0,
-                'achievement_details' => 'This nomination is no longer eligible after recalculation. The original calculation evidence remains in its audit history.',
+                'calculation_score' => 0,
+                'suggested_amount' => 0,
+                'selected_amount' => 0,
+                'achievement_details' => 'This nomination no longer meets the completed-task requirement.',
                 'calculated_at' => now('UTC'),
             ]);
         }
@@ -77,44 +112,30 @@ class TaskBonusCalculationService
         return ['month' => $month, 'tasks' => $tasks->count(), 'employees_evaluated' => $contributions->pluck('employee_id')->unique()->count(), 'created' => $created, 'updated' => $updated, 'ineligible' => $ineligible, 'withdrawn' => $stale->count()];
     }
 
-    private function contributions(Collection $tasks, array $rules): Collection
+    private function contributions(Collection $tasks): Collection
     {
-        return $tasks->flatMap(function (Task $task) use ($rules) {
-            $assigned = $task->users->filter(fn (User $user) => $user->employee);
-            $defaultParticipation = $assigned->count() ? 100 / $assigned->count() : 0;
-            return $assigned->map(function (User $user) use ($task, $rules, $defaultParticipation) {
-                $participation = (float) ($user->pivot->contribution_percent ?? $defaultParticipation);
-                if ($participation < $rules['minimum_participation_percent']) return null;
-                $priority = (float) ($rules['priority_weights'][$task->priority] ?? 1);
-                $base = $rules['completed_task_points'] * $priority;
-                $timing = $task->due_date && $task->completed_at
-                    ? ($task->completed_at->timezone('UTC')->startOfDay()->lte($task->due_date->startOfDay()) ? $rules['before_deadline_points'] : $rules['after_deadline_points']) : 0;
-                $quality = (float) ($task->manager_quality_score ?? $rules['default_quality_score']);
-                $qualityMultiplier = $rules['quality_multiplier_enabled'] ? $quality / 3 : 1;
-                $reopened = $task->reopened_count * $rules['reopened_penalty'];
-                $rejected = $task->rejected_count * $rules['rejected_penalty'];
-                $preParticipation = max(0, ($base + $timing + $reopened + $rejected) * $qualityMultiplier);
-                return [
-                    'task_id' => $task->id, 'task_title' => $task->title, 'employee_id' => $user->employee->id,
-                    'completed_at' => $task->completed_at?->toISOString(), 'due_date' => $task->due_date?->format('Y-m-d'),
-                    'priority' => $task->priority, 'priority_weight' => $priority, 'participation_percent' => round($participation, 2),
-                    'quality_score' => $quality, 'reopened_count' => $task->reopened_count, 'rejected_count' => $task->rejected_count,
-                    'base_points' => $base, 'timing_points' => $timing, 'reopened_points' => $reopened, 'rejected_points' => $rejected,
-                    'score' => round($preParticipation * ($participation / 100), 4),
-                ];
-            })->filter();
+        return $tasks->flatMap(function (Task $task) {
+            return $task->users->filter(fn (User $user) => $user->employee)->map(fn (User $user) => [
+                'task_id' => $task->id,
+                'task_title' => $task->title,
+                'employee_id' => $user->employee->id,
+                'completed_at' => $task->completed_at?->toISOString(),
+            ]);
         })->values();
     }
 
-    private function explanation(Collection $items, float $score, float $amount, string $currency): string
+    private function explanation(Collection $items, float $amount, string $currency): string
     {
-        return sprintf('%d completed task contribution(s) produced %.2f points. Suggested bonus: %s %.2f. Priority, deadline timing, quality, reopen/rejection penalties, and participation are preserved in calculation inputs.', $items->count(), $score, $currency, $amount);
+        return sprintf('%d completed task(s) this month. Suggested bonus: %s %.2f.', $items->count(), $currency, $amount);
     }
 
     private function notifyReviewers(WorthyEmployee $nomination, string $month): void
     {
         $reviewers = User::query()->get()->filter(fn (User $user) => $user->hasPermission('grant_bonuses'))->pluck('id');
-        if ($reviewers->isEmpty()) return;
+        if ($reviewers->isEmpty()) {
+            return;
+        }
+
         $notification = Notification::firstOrCreate(
             ['notification_key' => "bonus.review.{$month}.{$nomination->employee_id}"],
             ['type' => 'bonus', 'data' => ['nomination_id' => $nomination->id, 'month' => $month], 'date_time' => now(), 'employee_id' => $nomination->employee_id, 'go_to_url' => '/bonuslist'],
