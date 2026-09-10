@@ -1,66 +1,71 @@
-import api from "./axios";
+import api from './axios'
 
 export interface ContractTemplate {
-  id: number;
-  name: string;
-  type: string | null;
-  contract_type_id: number | null;
-  type_slug: string | null;
-  position_id: number | null;
-  cover_text: string | null;
-  content: string | null;
+  id: number
+  name: string
+  type: string | null
+  contract_type_id: number | null
+  type_slug: string | null
+  position_id: number | null
+  cover_text: string | null
+  content: string | null
   policies?: Array<{
-    id: number;
-    label: string;
-    type: string;
-    header: string | null;
-    content: string;
-  }>;
-  contracts_count?: number;
-  created_at: string;
-  updated_at: string;
+    id: number
+    label: string
+    type: string
+    header: string | null
+    content: string
+  }>
+  contracts_count?: number
+  created_at: string
+  updated_at: string
 }
 
 export interface ContractTemplateCreateData {
-  name: string;
-  contract_type_id: number;
-  position_id?: number | null;
-  policy_ids?: number[];
-  cover_text?: string | null;
+  name: string
+  contract_type_id: number
+  position_id?: number | null
+  policy_ids?: number[]
+  cover_text?: string | null
+
   /** Sanitized HTML produced by the TipTap editor. */
-  content: string;
+  content: string
 }
 
 export interface ContractTemplateUpdateData extends Partial<
-  Omit<ContractTemplateCreateData, "contract_type_id">
+  Omit<ContractTemplateCreateData, 'contract_type_id'>
 > {
-  contract_type_id?: number;
+  contract_type_id?: number
 }
 
 const ContractTemplateApi = {
   async getAll(): Promise<ContractTemplate[]> {
     const response = await api.get<{
-      success: boolean;
-      data: ContractTemplate[];
-    }>("/contract-templates");
-    return Array.isArray(response.data.data) ? response.data.data : [];
+      success: boolean
+      data: ContractTemplate[]
+    }>('/contract-templates')
+
+    return Array.isArray(response.data.data) ? response.data.data : []
   },
 
   async getById(id: number): Promise<ContractTemplate> {
     const response = await api.get<{
-      success: boolean;
-      data: ContractTemplate;
-    }>(`/contract-templates/${id}`);
-    return response.data.data;
+      success: boolean
+      data: ContractTemplate
+    }>(`/contract-templates/${id}`)
+
+    return response.data.data
   },
 
   async create(data: ContractTemplateCreateData): Promise<ContractTemplate> {
-    console.log("Creating contract template with data:", data);
+    console.log('Creating contract template with data:', data)
+
     const response = await api.post<{
-      success: boolean;
-      data: ContractTemplate;
-    }>("/contract-templates", data);
-    return response.data.data;
+      success: boolean
+      data: ContractTemplate
+    }>('/contract-templates', data)
+
+    return response.data.data
   },
 
   async update(
@@ -68,15 +73,16 @@ const ContractTemplateApi = {
     data: ContractTemplateUpdateData,
   ): Promise<ContractTemplate> {
     const response = await api.put<{
-      success: boolean;
-      data: ContractTemplate;
-    }>(`/contract-templates/${id}`, data);
-    return response.data.data;
+      success: boolean
+      data: ContractTemplate
+    }>(`/contract-templates/${id}`, data)
+
+    return response.data.data
   },
 
   async delete(id: number): Promise<void> {
-    await api.delete(`/contract-templates/${id}`);
+    await api.delete(`/contract-templates/${id}`)
   },
-};
+}
 
-export default ContractTemplateApi;
+export default ContractTemplateApi

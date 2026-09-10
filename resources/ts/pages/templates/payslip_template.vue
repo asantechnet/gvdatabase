@@ -1,158 +1,3 @@
-<template>
-  <div class="payslip-container print-document" :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale) }" ref="payslipContainerRef" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'">
-    <!-- Corporate Header -->
-    <header class="payslip-header">
-      <div class="company-info">
-        <div class="brand-wrapper">
-          <img v-if="company.logo" :src="company.logo" :alt="company.name" class="company-logo" />
-          <h1 class="company-name">{{ company.name }}</h1>
-          <span class="brand-badge">{{ company.brandName }}</span>
-        </div>
-        <div class="company-address" v-if="company.addressLines && company.addressLines.length">
-          <p v-for="(line, idx) in company.addressLines" :key="idx">{{ line }}</p>
-        </div>
-        <p class="company-contact"><bdi>{{ company.email }}</bdi> · <bdi>{{ company.phone }}</bdi></p>
-        <p class="company-tin" v-if="company.tinNumber">{{ $t('documents.payslip_template.payslipTemplate.mofTINRegNo') }} <strong>{{ company.tinNumber }}</strong></p>
-      </div>
-      <div class="document-title">
-        <h2>{{ $t('documents.payslip_template.payslipTemplate.officialPAYSLIP') }}</h2>
-        <p class="arabic-title">شقه معاش رسمی / رسمی د معاش شقه</p>
-        <div class="doc-meta">
-          <p><strong>{{ $t('documents.payslip_template.payslipTemplate.docNo') }}</strong> {{ documentNumber || 'PAY-' + employee.payPeriod }}</p>
-          <p><strong>{{ $t('documents.payslip_template.payslipTemplate.payPeriod') }}</strong> {{ employee.payPeriod }}</p>
-          <p><strong>{{ $t('documents.payslip_template.payslipTemplate.payDate') }}</strong> {{ formatLocalizedDate(employee.payDate) }}</p>
-        </div>
-      </div>
-    </header>
-
-    <!-- Employee Pay Summary Card -->
-    <section class="employee-card">
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.employeeName') }}</span>
-        <span class="value font-bold">{{ employee.name }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.designation') }}</span>
-        <span class="value">{{ employee.designation }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('common.fields.department') }}</span>
-        <span class="value">{{ employee.department || 'General Staff' }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.dateOfJoining') }}</span>
-        <span class="value">{{ formatLocalizedDate(employee.dateOfJoining) }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.tazkiraNationalID') }}</span>
-        <span class="value font-mono">{{ employee.tazkiraNumber || 'N/A' }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.employeeMoFTIN') }}</span>
-        <span class="value font-mono">{{ employee.tinNumber || 'N/A' }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.bankAccountNo') }}</span>
-        <span class="value font-mono">{{ employee.accountNumber }}</span>
-      </div>
-      <div class="grid-item highlight-box">
-        <span class="label text-primary">{{ $t('documents.payslip_template.payslipTemplate.workedTotalDays') }}</span>
-        <span class="value font-bold text-primary">{{ $t('documents.payslip.workedDays', { worked: employee.workedDays, total: employee.totalDays || 30 }) }}</span>
-      </div>
-      <div class="grid-item"><span class="label">Paid leave</span><span class="value">{{ employee.paidLeaveDays }}</span></div>
-      <div class="grid-item"><span class="label">Absent days</span><span class="value">{{ employee.absentDays }}</span></div>
-      <div class="grid-item"><span class="label">Unpaid leave</span><span class="value">{{ employee.unpaidLeaveDays }}</span></div>
-    </section>
-
-    <!-- Earnings and Deductions Table -->
-    <section class="table-section">
-      <h3 class="section-title">{{ $t('documents.payslip_template.payslipTemplate.earningsDeductionsSummary') }}</h3>
-      <table class="payslip-table">
-        <thead>
-          <tr>
-            <th style="width: 35%">{{ $t('documents.payslip_template.payslipTemplate.earningsDESCRIPTION') }}</th>
-            <th style="width: 15%" class="text-right">{{ $t('common.fields.amount') }}</th>
-            <th style="width: 35%">{{ $t('documents.payslip_template.payslipTemplate.deductionsDESCRIPTION') }}</th>
-            <th style="width: 15%" class="text-right">{{ $t('common.fields.amount') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="index in Math.max(earnings.length, deductions.length)" :key="index">
-            <td>{{ earnings[index - 1]?.label || '' }}</td>
-            <td class="text-right font-mono">{{ earnings[index - 1] ? formatCurrency(earnings[index - 1].amount) : '' }}
-            </td>
-            <td>{{ deductions[index - 1]?.label || '' }}</td>
-            <td class="text-right font-mono">{{ deductions[index - 1] ? formatCurrency(deductions[index - 1].amount) :
-              '' }}</td>
-          </tr>
-          <tr class="total-row">
-            <td>{{ $t('documents.payslip_template.payslipTemplate.grossEarnings') }}</td>
-            <td class="text-right font-mono">{{ formatCurrency(grossSalary) }}</td>
-            <td>{{ $t('documents.payslip_template.payslipTemplate.totalDeductions') }}</td>
-            <td class="text-right font-mono">{{ formatCurrency(totalDeductions) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- Reimbursements Table -->
-    <section class="table-section" v-if="reimbursements.length > 0">
-      <h3 class="section-title">{{ $t('documents.payslip_template.payslipTemplate.reimbursementsAdditions') }}</h3>
-      <table class="payslip-table">
-        <thead>
-          <tr>
-            <th>{{ $t('common.fields.description') }}</th>
-            <th class="text-right" style="width: 20%">{{ $t('common.fields.amount') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in reimbursements" :key="item.label">
-            <td>{{ item.label }}</td>
-            <td class="text-right font-mono">{{ formatCurrency(item.amount) }}</td>
-          </tr>
-          <tr class="total-row">
-            <td>{{ $t('documents.payslip_template.payslipTemplate.totalReimbursements') }}</td>
-            <td class="text-right font-mono">{{ formatCurrency(totalReimbursements) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- Final Net Payable Banner -->
-    <section class="net-pay-banner">
-      <div class="net-pay-info">
-            <span class="net-label">{{ $t('documents.payslip.totalNetPayable', { currency }) }}</span>
-        <span class="net-words" v-if="amountInWords">{{ amountInWords }}</span>
-      </div>
-      <div class="net-amount font-mono">
-        {{ formatCurrency(totalNetPayable) }}
-      </div>
-    </section>
-
-    <!-- Signatures Section -->
-    <footer class="signatures">
-      <div class="signature-box">
-        <div class="signature-line"></div>
-        <span>{{ $t('documents.payslip_template.payslipTemplate.employeeSignature') }}</span>
-      </div>
-      <div class="signature-box">
-        <div class="signature-line"></div>
-        <span>{{ $t('documents.payslip_template.payslipTemplate.hrPayrollOfficer') }}</span>
-      </div>
-      <div class="signature-box">
-        <img v-if="company.signature" :src="company.signature" :alt="$t('documents.payslip_template.payslipTemplate.companySignature')" class="company-signature" />
-        <div class="signature-line"></div>
-        <span>{{ $t('documents.payslip_template.payslipTemplate.companySignature') }}</span>
-      </div>
-    </footer>
-
-    <!-- Compliance Note -->
-    <div class="compliance-footer">
-      <p>{{ $t('documents.payslip_template.payslipTemplate.thisDocumentIsGeneratedInComplianceWithTheAfghanistanLaborLawAndMinist') }}</p>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
@@ -206,7 +51,7 @@ const props = withDefaults(defineProps<SalarySlipProps>(), {
   documentTitle: 'OFFICIAL PAYSLIP',
   currency: 'AFN',
   deductions: () => [],
-  reimbursements: () => []
+  reimbursements: () => [],
 })
 
 const payslipContainerRef = ref<HTMLElement | null>(null)
@@ -237,16 +82,18 @@ const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: props.currency || 'AFN',
-    minimumFractionDigits: 2
+    minimumFractionDigits: 2,
   }).format(amount).replace('AFN', '؋')
 }
 
 const printSalarySlip = () => {
-  if (!payslipContainerRef.value) return
+  if (!payslipContainerRef.value)
+    return
 
   const printWindow = window.open('', '_blank')
   if (!printWindow) {
     alert(translate('documents.payslip_template.payslipTemplate.pleaseAllowPopupsInYourBrowserToPrintThePayslip'))
+
     return
   }
 
@@ -519,9 +366,250 @@ const printSalarySlip = () => {
 }
 
 defineExpose({
-  print: printSalarySlip
+  print: printSalarySlip,
 })
 </script>
+
+<template>
+  <div
+    ref="payslipContainerRef"
+    class="payslip-container print-document"
+    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale) }"
+    :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
+  >
+    <!-- Corporate Header -->
+    <header class="payslip-header">
+      <div class="company-info">
+        <div class="brand-wrapper">
+          <img
+            v-if="company.logo"
+            :src="company.logo"
+            :alt="company.name"
+            class="company-logo"
+          >
+          <h1 class="company-name">
+            {{ company.name }}
+          </h1>
+          <span class="brand-badge">{{ company.brandName }}</span>
+        </div>
+        <div
+          v-if="company.addressLines && company.addressLines.length"
+          class="company-address"
+        >
+          <p
+            v-for="(line, idx) in company.addressLines"
+            :key="idx"
+          >
+            {{ line }}
+          </p>
+        </div>
+        <p class="company-contact">
+          <bdi>{{ company.email }}</bdi> · <bdi>{{ company.phone }}</bdi>
+        </p>
+        <p
+          v-if="company.tinNumber"
+          class="company-tin"
+        >
+          {{ $t('documents.payslip_template.payslipTemplate.mofTINRegNo') }} <strong>{{ company.tinNumber }}</strong>
+        </p>
+      </div>
+      <div class="document-title">
+        <h2>{{ $t('documents.payslip_template.payslipTemplate.officialPAYSLIP') }}</h2>
+        <p class="arabic-title">
+          شقه معاش رسمی / رسمی د معاش شقه
+        </p>
+        <div class="doc-meta">
+          <p><strong>{{ $t('documents.payslip_template.payslipTemplate.docNo') }}</strong> {{ documentNumber || `PAY-${employee.payPeriod}` }}</p>
+          <p><strong>{{ $t('documents.payslip_template.payslipTemplate.payPeriod') }}</strong> {{ employee.payPeriod }}</p>
+          <p><strong>{{ $t('documents.payslip_template.payslipTemplate.payDate') }}</strong> {{ formatLocalizedDate(employee.payDate) }}</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Employee Pay Summary Card -->
+    <section class="employee-card">
+      <div class="grid-item">
+        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.employeeName') }}</span>
+        <span class="value font-bold">{{ employee.name }}</span>
+      </div>
+      <div class="grid-item">
+        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.designation') }}</span>
+        <span class="value">{{ employee.designation }}</span>
+      </div>
+      <div class="grid-item">
+        <span class="label">{{ $t('common.fields.department') }}</span>
+        <span class="value">{{ employee.department || 'General Staff' }}</span>
+      </div>
+      <div class="grid-item">
+        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.dateOfJoining') }}</span>
+        <span class="value">{{ formatLocalizedDate(employee.dateOfJoining) }}</span>
+      </div>
+      <div class="grid-item">
+        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.tazkiraNationalID') }}</span>
+        <span class="value font-mono">{{ employee.tazkiraNumber || 'N/A' }}</span>
+      </div>
+      <div class="grid-item">
+        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.employeeMoFTIN') }}</span>
+        <span class="value font-mono">{{ employee.tinNumber || 'N/A' }}</span>
+      </div>
+      <div class="grid-item">
+        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.bankAccountNo') }}</span>
+        <span class="value font-mono">{{ employee.accountNumber }}</span>
+      </div>
+      <div class="grid-item highlight-box">
+        <span class="label text-primary">{{ $t('documents.payslip_template.payslipTemplate.workedTotalDays') }}</span>
+        <span class="value font-bold text-primary">{{ $t('documents.payslip.workedDays', { worked: employee.workedDays, total: employee.totalDays || 30 }) }}</span>
+      </div>
+      <div class="grid-item">
+        <span class="label">Paid leave</span><span class="value">{{ employee.paidLeaveDays }}</span>
+      </div>
+      <div class="grid-item">
+        <span class="label">Absent days</span><span class="value">{{ employee.absentDays }}</span>
+      </div>
+      <div class="grid-item">
+        <span class="label">Unpaid leave</span><span class="value">{{ employee.unpaidLeaveDays }}</span>
+      </div>
+    </section>
+
+    <!-- Earnings and Deductions Table -->
+    <section class="table-section">
+      <h3 class="section-title">
+        {{ $t('documents.payslip_template.payslipTemplate.earningsDeductionsSummary') }}
+      </h3>
+      <table class="payslip-table">
+        <thead>
+          <tr>
+            <th style="width: 35%">
+              {{ $t('documents.payslip_template.payslipTemplate.earningsDESCRIPTION') }}
+            </th>
+            <th
+              style="width: 15%"
+              class="text-right"
+            >
+              {{ $t('common.fields.amount') }}
+            </th>
+            <th style="width: 35%">
+              {{ $t('documents.payslip_template.payslipTemplate.deductionsDESCRIPTION') }}
+            </th>
+            <th
+              style="width: 15%"
+              class="text-right"
+            >
+              {{ $t('common.fields.amount') }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="index in Math.max(earnings.length, deductions.length)"
+            :key="index"
+          >
+            <td>{{ earnings[index - 1]?.label || '' }}</td>
+            <td class="text-right font-mono">
+              {{ earnings[index - 1] ? formatCurrency(earnings[index - 1].amount) : '' }}
+            </td>
+            <td>{{ deductions[index - 1]?.label || '' }}</td>
+            <td class="text-right font-mono">
+              {{ deductions[index - 1] ? formatCurrency(deductions[index - 1].amount)
+                : '' }}
+            </td>
+          </tr>
+          <tr class="total-row">
+            <td>{{ $t('documents.payslip_template.payslipTemplate.grossEarnings') }}</td>
+            <td class="text-right font-mono">
+              {{ formatCurrency(grossSalary) }}
+            </td>
+            <td>{{ $t('documents.payslip_template.payslipTemplate.totalDeductions') }}</td>
+            <td class="text-right font-mono">
+              {{ formatCurrency(totalDeductions) }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Reimbursements Table -->
+    <section
+      v-if="reimbursements.length > 0"
+      class="table-section"
+    >
+      <h3 class="section-title">
+        {{ $t('documents.payslip_template.payslipTemplate.reimbursementsAdditions') }}
+      </h3>
+      <table class="payslip-table">
+        <thead>
+          <tr>
+            <th>{{ $t('common.fields.description') }}</th>
+            <th
+              class="text-right"
+              style="width: 20%"
+            >
+              {{ $t('common.fields.amount') }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="item in reimbursements"
+            :key="item.label"
+          >
+            <td>{{ item.label }}</td>
+            <td class="text-right font-mono">
+              {{ formatCurrency(item.amount) }}
+            </td>
+          </tr>
+          <tr class="total-row">
+            <td>{{ $t('documents.payslip_template.payslipTemplate.totalReimbursements') }}</td>
+            <td class="text-right font-mono">
+              {{ formatCurrency(totalReimbursements) }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Final Net Payable Banner -->
+    <section class="net-pay-banner">
+      <div class="net-pay-info">
+        <span class="net-label">{{ $t('documents.payslip.totalNetPayable', { currency }) }}</span>
+        <span
+          v-if="amountInWords"
+          class="net-words"
+        >{{ amountInWords }}</span>
+      </div>
+      <div class="net-amount font-mono">
+        {{ formatCurrency(totalNetPayable) }}
+      </div>
+    </section>
+
+    <!-- Signatures Section -->
+    <footer class="signatures">
+      <div class="signature-box">
+        <div class="signature-line" />
+        <span>{{ $t('documents.payslip_template.payslipTemplate.employeeSignature') }}</span>
+      </div>
+      <div class="signature-box">
+        <div class="signature-line" />
+        <span>{{ $t('documents.payslip_template.payslipTemplate.hrPayrollOfficer') }}</span>
+      </div>
+      <div class="signature-box">
+        <img
+          v-if="company.signature"
+          :src="company.signature"
+          :alt="$t('documents.payslip_template.payslipTemplate.companySignature')"
+          class="company-signature"
+        >
+        <div class="signature-line" />
+        <span>{{ $t('documents.payslip_template.payslipTemplate.companySignature') }}</span>
+      </div>
+    </footer>
+
+    <!-- Compliance Note -->
+    <div class="compliance-footer">
+      <p>{{ $t('documents.payslip_template.payslipTemplate.thisDocumentIsGeneratedInComplianceWithTheAfghanistanLaborLawAndMinist') }}</p>
+    </div>
+  </div>
+</template>
 
 <style scoped>
 /* Web Component Preview Styles - Constrained to 680px to match exactly 180mm printable A4 width */

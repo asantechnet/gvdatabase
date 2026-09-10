@@ -6,10 +6,11 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Office extends Model
 {
-    use Auditable, HasFactory;
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name', 'code', 'email', 'phone', 'address', 'status',
@@ -34,7 +35,18 @@ class Office extends Model
             && $this->longitude !== null;
     }
 
-    public function employees(): HasMany { return $this->hasMany(Employee::class); }
-    public function attendances(): HasMany { return $this->hasMany(Attendance::class); }
-    public function assets(): HasMany { return $this->hasMany(Asset::class); }
+    public function employees(): HasMany
+    {
+        return $this->hasMany(Employee::class);
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function assets(): HasMany
+    {
+        return $this->hasMany(Asset::class);
+    }
 }

@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { VDialog } from 'vuetify/components'
-import EmployeeApi, { type CommissionServiceOption, type Employee, type EmployeeAccount, type CreateEmployeeData, type UpdateEmployeeData } from '@/api/employee'
+import { useRouter } from 'vue-router'
+import EmployeeApi, { type CommissionServiceOption, type CreateEmployeeData, type Employee, type EmployeeAccount, type UpdateEmployeeData } from '@/api/employee'
 import PositionApi, { type Position } from '@/api/position'
 import OfficeApi, { type Office } from '@/api/office'
 import PaidTimeOffApi, { type PaidTimeOff } from '@/api/paidTimeOff'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
-import { useRouter } from 'vue-router'
 
 interface Staff {
   id: number
@@ -103,7 +103,7 @@ const formErrors = ref({
   salary: '',
   commissions: '',
   education_lvl: '',
-  join_date: ''
+  join_date: '',
 })
 
 const resetFormErrors = () => {
@@ -118,7 +118,7 @@ const resetFormErrors = () => {
     salary: '',
     commissions: '',
     education_lvl: '',
-    join_date: ''
+    join_date: '',
   }
 }
 
@@ -129,10 +129,12 @@ const validateStaffForm = () => {
   if (!selectedStaff.value?.name.trim()) {
     formErrors.value.name = translate('pages.settings.staffList.staffList.nameIsRequired')
     isValid = false
-  } else if (selectedStaff.value.name.length < 2) {
+  }
+  else if (selectedStaff.value.name.length < 2) {
     formErrors.value.name = translate('pages.settings.staffList.staffList.nameMustBeAtLeast2Characters')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.name = ''
   }
 
@@ -140,10 +142,12 @@ const validateStaffForm = () => {
   if (!selectedStaff.value?.father_name.trim()) {
     formErrors.value.father_name = translate('pages.settings.staffList.staffList.fatherNameIsRequired')
     isValid = false
-  } else if (selectedStaff.value.father_name.length < 2) {
+  }
+  else if (selectedStaff.value.father_name.length < 2) {
     formErrors.value.father_name = translate('pages.settings.staffList.staffList.fatherNameMustBeAtLeast2Characters')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.father_name = ''
   }
 
@@ -151,10 +155,12 @@ const validateStaffForm = () => {
   if (!selectedStaff.value?.contact.trim()) {
     formErrors.value.contact = translate('common.messages.contactNumberIsRequired')
     isValid = false
-  } else if (!/^[\d\s\-()+]{8,}$/.test(selectedStaff.value.contact)) {
+  }
+  else if (!/^[\d\s\-()+]{8,}$/.test(selectedStaff.value.contact)) {
     formErrors.value.contact = translate('common.messages.pleaseEnterAValidPhoneNumber')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.contact = ''
   }
 
@@ -162,10 +168,12 @@ const validateStaffForm = () => {
   if (!selectedStaff.value?.user_id && !selectedStaff.value?.email.trim()) {
     formErrors.value.email = translate('pages.settings.staffList.staffList.emailIsRequired')
     isValid = false
-  } else if (!selectedStaff.value?.user_id && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(selectedStaff.value.email)) {
+  }
+  else if (!selectedStaff.value?.user_id && !/^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/.test(selectedStaff.value.email)) {
     formErrors.value.email = translate('pages.settings.staffList.staffList.pleaseEnterAValidEmailAddress')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.email = ''
   }
 
@@ -173,17 +181,20 @@ const validateStaffForm = () => {
   if (!selectedStaff.value?.addr.trim()) {
     formErrors.value.addr = translate('pages.settings.staffList.staffList.addressIsRequired')
     isValid = false
-  } else if (selectedStaff.value.addr.length < 5) {
+  }
+  else if (selectedStaff.value.addr.length < 5) {
     formErrors.value.addr = translate('pages.settings.staffList.staffList.addressMustBeAtLeast5Characters')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.addr = ''
   }
 
   if (!selectedStaff.value?.id_number?.trim()) {
     formErrors.value.id_number = translate('pages.settings.staffList.staffList.governmentIDIsRequired')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.id_number = ''
   }
 
@@ -191,7 +202,8 @@ const validateStaffForm = () => {
   if (!selectedStaff.value?.position) {
     formErrors.value.position = translate('pages.settings.staffList.staffList.positionIsRequired')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.position = ''
   }
 
@@ -199,10 +211,12 @@ const validateStaffForm = () => {
   if (selectedStaff.value?.salary === null || selectedStaff.value?.salary === undefined) {
     formErrors.value.salary = translate('pages.settings.staffList.staffList.salaryIsRequired')
     isValid = false
-  } else if (Number(selectedStaff.value.salary) < 0) {
+  }
+  else if (Number(selectedStaff.value.salary) < 0) {
     formErrors.value.salary = 'Salary cannot be negative.'
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.salary = ''
   }
 
@@ -218,7 +232,8 @@ const validateStaffForm = () => {
   if (!selectedStaff.value?.education_lvl) {
     formErrors.value.education_lvl = translate('pages.settings.staffList.staffList.educationLevelIsRequired')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.education_lvl = ''
   }
 
@@ -226,7 +241,8 @@ const validateStaffForm = () => {
   if (!selectedStaff.value?.join_date) {
     formErrors.value.join_date = translate('pages.settings.staffList.staffList.joinDateIsRequired')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.join_date = ''
   }
 
@@ -278,18 +294,22 @@ const openDeleteStaffDialog = (staff: Staff) => {
 }
 
 const loadPaidTimeOffs = async () => {
-  if (!leaveStaff.value) return
+  if (!leaveStaff.value)
+    return
   isLeaveLoading.value = true
   leaveError.value = ''
   try {
     const ledger = await PaidTimeOffApi.getAll(leaveStaff.value.id, paidTimeOffYear.value)
+
     paidTimeOffs.value = ledger.data
     leaveAllowance.value = ledger.allowance
     leaveUsed.value = ledger.used
     leaveRemaining.value = ledger.remaining
-  } catch (error) {
+  }
+  catch (error) {
     leaveError.value = apiErrorMessage(error, 'Unable to load leave records.')
-  } finally {
+  }
+  finally {
     isLeaveLoading.value = false
   }
 }
@@ -297,7 +317,7 @@ const loadPaidTimeOffs = async () => {
 const openPaidTimeOffDialog = async (staff: Staff) => {
   leaveStaff.value = staff
   paidTimeOffYear.value = new Date().getFullYear()
-  leaveForm.value = { id: null, date: new Date().toISOString().slice(0, 10), reason: '' }
+  leaveForm.value = { id: null, date: new Date().toISOString().slice(0, 10), duration_days: 1, reason: '' }
   isPaidTimeOffDialogVisible.value = true
   await loadPaidTimeOffs()
 }
@@ -320,13 +340,16 @@ const changePaidTimeOffYear = async () => {
 }
 
 const savePaidTimeOff = async () => {
-  if (!leaveStaff.value) return
+  if (!leaveStaff.value)
+    return
   if (!leaveForm.value.date || !leaveForm.value.reason.trim()) {
     leaveError.value = translate(!leaveForm.value.date ? 'pages.users.staffList.dateRequired' : 'pages.users.staffList.reasonRequired')
+
     return
   }
   if (!leaveForm.value.date.startsWith(`${paidTimeOffYear.value}-`)) {
     leaveError.value = `Date: Choose a date in ${paidTimeOffYear.value}.`
+
     return
   }
   isLeaveLoading.value = true
@@ -339,23 +362,29 @@ const savePaidTimeOff = async () => {
       await PaidTimeOffApi.create(leaveStaff.value.id, payload)
     resetPaidTimeOffForm()
     await loadPaidTimeOffs()
-  } catch (error) {
+  }
+  catch (error) {
     leaveError.value = apiErrorMessage(error, 'Unable to save leave.')
-  } finally {
+  }
+  finally {
     isLeaveLoading.value = false
   }
 }
 
 const deletePaidTimeOff = async (id: number) => {
-  if (!leaveStaff.value) return
+  if (!leaveStaff.value)
+    return
   isLeaveLoading.value = true
   try {
     await PaidTimeOffApi.delete(leaveStaff.value.id, id)
-    if (leaveForm.value.id === id) resetPaidTimeOffForm()
+    if (leaveForm.value.id === id)
+      resetPaidTimeOffForm()
     await loadPaidTimeOffs()
-  } catch (error) {
+  }
+  catch (error) {
     leaveError.value = apiErrorMessage(error, 'Unable to remove leave.')
-  } finally {
+  }
+  finally {
     isLeaveLoading.value = false
   }
 }
@@ -363,31 +392,39 @@ const deletePaidTimeOff = async (id: number) => {
 const fetchPositions = async () => {
   try {
     isPositionsLoading.value = true
+
     const response = await PositionApi.getAll()
     if (response.data && Array.isArray(response.data.data)) {
       positionOptions.value = response.data.data.map((pos: Position) => pos.title)
       positionIdMap.value = response.data.data.reduce((map: Record<string, number>, pos: Position) => {
         map[pos.title] = pos.id
+
         return map
       }, {})
       positionSalaryMap.value = response.data.data.reduce((map: Record<string, number>, pos: Position) => {
         map[pos.title] = Number(pos.salary ?? 0)
+
         return map
       }, {})
-    } else if (Array.isArray(response.data)) {
+    }
+    else if (Array.isArray(response.data)) {
       positionOptions.value = response.data.map((pos: Position) => pos.title)
       positionIdMap.value = response.data.reduce((map: Record<string, number>, pos: Position) => {
         map[pos.title] = pos.id
+
         return map
       }, {})
       positionSalaryMap.value = response.data.reduce((map: Record<string, number>, pos: Position) => {
         map[pos.title] = Number(pos.salary ?? 0)
+
         return map
       }, {})
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching positions:', error)
-  } finally {
+  }
+  finally {
     isPositionsLoading.value = false
   }
 }
@@ -395,6 +432,7 @@ const fetchPositions = async () => {
 const fetchEmployees = async () => {
   try {
     isLoading.value = true
+
     const response = await EmployeeApi.getAll()
     if (response.data && Array.isArray(response.data.data)) {
       staffList.value = response.data.data.map(emp => ({
@@ -402,20 +440,23 @@ const fetchEmployees = async () => {
         email: emp.email ?? '',
         salary: emp.salary ?? 0,
         join_date: emp.join_date ?? '',
-        position: emp.position || positionOptions.value[emp.position_id - 1] || emp.position_id.toString()
+        position: emp.position || positionOptions.value[emp.position_id - 1] || emp.position_id.toString(),
       }))
-    } else if (Array.isArray(response.data)) {
+    }
+    else if (Array.isArray(response.data)) {
       staffList.value = response.data.map(emp => ({
         ...emp,
         email: emp.email ?? '',
         salary: emp.salary ?? 0,
         join_date: emp.join_date ?? '',
-        position: emp.position || positionOptions.value[emp.position_id - 1] || emp.position_id.toString()
+        position: emp.position || positionOptions.value[emp.position_id - 1] || emp.position_id.toString(),
       }))
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching employees:', error)
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -424,9 +465,11 @@ const fetchUserAccounts = async () => {
   try {
     isUserAccountsLoading.value = true
     userAccounts.value = await EmployeeApi.getAccountOptions()
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching user accounts:', error)
-  } finally {
+  }
+  finally {
     isUserAccountsLoading.value = false
   }
 }
@@ -445,17 +488,21 @@ const updateSelectedAccountEmail = (userId: number | null) => {
 }
 
 const applyPositionSalary = (position: string) => {
-  if (position in positionSalaryMap.value)
+  if (selectedStaff.value && position in positionSalaryMap.value)
     selectedStaff.value.salary = positionSalaryMap.value[position]
 }
 
 const addStaff = async () => {
-  if (!selectedStaff.value) return
-  if (!validateStaffForm()) return
+  if (!selectedStaff.value)
+    return
+  if (!validateStaffForm())
+    return
 
   try {
     isLoading.value = true
+
     const positionId = positionIdMap.value[selectedStaff.value.position]
+
     const data: CreateEmployeeData = {
       user_id: selectedStaff.value.user_id,
       name: selectedStaff.value.name,
@@ -486,25 +533,31 @@ const addStaff = async () => {
         email: response.data.data.email ?? '',
         salary: response.data.data.salary ?? 0,
         join_date: response.data.data.join_date ?? '',
-        position: response.data.data.position || positionOptions.value[response.data.data.position_id - 1] || response.data.data.position_id.toString()
+        position: response.data.data.position || positionOptions.value[response.data.data.position_id - 1] || response.data.data.position_id.toString(),
       })
     }
     isAddStaffDialogVisible.value = false
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error creating employee:', error)
     applyStaffApiErrors(error)
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
 
 const updateStaff = async () => {
-  if (!selectedStaff.value) return
-  if (!validateStaffForm()) return
+  if (!selectedStaff.value)
+    return
+  if (!validateStaffForm())
+    return
 
   try {
     isLoading.value = true
+
     const positionId = positionIdMap.value[selectedStaff.value.position]
+
     const data: UpdateEmployeeData = {
       user_id: selectedStaff.value.user_id,
       name: selectedStaff.value.name,
@@ -537,15 +590,17 @@ const updateStaff = async () => {
           email: response.data.data.email ?? '',
           salary: response.data.data.salary ?? 0,
           join_date: response.data.data.join_date ?? '',
-          position: response.data.data.position || positionOptions.value[response.data.data.position_id - 1] || response.data.data.position_id.toString()
+          position: response.data.data.position || positionOptions.value[response.data.data.position_id - 1] || response.data.data.position_id.toString(),
         }
       }
     }
     isEditStaffDialogVisible.value = false
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error updating employee:', error)
     applyStaffApiErrors(error)
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -567,6 +622,7 @@ const applyStaffApiErrors = (error: unknown) => {
 
 const addCommission = () => selectedStaff.value?.commissions.push({ service_id: 0, percentage: 1 })
 const removeCommission = (index: number) => selectedStaff.value?.commissions.splice(index, 1)
+
 const commissionLabel = (service: CommissionServiceOption) => {
   const currency = service.currency
   const amount = Number(service.fee).toFixed(currency?.decimalPlaces ?? 2)
@@ -580,30 +636,34 @@ const availableCommissionServices = (currentServiceId: number) => commissionServ
 )
 
 const deleteStaff = async () => {
-  if (!selectedStaff.value) return
+  if (!selectedStaff.value)
+    return
 
   try {
     isLoading.value = true
     await EmployeeApi.delete(selectedStaff.value.id)
     staffList.value = staffList.value.filter(s => s.id !== selectedStaff.value?.id)
     isDeleteStaffDialogVisible.value = false
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error deleting employee:', error)
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
 
 const filteredStaff = computed(() => {
   return staffList.value.filter(staff => {
-    const matchesSearch = staff.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      staff.father_name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      staff.contact.includes(searchQuery.value) ||
-      (staff.id_number ?? '').includes(searchQuery.value) ||
-      staff.email.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      staff.position.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const matchesSearch = staff.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+      || staff.father_name.toLowerCase().includes(searchQuery.value.toLowerCase())
+      || staff.contact.includes(searchQuery.value)
+      || (staff.id_number ?? '').includes(searchQuery.value)
+      || staff.email.toLowerCase().includes(searchQuery.value.toLowerCase())
+      || staff.position.toLowerCase().includes(searchQuery.value.toLowerCase())
 
     const matchesPosition = !filterPosition.value || staff.position === filterPosition.value
+
     return matchesSearch && matchesPosition
   })
 })
@@ -614,6 +674,7 @@ const printTable = () => {
 
 onMounted(async () => {
   const [, officeRows, commissionRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), EmployeeApi.getCommissionOptions(), fetchUserAccounts()])
+
   offices.value = officeRows.filter(office => office.status === 'active')
   commissionServices.value = commissionRows
   await fetchEmployees()
@@ -622,14 +683,23 @@ onMounted(async () => {
 
 <template>
   <div>
-    <DataTablePageKpis :items="filteredStaff" title="Staff directory" description="See your team, their assignments, and records that need follow-up." icon="tabler-users" />
+    <DataTablePageKpis
+      :items="filteredStaff"
+      title="Staff directory"
+      description="See your team, their assignments, and records that need follow-up."
+      icon="tabler-users"
+    />
     <VCard class="mb-6">
       <VCardText>
         <VRow align="center">
-          <VCol cols="12" md="6">
+          <VCol
+            cols="12"
+            md="6"
+          >
             <VTextField
               v-model="searchQuery"
-              class="data-table-search" prepend-inner-icon="tabler-search"
+              class="data-table-search"
+              prepend-inner-icon="tabler-search"
               :placeholder="$t('pages.settings.staffList.staffList.searchStaff')"
               density="compact"
               clearable
@@ -637,21 +707,45 @@ onMounted(async () => {
             />
           </VCol>
 
-          <VCol cols="12" md="6" class="d-flex gap-2 justify-end">
-            <DataTableFilterMenu :active="Boolean(filterPosition)" @reset="filterPosition = null">
-              <VSelect v-model="filterPosition" :items="positionOptions" :label="$t('pages.settings.staffList.staffList.filterByPosition')"
-                density="compact" clearable hide-details :loading="isPositionsLoading" />
+          <VCol
+            cols="12"
+            md="6"
+            class="d-flex gap-2 justify-end"
+          >
+            <DataTableFilterMenu
+              :active="Boolean(filterPosition)"
+              @reset="filterPosition = null"
+            >
+              <VSelect
+                v-model="filterPosition"
+                :items="positionOptions"
+                :label="$t('pages.settings.staffList.staffList.filterByPosition')"
+                density="compact"
+                clearable
+                hide-details
+                :loading="isPositionsLoading"
+              />
             </DataTableFilterMenu>
             <VBtn
               icon="tabler-printer"
               variant="text"
               @click="printTable"
-            ><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.printStaffRecords') }}</VTooltip></VBtn>
+            >
+              <VIcon icon="tabler-printer" /><VTooltip
+                activator="parent"
+                location="top"
+              >
+                {{ $t('pages.settings.staffList.staffList.printStaffRecords') }}
+              </VTooltip>
+            </VBtn>
             <VBtn
               color="primary"
               @click="openAddStaffDialog"
             >
-              <VIcon icon="tabler-plus" class="me-1" />
+              <VIcon
+                icon="tabler-plus"
+                class="me-1"
+              />
               {{ $t('pages.settings.staffList.staffList.addStaff') }}
             </VBtn>
           </VCol>
@@ -674,7 +768,7 @@ onMounted(async () => {
             { title: translate('pages.settings.staffList.staffList.salary'), key: 'salary' },
             { title: translate('pages.settings.staffList.staffList.workedHours'), key: 'total_worked_hours' },
             { title: translate('pages.settings.staffList.staffList.joinDate'), key: 'join_date' },
-            { title: translate('common.messages.actions'), key: 'actions', sortable: false }
+            { title: translate('common.messages.actions'), key: 'actions', sortable: false },
           ]"
           item-value="id"
           class="text-no-wrap staff-table"
@@ -684,7 +778,14 @@ onMounted(async () => {
         >
           <template #item.salary="{ item }">
             <div>${{ Number(item.salary || 0).toFixed(2) }}</div>
-            <VChip v-if="item.employment_type === 'commission'" size="x-small" color="primary" variant="tonal">Base + commission</VChip>
+            <VChip
+              v-if="item.employment_type === 'commission'"
+              size="x-small"
+              color="primary"
+              variant="tonal"
+            >
+              Base + commission
+            </VChip>
           </template>
 
           <template #item.office="{ item }">
@@ -699,7 +800,11 @@ onMounted(async () => {
                 :variant="item.avatar ? undefined : 'tonal'"
                 :color="item.avatar ? undefined : 'primary'"
               >
-                <VImg v-if="item.avatar" :src="item.avatar" :alt="item.name" />
+                <VImg
+                  v-if="item.avatar"
+                  :src="item.avatar"
+                  :alt="item.name"
+                />
                 <span v-else>{{ avatarText(item.name) }}</span>
               </VAvatar>
               <span>{{ item.name }}</span>
@@ -708,36 +813,78 @@ onMounted(async () => {
 
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
-              <FullDetailsButton :item="item" :title="item.name" />
-              <VBtn icon="tabler-file-description" variant="text" size="small" color="primary" @click="printEmployeeContract(item)"><VIcon icon="tabler-file-description" /><VTooltip activator="parent" location="top">Print employment contract</VTooltip></VBtn>
+              <FullDetailsButton
+                :item="item"
+                :title="item.name"
+              />
+              <VBtn
+                icon="tabler-file-description"
+                variant="text"
+                size="small"
+                color="primary"
+                @click="printEmployeeContract(item)"
+              >
+                <VIcon icon="tabler-file-description" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  Print employment contract
+                </VTooltip>
+              </VBtn>
               <VBtn
                 icon="tabler-calendar-time"
                 variant="text"
                 size="small"
                 color="primary"
                 @click="openPaidTimeOffDialog(item)"
-              ><VIcon icon="tabler-calendar-time" /><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.managePaidOffDays') }}</VTooltip></VBtn>
+              >
+                <VIcon icon="tabler-calendar-time" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  {{ $t('pages.settings.staffList.staffList.managePaidOffDays') }}
+                </VTooltip>
+              </VBtn>
               <VBtn
                 icon="tabler-edit"
                 variant="text"
                 size="small"
                 color="medium-emphasis"
                 @click="openEditStaffDialog(item)"
-              ><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.editStaffRecord') }}</VTooltip></VBtn>
+              >
+                <VIcon icon="tabler-edit" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  {{ $t('pages.settings.staffList.staffList.editStaffRecord') }}
+                </VTooltip>
+              </VBtn>
               <VBtn
                 icon="tabler-trash"
                 variant="text"
                 size="small"
                 color="error"
                 @click="openDeleteStaffDialog(item)"
-              ><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">{{ $t('pages.settings.staffList.staffList.deleteStaffRecord') }}</VTooltip></VBtn>
+              >
+                <VIcon icon="tabler-trash" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  {{ $t('pages.settings.staffList.staffList.deleteStaffRecord') }}
+                </VTooltip>
+              </VBtn>
             </div>
           </template>
         </ResponsiveDataTable>
       </div>
     </VCard>
 
-    <PrintableListReport title="Staff Report" subtitle="Filtered staff records" :columns="['ID', 'Name', 'Position', 'Contact', 'Email', 'Office']" :rows="filteredStaff.map(staff => [staff.id, staff.name, staff.position, staff.contact, staff.email, staff.office?.name])" />
+    <PrintableListReport
+      title="Staff Report"
+      subtitle="Filtered staff records"
+      :columns="['ID', 'Name', 'Position', 'Contact', 'Email', 'Office']"
+      :rows="filteredStaff.map(staff => [staff.id, staff.name, staff.position, staff.contact, staff.email, staff.office?.name])"
+    />
 
     <!-- Add Staff Dialog -->
     <VDialog
@@ -751,12 +898,24 @@ onMounted(async () => {
 
         <VCardText>
           <VForm class="app-form">
-            <VAlert v-if="formSubmissionError" type="error" variant="tonal" class="mb-4">
+            <VAlert
+              v-if="formSubmissionError"
+              type="error"
+              variant="tonal"
+              class="mb-4"
+            >
               {{ formSubmissionError }}
             </VAlert>
             <VRow>
-              <FormSection title-key="common.fields.employee" description-key="common.messages.contact" icon="tabler-user" />
-              <VCol cols="12" md="6">
+              <FormSection
+                title-key="common.fields.employee"
+                description-key="common.messages.contact"
+                icon="tabler-user"
+              />
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.name"
                   :label="$t('common.messages.fullName')"
@@ -764,7 +923,10 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.father_name"
                   :label="$t('common.messages.fatherName')"
@@ -772,7 +934,10 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.contact"
                   :label="$t('common.fields.phone')"
@@ -780,9 +945,13 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
-                <VSelect class="employee-account-select"
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
                   v-model="selectedStaff.user_id"
+                  class="employee-account-select"
                   :items="userAccountOptions"
                   :label="$t('common.accountPicker.label')"
                   :placeholder="$t('common.accountPicker.placeholder')"
@@ -790,11 +959,46 @@ onMounted(async () => {
                   :loading="isUserAccountsLoading"
                   @update:model-value="updateSelectedAccountEmail"
                 >
-                  <template #selection="{ item }"><div class="account-selection"><span class="account-selection__name">{{ item.raw.name }}</span><span class="account-selection__meta">#{{ item.raw.id }} · {{ item.raw.email }}</span></div></template>
-                  <template #item="{ props, item }"><VListItem v-bind="props" class="account-option" :title="item.raw.name"><template #prepend><VAvatar color="primary" variant="tonal" size="38">{{ avatarText(item.raw.name) }}</VAvatar></template><template #subtitle><div class="account-option__details"><span>#{{ item.raw.id }} · {{ item.raw.email }}</span><span v-if="item.raw.employee"><VIcon icon="tabler-id-badge-2" size="14" /> {{ $t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span><span v-if="item.raw.marketer"><VIcon icon="tabler-speakerphone" size="14" /> {{ $t('common.accountPicker.linkedMarketer', { name: item.raw.marketer.name, id: item.raw.marketer.id }) }}</span><span v-if="!item.raw.employee && !item.raw.marketer">{{ $t('common.accountPicker.available') }}</span></div></template><template #append><span class="account-option__id">#{{ item.raw.id }}</span></template></VListItem></template>
+                  <template #selection="{ item }">
+                    <div class="account-selection">
+                      <span class="account-selection__name">{{ item.raw.name }}</span><span class="account-selection__meta">#{{ item.raw.id }} · {{ item.raw.email }}</span>
+                    </div>
+                  </template>
+                  <template #item="{ props, item }">
+                    <VListItem
+                      v-bind="props"
+                      class="account-option"
+                      :title="item.raw.name"
+                    >
+                      <template #prepend>
+                        <VAvatar
+                          color="primary"
+                          variant="tonal"
+                          size="38"
+                        >
+                          {{ avatarText(item.raw.name) }}
+                        </VAvatar>
+                      </template><template #subtitle>
+                        <div class="account-option__details">
+                          <span>#{{ item.raw.id }} · {{ item.raw.email }}</span><span v-if="item.raw.employee"><VIcon
+                            icon="tabler-id-badge-2"
+                            size="14"
+                          /> {{ $t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span><span v-if="item.raw.marketer"><VIcon
+                            icon="tabler-speakerphone"
+                            size="14"
+                          /> {{ $t('common.accountPicker.linkedMarketer', { name: item.raw.marketer.name, id: item.raw.marketer.id }) }}</span><span v-if="!item.raw.employee && !item.raw.marketer">{{ $t('common.accountPicker.available') }}</span>
+                        </div>
+                      </template><template #append>
+                        <span class="account-option__id">#{{ item.raw.id }}</span>
+                      </template>
+                    </VListItem>
+                  </template>
                 </VSelect>
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.id_number"
                   :label="$t('common.messages.governmentIDNumber')"
@@ -802,7 +1006,10 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.email"
                   :label="$t('common.fields.email')"
@@ -811,7 +1018,10 @@ onMounted(async () => {
                   :required="!selectedStaff.user_id"
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedStaff.education_lvl"
                   :items="educationOptions"
@@ -820,8 +1030,15 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <FormSection title-key="common.messages.position" description-key="common.messages.contractDuration" icon="tabler-briefcase" />
-              <VCol cols="12" md="6">
+              <FormSection
+                title-key="common.messages.position"
+                description-key="common.messages.contractDuration"
+                icon="tabler-briefcase"
+              />
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedStaff.position"
                   :items="positionOptions"
@@ -832,12 +1049,45 @@ onMounted(async () => {
                   @update:model-value="applyPositionSalary"
                 />
               </VCol>
-              <VCol cols="12" md="6">
-                <AppDateTimePicker v-model="selectedStaff.join_date" :label="$t('common.messages.joinDate')" :error-messages="formErrors.join_date" required :config="{ dateFormat: 'Y-m-d' }" />
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <AppDateTimePicker
+                  v-model="selectedStaff.join_date"
+                  :label="$t('common.messages.joinDate')"
+                  :error-messages="formErrors.join_date"
+                  required
+                  :config="{ dateFormat: 'Y-m-d' }"
+                />
               </VCol>
-              <VCol cols="12" md="6"><VSelect v-model="selectedStaff.office_id" :items="offices" item-title="name" item-value="id" :label="$t('common.fields.office')" clearable /></VCol>
-              <VCol cols="12" md="6"><VSelect v-model="selectedStaff.employment_type" :items="[{title:'Salaried',value:'salaried'},{title:'On commission',value:'commission'}]" label="Employment type" /></VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedStaff.office_id"
+                  :items="offices"
+                  item-title="name"
+                  item-value="id"
+                  :label="$t('common.fields.office')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedStaff.employment_type"
+                  :items="[{ title: 'Salaried', value: 'salaried' }, { title: 'On commission', value: 'commission' }]"
+                  label="Employment type"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model.number="selectedStaff.salary"
                   :label="selectedStaff.employment_type === 'commission' ? 'Base salary' : $t('common.messages.salary')"
@@ -847,43 +1097,163 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol v-if="selectedStaff.employment_type === 'commission'" cols="12">
-                <VCard variant="outlined" class="bg-surface-variant">
-                  <VCardText class="pa-4">
-                    <div class="d-flex flex-wrap justify-space-between align-start ga-3 mb-3">
-                      <div>
-                        <div class="text-subtitle-1 font-weight-semibold">Service capabilities &amp; commission rates</div>
-                        <p class="text-caption text-medium-emphasis mb-0">Select the catalogue services this person can deliver. Customer assignments choose which eligible employee earns the rate below.</p>
+              <VCol
+                v-if="selectedStaff.employment_type === 'commission'"
+                cols="12"
+              >
+                <VCard
+                  variant="flat"
+                  class="commission-capabilities"
+                >
+                  <VCardText class="commission-capabilities__body">
+                    <div class="commission-capabilities__header">
+                      <div class="d-flex align-start ga-3">
+                        <VAvatar
+                          size="38"
+                          color="primary"
+                          variant="tonal"
+                          rounded="lg"
+                        >
+                          <VIcon
+                            icon="tabler-briefcase-2"
+                            size="21"
+                          />
+                        </VAvatar>
+                        <div>
+                          <div class="text-subtitle-1 font-weight-semibold">
+                            Service capabilities &amp; commission rates
+                          </div>
+                          <p class="commission-capabilities__description">
+                            Choose the catalogue services this person can deliver. The delivery assignment on a customer service determines who earns the rate.
+                          </p>
+                        </div>
                       </div>
-                      <VBtn size="small" color="primary" variant="tonal" prepend-icon="tabler-plus" @click="addCommission">Add service</VBtn>
+                      <VBtn
+                        size="small"
+                        color="primary"
+                        variant="flat"
+                        prepend-icon="tabler-plus"
+                        @click="addCommission"
+                      >
+                        Add service
+                      </VBtn>
                     </div>
-                    <VAlert v-if="formErrors.commissions" type="error" variant="tonal" density="compact" class="mb-3">{{ formErrors.commissions }}</VAlert>
-                    <VAlert type="info" variant="tonal" density="compact" class="mb-3">Rates are configured once per catalogue service. The actual commission is calculated from the assigned customer service and saved on the invoice.</VAlert>
-                    <VRow v-for="(commission, index) in selectedStaff.commissions" :key="index" align="center">
-                      <VCol cols="12" sm="8">
-                        <VSelect v-model="commission.service_id" :items="availableCommissionServices(commission.service_id)" :item-title="commissionLabel" item-value="id" label="Service this employee can deliver" placeholder="Choose a service" density="comfortable" />
+                    <VAlert
+                      v-if="formErrors.commissions"
+                      type="error"
+                      variant="tonal"
+                      density="compact"
+                      class="commission-capabilities__alert"
+                    >
+                      {{ formErrors.commissions }}
+                    </VAlert>
+                    <VRow
+                      v-for="(commission, index) in selectedStaff.commissions"
+                      :key="index"
+                      align="center"
+                      class="commission-capabilities__row"
+                    >
+                      <VCol
+                        cols="12"
+                        sm="8"
+                      >
+                        <VSelect
+                          v-model="commission.service_id"
+                          :items="availableCommissionServices(commission.service_id)"
+                          :item-title="commissionLabel"
+                          item-value="id"
+                          label="Service this employee can deliver"
+                          placeholder="Choose a service"
+                          density="comfortable"
+                        />
                       </VCol>
-                      <VCol cols="10" sm="3"><VTextField v-model.number="commission.percentage" type="number" min="0.01" max="100" label="Commission rate" suffix="%" density="comfortable" /></VCol>
-                      <VCol cols="2" sm="1" class="text-end"><VBtn icon="tabler-x" variant="text" color="error" @click="removeCommission(index)"><VTooltip activator="parent">Remove service</VTooltip></VBtn></VCol>
+                      <VCol
+                        cols="10"
+                        sm="3"
+                      >
+                        <VTextField
+                          v-model.number="commission.percentage"
+                          type="number"
+                          min="0.01"
+                          max="100"
+                          label="Commission rate"
+                          suffix="%"
+                          density="comfortable"
+                        />
+                      </VCol>
+                      <VCol
+                        cols="2"
+                        sm="1"
+                        class="text-end"
+                      >
+                        <VBtn
+                          icon="tabler-x"
+                          variant="text"
+                          color="error"
+                          @click="removeCommission(index)"
+                        >
+                          <VTooltip activator="parent">
+                            Remove service
+                          </VTooltip>
+                        </VBtn>
+                      </VCol>
                     </VRow>
                   </VCardText>
                 </VCard>
               </VCol>
-              <VCol cols="12" md="6"><VTextField v-model="selectedStaff.bank_account_number" label="Bank account number" /></VCol>
-              <FormSection title-key="common.fields.address" description-key="common.messages.guarantorAddress" icon="tabler-shield-check" />
-              <VCol cols="12" md="6">
-                <VTextField v-model="selectedStaff.guarantor_id_number" :label="$t('common.messages.guarantorGovernmentID')" />
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.bank_account_number"
+                  label="Bank account number"
+                />
               </VCol>
-              <VCol cols="12" md="6">
-                <VTextField v-model="selectedStaff.guarantor_phone" :label="$t('common.messages.guarantorPhone')" />
+              <FormSection
+                title-key="common.fields.address"
+                description-key="common.messages.guarantorAddress"
+                icon="tabler-shield-check"
+              />
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.guarantor_id_number"
+                  :label="$t('common.messages.guarantorGovernmentID')"
+                />
               </VCol>
-              <VCol cols="12" md="6">
-                <VTextField v-model="selectedStaff.guarantor_licence" :label="$t('common.messages.guarantorLicence')" />
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.guarantor_phone"
+                  :label="$t('common.messages.guarantorPhone')"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.guarantor_licence"
+                  :label="$t('common.messages.guarantorLicence')"
+                />
               </VCol>
               <VCol cols="12">
-                <VTextarea v-model="selectedStaff.guarantor_address" :label="$t('common.messages.guarantorAddress')" rows="2" auto-grow />
+                <VTextarea
+                  v-model="selectedStaff.guarantor_address"
+                  :label="$t('common.messages.guarantorAddress')"
+                  rows="2"
+                  auto-grow
+                />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.addr"
                   :label="$t('common.fields.address')"
@@ -906,8 +1276,8 @@ onMounted(async () => {
           </VBtn>
           <VBtn
             color="primary"
-            @click="addStaff"
             :loading="isLoading"
+            @click="addStaff"
           >
             {{ $t('common.actions.save') }}
           </VBtn>
@@ -927,11 +1297,19 @@ onMounted(async () => {
 
         <VCardText>
           <VForm class="app-form">
-            <VAlert v-if="formSubmissionError" type="error" variant="tonal" class="mb-4">
+            <VAlert
+              v-if="formSubmissionError"
+              type="error"
+              variant="tonal"
+              class="mb-4"
+            >
               {{ formSubmissionError }}
             </VAlert>
             <VRow>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.name"
                   :label="$t('common.messages.fullName')"
@@ -939,7 +1317,10 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.father_name"
                   :label="$t('common.messages.fatherName')"
@@ -947,7 +1328,10 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.contact"
                   :label="$t('common.fields.phone')"
@@ -955,9 +1339,13 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
-                <VSelect class="employee-account-select"
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
                   v-model="selectedStaff.user_id"
+                  class="employee-account-select"
                   :items="userAccountOptions"
                   :label="$t('common.accountPicker.label')"
                   :placeholder="$t('common.accountPicker.placeholder')"
@@ -965,11 +1353,46 @@ onMounted(async () => {
                   :loading="isUserAccountsLoading"
                   @update:model-value="updateSelectedAccountEmail"
                 >
-                  <template #selection="{ item }"><div class="account-selection"><span class="account-selection__name">{{ item.raw.name }}</span><span class="account-selection__meta">#{{ item.raw.id }} · {{ item.raw.email }}</span></div></template>
-                  <template #item="{ props, item }"><VListItem v-bind="props" class="account-option" :title="item.raw.name"><template #prepend><VAvatar color="primary" variant="tonal" size="38">{{ avatarText(item.raw.name) }}</VAvatar></template><template #subtitle><div class="account-option__details"><span>#{{ item.raw.id }} · {{ item.raw.email }}</span><span v-if="item.raw.employee"><VIcon icon="tabler-id-badge-2" size="14" /> {{ $t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span><span v-if="item.raw.marketer"><VIcon icon="tabler-speakerphone" size="14" /> {{ $t('common.accountPicker.linkedMarketer', { name: item.raw.marketer.name, id: item.raw.marketer.id }) }}</span><span v-if="!item.raw.employee && !item.raw.marketer">{{ $t('common.accountPicker.available') }}</span></div></template><template #append><span class="account-option__id">#{{ item.raw.id }}</span></template></VListItem></template>
+                  <template #selection="{ item }">
+                    <div class="account-selection">
+                      <span class="account-selection__name">{{ item.raw.name }}</span><span class="account-selection__meta">#{{ item.raw.id }} · {{ item.raw.email }}</span>
+                    </div>
+                  </template>
+                  <template #item="{ props, item }">
+                    <VListItem
+                      v-bind="props"
+                      class="account-option"
+                      :title="item.raw.name"
+                    >
+                      <template #prepend>
+                        <VAvatar
+                          color="primary"
+                          variant="tonal"
+                          size="38"
+                        >
+                          {{ avatarText(item.raw.name) }}
+                        </VAvatar>
+                      </template><template #subtitle>
+                        <div class="account-option__details">
+                          <span>#{{ item.raw.id }} · {{ item.raw.email }}</span><span v-if="item.raw.employee"><VIcon
+                            icon="tabler-id-badge-2"
+                            size="14"
+                          /> {{ $t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span><span v-if="item.raw.marketer"><VIcon
+                            icon="tabler-speakerphone"
+                            size="14"
+                          /> {{ $t('common.accountPicker.linkedMarketer', { name: item.raw.marketer.name, id: item.raw.marketer.id }) }}</span><span v-if="!item.raw.employee && !item.raw.marketer">{{ $t('common.accountPicker.available') }}</span>
+                        </div>
+                      </template><template #append>
+                        <span class="account-option__id">#{{ item.raw.id }}</span>
+                      </template>
+                    </VListItem>
+                  </template>
                 </VSelect>
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.id_number"
                   :label="$t('common.messages.governmentIDNumber')"
@@ -977,7 +1400,10 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.email"
                   :label="$t('common.fields.email')"
@@ -986,7 +1412,10 @@ onMounted(async () => {
                   :required="!selectedStaff.user_id"
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedStaff.education_lvl"
                   :items="educationOptions"
@@ -995,7 +1424,10 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedStaff.position"
                   :items="positionOptions"
@@ -1006,12 +1438,45 @@ onMounted(async () => {
                   @update:model-value="applyPositionSalary"
                 />
               </VCol>
-              <VCol cols="12" md="6">
-                <AppDateTimePicker v-model="selectedStaff.join_date" :label="$t('common.messages.joinDate')" :error-messages="formErrors.join_date" required :config="{ dateFormat: 'Y-m-d' }" />
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <AppDateTimePicker
+                  v-model="selectedStaff.join_date"
+                  :label="$t('common.messages.joinDate')"
+                  :error-messages="formErrors.join_date"
+                  required
+                  :config="{ dateFormat: 'Y-m-d' }"
+                />
               </VCol>
-              <VCol cols="12" md="6"><VSelect v-model="selectedStaff.office_id" :items="offices" item-title="name" item-value="id" :label="$t('common.fields.office')" clearable /></VCol>
-              <VCol cols="12" md="6"><VSelect v-model="selectedStaff.employment_type" :items="[{title:'Salaried',value:'salaried'},{title:'On commission',value:'commission'}]" label="Employment type" /></VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedStaff.office_id"
+                  :items="offices"
+                  item-title="name"
+                  item-value="id"
+                  :label="$t('common.fields.office')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedStaff.employment_type"
+                  :items="[{ title: 'Salaried', value: 'salaried' }, { title: 'On commission', value: 'commission' }]"
+                  label="Employment type"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model.number="selectedStaff.salary"
                   :label="selectedStaff.employment_type === 'commission' ? 'Base salary' : $t('common.messages.salary')"
@@ -1021,42 +1486,158 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol v-if="selectedStaff.employment_type === 'commission'" cols="12">
-                <VCard variant="outlined" class="bg-surface-variant">
-                  <VCardText class="pa-4">
-                    <div class="d-flex flex-wrap justify-space-between align-start ga-3 mb-3">
-                      <div>
-                        <div class="text-subtitle-1 font-weight-semibold">Service capabilities &amp; commission rates</div>
-                        <p class="text-caption text-medium-emphasis mb-0">Select the catalogue services this person can deliver. Customer assignments choose which eligible employee earns the rate below.</p>
+              <VCol
+                v-if="selectedStaff.employment_type === 'commission'"
+                cols="12"
+              >
+                <VCard
+                  variant="flat"
+                  class="commission-capabilities"
+                >
+                  <VCardText class="commission-capabilities__body">
+                    <div class="commission-capabilities__header">
+                      <div class="d-flex align-start ga-3">
+                        <VAvatar
+                          size="38"
+                          color="primary"
+                          variant="tonal"
+                          rounded="lg"
+                        >
+                          <VIcon
+                            icon="tabler-briefcase-2"
+                            size="21"
+                          />
+                        </VAvatar>
+                        <div>
+                          <div class="text-subtitle-1 font-weight-semibold">
+                            Service capabilities &amp; commission rates
+                          </div>
+                          <p class="commission-capabilities__description">
+                            Choose the catalogue services this person can deliver. The delivery assignment on a customer service determines who earns the rate.
+                          </p>
+                        </div>
                       </div>
-                      <VBtn size="small" color="primary" variant="tonal" prepend-icon="tabler-plus" @click="addCommission">Add service</VBtn>
+                      <VBtn
+                        size="small"
+                        color="primary"
+                        variant="flat"
+                        prepend-icon="tabler-plus"
+                        @click="addCommission"
+                      >
+                        Add service
+                      </VBtn>
                     </div>
-                    <VAlert v-if="formErrors.commissions" type="error" variant="tonal" density="compact" class="mb-3">{{ formErrors.commissions }}</VAlert>
-                    <VAlert type="info" variant="tonal" density="compact" class="mb-3">Rates are configured once per catalogue service. The actual commission is calculated from the assigned customer service and saved on the invoice.</VAlert>
-                    <VRow v-for="(commission, index) in selectedStaff.commissions" :key="index" align="center">
-                      <VCol cols="12" sm="8">
-                        <VSelect v-model="commission.service_id" :items="availableCommissionServices(commission.service_id)" :item-title="commissionLabel" item-value="id" label="Service this employee can deliver" placeholder="Choose a service" density="comfortable" />
+                    <VAlert
+                      v-if="formErrors.commissions"
+                      type="error"
+                      variant="tonal"
+                      density="compact"
+                      class="commission-capabilities__alert"
+                    >
+                      {{ formErrors.commissions }}
+                    </VAlert>
+                    <VRow
+                      v-for="(commission, index) in selectedStaff.commissions"
+                      :key="index"
+                      align="center"
+                      class="commission-capabilities__row"
+                    >
+                      <VCol
+                        cols="12"
+                        sm="8"
+                      >
+                        <VSelect
+                          v-model="commission.service_id"
+                          :items="availableCommissionServices(commission.service_id)"
+                          :item-title="commissionLabel"
+                          item-value="id"
+                          label="Service this employee can deliver"
+                          placeholder="Choose a service"
+                          density="comfortable"
+                        />
                       </VCol>
-                      <VCol cols="10" sm="3"><VTextField v-model.number="commission.percentage" type="number" min="0.01" max="100" label="Commission rate" suffix="%" density="comfortable" /></VCol>
-                      <VCol cols="2" sm="1" class="text-end"><VBtn icon="tabler-x" variant="text" color="error" @click="removeCommission(index)"><VTooltip activator="parent">Remove service</VTooltip></VBtn></VCol>
+                      <VCol
+                        cols="10"
+                        sm="3"
+                      >
+                        <VTextField
+                          v-model.number="commission.percentage"
+                          type="number"
+                          min="0.01"
+                          max="100"
+                          label="Commission rate"
+                          suffix="%"
+                          density="comfortable"
+                        />
+                      </VCol>
+                      <VCol
+                        cols="2"
+                        sm="1"
+                        class="text-end"
+                      >
+                        <VBtn
+                          icon="tabler-x"
+                          variant="text"
+                          color="error"
+                          @click="removeCommission(index)"
+                        >
+                          <VTooltip activator="parent">
+                            Remove service
+                          </VTooltip>
+                        </VBtn>
+                      </VCol>
                     </VRow>
                   </VCardText>
                 </VCard>
               </VCol>
-              <VCol cols="12" md="6"><VTextField v-model="selectedStaff.bank_account_number" label="Bank account number" /></VCol>
-              <VCol cols="12" md="6">
-                <VTextField v-model="selectedStaff.guarantor_id_number" :label="$t('common.messages.guarantorGovernmentID')" />
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.bank_account_number"
+                  label="Bank account number"
+                />
               </VCol>
-              <VCol cols="12" md="6">
-                <VTextField v-model="selectedStaff.guarantor_phone" :label="$t('common.messages.guarantorPhone')" />
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.guarantor_id_number"
+                  :label="$t('common.messages.guarantorGovernmentID')"
+                />
               </VCol>
-              <VCol cols="12" md="6">
-                <VTextField v-model="selectedStaff.guarantor_licence" :label="$t('common.messages.guarantorLicence')" />
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.guarantor_phone"
+                  :label="$t('common.messages.guarantorPhone')"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.guarantor_licence"
+                  :label="$t('common.messages.guarantorLicence')"
+                />
               </VCol>
               <VCol cols="12">
-                <VTextarea v-model="selectedStaff.guarantor_address" :label="$t('common.messages.guarantorAddress')" rows="2" auto-grow />
+                <VTextarea
+                  v-model="selectedStaff.guarantor_address"
+                  :label="$t('common.messages.guarantorAddress')"
+                  rows="2"
+                  auto-grow
+                />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedStaff.addr"
                   :label="$t('common.fields.address')"
@@ -1079,8 +1660,8 @@ onMounted(async () => {
           </VBtn>
           <VBtn
             color="primary"
-            @click="updateStaff"
             :loading="isLoading"
+            @click="updateStaff"
           >
             {{ $t('common.actions.save') }}
           </VBtn>
@@ -1088,35 +1669,107 @@ onMounted(async () => {
       </VCard>
     </VDialog>
 
-    <VDialog v-model="isPaidTimeOffDialogVisible" max-width="900px">
+    <VDialog
+      v-model="isPaidTimeOffDialogVisible"
+      max-width="900px"
+    >
       <VCard>
         <VCardTitle class="d-flex align-center pa-5">
           <div>
-            <div class="text-h6">{{ $t('pages.settings.staffList.staffList.paidOffDays') }}</div>
-            <div class="text-caption text-medium-emphasis">{{ leaveStaff?.name }} · {{ paidTimeOffYear }}</div>
+            <div class="text-h6">
+              {{ $t('pages.settings.staffList.staffList.paidOffDays') }}
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              {{ leaveStaff?.name }} · {{ paidTimeOffYear }}
+            </div>
           </div>
           <VSpacer />
-          <VTextField v-model.number="paidTimeOffYear" type="number" min="2000" max="3000" density="compact" hide-details style="max-width: 110px" @update:model-value="changePaidTimeOffYear" />
+          <VTextField
+            v-model.number="paidTimeOffYear"
+            type="number"
+            min="2000"
+            max="3000"
+            density="compact"
+            hide-details
+            style="max-width: 110px"
+            @update:model-value="changePaidTimeOffYear"
+          />
         </VCardTitle>
 
         <VCardText>
           <div class="d-flex flex-wrap gap-2 mb-5">
-            <VChip color="primary" variant="tonal">{{ $t('pages.users.staffList.leaveAllowance', { value: leaveAllowance }) }}</VChip>
-            <VChip color="warning" variant="tonal">{{ $t('pages.users.staffList.leaveUsed', { value: leaveUsed }) }}</VChip>
-            <VChip color="success" variant="tonal">{{ $t('pages.users.staffList.leaveRemaining', { value: leaveRemaining }) }}</VChip>
+            <VChip
+              color="primary"
+              variant="tonal"
+            >
+              {{ $t('pages.users.staffList.leaveAllowance', { value: leaveAllowance }) }}
+            </VChip>
+            <VChip
+              color="warning"
+              variant="tonal"
+            >
+              {{ $t('pages.users.staffList.leaveUsed', { value: leaveUsed }) }}
+            </VChip>
+            <VChip
+              color="success"
+              variant="tonal"
+            >
+              {{ $t('pages.users.staffList.leaveRemaining', { value: leaveRemaining }) }}
+            </VChip>
           </div>
-          <VAlert v-if="leaveError" type="error" variant="tonal" class="mb-4">{{ leaveError }}</VAlert>
-          <VAlert v-else-if="paidTimeOffLimitMessage" type="warning" variant="tonal" class="mb-4">{{ paidTimeOffLimitMessage }}</VAlert>
+          <VAlert
+            v-if="leaveError"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+          >
+            {{ leaveError }}
+          </VAlert>
+          <VAlert
+            v-else-if="paidTimeOffLimitMessage"
+            type="warning"
+            variant="tonal"
+            class="mb-4"
+          >
+            {{ paidTimeOffLimitMessage }}
+          </VAlert>
 
           <VRow class="align-end mb-3">
-            <VCol cols="12" md="3">
-              <AppDateTimePicker v-model="leaveForm.date" :label="$t('common.fields.date')" :config="{ dateFormat: 'Y-m-d' }" />
+            <VCol
+              cols="12"
+              md="3"
+            >
+              <AppDateTimePicker
+                v-model="leaveForm.date"
+                :label="$t('common.fields.date')"
+                :config="{ dateFormat: 'Y-m-d' }"
+              />
             </VCol>
-            <VCol cols="12" md="6">
-              <VTextField v-model="leaveForm.reason" :label="$t('common.fields.reason')" maxlength="1000" />
+            <VCol
+              cols="12"
+              md="6"
+            >
+              <VTextField
+                v-model="leaveForm.reason"
+                :label="$t('common.fields.reason')"
+                maxlength="1000"
+              />
             </VCol>
-            <VCol cols="12" md="2"><VSelect v-model="leaveForm.duration_days" :items="[{ title: 'Full day', value: 1 }, { title: 'Half day', value: 0.5 }]" label="Duration" /></VCol>
-            <VCol cols="12" md="3" class="d-flex gap-2">
+            <VCol
+              cols="12"
+              md="2"
+            >
+              <VSelect
+                v-model="leaveForm.duration_days"
+                :items="[{ title: 'Full day', value: 1 }, { title: 'Half day', value: 0.5 }]"
+                label="Duration"
+              />
+            </VCol>
+            <VCol
+              cols="12"
+              md="3"
+              class="d-flex gap-2"
+            >
               <VBtn
                 color="primary"
                 :loading="isLeaveLoading"
@@ -1124,11 +1777,19 @@ onMounted(async () => {
                 @click="savePaidTimeOff"
               >
                 {{ leaveForm.id ? 'Update' : 'Add day' }}
-                <VTooltip activator="parent" location="top">
+                <VTooltip
+                  activator="parent"
+                  location="top"
+                >
                   {{ !isPaidTimeOffFormComplete ? 'Enter both a date and reason.' : paidTimeOffLimitMessage }}
                 </VTooltip>
               </VBtn>
-              <VBtn v-if="leaveForm.id" icon="tabler-x" variant="text" @click="resetPaidTimeOffForm" />
+              <VBtn
+                v-if="leaveForm.id"
+                icon="tabler-x"
+                variant="text"
+                @click="resetPaidTimeOffForm"
+              />
             </VCol>
           </VRow>
 
@@ -1145,13 +1806,31 @@ onMounted(async () => {
           >
             <template #item.actions="{ item }">
               <FullDetailsButton :item="item" />
-              <VBtn icon="tabler-edit" size="small" variant="text" @click="editPaidTimeOff(item)" />
-              <VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="deletePaidTimeOff(item.id)" />
+              <VBtn
+                icon="tabler-edit"
+                size="small"
+                variant="text"
+                @click="editPaidTimeOff(item)"
+              />
+              <VBtn
+                icon="tabler-trash"
+                size="small"
+                variant="text"
+                color="error"
+                @click="deletePaidTimeOff(item.id)"
+              />
             </template>
           </ResponsiveDataTable>
         </VCardText>
 
-        <VCardActions class="pa-5"><VSpacer /><VBtn variant="tonal" @click="isPaidTimeOffDialogVisible = false">{{ $t('common.actions.close') }}</VBtn></VCardActions>
+        <VCardActions class="pa-5">
+          <VSpacer /><VBtn
+            variant="tonal"
+            @click="isPaidTimeOffDialogVisible = false"
+          >
+            {{ $t('common.actions.close') }}
+          </VBtn>
+        </VCardActions>
       </VCard>
     </VDialog>
 
@@ -1182,8 +1861,8 @@ onMounted(async () => {
           </VBtn>
           <VBtn
             color="error"
-            @click="deleteStaff"
             :loading="isLoading"
+            @click="deleteStaff"
           >
             {{ $t('common.actions.delete') }}
           </VBtn>
@@ -1194,6 +1873,54 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.commission-capabilities {
+  overflow: hidden;
+  border: 1px solid rgba(var(--v-theme-primary), .24);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), .12), rgba(var(--v-theme-surface), .98) 58%) !important;
+  box-shadow: inset 0 1px rgba(var(--v-theme-on-surface), .05);
+}
+
+.commission-capabilities__body {
+  padding: 1.25rem !important;
+}
+
+.commission-capabilities__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block-end: 1rem;
+}
+
+.commission-capabilities__description {
+  max-inline-size: 620px;
+  margin: .2rem 0 0;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: .8rem;
+  line-height: 1.45;
+}
+
+.commission-capabilities__alert {
+  margin-block-end: 1rem;
+}
+
+.commission-capabilities__row {
+  margin: 0 !important;
+  padding: .25rem 0;
+  border-block-start: 1px solid rgba(var(--v-theme-on-surface), .09);
+}
+
+.commission-capabilities__row :deep(.v-col) {
+  padding-block: .65rem;
+}
+
+@media (max-width: 599px) {
+  .commission-capabilities__body { padding: 1rem !important; }
+  .commission-capabilities__header > .v-btn { inline-size: 100%; }
+}
+
 .employee-account-select :deep(.v-field) { background: rgba(var(--v-theme-on-surface), .035); border: 1px solid rgba(var(--v-theme-on-surface), .16); border-radius: 12px; }
 .employee-account-select :deep(.v-field--focused) { border-color: rgb(var(--v-theme-primary)); box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), .12); }
 .account-selection { display: grid; line-height: 1.2; min-width: 0; }

@@ -3,15 +3,15 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import {
+  type AuditChange,
+  type AuditLog,
+  type AuditResource,
+  type AuditState,
   getAuditLog,
   getAuditLogs,
   getAuditResources,
   reviewAuditLog,
   updateAuditResource,
-  type AuditChange,
-  type AuditLog,
-  type AuditResource,
-  type AuditState,
 } from '@/api/auditLog'
 import { formatLocalizedDate, formatLocalizedNumber, translateBackendValue } from '@/utils/localization'
 import { canAccess } from '@/utils/authorization'
@@ -73,6 +73,7 @@ const resourceHeaders = computed(() => [
 
 function localized(key: string, fallbackKey: string): string {
   const value = String(t(key))
+
   return !value || value.startsWith('[missing:') || value === key ? String(t(fallbackKey)) : value
 }
 
@@ -86,8 +87,10 @@ function eventLabel(event: string): string {
 
 function fieldLabel(field: string): string {
   const auditLabel = String(t(`pages.audits.fields.${field}`))
-  if (auditLabel && !auditLabel.startsWith('[missing:') && auditLabel !== `pages.audits.fields.${field}`) return auditLabel
+  if (auditLabel && !auditLabel.startsWith('[missing:') && auditLabel !== `pages.audits.fields.${field}`)
+    return auditLabel
   const commonLabel = String(t(`common.fields.${field}`))
+
   return commonLabel && !commonLabel.startsWith('[missing:') && commonLabel !== `common.fields.${field}`
     ? commonLabel
     : String(t('pages.audits.otherInformation'))
@@ -96,34 +99,49 @@ function fieldLabel(field: string): string {
 function recordLabel(log: AuditLog): string {
   const rawLabel = log.resource_key === 'audit_settings' ? resourceName(log.subject_label) : log.subject_label
   const label = rawLabel.replace(/\b\d{4}-\d{2}-\d{2}\b/g, value => formatLocalizedDate(value, 'short'))
+
   return label ? `${resourceName(log.resource_key)} · ${label}` : resourceName(log.resource_key)
 }
 
 function formatValue(value: unknown, field = ''): string {
-  if (value === null || value === undefined || value === '') return String(t('common.messages.notAvailable'))
-  if (typeof value === 'boolean') return String(t(value ? 'common.messages.yes' : 'common.messages.no'))
-  if (typeof value === 'number') return formatLocalizedNumber(value)
-  if (Array.isArray(value)) return value.map(item => formatValue(item, field)).join(` ${t('pages.audits.valueSeparator')} `)
-  if (typeof value === 'object') return Object.values(value as Record<string, unknown>).map(item => formatValue(item, field)).join(` ${t('pages.audits.valueSeparator')} `)
-  if (/(date|At|Until|Month)$/.test(field) && !Number.isNaN(new Date(String(value)).getTime())) return formatLocalizedDate(String(value), 'long')
+  if (value === null || value === undefined || value === '')
+    return String(t('common.messages.notAvailable'))
+  if (typeof value === 'boolean')
+    return String(t(value ? 'common.messages.yes' : 'common.messages.no'))
+  if (typeof value === 'number')
+    return formatLocalizedNumber(value)
+  if (Array.isArray(value))
+    return value.map(item => formatValue(item, field)).join(` ${t('pages.audits.valueSeparator')} `)
+  if (typeof value === 'object')
+    return Object.values(value as Record<string, unknown>).map(item => formatValue(item, field)).join(` ${t('pages.audits.valueSeparator')} `)
+  if (/(date|At|Until|Month)$/.test(field) && !Number.isNaN(new Date(String(value)).getTime()))
+    return formatLocalizedDate(String(value), 'long')
+
   return translateBackendValue(value)
 }
 
 function shortChanges(log: AuditLog): string {
-  if (log.event === 'created') return String(t('pages.audits.noCreateColumns'))
-  if (!log.changes.length) return String(t('pages.audits.noUserFacingChanges'))
+  if (log.event === 'created')
+    return String(t('pages.audits.noCreateColumns'))
+  if (!log.changes.length)
+    return String(t('pages.audits.noUserFacingChanges'))
   const first = log.changes[0]
   const text = `${fieldLabel(first.field)}: ${formatValue(first.before, first.field)} → ${formatValue(first.after, first.field)}`
+
   return log.changes.length > 1 ? `${text} ${t('pages.audits.moreChanges', { count: log.changes.length - 1 })}` : text
 }
 
 function stateColor(log: AuditLog): string {
-  if (log.audit_state === 'pending') return 'warning'
+  if (log.audit_state === 'pending')
+    return 'warning'
+
   return log.resolution === 'discarded' ? 'error' : 'success'
 }
 
 function stateLabel(log: AuditLog): string {
-  if (log.audit_state === 'pending') return String(t('pages.audits.states.pending'))
+  if (log.audit_state === 'pending')
+    return String(t('pages.audits.states.pending'))
+
   return String(t(`pages.audits.states.${log.resolution}`))
 }
 
@@ -138,11 +156,14 @@ async function loadAudits() {
       resource: resourceFilter.value === 'all' ? undefined : resourceFilter.value,
       search: auditSearch.value || undefined,
     })
+
     logs.value = result.data
     auditTotal.value = result.total
-  } catch (error: any) {
+  }
+  catch (error: any) {
     toast.error(error?.message || t('pages.audits.errors.load'))
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -153,17 +174,21 @@ async function loadResources() {
     const localizedMatch = resourceSearch.value
       ? resourceKeys.find(key => resourceName(key).toLocaleLowerCase().includes(resourceSearch.value.toLocaleLowerCase()))
       : undefined
+
     const result = await getAuditResources({
       page: resourcePage.value,
       per_page: resourcePerPage.value,
       state: resourceState.value === 'all' ? undefined : resourceState.value,
       search: localizedMatch || resourceSearch.value || undefined,
     })
+
     resources.value = result.data
     resourceTotal.value = result.total
-  } catch (error: any) {
+  }
+  catch (error: any) {
     toast.error(error?.message || t('pages.audits.errors.loadResources'))
-  } finally {
+  }
+  finally {
     resourceLoading.value = false
   }
 }
@@ -177,22 +202,27 @@ async function showDetails(log: AuditLog) {
 async function closeDetails() {
   detailsOpen.value = false
   selectedAudit.value = null
+
   const query = { ...route.query }
+
   delete query.audit
   await router.replace({ query })
 }
 
 async function applyDecision() {
-  if (!selectedAudit.value || !confirmDecision.value) return
+  if (!selectedAudit.value || !confirmDecision.value)
+    return
   reviewing.value = true
   try {
     selectedAudit.value = await reviewAuditLog(selectedAudit.value.id, confirmDecision.value)
     toast.success(t(confirmDecision.value === 'approved' ? 'pages.audits.messages.kept' : 'pages.audits.messages.reverted'))
     confirmDecision.value = null
     await loadAudits()
-  } catch (error: any) {
+  }
+  catch (error: any) {
     toast.error(error?.message || t('pages.audits.errors.review'))
-  } finally {
+  }
+  finally {
     reviewing.value = false
   }
 }
@@ -202,29 +232,36 @@ async function toggleResource(item: AuditResource, enabled: boolean) {
   try {
     const updated = await updateAuditResource(item.id, enabled)
     const index = resources.value.findIndex(resource => resource.id === item.id)
-    if (index >= 0) resources.value[index] = updated
+    if (index >= 0)
+      resources.value[index] = updated
     toast.success(t(enabled ? 'pages.audits.messages.enabled' : 'pages.audits.messages.disabled', { resource: resourceName(item.resource_key) }))
-    if (resourceState.value !== 'all') await loadResources()
-  } catch (error: any) {
+    if (resourceState.value !== 'all')
+      await loadResources()
+  }
+  catch (error: any) {
     toast.error(error?.message || t('pages.audits.errors.scope'))
-  } finally {
+  }
+  finally {
     togglingId.value = null
   }
 }
 
 function resetAuditPage() {
-  if (auditPage.value !== 1) auditPage.value = 1
+  if (auditPage.value !== 1)
+    auditPage.value = 1
   else void loadAudits()
 }
 
 function resetResourcePage() {
-  if (resourcePage.value !== 1) resourcePage.value = 1
+  if (resourcePage.value !== 1)
+    resourcePage.value = 1
   else void loadResources()
 }
 
 let auditSearchTimer: ReturnType<typeof setTimeout> | undefined
 watch(auditSearch, () => {
-  if (auditSearchTimer) clearTimeout(auditSearchTimer)
+  if (auditSearchTimer)
+    clearTimeout(auditSearchTimer)
   auditSearchTimer = setTimeout(resetAuditPage, 300)
 })
 watch([auditState, eventFilter, resourceFilter], resetAuditPage)
@@ -232,19 +269,22 @@ watch([auditPage, auditPerPage], loadAudits)
 
 let resourceSearchTimer: ReturnType<typeof setTimeout> | undefined
 watch(resourceSearch, () => {
-  if (resourceSearchTimer) clearTimeout(resourceSearchTimer)
+  if (resourceSearchTimer)
+    clearTimeout(resourceSearchTimer)
   resourceSearchTimer = setTimeout(resetResourcePage, 300)
 })
 watch(resourceState, resetResourcePage)
 watch([resourcePage, resourcePerPage], loadResources)
 watch(section, async value => {
   await router.replace({ query: { ...route.query, section: value === 'records' ? undefined : value } })
-  if (value === 'resources' && !resources.value.length) await loadResources()
+  if (value === 'resources' && !resources.value.length)
+    await loadResources()
 })
 
 onMounted(async () => {
   await loadAudits()
-  if (section.value === 'resources') await loadResources()
+  if (section.value === 'resources')
+    await loadResources()
   const auditId = Number(route.query.audit)
   if (Number.isInteger(auditId) && auditId > 0) {
     try { await showDetails(logs.value.find(log => log.id === auditId) ?? await getAuditLog(auditId)) }
@@ -253,8 +293,10 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (auditSearchTimer) clearTimeout(auditSearchTimer)
-  if (resourceSearchTimer) clearTimeout(resourceSearchTimer)
+  if (auditSearchTimer)
+    clearTimeout(auditSearchTimer)
+  if (resourceSearchTimer)
+    clearTimeout(resourceSearchTimer)
 })
 </script>
 
@@ -262,28 +304,78 @@ onUnmounted(() => {
   <div class="audit-page">
     <div class="d-flex flex-wrap align-center ga-3 mb-5">
       <div>
-        <h1 class="text-h4 mb-1">{{ $t('pages.audits.title') }}</h1>
-        <p class="text-body-2 text-medium-emphasis mb-0">{{ $t('pages.audits.subtitle') }}</p>
+        <h1 class="text-h4 mb-1">
+          {{ $t('pages.audits.title') }}
+        </h1>
+        <p class="text-body-2 text-medium-emphasis mb-0">
+          {{ $t('pages.audits.subtitle') }}
+        </p>
       </div>
     </div>
 
-    <VTabs v-model="section" class="mb-4" color="primary">
-      <VTab value="records" prepend-icon="tabler-list-check">{{ $t('pages.audits.sections.records') }}</VTab>
-      <VTab value="resources" prepend-icon="tabler-adjustments-check">{{ $t('pages.audits.sections.resources') }}</VTab>
+    <VTabs
+      v-model="section"
+      class="mb-4"
+      color="primary"
+    >
+      <VTab
+        value="records"
+        prepend-icon="tabler-list-check"
+      >
+        {{ $t('pages.audits.sections.records') }}
+      </VTab>
+      <VTab
+        value="resources"
+        prepend-icon="tabler-adjustments-check"
+      >
+        {{ $t('pages.audits.sections.resources') }}
+      </VTab>
     </VTabs>
 
     <VWindow v-model="section">
       <VWindowItem value="records">
         <VCard :loading="loading">
           <VCardText class="audit-filters">
-            <VBtnToggle v-model="auditState" mandatory density="compact" color="primary" divided class="audit-filter-toggle">
-              <VBtn value="pending">{{ $t('pages.audits.filters.notAudited') }}</VBtn>
-              <VBtn value="audited">{{ $t('pages.audits.filters.audited') }}</VBtn>
-              <VBtn value="all">{{ $t('pages.audits.filters.all') }}</VBtn>
+            <VBtnToggle
+              v-model="auditState"
+              mandatory
+              density="compact"
+              color="primary"
+              divided
+              class="audit-filter-toggle"
+            >
+              <VBtn value="pending">
+                {{ $t('pages.audits.filters.notAudited') }}
+              </VBtn>
+              <VBtn value="audited">
+                {{ $t('pages.audits.filters.audited') }}
+              </VBtn>
+              <VBtn value="all">
+                {{ $t('pages.audits.filters.all') }}
+              </VBtn>
             </VBtnToggle>
-            <VTextField v-model="auditSearch" :label="$t('pages.audits.filters.search')" prepend-inner-icon="tabler-search" density="compact" hide-details clearable />
-            <VSelect v-model="resourceFilter" :label="$t('pages.audits.filters.resource')" :items="[{ value: 'all', title: $t('pages.audits.filters.allResources') }, ...resourceOptions]" density="compact" hide-details />
-            <VSelect v-model="eventFilter" :label="$t('pages.audits.filters.action')" :items="[{ value: 'all', title: $t('pages.audits.filters.allActions') }, ...eventOptions]" density="compact" hide-details />
+            <VTextField
+              v-model="auditSearch"
+              :label="$t('pages.audits.filters.search')"
+              prepend-inner-icon="tabler-search"
+              density="compact"
+              hide-details
+              clearable
+            />
+            <VSelect
+              v-model="resourceFilter"
+              :label="$t('pages.audits.filters.resource')"
+              :items="[{ value: 'all', title: $t('pages.audits.filters.allResources') }, ...resourceOptions]"
+              density="compact"
+              hide-details
+            />
+            <VSelect
+              v-model="eventFilter"
+              :label="$t('pages.audits.filters.action')"
+              :items="[{ value: 'all', title: $t('pages.audits.filters.allActions') }, ...eventOptions]"
+              density="compact"
+              hide-details
+            />
           </VCardText>
           <VDivider />
 
@@ -296,31 +388,92 @@ onUnmounted(() => {
             :loading="loading"
             item-value="id"
           >
-            <template #item.event="{ item }"><VChip size="small" variant="tonal" color="primary">{{ eventLabel(item.event) }}</VChip></template>
-            <template #item.record="{ item }"><strong class="audit-record">{{ recordLabel(item) }}</strong></template>
-            <template #item.changes="{ item }"><span class="audit-change-summary">{{ shortChanges(item) }}</span></template>
-            <template #item.changed_by="{ item }">{{ item.changed_by?.name ?? $t('pages.audits.system') }}</template>
-            <template #item.created_at="{ item }">{{ formatLocalizedDate(item.created_at, 'long') }}</template>
-            <template #item.audited_by="{ item }">{{ item.audited_by?.name ?? $t('pages.audits.notAuditedYet') }}</template>
-            <template #item.audit_state="{ item }"><VChip size="small" :color="stateColor(item)" variant="tonal">{{ stateLabel(item) }}</VChip></template>
-            <template #item.actions="{ item }">
-              <IconBtn :aria-label="$t('pages.audits.actions.view')" @click="showDetails(item)"><VIcon icon="tabler-eye" /></IconBtn>
+            <template #item.event="{ item }">
+              <VChip
+                size="small"
+                variant="tonal"
+                color="primary"
+              >
+                {{ eventLabel(item.event) }}
+              </VChip>
             </template>
-            <template #no-data><div class="pa-10 text-center text-medium-emphasis">{{ $t('pages.audits.empty.records') }}</div></template>
+            <template #item.record="{ item }">
+              <strong class="audit-record">{{ recordLabel(item) }}</strong>
+            </template>
+            <template #item.changes="{ item }">
+              <span class="audit-change-summary">{{ shortChanges(item) }}</span>
+            </template>
+            <template #item.changed_by="{ item }">
+              {{ item.changed_by?.name ?? $t('pages.audits.system') }}
+            </template>
+            <template #item.created_at="{ item }">
+              {{ formatLocalizedDate(item.created_at, 'long') }}
+            </template>
+            <template #item.audited_by="{ item }">
+              {{ item.audited_by?.name ?? $t('pages.audits.notAuditedYet') }}
+            </template>
+            <template #item.audit_state="{ item }">
+              <VChip
+                size="small"
+                :color="stateColor(item)"
+                variant="tonal"
+              >
+                {{ stateLabel(item) }}
+              </VChip>
+            </template>
+            <template #item.actions="{ item }">
+              <IconBtn
+                :aria-label="$t('pages.audits.actions.view')"
+                @click="showDetails(item)"
+              >
+                <VIcon icon="tabler-eye" />
+              </IconBtn>
+            </template>
+            <template #no-data>
+              <div class="pa-10 text-center text-medium-emphasis">
+                {{ $t('pages.audits.empty.records') }}
+              </div>
+            </template>
           </ResponsiveDataTableServer>
         </VCard>
       </VWindowItem>
 
       <VWindowItem value="resources">
-        <VAlert type="info" variant="tonal" class="mb-4">{{ $t('pages.audits.scopeNotice') }}</VAlert>
+        <VAlert
+          type="info"
+          variant="tonal"
+          class="mb-4"
+        >
+          {{ $t('pages.audits.scopeNotice') }}
+        </VAlert>
         <VCard :loading="resourceLoading">
           <VCardText class="audit-filters audit-resource-filters">
-            <VBtnToggle v-model="resourceState" mandatory density="compact" color="primary" divided class="audit-filter-toggle">
-              <VBtn value="all">{{ $t('pages.audits.filters.all') }}</VBtn>
-              <VBtn value="enabled">{{ $t('pages.audits.filters.enabled') }}</VBtn>
-              <VBtn value="disabled">{{ $t('pages.audits.filters.disabled') }}</VBtn>
+            <VBtnToggle
+              v-model="resourceState"
+              mandatory
+              density="compact"
+              color="primary"
+              divided
+              class="audit-filter-toggle"
+            >
+              <VBtn value="all">
+                {{ $t('pages.audits.filters.all') }}
+              </VBtn>
+              <VBtn value="enabled">
+                {{ $t('pages.audits.filters.enabled') }}
+              </VBtn>
+              <VBtn value="disabled">
+                {{ $t('pages.audits.filters.disabled') }}
+              </VBtn>
             </VBtnToggle>
-            <VTextField v-model="resourceSearch" :label="$t('pages.audits.filters.searchResources')" prepend-inner-icon="tabler-search" density="compact" hide-details clearable />
+            <VTextField
+              v-model="resourceSearch"
+              :label="$t('pages.audits.filters.searchResources')"
+              prepend-inner-icon="tabler-search"
+              density="compact"
+              hide-details
+              clearable
+            />
           </VCardText>
           <VDivider />
 
@@ -333,7 +486,9 @@ onUnmounted(() => {
             :loading="resourceLoading"
             item-value="id"
           >
-            <template #item.resource_key="{ item }"><strong>{{ resourceName(item.resource_key) }}</strong></template>
+            <template #item.resource_key="{ item }">
+              <strong>{{ resourceName(item.resource_key) }}</strong>
+            </template>
             <template #item.enabled="{ item }">
               <VSwitch
                 :model-value="item.enabled"
@@ -345,51 +500,137 @@ onUnmounted(() => {
                 @update:model-value="toggleResource(item, Boolean($event))"
               />
             </template>
-            <template #item.updated_by="{ item }">{{ item.updated_by?.name ?? $t('pages.audits.system') }}</template>
-            <template #item.updated_at="{ item }">{{ item.updated_at ? formatLocalizedDate(item.updated_at, 'long') : $t('common.messages.notAvailable') }}</template>
-            <template #no-data><div class="pa-10 text-center text-medium-emphasis">{{ $t('pages.audits.empty.resources') }}</div></template>
+            <template #item.updated_by="{ item }">
+              {{ item.updated_by?.name ?? $t('pages.audits.system') }}
+            </template>
+            <template #item.updated_at="{ item }">
+              {{ item.updated_at ? formatLocalizedDate(item.updated_at, 'long') : $t('common.messages.notAvailable') }}
+            </template>
+            <template #no-data>
+              <div class="pa-10 text-center text-medium-emphasis">
+                {{ $t('pages.audits.empty.resources') }}
+              </div>
+            </template>
           </ResponsiveDataTableServer>
         </VCard>
       </VWindowItem>
     </VWindow>
 
-    <VDialog :model-value="detailsOpen" max-width="900" @update:model-value="value => { if (!value) closeDetails() }">
+    <VDialog
+      :model-value="detailsOpen"
+      max-width="900"
+      @update:model-value="value => { if (!value) closeDetails() }"
+    >
       <VCard v-if="selectedAudit">
-        <VCardItem :title="recordLabel(selectedAudit)" :subtitle="`${eventLabel(selectedAudit.event)} · ${formatLocalizedDate(selectedAudit.created_at, 'long')}`">
-          <template #append><IconBtn :aria-label="$t('pages.audits.actions.close')" @click="closeDetails"><VIcon icon="tabler-x" /></IconBtn></template>
+        <VCardItem
+          :title="recordLabel(selectedAudit)"
+          :subtitle="`${eventLabel(selectedAudit.event)} · ${formatLocalizedDate(selectedAudit.created_at, 'long')}`"
+        >
+          <template #append>
+            <IconBtn
+              :aria-label="$t('pages.audits.actions.close')"
+              @click="closeDetails"
+            >
+              <VIcon icon="tabler-x" />
+            </IconBtn>
+          </template>
         </VCardItem>
         <VDivider />
         <VCardText>
           <div class="audit-accountability mb-5">
             <div><span>{{ $t('pages.audits.columns.changedBy') }}</span><strong>{{ selectedAudit.changed_by?.name ?? $t('pages.audits.system') }}</strong></div>
             <div><span>{{ $t('pages.audits.columns.auditedBy') }}</span><strong>{{ selectedAudit.audited_by?.name ?? $t('pages.audits.notAuditedYet') }}</strong></div>
-            <div><span>{{ $t('pages.audits.columns.status') }}</span><VChip size="small" :color="stateColor(selectedAudit)" variant="tonal">{{ stateLabel(selectedAudit) }}</VChip></div>
+            <div>
+              <span>{{ $t('pages.audits.columns.status') }}</span><VChip
+                size="small"
+                :color="stateColor(selectedAudit)"
+                variant="tonal"
+              >
+                {{ stateLabel(selectedAudit) }}
+              </VChip>
+            </div>
           </div>
 
-          <VAlert v-if="selectedAudit.event === 'created'" type="success" variant="tonal">{{ $t('pages.audits.createExplanation') }}</VAlert>
-          <VAlert v-else-if="!selectedAudit.changes.length" type="info" variant="tonal">{{ $t('pages.audits.noUserFacingChanges') }}</VAlert>
-          <VTable v-else class="audit-comparison" density="comfortable">
+          <VAlert
+            v-if="selectedAudit.event === 'created'"
+            type="success"
+            variant="tonal"
+          >
+            {{ $t('pages.audits.createExplanation') }}
+          </VAlert>
+          <VAlert
+            v-else-if="!selectedAudit.changes.length"
+            type="info"
+            variant="tonal"
+          >
+            {{ $t('pages.audits.noUserFacingChanges') }}
+          </VAlert>
+          <VTable
+            v-else
+            class="audit-comparison"
+            density="comfortable"
+          >
             <thead><tr><th>{{ $t('pages.audits.columns.field') }}</th><th>{{ $t('pages.audits.columns.before') }}</th><th>{{ $t('pages.audits.columns.after') }}</th></tr></thead>
-            <tbody><tr v-for="change in selectedAudit.changes" :key="change.field"><td><strong>{{ fieldLabel(change.field) }}</strong></td><td class="text-error">{{ formatValue(change.before, change.field) }}</td><td class="text-success">{{ formatValue(change.after, change.field) }}</td></tr></tbody>
+            <tbody>
+              <tr
+                v-for="change in selectedAudit.changes"
+                :key="change.field"
+              >
+                <td><strong>{{ fieldLabel(change.field) }}</strong></td><td class="text-error">
+                  {{ formatValue(change.before, change.field) }}
+                </td><td class="text-success">
+                  {{ formatValue(change.after, change.field) }}
+                </td>
+              </tr>
+            </tbody>
           </VTable>
         </VCardText>
         <template v-if="selectedAudit.audit_state === 'pending' && canReview">
           <VDivider />
           <VCardActions class="justify-end pa-4">
-            <VBtn v-if="selectedAudit.can_revert" color="error" variant="tonal" prepend-icon="tabler-arrow-back-up" @click="confirmDecision = 'discarded'">{{ $t('pages.audits.actions.undo') }}</VBtn>
-            <VBtn color="success" prepend-icon="tabler-check" @click="confirmDecision = 'approved'">{{ $t('pages.audits.actions.keep') }}</VBtn>
+            <VBtn
+              v-if="selectedAudit.can_revert"
+              color="error"
+              variant="tonal"
+              prepend-icon="tabler-arrow-back-up"
+              @click="confirmDecision = 'discarded'"
+            >
+              {{ $t('pages.audits.actions.undo') }}
+            </VBtn>
+            <VBtn
+              color="success"
+              prepend-icon="tabler-check"
+              @click="confirmDecision = 'approved'"
+            >
+              {{ $t('pages.audits.actions.keep') }}
+            </VBtn>
           </VCardActions>
         </template>
       </VCard>
     </VDialog>
 
-    <VDialog :model-value="Boolean(confirmDecision)" max-width="460" @update:model-value="value => { if (!value) confirmDecision = null }">
+    <VDialog
+      :model-value="Boolean(confirmDecision)"
+      max-width="460"
+      @update:model-value="value => { if (!value) confirmDecision = null }"
+    >
       <VCard>
         <VCardItem :title="$t(confirmDecision === 'discarded' ? 'pages.audits.confirm.undoTitle' : 'pages.audits.confirm.keepTitle')" />
         <VCardText>{{ $t(confirmDecision === 'discarded' ? 'pages.audits.confirm.undoText' : 'pages.audits.confirm.keepText') }}</VCardText>
         <VCardActions class="justify-end">
-          <VBtn variant="text" @click="confirmDecision = null">{{ $t('common.actions.cancel') }}</VBtn>
-          <VBtn :color="confirmDecision === 'discarded' ? 'error' : 'success'" :loading="reviewing" @click="applyDecision">{{ $t(confirmDecision === 'discarded' ? 'pages.audits.actions.undo' : 'pages.audits.actions.keep') }}</VBtn>
+          <VBtn
+            variant="text"
+            @click="confirmDecision = null"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            :color="confirmDecision === 'discarded' ? 'error' : 'success'"
+            :loading="reviewing"
+            @click="applyDecision"
+          >
+            {{ $t(confirmDecision === 'discarded' ? 'pages.audits.actions.undo' : 'pages.audits.actions.keep') }}
+          </VBtn>
         </VCardActions>
       </VCard>
     </VDialog>

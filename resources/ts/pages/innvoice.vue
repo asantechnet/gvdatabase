@@ -1,13 +1,13 @@
 <script setup lang="ts">
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { useToast } from 'vue-toastification'
+import InvoiceTemplate from './templates/invoice_template.vue'
 import CustomerApi, { type Customer, type CustomerService } from '@/api/customer'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import InvoiceApi, { type Invoice } from '@/api/invoice'
 import PaymentDetailApi, { type PaymentDetail } from '@/api/paymentDetails'
 import SettingApi, { type Setting } from '@/api/setting'
-import { computed, nextTick, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import { useToast } from 'vue-toastification'
-import InvoiceTemplate from './templates/invoice_template.vue'
 
 const route = useRoute()
 const toast = useToast()
@@ -29,7 +29,7 @@ const activePrintInvoice = ref<Invoice | null>(null)
 const isInvoicePreviewOpen = ref(false)
 const invoiceTemplateRef = ref<InstanceType<typeof InvoiceTemplate> | null>(null)
 
-const invoiceTypes: Invoice['class-type'][] = ['Standard', 'Proforma', 'Credit Note', 'Debit Note']
+const invoiceTypes: Invoice['class-type'][] = ['Standard']
 const invoiceStatuses: Invoice['status'][] = ['Issued', 'Partially Paid', 'Paid', 'Overdue', 'Void']
 
 const defaultForm = () => ({
@@ -87,6 +87,7 @@ const selectedCustomer = computed(() =>
 const invoiceCurrency = computed(() =>
   currencies.value.find(currency => Number(currency.id) === Number(invoiceForm.value.currency_id)) ?? null,
 )
+
 const currentBaseCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? null)
 
 const selectedPaymentDetail = computed(() =>
@@ -118,8 +119,10 @@ const formTotal = computed(() => Math.max(0, formSubtotal.value + formTaxAmount.
 
 const filteredInvoices = computed(() => invoices.value.filter(invoice => {
   const query = searchQuery.value.toLowerCase()
+
   const matchesSearch = invoice.deptor.toLowerCase().includes(query)
     || invoice.invoice_number.toLowerCase().includes(query)
+
   const matchesType = !selectedTypeFilter.value || invoice['class-type'] === selectedTypeFilter.value
   const matchesStatus = !selectedStatusFilter.value || invoice.status === selectedStatusFilter.value
 
@@ -127,11 +130,11 @@ const filteredInvoices = computed(() => invoices.value.filter(invoice => {
 }))
 
 const getStatusColor = (status: Invoice['status']) => ({
-  Issued: 'primary',
+  'Issued': 'primary',
   'Partially Paid': 'warning',
-  Paid: 'success',
-  Overdue: 'error',
-  Void: 'secondary',
+  'Paid': 'success',
+  'Overdue': 'error',
+  'Void': 'secondary',
 }[status])
 
 const formatMoney = (amount: number, currency?: { symbol?: string; shortname?: string; decimalPlaces?: number }) => {
@@ -167,6 +170,7 @@ const selectCustomer = (customerId: number) => {
 
 const selectInvoiceCurrency = (currencyId: number) => {
   const currency = currencies.value.find(item => Number(item.id) === Number(currencyId))
+
   invoiceForm.value.rate = Number(currency?.rate || 1)
 }
 
@@ -292,7 +296,9 @@ const printPreviewedInvoice = () => invoiceTemplateRef.value?.print()
 onMounted(async () => {
   try {
     isLoading.value = true
+
     const [, , profile] = await Promise.all([fetchInvoices(), fetchFormOptions(), SettingApi.getCompanyProfile()])
+
     companySetting.value = profile.data
 
     const customerId = Number(route.query.customer)
@@ -310,21 +316,65 @@ onMounted(async () => {
 
 <template>
   <div class="invoice-management-wrapper">
-    <DataTablePageKpis :items="filteredInvoices" :base-currency="currentBaseCurrency" title="Invoices" description="Keep billing activity visible, from paid invoices to items that need attention." icon="tabler-file-invoice" />
+    <DataTablePageKpis
+      :items="filteredInvoices"
+      :base-currency="currentBaseCurrency"
+      title="Invoices"
+      description="Keep billing activity visible, from paid invoices to items that need attention."
+      icon="tabler-file-invoice"
+    />
     <VCard class="mb-6">
       <VCardText>
         <VRow align="center">
-          <VCol cols="12" md="8">
-            <VTextField v-model="searchQuery" class="data-table-search" prepend-inner-icon="tabler-search"
-              :placeholder="$t('pages.settings.innvoice.innvoice.searchInvoiceNumberOrCustomer')" density="compact" hide-details clearable />
+          <VCol
+            cols="12"
+            md="8"
+          >
+            <VTextField
+              v-model="searchQuery"
+              class="data-table-search"
+              prepend-inner-icon="tabler-search"
+              :placeholder="$t('pages.settings.innvoice.innvoice.searchInvoiceNumberOrCustomer')"
+              density="compact"
+              hide-details
+              clearable
+            />
           </VCol>
-          <VCol cols="12" md="4" class="d-flex justify-end ga-2">
-            <DataTableFilterMenu :active="Boolean(selectedTypeFilter || selectedStatusFilter)" @reset="selectedTypeFilter = null; selectedStatusFilter = null">
-              <VSelect v-model="selectedTypeFilter" :items="invoiceTypes" :label="$t('pages.settings.innvoice.innvoice.invoiceType')" density="compact" hide-details clearable />
-              <VSelect v-model="selectedStatusFilter" :items="invoiceStatuses" :label="$t('common.fields.status')" density="compact" hide-details clearable />
+          <VCol
+            cols="12"
+            md="4"
+            class="d-flex justify-end ga-2"
+          >
+            <DataTableFilterMenu
+              :active="Boolean(selectedTypeFilter || selectedStatusFilter)"
+              @reset="selectedTypeFilter = null; selectedStatusFilter = null"
+            >
+              <VSelect
+                v-model="selectedTypeFilter"
+                :items="invoiceTypes"
+                :label="$t('pages.settings.innvoice.innvoice.invoiceType')"
+                density="compact"
+                hide-details
+                clearable
+              />
+              <VSelect
+                v-model="selectedStatusFilter"
+                :items="invoiceStatuses"
+                :label="$t('common.fields.status')"
+                density="compact"
+                hide-details
+                clearable
+              />
             </DataTableFilterMenu>
-            <VBtn color="primary" block @click="openCreateDialog()">
-              <VIcon icon="tabler-file-invoice" class="me-1" /> {{ $t('common.messages.issueInvoice') }}
+            <VBtn
+              color="primary"
+              block
+              @click="openCreateDialog"
+            >
+              <VIcon
+                icon="tabler-file-invoice"
+                class="me-1"
+              /> {{ $t('common.messages.issueInvoice') }}
             </VBtn>
           </VCol>
         </VRow>
@@ -332,59 +382,147 @@ onMounted(async () => {
     </VCard>
 
     <VCard>
-      <ResponsiveDataTable :headers="headers" :items="filteredInvoices" :loading="isLoading" class="text-no-wrap" show-expand>
+      <ResponsiveDataTable
+        :headers="headers"
+        :items="filteredInvoices"
+        :loading="isLoading"
+        class="text-no-wrap"
+        show-expand
+      >
         <template #[`item.class-type`]="{ item }">
-          <VChip size="small" variant="tonal" color="primary">{{ item['class-type'] }}</VChip>
+          <VChip
+            size="small"
+            variant="tonal"
+            color="primary"
+          >
+            {{ item['class-type'] }}
+          </VChip>
         </template>
-        <template #item.currency.shortname="{ item }">{{ item.currency.shortname }}</template>
-        <template #item.total_amount="{ item }">{{ formatMoney(item.total_amount, item.currency) }}</template>
-        <template #item.paid_amount="{ item }">{{ formatMoney(item.paid_amount, item.currency) }}</template>
-        <template #item.balance="{ item }">{{ formatMoney(item.balance, item.currency) }}</template>
+        <template #item.currency.shortname="{ item }">
+          {{ item.currency.shortname }}
+        </template>
+        <template #item.total_amount="{ item }">
+          {{ formatMoney(item.total_amount, item.currency) }}
+        </template>
+        <template #item.paid_amount="{ item }">
+          {{ formatMoney(item.paid_amount, item.currency) }}
+        </template>
+        <template #item.balance="{ item }">
+          {{ formatMoney(item.balance, item.currency) }}
+        </template>
         <template #expanded-row="{ columns, item }">
           <tr class="invoice-services-row">
-            <td :colspan="columns.length" class="pa-4">
-              <ResponsiveDataTable :headers="invoiceServiceHeaders" :items="item.services" density="compact" hide-default-footer class="invoice-services-table">
-                <template #item.price="{ item: service }">{{ formatMoney(service.price, service.currency) }}</template>
-                <template #item.line_total="{ item: service }">{{ formatMoney(service.line_total, service.currency) }}</template>
-                <template #item.actions="{ item: service }"><FullDetailsButton :item="service" :title="service.name" /></template>
+            <td
+              :colspan="columns.length"
+              class="pa-4"
+            >
+              <ResponsiveDataTable
+                :headers="invoiceServiceHeaders"
+                :items="item.services"
+                density="compact"
+                hide-default-footer
+                class="invoice-services-table"
+              >
+                <template #item.price="{ item: service }">
+                  {{ formatMoney(service.price, service.currency) }}
+                </template>
+                <template #item.line_total="{ item: service }">
+                  {{ formatMoney(service.line_total, service.currency) }}
+                </template>
+                <template #item.actions="{ item: service }">
+                  <FullDetailsButton
+                    :item="service"
+                    :title="service.name"
+                  />
+                </template>
               </ResponsiveDataTable>
             </td>
           </tr>
         </template>
         <template #item.status="{ item }">
-          <VChip size="small" variant="tonal" :color="getStatusColor(item.status)">{{ translateBackendValue(item.status) }}</VChip>
+          <VChip
+            size="small"
+            variant="tonal"
+            :color="getStatusColor(item.status)"
+          >
+            {{ translateBackendValue(item.status) }}
+          </VChip>
         </template>
         <template #item.actions="{ item }">
           <div class="d-flex justify-end gap-1">
-            <FullDetailsButton :item="item" :title="item.invoice_number" />
-            <VBtn icon variant="text" size="small" color="info" @click="triggerPrint(item)">
+            <FullDetailsButton
+              :item="item"
+              :title="item.invoice_number"
+            />
+            <VBtn
+              icon
+              variant="text"
+              size="small"
+              color="info"
+              @click="triggerPrint(item)"
+            >
               <VIcon icon="tabler-printer" />
-              <VTooltip activator="parent">{{ $t('common.actions.print') }}</VTooltip>
+              <VTooltip activator="parent">
+                {{ $t('common.actions.print') }}
+              </VTooltip>
             </VBtn>
-            <VBtn v-if="item.status !== 'Void'" icon variant="text" size="small" color="error"
-              @click="openVoidDialog(item)">
+            <VBtn
+              v-if="item.status !== 'Void'"
+              icon
+              variant="text"
+              size="small"
+              color="error"
+              @click="openVoidDialog(item)"
+            >
               <VIcon icon="tabler-circle-x" />
-              <VTooltip activator="parent">{{ $t('pages.settings.innvoice.innvoice.voidInvoice2') }}</VTooltip>
+              <VTooltip activator="parent">
+                {{ $t('pages.settings.innvoice.innvoice.voidInvoice2') }}
+              </VTooltip>
             </VBtn>
           </div>
         </template>
       </ResponsiveDataTable>
     </VCard>
 
-    <VDialog v-model="isDialogActive" max-width="1080">
+    <VDialog
+      v-model="isDialogActive"
+      max-width="1080"
+    >
       <VCard class="invoice-editor">
         <header class="invoice-editor__header">
           <div class="d-flex align-center ga-3 min-w-0">
-            <VAvatar color="primary" variant="tonal" size="42" rounded="lg"><VIcon icon="tabler-file-invoice" size="22" /></VAvatar>
+            <VAvatar
+              color="primary"
+              variant="tonal"
+              size="42"
+              rounded="lg"
+            >
+              <VIcon
+                icon="tabler-file-invoice"
+                size="22"
+              />
+            </VAvatar>
             <div class="min-w-0">
-              <div class="text-overline text-primary invoice-editor__eyebrow">{{ $t('pages.settings.innvoice.innvoice.newInvoice') }}</div>
-              <h2 class="text-h5 invoice-editor__title">{{ $t('common.messages.issueInvoice') }}</h2>
+              <div class="text-overline text-primary invoice-editor__eyebrow">
+                {{ $t('pages.settings.innvoice.innvoice.newInvoice') }}
+              </div>
+              <h2 class="text-h5 invoice-editor__title">
+                {{ $t('common.messages.issueInvoice') }}
+              </h2>
             </div>
           </div>
-          <IconBtn :aria-label="$t('common.actions.close')" @click="isDialogActive = false"><VIcon icon="tabler-x" /></IconBtn>
+          <IconBtn
+            :aria-label="$t('common.actions.close')"
+            @click="isDialogActive = false"
+          >
+            <VIcon icon="tabler-x" />
+          </IconBtn>
         </header>
 
-        <VForm class="app-form invoice-editor__form" @submit.prevent="createInvoice">
+        <VForm
+          class="app-form invoice-editor__form"
+          @submit.prevent="createInvoice"
+        >
           <div class="invoice-editor__body">
             <section class="invoice-form-section">
               <div class="invoice-form-section__heading">
@@ -392,64 +530,209 @@ onMounted(async () => {
                 <div><h3>{{ $t('pages.settings.innvoice.innvoice.invoiceSetup') }}</h3><p>{{ $t('pages.settings.innvoice.innvoice.invoiceSetupHint') }}</p></div>
               </div>
               <VRow>
-                <VCol cols="12" md="6">
-                  <VAutocomplete :model-value="invoiceForm.customer_id || null" :items="customers" item-title="name" item-value="id"
-                    :label="$t('pages.settings.innvoice.innvoice.customer')" prepend-inner-icon="tabler-user"
-                    :placeholder="$t('pages.settings.innvoice.innvoice.selectCustomer')" clearable @update:model-value="selectCustomer" />
+                <VCol
+                  cols="12"
+                  md="6"
+                >
+                  <VAutocomplete
+                    :model-value="invoiceForm.customer_id || null"
+                    :items="customers"
+                    item-title="name"
+                    item-value="id"
+                    :label="$t('pages.settings.innvoice.innvoice.customer')"
+                    prepend-inner-icon="tabler-user"
+                    :placeholder="$t('pages.settings.innvoice.innvoice.selectCustomer')"
+                    clearable
+                    @update:model-value="selectCustomer"
+                  />
                 </VCol>
-                <VCol cols="12" sm="6" md="3"><VSelect v-model="invoiceForm.class_type" :items="invoiceTypes"
-                  :label="$t('pages.settings.innvoice.innvoice.invoiceType2')" prepend-inner-icon="tabler-file-description" /></VCol>
-                <VCol cols="12" sm="6" md="3"><VSelect v-model="invoiceForm.currency_id"
-                  :items="currencies.filter(currency => currency.isActive)" :item-title="currency => `${currency.code} · ${currency.name}`"
-                  item-value="id" :label="$t('pages.settings.innvoice.innvoice.invoiceCurrency')" prepend-inner-icon="tabler-currency-dollar"
-                  @update:model-value="selectInvoiceCurrency" /></VCol>
-                <VCol cols="12" sm="4"><VTextField v-model.number="invoiceForm.rate" :label="$t('common.fields.exchangeRate')"
-                  prepend-inner-icon="tabler-arrows-exchange" type="number" min="0.00000001" step="any" /></VCol>
-                <VCol cols="12" sm="4"><AppDateTimePicker v-model="invoiceForm.issue_date"
-                  :label="$t('pages.settings.innvoice.innvoice.issueDate')" :config="{ dateFormat: 'Y-m-d' }" /></VCol>
-                <VCol cols="12" sm="4"><AppDateTimePicker v-model="invoiceForm.due_date"
-                  :label="$t('common.messages.dueDate')" :config="{ dateFormat: 'Y-m-d' }" /></VCol>
+                <VCol
+                  cols="12"
+                  sm="6"
+                  md="3"
+                >
+                  <VSelect
+                    v-model="invoiceForm.class_type"
+                    :items="invoiceTypes"
+                    :label="$t('pages.settings.innvoice.innvoice.invoiceType2')"
+                    prepend-inner-icon="tabler-file-description"
+                  />
+                </VCol>
+                <VCol
+                  cols="12"
+                  sm="6"
+                  md="3"
+                >
+                  <VSelect
+                    v-model="invoiceForm.currency_id"
+                    :items="currencies.filter(currency => currency.isActive)"
+                    :item-title="currency => `${currency.code} · ${currency.name}`"
+                    item-value="id"
+                    :label="$t('pages.settings.innvoice.innvoice.invoiceCurrency')"
+                    prepend-inner-icon="tabler-currency-dollar"
+                    @update:model-value="selectInvoiceCurrency"
+                  />
+                </VCol>
+                <VCol
+                  cols="12"
+                  sm="4"
+                >
+                  <VTextField
+                    v-model.number="invoiceForm.rate"
+                    :label="$t('common.fields.exchangeRate')"
+                    prepend-inner-icon="tabler-arrows-exchange"
+                    type="number"
+                    min="0.00000001"
+                    step="any"
+                  />
+                </VCol>
+                <VCol
+                  cols="12"
+                  sm="4"
+                >
+                  <AppDateTimePicker
+                    v-model="invoiceForm.issue_date"
+                    :label="$t('pages.settings.innvoice.innvoice.issueDate')"
+                    :config="{ dateFormat: 'Y-m-d' }"
+                  />
+                </VCol>
+                <VCol
+                  cols="12"
+                  sm="4"
+                >
+                  <AppDateTimePicker
+                    v-model="invoiceForm.due_date"
+                    :label="$t('common.messages.dueDate')"
+                    :config="{ dateFormat: 'Y-m-d' }"
+                  />
+                </VCol>
               </VRow>
 
-              <div v-if="selectedCustomer" class="invoice-customer-summary">
-                <VIcon icon="tabler-building" size="18" color="primary" />
+              <div
+                v-if="selectedCustomer"
+                class="invoice-customer-summary"
+              >
+                <VIcon
+                  icon="tabler-building"
+                  size="18"
+                  color="primary"
+                />
                 <div><strong>{{ selectedCustomer.name }}</strong><span>{{ selectedCustomer.company || selectedCustomer.contact }}</span></div>
-                <VChip size="small" variant="tonal" color="primary">{{ $t('pages.settings.innvoice.innvoice.availableServices', { count: assignedServices.length }) }}</VChip>
+                <VChip
+                  size="small"
+                  variant="tonal"
+                  color="primary"
+                >
+                  {{ $t('pages.settings.innvoice.innvoice.availableServices', { count: assignedServices.length }) }}
+                </VChip>
               </div>
             </section>
 
             <section class="invoice-form-section">
               <div class="invoice-form-section__heading invoice-form-section__heading--split">
-                <div class="d-flex ga-3"><span class="invoice-form-section__number">2</span><div><h3>{{ $t('pages.settings.innvoice.innvoice.serviceSelection') }}</h3><p>{{ $t('pages.settings.innvoice.innvoice.serviceSelectionHint') }}</p></div></div>
-                <VChip v-if="invoiceForm.service_ids.length" size="small" color="success" variant="tonal" prepend-icon="tabler-check">
+                <div class="d-flex ga-3">
+                  <span class="invoice-form-section__number">2</span><div><h3>{{ $t('pages.settings.innvoice.innvoice.serviceSelection') }}</h3><p>{{ $t('pages.settings.innvoice.innvoice.serviceSelectionHint') }}</p></div>
+                </div>
+                <VChip
+                  v-if="invoiceForm.service_ids.length"
+                  size="small"
+                  color="success"
+                  variant="tonal"
+                  prepend-icon="tabler-check"
+                >
                   {{ $t('pages.settings.innvoice.innvoice.servicesSelected', { count: invoiceForm.service_ids.length }) }}
                 </VChip>
               </div>
 
-              <div v-if="!selectedCustomer" class="invoice-empty-state">
-                <VIcon icon="tabler-user-search" size="30" /><strong>{{ $t('pages.settings.innvoice.innvoice.chooseCustomerFirst') }}</strong><span>{{ $t('pages.settings.innvoice.innvoice.chooseCustomerFirstHint') }}</span>
+              <div
+                v-if="!selectedCustomer"
+                class="invoice-empty-state"
+              >
+                <VIcon
+                  icon="tabler-user-search"
+                  size="30"
+                /><strong>{{ $t('pages.settings.innvoice.innvoice.chooseCustomerFirst') }}</strong><span>{{ $t('pages.settings.innvoice.innvoice.chooseCustomerFirstHint') }}</span>
               </div>
-              <VAlert v-else-if="assignedServices.length === 0" type="warning" variant="tonal">
+              <VAlert
+                v-else-if="assignedServices.length === 0"
+                type="warning"
+                variant="tonal"
+              >
                 {{ $t('pages.settings.innvoice.innvoice.thisCustomerHasNoAssignedServicesAssignServicesFromTheCustomersPageFir') }}
               </VAlert>
-              <div v-else class="invoice-service-picker">
-                <ResponsiveDataTable :headers="serviceHeaders" :items="assignedServices" density="comfortable" hide-default-footer>
-                  <template #item.selected="{ item }"><VCheckbox :model-value="invoiceForm.service_ids.includes(item.id)"
-                    hide-details @update:model-value="toggleService(item.id, $event)" /></template>
-                  <template #item.type="{ item }"><div class="font-weight-medium">{{ item.type }}</div><div v-if="item.deadline" class="text-caption text-medium-emphasis">{{ formatLocalizedDate(item.deadline) }}</div></template>
-                  <template #item.fee="{ item }">{{ item.currency.symbol }}{{ Number(item.fee).toFixed(2) }} {{ item.currency.code }}</template>
-                  <template #item.converted="{ item }"><span class="font-weight-bold text-primary">{{ formatMoney(convertServiceFee(item), invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined) }}</span></template>
+              <div
+                v-else
+                class="invoice-service-picker"
+              >
+                <ResponsiveDataTable
+                  :headers="serviceHeaders"
+                  :items="assignedServices"
+                  density="comfortable"
+                  hide-default-footer
+                >
+                  <template #item.selected="{ item }">
+                    <VCheckbox
+                      :model-value="invoiceForm.service_ids.includes(item.id)"
+                      hide-details
+                      @update:model-value="toggleService(item.id, $event)"
+                    />
+                  </template>
+                  <template #item.type="{ item }">
+                    <div class="font-weight-medium">
+                      {{ item.type }}
+                    </div><div
+                      v-if="item.deadline"
+                      class="text-caption text-medium-emphasis"
+                    >
+                      {{ formatLocalizedDate(item.deadline) }}
+                    </div>
+                  </template>
+                  <template #item.fee="{ item }">
+                    {{ item.currency.symbol }}{{ Number(item.fee).toFixed(2) }} {{ item.currency.code }}
+                  </template>
+                  <template #item.converted="{ item }">
+                    <span class="font-weight-bold text-primary">{{ formatMoney(convertServiceFee(item), invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined) }}</span>
+                  </template>
                   <template #item.commission_employee="{ item }">
-                    <div v-if="item.employee" class="d-flex align-center ga-2 py-1">
-                      <VAvatar size="28" color="primary" variant="tonal"><VIcon icon="tabler-user-check" size="16" /></VAvatar>
+                    <div
+                      v-if="item.employee"
+                      class="d-flex align-center ga-2 py-1"
+                    >
+                      <VAvatar
+                        size="28"
+                        color="primary"
+                        variant="tonal"
+                      >
+                        <VIcon
+                          icon="tabler-user-check"
+                          size="16"
+                        />
+                      </VAvatar>
                       <div>
-                        <div class="text-body-2 font-weight-medium">{{ item.employee.name }}</div>
-                        <div class="text-caption text-medium-emphasis">Rate is resolved from this service capability</div>
+                        <div class="text-body-2 font-weight-medium">
+                          {{ item.employee.name }}
+                        </div>
+                        <div class="text-caption text-medium-emphasis">
+                          Rate is resolved from this service capability
+                        </div>
                       </div>
                     </div>
-                    <div v-else class="text-caption text-warning d-flex align-center ga-1"><VIcon icon="tabler-alert-circle" size="16" /> Assign a delivery owner in the customer service first</div>
+                    <div
+                      v-else
+                      class="text-caption text-warning d-flex align-center ga-1"
+                    >
+                      <VIcon
+                        icon="tabler-alert-circle"
+                        size="16"
+                      /> Assign a delivery owner in the customer service first
+                    </div>
                   </template>
-                  <template #item.actions="{ item }"><FullDetailsButton :item="item" :title="item.type" /></template>
+                  <template #item.actions="{ item }">
+                    <FullDetailsButton
+                      :item="item"
+                      :title="item.type"
+                    />
+                  </template>
                 </ResponsiveDataTable>
               </div>
             </section>
@@ -460,21 +743,61 @@ onMounted(async () => {
                 <div><h3>{{ $t('pages.settings.innvoice.innvoice.pricingSummary') }}</h3><p>{{ $t('pages.settings.innvoice.innvoice.pricingSummaryHint') }}</p></div>
               </div>
               <VRow align="stretch">
-                <VCol cols="12" md="6"><VRow>
-                  <VCol cols="12" sm="6"><VTextField v-model.number="invoiceForm.tax_percent" type="number" min="0" max="100"
-                    :label="$t('pages.settings.innvoice.innvoice.tax')" prepend-inner-icon="tabler-percentage" suffix="%" /></VCol>
-                  <VCol cols="12" sm="6"><VTextField v-model.number="invoiceForm.discount" type="number" min="0"
-                    :label="$t('pages.settings.innvoice.innvoice.discount')" prepend-inner-icon="tabler-discount-2" /></VCol>
-                  <VCol cols="12"><VTextarea v-model="invoiceForm.notes" :label="$t('common.fields.notes')"
-                    :placeholder="$t('pages.settings.innvoice.innvoice.notesPlaceholder')" prepend-inner-icon="tabler-notes" rows="2" auto-grow /></VCol>
-                </VRow></VCol>
-                <VCol cols="12" md="6">
+                <VCol
+                  cols="12"
+                  md="6"
+                >
+                  <VRow>
+                    <VCol
+                      cols="12"
+                      sm="6"
+                    >
+                      <VTextField
+                        v-model.number="invoiceForm.tax_percent"
+                        type="number"
+                        min="0"
+                        max="100"
+                        :label="$t('pages.settings.innvoice.innvoice.tax')"
+                        prepend-inner-icon="tabler-percentage"
+                        suffix="%"
+                      />
+                    </VCol>
+                    <VCol
+                      cols="12"
+                      sm="6"
+                    >
+                      <VTextField
+                        v-model.number="invoiceForm.discount"
+                        type="number"
+                        min="0"
+                        :label="$t('pages.settings.innvoice.innvoice.discount')"
+                        prepend-inner-icon="tabler-discount-2"
+                      />
+                    </VCol>
+                    <VCol cols="12">
+                      <VTextarea
+                        v-model="invoiceForm.notes"
+                        :label="$t('common.fields.notes')"
+                        :placeholder="$t('pages.settings.innvoice.innvoice.notesPlaceholder')"
+                        prepend-inner-icon="tabler-notes"
+                        rows="2"
+                        auto-grow
+                      />
+                    </VCol>
+                  </VRow>
+                </VCol>
+                <VCol
+                  cols="12"
+                  md="6"
+                >
                   <div class="invoice-total-card">
                     <div><span>{{ $t('pages.settings.innvoice.innvoice.subtotal') }}</span><strong>{{ formatMoney(formSubtotal, invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined) }}</strong></div>
                     <div><span>{{ $t('pages.settings.innvoice.innvoice.taxAmount') }}</span><strong>{{ formatMoney(formTaxAmount, invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined) }}</strong></div>
                     <div><span>{{ $t('pages.settings.innvoice.innvoice.discount') }}</span><strong>− {{ formatMoney(invoiceForm.discount, invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined) }}</strong></div>
                     <VDivider />
-                    <div class="invoice-total-card__grand"><span>{{ $t('pages.settings.innvoice.innvoice.estimatedTotal') }}</span><strong>{{ formatMoney(formTotal, invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined) }}</strong></div>
+                    <div class="invoice-total-card__grand">
+                      <span>{{ $t('pages.settings.innvoice.innvoice.estimatedTotal') }}</span><strong>{{ formatMoney(formTotal, invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined) }}</strong>
+                    </div>
                   </div>
                 </VCol>
               </VRow>
@@ -486,7 +809,10 @@ onMounted(async () => {
                 <div><h3>{{ $t('pages.settings.innvoice.innvoice.paymentDetails') }}</h3><p>{{ $t('pages.settings.innvoice.innvoice.paymentDetailsHint') }}</p></div>
               </div>
               <VRow align="stretch">
-                <VCol cols="12" md="5">
+                <VCol
+                  cols="12"
+                  md="5"
+                >
                   <VSelect
                     v-model="invoiceForm.payment_detail_id"
                     :items="paymentDetails"
@@ -498,10 +824,19 @@ onMounted(async () => {
                     :no-data-text="$t('pages.paymentDetails.empty')"
                   />
                 </VCol>
-                <VCol cols="12" md="7">
-                  <div class="payment-profile-preview" :class="{ 'payment-profile-preview--empty': !selectedPaymentDetail }">
+                <VCol
+                  cols="12"
+                  md="7"
+                >
+                  <div
+                    class="payment-profile-preview"
+                    :class="{ 'payment-profile-preview--empty': !selectedPaymentDetail }"
+                  >
                     <div class="payment-profile-preview__icon">
-                      <VIcon :icon="selectedPaymentDetail ? 'tabler-receipt-2' : 'tabler-info-circle'" size="22" />
+                      <VIcon
+                        :icon="selectedPaymentDetail ? 'tabler-receipt-2' : 'tabler-info-circle'"
+                        size="22"
+                      />
                     </div>
                     <div>
                       <span class="payment-profile-preview__label">{{ $t('pages.paymentDetails.instruction') }}</span>
@@ -514,49 +849,126 @@ onMounted(async () => {
           </div>
 
           <footer class="invoice-editor__footer">
-            <div class="invoice-editor__footer-total"><span>{{ $t('pages.settings.innvoice.innvoice.totalDue') }}</span><strong>{{ formatMoney(formTotal, invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined) }}</strong></div>
+            <div class="invoice-editor__footer-total">
+              <span>{{ $t('pages.settings.innvoice.innvoice.totalDue') }}</span><strong>{{ formatMoney(formTotal, invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined) }}</strong>
+            </div>
             <div class="d-flex ga-3 invoice-editor__footer-actions">
-              <VBtn variant="tonal" color="secondary" @click="isDialogActive = false">{{ $t('common.actions.cancel') }}</VBtn>
-              <VBtn color="primary" type="submit" prepend-icon="tabler-file-check" :loading="isLoading"
-                :disabled="!invoiceForm.customer_id || !invoiceForm.currency_id || invoiceForm.service_ids.length === 0">{{ $t('common.messages.issueInvoice') }}</VBtn>
+              <VBtn
+                variant="tonal"
+                color="secondary"
+                @click="isDialogActive = false"
+              >
+                {{ $t('common.actions.cancel') }}
+              </VBtn>
+              <VBtn
+                color="primary"
+                type="submit"
+                prepend-icon="tabler-file-check"
+                :loading="isLoading"
+                :disabled="!invoiceForm.customer_id || !invoiceForm.currency_id || invoiceForm.service_ids.length === 0"
+              >
+                {{ $t('common.messages.issueInvoice') }}
+              </VBtn>
             </div>
           </footer>
         </VForm>
       </VCard>
     </VDialog>
 
-    <VDialog v-model="voidDialog" max-width="520">
+    <VDialog
+      v-model="voidDialog"
+      max-width="520"
+    >
       <VCard :title="$t('pages.settings.innvoice.innvoice.voidInvoice')">
         <VCardText>
-          <VAlert type="warning" variant="tonal" class="mb-4">
+          <VAlert
+            type="warning"
+            variant="tonal"
+            class="mb-4"
+          >
             {{ $t('pages.settings.innvoice.innvoice.theInvoiceRemainsPermanentlyRecordedAndWillBeMarkedVoid') }}
           </VAlert>
-          <VTextarea v-model="voidReason" :label="$t('common.fields.reason')" rows="3" autofocus />
+          <VTextarea
+            v-model="voidReason"
+            :label="$t('common.fields.reason')"
+            rows="3"
+            autofocus
+          />
         </VCardText>
         <VCardActions class="justify-end pa-6 pt-0">
-          <VBtn variant="tonal" @click="voidDialog = false">{{ $t('common.actions.cancel') }}</VBtn>
-          <VBtn color="error" :disabled="!voidReason.trim()" :loading="isLoading" @click="voidInvoice">{{ $t('pages.settings.innvoice.innvoice.void') }}</VBtn>
+          <VBtn
+            variant="tonal"
+            @click="voidDialog = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="error"
+            :disabled="!voidReason.trim()"
+            :loading="isLoading"
+            @click="voidInvoice"
+          >
+            {{ $t('pages.settings.innvoice.innvoice.void') }}
+          </VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
-    <VDialog v-model="isInvoicePreviewOpen" width="80vw" max-width="1280" content-class="document-preview-modal">
-      <VCard flat class="document-preview-dialog">
-        <VCardTitle class="document-preview-dialog__header" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'">
+    <VDialog
+      v-model="isInvoicePreviewOpen"
+      width="80vw"
+      max-width="1280"
+      content-class="document-preview-modal"
+    >
+      <VCard
+        flat
+        class="document-preview-dialog"
+      >
+        <VCardTitle
+          class="document-preview-dialog__header"
+          :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
+        >
           <div class="document-preview-dialog__heading">
-            <VAvatar color="primary" variant="tonal" size="38"><VIcon icon="tabler-file-invoice" /></VAvatar>
+            <VAvatar
+              color="primary"
+              variant="tonal"
+              size="38"
+            >
+              <VIcon icon="tabler-file-invoice" />
+            </VAvatar>
             <div>
-              <div class="text-h6 font-weight-bold">{{ $t('documents.invoice_template.invoiceTemplate.invoice') }}</div>
-              <div class="text-caption text-medium-emphasis">{{ activePrintInvoice?.invoice_number }}</div>
+              <div class="text-h6 font-weight-bold">
+                {{ $t('documents.invoice_template.invoiceTemplate.invoice') }}
+              </div>
+              <div class="text-caption text-medium-emphasis">
+                {{ activePrintInvoice?.invoice_number }}
+              </div>
             </div>
           </div>
           <div class="document-preview-dialog__actions">
-            <VBtn variant="tonal" color="secondary" @click="isInvoicePreviewOpen = false">{{ $t('common.actions.cancel') }}</VBtn>
-            <VBtn color="primary" variant="flat" prepend-icon="tabler-printer" @click="printPreviewedInvoice">{{ $t('common.actions.print') }}</VBtn>
+            <VBtn
+              variant="tonal"
+              color="secondary"
+              @click="isInvoicePreviewOpen = false"
+            >
+              {{ $t('common.actions.cancel') }}
+            </VBtn>
+            <VBtn
+              color="primary"
+              variant="flat"
+              prepend-icon="tabler-printer"
+              @click="printPreviewedInvoice"
+            >
+              {{ $t('common.actions.print') }}
+            </VBtn>
           </div>
         </VCardTitle>
         <VCardText class="document-preview-dialog__body">
-          <InvoiceTemplate v-if="activePrintInvoice" ref="invoiceTemplateRef" v-bind="formatInvoiceForTemplate(activePrintInvoice)" />
+          <InvoiceTemplate
+            v-if="activePrintInvoice"
+            ref="invoiceTemplateRef"
+            v-bind="formatInvoiceForTemplate(activePrintInvoice)"
+          />
         </VCardText>
       </VCard>
     </VDialog>

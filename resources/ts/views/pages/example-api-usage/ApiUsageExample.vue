@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useAppApi } from '@/composables/useAppApi'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAppApi } from '@/composables/useAppApi'
 
 const { auth, employees, dashboard, files } = useAppApi()
 const router = useRouter()
@@ -17,19 +17,22 @@ const fetchData = async () => {
   try {
     loading.value = true
     error.value = null
-    
+
     // Fetch dashboard stats
     const statsResponse = await dashboard.getStats()
+
     stats.value = statsResponse.data.data
-    
+
     // Fetch employees
     const employeesResponse = await employees.getAll({ page: 1, perPage: 5 })
+
     users.value = employeesResponse.data.data.data
-    
-  } catch (err) {
+  }
+  catch (err) {
     console.error('Error fetching data:', err)
     error.value = 'Failed to fetch data. Please try again.'
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -38,18 +41,18 @@ const handleLogin = async () => {
   try {
     const response = await auth.login({
       email: 'admin@example.com',
-      password: 'password123'
+      password: 'password123',
     })
-    
+
     // Store tokens (handled automatically by interceptors)
     localStorage.setItem('access_token', response.data.data.access_token)
     localStorage.setItem('refresh_token', response.data.data.refresh_token)
-    
+
     // Redirect or update state
     await router.push('/dashboard')
     await fetchData()
-    
-  } catch (err) {
+  }
+  catch (err) {
     console.error('Login failed:', err)
     error.value = 'Login failed. Please check your credentials.'
   }
@@ -60,7 +63,8 @@ const handleLogout = async () => {
     await auth.logout()
     localStorage.clear()
     await router.push('/login')
-  } catch (err) {
+  }
+  catch (err) {
     console.error('Logout failed:', err)
   }
 }
@@ -70,11 +74,13 @@ const handleFileUpload = async (event: Event) => {
   if (input.files && input.files[0]) {
     try {
       const response = await files.upload(input.files[0], {
-        description: 'Uploaded via API example'
+        description: 'Uploaded via API example',
       })
+
       console.log('File uploaded:', response.data)
       alert('File uploaded successfully!')
-    } catch (err) {
+    }
+    catch (err) {
       console.error('Upload failed:', err)
       error.value = 'File upload failed.'
     }
@@ -90,29 +96,44 @@ onMounted(() => {
 <template>
   <div class="api-example">
     <h1>API Usage Example</h1>
-    
-    <div v-if="loading" class="loading">
+
+    <div
+      v-if="loading"
+      class="loading"
+    >
       Loading...
     </div>
-    
-    <div v-if="error" class="error">
+
+    <div
+      v-if="error"
+      class="error"
+    >
       {{ error }}
     </div>
-    
-    <div v-if="stats" class="stats">
+
+    <div
+      v-if="stats"
+      class="stats"
+    >
       <h2>Dashboard Stats</h2>
       <pre>{{ stats }}</pre>
     </div>
-    
-    <div v-if="users.length" class="users">
+
+    <div
+      v-if="users.length"
+      class="users"
+    >
       <h2>Employees (First 5)</h2>
       <ul>
-        <li v-for="user in users" :key="user.id">
+        <li
+          v-for="user in users"
+          :key="user.id"
+        >
           {{ user.name }} ({{ user.email }})
         </li>
       </ul>
     </div>
-    
+
     <div class="actions">
       <h2>Actions</h2>
       <button @click="handleLogin">
@@ -121,7 +142,10 @@ onMounted(() => {
       <button @click="handleLogout">
         Logout
       </button>
-      <input type="file" @change="handleFileUpload" />
+      <input
+        type="file"
+        @change="handleFileUpload"
+      >
     </div>
   </div>
 </template>

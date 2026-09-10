@@ -6,12 +6,14 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Service extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory, SoftDeletes;
 
     const STATUS_ACTIVE = 'active';
+
     const STATUS_INACTIVE = 'inactive';
 
     protected $fillable = [
@@ -81,5 +83,4 @@ class Service extends Model
             ])
             ->withTimestamps();
     }
-
 }

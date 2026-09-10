@@ -72,12 +72,12 @@ class CompanyProfile
     }
 
     /**
-     * This is the single feature gate for location/workday automation and
-     * derived in/out-time calculations. A missing profile preserves the
-     * application's legacy enabled behaviour during first-time setup.
+     * Feature gate for self-service workday/location automation and automatic
+     * creation of missing attendance rows. Manual entries are still calculated
+     * and summarized. A missing profile must not start background tracking.
      */
     public function automaticAttendanceEnabled(): bool
     {
-        return $this->current()?->automatic_attendance_enabled ?? true;
+        return $this->current()?->automatic_attendance_enabled ?? false;
     }
 }

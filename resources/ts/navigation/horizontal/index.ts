@@ -1,4 +1,3 @@
-import type { HorizontalNavItems } from '@layouts/types'
 import contracts from './contracts'
 import crm from './crm'
 import finance from './finance'
@@ -8,6 +7,7 @@ import innvoice from './innvoice'
 import settings from './settings'
 import setup from './setup'
 import tasks from './tasks'
+import type { HorizontalNavItems } from '@layouts/types'
 
 export default [
   ...home,

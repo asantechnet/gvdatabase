@@ -17,6 +17,7 @@ use App\Models\PaidTimeOff;
 use App\Models\Project;
 use App\Models\RecurringEvent;
 use App\Models\Role;
+use App\Models\Salary;
 use App\Models\Service;
 use App\Models\Task;
 use App\Models\User;
@@ -34,11 +35,11 @@ class BusinessLogicConsistencyTest extends TestCase
         $attendance = Attendance::create([
             'employee_id' => Employee::factory()->create()->id,
             'date' => '2026-08-31',
-            'status' => 'unpaid-off-day',
+            'status' => 'unpaid-leave',
             'logged_at' => '00:00:00',
         ]);
 
-        $this->assertSame('unpaid-off-day', $attendance->fresh()->status);
+        $this->assertSame('unpaid-leave', $attendance->fresh()->status);
     }
 
     public function test_commission_uses_the_recorded_base_amount(): void
@@ -193,7 +194,7 @@ class BusinessLogicConsistencyTest extends TestCase
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $customer = Customer::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
-        CustomerService::create([
+        $customerService = CustomerService::create([
             'customer_id' => $customer->id,
             'service_id' => $service->id,
             'deadline' => today()->addMonth()->toDateString(),
@@ -203,7 +204,7 @@ class BusinessLogicConsistencyTest extends TestCase
             'customer_id' => $customer->id,
             'currency_id' => $currency->id,
             'class_type' => 'Standard',
-            'services' => [['id' => $service->id, 'quantity' => 1]],
+            'services' => [['customer_service_id' => $customerService->id, 'quantity' => 1]],
             'tax_percent' => 0,
             'discount' => 101,
         ])->assertUnprocessable()
@@ -241,6 +242,117 @@ class BusinessLogicConsistencyTest extends TestCase
 
         $this->assertSame('Issued', $invoice->fresh()->status);
         $this->assertNull($invoice->fresh()->voided_at);
+    }
+
+    public function test_reading_a_legacy_invoice_does_not_mutate_its_document_number(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $invoice = Invoice::factory()->create();
+        Invoice::withoutEvents(fn () => $invoice->forceFill(['invoice_number' => null])->saveQuietly());
+
+        $this->getJson("/api/invoices/{$invoice->id}")->assertOk();
+
+        $this->assertNull($invoice->fresh()->invoice_number);
+    }
+
+    public function test_an_inactive_customer_service_cannot_be_added_to_a_new_invoice(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
+        $customer = Customer::factory()->create();
+        $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
+        $assignment = CustomerService::create([
+            'customer_id' => $customer->id,
+            'service_id' => $service->id,
+            'status' => 'inactive',
+        ]);
+
+        $this->postJson('/api/invoices', [
+            'customer_id' => $customer->id,
+            'currency_id' => $currency->id,
+            'class_type' => 'Standard',
+            'services' => [['customer_service_id' => $assignment->id, 'quantity' => 1]],
+            'tax_percent' => 0,
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.services.0', 'business.invoice_service_not_assigned');
+
+        $this->assertDatabaseCount('invoices', 0);
+    }
+
+    public function test_invoice_payments_must_match_currency_and_cannot_predate_issue(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $base = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
+        $other = Currency::factory()->create(['is_base' => false, 'rate' => 2]);
+        $invoice = Invoice::factory()->create([
+            'currency_id' => $base->id,
+            'base_currency_id' => $base->id,
+            'issue_date' => '2026-08-10',
+            'due_date' => '2026-09-10',
+        ]);
+        $payload = [
+            'invoice_id' => $invoice->id,
+            'type' => 'Service',
+            'description' => 'Deposit',
+            'amount' => 10,
+            'quantity' => 1,
+            'currency_id' => $other->id,
+            'date' => '2026-08-10',
+        ];
+
+        $this->postJson('/api/incomes', $payload)->assertUnprocessable()
+            ->assertJsonPath('errors.currency_id.0', 'business.invoice_payment_currency_mismatch');
+
+        $payload['currency_id'] = $base->id;
+        $payload['date'] = '2026-08-09';
+        $this->postJson('/api/incomes', $payload)->assertUnprocessable()
+            ->assertJsonPath('errors.date.0', 'business.invoice_payment_before_issue');
+
+        $this->assertDatabaseCount('incomes', 0);
+    }
+
+    public function test_payroll_rejects_over_deduction_and_recreation_of_a_deleted_period(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
+        $employee = Employee::factory()->create();
+        $payload = [
+            'employee_id' => $employee->id,
+            'currency_id' => $currency->id,
+            'salaryMonth' => '2026-08',
+            'amountPaid' => 100,
+            'date' => '2026-08-31',
+            'deductions' => [['description' => 'Invalid deduction', 'amount' => 101]],
+        ];
+
+        $this->postJson('/api/salaries', $payload)->assertUnprocessable()
+            ->assertJsonPath('errors.deductions.0', 'business.deductions_exceed_payable');
+
+        $salary = Salary::factory()->create([
+            'employee_id' => $employee->id,
+            'currency_id' => $currency->id,
+            'salary_month' => '2026-08',
+        ]);
+        $salary->delete();
+        $payload['deductions'] = [];
+
+        $this->postJson('/api/salaries', $payload)->assertUnprocessable()
+            ->assertJsonValidationErrors('salary_month');
+    }
+
+    public function test_leave_cannot_be_recorded_on_the_weekly_day_off(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $employee = Employee::factory()->create(['join_date' => '2026-09-01']);
+
+        $this->postJson("/api/employees/{$employee->id}/leaves", [
+            'date' => '2026-09-11',
+            'duration_days' => 1,
+            'reason' => 'Invalid Friday leave',
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.date.0', 'business.leave_date_is_weekly_day_off');
+
+        $this->assertDatabaseCount('leaves', 0);
     }
 
     public function test_granting_leave_does_not_overwrite_worked_attendance(): void
@@ -292,7 +404,7 @@ class BusinessLogicConsistencyTest extends TestCase
             'name' => 'Original name',
             'type' => $type->name,
             'content' => '<p>Signed snapshot text</p>',
-            'status' => 'active',
+            'status' => 'draft',
             'start_date' => '2026-01-01',
             'counterparty' => $customer->name,
         ]);

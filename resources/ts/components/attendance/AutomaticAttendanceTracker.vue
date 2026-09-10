@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { useToast } from 'vue-toastification'
 import AttendanceGeofenceApi from '@/api/attendanceGeofence'
 import { canAccess } from '@/utils/authorization'
 import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
-import { useToast } from 'vue-toastification'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -15,12 +15,14 @@ let geofenceUnavailableReported = false
 let isInitialLocationCheck = true
 
 function stop() {
-  if (pollTimer !== undefined) window.clearInterval(pollTimer)
+  if (pollTimer !== undefined)
+    window.clearInterval(pollTimer)
   pollTimer = undefined
 }
 
 async function processPosition(position: GeolocationPosition) {
-  if (requestInFlight || document.visibilityState !== 'visible') return
+  if (requestInFlight || document.visibilityState !== 'visible')
+    return
   requestInFlight = true
   try {
     const result = await AttendanceGeofenceApi.observe(position)
@@ -36,14 +38,15 @@ async function processPosition(position: GeolocationPosition) {
       inaccurateReported = true
       toast.warning(t('components.account.geofence.inaccurate', { accuracy: result.accuracy_meters }))
     }
-    else if (result.action !== 'inaccurate') inaccurateReported = false
+    else if (result.action !== 'inaccurate') { inaccurateReported = false }
   }
   catch { /* The shared API notifier handles server failures. */ }
   finally { requestInFlight = false }
 }
 
 function locate() {
-  if (requestInFlight || document.visibilityState !== 'visible') return
+  if (requestInFlight || document.visibilityState !== 'visible')
+    return
   navigator.geolocation.getCurrentPosition(position => {
     locationErrorReported = false
     isInitialLocationCheck = false
@@ -61,8 +64,10 @@ function locate() {
 }
 
 async function start() {
-  if (!await loadAutomaticAttendance() || !enabled.value) return
-  if (!canAccess('manage_own_workday') || !navigator.geolocation) return
+  if (!await loadAutomaticAttendance() || !enabled.value)
+    return
+  if (!canAccess('manage_own_workday') || !navigator.geolocation)
+    return
   try {
     const configuration = await AttendanceGeofenceApi.configuration()
     if (!configuration.eligible) {
@@ -70,6 +75,7 @@ async function start() {
         geofenceUnavailableReported = true
         toast.warning(t('backend.errors.office_geofence_unavailable'))
       }
+
       return
     }
     locate()
@@ -79,7 +85,8 @@ async function start() {
 }
 
 function onVisibilityChange() {
-  if (document.visibilityState === 'visible') locate()
+  if (document.visibilityState === 'visible')
+    locate()
 }
 
 onMounted(() => {
@@ -92,4 +99,9 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<template><span class="d-none" aria-hidden="true" /></template>
+<template>
+  <span
+    class="d-none"
+    aria-hidden="true"
+  />
+</template>

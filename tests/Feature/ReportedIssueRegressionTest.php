@@ -4,19 +4,23 @@ namespace Tests\Feature;
 
 use App\Models\Attendance;
 use App\Models\Board;
+use App\Models\Contract;
+use App\Models\ContractTemplate;
+use App\Models\ContractType;
 use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Notification;
+use App\Models\Position;
 use App\Models\Setting;
 use App\Models\Subtask;
 use App\Models\Task;
-use Database\Seeders\SubtaskSeeder;
 use App\Models\User;
+use Database\Seeders\SubtaskSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ReportedIssueRegressionTest extends TestCase
@@ -56,13 +60,13 @@ class ReportedIssueRegressionTest extends TestCase
 
     public function test_switching_base_currency_clears_the_previous_base_immediately(): void
     {
-        $oldBase = Currency::factory()->create(['code' => 'USD', 'is_base' => true, 'rate_against_base' => 1]);
-        $newBase = Currency::factory()->create(['code' => 'AFN', 'is_base' => false, 'rate_against_base' => 70]);
+        $oldBase = Currency::factory()->create(['code' => 'USD', 'is_base' => true, 'rate' => 1]);
+        $newBase = Currency::factory()->create(['code' => 'AFN', 'is_base' => false, 'rate' => 70]);
 
         $this->putJson("/api/currencies/{$newBase->id}", ['is_base' => true])
             ->assertOk()
             ->assertJsonPath('data.isBase', true)
-            ->assertJsonPath('data.rateToBase', 1);
+            ->assertJsonPath('data.rate', 1);
 
         $this->assertFalse($oldBase->fresh()->is_base);
         $this->assertTrue($newBase->fresh()->is_base);
@@ -168,9 +172,10 @@ class ReportedIssueRegressionTest extends TestCase
 
     public function test_contract_template_create_update_and_delete_stay_consistent(): void
     {
+        $customerTypeId = ContractType::query()->where('slug', 'customer')->value('id');
         $template = $this->postJson('/api/contract-templates', [
             'name' => 'Standard Service Agreement',
-            'type' => 'Service',
+            'contract_type_id' => $customerTypeId,
             'cover_text' => 'Cover',
             'content' => '<p>Terms</p>',
         ])->assertCreated()
@@ -190,11 +195,11 @@ class ReportedIssueRegressionTest extends TestCase
 
     public function test_contract_response_keeps_template_name_and_cover_description_distinct(): void
     {
-        $template = \App\Models\ContractTemplate::factory()->create([
+        $template = ContractTemplate::factory()->create([
             'name' => 'Employment Agreement',
             'cover_text' => 'A confidential employment arrangement.',
         ]);
-        $contract = \App\Models\Contract::create([
+        $contract = Contract::create([
             'template_id' => $template->id,
             'status' => 'Active',
             'start_date' => '2026-08-13',
@@ -210,10 +215,18 @@ class ReportedIssueRegressionTest extends TestCase
 
     public function test_contracts_can_be_split_by_customer_and_employee_template_type(): void
     {
-        $customerTemplate = \App\Models\ContractTemplate::factory()->create(['type' => 'Service']);
-        $employeeTemplate = \App\Models\ContractTemplate::factory()->create(['type' => 'Employment']);
-        $customerContract = \App\Models\Contract::factory()->create(['template_id' => $customerTemplate->id]);
-        $employeeContract = \App\Models\Contract::factory()->create(['template_id' => $employeeTemplate->id]);
+        $customerType = ContractType::query()->where('slug', 'customer')->firstOrFail();
+        $employmentType = ContractType::query()->where('slug', 'employment')->firstOrFail();
+        $position = Position::factory()->create();
+        $customerTemplate = ContractTemplate::factory()->create([
+            'contract_type_id' => $customerType->id, 'type' => $customerType->name,
+        ]);
+        $employeeTemplate = ContractTemplate::factory()->create([
+            'contract_type_id' => $employmentType->id, 'type' => $employmentType->name,
+            'position_id' => $position->id,
+        ]);
+        $customerContract = Contract::factory()->create(['template_id' => $customerTemplate->id]);
+        $employeeContract = Contract::factory()->create(['template_id' => $employeeTemplate->id]);
 
         $this->getJson('/api/contracts?audience=customers')
             ->assertOk()
@@ -230,28 +243,31 @@ class ReportedIssueRegressionTest extends TestCase
     {
         Setting::create([
             'navigation_clr' => '#ffffff', 'cards_clr' => '#ffffff', 'footer_clr' => '#ffffff',
-            'paid_off_days_per_year' => 10, 'website_title' => 'Test', 'website_address' => 'https://example.test',
+            'paid_leave_days_per_year' => 10, 'website_title' => 'Test', 'website_address' => 'https://example.test',
             'phone' => '123', 'physical_address' => 'Test address', 'short_company_name' => 'Test',
             'original_company_name' => 'Test Company',
         ]);
         $employee = Employee::factory()->create();
 
         $leaveId = $this->postJson("/api/employees/{$employee->id}/paid-time-offs", [
-            'date' => '2026-08-20', 'reason' => 'Annual leave',
+            'date' => '2026-08-20', 'duration_days' => 1, 'reason' => 'Annual leave',
         ])->assertCreated()->json('data.id');
 
-        $this->assertDatabaseHas('attendances', [
-            'employee_id' => $employee->id, 'date' => '2026-08-20', 'status' => 'paid-off-day', 'deleted_at' => null,
+        $this->assertDatabaseMissing('attendances', [
+            'employee_id' => $employee->id, 'date' => '2026-08-20',
         ]);
 
         $this->putJson("/api/employees/{$employee->id}/paid-time-offs/{$leaveId}", [
-            'date' => '2026-08-21', 'reason' => 'Changed day',
+            'date' => '2026-08-22', 'duration_days' => 1, 'reason' => 'Changed day',
         ])->assertOk();
-        $this->assertSoftDeleted('attendances', ['employee_id' => $employee->id, 'date' => '2026-08-20']);
-        $this->assertDatabaseHas('attendances', ['employee_id' => $employee->id, 'date' => '2026-08-21', 'status' => 'paid-off-day']);
+
+        $this->patchJson('/api/paid-time-offs/grant', ['ids' => [$leaveId]])->assertOk();
+        $this->assertDatabaseHas('attendances', [
+            'employee_id' => $employee->id, 'date' => '2026-08-22', 'status' => 'paid-leave',
+        ]);
 
         $this->deleteJson("/api/employees/{$employee->id}/paid-time-offs/{$leaveId}")->assertOk();
-        $this->assertSoftDeleted('attendances', ['employee_id' => $employee->id, 'date' => '2026-08-21']);
+        $this->assertSoftDeleted('attendances', ['employee_id' => $employee->id, 'date' => '2026-08-22']);
     }
 
     public function test_admin_invitation_verifies_email_then_requires_user_created_password(): void

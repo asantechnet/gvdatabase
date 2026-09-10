@@ -13,7 +13,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -50,7 +49,7 @@ class EmployeeController extends Controller
     public function accountOptions(): AnonymousResourceCollection
     {
         return UserResource::collection(
-            User::query()->with(['employee:id,user_id,name', 'marketer:id,user_id,name'])->orderBy('name')->get(),
+            User::query()->where('acc_status', 'active')->with(['employee:id,user_id,name', 'marketer:id,user_id,name'])->orderBy('name')->get(),
         );
     }
 
@@ -68,10 +67,10 @@ class EmployeeController extends Controller
             'guarantor_address' => ['nullable', 'string', 'max:2000'],
             'guarantor_licence' => ['nullable', 'string', 'max:255'],
             'create_user' => 'sometimes|boolean',
-            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at'), Rule::unique('employees', 'user_id')->whereNull('deleted_at')],
+            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')->where('acc_status', 'active'), Rule::unique('employees', 'user_id')->whereNull('deleted_at')],
             'email' => ['nullable', 'email', 'max:255', Rule::requiredIf($request->boolean('create_user') && ! $request->filled('user_id')), Rule::unique('users', 'email')->ignore($request->input('user_id'))],
             'education_lvl' => 'required|string|max:255',
-            'position_id' => 'required|max:255',
+            'position_id' => ['required', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')->where('status', 'active')],
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
             'employment_type' => ['required', Rule::in(['salaried', 'commission'])],
             'salary' => ['required', 'numeric', 'min:0'],
@@ -100,6 +99,8 @@ class EmployeeController extends Controller
                     'phone' => $employee->contact,
                     'address' => $employee->addr,
                     'acc_status' => 'active',
+                    'must_set_password' => true,
+                    'roles' => ['staff'],
                 ]);
                 $employee->update(['user_id' => $user->id]);
                 $createdUser = true;
@@ -110,7 +111,6 @@ class EmployeeController extends Controller
 
         if ($createdUser && $Employee->user) {
             $Employee->user->sendEmailVerificationNotification();
-            Password::sendResetLink(['email' => $Employee->user->email]);
         }
 
         return new EmployeeResource($Employee->load(['position', 'office', 'user', 'commissionServices.currency']));
@@ -151,10 +151,10 @@ class EmployeeController extends Controller
             'guarantor_address' => ['nullable', 'string', 'max:2000'],
             'guarantor_licence' => ['nullable', 'string', 'max:255'],
             'create_user' => 'sometimes|boolean',
-            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at'), Rule::unique('employees', 'user_id')->whereNull('deleted_at')->ignore($Employee->id)],
+            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')->where('acc_status', 'active'), Rule::unique('employees', 'user_id')->whereNull('deleted_at')->ignore($Employee->id)],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($request->input('user_id') ?: $Employee->user_id)],
             'education_lvl' => 'sometimes|required|string|max:255',
-            'position_id' => 'sometimes|required|max:255',
+            'position_id' => ['sometimes', 'required', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')->where('status', 'active')],
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
             'employment_type' => ['sometimes', Rule::in(['salaried', 'commission'])],
             'salary' => ['nullable', 'numeric', 'min:0'],
@@ -168,6 +168,7 @@ class EmployeeController extends Controller
 
         $createdUser = false;
         DB::transaction(function () use ($Employee, $validated, $request, $previousUserId, &$createdUser) {
+            $Employee = Employee::query()->lockForUpdate()->findOrFail($Employee->id);
             $employeeData = collect($validated)->except(['email', 'create_user', 'commissions'])->all();
             $Employee->update($employeeData);
             if (array_key_exists('commissions', $validated) || array_key_exists('employment_type', $validated)) {
@@ -178,6 +179,7 @@ class EmployeeController extends Controller
                 $Employee->user()->associate(User::create([
                     'name' => $Employee->name, 'email' => $validated['email'], 'password' => Hash::make(Str::random(64)),
                     'phone' => $Employee->contact, 'address' => $Employee->addr, 'acc_status' => 'active',
+                    'must_set_password' => true, 'roles' => ['staff'],
                 ]));
                 $Employee->save();
                 $createdUser = true;
@@ -203,7 +205,6 @@ class EmployeeController extends Controller
 
         if ($Employee->user && $createdUser && ! $hadUser) {
             $Employee->user->sendEmailVerificationNotification();
-            Password::sendResetLink(['email' => $Employee->user->email]);
         } elseif ($Employee->user && $previousEmail !== $Employee->user->email) {
             $Employee->user->sendEmailVerificationNotification();
         }
@@ -214,6 +215,11 @@ class EmployeeController extends Controller
     public function destroy(Employee $Employee): JsonResponse
     {
         DB::transaction(function () use ($Employee) {
+            $Employee = Employee::query()->lockForUpdate()->findOrFail($Employee->id);
+            abort_if($Employee->assetAllocations()->exists(), 422, 'business.employee_has_asset_allocations');
+            abort_if($Employee->customerServices()->whereIn('status', ['active', 'paused'])->exists(), 422, 'business.employee_has_customer_services');
+            abort_if($Employee->user?->tasks()->where('progress', '<', 100)->exists(), 422, 'business.employee_has_open_tasks');
+
             $Employee->delete();
             $Employee->user?->update(['acc_status' => 'inactive']);
             $Employee->user?->tokens()->delete();

@@ -4,14 +4,15 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasDocumentNumber;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Salary extends Model
 {
-    use HasDocumentNumber, HasFactory, Auditable;
+    use Auditable, HasDocumentNumber, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'employee_id',
@@ -62,7 +63,7 @@ class Salary extends Model
 
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(Employee::class); // Make sure you have an Employee model
+        return $this->belongsTo(Employee::class)->withTrashed();
     }
 
     public function currency(): BelongsTo

@@ -26,6 +26,7 @@ const _syncAppRtl = () => {
         document.documentElement.setAttribute('lang', val as string)
       if (typeof document !== 'undefined') {
         const isPersianScript = val === 'fa-AF' || val === 'ps-AF'
+
         document.documentElement.setAttribute('dir', isPersianScript ? 'rtl' : 'ltr')
         document.documentElement.classList.toggle('locale-persian-script', isPersianScript)
       }

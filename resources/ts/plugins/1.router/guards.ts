@@ -1,4 +1,4 @@
-import type { Router } from "vue-router";
+import type { Router } from 'vue-router'
 import { getAccessToken, getStoredPermissions } from '@/utils/authStorage'
 import { canNavigate } from '@layouts/plugins/casl'
 import { applyPermissions, canAccess } from '@/utils/authorization'
@@ -9,8 +9,10 @@ let sessionPermissionRequest: Promise<void> | null = null
 let sessionPermissionRequestAttempted = false
 
 const authorizedLandingRoute = () => {
-  if (canAccess('view_dashboard')) return { name: 'home' }
-  if (canAccess('view_all_boards') || canAccess('view_assigned_boards')) return { name: 'tasks' }
+  if (canAccess('view_dashboard'))
+    return { name: 'home' }
+  if (canAccess('view_all_boards') || canAccess('view_assigned_boards'))
+    return { name: 'tasks' }
 
   // Every authenticated user can still manage their own account, even when
   // their operational role has no application-area permissions yet.
@@ -42,6 +44,7 @@ export const setupGuards = (router: Router) => {
         .then(response => {
           const user = response.data.data as { permissions?: string[] }
           const permissions = Array.isArray(user.permissions) ? user.permissions : []
+
           useCookie<{ permissions?: string[] } | null>('userData').value = user
           applyPermissions(permissions)
         })
@@ -58,30 +61,32 @@ export const setupGuards = (router: Router) => {
     await sessionPermissionRequest
   }
 
-  router.beforeEach(async (to) => {
-    if (to.meta.public) return true;
+  router.beforeEach(async to => {
+    if (to.meta.public)
+      return true
 
-    const token = getAccessToken();
-    const isLoggedIn = !!token;
+    const token = getAccessToken()
+    const isLoggedIn = !!token
 
     if (isLoggedIn)
       await hydrateSessionPermissions()
 
     if (to.meta.unauthenticatedOnly) {
-      if (isLoggedIn) return authorizedLandingRoute();
+      if (isLoggedIn)
+        return authorizedLandingRoute()
 
-      return true;
+      return true
     }
 
-    if (!isLoggedIn) {
-      return { path: "/login" };
-    }
+    if (!isLoggedIn)
+      return { path: '/login' }
 
     if (!canNavigate(to)) {
       const fallback = authorizedLandingRoute()
+
       return to.name === fallback.name ? false : fallback
     }
 
-    return true;
-  });
-};
+    return true
+  })
+}

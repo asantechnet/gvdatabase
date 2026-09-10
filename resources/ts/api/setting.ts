@@ -106,18 +106,22 @@ function toFormData(data: Partial<SettingForm>) {
   const formData = new FormData()
 
   Object.entries(data).forEach(([key, value]) => {
-    if (value === undefined) return
+    if (value === undefined)
+      return
     if (value === null) {
       if (!['website_logo', 'company_signature', 'contract_letterhead', 'contract_cover_design'].includes(key))
         formData.append(key, '')
+
       return
     }
     if (value instanceof File) {
       formData.append(key, value)
+
       return
     }
     if (typeof value === 'boolean') {
       formData.append(key, value ? '1' : '0')
+
       return
     }
     formData.append(key, String(value))
@@ -131,6 +135,7 @@ const hasFiles = (data: Partial<SettingForm>) => Object.values(data).some(value 
 const SettingApi = {
   getCompanyProfile: async (): Promise<ApiResponse<Setting | null>> => {
     const response = await api.get('/company-profile')
+
     return {
       success: true,
       data: response.data.data ?? null,
@@ -139,6 +144,7 @@ const SettingApi = {
 
   getAll: async (): Promise<ApiResponse<Setting[]>> => {
     const response = await api.get('/settings')
+
     return {
       success: true,
       data: Array.isArray(response.data.data) ? response.data.data : [],
@@ -147,6 +153,7 @@ const SettingApi = {
 
   getById: async (id: number): Promise<ApiResponse<Setting>> => {
     const response = await api.get(`/settings/${id}`)
+
     return {
       success: true,
       data: unwrap<Setting>(response),
@@ -169,6 +176,7 @@ const SettingApi = {
       // PHP only reliably populates uploaded files for multipart POST requests.
       // Laravel honours this override and still dispatches to the PATCH route.
       const formData = toFormData(data)
+
       formData.append('_method', 'PATCH')
 
       const response = await api.post(`/settings/${id}`, formData, {
@@ -191,6 +199,7 @@ const SettingApi = {
 
   delete: async (id: number): Promise<ApiResponse<null>> => {
     const response = await api.delete(`/settings/${id}`)
+
     return {
       success: response.data.success,
       data: null,

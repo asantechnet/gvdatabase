@@ -29,6 +29,7 @@ export interface GeofenceObservation {
 const AttendanceGeofenceApi = {
   async configuration(): Promise<GeofenceConfiguration> {
     const response = await api.get<{ data: GeofenceConfiguration }>('/workday/geofence')
+
     return response.data.data
   },
   async observe(position: GeolocationPosition): Promise<GeofenceObservation> {
@@ -37,6 +38,7 @@ const AttendanceGeofenceApi = {
       longitude: position.coords.longitude,
       accuracy_meters: position.coords.accuracy,
     }, { headers: { 'X-Suppress-Error-Notification': 'true' } })
+
     return response.data.data
   },
 }

@@ -6,10 +6,11 @@ const enabled = ref<boolean | null>(null)
 let pending: Promise<boolean> | null = null
 
 async function load() {
-  if (enabled.value !== null) return enabled.value
+  if (enabled.value !== null)
+    return enabled.value
   if (!pending) {
     pending = SettingApi.getCompanyProfile()
-      .then(response => enabled.value = response.data?.automatic_attendance_enabled ?? true)
+      .then(response => enabled.value = response.data?.automatic_attendance_enabled ?? false)
       .catch(() => enabled.value = false)
       .finally(() => pending = null)
   }

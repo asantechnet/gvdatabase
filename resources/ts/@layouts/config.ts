@@ -1,17 +1,17 @@
+import { breakpointsVuetify } from '@vueuse/core'
 import {
   AppContentLayoutNav,
   ContentWidth,
   FooterType,
   HorizontalNavType,
   NavbarType,
-} from "@layouts/enums";
-import type { LayoutConfig } from "@layouts/types";
-import { breakpointsVuetify } from "@vueuse/core";
+} from '@layouts/enums'
+import type { LayoutConfig } from '@layouts/types'
 
 export const layoutConfig: LayoutConfig = {
   app: {
-    title: "my-layout",
-    logo: h("img", { src: "/src/assets/logo.svg" }),
+    title: 'my-layout',
+    logo: h('img', { src: '/src/assets/logo.svg' }),
     contentWidth: ContentWidth.Boxed,
     contentLayoutNav: AppContentLayoutNav.Vertical,
     overlayNavFromBreakpoint: breakpointsVuetify.md,
@@ -20,7 +20,7 @@ export const layoutConfig: LayoutConfig = {
     i18n: {
       enable: true,
     },
-    iconRenderer: h("div"),
+    iconRenderer: h('div'),
   },
   navbar: {
     type: NavbarType.Sticky,
@@ -31,19 +31,19 @@ export const layoutConfig: LayoutConfig = {
   },
   verticalNav: {
     isVerticalNavCollapsed: false,
-    defaultNavItemIconProps: { icon: "tabler-circle" },
+    defaultNavItemIconProps: { icon: 'tabler-circle' },
   },
   horizontalNav: {
     type: HorizontalNavType.Sticky,
-    transition: "none",
+    transition: 'none',
     popoverOffset: 0,
   },
   icons: {
-    chevronDown: { icon: "tabler-chevron-down" },
-    chevronRight: { icon: "tabler-chevron-right" },
-    close: { icon: "tabler-x" },
-    verticalNavPinned: { icon: "tabler-circle-dot" },
-    verticalNavUnPinned: { icon: "tabler-circle" },
-    sectionTitlePlaceholder: { icon: "tabler-minus" },
+    chevronDown: { icon: 'tabler-chevron-down' },
+    chevronRight: { icon: 'tabler-chevron-right' },
+    close: { icon: 'tabler-x' },
+    verticalNavPinned: { icon: 'tabler-circle-dot' },
+    verticalNavUnPinned: { icon: 'tabler-circle' },
+    sectionTitlePlaceholder: { icon: 'tabler-minus' },
   },
-};
+}

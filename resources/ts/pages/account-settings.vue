@@ -10,6 +10,7 @@ import { canAccess } from '@/utils/authorization'
 
 const route = useRoute()
 const router = useRouter()
+
 const tabs = computed(() => [
   { value: 'account', title: translate('pages.settings.accountSettings.accountSettings.account'), icon: 'tabler-user', component: AccountSettingsAccount },
   { value: 'security', title: translate('common.messages.security'), icon: 'tabler-lock', component: AccountSettingsSecurity },
@@ -19,24 +20,52 @@ const tabs = computed(() => [
     ? [{ value: 'deactivation-requests', title: translate('pages.settings.accountSettings.accountSettings.deactivationRequests'), icon: 'tabler-user-cancel', component: AccountDeactivationRequests }]
     : []),
 ])
+
 const activeTab = computed(() => tabs.value.find(tab => tab.value === route.params.tab)?.value ?? 'account')
 const activeComponent = computed(() => tabs.value.find(tab => tab.value === activeTab.value)?.component ?? AccountSettingsAccount)
 
 function selectTab(tab: unknown) {
-  if (typeof tab === 'string') router.push({ name: 'account-settings', params: { tab } })
+  if (typeof tab === 'string')
+    router.push({ name: 'account-settings', params: { tab } })
 }
+
 </script>
 
 <template>
   <VRow>
-    <VCol cols="12" md="3" lg="2">
+    <VCol
+      cols="12"
+      md="3"
+      lg="2"
+    >
       <VCard>
-        <VTabs direction="vertical" :model-value="activeTab" color="primary" @update:model-value="selectTab">
-          <VTab v-for="tab in tabs" :key="tab.value" :value="tab.value"><VIcon start :icon="tab.icon" />{{ tab.title }}</VTab>
+        <VTabs
+          data-account-guide="navigation"
+          direction="vertical"
+          :model-value="activeTab"
+          color="primary"
+          @update:model-value="selectTab"
+        >
+          <VTab
+            v-for="tab in tabs"
+            :key="tab.value"
+            :value="tab.value"
+          >
+            <VIcon
+              start
+              :icon="tab.icon"
+            />{{ tab.title }}
+          </VTab>
         </VTabs>
       </VCard>
     </VCol>
-    <VCol cols="12" md="9" lg="10"><component :is="activeComponent" /></VCol>
+    <VCol
+      cols="12"
+      md="9"
+      lg="10"
+    >
+      <component :is="activeComponent" />
+    </VCol>
   </VRow>
 </template>
 

@@ -1,4 +1,4 @@
-import api from "./axios";
+import api from './axios'
 import type { WorthyEmployee } from './bonuslist'
 import type { Currency } from './currency'
 
@@ -23,7 +23,7 @@ export interface Salary {
   currencySnapshotNote: string | null
   amountPaid: number
   bonus: number
-  workedDays: number
+  workedDays?: number
   paidLeaveDays: number
   absentDays: number
   unpaidLeaveDays: number
@@ -84,9 +84,11 @@ const SalaryApi = {
   // Get all salaries
   getAll: async (params?: SalaryParams) => {
     try {
-      const response = await api.get<{ data: Salary[] }>("/salaries", { params })
+      const response = await api.get<{ data: Salary[] }>('/salaries', { params })
+
       return response.data
-    } catch (error) {
+    }
+    catch (error) {
       console.error('API getAll error:', error)
       throw error
     }
@@ -96,8 +98,10 @@ const SalaryApi = {
   getById: async (id: number) => {
     try {
       const response = await api.get<{ data: Salary }>(`/salaries/${id}`)
+
       return response.data
-    } catch (error) {
+    }
+    catch (error) {
       console.error('API getById error:', error)
       throw error
     }
@@ -114,16 +118,19 @@ const SalaryApi = {
 
   getDeductions: async (salaryId: number) => {
     const response = await api.get<{ data: SalaryDeduction[] }>(`/salaries/${salaryId}/deductions`)
+
     return response.data
   },
 
   createDeduction: async (salaryId: number, deduction: Omit<SalaryDeduction, 'id'>) => {
     const response = await api.post<{ data: SalaryDeduction }>(`/salaries/${salaryId}/deductions`, deduction)
+
     return response.data
   },
 
   updateDeduction: async (salaryId: number, deductionId: number, deduction: Omit<SalaryDeduction, 'id'>) => {
     const response = await api.patch<{ data: SalaryDeduction }>(`/salaries/${salaryId}/deductions/${deductionId}`, deduction)
+
     return response.data
   },
 
@@ -134,9 +141,11 @@ const SalaryApi = {
   // Create salary
   create: async (data: CreateSalaryData) => {
     try {
-      const response = await api.post<{ data: Salary }>("/salaries", data)
+      const response = await api.post<{ data: Salary }>('/salaries', data)
+
       return response.data
-    } catch (error) {
+    }
+    catch (error) {
       console.error('API create error:', error)
       throw error
     }
@@ -146,8 +155,10 @@ const SalaryApi = {
   update: async (id: number, data: UpdateSalaryData) => {
     try {
       const response = await api.put<{ data: Salary }>(`/salaries/${id}`, data)
+
       return response.data
-    } catch (error) {
+    }
+    catch (error) {
       console.error('API update error:', error)
       throw error
     }
@@ -157,8 +168,10 @@ const SalaryApi = {
   delete: async (id: number) => {
     try {
       const response = await api.delete<{ success: boolean; message: string }>(`/salaries/${id}`)
+
       return response.data
-    } catch (error) {
+    }
+    catch (error) {
       console.error('API delete error:', error)
       throw error
     }

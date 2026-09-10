@@ -1,6 +1,6 @@
+import type { RouteLocationNormalized } from 'vue-router'
 import { ability } from '@/plugins/casl/ability'
 import type { Actions } from '@/plugins/casl/ability'
-import type { RouteLocationNormalized } from 'vue-router'
 import type { NavGroup } from '@layouts/types'
 
 /**

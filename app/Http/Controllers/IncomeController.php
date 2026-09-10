@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\IncomeResource;
 use App\Models\Currency;
 use App\Models\Income;
 use App\Models\Invoice;
-use App\Services\CurrencyConversionService;
 use App\Services\CommissionAccrualService;
-use App\Http\Resources\IncomeResource;
+use App\Services\CurrencyConversionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class IncomeController extends Controller
 {
@@ -38,9 +38,9 @@ class IncomeController extends Controller
         }
 
         if ($request->has('search') && $request->search) {
-            $query->where(function($q) use ($request) {
+            $query->where(function ($q) use ($request) {
                 $q->where('description', 'like', '%'.$request->search.'%')
-                  ->orWhere('type', 'like', '%'.$request->search.'%');
+                    ->orWhere('type', 'like', '%'.$request->search.'%');
             });
         }
 
@@ -61,7 +61,7 @@ class IncomeController extends Controller
             'quantity' => 'required|integer|min:1',
             'currency_id' => 'required|exists:currencies,id',
             'rate' => 'nullable|numeric|gt:0',
-            'date' => 'required|date',
+            'date' => ['required', 'date', 'before_or_equal:today'],
         ]);
 
         $validator->validate();
@@ -69,15 +69,27 @@ class IncomeController extends Controller
         $data = $validator->validated();
         $data['recorded_by'] = $request->user()->id;
         $data['description'] = $data['description'] ?? '';
-        $this->applyCurrencySnapshot($data);
 
         $income = DB::transaction(function () use ($data) {
             if (empty($data['invoice_id'])) {
+                $this->applyCurrencySnapshot($data);
+
                 return Income::create($data);
             }
 
             $invoice = Invoice::whereKey($data['invoice_id'])->lockForUpdate()->firstOrFail();
+            if ((int) $data['currency_id'] !== (int) $invoice->currency_id) {
+                throw ValidationException::withMessages([
+                    'currency_id' => ['business.invoice_payment_currency_mismatch'],
+                ]);
+            }
+            if ($invoice->issue_date && $data['date'] < $invoice->issue_date->toDateString()) {
+                throw ValidationException::withMessages([
+                    'date' => ['business.invoice_payment_before_issue'],
+                ]);
+            }
             $data['customer_id'] = $invoice->customer_id;
+            $data['company_id'] = null;
             $data['currency_id'] = $invoice->currency_id;
             $this->applyCurrencySnapshot($data);
             $data['invoice_amount'] = $this->paymentAmountInInvoiceCurrency($data, $invoice);
@@ -109,7 +121,7 @@ class IncomeController extends Controller
             'quantity' => 'sometimes|integer|min:1',
             'currency_id' => 'sometimes|exists:currencies,id',
             'rate' => 'nullable|numeric|gt:0',
-            'date' => 'sometimes|date',
+            'date' => ['sometimes', 'date', 'before_or_equal:today'],
         ]);
 
         $validator->validate();
@@ -123,11 +135,23 @@ class IncomeController extends Controller
 
             if ($invoiceId) {
                 $invoice = $invoices->get($invoiceId);
-                if (!$invoice) {
+                if (! $invoice) {
                     throw ValidationException::withMessages(['invoice_id' => 'business.invoice_not_found']);
                 }
 
+                if (array_key_exists('currency_id', $data) && (int) $data['currency_id'] !== (int) $invoice->currency_id) {
+                    throw ValidationException::withMessages([
+                        'currency_id' => ['business.invoice_payment_currency_mismatch'],
+                    ]);
+                }
+                $paymentDate = $data['date'] ?? $income->date->toDateString();
+                if ($invoice->issue_date && $paymentDate < $invoice->issue_date->toDateString()) {
+                    throw ValidationException::withMessages([
+                        'date' => ['business.invoice_payment_before_issue'],
+                    ]);
+                }
                 $data['customer_id'] = $invoice->customer_id;
+                $data['company_id'] = null;
                 $data['currency_id'] = $invoice->currency_id;
                 if ((int) $invoiceId !== (int) $income->invoice_id || array_key_exists('rate', $data)) {
                     $this->applyCurrencySnapshot($data);
@@ -177,7 +201,7 @@ class IncomeController extends Controller
     /** @param array<string, mixed> $payment */
     private function ensureInvoiceCanAcceptPayment(Invoice $invoice, array $payment, ?int $excludingIncomeId = null): void
     {
-        if ($invoice->status === 'Void' || ($invoice->status === 'Paid' && !$excludingIncomeId)) {
+        if ($invoice->status === 'Void' || ($invoice->status === 'Paid' && ! $excludingIncomeId)) {
             throw ValidationException::withMessages([
                 'invoice_id' => 'business.invoice_not_payable',
             ]);
@@ -217,8 +241,7 @@ class IncomeController extends Controller
             $query->whereKeyNot($excludingIncomeId);
         }
 
-        return round($query->get()->sum(fn (Income $income) =>
-            (float) ($income->invoice_amount ?? ((float) $income->amount * (int) $income->quantity))
+        return round($query->get()->sum(fn (Income $income) => (float) ($income->invoice_amount ?? ((float) $income->amount * (int) $income->quantity))
         ), $this->currencyPrecision($invoice));
     }
 

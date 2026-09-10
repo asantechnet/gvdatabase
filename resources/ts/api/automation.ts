@@ -12,9 +12,21 @@ export interface BonusRuleSet { id: number; name: string; version: number; is_ac
 export interface AutomationRun { id: number; job: string; period_key: string; status: 'running' | 'completed' | 'failed'; attempt: number; started_at: string; finished_at: string | null; parameters: Record<string, unknown>; result: Record<string, unknown> | null; error_message: string | null }
 
 const AutomationApi = {
-  async getBonusRules(): Promise<BonusRuleSet> { const response = await api.get<{ data: BonusRuleSet }>('/automation/bonus-rules'); return response.data.data },
-  async updateBonusRules(rules: BonusRules): Promise<BonusRuleSet> { const response = await api.put<{ data: BonusRuleSet }>('/automation/bonus-rules', rules); return response.data.data },
-  async getRuns(params?: { job?: string; status?: string }): Promise<AutomationRun[]> { const response = await api.get<{ data: AutomationRun[] }>('/automation/runs', { params }); return response.data.data },
+  async getBonusRules(): Promise<BonusRuleSet> {
+    const response = await api.get<{ data: BonusRuleSet }>('/automation/bonus-rules')
+
+    return response.data.data
+  },
+  async updateBonusRules(rules: BonusRules): Promise<BonusRuleSet> {
+    const response = await api.put<{ data: BonusRuleSet }>('/automation/bonus-rules', rules)
+
+    return response.data.data
+  },
+  async getRuns(params?: { job?: string; status?: string }): Promise<AutomationRun[]> {
+    const response = await api.get<{ data: AutomationRun[] }>('/automation/runs', { params })
+
+    return response.data.data
+  },
 }
 
 export default AutomationApi

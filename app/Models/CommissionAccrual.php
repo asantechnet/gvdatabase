@@ -5,10 +5,11 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CommissionAccrual extends Model
 {
-    use Auditable;
+    use Auditable, SoftDeletes;
 
     protected $fillable = [
         'income_id', 'invoice_id', 'invoice_service_id', 'employee_id', 'service_id', 'customer_service_id',
@@ -35,7 +36,7 @@ class CommissionAccrual extends Model
 
     public function invoice(): BelongsTo
     {
-        return $this->belongsTo(Invoice::class);
+        return $this->belongsTo(Invoice::class)->withTrashed();
     }
 
     public function invoiceService(): BelongsTo
@@ -45,17 +46,17 @@ class CommissionAccrual extends Model
 
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(Employee::class)->withTrashed();
     }
 
     public function service(): BelongsTo
     {
-        return $this->belongsTo(Service::class);
+        return $this->belongsTo(Service::class)->withTrashed();
     }
 
     public function customerService(): BelongsTo
     {
-        return $this->belongsTo(CustomerService::class);
+        return $this->belongsTo(CustomerService::class)->withTrashed();
     }
 
     public function baseCurrency(): BelongsTo

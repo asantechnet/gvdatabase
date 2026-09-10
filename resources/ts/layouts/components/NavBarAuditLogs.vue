@@ -12,7 +12,8 @@ const isSuperAdmin = computed(() => userData.value?.roles?.includes('super_admin
 const canViewAudit = computed(() => isSuperAdmin.value || canAccess('view_audit_logs'))
 
 async function refreshCount() {
-  if (!canViewAudit.value) return
+  if (!canViewAudit.value)
+    return
   try { pendingCount.value = await getPendingAuditCount() }
   catch { pendingCount.value = 0 }
 }
@@ -35,15 +36,30 @@ onMounted(() => {
 })
 onUnmounted(() => {
   window.removeEventListener('open-audit-log', handleAuditNotification)
-  if (refreshTimer) clearInterval(refreshTimer)
+  if (refreshTimer)
+    clearInterval(refreshTimer)
 })
 </script>
 
 <template>
-  <VBadge v-if="canViewAudit" :content="pendingCount > 99 ? '99+' : pendingCount" :model-value="pendingCount > 0" color="error" location="top end">
-    <IconBtn :aria-label="$t('pages.audits.openPage')" @click="openAudits">
+  <VBadge
+    v-if="canViewAudit"
+    :content="pendingCount > 99 ? '99+' : pendingCount"
+    :model-value="pendingCount > 0"
+    color="error"
+    location="top end"
+  >
+    <IconBtn
+      :aria-label="$t('pages.audits.openPage')"
+      @click="openAudits"
+    >
       <VIcon icon="tabler-history" />
-      <VTooltip activator="parent" location="bottom">{{ $t('pages.audits.openPage') }}</VTooltip>
+      <VTooltip
+        activator="parent"
+        location="bottom"
+      >
+        {{ $t('pages.audits.openPage') }}
+      </VTooltip>
     </IconBtn>
   </VBadge>
 </template>

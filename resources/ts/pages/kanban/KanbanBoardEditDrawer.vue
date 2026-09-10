@@ -1,12 +1,12 @@
 <script setup lang="ts">
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
+import { VForm } from 'vuetify/components/VForm'
 import TaskAssigneeApi, { type TaskAssigneeOption } from '@/api/taskAssignee'
 import TagApi from '@/api/tag'
 import { useTaskStore } from '@/stores/useTaskStore'
 import { canAccess } from '@/utils/authorization'
-import type { EditKanbanItem, KanbanItem } from '@db/apps/kanban/types'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
-import { VForm } from 'vuetify/components/VForm'
+import type { EditKanbanItem, KanbanItem } from '@/types/legacyKanban'
 import KanbanTaskEditForm from '@/components/forms/KanbanTaskEditForm.vue'
 
 interface Emit {
@@ -39,6 +39,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<Emit>()
 const store = useTaskStore()
 const refEditTaskForm = ref<VForm>()
+const config = { enableTime: false, dateFormat: 'Y-m-d' }
 const employees = ref<TaskAssigneeOption[]>([])
 const isLoadingEmployees = ref(false)
 const canEditTask = () => canAccess('edit_assigned_tasks')
@@ -57,12 +58,13 @@ const localKanbanItem = ref<KanbanItem & { members: TaskAssigneeOption[] }>({
   labels: currentTask.value?.tags?.map(tag => tag.name) || [],
   members: currentTask.value?.assignees
     ?.map(user => employees.value.find(employee => employee.id.toString() === user.id) || null)
-    .filter((employee): employee is TaskAssigneeOption => employee !== null) || []
+    .filter((employee): employee is TaskAssigneeOption => employee !== null) || [],
 })
 
 // Fetch employees from API
 const fetchEmployees = async () => {
-  if (!canAssignMembers()) return
+  if (!canAssignMembers())
+    return
   try {
     isLoadingEmployees.value = true
     employees.value = await TaskAssigneeApi.getAll()
@@ -72,9 +74,11 @@ const fetchEmployees = async () => {
         ?.map(user => employees.value.find(employee => employee.id.toString() === user.id) || null)
         .filter((employee): employee is TaskAssigneeOption => employee !== null) || []
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to fetch employees:', error)
-  } finally {
+  }
+  finally {
     isLoadingEmployees.value = false
   }
 }
@@ -85,21 +89,21 @@ const getEmployeeInitial = (name: string) => {
 
 const resolveLabelColor = (color: string) => {
   const colorMap: Record<string, string> = {
-    'error': 'error',
-    'primary': 'primary',
-    'info': 'info',
-    'warning': 'warning',
-    'secondary': 'secondary',
-    'success': 'success'
+    error: 'error',
+    primary: 'primary',
+    info: 'info',
+    warning: 'warning',
+    secondary: 'secondary',
+    success: 'success',
   }
+
   return colorMap[color] || 'primary'
 }
 
 const handleDrawerModelValueUpdate = (val: boolean) => {
   emit('update:isDrawerOpen', val)
-  if (!val) {
+  if (!val)
     refEditTaskForm.value?.reset()
-  }
 }
 
 watch(() => props.kanbanItem, () => {
@@ -113,14 +117,15 @@ watch(() => props.kanbanItem, () => {
         labels: task.tags?.map(tag => tag.name) || [],
         members: task.assignees
           ?.map(user => employees.value.find(employee => employee.id.toString() === user.id) || null)
-          .filter((employee): employee is TaskAssigneeOption => employee !== null) || []
+          .filter((employee): employee is TaskAssigneeOption => employee !== null) || [],
       }
     }
   }
 }, { deep: true })
 
 const updateKanbanItem = async (updatedItem = localKanbanItem.value) => {
-  if (!props.kanbanItem || !currentTask.value) return
+  if (!props.kanbanItem || !currentTask.value)
+    return
 
   localKanbanItem.value = updatedItem
 
@@ -128,6 +133,7 @@ const updateKanbanItem = async (updatedItem = localKanbanItem.value) => {
     // Get tag IDs for selected labels
     const tagIds = localKanbanItem.value.labels.map(label => {
       const tag = store.tags.find(t => t.name === label)
+
       return tag ? tag.id : null
     }).filter(id => id !== null) as string[]
 
@@ -146,69 +152,122 @@ const updateKanbanItem = async (updatedItem = localKanbanItem.value) => {
 
     // Emit updated payload
     emit('update:kanbanItem', {
-        item: {
-          ...localKanbanItem.value,
-          id: props.kanbanItem.item.id,
-          labels: localKanbanItem.value.labels,
-          members: localKanbanItem.value.members.map(member => ({
-            id: member.id.toString(),
-            name: member.name,
-            avatar: member.avatar || '',
-            email: ''
-          }))
-        },
+      item: {
+        ...localKanbanItem.value,
+        id: props.kanbanItem.item.id,
+        labels: localKanbanItem.value.labels,
+        members: localKanbanItem.value.members.map(member => ({
+          id: member.id.toString(),
+          name: member.name,
+          avatar: member.avatar || '',
+          email: '',
+        })),
+      },
       boardId: props.kanbanItem.boardId,
-      boardName: props.kanbanItem.boardName
+      boardName: props.kanbanItem.boardName,
     })
 
     emit('update:isDrawerOpen', false)
     await nextTick()
     refEditTaskForm.value?.reset()
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to update task:', error)
   }
 }
 
 const deleteKanbanItem = () => {
-  if (!props.kanbanItem) return
+  if (!props.kanbanItem)
+    return
   emit('deleteKanbanItem', props.kanbanItem)
   emit('update:isDrawerOpen', false)
 }
 
 onMounted(() => {
   fetchEmployees()
-  if (canManageTags()) store.fetchTags()
+  if (canManageTags())
+    store.fetchTags()
 })
 </script>
 
 <template>
-  <VNavigationDrawer data-allow-mismatch location="end" :width="370" temporary border="0"
-    :model-value="props.isDrawerOpen" @update:model-value="handleDrawerModelValueUpdate"
-    style="z-index: 99999 !important; padding-top: 1em !important; height: 100vh !important; position: fixed !important; top: 0;">
+  <VNavigationDrawer
+    data-allow-mismatch
+    location="end"
+    :width="370"
+    temporary
+    border="0"
+    :model-value="props.isDrawerOpen"
+    style="z-index: 99999 !important; padding-top: 1em !important; height: 100vh !important; position: fixed !important; top: 0;"
+    @update:model-value="handleDrawerModelValueUpdate"
+  >
     <!-- 👉 Header -->
-    <AppDrawerHeaderSection :title="$t('common.messages.editTask')" @cancel="$emit('update:isDrawerOpen', false)" />
+    <AppDrawerHeaderSection
+      :title="$t('common.messages.editTask')"
+      @cancel="$emit('update:isDrawerOpen', false)"
+    />
 
     <VDivider />
 
-    <PerfectScrollbar :options="{ wheelPropagation: false }" style="block-size: calc(100vh - 4rem);">
-      <KanbanTaskEditForm v-if="localKanbanItem" :item="localKanbanItem" :employees="employees" :tags="store.tags" :loading-employees="isLoadingEmployees" :can-edit="canEditTask()" :can-assign="canAssignMembers()" :can-manage-tags="canManageTags()" :can-delete="canDeleteTask()" @submit="updateKanbanItem" @delete="deleteKanbanItem" />
-      <VForm v-if="false" ref="refEditTaskForm" class="app-form" @submit.prevent="updateKanbanItem">
+    <PerfectScrollbar
+      :options="{ wheelPropagation: false }"
+      style="block-size: calc(100vh - 4rem);"
+    >
+      <KanbanTaskEditForm
+        v-if="localKanbanItem"
+        :item="localKanbanItem"
+        :employees="employees"
+        :tags="store.tags"
+        :loading-employees="isLoadingEmployees"
+        :can-edit="canEditTask()"
+        :can-assign="canAssignMembers()"
+        :can-manage-tags="canManageTags()"
+        :can-delete="canDeleteTask()"
+        @submit="updateKanbanItem"
+        @delete="deleteKanbanItem"
+      />
+      <VForm
+        v-if="false"
+        ref="refEditTaskForm"
+        class="app-form"
+        @submit.prevent="() => updateKanbanItem()"
+      >
         <VCardText class="kanban-editor-drawer">
           <VRow>
             <!-- Title -->
             <VCol cols="12">
-              <AppTextField v-model="localKanbanItem.title" :label="$t('common.fields.title')" :rules="[requiredValidator]" :disabled="!canEditTask()" />
+              <AppTextField
+                v-model="localKanbanItem.title"
+                :label="$t('common.fields.title')"
+                :rules="[requiredValidator]"
+                :disabled="!canEditTask()"
+              />
             </VCol>
 
             <!-- Due Date -->
             <VCol cols="12">
-              <AppDateTimePicker v-model="localKanbanItem.dueDate" :label="$t('common.messages.dueDate')" :config="config" :disabled="!canEditTask()" />
+              <AppDateTimePicker
+                v-model="localKanbanItem.dueDate"
+                :label="$t('common.messages.dueDate')"
+                :config="config"
+                :disabled="!canEditTask()"
+              />
             </VCol>
 
             <!-- Labels -->
-            <VCol v-if="canManageTags()" cols="12">
-              <AppSelect v-model="localKanbanItem.labels" :items="store.tags" item-title="name" item-value="name"
-                :label="$t('common.messages.label')" multiple eager>
+            <VCol
+              v-if="canManageTags()"
+              cols="12"
+            >
+              <AppSelect
+                v-model="localKanbanItem.labels"
+                :items="store.tags"
+                item-title="name"
+                item-value="name"
+                :label="$t('common.messages.label')"
+                multiple
+                eager
+              >
                 <template #chip="{ item }">
                   <VChip :color="resolveLabelColor(item.raw.color)">
                     {{ item.raw.name }}
@@ -218,20 +277,47 @@ onMounted(() => {
             </VCol>
 
             <!-- Assignees -->
-            <VCol v-if="canAssignMembers()" cols="12">
-              <p class="mb-1 text-body-2 text-high-emphasis" style="line-height: 15px;">
+            <VCol
+              v-if="canAssignMembers()"
+              cols="12"
+            >
+              <p
+                class="mb-1 text-body-2 text-high-emphasis"
+                style="line-height: 15px;"
+              >
                 {{ $t('pages.tasks.kanbanboardeditdrawer.kanbanboardeditdrawer.assigned') }}
               </p>
 
               <div>
-                <VSelect v-model="localKanbanItem.members" :items="employees" item-title="name" item-value="id"
-                  multiple return-object variant="plain" :loading="isLoadingEmployees" :menu-props="{
+                <VSelect
+                  v-model="localKanbanItem.members"
+                  :items="employees"
+                  item-title="name"
+                  item-value="id"
+                  multiple
+                  return-object
+                  variant="plain"
+                  :loading="isLoadingEmployees"
+                  :menu-props="{
                     offset: 10,
-                  }" class="assignee-select">
+                  }"
+                  class="assignee-select"
+                >
                   <template #selection="{ item }">
-                    <VAvatar size="26" color="primary" variant="tonal">
-                      <VImg v-if="item.raw.avatar" :src="item.raw.avatar" :alt="item.raw.name" />
-                      <span v-else class="text-caption font-weight-medium">
+                    <VAvatar
+                      size="26"
+                      color="primary"
+                      variant="tonal"
+                    >
+                      <VImg
+                        v-if="item.raw.avatar"
+                        :src="item.raw.avatar || undefined"
+                        :alt="item.raw.name"
+                      />
+                      <span
+                        v-else
+                        class="text-caption font-weight-medium"
+                      >
                         {{ getEmployeeInitial(item.raw.name) }}
                       </span>
                       <VTooltip activator="parent">
@@ -241,17 +327,35 @@ onMounted(() => {
                   </template>
 
                   <template #prepend-inner>
-                    <IconBtn size="26" variant="tonal" color="secondary">
-                      <VIcon size="20" icon="tabler-plus" />
+                    <IconBtn
+                      size="26"
+                      variant="tonal"
+                      color="secondary"
+                    >
+                      <VIcon
+                        size="20"
+                        icon="tabler-plus"
+                      />
                     </IconBtn>
                   </template>
 
                   <template #item="{ props, item }">
                     <VListItem v-bind="props">
                       <template #prepend>
-                        <VAvatar size="32" color="primary" variant="tonal">
-                          <VImg v-if="item.raw.avatar" :src="item.raw.avatar" :alt="item.raw.name" />
-                          <span v-else class="text-caption font-weight-medium">
+                        <VAvatar
+                          size="32"
+                          color="primary"
+                          variant="tonal"
+                        >
+                          <VImg
+                            v-if="item.raw.avatar"
+                            :src="item.raw.avatar || undefined"
+                            :alt="item.raw.name"
+                          />
+                          <span
+                            v-else
+                            class="text-caption font-weight-medium"
+                          >
                             {{ getEmployeeInitial(item.raw.name) }}
                           </span>
                         </VAvatar>
@@ -263,11 +367,23 @@ onMounted(() => {
             </VCol>
 
             <!-- Form Actions -->
-            <VCol cols="12" class="pt-4">
-              <VBtn v-if="canEditTask()" type="submit" class="me-4">
+            <VCol
+              cols="12"
+              class="pt-4"
+            >
+              <VBtn
+                v-if="canEditTask()"
+                type="submit"
+                class="me-4"
+              >
                 {{ $t('common.actions.update') }}
               </VBtn>
-              <VBtn v-if="canDeleteTask()" color="error" variant="tonal" @click="deleteKanbanItem">
+              <VBtn
+                v-if="canDeleteTask()"
+                color="error"
+                variant="tonal"
+                @click="deleteKanbanItem"
+              >
                 {{ $t('common.actions.delete') }}
               </VBtn>
             </VCol>

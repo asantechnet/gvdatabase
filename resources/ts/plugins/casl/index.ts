@@ -1,7 +1,7 @@
 import type { App } from 'vue'
 
 import { abilitiesPlugin } from '@casl/vue'
-import { ability, type Rule } from './ability'
+import { type Rule, ability } from './ability'
 import { getStoredPermissions } from '@/utils/authStorage'
 import { permissionRules } from '@/utils/authorization'
 

@@ -1,13 +1,17 @@
 const normalizeHex = (color: string) => {
   const raw = color.trim().replace('#', '').slice(0, 6)
-  if (/^[0-9a-f]{3}$/i.test(raw)) return raw.split('').map(value => value + value).join('')
+  if (/^[0-9a-f]{3}$/i.test(raw))
+    return raw.split('').map(value => value + value).join('')
+
   return /^[0-9a-f]{6}$/i.test(raw) ? raw : null
 }
 
 export const contrastingTextColor = (color: string) => {
   const hex = normalizeHex(color)
-  if (!hex) return '#111827'
+  if (!hex)
+    return '#111827'
   const [red, green, blue] = [0, 2, 4].map(index => Number.parseInt(hex.slice(index, index + 2), 16) / 255)
+
   const luminance = [red, green, blue]
     .map(value => value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
     .reduce((total, value, index) => total + value * [0.2126, 0.7152, 0.0722][index], 0)

@@ -16,6 +16,7 @@ export interface Lead {
   contact: string
   email: string | null
   service_interest: string | null
+
   // Keep the legacy label for readable lists and older records. New writes use
   // marketer_id, which is the authoritative employee relation.
   marketer: string | null

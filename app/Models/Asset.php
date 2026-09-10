@@ -7,15 +7,20 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Asset extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory, SoftDeletes;
 
     public const CONDITION_NEW = 'new';
+
     public const CONDITION_GOOD = 'good';
+
     public const CONDITION_FAIR = 'fair';
+
     public const CONDITION_POOR = 'poor';
+
     public const CONDITION_DAMAGED = 'damaged';
 
     protected $fillable = [

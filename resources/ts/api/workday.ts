@@ -41,14 +41,17 @@ export interface EndWorkdayData {
 const WorkdayApi = {
   async status(): Promise<WorkdayStatus> {
     const response = await api.get<{ data: WorkdayStatus }>('/workday/status')
+
     return response.data.data
   },
   async start(): Promise<WorkdayStatus> {
     const response = await api.post<{ data: WorkdayStatus }>('/workday/start')
+
     return response.data.data
   },
   async end(data: EndWorkdayData): Promise<WorkdayStatus> {
     const response = await api.post<{ data: WorkdayStatus }>('/workday/end', data)
+
     return response.data.data
   },
 }

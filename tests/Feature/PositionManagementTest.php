@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Currency;
 use App\Models\Position;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,6 +16,7 @@ class PositionManagementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
     }
 
@@ -55,7 +57,7 @@ class PositionManagementTest extends TestCase
 
         $this->deleteJson("/api/positions/{$position->id}")
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'This position is assigned to employees or users and cannot be deleted.');
+            ->assertJsonPath('code', 'business.position_in_use');
 
         $this->assertDatabaseHas('positions', ['id' => $position->id]);
     }

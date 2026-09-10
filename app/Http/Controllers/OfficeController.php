@@ -18,6 +18,7 @@ class OfficeController extends Controller
     public function store(Request $request): JsonResponse
     {
         $office = Office::create($this->validated($request));
+
         return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('assets'))], 201);
     }
 
@@ -29,16 +30,18 @@ class OfficeController extends Controller
     public function update(Request $request, Office $office): JsonResponse
     {
         $office->update($this->validated($request, $office));
+
         return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('assets'))]);
     }
 
     public function destroy(Office $office): JsonResponse
     {
-        if ($office->assets()->exists()) {
-            return response()->json(['success' => false, 'code' => 'business.office_has_asset'], 409);
+        if ($office->assets()->exists() || $office->employees()->exists() || $office->attendances()->exists()) {
+            return response()->json(['success' => false, 'code' => 'business.office_in_use'], 409);
         }
 
         $office->delete();
+
         return response()->json(['success' => true, 'message' => 'Office deleted.']);
     }
 

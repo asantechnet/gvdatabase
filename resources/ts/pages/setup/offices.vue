@@ -2,4 +2,6 @@
 import DirectoryCrudPage from '@/components/setup/DirectoryCrudPage.vue'
 </script>
 
-<template><DirectoryCrudPage kind="offices" /></template>
+<template>
+  <DirectoryCrudPage kind="offices" />
+</template>

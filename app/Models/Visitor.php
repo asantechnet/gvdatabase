@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Visitor extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -29,7 +30,13 @@ class Visitor extends Model
         'date' => 'date', 'converted_at' => 'immutable_datetime',
     ];
 
-    public function interactions(): MorphMany { return $this->morphMany(CrmInteraction::class, 'contactable')->latest('contacted_at'); }
+    public function interactions(): MorphMany
+    {
+        return $this->morphMany(CrmInteraction::class, 'contactable')->latest('contacted_at');
+    }
 
-    public function marketerEmployee(): BelongsTo { return $this->belongsTo(Employee::class, 'marketer_id'); }
+    public function marketerEmployee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'marketer_id');
+    }
 }

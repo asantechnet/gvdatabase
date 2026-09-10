@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Asset;
+use App\Models\AssetAllocation;
 use App\Models\Attendance;
 use App\Models\Currency;
 use App\Models\Customer;
@@ -11,8 +13,6 @@ use App\Models\Income;
 use App\Models\Invoice;
 use App\Models\Role;
 use App\Models\Setting;
-use App\Models\Asset;
-use App\Models\AssetAllocation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -27,7 +27,7 @@ class PhaseEightReportsTest extends TestCase
         parent::setUp();
         Setting::create([
             'navigation_clr' => '#111111', 'cards_clr' => '#ffffff', 'footer_clr' => '#111111',
-            'paid_off_days_per_year' => 20, 'website_title' => 'Report Test', 'website_address' => 'https://example.test',
+            'paid_leave_days_per_year' => 20, 'website_title' => 'Report Test', 'website_address' => 'https://example.test',
             'company_email' => 'reports@example.test', 'timezone' => 'Asia/Kabul', 'phone' => '123',
             'physical_address' => 'Kabul', 'short_company_name' => 'RT', 'original_company_name' => 'Report Test Company',
         ]);
@@ -40,19 +40,19 @@ class PhaseEightReportsTest extends TestCase
         $invoice = Invoice::create([
             'customer_id' => $customer->id, 'currency_id' => $currency->id, 'class_type' => 'Standard',
             'deptor' => $customer->name, 'status' => 'Issued', 'currency_name' => $currency->name,
-            'currency_rate' => 2, 'currency_symbol' => $currency->symbol, 'currency_shortname' => $currency->code,
-            'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $currency->code, 'rate' => 2, 'base_amount' => 200,
+            'currency_rate' => 1, 'currency_symbol' => $currency->symbol, 'currency_shortname' => $currency->code,
+            'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $currency->code, 'rate' => 1, 'base_amount' => 100,
             'subtotal' => 100, 'amount' => 100, 'discount' => 0,
         ]);
         $invoice->forceFill(['created_at' => '2026-08-05 10:00:00'])->saveQuietly();
         Income::create([
             'customer_id' => $customer->id, 'invoice_id' => $invoice->id, 'currency_id' => $currency->id,
             'type' => 'Invoice payment', 'description' => 'Partial payment', 'amount' => 25, 'quantity' => 2,
-            'rate' => 0.5, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $currency->code, 'date' => '2026-08-06',
+            'rate' => 1, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $currency->code, 'date' => '2026-08-06',
         ]);
         Expense::create([
             'customer_id' => $customer->id, 'currency_id' => $currency->id, 'type' => 'Travel',
-            'description' => 'Site visit', 'amount' => 10, 'quantity' => 2, 'rate' => 0.5, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $currency->code, 'date' => '2026-08-07',
+            'description' => 'Site visit', 'amount' => 10, 'quantity' => 2, 'rate' => 1, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $currency->code, 'date' => '2026-08-07',
         ]);
 
         $response = $this->getJson('/api/reports/generate/financial?start_date=2026-08-01&end_date=2026-08-31')
@@ -136,12 +136,13 @@ class PhaseEightReportsTest extends TestCase
     private function financialReferences(): array
     {
         $currency = Currency::firstOrCreate(['code' => 'TST'], [
-            'name' => 'Test Currency', 'symbol' => 'T', 'rate_against_base' => 2,
-            'is_base' => false, 'is_active' => true, 'decimal_places' => 2,
+            'name' => 'Test Currency', 'symbol' => 'T', 'rate' => 1,
+            'is_base' => true, 'is_active' => true, 'decimal_places' => 2,
         ]);
         $customer = Customer::firstOrCreate(['name' => 'Acme'], [
             'company' => 'Acme Ltd', 'contact' => '123', 'marketer' => 'Direct', 'date' => '2026-08-01',
         ]);
+
         return [$currency, $customer];
     }
 

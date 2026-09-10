@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useTaskStore } from '@/stores/useTaskStore'
-import { canAccess } from '@/utils/authorization'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { ref, watch } from 'vue'
+import { useTaskStore } from '@/stores/useTaskStore'
+import { canAccess } from '@/utils/authorization'
 
 const props = defineProps<{
   isOpen: boolean
@@ -19,11 +19,13 @@ const editingContent = ref('')
 const userData = useCookie<{ id?: string | number } | null>('userData')
 const { t } = useI18n()
 const initials = (name: string) => name.trim().split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase() || '?'
+
 const canManageComment = (comment: { senderId: string }) => canAccess('edit_all_comments')
   || (canAccess('edit_own_comments') && comment.senderId === String(userData.value?.id ?? ''))
 
 const startEditing = (comment: { id: string; content: string; canEdit: boolean }) => {
-  if (!comment.canEdit) return
+  if (!comment.canEdit)
+    return
   editingCommentId.value = comment.id
   editingContent.value = comment.content
 }
@@ -34,7 +36,8 @@ const cancelEditing = () => {
 }
 
 const saveComment = async () => {
-  if (!store.selectedTaskId || !editingCommentId.value || !editingContent.value.trim()) return
+  if (!store.selectedTaskId || !editingCommentId.value || !editingContent.value.trim())
+    return
   await store.updateComment(store.selectedTaskId, editingCommentId.value, editingContent.value.trim())
   cancelEditing()
 }
@@ -48,7 +51,8 @@ const handleSendComment = async () => {
     try {
       await store.addComment(store.selectedTaskId, newComment.value.trim())
       newComment.value = ''
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to add comment:', error)
     }
   }
@@ -58,9 +62,8 @@ const handleSendComment = async () => {
 watch(() => store.selectedTask?.comments, () => {
   setTimeout(() => {
     const container = document.querySelector('.comments-scroll-container')
-    if (container) {
+    if (container)
       container.scrollTop = container.scrollHeight
-    }
   }, 100)
 }, { deep: true })
 </script>
@@ -74,26 +77,44 @@ watch(() => store.selectedTask?.comments, () => {
     class="task-comments-drawer"
     @update:model-value="handleClose"
   >
-    <VCard elevation="0" class="h-100 d-flex flex-column">
+    <VCard
+      elevation="0"
+      class="h-100 d-flex flex-column"
+    >
       <VCardItem class="border-b">
         <template #title>
           <div class="d-flex align-center">
-          <VIcon icon="tabler-message-circle" class="me-2" />
+            <VIcon
+              icon="tabler-message-circle"
+              class="me-2"
+            />
             <span class="text-h6 font-weight-bold">{{ $t('components.taskManager.taskcommentsdrawer.taskComments') }}</span>
           </div>
         </template>
         <template #append>
-          <VBtn icon="tabler-x" variant="text" size="small" @click="handleClose" />
+          <VBtn
+            icon="tabler-x"
+            variant="text"
+            size="small"
+            @click="handleClose"
+          />
         </template>
       </VCardItem>
 
       <div class="flex-grow-1 overflow-y-auto comments-scroll-container pa-4">
-        <div v-if="store.selectedTask" class="comments-container">
+        <div
+          v-if="store.selectedTask"
+          class="comments-container"
+        >
           <div
             v-if="!store.selectedTask.comments || store.selectedTask.comments.length === 0"
             class="text-center text-disabled mt-10"
           >
-            <VIcon icon="tabler-messages" size="40" class="mb-2 opacity-50" />
+            <VIcon
+              icon="tabler-messages"
+              size="40"
+              class="mb-2 opacity-50"
+            />
             <p>{{ $t('components.taskManager.taskcommentsdrawer.noCommentsYet') }}<br>{{ $t('components.taskManager.taskcommentsdrawer.beTheFirstToStartTheDiscussion') }}</p>
           </div>
 
@@ -103,9 +124,21 @@ watch(() => store.selectedTask?.comments, () => {
             class="comment mb-4"
           >
             <div class="d-flex">
-              <VAvatar size="32" class="mr-3" color="primary" variant="tonal">
-                <VImg v-if="comment.senderAvatar" :src="comment.senderAvatar" :alt="comment.senderName" />
-                <span v-else class="text-caption font-weight-medium">{{ initials(comment.senderName) }}</span>
+              <VAvatar
+                size="32"
+                class="mr-3"
+                color="primary"
+                variant="tonal"
+              >
+                <VImg
+                  v-if="comment.senderAvatar"
+                  :src="comment.senderAvatar"
+                  :alt="comment.senderName"
+                />
+                <span
+                  v-else
+                  class="text-caption font-weight-medium"
+                >{{ initials(comment.senderName) }}</span>
               </VAvatar>
               <div class="flex-grow-1">
                 <div class="d-flex justify-space-between align-center mb-1">
@@ -113,18 +146,50 @@ watch(() => store.selectedTask?.comments, () => {
                   <span class="text-caption text-disabled">{{ comment.timestamp }}</span>
                 </div>
                 <template v-if="editingCommentId === comment.id">
-                  <VTextarea v-model="editingContent" rows="2" auto-grow class="mt-2" />
+                  <VTextarea
+                    v-model="editingContent"
+                    rows="2"
+                    auto-grow
+                    class="mt-2"
+                  />
                   <div class="d-flex ga-2 mt-2">
-                    <VBtn size="small" @click="saveComment">{{ $t('common.actions.save') }}</VBtn>
-                    <VBtn size="small" variant="tonal" @click="cancelEditing">{{ $t('common.actions.cancel') }}</VBtn>
+                    <VBtn
+                      size="small"
+                      @click="saveComment"
+                    >
+                      {{ $t('common.actions.save') }}
+                    </VBtn>
+                    <VBtn
+                      size="small"
+                      variant="tonal"
+                      @click="cancelEditing"
+                    >
+                      {{ $t('common.actions.cancel') }}
+                    </VBtn>
                   </div>
                 </template>
-                <div v-else class="d-flex align-start justify-space-between ga-2">
-                  <p class="mb-0">{{ comment.content }}</p>
-                  <VTooltip v-if="canManageComment(comment)" :text="comment.editWindowExpired && !comment.canEdit ? t('common.messages.editWindowExpired') : t('components.taskManager.comments.editComment')">
+                <div
+                  v-else
+                  class="d-flex align-start justify-space-between ga-2"
+                >
+                  <p class="mb-0">
+                    {{ comment.content }}
+                  </p>
+                  <VTooltip
+                    v-if="canManageComment(comment)"
+                    :text="comment.editWindowExpired && !comment.canEdit ? t('common.messages.editWindowExpired') : t('components.taskManager.comments.editComment')"
+                  >
                     <template #activator="{ props: tooltipProps }">
-                      <IconBtn v-bind="tooltipProps" size="small" :disabled="!comment.canEdit" @click="startEditing(comment)">
-                        <VIcon icon="tabler-pencil" size="16" />
+                      <IconBtn
+                        v-bind="tooltipProps"
+                        size="small"
+                        :disabled="!comment.canEdit"
+                        @click="startEditing(comment)"
+                      >
+                        <VIcon
+                          icon="tabler-pencil"
+                          size="16"
+                        />
                       </IconBtn>
                     </template>
                   </VTooltip>
@@ -135,7 +200,10 @@ watch(() => store.selectedTask?.comments, () => {
         </div>
       </div>
 
-      <VCardActions v-if="canAccess('create_comments_on_assigned_tasks')" class="border-t pa-4">
+      <VCardActions
+        v-if="canAccess('create_comments_on_assigned_tasks')"
+        class="border-t pa-4"
+      >
         <VTextarea
           v-model="newComment"
           :placeholder="$t('components.taskManager.taskcommentsdrawer.addAComment')"

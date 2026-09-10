@@ -42,21 +42,25 @@ export interface CompanyParams {
 const CompanyApi = {
   async getAll(params?: CompanyParams): Promise<Company[]> {
     const response = await api.get<{ success: boolean; data: Company[] }>('/companies', { params })
+
     return Array.isArray(response.data.data) ? response.data.data : []
   },
 
   async getById(id: number): Promise<Company> {
     const response = await api.get<{ success: boolean; data: Company }>(`/companies/${id}`)
+
     return response.data.data
   },
 
   async create(data: CompanyCreateData): Promise<Company> {
     const response = await api.post<{ success: boolean; data: Company }>('/companies', data)
+
     return response.data.data
   },
 
   async update(id: number, data: CompanyUpdateData): Promise<Company> {
     const response = await api.put<{ success: boolean; data: Company }>(`/companies/${id}`, data)
+
     return response.data.data
   },
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { formatLocalizedDate } from '@/utils/localization'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { formatLocalizedDate } from '@/utils/localization'
 
 defineProps<{
   title: string
@@ -11,6 +11,7 @@ defineProps<{
 
 const generatedAt = ref('')
 const setGeneratedAt = () => { generatedAt.value = formatLocalizedDate(new Date(), 'long') }
+
 onMounted(() => document.addEventListener('app:before-print', setGeneratedAt))
 onBeforeUnmount(() => document.removeEventListener('app:before-print', setGeneratedAt))
 </script>
@@ -19,16 +20,42 @@ onBeforeUnmount(() => document.removeEventListener('app:before-print', setGenera
   <section class="list-print-report">
     <header>
       <h1>{{ title }}</h1>
-      <p v-if="subtitle">{{ subtitle }}</p>
+      <p v-if="subtitle">
+        {{ subtitle }}
+      </p>
     </header>
 
     <table>
-      <thead><tr><th v-for="column in columns" :key="column">{{ column }}</th></tr></thead>
-      <tbody>
-        <tr v-for="(row, index) in rows" :key="index">
-          <td v-for="(value, cellIndex) in row" :key="cellIndex">{{ value || '—' }}</td>
+      <thead>
+        <tr>
+          <th
+            v-for="column in columns"
+            :key="column"
+          >
+            {{ column }}
+          </th>
         </tr>
-        <tr v-if="!rows.length"><td :colspan="columns.length" class="empty">No records available</td></tr>
+      </thead>
+      <tbody>
+        <tr
+          v-for="(row, index) in rows"
+          :key="index"
+        >
+          <td
+            v-for="(value, cellIndex) in row"
+            :key="cellIndex"
+          >
+            {{ value || '—' }}
+          </td>
+        </tr>
+        <tr v-if="!rows.length">
+          <td
+            :colspan="columns.length"
+            class="empty"
+          >
+            No records available
+          </td>
+        </tr>
       </tbody>
     </table>
 

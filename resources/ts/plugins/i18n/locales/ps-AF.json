@@ -526,6 +526,20 @@
       "thisActionWillDestroyAllAttachedSubTasksAndCannotBeUndone": ". دا کړنه به ټولې تړلې فرعي دندې هم له منځه یوسي او بېرته نه شي ګرځېدلی!",
       "thisActionCannotBeUndoneAndWillPermanentlyEraseAllAssociatedMiniTodosA": ". دا کړنه بېرته نه شي ګرځېدلی او ټول اړوند کوچني کارونه او تاریخچه به د تل لپاره پاکه کړي."
     },
+    "actionWarnings": {
+      "dontShowAgain": "دا خبرداری بیا مه ښیه",
+      "discardTitle": "ناخوندي شوي بدلونونه لرې شي؟",
+      "discardMessage": "په دې فورم کې بدلونونه لا نه دي خوندي شوي. که اوس یې لغوه یا پرېږدئ، بدلونونه به له منځه ولاړ شي.",
+      "discardConfirm": "بدلونونه لرې کړه",
+      "keepEditing": "سمون ته دوام ورکړه",
+      "moveCardTitle": "دا کارت ولېږدول شي؟",
+      "moveCardMessage": "د کارت لېږد د دې کاري پړاو او ترتیب د دې بورډ د ټولو کاروونکو لپاره بدلوي.",
+      "moveCardConfirm": "کارت ولېږدوه",
+      "keepCard": "همدلته یې پرېږده",
+      "expandNavigation": "لارښود غځول",
+      "collapseNavigation": "لارښود راټولول",
+      "closeNavigation": "لارښود تړل"
+    },
     "navigation": {
       "home": "کور پاڼه",
       "finance": "مالي برخه",
@@ -1442,7 +1456,31 @@
           "useCustomCoverPageFromSettings": "?? ???????? ??? ?????? ??? ??????",
           "useCustomLetterheadFromSettings": "?? ???????? ??? ?????? ???? ??? ??????",
           "pageNumber": "???? {page} ?? {total}",
-          "confidentialAllRightsReserved": "???? - ??? ???? ????? ??"
+          "confidentialAllRightsReserved": "???? - ??? ???? ????? ??",
+          "endDate": "د پای نېټه",
+          "noExpirationDate": "د ختمېدو نېټه نه ده ټاکل شوې.",
+          "inactiveScheduledEnd": "دا قرارداد {status} دی؛ ټاکل شوې پای نېټه یې {date} ده.",
+          "expiresToday": "بیړنی: دا قرارداد نن ختمېږي.",
+          "expiredAgo": "{time} مخکې ختم شوی.",
+          "expiresIn": "{urgency}: د ختمېدو تر نېټې {time} پاتې دي.",
+          "urgencyCritical": "بیړنی",
+          "urgencyAttention": "پاملرنه",
+          "urgencyWatch": "تر څارنې لاندې",
+          "urgencyLow": "لږ بیړنی",
+          "month": "میاشت",
+          "months": "میاشتې",
+          "day": "ورځ",
+          "days": "ورځې",
+          "noEndDate": "د پای نېټه نشته",
+          "continueAsRenewalDraft": "د نوي کولو د مسودې په توګه دوام",
+          "continueContract": "قرارداد ته دوام ورکول",
+          "renewalDescription": "د {contract} لپاره نوې مسوده جوړه کړئ. اوسنی قرارداد د باوري تاریخ لپاره نه بدلېږي.",
+          "renewalStartDate": "د نوي کولو د پیل نېټه",
+          "durationMonths": "موده (میاشتې)",
+          "calculatedEndDate": "محاسبه شوې پای نېټه",
+          "createRenewalDraft": "د نوي کولو مسوده جوړه کړئ",
+          "renewalCreated": "د نوي کولو مسوده جوړه شوه. بیا یې وڅېړئ او کله چې چمتو وي حالت یې فعال کړئ.",
+          "renewalFailed": "د نوي کولو مسوده جوړه نه شوه. نېټې وګورئ او بیا هڅه وکړئ."
         }
       },
       "allCustomers": {

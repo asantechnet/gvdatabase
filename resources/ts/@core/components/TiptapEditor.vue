@@ -44,12 +44,14 @@ const chooseImage = () => imageInput.value?.click()
 
 const insertImage = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file || !editor.value) return
+  if (!file || !editor.value)
+    return
 
   const src = props.imageUpload
     ? await props.imageUpload(file)
     : await new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
+
       reader.onload = () => resolve(String(reader.result))
       reader.onerror = reject
       reader.readAsDataURL(file)
@@ -85,7 +87,12 @@ watch(() => props.modelValue, () => {
         <VIcon icon="tabler-bold" />
       </IconBtn>
 
-      <IconBtn size="small" rounded variant="text" @click="chooseImage">
+      <IconBtn
+        size="small"
+        rounded
+        variant="text"
+        @click="chooseImage"
+      >
         <VIcon icon="tabler-photo-plus" />
       </IconBtn>
 
@@ -164,7 +171,13 @@ watch(() => props.modelValue, () => {
     </div>
 
     <VDivider />
-    <input ref="imageInput" class="d-none" type="file" accept="image/*" @change="insertImage">
+    <input
+      ref="imageInput"
+      class="d-none"
+      type="file"
+      accept="image/*"
+      @change="insertImage"
+    >
 
     <EditorContent
       ref="editorRef"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineExpose, defineProps, onMounted, ref } from 'vue';
+import { defineExpose, defineProps, onMounted, ref } from 'vue'
 
 const props = defineProps({
   logo: {
@@ -50,57 +50,64 @@ const props = defineProps({
     required: false,
     default: '+1 (555) 123-4567',
   },
-});
+})
 
-const contractCoverRef = ref<HTMLElement | null>(null);
-const logoImage = ref<HTMLImageElement | null>(null);
-const logoLoaded = ref<boolean>(false);
+const contractCoverRef = ref<HTMLElement | null>(null)
+const logoImage = ref<HTMLImageElement | null>(null)
+const logoLoaded = ref<boolean>(false)
 
 const waitForLogoLoad = () => {
-  return new Promise<void>((resolve) => {
+  return new Promise<void>(resolve => {
     if (!props.logo || logoLoaded.value) {
-      resolve();
-      return;
+      resolve()
+
+      return
     }
+
     const checkLoad = () => {
       if (logoImage.value && logoImage.value.complete) {
-        logoLoaded.value = true;
-        resolve();
-      } else if (logoImage.value) {
-        logoImage.value.onload = () => {
-          logoLoaded.value = true;
-          resolve();
-        };
-        logoImage.value.onerror = (err) => {
-          console.error("Failed to load logo, proceeding without it.", err);
-          resolve();
-        };
-      } else {
-        resolve();
+        logoLoaded.value = true
+        resolve()
       }
-    };
-    checkLoad();
-  });
-};
+      else if (logoImage.value) {
+        logoImage.value.onload = () => {
+          logoLoaded.value = true
+          resolve()
+        }
+        logoImage.value.onerror = err => {
+          console.error('Failed to load logo, proceeding without it.', err)
+          resolve()
+        }
+      }
+      else {
+        resolve()
+      }
+    }
+
+    checkLoad()
+  })
+}
 
 const printContractCover = async () => {
-  if (!contractCoverRef.value) return;
+  if (!contractCoverRef.value)
+    return
 
-  await waitForLogoLoad();
+  await waitForLogoLoad()
 
-  const printWindow = window.open('', '_blank', 'width=900,height=1100');
+  const printWindow = window.open('', '_blank', 'width=900,height=1100')
   if (!printWindow) {
-    alert(translate('common.messages.couldNotOpenPrintWindowPleaseAllowPopUpsForThisSite'));
-    return;
+    alert(translate('common.messages.couldNotOpenPrintWindowPleaseAllowPopUpsForThisSite'))
+
+    return
   }
 
   const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
     .map(el => el.outerHTML)
-    .join('\n');
+    .join('\n')
 
-  const printContent = contractCoverRef.value.innerHTML;
+  const printContent = contractCoverRef.value.innerHTML
 
-  printWindow.document.open();
+  printWindow.document.open()
   printWindow.document.write(`
     <!DOCTYPE html>
     <html lang="${document.documentElement.lang}" dir="${document.documentElement.dir}">
@@ -158,43 +165,72 @@ const printContractCover = async () => {
         <\/script>
       </body>
     </html>
-  `);
-  printWindow.document.close();
-};
+  `)
+  printWindow.document.close()
+}
 
 defineExpose({
   print: printContractCover,
-});
+})
 
 onMounted(() => {
-  if (props.logo && logoImage.value) {
-    waitForLogoLoad();
-  } else {
-    logoLoaded.value = true;
-  }
-});
+  if (props.logo && logoImage.value)
+    waitForLogoLoad()
+  else
+    logoLoaded.value = true
+})
 </script>
 
 <template>
-  <div ref="contractCoverRef" class="contract-cover print-document" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'" :class="{ 'contract-cover--custom': coverDesignUrl }">
-    <img v-if="coverDesignUrl" :src="coverDesignUrl" alt="" class="cover-design-background" aria-hidden="true" />
+  <div
+    ref="contractCoverRef"
+    class="contract-cover print-document"
+    :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
+    :class="{ 'contract-cover--custom': coverDesignUrl }"
+  >
+    <img
+      v-if="coverDesignUrl"
+      :src="coverDesignUrl"
+      alt=""
+      class="cover-design-background"
+      aria-hidden="true"
+    >
     <!-- Blue top section with complex clip-path geometric transition -->
     <div class="top-section">
       <div class="content-container">
         <!-- Far Left: "COVER PAGE" -->
-        <div class="cover-page-text">{{ $t('documents.contract_cover_template.contractCoverTemplate.coverPAGE') }}</div>
+        <div class="cover-page-text">
+          {{ $t('documents.contract_cover_template.contractCoverTemplate.coverPAGE') }}
+        </div>
 
         <!-- Far Right: Logo, website, Contractee Info -->
         <div class="right-info-block">
           <div class="logo-circle">
-            <img v-if="logo" :src="logo" ref="logoImage" alt="Company Logo" class="logo-image" />
-            <div v-else class="logo-placeholder">{{ $t('documents.contract_cover_template.contractCoverTemplate.yourLOGO') }}</div>
+            <img
+              v-if="logo"
+              ref="logoImage"
+              :src="logo"
+              alt="Company Logo"
+              class="logo-image"
+            >
+            <div
+              v-else
+              class="logo-placeholder"
+            >
+              {{ $t('documents.contract_cover_template.contractCoverTemplate.yourLOGO') }}
+            </div>
           </div>
-          <div class="company-website">{{ companyWebsite }}</div>
+          <div class="company-website">
+            {{ companyWebsite }}
+          </div>
 
           <div class="contractee-block">
-            <div class="contractee-word">{{ $t('documents.contract_cover_template.contractCoverTemplate.contractee') }}</div>
-            <div class="contractee-name">{{ contracteeName }}</div>
+            <div class="contractee-word">
+              {{ $t('documents.contract_cover_template.contractCoverTemplate.contractee') }}
+            </div>
+            <div class="contractee-name">
+              {{ contracteeName }}
+            </div>
           </div>
         </div>
       </div>
@@ -204,8 +240,15 @@ onMounted(() => {
     <div class="bottom-section">
       <div class="content-container">
         <div class="title-block">
-          <h1 class="contract-title">{{ contractTitle }}</h1>
-          <p v-if="coverDescription" class="cover-description">{{ coverDescription }}</p>
+          <h1 class="contract-title">
+            {{ contractTitle }}
+          </h1>
+          <p
+            v-if="coverDescription"
+            class="cover-description"
+          >
+            {{ coverDescription }}
+          </p>
           <p>{{ contractNumber }}</p>
         </div>
         <footer class="footer-block">

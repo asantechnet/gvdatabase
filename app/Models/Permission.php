@@ -5,10 +5,11 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Permission extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -20,5 +21,4 @@ class Permission extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
-
 }

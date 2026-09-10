@@ -32,14 +32,17 @@ export type PaidTimeOffPayload = Pick<PaidTimeOff, 'date' | 'duration_days' | 'r
 const PaidTimeOffApi = {
   async getAll(employeeId: number, year: number): Promise<PaidTimeOffLedger> {
     const response = await api.get(`/employees/${employeeId}/leaves`, { params: { year } })
+
     return response.data as PaidTimeOffLedger
   },
   async create(employeeId: number, data: PaidTimeOffPayload): Promise<PaidTimeOff> {
     const response = await api.post(`/employees/${employeeId}/leaves`, data)
+
     return response.data.data as PaidTimeOff
   },
   async update(employeeId: number, id: number, data: PaidTimeOffPayload): Promise<PaidTimeOff> {
     const response = await api.put(`/employees/${employeeId}/leaves/${id}`, data)
+
     return response.data.data as PaidTimeOff
   },
   async delete(employeeId: number, id: number): Promise<void> {
@@ -47,18 +50,22 @@ const PaidTimeOffApi = {
   },
   async mine(year: number): Promise<PaidTimeOffLedger> {
     const response = await api.get('/my-leaves', { params: { year } })
+
     return response.data
   },
   async requestRange(data: { start_date: string; end_date: string; duration_days?: 0.5 | 1; reason: string }): Promise<PaidTimeOff[]> {
     const response = await api.post('/my-leaves', data)
+
     return response.data.data
   },
   async getAllRequests(year: number): Promise<{ data: PaidTimeOff[]; allowance: number }> {
     const response = await api.get('/leaves', { params: { year } })
+
     return { data: response.data.data, allowance: Number(response.data.allowance ?? 0) }
   },
   async grant(ids: number[], forcePaid = false, approvalNote?: string): Promise<{ data: PaidTimeOff[]; exceeded: number }> {
     const response = await api.patch('/leaves/grant', { ids, force_paid: forcePaid, approval_note: approvalNote })
+
     return response.data
   },
 }

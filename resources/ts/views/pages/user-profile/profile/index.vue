@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import type { ProfileTab } from '@db/pages/profile/types'
+import { useRoute } from 'vue-router'
 import About from './About.vue'
 import ActivityTimeline from './ActivityTimeline.vue'
 import Connection from './Connection.vue'
 import ProjectList from './ProjectList.vue'
 import Teams from './Teams.vue'
-import type { ProfileTab } from '@db/pages/profile/types'
-import { useRoute } from 'vue-router'
 
 const router = useRoute('pages-user-profile-tab')
 const profileTabData = ref<ProfileTab>()
@@ -27,21 +27,33 @@ watch(router, fetchAboutData, { immediate: true })
 
 <template>
   <VRow v-if="profileTabData">
-    <VCol md="4" cols="12">
+    <VCol
+      md="4"
+      cols="12"
+    >
       <About :data="profileTabData" />
     </VCol>
 
-    <VCol cols="12" md="8">
+    <VCol
+      cols="12"
+      md="8"
+    >
       <VRow>
         <VCol cols="12">
           <ActivityTimeline />
         </VCol>
 
-        <VCol cols="12" md="6">
+        <VCol
+          cols="12"
+          md="6"
+        >
           <Connection :connections-data="profileTabData.connections" />
         </VCol>
 
-        <VCol cols="12" md="6">
+        <VCol
+          cols="12"
+          md="6"
+        >
           <Teams :teams-data="profileTabData.teamsTech" />
         </VCol>
 

@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Storage;
@@ -30,9 +31,15 @@ class AuthController extends Controller
         // previously allowed public registration to choose privileged roles.
         $data = collect($validator->validated())->except(['password', 'password_confirmation'])->all();
         $data['password'] = Hash::make($request->password);
-        $data['roles'] = ['viewer'];
         $data['acc_status'] = 'active';
-        $user = User::create($data);
+        $user = DB::transaction(function () use ($data): User {
+            $user = User::create($data);
+            $user->syncRoles(['viewer']);
+
+            abort_unless($user->roles()->exists(), 500, 'business.default_role_missing');
+
+            return $user;
+        });
         $user->sendEmailVerificationNotification();
 
         return response()->json([
@@ -199,23 +206,35 @@ class AuthController extends Controller
     public function refreshToken(Request $request)
     {
         $data = $request->validate(['refresh_token' => 'required|string', 'remember' => 'sometimes|boolean']);
-        $refreshToken = PersonalAccessToken::findToken($data['refresh_token']);
-        $user = $refreshToken?->tokenable;
-
-        if (! $refreshToken
-            || ! $refreshToken->can('refresh')
-            || ($refreshToken->expires_at && $refreshToken->expires_at->isPast())
-            || ! $user instanceof User
-            || $user->acc_status !== 'active'
-            || ! $user->hasVerifiedEmail()) {
+        $candidate = PersonalAccessToken::findToken($data['refresh_token']);
+        if (! $candidate) {
             return response()->json(['success' => false, 'code' => 'auth.refresh_token_invalid'], 401);
         }
 
-        $remember = $request->has('remember')
-            ? $request->boolean('remember')
-            : $refreshToken->name === 'refresh-token-remembered';
-        $refreshToken->delete();
-        $tokens = $this->issueTokens($user, $remember);
+        $tokens = DB::transaction(function () use ($candidate, $request): ?array {
+            $refreshToken = PersonalAccessToken::query()->lockForUpdate()->find($candidate->id);
+            $user = $refreshToken?->tokenable;
+
+            if (! $refreshToken
+                || ! $refreshToken->can('refresh')
+                || ($refreshToken->expires_at && $refreshToken->expires_at->isPast())
+                || ! $user instanceof User
+                || $user->acc_status !== 'active'
+                || ! $user->hasVerifiedEmail()) {
+                return null;
+            }
+
+            $remember = $request->has('remember')
+                ? $request->boolean('remember')
+                : $refreshToken->name === 'refresh-token-remembered';
+            $refreshToken->delete();
+
+            return $this->issueTokens($user, $remember);
+        });
+
+        if (! $tokens) {
+            return response()->json(['success' => false, 'code' => 'auth.refresh_token_invalid'], 401);
+        }
 
         return response()->json(['success' => true, 'data' => $tokens]);
     }
@@ -343,7 +362,9 @@ class AuthController extends Controller
         $request->validate(['password' => 'required|string']);
         $user = $request->user();
         if (! Hash::check($request->password, $user->password)) {
-            return response()->json(['success' => false, 'code' => 'validation_failed', 'errors' => ['password' => ['business.current_password_invalid']]], 422);
+            // The security page contains multiple password forms at once. A
+            // dedicated key lets the client mark this form's field only.
+            return response()->json(['success' => false, 'code' => 'validation_failed', 'errors' => ['logout_password' => ['business.current_password_invalid']]], 422);
         }
         $user->tokens()->whereKeyNot($user->currentAccessToken()?->id)->delete();
 

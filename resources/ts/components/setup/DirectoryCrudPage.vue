@@ -1,13 +1,13 @@
 <script setup lang="ts">
+import { useToast } from 'vue-toastification'
 import MarketerApi, { type MarketerAccountOption } from '@/api/marketer'
 import UserAccountSelect from '@/components/UserAccountSelect.vue'
 import OfficeApi from '@/api/office'
 import OfficeGeofenceMap from '@/components/setup/OfficeGeofenceMap.vue'
-import { useToast } from 'vue-toastification'
 import { translateBackendValue } from '@/utils/localization'
 import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
 
-type DirectoryRecord = {
+interface DirectoryRecord {
   id: number
   user_id?: number | null
   user?: { id: number; name: string; email: string; acc_status: string } | null
@@ -26,7 +26,7 @@ type DirectoryRecord = {
   geofence_radius_meters?: number
   geofence_enabled?: boolean
 }
-type DirectoryForm = {
+interface DirectoryForm {
   user_id: number | null
   name: string
   code: string
@@ -62,17 +62,23 @@ const { enabled: automaticAttendanceEnabled, load: loadAutomaticAttendance } = u
 const isMarketer = computed(() => props.kind === 'marketers')
 const singular = computed(() => translate(isMarketer.value ? 'common.fields.marketer' : 'common.fields.office'))
 const title = computed(() => translate(isMarketer.value ? 'pages.settings.directory.marketers' : 'pages.settings.directory.offices'))
+
 const subtitle = computed(() => isMarketer.value
   ? translate('pages.settings.directory.marketersDescription')
   : translate('pages.settings.directory.officesDescription'))
+
 const icon = computed(() => isMarketer.value ? 'tabler-speakerphone' : 'tabler-building-community')
 const activeCount = computed(() => records.value.filter(record => record.status === 'active').length)
+
 const assignmentCount = computed(() => records.value.reduce((sum, record) => sum
   + (record.customer_count ?? 0) + (record.visitor_count ?? 0) + (record.asset_count ?? 0), 0))
+
 const filteredRecords = computed(() => {
   const query = search.value.trim().toLowerCase()
+
   return records.value.filter(record => {
     const text = `${record.name} ${record.code ?? ''} ${record.email ?? ''} ${record.phone ?? ''}`.toLowerCase()
+
     return (!query || text.includes(query)) && (!statusFilter.value || record.status === statusFilter.value)
   })
 })
@@ -92,15 +98,18 @@ async function load() {
     records.value = isMarketer.value
       ? await MarketerApi.getAll() as DirectoryRecord[]
       : await OfficeApi.getAll() as DirectoryRecord[]
-  } catch (error: any) {
+  }
+  catch (error: any) {
     toast.error(error.message || `Could not load ${props.kind}.`)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
 
 async function loadAccountOptions() {
-  if (!isMarketer.value) return
+  if (!isMarketer.value)
+    return
   accountsLoading.value = true
   try { accountOptions.value = await MarketerApi.getAccountOptions() }
   catch (error: any) { toast.error(error.message || translate('common.accountPicker.noResults')) }
@@ -111,7 +120,8 @@ function openCreate() {
   editing.value = null
   form.value = { user_id: null, name: '', code: '', email: '', phone: '', status: 'active', notes: '', address: '', latitude: null, longitude: null, geofenceRadiusMeters: 100, geofenceEnabled: false }
   dialogOpen.value = true
-  if (!isMarketer.value) locateCurrentLocation(false)
+  if (!isMarketer.value)
+    locateCurrentLocation(false)
 }
 
 function openEdit(record: DirectoryRecord) {
@@ -134,16 +144,21 @@ function openEdit(record: DirectoryRecord) {
 }
 
 function accountSelected(userId: number | null | undefined) {
-  if (!userId) return
+  if (!userId)
+    return
   const account = accountOptions.value.find(item => item.id === userId)
-  if (!account) return
+  if (!account)
+    return
   form.value.email = account.email
-  if (!form.value.phone && account.phone) form.value.phone = account.phone
+  if (!form.value.phone && account.phone)
+    form.value.phone = account.phone
 }
 
 async function save() {
-  if (!form.value.name.trim()) return toast.error(`${singular.value} name is required.`)
-  if (!isMarketer.value && !form.value.code.trim()) return toast.error(translate('pages.settings.directorycrudpage.officeCodeIsRequired'))
+  if (!form.value.name.trim())
+    return toast.error(`${singular.value} name is required.`)
+  if (!isMarketer.value && !form.value.code.trim())
+    return toast.error(translate('pages.settings.directorycrudpage.officeCodeIsRequired'))
   if (!isMarketer.value && form.value.geofenceEnabled && (form.value.latitude == null || form.value.longitude == null))
     return toast.error(translate('pages.settings.geofence.coordinatesRequired'))
 
@@ -155,22 +170,26 @@ async function save() {
       phone: form.value.phone.trim() || null,
       status: form.value.status,
     }
+
     const saved = isMarketer.value
       ? await (editing.value
-          ? MarketerApi.update(editing.value.id, { ...common, user_id: form.value.user_id, notes: form.value.notes.trim() || null })
-          : MarketerApi.create({ ...common, user_id: form.value.user_id, notes: form.value.notes.trim() || null }))
+        ? MarketerApi.update(editing.value.id, { ...common, user_id: form.value.user_id, notes: form.value.notes.trim() || null })
+        : MarketerApi.create({ ...common, user_id: form.value.user_id, notes: form.value.notes.trim() || null }))
       : await (editing.value
-          ? OfficeApi.update(editing.value.id, { ...common, code: form.value.code.trim().toUpperCase(), address: form.value.address.trim() || null, latitude: form.value.latitude, longitude: form.value.longitude, geofence_radius_meters: form.value.geofenceRadiusMeters, geofence_enabled: form.value.geofenceEnabled })
-          : OfficeApi.create({ ...common, code: form.value.code.trim().toUpperCase(), address: form.value.address.trim() || null, latitude: form.value.latitude, longitude: form.value.longitude, geofence_radius_meters: form.value.geofenceRadiusMeters, geofence_enabled: form.value.geofenceEnabled }))
+        ? OfficeApi.update(editing.value.id, { ...common, code: form.value.code.trim().toUpperCase(), address: form.value.address.trim() || null, latitude: form.value.latitude, longitude: form.value.longitude, geofence_radius_meters: form.value.geofenceRadiusMeters, geofence_enabled: form.value.geofenceEnabled })
+        : OfficeApi.create({ ...common, code: form.value.code.trim().toUpperCase(), address: form.value.address.trim() || null, latitude: form.value.latitude, longitude: form.value.longitude, geofence_radius_meters: form.value.geofenceRadiusMeters, geofence_enabled: form.value.geofenceEnabled }))
 
     const index = records.value.findIndex(record => record.id === saved.id)
-    if (index === -1) records.value.unshift(saved as DirectoryRecord)
+    if (index === -1)
+      records.value.unshift(saved as DirectoryRecord)
     else records.value[index] = saved as DirectoryRecord
     dialogOpen.value = false
     toast.success(`${singular.value[0].toUpperCase()}${singular.value.slice(1)} saved.`)
-  } catch (error: any) {
+  }
+  catch (error: any) {
     toast.error(error.errors?.name?.[0] || error.errors?.code?.[0] || error.message || `Could not save ${singular.value}.`)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -178,12 +197,14 @@ async function save() {
 function locateCurrentLocation(overwriteCoordinates: boolean) {
   if (!navigator.geolocation) {
     toast.error(translate('pages.settings.geofence.notSupported'))
+
     return
   }
   locating.value = true
   navigator.geolocation.getCurrentPosition(position => {
     const latitude = Number(position.coords.latitude.toFixed(7))
     const longitude = Number(position.coords.longitude.toFixed(7))
+
     currentLocation.latitude = latitude
     currentLocation.longitude = longitude
     if (overwriteCoordinates || (form.value.latitude == null && form.value.longitude == null)) {
@@ -202,17 +223,21 @@ function useCurrentLocation() {
 }
 
 async function confirmDelete() {
-  if (!deleting.value) return
+  if (!deleting.value)
+    return
   loading.value = true
   try {
-    if (isMarketer.value) await MarketerApi.delete(deleting.value.id)
+    if (isMarketer.value)
+      await MarketerApi.delete(deleting.value.id)
     else await OfficeApi.delete(deleting.value.id)
     records.value = records.value.filter(record => record.id !== deleting.value?.id)
     deleteDialogOpen.value = false
     toast.success(`${singular.value[0].toUpperCase()}${singular.value.slice(1)} deleted.`)
-  } catch (error: any) {
+  }
+  catch (error: any) {
     toast.error(error.message || `Could not delete ${singular.value}.`)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -220,6 +245,7 @@ async function confirmDelete() {
 function assignedLabel(record: DirectoryRecord) {
   if (isMarketer.value)
     return `${record.customer_count ?? 0} customers · ${record.visitor_count ?? 0} visitors`
+
   return `${record.asset_count ?? 0} asset records`
 }
 
@@ -232,64 +258,401 @@ onMounted(() => {
 
 <template>
   <div>
-    <VCard class="directory-hero mb-6" variant="tonal" color="primary">
+    <VCard
+      class="directory-hero mb-6"
+      variant="tonal"
+      color="primary"
+    >
       <VCardText class="d-flex flex-wrap align-center justify-space-between ga-5 pa-6">
         <div class="d-flex align-center ga-4">
-          <VAvatar color="primary" variant="flat" size="52"><VIcon :icon="icon" size="27" /></VAvatar>
-          <div><h2 class="text-h4 font-weight-bold">{{ title }}</h2><p class="mb-0 text-medium-emphasis">{{ subtitle }}</p></div>
+          <VAvatar
+            color="primary"
+            variant="flat"
+            size="52"
+          >
+            <VIcon
+              :icon="icon"
+              size="27"
+            />
+          </VAvatar>
+          <div>
+            <h2 class="text-h4 font-weight-bold">
+              {{ title }}
+            </h2><p class="mb-0 text-medium-emphasis">
+              {{ subtitle }}
+            </p>
+          </div>
         </div>
         <div class="d-flex ga-3">
-      <VChip prepend-icon="tabler-circle-check" color="success" variant="flat">{{ $t('components.setup.directory.activeCount', { count: activeCount }) }}</VChip>
-      <VChip prepend-icon="tabler-link" variant="outlined">{{ $t('components.setup.directory.assignmentCount', { count: assignmentCount }) }}</VChip>
+          <VChip
+            prepend-icon="tabler-circle-check"
+            color="success"
+            variant="flat"
+          >
+            {{ $t('components.setup.directory.activeCount', { count: activeCount }) }}
+          </VChip>
+          <VChip
+            prepend-icon="tabler-link"
+            variant="outlined"
+          >
+            {{ $t('components.setup.directory.assignmentCount', { count: assignmentCount }) }}
+          </VChip>
         </div>
       </VCardText>
     </VCard>
 
     <VCard :loading="loading">
-      <VCardText><VRow align="center">
-        <VCol cols="12" md="5"><VTextField v-model="search" :label="$t('common.actions.search')" class="data-table-search" prepend-inner-icon="tabler-search" density="compact" hide-details clearable /></VCol>
-      <VCol cols="12" sm="6" md="3"><VSelect v-model="statusFilter" :items="['active', 'inactive']" :item-title="translateBackendValue" :label="$t('common.fields.status')" density="compact" hide-details clearable /></VCol>
-      <VCol cols="12" sm="6" md="4" class="d-flex justify-sm-end"><VBtn prepend-icon="tabler-plus" @click="openCreate">{{ $t('common.actions.addItem', { item: singular }) }}</VBtn></VCol>
-      </VRow></VCardText>
+      <VCardText>
+        <VRow align="center">
+          <VCol
+            cols="12"
+            md="5"
+          >
+            <VTextField
+              v-model="search"
+              :label="$t('common.actions.search')"
+              class="data-table-search"
+              prepend-inner-icon="tabler-search"
+              density="compact"
+              hide-details
+              clearable
+            />
+          </VCol>
+          <VCol
+            cols="12"
+            sm="6"
+            md="3"
+          >
+            <VSelect
+              v-model="statusFilter"
+              :items="['active', 'inactive']"
+              :item-title="translateBackendValue"
+              :label="$t('common.fields.status')"
+              density="compact"
+              hide-details
+              clearable
+            />
+          </VCol>
+          <VCol
+            cols="12"
+            sm="6"
+            md="4"
+            class="d-flex justify-sm-end"
+          >
+            <VBtn
+              prepend-icon="tabler-plus"
+              @click="openCreate"
+            >
+              {{ $t('common.actions.addItem', { item: singular }) }}
+            </VBtn>
+          </VCol>
+        </VRow>
+      </VCardText>
 
-      <ResponsiveDataTable :headers="headers" :items="filteredRecords" item-value="id" :loading="loading">
-        <template #item.name="{ item }"><div class="d-flex align-center ga-3"><VAvatar color="primary" variant="tonal"><VIcon :icon="icon" /></VAvatar><div><div class="font-weight-bold">{{ item.name }}</div><div v-if="item.code" class="text-caption text-medium-emphasis">{{ item.code }}</div><VChip v-if="isMarketer && item.user" size="x-small" color="success" variant="tonal" prepend-icon="tabler-login" class="mt-1">{{ item.user.email }}</VChip></div></div></template>
-        <template #item.contact="{ item }"><div>{{ item.email || 'No email' }}</div><div class="text-caption text-medium-emphasis">{{ item.phone || 'No phone' }}</div></template>
-      <template #item.details="{ item }"><span class="text-medium-emphasis">{{ isMarketer ? (item.notes || $t('common.messages.noNotes')) : (item.address || $t('common.messages.noAddress')) }}</span></template>
-      <template #item.status="{ item }"><VChip size="small" :color="item.status === 'active' ? 'success' : 'secondary'" variant="tonal" class="text-capitalize">{{ translateBackendValue(item.status) }}</VChip></template>
-        <template #item.assigned="{ item }">{{ assignedLabel(item) }}</template>
-        <template #item.actions="{ item }"><FullDetailsButton :item="item" :title="item.name" /><IconBtn :aria-label="$t('common.actions.editItem', { item: singular })" @click="openEdit(item)"><VIcon icon="tabler-pencil" /></IconBtn><IconBtn :aria-label="$t('common.actions.deleteItem', { item: singular })" color="error" @click="deleting = item; deleteDialogOpen = true"><VIcon icon="tabler-trash" /></IconBtn></template>
-        <template #no-data><div class="py-8 text-center text-medium-emphasis">{{ $t('common.messages.noMatchingRecords') }}</div></template>
+      <ResponsiveDataTable
+        :headers="headers"
+        :items="filteredRecords"
+        item-value="id"
+        :loading="loading"
+      >
+        <template #item.name="{ item }">
+          <div class="d-flex align-center ga-3">
+            <VAvatar
+              color="primary"
+              variant="tonal"
+            >
+              <VIcon :icon="icon" />
+            </VAvatar><div>
+              <div class="font-weight-bold">
+                {{ item.name }}
+              </div><div
+                v-if="item.code"
+                class="text-caption text-medium-emphasis"
+              >
+                {{ item.code }}
+              </div><VChip
+                v-if="isMarketer && item.user"
+                size="x-small"
+                color="success"
+                variant="tonal"
+                prepend-icon="tabler-login"
+                class="mt-1"
+              >
+                {{ item.user.email }}
+              </VChip>
+            </div>
+          </div>
+        </template>
+        <template #item.contact="{ item }">
+          <div>{{ item.email || 'No email' }}</div><div class="text-caption text-medium-emphasis">
+            {{ item.phone || 'No phone' }}
+          </div>
+        </template>
+        <template #item.details="{ item }">
+          <span class="text-medium-emphasis">{{ isMarketer ? (item.notes || $t('common.messages.noNotes')) : (item.address || $t('common.messages.noAddress')) }}</span>
+        </template>
+        <template #item.status="{ item }">
+          <VChip
+            size="small"
+            :color="item.status === 'active' ? 'success' : 'secondary'"
+            variant="tonal"
+            class="text-capitalize"
+          >
+            {{ translateBackendValue(item.status) }}
+          </VChip>
+        </template>
+        <template #item.assigned="{ item }">
+          {{ assignedLabel(item) }}
+        </template>
+        <template #item.actions="{ item }">
+          <FullDetailsButton
+            :item="item"
+            :title="item.name"
+          /><IconBtn
+            :aria-label="$t('common.actions.editItem', { item: singular })"
+            @click="openEdit(item)"
+          >
+            <VIcon icon="tabler-pencil" />
+          </IconBtn><IconBtn
+            :aria-label="$t('common.actions.deleteItem', { item: singular })"
+            color="error"
+            @click="deleting = item; deleteDialogOpen = true"
+          >
+            <VIcon icon="tabler-trash" />
+          </IconBtn>
+        </template>
+        <template #no-data>
+          <div class="py-8 text-center text-medium-emphasis">
+            {{ $t('common.messages.noMatchingRecords') }}
+          </div>
+        </template>
       </ResponsiveDataTable>
     </VCard>
 
-    <VDialog v-model="dialogOpen" max-width="1000">
+    <VDialog
+      v-model="dialogOpen"
+      max-width="1000"
+    >
       <VCard :title="$t(editing ? 'common.actions.editItem' : 'common.actions.addItem', { item: singular })">
-        <VCardText><VForm class="app-form" @submit.prevent="save"><VRow>
-          <VCol cols="12" :md="isMarketer ? 6 : 6"><VTextField v-model="form.name" :label="$t('common.fields.itemName', { item: singular })" autofocus required /></VCol>
-          <VCol v-if="isMarketer" cols="12" md="6"><UserAccountSelect v-model="form.user_id" :items="accountOptions" :loading="accountsLoading" :current-marketer-id="editing?.id ?? null" @update:model-value="accountSelected" /></VCol>
-          <VCol v-if="!isMarketer" cols="12" md="3"><VTextField v-model="form.code" :label="$t('pages.settings.directorycrudpage.officeCode')" required /></VCol>
-          <VCol cols="12" :md="isMarketer ? 4 : 3"><VSelect v-model="form.status" :items="['active', 'inactive']" :item-title="translateBackendValue" :label="$t('common.fields.status')" /></VCol>
-          <VCol cols="12" md="6"><VTextField v-model="form.email" :label="$t('common.fields.email')" type="email" /></VCol>
-          <VCol cols="12" md="6"><VTextField v-model="form.phone" :label="$t('common.fields.phone')" /></VCol>
-          <VCol cols="12"><VTextarea v-if="isMarketer" v-model="form.notes" :label="$t('common.fields.notes')" rows="3" /><VTextarea v-else v-model="form.address" :label="$t('common.fields.address')" rows="3" /></VCol>
-          <template v-if="!isMarketer && automaticAttendanceEnabled">
-            <VCol cols="12"><VDivider class="mb-4" /><div class="d-flex flex-wrap align-center justify-space-between ga-3"><div><h3 class="text-h6">{{ $t('pages.settings.geofence.title') }}</h3><p class="text-body-2 text-medium-emphasis mb-0">{{ $t('pages.settings.geofence.description') }}</p></div><VSwitch v-model="form.geofenceEnabled" color="primary" :label="$t('pages.settings.geofence.enableAutomaticAttendance')" hide-details /></div></VCol>
-            <VCol cols="12">
-              <OfficeGeofenceMap v-model:latitude="form.latitude" v-model:longitude="form.longitude" v-model:radius-meters="form.geofenceRadiusMeters" :current-latitude="currentLocation.latitude" :current-longitude="currentLocation.longitude" />
-              <p class="text-caption text-medium-emphasis mt-2 mb-0">{{ $t('pages.settings.geofence.mapHint') }}</p>
-            </VCol>
-            <VCol cols="12" md="4"><VTextField v-model.number="form.latitude" type="number" step="0.0000001" :label="$t('pages.settings.geofence.latitude')" /></VCol>
-            <VCol cols="12" md="4"><VTextField v-model.number="form.longitude" type="number" step="0.0000001" :label="$t('pages.settings.geofence.longitude')" /></VCol>
-            <VCol cols="12" md="4"><VTextField v-model.number="form.geofenceRadiusMeters" type="number" min="10" max="5000" step="1" suffix="m" :label="$t('pages.settings.geofence.radiusMeters')" /></VCol>
-            <VCol cols="12" md="8"><VSlider v-model="form.geofenceRadiusMeters" :min="10" :max="5000" :step="10" color="primary" thumb-label hide-details :label="$t('pages.settings.geofence.radiusMeters')" /></VCol>
-            <VCol cols="12" md="4" class="d-flex align-center"><VBtn block variant="tonal" prepend-icon="tabler-current-location" :loading="locating" @click="useCurrentLocation">{{ $t('pages.settings.geofence.useCurrentLocation') }}</VBtn></VCol>
-          </template>
-        </VRow><div class="d-flex justify-end ga-3 mt-4"><VBtn variant="tonal" @click="dialogOpen = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn type="submit" :loading="loading">{{ $t('common.actions.save') }}</VBtn></div></VForm></VCardText>
+        <VCardText>
+          <VForm
+            class="app-form"
+            @submit.prevent="save"
+          >
+            <VRow>
+              <VCol
+                cols="12"
+                :md="isMarketer ? 6 : 6"
+              >
+                <VTextField
+                  v-model="form.name"
+                  :label="$t('common.fields.itemName', { item: singular })"
+                  autofocus
+                  required
+                />
+              </VCol>
+              <VCol
+                v-if="isMarketer"
+                cols="12"
+                md="6"
+              >
+                <UserAccountSelect
+                  v-model="form.user_id"
+                  :items="accountOptions"
+                  :loading="accountsLoading"
+                  :current-marketer-id="editing?.id ?? null"
+                  @update:model-value="accountSelected"
+                />
+              </VCol>
+              <VCol
+                v-if="!isMarketer"
+                cols="12"
+                md="3"
+              >
+                <VTextField
+                  v-model="form.code"
+                  :label="$t('pages.settings.directorycrudpage.officeCode')"
+                  required
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                :md="isMarketer ? 4 : 3"
+              >
+                <VSelect
+                  v-model="form.status"
+                  :items="['active', 'inactive']"
+                  :item-title="translateBackendValue"
+                  :label="$t('common.fields.status')"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="form.email"
+                  :label="$t('common.fields.email')"
+                  type="email"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="form.phone"
+                  :label="$t('common.fields.phone')"
+                />
+              </VCol>
+              <VCol cols="12">
+                <VTextarea
+                  v-if="isMarketer"
+                  v-model="form.notes"
+                  :label="$t('common.fields.notes')"
+                  rows="3"
+                /><VTextarea
+                  v-else
+                  v-model="form.address"
+                  :label="$t('common.fields.address')"
+                  rows="3"
+                />
+              </VCol>
+              <template v-if="!isMarketer && automaticAttendanceEnabled">
+                <VCol cols="12">
+                  <VDivider class="mb-4" /><div class="d-flex flex-wrap align-center justify-space-between ga-3">
+                    <div>
+                      <h3 class="text-h6">
+                        {{ $t('pages.settings.geofence.title') }}
+                      </h3><p class="text-body-2 text-medium-emphasis mb-0">
+                        {{ $t('pages.settings.geofence.description') }}
+                      </p>
+                    </div><VSwitch
+                      v-model="form.geofenceEnabled"
+                      color="primary"
+                      :label="$t('pages.settings.geofence.enableAutomaticAttendance')"
+                      hide-details
+                    />
+                  </div>
+                </VCol>
+                <VCol cols="12">
+                  <OfficeGeofenceMap
+                    v-model:latitude="form.latitude"
+                    v-model:longitude="form.longitude"
+                    v-model:radius-meters="form.geofenceRadiusMeters"
+                    :current-latitude="currentLocation.latitude"
+                    :current-longitude="currentLocation.longitude"
+                  />
+                  <p class="text-caption text-medium-emphasis mt-2 mb-0">
+                    {{ $t('pages.settings.geofence.mapHint') }}
+                  </p>
+                </VCol>
+                <VCol
+                  cols="12"
+                  md="4"
+                >
+                  <VTextField
+                    v-model.number="form.latitude"
+                    type="number"
+                    step="0.0000001"
+                    :label="$t('pages.settings.geofence.latitude')"
+                  />
+                </VCol>
+                <VCol
+                  cols="12"
+                  md="4"
+                >
+                  <VTextField
+                    v-model.number="form.longitude"
+                    type="number"
+                    step="0.0000001"
+                    :label="$t('pages.settings.geofence.longitude')"
+                  />
+                </VCol>
+                <VCol
+                  cols="12"
+                  md="4"
+                >
+                  <VTextField
+                    v-model.number="form.geofenceRadiusMeters"
+                    type="number"
+                    min="10"
+                    max="5000"
+                    step="1"
+                    suffix="m"
+                    :label="$t('pages.settings.geofence.radiusMeters')"
+                  />
+                </VCol>
+                <VCol
+                  cols="12"
+                  md="8"
+                >
+                  <VSlider
+                    v-model="form.geofenceRadiusMeters"
+                    :min="10"
+                    :max="5000"
+                    :step="10"
+                    color="primary"
+                    thumb-label
+                    hide-details
+                    :label="$t('pages.settings.geofence.radiusMeters')"
+                  />
+                </VCol>
+                <VCol
+                  cols="12"
+                  md="4"
+                  class="d-flex align-center"
+                >
+                  <VBtn
+                    block
+                    variant="tonal"
+                    prepend-icon="tabler-current-location"
+                    :loading="locating"
+                    @click="useCurrentLocation"
+                  >
+                    {{ $t('pages.settings.geofence.useCurrentLocation') }}
+                  </VBtn>
+                </VCol>
+              </template>
+            </VRow><div class="d-flex justify-end ga-3 mt-4">
+              <VBtn
+                variant="tonal"
+                @click="dialogOpen = false"
+              >
+                {{ $t('common.actions.cancel') }}
+              </VBtn><VBtn
+                type="submit"
+                :loading="loading"
+              >
+                {{ $t('common.actions.save') }}
+              </VBtn>
+            </div>
+          </VForm>
+        </VCardText>
       </VCard>
     </VDialog>
 
-    <VDialog v-model="deleteDialogOpen" max-width="460"><VCard :title="$t('common.actions.deleteItem', { item: singular })"><VCardText>{{ $t('pages.settings.directory.deleteConfirmation', { name: deleting?.name }) }}</VCardText><VCardActions><VSpacer /><VBtn variant="tonal" @click="deleteDialogOpen = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="error" :loading="loading" @click="confirmDelete">{{ $t('common.actions.delete') }}</VBtn></VCardActions></VCard></VDialog>
+    <VDialog
+      v-model="deleteDialogOpen"
+      max-width="460"
+    >
+      <VCard :title="$t('common.actions.deleteItem', { item: singular })">
+        <VCardText>{{ $t('pages.settings.directory.deleteConfirmation', { name: deleting?.name }) }}</VCardText><VCardActions>
+          <VSpacer /><VBtn
+            variant="tonal"
+            @click="deleteDialogOpen = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn><VBtn
+            color="error"
+            :loading="loading"
+            @click="confirmDelete"
+          >
+            {{ $t('common.actions.delete') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 

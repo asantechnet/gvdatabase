@@ -11,6 +11,7 @@ use App\Models\Employee;
 use App\Models\Expense;
 use App\Services\CurrencyConversionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -167,6 +168,7 @@ class CommissionController extends Controller
             if ($settlement->status !== 'draft') {
                 throw ValidationException::withMessages(['settlement' => ['business.commission_settlement_not_draft']]);
             }
+            abort_if((int) $settlement->recorded_by === (int) $request->user()->id, 422, 'business.commission_creator_cannot_approve');
             $settlement->update(['status' => 'approved', 'approved_by' => $request->user()->id, 'approved_at' => now()]);
             $settlement->accruals()->update(['status' => 'approved']);
 
@@ -184,6 +186,8 @@ class CommissionController extends Controller
             if ($settlement->status !== 'approved') {
                 throw ValidationException::withMessages(['settlement' => ['business.commission_settlement_not_approved']]);
             }
+            abort_if((int) $settlement->approved_by === (int) $request->user()->id, 422, 'business.commission_approver_cannot_pay');
+            abort_if(Carbon::parse($validated['payment_date'])->lt($settlement->period_end), 422, 'business.commission_payment_before_period_end');
             $currency = Currency::query()->lockForUpdate()->findOrFail($settlement->base_currency_id);
             $snapshot = $this->currencies->snapshot($currency);
             $expense = Expense::create([

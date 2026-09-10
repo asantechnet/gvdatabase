@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { useTaskStore } from '@/stores/useTaskStore'
-import { canAccess } from '@/utils/authorization'
-import type { Task } from '@/types/taskManager'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import listPlugin from '@fullcalendar/list'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import FullCalendar from '@fullcalendar/vue3'
 import { computed, ref } from 'vue'
+import type { Task } from '@/types/taskManager'
+import { canAccess } from '@/utils/authorization'
+import type { TaskAttachment } from '@/api/kanban'
+import TaskApi from '@/api/task'
+import { useTaskStore } from '@/stores/useTaskStore'
 
 const store = useTaskStore()
 
@@ -17,12 +19,25 @@ const isDeleteConfirmOpen = ref(false)
 const selectedTask = ref<Task | null>(null)
 const resultAttachments = computed(() => selectedTask.value?.attachments.filter(attachment => attachment.section === 'results') ?? [])
 
+const downloadAttachment = async (attachment: TaskAttachment) => {
+  if (!selectedTask.value)
+    return
+  const response = await TaskApi.downloadAttachment(selectedTask.value.id, attachment.id)
+  const url = URL.createObjectURL(response.data)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = attachment.name
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 // Map priorities to Vuexy badge colors
 const priorityColorMap: Record<string, string> = {
   low: 'success',
   medium: 'info',
   high: 'warning',
-  urgent: 'error'
+  urgent: 'error',
 }
 
 const formatDate = (date: Date) => {
@@ -36,6 +51,7 @@ const formatDate = (date: Date) => {
 const addDays = (date: string, days: number) => {
   const [year, month, day] = date.split('-').map(Number)
   const value = new Date(year, month - 1, day)
+
   value.setDate(value.getDate() + days)
 
   return formatDate(value)
@@ -49,11 +65,14 @@ const daysBetween = (startDate: string, endDate: string) => {
 }
 
 const moveTaskToDate = (taskId: string, startDate: string) => {
-  if (!canAccess('edit_assigned_tasks')) return
+  if (!canAccess('edit_assigned_tasks'))
+    return
   const task = store.tasks.find(candidate => candidate.id === taskId)
-  if (!task) return
+  if (!task)
+    return
 
   const duration = daysBetween(task.startDate, task.dueDate)
+
   store.updateTaskDates(task.id, startDate, addDays(startDate, duration))
 }
 
@@ -63,10 +82,12 @@ const moveTaskToDate = (taskId: string, startDate: string) => {
 const handleEventChange = (info: any) => {
   if (!canAccess('edit_assigned_tasks')) {
     info.revert?.()
+
     return
   }
   const rawTask = info.event.extendedProps.rawTask as Task
-  if (!rawTask) return
+  if (!rawTask)
+    return
 
   // Extract ISO YYYY-MM-DD date strings
   const startDate = info.event.startStr.split('T')[0]
@@ -76,7 +97,8 @@ const handleEventChange = (info: any) => {
 
   // FullCalendar all-day events use an exclusive end date, while tasks use an
   // inclusive due date in the database.
-  if (info.event.allDay && info.event.endStr) dueDate = addDays(dueDate, -1)
+  if (info.event.allDay && info.event.endStr)
+    dueDate = addDays(dueDate, -1)
 
   // Update central Pinia store
   store.updateTaskDates(rawTask.id, startDate, dueDate)
@@ -91,13 +113,13 @@ const calendarOptions = computed(() => ({
   headerToolbar: {
     left: 'prev,next today',
     center: 'title',
-    right: 'dayGridMonth,timeGridWeek,listMonth'
+    right: 'dayGridMonth,timeGridWeek,listMonth',
   },
   events: store.calendarEvents,
 
   // Interactive features enabled
   editable: canAccess('edit_assigned_tasks'),
-  selectable: true,     // Enables date selection
+  selectable: true, // Enables date selection
   navLinks: true,
   height: 'auto',
 
@@ -108,32 +130,40 @@ const calendarOptions = computed(() => ({
   // FullCalendar's list view intentionally disables built-in event dragging.
   // Provide native drag/drop between list-day rows and preserve the task span.
   eventDidMount: (info: any) => {
-    if (!canAccess('edit_assigned_tasks') || !info.view.type.startsWith('list')) return
+    if (!canAccess('edit_assigned_tasks') || !info.view.type.startsWith('list'))
+      return
 
     const element = info.el as HTMLElement
+
     element.draggable = true
     element.classList.add('fc-list-event-draggable')
     element.addEventListener('dragstart', (event: DragEvent) => {
       event.dataTransfer?.setData('application/x-task-id', info.event.id)
-      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+      if (event.dataTransfer)
+        event.dataTransfer.effectAllowed = 'move'
     })
   },
   dayHeaderDidMount: (info: any) => {
-    if (!canAccess('edit_assigned_tasks') || !info.view.type.startsWith('list')) return
+    if (!canAccess('edit_assigned_tasks') || !info.view.type.startsWith('list'))
+      return
 
     const element = info.el as HTMLElement
     const clearDropTarget = () => element.classList.remove('fc-list-drop-target')
+
     element.addEventListener('dragover', (event: DragEvent) => {
       event.preventDefault()
-      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+      if (event.dataTransfer)
+        event.dataTransfer.dropEffect = 'move'
       element.classList.add('fc-list-drop-target')
     })
     element.addEventListener('dragleave', clearDropTarget)
     element.addEventListener('drop', (event: DragEvent) => {
       event.preventDefault()
       clearDropTarget()
+
       const taskId = event.dataTransfer?.getData('application/x-task-id')
-      if (taskId) moveTaskToDate(taskId, formatDate(info.date))
+      if (taskId)
+        moveTaskToDate(taskId, formatDate(info.date))
     })
   },
 
@@ -148,8 +178,9 @@ const calendarOptions = computed(() => ({
 
   eventClassNames: (arg: any) => {
     const priority = arg.event.extendedProps.priority || 'medium'
-    return [`task-calendar-event`, `task-calendar-event--${priorityColorMap[priority]}`]
-  }
+
+    return ['task-calendar-event', `task-calendar-event--${priorityColorMap[priority]}`]
+  },
 }))
 
 // --------------------------------------------------------------------------
@@ -172,17 +203,32 @@ const executeDeleteTask = () => {
 <template>
   <div class="calendar-wrapper">
     <!-- Main Calendar Card Container -->
-    <VCard elevation="0" class="border">
+    <VCard
+      elevation="0"
+      class="border"
+    >
       <VCardItem class="bg-surface border-b pb-4">
         <template #title>
           <div class="d-flex align-center">
-            <VIcon icon="tabler-calendar-event" color="primary" class="me-2" />
+            <VIcon
+              icon="tabler-calendar-event"
+              color="primary"
+              class="me-2"
+            />
             <span class="text-h5 font-weight-bold">{{ $t('components.taskManager.calendarview.scheduleTimelineView') }}</span>
           </div>
         </template>
         <template #append>
-          <VChip variant="tonal" color="success" size="small">
-            <VIcon icon="tabler-arrows-move" size="14" class="me-1" /> {{ $t('components.taskManager.calendarview.dragDropActive') }}
+          <VChip
+            variant="tonal"
+            color="success"
+            size="small"
+          >
+            <VIcon
+              icon="tabler-arrows-move"
+              size="14"
+              class="me-1"
+            /> {{ $t('components.taskManager.calendarview.dragDropActive') }}
           </VChip>
         </template>
       </VCardItem>
@@ -194,7 +240,11 @@ const executeDeleteTask = () => {
     </VCard>
 
     <!-- 1. TASK INSPECTION MODAL (Increased max-width to 800) -->
-    <VDialog v-model="isDetailModalOpen" max-width="800" scrollable>
+    <VDialog
+      v-model="isDetailModalOpen"
+      max-width="800"
+      scrollable
+    >
       <VCard v-if="selectedTask">
         <!-- Modal Header -->
         <VCardItem class="border-b bg-light-primary pa-4">
@@ -204,8 +254,13 @@ const executeDeleteTask = () => {
             </div>
           </template>
           <template #append>
-            <VBtn icon="tabler-x" variant="text" color="secondary" density="compact"
-              @click="isDetailModalOpen = false" />
+            <VBtn
+              icon="tabler-x"
+              variant="text"
+              color="secondary"
+              density="compact"
+              @click="isDetailModalOpen = false"
+            />
           </template>
         </VCardItem>
 
@@ -214,18 +269,38 @@ const executeDeleteTask = () => {
           <!-- Metadata Bar -->
           <div class="d-flex align-center flex-wrap gap-3 mb-5">
             <TaskCompletionChip :progress="selectedTask.progress" />
-            <VChip :color="priorityColorMap[selectedTask.priority]" size="small"
-              class="text-uppercase font-weight-bold">
-              <VIcon icon="tabler-flag" size="14" class="me-1" />
+            <VChip
+              :color="priorityColorMap[selectedTask.priority]"
+              size="small"
+              class="text-uppercase font-weight-bold"
+            >
+              <VIcon
+                icon="tabler-flag"
+                size="14"
+                class="me-1"
+              />
               {{ $t('components.taskManager.event.priority', { priority: translateBackendValue(selectedTask.priority) }) }}
             </VChip>
 
-            <VChip color="secondary" size="small" variant="tonal">
-              <VIcon icon="tabler-calendar-time" size="14" class="me-1" />
+            <VChip
+              color="secondary"
+              size="small"
+              variant="tonal"
+            >
+              <VIcon
+                icon="tabler-calendar-time"
+                size="14"
+                class="me-1"
+              />
               {{ $t('components.taskManager.event.dateRange', { start: formatLocalizedDate(`${selectedTask.startDate}T00:00:00`), end: formatLocalizedDate(`${selectedTask.dueDate}T00:00:00`) }) }}
             </VChip>
 
-            <VChip v-for="tag in selectedTask.tags" :key="tag.id" :color="tag.color" size="small">
+            <VChip
+              v-for="tag in selectedTask.tags"
+              :key="tag.id"
+              :color="tag.color"
+              size="small"
+            >
               {{ tag.name }}
             </VChip>
           </div>
@@ -236,8 +311,12 @@ const executeDeleteTask = () => {
               <span class="text-subtitle-2 font-weight-bold">{{ $t('components.taskManager.calendarview.taskProgressRollup') }}</span>
               <span class="text-subtitle-2 font-weight-bold">{{ selectedTask.progress }}%</span>
             </div>
-            <VProgressLinear :model-value="selectedTask.progress"
-              :color="selectedTask.progress === 100 ? 'success' : 'primary'" height="8" rounded />
+            <VProgressLinear
+              :model-value="selectedTask.progress"
+              :color="selectedTask.progress === 100 ? 'success' : 'primary'"
+              height="8"
+              rounded
+            />
             <div class="d-flex align-center justify-space-between mt-2 text-caption text-medium-emphasis">
               <span>{{ $t('components.taskManager.calendarview.subTasksCompleted') }}</span>
               <span>
@@ -251,24 +330,57 @@ const executeDeleteTask = () => {
             <span class="text-subtitle-1 font-weight-bold">{{ $t('components.taskManager.calendarview.taskContent') }}</span>
           </div>
           <div class="html-preview-box pa-4 border rounded bg-surface text-body-1">
-            <div v-if="selectedTask.description" v-html="selectedTask.description"></div>
-            <span v-else class="text-disabled italic">{{ $t('components.taskManager.calendarview.noDescriptionProvidedForThisTask') }}</span>
+            <div
+              v-if="selectedTask.description"
+              v-html="selectedTask.description"
+            />
+            <span
+              v-else
+              class="text-disabled italic"
+            >{{ $t('components.taskManager.calendarview.noDescriptionProvidedForThisTask') }}</span>
           </div>
 
           <div class="mt-5">
             <div class="mb-2 d-flex align-center gap-2">
-              <VIcon icon="tabler-file-description" size="20" />
+              <VIcon
+                icon="tabler-file-description"
+                size="20"
+              />
               <span class="text-subtitle-1 font-weight-bold">{{ $t('components.taskManager.calendarview.results') }}</span>
             </div>
-            <div v-if="selectedTask.results" class="html-preview-box pa-4 border rounded bg-surface text-body-1" v-html="selectedTask.results" />
-            <div v-else class="text-body-2 text-disabled">{{ $t('components.taskManager.calendarview.noResultsRecorded') }}</div>
+            <div
+              v-if="selectedTask.results"
+              class="html-preview-box pa-4 border rounded bg-surface text-body-1"
+              v-html="selectedTask.results"
+            />
+            <div
+              v-else
+              class="text-body-2 text-disabled"
+            >
+              {{ $t('components.taskManager.calendarview.noResultsRecorded') }}
+            </div>
 
-            <VList v-if="resultAttachments.length" class="border rounded pa-0 mt-3">
-              <VListItem v-for="attachment in resultAttachments" :key="attachment.id">
-                <template #prepend><VIcon icon="tabler-paperclip" /></template>
+            <VList
+              v-if="resultAttachments.length"
+              class="border rounded pa-0 mt-3"
+            >
+              <VListItem
+                v-for="attachment in resultAttachments"
+                :key="attachment.id"
+              >
+                <template #prepend>
+                  <VIcon icon="tabler-paperclip" />
+                </template>
                 <VListItemTitle>{{ attachment.name }}</VListItemTitle>
                 <template #append>
-                  <VBtn :href="attachment.url" target="_blank" icon="tabler-download" variant="text" size="small" :aria-label="$t('components.taskManager.calendarview.downloadAttachment')" :title="$t('components.taskManager.calendarview.downloadAttachment')" />
+                  <VBtn
+                    icon="tabler-download"
+                    variant="text"
+                    size="small"
+                    :aria-label="$t('components.taskManager.calendarview.downloadAttachment')"
+                    :title="$t('components.taskManager.calendarview.downloadAttachment')"
+                    @click="downloadAttachment(attachment)"
+                  />
                 </template>
               </VListItem>
             </VList>
@@ -277,11 +389,21 @@ const executeDeleteTask = () => {
 
         <!-- Modal Action Footer -->
         <VCardActions class="pa-4 border-t d-flex justify-space-between bg-surface">
-          <VBtn v-if="canAccess('delete_assigned_tasks')" color="error" variant="tonal" prepend-icon="tabler-trash" @click="triggerDeleteWarning">
+          <VBtn
+            v-if="canAccess('delete_assigned_tasks')"
+            color="error"
+            variant="tonal"
+            prepend-icon="tabler-trash"
+            @click="triggerDeleteWarning"
+          >
             {{ $t('common.messages.deleteTask') }}
           </VBtn>
 
-          <VBtn color="secondary" variant="outlined" @click="isDetailModalOpen = false">
+          <VBtn
+            color="secondary"
+            variant="outlined"
+            @click="isDetailModalOpen = false"
+          >
             {{ $t('common.actions.close') }}
           </VBtn>
         </VCardActions>
@@ -289,25 +411,48 @@ const executeDeleteTask = () => {
     </VDialog>
 
     <!-- 2. VUEXY DESTRUCTIVE ACTION WARNING DIALOG -->
-    <VDialog v-model="isDeleteConfirmOpen" max-width="450" persistent>
+    <VDialog
+      v-model="isDeleteConfirmOpen"
+      max-width="450"
+      persistent
+    >
       <VCard class="text-center pa-4">
         <VCardText class="pt-6">
-          <VAvatar color="warning" variant="tonal" size="70" class="mb-4">
-            <VIcon icon="tabler-alert-triangle" size="40" />
+          <VAvatar
+            color="warning"
+            variant="tonal"
+            size="70"
+            class="mb-4"
+          >
+            <VIcon
+              icon="tabler-alert-triangle"
+              size="40"
+            />
           </VAvatar>
 
-          <h4 class="text-h4 font-weight-bold mb-2">{{ $t('common.confirmations.areYouSure') }}</h4>
+          <h4 class="text-h4 font-weight-bold mb-2">
+            {{ $t('common.confirmations.areYouSure') }}
+          </h4>
           <p class="text-body-1 text-medium-emphasis mb-0">
             {{ $t('components.taskManager.calendarview.youAreAboutToDelete') }} <strong>"{{ selectedTask?.title }}"</strong>{{ $t('common.confirmations.thisActionCannotBeUndoneAndWillPermanentlyEraseAllAssociatedMiniTodosA') }}
           </p>
         </VCardText>
 
         <VCardActions class="justify-center gap-3 pb-4">
-          <VBtn color="secondary" variant="tonal" @click="isDeleteConfirmOpen = false">
+          <VBtn
+            color="secondary"
+            variant="tonal"
+            @click="isDeleteConfirmOpen = false"
+          >
             {{ $t('common.actions.cancel') }}
           </VBtn>
 
-          <VBtn color="error" variant="elevated" prepend-icon="tabler-trash-x" @click="executeDeleteTask">
+          <VBtn
+            color="error"
+            variant="elevated"
+            prepend-icon="tabler-trash-x"
+            @click="executeDeleteTask"
+          >
             {{ $t('components.taskManager.calendarview.yesDeleteIt') }}
           </VBtn>
         </VCardActions>

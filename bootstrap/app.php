@@ -1,13 +1,21 @@
 <?php
 
+use App\Http\Middleware\EnsureActiveAccount;
+use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\LocalizeApiSuccessResponse;
+use App\Http\Middleware\NormalizeApiErrorResponse;
+use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SetLocaleFromRequest;
 use App\Support\ApiMessage;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 $apiErrorCode = static function (int $status, ?string $message = null): string {
@@ -33,13 +41,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
-        $middleware->append(\App\Http\Middleware\SetLocaleFromRequest::class);
-        $middleware->append(\App\Http\Middleware\LocalizeApiSuccessResponse::class);
-        $middleware->append(\App\Http\Middleware\NormalizeApiErrorResponse::class);
+        $middleware->append(HandleCors::class);
+        $middleware->append(SetLocaleFromRequest::class);
+        $middleware->append(LocalizeApiSuccessResponse::class);
+        $middleware->append(NormalizeApiErrorResponse::class);
+        $middleware->append(SecurityHeaders::class);
         $middleware->alias([
-            'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
-            'permission' => \App\Http\Middleware\EnsurePermission::class,
+            'abilities' => CheckAbilities::class,
+            'permission' => EnsurePermission::class,
+            'active' => EnsureActiveAccount::class,
         ]);
     })
     ->withMiddleware(function (Middleware $middleware): void {

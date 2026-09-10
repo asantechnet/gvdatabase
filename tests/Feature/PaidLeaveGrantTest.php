@@ -2,16 +2,16 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\PaidTimeOffController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\PaidTimeOffController;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\PaidTimeOff;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use App\Services\AttendanceCalculationService;
 use App\Support\CompanyProfile;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class PaidLeaveGrantTest extends TestCase
@@ -22,7 +22,7 @@ class PaidLeaveGrantTest extends TestCase
     {
         $employee = Employee::factory()->create();
         $approver = User::factory()->create();
-        $leaves = collect(['2026-10-01', '2026-10-02'])->map(fn (string $date) => PaidTimeOff::create([
+        $leaves = collect(['2026-10-01', '2026-10-03'])->map(fn (string $date) => PaidTimeOff::create([
             'employee_id' => $employee->id,
             'date' => $date,
             'year' => 2026,
@@ -57,7 +57,7 @@ class PaidLeaveGrantTest extends TestCase
     {
         $employee = Employee::factory()->create();
         $leave = PaidTimeOff::create([
-            'employee_id' => $employee->id, 'date' => '2026-10-01', 'year' => 2026,
+            'employee_id' => $employee->id, 'date' => '2026-08-31', 'year' => 2026,
             'duration_days' => 0.5, 'reason' => 'Morning appointment',
         ]);
         $approver = User::factory()->create();
@@ -69,14 +69,14 @@ class PaidLeaveGrantTest extends TestCase
         app(PaidTimeOffController::class)->grant($grant);
 
         $markPresent = Request::create('/api/attendances', 'POST', [
-            'staff_id' => $employee->id, 'date' => '2026-10-01', 'status' => 'present',
+            'staff_id' => $employee->id, 'date' => '2026-08-31', 'status' => 'present',
             'check_in_time' => '13:00', 'check_out_time' => '17:00', 'break_minutes' => 0,
         ]);
         app(AttendanceController::class)->store(
             $markPresent, app(AttendanceCalculationService::class), app(CompanyProfile::class),
         );
 
-        $attendance = Attendance::where('employee_id', $employee->id)->whereDate('date', '2026-10-01')->firstOrFail();
+        $attendance = Attendance::where('employee_id', $employee->id)->whereDate('date', '2026-08-31')->firstOrFail();
         $this->assertSame('present', $attendance->status);
         $this->assertSame(0.5, $attendance->leave_duration_days);
         $this->assertSame(0.5, $attendance->paid_leave_days);

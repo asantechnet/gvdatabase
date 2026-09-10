@@ -6,10 +6,11 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CustomerService extends Pivot
 {
-    use Auditable, HasFactory;
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $table = 'customer_service';
 
@@ -58,5 +59,4 @@ class CustomerService extends Pivot
     {
         return $this->belongsTo(Currency::class);
     }
-
 }

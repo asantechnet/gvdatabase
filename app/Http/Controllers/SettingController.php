@@ -41,6 +41,7 @@ class SettingController extends Controller
 
     public function store(UpsertSettingRequest $request): JsonResponse
     {
+        abort_if(Setting::query()->exists(), 409, 'business.company_profile_already_exists');
         $data = Arr::except($request->validated(), [
             'remove_contract_letterhead',
             'remove_contract_cover_design',
@@ -132,19 +133,10 @@ class SettingController extends Controller
 
     public function destroy(Setting $setting): JsonResponse
     {
-        $paths = collect(array_keys(self::FILES))
-            ->map(fn (string $field) => $setting->{$field})
-            ->filter()
-            ->values()
-            ->all();
-
-        $setting->delete();
-        Storage::disk('public')->delete($paths);
-
         return response()->json([
-            'success' => true,
-            'message' => 'Setting deleted successfully',
-        ]);
+            'success' => false,
+            'code' => 'business.company_profile_cannot_be_deleted',
+        ], 405);
     }
 
     /**

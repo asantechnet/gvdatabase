@@ -24,7 +24,8 @@ class OfficeGeofenceAttendanceTest extends TestCase
         $this->seed([PermissionSeeder::class, RolePermissionSeeder::class]);
         Setting::create([
             'navigation_clr' => '#111111', 'cards_clr' => '#ffffff', 'footer_clr' => '#111111',
-            'paid_off_days_per_year' => 0, 'website_title' => 'Test', 'website_address' => 'https://example.test',
+            'paid_leave_days_per_year' => 0, 'automatic_attendance_enabled' => true,
+            'website_title' => 'Test', 'website_address' => 'https://example.test',
             'company_email' => 'office@example.test', 'timezone' => 'Asia/Kabul', 'phone' => '123',
             'physical_address' => 'Kabul', 'short_company_name' => 'Test', 'original_company_name' => 'Test Company',
         ]);

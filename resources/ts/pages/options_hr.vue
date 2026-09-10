@@ -29,14 +29,24 @@ const statusOptions = ['Active', 'Inactive']
 
 <template>
   <div>
-    <DataTablePageKpis :items="hrOptions" title="HR options" description="Manage the reusable settings that support your people operations." icon="tabler-users-group" status-key="active" />
+    <DataTablePageKpis
+      :items="hrOptions"
+      title="HR options"
+      description="Manage the reusable settings that support your people operations."
+      icon="tabler-users-group"
+      status-key="active"
+    />
     <VCard class="mb-6">
       <VCardText>
         <VRow align="center">
-          <VCol cols="12" md="8">
+          <VCol
+            cols="12"
+            md="8"
+          >
             <VTextField
               v-model="searchQuery"
-              class="data-table-search" prepend-inner-icon="tabler-search"
+              class="data-table-search"
+              prepend-inner-icon="tabler-search"
               :placeholder="$t('pages.settings.optionsHr.optionsHr.searchHROptions')"
               density="compact"
               clearable
@@ -44,13 +54,37 @@ const statusOptions = ['Active', 'Inactive']
             />
           </VCol>
 
-          <VCol cols="12" md="4" class="d-flex justify-md-end">
-            <DataTableFilterMenu :active="Boolean(filter1 || filter2)" @reset="filter1 = null; filter2 = null">
-              <VSelect v-model="filter1" :items="categoryOptions" :label="$t('common.messages.filterByCategory')" density="compact" clearable hide-details />
-              <VSelect v-model="filter2" :items="statusOptions" :label="$t('common.messages.filterByStatus')" density="compact" clearable hide-details />
+          <VCol
+            cols="12"
+            md="4"
+            class="d-flex justify-md-end"
+          >
+            <DataTableFilterMenu
+              :active="Boolean(filter1 || filter2)"
+              @reset="filter1 = null; filter2 = null"
+            >
+              <VSelect
+                v-model="filter1"
+                :items="categoryOptions"
+                :label="$t('common.messages.filterByCategory')"
+                density="compact"
+                clearable
+                hide-details
+              />
+              <VSelect
+                v-model="filter2"
+                :items="statusOptions"
+                :label="$t('common.messages.filterByStatus')"
+                density="compact"
+                clearable
+                hide-details
+              />
             </DataTableFilterMenu>
             <VBtn color="primary">
-              <VIcon icon="tabler-plus" class="me-1" />
+              <VIcon
+                icon="tabler-plus"
+                class="me-1"
+              />
               {{ $t('common.messages.addNew') }}
             </VBtn>
           </VCol>
@@ -68,7 +102,7 @@ const statusOptions = ['Active', 'Inactive']
             { title: translate('common.fields.category'), key: 'category' },
             { title: translate('common.fields.description'), key: 'description' },
             { title: translate('common.statuses.active'), key: 'active' },
-            { title: translate('common.messages.actions'), key: 'actions', sortable: false }
+            { title: translate('common.messages.actions'), key: 'actions', sortable: false },
           ]"
           item-value="id"
           class="text-no-wrap"
@@ -88,9 +122,22 @@ const statusOptions = ['Active', 'Inactive']
 
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
-              <FullDetailsButton :item="item" :title="item.name" />
-              <VBtn icon="tabler-edit" variant="text" size="small" color="medium-emphasis" />
-              <VBtn icon="tabler-trash" variant="text" size="small" color="error" />
+              <FullDetailsButton
+                :item="item"
+                :title="item.name"
+              />
+              <VBtn
+                icon="tabler-edit"
+                variant="text"
+                size="small"
+                color="medium-emphasis"
+              />
+              <VBtn
+                icon="tabler-trash"
+                variant="text"
+                size="small"
+                color="error"
+              />
             </div>
           </template>
         </ResponsiveDataTable>

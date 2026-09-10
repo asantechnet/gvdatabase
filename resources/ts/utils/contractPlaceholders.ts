@@ -10,7 +10,7 @@ import type { PlaceholderGroup } from '@/api/contractPlaceholders'
  * mapping restores editable chips.
  */
 
-export const PLACEHOLDER_SPAN_PATTERN = /<span[^>]*data-placeholder-key="([^"]+)"[^>]*>(?:[\s\S]*?)<\/span>/gi
+export const PLACEHOLDER_SPAN_PATTERN = /<span[^>]*data-placeholder-key="([^"]+)"[^>]*>[\s\S]*?<\/span>/gi
 
 /** Convert editor chips into resolvable {{ key }} tokens. */
 export const serializePlaceholders = (html: string): string =>
@@ -19,9 +19,11 @@ export const serializePlaceholders = (html: string): string =>
 /** Build a flat lookup of machine key → human label from API groups. */
 export const placeholderLabels = (groups: PlaceholderGroup[]): Record<string, string> => {
   const labels: Record<string, string> = {}
-  for (const group of groups)
+  for (const group of groups) {
     for (const field of group.fields)
       labels[field.key] = `${group.label} · ${field.label}`
+  }
+
   return labels
 }
 
@@ -33,9 +35,10 @@ export const hydratePlaceholders = (
 ): string => {
   const labels = placeholderLabels(groups)
 
-  return html.replace(/{{\s*([a-zA-Z0-9_.]+)\s*}}/g, (match, rawKey: string) => {
+  return html.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, rawKey: string) => {
     const key = rawKey.toLowerCase()
     if (knownKeys && !knownKeys.has(key))
+
       // Unknown or out-of-context placeholders stay visible as raw tokens
       // so the author notices them instead of silently losing content.
       return match
@@ -49,8 +52,9 @@ export const hydratePlaceholders = (
 /** Extract every placeholder token present in an HTML string. */
 export const extractPlaceholderKeys = (html: string): string[] => {
   const keys = new Set<string>()
-  for (const match of html.matchAll(/{{\s*([a-zA-Z0-9_.]+)\s*}}/g)) keys.add(match[1].toLowerCase())
+  for (const match of html.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)) keys.add(match[1].toLowerCase())
   for (const match of html.matchAll(PLACEHOLDER_SPAN_PATTERN)) keys.add(match[1].toLowerCase())
+
   return [...keys]
 }
 
@@ -74,7 +78,8 @@ export const legacyContentToHtml = (content: unknown): string => {
   if (typeof content === 'object') {
     try {
       return deltaToHtml(content as LegacyQuillDelta)
-    } catch {
+    }
+    catch {
       return ''
     }
   }
@@ -87,7 +92,8 @@ export const legacyContentToHtml = (content: unknown): string => {
       const parsed = JSON.parse(trimmed) as LegacyQuillDelta
       if (parsed?.ops?.length)
         return deltaToHtml(parsed)
-    } catch {
+    }
+    catch {
       // Plain HTML that merely starts with "{" is impossible; fall through.
     }
   }
@@ -124,11 +130,16 @@ const deltaToHtml = (delta: LegacyQuillDelta): string => {
 
     let text = escapeHtml(op.insert)
 
-    if (attrs.bold) text = `<strong>${text}</strong>`
-    if (attrs.italic) text = `<em>${text}</em>`
-    if (attrs.underline) text = `<u>${text}</u>`
-    if (attrs.strike) text = `<s>${text}</s>`
-    if (typeof attrs.link === 'string') text = `<a href="${escapeHtml(attrs.link)}" target="_blank" rel="noopener">${text}</a>`
+    if (attrs.bold)
+      text = `<strong>${text}</strong>`
+    if (attrs.italic)
+      text = `<em>${text}</em>`
+    if (attrs.underline)
+      text = `<u>${text}</u>`
+    if (attrs.strike)
+      text = `<s>${text}</s>`
+    if (typeof attrs.link === 'string')
+      text = `<a href="${escapeHtml(attrs.link)}" target="_blank" rel="noopener">${text}</a>`
 
     if (isListItem) {
       const tag: 'ul' | 'ol' = attrs.list === 'ordered' ? 'ol' : 'ul'
@@ -136,7 +147,8 @@ const deltaToHtml = (delta: LegacyQuillDelta): string => {
         closeList()
         html += `<${tag}><li>${text}</li>`
         listOpen = tag
-      } else {
+      }
+      else {
         html += `<li>${text}</li>`
       }
       continue

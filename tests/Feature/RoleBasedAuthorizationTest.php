@@ -86,6 +86,6 @@ class RoleBasedAuthorizationTest extends TestCase
         $this->deleteJson("/api/tasks/{$task->id}/subtasks/{$subtask->id}")
             ->assertOk();
 
-        $this->assertDatabaseMissing('subtasks', ['id' => $subtask->id]);
+        $this->assertSoftDeleted('subtasks', ['id' => $subtask->id]);
     }
 }

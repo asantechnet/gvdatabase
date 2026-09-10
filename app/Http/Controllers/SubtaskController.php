@@ -5,10 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Resources\SubtaskResource;
 use App\Models\Subtask;
 use App\Models\Task;
+use App\Support\EditWindow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use App\Support\EditWindow;
 
 class SubtaskController extends Controller
 {
@@ -81,9 +81,20 @@ class SubtaskController extends Controller
 
     private function syncTaskProgress(Task $task): int
     {
+        $task = Task::query()->lockForUpdate()->findOrFail($task->id);
         $total = $task->subtasks()->count();
         $completed = $task->subtasks()->where('is_completed', true)->count();
         $progress = $total === 0 ? 0 : (int) round(($completed / $total) * 100);
+
+        if ($progress === 100) {
+            abort_if($task->dependencies()->where('progress', '<', 100)->exists(), 422, 'business.task_dependencies_incomplete');
+        }
+        if ($progress < 100 && (int) $task->progress === 100) {
+            abort_if(DB::table('task_dependencies')->join('tasks', 'tasks.id', '=', 'task_dependencies.task_id')
+                ->where('task_dependencies.depends_on_task_id', $task->id)
+                ->where('tasks.progress', 100)
+                ->whereNull('tasks.deleted_at')->exists(), 422, 'business.completed_task_depends_on_this_task');
+        }
 
         $task->update(['progress' => $progress]);
 

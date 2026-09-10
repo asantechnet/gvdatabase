@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useContracts } from '@/composables/useContracts'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { VAlert } from 'vuetify/components'
+import { useContracts } from '@/composables/useContracts'
 
 const {
   contracts,
@@ -20,10 +19,13 @@ const filtered = computed(() => {
   return contracts.value.filter(c => {
     const contractName = c.contract || c.contract_template?.name || ''
     const counterpartyName = c.counterparty || ''
-    const matchesSearch = contractName.toLowerCase().includes(search.value.toLowerCase()) ||
-      counterpartyName.toLowerCase().includes(search.value.toLowerCase()) ||
-      (c.contract_number || '').toLowerCase().includes(search.value.toLowerCase())
+
+    const matchesSearch = contractName.toLowerCase().includes(search.value.toLowerCase())
+      || counterpartyName.toLowerCase().includes(search.value.toLowerCase())
+      || (c.contract_number || '').toLowerCase().includes(search.value.toLowerCase())
+
     const matchesClient = !filterClient.value || c.counterparty === filterClient.value
+
     return matchesSearch && matchesClient
   })
 })
@@ -46,30 +48,94 @@ onMounted(() => {
 })
 </script>
 
+<script lang="ts">
+export default {
+  methods: {
+    getStatusColor(status: string) {
+      if (!status)
+        return 'default'
+
+      const statusMap: Record<string, string> = {
+        Active: 'success',
+        Expired: 'error',
+        Pending: 'warning',
+      }
+
+      return statusMap[status] || 'default'
+    },
+  },
+}
+</script>
+
 <template>
-  <DataTablePageKpis :items="filtered" :title="$t('navigation.cancelledContracts')" :description="$t('pages.contracts.cancelledContracts.cancelledContracts.reviewClosedAgreements')" icon="tabler-file-off" />
+  <DataTablePageKpis
+    :items="filtered"
+    :title="$t('navigation.cancelledContracts')"
+    :description="$t('pages.contracts.cancelledContracts.cancelledContracts.reviewClosedAgreements')"
+    icon="tabler-file-off"
+  />
   <VCard>
     <VCardText>
       <VRow align="center">
-        <VCol cols="12" md="9">
-          <VTextField v-model="search" class="data-table-search" prepend-inner-icon="tabler-search" :placeholder="$t('pages.contracts.cancelledContracts.cancelledContracts.searchCancelledContracts')"
-            density="compact" clearable hide-details />
+        <VCol
+          cols="12"
+          md="9"
+        >
+          <VTextField
+            v-model="search"
+            class="data-table-search"
+            prepend-inner-icon="tabler-search"
+            :placeholder="$t('pages.contracts.cancelledContracts.cancelledContracts.searchCancelledContracts')"
+            density="compact"
+            clearable
+            hide-details
+          />
         </VCol>
-        <VCol cols="12" md="3" class="text-end d-flex justify-end ga-2">
-          <DataTableFilterMenu :active="Boolean(filterClient)" @reset="filterClient = null">
-            <VSelect v-model="filterClient" :items="clients" :label="$t('pages.contracts.cancelledContracts.cancelledContracts.filterByClient')" density="compact" clearable hide-details />
+        <VCol
+          cols="12"
+          md="3"
+          class="text-end d-flex justify-end ga-2"
+        >
+          <DataTableFilterMenu
+            :active="Boolean(filterClient)"
+            @reset="filterClient = null"
+          >
+            <VSelect
+              v-model="filterClient"
+              :items="clients"
+              :label="$t('pages.contracts.cancelledContracts.cancelledContracts.filterByClient')"
+              density="compact"
+              clearable
+              hide-details
+            />
           </DataTableFilterMenu>
-          <VBtn icon="tabler-printer" variant="text" @click="printTable" />
+          <VBtn
+            icon="tabler-printer"
+            variant="text"
+            @click="printTable"
+          />
         </VCol>
       </VRow>
     </VCardText>
 
-    <VAlert v-if="error" type="error" class="ma-4">
+    <VAlert
+      v-if="error"
+      type="error"
+      class="ma-4"
+    >
       {{ error }}
     </VAlert>
 
-    <ResponsiveDataTable :headers="headers" :items="filtered" item-value="id" class="text-no-wrap" mobile-breakpoint="sm"
-      :loading="isLoading" :loading-text="$t('pages.contracts.cancelledContracts.cancelledContracts.loadingCancelledContracts')" style="overflow-x: auto;">
+    <ResponsiveDataTable
+      :headers="headers"
+      :items="filtered"
+      item-value="id"
+      class="text-no-wrap"
+      mobile-breakpoint="sm"
+      :loading="isLoading"
+      :loading-text="$t('pages.contracts.cancelledContracts.cancelledContracts.loadingCancelledContracts')"
+      style="overflow-x: auto;"
+    >
       <template #item.contract="{ item }">
         {{ item.contract || item.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract') }}
       </template>
@@ -77,30 +143,23 @@ onMounted(() => {
         {{ item.counterparty || $t('pages.contracts.allContracts.allContracts.unknownCounterparty') }}
       </template>
       <template #item.start_date="{ item }">
-                {{ formatLocalizedDate(item.start_date) }}
+        {{ formatLocalizedDate(item.start_date) }}
       </template>
       <template #item.status="{ item }">
-        <VChip color="error" size="small" class="font-weight-medium">
+        <VChip
+          color="error"
+          size="small"
+          class="font-weight-medium"
+        >
           {{ $t('common.statuses.cancelled') }}
         </VChip>
       </template>
-      <template #item.actions="{ item }"><FullDetailsButton :item="item" :title="item.contract_number || item.contract" /></template>
+      <template #item.actions="{ item }">
+        <FullDetailsButton
+          :item="item"
+          :title="item.contract_number || item.contract"
+        />
+      </template>
     </ResponsiveDataTable>
   </VCard>
 </template>
-
-<script lang="ts">
-export default {
-  methods: {
-    getStatusColor(status: string) {
-      if (!status) return 'default'
-      const statusMap: Record<string, string> = {
-        'Active': 'success',
-        'Expired': 'error',
-        'Pending': 'warning'
-      }
-      return statusMap[status] || 'default'
-    }
-  }
-}
-</script>

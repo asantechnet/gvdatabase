@@ -49,12 +49,14 @@ const darkenHexColor = (color: string, amount = 0.1) => {
 }
 
 export function readStoredThemeColors(): ThemeColorPreferences {
-  if (typeof localStorage === 'undefined') return {}
+  if (typeof localStorage === 'undefined')
+    return {}
 
   try {
     return themeColorFields.reduce<ThemeColorPreferences>((colors, field) => {
       const value = localStorage.getItem(storageKeys[field])
-      if (isThemeColor(value)) colors[field] = value
+      if (isThemeColor(value))
+        colors[field] = value
 
       return colors
     }, {})
@@ -65,18 +67,22 @@ export function readStoredThemeColors(): ThemeColorPreferences {
 }
 
 export function persistThemeColors(colors: Partial<Record<ThemeColorField, string | null | undefined>>) {
-  if (typeof localStorage === 'undefined') return
+  if (typeof localStorage === 'undefined')
+    return
 
   try {
     themeColorFields.forEach(field => {
       const value = colors[field]
-      if (isThemeColor(value)) localStorage.setItem(storageKeys[field], value)
-      else if (value === null) localStorage.removeItem(storageKeys[field])
+      if (isThemeColor(value))
+        localStorage.setItem(storageKeys[field], value)
+      else if (value === null)
+        localStorage.removeItem(storageKeys[field])
     })
 
     // The static loading screen renders before Vue has mounted.
     const primary = colors.primary_color
-    if (isThemeColor(primary)) localStorage.setItem('vuexy-initial-loader-color', primary)
+    if (isThemeColor(primary))
+      localStorage.setItem('vuexy-initial-loader-color', primary)
   }
   catch {
     // Browser storage is an optional fast-path; API values are still applied.
@@ -96,7 +102,8 @@ export function applyThemePalette(theme: MutableVuetifyTheme, palette: ThemeColo
 
   Object.entries(semanticTokens).forEach(([field, token]) => {
     const color = palette[field as keyof typeof semanticTokens]
-    if (!isThemeColor(color)) return
+    if (!isThemeColor(color))
+      return
     theme.colors[token] = color
     theme.colors[`on-${token}`] = contrastingTextColor(color)
     theme.colors[`${token}-darken-1`] = darkenHexColor(color)
@@ -105,6 +112,7 @@ export function applyThemePalette(theme: MutableVuetifyTheme, palette: ThemeColo
   const backgroundField = theme.dark ? 'dark_background_color' : 'light_background_color'
   const surfaceField = theme.dark ? 'dark_surface_color' : 'light_surface_color'
   const expectedText = theme.dark ? '#ffffff' : '#111827'
+
   const resolveModeSurface = (color: string | undefined, fallback: string) =>
     isThemeColor(color) && contrastingTextColor(color) === expectedText ? color : fallback
 
@@ -118,6 +126,7 @@ export function applyThemePalette(theme: MutableVuetifyTheme, palette: ThemeColo
   theme.colors['on-background'] = contrastingTextColor(background)
   theme.colors.surface = surface
   theme.colors['on-surface'] = contrastingTextColor(surface)
+
   // Keep both skin variants synchronized. Branding is loaded asynchronously,
   // after Vuexy has cached these values, so updating only background/surface
   // leaves the active skin pointing at stale colors until the next refresh.

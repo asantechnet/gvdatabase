@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Attendance;
 use App\Http\Resources\AttendanceResource;
 use App\Http\Resources\DailyReportResource;
 use App\Http\Resources\EmployeeResource;
+use App\Models\Attendance;
 use App\Models\Employee;
-use Illuminate\Http\Request;
+use App\Services\AttendanceCalculationService;
+use App\Support\CompanyProfile;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use App\Services\AttendanceCalculationService;
-use App\Support\CompanyProfile;
-use Illuminate\Support\Carbon;
 
 class AttendanceController extends Controller
 {
@@ -43,9 +43,16 @@ class AttendanceController extends Controller
             ->when($request->filled('employee_id'), fn ($query) => $query->where('employee_id', $request->integer('employee_id')))
             ->when($request->filled('office_id'), fn ($query) => $query->where('office_id', $request->integer('office_id')))
             ->when($request->filled('status'), function ($query) use ($request) {
-                if ($request->input('status') === 'incomplete') return $query->where('status', 'present')->where('missing_punch_state', '!=', 'none');
-                if ($request->input('status') === 'paid-leave') return $query->where('paid_leave_days', '>', 0);
-                if ($request->input('status') === 'unpaid-leave') return $query->where('unpaid_leave_days', '>', 0);
+                if ($request->input('status') === 'incomplete') {
+                    return $query->where('status', 'present')->where('missing_punch_state', '!=', 'none');
+                }
+                if ($request->input('status') === 'paid-leave') {
+                    return $query->where('paid_leave_days', '>', 0);
+                }
+                if ($request->input('status') === 'unpaid-leave') {
+                    return $query->where('unpaid_leave_days', '>', 0);
+                }
+
                 return $query->where('status', $request->input('status'));
             })
             ->orderBy('date', 'desc')
@@ -78,6 +85,7 @@ class AttendanceController extends Controller
             ->betweenDates($request->input('start_date', now()->startOfMonth()->toDateString()), $request->input('end_date', now()->toDateString()))
             ->where('employee_id', $employeeId)->latest('date')->get();
         $records->each(fn (Attendance $attendance) => $calculator->calculate($attendance));
+
         return AttendanceResource::collection($records);
     }
 
@@ -106,11 +114,16 @@ class AttendanceController extends Controller
 
         $employee = Employee::findOrFail($validated['staff_id']);
         $timezone = $company->timezone();
+        $attendanceDate = Carbon::parse($validated['date'], $timezone)->startOfDay();
+        abort_if($attendanceDate->isAfter(now($timezone)->startOfDay()), 422, 'business.future_attendance_not_allowed');
+        abort_if($employee->join_date && $attendanceDate->isBefore($employee->join_date->copy()->startOfDay()), 422, 'business.attendance_before_join_date');
         $checkedInAt = $validated['status'] === 'present' && ! empty($validated['check_in_time'])
             ? Carbon::parse($validated['date'].' '.$validated['check_in_time'], $timezone)->utc() : null;
         $checkedOutAt = $validated['status'] === 'present' && ! empty($validated['check_out_time'])
             ? Carbon::parse($validated['date'].' '.$validated['check_out_time'], $timezone)->utc() : null;
-        if ($checkedInAt && $checkedOutAt && $checkedOutAt->lte($checkedInAt)) $checkedOutAt->addDay();
+        if ($checkedInAt && $checkedOutAt && $checkedOutAt->lte($checkedInAt)) {
+            $checkedOutAt->addDay();
+        }
 
         $attendance = DB::transaction(function () use ($validated, $employee, $checkedInAt, $checkedOutAt) {
             // Attendance is soft-deleted for audit history, while the database
@@ -143,8 +156,11 @@ class AttendanceController extends Controller
                     'office_id' => $employee->office_id,
                     'break_minutes' => $validated['break_minutes'] ?? null,
                 ]);
-                if ($attendance->trashed()) $attendance->restore();
-                else $attendance->save();
+                if ($attendance->trashed()) {
+                    $attendance->restore();
+                } else {
+                    $attendance->save();
+                }
 
                 return $attendance;
             }
@@ -180,6 +196,7 @@ class AttendanceController extends Controller
         ]);
 
         $date = $request->input('date');
+        abort_if(Carbon::parse($date)->isFuture(), 422, 'business.future_attendance_not_allowed');
         if (Carbon::parse($date)->isFriday()) {
             return EmployeeResource::collection(collect());
         }
@@ -216,7 +233,7 @@ class AttendanceController extends Controller
         $attendance->delete();
 
         return response()->json([
-            'message' => 'Attendance record deleted successfully.'
+            'message' => 'Attendance record deleted successfully.',
         ]);
     }
 }

@@ -18,7 +18,11 @@ class CustomerServiceController extends Controller
     {
         $validated = $request->validate([
             'services' => ['required', 'array', 'min:1'],
-            'services.*.service_id' => ['required', 'integer', 'distinct', 'exists:services,id'],
+            'services.*.service_id' => [
+                'required', 'integer', 'distinct', 'exists:services,id',
+                Rule::unique('customer_service', 'service_id')
+                    ->where(fn ($query) => $query->where('customer_id', $customer->id)->whereNull('deleted_at')),
+            ],
             'services.*.employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
             'services.*.marketer_id' => CrmMarketerAttribution::marketerIdRules(),
             'services.*.deadline' => ['nullable', 'date'],
@@ -31,8 +35,10 @@ class CustomerServiceController extends Controller
         $this->assertDeliveryCapabilities($validated['services']);
 
         $records = DB::transaction(function () use ($customer, $validated) {
+            Customer::query()->lockForUpdate()->findOrFail($customer->id);
+
             return collect($validated['services'])->map(function (array $data) use ($customer) {
-                return $customer->customerServices()->create([
+                $attributes = [
                     'service_id' => $data['service_id'],
                     'employee_id' => $data['employee_id'] ?? null,
                     // A service normally inherits the customer acquisition
@@ -46,7 +52,22 @@ class CustomerServiceController extends Controller
                     'currency_id' => $data['currency_id'] ?? null,
                     'status' => $data['status'] ?? 'active',
                     'notes' => $data['notes'] ?? null,
-                ])->load(['service.currency', 'currency', 'employee', 'marketer']);
+                ];
+
+                $record = CustomerService::withTrashed()
+                    ->where('customer_id', $customer->id)
+                    ->where('service_id', $data['service_id'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($record?->trashed()) {
+                    $record->restore();
+                    $record->update($attributes);
+                } else {
+                    $record = $customer->customerServices()->create($attributes);
+                }
+
+                return $record->load(['service.currency', 'currency', 'employee', 'marketer']);
             });
         });
 

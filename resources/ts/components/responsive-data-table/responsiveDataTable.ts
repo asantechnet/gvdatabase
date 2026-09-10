@@ -1,4 +1,4 @@
-import { cloneVNode, computed, defineComponent, h, isVNode, ref, type Component, type VNode } from 'vue'
+import { type Component, type VNode, cloneVNode, computed, defineComponent, h, isVNode, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   VBottomSheet,
@@ -13,14 +13,14 @@ import {
   VIcon,
 } from 'vuetify/components'
 
-type DataTableColumn = {
+interface DataTableColumn {
   key: string
   title?: string
   align?: 'start' | 'center' | 'end'
   [key: string]: unknown
 }
 
-type DataTableSlotProps = {
+interface DataTableSlotProps {
   index: number
   item: Record<string, any>
   internalItem?: any
@@ -32,7 +32,7 @@ type DataTableSlotProps = {
   toggleExpand?: (item: any) => void
 }
 
-type TableBodySlotProps = {
+interface TableBodySlotProps {
   items: Record<string, any>[]
   internalItems?: any[]
   groupedItems?: any[]
@@ -59,10 +59,12 @@ const isActionColumn = (column: DataTableColumn) => {
 }
 
 const flattenNodes = (nodes: unknown): VNode[] => {
-  if (!nodes) return []
+  if (!nodes)
+    return []
 
   return (Array.isArray(nodes) ? nodes : [nodes]).flatMap(node => {
-    if (!isVNode(node)) return []
+    if (!isVNode(node))
+      return []
 
     return node.type === Symbol.for('v-fgt') && Array.isArray(node.children)
       ? flattenNodes(node.children)
@@ -71,9 +73,10 @@ const flattenNodes = (nodes: unknown): VNode[] => {
 }
 
 const componentName = (node: VNode) => {
-  if (typeof node.type === 'string') return node.type
+  if (typeof node.type === 'string')
+    return node.type
 
-  const component = node.type as { name?: string, __name?: string }
+  const component = node.type as { name?: string; __name?: string }
 
   return component.name || component.__name || ''
 }
@@ -81,7 +84,8 @@ const componentName = (node: VNode) => {
 const nodeChildren = (node: VNode): VNode[] => {
   const children = node.children
 
-  if (Array.isArray(children)) return flattenNodes(children as VNode[])
+  if (Array.isArray(children))
+    return flattenNodes(children as VNode[])
   if (children && typeof children === 'object' && 'default' in children) {
     const defaultSlot = (children as { default?: () => VNode | VNode[] }).default
 
@@ -94,7 +98,8 @@ const nodeChildren = (node: VNode): VNode[] => {
 const isActionNode = (node: VNode) => /^(?:VBtn|IconBtn|FullDetailsButton)$/i.test(componentName(node))
 
 const collectActionNodes = (nodes: unknown): VNode[] => flattenNodes(nodes).flatMap(node => {
-  if (isActionNode(node)) return [node]
+  if (isActionNode(node))
+    return [node]
 
   // Action slots commonly use a plain layout element to group several buttons.
   // Unwrap that element while leaving arbitrary components alone.
@@ -102,13 +107,15 @@ const collectActionNodes = (nodes: unknown): VNode[] => flattenNodes(nodes).flat
 })
 
 const textFromNodes = (nodes: VNode[]): string => nodes.flatMap(node => {
-  if (typeof node.children === 'string') return [node.children]
+  if (typeof node.children === 'string')
+    return [node.children]
 
   return textFromNodes(nodeChildren(node))
 }).join(' ').replace(/\s+/g, ' ').trim()
 
 const containsDataTable = (nodes: unknown): boolean => flattenNodes(nodes).some(node => {
-  if (/DataTable|VTable/i.test(componentName(node))) return true
+  if (/DataTable|VTable/i.test(componentName(node)))
+    return true
 
   return typeof node.type === 'string' && containsDataTable(nodeChildren(node))
 })
@@ -125,6 +132,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
     },
     mobileTitleKey: String,
     mobileActionKey: String,
+
     // These opt-in hooks keep the generic table useful for operational grids
     // without forcing sticky cells onto short or form-oriented tables.
     stickyFirstColumn: Boolean,
@@ -132,19 +140,19 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
   },
   setup(props, { attrs, slots }) {
     const { t } = useI18n({ useScope: 'global' })
+
     // Keep the table structure on phones. Columns remain predictable and can
     // be reached by scrolling instead of being converted into stacked cards.
     const mobile = computed(() => false)
     const expandedCards = ref(new Set<string>())
     const actionSheetOpen = ref(false)
-    const actionSheetState = ref<{ item: Record<string, any>, index: number, column: DataTableColumn, body: TableBodySlotProps } | null>(null)
+    const actionSheetState = ref<{ item: Record<string, any>; index: number; column: DataTableColumn; body: TableBodySlotProps } | null>(null)
 
     const localized = (key: string, fallback: string) => {
       const value = t(key)
 
       return value === key || value.startsWith('[missing:') ? fallback : value
     }
-
 
     const itemKey = (item: Record<string, any>, index: number) => String(
       getValue(item, String(attrs.itemValue || 'id')) ?? index,
@@ -154,6 +162,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
 
     const renderField = (column: DataTableColumn, item: Record<string, any>, index: number, body: TableBodySlotProps) => {
       const internalItem = body.internalItems?.find(candidate => candidate.raw === item)
+
       const fieldProps: DataTableSlotProps = {
         index,
         item,
@@ -165,6 +174,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
         isExpanded: body.isExpanded,
         toggleExpand: body.toggleExpand,
       } as DataTableSlotProps
+
       const content = slots[`item.${column.key}`]?.(fieldProps as any) ?? String(fieldProps.value ?? '—')
 
       const isBlockContent = containsDataTable(content)
@@ -180,13 +190,17 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
 
     const renderCard = (item: Record<string, any>, index: number, body: TableBodySlotProps) => {
       const columns = chooseColumns(body.columns)
+
       const titleColumn = columns.find(column => column.key === props.mobileTitleKey)
         || columns.find(column => ['name', 'title', 'number', 'invoice_number', 'order_number', 'code', 'email'].includes(column.key))
         || columns[0]
+
       const actionColumn = body.columns.find(column => column.key === props.mobileActionKey)
         || body.columns.find(isActionColumn)
+
       const internalItem = body.internalItems?.find(candidate => candidate.raw === item)
       const key = itemKey(item, index)
+
       const titleProps: DataTableSlotProps = {
         index,
         item,
@@ -198,47 +212,56 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
         isExpanded: body.isExpanded,
         toggleExpand: body.toggleExpand,
       } as DataTableSlotProps
+
       const titleContent = titleColumn
         ? slots[`item.${titleColumn.key}`]?.(titleProps as any) ?? String(titleProps.value ?? '—')
         : '—'
+
       const hasExpandedRow = Boolean(slots['expanded-row']) || body.columns.some(column => column.key === 'data-table-expand')
       const isExpanded = expandedCards.value.has(key) || Boolean(hasExpandedRow && internalItem && body.isExpanded(internalItem))
+
       const toggleCard = () => {
         if (hasExpandedRow && internalItem) {
           body.toggleExpand(internalItem)
+
           return
         }
 
         const next = new Set(expandedCards.value)
-        if (next.has(key)) next.delete(key)
+        if (next.has(key))
+          next.delete(key)
         else next.add(key)
         expandedCards.value = next
       }
 
       const openActions = (event: Event) => {
         event.stopPropagation()
-        if (!actionColumn) return
+        if (!actionColumn)
+          return
         actionSheetState.value = { item, index, column: actionColumn, body }
         actionSheetOpen.value = true
       }
 
       const hasSelection = body.columns.some(column => column.key === 'data-table-select')
-      const selectSlot = hasSelection && slots['item.data-table-select']?.({
+
+      const selectSlot = (hasSelection && slots['item.data-table-select']?.({
         ...titleProps,
         props: {
           modelValue: internalItem ? body.isSelected([internalItem]) : false,
           onClick: (event: Event) => {
             event.stopPropagation()
-            if (internalItem) body.toggleSelect(internalItem)
+            if (internalItem)
+              body.toggleSelect(internalItem)
           },
         },
-      } as any)
+      } as any))
         || (hasSelection && h(VCheckboxBtn as any, {
           density: attrs.density || 'compact',
           modelValue: internalItem ? body.isSelected([internalItem]) : false,
           onClick: (event: Event) => {
             event.stopPropagation()
-            if (internalItem) body.toggleSelect(internalItem)
+            if (internalItem)
+              body.toggleSelect(internalItem)
           },
         } as any))
 
@@ -250,13 +273,14 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       }, {
         default: () => [
           h('div', {
-            class: 'responsive-data-table__card-toggle',
-            role: 'button',
-            tabindex: 0,
+            'class': 'responsive-data-table__card-toggle',
+            'role': 'button',
+            'tabindex': 0,
             'aria-expanded': isExpanded,
-            onClick: toggleCard,
-            onKeydown: (event: KeyboardEvent) => {
-              if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
+            'onClick': toggleCard,
+            'onKeydown': (event: KeyboardEvent) => {
+              if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key))
+                return
               event.preventDefault()
               toggleCard()
             },
@@ -271,21 +295,21 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
               append: () => h('div', { class: 'd-flex align-center' }, [
                 actionColumn
                   ? h(VBtn, {
-                    icon: true,
-                    size: 'small',
-                    variant: 'text',
+                    'icon': true,
+                    'size': 'small',
+                    'variant': 'text',
                     'aria-label': `${localized('common.messages.actions', 'Actions')} for ${String(titleProps.value || '')}`,
-                    onClick: openActions,
+                    'onClick': openActions,
                   }, { default: () => h(VIcon, { icon: 'tabler-dots-vertical' }) })
                   : h(VBtn, {
-                    icon: true,
-                    size: 'small',
-                    variant: 'text',
+                    'icon': true,
+                    'size': 'small',
+                    'variant': 'text',
                     'aria-expanded': isExpanded,
                     'aria-label': isExpanded
                       ? localized('$vuetify.close', 'Collapse details')
                       : localized('$vuetify.open', 'Expand details'),
-                    onClick: (event: Event) => {
+                    'onClick': (event: Event) => {
                       event.stopPropagation()
                       toggleCard()
                     },
@@ -293,25 +317,27 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
               ]),
             }),
           ]),
-          ...(isExpanded ? [h(VCardText, { class: 'responsive-data-table__card-details pt-0' }, {
-            default: () => {
-              const expandedContent = slots['expanded-row'] && internalItem
-                ? h('div', { class: 'responsive-data-table__expanded-content' }, slots['expanded-row']({
-                  item,
-                  index,
-                  columns: body.columns,
-                  isExpanded: body.isExpanded,
-                  toggleExpand: body.toggleExpand,
-                } as any))
+          ...(isExpanded
+            ? [h(VCardText, { class: 'responsive-data-table__card-details pt-0' }, {
+              default: () => {
+                const expandedContent = slots['expanded-row'] && internalItem
+                  ? h('div', { class: 'responsive-data-table__expanded-content' }, slots['expanded-row']({
+                    item,
+                    index,
+                    columns: body.columns,
+                    isExpanded: body.isExpanded,
+                    toggleExpand: body.toggleExpand,
+                  } as any))
 
-                : undefined
+                  : undefined
 
-              return [
-              ...columns.filter(column => column !== titleColumn && !isActionColumn(column)).map(column => renderField(column, item, index, body)),
-                ...(expandedContent ? [expandedContent] : []),
-              ]
-            },
-          })] : []),
+                return [
+                  ...columns.filter(column => column !== titleColumn && !isActionColumn(column)).map(column => renderField(column, item, index, body)),
+                  ...(expandedContent ? [expandedContent] : []),
+                ]
+              },
+            })]
+            : []),
         ],
       })
     }
@@ -353,18 +379,26 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
     const actionLabel = (node: VNode) => {
       const nodeProps = (node.props || {}) as Record<string, unknown>
       const explicitLabel = nodeProps['aria-label'] || nodeProps.ariaLabel || nodeProps.title
-      if (typeof explicitLabel === 'string') return explicitLabel
+      if (typeof explicitLabel === 'string')
+        return explicitLabel
 
       const slotLabel = textFromNodes(nodeChildren(node))
-      if (slotLabel) return slotLabel
+      if (slotLabel)
+        return slotLabel
 
       const icon = String(nodeProps.icon || '')
-      if (icon.includes('printer')) return localized('common.actions.print', 'Print')
-      if (icon.includes('file-plus') || icon.includes('plus')) return localized('common.actions.create', 'Create')
-      if (icon.includes('edit') || icon.includes('pencil')) return localized('common.actions.edit', 'Edit')
-      if (icon.includes('trash') || icon.includes('delete')) return localized('common.actions.delete', 'Delete')
-      if (icon.includes('circle-x') || icon.includes('ban')) return localized('common.actions.void', 'Void')
-      if (icon.includes('eye')) return localized('common.actions.viewFullDetails', 'View details')
+      if (icon.includes('printer'))
+        return localized('common.actions.print', 'Print')
+      if (icon.includes('file-plus') || icon.includes('plus'))
+        return localized('common.actions.create', 'Create')
+      if (icon.includes('edit') || icon.includes('pencil'))
+        return localized('common.actions.edit', 'Edit')
+      if (icon.includes('trash') || icon.includes('delete'))
+        return localized('common.actions.delete', 'Delete')
+      if (icon.includes('circle-x') || icon.includes('ban'))
+        return localized('common.actions.void', 'Void')
+      if (icon.includes('eye'))
+        return localized('common.actions.viewFullDetails', 'View details')
 
       return localized('common.messages.actions', 'Action')
     }
@@ -383,6 +417,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       const nodeProps = { ...((node.props || {}) as Record<string, any>) }
       const icon = typeof nodeProps.icon === 'string' ? nodeProps.icon : undefined
       const originalClick = nodeProps.onClick
+
       delete nodeProps.icon
 
       return h(VBtn, {
@@ -392,7 +427,8 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
         class: ['responsive-data-table__action-button', nodeProps.class],
         variant: 'text',
         onClick: (event: Event) => {
-          if (Array.isArray(originalClick)) originalClick.forEach(handler => handler?.(event))
+          if (Array.isArray(originalClick))
+            originalClick.forEach(handler => handler?.(event))
           else originalClick?.(event)
           closeActionSheet()
         },
@@ -424,6 +460,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       }, tableSlots)
 
       const actionState = actionSheetState.value
+
       const actionContent = actionState && slots[`item.${actionState.column.key}`]?.({
         index: actionState.index,
         item: actionState.item,
@@ -431,10 +468,12 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
         columns: actionState.body.columns,
         value: getValue(actionState.item, actionState.column.key),
       } as any)
+
       const actions = collectActionNodes(actionContent || undefined)
+
       const sheet = h(VBottomSheet, {
-        modelValue: actionSheetOpen.value,
-        inset: true,
+        'modelValue': actionSheetOpen.value,
+        'inset': true,
         'onUpdate:modelValue': (value: boolean) => { actionSheetOpen.value = value },
       }, {
         default: () => h(VCard, { class: 'responsive-data-table__action-sheet' }, {

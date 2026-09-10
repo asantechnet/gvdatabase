@@ -6,6 +6,7 @@
     "module": "esnext",
     "moduleResolution": "Bundler",
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "noEmit": true,
     "strict": true,
     "jsx": "preserve",
@@ -70,6 +71,7 @@
   ],
   "exclude": [
     "./dist",
-    "./node_modules"
+    "./node_modules",
+    "./resources/ts/views/**/*"
   ]
 }

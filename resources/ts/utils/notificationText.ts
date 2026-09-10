@@ -7,6 +7,7 @@ export function notificationText(notification: AppNotification, translate: Trans
   const key = notification.notification_key
   const resourceKey = String(notification.data?.resource ?? notification.data?.table ?? 'other')
   const localizedResource = translate(`pages.audits.resources.${resourceKey}`)
+
   const values = {
     resource: localizedResource && !localizedResource.startsWith('[missing:') ? localizedResource : translate('pages.audits.unknownRecord'),
     record: String(notification.data?.record ?? ''),

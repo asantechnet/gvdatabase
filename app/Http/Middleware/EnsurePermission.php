@@ -12,7 +12,7 @@ class EnsurePermission
     {
         $user = $request->user();
 
-        if (! $user || ! collect($permissions)->contains(fn (string $permission) => $user->hasPermission($permission))) {
+        if (! $user || $user->acc_status !== 'active' || ! collect($permissions)->contains(fn (string $permission) => $user->hasPermission($permission))) {
             return response()->json(['success' => false, 'code' => 'auth.forbidden'], 403);
         }
 

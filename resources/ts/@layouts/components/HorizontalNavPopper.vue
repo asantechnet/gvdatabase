@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import type { ReferenceElement } from '@floating-ui/dom'
 import { computePosition, flip, offset, shift } from '@floating-ui/dom'
+import { useRoute } from 'vue-router'
 import { useLayoutConfigStore } from '@layouts/stores/config'
 import { themeConfig } from '@themeConfig'
-import { useRoute } from 'vue-router'
 
 interface Props {
   popperInlineEnd?: boolean

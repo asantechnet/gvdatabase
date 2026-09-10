@@ -66,31 +66,37 @@ export interface AuditLogParams {
 
 export const getAuditLogs = async (params?: AuditLogParams): Promise<Paginated<AuditLog>> => {
   const response = await api.get('/audit-logs', { params })
+
   return response.data as Paginated<AuditLog>
 }
 
 export const getAuditLog = async (id: number): Promise<AuditLog> => {
   const response = await api.get(`/audit-logs/${id}`)
+
   return response.data.data as AuditLog
 }
 
 export const getPendingAuditCount = async (): Promise<number> => {
   const response = await api.get('/audit-logs/pending-count')
+
   return Number(response.data.data?.count ?? 0)
 }
 
 export const reviewAuditLog = async (id: number, decision: 'approved' | 'discarded'): Promise<AuditLog> => {
   const response = await api.patch(`/audit-logs/${id}/review`, { decision })
+
   return response.data.data as AuditLog
 }
 
 export const getAuditResources = async (params?: { page?: number; per_page?: number; state?: 'enabled' | 'disabled'; search?: string }): Promise<Paginated<AuditResource>> => {
   const response = await api.get('/audit-resources', { params })
+
   return response.data as Paginated<AuditResource>
 }
 
 export const updateAuditResource = async (id: number, enabled: boolean): Promise<AuditResource> => {
   const response = await api.patch(`/audit-resources/${id}`, { enabled })
+
   return response.data.data as AuditResource
 }
 

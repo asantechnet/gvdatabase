@@ -15,19 +15,20 @@ export function useContracts() {
       error.value = null
 
       let request: ContractParams | undefined
-      if (typeof params === 'object' && params !== null) {
+      if (typeof params === 'object' && params !== null)
         request = params
-      } else if (params === true) {
+      else if (params === true)
         request = { only_cancelled: true }
-      } else if (params === 'customers' || params === 'employees' || params === 'companies') {
+      else if (params === 'customers' || params === 'employees' || params === 'companies')
         request = { audience: params }
-      }
 
       contracts.value = await ContractApi.getAll(request)
-    } catch (err) {
+    }
+    catch (err) {
       console.error('Failed to fetch contracts:', err)
       error.value = err instanceof Error ? err.message : 'Failed to fetch contracts'
-    } finally {
+    }
+    finally {
       isLoading.value = false
     }
   }
@@ -37,10 +38,12 @@ export function useContracts() {
       isLoading.value = true
       error.value = null
       templates.value = await ContractTemplateApi.getAll()
-    } catch (err) {
+    }
+    catch (err) {
       console.error('Failed to fetch templates:', err)
       error.value = err instanceof Error ? err.message : 'Failed to fetch templates'
-    } finally {
+    }
+    finally {
       isLoading.value = false
     }
   }
@@ -49,14 +52,19 @@ export function useContracts() {
     try {
       isLoading.value = true
       error.value = null
+
       const contract = await ContractApi.create(contractData)
+
       contracts.value.push(contract)
+
       return contract
-    } catch (err) {
+    }
+    catch (err) {
       console.error('Failed to create contract:', err)
       error.value = err instanceof Error ? err.message : 'Failed to create contract'
       throw err
-    } finally {
+    }
+    finally {
       isLoading.value = false
     }
   }
@@ -65,16 +73,20 @@ export function useContracts() {
     try {
       isLoading.value = true
       error.value = null
+
       const contract = await ContractApi.update(id, contractData)
       const index = contracts.value.findIndex(c => c.id === id)
       if (index !== -1)
         contracts.value[index] = contract
+
       return contract
-    } catch (err) {
+    }
+    catch (err) {
       console.error('Failed to update contract:', err)
       error.value = err instanceof Error ? err.message : 'Failed to update contract'
       throw err
-    } finally {
+    }
+    finally {
       isLoading.value = false
     }
   }
@@ -85,12 +97,15 @@ export function useContracts() {
       error.value = null
       await ContractApi.delete(id)
       contracts.value = contracts.value.filter(c => c.id !== id)
+
       return true
-    } catch (err) {
+    }
+    catch (err) {
       console.error('Failed to delete contract:', err)
       error.value = err instanceof Error ? err.message : 'Failed to delete contract'
       throw err
-    } finally {
+    }
+    finally {
       isLoading.value = false
     }
   }

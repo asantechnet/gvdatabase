@@ -54,7 +54,9 @@ const AuthApi = {
   updateAccount: (data: AccountUpdatePayload) => api.put('/auth/account', data),
   uploadAvatar: (avatar: File) => {
     const formData = new FormData()
+
     formData.append('avatar', avatar)
+
     return api.post('/auth/account/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
   removeAvatar: () => api.delete('/auth/account/avatar'),

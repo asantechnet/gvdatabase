@@ -24,7 +24,7 @@ class PhaseFiveIntegrityTest extends TestCase
     public function test_comment_and_subtask_metadata_edits_expire_but_completion_remains_available(): void
     {
         $this->seed([PermissionSeeder::class, RolePermissionSeeder::class]);
-        $user = User::factory()->create(['roles' => ['staff']]);
+        $user = User::factory()->create(['roles' => ['manager']]);
         $board = Board::factory()->create();
         $task = Task::factory()->create(['board_id' => $board->id, 'progress' => 0]);
         $board->users()->attach($user);
@@ -48,7 +48,7 @@ class PhaseFiveIntegrityTest extends TestCase
 
         $this->putJson("/api/tasks/{$task->id}", ['progress' => 100])
             ->assertStatus(422)
-            ->assertJsonPath('errors.progress.0', 'validation.invalid');
+            ->assertJsonPath('code', 'business.task_progress_derived_from_subtasks');
 
         $this->putJson("/api/tasks/{$task->id}/comments/{$comment->id}", ['content' => 'Too late'])
             ->assertStatus(422)
@@ -97,16 +97,17 @@ class PhaseFiveIntegrityTest extends TestCase
         );
     }
 
-    public function test_salary_keeps_its_currency_and_rate_snapshot_after_currency_changes(): void
+    public function test_salary_keeps_its_base_currency_snapshot_after_currency_changes(): void
     {
         $admin = User::factory()->create(['roles' => ['super_admin']]);
         $employee = Employee::factory()->create();
         $currency = Currency::factory()->create([
-            'name' => 'US Dollar',
-            'code' => 'USD',
-            'symbol' => '$',
+            'name' => 'Afghani',
+            'code' => 'AFN',
+            'symbol' => 'AFN',
             'decimal_places' => 2,
-            'rate_against_base' => 1.25,
+            'rate' => 1,
+            'is_base' => true,
         ]);
         Sanctum::actingAs($admin, ['access']);
 
@@ -124,21 +125,21 @@ class PhaseFiveIntegrityTest extends TestCase
 
         $salaryId = $response->json('data.id');
         $currency->update([
-            'name' => 'Changed Dollar',
+            'name' => 'Changed Afghani',
             'code' => 'XXX',
             'symbol' => '!',
             'decimal_places' => 4,
-            'rate_against_base' => 9,
+            'rate' => 1,
         ]);
 
         $this->getJson("/api/salaries/{$salaryId}")
             ->assertOk()
-            ->assertJsonPath('data.currency.code', 'USD')
-            ->assertJsonPath('data.currency.name', 'US Dollar')
-            ->assertJsonPath('data.currency.symbol', '$')
+            ->assertJsonPath('data.currency.code', 'AFN')
+            ->assertJsonPath('data.currency.name', 'Afghani')
+            ->assertJsonPath('data.currency.symbol', 'AFN')
             ->assertJsonPath('data.currency.decimalPlaces', 2)
-            ->assertJsonPath('data.currency.rateToBase', 1.25)
-            ->assertJsonPath('data.amountPaidBase', 125.3125)
+            ->assertJsonPath('data.currency.rate', 1)
+            ->assertJsonPath('data.baseAmount', 100.25)
             ->assertJsonPath('data.currencySnapshotSource', 'recorded_at_creation');
 
         $this->putJson("/api/salaries/{$salaryId}", [
@@ -151,16 +152,17 @@ class PhaseFiveIntegrityTest extends TestCase
             'remarks' => 'Snapshot test',
             'date' => '2026-08-13',
             'deductions' => [],
-        ])->assertStatus(422)->assertJsonPath('code', 'business.salary_currency_immutable');
+        ])->assertStatus(422)->assertJsonPath('errors.currency_id.0', 'business.salary_base_currency_required');
     }
 
-    public function test_bonus_and_salary_preserve_each_conversion_stage(): void
+    public function test_bonus_and_salary_preserve_the_base_currency_snapshot(): void
     {
         $admin = User::factory()->create(['roles' => ['super_admin']]);
         $employee = Employee::factory()->create();
-        $usd = Currency::factory()->create(['name' => 'US Dollar', 'code' => 'USD', 'symbol' => '$', 'rate_against_base' => 2]);
-        $eur = Currency::factory()->create(['name' => 'Euro', 'code' => 'EUR', 'symbol' => '€', 'rate_against_base' => 4]);
-        $afn = Currency::factory()->create(['name' => 'Afghani', 'code' => 'AFN', 'symbol' => '؋', 'rate_against_base' => .5]);
+        $afn = Currency::factory()->create([
+            'name' => 'Afghani', 'code' => 'AFN', 'symbol' => 'AFN',
+            'rate' => 1, 'is_base' => true,
+        ]);
         Sanctum::actingAs($admin, ['access']);
 
         $created = $this->postJson('/api/worthy-employees', [
@@ -169,24 +171,19 @@ class PhaseFiveIntegrityTest extends TestCase
             'eligibilityReason' => 'Top Performer',
             'achievementDetails' => 'Exceeded the delivery target.',
             'suggestedAmount' => 100,
-            'currencyId' => $usd->id,
             'selectedAmount' => 50,
-            'selectedCurrencyId' => $eur->id,
             'selectedType' => 'Performance',
             'bonusMonth' => '2026-08',
         ])->assertCreated()
-            ->assertJsonPath('data.suggestedRateToBase', 2)
-            ->assertJsonPath('data.suggestedBaseAmount', 200)
-            ->assertJsonPath('data.selectedRateToBase', 4)
-            ->assertJsonPath('data.selectedBaseAmount', 200);
+            ->assertJsonPath('data.currencyCode', 'AFN')
+            ->assertJsonPath('data.rate', 1)
+            ->assertJsonPath('data.baseAmount', 50);
 
         $bonusId = $created->json('data.id');
-        $eur->update(['rate_against_base' => 5]);
         $this->patchJson("/api/worthy-employees/{$bonusId}", ['isGranted' => true])
             ->assertOk()
-            ->assertJsonPath('data.selectedRateToBase', 4)
-            ->assertJsonPath('data.grantedRateToBase', 5)
-            ->assertJsonPath('data.grantedBaseAmount', 250);
+            ->assertJsonPath('data.grantedAmount', 50)
+            ->assertJsonPath('data.baseAmount', 50);
 
         $salary = $this->postJson('/api/salaries', [
             'employee_id' => $employee->id,
@@ -199,19 +196,16 @@ class PhaseFiveIntegrityTest extends TestCase
             'date' => '2026-08-31',
             'deductions' => [],
         ])->assertCreated()
-            ->assertJsonPath('data.bonus', 500)
-            ->assertJsonPath('data.bonusBase', 250)
-            ->assertJsonPath('data.bonuses.0.salaryConversion.sourceCurrencyCode', 'EUR')
-            ->assertJsonPath('data.bonuses.0.salaryConversion.sourceRateToBase', 5)
-            ->assertJsonPath('data.bonuses.0.salaryConversion.salaryCurrencyCode', 'AFN')
-            ->assertJsonPath('data.bonuses.0.salaryConversion.salaryRateToBase', .5)
-            ->assertJsonPath('data.bonuses.0.salaryConversion.convertedAmount', 500);
+            ->assertJsonPath('data.bonus', 50)
+            ->assertJsonPath('data.baseAmount', 1050)
+            ->assertJsonPath('data.bonuses.0.currencyCode', 'AFN');
 
         $this->assertDatabaseHas('salary_worthy_employee', [
             'salary_id' => $salary->json('data.id'),
             'worthy_employee_id' => $bonusId,
-            'source_currency_code' => 'EUR',
+            'source_currency_code' => 'AFN',
             'salary_currency_code' => 'AFN',
+            'converted_amount' => 50,
             'conversion_snapshot_source' => 'recorded_at_inclusion',
         ]);
         $this->assertSame('recorded_at_creation', WorthyEmployee::findOrFail($bonusId)->currency_snapshot_source);

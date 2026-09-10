@@ -2,26 +2,21 @@
 
 namespace Tests\Feature;
 
-use App\Models\Office;
 use App\Models\Asset;
-use App\Http\Middleware\EnsurePermission;
+use App\Models\Office;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Auth\Middleware\Authenticate;
-use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
-class AssetOfficeRelationshipTest extends TestCase
+class StockOfficeRelationshipTest extends TestCase
 {
     use RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware([
-            Authenticate::class,
-            CheckAbilities::class,
-            EnsurePermission::class,
-        ]);
+        Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
     }
 
     public function test_asset_uses_an_office_foreign_key_and_exposes_the_relationship(): void

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import ContractTypeApi, { SYSTEM_TYPE_SLUGS, type ContractType } from '@/api/contractType'
 import { computed, ref } from 'vue'
 import { useToast } from 'vue-toastification'
+import ContractTypeApi, { type ContractType, SYSTEM_TYPE_SLUGS } from '@/api/contractType'
 
 const props = defineProps<{
   modelValue: number | null
@@ -16,8 +16,10 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const { t } = useI18n()
+
 const tr = (key: string, values: Record<string, unknown> = {}) =>
   t(`pages.settings.policies.policies.contractTemplate.${key}`, values)
+
 const types = ref<ContractType[]>([])
 const loading = ref(false)
 const isSystemSlug = (slug: string) => SYSTEM_TYPE_SLUGS.includes(slug as typeof SYSTEM_TYPE_SLUGS[number])
@@ -46,10 +48,12 @@ const fetchTypes = async () => {
   try {
     types.value = await ContractTypeApi.getAll({ include_inactive: true })
     emit('types-changed', types.value)
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to load contract types:', error)
     toast.error(tr('messages.loadTypesError'))
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -61,18 +65,44 @@ defineExpose({ fetchTypes })
 
 <template>
   <div>
-    <VRow dense align="center">
-      <VCol cols="12" sm="8">
-        <VSelect :model-value="modelValue" :items="selectItems" item-title="title" item-value="value"
-          :loading="loading" :label="tr('contractType')" :placeholder="tr('selectContractType')" density="comfortable"
-          :disabled="disabled" :rules="rules" clearable @update:model-value="emit('update:modelValue', $event)">
+    <VRow
+      dense
+      align="center"
+    >
+      <VCol
+        cols="12"
+        sm="8"
+      >
+        <VSelect
+          :model-value="modelValue"
+          :items="selectItems"
+          item-title="title"
+          item-value="value"
+          :loading="loading"
+          :label="tr('contractType')"
+          :placeholder="tr('selectContractType')"
+          density="comfortable"
+          :disabled="disabled"
+          :rules="rules"
+          clearable
+          @update:model-value="emit('update:modelValue', $event)"
+        >
           <template #selection="{ item }">
             <span class="d-inline-flex align-center gap-2">
               {{ item.raw.title }}
-              <VChip size="x-small" :color="item.raw.isSystem ? 'primary' : 'secondary'" variant="tonal">
+              <VChip
+                size="x-small"
+                :color="item.raw.isSystem ? 'primary' : 'secondary'"
+                variant="tonal"
+              >
                 {{ tr('system') }}
               </VChip>
-              <VChip v-if="item.raw.inactive" size="x-small" color="warning" variant="tonal">
+              <VChip
+                v-if="item.raw.inactive"
+                size="x-small"
+                color="warning"
+                variant="tonal"
+              >
                 {{ tr('inactive') }}
               </VChip>
             </span>
@@ -82,13 +112,25 @@ defineExpose({ fetchTypes })
             <VListItem v-bind="itemProps">
               <VListItemSubtitle class="text-caption">
                 {{ tr('systemTypeAvailable') }}
-                <template v-if="item.raw.inactive"> · {{ tr('currentlyInactive') }}</template>
+                <template v-if="item.raw.inactive">
+                  · {{ tr('currentlyInactive') }}
+                </template>
               </VListItemSubtitle>
 
               <template #append>
-                <span v-if="item.raw.isSystem" class="d-inline-flex">
-                  <VIcon icon="tabler-shield-lock" size="16" class="text-disabled" />
-                  <VTooltip activator="parent" location="top">{{ tr('protectedSystemType') }}</VTooltip>
+                <span
+                  v-if="item.raw.isSystem"
+                  class="d-inline-flex"
+                >
+                  <VIcon
+                    icon="tabler-shield-lock"
+                    size="16"
+                    class="text-disabled"
+                  />
+                  <VTooltip
+                    activator="parent"
+                    location="top"
+                  >{{ tr('protectedSystemType') }}</VTooltip>
                 </span>
               </template>
             </VListItem>
@@ -96,6 +138,5 @@ defineExpose({ fetchTypes })
         </VSelect>
       </VCol>
     </VRow>
-
   </div>
 </template>

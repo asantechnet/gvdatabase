@@ -10,12 +10,13 @@ import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import NavBarI18n from '@core/components/I18n.vue'
 import { HorizontalNavLayout } from '@layouts'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
+import HeaderPageGuide from '@/layouts/components/HeaderPageGuide.vue'
 import NavbarFullscreenToggle from '@/layouts/components/NavbarFullscreenToggle.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
 import NavbarLayoutSwitcher from '@/layouts/components/NavbarLayoutSwitcher.vue'
 import { useBranding } from '@/composables/useBranding'
 
-const { logoUrl, shortCompanyName, loadBranding } = useBranding()
+const { logoUrl, isLogoSquare, shortCompanyName, handleLogoLoad, loadBranding } = useBranding()
 
 onMounted(loadBranding)
 </script>
@@ -24,10 +25,21 @@ onMounted(loadBranding)
   <HorizontalNavLayout :nav-items="navItems">
     <!-- 👉 navbar -->
     <template #navbar>
-      <RouterLink to="/" class="app-logo d-flex align-center gap-x-3 navbar-brand">
-        <img :src="logoUrl" :alt="shortCompanyName" class="navbar-logo">
+      <RouterLink
+        to="/"
+        class="app-logo d-flex align-center gap-x-3 navbar-brand"
+      >
+        <img
+          :src="logoUrl"
+          :alt="shortCompanyName"
+          class="navbar-logo"
+          @load="handleLogoLoad"
+        >
 
-        <h1 class="app-title font-weight-bold leading-normal text-xl text-capitalize">
+        <h1
+          v-if="isLogoSquare"
+          class="app-title font-weight-bold leading-normal text-xl text-capitalize"
+        >
           {{ shortCompanyName }}
         </h1>
       </RouterLink>
@@ -35,12 +47,15 @@ onMounted(loadBranding)
 
       <NavSearchBar trigger-btn-class="ms-lg-n3" />
 
-      <NavBarI18n v-if="themeConfig.app.i18n.enable && themeConfig.app.i18n.langConfig?.length"
-        :languages="themeConfig.app.i18n.langConfig" />
+      <NavBarI18n
+        v-if="themeConfig.app.i18n.enable && themeConfig.app.i18n.langConfig?.length"
+        :languages="themeConfig.app.i18n.langConfig"
+      />
 
       <NavbarFullscreenToggle />
       <NavbarLayoutSwitcher />
       <NavbarThemeSwitcher />
+      <HeaderPageGuide />
       <!-- <NavbarShortcuts /> -->
       <NavBarAuditLogs class="me-2" />
       <NavBarNotifications class="me-2" />
@@ -62,8 +77,10 @@ onMounted(loadBranding)
 
 <style scoped>
 .navbar-logo {
-  block-size: 2rem;
-  inline-size: 2rem;
+  display: block;
+  block-size: 2.1rem;
+  inline-size: auto;
+  max-inline-size: 10rem;
   object-fit: contain;
 }
 

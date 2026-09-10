@@ -1,43 +1,43 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref } from 'vue'
 
 // 1. Interfaces & Props
 export interface InvoiceService {
-  description: string;
-  subDescription?: string;
-  price: number;
-  quantity: number;
-  currency: string;
-  exchangeRate?: number;
+  description: string
+  subDescription?: string
+  price: number
+  quantity: number
+  currency: string
+  exchangeRate?: number
 }
 
 export interface ClientDetails {
-  name: string;
-  addressLines: string[];
+  name: string
+  addressLines: string[]
 }
 
 export interface SenderDetails {
-  brandName: string;
-  logo?: string;
-  addressLines: string[];
-  phone?: string;
-  email?: string;
-  website?: string;
-  signature?: string;
+  brandName: string
+  logo?: string
+  addressLines: string[]
+  phone?: string
+  email?: string
+  website?: string
+  signature?: string
 }
 
 export interface InvoiceProps {
-  invoiceNumber: string;
-  dateOfIssue: string;
-  dueDate: string;
-  client: ClientDetails;
-  sender: SenderDetails;
-  services: InvoiceService[];
-  discount?: number;
-  taxRate?: number;
-  notes?: string;
-  paymentMethod?: string;
-  paymentInstructions?: string[];
+  invoiceNumber: string
+  dateOfIssue: string
+  dueDate: string
+  client: ClientDetails
+  sender: SenderDetails
+  services: InvoiceService[]
+  discount?: number
+  taxRate?: number
+  notes?: string
+  paymentMethod?: string
+  paymentInstructions?: string[]
 }
 
 const props = withDefaults(defineProps<InvoiceProps>(), {
@@ -51,59 +51,65 @@ const props = withDefaults(defineProps<InvoiceProps>(), {
   taxRate: 0,
   notes: translate('documents.invoice.defaultPaymentTerms'),
   paymentMethod: '',
-  paymentInstructions: () => []
-});
+  paymentInstructions: () => [],
+})
 
 // 2. Template Reference
-const invoiceRef = ref<HTMLElement | null>(null);
+const invoiceRef = ref<HTMLElement | null>(null)
 
 // 3. Computed Calculations
 const subtotal = computed(() => {
-  if (!props.services || !Array.isArray(props.services)) return 0;
-  return props.services.reduce((acc, item) => acc + ((item.price || 0) * (item.quantity || 0)), 0);
-});
+  if (!props.services || !Array.isArray(props.services))
+    return 0
+
+  return props.services.reduce((acc, item) => acc + ((item.price || 0) * (item.quantity || 0)), 0)
+})
 
 const taxAmount = computed(() => {
-  const taxableAmount = Math.max(0, subtotal.value - (props.discount || 0));
-  return (taxableAmount * (props.taxRate || 0)) / 100;
-});
+  const taxableAmount = Math.max(0, subtotal.value - (props.discount || 0))
+
+  return (taxableAmount * (props.taxRate || 0)) / 100
+})
 
 const grandTotal = computed(() => {
-  return Math.max(0, subtotal.value - (props.discount || 0) + taxAmount.value);
-});
+  return Math.max(0, subtotal.value - (props.discount || 0) + taxAmount.value)
+})
 
 const formatCurrency = (amount: number | string | null | undefined, currency = '$') => {
-  const numericAmount = Number(amount);
+  const numericAmount = Number(amount)
 
-  return `${currency}${(Number.isFinite(numericAmount) ? numericAmount : 0).toFixed(2)}`;
-};
+  return `${currency}${(Number.isFinite(numericAmount) ? numericAmount : 0).toFixed(2)}`
+}
 
 const formatExchangeRate = (rate: number | undefined) => {
-  const numericRate = Number(rate);
-  return Number.isFinite(numericRate) && numericRate > 0 ? numericRate.toFixed(4) : '—';
-};
+  const numericRate = Number(rate)
+
+  return Number.isFinite(numericRate) && numericRate > 0 ? numericRate.toFixed(4) : '—'
+}
 
 const primaryCurrency = computed(() => {
-  return (props.services && props.services[0]?.currency) || '$';
-});
+  return (props.services && props.services[0]?.currency) || '$'
+})
 
 const printInvoice = () => {
-  if (!invoiceRef.value) return;
+  if (!invoiceRef.value)
+    return
 
-  const printWindow = window.open('', '_blank', 'width=700,height=950');
+  const printWindow = window.open('', '_blank', 'width=700,height=950')
   if (!printWindow) {
-    alert(translate('documents.invoice_template.invoiceTemplate.pleaseAllowPopupsToPrintTheInvoice'));
-    return;
+    alert(translate('documents.invoice_template.invoiceTemplate.pleaseAllowPopupsToPrintTheInvoice'))
+
+    return
   }
 
   const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
     .map(el => el.outerHTML)
-    .join('\n');
+    .join('\n')
 
-  const invoiceHtml = invoiceRef.value.outerHTML;
-  const documentDirection = invoiceRef.value.dir || 'ltr';
+  const invoiceHtml = invoiceRef.value.outerHTML
+  const documentDirection = invoiceRef.value.dir || 'ltr'
 
-  printWindow.document.open();
+  printWindow.document.open()
   printWindow.document.write(`
     <!DOCTYPE html>
     <html lang="${document.documentElement.lang}" dir="${documentDirection}">
@@ -289,30 +295,52 @@ const printInvoice = () => {
         <\/script>
       </body>
     </html>
-  `);
-  printWindow.document.close();
-};
+  `)
+  printWindow.document.close()
+}
 
 defineExpose({
-  print: printInvoice
-});
+  print: printInvoice,
+})
 </script>
 
 <template>
-  <div ref="invoiceRef" class="invoice-container a5-layout print-document" :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale) }" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'">
+  <div
+    ref="invoiceRef"
+    class="invoice-container a5-layout print-document"
+    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale) }"
+    :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
+  >
     <!-- Top Header -->
     <header class="invoice-header">
       <div class="title-section">
         <span class="invoice-kicker">{{ $t('documents.invoice_template.invoiceTemplate.invoice2') }}</span>
-        <h1 class="invoice-title">{{ $t('documents.invoice_template.invoiceTemplate.invoice') }}</h1>
+        <h1 class="invoice-title">
+          {{ $t('documents.invoice_template.invoiceTemplate.invoice') }}
+        </h1>
         <span class="invoice-number">{{ invoiceNumber }}</span>
       </div>
       <div class="logo-section">
-        <img v-if="sender.logo" :src="sender.logo" :alt="sender.brandName" class="brand-logo" />
-        <div v-else class="brand-mark">{{ sender.brandName.slice(0, 1) }}</div>
+        <img
+          v-if="sender.logo"
+          :src="sender.logo"
+          :alt="sender.brandName"
+          class="brand-logo"
+        >
+        <div
+          v-else
+          class="brand-mark"
+        >
+          {{ sender.brandName.slice(0, 1) }}
+        </div>
         <div class="brand-details">
-          <h2 class="brand-name-fallback">{{ sender.brandName }}</h2>
-          <span v-if="sender.phone || sender.email" class="brand-contact"><bdi>{{ sender.phone }}</bdi><template v-if="sender.phone && sender.email"> · </template><bdi>{{ sender.email }}</bdi></span>
+          <h2 class="brand-name-fallback">
+            {{ sender.brandName }}
+          </h2>
+          <span
+            v-if="sender.phone || sender.email"
+            class="brand-contact"
+          ><bdi>{{ sender.phone }}</bdi><template v-if="sender.phone && sender.email"> · </template><bdi>{{ sender.email }}</bdi></span>
         </div>
       </div>
     </header>
@@ -339,17 +367,33 @@ defineExpose({
         <span class="meta-label">{{ $t('documents.invoice_template.invoiceTemplate.billTO') }}</span>
         <strong class="client-name">{{ client.name }}</strong>
         <div class="address-lines">
-          <p v-for="(line, idx) in client.addressLines" :key="idx">{{ line }}</p>
+          <p
+            v-for="(line, idx) in client.addressLines"
+            :key="idx"
+          >
+            {{ line }}
+          </p>
         </div>
       </div>
       <div class="address-block text-right sender-details">
         <span class="meta-label">{{ $t('documents.invoice_template.invoiceTemplate.from') }}</span>
         <strong class="sender-name">{{ sender.brandName }}</strong>
         <div class="address-lines">
-          <p v-for="(line, idx) in sender.addressLines" :key="idx">{{ line }}</p>
-          <p v-if="sender.phone">{{ sender.phone }}</p>
-          <p v-if="sender.email">{{ sender.email }}</p>
-          <p v-if="sender.website">{{ sender.website }}</p>
+          <p
+            v-for="(line, idx) in sender.addressLines"
+            :key="idx"
+          >
+            {{ line }}
+          </p>
+          <p v-if="sender.phone">
+            {{ sender.phone }}
+          </p>
+          <p v-if="sender.email">
+            {{ sender.email }}
+          </p>
+          <p v-if="sender.website">
+            {{ sender.website }}
+          </p>
         </div>
       </div>
     </section>
@@ -358,23 +402,51 @@ defineExpose({
     <table class="services-table">
       <thead>
         <tr>
-          <th class="th-desc">{{ $t('common.fields.description') }}</th>
-          <th class="th-unit text-right">{{ $t('documents.invoice_template.invoiceTemplate.unitCOST') }}</th>
-          <th class="th-qty text-right">{{ $t('documents.invoice_template.invoiceTemplate.qty') }}</th>
-          <th class="th-rate text-right">{{ $t('documents.invoice_template.invoiceTemplate.currencyRate') }}</th>
-          <th class="th-amount text-right">{{ $t('common.fields.amount') }}</th>
+          <th class="th-desc">
+            {{ $t('common.fields.description') }}
+          </th>
+          <th class="th-unit text-right">
+            {{ $t('documents.invoice_template.invoiceTemplate.unitCOST') }}
+          </th>
+          <th class="th-qty text-right">
+            {{ $t('documents.invoice_template.invoiceTemplate.qty') }}
+          </th>
+          <th class="th-rate text-right">
+            {{ $t('documents.invoice_template.invoiceTemplate.currencyRate') }}
+          </th>
+          <th class="th-amount text-right">
+            {{ $t('common.fields.amount') }}
+          </th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(service, idx) in services" :key="idx">
+        <tr
+          v-for="(service, idx) in services"
+          :key="idx"
+        >
           <td class="td-desc">
-            <div class="service-title">{{ service.description }}</div>
-            <div v-if="service.subDescription" class="service-sub">{{ service.subDescription }}</div>
+            <div class="service-title">
+              {{ service.description }}
+            </div>
+            <div
+              v-if="service.subDescription"
+              class="service-sub"
+            >
+              {{ service.subDescription }}
+            </div>
           </td>
-          <td class="td-unit text-right">{{ formatCurrency(service.price, service.currency) }}</td>
-          <td class="td-qty text-right">{{ service.quantity }}</td>
-          <td class="td-rate text-right">{{ formatExchangeRate(service.exchangeRate) }}</td>
-          <td class="td-amount text-right">{{ formatCurrency(service.price * service.quantity, service.currency) }}</td>
+          <td class="td-unit text-right">
+            {{ formatCurrency(service.price, service.currency) }}
+          </td>
+          <td class="td-qty text-right">
+            {{ service.quantity }}
+          </td>
+          <td class="td-rate text-right">
+            {{ formatExchangeRate(service.exchangeRate) }}
+          </td>
+          <td class="td-amount text-right">
+            {{ formatCurrency(service.price * service.quantity, service.currency) }}
+          </td>
         </tr>
       </tbody>
     </table>
@@ -391,15 +463,24 @@ defineExpose({
           <span class="summary-label">{{ $t('documents.invoice_template.invoiceTemplate.subtotal') }}</span>
           <span class="summary-value">{{ formatCurrency(subtotal, primaryCurrency) }}</span>
         </div>
-        <div v-if="discount > 0" class="summary-row">
+        <div
+          v-if="discount > 0"
+          class="summary-row"
+        >
           <span class="summary-label">{{ $t('documents.invoice_template.invoiceTemplate.discount') }}</span>
           <span class="summary-value discount-val">-{{ formatCurrency(discount, primaryCurrency) }}</span>
         </div>
-        <div v-if="taxRate > 0" class="summary-row">
+        <div
+          v-if="taxRate > 0"
+          class="summary-row"
+        >
           <span class="summary-label">{{ $t('documents.invoice_template.invoiceTemplate.taxRATE') }}</span>
           <span class="summary-value">{{ taxRate }}%</span>
         </div>
-        <div v-if="taxRate > 0" class="summary-row">
+        <div
+          v-if="taxRate > 0"
+          class="summary-row"
+        >
           <span class="summary-label">{{ $t('documents.invoice_template.invoiceTemplate.tax') }}</span>
           <span class="summary-value">{{ formatCurrency(taxAmount, primaryCurrency) }}</span>
         </div>
@@ -413,28 +494,53 @@ defineExpose({
     <!-- Footer Notes & Payment Instructions -->
     <footer class="invoice-footer">
       <div class="footer-left">
-        <div v-if="notes" class="footer-block">
+        <div
+          v-if="notes"
+          class="footer-block"
+        >
           <span class="meta-label">{{ $t('common.fields.notes') }}</span>
-          <p class="footer-text">{{ notes }}</p>
+          <p class="footer-text">
+            {{ notes }}
+          </p>
         </div>
 
-        <div v-if="paymentInstructions && paymentInstructions.length > 0" class="footer-block">
+        <div
+          v-if="paymentInstructions && paymentInstructions.length > 0"
+          class="footer-block"
+        >
           <span class="meta-label">{{ $t('documents.invoice_template.invoiceTemplate.paymentINSTRUCTIONS') }}</span>
           <div class="footer-text">
-            <p v-for="(line, idx) in paymentInstructions" :key="idx">{{ line }}</p>
+            <p
+              v-for="(line, idx) in paymentInstructions"
+              :key="idx"
+            >
+              {{ line }}
+            </p>
           </div>
         </div>
 
-        <div v-if="paymentMethod" class="footer-block">
+        <div
+          v-if="paymentMethod"
+          class="footer-block"
+        >
           <span class="meta-label">{{ $t('documents.invoice_template.invoiceTemplate.paymentMETHOD') }}</span>
-          <p class="footer-text">{{ paymentMethod }}</p>
+          <p class="footer-text">
+            {{ paymentMethod }}
+          </p>
         </div>
       </div>
 
       <div class="footer-right">
         <div class="company-signature">
-          <img v-if="sender.signature" :src="sender.signature" :alt="$t('documents.invoice_template.invoiceTemplate.companySignature')" />
-          <div v-else class="signature-placeholder"></div>
+          <img
+            v-if="sender.signature"
+            :src="sender.signature"
+            :alt="$t('documents.invoice_template.invoiceTemplate.companySignature')"
+          >
+          <div
+            v-else
+            class="signature-placeholder"
+          />
           <span>{{ $t('documents.invoice_template.invoiceTemplate.companySignature') }}</span>
         </div>
         <strong class="thank-you-message">{{ $t('documents.invoice_template.invoiceTemplate.thankYOUFORYOURBUSINESS') }}</strong>

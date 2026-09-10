@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Visitor;
-use App\Models\Customer;
-use App\Models\CrmInteraction;
-use App\Http\Resources\VisitorResource;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\VisitorResource;
+use App\Models\CrmInteraction;
+use App\Models\Customer;
+use App\Models\Visitor;
 use App\Support\CrmMarketerAttribution;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
 class VisitorController extends Controller
@@ -24,7 +24,8 @@ class VisitorController extends Controller
         $company = $request->input('company');
         $marketer = $request->input('marketer');
 
-        $query = Visitor::query()->with('marketerEmployee');
+        $query = Visitor::query()->with('marketerEmployee')
+            ->when(! $request->boolean('include_converted'), fn ($query) => $query->whereNull('converted_at'));
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -113,6 +114,8 @@ class VisitorController extends Controller
     public function convertToCustomer(Visitor $visitor): CustomerResource
     {
         $customer = DB::transaction(function () use ($visitor) {
+            $visitor = Visitor::query()->lockForUpdate()->findOrFail($visitor->id);
+            abort_if($visitor->converted_at, 422, 'business.visitor_already_converted');
             $customer = Customer::create([
                 'name' => $visitor->name,
                 'company' => $visitor->company,
@@ -132,7 +135,7 @@ class VisitorController extends Controller
                     'contactable_id' => $customer->id,
                 ]);
 
-            $visitor->delete();
+            $visitor->update(['converted_at' => now()]);
 
             return $customer;
         });

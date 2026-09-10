@@ -58,22 +58,27 @@ export interface CreateAttendanceData {
 const AttendanceApi = {
   async getAll(params?: AttendanceParams): Promise<Attendance[]> {
     const response = await api.get<{ data: Attendance[] }>('/attendances', { params })
+
     return response.data.data
   },
   async getMine(params?: Pick<AttendanceParams, 'start_date' | 'end_date'>): Promise<Attendance[]> {
     const response = await api.get<{ data: Attendance[] }>('/my-work-history', { params })
+
     return response.data.data
   },
   async getUnmarkedStaff(date: string): Promise<UnmarkedStaff[]> {
     const response = await api.get<{ data: UnmarkedStaff[] }>('/attendances/unmarked-staff', { params: { date } })
+
     return response.data.data
   },
   async getDailyReport(attendanceId: number): Promise<DailyReport> {
     const response = await api.get<{ data: DailyReport }>(`/attendances/${attendanceId}/daily-report`)
+
     return response.data.data
   },
   async create(data: CreateAttendanceData): Promise<Attendance> {
     const response = await api.post<{ data: Attendance }>('/attendances', data)
+
     return response.data.data
   },
   async delete(id: number): Promise<void> {

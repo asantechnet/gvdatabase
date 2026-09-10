@@ -21,8 +21,10 @@ return [
 
     'allowed_methods' => ['*'],
 
-    // 1. Put your exact frontend URL here (the one running your Vuexy app)
-    'allowed_origins' => ['http://localhost:8000'],
+    'allowed_origins' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('CORS_ALLOWED_ORIGINS', env('APP_URL', 'http://localhost'))),
+    ))),
 
     'allowed_origins_patterns' => [],
 
@@ -32,7 +34,7 @@ return [
 
     'max_age' => 0,
 
-    // 2. Set this to true if you are handling cookies, sessions, or Sanctum tokens
-    'supports_credentials' => true,
+    // API authentication uses explicit Bearer tokens, not cross-site cookies.
+    'supports_credentials' => env('CORS_SUPPORTS_CREDENTIALS', false),
 
 ];

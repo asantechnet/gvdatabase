@@ -12,6 +12,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 <template>
   <IconBtn
+    data-confirm-form-cancel
+    :aria-label="$t('common.actions.close')"
+    :title="$t('common.actions.close')"
     variant="elevated"
     size="30"
     :ripple="false"

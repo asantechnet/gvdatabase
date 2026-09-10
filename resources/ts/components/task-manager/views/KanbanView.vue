@@ -1,13 +1,16 @@
 <script setup lang="ts">
+import type Viewer from 'viewerjs'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import 'viewerjs/dist/viewer.css'
+import TaskCommentsDrawer from '../components/TaskCommentsDrawer.vue'
+import TaskDetailDrawer from '../components/TaskDetailDrawer.vue'
 import { useTaskStore } from '@/stores/useTaskStore'
 import KanbanBoard from '@/pages/kanban/KanbanBoard.vue'
 import TaskApi from '@/api/task'
 import type { Task, TaskAttachment } from '@/api/kanban'
-import type Viewer from 'viewerjs'
-import 'viewerjs/dist/viewer.css'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import TaskCommentsDrawer from '../components/TaskCommentsDrawer.vue'
-import TaskDetailDrawer from '../components/TaskDetailDrawer.vue'
+import type { KanbanId } from '@/types/legacyKanban'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 
 interface AddNewKanbanItem { boardId: string | number; itemTitle: string }
 interface EditKanbanItem { item: { id: string | number } }
@@ -15,6 +18,7 @@ interface KanbanState { boardId: string | number; ids: Array<string | number> }
 interface RenameKanbanBoard { boardId: string | number; newName: string }
 
 const store = useTaskStore()
+const { t: translate } = useI18n()
 const isDetailDrawerOpen = ref(false)
 const isCommentsDrawerOpen = ref(false)
 const isLoading = ref(true)
@@ -24,13 +28,17 @@ const attachmentTask = ref<Task | null>(null)
 const attachmentImageContainer = ref<HTMLElement>()
 const imagePreviewUrls = ref<Record<string, string>>({})
 let imageViewer: Viewer | null = null
+let moveWarningOpen = false
+let moveBatchTimer: number | undefined
+const pendingMoveStates = new Map<string, KanbanState>()
 
 // Load data when component mounts
 onMounted(async () => {
   try {
     isLoading.value = true
     await store.fetchBoardData()
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 })
@@ -44,7 +52,7 @@ const vuexyKanbanData = computed(() => {
       itemsIds: store.tasks
         .filter(t => t.boardId === col.id)
         .sort((a, b) => a.order - b.order)
-        .map(t => t.id)
+        .map(t => t.id),
     })),
     items: store.tasks.map(task => ({
       id: task.id,
@@ -60,18 +68,62 @@ const vuexyKanbanData = computed(() => {
       attachmentsCount: task.attachments?.length ?? 0,
       progress: task.progress,
       image: '',
-      comments: task.description.replace(/<[^>]*>?/gm, '').substring(0, 50) + '...'
-    }))
+      comments: `${task.description.replace(/<[^>]*>?/g, '').substring(0, 50)}...`,
+    })),
   }
 })
 
 // Handle Vuexy Drag/Drop and Event Emissions
-const handleUpdateItemsState = async (payload: KanbanState) => {
-  // Persist in order. Sending every move at once lets requests overtake each
-  // other and leaves the column order different from the UI.
-  for (const [index, itemId] of payload.ids.entries()) {
-    await store.moveTaskBoard(String(itemId), String(payload.boardId), index)
+const commitPendingCardMove = async () => {
+  if (moveWarningOpen)
+    return
+
+  const states = [...pendingMoveStates.values()]
+
+  pendingMoveStates.clear()
+  if (!states.length)
+    return
+
+  moveWarningOpen = true
+  try {
+    const confirmed = await confirmActionWarning({
+      key: 'move-kanban-card',
+      title: translate('common.actionWarnings.moveCardTitle'),
+      message: translate('common.actionWarnings.moveCardMessage'),
+      confirmText: translate('common.actionWarnings.moveCardConfirm'),
+      cancelText: translate('common.actionWarnings.keepCard'),
+      icon: 'tabler-arrows-move',
+    })
+
+    if (!confirmed) {
+      await store.fetchBoardData()
+
+      return
+    }
+
+    // Cross-column drops report both affected columns. Persist the collected
+    // states sequentially so requests cannot overtake one another.
+    for (const state of states) {
+      for (const [index, itemId] of state.ids.entries())
+        await store.moveTaskBoard(String(itemId), String(state.boardId), index)
+    }
   }
+  finally {
+    moveWarningOpen = false
+    if (pendingMoveStates.size)
+      await store.fetchBoardData()
+    pendingMoveStates.clear()
+  }
+}
+
+const handleUpdateItemsState = (payload: KanbanState) => {
+  pendingMoveStates.set(String(payload.boardId), payload)
+  if (moveBatchTimer !== undefined)
+    window.clearTimeout(moveBatchTimer)
+  moveBatchTimer = window.setTimeout(() => {
+    moveBatchTimer = undefined
+    commitPendingCardMove().catch(() => {})
+  }, 80)
 }
 
 const handleAddNewItem = async (payload: AddNewKanbanItem) => {
@@ -86,6 +138,7 @@ const handleAddNewItem = async (payload: AddNewKanbanItem) => {
 
   if (task) {
     store.selectTask(task.id)
+
     // Wait until the new card has been rendered before asking the Kanban
     // component to open its own editor drawer for it.
     await nextTick()
@@ -113,10 +166,12 @@ const handleAttachmentsClick = (payload: EditKanbanItem) => {
 const isImage = (attachment: TaskAttachment) => attachment.mimeType?.startsWith('image/') ?? false
 
 const downloadAttachment = async (attachment: TaskAttachment) => {
-  if (!attachmentTask.value) return
+  if (!attachmentTask.value)
+    return
   const response = await TaskApi.downloadAttachment(attachmentTask.value.id, attachment.id)
   const url = URL.createObjectURL(response.data)
   const link = document.createElement('a')
+
   link.href = url
   link.download = attachment.name
   link.click()
@@ -129,14 +184,18 @@ const clearImagePreviews = () => {
 }
 
 const loadImagePreviews = async () => {
-  if (!attachmentTask.value) return
+  if (!attachmentTask.value)
+    return
 
   const images = attachmentTask.value.attachments.filter(isImage)
+
   const previews = await Promise.all(images.map(async attachment => {
     try {
       const response = await TaskApi.downloadAttachment(attachmentTask.value!.id, attachment.id)
+
       return [attachment.id, URL.createObjectURL(response.data)] as const
-    } catch {
+    }
+    catch {
       return null
     }
   }))
@@ -148,11 +207,13 @@ watch(isAttachmentsDialogOpen, async isOpen => {
   imageViewer?.destroy()
   imageViewer = null
   clearImagePreviews()
-  if (!isOpen) return
+  if (!isOpen)
+    return
   await loadImagePreviews()
   await nextTick()
   if (attachmentImageContainer.value) {
     const { default: Viewer } = await import('viewerjs')
+
     imageViewer = new Viewer(attachmentImageContainer.value, {
       navbar: true,
       title: false,
@@ -167,6 +228,8 @@ watch(isAttachmentsDialogOpen, async isOpen => {
 })
 
 onBeforeUnmount(() => {
+  if (moveBatchTimer !== undefined)
+    window.clearTimeout(moveBatchTimer)
   imageViewer?.destroy()
   clearImagePreviews()
 })
@@ -183,11 +246,11 @@ const handleAddNewBoard = (title: string) => {
   store.createBoard(title)
 }
 
-const handleDeleteBoard = (boardId: number) => {
+const handleDeleteBoard = (boardId: KanbanId) => {
   store.deleteBoard(String(boardId))
 }
 
-const handleUpdateBoardState = async (boardIds: number[]) => {
+const handleUpdateBoardState = async (boardIds: KanbanId[]) => {
   await store.reorderBoards(boardIds.map(String))
 }
 </script>
@@ -196,11 +259,18 @@ const handleUpdateBoardState = async (boardIds: number[]) => {
   <div class="kanban-wrapper h-100 position-relative">
     <VRow>
       <VCol cols="12">
-        <VCard elevation="0" class="border">
+        <VCard
+          elevation="0"
+          class="border"
+        >
           <VCardItem class="bg-surface pb-4">
             <template #title>
               <div class="d-flex align-center">
-                <VIcon icon="tabler-layout-kanban" color="primary" class="me-2" />
+                <VIcon
+                  icon="tabler-layout-kanban"
+                  color="primary"
+                  class="me-2"
+                />
                 <span class="text-h5 font-weight-bold">{{ $t('components.taskManager.kanbanview.projectBoard') }}</span>
               </div>
             </template>
@@ -240,27 +310,85 @@ const handleUpdateBoardState = async (boardIds: number[]) => {
     <!-- Dedicated Task Comments Sliding Drawer -->
     <TaskCommentsDrawer v-model:is-open="isCommentsDrawerOpen" />
 
-    <VDialog v-model="isAttachmentsDialogOpen" max-width="760">
+    <VDialog
+      v-model="isAttachmentsDialogOpen"
+      max-width="760"
+    >
       <VCard>
         <VCardItem class="border-b">
-          <template #title><span class="text-h6">{{ $t('components.taskManager.kanbanview.attachments') }}</span></template>
-          <template #subtitle>{{ attachmentTask?.title }}</template>
-          <template #append><VBtn icon="tabler-x" variant="text" :aria-label="$t('common.actions.close')" :title="$t('common.actions.close')" @click="isAttachmentsDialogOpen = false" /></template>
+          <template #title>
+            <span class="text-h6">{{ $t('components.taskManager.kanbanview.attachments') }}</span>
+          </template>
+          <template #subtitle>
+            {{ attachmentTask?.title }}
+          </template>
+          <template #append>
+            <VBtn
+              icon="tabler-x"
+              variant="text"
+              :aria-label="$t('common.actions.close')"
+              :title="$t('common.actions.close')"
+              @click="isAttachmentsDialogOpen = false"
+            />
+          </template>
         </VCardItem>
-        <VCardText v-if="attachmentTask" class="pa-5">
-          <div v-if="attachmentTask.attachments.length" ref="attachmentImageContainer" class="attachment-gallery">
-            <div v-for="attachment in attachmentTask.attachments" :key="attachment.id" class="attachment-entry border rounded pa-3">
-              <img v-if="isImage(attachment) && imagePreviewUrls[attachment.id]" :src="imagePreviewUrls[attachment.id]" :alt="attachment.name" class="attachment-preview rounded cursor-pointer" />
-              <VProgressCircular v-else-if="isImage(attachment)" indeterminate size="32" width="3" color="primary" />
-              <VIcon v-else icon="tabler-file" size="36" color="secondary" />
+        <VCardText
+          v-if="attachmentTask"
+          class="pa-5"
+        >
+          <div
+            v-if="attachmentTask.attachments.length"
+            ref="attachmentImageContainer"
+            class="attachment-gallery"
+          >
+            <div
+              v-for="attachment in attachmentTask.attachments"
+              :key="attachment.id"
+              class="attachment-entry border rounded pa-3"
+            >
+              <img
+                v-if="isImage(attachment) && imagePreviewUrls[attachment.id]"
+                :src="imagePreviewUrls[attachment.id]"
+                :alt="attachment.name"
+                class="attachment-preview rounded cursor-pointer"
+              >
+              <VProgressCircular
+                v-else-if="isImage(attachment)"
+                indeterminate
+                size="32"
+                width="3"
+                color="primary"
+              />
+              <VIcon
+                v-else
+                icon="tabler-file"
+                size="36"
+                color="secondary"
+              />
               <div class="flex-grow-1 min-width-0">
-                <div class="text-body-1 text-truncate">{{ attachment.name }}</div>
-                <div class="text-caption text-medium-emphasis">{{ attachment.section === 'input' ? $t('components.taskManager.kanbanview.taskFiles') : $t('components.taskManager.kanbanview.resultFiles') }}</div>
+                <div class="text-body-1 text-truncate">
+                  {{ attachment.name }}
+                </div>
+                <div class="text-caption text-medium-emphasis">
+                  {{ attachment.section === 'input' ? $t('components.taskManager.kanbanview.taskFiles') : $t('components.taskManager.kanbanview.resultFiles') }}
+                </div>
               </div>
-              <VBtn icon="tabler-download" variant="text" :aria-label="$t('components.taskManager.kanbanview.downloadAttachment')" :title="$t('components.taskManager.kanbanview.downloadAttachment')" @click="downloadAttachment(attachment)" />
+              <VBtn
+                icon="tabler-download"
+                variant="text"
+                :aria-label="$t('components.taskManager.kanbanview.downloadAttachment')"
+                :title="$t('components.taskManager.kanbanview.downloadAttachment')"
+                @click="downloadAttachment(attachment)"
+              />
             </div>
           </div>
-          <VAlert v-else type="info" variant="tonal">{{ $t('components.taskManager.kanbanview.noAttachments') }}</VAlert>
+          <VAlert
+            v-else
+            type="info"
+            variant="tonal"
+          >
+            {{ $t('components.taskManager.kanbanview.noAttachments') }}
+          </VAlert>
         </VCardText>
       </VCard>
     </VDialog>

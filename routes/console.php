@@ -1,9 +1,9 @@
 <?php
 
+use App\Support\CompanyProfile;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
-use App\Support\CompanyProfile;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -22,3 +22,7 @@ Schedule::command('bonuses:calculate')
     ->monthlyOn(1, '02:00')->timezone($companyTimezone)->withoutOverlapping()->onOneServer();
 Schedule::command('recurring-events:process')
     ->hourly()->timezone($companyTimezone)->withoutOverlapping()->onOneServer();
+Schedule::command('contracts:process-lifecycle')
+    ->dailyAt('00:10')->timezone($companyTimezone)->withoutOverlapping()->onOneServer();
+Schedule::command('sanctum:prune-expired --hours=24')
+    ->dailyAt('02:30')->timezone($companyTimezone)->withoutOverlapping()->onOneServer();

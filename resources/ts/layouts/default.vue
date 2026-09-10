@@ -35,12 +35,19 @@ watch([isFallbackStateActive, refLoadingIndicator], () => {
 </script>
 
 <template>
-  <Component v-bind="layoutAttrs" :is="layoutConfigStore.appContentLayoutNav === 'horizontal' ? DefaultLayoutWithHorizontalNav : DefaultLayoutWithVerticalNav">
+  <Component
+    v-bind="layoutAttrs"
+    :is="layoutConfigStore.appContentLayoutNav === 'horizontal' ? DefaultLayoutWithHorizontalNav : DefaultLayoutWithVerticalNav"
+  >
     <AppLoadingIndicator ref="refLoadingIndicator" />
     <AutomaticAttendanceTracker v-if="automaticAttendanceEnabled" />
 
     <RouterView v-slot="{ Component }">
-      <Suspense :timeout="0" @fallback="isFallbackStateActive = true" @resolve="isFallbackStateActive = false">
+      <Suspense
+        :timeout="0"
+        @fallback="isFallbackStateActive = true"
+        @resolve="isFallbackStateActive = false"
+      >
         <Component :is="Component" />
       </Suspense>
     </RouterView>

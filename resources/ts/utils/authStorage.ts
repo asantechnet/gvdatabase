@@ -11,6 +11,7 @@ const browserStorage = () => typeof window === 'undefined' ? null : window
 
 export const getAccessToken = () => {
   const browser = browserStorage()
+
   return browser?.localStorage.getItem(ACCESS_TOKEN_KEY)
     || browser?.sessionStorage.getItem(ACCESS_TOKEN_KEY)
     || null
@@ -18,6 +19,7 @@ export const getAccessToken = () => {
 
 export const getRefreshToken = () => {
   const browser = browserStorage()
+
   return browser?.localStorage.getItem(REFRESH_TOKEN_KEY)
     || browser?.sessionStorage.getItem(REFRESH_TOKEN_KEY)
     || null
@@ -29,7 +31,8 @@ export const isRememberedSession = () => {
 
 export const clearAuthTokens = () => {
   const browser = browserStorage()
-  if (!browser) return
+  if (!browser)
+    return
 
   for (const storage of [browser.localStorage, browser.sessionStorage]) {
     storage.removeItem(ACCESS_TOKEN_KEY)
@@ -43,25 +46,32 @@ export const clearAuthTokens = () => {
 
 export const storeAuthTokens = (tokens: AuthTokens, remember: boolean) => {
   const browser = browserStorage()
-  if (!browser) return
+  if (!browser)
+    return
 
   clearAuthTokens()
+
   const storage = remember ? browser.localStorage : browser.sessionStorage
+
   storage.setItem(ACCESS_TOKEN_KEY, tokens.access_token)
-  if (tokens.refresh_token) storage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token)
+  if (tokens.refresh_token)
+    storage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token)
 }
 
 export const getStoredPermissions = (): string[] => {
   const browser = browserStorage()
-  if (!browser) return []
+  if (!browser)
+    return []
 
   const raw = browser.localStorage.getItem(PERMISSIONS_KEY)
     || browser.sessionStorage.getItem(PERMISSIONS_KEY)
 
-  if (!raw) return []
+  if (!raw)
+    return []
 
   try {
     const permissions = JSON.parse(raw)
+
     return Array.isArray(permissions)
       ? permissions.filter((permission): permission is string => typeof permission === 'string')
       : []
@@ -73,9 +83,11 @@ export const getStoredPermissions = (): string[] => {
 
 export const storePermissions = (permissions: string[]) => {
   const browser = browserStorage()
-  if (!browser) return
+  if (!browser)
+    return
 
   const storage = isRememberedSession() ? browser.localStorage : browser.sessionStorage
+
   browser.localStorage.removeItem(PERMISSIONS_KEY)
   browser.sessionStorage.removeItem(PERMISSIONS_KEY)
   storage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions))
@@ -83,7 +95,8 @@ export const storePermissions = (permissions: string[]) => {
 
 export const clearStoredPermissions = () => {
   const browser = browserStorage()
-  if (!browser) return
+  if (!browser)
+    return
 
   browser.localStorage.removeItem(PERMISSIONS_KEY)
   browser.sessionStorage.removeItem(PERMISSIONS_KEY)

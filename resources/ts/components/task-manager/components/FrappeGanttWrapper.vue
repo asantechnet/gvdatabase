@@ -8,6 +8,7 @@ const props = defineProps<{
   tasks: FrappeGanttTask[]
   viewMode: 'Quarter Day' | 'Half Day' | 'Day' | 'Week' | 'Month' | 'Year'
 }>()
+
 const emit = defineEmits<{
   (e: 'task-click', task: FrappeGanttTask): void
   (e: 'date-change', task: FrappeGanttTask, start: Date, end: Date): void
@@ -22,16 +23,23 @@ let suppressTaskClickUntil = 0
 
 const localDateString = (date: Date) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
 const isGanttBarTarget = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('.bar-wrapper'))
-const handlePointerDown = (event: PointerEvent) => { if (isGanttBarTarget(event.target)) ganttPointerStart = { x: event.clientX, y: event.clientY } }
+
+const handlePointerDown = (event: PointerEvent) => {
+  if (isGanttBarTarget(event.target))
+    ganttPointerStart = { x: event.clientX, y: event.clientY }
+}
+
 const handlePointerMove = (event: PointerEvent) => {
   if (ganttPointerStart && Math.hypot(event.clientX - ganttPointerStart.x, event.clientY - ganttPointerStart.y) > 5)
     suppressTaskClickUntil = Date.now() + 350
 }
+
 const handlePointerUp = () => { ganttPointerStart = null }
 
 // Frappe crashes when a dependency is not present in the visible task list.
 const chartTasks = computed<FrappeGanttTask[]>(() => {
   const validIds = new Set(props.tasks.map(task => task.id))
+
   return props.tasks.map(task => ({
     ...task,
     dependencies: task.dependencies.split(',').map(id => id.trim()).filter(id => id && id !== task.id && validIds.has(id)).join(','),
@@ -39,8 +47,10 @@ const chartTasks = computed<FrappeGanttTask[]>(() => {
 })
 
 const initGantt = () => {
-  if (!ganttContainer.value || !chartTasks.value.length) return
-  if (ganttInstance) ganttContainer.value.innerHTML = ''
+  if (!ganttContainer.value || !chartTasks.value.length)
+    return
+  if (ganttInstance)
+    ganttContainer.value.innerHTML = ''
   ganttInstance = new Gantt(ganttContainer.value, chartTasks.value, {
     header_height: 50,
     bar_height: 30,
@@ -51,7 +61,10 @@ const initGantt = () => {
     date_format: 'YYYY-MM-DD',
     container_height: 900,
     infinite_padding: false,
-    on_click: (task: FrappeGanttTask) => { if (Date.now() >= suppressTaskClickUntil) emit('task-click', task) },
+    on_click: (task: FrappeGanttTask) => {
+      if (Date.now() >= suppressTaskClickUntil)
+        emit('task-click', task)
+    },
     on_date_change: (task: FrappeGanttTask, start: Date, end: Date) => {
       pendingInteractiveDateChange = { id: task.id, start: localDateString(start), end: localDateString(end) }
       emit('date-change', task, start, end)
@@ -65,15 +78,23 @@ const initGantt = () => {
 
 watch(chartTasks, async tasks => {
   if (!tasks.length) {
-    if (ganttContainer.value) ganttContainer.value.innerHTML = ''
+    if (ganttContainer.value)
+      ganttContainer.value.innerHTML = ''
     ganttInstance = null
+
     return
   }
-  if (!ganttInstance) return void (await nextTick(), initGantt())
+  if (!ganttInstance) {
+    await nextTick()
+    initGantt()
+
+    return
+  }
   if (pendingInteractiveDateChange) {
     const moved = tasks.find(task => task.id === pendingInteractiveDateChange?.id)
     if (moved?.start === pendingInteractiveDateChange.start && moved?.end === pendingInteractiveDateChange.end) {
       pendingInteractiveDateChange = null
+
       return
     }
   }
@@ -93,9 +114,18 @@ onMounted(initGantt)
     @pointercancel.capture="handlePointerUp"
   >
     <div ref="ganttContainer" />
-    <div v-if="tasks.length === 0" class="pa-10 text-center text-disabled">
-      <VIcon icon="tabler-chart-bar-off" size="48" class="mb-3" />
-      <div class="text-subtitle-1">{{ $t('components.taskManager.frappeganttwrapper.noTasksAvailableToPlotOnTheTimeline') }}</div>
+    <div
+      v-if="tasks.length === 0"
+      class="pa-10 text-center text-disabled"
+    >
+      <VIcon
+        icon="tabler-chart-bar-off"
+        size="48"
+        class="mb-3"
+      />
+      <div class="text-subtitle-1">
+        {{ $t('components.taskManager.frappeganttwrapper.noTasksAvailableToPlotOnTheTimeline') }}
+      </div>
     </div>
   </div>
 </template>

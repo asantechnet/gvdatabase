@@ -20,9 +20,9 @@ class AssetController extends Controller
 
         if ($request->has('search')) {
             $search = $request->input('search');
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('serial_number', 'like', "%{$search}%")
-                  ->orWhere('item', 'like', "%{$search}%");
+                    ->orWhere('item', 'like', "%{$search}%");
             });
         }
 
@@ -119,6 +119,7 @@ class AssetController extends Controller
      */
     public function destroy(Asset $asset)
     {
+        abort_if($asset->allocations()->exists(), 422, 'business.asset_still_allocated');
         $asset->delete();
 
         return response()->noContent();

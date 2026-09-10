@@ -10,11 +10,11 @@ use App\Models\DailyAnalytics;
 use App\Models\Employee;
 use App\Models\MonthlyAnalytics;
 use App\Models\Notification;
+use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\WorthyEmployee;
-use App\Models\Role;
 use App\Services\AutomationRunService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -30,7 +30,7 @@ class PhaseNineBonusAutomationTest extends TestCase
         parent::setUp();
         Setting::create([
             'navigation_clr' => '#111111', 'cards_clr' => '#ffffff', 'footer_clr' => '#111111',
-            'paid_off_days_per_year' => 20, 'website_title' => 'Test', 'website_address' => 'https://example.test',
+            'paid_leave_days_per_year' => 20, 'website_title' => 'Test', 'website_address' => 'https://example.test',
             'timezone' => 'Asia/Kabul', 'phone' => '123', 'physical_address' => 'Kabul',
             'short_company_name' => 'Test', 'original_company_name' => 'Test Company',
             'office_open_time' => '08:00', 'office_close_time' => '16:00', 'default_break_minutes' => 30,

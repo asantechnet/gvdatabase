@@ -51,14 +51,17 @@ export interface ReportCatalog {
 const ReportApi = {
   async catalog(): Promise<ReportCatalog> {
     const response = await api.get<{ data: ReportCatalog }>('/reports/catalog')
+
     return response.data.data
   },
   async generate(type: ReportType, params: ReportFilters): Promise<GeneratedReport> {
     const response = await api.get<{ data: GeneratedReport }>(`/reports/generate/${type}`, { params })
+
     return response.data.data
   },
   async export(type: ReportType, params: ReportFilters, format: 'csv' | 'print' = 'csv'): Promise<Blob> {
     const response = await api.get(`/reports/${type}/export`, { params: { ...params, format }, responseType: 'blob' })
+
     return response.data
   },
   generateInvoiceReport: (params: Partial<ReportFilters>) => api.get('/reports/invoices', { params }),

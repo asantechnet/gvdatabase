@@ -21,12 +21,18 @@ defineEmits<{
       role="region"
       :aria-label="`${selectedCount} ${label}`"
     >
-      <div class="bulk-action-bar__count" aria-live="polite">
+      <div
+        class="bulk-action-bar__count"
+        aria-live="polite"
+      >
         <strong>{{ selectedCount }}</strong>
         <span>{{ label }}</span>
       </div>
 
-      <VDivider vertical class="bulk-action-bar__divider" />
+      <VDivider
+        vertical
+        class="bulk-action-bar__divider"
+      />
 
       <div class="d-flex flex-wrap align-center ga-1">
         <slot />
@@ -34,9 +40,14 @@ defineEmits<{
 
       <VSpacer />
 
-      <IconBtn aria-label="Clear selection" @click="$emit('clear')">
+      <IconBtn
+        aria-label="Clear selection"
+        @click="$emit('clear')"
+      >
         <VIcon icon="tabler-x" />
-        <VTooltip activator="parent">Clear selection</VTooltip>
+        <VTooltip activator="parent">
+          Clear selection
+        </VTooltip>
       </IconBtn>
     </VSheet>
   </VSlideYReverseTransition>

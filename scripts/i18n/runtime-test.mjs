@@ -17,19 +17,25 @@ const messages = Object.fromEntries(supported.map(locale => [
 
 const flatten = (object, prefix = '') => Object.entries(object).flatMap(([key, value]) => {
   const next = prefix ? `${prefix}.${key}` : key
+
   return value && typeof value === 'object' && !Array.isArray(value) ? flatten(value, next) : [[next, String(value)]]
 })
+
 const flattened = Object.fromEntries(supported.map(locale => [locale, Object.fromEntries(flatten(messages[locale]))]))
 const englishKeys = Object.keys(flattened.en).sort()
-const placeholders = message => [...new Set([...message.matchAll(/\{([A-Za-z_][A-Za-z0-9_]*)\}/g)].map(match => match[1]))].sort()
+const placeholders = message => [...new Set([...message.matchAll(/\{([A-Z_]\w*)\}/gi)].map(match => match[1]))].sort()
 
 for (const locale of supported.slice(1)) {
   const keys = Object.keys(flattened[locale]).sort()
+
   // Pashto may intentionally fall back to the complete Dari catalog. Check
   // placeholder safety for translations it owns; resolved coverage is checked
   // below through vue-i18n's actual fallback chain.
   for (const key of keys) {
-    if (JSON.stringify(placeholders(flattened[locale][key])) !== JSON.stringify(placeholders(flattened.en[key])))
+    const englishMessage = flattened.en[key]
+    if (englishMessage === undefined)
+      throw new Error(`${locale}:${key} has no English source message.`)
+    if (JSON.stringify(placeholders(flattened[locale][key])) !== JSON.stringify(placeholders(englishMessage)))
       throw new Error(`${locale}:${key} does not preserve interpolation placeholders.`)
   }
 }
@@ -37,14 +43,16 @@ for (const locale of supported.slice(1)) {
 const i18n = createI18n({
   legacy: false,
   locale: 'en',
-  fallbackLocale: { en: [], 'fa-AF': ['en'], 'ps-AF': ['fa-AF', 'en'] },
+  fallbackLocale: { 'en': [], 'fa-AF': ['en'], 'ps-AF': ['fa-AF', 'en'] },
   missingWarn: false,
   fallbackWarn: false,
   messages,
 })
+
 for (const locale of supported) {
   i18n.global.locale.value = locale
-  if (i18n.global.locale.value !== locale) throw new Error(`Runtime locale switching failed for ${locale}.`)
+  if (i18n.global.locale.value !== locale)
+    throw new Error(`Runtime locale switching failed for ${locale}.`)
   for (const key of englishKeys) {
     const translated = i18n.global.t(key)
     if (translated === key || (translated === '' && flattened.en[key] !== ''))

@@ -4,15 +4,16 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasDocumentNumber;
+use App\Services\CommissionAccrualService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Services\CommissionAccrualService;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Income extends Model
 {
-    use HasDocumentNumber, HasFactory, Auditable;
+    use Auditable, HasDocumentNumber, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'receipt_number',

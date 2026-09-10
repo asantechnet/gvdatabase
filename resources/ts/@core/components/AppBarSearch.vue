@@ -70,7 +70,8 @@ watch(
   isVisible => {
     searchQueryLocal.value = ''
     emit('search', '')
-    if (isVisible) nextTick(() => refSearchInput.value?.focus?.())
+    if (isVisible)
+      nextTick(() => refSearchInput.value?.focus?.())
   },
 )
 </script>

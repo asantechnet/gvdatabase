@@ -2,16 +2,15 @@
 
 namespace Tests\Feature;
 
-use App\Http\Middleware\EnsurePermission;
 use App\Models\Currency;
 use App\Models\Customer;
 use App\Models\CustomerService;
 use App\Models\Invoice;
 use App\Models\PaymentDetail;
 use App\Models\Service;
-use Illuminate\Auth\Middleware\Authenticate;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class PaymentDetailManagementTest extends TestCase
@@ -22,11 +21,7 @@ class PaymentDetailManagementTest extends TestCase
     {
         parent::setUp();
 
-        $this->withoutMiddleware([
-            Authenticate::class,
-            CheckAbilities::class,
-            EnsurePermission::class,
-        ]);
+        Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
     }
 
     public function test_payment_details_are_crudable(): void
@@ -69,7 +64,7 @@ class PaymentDetailManagementTest extends TestCase
             'currency_id' => $currency->id,
             'fee' => 250,
         ]);
-        CustomerService::create([
+        $customerService = CustomerService::create([
             'customer_id' => $customer->id,
             'service_id' => $service->id,
         ]);
@@ -83,7 +78,7 @@ class PaymentDetailManagementTest extends TestCase
             'currency_id' => $currency->id,
             'rate' => 1,
             'class_type' => 'Standard',
-            'services' => [['id' => $service->id, 'quantity' => 1]],
+            'services' => [['customer_service_id' => $customerService->id, 'quantity' => 1]],
             'tax_percent' => 0,
             'discount' => 0,
             'payment_detail_id' => $paymentDetail->id,

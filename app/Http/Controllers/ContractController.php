@@ -9,12 +9,14 @@ use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\Customer;
 use App\Models\Employee;
-use Carbon\Carbon;
 use App\Services\Contracts\ContentSanitizer;
 use App\Services\Contracts\PlaceholderRegistry;
 use App\Services\Contracts\PlaceholderResolver;
+use App\Support\CompanyProfile;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -23,6 +25,7 @@ class ContractController extends Controller
     public function __construct(
         private readonly PlaceholderResolver $resolver,
         private readonly ContentSanitizer $sanitizer,
+        private readonly CompanyProfile $companyProfile,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -116,74 +119,16 @@ class ContractController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $this->validatedData($request);
+        $data['is_cancelled'] = false;
 
-        [$template, $type] = $this->resolveTemplateAndType($data);
-        $contextEntity = $this->resolveContextEntity($type?->slug, $data);
-
-        $content = $data['content'] ?? '';
-        $snapshot = null;
-
-        if ($template) {
-            $content = $template->content ?? '';
+        $result = $this->createContract($data);
+        if ($result instanceof JsonResponse) {
+            return $result;
         }
 
-        $rendered = $this->resolver->resolve(
-            $content,
-            $contextEntity['context'] + [
-                'start_date' => $data['start_date'],
-                'end_date' => $data['end_date'] ?? null,
-                'status' => $data['status'],
-                'company_signatory_name' => $data['company_signatory_name'] ?? null,
-            ],
-            $type?->slug,
-        );
-
-        // Unresolved placeholders must never reach a finalized document.
-        if ($rendered['unresolved'] !== []) {
-            return response()->json([
-                'success' => false,
-                'message' => 'The document contains placeholders that are not valid for this contract type: '
-                    .implode(', ', $rendered['unresolved']),
-                'code' => 'business.unresolved_placeholders',
-                'placeholders' => $rendered['unresolved'],
-            ], 422);
-        }
-
-        if ($rendered['missing'] !== []) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Some contract fields have no value and cannot be left empty in a finalized document: '
-                    .implode(', ', $rendered['missing']),
-                'code' => 'business.missing_placeholder_values',
-                'placeholders' => $rendered['missing'],
-            ], 422);
-        }
-
-        $counterparty = $this->buildCounterparty($type?->slug, $contextEntity);
-
-        $snapshot = [
-            'parties' => [
-                'our_company' => PlaceholderRegistry::ourCompanyValues($data['company_signatory_name'] ?? null),
-                'counterparty' => $counterparty,
-            ],
-            'entity' => $contextEntity['snapshot'],
-        ];
-
-        $contract = Contract::create([
-            ...$data,
-            'name' => $data['name'] ?? $template?->name,
-            'cover_text' => $data['cover_text'] ?? $template?->cover_text,
-            'content' => $this->sanitizer->clean($rendered['content']),
-            'contract_type_id' => $type?->id,
-            'type' => $type?->name,
-            'is_custom' => ! $template,
-            ...$counterparty['fields'],
-            ...$contextEntity['foreign_keys'],
-            'snapshot_data' => $snapshot,
-        ]);
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'employee', 'customer.customerServices.service.currency', 'company'])),
+            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'employee', 'customer.customerServices.service.currency', 'company'])),
         ], 201);
     }
 
@@ -206,6 +151,7 @@ class ContractController extends Controller
         if (! $contract) {
             return $this->notFound();
         }
+        abort_unless($contract->status === 'draft' && ! $contract->is_cancelled, 422, 'business.finalized_contract_immutable');
 
         $data = $this->validatedData($request, partial: true);
 
@@ -316,17 +262,91 @@ class ContractController extends Controller
 
     public function cancel($id): JsonResponse
     {
-        $contract = Contract::find($id);
-        if (! $contract) {
-            return $this->notFound();
-        }
+        $contract = DB::transaction(function () use ($id): Contract {
+            $contract = Contract::query()->lockForUpdate()->findOrFail($id);
+            abort_if($contract->is_cancelled, 422, 'business.contract_already_cancelled');
+            abort_unless(in_array($contract->status, ['draft', 'active'], true), 422, 'business.contract_not_cancellable');
+            $contract->update(['is_cancelled' => true, 'cancelled_at' => now('UTC'), 'status' => 'cancelled']);
 
-        $contract->update(['is_cancelled' => true, 'cancelled_at' => now('UTC'), 'status' => 'cancelled']);
+            return $contract;
+        });
 
         return response()->json([
             'success' => true,
             'data' => new ContractResource($contract->load(['template.contractType', 'contractType'])),
         ]);
+    }
+
+    /**
+     * Continue an active or expired agreement as a new draft. The source
+     * contract remains immutable and the new document gets fresh dates,
+     * placeholders, snapshots, and a distinct contract number.
+     */
+    public function renew(Request $request, $id): JsonResponse
+    {
+        $contract = Contract::with(['template.contractType', 'contractType'])->find($id);
+        if (! $contract) {
+            return $this->notFound();
+        }
+
+        abort_if($contract->is_cancelled, 422, 'business.contract_not_renewable');
+        abort_unless(in_array(strtolower($contract->status), ['active', 'expired'], true), 422, 'business.contract_not_renewable');
+        abort_unless($contract->template_id && ContractTemplate::query()->whereKey($contract->template_id)->exists(), 422, 'business.contract_template_unavailable');
+        abort_if(Contract::query()
+            ->where('snapshot_data->renewal->source_contract_id', $contract->id)
+            ->whereRaw('LOWER(status) NOT IN (?, ?)', ['cancelled', 'terminated'])
+            ->exists(), 422, 'business.contract_renewal_exists');
+
+        $this->normalizeLocalizedInteger($request, 'duration_months');
+        $validated = $request->validate([
+            'duration_months' => ['required', 'integer', 'min:1', 'max:600'],
+            'start_date' => ['nullable', 'date'],
+        ]);
+
+        $today = Carbon::today($this->companyProfile->timezone());
+        $earliestStart = $contract->end_date?->copy()->addDay();
+        if (! $earliestStart || $earliestStart->lt($today)) {
+            $earliestStart = $today;
+        }
+        $startDate = Carbon::parse($validated['start_date'] ?? $earliestStart->toDateString());
+
+        if ($startDate->lt($earliestStart)) {
+            throw ValidationException::withMessages([
+                'start_date' => ['The renewal must start on or after '.$earliestStart->toDateString().'.'],
+            ]);
+        }
+
+        $durationMonths = (int) $validated['duration_months'];
+        $data = [
+            'template_id' => $contract->template_id,
+            'contract_type_id' => $contract->contract_type_id,
+            'employee_id' => $contract->employee_id,
+            'customer_id' => $contract->customer_id,
+            'company_id' => $contract->company_id,
+            'name' => $contract->name,
+            'cover_text' => $contract->cover_text,
+            'status' => 'draft',
+            'start_date' => $startDate->toDateString(),
+            'end_date' => $startDate->copy()->addMonthsNoOverflow($durationMonths)->toDateString(),
+            'duration_months' => $durationMonths,
+            'company_signatory_name' => $contract->company_signatory_name,
+            'is_cancelled' => false,
+        ];
+
+        $result = $this->createContract($data, [
+            'renewal' => [
+                'source_contract_id' => $contract->id,
+                'source_contract_number' => $contract->contract_number,
+            ],
+        ]);
+        if ($result instanceof JsonResponse) {
+            return $result;
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'employee', 'customer.customerServices.service.currency', 'company'])),
+        ], 201);
     }
 
     public function destroy($id): JsonResponse
@@ -335,6 +355,7 @@ class ContractController extends Controller
         if (! $contract) {
             return $this->notFound();
         }
+        abort_unless($contract->status === 'draft' && ! $contract->is_cancelled, 422, 'business.only_draft_contracts_deletable');
 
         $contract->delete();
 
@@ -346,8 +367,7 @@ class ContractController extends Controller
 
     public function templates(): JsonResponse
     {
-        $templates = ContractTemplate::whereHas('contractType', fn ($type) =>
-            $type->whereIn('slug', ['employment', 'customer', 'company']))
+        $templates = ContractTemplate::whereHas('contractType', fn ($type) => $type->whereIn('slug', ['employment', 'customer', 'company']))
             ->with('contractType')->get();
 
         return response()->json([
@@ -398,14 +418,14 @@ class ContractController extends Controller
             'name' => [...$sometimes, 'string', 'max:255'],
             'cover_text' => ['nullable', 'string'],
             'content' => [...$sometimes, 'string'],
-            'status' => [...$sometimes, 'string', 'in:'.implode(',', Contract::STATUSES)],
+            'status' => [...$sometimes, 'string', 'in:draft,active'],
             'start_date' => [$partial ? 'sometimes' : 'nullable', 'date'],
             'end_date' => $partial
                 ? ['sometimes', 'nullable', 'date']
                 : ['nullable', 'date', 'after_or_equal:start_date'],
             'duration_months' => ['nullable', 'integer', 'min:1', 'max:600'],
             'company_signatory_name' => ['nullable', 'string', 'max:255'],
-            'is_cancelled' => ['sometimes', 'boolean'],
+            'is_cancelled' => ['prohibited'],
         ]);
 
         $validator->after(function ($validator) use ($request, $partial) {
@@ -432,6 +452,67 @@ class ContractController extends Controller
         }
 
         return $data;
+    }
+
+    /** @param array<string, mixed> $snapshotMetadata */
+    private function createContract(array $data, array $snapshotMetadata = []): Contract|JsonResponse
+    {
+        [$template, $type] = $this->resolveTemplateAndType($data);
+        $contextEntity = $this->resolveContextEntity($type?->slug, $data);
+        $content = $template ? ($template->content ?? '') : ($data['content'] ?? '');
+
+        $rendered = $this->resolver->resolve(
+            $content,
+            $contextEntity['context'] + [
+                'start_date' => $data['start_date'],
+                'end_date' => $data['end_date'] ?? null,
+                'status' => $data['status'],
+                'company_signatory_name' => $data['company_signatory_name'] ?? null,
+            ],
+            $type?->slug,
+        );
+
+        if ($rendered['unresolved'] !== []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The document contains placeholders that are not valid for this contract type: '
+                    .implode(', ', $rendered['unresolved']),
+                'code' => 'business.unresolved_placeholders',
+                'placeholders' => $rendered['unresolved'],
+            ], 422);
+        }
+
+        if ($rendered['missing'] !== []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Some contract fields have no value and cannot be left empty in a finalized document: '
+                    .implode(', ', $rendered['missing']),
+                'code' => 'business.missing_placeholder_values',
+                'placeholders' => $rendered['missing'],
+            ], 422);
+        }
+
+        $counterparty = $this->buildCounterparty($type?->slug, $contextEntity);
+
+        return Contract::create([
+            ...$data,
+            'name' => $data['name'] ?? $template?->name,
+            'cover_text' => $data['cover_text'] ?? $template?->cover_text,
+            'content' => $this->sanitizer->clean($rendered['content']),
+            'contract_type_id' => $type?->id,
+            'type' => $type?->name,
+            'is_custom' => ! $template,
+            ...$counterparty['fields'],
+            ...$contextEntity['foreign_keys'],
+            'snapshot_data' => [
+                'parties' => [
+                    'our_company' => PlaceholderRegistry::ourCompanyValues($data['company_signatory_name'] ?? null),
+                    'counterparty' => $counterparty,
+                ],
+                'entity' => $contextEntity['snapshot'],
+                ...$snapshotMetadata,
+            ],
+        ]);
     }
 
     /**
@@ -465,6 +546,7 @@ class ContractController extends Controller
 
         if ($template) {
             abort_unless(in_array($template->contractType?->slug, ['employment', 'customer', 'company'], true), 422, 'Only supported contract types may be used.');
+
             return [$template, $template->contractType];
         }
 

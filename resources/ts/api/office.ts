@@ -22,14 +22,17 @@ export type OfficePayload = Pick<Office, 'name' | 'code' | 'email' | 'phone' | '
 const OfficeApi = {
   async getAll(): Promise<Office[]> {
     const response = await api.get('/offices')
+
     return response.data.data
   },
   async create(data: OfficePayload): Promise<Office> {
     const response = await api.post('/offices', data)
+
     return response.data.data
   },
   async update(id: number, data: OfficePayload): Promise<Office> {
     const response = await api.put(`/offices/${id}`, data)
+
     return response.data.data
   },
   async delete(id: number): Promise<void> {

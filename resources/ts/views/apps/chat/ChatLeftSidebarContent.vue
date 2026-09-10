@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
+import type { ChatContact as TypeChatContact } from '@db/apps/chat/types'
 import { useChat } from './useChat'
 import ChatContact from '@/views/apps/chat/ChatContact.vue'
 import { useChatStore } from '@/views/apps/chat/useChatStore'
-import type { ChatContact as TypeChatContact } from '@db/apps/chat/types'
 
 const props = defineProps<{
   search: string

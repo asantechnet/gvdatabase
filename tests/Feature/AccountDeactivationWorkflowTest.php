@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\AccountDeactivationRequest;
 use App\Models\AuditLog;
-use App\Models\Notification;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -131,29 +130,16 @@ class AccountDeactivationWorkflowTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['event' => 'account_deactivation_rejected']);
     }
 
-    public function test_super_admin_requires_another_super_admin_and_reactivation_is_audited(): void
+    public function test_super_admin_cannot_self_deactivate(): void
     {
         $first = $this->user('super_admin');
         Sanctum::actingAs($first, ['access']);
         $this->postJson('/api/auth/account/deactivation-requests', [
             'current_password' => 'password',
-        ])->assertUnprocessable()->assertJsonPath('code', 'business.no_eligible_deactivation_reviewer');
+        ])->assertUnprocessable()->assertJsonPath('code', 'business.super_admin_deactivation_forbidden');
 
-        $second = $this->user('super_admin');
-        $id = $this->postJson('/api/auth/account/deactivation-requests', [
-            'current_password' => 'password',
-        ])->assertCreated()->json('data.id');
-
-        Sanctum::actingAs($second, ['access']);
-        $this->patchJson("/api/account-deactivation-requests/{$id}/review", [
-            'decision' => 'approve',
-        ])->assertOk();
-
-        $this->postJson("/api/users/{$first->id}/reactivate", [
-            'decision_notes' => 'Returning to service',
-        ])->assertOk()->assertJsonPath('data.acc_status', 'active');
-        $this->assertDatabaseHas('audit_logs', ['event' => 'account_reactivated', 'auditable_id' => $first->id]);
-        $this->assertTrue(Notification::query()->where('notification_key', 'account_deactivation.reactivated')->exists());
+        $this->assertSame('active', $first->fresh()->acc_status);
+        $this->assertDatabaseCount('account_deactivation_requests', 0);
     }
 
     private function user(string $role): User

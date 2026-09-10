@@ -1,3 +1,5 @@
 <script lang="ts">
-export { ResponsiveDataTable as default } from './responsiveDataTable'
+import { ResponsiveDataTable } from './responsiveDataTable.ts'
+
+export default ResponsiveDataTable
 </script>

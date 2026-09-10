@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import CurrencyApi, { type Currency, type CurrencyForm } from '@/api/currency'
-import CurrencyFormDialog from '@/components/forms/CurrencyForm.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
+import CurrencyApi, { type Currency, type CurrencyForm } from '@/api/currency'
+import CurrencyFormDialog from '@/components/forms/CurrencyForm.vue'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 
@@ -32,29 +32,29 @@ const formData = ref<CurrencyForm>({ ...defaultFormData })
 const formErrors = ref<Record<string, string>>({})
 
 const currentBaseCurrency = computed(() => {
-  return currencies.value.find((c) => c.isBase) || currencies.value[0]
+  return currencies.value.find(c => c.isBase) || currencies.value[0]
 })
 
 const filteredCurrencies = computed(() => {
-  return currencies.value.filter((item) => {
+  return currencies.value.filter(item => {
     const searchTerm = searchQuery.value.toLowerCase()
 
-    const matchesSearch =
-      (item.name && item.name.toLowerCase().includes(searchTerm)) ||
-      (item.code && item.code.toLowerCase().includes(searchTerm)) ||
-      (item.symbol && item.symbol.includes(searchQuery.value))
+    const matchesSearch
+      = (item.name && item.name.toLowerCase().includes(searchTerm))
+      || (item.code && item.code.toLowerCase().includes(searchTerm))
+      || (item.symbol && item.symbol.includes(searchQuery.value))
 
-    const matchesStatus =
-      statusFilter.value === 'all' ||
-      (statusFilter.value === 'active' && item.isActive) ||
-      (statusFilter.value === 'inactive' && !item.isActive)
+    const matchesStatus
+      = statusFilter.value === 'all'
+      || (statusFilter.value === 'active' && item.isActive)
+      || (statusFilter.value === 'inactive' && !item.isActive)
 
     return matchesSearch && matchesStatus
   })
 })
 
 const totalCurrenciesCount = computed(() => currencies.value.length)
-const activeCurrenciesCount = computed(() => currencies.value.filter((c) => c.isActive).length)
+const activeCurrenciesCount = computed(() => currencies.value.filter(c => c.isActive).length)
 
 onMounted(() => {
   fetchCurrencies()
@@ -63,12 +63,16 @@ onMounted(() => {
 const fetchCurrencies = async () => {
   try {
     isLoading.value = true
+
     const response = await CurrencyApi.getAll()
+
     currencies.value = response.data
-  } catch (error: any) {
+  }
+  catch (error: any) {
     toast.error(translate('common.messages.failedToFetchCurrencies'))
     console.error('Error fetching currencies:', error)
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -79,62 +83,78 @@ const createCurrency = async () => {
     await CurrencyApi.create(formData.value)
     await fetchCurrencies()
     toast.success(translate('pages.finance.currencies.currencies.currencyCreatedSuccessfully'))
+
     return true
-  } catch (error: any) {
+  }
+  catch (error: any) {
     if (error.errors) {
       formErrors.value = error.errors
       Object.entries(error.errors as Record<string, string[]>).forEach(([field, messages]) => {
         toast.error(`${field}: ${messages.join(', ')}`)
       })
-    } else {
+    }
+    else {
       toast.error(error.message || 'Failed to create currency')
     }
     console.error('Error creating currency:', error)
+
     return false
   }
 }
 
 const updateCurrency = async () => {
-  if (!editingId.value) return false
+  if (!editingId.value)
+    return false
 
   try {
     formErrors.value = {}
     await CurrencyApi.update(editingId.value, formData.value)
+
     // Changing the base recalculates every exchange rate, so the whole list
     // must be refreshed rather than replacing only the edited row.
     await fetchCurrencies()
     toast.success(translate('pages.finance.currencies.currencies.currencyUpdatedSuccessfully'))
+
     return true
-  } catch (error: any) {
+  }
+  catch (error: any) {
     if (error.errors) {
       formErrors.value = error.errors
       Object.entries(error.errors as Record<string, string[]>).forEach(([field, messages]) => {
         toast.error(`${field}: ${messages.join(', ')}`)
       })
-    } else {
+    }
+    else {
       toast.error(error.message || 'Failed to update currency')
     }
     console.error('Error updating currency:', error)
+
     return false
   }
 }
 
 const deleteCurrency = async () => {
-  if (!currencyToDelete.value) return false
+  if (!currencyToDelete.value)
+    return false
 
   try {
     const response = await CurrencyApi.delete(Number(currencyToDelete.value.id))
     if (response.success) {
       currencies.value = currencies.value.filter(c => c.id !== currencyToDelete.value?.id)
       toast.success(translate('pages.finance.currencies.currencies.currencyDeletedSuccessfully'))
+
       return true
-    } else {
+    }
+    else {
       toast.error(response.message || 'Failed to delete currency')
+
       return false
     }
-  } catch (error: any) {
+  }
+  catch (error: any) {
     toast.error(error.message || 'Failed to delete currency')
     console.error('Error deleting currency:', error)
+
     return false
   }
 }
@@ -167,6 +187,7 @@ const saveCurrency = async (submittedForm?: CurrencyForm & { isBase?: boolean })
 
   if (!formData.value.name || !formData.value.code) {
     toast.error(translate('pages.finance.currencies.currencies.nameAndCodeAreRequired'))
+
     return
   }
 
@@ -174,14 +195,14 @@ const saveCurrency = async (submittedForm?: CurrencyForm & { isBase?: boolean })
     ? await updateCurrency()
     : await createCurrency()
 
-  if (success) {
+  if (success)
     isDialogVisible.value = false
-  }
 }
 
 const setAsBaseCurrency = async (targetId: number) => {
-  const target = currencies.value.find((c) => c.id === targetId)
-  if (!target || target.isBase) return
+  const target = currencies.value.find(c => c.id === targetId)
+  if (!target || target.isBase)
+    return
 
   currencyToSetAsBase.value = target
   isBaseCurrencyDialogVisible.value = true
@@ -189,7 +210,8 @@ const setAsBaseCurrency = async (targetId: number) => {
 
 const confirmSetAsBaseCurrency = async () => {
   const target = currencyToSetAsBase.value
-  if (!target) return
+  if (!target)
+    return
 
   isBaseCurrencyDialogVisible.value = false
 
@@ -197,10 +219,12 @@ const confirmSetAsBaseCurrency = async () => {
     await CurrencyApi.update(target.id, { isBase: true })
     await fetchCurrencies()
     toast.success(`Successfully set ${target.code} as base currency`)
-  } catch (error: any) {
+  }
+  catch (error: any) {
     toast.error(error.message || 'Failed to set as base currency')
     console.error('Error setting base currency:', error)
-  } finally {
+  }
+  finally {
     currencyToSetAsBase.value = null
   }
 }
@@ -219,17 +243,20 @@ const handleDelete = async () => {
 }
 
 const toggleStatus = async (currency: Currency) => {
-  if (currency.isBase) return
+  if (currency.isBase)
+    return
 
   try {
     const response = await CurrencyApi.update(Number(currency.id), { isActive: !currency.isActive })
+
     // Update the currency in the list with the server response
     const index = currencies.value.findIndex(c => c.id === currency.id)
-    if (index !== -1) {
+    if (index !== -1)
       currencies.value[index] = response.data
-    }
+
     toast.success(translate(currency.isActive ? 'pages.finance.currencies.deactivated' : 'pages.finance.currencies.activated'))
-  } catch (error: any) {
+  }
+  catch (error: any) {
     toast.error(error.message || 'Failed to update currency status')
     console.error('Error updating currency status:', error)
   }
@@ -240,35 +267,67 @@ const toggleStatus = async (currency: Currency) => {
   <div class="currencies-page p-4 p-md-6">
     <div class="d-flex flex-column flex-sm-row justify-space-between align-sm-center mb-6 gap-4">
       <div>
-        <h2 class="text-h4 font-weight-bold mb-1">{{ $t('pages.finance.currencies.currencies.currencyManagement') }}</h2>
+        <h2 class="text-h4 font-weight-bold mb-1">
+          {{ $t('pages.finance.currencies.currencies.currencyManagement') }}
+        </h2>
         <p class="text-body-2 text-medium-emphasis mb-0">
           {{ $t('pages.finance.currencies.currencies.manageExchangeRatesSetYourApplicationSPrimaryBaseCurrencyAndToggleStat') }}
         </p>
       </div>
-      <v-btn color="primary" prepend-icon="tabler-plus" elevation="2" size="large" @click="openCreateDialog">
+      <VBtn
+        color="primary"
+        prepend-icon="tabler-plus"
+        elevation="2"
+        size="large"
+        @click="openCreateDialog"
+      >
         {{ $t('pages.finance.currencies.currencies.addCurrency') }}
-      </v-btn>
+      </VBtn>
     </div>
 
-    <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="4">
-        <v-card class="pa-4" variant="outlined">
+    <VRow class="mb-6">
+      <VCol
+        cols="12"
+        sm="6"
+        md="4"
+      >
+        <VCard
+          class="pa-4"
+          variant="outlined"
+        >
           <div class="d-flex align-center justify-space-between">
             <div>
               <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
                 {{ $t('pages.finance.currencies.currencies.totalCurrencies') }}
               </span>
-              <h3 class="text-h4 font-weight-bold mt-1">{{ totalCurrenciesCount }}</h3>
+              <h3 class="text-h4 font-weight-bold mt-1">
+                {{ totalCurrenciesCount }}
+              </h3>
             </div>
-            <v-avatar color="primary" variant="tonal" size="48" rounded="lg">
-              <v-icon icon="tabler-currency-dollar" size="24" />
-            </v-avatar>
+            <VAvatar
+              color="primary"
+              variant="tonal"
+              size="48"
+              rounded="lg"
+            >
+              <VIcon
+                icon="tabler-currency-dollar"
+                size="24"
+              />
+            </VAvatar>
           </div>
-        </v-card>
-      </v-col>
+        </VCard>
+      </VCol>
 
-      <v-col cols="12" sm="6" md="4">
-        <v-card class="pa-4" variant="outlined">
+      <VCol
+        cols="12"
+        sm="6"
+        md="4"
+      >
+        <VCard
+          class="pa-4"
+          variant="outlined"
+        >
           <div class="d-flex align-center justify-space-between">
             <div>
               <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
@@ -278,63 +337,128 @@ const toggleStatus = async (currency: Currency) => {
                 {{ currentBaseCurrency?.code || 'N/A' }} ({{ currentBaseCurrency?.symbol || '' }})
               </h3>
             </div>
-            <v-avatar color="success" variant="tonal" size="48" rounded="lg">
-              <v-icon icon="tabler-star" size="24" />
-            </v-avatar>
+            <VAvatar
+              color="success"
+              variant="tonal"
+              size="48"
+              rounded="lg"
+            >
+              <VIcon
+                icon="tabler-star"
+                size="24"
+              />
+            </VAvatar>
           </div>
-        </v-card>
-      </v-col>
+        </VCard>
+      </VCol>
 
-      <v-col cols="12" sm="12" md="4">
-        <v-card class="pa-4" variant="outlined">
+      <VCol
+        cols="12"
+        sm="12"
+        md="4"
+      >
+        <VCard
+          class="pa-4"
+          variant="outlined"
+        >
           <div class="d-flex align-center justify-space-between">
             <div>
               <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
                 {{ $t('pages.finance.currencies.currencies.activeCurrencies') }}
               </span>
-              <h3 class="text-h4 font-weight-bold mt-1">{{ activeCurrenciesCount }}</h3>
+              <h3 class="text-h4 font-weight-bold mt-1">
+                {{ activeCurrenciesCount }}
+              </h3>
             </div>
-            <v-avatar color="info" variant="tonal" size="48" rounded="lg">
-              <v-icon icon="tabler-check" size="24" />
-            </v-avatar>
+            <VAvatar
+              color="info"
+              variant="tonal"
+              size="48"
+              rounded="lg"
+            >
+              <VIcon
+                icon="tabler-check"
+                size="24"
+              />
+            </VAvatar>
           </div>
-        </v-card>
-      </v-col>
-    </v-row>
+        </VCard>
+      </VCol>
+    </VRow>
 
-    <v-card variant="outlined" class="overflow-hidden">
-      <v-card-text class="pa-4 border-b">
-        <v-row density="compact" align="center">
-          <v-col cols="12" sm="6" md="4">
-            <v-text-field v-model="searchQuery" :placeholder="$t('pages.finance.currencies.currencies.searchByNameShortCodeOrSymbol')"
-              prepend-inner-icon="tabler-search" hide-details density="compact" variant="outlined" clearable />
-          </v-col>
-          <v-col cols="12" sm="6" md="3">
-            <v-select v-model="statusFilter" :items="[
-              { title: translate('pages.finance.currencies.currencies.allStatuses'), value: 'all' },
-              { title: translate('pages.finance.currencies.currencies.activeOnly'), value: 'active' },
-              { title: translate('pages.finance.currencies.currencies.inactiveOnly'), value: 'inactive' }
-            ]" hide-details density="compact" variant="outlined" />
-          </v-col>
-        </v-row>
-      </v-card-text>
+    <VCard
+      variant="outlined"
+      class="overflow-hidden"
+    >
+      <VCardText class="pa-4 border-b">
+        <VRow
+          density="compact"
+          align="center"
+        >
+          <VCol
+            cols="12"
+            sm="6"
+            md="4"
+          >
+            <VTextField
+              v-model="searchQuery"
+              :placeholder="$t('pages.finance.currencies.currencies.searchByNameShortCodeOrSymbol')"
+              prepend-inner-icon="tabler-search"
+              hide-details
+              density="compact"
+              variant="outlined"
+              clearable
+            />
+          </VCol>
+          <VCol
+            cols="12"
+            sm="6"
+            md="3"
+          >
+            <VSelect
+              v-model="statusFilter"
+              :items="[
+                { title: translate('pages.finance.currencies.currencies.allStatuses'), value: 'all' },
+                { title: translate('pages.finance.currencies.currencies.activeOnly'), value: 'active' },
+                { title: translate('pages.finance.currencies.currencies.inactiveOnly'), value: 'inactive' },
+              ]"
+              hide-details
+              density="compact"
+              variant="outlined"
+            />
+          </VCol>
+        </VRow>
+      </VCardText>
 
-      <v-table class="text-no-wrap">
+      <VTable class="text-no-wrap">
         <thead>
           <tr>
-            <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('common.fields.currency') }}</th>
-            <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('pages.finance.currencies.currencies.symbol') }}</th>
             <th class="text-left font-weight-bold text-uppercase text-caption">
-                {{ $t('pages.finance.currencies.rateToBase', { currency: currentBaseCurrency?.code || $t('common.messages.notAvailable') }) }}
+              {{ $t('common.fields.currency') }}
             </th>
-            <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('pages.finance.currencies.currencies.decimals') }}</th>
-            <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('common.fields.status') }}</th>
-            <th class="text-center font-weight-bold text-uppercase text-caption">{{ $t('common.messages.actions') }}</th>
+            <th class="text-left font-weight-bold text-uppercase text-caption">
+              {{ $t('pages.finance.currencies.currencies.symbol') }}
+            </th>
+            <th class="text-left font-weight-bold text-uppercase text-caption">
+              {{ $t('pages.finance.currencies.rateToBase', { currency: currentBaseCurrency?.code || $t('common.messages.notAvailable') }) }}
+            </th>
+            <th class="text-left font-weight-bold text-uppercase text-caption">
+              {{ $t('pages.finance.currencies.currencies.decimals') }}
+            </th>
+            <th class="text-left font-weight-bold text-uppercase text-caption">
+              {{ $t('common.fields.status') }}
+            </th>
+            <th class="text-center font-weight-bold text-uppercase text-caption">
+              {{ $t('common.messages.actions') }}
+            </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="currency in filteredCurrencies" :key="currency.id"
-            :class="{ 'bg-var-theme-surface': currency.isBase }">
+          <tr
+            v-for="currency in filteredCurrencies"
+            :key="currency.id"
+            :class="{ 'bg-var-theme-surface': currency.isBase }"
+          >
             <td>
               <div class="d-flex align-center gap-3">
                 <div>
@@ -342,13 +466,23 @@ const toggleStatus = async (currency: Currency) => {
                     {{ currency.name }}
                   </div>
                   <div class="d-flex align-center gap-2 mt-1">
-                    <v-chip size="x-small" color="primary" variant="flat" class="font-weight-bold">
+                    <VChip
+                      size="x-small"
+                      color="primary"
+                      variant="flat"
+                      class="font-weight-bold"
+                    >
                       {{ currency.code }}
-                    </v-chip>
-                    <v-chip v-if="currency.isBase" size="x-small" color="warning" variant="tonal"
-                      prepend-icon="tabler-star">
+                    </VChip>
+                    <VChip
+                      v-if="currency.isBase"
+                      size="x-small"
+                      color="warning"
+                      variant="tonal"
+                      prepend-icon="tabler-star"
+                    >
                       {{ $t('common.messages.baseCurrency') }}
-                    </v-chip>
+                    </VChip>
                   </div>
                 </div>
               </div>
@@ -362,109 +496,220 @@ const toggleStatus = async (currency: Currency) => {
 
             <td>
               <div class="font-weight-medium">
-                <span v-if="currency.isBase" class="text-success font-weight-bold">{{ $t('pages.finance.currencies.baseRate') }}</span>
+                <span
+                  v-if="currency.isBase"
+                  class="text-success font-weight-bold"
+                >{{ $t('pages.finance.currencies.baseRate') }}</span>
                 <span v-else>1 {{ currentBaseCurrency?.code || 'N/A' }} = {{ currency.rate }} {{
                   currency.code }}</span>
               </div>
-                <div class="text-caption text-medium-emphasis">{{ $t('pages.finance.currencies.updatedAt', { date: formatLocalizedDate(currency.updatedAt, 'long') }) }}</div>
+              <div class="text-caption text-medium-emphasis">
+                {{ $t('pages.finance.currencies.updatedAt', { date: formatLocalizedDate(currency.updatedAt, 'long') }) }}
+              </div>
             </td>
 
             <td>
-                <span class="text-body-2">{{ $t('pages.finance.currencies.decimalPlaces', { count: currency.decimalPlaces }) }}</span>
+              <span class="text-body-2">{{ $t('pages.finance.currencies.decimalPlaces', { count: currency.decimalPlaces }) }}</span>
             </td>
 
             <td>
-              <v-chip :color="currency.isActive ? 'success' : 'secondary'" size="small" variant="tonal"
-                class="cursor-pointer" @click="toggleStatus(currency)">
-                  {{ translateBackendValue(currency.isActive ? 'active' : 'inactive') }}
-              </v-chip>
+              <VChip
+                :color="currency.isActive ? 'success' : 'secondary'"
+                size="small"
+                variant="tonal"
+                class="cursor-pointer"
+                @click="toggleStatus(currency)"
+              >
+                {{ translateBackendValue(currency.isActive ? 'active' : 'inactive') }}
+              </VChip>
             </td>
 
             <td class="text-center">
               <div class="d-flex justify-center align-center gap-1">
-                <FullDetailsButton :item="currency" :title="currency.name" />
-                <v-tooltip :text="$t('pages.finance.currencies.currencies.setAsBaseCurrency')" location="top" v-if="!currency.isBase">
+                <FullDetailsButton
+                  :item="currency"
+                  :title="currency.name"
+                />
+                <VTooltip
+                  v-if="!currency.isBase"
+                  :text="$t('pages.finance.currencies.currencies.setAsBaseCurrency')"
+                  location="top"
+                >
                   <template #activator="{ props }">
-                    <v-btn v-bind="props" icon="tabler-star" size="small" variant="text" color="warning"
-                      @click="setAsBaseCurrency(currency.id)" />
+                    <VBtn
+                      v-bind="props"
+                      icon="tabler-star"
+                      size="small"
+                      variant="text"
+                      color="warning"
+                      @click="setAsBaseCurrency(currency.id)"
+                    />
                   </template>
-                </v-tooltip>
+                </VTooltip>
 
-                <v-tooltip :text="$t('pages.finance.currencies.currencies.editCurrency')" location="top">
+                <VTooltip
+                  :text="$t('pages.finance.currencies.currencies.editCurrency')"
+                  location="top"
+                >
                   <template #activator="{ props }">
-                    <v-btn v-bind="props" icon="tabler-pencil" size="small" variant="text" color="default"
-                      @click="openEditDialog(currency)" />
+                    <VBtn
+                      v-bind="props"
+                      icon="tabler-pencil"
+                      size="small"
+                      variant="text"
+                      color="default"
+                      @click="openEditDialog(currency)"
+                    />
                   </template>
-                </v-tooltip>
+                </VTooltip>
 
-                <v-tooltip :text="currency.isBase ? 'Cannot delete Base Currency' : 'Delete Currency'" location="top">
+                <VTooltip
+                  :text="currency.isBase ? 'Cannot delete Base Currency' : 'Delete Currency'"
+                  location="top"
+                >
                   <template #activator="{ props }">
-                    <v-btn v-bind="props" icon="tabler-trash" size="small" variant="text" color="error"
-                      :disabled="currency.isBase" @click="confirmDelete(currency)" />
+                    <VBtn
+                      v-bind="props"
+                      icon="tabler-trash"
+                      size="small"
+                      variant="text"
+                      color="error"
+                      :disabled="currency.isBase"
+                      @click="confirmDelete(currency)"
+                    />
                   </template>
-                </v-tooltip>
+                </VTooltip>
               </div>
             </td>
           </tr>
 
           <tr v-if="filteredCurrencies.length === 0">
-            <td colspan="6" class="text-center py-8 text-medium-emphasis">
-              <v-icon icon="tabler-currency-off" size="40" class="mb-2" />
+            <td
+              colspan="6"
+              class="text-center py-8 text-medium-emphasis"
+            >
+              <VIcon
+                icon="tabler-currency-off"
+                size="40"
+                class="mb-2"
+              />
               <div>{{ $t('pages.finance.currencies.currencies.noCurrenciesFoundMatchingYourSearch') }}</div>
             </td>
           </tr>
 
           <tr v-if="isLoading">
-            <td colspan="6" class="text-center py-8">
-              <v-progress-circular indeterminate color="primary" />
-              <div class="mt-2">{{ $t('pages.finance.currencies.currencies.loadingCurrencies') }}</div>
+            <td
+              colspan="6"
+              class="text-center py-8"
+            >
+              <VProgressCircular
+                indeterminate
+                color="primary"
+              />
+              <div class="mt-2">
+                {{ $t('pages.finance.currencies.currencies.loadingCurrencies') }}
+              </div>
             </td>
           </tr>
         </tbody>
-      </v-table>
-    </v-card>
+      </VTable>
+    </VCard>
 
-    <CurrencyFormDialog v-model="isDialogVisible" :initial-data="formData" :current-base-currency="currentBaseCurrency" :errors="formErrors" :loading="isLoading" :editing="Boolean(editingId)" @submit="saveCurrency" />
+    <CurrencyFormDialog
+      v-model="isDialogVisible"
+      :initial-data="formData"
+      :current-base-currency="currentBaseCurrency"
+      :errors="formErrors"
+      :loading="isLoading"
+      :editing="Boolean(editingId)"
+      @submit="saveCurrency"
+    />
 
-    <v-dialog v-model="isDeleteDialogVisible" max-width="420">
-      <v-card rounded="lg" class="pa-2">
-        <v-card-title class="text-h6 font-weight-bold">{{ $t('pages.finance.currencies.currencies.deleteCurrency') }}</v-card-title>
-        <v-card-text class="pt-2">
+    <VDialog
+      v-model="isDeleteDialogVisible"
+      max-width="420"
+    >
+      <VCard
+        rounded="lg"
+        class="pa-2"
+      >
+        <VCardTitle class="text-h6 font-weight-bold">
+          {{ $t('pages.finance.currencies.currencies.deleteCurrency') }}
+        </VCardTitle>
+        <VCardText class="pt-2">
           {{ $t('common.confirmations.areYouSureYouWantToDelete') }}
           <strong>{{ currencyToDelete?.name }} ({{ currencyToDelete?.code }})</strong>{{ $t('common.confirmations.thisActionCannotBeUndone2') }}
-        </v-card-text>
-        <v-card-actions class="justify-end gap-2 pa-4">
-          <v-btn variant="outlined" color="secondary" @click="isDeleteDialogVisible = false">{{ $t('common.actions.cancel') }}</v-btn>
-          <v-btn color="error" elevation="1" @click="handleDelete">{{ $t('common.actions.delete') }}</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </VCardText>
+        <VCardActions class="justify-end gap-2 pa-4">
+          <VBtn
+            variant="outlined"
+            color="secondary"
+            @click="isDeleteDialogVisible = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="error"
+            elevation="1"
+            @click="handleDelete"
+          >
+            {{ $t('common.actions.delete') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
 
-    <v-dialog v-model="isBaseCurrencyDialogVisible" max-width="460">
-      <v-card rounded="lg" class="pa-2">
-        <v-card-title class="d-flex align-center ga-2 text-h6 font-weight-bold">
-          <v-avatar color="warning" variant="tonal" size="36">
-            <v-icon icon="tabler-star" size="20" />
-          </v-avatar>
+    <VDialog
+      v-model="isBaseCurrencyDialogVisible"
+      max-width="460"
+    >
+      <VCard
+        rounded="lg"
+        class="pa-2"
+      >
+        <VCardTitle class="d-flex align-center ga-2 text-h6 font-weight-bold">
+          <VAvatar
+            color="warning"
+            variant="tonal"
+            size="36"
+          >
+            <VIcon
+              icon="tabler-star"
+              size="20"
+            />
+          </VAvatar>
           <span>Change base currency?</span>
-        </v-card-title>
-        <v-card-text class="pt-3">
-          <v-alert type="warning" variant="tonal" density="comfortable" class="mb-3">
+        </VCardTitle>
+        <VCardText class="pt-3">
+          <VAlert
+            type="warning"
+            variant="tonal"
+            density="comfortable"
+            class="mb-3"
+          >
             Dashboard and report totals will be displayed in
             <strong>{{ currencyToSetAsBase?.code }}</strong>.
-          </v-alert>
+          </VAlert>
           This will update the base currency for the application.
-        </v-card-text>
-        <v-card-actions class="justify-end gap-2 pa-4">
-          <v-btn variant="outlined" color="secondary" @click="isBaseCurrencyDialogVisible = false">
+        </VCardText>
+        <VCardActions class="justify-end gap-2 pa-4">
+          <VBtn
+            variant="outlined"
+            color="secondary"
+            @click="isBaseCurrencyDialogVisible = false"
+          >
             {{ $t('common.actions.cancel') }}
-          </v-btn>
-          <v-btn color="warning" variant="flat" @click="confirmSetAsBaseCurrency">
+          </VBtn>
+          <VBtn
+            color="warning"
+            variant="flat"
+            @click="confirmSetAsBaseCurrency"
+          >
             Set as base currency
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 

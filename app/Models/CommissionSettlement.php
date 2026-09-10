@@ -7,10 +7,11 @@ use App\Models\Concerns\HasDocumentNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CommissionSettlement extends Model
 {
-    use Auditable, HasDocumentNumber;
+    use Auditable, HasDocumentNumber, SoftDeletes;
 
     protected $fillable = [
         'employee_id', 'base_currency_id', 'period_start', 'period_end',
@@ -39,7 +40,7 @@ class CommissionSettlement extends Model
 
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(Employee::class)->withTrashed();
     }
 
     public function baseCurrency(): BelongsTo

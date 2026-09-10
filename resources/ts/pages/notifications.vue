@@ -2,7 +2,7 @@
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import { deleteNotification, getNotifications, markAllNotificationsRead, updateNotification, type AppNotification } from '@/api/notification'
+import { type AppNotification, deleteNotification, getNotifications, markAllNotificationsRead, updateNotification } from '@/api/notification'
 import { notificationText } from '@/utils/notificationText'
 import { openAuditNotification } from '@/utils/auditNotification'
 
@@ -32,14 +32,21 @@ async function open(notification: AppNotification) {
   if (notification.is_read !== true) {
     notification.is_read = true
     try { await updateNotification(notification.id, { is_read: true }) }
-    catch { await load(); toast.error(translate('pages.settings.notifications.notifications.couldNotMarkNotificationAsRead')); return }
+    catch {
+      await load(); toast.error(translate('pages.settings.notifications.notifications.couldNotMarkNotificationAsRead'))
+
+      return
+    }
   }
-  if (openAuditNotification(notification)) return
+  if (openAuditNotification(notification))
+    return
   if (notification.data?.action === 'execute_recurring_event' && notification.data.recurring_event_id) {
     await router.push({ name: 'recurring-events', params: { id: String(notification.data.recurring_event_id) } })
+
     return
   }
-  if (notification.go_to_url) await router.push(notification.go_to_url)
+  if (notification.go_to_url)
+    await router.push(notification.go_to_url)
 }
 
 async function reviewRecurring(notification: AppNotification) {
@@ -60,22 +67,91 @@ onMounted(load)
 </script>
 
 <template>
-  <VCard class="notification-inbox" :loading="loading">
+  <VCard
+    class="notification-inbox"
+    :loading="loading"
+  >
     <VCardItem>
       <VCardTitle>{{ $t('common.messages.notifications') }}</VCardTitle>
       <VCardSubtitle>{{ $t('pages.settings.notifications.unreadCount', { count: unreadCount }) }}</VCardSubtitle>
-      <template #append><VBtn size="small" variant="tonal" :disabled="!unreadCount" @click="markAllRead">{{ $t('pages.settings.notifications.notifications.markAllRead') }}</VBtn></template>
+      <template #append>
+        <VBtn
+          size="small"
+          variant="tonal"
+          :disabled="!unreadCount"
+          @click="markAllRead"
+        >
+          {{ $t('pages.settings.notifications.notifications.markAllRead') }}
+        </VBtn>
+      </template>
     </VCardItem>
-    <VCardText class="pt-0"><VBtnToggle v-model="filter" mandatory density="compact" color="primary"><VBtn value="all">{{ $t('pages.settings.notifications.notifications.all') }}</VBtn><VBtn value="unread">{{ $t('pages.settings.notifications.notifications.unread') }}</VBtn></VBtnToggle></VCardText>
+    <VCardText class="pt-0">
+      <VBtnToggle
+        v-model="filter"
+        mandatory
+        density="compact"
+        color="primary"
+      >
+        <VBtn value="all">
+          {{ $t('pages.settings.notifications.notifications.all') }}
+        </VBtn><VBtn value="unread">
+          {{ $t('pages.settings.notifications.notifications.unread') }}
+        </VBtn>
+      </VBtnToggle>
+    </VCardText>
     <VDivider />
-    <VList lines="two" class="py-0">
-      <VListItem v-for="notification in visibleNotifications" :key="notification.id" :class="{ 'notification-unread': notification.is_read !== true }" @click="open(notification)">
-        <template #prepend><VAvatar :color="colorFor(notification.type)" variant="tonal"><VIcon :icon="iconFor(notification.type)" /></VAvatar></template>
-        <VListItemTitle class="d-flex align-center flex-wrap gap-2">{{ titleFor(notification) }}<VChip v-if="notification.is_read !== true" size="x-small" color="primary">{{ $t('pages.settings.notifications.notifications.new') }}</VChip></VListItemTitle>
-        <VListItemSubtitle class="notification-message">{{ messageFor(notification) }}</VListItemSubtitle>
-        <template #append><div class="d-flex align-center ga-2"><VBtn v-if="notification.data?.action === 'execute_recurring_event'" size="small" @click.stop="reviewRecurring(notification)">Review</VBtn><span class="text-caption text-disabled d-none d-sm-inline">{{ formatDate(notification.date_time) }}</span><IconBtn :aria-label="$t('pages.settings.notifications.notifications.deleteNotification')" @click.stop="remove(notification)"><VIcon icon="tabler-x" /></IconBtn></div></template>
+    <VList
+      lines="two"
+      class="py-0"
+    >
+      <VListItem
+        v-for="notification in visibleNotifications"
+        :key="notification.id"
+        :class="{ 'notification-unread': notification.is_read !== true }"
+        @click="open(notification)"
+      >
+        <template #prepend>
+          <VAvatar
+            :color="colorFor(notification.type)"
+            variant="tonal"
+          >
+            <VIcon :icon="iconFor(notification.type)" />
+          </VAvatar>
+        </template>
+        <VListItemTitle class="d-flex align-center flex-wrap gap-2">
+          {{ titleFor(notification) }}<VChip
+            v-if="notification.is_read !== true"
+            size="x-small"
+            color="primary"
+          >
+            {{ $t('pages.settings.notifications.notifications.new') }}
+          </VChip>
+        </VListItemTitle>
+        <VListItemSubtitle class="notification-message">
+          {{ messageFor(notification) }}
+        </VListItemSubtitle>
+        <template #append>
+          <div class="d-flex align-center ga-2">
+            <VBtn
+              v-if="notification.data?.action === 'execute_recurring_event'"
+              size="small"
+              @click.stop="reviewRecurring(notification)"
+            >
+              Review
+            </VBtn><span class="text-caption text-disabled d-none d-sm-inline">{{ formatDate(notification.date_time) }}</span><IconBtn
+              :aria-label="$t('pages.settings.notifications.notifications.deleteNotification')"
+              @click.stop="remove(notification)"
+            >
+              <VIcon icon="tabler-x" />
+            </IconBtn>
+          </div>
+        </template>
       </VListItem>
-      <VListItem v-if="!loading && !visibleNotifications.length" :title="$t('pages.settings.notifications.notifications.noNotificationsFound')" subtitle="You are all caught up." />
+      <VListItem
+        v-if="!loading && !visibleNotifications.length"
+        :title="$t('pages.settings.notifications.notifications.noNotificationsFound')"
+        subtitle="You are all caught up."
+      />
     </VList>
   </VCard>
 </template>

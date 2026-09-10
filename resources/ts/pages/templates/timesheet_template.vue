@@ -1,72 +1,3 @@
-<template>
-  <div class="timesheet-wrapper print-document" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'">
-    <div class="actions no-print">
-      <button @click="printReport" class="print-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 6 2 18 2 18 9"></polyline>
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-          <rect x="6" y="14" width="12" height="8"></rect>
-        </svg>
-        {{ $t('documents.timesheet_template.timesheetTemplate.printTimesheet') }}
-      </button>
-    </div>
-
-    <div class="print-container">
-      <div v-for="(page, index) in calendarPages" :key="index" class="a4-page">
-        <div class="timesheet-page-header">
-          <h2>{{ page.monthName }} {{ page.year }}</h2>
-          <p class="subtitle">{{ $t('documents.timesheet_template.timesheetTemplate.monthlyAttendanceRecord') }}</p>
-        </div>
-
-        <div class="calendar-grid">
-          <!-- Weekday Headers -->
-          <div v-for="day in weekDays" :key="day" class="weekday-header">
-            {{ day }}
-          </div>
-
-          <!-- Calendar Days -->
-          <div v-for="cell in page.days" :key="cell.dateStr" class="calendar-cell"
-            :class="{ 'out-of-month': !cell.isCurrentMonth, 'is-today': cell.isToday }">
-            <div class="day-number">{{ cell.dayNumber }}</div>
-
-            <div class="attendances-list">
-              <div v-for="att in cell.attendances" :key="att.id" class="attendance-item">
-                <div class="status-icon">
-                  <!-- Green Checkmark -->
-                  <svg v-if="att.status === 'present'" class="icon-present" xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
-                    stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-
-                  <!-- Red Cross -->
-                  <svg v-else-if="att.status === 'absent'" class="icon-absent" xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
-                    stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </div>
-                <span class="staff-name">{{ att.name }}</span>
-                <span v-if="att.status === 'present'" class="staff-hours">
-                  {{ att.missing_punch_state !== 'none' ? translateBackendValue('incomplete') : formatDuration(att.net_worked_minutes) }}
-                  <template v-if="att.overtime_minutes">{{ $t('documents.timesheet.overtimeInline', { duration: formatDuration(att.overtime_minutes) }) }}</template>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <footer class="page-footer">
-          <p>{{ $t('documents.timesheet.totals', { worked: formatDuration(totalWorkedMinutes), overtime: formatDuration(totalOvertimeMinutes) }) }}</p>
-          <p>{{ $t('documents.timesheet.generatedOn', { date: formatLocalizedDate(new Date()) }) }}</p>
-        </footer>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -106,6 +37,7 @@ const weekDays = computed(() => Array.from({ length: 7 }, (_, day) =>
 const formatDateKey = (year: number, month: number, day: number): string => {
   const m = String(month + 1).padStart(2, '0')
   const d = String(day).padStart(2, '0')
+
   return `${year}-${m}-${d}`
 }
 
@@ -113,11 +45,12 @@ const formatDateKey = (year: number, month: number, day: number): string => {
 const attendancesByDate = computed(() => {
   const map = new Map<string, Attendance[]>()
   for (const att of props.attendances) {
-    if (!map.has(att.date)) {
+    if (!map.has(att.date))
       map.set(att.date, [])
-    }
+
     map.get(att.date)?.push(att)
   }
+
   return map
 })
 
@@ -128,15 +61,15 @@ const calendarPages = computed(() => {
 
   // Normalize to the 1st of the month to safely iterate
   let currentMonth = new Date(start.getFullYear(), start.getMonth(), 1)
-  const endMonth = new Date(end.getFullYear(), end.getMonth(), 1)
+  const endMonthTimestamp = new Date(end.getFullYear(), end.getMonth(), 1).getTime()
 
   const pages = []
   const todayKey = formatDateKey(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
 
-  while (currentMonth <= endMonth) {
+  while (currentMonth.getTime() <= endMonthTimestamp) {
     const year = currentMonth.getFullYear()
     const month = currentMonth.getMonth()
-const monthName = formatLocalizedDate(currentMonth, { month: 'long' })
+    const monthName = formatLocalizedDate(currentMonth, { month: 'long' })
 
     // Calendar math
     const firstDayOfMonth = new Date(year, month, 1)
@@ -160,19 +93,20 @@ const monthName = formatLocalizedDate(currentMonth, { month: 'long' })
         dateStr,
         isCurrentMonth: false,
         isToday: dateStr === todayKey,
-        attendances: attendancesByDate.value.get(dateStr) || []
+        attendances: attendancesByDate.value.get(dateStr) || [],
       })
     }
 
     // 2. Current Month Days
     for (let i = 1; i <= daysInMonth; i++) {
       const dateStr = formatDateKey(year, month, i)
+
       days.push({
         dayNumber: i,
         dateStr,
         isCurrentMonth: true,
         isToday: dateStr === todayKey,
-        attendances: attendancesByDate.value.get(dateStr) || []
+        attendances: attendancesByDate.value.get(dateStr) || [],
       })
     }
 
@@ -188,7 +122,7 @@ const monthName = formatLocalizedDate(currentMonth, { month: 'long' })
         dateStr,
         isCurrentMonth: false,
         isToday: dateStr === todayKey,
-        attendances: attendancesByDate.value.get(dateStr) || []
+        attendances: attendancesByDate.value.get(dateStr) || [],
       })
     }
 
@@ -196,11 +130,11 @@ const monthName = formatLocalizedDate(currentMonth, { month: 'long' })
       year,
       month,
       monthName,
-      days
+      days,
     })
 
     // Advance loop
-    currentMonth.setMonth(currentMonth.getMonth() + 1)
+    currentMonth = new Date(year, month + 1, 1)
   }
 
   return pages
@@ -210,6 +144,144 @@ const printReport = () => {
   window.print()
 }
 </script>
+
+<template>
+  <div
+    class="timesheet-wrapper print-document"
+    :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
+  >
+    <div class="actions no-print">
+      <button
+        class="print-btn"
+        @click="printReport"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="6 9 6 2 18 2 18 9" />
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <rect
+            x="6"
+            y="14"
+            width="12"
+            height="8"
+          />
+        </svg>
+        {{ $t('documents.timesheet_template.timesheetTemplate.printTimesheet') }}
+      </button>
+    </div>
+
+    <div class="print-container">
+      <div
+        v-for="(page, index) in calendarPages"
+        :key="index"
+        class="a4-page"
+      >
+        <div class="timesheet-page-header">
+          <h2>{{ page.monthName }} {{ page.year }}</h2>
+          <p class="subtitle">
+            {{ $t('documents.timesheet_template.timesheetTemplate.monthlyAttendanceRecord') }}
+          </p>
+        </div>
+
+        <div class="calendar-grid">
+          <!-- Weekday Headers -->
+          <div
+            v-for="day in weekDays"
+            :key="day"
+            class="weekday-header"
+          >
+            {{ day }}
+          </div>
+
+          <!-- Calendar Days -->
+          <div
+            v-for="cell in page.days"
+            :key="cell.dateStr"
+            class="calendar-cell"
+            :class="{ 'out-of-month': !cell.isCurrentMonth, 'is-today': cell.isToday }"
+          >
+            <div class="day-number">
+              {{ cell.dayNumber }}
+            </div>
+
+            <div class="attendances-list">
+              <div
+                v-for="att in cell.attendances"
+                :key="att.id"
+                class="attendance-item"
+              >
+                <div class="status-icon">
+                  <!-- Green Checkmark -->
+                  <svg
+                    v-if="att.status === 'present'"
+                    class="icon-present"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+
+                  <!-- Red Cross -->
+                  <svg
+                    v-else-if="att.status === 'absent'"
+                    class="icon-absent"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <line
+                      x1="18"
+                      y1="6"
+                      x2="6"
+                      y2="18"
+                    />
+                    <line
+                      x1="6"
+                      y1="6"
+                      x2="18"
+                      y2="18"
+                    />
+                  </svg>
+                </div>
+                <span class="staff-name">{{ att.name }}</span>
+                <span
+                  v-if="att.status === 'present'"
+                  class="staff-hours"
+                >
+                  {{ att.missing_punch_state !== 'none' ? translateBackendValue('incomplete') : formatDuration(att.net_worked_minutes) }}
+                  <template v-if="att.overtime_minutes">{{ $t('documents.timesheet.overtimeInline', { duration: formatDuration(att.overtime_minutes) }) }}</template>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="page-footer">
+          <p>{{ $t('documents.timesheet.totals', { worked: formatDuration(totalWorkedMinutes), overtime: formatDuration(totalOvertimeMinutes) }) }}</p>
+          <p>{{ $t('documents.timesheet.generatedOn', { date: formatLocalizedDate(new Date()) }) }}</p>
+        </footer>
+      </div>
+    </div>
+  </div>
+</template>
 
 <style scoped>
 /* ==========================================

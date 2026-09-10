@@ -1,44 +1,44 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref } from 'vue'
 import type { PartyDetails } from '@/utils/contractPartyDetails'
 
 // 1. Interfaces & Props
 export interface CompanyDetails {
-  brandName: string;
-  logo?: string;
-  slogan?: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-  licence?: string;
-  signatureUrl?: string;
-  letterheadUrl?: string;
-  letterheadSafeX?: number;
-  letterheadSafeY?: number;
-  letterheadSafeWidth?: number;
-  letterheadSafeHeight?: number;
+  brandName: string
+  logo?: string
+  slogan?: string
+  address?: string
+  phone?: string
+  email?: string
+  website?: string
+  licence?: string
+  signatureUrl?: string
+  letterheadUrl?: string
+  letterheadSafeX?: number
+  letterheadSafeY?: number
+  letterheadSafeWidth?: number
+  letterheadSafeHeight?: number
 }
 
 export interface ContractClause {
-  clauseNumber?: string;
-  title?: string;
-  content: string | string[];
+  clauseNumber?: string
+  title?: string
+  content: string | string[]
 }
 
 export interface ContractPageProps {
-  documentTitle?: string;
-  documentNumber: string;
-  company: CompanyDetails;
-  footerText?: string;
-  pageNumberString?: string;
-  clauses?: ContractClause[];
-  htmlContent?: string;
-  showSignature?: boolean;
-  contracteeName?: string;
-  contracteeCompanyName?: string; // Added for flexibility (e.g., "John Doe" vs "Acme Corp")
-  partyDetails?: PartyDetails;
-  accentColor?: string;
+  documentTitle?: string
+  documentNumber: string
+  company: CompanyDetails
+  footerText?: string
+  pageNumberString?: string
+  clauses?: ContractClause[]
+  htmlContent?: string
+  showSignature?: boolean
+  contracteeName?: string
+  contracteeCompanyName?: string // Added for flexibility (e.g., "John Doe" vs "Acme Corp")
+  partyDetails?: PartyDetails
+  accentColor?: string
 }
 
 const props = withDefaults(defineProps<ContractPageProps>(), {
@@ -51,60 +51,64 @@ const props = withDefaults(defineProps<ContractPageProps>(), {
   contracteeName: 'Client / Counterparty',
   contracteeCompanyName: '',
   partyDetails: undefined,
-  accentColor: '#1e293b'
-});
+  accentColor: '#1e293b',
+})
 
 // 2. Template Reference
-const contractRef = ref<HTMLElement | null>(null);
+const contractRef = ref<HTMLElement | null>(null)
+
 const letterheadSafeAreaStyle = computed(() => ({
   '--letterhead-safe-x': `${props.company.letterheadSafeX ?? 8.5}%`,
   '--letterhead-safe-y': `${props.company.letterheadSafeY ?? 15}%`,
   '--letterhead-safe-width': `${props.company.letterheadSafeWidth ?? 83}%`,
   '--letterhead-safe-height': `${props.company.letterheadSafeHeight ?? 70}%`,
-}));
+}))
 
 // 3. Helper for legacy structured array/string clauses
 const formatParagraphs = (content: string | string[]) => {
-  return Array.isArray(content) ? content : [content];
-};
+  return Array.isArray(content) ? content : [content]
+}
 
 // 4. Print Controller
 const printContractPage = () => {
-  if (!contractRef.value) return;
+  if (!contractRef.value)
+    return
 
-  const printWindow = window.open('', '_blank', 'width=900,height=1100');
+  const printWindow = window.open('', '_blank', 'width=900,height=1100')
   if (!printWindow) {
-    alert(translate('documents.contract_page_template.contractPageTemplate.pleaseAllowPopupsToPrintTheContractPage'));
-    return;
+    alert(translate('documents.contract_page_template.contractPageTemplate.pleaseAllowPopupsToPrintTheContractPage'))
+
+    return
   }
 
   // Extract raw CSS rules directly from loaded stylesheets to prevent network load delays in popup
-  let inlineCss = '';
+  let inlineCss = ''
   try {
     Array.from(document.styleSheets).forEach(sheet => {
       try {
         if (sheet.cssRules) {
           Array.from(sheet.cssRules).forEach(rule => {
-            inlineCss += rule.cssText + '\n';
-          });
-        }
-      } catch (e) {
-        if (sheet.href) {
-          inlineCss += `@import url("${sheet.href}");\n`;
+            inlineCss += `${rule.cssText}\n`
+          })
         }
       }
-    });
-  } catch (e) {
-    console.warn('Could not parse styleSheets inline:', e);
+      catch (e) {
+        if (sheet.href)
+          inlineCss += `@import url("${sheet.href}");\n`
+      }
+    })
+  }
+  catch (e) {
+    console.warn('Could not parse styleSheets inline:', e)
   }
 
   const fallbackStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
     .map(el => el.outerHTML)
-    .join('\n');
+    .join('\n')
 
-  const contentHtml = contractRef.value.innerHTML;
+  const contentHtml = contractRef.value.innerHTML
 
-  printWindow.document.open();
+  printWindow.document.open()
   printWindow.document.write(`
     <!DOCTYPE html>
     <html lang="${document.documentElement.lang}" dir="${document.documentElement.dir}">
@@ -188,21 +192,33 @@ const printContractPage = () => {
         <\/script>
       </body>
     </html>
-  `);
-  printWindow.document.close();
-};
+  `)
+  printWindow.document.close()
+}
 
 defineExpose({
-  print: printContractPage
-});
+  print: printContractPage,
+})
 </script>
 
 <template>
-  <div ref="contractRef" class="contract-page-container print-document" :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale), 'has-letterhead': company.letterheadUrl }" :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'" :style="{ '--brand-accent': accentColor, ...letterheadSafeAreaStyle }">
-    <img v-if="company.letterheadUrl" :src="company.letterheadUrl" alt="" class="letterhead-background" aria-hidden="true" />
+  <div
+    ref="contractRef"
+    class="contract-page-container print-document"
+    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale), 'has-letterhead': company.letterheadUrl }"
+    :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
+    :style="{ '--brand-accent': accentColor, ...letterheadSafeAreaStyle }"
+  >
+    <img
+      v-if="company.letterheadUrl"
+      :src="company.letterheadUrl"
+      alt=""
+      class="letterhead-background"
+      aria-hidden="true"
+    >
     <!-- Sleek Margin Accents -->
-    <div class="margin-rail-left"></div>
-    <div class="margin-corner-top-right"></div>
+    <div class="margin-rail-left" />
+    <div class="margin-corner-top-right" />
 
     <div class="content-wrapper">
       <!-- The custom letterhead already contains the document chrome. -->
@@ -210,38 +226,72 @@ defineExpose({
         <!-- Compact Header -->
         <header class="contract-header">
           <div class="header-left">
-            <h1 class="document-title">{{ documentTitle }}</h1>
+            <h1 class="document-title">
+              {{ documentTitle }}
+            </h1>
             <p>{{ documentNumber }}</p>
-            <p v-if="company.slogan" class="company-slogan">{{ company.slogan }}</p>
-            <p v-if="company.licence" class="company-slogan">{{ $t('documents.contract.licence', { licence: company.licence }) }}</p>
+            <p
+              v-if="company.slogan"
+              class="company-slogan"
+            >
+              {{ company.slogan }}
+            </p>
+            <p
+              v-if="company.licence"
+              class="company-slogan"
+            >
+              {{ $t('documents.contract.licence', { licence: company.licence }) }}
+            </p>
           </div>
 
           <div class="header-right">
-            <img v-if="company.logo" :src="company.logo" :alt="company.brandName" class="company-logo" />
+            <img
+              v-if="company.logo"
+              :src="company.logo"
+              :alt="company.brandName"
+              class="company-logo"
+            >
             <span class="brand-name">{{ company.brandName }}</span>
           </div>
         </header>
-        <div class="header-divider"></div>
+        <div class="header-divider" />
       </template>
 
       <!-- Main Contract Body Area -->
       <main class="contract-body">
-        <section v-if="partyDetails && (partyDetails.ourCompany.length || partyDetails.counterparty.length)" class="party-details">
-          <h2 class="party-details-title">{{ $t('pages.contracts.shared.contractParties') }}</h2>
+        <section
+          v-if="partyDetails && (partyDetails.ourCompany.length || partyDetails.counterparty.length)"
+          class="party-details"
+        >
+          <h2 class="party-details-title">
+            {{ $t('pages.contracts.shared.contractParties') }}
+          </h2>
           <div class="party-details-grid">
-            <div v-if="partyDetails.ourCompany.length" class="party-details-card">
+            <div
+              v-if="partyDetails.ourCompany.length"
+              class="party-details-card"
+            >
               <h3>{{ company.brandName }}</h3>
               <dl>
-                <template v-for="detail in partyDetails.ourCompany" :key="`company-${detail.label}`">
+                <template
+                  v-for="detail in partyDetails.ourCompany"
+                  :key="`company-${detail.label}`"
+                >
                   <dt>{{ detail.label }}</dt>
                   <dd>{{ detail.value }}</dd>
                 </template>
               </dl>
             </div>
-            <div v-if="partyDetails.counterparty.length" class="party-details-card">
+            <div
+              v-if="partyDetails.counterparty.length"
+              class="party-details-card"
+            >
               <h3>{{ contracteeName || $t('pages.contracts.allContracts.allContracts.counterparty') }}</h3>
               <dl>
-                <template v-for="detail in partyDetails.counterparty" :key="`counterparty-${detail.label}`">
+                <template
+                  v-for="detail in partyDetails.counterparty"
+                  :key="`counterparty-${detail.label}`"
+                >
                   <dt>{{ detail.label }}</dt>
                   <dd>{{ detail.value }}</dd>
                 </template>
@@ -251,17 +301,34 @@ defineExpose({
         </section>
 
         <!-- Raw HTML Content -->
-        <div v-if="htmlContent" class="html-contract-content" v-html="htmlContent"></div>
+        <div
+          v-if="htmlContent"
+          class="html-contract-content"
+          v-html="htmlContent"
+        />
 
         <!-- Legacy Structured Clauses -->
         <template v-else>
-          <section v-for="(clause, idx) in clauses" :key="idx" class="clause-section">
-            <h2 v-if="clause.title || clause.clauseNumber" class="clause-heading">
-              <span v-if="clause.clauseNumber" class="clause-number">{{ clause.clauseNumber }}.</span>
+          <section
+            v-for="(clause, idx) in clauses"
+            :key="idx"
+            class="clause-section"
+          >
+            <h2
+              v-if="clause.title || clause.clauseNumber"
+              class="clause-heading"
+            >
+              <span
+                v-if="clause.clauseNumber"
+                class="clause-number"
+              >{{ clause.clauseNumber }}.</span>
               {{ clause.title }}
             </h2>
             <div class="clause-content">
-              <p v-for="(paragraph, pIdx) in formatParagraphs(clause.content)" :key="pIdx">
+              <p
+                v-for="(paragraph, pIdx) in formatParagraphs(clause.content)"
+                :key="pIdx"
+              >
                 {{ paragraph }}
               </p>
             </div>
@@ -269,57 +336,85 @@ defineExpose({
         </template>
 
         <div class="custom-content-slot">
-          <slot></slot>
+          <slot />
         </div>
 
         <!-- Signature Section -->
-        <div v-if="showSignature" class="signature-section">
-          <h3 class="signature-title">{{ $t('documents.contract_page_template.contractPageTemplate.inWITNESSWHEREOFThePartiesHeretoHaveExecutedThisAgreement') }}</h3>
+        <div
+          v-if="showSignature"
+          class="signature-section"
+        >
+          <h3 class="signature-title">
+            {{ $t('documents.contract_page_template.contractPageTemplate.inWITNESSWHEREOFThePartiesHeretoHaveExecutedThisAgreement') }}
+          </h3>
           <div class="signature-grid">
-
             <!-- Company Signature Area -->
             <div class="signature-box">
-              <img v-if="company.signatureUrl" :src="company.signatureUrl" alt="Authorized company signature" class="company-signature" />
-              <div class="sig-line"></div>
-              <p class="sig-name"><strong>{{ company.brandName }}</strong></p>
-              <p class="sig-sub">{{ $t('documents.contract_page_template.contractPageTemplate.companyName') }}</p>
-              <p class="sig-sub">{{ $t('common.messages.authorizedSignatureDate') }}</p>
+              <img
+                v-if="company.signatureUrl"
+                :src="company.signatureUrl"
+                alt="Authorized company signature"
+                class="company-signature"
+              >
+              <div class="sig-line" />
+              <p class="sig-name">
+                <strong>{{ company.brandName }}</strong>
+              </p>
+              <p class="sig-sub">
+                {{ $t('documents.contract_page_template.contractPageTemplate.companyName') }}
+              </p>
+              <p class="sig-sub">
+                {{ $t('common.messages.authorizedSignatureDate') }}
+              </p>
             </div>
 
             <!-- Contractee Signature Area -->
             <div class="signature-box">
-              <div class="sig-line"></div>
-              <p class="sig-name"><strong>{{ contracteeName }}</strong></p>
-              <p v-if="contracteeCompanyName" class="sig-sub">{{ contracteeCompanyName }}</p>
-              <p class="sig-sub">{{ $t('documents.contract_page_template.contractPageTemplate.clientContracteeName') }}</p>
-              <p class="sig-sub">{{ $t('common.messages.authorizedSignatureDate') }}</p>
+              <div class="sig-line" />
+              <p class="sig-name">
+                <strong>{{ contracteeName }}</strong>
+              </p>
+              <p
+                v-if="contracteeCompanyName"
+                class="sig-sub"
+              >
+                {{ contracteeCompanyName }}
+              </p>
+              <p class="sig-sub">
+                {{ $t('documents.contract_page_template.contractPageTemplate.clientContracteeName') }}
+              </p>
+              <p class="sig-sub">
+                {{ $t('common.messages.authorizedSignatureDate') }}
+              </p>
             </div>
-
           </div>
         </div>
       </main>
 
       <!-- Fixed Bottom Footer -->
-      <footer v-if="!company.letterheadUrl" class="contract-footer-wrapper">
-          <div class="footer-divider"></div>
-          <div class="contract-footer">
-            <div class="footer-col footer-message">
-              <span>{{ footerText }}</span>
-            </div>
-
-            <div class="footer-col footer-contact">
-              <span v-if="company.address">{{ company.address }}</span>
-              <span v-if="company.address && company.phone"> {{ $t('common.messages.text') }} </span>
-              <span v-if="company.phone">{{ $t('documents.contract.telephone', { phone: company.phone }) }}</span>
-              <span v-if="company.email && (company.address || company.phone)"> {{ $t('common.messages.text') }} </span>
-              <span v-if="company.email">{{ company.email }}</span>
-            </div>
-
-            <div class="footer-col footer-page">
-              <span class="page-number">{{ pageNumberString }}</span>
-            </div>
+      <footer
+        v-if="!company.letterheadUrl"
+        class="contract-footer-wrapper"
+      >
+        <div class="footer-divider" />
+        <div class="contract-footer">
+          <div class="footer-col footer-message">
+            <span>{{ footerText }}</span>
           </div>
-        </footer>
+
+          <div class="footer-col footer-contact">
+            <span v-if="company.address">{{ company.address }}</span>
+            <span v-if="company.address && company.phone"> {{ $t('common.messages.text') }} </span>
+            <span v-if="company.phone">{{ $t('documents.contract.telephone', { phone: company.phone }) }}</span>
+            <span v-if="company.email && (company.address || company.phone)"> {{ $t('common.messages.text') }} </span>
+            <span v-if="company.email">{{ company.email }}</span>
+          </div>
+
+          <div class="footer-col footer-page">
+            <span class="page-number">{{ pageNumberString }}</span>
+          </div>
+        </div>
+      </footer>
     </div>
   </div>
 </template>

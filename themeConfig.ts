@@ -1,24 +1,24 @@
-import { defineThemeConfig } from "@core";
-import { Skins } from "@core/enums";
-import { breakpointsVuetifyV3 } from "@vueuse/core";
-import { VIcon } from "vuetify/components/VIcon";
+import { breakpointsVuetifyV3 } from '@vueuse/core'
+import { VIcon } from 'vuetify/components/VIcon'
+import { defineThemeConfig } from '@core'
+import { Skins } from '@core/enums'
 
 // ❗ Logo SVG must be imported with ?raw suffix
-import logo from "@images/logo.svg?raw";
+import logo from '@images/logo.svg?raw'
 
 import {
   AppContentLayoutNav,
   ContentWidth,
   FooterType,
   NavbarType,
-} from "@layouts/enums";
+} from '@layouts/enums'
 
 export const { themeConfig, layoutConfig } = defineThemeConfig({
   app: {
-    title: "Asantech Workspace",
-    logo: h("div", {
+    title: 'Asantech Workspace',
+    logo: h('div', {
       innerHTML: logo,
-      style: "line-height:0; color: rgb(var(--v-global-theme-primary))",
+      style: 'line-height:0; color: rgb(var(--v-global-theme-primary))',
     }),
     contentWidth: ContentWidth.Boxed,
     contentLayoutNav: AppContentLayoutNav.Vertical,
@@ -26,31 +26,28 @@ export const { themeConfig, layoutConfig } = defineThemeConfig({
 
     i18n: {
       enable: true,
-      defaultLocale: "en",
+      defaultLocale: 'en',
       langConfig: [
         {
-          label: "common.languages.english",
-          i18nLang: "en",
+          label: 'common.languages.english',
+          i18nLang: 'en',
           isRTL: false,
         },
         {
-          label: "common.languages.dari",
-          i18nLang: "fa-AF",
+          label: 'common.languages.dari',
+          i18nLang: 'fa-AF',
           isRTL: true,
         },
         {
-          label: "common.languages.pashto",
-          i18nLang: "ps-AF",
+          label: 'common.languages.pashto',
+          i18nLang: 'ps-AF',
           isRTL: true,
         },
       ],
     },
-    theme: "system",
+    theme: 'system',
     skin: Skins.Default,
     iconRenderer: VIcon,
-  },
-  customizer: {
-    enable: false,
   },
   navbar: {
     type: NavbarType.Sticky,
@@ -59,12 +56,12 @@ export const { themeConfig, layoutConfig } = defineThemeConfig({
   footer: { type: FooterType.Static },
   verticalNav: {
     isVerticalNavCollapsed: false,
-    defaultNavItemIconProps: { icon: "tabler-circle" },
+    defaultNavItemIconProps: { icon: 'tabler-circle' },
     isVerticalNavSemiDark: false,
   },
   horizontalNav: {
-    type: "sticky",
-    transition: "slide-y-reverse-transition",
+    type: 'sticky',
+    transition: 'slide-y-reverse-transition',
     popoverOffset: 6,
   },
 
@@ -73,11 +70,11 @@ export const { themeConfig, layoutConfig } = defineThemeConfig({
   // Such as: chevronDown: { icon: 'tabler-chevron-down', color:'primary', size: '24' },
   */
   icons: {
-    chevronDown: { icon: "tabler-chevron-down" },
-    chevronRight: { icon: "tabler-chevron-right", size: 20 },
-    close: { icon: "tabler-x", size: 20 },
-    verticalNavPinned: { icon: "tabler-circle-dot", size: 20 },
-    verticalNavUnPinned: { icon: "tabler-circle", size: 20 },
-    sectionTitlePlaceholder: { icon: "tabler-minus" },
+    chevronDown: { icon: 'tabler-chevron-down' },
+    chevronRight: { icon: 'tabler-chevron-right', size: 20 },
+    close: { icon: 'tabler-x', size: 20 },
+    verticalNavPinned: { icon: 'tabler-circle-dot', size: 20 },
+    verticalNavUnPinned: { icon: 'tabler-circle', size: 20 },
+    sectionTitlePlaceholder: { icon: 'tabler-minus' },
   },
-});
+})

@@ -40,8 +40,10 @@ export class NotificationApiError extends Error {
 const request = async <T>(operation: () => Promise<any>): Promise<T> => {
   try {
     const response = await operation()
+
     return response.data.data as T
-  } catch (error) {
+  }
+  catch (error) {
     throw new NotificationApiError(error)
   }
 }

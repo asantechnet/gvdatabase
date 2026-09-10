@@ -49,7 +49,7 @@ const labelOptions = ['UX', 'Image', 'Code Review', 'Dashboard', 'App', 'Charts 
 // Create a deep copy of the item to avoid modifying the original
 const localKanbanItem = ref<KanbanItem>({
   ...JSON.parse(JSON.stringify(props.kanbanItem.item)),
-  comments: props.kanbanItem.item.comments
+  comments: props.kanbanItem.item.comments,
 })
 
 // Initialize editor with the item's comments
@@ -68,23 +68,21 @@ const editor = useEditor({
 })
 
 // Update local item and editor content when props change
-watch(() => props.kanbanItem, (newItem) => {
+watch(() => props.kanbanItem, newItem => {
   if (newItem) {
     localKanbanItem.value = {
       ...JSON.parse(JSON.stringify(newItem.item)),
-      comments: newItem.item.comments
+      comments: newItem.item.comments,
     }
-    if (editor.value) {
+    if (editor.value)
       editor.value.commands.setContent(newItem.item.comments)
-    }
   }
 }, { deep: true })
 
 const handleDrawerModelValueUpdate = (val: boolean) => {
   emit('update:isDrawerOpen', val)
-  if (!val) {
+  if (!val)
     refEditTaskForm.value?.reset()
-  }
 }
 
 const updateKanbanItem = () => {
@@ -93,13 +91,13 @@ const updateKanbanItem = () => {
       // Create a new object with all properties
       const updatedItem: KanbanItem = {
         ...localKanbanItem.value,
-        comments: editor.value?.getHTML() || localKanbanItem.value.comments
+        comments: editor.value?.getHTML() || localKanbanItem.value.comments,
       }
 
       emit('update:kanbanItem', {
         item: updatedItem,
         boardId: props.kanbanItem.boardId,
-        boardName: props.kanbanItem.boardName
+        boardName: props.kanbanItem.boardName,
       })
       emit('update:isDrawerOpen', false)
       await nextTick()
@@ -112,7 +110,7 @@ const deleteKanbanItem = () => {
   emit('deleteKanbanItem', {
     item: localKanbanItem.value,
     boardId: props.kanbanItem.boardId,
-    boardName: props.kanbanItem.boardName
+    boardName: props.kanbanItem.boardName,
   })
   emit('update:isDrawerOpen', false)
 }

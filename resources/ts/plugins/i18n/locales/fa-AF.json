@@ -377,6 +377,20 @@
       "thisActionWillDestroyAllAttachedSubTasksAndCannotBeUndone": ". این عمل تمام وظایف فرعی مرتبط را از بین می‌برد و قابل برگشت نیست!",
       "thisActionCannotBeUndoneAndWillPermanentlyEraseAllAssociatedMiniTodosA": ". این عمل قابل برگشت نیست و تمام وظایف کوچک (Todos) و تاریخچه زمانی مرتبط را برای همیشه پاک خواهد کرد."
     },
+    "actionWarnings": {
+      "dontShowAgain": "این هشدار را دوباره نشان نده",
+      "discardTitle": "تغییرات ذخیره‌نشده دور انداخته شود؟",
+      "discardMessage": "تغییرات این فورم ذخیره نشده است. اگر اکنون لغو کنید یا بیرون شوید، تغییرات از بین می‌رود.",
+      "discardConfirm": "دور انداختن تغییرات",
+      "keepEditing": "ادامه ویرایش",
+      "moveCardTitle": "این کارت جابه‌جا شود؟",
+      "moveCardMessage": "جابه‌جایی کارت، مرحله کاری و ترتیب آن را برای همه استفاده‌کنندگان این بورد تغییر می‌دهد.",
+      "moveCardConfirm": "جابه‌جایی کارت",
+      "keepCard": "همین‌جا بماند",
+      "expandNavigation": "بازکردن منوی راهبری",
+      "collapseNavigation": "جمع‌کردن منوی راهبری",
+      "closeNavigation": "بستن منوی راهبری"
+    },
     "navigation": {
       "home": "صفحه اصلی",
       "finance": "مالی",
@@ -1295,7 +1309,31 @@
           "useCustomCoverPageFromSettings": "??????? ?? ??? ??? ?????? ?? ???????",
           "useCustomLetterheadFromSettings": "??????? ?? ????? ?????? ?? ???????",
           "pageNumber": "???? {page} ?? {total}",
-          "confidentialAllRightsReserved": "??????? - ??? ???? ????? ???"
+          "confidentialAllRightsReserved": "??????? - ??? ???? ????? ???",
+          "endDate": "تاریخ پایان",
+          "noExpirationDate": "تاریخ انقضا تعیین نشده است.",
+          "inactiveScheduledEnd": "این قرارداد {status} است؛ تاریخ پایان برنامه‌ریزی‌شده آن {date} است.",
+          "expiresToday": "فوری: این قرارداد امروز منقضی می‌شود.",
+          "expiredAgo": "{time} پیش منقضی شد.",
+          "expiresIn": "{urgency}: {time} تا انقضای قرارداد باقی مانده است.",
+          "urgencyCritical": "فوری",
+          "urgencyAttention": "توجه",
+          "urgencyWatch": "زیر نظر",
+          "urgencyLow": "کم‌فوریت",
+          "month": "ماه",
+          "months": "ماه",
+          "day": "روز",
+          "days": "روز",
+          "noEndDate": "بدون تاریخ پایان",
+          "continueAsRenewalDraft": "ادامه به‌عنوان پیش‌نویس تمدید",
+          "continueContract": "تمدید قرارداد",
+          "renewalDescription": "برای {contract} یک پیش‌نویس جدید ایجاد کنید. قرارداد فعلی برای حفظ سابقه بدون تغییر می‌ماند.",
+          "renewalStartDate": "تاریخ شروع تمدید",
+          "durationMonths": "مدت (ماه)",
+          "calculatedEndDate": "تاریخ پایان محاسبه‌شده",
+          "createRenewalDraft": "ایجاد پیش‌نویس تمدید",
+          "renewalCreated": "پیش‌نویس تمدید ایجاد شد. آن را بررسی کنید، سپس وقتی آماده بود وضعیت را فعال کنید.",
+          "renewalFailed": "پیش‌نویس تمدید ایجاد نشد. تاریخ‌ها را بررسی و دوباره تلاش کنید."
         }
       },
       "allCustomers": {

@@ -2,20 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ExpenseResource;
+use App\Models\CommissionSettlement;
 use App\Models\Currency;
 use App\Models\Expense;
-use App\Models\CommissionSettlement;
 use App\Services\CurrencyConversionService;
-use App\Http\Resources\ExpenseResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class ExpenseController extends Controller
 {
-    public function __construct(private readonly CurrencyConversionService $currencies)
-    {
-    }
+    public function __construct(private readonly CurrencyConversionService $currencies) {}
 
     public function index(Request $request)
     {
@@ -38,9 +36,9 @@ class ExpenseController extends Controller
         }
 
         if ($request->has('search') && $request->search) {
-            $query->where(function($q) use ($request) {
+            $query->where(function ($q) use ($request) {
                 $q->where('description', 'like', '%'.$request->search.'%')
-                  ->orWhere('type', 'like', '%'.$request->search.'%');
+                    ->orWhere('type', 'like', '%'.$request->search.'%');
             });
         }
 
@@ -58,11 +56,11 @@ class ExpenseController extends Controller
             'project_id' => 'nullable|exists:projects,id',
             'type' => 'required|string|max:255',
             'description' => 'required|string',
-            'amount' => 'required|numeric|min:0',
+            'amount' => 'required|numeric|gt:0',
             'quantity' => 'required|integer|min:1',
             'currency_id' => 'required|exists:currencies,id',
             'rate' => 'nullable|numeric|gt:0',
-            'date' => 'required|date',
+            'date' => ['required', 'date', 'before_or_equal:today'],
         ]);
 
         $validator->validate();
@@ -93,11 +91,11 @@ class ExpenseController extends Controller
             'project_id' => 'nullable|exists:projects,id',
             'type' => 'sometimes|string|max:255',
             'description' => 'sometimes|string',
-            'amount' => 'sometimes|numeric|min:0',
+            'amount' => 'sometimes|numeric|gt:0',
             'quantity' => 'sometimes|integer|min:1',
             'currency_id' => 'sometimes|exists:currencies,id',
             'rate' => 'nullable|numeric|gt:0',
-            'date' => 'sometimes|date',
+            'date' => ['sometimes', 'date', 'before_or_equal:today'],
         ]);
 
         $validator->validate();

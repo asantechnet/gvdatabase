@@ -20,10 +20,10 @@ class MonthlyAttendanceProcessor
     /** @return array{created_missing: int, recalculated: int, summaries: int} */
     public function process(Carbon $start, Carbon $end, bool $createMissing = true, bool $force = false, bool $alwaysSummarize = true): array
     {
-        if (! $this->company->automaticAttendanceEnabled()) {
-            return ['created_missing' => 0, 'recalculated' => 0, 'summaries' => 0];
-        }
-
+        // Disabling automatic attendance prevents the system from inventing
+        // absent rows. Existing manual attendance still needs deterministic
+        // calculations and monthly summaries for payroll and reporting.
+        $createMissing = $createMissing && $this->company->automaticAttendanceEnabled();
         $createdMissing = $createMissing ? $this->materializeMissingDays($start, $end) : 0;
         $recalculated = 0;
         Attendance::query()->with('staff')->whereBetween('date', [$start->toDateString(), $end->toDateString()])
@@ -73,14 +73,16 @@ class MonthlyAttendanceProcessor
                 }
                 $leave = PaidTimeOff::query()->where('employee_id', $employee->id)->whereDate('date', $date)
                     ->where('is_granted', true)->first();
+                $paidDays = (float) ($leave?->paid_days ?? 0);
+                $isPaidLeave = $leave && ((bool) $leave->is_paid || $paidDays > 0);
                 Attendance::create([
                     'employee_id' => $employee->id,
                     'office_id' => $employee->office_id,
                     'date' => $date,
-                    'status' => $leave ? ($leave->is_paid ? 'paid-leave' : 'unpaid-leave') : 'absent',
+                    'status' => $leave ? ($isPaidLeave ? 'paid-leave' : 'unpaid-leave') : 'absent',
                     'leave_duration_days' => (float) ($leave?->duration_days ?? 0),
-                    'paid_leave_days' => (float) ($leave?->paid_days ?? 0),
-                    'unpaid_leave_days' => $leave ? max(0, (float) $leave->duration_days - (float) $leave->paid_days) : 0,
+                    'paid_leave_days' => $paidDays,
+                    'unpaid_leave_days' => $leave ? max(0, (float) $leave->duration_days - $paidDays) : 0,
                     'logged_at' => '00:00:00',
                 ]);
                 $created++;

@@ -83,6 +83,7 @@ const suppliedReady = suppliedConfig.onReady
 
 compAttrs.config = {
   ...suppliedConfig,
+
   // Keep Flatpickr in its document portal. Moving its calendar after Flatpickr
   // has calculated coordinates changes the offset parent and causes the popup
   // to appear at the edge of dialogs/menus, especially in RTL layouts.

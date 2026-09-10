@@ -1,6 +1,6 @@
 import { fieldLabel } from './apiValidation'
 
-export type ApiError = {
+export interface ApiError {
   code?: string
   message?: string
   errors?: Record<string, string[] | string>
@@ -38,7 +38,7 @@ const errorMessages: Record<string, string> = {
   'validation.unique': 'This value is already in use.',
   'validation.uploaded': 'The upload failed. Please try again.',
   'validation.invalid': 'Enter a valid value.',
-  validation_failed: 'Please correct the highlighted fields.',
+  'validation_failed': 'Please correct the highlighted fields.',
   'business.invoice_not_payable': 'This invoice cannot accept a payment.',
   'business.invoice_not_found': 'The selected invoice is no longer available.',
   'business.invoice_payment_exceeds_balance': 'The payment exceeds the invoice’s remaining balance.',
@@ -107,6 +107,9 @@ const errorMessages: Record<string, string> = {
   'business.position_in_use': 'This position is assigned to employees or users and cannot be deleted.',
   'business.office_has_asset': 'This office has asset assigned to it and cannot be deleted.',
   'business.contract_template_in_use': 'Templates used by contracts cannot be deleted.',
+  'business.contract_not_renewable': 'Only active or expired contracts can be continued as a renewal.',
+  'business.contract_template_unavailable': 'The source contract template is no longer available. Create a new contract from an active template.',
+  'business.contract_renewal_exists': 'This contract already has a current renewal. Review that renewal instead of creating a duplicate.',
   'business.base_currency_cannot_be_deleted': 'The base currency cannot be deleted.',
   'business.currency_in_use': 'Currencies referenced by services, invoices, salaries, incomes, or expenses cannot be deleted.',
   'auth.email_verification_required': 'Verify your email address before signing in.',
@@ -123,8 +126,10 @@ const errorMessages: Record<string, string> = {
 }
 
 export const humanizeApiError = (code?: string, fallback = translate('common.messages.unableToSaveChanges')): string => {
-  if (!code) return fallback
+  if (!code)
+    return fallback
   const translated = translate(`backend.errors.${code}`)
+
   // Error codes are the API contract. Do not fall back to an English literal
   // here: a missing catalog entry should use the caller's localized fallback.
   return translated && !translated.startsWith('[missing:') ? translated : fallback
@@ -132,10 +137,12 @@ export const humanizeApiError = (code?: string, fallback = translate('common.mes
 
 export const apiFieldErrors = (error: unknown): Record<string, string> => {
   const errors = (error as ApiError | undefined)?.errors
-  if (!errors) return {}
+  if (!errors)
+    return {}
 
   return Object.fromEntries(Object.entries(errors).map(([field, messages]) => {
     const message = Array.isArray(messages) ? messages[0] : messages
+
     return [
       field,
       message.startsWith('validation.') || message.startsWith('business.')

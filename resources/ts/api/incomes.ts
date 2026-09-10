@@ -65,9 +65,11 @@ export interface IncomeParams {
 export const getIncomes = async (params?: IncomeParams): Promise<Income[]> => {
   try {
     const response = await api.get('/incomes', { params })
+
     // Handle nested data structure where actual data is in response.data.data
     return Array.isArray(response.data.data) ? response.data.data : []
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching incomes:', error)
     throw error
   }
@@ -76,9 +78,11 @@ export const getIncomes = async (params?: IncomeParams): Promise<Income[]> => {
 export const getIncome = async (id: number): Promise<Income> => {
   try {
     const response = await api.get(`/incomes/${id}`)
+
     // Handle nested data structure
     return response.data.data
-  } catch (error) {
+  }
+  catch (error) {
     console.error(`Error fetching income ${id}:`, error)
     throw error
   }
@@ -87,9 +91,11 @@ export const getIncome = async (id: number): Promise<Income> => {
 export const createIncome = async (data: IncomeCreateData): Promise<Income> => {
   try {
     const response = await api.post('/incomes', data)
+
     // Handle nested data structure
     return response.data.data
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error creating income:', error)
     throw error
   }
@@ -98,9 +104,11 @@ export const createIncome = async (data: IncomeCreateData): Promise<Income> => {
 export const updateIncome = async (id: number, data: IncomeUpdateData): Promise<Income> => {
   try {
     const response = await api.put(`/incomes/${id}`, data)
+
     // Handle nested data structure
     return response.data.data
-  } catch (error) {
+  }
+  catch (error) {
     console.error(`Error updating income ${id}:`, error)
     throw error
   }
@@ -109,7 +117,8 @@ export const updateIncome = async (id: number, data: IncomeUpdateData): Promise<
 export const deleteIncome = async (id: number): Promise<void> => {
   try {
     await api.delete(`/incomes/${id}`)
-  } catch (error) {
+  }
+  catch (error) {
     console.error(`Error deleting income ${id}:`, error)
     throw error
   }

@@ -5,9 +5,39 @@ import SettingApi from '@/api/setting'
 import { type ThemeColorPreferences, persistThemeColors, readStoredThemeColors, themeColorFields, themeWithPalette } from '@/utils/themePersistence'
 
 const logoUrl = ref(fallbackLogo)
+const isLogoSquare = ref<boolean | null>(null)
 const shortCompanyName = ref('Asantech')
 const originalCompanyName = ref('Asantech')
 let brandingRequest: Promise<void> | null = null
+let logoProbeId = 0
+
+const setLogoShape = (width: number, height: number) => {
+  if (width <= 0 || height <= 0)
+    return
+
+  // A tiny tolerance avoids treating images with a one-pixel export rounding
+  // difference as rectangular while still detecting wide 1:2 brand marks.
+  isLogoSquare.value = Math.abs(width - height) / Math.max(width, height) <= 0.02
+}
+
+const detectLogoShape = (source: string) => {
+  if (typeof Image === 'undefined')
+    return
+
+  const probeId = ++logoProbeId
+  const image = new Image()
+
+  isLogoSquare.value = null
+  image.onload = () => {
+    if (probeId === logoProbeId)
+      setLogoShape(image.naturalWidth, image.naturalHeight)
+  }
+  image.onerror = () => {
+    if (probeId === logoProbeId)
+      isLogoSquare.value = false
+  }
+  image.src = source
+}
 
 interface BrandingSettings {
   website_logo_url?: string | null
@@ -35,6 +65,7 @@ export const useBranding = () => {
 
   const applyBranding = (branding: BrandingSettings, persistApiFallbacks = false) => {
     logoUrl.value = branding.website_logo_url || fallbackLogo
+    detectLogoShape(logoUrl.value)
     shortCompanyName.value = branding.short_company_name || branding.website_title || shortCompanyName.value
     originalCompanyName.value = branding.original_company_name || branding.website_title || originalCompanyName.value
 
@@ -52,9 +83,8 @@ export const useBranding = () => {
     // remains authoritative once it is available (including for other users).
     const resolvedThemeColors = { ...storedThemeColors, ...apiThemeColors }
 
-    if (persistApiFallbacks) {
+    if (persistApiFallbacks)
       persistThemeColors(apiThemeColors)
-    }
 
     Object.entries(vuetifyTheme.themes.value).forEach(([themeName, theme]) => {
       // Replace the whole definition so Vuetify updates every generated CSS
@@ -62,7 +92,6 @@ export const useBranding = () => {
       // palette while the company profile request is resolving.
       vuetifyTheme.themes.value[themeName] = themeWithPalette(theme, resolvedThemeColors)
     })
-
   }
 
   const loadBranding = async () => {
@@ -82,8 +111,15 @@ export const useBranding = () => {
 
   return {
     logoUrl,
+    isLogoSquare,
     shortCompanyName,
     originalCompanyName,
+    handleLogoLoad: (event: Event) => {
+      const image = event.currentTarget as HTMLImageElement | null
+
+      if (image)
+        setLogoShape(image.naturalWidth, image.naturalHeight)
+    },
     loadBranding,
     updateBranding: applyBranding,
   }

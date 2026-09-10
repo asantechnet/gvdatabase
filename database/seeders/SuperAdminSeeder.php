@@ -16,18 +16,24 @@ class SuperAdminSeeder extends Seeder
      */
     public function run(): void
     {
-        $superAdmin = User::updateOrCreate(
-            ['email' => 'superadmin@example.com'],
-            [
-                'name' => 'Super Admin',
-                'email' => 'superadmin@example.com',
-                'password' => Hash::make('password123'), // Change this in production!
-                'phone' => '+1234567890',
-                'address' => 'Admin Headquarters',
-                'acc_status' => 'active',
-                'email_verified_at' => now(),
-            ]
-        );
+        $email = (string) env('SUPER_ADMIN_EMAIL', '');
+        $password = (string) env('SUPER_ADMIN_PASSWORD', '');
+        if ($email === '' || $password === '') {
+            throw new \RuntimeException('SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD are required to provision an administrator.');
+        }
+
+        $superAdmin = User::firstOrNew(['email' => $email]);
+        $superAdmin->fill([
+            'name' => (string) env('SUPER_ADMIN_NAME', 'Super Admin'),
+            'phone' => (string) env('SUPER_ADMIN_PHONE', ''),
+            'address' => (string) env('SUPER_ADMIN_ADDRESS', ''),
+            'acc_status' => 'active',
+        ]);
+        if (! $superAdmin->exists) {
+            $superAdmin->password = Hash::make($password);
+            $superAdmin->email_verified_at = now();
+        }
+        $superAdmin->save();
 
         $directorPosition = Position::firstOrCreate(
             ['title' => 'Director'],

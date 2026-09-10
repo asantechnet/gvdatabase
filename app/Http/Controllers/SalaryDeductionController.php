@@ -9,6 +9,8 @@ use App\Services\SalaryExpenseSynchronizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class SalaryDeductionController extends Controller
 {
@@ -21,16 +23,30 @@ class SalaryDeductionController extends Controller
 
     public function store(Request $request, Salary $salary): SalaryDeductionResource
     {
-        $deduction = $salary->deductions()->create($this->validated($request));
-        $this->expenses->sync($salary);
+        $attributes = $this->validated($request);
+        $deduction = DB::transaction(function () use ($salary, $attributes) {
+            $salary = Salary::query()->lockForUpdate()->findOrFail($salary->id);
+            $this->ensureWithinPayable($salary, (float) $attributes['amount']);
+            $deduction = $salary->deductions()->create($attributes);
+            $this->expenses->sync($salary->fresh());
+
+            return $deduction;
+        });
+
         return new SalaryDeductionResource($deduction);
     }
 
     public function update(Request $request, Salary $salary, SalaryDeduction $deduction): SalaryDeductionResource
     {
-        abort_unless($deduction->salary_id === $salary->id, 404);
-        $deduction->update($this->validated($request));
-        $this->expenses->sync($salary);
+        abort_unless((int) $deduction->salary_id === (int) $salary->id, 404);
+        $attributes = $this->validated($request);
+        DB::transaction(function () use ($salary, $deduction, $attributes): void {
+            $salary = Salary::query()->lockForUpdate()->findOrFail($salary->id);
+            $deduction = SalaryDeduction::query()->where('salary_id', $salary->id)->lockForUpdate()->findOrFail($deduction->id);
+            $this->ensureWithinPayable($salary, (float) $attributes['amount'], $deduction->id);
+            $deduction->update($attributes);
+            $this->expenses->sync($salary->fresh());
+        });
 
         return new SalaryDeductionResource($deduction->fresh());
     }
@@ -38,8 +54,15 @@ class SalaryDeductionController extends Controller
     public function destroy(Salary $salary, SalaryDeduction $deduction): JsonResponse
     {
         abort_unless($deduction->salary_id === $salary->id, 404);
-        $deduction->delete();
-        $this->expenses->sync($salary);
+        DB::transaction(function () use ($salary, $deduction): void {
+            $salary = Salary::query()->lockForUpdate()->findOrFail($salary->id);
+            SalaryDeduction::query()
+                ->where('salary_id', $salary->id)
+                ->lockForUpdate()
+                ->findOrFail($deduction->id)
+                ->delete();
+            $this->expenses->sync($salary->fresh());
+        });
 
         return response()->json(['message' => 'Salary deduction deleted.']);
     }
@@ -57,5 +80,15 @@ class SalaryDeductionController extends Controller
             'amount' => $validated['amount'],
             'sort_order' => (int) ($validated['sortOrder'] ?? 0),
         ];
+    }
+
+    private function ensureWithinPayable(Salary $salary, float $amount, ?int $ignoreDeductionId = null): void
+    {
+        $existing = $salary->deductions()
+            ->when($ignoreDeductionId, fn ($query) => $query->whereKeyNot($ignoreDeductionId))
+            ->sum('amount');
+        if (round((float) $existing + $amount, 8) > round((float) $salary->total_amount, 8)) {
+            throw ValidationException::withMessages(['amount' => ['business.deductions_exceed_payable']]);
+        }
     }
 }

@@ -88,9 +88,15 @@ class CustomerController extends Controller
 
     public function destroy(Customer $customer)
     {
-        if ($customer->invoices()->exists()) {
+        if ($customer->invoices()->exists()
+            || $customer->customerServices()->exists()
+            || $customer->projects()->exists()
+            || $customer->contracts()->exists()
+            || $customer->incomes()->exists()
+            || $customer->expenses()->exists()
+            || $customer->tasks()->exists()) {
             return response()->json([
-                'code' => 'business.customer_has_invoice_history',
+                'code' => 'business.customer_in_use',
             ], 409);
         }
 

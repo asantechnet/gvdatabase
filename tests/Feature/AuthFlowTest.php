@@ -97,4 +97,25 @@ class AuthFlowTest extends TestCase
 
         $this->assertTrue(Hash::check('new-secure-password', $user->fresh()->password));
     }
+
+    public function test_sign_out_other_devices_keeps_the_current_session_and_scopes_password_errors(): void
+    {
+        $user = User::factory()->create(['acc_status' => 'active']);
+        $currentToken = $user->createToken('current-device', ['access'])->plainTextToken;
+        $user->createToken('another-device', ['access']);
+
+        $this->withToken($currentToken)
+            ->postJson('/api/auth/account/logout-other-devices', ['password' => 'not-the-current-password'])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.logout_password.0', 'business.current_password_invalid')
+            ->assertJsonMissingPath('errors.password');
+
+        $this->assertSame(2, $user->fresh()->tokens()->count());
+
+        $this->withToken($currentToken)
+            ->postJson('/api/auth/account/logout-other-devices', ['password' => 'password'])
+            ->assertOk();
+
+        $this->assertSame(1, $user->fresh()->tokens()->count());
+    }
 }

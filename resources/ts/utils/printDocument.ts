@@ -24,6 +24,7 @@ export const printDocument = async ({
   document.dispatchEvent(new Event('app:before-print'))
 
   const pageStyleElement = document.createElement('style')
+
   pageStyleElement.dataset.appPrintPage = bodyClass
   pageStyleElement.textContent = `@media print { @page { ${pageStyle} } }`
   document.head.appendChild(pageStyleElement)
@@ -33,7 +34,8 @@ export const printDocument = async ({
   let cleaned = false
 
   const cleanup = () => {
-    if (cleaned) return
+    if (cleaned)
+      return
 
     cleaned = true
     window.removeEventListener('afterprint', cleanup)
@@ -42,7 +44,8 @@ export const printDocument = async ({
     pageStyleElement.remove()
     afterPrint?.()
 
-    if (activePrintCleanup === cleanup) activePrintCleanup = undefined
+    if (activePrintCleanup === cleanup)
+      activePrintCleanup = undefined
   }
 
   activePrintCleanup = cleanup
@@ -54,5 +57,6 @@ export const printDocument = async ({
   window.print()
 
   // `afterprint` is authoritative; this only protects browsers that omit it.
-  if (!cleaned) fallbackTimer = window.setTimeout(cleanup, 60_000)
+  if (!cleaned)
+    fallbackTimer = window.setTimeout(cleanup, 60_000)
 }

@@ -64,6 +64,13 @@ class ProjectController extends Controller
 
         $project = DB::transaction(function () use ($project, $data, $syncServices, $serviceIds, $customerChanged): Project {
             $project = Project::query()->lockForUpdate()->findOrFail($project->id);
+            $nextStatus = $data['status'] ?? $project->status;
+            if ($nextStatus === 'completed') {
+                abort_if($project->boards()->whereHas('tasks', fn ($query) => $query->where('progress', '<', 100))->exists(), 422, 'business.project_has_incomplete_tasks');
+            }
+            if ($nextStatus === 'archived') {
+                abort_unless($project->status === 'completed' || ($data['status'] ?? null) === 'completed', 422, 'business.project_must_be_completed_before_archive');
+            }
             $project->update($data);
 
             if ($syncServices) {
@@ -88,6 +95,7 @@ class ProjectController extends Controller
     public function destroy(Request $request, Project $project): JsonResponse
     {
         $this->authorize($request, 'delete_projects');
+        abort_if($project->boards()->exists() || $project->expenses()->exists(), 422, 'business.project_has_operational_history');
         $project->delete();
 
         return response()->json(['success' => true]);

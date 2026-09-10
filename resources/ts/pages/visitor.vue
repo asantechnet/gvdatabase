@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import PrintableListReport from '@/components/PrintableListReport.vue'
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
-import VisitorApi, { type Visitor, type CreateVisitorData, type UpdateVisitorData } from '@/api/visitor'
+import PrintableListReport from '@/components/PrintableListReport.vue'
+import VisitorApi, { type CreateVisitorData, type UpdateVisitorData, type Visitor } from '@/api/visitor'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import type { Account } from '@/api/auth'
 import { useCookie } from '@core/composable/useCookie'
@@ -10,7 +10,7 @@ import { printDocument } from '@/utils/printDocument'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import LeadApi from '@/api/lead'
 
-type VisitorForm = {
+interface VisitorForm {
   name: string
   company: string
   contact: string
@@ -34,8 +34,10 @@ const marketerDirectory = ref<Employee[]>([])
 const toast = useToast()
 const userData = useCookie<Account | null>('userData')
 const isCurrentUserMarketer = computed(() => Boolean(userData.value?.is_marketer || userData.value?.employee?.is_marketer))
+
 const currentMarketerName = computed(() => {
   const employeeId = userData.value?.employee?.id
+
   return marketerDirectory.value.find(marketer => marketer.id === employeeId)?.name ?? userData.value?.name ?? 'your marketer profile'
 })
 
@@ -48,6 +50,7 @@ const emptyVisitorForm = (): VisitorForm => ({
   marketer_id: null,
   notes: '',
 })
+
 const visitorData = ref<VisitorForm>(emptyVisitorForm())
 
 const formErrors = ref({
@@ -74,10 +77,12 @@ const validateForm = () => {
   if (!visitorData.value.name.trim()) {
     formErrors.value.name = translate('pages.contracts.visitor.visitor.visitorNameIsRequired')
     isValid = false
-  } else if (visitorData.value.name.length < 2) {
+  }
+  else if (visitorData.value.name.length < 2) {
     formErrors.value.name = translate('pages.contracts.visitor.visitor.visitorNameMustBeAtLeast2Characters')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.name = ''
   }
 
@@ -85,10 +90,12 @@ const validateForm = () => {
   if (!visitorData.value.company.trim()) {
     formErrors.value.company = translate('pages.contracts.visitor.visitor.companyNameIsRequired')
     isValid = false
-  } else if (visitorData.value.company.length < 2) {
+  }
+  else if (visitorData.value.company.length < 2) {
     formErrors.value.company = translate('pages.contracts.visitor.visitor.companyNameMustBeAtLeast2Characters')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.company = ''
   }
 
@@ -96,10 +103,12 @@ const validateForm = () => {
   if (!visitorData.value.contact.trim()) {
     formErrors.value.contact = translate('common.messages.contactNumberIsRequired')
     isValid = false
-  } else if (!/^[\d\s\-()+]{8,}$/.test(visitorData.value.contact)) {
+  }
+  else if (!/^[\d\s\-()+]{8,}$/.test(visitorData.value.contact)) {
     formErrors.value.contact = translate('common.messages.pleaseEnterAValidPhoneNumber')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.contact = ''
   }
 
@@ -107,10 +116,12 @@ const validateForm = () => {
   if (!visitorData.value.service.trim()) {
     formErrors.value.service = translate('pages.contracts.visitor.visitor.serviceIsRequired')
     isValid = false
-  } else if (visitorData.value.service.length < 2) {
+  }
+  else if (visitorData.value.service.length < 2) {
     formErrors.value.service = translate('pages.contracts.visitor.visitor.serviceMustBeAtLeast2Characters')
     isValid = false
-  } else {
+  }
+  else {
     formErrors.value.service = ''
   }
 
@@ -123,6 +134,7 @@ const marketerPayload = () => isCurrentUserMarketer.value ? {} : { marketer_id: 
 const fetchVisitors = async () => {
   try {
     isLoading.value = true
+
     const response = await VisitorApi.getAll({
       search: search.value,
       company: filterCompany.value || undefined,
@@ -130,22 +142,26 @@ const fetchVisitors = async () => {
     })
 
     visitors.value = response
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching visitors:', error)
     visitors.value = []
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
 
 const filtered = computed(() => {
   return visitors.value.filter(v => {
-    const matchesSearch = v.name.toLowerCase().includes(search.value.toLowerCase()) ||
-      v.company.toLowerCase().includes(search.value.toLowerCase()) ||
-      v.contact.includes(search.value)
+    const matchesSearch = v.name.toLowerCase().includes(search.value.toLowerCase())
+      || v.company.toLowerCase().includes(search.value.toLowerCase())
+      || v.contact.includes(search.value)
       || (v.email?.toLowerCase().includes(search.value.toLowerCase()) ?? false)
+
     const matchesCompany = !filterCompany.value || v.company === filterCompany.value
     const matchesMarketer = !filterMarketerId.value || v.marketer_id === filterMarketerId.value
+
     return matchesSearch && matchesCompany && matchesMarketer
   })
 })
@@ -166,10 +182,12 @@ const printTable = () => {
 }
 
 const addNewVisitor = async () => {
-  if (!validateForm()) return
+  if (!validateForm())
+    return
 
   try {
     isLoading.value = true
+
     const data: CreateVisitorData = {
       name: visitorData.value.name,
       company: visitorData.value.company,
@@ -182,24 +200,29 @@ const addNewVisitor = async () => {
     }
 
     const response = await VisitorApi.create(data)
-    if (response) {
+    if (response)
       visitors.value.push(response)
-    }
+
     isAddNewVisitorDialogVisible.value = false
     resetForm()
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error creating visitor:', error)
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
 
 const editVisitor = async () => {
-  if (!selectedVisitor.value) return
-  if (!validateForm()) return
+  if (!selectedVisitor.value)
+    return
+  if (!validateForm())
+    return
 
   try {
     isLoading.value = true
+
     const data: UpdateVisitorData = {
       name: visitorData.value.name,
       company: visitorData.value.company,
@@ -213,15 +236,16 @@ const editVisitor = async () => {
     const response = await VisitorApi.update(selectedVisitor.value.id, data)
     if (response) {
       const index = visitors.value.findIndex(v => v.id === selectedVisitor.value?.id)
-      if (index !== -1) {
+      if (index !== -1)
         visitors.value[index] = response
-      }
     }
     isEditVisitorDialogVisible.value = false
     resetForm()
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error updating visitor:', error)
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -251,24 +275,29 @@ const convertToLead = async (visitor: Visitor) => {
     await LeadApi.fromVisitor(visitor.id)
     visitors.value = visitors.value.filter(item => item.id !== visitor.id)
     toast.success('Visitor qualified as a lead')
-  } catch {
+  }
+  catch {
     toast.error('Unable to convert visitor to lead')
-  } finally {
+  }
+  finally {
     convertingVisitorId.value = null
   }
 }
 
 const deleteVisitor = async () => {
-  if (!selectedVisitor.value) return
+  if (!selectedVisitor.value)
+    return
 
   try {
     isLoading.value = true
     await VisitorApi.delete(selectedVisitor.value.id)
     visitors.value = visitors.value.filter(v => v.id !== selectedVisitor.value?.id)
     isDeleteVisitorDialogVisible.value = false
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error deleting visitor:', error)
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -289,14 +318,26 @@ onMounted(() => {
 </script>
 
 <template>
-  <DataTablePageKpis :items="filtered" title="Visitors" description="Review visitor activity and maintain a clear record of every entry." icon="tabler-door-enter" />
+  <DataTablePageKpis
+    :items="filtered"
+    title="Visitors"
+    description="Review visitor activity and maintain a clear record of every entry."
+    icon="tabler-door-enter"
+  />
   <VCard>
     <VCardText>
-      <VRow align="center" class="table-toolbar">
-        <VCol cols="12" md="7">
+      <VRow
+        align="center"
+        class="table-toolbar"
+      >
+        <VCol
+          cols="12"
+          md="7"
+        >
           <VTextField
             v-model="search"
-            class="data-table-search" prepend-inner-icon="tabler-search"
+            class="data-table-search"
+            prepend-inner-icon="tabler-search"
             :placeholder="$t('pages.contracts.visitor.visitor.searchVisitors')"
             density="compact"
             clearable
@@ -304,24 +345,51 @@ onMounted(() => {
             @input="fetchVisitors"
           />
         </VCol>
-        <VCol cols="12" md="5" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2">
-          <DataTableFilterMenu :active="Boolean(filterCompany || filterMarketerId)"
-            @reset="filterCompany = null; filterMarketerId = null; fetchVisitors()">
-            <VSelect v-model="filterCompany" :items="companies" :label="$t('pages.contracts.visitor.visitor.filterByCompany')" density="compact" clearable hide-details @update:modelValue="fetchVisitors" />
-            <VSelect v-model="filterMarketerId" :items="marketerDirectory" item-title="name" item-value="id" :label="$t('pages.contracts.visitor.visitor.filterByMarketer')" density="compact" clearable hide-details @update:modelValue="fetchVisitors" />
+        <VCol
+          cols="12"
+          md="5"
+          class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2"
+        >
+          <DataTableFilterMenu
+            :active="Boolean(filterCompany || filterMarketerId)"
+            @reset="filterCompany = null; filterMarketerId = null; fetchVisitors()"
+          >
+            <VSelect
+              v-model="filterCompany"
+              :items="companies"
+              :label="$t('pages.contracts.visitor.visitor.filterByCompany')"
+              density="compact"
+              clearable
+              hide-details
+              @update:model-value="fetchVisitors"
+            />
+            <VSelect
+              v-model="filterMarketerId"
+              :items="marketerDirectory"
+              item-title="name"
+              item-value="id"
+              :label="$t('pages.contracts.visitor.visitor.filterByMarketer')"
+              density="compact"
+              clearable
+              hide-details
+              @update:model-value="fetchVisitors"
+            />
           </DataTableFilterMenu>
           <VBtn
             icon="tabler-printer"
             variant="text"
-            @click="printTable"
             :loading="isLoading"
+            @click="printTable"
           />
           <VBtn
             color="primary"
-            @click="isAddNewVisitorDialogVisible = true"
             :loading="isLoading"
+            @click="isAddNewVisitorDialogVisible = true"
           >
-            <VIcon icon="tabler-plus" class="me-1" /> {{ $t('pages.contracts.visitor.visitor.addVisitor') }}
+            <VIcon
+              icon="tabler-plus"
+              class="me-1"
+            /> {{ $t('pages.contracts.visitor.visitor.addVisitor') }}
           </VBtn>
         </VCol>
       </VRow>
@@ -337,58 +405,128 @@ onMounted(() => {
       style="overflow-x: auto;"
     >
       <template #item.contact="{ item }">
-        <ContactActionMenu kind="phone" :value="item.contact" contactable-type="visitor" :contactable-id="item.id" />
+        <ContactActionMenu
+          kind="phone"
+          :value="item.contact"
+          contactable-type="visitor"
+          :contactable-id="item.id"
+        />
       </template>
 
       <template #item.email="{ item }">
-        <ContactActionMenu v-if="item.email" kind="email" :value="item.email" contactable-type="visitor" :contactable-id="item.id" />
-        <span v-else class="text-medium-emphasis">—</span>
+        <ContactActionMenu
+          v-if="item.email"
+          kind="email"
+          :value="item.email"
+          contactable-type="visitor"
+          :contactable-id="item.id"
+        />
+        <span
+          v-else
+          class="text-medium-emphasis"
+        >—</span>
       </template>
 
       <template #item.marketer="{ item }">
         <div class="d-flex align-center ga-2">
-          <VAvatar size="28" color="primary" variant="tonal"><VIcon icon="tabler-user-star" size="16" /></VAvatar>
+          <VAvatar
+            size="28"
+            color="primary"
+            variant="tonal"
+          >
+            <VIcon
+              icon="tabler-user-star"
+              size="16"
+            />
+          </VAvatar>
           <span>{{ marketerLabel(item) }}</span>
         </div>
       </template>
 
       <template #item.actions="{ item }">
         <div class="d-flex gap-1">
-          <CrmRelationshipDetails type="visitor" :id="item.id" :title="item.name" />
-          <VBtn icon="tabler-filter-plus" variant="text" size="small" color="success" @click="convertToLead(item)" :loading="convertingVisitorId === item.id" :disabled="convertingVisitorId !== null"><VIcon icon="tabler-filter-plus" /><VTooltip activator="parent" location="top">Qualify as lead</VTooltip></VBtn>
+          <CrmRelationshipDetails
+            :id="item.id"
+            type="visitor"
+            :title="item.name"
+          />
+          <VBtn
+            icon="tabler-filter-plus"
+            variant="text"
+            size="small"
+            color="success"
+            :loading="convertingVisitorId === item.id"
+            :disabled="convertingVisitorId !== null"
+            @click="convertToLead(item)"
+          >
+            <VIcon icon="tabler-filter-plus" /><VTooltip
+              activator="parent"
+              location="top"
+            >
+              Qualify as lead
+            </VTooltip>
+          </VBtn>
           <VBtn
             icon="tabler-edit"
             variant="text"
             size="small"
             color="medium-emphasis"
-            @click="openEditDialog(item)"
             :loading="isLoading"
-          ><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.editVisitor') }}</VTooltip></VBtn>
+            @click="openEditDialog(item)"
+          >
+            <VIcon icon="tabler-edit" /><VTooltip
+              activator="parent"
+              location="top"
+            >
+              {{ $t('pages.contracts.visitor.visitor.editVisitor') }}
+            </VTooltip>
+          </VBtn>
           <VBtn
             icon="tabler-trash"
             variant="text"
             size="small"
             color="error"
-            @click="openDeleteDialog(item)"
             :loading="isLoading"
-          ><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.visitor.visitor.deleteVisitor') }}</VTooltip></VBtn>
+            @click="openDeleteDialog(item)"
+          >
+            <VIcon icon="tabler-trash" /><VTooltip
+              activator="parent"
+              location="top"
+            >
+              {{ $t('pages.contracts.visitor.visitor.deleteVisitor') }}
+            </VTooltip>
+          </VBtn>
         </div>
       </template>
     </ResponsiveDataTable>
   </VCard>
-  <PrintableListReport title="Visitors Report" subtitle="Filtered visitor records" :columns="headers.slice(0, -1).map(header => header.title)" :rows="filtered.map(visitor => [visitor.name, visitor.company, visitor.contact, visitor.email || '—', visitor.service, marketerLabel(visitor), visitor.date])" />
+  <PrintableListReport
+    title="Visitors Report"
+    subtitle="Filtered visitor records"
+    :columns="headers.slice(0, -1).map(header => header.title)"
+    :rows="filtered.map(visitor => [visitor.name, visitor.company, visitor.contact, visitor.email || '—', visitor.service, marketerLabel(visitor), visitor.date])"
+  />
 
   <!-- Add New Visitor Dialog -->
-  <VDialog v-model="isAddNewVisitorDialogVisible" max-width="600">
+  <VDialog
+    v-model="isAddNewVisitorDialogVisible"
+    max-width="600"
+  >
     <VCard>
       <VCardTitle class="pa-4">
         <span class="text-h5">{{ $t('pages.contracts.visitor.visitor.addNewVisitor') }}</span>
       </VCardTitle>
 
       <VCardText>
-        <VForm class="app-form" @submit.prevent="addNewVisitor">
+        <VForm
+          class="app-form"
+          @submit.prevent="addNewVisitor"
+        >
           <VRow>
-            <VCol cols="12" md="6">
+            <VCol
+              cols="12"
+              md="6"
+            >
               <VTextField
                 v-model="visitorData.name"
                 :label="$t('common.messages.visitorName')"
@@ -399,7 +537,10 @@ onMounted(() => {
                 required
               />
             </VCol>
-            <VCol cols="12" md="6">
+            <VCol
+              cols="12"
+              md="6"
+            >
               <VTextField
                 v-model="visitorData.company"
                 :label="$t('common.fields.company')"
@@ -410,7 +551,10 @@ onMounted(() => {
                 required
               />
             </VCol>
-            <VCol cols="12" md="6">
+            <VCol
+              cols="12"
+              md="6"
+            >
               <VTextField
                 v-model="visitorData.contact"
                 :label="$t('common.messages.contactPhone')"
@@ -421,8 +565,21 @@ onMounted(() => {
                 required
               />
             </VCol>
-            <VCol cols="12" md="6"><VTextField v-model="visitorData.email" :label="$t('common.fields.email')" type="email" prepend-inner-icon="tabler-mail" /></VCol>
-            <VCol cols="12" md="6">
+            <VCol
+              cols="12"
+              md="6"
+            >
+              <VTextField
+                v-model="visitorData.email"
+                :label="$t('common.fields.email')"
+                type="email"
+                prepend-inner-icon="tabler-mail"
+              />
+            </VCol>
+            <VCol
+              cols="12"
+              md="6"
+            >
               <VTextField
                 v-model="visitorData.service"
                 :label="$t('common.messages.service')"
@@ -434,7 +591,12 @@ onMounted(() => {
               />
             </VCol>
             <VCol cols="12">
-              <VAlert v-if="isCurrentUserMarketer" color="primary" variant="tonal" icon="tabler-lock">
+              <VAlert
+                v-if="isCurrentUserMarketer"
+                color="primary"
+                variant="tonal"
+                icon="tabler-lock"
+              >
                 Marketer attribution is assigned automatically to {{ currentMarketerName }} when this visitor is created.
               </VAlert>
               <VAutocomplete
@@ -450,7 +612,15 @@ onMounted(() => {
                 clearable
               />
             </VCol>
-            <VCol cols="12"><VTextarea v-model="visitorData.notes" label="Visitor notes" rows="3" hint="Capture interests, context, and anything useful before qualification." persistent-hint /></VCol>
+            <VCol cols="12">
+              <VTextarea
+                v-model="visitorData.notes"
+                label="Visitor notes"
+                rows="3"
+                hint="Capture interests, context, and anything useful before qualification."
+                persistent-hint
+              />
+            </VCol>
           </VRow>
         </VForm>
       </VCardText>
@@ -460,15 +630,15 @@ onMounted(() => {
         <VBtn
           variant="outlined"
           color="secondary"
-          @click="isAddNewVisitorDialogVisible = false; resetForm()"
           :disabled="isLoading"
+          @click="isAddNewVisitorDialogVisible = false; resetForm()"
         >
           {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="primary"
-          @click="addNewVisitor"
           :loading="isLoading"
+          @click="addNewVisitor"
         >
           {{ $t('common.actions.add') }}
         </VBtn>
@@ -477,16 +647,25 @@ onMounted(() => {
   </VDialog>
 
   <!-- Edit Visitor Dialog -->
-  <VDialog v-model="isEditVisitorDialogVisible" max-width="600">
+  <VDialog
+    v-model="isEditVisitorDialogVisible"
+    max-width="600"
+  >
     <VCard>
       <VCardTitle class="pa-4">
         <span class="text-h5">{{ $t('pages.contracts.visitor.visitor.editVisitor') }}</span>
       </VCardTitle>
 
       <VCardText>
-        <VForm class="app-form" @submit.prevent="editVisitor">
+        <VForm
+          class="app-form"
+          @submit.prevent="editVisitor"
+        >
           <VRow>
-            <VCol cols="12" md="6">
+            <VCol
+              cols="12"
+              md="6"
+            >
               <VTextField
                 v-model="visitorData.name"
                 :label="$t('common.messages.visitorName')"
@@ -497,7 +676,10 @@ onMounted(() => {
                 required
               />
             </VCol>
-            <VCol cols="12" md="6">
+            <VCol
+              cols="12"
+              md="6"
+            >
               <VTextField
                 v-model="visitorData.company"
                 :label="$t('common.fields.company')"
@@ -508,7 +690,10 @@ onMounted(() => {
                 required
               />
             </VCol>
-            <VCol cols="12" md="6">
+            <VCol
+              cols="12"
+              md="6"
+            >
               <VTextField
                 v-model="visitorData.contact"
                 :label="$t('common.messages.contactPhone')"
@@ -519,8 +704,21 @@ onMounted(() => {
                 required
               />
             </VCol>
-            <VCol cols="12" md="6"><VTextField v-model="visitorData.email" :label="$t('common.fields.email')" type="email" prepend-inner-icon="tabler-mail" /></VCol>
-            <VCol cols="12" md="6">
+            <VCol
+              cols="12"
+              md="6"
+            >
+              <VTextField
+                v-model="visitorData.email"
+                :label="$t('common.fields.email')"
+                type="email"
+                prepend-inner-icon="tabler-mail"
+              />
+            </VCol>
+            <VCol
+              cols="12"
+              md="6"
+            >
               <VTextField
                 v-model="visitorData.service"
                 :label="$t('common.messages.service')"
@@ -532,7 +730,12 @@ onMounted(() => {
               />
             </VCol>
             <VCol cols="12">
-              <VAlert v-if="isCurrentUserMarketer" color="primary" variant="tonal" icon="tabler-lock">
+              <VAlert
+                v-if="isCurrentUserMarketer"
+                color="primary"
+                variant="tonal"
+                icon="tabler-lock"
+              >
                 Marketer attribution is locked to {{ currentMarketerName }}. Existing ownership is preserved unless an administrator changes it.
               </VAlert>
               <VAutocomplete
@@ -548,7 +751,15 @@ onMounted(() => {
                 clearable
               />
             </VCol>
-            <VCol cols="12"><VTextarea v-model="visitorData.notes" label="Visitor notes" rows="3" hint="Capture interests, context, and anything useful before qualification." persistent-hint /></VCol>
+            <VCol cols="12">
+              <VTextarea
+                v-model="visitorData.notes"
+                label="Visitor notes"
+                rows="3"
+                hint="Capture interests, context, and anything useful before qualification."
+                persistent-hint
+              />
+            </VCol>
           </VRow>
         </VForm>
       </VCardText>
@@ -558,15 +769,15 @@ onMounted(() => {
         <VBtn
           variant="outlined"
           color="secondary"
-          @click="isEditVisitorDialogVisible = false; resetForm()"
           :disabled="isLoading"
+          @click="isEditVisitorDialogVisible = false; resetForm()"
         >
           {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="primary"
-          @click="editVisitor"
           :loading="isLoading"
+          @click="editVisitor"
         >
           {{ $t('common.actions.save') }}
         </VBtn>
@@ -575,7 +786,10 @@ onMounted(() => {
   </VDialog>
 
   <!-- Delete Visitor Dialog -->
-  <VDialog v-model="isDeleteVisitorDialogVisible" max-width="500">
+  <VDialog
+    v-model="isDeleteVisitorDialogVisible"
+    max-width="500"
+  >
     <VCard>
       <VCardTitle class="text-h5 pa-4">
         {{ $t('common.confirmations.areYouSureYouWantToDeleteThisVisitor') }}
@@ -590,15 +804,15 @@ onMounted(() => {
         <VBtn
           variant="outlined"
           color="secondary"
-          @click="isDeleteVisitorDialogVisible = false"
           :disabled="isLoading"
+          @click="isDeleteVisitorDialogVisible = false"
         >
           {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="error"
-          @click="deleteVisitor"
           :loading="isLoading"
+          @click="deleteVisitor"
         >
           {{ $t('common.actions.delete') }}
         </VBtn>

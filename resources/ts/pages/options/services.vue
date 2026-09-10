@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useToast } from 'vue-toastification'
 import ServiceForm from '@/components/forms/ServiceForm.vue'
 import ServiceApi, { type CreateServiceData, type UpdateServiceData } from '@/api/services'
 import CurrencyApi from '@/api/currency'
-import { computed, onMounted, ref } from 'vue'
-import { useToast } from 'vue-toastification'
+import { apiErrorMessage } from '@/utils/apiErrors'
 
 // --- Interfaces & Types ---
 interface ServiceItem {
@@ -68,7 +69,9 @@ onMounted(async () => {
 const fetchServices = async () => {
   try {
     isLoading.value = true
+
     const response = await ServiceApi.getAll()
+
     services.value = response.data.map(service => ({
       id: service.id,
       type: service.type,
@@ -78,10 +81,12 @@ const fetchServices = async () => {
       currency: service.currency.code,
       currency_id: service.currency.id,
     }))
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching services:', error)
-    toast.error(translate('pages.contracts.services.services.failedToLoadServices') + (error.message || 'Unknown error'))
-  } finally {
+    toast.error(`${translate('pages.contracts.services.services.failedToLoadServices')} ${apiErrorMessage(error)}`)
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -89,19 +94,22 @@ const fetchServices = async () => {
 const fetchCurrencies = async () => {
   try {
     isLoading.value = true
+
     const response = await CurrencyApi.getAll()
 
     // Handle the response structure based on currency.ts API
-    const currencies = response.data.data || response.data
+    const currencies = response.data
 
     currencyOptions.value = currencies.map((currency: { id: number; code: string }) => ({
       title: currency.code,
-      value: currency.id
+      value: currency.id,
     }))
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching currencies:', error)
-    toast.error(translate('pages.contracts.services.services.failedToLoadCurrencies') + (error.message || 'Unknown error'))
-  } finally {
+    toast.error(`${translate('pages.contracts.services.services.failedToLoadCurrencies')} ${apiErrorMessage(error)}`)
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -109,39 +117,50 @@ const fetchCurrencies = async () => {
 const createService = async () => {
   try {
     isLoading.value = true
+
     const payload: CreateServiceData = {
       type: editedItem.value.type,
       duration: editedItem.value.duration,
       fee: editedItem.value.fee,
       status: editedItem.value.status,
-      currency_id: editedItem.value.currency_id
+      currency_id: editedItem.value.currency_id,
     }
+
     const response = await ServiceApi.create(payload)
+
     toast.success(translate('pages.contracts.services.services.serviceCreatedSuccessfully'))
     await fetchServices()
+
     return response
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error creating service:', error)
-    const errorMessage = error.message || error.errors?.join(', ') || 'Unknown error'
+
+    const errorMessage = apiErrorMessage(error)
+
     toast.error(translate('pages.contracts.services.services.failedToCreateService') + errorMessage)
     throw error
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
 
 const updateService = async () => {
-  if (editedItemId.value === null) return
+  if (editedItemId.value === null)
+    return
 
   try {
     isLoading.value = true
+
     const payload: UpdateServiceData = {
       type: editedItem.value.type,
       duration: editedItem.value.duration,
       fee: editedItem.value.fee,
       status: editedItem.value.status,
-      currency_id: editedItem.value.currency_id
+      currency_id: editedItem.value.currency_id,
     }
+
     const response = await ServiceApi.update(editedItemId.value, payload)
 
     // Find and update the service in the list with the server response
@@ -158,30 +177,40 @@ const updateService = async () => {
       }
     }
     toast.success(translate('pages.contracts.services.services.serviceUpdatedSuccessfully'))
+
     return response
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error updating service:', error)
-    const errorMessage = error.message || error.errors?.join(', ') || 'Unknown error'
+
+    const errorMessage = apiErrorMessage(error)
+
     toast.error(translate('pages.contracts.services.services.failedToUpdateService') + errorMessage)
     throw error
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
 
 const deleteService = async () => {
-  if (selectedItemForDelete.value === null) return
+  if (selectedItemForDelete.value === null)
+    return
 
   try {
     isLoading.value = true
     await ServiceApi.delete(selectedItemForDelete.value)
     toast.success(translate('pages.contracts.services.services.serviceDeletedSuccessfully'))
     await fetchServices()
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error deleting service:', error)
-    const errorMessage = error.message || error.errors?.join(', ') || 'Unknown error'
+
+    const errorMessage = apiErrorMessage(error)
+
     toast.error(translate('pages.contracts.services.services.failedToDeleteService') + errorMessage)
-  } finally {
+  }
+  finally {
     isLoading.value = false
     isDeleteDialogVisible.value = false
   }
@@ -212,13 +241,14 @@ const saveService = async (formData?: Omit<ServiceItem, 'id' | 'currency'>) => {
     editedItem.value = { ...editedItem.value, ...formData }
 
   try {
-    if (editedItemId.value === null) {
+    if (editedItemId.value === null)
       await createService()
-    } else {
+    else
       await updateService()
-    }
+
     isDialogVisible.value = false
-  } catch (error) {
+  }
+  catch (error) {
     // Error already handled in the individual methods
   }
 }
@@ -242,16 +272,32 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
 </script>
 
 <template>
-  <DataTablePageKpis :items="services" title="Services" description="Manage your service catalogue and quickly review its current availability." icon="tabler-tools" />
+  <DataTablePageKpis
+    :items="services"
+    title="Services"
+    description="Manage your service catalogue and quickly review its current availability."
+    icon="tabler-tools"
+  />
   <VCard>
     <!-- Card Header & Actions -->
     <VCardText class="d-flex flex-wrap gap-4 align-center justify-space-between">
       <div class="d-flex align-center gap-4 flex-wrap">
-        <VTextField v-model="searchQuery" :placeholder="$t('pages.contracts.services.services.searchService')" density="compact" hide-details
-          class="data-table-search" prepend-inner-icon="tabler-search" style="max-inline-size: 280px; min-inline-size: 220px;" />
+        <VTextField
+          v-model="searchQuery"
+          :placeholder="$t('pages.contracts.services.services.searchService')"
+          density="compact"
+          hide-details
+          class="data-table-search"
+          prepend-inner-icon="tabler-search"
+          style="max-inline-size: 280px; min-inline-size: 220px;"
+        />
       </div>
 
-      <VBtn color="primary" prepend-icon="tabler-plus" @click="openCreateModal">
+      <VBtn
+        color="primary"
+        prepend-icon="tabler-plus"
+        @click="openCreateModal"
+      >
         {{ $t('pages.contracts.services.services.addService') }}
       </VBtn>
     </VCardText>
@@ -259,11 +305,17 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
     <VDivider />
 
     <!-- Data Table -->
-    <ResponsiveDataTable :headers="headers" :items="services" :search="searchQuery" :loading="isLoading" item-value="id"
-      class="text-no-wrap">
+    <ResponsiveDataTable
+      :headers="headers"
+      :items="services"
+      :search="searchQuery"
+      :loading="isLoading"
+      item-value="id"
+      class="text-no-wrap"
+    >
       <!-- FEE Slot -->
       <template #item.fee="{ item }">
-                <span class="font-weight-medium">{{ formatLocalizedNumber(item.fee) }}</span>
+        <span class="font-weight-medium">{{ formatLocalizedNumber(item.fee) }}</span>
       </template>
 
       <!-- DURATION Slot -->
@@ -273,7 +325,12 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
 
       <!-- STATUS Slot -->
       <template #item.status="{ item }">
-        <VChip :color="resolveStatusColor(item.status)" size="small" label class="text-capitalize">
+        <VChip
+          :color="resolveStatusColor(item.status)"
+          size="small"
+          label
+          class="text-capitalize"
+        >
           {{ translateBackendValue(item.status) }}
         </VChip>
       </template>
@@ -281,12 +338,27 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
       <!-- ACTIONS Slot -->
       <template #item.actions="{ item }">
         <div class="d-flex justify-end gap-2">
-          <FullDetailsButton :item="item" :title="item.type" />
-          <VBtn icon variant="text" size="small" color="default" @click="openEditModal(item)">
+          <FullDetailsButton
+            :item="item"
+            :title="item.type"
+          />
+          <VBtn
+            icon
+            variant="text"
+            size="small"
+            color="default"
+            @click="openEditModal(item)"
+          >
             <VIcon icon="tabler-edit" />
           </VBtn>
 
-          <VBtn icon variant="text" size="small" color="error" @click="confirmDelete(item.id)">
+          <VBtn
+            icon
+            variant="text"
+            size="small"
+            color="error"
+            @click="confirmDelete(item.id)"
+          >
             <VIcon icon="tabler-trash" />
           </VBtn>
         </div>
@@ -295,26 +367,48 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
       <!-- Loading -->
       <template #loading>
         <div class="d-flex justify-center align-center py-4">
-          <VProgressCircular indeterminate color="primary" />
+          <VProgressCircular
+            indeterminate
+            color="primary"
+          />
         </div>
       </template>
     </ResponsiveDataTable>
   </VCard>
 
-  <ServiceForm v-model="isDialogVisible" :initial-item="editedItem" :currency-options="currencyOptions" :loading="isLoading" :title="formTitle" @submit="saveService" />
+  <ServiceForm
+    v-model="isDialogVisible"
+    :initial-item="editedItem"
+    :currency-options="currencyOptions"
+    :loading="isLoading"
+    :title="formTitle"
+    @submit="saveService"
+  />
 
   <!-- Delete Confirmation Dialog -->
-  <VDialog v-model="isDeleteDialogVisible" max-width="400">
+  <VDialog
+    v-model="isDeleteDialogVisible"
+    max-width="400"
+  >
     <VCard :title="$t('common.messages.confirmDeletion')">
       <VCardText>
         {{ $t('common.confirmations.areYouSureYouWantToDeleteThisServiceRecordThisActionCannotBeUndone') }}
       </VCardText>
 
       <VCardActions class="justify-end gap-2 pa-4">
-        <VBtn variant="tonal" color="secondary" @click="isDeleteDialogVisible = false" :disabled="isLoading">
+        <VBtn
+          variant="tonal"
+          color="secondary"
+          :disabled="isLoading"
+          @click="isDeleteDialogVisible = false"
+        >
           {{ $t('common.actions.cancel') }}
         </VBtn>
-        <VBtn color="error" @click="deleteService" :loading="isLoading">
+        <VBtn
+          color="error"
+          :loading="isLoading"
+          @click="deleteService"
+        >
           {{ $t('common.actions.delete') }}
         </VBtn>
       </VCardActions>

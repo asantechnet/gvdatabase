@@ -1,6 +1,6 @@
-import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
-import { clearAuthTokens, getAccessToken, getRefreshToken, isRememberedSession, storeAuthTokens, type AuthTokens } from '@/utils/authStorage'
-import { apiErrorMessage, apiFieldErrors, type ApiError } from '@/utils/apiErrors'
+import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
+import { type AuthTokens, clearAuthTokens, getAccessToken, getRefreshToken, isRememberedSession, storeAuthTokens } from '@/utils/authStorage'
+import { type ApiError, apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { isApiRequestAllowed, permissionsForApiRequest } from '@/utils/apiAuthorization'
 import { validateApiRequest } from '@/utils/apiValidation'
 import { clearFormErrors, replaceFormErrors } from '@/utils/formErrors'
@@ -28,7 +28,9 @@ const renewSession = (refreshToken: string): Promise<AuthTokens> => {
       headers: { 'Accept-Language': currentLocale() },
     }).then(response => {
       const tokens = response.data.data as AuthTokens
+
       storeAuthTokens(tokens, isRememberedSession())
+
       return tokens
     }).finally(() => {
       refreshRequest = null
@@ -48,6 +50,7 @@ api.interceptors.request.use(
     const errors = validateApiRequest(config)
     if (Object.keys(errors).length) {
       replaceFormErrors(errors)
+
       const apiError: ApiError = {
         code: 'validation_failed',
         errors,
@@ -77,19 +80,19 @@ api.interceptors.request.use(
     }
 
     const token = getAccessToken()
-    if (token) {
+    if (token)
       config.headers.Authorization = `Bearer ${token}`
-    }
+
     return config
   },
   (error: AxiosError) => {
     return Promise.reject(error)
-  }
+  },
 )
 
 // Response interceptor for handling errors and standardizing response format
 api.interceptors.response.use(
-  (response) => {
+  response => {
     // Binary exports must remain raw Blobs; wrapping them as JSON corrupts
     // downloads and prevents object URLs from being created by the browser.
     if (response.config.responseType === 'blob')
@@ -101,16 +104,17 @@ api.interceptors.response.use(
         ...response,
         data: {
           data: response.data,
-          success: true
-        }
+          success: true,
+        },
       }
     }
+
     return {
       ...response,
       data: {
         ...response.data,
-        success: true
-      }
+        success: true,
+      },
     }
   },
   async (error: AxiosError) => {
@@ -133,12 +137,15 @@ api.interceptors.response.use(
 
           // Retry the original request with the new token
           originalRequest.headers.Authorization = `Bearer ${tokens.access_token}`
+
           return api(originalRequest)
         }
-      } catch (refreshError) {
+      }
+      catch (refreshError) {
         // If refresh fails, redirect to login
         clearAuthTokens()
         window.location.href = '/login'
+
         return Promise.reject(refreshError)
       }
     }
@@ -165,14 +172,14 @@ api.interceptors.response.use(
     const apiError = {
       code: 'server.error',
       message: error.message || 'Network Error',
-      success: false
+      success: false,
     } as ApiError
 
     if (typeof window !== 'undefined')
       window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))
 
     return Promise.reject(apiError)
-  }
+  },
 )
 
 export default api

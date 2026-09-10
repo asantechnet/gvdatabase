@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import AttendanceApi, { type Attendance, type DailyReport, type UnmarkedStaff } from '@/api/attendance'
-import { printDocument } from '@/utils/printDocument'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { VAlert, VAvatar, VBtn, VCard, VCardText, VChip, VCol, VDialog, VIcon, VRow, VSelect } from 'vuetify/components'
 import TimesheetTemplate from './templates/timesheet_template.vue'
+import { printDocument } from '@/utils/printDocument'
+import AttendanceApi, { type Attendance, type DailyReport, type UnmarkedStaff } from '@/api/attendance'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import OfficeApi, { type Office } from '@/api/office'
 import SettingApi from '@/api/setting'
@@ -53,10 +53,12 @@ const fetchAttendanceRecords = async () => {
       office_id: officeFilter.value || undefined,
       status: statusFilter.value || undefined,
     })
-  } catch (err) {
+  }
+  catch (err) {
     error.value = translate('pages.attendance.timesheet.timesheet.failedToFetchAttendanceRecords')
     console.error(err)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -65,26 +67,31 @@ const fetchAttendanceRecords = async () => {
 const fetchUnmarkedStaff = async () => {
   try {
     loading.value = true
+
     const response = await AttendanceApi.getUnmarkedStaff(logDate.value)
 
     unmarkedStaff.value = response.map(staff => ({
       id: staff.id,
       name: staff.name,
-      position: staff.position || staff.role || 'Unassigned'
+      position: staff.position || staff.role || 'Unassigned',
     }))
-  } catch (err) {
+  }
+  catch (err) {
     error.value = translate('pages.attendance.timesheet.timesheet.failedToFetchUnmarkedStaff')
     console.error(err)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
 
 // Log attendance for an employee on the dedicated logDate
 const logAttendance = async (status: 'present' | 'absent') => {
-  if (!selectedStaffId.value) return
+  if (!selectedStaffId.value)
+    return
   if (isFriday(logDate.value)) {
     error.value = 'Friday is the Afghanistan weekend. Attendance cannot be recorded.'
+
     return
   }
 
@@ -103,14 +110,18 @@ const logAttendance = async (status: 'present' | 'absent') => {
     await fetchAttendanceRecords()
     await fetchUnmarkedStaff()
     selectedStaffId.value = null
+
     const setting = (await SettingApi.getCompanyProfile()).data
+
     checkInTime.value = setting?.office_open_time || ''
     checkOutTime.value = setting?.office_close_time || ''
     breakMinutes.value = setting?.default_break_minutes || 0
-  } catch (err) {
+  }
+  catch (err) {
     error.value = translate('pages.attendance.timesheet.timesheet.failedToLogAttendance')
     console.error(err)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -124,10 +135,12 @@ const deleteRecord = async (id: number) => {
     // Refresh data after deletion
     await fetchAttendanceRecords()
     await fetchUnmarkedStaff()
-  } catch (err) {
+  }
+  catch (err) {
     error.value = translate('pages.attendance.timesheet.timesheet.failedToDeleteAttendanceRecord')
     console.error(err)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -141,10 +154,12 @@ const viewDailyReport = async (attendance: Attendance) => {
 
   try {
     selectedReport.value = await AttendanceApi.getDailyReport(attendance.id)
-  } catch (err) {
+  }
+  catch (err) {
     reportError.value = translate('pages.attendance.timesheet.timesheet.failedToFetchDailyReport')
     console.error(err)
-  } finally {
+  }
+  finally {
     reportLoading.value = false
   }
 }
@@ -186,20 +201,25 @@ const stats = computed(() => {
   const workedMinutes = displayedRecords.value.reduce((sum, row) => sum + (row.net_worked_minutes ?? 0), 0)
   const overtimeMinutes = displayedRecords.value.reduce((sum, row) => sum + row.overtime_minutes, 0)
   const incomplete = displayedRecords.value.filter(row => row.status === 'present' && row.missing_punch_state !== 'none').length
+
   return { present, absent, totalInView, pendingOnLogDate, workedMinutes, overtimeMinutes, incomplete }
 })
 
 const formatDuration = (minutes: number | null) => {
-  if (minutes === null) return '—'
+  if (minutes === null)
+    return '—'
   const hours = Math.floor(minutes / 60)
   const remainder = minutes % 60
   const hoursText = new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'hour', unitDisplay: 'narrow' }).format(hours)
   const minutesText = new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'minute', unitDisplay: 'narrow' }).format(remainder)
+
   return `${hoursText} ${minutesText}`
 }
 
 const formatTime = (instant: string | null, fallback: string | null, timezone: string) => {
-  if (!instant) return fallback
+  if (!instant)
+    return fallback
+
   return new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit', timeZone: timezone }).format(new Date(instant))
 }
 
@@ -210,10 +230,11 @@ const timeColors: Record<NonNullable<Attendance['check_in_state'] | Attendance['
   late: 'error',
   early_departure: 'error',
 }
+
 const timeColor = (state: Attendance['check_in_state'] | Attendance['check_out_state']) => state ? timeColors[state] : 'secondary'
 
-const statusColor = (status: Attendance['status']) => ({ present: 'success', absent: 'error', 'paid-leave': 'info', 'unpaid-leave': 'warning' }[status])
-const statusIcon = (status: Attendance['status']) => ({ present: 'tabler-circle-check', absent: 'tabler-circle-x', 'paid-leave': 'tabler-beach', 'unpaid-leave': 'tabler-calendar-dollar' }[status])
+const statusColor = (status: Attendance['status']) => ({ 'present': 'success', 'absent': 'error', 'paid-leave': 'info', 'unpaid-leave': 'warning' }[status])
+const statusIcon = (status: Attendance['status']) => ({ 'present': 'tabler-circle-check', 'absent': 'tabler-circle-x', 'paid-leave': 'tabler-beach', 'unpaid-leave': 'tabler-calendar-dollar' }[status])
 
 const timeHints: Record<NonNullable<Attendance['check_in_state'] | Attendance['check_out_state']>, string> = {
   early: 'Early arrival',
@@ -222,11 +243,13 @@ const timeHints: Record<NonNullable<Attendance['check_in_state'] | Attendance['c
   early_departure: 'Left before office closing time',
   overtime: 'Left after office closing time',
 }
+
 const timeHint = (state: Attendance['check_in_state'] | Attendance['check_out_state']) => state ? timeHints[state] : 'Office hours are not configured'
 
 // Lifecycle hooks
 onMounted(async () => {
   const [employeeResponse, officeResponse, settingResponse] = await Promise.all([EmployeeApi.getAll(), OfficeApi.getAll(), SettingApi.getCompanyProfile()])
+
   employees.value = employeeResponse.data.data
   offices.value = officeResponse
   checkInTime.value = settingResponse.data?.office_open_time || ''
@@ -248,58 +271,166 @@ watch(logDate, async () => {
 
 <template>
   <div class="attendance-container pa-4 pa-sm-6">
-
     <!-- PRINT ENGINE COMPONENT (Visible ONLY during print output) -->
-    <div class="timesheet-print-host" aria-hidden="true">
-      <TimesheetTemplate :attendances="displayedRecords" :start-date="startDate" :end-date="endDate"
-        :total-worked-minutes="stats.workedMinutes" :total-overtime-minutes="stats.overtimeMinutes" />
+    <div
+      class="timesheet-print-host"
+      aria-hidden="true"
+    >
+      <TimesheetTemplate
+        :attendances="displayedRecords"
+        :start-date="startDate"
+        :end-date="endDate"
+        :total-worked-minutes="stats.workedMinutes"
+        :total-overtime-minutes="stats.overtimeMinutes"
+      />
     </div>
 
     <!-- MAIN INTERACTIVE UI (Hidden during print output) -->
     <div class="timesheet-screen">
-
       <!-- TOP ROW: Range Metric Indicators -->
       <VRow class="mb-6">
-        <VCol cols="12" sm="4">
-          <VCard elevation="2" class="stats-card border-inline-start-success">
+        <VCol
+          cols="12"
+          sm="4"
+        >
+          <VCard
+            elevation="2"
+            class="stats-card border-inline-start-success"
+          >
             <VCardText class="d-flex align-center justify-space-between py-4">
               <div>
-                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">{{ $t('pages.attendance.timesheet.timesheet.totalPRESENTRANGE') }}</h6>
-                <h4 class="text-h4 font-weight-bold text-success">{{ stats.present }}</h4>
+                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">
+                  {{ $t('pages.attendance.timesheet.timesheet.totalPRESENTRANGE') }}
+                </h6>
+                <h4 class="text-h4 font-weight-bold text-success">
+                  {{ stats.present }}
+                </h4>
               </div>
-              <VAvatar color="success" variant="tonal" rounded size="42">
-                <VIcon icon="tabler-square-check" size="22" />
+              <VAvatar
+                color="success"
+                variant="tonal"
+                rounded
+                size="42"
+              >
+                <VIcon
+                  icon="tabler-square-check"
+                  size="22"
+                />
               </VAvatar>
             </VCardText>
           </VCard>
         </VCol>
-        <VCol cols="12" sm="4"><VCard elevation="2" class="stats-card"><VCardText><div class="text-caption">{{ $t('pages.attendance.timesheet.timesheet.totalWORKED') }}</div><div class="text-h5 font-weight-bold">{{ formatDuration(stats.workedMinutes) }}</div></VCardText></VCard></VCol>
-        <VCol cols="12" sm="4"><VCard elevation="2" class="stats-card"><VCardText><div class="text-caption">{{ $t('pages.attendance.timesheet.timesheet.overtime') }}</div><div class="text-h5 font-weight-bold text-success">{{ formatDuration(stats.overtimeMinutes) }}</div></VCardText></VCard></VCol>
-        <VCol cols="12" sm="4"><VCard elevation="2" class="stats-card"><VCardText><div class="text-caption">{{ $t('pages.attendance.timesheet.timesheet.incompleteSESSIONS') }}</div><div class="text-h5 font-weight-bold text-warning">{{ stats.incomplete }}</div></VCardText></VCard></VCol>
+        <VCol
+          cols="12"
+          sm="4"
+        >
+          <VCard
+            elevation="2"
+            class="stats-card"
+          >
+            <VCardText>
+              <div class="text-caption">
+                {{ $t('pages.attendance.timesheet.timesheet.totalWORKED') }}
+              </div><div class="text-h5 font-weight-bold">
+                {{ formatDuration(stats.workedMinutes) }}
+              </div>
+            </VCardText>
+          </VCard>
+        </VCol>
+        <VCol
+          cols="12"
+          sm="4"
+        >
+          <VCard
+            elevation="2"
+            class="stats-card"
+          >
+            <VCardText>
+              <div class="text-caption">
+                {{ $t('pages.attendance.timesheet.timesheet.overtime') }}
+              </div><div class="text-h5 font-weight-bold text-success">
+                {{ formatDuration(stats.overtimeMinutes) }}
+              </div>
+            </VCardText>
+          </VCard>
+        </VCol>
+        <VCol
+          cols="12"
+          sm="4"
+        >
+          <VCard
+            elevation="2"
+            class="stats-card"
+          >
+            <VCardText>
+              <div class="text-caption">
+                {{ $t('pages.attendance.timesheet.timesheet.incompleteSESSIONS') }}
+              </div><div class="text-h5 font-weight-bold text-warning">
+                {{ stats.incomplete }}
+              </div>
+            </VCardText>
+          </VCard>
+        </VCol>
 
-        <VCol cols="12" sm="4">
-          <VCard elevation="2" class="stats-card border-inline-start-error">
+        <VCol
+          cols="12"
+          sm="4"
+        >
+          <VCard
+            elevation="2"
+            class="stats-card border-inline-start-error"
+          >
             <VCardText class="d-flex align-center justify-space-between py-4">
               <div>
-                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">{{ $t('pages.attendance.timesheet.timesheet.totalABSENTRANGE') }}</h6>
-                <h4 class="text-h4 font-weight-bold text-error">{{ stats.absent }}</h4>
+                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">
+                  {{ $t('pages.attendance.timesheet.timesheet.totalABSENTRANGE') }}
+                </h6>
+                <h4 class="text-h4 font-weight-bold text-error">
+                  {{ stats.absent }}
+                </h4>
               </div>
-              <VAvatar color="error" variant="tonal" rounded size="42">
-                <VIcon icon="tabler-square-x" size="22" />
+              <VAvatar
+                color="error"
+                variant="tonal"
+                rounded
+                size="42"
+              >
+                <VIcon
+                  icon="tabler-square-x"
+                  size="22"
+                />
               </VAvatar>
             </VCardText>
           </VCard>
         </VCol>
 
-        <VCol cols="12" sm="4">
-          <VCard elevation="2" class="stats-card border-inline-start-warning">
+        <VCol
+          cols="12"
+          sm="4"
+        >
+          <VCard
+            elevation="2"
+            class="stats-card border-inline-start-warning"
+          >
             <VCardText class="d-flex align-center justify-space-between py-4">
               <div>
-        <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">{{ $t('pages.attendance.timesheet.unmarkedFor', { date: formatLocalizedDate(`${logDate}T00:00:00`) }) }}</h6>
-                <h4 class="text-h4 font-weight-bold text-warning">{{ stats.pendingOnLogDate }}</h4>
+                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">
+                  {{ $t('pages.attendance.timesheet.unmarkedFor', { date: formatLocalizedDate(`${logDate}T00:00:00`) }) }}
+                </h6>
+                <h4 class="text-h4 font-weight-bold text-warning">
+                  {{ stats.pendingOnLogDate }}
+                </h4>
               </div>
-              <VAvatar color="warning" variant="tonal" rounded size="42">
-                <VIcon icon="tabler-clock-hour-4" size="22" />
+              <VAvatar
+                color="warning"
+                variant="tonal"
+                rounded
+                size="42"
+              >
+                <VIcon
+                  icon="tabler-clock-hour-4"
+                  size="22"
+                />
               </VAvatar>
             </VCardText>
           </VCard>
@@ -309,29 +440,69 @@ watch(logDate, async () => {
       <!-- MAIN GRID CONTAINER -->
       <VRow>
         <!-- LEFT COLUMN: Control Panels -->
-        <VCol cols="12" lg="4">
-
+        <VCol
+          cols="12"
+          lg="4"
+        >
           <!-- 1. Interactive Roll Logger (Decoupled from start date filter) -->
-          <VCard class="pa-5 mb-6" elevation="3">
+          <VCard
+            class="pa-5 mb-6"
+            elevation="3"
+          >
             <div class="d-flex align-center mb-4">
-              <VAvatar color="primary" variant="flat" size="36" class="mr-3">
-                <VIcon icon="tabler-user-plus" size="20" color="white" />
+              <VAvatar
+                color="primary"
+                variant="flat"
+                size="36"
+                class="mr-3"
+              >
+                <VIcon
+                  icon="tabler-user-plus"
+                  size="20"
+                  color="white"
+                />
               </VAvatar>
-              <h3 class="text-h5 font-weight-bold">{{ $t('pages.attendance.timesheet.steps.logAttendance') }}</h3>
+              <h3 class="text-h5 font-weight-bold">
+                {{ $t('pages.attendance.timesheet.steps.logAttendance') }}
+              </h3>
             </div>
-            <VAlert v-if="isFriday(logDate)" type="info" variant="tonal" class="mb-4">
+            <VAlert
+              v-if="isFriday(logDate)"
+              type="info"
+              variant="tonal"
+              class="mb-4"
+            >
               Friday is the Afghanistan weekend. Attendance is not required or recorded today.
             </VAlert>
 
             <!-- Dropdown Staff Selection -->
-            <VSelect v-model="selectedStaffId" :items="availableStaff" item-title="name" item-value="id"
-              :label="$t('pages.attendance.timesheet.timesheet.selectEmployee')" :placeholder="$t('pages.attendance.timesheet.timesheet.searchOrPickAnOption')" variant="outlined" density="comfortable"
-              class="mb-5" :loading="loading" :disabled="isFriday(logDate)"
-              :no-data-text="stats.pendingOnLogDate === 0 ? '🎉 All staff filled for this date!' : 'Select an employee'">
+            <VSelect
+              v-model="selectedStaffId"
+              :items="availableStaff"
+              item-title="name"
+              item-value="id"
+              :label="$t('pages.attendance.timesheet.timesheet.selectEmployee')"
+              :placeholder="$t('pages.attendance.timesheet.timesheet.searchOrPickAnOption')"
+              variant="outlined"
+              density="comfortable"
+              class="mb-5"
+              :loading="loading"
+              :disabled="isFriday(logDate)"
+              :no-data-text="stats.pendingOnLogDate === 0 ? '🎉 All staff filled for this date!' : 'Select an employee'"
+            >
               <template #item="{ props, item }">
-                <VListItem v-bind="props" :title="item.raw.name" :subtitle="item.raw.position">
+                <VListItem
+                  v-bind="props"
+                  :title="item.raw.name"
+                  :subtitle="item.raw.position"
+                >
                   <template #prepend>
-                    <VAvatar color="primary" variant="tonal" size="32" class="text-body-2 font-weight-bold">
+                    <VAvatar
+                      color="primary"
+                      variant="tonal"
+                      size="32"
+                      class="text-body-2 font-weight-bold"
+                    >
                       {{ item.raw.name.charAt(0) }}
                     </VAvatar>
                   </template>
@@ -361,22 +532,51 @@ watch(logDate, async () => {
                 />
               </VCol>
             </VRow>
-            <VTextField v-model.number="breakMinutes" :label="$t('pages.attendance.timesheet.timesheet.breakMinutes')" type="number" min="0" max="720" class="mb-3" />
+            <VTextField
+              v-model.number="breakMinutes"
+              :label="$t('pages.attendance.timesheet.timesheet.breakMinutes')"
+              type="number"
+              min="0"
+              max="720"
+              class="mb-3"
+            />
 
             <!-- Logger Submission Buttons -->
             <VRow class="ma-0 ga-3">
               <VCol class="pa-0">
-                <VBtn color="success" block size="large" variant="flat" :disabled="!selectedStaffId || loading || isFriday(logDate)"
-                  @click="logAttendance('present')" class="action-btn-success font-weight-bold">
-                  <VIcon icon="tabler-check" class="mr-2" size="18" />
+                <VBtn
+                  color="success"
+                  block
+                  size="large"
+                  variant="flat"
+                  :disabled="!selectedStaffId || loading || isFriday(logDate)"
+                  class="action-btn-success font-weight-bold"
+                  @click="logAttendance('present')"
+                >
+                  <VIcon
+                    icon="tabler-check"
+                    class="mr-2"
+                    size="18"
+                  />
                   {{ $t('common.statuses.present') }}
                 </VBtn>
               </VCol>
 
               <VCol class="pa-0">
-                <VBtn color="error" block size="large" variant="flat" :disabled="!selectedStaffId || loading || isFriday(logDate)"
-                  @click="logAttendance('absent')" class="action-btn-error font-weight-bold">
-                  <VIcon icon="tabler-x" class="mr-2" size="18" />
+                <VBtn
+                  color="error"
+                  block
+                  size="large"
+                  variant="flat"
+                  :disabled="!selectedStaffId || loading || isFriday(logDate)"
+                  class="action-btn-error font-weight-bold"
+                  @click="logAttendance('absent')"
+                >
+                  <VIcon
+                    icon="tabler-x"
+                    class="mr-2"
+                    size="18"
+                  />
                   {{ $t('pages.attendance.timesheet.timesheet.absent') }}
                 </VBtn>
               </VCol>
@@ -384,16 +584,35 @@ watch(logDate, async () => {
           </VCard>
 
           <!-- 2. Range Configuration & Printing -->
-          <VCard class="pa-5 mb-6" elevation="3">
+          <VCard
+            class="pa-5 mb-6"
+            elevation="3"
+          >
             <div class="d-flex align-center mb-4">
-              <VAvatar color="primary" variant="flat" size="36" class="mr-3">
-                <VIcon icon="tabler-calendar" size="20" color="white" />
+              <VAvatar
+                color="primary"
+                variant="flat"
+                size="36"
+                class="mr-3"
+              >
+                <VIcon
+                  icon="tabler-calendar"
+                  size="20"
+                  color="white"
+                />
               </VAvatar>
-              <h3 class="text-h5 font-weight-bold">{{ $t('pages.attendance.timesheet.steps.printRangeFilter') }}</h3>
+              <h3 class="text-h5 font-weight-bold">
+                {{ $t('pages.attendance.timesheet.steps.printRangeFilter') }}
+              </h3>
             </div>
 
             <VRow class="mb-4">
-              <VCol cols="12" sm="6" lg="12" class="py-1">
+              <VCol
+                cols="12"
+                sm="6"
+                lg="12"
+                class="py-1"
+              >
                 <AppDateTimePicker
                   v-model="startDate"
                   :label="$t('common.fields.startDate')"
@@ -404,7 +623,12 @@ watch(logDate, async () => {
                   :config="{ dateFormat: 'Y-m-d' }"
                 />
               </VCol>
-              <VCol cols="12" sm="6" lg="12" class="py-1">
+              <VCol
+                cols="12"
+                sm="6"
+                lg="12"
+                class="py-1"
+              >
                 <AppDateTimePicker
                   v-model="endDate"
                   :label="$t('common.fields.endDate')"
@@ -416,25 +640,65 @@ watch(logDate, async () => {
                 />
               </VCol>
             </VRow>
-            <VSelect v-model="employeeFilter" :items="employees" item-title="name" item-value="id" :label="$t('common.fields.employee')" clearable class="mb-2" />
-            <VSelect v-model="officeFilter" :items="offices" item-title="name" item-value="id" :label="$t('common.fields.office')" clearable class="mb-2" />
-            <VSelect v-model="statusFilter" :items="[{title: translate('common.statuses.present'),value:'present'},{title: translate('pages.attendance.timesheet.timesheet.absent'),value:'absent'},{title: translate('pages.attendance.timesheet.timesheet.paidLeave'),value:'paid-leave'},{title:'Unpaid leave',value:'unpaid-leave'},{title: translate('pages.attendance.timesheet.timesheet.incomplete'),value:'incomplete'}]" :label="$t('common.fields.status')" clearable class="mb-2" />
+            <VSelect
+              v-model="employeeFilter"
+              :items="employees"
+              item-title="name"
+              item-value="id"
+              :label="$t('common.fields.employee')"
+              clearable
+              class="mb-2"
+            />
+            <VSelect
+              v-model="officeFilter"
+              :items="offices"
+              item-title="name"
+              item-value="id"
+              :label="$t('common.fields.office')"
+              clearable
+              class="mb-2"
+            />
+            <VSelect
+              v-model="statusFilter"
+              :items="[{ title: translate('common.statuses.present'), value: 'present' }, { title: translate('pages.attendance.timesheet.timesheet.absent'), value: 'absent' }, { title: translate('pages.attendance.timesheet.timesheet.paidLeave'), value: 'paid-leave' }, { title: 'Unpaid leave', value: 'unpaid-leave' }, { title: translate('pages.attendance.timesheet.timesheet.incomplete'), value: 'incomplete' }]"
+              :label="$t('common.fields.status')"
+              clearable
+              class="mb-2"
+            />
 
-            <VBtn color="primary" variant="elevated" size="large" block @click="printTimesheet"
-              class="font-weight-bold shadow-primary mt-2" :loading="loading">
-              <VIcon icon="tabler-printer" class="mr-2" size="20" />
+            <VBtn
+              color="primary"
+              variant="elevated"
+              size="large"
+              block
+              class="font-weight-bold shadow-primary mt-2"
+              :loading="loading"
+              @click="printTimesheet"
+            >
+              <VIcon
+                icon="tabler-printer"
+                class="mr-2"
+                size="20"
+              />
               {{ $t('pages.attendance.timesheet.timesheet.printTimesheetReport') }}
             </VBtn>
           </VCard>
         </VCol>
 
         <!-- RIGHT COLUMN: Screen Output View List -->
-        <VCol cols="12" lg="8">
-          <VCard class="pa-5 pa-sm-6" elevation="3">
-
+        <VCol
+          cols="12"
+          lg="8"
+        >
+          <VCard
+            class="pa-5 pa-sm-6"
+            elevation="3"
+          >
             <!-- Heading Descriptor Info -->
             <div class="mb-5 border-bottom pb-4">
-              <h3 class="text-h4 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.attendanceRollLedger') }}</h3>
+              <h3 class="text-h4 font-weight-bold mb-1">
+                {{ $t('pages.attendance.timesheet.timesheet.attendanceRollLedger') }}
+              </h3>
               <p class="text-body-2 text-medium-emphasis mb-0">
                 {{ $t('pages.attendance.timesheet.filteredRange', { start: formatLocalizedDate(`${startDate}T00:00:00`), end: formatLocalizedDate(`${endDate}T00:00:00`) }) }}
               </p>
@@ -442,50 +706,91 @@ watch(logDate, async () => {
 
             <!-- Live Attendance Log Grid List -->
             <div class="attendance-table-wrapper">
-              <div v-if="displayedRecords.length === 0" class="text-center py-12 border-dashed rounded-lg grey-bg">
-                <VIcon icon="tabler-notebook-off" size="48" class="text-disabled mb-3" />
-                <h4 class="text-h5 font-weight-medium text-medium-emphasis mb-1">{{ $t('pages.attendance.timesheet.timesheet.noRecordsFoundInsideRange') }}</h4>
-                <p class="text-body-2 text-disabled mb-0">{{ $t('pages.attendance.timesheet.timesheet.adjustYourRangeLimitsOrSelectTeamMembersToBuildDataPoints') }}
+              <div
+                v-if="displayedRecords.length === 0"
+                class="text-center py-12 border-dashed rounded-lg grey-bg"
+              >
+                <VIcon
+                  icon="tabler-notebook-off"
+                  size="48"
+                  class="text-disabled mb-3"
+                />
+                <h4 class="text-h5 font-weight-medium text-medium-emphasis mb-1">
+                  {{ $t('pages.attendance.timesheet.timesheet.noRecordsFoundInsideRange') }}
+                </h4>
+                <p class="text-body-2 text-disabled mb-0">
+                  {{ $t('pages.attendance.timesheet.timesheet.adjustYourRangeLimitsOrSelectTeamMembersToBuildDataPoints') }}
                 </p>
               </div>
 
-              <table v-else class="custom-attendance-table w-100">
+              <table
+                v-else
+                class="custom-attendance-table w-100"
+              >
                 <thead>
                   <tr>
-                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">{{ $t('common.fields.date') }}
+                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
+                      {{ $t('common.fields.date') }}
                     </th>
                     <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
-                      {{ $t('common.fields.employee') }}</th>
-                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">{{ $t('common.fields.role') }}
+                      {{ $t('common.fields.employee') }}
                     </th>
-                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">{{ $t('common.fields.office') }}</th>
+                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
+                      {{ $t('common.fields.role') }}
+                    </th>
+                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
+                      {{ $t('common.fields.office') }}
+                    </th>
                     <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
-                      {{ $t('common.fields.status') }}</th>
+                      {{ $t('common.fields.status') }}
+                    </th>
                     <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
                       {{ $t('common.messages.inTime') }}
                     </th>
                     <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
                       {{ $t('common.messages.outTime') }}
                     </th>
-                    <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">{{ $t('pages.attendance.timesheet.timesheet.worked') }}</th>
-                    <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">{{ $t('pages.attendance.timesheet.timesheet.overtime') }}</th>
+                    <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
+                      {{ $t('pages.attendance.timesheet.timesheet.worked') }}
+                    </th>
+                    <th class="text-center py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
+                      {{ $t('pages.attendance.timesheet.timesheet.overtime') }}
+                    </th>
                     <th class="text-right py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
-                      {{ $t('pages.attendance.timesheet.timesheet.action') }}</th>
+                      {{ $t('pages.attendance.timesheet.timesheet.action') }}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="record in displayedRecords" :key="`${record.id}-${record.date}`"
-                    class="table-row-hover transition-all" :class="{ 'incomplete-session': record.status === 'present' && record.missing_punch_state !== 'none', 'friday-weekend': isFriday(record.date) }">
+                  <tr
+                    v-for="record in displayedRecords"
+                    :key="`${record.id}-${record.date}`"
+                    class="table-row-hover transition-all"
+                    :class="{ 'incomplete-session': record.status === 'present' && record.missing_punch_state !== 'none', 'friday-weekend': isFriday(record.date) }"
+                  >
                     <!-- Date Marked -->
                     <td class="py-3 px-4 font-weight-bold text-body-2 text-primary">
                       {{ formatLocalizedDate(`${record.date}T00:00:00`) }}
-                      <VChip v-if="isFriday(record.date)" size="x-small" color="info" variant="tonal" class="ml-2">Weekend</VChip>
+                      <VChip
+                        v-if="isFriday(record.date)"
+                        size="x-small"
+                        color="info"
+                        variant="tonal"
+                        class="ml-2"
+                      >
+                        Weekend
+                      </VChip>
                     </td>
 
                     <!-- Employee Name -->
                     <td class="py-3 px-4 font-weight-semibold text-body-1">
                       <div class="d-flex align-center">
-                        <VAvatar color="primary" variant="tonal" size="28" class="mr-3 font-weight-bold text-caption">
+                        <VAvatar
+                          color="primary"
+                          variant="tonal"
+                          size="28"
+                          class="mr-3 font-weight-bold text-caption"
+                        >
                           {{ record.name.charAt(0) }}
                         </VAvatar>
                         <span>{{ record.name }}</span>
@@ -496,21 +801,44 @@ watch(logDate, async () => {
                     <td class="py-3 px-4 text-medium-emphasis text-body-2">
                       {{ record.role }}
                     </td>
-                    <td class="py-3 px-4 text-medium-emphasis text-body-2">{{ record.office || '—' }}</td>
+                    <td class="py-3 px-4 text-medium-emphasis text-body-2">
+                      {{ record.office || '—' }}
+                    </td>
 
                     <!-- Status Pill Badge -->
                     <td class="py-3 px-4 text-center">
-                      <VChip :color="statusColor(record.status)" variant="flat" size="small"
-                        class="font-weight-bold text-uppercase px-3" style="min-width: 90px; justify-content: center;">
-                        <VIcon :icon="statusIcon(record.status)" size="14"
-                          class="mr-1" />
+                      <VChip
+                        :color="statusColor(record.status)"
+                        variant="flat"
+                        size="small"
+                        class="font-weight-bold text-uppercase px-3"
+                        style="min-width: 90px; justify-content: center;"
+                      >
+                        <VIcon
+                          :icon="statusIcon(record.status)"
+                          size="14"
+                          class="mr-1"
+                        />
                         {{ translateBackendValue(record.status) }}
                       </VChip>
-                      <div v-if="record.leave_duration_days" class="d-flex justify-center ga-1 mt-1">
-                        <VChip v-if="record.paid_leave_days" size="x-small" color="success" variant="tonal">
+                      <div
+                        v-if="record.leave_duration_days"
+                        class="d-flex justify-center ga-1 mt-1"
+                      >
+                        <VChip
+                          v-if="record.paid_leave_days"
+                          size="x-small"
+                          color="success"
+                          variant="tonal"
+                        >
                           {{ record.paid_leave_days }} {{ translateBackendValue('paid-leave') }}
                         </VChip>
-                        <VChip v-if="record.unpaid_leave_days" size="x-small" color="warning" variant="tonal">
+                        <VChip
+                          v-if="record.unpaid_leave_days"
+                          size="x-small"
+                          color="warning"
+                          variant="tonal"
+                        >
                           {{ record.unpaid_leave_days }} {{ translateBackendValue('unpaid-leave') }}
                         </VChip>
                       </div>
@@ -518,28 +846,60 @@ watch(logDate, async () => {
 
                     <!-- Office-hour state is conveyed by both color and a tooltip. -->
                     <td class="py-3 px-4 text-center text-body-2 font-weight-medium">
-                      <VTooltip :text="timeHint(record.check_in_state)" location="top">
+                      <VTooltip
+                        :text="timeHint(record.check_in_state)"
+                        location="top"
+                      >
                         <template #activator="{ props }">
                           <span v-bind="props">
-                      <VChip v-if="record.check_in_time" :color="timeColor(record.check_in_state)" variant="tonal" size="small">{{ formatTime(record.checked_in_at, record.check_in_time, record.timezone) }}</VChip>
-                      <span v-else class="text-medium-emphasis">—</span>
+                            <VChip
+                              v-if="record.check_in_time"
+                              :color="timeColor(record.check_in_state)"
+                              variant="tonal"
+                              size="small"
+                            >{{ formatTime(record.checked_in_at, record.check_in_time, record.timezone) }}</VChip>
+                            <span
+                              v-else
+                              class="text-medium-emphasis"
+                            >—</span>
                           </span>
                         </template>
                       </VTooltip>
                     </td>
 
                     <td class="py-3 px-4 text-center text-body-2 font-weight-medium">
-                      <VTooltip :text="timeHint(record.check_out_state)" location="top">
+                      <VTooltip
+                        :text="timeHint(record.check_out_state)"
+                        location="top"
+                      >
                         <template #activator="{ props }">
                           <span v-bind="props">
-                      <VChip v-if="record.check_out_time" :color="timeColor(record.check_out_state)" variant="tonal" size="small">{{ formatTime(record.checked_out_at, record.check_out_time, record.timezone) }}</VChip>
-                      <span v-else class="text-medium-emphasis">—</span>
+                            <VChip
+                              v-if="record.check_out_time"
+                              :color="timeColor(record.check_out_state)"
+                              variant="tonal"
+                              size="small"
+                            >{{ formatTime(record.checked_out_at, record.check_out_time, record.timezone) }}</VChip>
+                            <span
+                              v-else
+                              class="text-medium-emphasis"
+                            >—</span>
                           </span>
                         </template>
                       </VTooltip>
                     </td>
-                    <td class="py-3 px-4 text-center font-weight-medium"><VChip v-if="record.missing_punch_state !== 'none'" color="warning" size="small">{{ $t('pages.attendance.timesheet.timesheet.incomplete') }}</VChip><span v-else>{{ formatDuration(record.net_worked_minutes) }}</span></td>
-                    <td class="py-3 px-4 text-center text-success font-weight-medium">{{ formatDuration(record.overtime_minutes) }}</td>
+                    <td class="py-3 px-4 text-center font-weight-medium">
+                      <VChip
+                        v-if="record.missing_punch_state !== 'none'"
+                        color="warning"
+                        size="small"
+                      >
+                        {{ $t('pages.attendance.timesheet.timesheet.incomplete') }}
+                      </VChip><span v-else>{{ formatDuration(record.net_worked_minutes) }}</span>
+                    </td>
+                    <td class="py-3 px-4 text-center text-success font-weight-medium">
+                      {{ formatDuration(record.overtime_minutes) }}
+                    </td>
 
                     <!-- Row Contextual Eraser -->
                     <td class="py-3 px-4 text-right">
@@ -551,9 +911,30 @@ watch(logDate, async () => {
                         size="small"
                         density="comfortable"
                         @click="viewDailyReport(record)"
-                      ><VIcon icon="tabler-file-text" /><VTooltip activator="parent" location="top">{{ $t('pages.attendance.timesheet.timesheet.viewDailyReport') }}</VTooltip></VBtn>
-                      <VBtn icon="tabler-trash" variant="text" color="error" size="small" density="comfortable"
-                        @click="deleteRecord(record.id)" :loading="loading"><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">{{ $t('pages.attendance.timesheet.timesheet.removeRecord') }}</VTooltip></VBtn>
+                      >
+                        <VIcon icon="tabler-file-text" /><VTooltip
+                          activator="parent"
+                          location="top"
+                        >
+                          {{ $t('pages.attendance.timesheet.timesheet.viewDailyReport') }}
+                        </VTooltip>
+                      </VBtn>
+                      <VBtn
+                        icon="tabler-trash"
+                        variant="text"
+                        color="error"
+                        size="small"
+                        density="comfortable"
+                        :loading="loading"
+                        @click="deleteRecord(record.id)"
+                      >
+                        <VIcon icon="tabler-trash" /><VTooltip
+                          activator="parent"
+                          location="top"
+                        >
+                          {{ $t('pages.attendance.timesheet.timesheet.removeRecord') }}
+                        </VTooltip>
+                      </VBtn>
                     </td>
                   </tr>
                 </tbody>
@@ -564,25 +945,83 @@ watch(logDate, async () => {
       </VRow>
     </div>
 
-    <VDialog v-model="reportDialogOpen" max-width="720">
+    <VDialog
+      v-model="reportDialogOpen"
+      max-width="720"
+    >
       <VCard>
         <VCardText class="pa-6">
           <div class="d-flex align-center justify-space-between mb-5">
             <div>
-              <h3 class="text-h5 font-weight-bold">{{ $t('pages.attendance.timesheet.timesheet.dailyReport') }}</h3>
-              <p v-if="selectedReport" class="text-body-2 text-medium-emphasis mb-0">{{ formatLocalizedDate(`${selectedReport.reportDate}T00:00:00`) }}</p>
+              <h3 class="text-h5 font-weight-bold">
+                {{ $t('pages.attendance.timesheet.timesheet.dailyReport') }}
+              </h3>
+              <p
+                v-if="selectedReport"
+                class="text-body-2 text-medium-emphasis mb-0"
+              >
+                {{ formatLocalizedDate(`${selectedReport.reportDate}T00:00:00`) }}
+              </p>
             </div>
-            <VBtn icon="tabler-x" variant="text" @click="reportDialogOpen = false" />
+            <VBtn
+              icon="tabler-x"
+              variant="text"
+              @click="reportDialogOpen = false"
+            />
           </div>
 
-          <div v-if="reportLoading" class="text-center py-8">{{ $t('common.messages.loading') }}</div>
-          <VAlert v-else-if="reportError" type="error" variant="tonal">{{ reportError }}</VAlert>
-          <div v-else-if="selectedReport" class="d-flex flex-column ga-4">
-            <div><div class="text-subtitle-2 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.summary') }}</div><div class="text-body-1 white-space-pre-wrap">{{ selectedReport.summary }}</div></div>
-            <div v-if="selectedReport.achievements"><div class="text-subtitle-2 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.achievements') }}</div><div class="white-space-pre-wrap">{{ selectedReport.achievements }}</div></div>
-            <div v-if="selectedReport.challenges"><div class="text-subtitle-2 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.challenges') }}</div><div class="white-space-pre-wrap">{{ selectedReport.challenges }}</div></div>
-            <div v-if="selectedReport.nextDayPlan"><div class="text-subtitle-2 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.nextDayPlan') }}</div><div class="white-space-pre-wrap">{{ selectedReport.nextDayPlan }}</div></div>
-            <div v-if="selectedReport.supportNeeded"><div class="text-subtitle-2 font-weight-bold mb-1">{{ $t('pages.attendance.timesheet.timesheet.supportNeeded') }}</div><div class="white-space-pre-wrap">{{ selectedReport.supportNeeded }}</div></div>
+          <div
+            v-if="reportLoading"
+            class="text-center py-8"
+          >
+            {{ $t('common.messages.loading') }}
+          </div>
+          <VAlert
+            v-else-if="reportError"
+            type="error"
+            variant="tonal"
+          >
+            {{ reportError }}
+          </VAlert>
+          <div
+            v-else-if="selectedReport"
+            class="d-flex flex-column ga-4"
+          >
+            <div>
+              <div class="text-subtitle-2 font-weight-bold mb-1">
+                {{ $t('pages.attendance.timesheet.timesheet.summary') }}
+              </div><div class="text-body-1 white-space-pre-wrap">
+                {{ selectedReport.summary }}
+              </div>
+            </div>
+            <div v-if="selectedReport.achievements">
+              <div class="text-subtitle-2 font-weight-bold mb-1">
+                {{ $t('pages.attendance.timesheet.timesheet.achievements') }}
+              </div><div class="white-space-pre-wrap">
+                {{ selectedReport.achievements }}
+              </div>
+            </div>
+            <div v-if="selectedReport.challenges">
+              <div class="text-subtitle-2 font-weight-bold mb-1">
+                {{ $t('pages.attendance.timesheet.timesheet.challenges') }}
+              </div><div class="white-space-pre-wrap">
+                {{ selectedReport.challenges }}
+              </div>
+            </div>
+            <div v-if="selectedReport.nextDayPlan">
+              <div class="text-subtitle-2 font-weight-bold mb-1">
+                {{ $t('pages.attendance.timesheet.timesheet.nextDayPlan') }}
+              </div><div class="white-space-pre-wrap">
+                {{ selectedReport.nextDayPlan }}
+              </div>
+            </div>
+            <div v-if="selectedReport.supportNeeded">
+              <div class="text-subtitle-2 font-weight-bold mb-1">
+                {{ $t('pages.attendance.timesheet.timesheet.supportNeeded') }}
+              </div><div class="white-space-pre-wrap">
+                {{ selectedReport.supportNeeded }}
+              </div>
+            </div>
           </div>
         </VCardText>
       </VCard>
@@ -670,6 +1109,7 @@ watch(logDate, async () => {
   transition: all 0.2s ease;
 }
 </style>
+
 <style>
 /* ==========================================================================
    BULLETPROOF PRINT OVERRIDES FOR VUEXY & VUETIFY 3

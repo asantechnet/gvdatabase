@@ -101,6 +101,98 @@ html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__progress-bar {
   margin-inline-start: 0.35rem;
 }
 
+// Driver.js renders outside Vuetify's component tree. Use the application's
+// runtime color tokens instead of fixed light-mode colors, so page guides stay
+// readable across light, dark, and custom themes without a separate theme map.
+.driver-popover {
+  --driver-popover-font-family: inherit;
+
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.14) !important;
+  border-radius: 12px !important;
+  background: rgb(var(--v-theme-surface)) !important;
+  box-shadow: 0 12px 32px rgba(var(--v-theme-on-surface), 0.2) !important;
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity)) !important;
+  direction: inherit;
+  max-inline-size: min(21rem, calc(100vw - 2rem));
+  padding: 1rem;
+}
+
+.driver-popover-title {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  font-size: 1rem !important;
+  line-height: 1.45 !important;
+  padding-inline-end: 1.75rem;
+}
+
+.driver-popover-description {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.55 !important;
+}
+
+.driver-popover-close-btn {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)) !important;
+  inset-inline-end: 0.5rem;
+  right: auto;
+}
+
+.driver-popover-close-btn:hover,
+.driver-popover-close-btn:focus-visible {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
+}
+
+.driver-popover-progress-text {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)) !important;
+}
+
+.driver-popover-footer {
+  text-align: end;
+}
+
+.driver-popover-footer-btn {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.18) !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity)) !important;
+  font-weight: 600 !important;
+  padding: 0.4rem 0.7rem !important;
+}
+
+.driver-popover-footer-btn:hover,
+.driver-popover-footer-btn:focus-visible {
+  background: rgba(var(--v-theme-on-surface), var(--v-hover-opacity)) !important;
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
+}
+
+.driver-popover-next-btn {
+  border-color: rgb(var(--v-theme-primary)) !important;
+  background: rgb(var(--v-theme-primary)) !important;
+  color: rgb(var(--v-theme-on-primary)) !important;
+}
+
+.driver-popover-next-btn:hover,
+.driver-popover-next-btn:focus-visible {
+  background: rgba(var(--v-theme-primary), 0.88) !important;
+  color: rgb(var(--v-theme-on-primary)) !important;
+}
+
+.driver-popover-navigation-btns button + button {
+  margin-inline-start: 0.4rem;
+  margin-left: 0;
+}
+
+.driver-popover-arrow {
+  border-color: rgb(var(--v-theme-surface)) !important;
+}
+
+.driver-popover-arrow-side-left { border-right-color: transparent !important; }
+.driver-popover-arrow-side-right { border-left-color: transparent !important; }
+.driver-popover-arrow-side-top { border-bottom-color: transparent !important; }
+.driver-popover-arrow-side-bottom { border-top-color: transparent !important; }
+
 // Horizontal navigation renders the icon and label as adjacent flex children.
 // A flex gap is direction-safe, including Persian labels and nested groups.
 [dir='rtl'] .layout-horizontal-nav .nav-link > a,

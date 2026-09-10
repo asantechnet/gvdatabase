@@ -17,11 +17,13 @@ export const SYSTEM_TYPE_SLUGS = ['employment', 'customer', 'company'] as const
 const ContractTypeApi = {
   async getAll(params?: { include_inactive?: boolean }): Promise<ContractType[]> {
     const response = await api.get<{ success: boolean; data: ContractType[] }>('/contract-types', { params })
+
     return Array.isArray(response.data.data) ? response.data.data : []
   },
 
   async getById(id: number): Promise<ContractType> {
     const response = await api.get<{ success: boolean; data: ContractType }>(`/contract-types/${id}`)
+
     return response.data.data
   },
 

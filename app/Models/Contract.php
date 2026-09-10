@@ -6,10 +6,11 @@ use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasDocumentNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Contract extends Model
 {
-    use HasDocumentNumber, HasFactory, Auditable;
+    use Auditable, HasDocumentNumber, HasFactory, SoftDeletes;
 
     public const STATUSES = ['draft', 'active', 'expired', 'terminated', 'cancelled'];
 
@@ -61,27 +62,27 @@ class Contract extends Model
 
     public function template()
     {
-        return $this->belongsTo(ContractTemplate::class);
+        return $this->belongsTo(ContractTemplate::class)->withTrashed();
     }
 
     public function contractType()
     {
-        return $this->belongsTo(ContractType::class);
+        return $this->belongsTo(ContractType::class)->withTrashed();
     }
 
     public function employee()
     {
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(Employee::class)->withTrashed();
     }
 
     public function customer()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Customer::class)->withTrashed();
     }
 
     public function company()
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Company::class)->withTrashed();
     }
 
     /**

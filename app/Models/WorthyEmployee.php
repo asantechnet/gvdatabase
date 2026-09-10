@@ -3,18 +3,20 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WorthyEmployee extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'employee_id',
         'currency_id', 'base_currency_id', 'currency_code', 'currency_name', 'currency_symbol', 'currency_decimal_places', 'base_currency_code', 'rate', 'base_amount',
+        'currency_snapshot_source',
         'source_task_id', 'is_automatic',
         'calculation_key', 'calculation_score', 'calculation_inputs', 'rule_snapshot', 'calculated_at',
         'granted_at', 'granted_by',
@@ -49,7 +51,6 @@ class WorthyEmployee extends Model
             ->withPivot(['source_amount'])
             ->withTimestamps();
     }
-
 
     protected function casts(): array
     {

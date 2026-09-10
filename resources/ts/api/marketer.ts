@@ -29,18 +29,22 @@ export interface MarketerAccountOption {
 const MarketerApi = {
   async getAccountOptions(): Promise<MarketerAccountOption[]> {
     const response = await api.get('/marketers/account-options')
+
     return response.data.data
   },
   async getAll(): Promise<Marketer[]> {
     const response = await api.get('/marketers')
+
     return response.data.data
   },
   async create(data: MarketerPayload): Promise<Marketer> {
     const response = await api.post('/marketers', data)
+
     return response.data.data
   },
   async update(id: number, data: MarketerPayload): Promise<Marketer> {
     const response = await api.put(`/marketers/${id}`, data)
+
     return response.data.data
   },
   async delete(id: number): Promise<void> {

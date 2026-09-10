@@ -2,9 +2,9 @@
 
 namespace App\Http\Resources;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Carbon\Carbon;
 
 class TaskResource extends JsonResource
 {
@@ -31,7 +31,7 @@ class TaskResource extends JsonResource
             // Relational collections (loaded dynamically)
             'assignees' => UserResource::collection($this->whenLoaded('users')),
             'tags' => TagResource::collection($this->whenLoaded('tags')),
-            'services' => $this->whenLoaded('customer', fn () => $this->customer ? CustomerServiceResource::collection($this->customer->customerServices) : []),
+            'services' => ServiceResource::collection($this->whenLoaded('services')),
             'subtasks' => SubtaskResource::collection($this->whenLoaded('subtasks')),
             'comments' => CommentResource::collection($this->whenLoaded('comments')),
             'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($attachment) => [
@@ -42,7 +42,7 @@ class TaskResource extends JsonResource
                 'size' => (int) $attachment->size,
                 'uploadedAt' => $attachment->created_at?->toISOString(),
                 'downloadUrl' => "/api/tasks/{$this->id}/attachments/{$attachment->id}/download",
-                'url' => \Illuminate\Support\Facades\Storage::disk($attachment->disk)->url($attachment->path),
+                'url' => "/api/tasks/{$this->id}/attachments/{$attachment->id}/download",
             ]), []),
 
             // Pluck dependency IDs as string array for easy frontend lookup

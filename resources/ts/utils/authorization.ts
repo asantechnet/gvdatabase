@@ -1,4 +1,4 @@
-import { ability, type Rule } from '@/plugins/casl/ability'
+import { type Rule, ability } from '@/plugins/casl/ability'
 import { useCookie } from '@core/composable/useCookie'
 import { clearStoredPermissions, storePermissions } from '@/utils/authStorage'
 
@@ -25,6 +25,7 @@ export const permissionRules = (permissions: string[]): Rule[] => [...new Set(
 
 export const applyPermissions = (permissions: string[]) => {
   const rules = permissionRules(permissions)
+
   ability.update(rules)
   storePermissions(permissions)
 }

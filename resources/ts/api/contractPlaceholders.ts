@@ -18,8 +18,10 @@ export const getPlaceholders = async (params: {
 }): Promise<PlaceholderGroup[]> => {
   try {
     const response = await api.get<{ success: boolean; data: PlaceholderGroup[] }>('/contract-placeholders', { params })
+
     return Array.isArray(response.data.data) ? response.data.data : []
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching contract placeholders:', error)
     throw error
   }

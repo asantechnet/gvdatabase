@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Task;
-use App\Models\Board;
 use App\Http\Resources\TaskResource;
+use App\Models\Board;
+use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -22,11 +22,13 @@ class TaskController extends Controller
             'results' => 'nullable|string',
             'priority' => 'nullable|in:low,medium,high,urgent',
             'start_date' => 'nullable|date',
-            'due_date' => 'nullable|date',
+            'due_date' => 'nullable|date|after_or_equal:start_date',
             'assignees' => 'sometimes|array',
-            'assignees.*' => 'integer|distinct|exists:users,id',
+            'assignees.*' => ['integer', 'distinct', Rule::exists('users', 'id')->whereNull('deleted_at')->where('acc_status', 'active')],
             'tags' => 'sometimes|array',
             'tags.*' => 'integer|distinct|exists:tags,id',
+            'service_ids' => 'sometimes|array',
+            'service_ids.*' => 'integer|distinct|exists:services,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
         ]);
 
@@ -42,10 +44,13 @@ class TaskController extends Controller
 
         $assignees = $validated['assignees'] ?? [$request->user()->id];
         $tags = $validated['tags'] ?? [];
+        $services = $validated['service_ids'] ?? [];
         $validated['customer_id'] ??= $board->project?->customer_id;
-        unset($validated['assignees'], $validated['tags']);
+        $this->assertCustomerMatchesProject($board, $validated['customer_id']);
+        $this->assertServicesMatchProject($board, $services);
+        unset($validated['assignees'], $validated['tags'], $validated['service_ids']);
 
-        $task = DB::transaction(function () use ($validated, $assignees, $tags) {
+        $task = DB::transaction(function () use ($validated, $assignees, $tags, $services) {
             $board = Board::whereKey($validated['board_id'])->lockForUpdate()->firstOrFail();
 
             // Serializing creation per board prevents duplicate ordering when
@@ -55,13 +60,14 @@ class TaskController extends Controller
             $task = Task::create($validated);
             $task->users()->sync($assignees);
             $task->tags()->sync($tags);
+            $task->services()->sync($services);
             $board->users()->syncWithoutDetaching($assignees);
 
             return $task;
         });
 
         // Load empty relations so the resource doesn't fail
-        $task->load(['users.employee', 'tags', 'customer.customerServices.service.currency', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
+        $task->load(['users.employee', 'tags', 'services.currency', 'customer', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
 
         return new TaskResource($task);
     }
@@ -73,9 +79,9 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'results' => 'nullable|string',
             'priority' => 'sometimes|in:low,medium,high,urgent',
-            'progress' => 'prohibited',
+            'progress' => ['sometimes', 'integer', Rule::in([0, 100])],
             'start_date' => 'nullable|date',
-            'due_date' => 'nullable|date',
+            'due_date' => 'nullable|date|after_or_equal:start_date',
             'dependencies' => 'sometimes|array',
             'dependencies.*' => [
                 'integer',
@@ -84,13 +90,22 @@ class TaskController extends Controller
                 Rule::notIn([$task->id]),
             ],
             'assignees' => 'sometimes|array',
-            'assignees.*' => 'integer|distinct|exists:users,id',
+            'assignees.*' => ['integer', 'distinct', Rule::exists('users', 'id')->whereNull('deleted_at')->where('acc_status', 'active')],
             'tags' => 'sometimes|array',
             'tags.*' => 'integer|distinct|exists:tags,id',
+            'service_ids' => 'sometimes|array',
+            'service_ids.*' => 'integer|distinct|exists:services,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
         ]);
 
         Gate::authorize('update', $task);
+
+        if (array_key_exists('progress', $validated)) {
+            abort_if($task->subtasks()->exists(), 422, 'business.task_progress_derived_from_subtasks');
+            if ((int) $validated['progress'] === 100) {
+                abort_if($task->dependencies()->where('progress', '<', 100)->exists(), 422, 'business.task_dependencies_incomplete');
+            }
+        }
 
         if ($request->has('assignees')) {
             Gate::authorize('assignMembers', $task);
@@ -105,10 +120,15 @@ class TaskController extends Controller
         $syncAssignees = $request->has('assignees');
         $syncTags = $request->has('tags');
         $syncDependencies = $request->has('dependencies');
+        $syncServices = $request->has('service_ids');
         $dependencies = $validated['dependencies'] ?? [];
         $assignees = $validated['assignees'] ?? [];
         $tags = $validated['tags'] ?? [];
-        unset($validated['dependencies'], $validated['assignees'], $validated['tags']);
+        $services = $validated['service_ids'] ?? [];
+        if ($syncServices) {
+            $this->assertServicesMatchProject($task->board, $services);
+        }
+        unset($validated['dependencies'], $validated['assignees'], $validated['tags'], $validated['service_ids']);
 
         $task = DB::transaction(function () use (
             $task,
@@ -116,9 +136,11 @@ class TaskController extends Controller
             $syncAssignees,
             $syncTags,
             $syncDependencies,
+            $syncServices,
             $dependencies,
             $assignees,
             $tags,
+            $services,
         ) {
             if ($syncDependencies) {
                 // Every dependency edit follows this lock order, making the
@@ -131,6 +153,7 @@ class TaskController extends Controller
             }
 
             $task->update($validated);
+            $this->assertCustomerMatchesProject($task->board, $task->customer_id);
 
             if ($syncAssignees) {
                 $task->users()->sync($assignees);
@@ -142,17 +165,21 @@ class TaskController extends Controller
             if ($syncDependencies) {
                 $task->dependencies()->sync($dependencies);
             }
+            if ($syncServices) {
+                $task->services()->sync($services);
+            }
 
             return $task;
         });
 
-        return new TaskResource($task->fresh()->load(['users.employee', 'tags', 'customer.customerServices.service.currency', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']));
+        return new TaskResource($task->fresh()->load(['users.employee', 'tags', 'services.currency', 'customer', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']));
     }
 
     public function destroy(Task $task)
     {
         Gate::authorize('delete', $task);
-        $task->delete(); // Will cleanly cascade relationships
+        abort_if(DB::table('task_dependencies')->where('depends_on_task_id', $task->id)->exists(), 422, 'business.task_is_dependency');
+        $task->delete();
 
         return response()->json(['message' => 'Task deleted successfully']);
     }
@@ -169,13 +196,13 @@ class TaskController extends Controller
         ]);
         $contributions = $validated['contributions'] ?? [];
         if ($contributions !== [] && abs(array_sum($contributions) - 100) > 0.01) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['contributions' => ['business.task_contributions_must_total_100']]);
+            throw ValidationException::withMessages(['contributions' => ['business.task_contributions_must_total_100']]);
         }
         if ($contributions !== []) {
             $assignedIds = $task->users()->pluck('users.id')->map(fn ($id) => (string) $id)->sort()->values()->all();
             $contributionIds = collect(array_keys($contributions))->map(fn ($id) => (string) $id)->sort()->values()->all();
             if ($assignedIds !== $contributionIds) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['contributions' => ['business.task_contributions_assignees_mismatch']]);
+                throw ValidationException::withMessages(['contributions' => ['business.task_contributions_assignees_mismatch']]);
             }
         }
 
@@ -270,6 +297,16 @@ class TaskController extends Controller
     /** @param list<int> $dependencyIds */
     private function assertNoDependencyCycle(Task $task, array $dependencyIds): void
     {
+        $projectId = $task->board?->project_id;
+        $crossProject = Task::query()->whereIn('id', $dependencyIds)
+            ->whereHas('board', fn ($query) => $projectId === null
+                ? $query->whereNotNull('project_id')
+                : $query->where('project_id', '!=', $projectId)->orWhereNull('project_id'))
+            ->exists();
+        if ($crossProject) {
+            throw ValidationException::withMessages(['dependencies' => ['business.task_dependency_cross_project']]);
+        }
+
         $frontier = array_values($dependencyIds);
         $visited = [];
 
@@ -289,6 +326,28 @@ class TaskController extends Controller
                 ->unique()
                 ->values()
                 ->all();
+        }
+    }
+
+    private function assertCustomerMatchesProject(Board $board, ?int $customerId): void
+    {
+        $projectCustomerId = $board->project?->customer_id;
+        if ($projectCustomerId !== null && (int) $customerId !== (int) $projectCustomerId) {
+            throw ValidationException::withMessages(['customer_id' => ['business.task_customer_must_match_project']]);
+        }
+    }
+
+    /** @param list<int> $serviceIds */
+    private function assertServicesMatchProject(Board $board, array $serviceIds): void
+    {
+        if ($serviceIds === []) {
+            return;
+        }
+
+        $project = $board->project;
+        $validIds = $project?->services()->whereKey($serviceIds)->pluck('services.id')->map(fn ($id) => (int) $id)->all() ?? [];
+        if (count(array_unique($serviceIds)) !== count($validIds)) {
+            throw ValidationException::withMessages(['service_ids' => ['business.task_service_not_in_project']]);
         }
     }
 }

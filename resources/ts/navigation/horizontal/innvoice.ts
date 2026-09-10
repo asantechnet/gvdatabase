@@ -1,8 +1,8 @@
 export default [
   {
-    title: "common.navigation.invoice",
-    icon: { icon: "tabler-invoice" },
-    to: "innvoice",
+    title: 'common.navigation.invoice',
+    icon: { icon: 'tabler-invoice' },
+    to: 'innvoice',
     children: [
       {
         title: 'common.navigation.invoiceList',
@@ -20,4 +20,4 @@ export default [
       },
     ],
   },
-];
+]

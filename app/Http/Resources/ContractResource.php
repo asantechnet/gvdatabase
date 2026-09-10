@@ -16,7 +16,7 @@ class ContractResource extends JsonResource
             'type' => $this->type,
             'contract_type_id' => $this->contract_type_id,
             'type_slug' => $this->type_slug,
-            'status' => $this->status,
+            'status' => strtolower((string) $this->status),
             'start_date' => $this->start_date?->toDateString(),
             'end_date' => $this->end_date?->toDateString(),
             'duration_months' => $this->duration_months,

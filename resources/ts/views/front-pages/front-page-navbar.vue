@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import navImg from '@images/front-pages/misc/nav-item-col-img.png'
 import { useWindowScroll } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import type { RouteLocationRaw } from 'vue-router'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { useDisplay } from 'vuetify'
+import navImg from '@images/front-pages/misc/nav-item-col-img.png'
 
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
@@ -93,40 +93,77 @@ const isPageActive = computed(() => menuItems.some(item => item.navItems.some(li
 
 <template>
   <!-- 👉 Navigation drawer for mobile devices  -->
-  <VNavigationDrawer v-model="sidebar" width="275" data-allow-mismatch disable-resize-watcher>
-    <PerfectScrollbar :options="{ wheelPropagation: false }" class="h-100">
+  <VNavigationDrawer
+    v-model="sidebar"
+    width="275"
+    data-allow-mismatch
+    disable-resize-watcher
+  >
+    <PerfectScrollbar
+      :options="{ wheelPropagation: false }"
+      class="h-100"
+    >
       <!-- Nav items -->
       <div>
         <div class="d-flex flex-column gap-y-4 pa-4">
-          <RouterLink v-for="(item, index) in ['Home', 'Features', 'Team', 'FAQ', 'Contact us']" :key="index"
+          <RouterLink
+            v-for="(item, index) in ['Home', 'Features', 'Team', 'FAQ', 'Contact us']"
+            :key="index"
             :to="{ name: 'front-pages-landing-page', hash: `#${item.toLowerCase().replace(' ', '-')}` }"
             class="nav-link font-weight-medium"
-            :class="[props.activeId?.toLocaleLowerCase().replace('-', ' ') === item.toLocaleLowerCase() ? 'active-link' : '']">
+            :class="[props.activeId?.toLocaleLowerCase().replace('-', ' ') === item.toLocaleLowerCase() ? 'active-link' : '']"
+          >
             {{ item }}
           </RouterLink>
 
           <div class="font-weight-medium cursor-pointer">
-            <div :class="[isMenuOpen ? 'mb-6 active-link' : '', isPageActive ? 'active-link' : '']"
-              style="color: rgba(var(--v-theme-on-surface));" class="page-link" @click="isMenuOpen = !isMenuOpen">
+            <div
+              :class="[isMenuOpen ? 'mb-6 active-link' : '', isPageActive ? 'active-link' : '']"
+              style="color: rgba(var(--v-theme-on-surface));"
+              class="page-link"
+              @click="isMenuOpen = !isMenuOpen"
+            >
               Pages
               <VIcon :icon="isMenuOpen ? 'tabler-chevron-up' : 'tabler-chevron-down'" />
             </div>
 
-            <div class="px-4" :class="isMenuOpen ? 'd-block' : 'd-none'">
-              <div v-for="(item, index) in menuItems" :key="index">
+            <div
+              class="px-4"
+              :class="isMenuOpen ? 'd-block' : 'd-none'"
+            >
+              <div
+                v-for="(item, index) in menuItems"
+                :key="index"
+              >
                 <div class="d-flex align-center gap-x-3 mb-4">
-                  <VAvatar variant="tonal" color="primary" rounded :icon="item.listIcon" />
+                  <VAvatar
+                    variant="tonal"
+                    color="primary"
+                    rounded
+                    :icon="item.listIcon"
+                  />
                   <div class="text-body-1 text-high-emphasis font-weight-medium">
                     {{ item.listTitle }}
                   </div>
                 </div>
                 <ul class="mb-6">
-                  <li v-for="listItem in item.navItems" :key="listItem.name" style="list-style: none;"
-                    class="text-body-1 mb-4 text-no-wrap">
-                    <RouterLink :to="listItem.to" :target="item.listTitle === 'Page' ? '_self' : '_blank'"
+                  <li
+                    v-for="listItem in item.navItems"
+                    :key="listItem.name"
+                    style="list-style: none;"
+                    class="text-body-1 mb-4 text-no-wrap"
+                  >
+                    <RouterLink
+                      :to="listItem.to"
+                      :target="item.listTitle === 'Page' ? '_self' : '_blank'"
                       class="mega-menu-item"
-                      :class="isCurrentRoute(listItem.to) ? 'active-link' : 'text-high-emphasis'">
-                      <VIcon icon="tabler-circle" :size="10" class="me-2" />
+                      :class="isCurrentRoute(listItem.to) ? 'active-link' : 'text-high-emphasis'"
+                    >
+                      <VIcon
+                        icon="tabler-circle"
+                        :size="10"
+                        class="me-2"
+                      />
                       <span> {{ listItem.name }}</span>
                     </RouterLink>
                   </li>
@@ -135,14 +172,23 @@ const isPageActive = computed(() => menuItems.some(item => item.navItems.some(li
             </div>
           </div>
 
-          <RouterLink to="/" target="_blank" class="font-weight-medium nav-link">
+          <RouterLink
+            to="/"
+            target="_blank"
+            class="font-weight-medium nav-link"
+          >
             Admin
           </RouterLink>
         </div>
       </div>
 
       <!-- Navigation drawer close icon -->
-      <VIcon id="navigation-drawer-close-btn" icon="tabler-x" size="20" @click="sidebar = !sidebar" />
+      <VIcon
+        id="navigation-drawer-close-btn"
+        icon="tabler-x"
+        size="20"
+        @click="sidebar = !sidebar"
+      />
     </PerfectScrollbar>
   </VNavigationDrawer>
 
@@ -152,15 +198,28 @@ const isPageActive = computed(() => menuItems.some(item => item.navItems.some(li
       <VAppBar
         :color="$vuetify.theme.current.dark ? 'rgba(var(--v-theme-surface),0.38)' : 'rgba(var(--v-theme-surface), 0.38)'"
         :class="y > 10 ? 'app-bar-scrolled' : [$vuetify.theme.current.dark ? 'app-bar-dark' : 'app-bar-light', 'elevation-0']"
-        class="navbar-blur">
+        class="navbar-blur"
+      >
         <!-- toggle icon for mobile device -->
-        <IconBtn id="vertical-nav-toggle-btn" class="ms-n3 me-2 d-inline-block d-md-none" @click="sidebar = !sidebar">
-          <VIcon size="26" icon="tabler-menu-2" color="rgba(var(--v-theme-on-surface))" />
+        <IconBtn
+          id="vertical-nav-toggle-btn"
+          class="ms-n3 me-2 d-inline-block d-md-none"
+          @click="sidebar = !sidebar"
+        >
+          <VIcon
+            size="26"
+            icon="tabler-menu-2"
+            color="rgba(var(--v-theme-on-surface))"
+          />
         </IconBtn>
         <!-- Title and Landing page sections -->
         <div class="d-flex align-center">
           <VAppBarTitle class="me-6">
-            <RouterLink to="/" class="d-flex gap-x-4" :class="$vuetify.display.mdAndUp ? 'd-none' : 'd-block'">
+            <RouterLink
+              to="/"
+              class="d-flex gap-x-4"
+              :class="$vuetify.display.mdAndUp ? 'd-none' : 'd-block'"
+            >
               <div class="app-logo">
                 <VNodeRenderer :nodes="themeConfig.app.logo" />
                 <h1 class="app-logo-title">
@@ -172,57 +231,102 @@ const isPageActive = computed(() => menuItems.some(item => item.navItems.some(li
 
           <!-- landing page sections -->
           <div class="text-base align-center d-none d-md-flex">
-            <RouterLink v-for="(item, index) in ['Home', 'Features', 'Team', 'FAQ', 'Contact us']" :key="index"
+            <RouterLink
+              v-for="(item, index) in ['Home', 'Features', 'Team', 'FAQ', 'Contact us']"
+              :key="index"
               :to="{ name: 'front-pages-landing-page', hash: `#${item.toLowerCase().replace(' ', '-')}` }"
               class="nav-link font-weight-medium py-2 px-2 px-lg-4"
-              :class="[props.activeId?.toLocaleLowerCase().replace('-', ' ') === item.toLocaleLowerCase() ? 'active-link' : '']">
+              :class="[props.activeId?.toLocaleLowerCase().replace('-', ' ') === item.toLocaleLowerCase() ? 'active-link' : '']"
+            >
               {{ item }}
             </RouterLink>
 
             <!-- Pages Menu -->
-            <span class="font-weight-medium cursor-pointer px-2 px-lg-4 py-2"
+            <span
+              class="font-weight-medium cursor-pointer px-2 px-lg-4 py-2"
               :class="isPageActive || isMegaMenuOpen ? 'active-link' : ''"
-              style="color: rgba(var(--v-theme-on-surface));">
+              style="color: rgba(var(--v-theme-on-surface));"
+            >
               Pages
-              <VIcon icon="tabler-chevron-down" size="16" class="ms-2" />
-              <VMenu v-model="isMegaMenuOpen" open-on-hover activator="parent" transition="slide-y-transition"
-                location="bottom center" offset="16" content-class="mega-menu" location-strategy="static"
-                close-on-content-click>
+              <VIcon
+                icon="tabler-chevron-down"
+                size="16"
+                class="ms-2"
+              />
+              <VMenu
+                v-model="isMegaMenuOpen"
+                open-on-hover
+                activator="parent"
+                transition="slide-y-transition"
+                location="bottom center"
+                offset="16"
+                content-class="mega-menu"
+                location-strategy="static"
+                close-on-content-click
+              >
                 <VCard max-width="1000">
                   <VCardText class="pa-8">
                     <div class="nav-menu">
-                      <div v-for="(item, index) in menuItems" :key="index">
+                      <div
+                        v-for="(item, index) in menuItems"
+                        :key="index"
+                      >
                         <div class="d-flex align-center gap-x-3 mb-6">
-                          <VAvatar variant="tonal" color="primary" rounded :icon="item.listIcon" />
+                          <VAvatar
+                            variant="tonal"
+                            color="primary"
+                            rounded
+                            :icon="item.listIcon"
+                          />
                           <div class="text-body-1 text-high-emphasis font-weight-medium">
                             {{ item.listTitle }}
                           </div>
                         </div>
                         <ul>
-                          <li v-for="listItem in item.navItems" :key="listItem.name" style="list-style: none;"
-                            class="text-body-1 mb-4 text-no-wrap">
-                            <RouterLink class="mega-menu-item" :to="listItem.to"
+                          <li
+                            v-for="listItem in item.navItems"
+                            :key="listItem.name"
+                            style="list-style: none;"
+                            class="text-body-1 mb-4 text-no-wrap"
+                          >
+                            <RouterLink
+                              class="mega-menu-item"
+                              :to="listItem.to"
                               :target="item.listTitle === 'Page' ? '_self' : '_blank'"
-                              :class="isCurrentRoute(listItem.to) ? 'active-link' : 'text-high-emphasis'">
+                              :class="isCurrentRoute(listItem.to) ? 'active-link' : 'text-high-emphasis'"
+                            >
                               <div class="d-flex align-center">
-                                <VIcon icon="tabler-circle" color="primary" :size="10" class="me-2" />
+                                <VIcon
+                                  icon="tabler-circle"
+                                  color="primary"
+                                  :size="10"
+                                  class="me-2"
+                                />
                                 <span>{{ listItem.name }}</span>
                               </div>
                             </RouterLink>
                           </li>
                         </ul>
                       </div>
-                      <img :src="navImg" alt="Navigation Image" class="d-inline-block rounded-lg"
+                      <img
+                        :src="navImg"
+                        alt="Navigation Image"
+                        class="d-inline-block rounded-lg"
                         style="border: 10px solid rgb(var(--v-theme-background));"
                         :width="$vuetify.display.lgAndUp ? '330' : '250'"
-                        :height="$vuetify.display.lgAndUp ? '330' : '250'">
+                        :height="$vuetify.display.lgAndUp ? '330' : '250'"
+                      >
                     </div>
                   </VCardText>
                 </VCard>
               </VMenu>
             </span>
 
-            <RouterLink to="/" target="_blank" class="font-weight-medium nav-link">
+            <RouterLink
+              to="/"
+              target="_blank"
+              class="font-weight-medium nav-link"
+            >
               Admin
             </RouterLink>
           </div>
@@ -233,13 +337,28 @@ const isPageActive = computed(() => menuItems.some(item => item.navItems.some(li
         <div class="d-flex gap-x-4">
           <NavbarThemeSwitcher />
 
-          <VBtn v-if="$vuetify.display.lgAndUp" prepend-icon="tabler-shopping-cart" variant="elevated" color="primary"
-            href="https://1.envato.market/vuexy_admin" target="_blank" rel="noopener noreferrer">
+          <VBtn
+            v-if="$vuetify.display.lgAndUp"
+            prepend-icon="tabler-shopping-cart"
+            variant="elevated"
+            color="primary"
+            href="https://1.envato.market/vuexy_admin"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Purchase Now
           </VBtn>
 
-          <VBtn v-else rounded icon variant="elevated" color="primary" href="https://1.envato.market/vuexy_admin"
-            target="_blank" rel="noopener noreferrer">
+          <VBtn
+            v-else
+            rounded
+            icon
+            variant="elevated"
+            color="primary"
+            href="https://1.envato.market/vuexy_admin"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <VIcon icon="tabler-shopping-cart" />
           </VBtn>
         </div>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountDeactivationRequestController;
+use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceGeofenceController;
 use App\Http\Controllers\AuditLogController;
@@ -9,12 +10,13 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AutomationController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\CommentController;
-use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CommissionController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\ContractPolicyController;
 use App\Http\Controllers\ContractTemplateController;
 use App\Http\Controllers\ContractTypeController;
+use App\Http\Controllers\CrmInteractionController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerServiceController;
@@ -25,6 +27,7 @@ use App\Http\Controllers\FileController;
 use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KanbanController;
+use App\Http\Controllers\LeadController;
 use App\Http\Controllers\MarketerController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficeController;
@@ -40,7 +43,6 @@ use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\SalaryDeductionController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SettingController;
-use App\Http\Controllers\AssetController;
 use App\Http\Controllers\SubtaskController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaskAssigneeController;
@@ -48,8 +50,6 @@ use App\Http\Controllers\TaskAttachmentController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VisitorController;
-use App\Http\Controllers\LeadController;
-use App\Http\Controllers\CrmInteractionController;
 use App\Http\Controllers\WorkdayController;
 use App\Http\Controllers\WorthyEmployeeController;
 use Illuminate\Support\Facades\Route;
@@ -67,8 +67,8 @@ use Illuminate\Support\Facades\Route;
 
 // Public routes
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
     Route::post('/complete-invitation', [AuthController::class, 'completeInvitation'])->middleware('throttle:5,1');
@@ -78,7 +78,7 @@ Route::prefix('auth')->group(function () {
 });
 
 // Protected routes (require authentication)
-Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
+Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(function () {
     Route::prefix('workday')->group(function () {
         Route::get('/status', [WorkdayController::class, 'status'])->middleware('permission:manage_own_workday');
         Route::post('/start', [WorkdayController::class, 'start'])->middleware(['permission:manage_own_workday', 'throttle:10,1']);
@@ -290,17 +290,19 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
         ->middlewareFor('destroy', 'permission:delete_visitors');
     Route::post('visitors/{visitor}/convert-to-customer', [VisitorController::class, 'convertToCustomer'])
         ->middleware('permission:create_customers');
-    Route::post('visitors/{visitor}/convert-to-lead', [LeadController::class, 'fromVisitor'])->middleware('permission:create_customers');
-    Route::apiResource('leads', LeadController::class)->middleware('permission:view_visitors');
+    Route::post('visitors/{visitor}/convert-to-lead', [LeadController::class, 'fromVisitor'])->middleware('permission:create_visitors');
+    Route::apiResource('leads', LeadController::class)
+        ->middlewareFor(['index', 'show'], 'permission:view_visitors')
+        ->middlewareFor('store', 'permission:create_visitors')
+        ->middlewareFor('update', 'permission:edit_visitors')
+        ->middlewareFor('destroy', 'permission:delete_visitors');
     Route::post('leads/{lead}/convert-to-customer', [LeadController::class, 'convert'])->middleware('permission:create_customers');
     Route::post('crm/{type}/{id}/interactions', [CrmInteractionController::class, 'store'])
-        ->whereIn('type', ['visitor', 'lead', 'customer'])->middleware('permission:view_visitors,view_customers');
+        ->whereIn('type', ['visitor', 'lead', 'customer']);
     Route::patch('crm/{type}/{id}/notes', [CrmInteractionController::class, 'updateNotes'])
-        ->whereIn('type', ['visitor', 'lead', 'customer'])->middleware('permission:view_visitors,view_customers');
-    Route::put('crm/interactions/{interaction}', [CrmInteractionController::class, 'update'])
-        ->middleware('permission:view_visitors,view_customers');
-    Route::delete('crm/interactions/{interaction}', [CrmInteractionController::class, 'destroy'])
-        ->middleware('permission:view_visitors,view_customers');
+        ->whereIn('type', ['visitor', 'lead', 'customer']);
+    Route::put('crm/interactions/{interaction}', [CrmInteractionController::class, 'update']);
+    Route::delete('crm/interactions/{interaction}', [CrmInteractionController::class, 'destroy']);
 
     // Tag routes
     Route::apiResource('tags', TagController::class)
@@ -353,7 +355,7 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
     // Contract types (system + user-defined)
     Route::apiResource('contract-types', ContractTypeController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_contract_types')
-        ->middlewareFor(['store', 'destroy'], 'permission:manage_contract_types');
+        ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_contract_types');
 
     // Context-aware placeholder definitions for the template editor
     Route::get('contract-placeholders', [ContractController::class, 'placeholders'])
@@ -373,6 +375,7 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
         ->middlewareFor('update', 'permission:edit_contracts')
         ->middlewareFor('destroy', 'permission:delete_contracts');
     Route::put('/contracts/{id}/cancel', [ContractController::class, 'cancel'])->middleware('permission:cancel_contracts');
+    Route::post('/contracts/{id}/renew', [ContractController::class, 'renew'])->middleware('permission:create_contracts');
 
     // Notification routes
     Route::patch('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->middleware('permission:update_own_notifications');
@@ -429,9 +432,9 @@ Route::middleware(['auth:sanctum', 'abilities:access'])->group(function () {
     // File management routes
     Route::prefix('files')->group(function () {
         Route::post('/upload', [FileController::class, 'upload'])->middleware('permission:upload_files');
-        Route::get('/download/{filePath}', [FileController::class, 'download'])->middleware('permission:download_files');
+        Route::get('/download', [FileController::class, 'download'])->middleware('permission:download_files');
         Route::delete('/delete', [FileController::class, 'delete'])->middleware('permission:delete_files');
         Route::get('/list', [FileController::class, 'listFiles'])->middleware('permission:view_files');
-        Route::get('/view/{filePath}', [FileController::class, 'viewFile'])->middleware('permission:view_files');
+        Route::get('/view', [FileController::class, 'viewFile'])->middleware('permission:view_files');
     });
 });

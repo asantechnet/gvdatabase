@@ -29,7 +29,7 @@ const messages = Object.fromEntries(
 // completed. It prevents raw English source text and missing-key markers from
 // reaching end users.
 const fallbackLocale: Record<SupportedLocale, SupportedLocale[]> = {
-  en: [],
+  'en': [],
   'fa-AF': ['en'],
   'ps-AF': ['fa-AF', 'en'],
 }
@@ -39,6 +39,7 @@ let _i18n: any = null
 export const getI18n = () => {
   if (_i18n === null) {
     const storedLocale = cookieRef<string>('language', themeConfig.app.i18n.defaultLocale).value
+
     _i18n = createI18n({
       legacy: false,
       locale: supportedLocales.includes(storedLocale as SupportedLocale) ? storedLocale : 'en',
@@ -49,7 +50,7 @@ export const getI18n = () => {
       fallbackWarn: import.meta.env.DEV,
       missing: (_locale, key) => import.meta.env.DEV ? `[missing:${key}]` : '',
       datetimeFormats: {
-        en: {
+        'en': {
           short: { year: 'numeric', month: 'short', day: 'numeric' },
           long: { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' },
           time: { hour: 'numeric', minute: '2-digit' },

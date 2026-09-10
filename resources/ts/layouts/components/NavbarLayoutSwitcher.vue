@@ -17,7 +17,10 @@ const toggleLayout = () => {
     @click="toggleLayout"
   >
     <VIcon :icon="layoutConfigStore.appContentLayoutNav === AppContentLayoutNav.Vertical ? 'tabler-layout-navbar' : 'tabler-layout-sidebar-left-expand'" />
-    <VTooltip activator="parent" location="bottom">
+    <VTooltip
+      activator="parent"
+      location="bottom"
+    >
       {{ layoutConfigStore.appContentLayoutNav === AppContentLayoutNav.Vertical ? 'Use horizontal navigation' : 'Use vertical navigation' }}
     </VTooltip>
   </IconBtn>

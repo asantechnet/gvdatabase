@@ -1,13 +1,13 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification'
 import CompanyApi, { type Company, type CompanyCreateData } from '@/api/company'
 import ContractApi, { type Contract } from '@/api/contracts'
 import ContractTemplateApi, { type ContractTemplate } from '@/api/contractTemplate'
 import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
 import ContractDocumentPrinter from '@/components/contract/ContractDocumentPrinter.vue'
 import { formatLocalizedDate } from '@/utils/localization'
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useToast } from 'vue-toastification'
 
 const router = useRouter()
 const toast = useToast()
@@ -105,7 +105,9 @@ const latestContractFor = (companyId: number): Contract | null => {
     .filter(contract => contract.company_id === companyId)
     .sort((a, b) => {
       const activeDelta = Number(a.status === 'active') - Number(b.status === 'active')
-      if (activeDelta !== 0) return -activeDelta
+      if (activeDelta !== 0)
+        return -activeDelta
+
       return Number(b.id) - Number(a.id)
     })
 
@@ -116,16 +118,18 @@ const companyNameFor = (companyId: number | null | undefined) =>
   companies.value.find(company => company.id === companyId)?.legal_name || '—'
 
 const contractStatusColor = (status: string) => ({
-  'active': 'success',
-  'draft': 'info',
-  'pending': 'warning',
-  'expired': 'error',
-  'terminated': 'secondary',
-  'cancelled': 'error',
+  active: 'success',
+  draft: 'info',
+  pending: 'warning',
+  expired: 'error',
+  terminated: 'secondary',
+  cancelled: 'error',
 }[status] || 'default')
 
 const formattedDate = (value: string | null | undefined) => {
-  if (!value) return '—'
+  if (!value)
+    return '—'
+
   return formatLocalizedDate(value)
 }
 
@@ -136,7 +140,8 @@ const printCompanyContract = (contract: Contract) => {
 
 const filtered = computed(() => {
   const term = search.value.trim().toLowerCase()
-  if (!term) return companies.value
+  if (!term)
+    return companies.value
 
   return companies.value.filter(company =>
     [company.legal_name, company.trade_name, company.registration_number, company.tax_number]
@@ -146,22 +151,27 @@ const filtered = computed(() => {
 const fetchCompanies = async () => {
   try {
     isLoading.value = true
+
     const [companyResult, contractsResult, templatesResult] = await Promise.allSettled([
       CompanyApi.getAll({ include_inactive: true }),
       ContractApi.getAll({ type_slug: 'company' }),
       ContractTemplateApi.getAll(),
     ])
-    if (companyResult.status === 'rejected') throw companyResult.reason
+
+    if (companyResult.status === 'rejected')
+      throw companyResult.reason
 
     companies.value = companyResult.value
     companyContracts.value = contractsResult.status === 'fulfilled' ? contractsResult.value : []
     companyTemplates.value = templatesResult.status === 'fulfilled'
       ? templatesResult.value.filter(template => template.type_slug === 'company')
       : []
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to load companies:', error)
     toast.error('Failed to load companies.')
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -178,13 +188,13 @@ const openAdd = () => {
 const openEdit = (company: Company) => {
   dialogMode.value = 'edit'
   selectedCompanyId.value = company.id
+
   const next = emptyForm()
   const source = company as unknown as Record<string, unknown>
   for (const key of Object.keys(next) as (keyof CompanyForm)[]) {
     const value = source[key]
-    if (value !== undefined && value !== null) {
+    if (value !== undefined && value !== null)
       (next as unknown as Record<string, unknown>)[key] = value
-    }
   }
   form.value = next
   isDialogVisible.value = true
@@ -192,41 +202,50 @@ const openEdit = (company: Company) => {
 
 const submit = async () => {
   const validation = await formRef.value?.validate()
-  if (validation?.valid === false) return
+  if (validation?.valid === false)
+    return
 
   try {
     saving.value = true
+
     const payload: CompanyCreateData = { ...form.value }
 
     if (dialogMode.value === 'add') {
       const created = await CompanyApi.create(payload)
+
       companies.value.unshift(created)
       toast.success('Company created.')
-    } else if (selectedCompanyId.value) {
+    }
+    else if (selectedCompanyId.value) {
       const updated = await CompanyApi.update(selectedCompanyId.value, payload)
       const index = companies.value.findIndex(company => company.id === selectedCompanyId.value)
-      if (index !== -1) companies.value[index] = updated
+      if (index !== -1)
+        companies.value[index] = updated
       toast.success('Company updated.')
     }
     isDialogVisible.value = false
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to save company:', error)
     toast.error('Failed to save the company.')
-  } finally {
+  }
+  finally {
     saving.value = false
   }
 }
 
 const confirmDelete = async () => {
   const target = companyPendingDeletion.value
-  if (!target) return
+  if (!target)
+    return
   companyPendingDeletion.value = null
 
   try {
     await CompanyApi.delete(target.id)
     companies.value = companies.value.filter(company => company.id !== target.id)
     toast.success('Company deleted.')
-  } catch {
+  }
+  catch {
     await fetchCompanies()
     toast.warning('This company is referenced by contracts and has been deactivated instead of deleted.')
   }
@@ -257,6 +276,7 @@ const editContract = (contract: Contract) => {
   const company = companies.value.find(item => item.id === contract.company_id)
   if (!company) {
     toast.error('The company for this contract could not be found.')
+
     return
   }
 
@@ -268,59 +288,102 @@ const editContract = (contract: Contract) => {
 
 const saveContract = async (payload: ContractFormPayload) => {
   const company = selectedContractCompany.value
-  if (!company) return
+  if (!company)
+    return
 
   try {
     savingContract.value = true
+
     const contractPayload = { ...payload, company_id: company.id }
+
     const saved = contractDialogMode.value === 'add'
       ? await ContractApi.create(contractPayload)
       : await ContractApi.update(selectedContract.value!.id, contractPayload)
 
     const index = companyContracts.value.findIndex(contract => contract.id === saved.id)
-    if (index === -1) companyContracts.value.unshift(saved)
+    if (index === -1)
+      companyContracts.value.unshift(saved)
     else companyContracts.value[index] = saved
 
     isContractDialogVisible.value = false
     toast.success(contractDialogMode.value === 'add' ? 'Company contract created.' : 'Company contract updated.')
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to save company contract:', error)
     toast.error('Failed to save the company contract.')
-  } finally {
+  }
+  finally {
     savingContract.value = false
   }
 }
-
 </script>
 
 <template>
-  <DataTablePageKpis :items="filtered" title="Companies" description="Manage counterparties, their details, and the agreements connected to them." icon="tabler-building" />
+  <DataTablePageKpis
+    :items="filtered"
+    title="Companies"
+    description="Manage counterparties, their details, and the agreements connected to them."
+    icon="tabler-building"
+  />
   <VCard>
     <VCardText>
-      <VRow align="center" class="table-toolbar">
-        <VCol cols="12" md="6" lg="4">
-          <VTextField v-model="search" class="data-table-search" prepend-inner-icon="tabler-search" placeholder="Search companies"
-            density="compact" clearable hide-details />
+      <VRow
+        align="center"
+        class="table-toolbar"
+      >
+        <VCol
+          cols="12"
+          md="6"
+          lg="4"
+        >
+          <VTextField
+            v-model="search"
+            class="data-table-search"
+            prepend-inner-icon="tabler-search"
+            placeholder="Search companies"
+            density="compact"
+            clearable
+            hide-details
+          />
         </VCol>
-        <VCol cols="12" md="6" lg="8" class="d-flex justify-end gap-2">
-          <VBtn color="primary" prepend-icon="tabler-plus" @click="openAdd">
+        <VCol
+          cols="12"
+          md="6"
+          lg="8"
+          class="d-flex justify-end gap-2"
+        >
+          <VBtn
+            color="primary"
+            prepend-icon="tabler-plus"
+            @click="openAdd"
+          >
             Add Company
           </VBtn>
         </VCol>
       </VRow>
     </VCardText>
 
-    <ResponsiveDataTable :headers="headers" :items="filtered" item-value="id" class="text-no-wrap" :loading="isLoading"
-      loading-text="Loading companies..." style="overflow-x: auto;"
-      no-data-text="No companies yet — add your first counterparty.">
+    <ResponsiveDataTable
+      :headers="headers"
+      :items="filtered"
+      item-value="id"
+      class="text-no-wrap"
+      :loading="isLoading"
+      loading-text="Loading companies..."
+      style="overflow-x: auto;"
+      no-data-text="No companies yet — add your first counterparty."
+    >
       <template #no-data>
         No companies yet — add your first counterparty.
       </template>
       <template #item.legal_name="{ item }">
         <div class="d-flex flex-column py-1">
           <span class="font-weight-medium text-no-wrap">{{ item.legal_name }}</span>
-          <span v-if="fullAddress(item)" class="text-caption text-medium-emphasis text-truncate"
-            style="max-inline-size: 280px;">
+          <span
+            v-if="fullAddress(item)"
+            class="text-caption text-medium-emphasis text-truncate"
+            style="max-inline-size: 280px;"
+          >
             {{ fullAddress(item) }}
           </span>
         </div>
@@ -333,25 +396,78 @@ const saveContract = async (payload: ContractFormPayload) => {
         ${item.representative_title}` : ''}` : '—' }}
       </template>
       <template #item.actions="{ item }">
-        <VBtn icon="tabler-file-plus" variant="text" size="small" color="primary" class="me-2" @click="createContract(item)"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent" location="top">Create contract</VTooltip></VBtn>
-        <VBtn icon="tabler-edit" variant="text" size="small" class="me-2" @click="openEdit(item)"><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">Edit company</VTooltip></VBtn>
-        <VBtn icon="tabler-trash" variant="text" size="small" color="error" @click="companyPendingDeletion = item"><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">Delete company</VTooltip></VBtn>
+        <VBtn
+          icon="tabler-file-plus"
+          variant="text"
+          size="small"
+          color="primary"
+          class="me-2"
+          @click="createContract(item)"
+        >
+          <VIcon icon="tabler-file-plus" /><VTooltip
+            activator="parent"
+            location="top"
+          >
+            Create contract
+          </VTooltip>
+        </VBtn>
+        <VBtn
+          icon="tabler-edit"
+          variant="text"
+          size="small"
+          class="me-2"
+          @click="openEdit(item)"
+        >
+          <VIcon icon="tabler-edit" /><VTooltip
+            activator="parent"
+            location="top"
+          >
+            Edit company
+          </VTooltip>
+        </VBtn>
+        <VBtn
+          icon="tabler-trash"
+          variant="text"
+          size="small"
+          color="error"
+          @click="companyPendingDeletion = item"
+        >
+          <VIcon icon="tabler-trash" /><VTooltip
+            activator="parent"
+            location="top"
+          >
+            Delete company
+          </VTooltip>
+        </VBtn>
       </template>
     </ResponsiveDataTable>
   </VCard>
-  <ContractDocumentPrinter v-model="printDialogVisible" :contract="contractToPrint" />
+  <ContractDocumentPrinter
+    v-model="printDialogVisible"
+    :contract="contractToPrint"
+  />
 
   <!-- Company contracts: every contract whose template is a company type -->
   <VCard class="mt-6">
     <VCardItem>
       <template #prepend>
-        <VIcon icon="tabler-building" size="24" class="text-primary mr-2" />
+        <VIcon
+          icon="tabler-building"
+          size="24"
+          class="text-primary mr-2"
+        />
       </template>
       <VCardTitle>Company Contracts</VCardTitle>
       <VCardSubtitle>Contracts issued with company-type templates</VCardSubtitle>
       <template #append>
-        <VBtn variant="tonal" color="primary" size="small" prepend-icon="tabler-plus" :disabled="!filtered.length"
-          @click="createContract(filtered[0])">
+        <VBtn
+          variant="tonal"
+          color="primary"
+          size="small"
+          prepend-icon="tabler-plus"
+          :disabled="!filtered.length"
+          @click="createContract(filtered[0])"
+        >
           New Company Contract
         </VBtn>
       </template>
@@ -359,9 +475,16 @@ const saveContract = async (payload: ContractFormPayload) => {
 
     <VDivider />
 
-    <ResponsiveDataTable :headers="contractHeaders" :items="companyContracts" item-value="id" class="text-no-wrap"
-      :loading="isLoading" loading-text="Loading company contracts..." style="overflow-x: auto;"
-      no-data-text="No company contracts yet — create one from a company row above.">
+    <ResponsiveDataTable
+      :headers="contractHeaders"
+      :items="companyContracts"
+      item-value="id"
+      class="text-no-wrap"
+      :loading="isLoading"
+      loading-text="Loading company contracts..."
+      style="overflow-x: auto;"
+      no-data-text="No company contracts yet — create one from a company row above."
+    >
       <template #no-data>
         No company contracts yet — create one from a company row above.
       </template>
@@ -378,19 +501,52 @@ const saveContract = async (payload: ContractFormPayload) => {
         {{ formattedDate(item.start_date) }}
       </template>
       <template #item.status="{ item }">
-        <VChip :color="contractStatusColor(item.status)" size="small" class="font-weight-medium text-capitalize">
+        <VChip
+          :color="contractStatusColor(item.status)"
+          size="small"
+          class="font-weight-medium text-capitalize"
+        >
           {{ item.status }}
         </VChip>
       </template>
       <template #item.actions="{ item }">
-        <VBtn icon="tabler-printer" variant="text" size="small" @click="printCompanyContract(item)"><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">Print contract</VTooltip></VBtn>
-        <VBtn icon="tabler-edit" variant="text" size="small" @click="editContract(item)"><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">Edit contract</VTooltip></VBtn>
+        <VBtn
+          icon="tabler-printer"
+          variant="text"
+          size="small"
+          @click="printCompanyContract(item)"
+        >
+          <VIcon icon="tabler-printer" /><VTooltip
+            activator="parent"
+            location="top"
+          >
+            Print contract
+          </VTooltip>
+        </VBtn>
+        <VBtn
+          icon="tabler-edit"
+          variant="text"
+          size="small"
+          @click="editContract(item)"
+        >
+          <VIcon icon="tabler-edit" /><VTooltip
+            activator="parent"
+            location="top"
+          >
+            Edit contract
+          </VTooltip>
+        </VBtn>
       </template>
     </ResponsiveDataTable>
   </VCard>
 
   <!-- Create / Edit Dialog -->
-  <VDialog v-model="isDialogVisible" max-width="760px" persistent scrollable>
+  <VDialog
+    v-model="isDialogVisible"
+    max-width="760px"
+    persistent
+    scrollable
+  >
     <VCard>
       <VCardTitle class="d-flex align-center gap-2">
         <VIcon icon="tabler-building" />
@@ -398,90 +554,246 @@ const saveContract = async (payload: ContractFormPayload) => {
       </VCardTitle>
 
       <VCardText>
-        <VForm ref="formRef" class="app-form" @submit.prevent="submit">
-          <p class="app-form__section">Identity</p>
+        <VForm
+          ref="formRef"
+          class="app-form"
+          @submit.prevent="submit"
+        >
+          <p class="app-form__section">
+            Identity
+          </p>
           <VRow>
-            <VCol cols="12" md="6">
-              <VTextField v-model="form.legal_name" label="Legal Name *"
-                :rules="[v => !!v?.trim() || 'Legal name is required']" />
+            <VCol
+              cols="12"
+              md="6"
+            >
+              <VTextField
+                v-model="form.legal_name"
+                label="Legal Name *"
+                :rules="[v => !!v?.trim() || 'Legal name is required']"
+              />
             </VCol>
-            <VCol cols="12" md="6">
-              <VTextField v-model="form.trade_name" label="Trade Name" />
+            <VCol
+              cols="12"
+              md="6"
+            >
+              <VTextField
+                v-model="form.trade_name"
+                label="Trade Name"
+              />
             </VCol>
-            <VCol cols="12" sm="6" md="3">
-              <VTextField v-model="form.registration_number" label="Registration Number" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="3"
+            >
+              <VTextField
+                v-model="form.registration_number"
+                label="Registration Number"
+              />
             </VCol>
-            <VCol cols="12" sm="6" md="3">
-              <VTextField v-model="form.tax_number" label="Tax Number" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="3"
+            >
+              <VTextField
+                v-model="form.tax_number"
+                label="Tax Number"
+              />
             </VCol>
-            <VCol cols="12" sm="6" md="3">
-              <VTextField v-model="form.national_id" label="National ID" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="3"
+            >
+              <VTextField
+                v-model="form.national_id"
+                label="National ID"
+              />
             </VCol>
-            <VCol cols="12" sm="6" md="3">
-              <VTextField v-model="form.legal_form" label="Legal Form (LLC, Ltd…)" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="3"
+            >
+              <VTextField
+                v-model="form.legal_form"
+                label="Legal Form (LLC, Ltd…)"
+              />
             </VCol>
           </VRow>
 
-          <p class="app-form__section mt-4">Contact & Address</p>
+          <p class="app-form__section mt-4">
+            Contact & Address
+          </p>
           <VRow>
-            <VCol cols="12" sm="4">
-              <VTextField v-model="form.email" label="Email" type="email" />
+            <VCol
+              cols="12"
+              sm="4"
+            >
+              <VTextField
+                v-model="form.email"
+                label="Email"
+                type="email"
+              />
             </VCol>
-            <VCol cols="12" sm="4">
-              <VTextField v-model="form.phone" label="Phone" />
+            <VCol
+              cols="12"
+              sm="4"
+            >
+              <VTextField
+                v-model="form.phone"
+                label="Phone"
+              />
             </VCol>
-            <VCol cols="12" sm="4">
-              <VTextField v-model="form.website" label="Website" />
+            <VCol
+              cols="12"
+              sm="4"
+            >
+              <VTextField
+                v-model="form.website"
+                label="Website"
+              />
             </VCol>
             <!-- Keep the short fields readable at the dialog's desktop width. -->
-            <VCol cols="12" sm="6" md="4">
-              <VTextField v-model="form.address_line" label="Address Line" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="4"
+            >
+              <VTextField
+                v-model="form.address_line"
+                label="Address Line"
+              />
             </VCol>
-            <VCol cols="12" sm="6" md="2">
-              <VTextField v-model="form.city" label="City" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="2"
+            >
+              <VTextField
+                v-model="form.city"
+                label="City"
+              />
             </VCol>
-            <VCol cols="12" sm="6" md="2">
-              <VTextField v-model="form.province" label="Province" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="2"
+            >
+              <VTextField
+                v-model="form.province"
+                label="Province"
+              />
             </VCol>
-            <VCol cols="12" sm="6" md="2">
-              <VTextField v-model="form.postal_code" label="Postal" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="2"
+            >
+              <VTextField
+                v-model="form.postal_code"
+                label="Postal"
+              />
             </VCol>
-            <VCol cols="12" sm="6" md="2">
-              <VTextField v-model="form.country" label="Country" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="2"
+            >
+              <VTextField
+                v-model="form.country"
+                label="Country"
+              />
             </VCol>
           </VRow>
 
-          <p class="app-form__section mt-4">Business Information</p>
+          <p class="app-form__section mt-4">
+            Business Information
+          </p>
           <VRow>
-            <VCol cols="12" sm="4">
-              <VTextField v-model="form.industry" label="Industry" />
+            <VCol
+              cols="12"
+              sm="4"
+            >
+              <VTextField
+                v-model="form.industry"
+                label="Industry"
+              />
             </VCol>
             <VCol cols="12">
-              <VTextarea v-model="form.description" label="Description" rows="2" auto-grow />
+              <VTextarea
+                v-model="form.description"
+                label="Description"
+                rows="2"
+                auto-grow
+              />
             </VCol>
           </VRow>
 
-          <p class="app-form__section mt-4">Authorized Representative</p>
+          <p class="app-form__section mt-4">
+            Authorized Representative
+          </p>
           <VRow>
-            <VCol cols="12" sm="6" md="3">
-              <VTextField v-model="form.representative_name" label="Name" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="3"
+            >
+              <VTextField
+                v-model="form.representative_name"
+                label="Name"
+              />
             </VCol>
-            <VCol cols="12" sm="6" md="3">
-              <VTextField v-model="form.representative_title" label="Title" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="3"
+            >
+              <VTextField
+                v-model="form.representative_title"
+                label="Title"
+              />
             </VCol>
-            <VCol cols="12" sm="6" md="3">
-              <VTextField v-model="form.representative_phone" label="Phone" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="3"
+            >
+              <VTextField
+                v-model="form.representative_phone"
+                label="Phone"
+              />
             </VCol>
-            <VCol cols="12" sm="6" md="3">
-              <VTextField v-model="form.representative_email" label="Email" type="email" />
+            <VCol
+              cols="12"
+              sm="6"
+              md="3"
+            >
+              <VTextField
+                v-model="form.representative_email"
+                label="Email"
+                type="email"
+              />
             </VCol>
           </VRow>
         </VForm>
       </VCardText>
 
       <VCardActions class="justify-end px-6 pb-4">
-        <VBtn variant="outlined" color="secondary" @click="isDialogVisible = false">Cancel</VBtn>
-        <VBtn color="primary" :loading="saving" @click="submit">
+        <VBtn
+          variant="outlined"
+          color="secondary"
+          @click="isDialogVisible = false"
+        >
+          Cancel
+        </VBtn>
+        <VBtn
+          color="primary"
+          :loading="saving"
+          @click="submit"
+        >
           {{ dialogMode === 'add' ? 'Create' : 'Save Changes' }}
         </VBtn>
       </VCardActions>
@@ -489,22 +801,38 @@ const saveContract = async (payload: ContractFormPayload) => {
   </VDialog>
 
   <!-- Company contract dialog -->
-  <VDialog v-model="isContractDialogVisible" max-width="600px" persistent>
+  <VDialog
+    v-model="isContractDialogVisible"
+    max-width="600px"
+    persistent
+  >
     <VCard>
       <VCardTitle>
         {{ contractDialogMode === 'add' ? 'Create Company Contract' : 'Edit Company Contract' }}
       </VCardTitle>
       <VCardText>
-        <ContractForm :contract="selectedContract || undefined" :templates="companyTemplates" audience="companies"
-          @submit="saveContract" @cancel="isContractDialogVisible = false" />
+        <ContractForm
+          :contract="selectedContract || undefined"
+          :templates="companyTemplates"
+          audience="companies"
+          @submit="saveContract"
+          @cancel="isContractDialogVisible = false"
+        />
       </VCardText>
-      <VProgressLinear v-if="savingContract" indeterminate color="primary" />
+      <VProgressLinear
+        v-if="savingContract"
+        indeterminate
+        color="primary"
+      />
     </VCard>
   </VDialog>
 
   <!-- Delete confirmation -->
-  <VDialog :model-value="companyPendingDeletion !== null" max-width="440px"
-    @update:model-value="companyPendingDeletion = null">
+  <VDialog
+    :model-value="companyPendingDeletion !== null"
+    max-width="440px"
+    @update:model-value="companyPendingDeletion = null"
+  >
     <VCard>
       <VCardTitle>Delete company</VCardTitle>
       <VCardText>
@@ -513,8 +841,19 @@ const saveContract = async (payload: ContractFormPayload) => {
         valid.
       </VCardText>
       <VCardActions class="justify-end">
-        <VBtn variant="text" color="secondary" @click="companyPendingDeletion = null">Cancel</VBtn>
-        <VBtn color="error" @click="confirmDelete">Delete</VBtn>
+        <VBtn
+          variant="text"
+          color="secondary"
+          @click="companyPendingDeletion = null"
+        >
+          Cancel
+        </VBtn>
+        <VBtn
+          color="error"
+          @click="confirmDelete"
+        >
+          Delete
+        </VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

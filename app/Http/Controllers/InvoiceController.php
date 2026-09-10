@@ -16,26 +16,19 @@ use Illuminate\Validation\ValidationException;
 
 class InvoiceController extends Controller
 {
-    public function __construct(private readonly CurrencyConversionService $currencies)
-    {
-    }
+    public function __construct(private readonly CurrencyConversionService $currencies) {}
 
     public function index(Request $request)
     {
-        $this->repairMissingInvoiceNumbers();
-
         $query = Invoice::with(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']);
 
-        $query->when($request->filled('customer_id'), fn ($query) =>
-            $query->where('customer_id', $request->integer('customer_id'))
+        $query->when($request->filled('customer_id'), fn ($query) => $query->where('customer_id', $request->integer('customer_id'))
         );
 
-        $query->when($request->filled('status'), fn ($query) =>
-            $query->where('status', $request->string('status'))
+        $query->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status'))
         );
 
-        $query->when($request->boolean('unpaid'), fn ($query) =>
-            $query->where('status', '!=', 'Paid')->where('status', '!=', 'Void')
+        $query->when($request->boolean('unpaid'), fn ($query) => $query->where('status', '!=', 'Paid')->where('status', '!=', 'Void')
         );
 
         if ($request->filled('search')) {
@@ -100,8 +93,10 @@ class InvoiceController extends Controller
                 Rule::exists('currencies', 'id')->where('is_active', true),
             ],
             'rate' => ['nullable', 'numeric', 'gt:0'],
-            'class_type' => ['required', Rule::in(['Standard', 'Proforma', 'Credit Note', 'Debit Note'])],
-            'issue_date' => ['nullable', 'date'],
+            // Credit/debit notes need an original-document reference and an
+            // application ledger. Do not pretend a positive invoice is one.
+            'class_type' => ['required', Rule::in(['Standard'])],
+            'issue_date' => ['nullable', 'date', 'before_or_equal:today'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'services' => ['required', 'array', 'min:1'],
             'services.*.customer_service_id' => ['required', 'integer', 'distinct', 'exists:customer_service,id'],
@@ -120,21 +115,31 @@ class InvoiceController extends Controller
         ]);
 
         unset($validated['rate']);
+        $validated['issue_date'] ??= today()->toDateString();
+        $validated['due_date'] ??= today()->addDays(30)->toDateString();
+        if ($validated['due_date'] < $validated['issue_date']) {
+            throw ValidationException::withMessages([
+                'due_date' => ['business.invoice_due_before_issue'],
+            ]);
+        }
 
         $recordedBy = $request->user()->id;
         $invoice = DB::transaction(function () use ($validated, $recordedBy) {
-            $customer = Customer::with([
-                'customerServices.service.currency',
-                'customerServices.currency',
-                'customerServices.employee.commissionServices',
-            ])
-                ->findOrFail($validated['customer_id']);
+            $customer = Customer::query()->lockForUpdate()->findOrFail($validated['customer_id']);
             $invoiceCurrency = Currency::findOrFail($validated['currency_id']);
-            $assignedServices = $customer->customerServices->keyBy('id');
             $serviceRows = collect($validated['services']);
             $requestedIds = $serviceRows->pluck('customer_service_id');
+            $assignedServices = CustomerService::query()
+                ->where('customer_id', $customer->id)
+                ->where('status', 'active')
+                ->whereIn('id', $requestedIds)
+                ->with(['service.currency', 'currency', 'employee.commissionServices'])
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
 
-            if ($requestedIds->contains(fn ($id) => !$assignedServices->has($id))) {
+            if ($requestedIds->contains(fn ($id) => ! $assignedServices->has($id))) {
                 throw ValidationException::withMessages([
                     'services' => 'business.invoice_service_not_assigned',
                 ]);
@@ -151,7 +156,7 @@ class InvoiceController extends Controller
                 $service = $customerService->service;
                 $sourceCurrency = $customerService->currency ?? $service->currency;
                 $contractedFee = (float) ($customerService->fee ?? $service->fee);
-                $commissionableInvoice = in_array($validated['class_type'], ['Standard', 'Debit Note'], true);
+                $commissionableInvoice = $validated['class_type'] === 'Standard';
                 $commissionEmployee = null;
                 $commissionPercentage = null;
 
@@ -174,7 +179,7 @@ class InvoiceController extends Controller
                     $commissionPercentage = (float) $capability->pivot->percentage;
                 }
 
-                if (!$sourceCurrency || (float) $sourceCurrency->rate <= 0) {
+                if (! $sourceCurrency || (float) $sourceCurrency->rate <= 0) {
                     throw ValidationException::withMessages([
                         'services' => 'business.service_currency_rate_invalid',
                     ]);
@@ -217,7 +222,7 @@ class InvoiceController extends Controller
             }
             $amount = round($subtotal + $taxAmount - $discount, $invoiceCurrency->decimal_places);
             $paymentDetail = isset($validated['payment_detail_id'])
-                ? PaymentDetail::findOrFail($validated['payment_detail_id'])
+                ? PaymentDetail::query()->lockForUpdate()->findOrFail($validated['payment_detail_id'])
                 : null;
 
             $invoice = Invoice::create([
@@ -232,8 +237,8 @@ class InvoiceController extends Controller
                 'customer_address' => $customer->address,
                 'customer_tax_number' => $customer->tax_number,
                 'status' => 'Issued',
-                'issue_date' => $validated['issue_date'] ?? now()->toDateString(),
-                'due_date' => $validated['due_date'] ?? now()->addDays(30)->toDateString(),
+                'issue_date' => $validated['issue_date'],
+                'due_date' => $validated['due_date'],
                 'tax_percent' => $validated['tax_percent'],
                 'currency_name' => $invoiceCurrency->name,
                 'cnv_curr_shrt' => $invoiceCurrency->code,
@@ -268,8 +273,6 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        $invoice->assignDocumentNumber();
-
         return new InvoiceResource($invoice->load(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']));
     }
 
@@ -322,7 +325,8 @@ class InvoiceController extends Controller
             $paid = round($invoice->incomes->sum(fn ($income) => (float) ($income->invoice_amount ?? ((float) $income->amount * (int) $income->quantity))), $precision);
             $balance = max(0, round((float) $invoice->amount - $paid, $precision));
 
-            if ($invoice->status === 'Void' || $invoice->status === 'Paid' || $paid <= 0 || $balance <= 0 || $balance >= (float) $invoice->amount * 0.05) {
+            $tolerance = (10 ** -$precision) / 2;
+            if ($invoice->status === 'Void' || $invoice->status === 'Paid' || $paid <= 0 || $balance > $tolerance) {
                 throw ValidationException::withMessages(['invoice' => 'business.invoice_balance_not_eligible_for_paid']);
             }
 
@@ -339,12 +343,5 @@ class InvoiceController extends Controller
         return response()->json([
             'message' => 'Invoices are permanent records. Void the invoice instead.',
         ], 405);
-    }
-
-    private function repairMissingInvoiceNumbers(): void
-    {
-        Invoice::whereNull('invoice_number')
-            ->orderBy('id')
-            ->each(fn (Invoice $invoice) => $invoice->assignDocumentNumber());
     }
 }

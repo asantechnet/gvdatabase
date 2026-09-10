@@ -11,7 +11,8 @@ class ContractFactory extends Factory
     {
         return [
             'template_id' => ContractTemplate::factory(),
-            'status' => 'Active',
+            'contract_type_id' => fn (array $attributes) => ContractTemplate::query()->find($attributes['template_id'])?->contract_type_id,
+            'status' => 'draft',
             'start_date' => fake()->date(),
             'counterparty' => fake()->company(),
             'is_cancelled' => false,

@@ -96,19 +96,22 @@ const routeName = (suggestion: Suggestion) => {
 const loadRecentSuggestions = () => {
   try {
     const stored = JSON.parse(localStorage.getItem(recentStorageKey) ?? '[]')
+
     recentSuggestions.value = Array.isArray(stored)
       ? stored.filter((item): item is Suggestion => typeof item?.title === 'string'
         && typeof item?.icon === 'string'
         && typeof item?.url === 'object'
         && item.url !== null).slice(0, 5)
       : []
-  } catch {
+  }
+  catch {
     recentSuggestions.value = []
   }
 }
 
 const rememberSuggestion = (suggestion: Suggestion) => {
   const key = routeName(suggestion)
+
   recentSuggestions.value = [
     suggestion,
     ...recentSuggestions.value.filter(item => routeName(item) !== key),
@@ -153,10 +156,18 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
 </script>
 
 <template>
-  <div class="d-flex align-center" v-bind="$attrs">
-    <IconBtn aria-label="Open command palette" @click="openSearch">
+  <div
+    class="d-flex align-center"
+    v-bind="$attrs"
+  >
+    <IconBtn
+      aria-label="Open command palette"
+      @click="openSearch"
+    >
       <VIcon icon="tabler-search" />
-      <VTooltip activator="parent">Search and commands</VTooltip>
+      <VTooltip activator="parent">
+        Search and commands
+      </VTooltip>
     </IconBtn>
 
     <span
@@ -165,7 +176,11 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
       aria-hidden="true"
     >
       <span class="me-2">{{ $t('common.actions.search') }}</span>
-      <span class="meta-key" dir="ltr" aria-hidden="true">&#8984;K</span>
+      <span
+        class="meta-key"
+        dir="ltr"
+        aria-hidden="true"
+      >&#8984;K</span>
     </span>
   </div>
 
@@ -178,7 +193,10 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
     <template #suggestions>
       <VCardText class="app-bar-search-suggestions pa-12">
         <VRow>
-          <VCol v-if="recentSuggestions.length" cols="12">
+          <VCol
+            v-if="recentSuggestions.length"
+            cols="12"
+          >
             <p
               class="custom-letter-spacing text-disabled text-uppercase py-2 px-4 mb-0"
               style="font-size: 0.75rem; line-height: 0.875rem;"
@@ -194,12 +212,21 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
               >
                 <VListItemTitle>{{ item.title }}</VListItemTitle>
                 <template #prepend>
-                  <VIcon :icon="item.icon" size="20" class="me-n1" />
+                  <VIcon
+                    :icon="item.icon"
+                    size="20"
+                    class="me-n1"
+                  />
                 </template>
               </VListItem>
             </VList>
           </VCol>
-          <VCol v-for="group in suggestionGroups" :key="group.title" cols="12" sm="6">
+          <VCol
+            v-for="group in suggestionGroups"
+            :key="group.title"
+            cols="12"
+            sm="6"
+          >
             <p
               class="custom-letter-spacing text-disabled text-uppercase py-2 px-4 mb-0"
               style="font-size: 0.75rem; line-height: 0.875rem;"
@@ -215,7 +242,11 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
               >
                 <VListItemTitle>{{ item.title }}</VListItemTitle>
                 <template #prepend>
-                  <VIcon :icon="item.icon" size="20" class="me-n1" />
+                  <VIcon
+                    :icon="item.icon"
+                    size="20"
+                    class="me-n1"
+                  />
                 </template>
               </VListItem>
             </VList>
@@ -233,7 +264,11 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
           class="app-bar-search-suggestion text-h6 font-weight-regular cursor-pointer py-2 px-4"
           @click="redirectToSuggestedPage(suggestion)"
         >
-          <VIcon size="20" :icon="suggestion.icon" class="me-2" />
+          <VIcon
+            size="20"
+            :icon="suggestion.icon"
+            class="me-2"
+          />
           <span>{{ suggestion.title }}</span>
         </h6>
       </div>
@@ -249,10 +284,18 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
         @click="redirectToSuggestedPage(list)"
       >
         <template #prepend>
-          <VIcon size="20" :icon="list.icon" class="me-n1" />
+          <VIcon
+            size="20"
+            :icon="list.icon"
+            class="me-n1"
+          />
         </template>
         <template #append>
-          <VIcon size="20" icon="tabler-corner-down-left" class="enter-icon flip-in-rtl" />
+          <VIcon
+            size="20"
+            icon="tabler-corner-down-left"
+            class="enter-icon flip-in-rtl"
+          />
         </template>
         <VListItemTitle>{{ list.title }}</VListItemTitle>
       </VListItem>

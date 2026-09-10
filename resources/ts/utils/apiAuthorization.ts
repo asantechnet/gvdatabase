@@ -2,7 +2,7 @@ import { canAccess } from '@/utils/authorization'
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
-type ResourcePermissions = {
+interface ResourcePermissions {
   view: string
   create: string
   update: string | string[]
@@ -10,26 +10,26 @@ type ResourcePermissions = {
 }
 
 const resources: Record<string, ResourcePermissions> = {
-  users: { view: 'view_users', create: 'create_users', update: 'edit_users', delete: 'delete_users' },
-  employees: { view: 'view_employees', create: 'create_employees', update: 'edit_employees', delete: 'delete_employees' },
-  positions: { view: 'view_positions', create: 'manage_positions', update: 'manage_positions', delete: 'manage_positions' },
-  marketers: { view: 'view_marketers', create: 'manage_marketers', update: 'manage_marketers', delete: 'manage_marketers' },
-  offices: { view: 'view_offices', create: 'manage_offices', update: 'manage_offices', delete: 'manage_offices' },
-  salaries: { view: 'view_salaries', create: 'create_salaries', update: 'edit_salaries', delete: 'delete_salaries' },
-  invoices: { view: 'view_invoices', create: 'create_invoices', update: 'edit_invoices', delete: 'delete_invoices' },
+  'users': { view: 'view_users', create: 'create_users', update: 'edit_users', delete: 'delete_users' },
+  'employees': { view: 'view_employees', create: 'create_employees', update: 'edit_employees', delete: 'delete_employees' },
+  'positions': { view: 'view_positions', create: 'manage_positions', update: 'manage_positions', delete: 'manage_positions' },
+  'marketers': { view: 'view_marketers', create: 'manage_marketers', update: 'manage_marketers', delete: 'manage_marketers' },
+  'offices': { view: 'view_offices', create: 'manage_offices', update: 'manage_offices', delete: 'manage_offices' },
+  'salaries': { view: 'view_salaries', create: 'create_salaries', update: 'edit_salaries', delete: 'delete_salaries' },
+  'invoices': { view: 'view_invoices', create: 'create_invoices', update: 'edit_invoices', delete: 'delete_invoices' },
   'payment-details': { view: 'view_payment_details', create: 'create_payment_details', update: 'edit_payment_details', delete: 'delete_payment_details' },
-  expenses: { view: 'view_expenses', create: 'create_expenses', update: 'edit_expenses', delete: 'delete_expenses' },
-  incomes: { view: 'view_incomes', create: 'create_incomes', update: 'edit_incomes', delete: 'delete_incomes' },
-  visitors: { view: 'view_visitors', create: 'create_visitors', update: 'edit_visitors', delete: 'delete_visitors' },
-  customers: { view: 'view_customers', create: 'create_customers', update: 'edit_customers', delete: 'delete_customers' },
-  services: { view: 'view_services', create: 'manage_services', update: 'manage_services', delete: 'manage_services' },
-  currencies: { view: 'view_currencies', create: 'manage_currencies', update: 'manage_currencies', delete: 'manage_currencies' },
-  settings: { view: 'view_settings', create: 'edit_settings', update: 'edit_settings', delete: 'edit_settings' },
+  'expenses': { view: 'view_expenses', create: 'create_expenses', update: 'edit_expenses', delete: 'delete_expenses' },
+  'incomes': { view: 'view_incomes', create: 'create_incomes', update: 'edit_incomes', delete: 'delete_incomes' },
+  'visitors': { view: 'view_visitors', create: 'create_visitors', update: 'edit_visitors', delete: 'delete_visitors' },
+  'customers': { view: 'view_customers', create: 'create_customers', update: 'edit_customers', delete: 'delete_customers' },
+  'services': { view: 'view_services', create: 'manage_services', update: 'manage_services', delete: 'manage_services' },
+  'currencies': { view: 'view_currencies', create: 'manage_currencies', update: 'manage_currencies', delete: 'manage_currencies' },
+  'settings': { view: 'view_settings', create: 'edit_settings', update: 'edit_settings', delete: 'edit_settings' },
   'contract-templates': { view: 'view_contract_templates', create: 'manage_contract_templates', update: 'manage_contract_templates', delete: 'manage_contract_templates' },
-  contracts: { view: 'view_contracts', create: 'create_contracts', update: 'edit_contracts', delete: 'delete_contracts' },
-  companies: { view: 'view_companies', create: 'create_companies', update: 'edit_companies', delete: 'delete_companies' },
-  assets: { view: 'view_assets', create: 'create_assets', update: 'edit_assets', delete: 'delete_assets' },
-  projects: { view: 'view_projects', create: 'create_projects', update: 'edit_projects', delete: 'delete_projects' },
+  'contracts': { view: 'view_contracts', create: 'create_contracts', update: 'edit_contracts', delete: 'delete_contracts' },
+  'companies': { view: 'view_companies', create: 'create_companies', update: 'edit_companies', delete: 'delete_companies' },
+  'assets': { view: 'view_assets', create: 'create_assets', update: 'edit_assets', delete: 'delete_assets' },
+  'projects': { view: 'view_projects', create: 'create_projects', update: 'edit_projects', delete: 'delete_projects' },
 }
 
 const normalizedPath = (url = '') => `/${url.replace(/^\/?api\/?/, '').replace(/^\//, '').split('?')[0]}`
@@ -38,12 +38,17 @@ const normalizedPath = (url = '') => `/${url.replace(/^\/?api\/?/, '').replace(/
 const restPermission = (method: Method, path: string): string[] | null => {
   const match = path.match(/^\/([^/]+)(?:\/:id)?$/)
   const resource = match?.[1] && resources[match[1]]
-  if (!resource) return null
+  if (!resource)
+    return null
 
-  if (method === 'GET') return [resource.view]
-  if (method === 'POST' && !path.endsWith('/:id')) return [resource.create]
-  if (method === 'PUT' || method === 'PATCH') return Array.isArray(resource.update) ? resource.update : [resource.update]
-  if (method === 'DELETE') return [resource.delete]
+  if (method === 'GET')
+    return [resource.view]
+  if (method === 'POST' && !path.endsWith('/:id'))
+    return [resource.create]
+  if (method === 'PUT' || method === 'PATCH')
+    return Array.isArray(resource.update) ? resource.update : [resource.update]
+  if (method === 'DELETE')
+    return [resource.delete]
 
   return null
 }
@@ -167,39 +172,56 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
   }
 
   if (path.startsWith('/employees/:id/paid-time-offs')) {
-    if (requestMethod === 'GET') return ['view_paid_time_off']
-    if (requestMethod === 'POST') return ['create_paid_time_off']
-    if (requestMethod === 'PUT') return ['edit_paid_time_off']
-    if (requestMethod === 'DELETE') return ['delete_paid_time_off']
+    if (requestMethod === 'GET')
+      return ['view_paid_time_off']
+    if (requestMethod === 'POST')
+      return ['create_paid_time_off']
+    if (requestMethod === 'PUT')
+      return ['edit_paid_time_off']
+    if (requestMethod === 'DELETE')
+      return ['delete_paid_time_off']
   }
 
-  if (path === '/worthy-employees' && requestMethod === 'GET') return ['view_bonuses']
-  if (path === '/worthy-employees/:id' && requestMethod === 'GET') return ['view_bonuses']
-  if (path === '/worthy-employees' && requestMethod === 'POST') return ['nominate_bonus_candidates']
+  if (path === '/worthy-employees' && requestMethod === 'GET')
+    return ['view_bonuses']
+  if (path === '/worthy-employees/:id' && requestMethod === 'GET')
+    return ['view_bonuses']
+  if (path === '/worthy-employees' && requestMethod === 'POST')
+    return ['nominate_bonus_candidates']
   if (path === '/worthy-employees/:id' && requestMethod === 'PATCH') {
     const hasGrantChange = typeof payload === 'object' && payload !== null
       && Object.prototype.hasOwnProperty.call(payload, 'isGranted')
+
     return [hasGrantChange ? 'grant_bonuses' : 'edit_bonus_nominations']
   }
-  if (path === '/worthy-employees/:id' && requestMethod === 'DELETE') return ['delete_bonus_nominations']
+  if (path === '/worthy-employees/:id' && requestMethod === 'DELETE')
+    return ['delete_bonus_nominations']
 
-  if (path === '/notifications' && requestMethod === 'GET') return ['view_own_notifications']
-  if (path === '/notifications' && requestMethod === 'POST') return ['send_notifications']
-  if (path === '/notifications/:id' && requestMethod === 'GET') return ['view_own_notifications']
-  if (path === '/notifications/:id' && requestMethod === 'DELETE') return ['delete_own_notifications']
+  if (path === '/notifications' && requestMethod === 'GET')
+    return ['view_own_notifications']
+  if (path === '/notifications' && requestMethod === 'POST')
+    return ['send_notifications']
+  if (path === '/notifications/:id' && requestMethod === 'GET')
+    return ['view_own_notifications']
+  if (path === '/notifications/:id' && requestMethod === 'DELETE')
+    return ['delete_own_notifications']
   if (path === '/notifications/:id' && (requestMethod === 'PUT' || requestMethod === 'PATCH')) {
     const isReadOnly = typeof payload === 'object' && payload !== null
       && Object.keys(payload as Record<string, unknown>).every(key => key === 'is_read')
+
     return [isReadOnly ? 'update_own_notifications' : 'send_notifications']
   }
 
-  if (path.startsWith('/files/view/')) return ['view_files']
-  if (path.startsWith('/files/download/')) return ['download_files']
+  if (path.startsWith('/files/view/'))
+    return ['view_files']
+  if (path.startsWith('/files/download/'))
+    return ['download_files']
 
   return special[`${requestMethod} ${path}`] ?? restPermission(requestMethod, path)
 }
 
 export const isApiRequestAllowed = (method: string | undefined, url: string | undefined, payload?: unknown) => {
   const required = permissionsForApiRequest(method, url, payload)
+
   return required === null || required.some(canAccess)
 }

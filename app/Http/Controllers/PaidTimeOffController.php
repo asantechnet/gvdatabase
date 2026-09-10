@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\PaidTimeOff;
 use App\Models\Setting;
+use App\Support\CompanyProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -16,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 
 class PaidTimeOffController extends Controller
 {
+    public function __construct(private readonly CompanyProfile $company) {}
+
     public function all(Request $request): JsonResponse
     {
         $data = $request->validate(['year' => ['nullable', 'integer', 'between:2000,3000']]);
@@ -52,7 +55,14 @@ class PaidTimeOffController extends Controller
         $start = Carbon::parse($data['start_date'])->startOfDay();
         $end = Carbon::parse($data['end_date'])->startOfDay();
         abort_if($start->year !== $end->year || $start->diffInDays($end) > 365, 422, 'business.request_rejected');
-        $dates = collect(range(0, $start->diffInDays($end)))->map(fn (int $offset) => $start->copy()->addDays($offset)->toDateString());
+        abort_if($start->lt(now($this->company->timezone())->startOfDay()), 422, 'business.retroactive_leave_request_not_allowed');
+        abort_if($employee->join_date && $start->lt($employee->join_date->copy()->startOfDay()), 422, 'business.leave_before_employment');
+        $dates = collect(range(0, $start->diffInDays($end)))
+            ->map(fn (int $offset) => $start->copy()->addDays($offset))
+            ->reject(fn (Carbon $date) => $date->isFriday())
+            ->map(fn (Carbon $date) => $date->toDateString())
+            ->values();
+        abort_if($dates->isEmpty(), 422, 'business.leave_range_contains_no_workdays');
 
         $created = DB::transaction(function () use ($employee, $request, $dates, $data, $start) {
             Employee::whereKey($employee->id)->lockForUpdate()->firstOrFail();
@@ -109,6 +119,16 @@ class PaidTimeOffController extends Controller
                 if ($row->is_granted) {
                     continue;
                 }
+                if ($row->date->isFriday()) {
+                    throw ValidationException::withMessages([
+                        'ids' => ['business.leave_date_is_weekly_day_off'],
+                    ]);
+                }
+                if ($row->employee?->join_date && $row->date->lt($row->employee->join_date)) {
+                    throw ValidationException::withMessages([
+                        'ids' => ['business.leave_before_employment'],
+                    ]);
+                }
                 $usageKey = "{$row->employee_id}:{$row->year}";
                 $paidUsed = (float) $paidUsage->get($usageKey, 0);
                 $duration = (float) $row->duration_days;
@@ -116,7 +136,9 @@ class PaidTimeOffController extends Controller
                 $available = max(0, $allowance - $paidUsed);
                 $paidDays = $forcePaid ? $duration : min($duration, $available);
                 $isPaid = $paidDays >= $duration;
-                if ($paidDays < $duration) $exceeded++;
+                if ($paidDays < $duration) {
+                    $exceeded++;
+                }
                 $paidUsage->put($usageKey, $paidUsed + $paidDays);
                 $row->update([
                     'is_granted' => true, 'is_paid' => $isPaid, 'paid_days' => $paidDays,
@@ -215,10 +237,24 @@ class PaidTimeOffController extends Controller
     private function validated(Request $request, Employee $employee, ?PaidTimeOff $ignore = null): array
     {
         return $request->validate([
-            'date' => ['required', 'date', Rule::unique('leaves', 'date')
-                ->where('employee_id', $employee->id)
-                ->withoutTrashed()
-                ->ignore($ignore?->id)],
+            'date' => [
+                'required',
+                'date',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (Carbon::parse($value)->isFriday()) {
+                        $fail('business.leave_date_is_weekly_day_off');
+                    }
+                },
+                function (string $attribute, mixed $value, \Closure $fail) use ($employee): void {
+                    if ($employee->join_date && Carbon::parse($value)->lt($employee->join_date)) {
+                        $fail('business.leave_before_employment');
+                    }
+                },
+                Rule::unique('leaves', 'date')
+                    ->where('employee_id', $employee->id)
+                    ->withoutTrashed()
+                    ->ignore($ignore?->id),
+            ],
             'duration_days' => ['required', Rule::in([0.5, 1])],
             'reason' => ['required', 'string', 'max:1000'],
         ]);
@@ -327,9 +363,12 @@ class PaidTimeOffController extends Controller
             ->where('date', $date)
             ->first();
 
-        if (! $attendance) return;
+        if (! $attendance) {
+            return;
+        }
         if (in_array($attendance->status, ['paid-leave', 'unpaid-leave'], true)) {
             $attendance->delete();
+
             return;
         }
         $attendance->update([

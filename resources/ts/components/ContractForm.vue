@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
 import CompanyApi, { type Company } from '@/api/company'
 import type { ContractStatus } from '@/api/contracts'
 import CustomerApi, { type Customer } from '@/api/customer'
 import EmployeeApi, { type Employee } from '@/api/employee'
-import { computed, onMounted, ref, watch } from 'vue'
 import CounterpartyCard, { type CounterpartyDetails } from '@/components/contract/CounterpartyCard.vue'
 
 export interface ContractFormPayload {
@@ -81,7 +81,8 @@ const normalizeWholeNumber = (value: unknown): number | null => {
   if (typeof value === 'number')
     return Number.isSafeInteger(value) && value > 0 ? value : null
 
-  if (typeof value !== 'string') return null
+  if (typeof value !== 'string')
+    return null
 
   const normalized = value
     .trim()
@@ -114,14 +115,13 @@ const activeSlug = computed<string | null>(() => {
 
 const context = computed<'employee' | 'customer' | 'company' | null>(() => {
   const slug = activeSlug.value
+
   return slug ? CONTEXT_BY_SLUG[slug] ?? null : null
 })
 
 const statusOptions = [
   { title: 'Draft', value: 'draft' },
   { title: 'Active', value: 'active' },
-  { title: 'Expired', value: 'expired' },
-  { title: 'Terminated', value: 'terminated' },
 ]
 
 const visibleTemplates = computed(() => {
@@ -143,7 +143,7 @@ const customerOptions = computed(() => customers.value.map(customer => ({
 })))
 
 const employeeOptions = computed(() => employees.value.map(employee => ({
-  title: employee.position?.name ? `${employee.name} — ${employee.position.name}` : employee.name,
+  title: employee.position ? `${employee.name} — ${employee.position}` : employee.name,
   value: employee.id,
 })))
 
@@ -157,13 +157,13 @@ const selectedCustomer = computed(() => customers.value.find(item => item.id ===
 const selectedCompany = computed(() => companies.value.find(item => item.id === form.value.company_id) ?? null)
 
 const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
-  switch (context.value) {
-    case 'employee':
-      return selectedEmployee.value
-        ? {
+    switch (context.value) {
+      case 'employee':
+        return selectedEmployee.value
+          ? {
             kind: 'employee',
             name: selectedEmployee.value.name,
-            subtitle: selectedEmployee.value.position?.name || null,
+            subtitle: selectedEmployee.value.position || null,
             phone: selectedEmployee.value.contact,
             email: selectedEmployee.value.email,
             address: selectedEmployee.value.addr,
@@ -192,8 +192,10 @@ const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
             phone: selectedCompany.value.representative_phone || selectedCompany.value.phone,
             email: selectedCompany.value.representative_email || selectedCompany.value.email,
             address: [
-              selectedCompany.value.address_line, selectedCompany.value.city,
-              selectedCompany.value.province, selectedCompany.value.country,
+              selectedCompany.value.address_line,
+          selectedCompany.value.city,
+              selectedCompany.value.province,
+          selectedCompany.value.country,
             ].filter(Boolean).join(', ') || null,
             representativeName: selectedCompany.value.representative_name,
             representativeTitle: selectedCompany.value.representative_title,
@@ -211,13 +213,15 @@ onMounted(async () => {
       EmployeeApi.getOptions(),
       CompanyApi.getAll(),
     ])
+
     if (customerResult.status === 'fulfilled' && customerResult.value.success)
       customers.value = customerResult.value.data
     if (employeeResult.status === 'fulfilled')
       employees.value = employeeResult.value
     if (companyResult.status === 'fulfilled')
       companies.value = companyResult.value.filter(company => company.is_active !== false)
-  } finally {
+  }
+  finally {
     loadingEntities.value = false
   }
 })
@@ -241,38 +245,37 @@ watch([() => form.value.start_date, () => form.value.duration_months], ([startDa
   const durationMonths = normalizeWholeNumber(duration)
   if (!startDate || durationMonths === null) {
     form.value.end_date = null
+
     return
   }
 
   const [year, month, day] = startDate.split('-').map(Number)
   const lastDay = new Date(Date.UTC(year, month - 1 + durationMonths + 1, 0)).getUTCDate()
+
   form.value.end_date = new Date(Date.UTC(year, month - 1 + durationMonths, Math.min(day, lastDay))).toISOString().slice(0, 10)
 }, { immediate: true })
 
 const submit = async () => {
   const validation = await formRef.value?.validate()
-  if (validation?.valid === false) return
+  if (validation?.valid === false)
+    return
 
   const durationMonths = normalizeWholeNumber(form.value.duration_months)
-  if (durationMonths === null) return
-
-  const { employee_id, customer_id, company_id, ...contractData } = form.value
-  const counterpartyId = context.value === 'employee'
-    ? { employee_id }
-    : context.value === 'customer'
-      ? { customer_id }
-      : context.value === 'company'
-        ? { company_id }
-        : {}
+  if (durationMonths === null)
+    return
 
   emit('submit', {
-    ...contractData,
-    ...counterpartyId,
+    ...form.value,
+    employee_id: context.value === 'employee' ? form.value.employee_id : null,
+    customer_id: context.value === 'customer' ? form.value.customer_id : null,
+    company_id: context.value === 'company' ? form.value.company_id : null,
     duration_months: durationMonths,
+
     // Template contracts inherit their display name from the template. Keep
     // it in the payload as well so older client validators cannot reject an
     // otherwise valid template-based contract because name is blank.
     name: selectedTemplate.value?.name || form.value.name,
+
     // Template contracts take their content from the selected template.
     content: undefined,
   })
@@ -282,10 +285,16 @@ defineExpose({ submit })
 </script>
 
 <template>
-  <VForm ref="formRef" class="app-form" @submit.prevent="submit">
+  <VForm
+    ref="formRef"
+    class="app-form"
+    @submit.prevent="submit"
+  >
     <VRow>
       <VCol cols="12">
-        <p class="app-form__section">Contract setup</p>
+        <p class="app-form__section">
+          Contract setup
+        </p>
         <p class="app-form__section-help">
           Pick a template first — its contract type decides which counterparty record is required and which details
           flow into the document automatically.
@@ -293,32 +302,80 @@ defineExpose({ submit })
       </VCol>
 
       <VCol cols="12">
-        <VSelect v-model="form.template_id" :items="visibleTemplates" item-title="name" item-value="id"
-          label="Contract Template" :rules="[v => !!v || 'Template is required']" :loading="loadingEntities"
-          required />
+        <VSelect
+          v-model="form.template_id"
+          :items="visibleTemplates"
+          item-title="name"
+          item-value="id"
+          label="Contract Template"
+          :rules="[v => !!v || 'Template is required']"
+          :loading="loadingEntities"
+          required
+        />
       </VCol>
 
       <!-- Context-driven counterparty selection -->
-      <VCol v-if="context === 'employee'" cols="12">
-        <VAutocomplete v-model="form.employee_id" :items="employeeOptions" label="Employee"
-          placeholder="Select employee" prepend-inner-icon="tabler-user" :loading="loadingEntities"
-          :rules="[v => !!v || 'Employee is required']" no-data-text="No employees found" required />
+      <VCol
+        v-if="context === 'employee'"
+        cols="12"
+      >
+        <VAutocomplete
+          v-model="form.employee_id"
+          :items="employeeOptions"
+          label="Employee"
+          placeholder="Select employee"
+          prepend-inner-icon="tabler-user"
+          :loading="loadingEntities"
+          :rules="[v => !!v || 'Employee is required']"
+          no-data-text="No employees found"
+          required
+        />
       </VCol>
 
-      <VCol v-else-if="context === 'customer'" cols="12">
-        <VAutocomplete v-model="form.customer_id" :items="customerOptions" label="Customer"
-          placeholder="Select a customer" prepend-inner-icon="tabler-users" :loading="loadingEntities"
-          :rules="[v => !!v || 'A customer is required']" no-data-text="No customers found" required />
+      <VCol
+        v-else-if="context === 'customer'"
+        cols="12"
+      >
+        <VAutocomplete
+          v-model="form.customer_id"
+          :items="customerOptions"
+          label="Customer"
+          placeholder="Select a customer"
+          prepend-inner-icon="tabler-users"
+          :loading="loadingEntities"
+          :rules="[v => !!v || 'A customer is required']"
+          no-data-text="No customers found"
+          required
+        />
       </VCol>
 
-      <VCol v-else-if="context === 'company'" cols="12">
-        <VAutocomplete v-model="form.company_id" :items="companyOptions" label="Counterparty Company"
-          placeholder="Select a company" prepend-inner-icon="tabler-building" :loading="loadingEntities"
-          :rules="[v => !!v || 'A counterparty company is required']" no-data-text="No companies found"
-          hint="Manage companies from the Companies page in the Contracts menu." persistent-hint required>
+      <VCol
+        v-else-if="context === 'company'"
+        cols="12"
+      >
+        <VAutocomplete
+          v-model="form.company_id"
+          :items="companyOptions"
+          label="Counterparty Company"
+          placeholder="Select a company"
+          prepend-inner-icon="tabler-building"
+          :loading="loadingEntities"
+          :rules="[v => !!v || 'A counterparty company is required']"
+          no-data-text="No companies found"
+          hint="Manage companies from the Companies page in the Contracts menu."
+          persistent-hint
+          required
+        >
           <template #append-item>
             <div class="pa-2">
-              <VBtn variant="tonal" color="primary" size="small" block prepend-icon="tabler-plus" to="/companies">
+              <VBtn
+                variant="tonal"
+                color="primary"
+                size="small"
+                block
+                prepend-icon="tabler-plus"
+                to="/companies"
+              >
                 Manage Companies
               </VBtn>
             </div>
@@ -331,33 +388,84 @@ defineExpose({ submit })
         <CounterpartyCard :details="counterpartyDetails" />
       </VCol>
 
-
-      <VCol cols="12" sm="6" md="4">
-        <VSelect v-model="form.status" :items="statusOptions" label="Status"
-          :rules="[v => !!v || 'Status is required']" required />
+      <VCol
+        cols="12"
+        sm="6"
+        md="4"
+      >
+        <VSelect
+          v-model="form.status"
+          :items="statusOptions"
+          label="Status"
+          :rules="[v => !!v || 'Status is required']"
+          required
+        />
       </VCol>
-      <VCol cols="12" sm="6" md="4">
-        <VTextField v-model="form.start_date" label="Start Date" type="date"
-          :rules="[v => !!v || 'Start date is required']" required />
+      <VCol
+        cols="12"
+        sm="6"
+        md="4"
+      >
+        <VTextField
+          v-model="form.start_date"
+          label="Start Date"
+          type="date"
+          :rules="[v => !!v || 'Start date is required']"
+          required
+        />
       </VCol>
-      <VCol cols="12" md="4">
-        <VTextField v-model="form.duration_months" label="Duration (months)" type="number" min="1" step="1"
-          :rules="[v => !!v || 'Duration is required', isPositiveWholeNumber]" hint="The end date is calculated from the start date." persistent-hint required />
+      <VCol
+        cols="12"
+        md="4"
+      >
+        <VTextField
+          v-model="form.duration_months"
+          label="Duration (months)"
+          type="number"
+          min="1"
+          step="1"
+          :rules="[v => !!v || 'Duration is required', isPositiveWholeNumber]"
+          hint="The end date is calculated from the start date."
+          persistent-hint
+          required
+        />
       </VCol>
-      <VCol cols="12" md="4">
-        <VTextField v-model="form.end_date" label="Calculated End Date" type="date" readonly />
+      <VCol
+        cols="12"
+        md="4"
+      >
+        <VTextField
+          v-model="form.end_date"
+          label="Calculated End Date"
+          type="date"
+          readonly
+        />
       </VCol>
-      <VCol cols="12" md="6">
-        <VTextField v-model="form.company_signatory_name" label="Our company signatory"
-          hint="The authorized person signing on behalf of our company." persistent-hint />
+      <VCol
+        cols="12"
+        md="6"
+      >
+        <VTextField
+          v-model="form.company_signatory_name"
+          label="Our company signatory"
+          hint="The authorized person signing on behalf of our company."
+          persistent-hint
+        />
       </VCol>
     </VRow>
 
     <VCardActions class="app-form__actions">
-      <VBtn variant="outlined" color="secondary" @click="emit('cancel')">
+      <VBtn
+        variant="outlined"
+        color="secondary"
+        @click="emit('cancel')"
+      >
         {{ $t('common.actions.cancel') }}
       </VBtn>
-      <VBtn type="submit" color="primary">
+      <VBtn
+        type="submit"
+        color="primary"
+      >
         {{ $t('common.actions.save') }}
       </VBtn>
     </VCardActions>

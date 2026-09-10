@@ -7,10 +7,11 @@ use App\Models\Concerns\HasDocumentNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Invoice extends Model
 {
-    use HasDocumentNumber, HasFactory, Auditable;
+    use Auditable, HasDocumentNumber, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'class_type',

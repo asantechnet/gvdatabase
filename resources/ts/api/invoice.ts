@@ -48,7 +48,7 @@ export interface Invoice {
     address?: string
     tax_number?: string
   }
-  'class-type': 'Standard' | 'Proforma' | 'Credit Note' | 'Debit Note'
+  'class-type': 'Standard'
   services: InvoiceService[]
   deptor: string
   status: 'Issued' | 'Partially Paid' | 'Paid' | 'Overdue' | 'Void'
@@ -155,21 +155,25 @@ const InvoiceApi = {
 
   async getById(id: number): Promise<Invoice> {
     const response = await api.get(`/invoices/${id}`)
+
     return normalizeInvoice(unwrapData<Invoice>(response))
   },
 
   async create(data: CreateInvoiceData): Promise<Invoice> {
     const response = await api.post('/invoices', data)
+
     return normalizeInvoice(unwrapData<Invoice>(response))
   },
 
   async void(id: number, reason: string): Promise<Invoice> {
     const response = await api.put(`/invoices/${id}/void`, { reason })
+
     return normalizeInvoice(unwrapData<Invoice>(response))
   },
 
   async markPaid(id: number): Promise<Invoice> {
     const response = await api.put(`/invoices/${id}/mark-paid`)
+
     return normalizeInvoice(unwrapData<Invoice>(response))
   },
 }

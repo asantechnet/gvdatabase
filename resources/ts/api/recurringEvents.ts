@@ -7,6 +7,7 @@ export interface RecurringEvent { id: number; name: string; description: string 
 export type RecurringEventInput = Omit<RecurringEvent, 'id' | 'owner' | 'occurrences' | 'last_occurrence_date' | 'status'> & { status?: 'active' | 'paused' }
 
 const data = <T>(response: { data: { data: T } }) => response.data.data
+
 const RecurringEventsApi = {
   async all(): Promise<RecurringEvent[]> { return data(await api.get('/recurring-events')) },
   async get(id: number): Promise<RecurringEvent> { return data(await api.get(`/recurring-events/${id}`)) },
@@ -18,4 +19,5 @@ const RecurringEventsApi = {
   async skip(occurrenceId: number): Promise<RecurringOccurrence> { return data(await api.post(`/recurring-event-occurrences/${occurrenceId}/skip`)) },
   async execute(occurrenceId: number): Promise<RecurringOccurrence> { return data(await api.post(`/recurring-event-occurrences/${occurrenceId}/execute`)) },
 }
+
 export default RecurringEventsApi

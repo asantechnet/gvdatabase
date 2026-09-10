@@ -1,5 +1,5 @@
-import type { ActiveChat } from './useChat'
 import type { ChatContact, ChatContactWithChat, ChatMessage, ChatOut } from '@db/apps/chat/types'
+import type { ActiveChat } from './useChat'
 
 interface State {
   chatsContacts: ChatContactWithChat[]

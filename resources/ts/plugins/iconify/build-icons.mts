@@ -13,6 +13,7 @@
 import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Installation: npm install --save-dev @iconify/tools @iconify/utils @iconify/json @iconify/iconify
 import {
@@ -116,7 +117,7 @@ const sources: BundleScriptConfig = {
 };
 
 // File to save bundle to
-const target = join(__dirname, "icons.css");
+const target = join(dirname(fileURLToPath(import.meta.url)), "icons.css");
 
 /**
  * Do stuff!

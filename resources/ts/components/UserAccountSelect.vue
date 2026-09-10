@@ -50,23 +50,52 @@ const options = computed(() => props.items.map(account => ({
       </div>
     </template>
     <template #item="{ props: itemProps, item }">
-      <VListItem v-bind="itemProps" class="account-picker-option" lines="three">
+      <VListItem
+        v-bind="itemProps"
+        class="account-picker-option"
+        lines="three"
+      >
         <template #prepend>
-          <VAvatar color="primary" variant="tonal" size="42">{{ avatarText(item.raw.name) }}</VAvatar>
+          <VAvatar
+            color="primary"
+            variant="tonal"
+            size="42"
+          >
+            {{ avatarText(item.raw.name) }}
+          </VAvatar>
         </template>
-        <template #title><span class="font-weight-bold">{{ item.raw.name }}</span></template>
+        <template #title>
+          <span class="font-weight-bold">{{ item.raw.name }}</span>
+        </template>
         <template #subtitle>
           <div class="account-picker-option__details">
             <span>#{{ item.raw.id }} · {{ item.raw.email }}</span>
-            <span v-if="item.raw.employee"><VIcon icon="tabler-id-badge-2" size="14" /> {{ t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span>
-            <span v-if="item.raw.marketer"><VIcon icon="tabler-speakerphone" size="14" /> {{ t('common.accountPicker.linkedMarketer', { name: item.raw.marketer.name, id: item.raw.marketer.id }) }}</span>
+            <span v-if="item.raw.employee"><VIcon
+              icon="tabler-id-badge-2"
+              size="14"
+            /> {{ t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span>
+            <span v-if="item.raw.marketer"><VIcon
+              icon="tabler-speakerphone"
+              size="14"
+            /> {{ t('common.accountPicker.linkedMarketer', { name: item.raw.marketer.name, id: item.raw.marketer.id }) }}</span>
             <span v-if="!item.raw.employee && !item.raw.marketer">{{ t('common.accountPicker.available') }}</span>
           </div>
         </template>
-        <template #append><VIcon v-if="item.raw.disabled" icon="tabler-lock" size="18" color="medium-emphasis" /></template>
+        <template #append>
+          <VIcon
+            v-if="item.raw.disabled"
+            icon="tabler-lock"
+            size="18"
+            color="medium-emphasis"
+          />
+        </template>
       </VListItem>
     </template>
-    <template #no-data><div class="pa-4 text-center text-medium-emphasis">{{ t('common.accountPicker.noResults') }}</div></template>
+    <template #no-data>
+      <div class="pa-4 text-center text-medium-emphasis">
+        {{ t('common.accountPicker.noResults') }}
+      </div>
+    </template>
   </VAutocomplete>
 </template>
 

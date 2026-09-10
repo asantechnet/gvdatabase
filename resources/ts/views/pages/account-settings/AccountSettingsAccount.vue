@@ -1,13 +1,13 @@
 <script lang="ts" setup>
+import { useToast } from 'vue-toastification'
 import AuthApi, { type Account, type AccountUpdatePayload } from '@/api/auth'
 import {
+  type AccountDeactivationRequest,
   cancelAccountDeactivation,
   getMyDeactivationRequests,
   requestAccountDeactivation,
-  type AccountDeactivationRequest,
 } from '@/api/accountDeactivation'
 import { canAccess } from '@/utils/authorization'
-import { useToast } from 'vue-toastification'
 
 const fallbackAvatar = 'https://ui-avatars.com/api/?background=7367f0&color=fff&name=User'
 const toast = useToast()
@@ -30,12 +30,14 @@ const isSuperAdmin = ref(false)
 const userData = useCookie<Record<string, unknown> | null>('userData')
 
 watch(message, value => {
-  if (!value) return
+  if (!value)
+    return
   toast.success(value)
   message.value = ''
 })
 watch(error, value => {
-  if (!value) return
+  if (!value)
+    return
   toast.error(value)
   error.value = ''
 })
@@ -53,6 +55,7 @@ function responseData(response: any) {
 
 function setAccount(data: Account) {
   const { avatar, ...values } = data
+
   emailVerified.value = data.email_verified
   isSuperAdmin.value = data.roles.includes('super_admin')
   account.value = { ...account.value, ...values, avatar }
@@ -60,7 +63,8 @@ function setAccount(data: Account) {
 }
 
 async function resendVerification() {
-  if (!account.value.email) return
+  if (!account.value.email)
+    return
   try {
     await AuthApi.resendEmailVerification(account.value.email)
     message.value = translate('common.messages.ifVerificationIsRequiredANewEmailHasBeenSent')
@@ -84,7 +88,8 @@ async function saveAccount() {
 
 async function changeAvatar(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
+  if (!file)
+    return
   error.value = ''; message.value = ''
   try {
     account.value.avatar = (await AuthApi.uploadAvatar(file)).data.data.avatar
@@ -129,11 +134,13 @@ async function loadDeactivationRequests() {
 }
 
 async function submitDeactivationRequest() {
-  if (!deactivationPassword.value || deactivationSubmitting.value) return
+  if (!deactivationPassword.value || deactivationSubmitting.value)
+    return
   deactivationSubmitting.value = true
   error.value = ''; message.value = ''
   try {
     const created = await requestAccountDeactivation(deactivationPassword.value, deactivationReason.value)
+
     deactivationRequests.value.unshift(created)
     message.value = translate('components.account.accountsettingsaccount.yourDeactivationRequestWasSentForApproval')
     closeDeactivationDialog()
@@ -146,12 +153,14 @@ async function submitDeactivationRequest() {
 }
 
 async function cancelPendingDeactivation() {
-  if (!pendingDeactivation.value || deactivationCancelling.value) return
+  if (!pendingDeactivation.value || deactivationCancelling.value)
+    return
   deactivationCancelling.value = true
   try {
     const updated = await cancelAccountDeactivation(pendingDeactivation.value.id)
     const index = deactivationRequests.value.findIndex(item => item.id === updated.id)
-    if (index >= 0) deactivationRequests.value[index] = updated
+    if (index >= 0)
+      deactivationRequests.value[index] = updated
     message.value = translate('components.account.accountsettingsaccount.yourPendingDeactivationRequestWasCancelled')
   }
   catch (e: any) { error.value = e.message || 'Unable to cancel the request.' }
@@ -159,7 +168,8 @@ async function cancelPendingDeactivation() {
 }
 
 watch(deactivationDialogOpen, open => {
-  if (!open) clearDeactivationSecrets()
+  if (!open)
+    clearDeactivationSecrets()
 })
 
 onMounted(() => Promise.all([loadAccount(), loadDeactivationRequests()]))
@@ -170,72 +180,261 @@ onBeforeUnmount(clearDeactivationSecrets)
   <VRow>
     <VCol cols="12">
       <VCard :loading="loading">
-        <VCardText class="d-flex">
-          <VAvatar rounded size="100" class="me-6" :image="displayAvatar" />
+        <VCardText
+          class="d-flex"
+          data-account-guide="profile-photo"
+        >
+          <VAvatar
+            rounded
+            size="100"
+            class="me-6"
+            :image="displayAvatar"
+          />
           <div class="d-flex flex-column justify-center gap-4">
             <div class="d-flex flex-wrap gap-4">
-              <VBtn color="primary" size="small" :loading="saving" @click="refInputEl?.click()">{{ $t('components.account.accountsettingsaccount.uploadNewPhoto') }}</VBtn>
-              <input ref="refInputEl" type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden @change="changeAvatar">
-              <VBtn size="small" color="secondary" variant="tonal" @click="resetAvatar">{{ $t('common.messages.reset') }}</VBtn>
+              <VBtn
+                color="primary"
+                size="small"
+                :loading="saving"
+                @click="refInputEl?.click()"
+              >
+                {{ $t('components.account.accountsettingsaccount.uploadNewPhoto') }}
+              </VBtn>
+              <input
+                ref="refInputEl"
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                hidden
+                @change="changeAvatar"
+              >
+              <VBtn
+                size="small"
+                color="secondary"
+                variant="tonal"
+                @click="resetAvatar"
+              >
+                {{ $t('common.messages.reset') }}
+              </VBtn>
             </div>
-            <p class="text-body-1 mb-0">{{ $t('components.account.accountsettingsaccount.allowedJPGGIFPNGOrWebPMaximumSize800KB') }}</p>
+            <p class="text-body-1 mb-0">
+              {{ $t('components.account.accountsettingsaccount.allowedJPGGIFPNGOrWebPMaximumSize800KB') }}
+            </p>
           </div>
         </VCardText>
 
-        <VCardText class="pt-2">
-          <VForm class="mt-3" @submit.prevent="saveAccount">
+        <VCardText
+          class="pt-2"
+          data-account-guide="profile-details"
+        >
+          <VForm
+            class="mt-3"
+            @submit.prevent="saveAccount"
+          >
             <VRow>
-              <VCol md="6" cols="12"><AppTextField v-model="account.name" :label="$t('common.messages.fullName')" :disabled="loading" /></VCol>
-              <VCol md="6" cols="12"><AppTextField v-model="account.email" :label="$t('common.messages.eMail')" type="email" :disabled="loading" /></VCol>
-              <VCol v-if="!emailVerified" cols="12">
-                <VAlert type="warning" variant="tonal">
+              <VCol
+                md="6"
+                cols="12"
+              >
+                <AppTextField
+                  v-model="account.name"
+                  :label="$t('common.messages.fullName')"
+                  :disabled="loading"
+                />
+              </VCol>
+              <VCol
+                md="6"
+                cols="12"
+              >
+                <AppTextField
+                  v-model="account.email"
+                  :label="$t('common.messages.eMail')"
+                  type="email"
+                  :disabled="loading"
+                />
+              </VCol>
+              <VCol
+                v-if="!emailVerified"
+                cols="12"
+              >
+                <VAlert
+                  type="warning"
+                  variant="tonal"
+                >
                   {{ $t('components.account.accountsettingsaccount.thisEmailAddressIsNotVerifiedSignInWillRemainBlockedUntilVerificationI') }}
-                  <template #append><VBtn size="small" variant="text" @click="resendVerification">{{ $t('components.account.accountsettingsaccount.resendVerification') }}</VBtn></template>
+                  <template #append>
+                    <VBtn
+                      size="small"
+                      variant="text"
+                      @click="resendVerification"
+                    >
+                      {{ $t('components.account.accountsettingsaccount.resendVerification') }}
+                    </VBtn>
+                  </template>
                 </VAlert>
               </VCol>
-              <VCol md="6" cols="12"><AppTextField v-model="account.organization" :label="$t('components.account.accountsettingsaccount.organization')" /></VCol>
-              <VCol md="6" cols="12"><AppTextField v-model="account.phone" :label="$t('components.account.accountsettingsaccount.phoneNumber')" /></VCol>
-              <VCol md="6" cols="12"><AppTextField v-model="account.address" :label="$t('common.fields.address')" /></VCol>
-              <VCol md="6" cols="12"><AppTextField v-model="account.state" :label="$t('components.account.accountsettingsaccount.state')" /></VCol>
-              <VCol md="6" cols="12"><AppTextField v-model="account.zip" :label="$t('components.account.accountsettingsaccount.zipCode')" /></VCol>
-              <VCol md="6" cols="12"><AppTextField v-model="account.country" :label="$t('components.account.accountsettingsaccount.country')" /></VCol>
-              <VCol md="6" cols="12"><AppTextField v-model="account.language" :label="$t('components.account.accountsettingsaccount.language')" /></VCol>
-              <VCol md="6" cols="12"><AppSelect v-model="account.timezone" :label="$t('components.account.accountsettingsaccount.timezone')" :items="timezones" /></VCol>
-              <VCol md="6" cols="12"><AppSelect v-model="account.currency" :label="$t('common.fields.currency')" :items="currencies" /></VCol>
-              <VCol cols="12" class="d-flex flex-wrap gap-4"><VBtn type="submit" :loading="saving">{{ $t('common.messages.saveChanges4') }}</VBtn><VBtn color="secondary" variant="tonal" @click="resetForm">{{ $t('common.actions.cancel') }}</VBtn></VCol>
+              <VCol
+                md="6"
+                cols="12"
+              >
+                <AppTextField
+                  v-model="account.organization"
+                  :label="$t('components.account.accountsettingsaccount.organization')"
+                />
+              </VCol>
+              <VCol
+                md="6"
+                cols="12"
+              >
+                <AppTextField
+                  v-model="account.phone"
+                  :label="$t('components.account.accountsettingsaccount.phoneNumber')"
+                />
+              </VCol>
+              <VCol
+                md="6"
+                cols="12"
+              >
+                <AppTextField
+                  v-model="account.address"
+                  :label="$t('common.fields.address')"
+                />
+              </VCol>
+              <VCol
+                md="6"
+                cols="12"
+              >
+                <AppTextField
+                  v-model="account.state"
+                  :label="$t('components.account.accountsettingsaccount.state')"
+                />
+              </VCol>
+              <VCol
+                md="6"
+                cols="12"
+              >
+                <AppTextField
+                  v-model="account.zip"
+                  :label="$t('components.account.accountsettingsaccount.zipCode')"
+                />
+              </VCol>
+              <VCol
+                md="6"
+                cols="12"
+              >
+                <AppTextField
+                  v-model="account.country"
+                  :label="$t('components.account.accountsettingsaccount.country')"
+                />
+              </VCol>
+              <VCol
+                md="6"
+                cols="12"
+              >
+                <AppTextField
+                  v-model="account.language"
+                  :label="$t('components.account.accountsettingsaccount.language')"
+                />
+              </VCol>
+              <VCol
+                md="6"
+                cols="12"
+              >
+                <AppSelect
+                  v-model="account.timezone"
+                  :label="$t('components.account.accountsettingsaccount.timezone')"
+                  :items="timezones"
+                />
+              </VCol>
+              <VCol
+                md="6"
+                cols="12"
+              >
+                <AppSelect
+                  v-model="account.currency"
+                  :label="$t('common.fields.currency')"
+                  :items="currencies"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                class="d-flex flex-wrap gap-4"
+              >
+                <VBtn
+                  type="submit"
+                  :loading="saving"
+                >
+                  {{ $t('common.messages.saveChanges4') }}
+                </VBtn><VBtn
+                  color="secondary"
+                  variant="tonal"
+                  @click="resetForm"
+                >
+                  {{ $t('common.actions.cancel') }}
+                </VBtn>
+              </VCol>
             </VRow>
           </VForm>
         </VCardText>
       </VCard>
     </VCol>
 
-    <VCol v-if="canRequestDeactivation" cols="12">
+    <VCol
+      v-if="canRequestDeactivation"
+      cols="12"
+    >
       <VCard :title="$t('components.account.accountsettingsaccount.deactivateAccount')">
         <VCardText>
-          <VAlert v-if="pendingDeactivation" type="warning" variant="tonal" class="mb-4">
-          {{ $t('components.account.deactivation.pendingSince', { date: formatLocalizedDate(pendingDeactivation.requested_at, 'long') }) }}
+          <VAlert
+            v-if="pendingDeactivation"
+            type="warning"
+            variant="tonal"
+            class="mb-4"
+          >
+            {{ $t('components.account.deactivation.pendingSince', { date: formatLocalizedDate(pendingDeactivation.requested_at, 'long') }) }}
           </VAlert>
-          <p class="mb-4">{{ $t('components.account.accountsettingsaccount.aHigherAuthorityReviewerMustApproveTheRequestBeforeYourAccountIsDeacti') }}</p>
+          <p class="mb-4">
+            {{ $t('components.account.accountsettingsaccount.aHigherAuthorityReviewerMustApproveTheRequestBeforeYourAccountIsDeacti') }}
+          </p>
           <VBtn
             v-if="pendingDeactivation && canCancelDeactivation"
             color="secondary"
             variant="tonal"
             :loading="deactivationCancelling"
             @click="cancelPendingDeactivation"
-          >{{ $t('components.account.accountsettingsaccount.cancelPendingRequest') }}</VBtn>
-          <VBtn v-else color="error" variant="tonal" @click="openDeactivationDialog">{{ $t('components.account.accountsettingsaccount.requestAccountDeactivation') }}</VBtn>
+          >
+            {{ $t('components.account.accountsettingsaccount.cancelPendingRequest') }}
+          </VBtn>
+          <VBtn
+            v-else
+            color="error"
+            variant="tonal"
+            @click="openDeactivationDialog"
+          >
+            {{ $t('components.account.accountsettingsaccount.requestAccountDeactivation') }}
+          </VBtn>
         </VCardText>
       </VCard>
     </VCol>
   </VRow>
 
-  <VDialog :model-value="deactivationDialogOpen" max-width="520" @update:model-value="value => value ? undefined : closeDeactivationDialog()">
+  <VDialog
+    :model-value="deactivationDialogOpen"
+    max-width="520"
+    @update:model-value="value => value ? undefined : closeDeactivationDialog()"
+  >
     <VCard :title="$t('components.account.accountsettingsaccount.confirmDeactivationRequest')">
       <VCardText>
-        <VAlert type="warning" variant="tonal" class="mb-5">
+        <VAlert
+          type="warning"
+          variant="tonal"
+          class="mb-5"
+        >
           {{ $t('components.account.accountsettingsaccount.thisSubmitsARequestForReviewYourAccountRemainsActiveUntilItIsApproved') }}
         </VAlert>
-        <VForm autocomplete="off" @submit.prevent="submitDeactivationRequest">
+        <VForm
+          autocomplete="off"
+          @submit.prevent="submitDeactivationRequest"
+        >
           <VTextField
             v-model="deactivationPassword"
             name="account-deactivation-confirmation-password"
@@ -251,10 +450,29 @@ onBeforeUnmount(clearDeactivationSecrets)
             @pointerdown="passwordFieldGuarded = false"
             @focus="passwordFieldGuarded = false"
           />
-          <VTextarea v-model="deactivationReason" :label="$t('components.account.accountsettingsaccount.reasonOptional')" maxlength="2000" counter rows="3" />
+          <VTextarea
+            v-model="deactivationReason"
+            :label="$t('components.account.accountsettingsaccount.reasonOptional')"
+            maxlength="2000"
+            counter
+            rows="3"
+          />
           <div class="d-flex justify-end ga-3 mt-5">
-            <VBtn variant="tonal" :disabled="deactivationSubmitting" @click="closeDeactivationDialog">{{ $t('common.actions.cancel') }}</VBtn>
-            <VBtn color="error" type="submit" :disabled="!deactivationPassword" :loading="deactivationSubmitting">{{ $t('components.account.accountsettingsaccount.sendForApproval') }}</VBtn>
+            <VBtn
+              variant="tonal"
+              :disabled="deactivationSubmitting"
+              @click="closeDeactivationDialog"
+            >
+              {{ $t('common.actions.cancel') }}
+            </VBtn>
+            <VBtn
+              color="error"
+              type="submit"
+              :disabled="!deactivationPassword"
+              :loading="deactivationSubmitting"
+            >
+              {{ $t('components.account.accountsettingsaccount.sendForApproval') }}
+            </VBtn>
           </div>
         </VForm>
       </VCardText>

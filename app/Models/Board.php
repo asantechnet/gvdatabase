@@ -3,16 +3,18 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use Database\Factories\BoardFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Board extends Model
 {
-    /** @use HasFactory<\Database\Factories\BoardFactory> */
-    use HasFactory, Auditable;
+    /** @use HasFactory<BoardFactory> */
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $fillable = ['project_id', 'title', 'order'];
 

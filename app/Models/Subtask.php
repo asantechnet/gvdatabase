@@ -3,14 +3,16 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use Database\Factories\SubtaskFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Subtask extends Model
 {
-    /** @use HasFactory<\Database\Factories\SubtaskFactory> */
-    use HasFactory, Auditable;
+    /** @use HasFactory<SubtaskFactory> */
+    use Auditable, HasFactory, SoftDeletes;
 
     protected $fillable = ['task_id', 'user_id', 'title', 'category', 'priority', 'is_completed'];
 

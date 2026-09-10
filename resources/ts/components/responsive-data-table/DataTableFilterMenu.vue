@@ -13,20 +13,41 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <VMenu :close-on-content-click="false" location="bottom end">
+  <VMenu
+    :close-on-content-click="false"
+    location="bottom end"
+  >
     <template #activator="{ props: menuProps }">
-      <VBtn v-bind="menuProps" icon="tabler-filter" variant="text" size="small"
-        :color="active ? 'primary' : undefined" :aria-label="t('common.messages.filters')">
+      <VBtn
+        v-bind="menuProps"
+        icon="tabler-filter"
+        variant="text"
+        size="small"
+        :color="active ? 'primary' : undefined"
+        :aria-label="t('common.messages.filters')"
+      >
         <VIcon icon="tabler-filter" />
-        <VTooltip activator="parent" location="top">{{ t('common.messages.filters') }}</VTooltip>
+        <VTooltip
+          activator="parent"
+          location="top"
+        >
+          {{ t('common.messages.filters') }}
+        </VTooltip>
       </VBtn>
     </template>
 
     <VCard min-width="280">
       <VCardItem>
-        <VCardTitle class="text-body-1 font-weight-medium">{{ t('common.messages.filters') }}</VCardTitle>
+        <VCardTitle class="text-body-1 font-weight-medium">
+          {{ t('common.messages.filters') }}
+        </VCardTitle>
         <template #append>
-          <VBtn variant="text" size="small" :disabled="!active" @click="$emit('reset')">
+          <VBtn
+            variant="text"
+            size="small"
+            :disabled="!active"
+            @click="$emit('reset')"
+          >
             {{ t('common.messages.reset') }}
           </VBtn>
         </template>

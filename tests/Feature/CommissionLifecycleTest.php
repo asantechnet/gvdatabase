@@ -11,6 +11,7 @@ use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
 use App\Models\Invoice;
+use App\Models\Position;
 use App\Models\Role;
 use App\Models\Service;
 use App\Models\User;
@@ -77,10 +78,12 @@ class CommissionLifecycleTest extends TestCase
             'period_start' => '2026-09-01', 'period_end' => '2026-09-30',
         ])->assertCreated()->json('data.id');
 
+        Sanctum::actingAs($this->superAdmin(), ['access']);
         $this->postJson("/api/commission-settlements/{$settlementId}/approve")->assertOk();
         $this->putJson("/api/incomes/{$income->id}", ['amount' => 40])->assertUnprocessable()
             ->assertJsonPath('errors.income.0', 'business.commission_payment_reserved');
 
+        Sanctum::actingAs($this->superAdmin(), ['access']);
         $this->postJson("/api/commission-settlements/{$settlementId}/pay", ['payment_date' => '2026-10-01'])->assertOk();
 
         $settlement = CommissionSettlement::findOrFail($settlementId);
@@ -142,7 +145,7 @@ class CommissionLifecycleTest extends TestCase
     public function test_employee_profiles_allow_zero_base_salary_for_salaried_and_commission_employees(): void
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
-        $position = \App\Models\Position::factory()->create(['salary' => 0]);
+        $position = Position::factory()->create(['salary' => 0]);
         $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
         $service = Service::factory()->create(['currency_id' => $currency->id]);
 

@@ -72,7 +72,7 @@ const pricingPlans = [
   <!-- 👉 Title and subtitle -->
   <div class="text-center">
     <h3 class="text-h3 pricing-title mb-2">
-      {{ props.title ? props.title: translate('pages.settings.apppricing.apppricing.pricingPlans') }}
+      {{ props.title ? props.title : translate('pages.settings.apppricing.apppricing.pricingPlans') }}
     </h3>
     <p class="mb-0">
       {{ $t('pages.settings.apppricing.apppricing.allPlansInclude40AdvancedToolsAndFeaturesToBoostYourProduct') }}

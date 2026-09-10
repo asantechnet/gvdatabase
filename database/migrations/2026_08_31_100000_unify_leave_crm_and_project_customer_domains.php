@@ -22,18 +22,15 @@ return new class extends Migration
             'paid_days' => DB::raw('CASE WHEN is_paid = 1 THEN duration_days ELSE 0 END'),
         ]);
 
-        Schema::table('settings', fn (Blueprint $table) =>
-            $table->renameColumn('paid_off_days_per_year', 'paid_leave_days_per_year'));
+        Schema::table('settings', fn (Blueprint $table) => $table->renameColumn('paid_off_days_per_year', 'paid_leave_days_per_year'));
         Schema::table('salaries', function (Blueprint $table) {
             $table->renameColumn('paid_off_days', 'paid_leave_days');
             $table->renameColumn('unpaid_off_days', 'unpaid_leave_days');
         });
-        Schema::table('attendances', fn (Blueprint $table) =>
-            $table->enum('status', ['present', 'absent', 'paid-leave', 'unpaid-leave', 'paid-off-day', 'unpaid-off-day'])->change());
+        Schema::table('attendances', fn (Blueprint $table) => $table->enum('status', ['present', 'absent', 'paid-leave', 'unpaid-leave', 'paid-off-day', 'unpaid-off-day'])->change());
         DB::table('attendances')->where('status', 'paid-off-day')->update(['status' => 'paid-leave']);
         DB::table('attendances')->where('status', 'unpaid-off-day')->update(['status' => 'unpaid-leave']);
-        Schema::table('attendances', fn (Blueprint $table) =>
-            $table->enum('status', ['present', 'absent', 'paid-leave', 'unpaid-leave'])->change());
+        Schema::table('attendances', fn (Blueprint $table) => $table->enum('status', ['present', 'absent', 'paid-leave', 'unpaid-leave'])->change());
 
         Schema::table('visitors', function (Blueprint $table) {
             $table->text('notes')->nullable()->after('marketer');
@@ -94,30 +91,33 @@ return new class extends Migration
                 DB::table('projects')->where('id', $project->id)->update(['customer_id' => $customerIds->first()]);
             }
         });
-        Schema::dropIfExists('task_service');
-        Schema::dropIfExists('project_service');
+        // These legacy pivots are retained as historical business data. The
+        // project relation is still active, and task-service history must not
+        // be destroyed merely because the current UI no longer edits it.
     }
 
     public function down(): void
     {
-        Schema::create('project_service', function (Blueprint $table) {
-            $table->foreignId('project_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('service_id')->constrained()->restrictOnDelete();
-            $table->timestamps();
-            $table->primary(['project_id', 'service_id']);
-        });
-        Schema::create('task_service', function (Blueprint $table) {
-            $table->foreignId('task_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('service_id')->constrained()->restrictOnDelete();
-            $table->timestamps();
-            $table->primary(['task_id', 'service_id']);
-        });
-        Schema::table('attendances', fn (Blueprint $table) =>
-            $table->enum('status', ['present', 'absent', 'paid-leave', 'unpaid-leave', 'paid-off-day', 'unpaid-off-day'])->change());
+        if (! Schema::hasTable('project_service')) {
+            Schema::create('project_service', function (Blueprint $table) {
+                $table->foreignId('project_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('service_id')->constrained()->restrictOnDelete();
+                $table->timestamps();
+                $table->primary(['project_id', 'service_id']);
+            });
+        }
+        if (! Schema::hasTable('task_service')) {
+            Schema::create('task_service', function (Blueprint $table) {
+                $table->foreignId('task_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('service_id')->constrained()->restrictOnDelete();
+                $table->timestamps();
+                $table->primary(['task_id', 'service_id']);
+            });
+        }
+        Schema::table('attendances', fn (Blueprint $table) => $table->enum('status', ['present', 'absent', 'paid-leave', 'unpaid-leave', 'paid-off-day', 'unpaid-off-day'])->change());
         DB::table('attendances')->where('status', 'paid-leave')->update(['status' => 'paid-off-day']);
         DB::table('attendances')->where('status', 'unpaid-leave')->update(['status' => 'unpaid-off-day']);
-        Schema::table('attendances', fn (Blueprint $table) =>
-            $table->enum('status', ['present', 'absent', 'paid-off-day', 'unpaid-off-day'])->change());
+        Schema::table('attendances', fn (Blueprint $table) => $table->enum('status', ['present', 'absent', 'paid-off-day', 'unpaid-off-day'])->change());
         Schema::table('tasks', fn (Blueprint $table) => $table->dropConstrainedForeignId('customer_id'));
         Schema::table('projects', fn (Blueprint $table) => $table->dropConstrainedForeignId('customer_id'));
         Schema::dropIfExists('crm_interactions');
@@ -127,10 +127,8 @@ return new class extends Migration
             $table->renameColumn('paid_leave_days', 'paid_off_days');
             $table->renameColumn('unpaid_leave_days', 'unpaid_off_days');
         });
-        Schema::table('settings', fn (Blueprint $table) =>
-            $table->renameColumn('paid_leave_days_per_year', 'paid_off_days_per_year'));
-        Schema::table('leaves', fn (Blueprint $table) =>
-            $table->dropColumn(['duration_days', 'paid_days', 'paid_override', 'approval_note']));
+        Schema::table('settings', fn (Blueprint $table) => $table->renameColumn('paid_leave_days_per_year', 'paid_off_days_per_year'));
+        Schema::table('leaves', fn (Blueprint $table) => $table->dropColumn(['duration_days', 'paid_days', 'paid_override', 'approval_note']));
         Schema::rename('leaves', 'paid_time_offs');
     }
 };

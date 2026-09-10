@@ -34,8 +34,17 @@ const { t } = useI18n()
 const record = computed(() => props.item as DetailRecord)
 
 const hiddenKeys = new Set([
-  'password', 'password_confirmation', 'remember_token', 'token', 'access_token', 'refresh_token',
-  'pivot', 'laravel_through_key', 'deleted_at', 'avatar', 'employeeAvatar',
+  'password',
+  'password_confirmation',
+  'remember_token',
+  'token',
+  'access_token',
+  'refresh_token',
+  'pivot',
+  'laravel_through_key',
+  'deleted_at',
+  'avatar',
+  'employeeAvatar',
 ])
 
 const normalizedKey = (key: string) => key.replace(/[^a-z0-9]/gi, '').toLowerCase()
@@ -51,20 +60,20 @@ const humanize = (key: string) => key
   .replace(/\bId\b/g, 'ID')
 
 const friendlyLabels: Record<string, string> = {
-  addr: 'Address',
-  cnv_curr_shrt: 'Transaction currency',
-  base_curr_shrt: 'Base currency',
-  currentBaseAmount: 'Current base value',
-  currentBasePaidAmount: 'Paid in current base',
-  currentBaseBalance: 'Balance in current base',
-  class_type: 'Document type',
+  'addr': 'Address',
+  'cnv_curr_shrt': 'Transaction currency',
+  'base_curr_shrt': 'Base currency',
+  'currentBaseAmount': 'Current base value',
+  'currentBasePaidAmount': 'Paid in current base',
+  'currentBaseBalance': 'Balance in current base',
+  'class_type': 'Document type',
   'class-type': 'Document type',
-  deptor: 'Billed to',
-  recordedBy: 'Recorded by',
-  recorded_by: 'Recorded by',
-  salaryMonth: 'Payroll month',
-  paidOffDays: 'Paid leave days',
-  unpaidOffDays: 'Unpaid leave days',
+  'deptor': 'Billed to',
+  'recordedBy': 'Recorded by',
+  'recorded_by': 'Recorded by',
+  'salaryMonth': 'Payroll month',
+  'paidOffDays': 'Paid leave days',
+  'unpaidOffDays': 'Unpaid leave days',
 }
 
 const labelFor = (key: string) => friendlyLabels[key] || humanize(key)
@@ -80,11 +89,14 @@ const relationKeys = computed(() => new Set(
 ))
 
 const isForeignKey = (key: string) => {
-  if (/^id$/i.test(key)) return true
+  if (/^id$/i.test(key))
+    return true
   const match = key.match(/^(.*?)(?:_id|Id)$/)
-  if (!match) return false
+  if (!match)
+    return false
 
   const stem = normalizedKey(match[1])
+
   const aliases: Record<string, string[]> = {
     currency: ['currency', 'currentbasecurrency'],
     recordedby: ['recordedby', 'recorder'],
@@ -100,7 +112,7 @@ const isForeignKey = (key: string) => {
 const shouldHide = (key: string) => hiddenKeys.has(key)
   || props.exclude.includes(key)
   || isForeignKey(key)
-  || /^_/.test(key)
+  || key.startsWith('_')
 
 const requestedFields = computed<DisplayField[]>(() => {
   const fields: DetailField[] = props.fields.length
@@ -113,8 +125,10 @@ const requestedFields = computed<DisplayField[]>(() => {
 })
 
 const isSystemField = (key: string) => /(^uuid$|created|updated|timestamp|cancelled_at|voided_at)/i.test(key)
+
 const isNarrativeField = (field: DisplayField) => /note|description|reason|remark|address|content|cover_text|instruction|detail|formula/i.test(field.key)
   || (typeof field.value === 'string' && field.value.length > 100)
+
 const isMetricField = (field: DisplayField) => typeof field.value === 'number'
   && /amount|fee|salary|price|total|balance|rate|quantity|count|days|hours|score|percent|earned|discount|tax/i.test(field.key)
 
@@ -127,6 +141,7 @@ const relatedRecords = computed(() => requestedFields.value.filter(field => isOb
 const collections = computed(() => requestedFields.value.filter(field => Array.isArray(field.value) && field.value.length))
 
 const meaningfulFieldCount = computed(() => requestedFields.value.filter(field => !isEmpty(field.value)).length)
+
 const recordTitle = computed(() => props.title || String(
   record.value.name || record.value.title || record.value.legal_name || record.value.invoice_number
   || record.value.receipt_number || record.value.payslip_number || record.value.contract_number
@@ -134,49 +149,69 @@ const recordTitle = computed(() => props.title || String(
 ))
 
 const recordKind = computed(() => {
-  if (record.value.invoice_number) return 'Invoice'
-  if (record.value.receipt_number) return 'Receipt'
-  if (record.value.payslip_number || record.value.salaryMonth) return 'Payroll record'
-  if (record.value.contract_number) return 'Contract'
-  if (record.value.serial_number) return 'Asset item'
-  if (record.value.company && record.value.contact && record.value.service) return 'Visitor'
-  if (record.value.position || record.value.father_name) return 'Employee'
-  if (record.value.services) return 'Customer'
+  if (record.value.invoice_number)
+    return 'Invoice'
+  if (record.value.receipt_number)
+    return 'Receipt'
+  if (record.value.payslip_number || record.value.salaryMonth)
+    return 'Payroll record'
+  if (record.value.contract_number)
+    return 'Contract'
+  if (record.value.serial_number)
+    return 'Asset item'
+  if (record.value.company && record.value.contact && record.value.service)
+    return 'Visitor'
+  if (record.value.position || record.value.father_name)
+    return 'Employee'
+  if (record.value.services)
+    return 'Customer'
+
   return 'Record details'
 })
 
 const recordStatus = computed(() => {
   const statusEntry = Object.entries(record.value).find(([key, value]) => /^(status|condition|state|employment_type|is_active)$/i.test(key) && !isEmpty(value))
-  if (!statusEntry) return null
-  if (statusEntry[0] === 'is_active') return record.value.is_active ? 'Active' : 'Inactive'
+  if (!statusEntry)
+    return null
+  if (statusEntry[0] === 'is_active')
+    return record.value.is_active ? 'Active' : 'Inactive'
+
   return String(statusEntry[1])
 })
 
 const isDateValue = (value: unknown) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(?:[T\s].*)?$/.test(value)
+
 const currencyContext = (source: DetailRecord = record.value) => {
   const currency = (isObject(source.currency) ? source.currency : isObject(record.value.currency) ? record.value.currency : null)
+
   return currency ? String(currency.symbol || currency.code || currency.shortname || '') : String(source.cnv_curr_shrt || record.value.cnv_curr_shrt || '')
 }
 
 const formatScalar = (value: unknown, key = '', source: DetailRecord = record.value) => {
-  if (isEmpty(value)) return '—'
-  if (typeof value === 'boolean') return value ? t('common.values.yes') : t('common.values.no')
+  if (isEmpty(value))
+    return '—'
+  if (typeof value === 'boolean')
+    return value ? t('common.values.yes') : t('common.values.no')
   if (isDateValue(value)) {
     const date = new Date(String(value))
     if (!Number.isNaN(date.getTime())) {
       const includesTime = /[T\s]\d{2}:\d{2}/.test(String(value))
+
       return new Intl.DateTimeFormat(undefined, includesTime
         ? { dateStyle: 'medium', timeStyle: 'short' }
         : { dateStyle: 'medium' }).format(date)
     }
   }
   if (typeof value === 'number') {
-    if (/percent|percentage|tax/i.test(key)) return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value)}%`
+    if (/percent|tax/i.test(key))
+      return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value)}%`
     const formatted = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value)
+
     return /amount|fee|salary|price|total|balance|paid|bonus|deduction|discount|earned/i.test(key)
       ? [currencyContext(source), formatted].filter(Boolean).join(' ')
       : formatted
   }
+
   return String(value).replaceAll('_', ' ')
 }
 
@@ -194,34 +229,56 @@ const nestedObjects = (value: DetailRecord) => Object.entries(value)
 
 const statusColor = (status: unknown) => {
   const value = String(status || '').toLowerCase()
-  if (/active|paid|complete|approved|granted|good|new|issued/.test(value)) return 'success'
-  if (/pending|draft|partial|fair|paused|progress/.test(value)) return 'warning'
-  if (/overdue|cancel|void|expired|reject|damaged|poor|inactive|terminated/.test(value)) return 'error'
+  if (/active|paid|complete|approved|granted|good|new|issued/.test(value))
+    return 'success'
+  if (/pending|draft|partial|fair|paused|progress/.test(value))
+    return 'warning'
+  if (/overdue|cancel|void|expired|reject|damaged|poor|inactive|terminated/.test(value))
+    return 'error'
+
   return 'info'
 }
 
 const iconFor = (key: string) => {
-  if (/name|title|employee|customer|client|staff|marketer|representative/i.test(key)) return 'tabler-user'
-  if (/mail/i.test(key)) return 'tabler-mail'
-  if (/phone|contact/i.test(key)) return 'tabler-phone'
-  if (/date|time|deadline|month|duration/i.test(key)) return 'tabler-calendar'
-  if (/amount|fee|salary|price|total|balance|rate|bonus|tax/i.test(key)) return 'tabler-cash'
-  if (/address|location|office|city|country|province/i.test(key)) return 'tabler-map-pin'
-  if (/status|condition|state/i.test(key)) return 'tabler-activity'
-  if (/note|description|reason|detail|remark|content/i.test(key)) return 'tabler-notes'
-  if (/type|category|role|position|industry/i.test(key)) return 'tabler-category'
-  if (/quantity|count|number|serial|days|hours/i.test(key)) return 'tabler-list-numbers'
-  if (/file|document|licence/i.test(key)) return 'tabler-paperclip'
+  if (/name|title|employee|customer|client|staff|marketer|representative/i.test(key))
+    return 'tabler-user'
+  if (/mail/i.test(key))
+    return 'tabler-mail'
+  if (/phone|contact/i.test(key))
+    return 'tabler-phone'
+  if (/date|time|deadline|month|duration/i.test(key))
+    return 'tabler-calendar'
+  if (/amount|fee|salary|price|total|balance|rate|bonus|tax/i.test(key))
+    return 'tabler-cash'
+  if (/address|location|office|city|country|province/i.test(key))
+    return 'tabler-map-pin'
+  if (/status|condition|state/i.test(key))
+    return 'tabler-activity'
+  if (/note|description|reason|detail|remark|content/i.test(key))
+    return 'tabler-notes'
+  if (/type|category|role|position|industry/i.test(key))
+    return 'tabler-category'
+  if (/quantity|count|number|serial|days|hours/i.test(key))
+    return 'tabler-list-numbers'
+  if (/file|document|licence/i.test(key))
+    return 'tabler-paperclip'
+
   return 'tabler-info-circle'
 }
 
 const hrefFor = (value: unknown, key: string) => {
-  if (isEmpty(value)) return null
+  if (isEmpty(value))
+    return null
   const text = String(value)
-  if (/mail/i.test(key)) return `mailto:${text}`
-  if (/phone|contact/i.test(key)) return `tel:${text.replace(/\s/g, '')}`
-  if (/website|url/i.test(key) && /^https?:\/\//i.test(text)) return text
-  if (/file|document|licence/i.test(key) && (/^https?:\/\//i.test(text) || text.startsWith('/'))) return text
+  if (/mail/i.test(key))
+    return `mailto:${text}`
+  if (/phone|contact/i.test(key))
+    return `tel:${text.replace(/\s/g, '')}`
+  if (/website|url/i.test(key) && /^https?:\/\//i.test(text))
+    return text
+  if (/file|document|licence/i.test(key) && (/^https?:\/\//i.test(text) || text.startsWith('/')))
+    return text
+
   return null
 }
 
@@ -233,88 +290,201 @@ const tabs = computed(() => [
 ])
 
 watch(isOpen, open => {
-  if (open) activeTab.value = 'overview'
+  if (open)
+    activeTab.value = 'overview'
 })
 </script>
 
 <template>
   <span class="full-details-action">
-    <VBtn v-if="mobileAction" block class="responsive-data-table__action-button" color="info" variant="text" prepend-icon="tabler-eye" @click.stop="isOpen = true">
+    <VBtn
+      v-if="mobileAction"
+      block
+      class="responsive-data-table__action-button"
+      color="info"
+      variant="text"
+      prepend-icon="tabler-eye"
+      @click.stop="isOpen = true"
+    >
       {{ t('common.actions.viewFullDetails') }}
     </VBtn>
-    <IconBtn v-else color="info" :aria-label="t('common.actions.viewFullDetails')" @click.stop="isOpen = true">
+    <IconBtn
+      v-else
+      color="info"
+      :aria-label="t('common.actions.viewFullDetails')"
+      @click.stop="isOpen = true"
+    >
       <VIcon icon="tabler-eye" />
       <VTooltip activator="parent">{{ t('common.actions.viewFullDetails') }}</VTooltip>
     </IconBtn>
 
-    <VDialog v-model="isOpen" max-width="1080" scrollable>
+    <VDialog
+      v-model="isOpen"
+      max-width="1080"
+      scrollable
+    >
       <VCard class="detail-viewer">
         <header class="detail-viewer__hero">
-          <div class="detail-viewer__hero-icon"><VIcon :icon="iconFor(recordKind)" size="26" /></div>
+          <div class="detail-viewer__hero-icon"><VIcon
+            :icon="iconFor(recordKind)"
+            size="26"
+          /></div>
           <div class="detail-viewer__identity">
             <div class="detail-viewer__eyebrow">{{ recordKind }} · {{ meaningfulFieldCount }} useful details</div>
             <h2>{{ recordTitle }}</h2>
             <p v-if="subtitle">{{ subtitle }}</p>
           </div>
-          <VChip v-if="recordStatus" class="detail-viewer__status" :color="statusColor(recordStatus)" variant="flat" size="small">
+          <VChip
+            v-if="recordStatus"
+            class="detail-viewer__status"
+            :color="statusColor(recordStatus)"
+            variant="flat"
+            size="small"
+          >
             {{ formatScalar(recordStatus) }}
           </VChip>
-          <IconBtn class="detail-viewer__close" :aria-label="t('common.actions.close')" @click="isOpen = false"><VIcon icon="tabler-x" /></IconBtn>
+          <IconBtn
+            class="detail-viewer__close"
+            :aria-label="t('common.actions.close')"
+            @click="isOpen = false"
+          ><VIcon icon="tabler-x" /></IconBtn>
         </header>
 
-        <VTabs v-model="activeTab" class="detail-viewer__tabs" color="primary" show-arrows>
-          <VTab v-for="tab in tabs" :key="tab.value" :value="tab.value">
-            <VIcon :icon="tab.icon" start size="18" />{{ tab.label }}
-            <VChip v-if="tab.count" size="x-small" class="ms-2" variant="tonal">{{ tab.count }}</VChip>
+        <VTabs
+          v-model="activeTab"
+          class="detail-viewer__tabs"
+          color="primary"
+          show-arrows
+        >
+          <VTab
+            v-for="tab in tabs"
+            :key="tab.value"
+            :value="tab.value"
+          >
+            <VIcon
+              :icon="tab.icon"
+              start
+              size="18"
+            />{{ tab.label }}
+            <VChip
+              v-if="tab.count"
+              size="x-small"
+              class="ms-2"
+              variant="tonal"
+            >{{ tab.count }}</VChip>
           </VTab>
         </VTabs>
 
         <VCardText class="detail-viewer__body">
           <VWindow v-model="activeTab">
             <VWindowItem value="overview">
-              <div v-if="metricFields.length" class="detail-metrics">
-                <article v-for="field in metricFields" :key="field.key" class="detail-metric">
-                  <div class="detail-metric__icon"><VIcon :icon="iconFor(field.key)" size="20" /></div>
+              <div
+                v-if="metricFields.length"
+                class="detail-metrics"
+              >
+                <article
+                  v-for="field in metricFields"
+                  :key="field.key"
+                  class="detail-metric"
+                >
+                  <div class="detail-metric__icon"><VIcon
+                    :icon="iconFor(field.key)"
+                    size="20"
+                  /></div>
                   <div><span>{{ field.label }}</span><strong>{{ formatScalar(field.value, field.key) }}</strong></div>
                 </article>
               </div>
 
-              <section v-if="factFields.length" class="detail-section">
-                <div class="detail-section__title"><VIcon icon="tabler-info-square-rounded" size="19" /><div><h3>Essential information</h3><p>The details needed to identify and understand this record.</p></div></div>
+              <section
+                v-if="factFields.length"
+                class="detail-section"
+              >
+                <div class="detail-section__title"><VIcon
+                  icon="tabler-info-square-rounded"
+                  size="19"
+                /><div><h3>Essential information</h3><p>The details needed to identify and understand this record.</p></div></div>
                 <div class="detail-facts">
-                  <article v-for="field in factFields" :key="field.key" class="detail-fact" :class="{ 'detail-fact--empty': isEmpty(field.value) }">
-                    <VIcon :icon="iconFor(field.key)" size="18" />
+                  <article
+                    v-for="field in factFields"
+                    :key="field.key"
+                    class="detail-fact"
+                    :class="{ 'detail-fact--empty': isEmpty(field.value) }"
+                  >
+                    <VIcon
+                      :icon="iconFor(field.key)"
+                      size="18"
+                    />
                     <div><span>{{ field.label }}</span>
-                      <a v-if="hrefFor(field.value, field.key)" :href="hrefFor(field.value, field.key) || undefined" target="_blank" rel="noopener">{{ formatScalar(field.value, field.key) }}</a>
-                      <VChip v-else-if="/status|condition|state|type$/i.test(field.key) && !isEmpty(field.value)" :color="statusColor(field.value)" size="small" variant="tonal">{{ formatScalar(field.value, field.key) }}</VChip>
+                      <a
+                        v-if="hrefFor(field.value, field.key)"
+                        :href="hrefFor(field.value, field.key) || undefined"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >{{ formatScalar(field.value, field.key) }}</a>
+                      <VChip
+                        v-else-if="/status|condition|state|type$/i.test(field.key) && !isEmpty(field.value)"
+                        :color="statusColor(field.value)"
+                        size="small"
+                        variant="tonal"
+                      >{{ formatScalar(field.value, field.key) }}</VChip>
                       <strong v-else>{{ formatScalar(field.value, field.key) }}</strong>
                     </div>
                   </article>
                 </div>
               </section>
 
-              <section v-if="narrativeFields.length" class="detail-section">
-                <div class="detail-section__title"><VIcon icon="tabler-align-left" size="19" /><div><h3>Notes & context</h3><p>Supporting information kept in full, without truncation.</p></div></div>
+              <section
+                v-if="narrativeFields.length"
+                class="detail-section"
+              >
+                <div class="detail-section__title"><VIcon
+                  icon="tabler-align-left"
+                  size="19"
+                /><div><h3>Notes & context</h3><p>Supporting information kept in full, without truncation.</p></div></div>
                 <div class="detail-narratives">
-                  <article v-for="field in narrativeFields" :key="field.key"><span>{{ field.label }}</span><p>{{ formatScalar(field.value, field.key) }}</p></article>
+                  <article
+                    v-for="field in narrativeFields"
+                    :key="field.key"
+                  ><span>{{ field.label }}</span><p>{{ formatScalar(field.value, field.key) }}</p></article>
                 </div>
               </section>
 
-              <VAlert v-if="!metricFields.length && !factFields.length && !narrativeFields.length" type="info" variant="tonal">No user-facing overview information is available for this record.</VAlert>
+              <VAlert
+                v-if="!metricFields.length && !factFields.length && !narrativeFields.length"
+                type="info"
+                variant="tonal"
+              >No user-facing overview information is available for this record.</VAlert>
             </VWindowItem>
 
             <VWindowItem value="related">
               <section class="detail-section detail-section--first">
-                <div class="detail-section__title"><VIcon icon="tabler-link" size="19" /><div><h3>Connected records</h3><p>Names and useful context are shown instead of database IDs.</p></div></div>
+                <div class="detail-section__title"><VIcon
+                  icon="tabler-link"
+                  size="19"
+                /><div><h3>Connected records</h3><p>Names and useful context are shown instead of database IDs.</p></div></div>
                 <div class="related-grid">
-                  <article v-for="relation in relatedRecords" :key="relation.key" class="related-card">
-                    <header><div class="related-card__icon"><VIcon :icon="iconFor(relation.key)" size="20" /></div><div><span>{{ relation.label }}</span><h4>{{ objectTitle(relation.value as DetailRecord, relation.label || '') }}</h4></div></header>
+                  <article
+                    v-for="relation in relatedRecords"
+                    :key="relation.key"
+                    class="related-card"
+                  >
+                    <header><div class="related-card__icon"><VIcon
+                      :icon="iconFor(relation.key)"
+                      size="20"
+                    /></div><div><span>{{ relation.label }}</span><h4>{{ objectTitle(relation.value as DetailRecord, relation.label || '') }}</h4></div></header>
                     <dl>
-                      <template v-for="field in objectFields(relation.value as DetailRecord)" :key="field.key">
+                      <template
+                        v-for="field in objectFields(relation.value as DetailRecord)"
+                        :key="field.key"
+                      >
                         <dt>{{ field.label }}</dt><dd>{{ formatScalar(field.value, field.key, relation.value as DetailRecord) }}</dd>
                       </template>
                     </dl>
-                    <div v-for="nested in nestedObjects(relation.value as DetailRecord)" :key="nested.key" class="related-card__nested">
+                    <div
+                      v-for="nested in nestedObjects(relation.value as DetailRecord)"
+                      :key="nested.key"
+                      class="related-card__nested"
+                    >
                       <strong>{{ nested.label }}</strong>
                       <span>{{ objectFields(nested.value).map(field => `${field.label}: ${formatScalar(field.value, field.key, nested.value)}`).join(' · ') || objectTitle(nested.value, nested.label) }}</span>
                     </div>
@@ -323,38 +493,80 @@ watch(isOpen, open => {
               </section>
             </VWindowItem>
 
-            <VWindowItem v-for="collection in collections" :key="collection.key" :value="`collection-${collection.key}`">
+            <VWindowItem
+              v-for="collection in collections"
+              :key="collection.key"
+              :value="`collection-${collection.key}`"
+            >
               <section class="detail-section detail-section--first">
-                <div class="detail-section__title"><VIcon icon="tabler-list-details" size="19" /><div><h3>{{ collection.label }}</h3><p>{{ (collection.value as unknown[]).length }} connected {{ (collection.value as unknown[]).length === 1 ? 'entry' : 'entries' }}, shown with their useful details.</p></div></div>
-                <div v-if="(collection.value as unknown[]).some(entry => isObject(entry))" class="collection-list">
-                  <article v-for="(entry, index) in (collection.value as unknown[])" :key="index" class="collection-card">
+                <div class="detail-section__title"><VIcon
+                  icon="tabler-list-details"
+                  size="19"
+                /><div><h3>{{ collection.label }}</h3><p>{{ (collection.value as unknown[]).length }} connected {{ (collection.value as unknown[]).length === 1 ? 'entry' : 'entries' }}, shown with their useful details.</p></div></div>
+                <div
+                  v-if="(collection.value as unknown[]).some(entry => isObject(entry))"
+                  class="collection-list"
+                >
+                  <article
+                    v-for="(entry, index) in (collection.value as unknown[])"
+                    :key="index"
+                    class="collection-card"
+                  >
                     <div class="collection-card__number">{{ index + 1 }}</div>
-                    <div v-if="isObject(entry)" class="collection-card__content">
+                    <div
+                      v-if="isObject(entry)"
+                      class="collection-card__content"
+                    >
                       <h4>{{ objectTitle(entry, `${collection.label} ${index + 1}`) }}</h4>
                       <div class="collection-card__fields">
-                        <div v-for="field in objectFields(entry)" :key="field.key"><span>{{ field.label }}</span><strong>{{ formatScalar(field.value, field.key, entry) }}</strong></div>
+                        <div
+                          v-for="field in objectFields(entry)"
+                          :key="field.key"
+                        ><span>{{ field.label }}</span><strong>{{ formatScalar(field.value, field.key, entry) }}</strong></div>
                       </div>
-                      <div v-for="nested in nestedObjects(entry)" :key="nested.key" class="related-card__nested"><strong>{{ nested.label }}</strong><span>{{ objectFields(nested.value).map(field => `${field.label}: ${formatScalar(field.value, field.key, nested.value)}`).join(' · ') }}</span></div>
+                      <div
+                        v-for="nested in nestedObjects(entry)"
+                        :key="nested.key"
+                        class="related-card__nested"
+                      ><strong>{{ nested.label }}</strong><span>{{ objectFields(nested.value).map(field => `${field.label}: ${formatScalar(field.value, field.key, nested.value)}`).join(' · ') }}</span></div>
                     </div>
                     <strong v-else>{{ formatScalar(entry, collection.key) }}</strong>
                   </article>
                 </div>
-                <div v-else class="detail-chip-list"><VChip v-for="(entry, index) in (collection.value as unknown[])" :key="index" color="secondary" variant="tonal">{{ formatScalar(entry, collection.key) }}</VChip></div>
+                <div
+                  v-else
+                  class="detail-chip-list"
+                ><VChip
+                  v-for="(entry, index) in (collection.value as unknown[])"
+                  :key="index"
+                  color="secondary"
+                  variant="tonal"
+                >{{ formatScalar(entry, collection.key) }}</VChip></div>
               </section>
             </VWindowItem>
 
             <VWindowItem value="activity">
               <section class="detail-section detail-section--first">
-                <div class="detail-section__title"><VIcon icon="tabler-history" size="19" /><div><h3>Record activity</h3><p>Lifecycle dates are separated from day-to-day business information.</p></div></div>
+                <div class="detail-section__title"><VIcon
+                  icon="tabler-history"
+                  size="19"
+                /><div><h3>Record activity</h3><p>Lifecycle dates are separated from day-to-day business information.</p></div></div>
                 <div class="activity-timeline">
-                  <article v-for="field in systemFields" :key="field.key"><div class="activity-timeline__dot" /><div><span>{{ field.label }}</span><strong>{{ formatScalar(field.value, field.key) }}</strong></div></article>
+                  <article
+                    v-for="field in systemFields"
+                    :key="field.key"
+                  ><div class="activity-timeline__dot" /><div><span>{{ field.label }}</span><strong>{{ formatScalar(field.value, field.key) }}</strong></div></article>
                 </div>
               </section>
             </VWindowItem>
           </VWindow>
         </VCardText>
 
-        <VCardActions class="detail-viewer__footer"><span>Showing business-friendly details. Internal database references are hidden.</span><VSpacer /><VBtn variant="tonal" color="secondary" @click="isOpen = false">{{ t('common.actions.close') }}</VBtn></VCardActions>
+        <VCardActions class="detail-viewer__footer"><span>Showing business-friendly details. Internal database references are hidden.</span><VSpacer /><VBtn
+          variant="tonal"
+          color="secondary"
+          @click="isOpen = false"
+        >{{ t('common.actions.close') }}</VBtn></VCardActions>
       </VCard>
     </VDialog>
   </span>

@@ -6,9 +6,9 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -18,6 +18,19 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable implements MustVerifyEmailContract
 {
     use Auditable, HasApiTokens, HasFactory, MustVerifyEmail, Notifiable, SoftDeletes;
+
+    /** @var array<int, string> */
+    private array $pendingRoleNames = [];
+
+    protected static function booted(): void
+    {
+        static::created(function (User $user): void {
+            if ($user->pendingRoleNames !== []) {
+                $user->syncRoles($user->pendingRoleNames);
+                $user->pendingRoleNames = [];
+            }
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -103,11 +116,26 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->belongsToMany(Board::class, 'board_user');
     }
 
+    public function tasks(): BelongsToMany
+    {
+        return $this->belongsToMany(Task::class, 'task_user')
+            ->withPivot('contribution_percent');
+    }
+
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'user_roles')
             ->using(RoleUser::class)
             ->withTimestamps();
+    }
+
+    /**
+     * Backwards-compatible virtual attribute for factories and import paths.
+     * Role names belong in the pivot and must never become a users column.
+     */
+    public function setRolesAttribute(array|string|null $roles): void
+    {
+        $this->pendingRoleNames = array_values(array_unique(array_filter((array) $roles)));
     }
 
     /** Reads a user's role names from the user_roles pivot table. */

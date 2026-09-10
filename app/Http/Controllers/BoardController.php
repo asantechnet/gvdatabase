@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Board;
 use App\Http\Resources\BoardResource;
+use App\Models\Board;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class BoardController extends Controller
 {
@@ -46,15 +46,18 @@ class BoardController extends Controller
             abort(403, 'auth.forbidden');
         }
 
-        // Default to the end of the board list if order isn't provided
-        if (!isset($validated['order'])) {
-            $validated['order'] = Board::query()->where('project_id', $validated['project_id'] ?? null)->max('order') + 1;
-        }
-
         $memberIds = $validated['user_ids'] ?? [];
         unset($validated['user_ids']);
-        $board = Board::create($validated);
-        $board->users()->syncWithoutDetaching(array_unique([...$memberIds, $request->user()->id]));
+        $board = DB::transaction(function () use ($validated, $memberIds, $request): Board {
+            $scope = Board::query()->where('project_id', $validated['project_id'] ?? null)->orderBy('id')->lockForUpdate()->get();
+            if (! isset($validated['order'])) {
+                $validated['order'] = ((int) $scope->max('order')) + 1;
+            }
+            $board = Board::create($validated);
+            $board->users()->syncWithoutDetaching(array_unique([...$memberIds, $request->user()->id]));
+
+            return $board;
+        });
 
         // Load empty tasks array so the frontend structure matches
         $board->load('tasks');
@@ -111,7 +114,8 @@ class BoardController extends Controller
     public function destroy(Board $board)
     {
         Gate::authorize('delete', $board);
-        $board->delete(); // Cascades to delete nested tasks and comments
+        abort_if($board->tasks()->exists(), 422, 'business.board_has_tasks');
+        $board->delete();
 
         return response()->json(['message' => 'Board deleted successfully']);
     }

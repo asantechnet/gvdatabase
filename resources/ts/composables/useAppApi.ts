@@ -1,17 +1,17 @@
 import { useApi } from './useApi'
 import {
   AuthApi,
-  UserApi,
-  EmployeeApi,
-  PositionApi,
-  InvoiceApi,
-  CurrencyApi,
-  SettingApi,
   ContractTemplateApi,
-  NotificationApi,
+  CurrencyApi,
   DashboardApi,
-  ReportApi,
+  EmployeeApi,
   FileApi,
+  InvoiceApi,
+  NotificationApi,
+  PositionApi,
+  ReportApi,
+  SettingApi,
+  UserApi,
 } from '@/api'
 
 export function useAppApi() {
@@ -33,5 +33,3 @@ export function useAppApi() {
     files: FileApi,
   }
 }
-
-export default useAppApi

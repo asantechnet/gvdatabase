@@ -7,10 +7,11 @@ use App\Http\Resources\WorthyEmployeeResource;
 use App\Models\Attendance;
 use App\Models\Currency;
 use App\Models\Employee;
-use App\Models\Expense;
+use App\Models\PaidTimeOff;
 use App\Models\Salary;
 use App\Models\WorthyEmployee;
 use App\Services\CurrencyConversionService;
+use App\Services\SalaryExpenseSynchronizer;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,9 +22,10 @@ use Illuminate\Validation\ValidationException;
 
 class SalaryController extends Controller
 {
-    public function __construct(private readonly CurrencyConversionService $currencies)
-    {
-    }
+    public function __construct(
+        private readonly CurrencyConversionService $currencies,
+        private readonly SalaryExpenseSynchronizer $expenses,
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -73,7 +75,8 @@ class SalaryController extends Controller
             $bonusBase = (float) $bonuses->sum(fn (WorthyEmployee $bonus) => $this->bonusAmountInSalaryCurrency($bonus, $currency));
             $validated['bonus'] = round($bonusBase, $currency->decimal_places);
             $validated['total_amount'] = $validated['amount_paid'] + $validated['bonus'];
-            $validated = array_merge($validated, $this->attendanceBreakdown($validated['employee_id'], $validated['salary_month'], $validated['total_days']));
+            $this->ensureDeductionsWithinPayable($validated['deductions'], (float) $validated['total_amount']);
+            $validated = array_merge($validated, $this->attendanceBreakdown($validated['employee_id'], $validated['salary_month']));
             $validated += $this->salaryCurrencySnapshot($currency, $validated['amount_paid'], $bonusBase, $rate);
 
             $salary = Salary::create($validated);
@@ -81,7 +84,7 @@ class SalaryController extends Controller
                 $salary->bonuses()->attach($bonus->id, $this->conversionSnapshot($bonus, $currency));
             }
             $this->syncDeductions($salary, $validated['deductions']);
-            $this->syncExpense($salary);
+            $this->expenses->sync($salary);
 
             return $salary;
         });
@@ -97,20 +100,24 @@ class SalaryController extends Controller
     public function update(Request $request, Salary $salary): SalaryResource
     {
         $validated = $this->validateSalaryRequest($request, $salary->id);
+        abort_if((int) $validated['employee_id'] !== (int) $salary->employee_id, 422, 'business.salary_employee_immutable');
+        abort_if($validated['salary_month'] !== $salary->salary_month, 422, 'business.salary_period_immutable');
         abort_if((int) $validated['currency_id'] !== (int) $salary->currency_id, 422, 'business.salary_currency_immutable');
 
         DB::transaction(function () use ($salary, $validated) {
+            $salary = Salary::query()->lockForUpdate()->findOrFail($salary->id);
             // A bonus is assigned only when its payment is first created. This
             // keeps partial-payment edits from duplicating bonus amounts.
             $validated['bonus'] = $salary->bonus;
             $validated['total_amount'] = $validated['amount_paid'] + $validated['bonus'];
+            $this->ensureDeductionsWithinPayable($validated['deductions'], (float) $validated['total_amount']);
             $rate = (float) $validated['rate'];
             $validated = array_merge($validated, $this->salaryCurrencySnapshot($salary->currency, (float) $validated['amount_paid'], (float) $salary->bonus, $rate));
-            $validated = array_merge($validated, $this->attendanceBreakdown($validated['employee_id'], $validated['salary_month'], $validated['total_days']));
+            $validated = array_merge($validated, $this->attendanceBreakdown($validated['employee_id'], $validated['salary_month']));
 
             $salary->update($validated);
             $this->syncDeductions($salary, $validated['deductions']);
-            $this->syncExpense($salary);
+            $this->expenses->sync($salary);
         });
 
         // Returns updated resource to populate the form view in place
@@ -140,6 +147,13 @@ class SalaryController extends Controller
         ]);
 
         $this->ensureSelectableEmployee($validated['employee_id']);
+        validator(
+            ['salary_month' => $validated['salaryMonth']],
+            ['salary_month' => [
+                Rule::unique('salaries', 'salary_month')
+                    ->where(fn ($query) => $query->where('employee_id', $validated['employee_id'])),
+            ]],
+        )->validate();
 
         return WorthyEmployeeResource::collection(
             $this->availableGrantedBonusesQuery($validated['employee_id'], $validated['salaryMonth'])->get()
@@ -161,13 +175,17 @@ class SalaryController extends Controller
                     ? Rule::exists('currencies', 'id')
                     : Rule::exists('currencies', 'id')->where('is_active', true),
             ],
-            'rate' => ['required', 'numeric', 'gt:0'],
+            // Accepted for older clients but ignored: base-currency payroll
+            // always uses the authoritative rate of one.
+            'rate' => ['sometimes', 'numeric', 'gt:0'],
             'salaryMonth' => ['required', 'string', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
             'amountPaid' => 'required|numeric|gt:0',
-            'workedDays' => ['required', 'numeric', 'between:0,31', 'multiple_of:0.5'],
-            'totalDays' => 'required|integer|between:1,31',
+            // Kept as optional compatibility inputs; attendance is the sole
+            // source of truth for worked and total working days.
+            'workedDays' => ['sometimes', 'numeric', 'between:0,31', 'multiple_of:0.5'],
+            'totalDays' => 'sometimes|integer|between:1,31',
             'remarks' => 'nullable|string|max:255',
-            'date' => 'required|date',
+            'date' => ['required', 'date', 'before_or_equal:today'],
             'deductions' => ['present', 'array'],
             'deductions.*.id' => ['nullable', 'integer'],
             'deductions.*.description' => ['required', 'string', 'max:255'],
@@ -175,9 +193,27 @@ class SalaryController extends Controller
         ]);
 
         $this->ensureSelectableEmployee($validated['employee_id']);
+        validator(
+            ['salary_month' => $validated['salaryMonth']],
+            ['salary_month' => [
+                Rule::unique('salaries', 'salary_month')
+                    ->where(fn ($query) => $query->where('employee_id', $validated['employee_id']))
+                    ->ignore($ignoreId),
+            ]],
+        )->validate();
         // Payroll is recorded in the company's base currency.  A salary must
         // never carry a secondary-currency rate or conversion interpretation.
         $baseCurrency = Currency::query()->where('is_base', true)->firstOrFail();
+        if ((int) $validated['currency_id'] !== (int) $baseCurrency->id) {
+            throw ValidationException::withMessages([
+                'currency_id' => ['business.salary_base_currency_required'],
+            ]);
+        }
+        if ($validated['salaryMonth'] > substr($validated['date'], 0, 7)) {
+            throw ValidationException::withMessages([
+                'date' => ['business.salary_payment_before_period'],
+            ]);
+        }
 
         return [
             'employee_id' => $validated['employee_id'],
@@ -185,8 +221,8 @@ class SalaryController extends Controller
             'rate' => 1,
             'salary_month' => $validated['salaryMonth'],
             'amount_paid' => $validated['amountPaid'],
-            'worked_days' => $validated['workedDays'],
-            'total_days' => $validated['totalDays'] ?? 30,
+            'worked_days' => 0,
+            'total_days' => 1,
             'remarks' => $validated['remarks'] ?? null,
             'payment_date' => $validated['date'],
             'deductions' => $validated['deductions'],
@@ -229,6 +265,16 @@ class SalaryController extends Controller
             } else {
                 $salary->deductions()->create($attributes);
             }
+        }
+    }
+
+    private function ensureDeductionsWithinPayable(array $deductions, float $payable): void
+    {
+        $deductionsTotal = round((float) collect($deductions)->sum(fn (array $row): float => (float) $row['amount']), 8);
+        if ($deductionsTotal > round($payable, 8)) {
+            throw ValidationException::withMessages([
+                'deductions' => ['business.deductions_exceed_payable'],
+            ]);
         }
     }
 
@@ -285,7 +331,7 @@ class SalaryController extends Controller
             'salary_currency_code' => $salaryCurrency->code,
             'salary_rate' => (float) $salaryCurrency->rate,
             'converted_amount' => $this->bonusAmountInSalaryCurrency($bonus, $salaryCurrency),
-            'conversion_formula' => '(source_amount ÷ source_rate_to_base) × salary_rate_to_base',
+            'conversion_formula' => '(source_amount / source_rate_to_base) * salary_rate_to_base',
             'conversion_snapshot_source' => 'recorded_at_inclusion',
         ];
     }
@@ -309,20 +355,29 @@ class SalaryController extends Controller
         );
     }
 
-    private function attendanceBreakdown(int $employeeId, string $month, int $totalDays): array
+    private function attendanceBreakdown(int $employeeId, string $month): array
     {
+        $employee = Employee::query()->findOrFail($employeeId);
         [$year, $monthNumber] = array_map('intval', explode('-', $month));
         $monthStart = Carbon::create($year, $monthNumber, 1)->startOfDay();
         $monthEnd = $monthStart->copy()->endOfMonth()->startOfDay();
+        if ($employee->join_date && $employee->join_date->gt($monthEnd)) {
+            throw ValidationException::withMessages(['salaryMonth' => ['business.salary_period_before_employment']]);
+        }
+        if ($employee->join_date && $employee->join_date->gt($monthStart)) {
+            $monthStart = $employee->join_date->copy()->startOfDay();
+        }
         $workingDays = 0;
         for ($day = $monthStart->copy(); $day->lte($monthEnd); $day->addDay()) {
-            if (! $day->isFriday()) $workingDays++;
+            if (! $day->isFriday()) {
+                $workingDays++;
+            }
         }
         $attendances = Attendance::query()->where('employee_id', $employeeId)
             ->whereYear('date', $year)->whereMonth('date', $monthNumber)->get();
         $present = (float) $attendances->sum(fn (Attendance $row) => $row->status === 'present'
             ? max(0, 1 - (float) $row->leave_duration_days) : 0);
-        $leave = \App\Models\PaidTimeOff::query()->where('employee_id', $employeeId)
+        $leave = PaidTimeOff::query()->where('employee_id', $employeeId)
             ->where('is_granted', true)->whereBetween('date', [$monthStart->toDateString(), $monthEnd->toDateString()])->get();
         $paid = (float) $leave->sum('paid_days');
         $unpaid = (float) $leave->sum(fn ($row) => max(0, (float) $row->duration_days - (float) $row->paid_days));
@@ -334,32 +389,5 @@ class SalaryController extends Controller
             'unpaid_leave_days' => round($unpaid, 1),
             'absent_days' => round(max(0, $workingDays - $present - $paid - $unpaid), 1),
         ];
-    }
-
-    private function syncExpense(Salary $salary): void
-    {
-        $salary->loadMissing(['employee', 'deductions']);
-        $netAmount = max(0, (float) $salary->total_amount - (float) $salary->deductions->sum('amount'));
-        $details = sprintf(
-            'Payroll %s for %s (%s); payable: %.1f, paid leave: %.1f, absent: %.1f, unpaid leave: %.1f',
-            $salary->payslip_number, $salary->employee?->name ?? 'employee', $salary->salary_month,
-            $salary->worked_days, $salary->paid_leave_days, $salary->absent_days, $salary->unpaid_leave_days,
-        );
-        $expense = Expense::firstOrNew(['salary_id' => $salary->id]);
-        $expense->fill([
-            'currency_id' => $salary->currency_id,
-            'base_currency_id' => $salary->base_currency_id,
-            'currency' => $salary->currency_code,
-            'type' => 'Salaries',
-            'description' => $details,
-            'amount' => $netAmount,
-            'quantity' => 1,
-            'cnv_curr_shrt' => $salary->cnv_curr_shrt,
-            'base_curr_shrt' => $salary->base_curr_shrt,
-            'rate' => $salary->rate,
-            'date' => $salary->payment_date,
-            'recorded_by' => $salary->recorded_by,
-        ]);
-        $expense->save();
     }
 }

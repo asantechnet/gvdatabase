@@ -12,6 +12,7 @@ export interface Project {
   status: ProjectStatus
   start_date: string | null
   due_date: string | null
+
   /** Explicit catalogue services covered by this delivery project. */
   services?: Service[]
   service_ids?: number[]
@@ -31,6 +32,9 @@ export interface ProjectPayload {
 const ProjectApi = {
   async getAll(): Promise<Project[]> {
     return (await api.get<{ data: Project[] }>('/projects')).data.data
+  },
+  async getById(id: number): Promise<Project> {
+    return (await api.get<{ data: Project }>(`/projects/${id}`)).data.data
   },
   async create(payload: ProjectPayload): Promise<Project> {
     return (await api.post<{ data: Project }>('/projects', payload)).data.data

@@ -1,19 +1,20 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification'
+import ContractCover from './templates/contract_cover_template.vue'
+import ContractPageTemplate, { type CompanyDetails } from './templates/contract_page_template.vue'
 import ContractApi from '@/api/contracts'
 import ContractTemplateApi from '@/api/contractTemplate'
 import type { Contract } from '@/api/contracts'
 import SettingApi, { type Setting } from '@/api/setting'
 import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
+import ContractExpiryDate from '@/components/contract/ContractExpiryDate.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import { useContracts } from '@/composables/useContracts'
+import { addContractMonths, dayAfter } from '@/utils/contractExpiry'
 import { legacyContentToHtml } from '@/utils/contractPlaceholders'
 import { printDocument } from '@/utils/printDocument'
-import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useToast } from 'vue-toastification'
-import { VAlert } from 'vuetify/components'
-import ContractCover from './templates/contract_cover_template.vue'
-import ContractPageTemplate, { type CompanyDetails } from './templates/contract_page_template.vue'
 import { canPrintPartyDetails, partyDetailsFor } from '@/utils/contractPartyDetails'
 
 const props = withDefaults(defineProps<{
@@ -21,6 +22,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   contractAudience: 'customers',
 })
+
 const route = useRoute()
 const router = useRouter()
 
@@ -39,7 +41,7 @@ const {
   fetchTemplates,
   addContract,
   editContract,
-  removeContract
+  removeContract,
 } = useContracts()
 
 const search = ref('')
@@ -63,20 +65,41 @@ const isCancelling = ref(false)
 const toast = useToast()
 const isContractActionDialogVisible = ref(false)
 const pendingContractAction = ref<{ type: 'delete' | 'cancel'; contract: Contract } | null>(null)
+const isRenewDialogVisible = ref(false)
+const contractToRenew = ref<Contract | null>(null)
+const renewalDurationMonths = ref<number | null>(null)
+const renewalStartDate = ref('')
+const isRenewing = ref(false)
 
 const counterparties = computed(() => [...new Set(contracts.value.map(c => c.counterparty).filter(c => c))])
 const statuses = ['draft', 'active', 'expired', 'terminated', 'cancelled']
 const canShowPartyDetails = computed(() => contractToPrint.value !== null && canPrintPartyDetails(contractToPrint.value))
 
+const getStatusColor = (status: string) => {
+  const statusMap: Record<string, string> = {
+    active: 'success',
+    draft: 'info',
+    pending: 'warning',
+    expired: 'error',
+    terminated: 'secondary',
+    cancelled: 'error',
+  }
+
+  return statusMap[status?.toLowerCase()] || 'default'
+}
+
 const filtered = computed(() => {
   return contracts.value.filter(c => {
     const contractName = c.contract || c.contract_template?.name || ''
     const counterpartyName = c.counterparty || ''
-    const matchesSearch = contractName.toLowerCase().includes(search.value.toLowerCase()) ||
-      counterpartyName.toLowerCase().includes(search.value.toLowerCase()) ||
-      (c.contract_number || '').toLowerCase().includes(search.value.toLowerCase())
+
+    const matchesSearch = contractName.toLowerCase().includes(search.value.toLowerCase())
+      || counterpartyName.toLowerCase().includes(search.value.toLowerCase())
+      || (c.contract_number || '').toLowerCase().includes(search.value.toLowerCase())
+
     const matchesCounterparty = !filterCounterparty.value || c.counterparty === filterCounterparty.value
     const matchesStatus = !filterStatus.value || c.status === filterStatus.value
+
     return matchesSearch && matchesCounterparty && matchesStatus
   })
 })
@@ -88,11 +111,13 @@ const headers = [
   { title: translate('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true },
   { title: 'Services', key: 'services', sortable: false },
   { title: translate('common.fields.startDate'), key: 'start_date', sortable: true },
+  { title: translate('pages.contracts.allContracts.allContracts.endDate'), key: 'end_date', sortable: true },
   { title: translate('common.fields.status'), key: 'status', sortable: true },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false },
 ]
 
 const companySetting = ref<Setting | null>(null)
+
 const company = computed<CompanyDetails>(() => ({
   brandName: companySetting.value?.original_company_name || companySetting.value?.short_company_name || companySetting.value?.website_title || 'Company',
   logo: companySetting.value?.website_logo_url || undefined,
@@ -114,12 +139,14 @@ const getContractPagesHtml = (contract: Contract): string[] => {
   // rewrite a document that has already been issued.
   const content = contract.content ?? contract.contract_template?.content
   const html = legacyContentToHtml(content)
-  if (html) return [html]
+  if (html)
+    return [html]
 
   // Fallback to default content if no template content is available
   const startDate = formatLocalizedDate(contract.start_date)
   const contractName = contract.contract || contract.contract_template?.name || translate('pages.contracts.allContracts.allContracts.untitledContract')
-  const pages = [
+
+  return [
     `
     <h1>Contract Agreement</h1>
     <p>This agreement is made between <strong>${company.value.brandName}</strong> and <strong>${contract.counterparty}</strong> on <strong>${startDate}</strong>.</p>
@@ -145,18 +172,16 @@ const getContractPagesHtml = (contract: Contract): string[] => {
 
     <h2>4. Termination</h2>
     <p>This contract may be terminated by either party with 30 days written notice.</p>
-    `
+    `,
   ]
-
-  return pages
 }
 
-const printTable = () => {
-  void printDocument({ bodyClass: 'printing-table-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+const printTable = async () => {
+  await printDocument({ bodyClass: 'printing-table-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 }
 
 const printContract = async (contract: Contract) => {
-  console.log('CONTRACT ', contract, contract.template_id);
+  console.log('CONTRACT ', contract, contract.template_id)
 
   try {
     isPrintLoading.value = true
@@ -164,6 +189,7 @@ const printContract = async (contract: Contract) => {
     // If the contract template is not loaded, fetch it
     if (!contract.contract_template && contract.template_id) {
       const template = await ContractTemplateApi.getById(contract.template_id)
+
       contract.contract_template = {
         id: template.id,
         name: template.name,
@@ -178,7 +204,8 @@ const printContract = async (contract: Contract) => {
     includeSignatureSection.value = true
     includePartyDetails.value = false
     isPrintDialogVisible.value = true
-  } catch (err) {
+  }
+  catch (err) {
     console.error('Failed to load contract template:', err)
     toast.warning(translate('pages.contracts.allContracts.allContracts.failedToLoadContractTemplateUsingDefaultContent'))
     contractToPrint.value = contract
@@ -186,17 +213,20 @@ const printContract = async (contract: Contract) => {
     includeSignatureSection.value = true
     includePartyDetails.value = false
     isPrintDialogVisible.value = true
-  } finally {
+  }
+  finally {
     isPrintLoading.value = false
   }
 }
 
 const executePrint = () => {
-  if (!combinedPrintRef.value || !contractToPrint.value) return
+  if (!combinedPrintRef.value || !contractToPrint.value)
+    return
 
   const printWindow = window.open('', '_blank', 'width=900,height=1100')
   if (!printWindow) {
     toast.warning(translate('common.messages.couldNotOpenPrintWindowPleaseAllowPopUpsForThisSite'))
+
     return
   }
 
@@ -360,7 +390,9 @@ const executePrint = () => {
 
 const addNew = (companyId?: number) => {
   dialogMode.value = 'add'
+
   const companyTemplate = templates.value.find(template => template.type_slug === 'company')
+
   selectedContract.value = {
     id: 0,
     contract_number: '',
@@ -391,7 +423,8 @@ const requestContractAction = (type: 'delete' | 'cancel', contract: Contract) =>
 
 const confirmContractAction = async () => {
   const action = pendingContractAction.value
-  if (!action) return
+  if (!action)
+    return
 
   isContractActionDialogVisible.value = false
   try {
@@ -426,6 +459,65 @@ const deleteContractUI = (contract: Contract) => {
   requestContractAction('delete', contract)
 }
 
+const hasCurrentRenewal = (source: Contract) => contracts.value.some(contract =>
+  contract.snapshot_data?.renewal?.source_contract_id === source.id
+  && !['cancelled', 'terminated'].includes(contract.status),
+)
+
+const localToday = () => {
+  const today = new Date()
+
+  return [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-')
+}
+
+const renewalEndDate = computed(() => {
+  const months = Number(renewalDurationMonths.value)
+
+  return renewalStartDate.value && Number.isSafeInteger(months) && months > 0
+    ? addContractMonths(renewalStartDate.value, months)
+    : null
+})
+
+const requestRenewal = (contract: Contract) => {
+  const today = localToday()
+  const afterCurrentContract = contract.end_date ? dayAfter(contract.end_date) : null
+
+  contractToRenew.value = contract
+  renewalDurationMonths.value = contract.duration_months || 12
+  renewalStartDate.value = afterCurrentContract && afterCurrentContract > today ? afterCurrentContract : today
+  isRenewDialogVisible.value = true
+}
+
+const confirmRenewal = async () => {
+  const contract = contractToRenew.value
+  const duration = Number(renewalDurationMonths.value)
+  if (!contract || !renewalStartDate.value || !Number.isSafeInteger(duration) || duration < 1)
+    return
+
+  try {
+    isRenewing.value = true
+
+    const renewed = await ContractApi.renew(contract.id, {
+      duration_months: duration,
+      start_date: renewalStartDate.value,
+    })
+
+    contracts.value.push(renewed)
+    isRenewDialogVisible.value = false
+    selectedContract.value = { ...renewed }
+    dialogMode.value = 'edit'
+    isDialogVisible.value = true
+    toast.success(translate('pages.contracts.allContracts.allContracts.renewalCreated'))
+  }
+  catch (err) {
+    console.error('Failed to renew contract:', err)
+    toast.error(translate('pages.contracts.allContracts.allContracts.renewalFailed'))
+  }
+  finally {
+    isRenewing.value = false
+  }
+}
+
 const handleFormSubmit = async (contractData: ContractFormPayload) => {
   try {
     if (dialogMode.value === 'add') {
@@ -433,12 +525,14 @@ const handleFormSubmit = async (contractData: ContractFormPayload) => {
         ...contractData,
         content: contractData.content || undefined,
       })
-    } else if (selectedContract.value) {
+    }
+    else if (selectedContract.value) {
       await editContract(selectedContract.value.id, contractData)
     }
     isDialogVisible.value = false
     toast.success(translate('pages.contracts.allContracts.allContracts.contractSaved'))
-  } catch (err) {
+  }
+  catch (err) {
     toast.error(translate('pages.contracts.allContracts.allContracts.failedToSaveContractPleaseTryAgain'))
   }
 }
@@ -455,10 +549,12 @@ onMounted(async () => {
         ? template.type_slug === 'customer'
         : template.type_slug === 'company',
   )
+
   const employeeId = Number(route.query.employeeId)
   if (props.contractAudience === 'employees' && route.query.print === '1' && employeeId) {
     const contract = contracts.value.find(item => item.employee_id === employeeId && !item.is_cancelled)
-    if (contract) await printContract(contract)
+    if (contract)
+      await printContract(contract)
     else toast.warning(translate('pages.contracts.allContracts.allContracts.noActiveEmploymentContractFound'))
   }
   const companyId = Number(route.query.companyId)
@@ -469,51 +565,134 @@ onMounted(async () => {
   const contractId = Number(route.query.contractId)
   if (route.query.action === 'print' && contractId) {
     const contract = contracts.value.find(item => item.id === contractId) ?? await ContractApi.getById(contractId)
+
     await printContract(contract)
     await router.replace({ name: currentListRoute() })
   }
+  else if (contractId) {
+    const contract = contracts.value.find(item => item.id === contractId)
+    if (contract)
+      search.value = contract.contract_number || contract.counterparty || contract.contract
+  }
   try {
     companySetting.value = (await SettingApi.getCompanyProfile()).data
-  } catch {
+  }
+  catch {
     // Printing still works with neutral fallback company details.
   }
 })
 </script>
 
 <template>
-  <DataTablePageKpis :items="filtered" title="Contracts" description="See the current contract portfolio and spot records that need follow-up." icon="tabler-file-description" />
+  <DataTablePageKpis
+    :items="filtered"
+    title="Contracts"
+    description="See the current contract portfolio and spot records that need follow-up."
+    icon="tabler-file-description"
+  />
   <VCard>
     <VCardText>
-      <VRow align="center" class="table-toolbar">
-        <VCol cols="12" md="7" lg="9">
-          <VTextField v-model="search" class="data-table-search" prepend-inner-icon="tabler-search" :placeholder="$t('pages.contracts.allContracts.allContracts.searchContracts')"
-            density="compact" clearable hide-details />
+      <VRow
+        align="center"
+        class="table-toolbar"
+      >
+        <VCol
+          cols="12"
+          md="7"
+          lg="9"
+        >
+          <VTextField
+            v-model="search"
+            class="data-table-search"
+            prepend-inner-icon="tabler-search"
+            :placeholder="$t('pages.contracts.allContracts.allContracts.searchContracts')"
+            density="compact"
+            clearable
+            hide-details
+          />
         </VCol>
-        <VCol cols="12" md="5" lg="3" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2">
-          <DataTableFilterMenu :active="Boolean(filterCounterparty || filterStatus)" @reset="filterCounterparty = null; filterStatus = null">
-            <VSelect v-model="filterCounterparty" :items="counterparties"
-              :label="$t('pages.contracts.allContracts.allContracts.filterByCounterparty')" density="compact" clearable hide-details />
-            <VSelect v-model="filterStatus" :items="statuses" :label="$t('common.messages.filterByStatus')"
-              density="compact" clearable hide-details />
+        <VCol
+          cols="12"
+          md="5"
+          lg="3"
+          class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2"
+        >
+          <DataTableFilterMenu
+            :active="Boolean(filterCounterparty || filterStatus)"
+            @reset="filterCounterparty = null; filterStatus = null"
+          >
+            <VSelect
+              v-model="filterCounterparty"
+              :items="counterparties"
+              :label="$t('pages.contracts.allContracts.allContracts.filterByCounterparty')"
+              density="compact"
+              clearable
+              hide-details
+            />
+            <VSelect
+              v-model="filterStatus"
+              :items="statuses"
+              :label="$t('common.messages.filterByStatus')"
+              density="compact"
+              clearable
+              hide-details
+            />
           </DataTableFilterMenu>
-          <VBtn icon="tabler-printer" variant="text" class="flex-shrink-0" @click="printTable"><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.printTable') }}</VTooltip></VBtn>
-          <VBtn color="primary" class="flex-shrink-0" @click="addNew" :loading="isLoading">
-            <VIcon icon="tabler-plus" class="me-1" />
+          <VBtn
+            icon="tabler-printer"
+            variant="text"
+            class="flex-shrink-0"
+            @click="printTable"
+          >
+            <VIcon icon="tabler-printer" /><VTooltip
+              activator="parent"
+              location="top"
+            >
+              {{ $t('pages.contracts.allContracts.allContracts.printTable') }}
+            </VTooltip>
+          </VBtn>
+          <VBtn
+            color="primary"
+            class="flex-shrink-0"
+            :loading="isLoading"
+            @click="addNew"
+          >
+            <VIcon
+              icon="tabler-plus"
+              class="me-1"
+            />
             {{ $t('pages.contracts.allContracts.allContracts.addContract') }}
           </VBtn>
         </VCol>
       </VRow>
     </VCardText>
 
-    <VAlert v-if="error" type="error" class="ma-4">
+    <VAlert
+      v-if="error"
+      type="error"
+      class="ma-4"
+    >
       {{ error }}
     </VAlert>
 
-    <ResponsiveDataTable :headers="headers" :items="filtered" item-value="id" class="text-no-wrap" mobile-breakpoint="sm"
-      :loading="isLoading" :loading-text="$t('pages.contracts.allContracts.allContracts.loadingContracts')" style="overflow-x: auto;">
+    <ResponsiveDataTable
+      :headers="headers"
+      :items="filtered"
+      item-value="id"
+      class="text-no-wrap"
+      mobile-breakpoint="sm"
+      :loading="isLoading"
+      :loading-text="$t('pages.contracts.allContracts.allContracts.loadingContracts')"
+      style="overflow-x: auto;"
+    >
       <template #item.contract="{ item }">
         {{ item.contract || item.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract') }}
-        <VChip v-if="item.is_cancelled" color="error" size="x-small" class="ml-2">
+        <VChip
+          v-if="item.is_cancelled"
+          color="error"
+          size="x-small"
+          class="ms-2"
+        >
           {{ $t('common.statuses.cancelled') }}
         </VChip>
       </template>
@@ -521,50 +700,149 @@ onMounted(async () => {
         {{ item.counterparty || $t('pages.contracts.allContracts.allContracts.unknownCounterparty') }}
       </template>
       <template #item.services="{ item }">
-        {{ item.services?.map(service => service.type).join(', ') || '—' }}
+        {{ item.services?.map((service: { type: string }) => service.type).join(', ') || '—' }}
       </template>
       <template #item.start_date="{ item }">
-                  {{ formatLocalizedDate(item.start_date) }}
+        {{ formatLocalizedDate(item.start_date) }}
+      </template>
+      <template #item.end_date="{ item }">
+        <ContractExpiryDate
+          :end-date="item.end_date"
+          :status="item.status"
+        />
       </template>
       <template #item.status="{ item }">
-        <VChip :color="getStatusColor(item.status)" size="small" class="font-weight-medium">
+        <VChip
+          :color="getStatusColor(item.status)"
+          size="small"
+          class="font-weight-medium"
+        >
           {{ translateBackendValue(item.status || 'unknown') }}
         </VChip>
       </template>
       <template #item.actions="{ item }">
-        <FullDetailsButton :item="item" :title="item.contract_number || item.contract" />
-        <VBtn v-if="!item.is_cancelled" icon="tabler-ban" variant="text" size="small" @click="cancelContract(item)"
-          :loading="isCancelling" class="me-2" color="error"><VIcon icon="tabler-ban" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.cancelContract') }}</VTooltip></VBtn>
-        <VBtn icon="tabler-edit" variant="text" size="small" @click="editContractUI(item)" class="me-2"
-          ><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.editContract') }}</VTooltip></VBtn>
-        <VBtn icon="tabler-trash" variant="text" size="small" @click="deleteContractUI(item)" class="me-2"
-          ><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.deleteContract') }}</VTooltip></VBtn>
-        <VBtn icon="tabler-printer" variant="text" size="small" @click="printContract(item)" :loading="isPrintLoading"
-          ><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t('pages.contracts.allContracts.allContracts.printContract') }}</VTooltip></VBtn>
+        <FullDetailsButton
+          :item="item"
+          :title="item.contract_number || item.contract"
+        />
+        <VBtn
+          v-if="!item.is_cancelled && ['draft', 'active'].includes(item.status)"
+          icon="tabler-ban"
+          variant="text"
+          size="small"
+          :loading="isCancelling"
+          class="me-2"
+          color="error"
+          @click="cancelContract(item)"
+        >
+          <VIcon icon="tabler-ban" /><VTooltip
+            activator="parent"
+            location="top"
+          >
+            {{ $t('pages.contracts.allContracts.allContracts.cancelContract') }}
+          </VTooltip>
+        </VBtn>
+        <VBtn
+          v-if="!item.is_cancelled && ['active', 'expired'].includes(item.status) && !hasCurrentRenewal(item)"
+          icon="tabler-refresh"
+          variant="text"
+          size="small"
+          class="me-2"
+          color="primary"
+          @click="requestRenewal(item)"
+        >
+          <VIcon icon="tabler-refresh" /><VTooltip
+            activator="parent"
+            location="top"
+          >
+            {{ $t('pages.contracts.allContracts.allContracts.continueAsRenewalDraft') }}
+          </VTooltip>
+        </VBtn>
+        <VBtn
+          v-if="item.status === 'draft' && !item.is_cancelled"
+          icon="tabler-edit"
+          variant="text"
+          size="small"
+          class="me-2"
+          @click="editContractUI(item)"
+        >
+          <VIcon icon="tabler-edit" /><VTooltip
+            activator="parent"
+            location="top"
+          >
+            {{ $t('pages.contracts.allContracts.allContracts.editContract') }}
+          </VTooltip>
+        </VBtn>
+        <VBtn
+          v-if="item.status === 'draft' && !item.is_cancelled"
+          icon="tabler-trash"
+          variant="text"
+          size="small"
+          class="me-2"
+          @click="deleteContractUI(item)"
+        >
+          <VIcon icon="tabler-trash" /><VTooltip
+            activator="parent"
+            location="top"
+          >
+            {{ $t('pages.contracts.allContracts.allContracts.deleteContract') }}
+          </VTooltip>
+        </VBtn>
+        <VBtn
+          icon="tabler-printer"
+          variant="text"
+          size="small"
+          :loading="isPrintLoading"
+          @click="printContract(item)"
+        >
+          <VIcon icon="tabler-printer" /><VTooltip
+            activator="parent"
+            location="top"
+          >
+            {{ $t('pages.contracts.allContracts.allContracts.printContract') }}
+          </VTooltip>
+        </VBtn>
       </template>
     </ResponsiveDataTable>
   </VCard>
-  <PrintableListReport :title="contractAudience === 'employees'
-    ? $t('pages.contracts.allContracts.allContracts.employeeContractsReport')
-    : contractAudience === 'customers'
-      ? $t('pages.contracts.allContracts.allContracts.customerContractsReport')
-      : 'Contract records'" :subtitle="$t('pages.contracts.allContracts.allContracts.filteredContractRecords')" :columns="headers.slice(0, -1).map(header => header.title)" :rows="filtered.map(contract => [contract.contract_number, contract.contract || contract.contract_template?.name, contract.type || contract.contract_template?.type, contract.counterparty, contract.services?.map(service => service.type).join(', ') || '—', contract.start_date, contract.status])" />
+  <PrintableListReport
+    :title="contractAudience === 'employees'
+      ? $t('pages.contracts.allContracts.allContracts.employeeContractsReport')
+      : contractAudience === 'customers'
+        ? $t('pages.contracts.allContracts.allContracts.customerContractsReport')
+        : 'Contract records'"
+    :subtitle="$t('pages.contracts.allContracts.allContracts.filteredContractRecords')"
+    :columns="headers.slice(0, -1).map(header => header.title)"
+    :rows="filtered.map(contract => [contract.contract_number, contract.contract || contract.contract_template?.name, contract.type || contract.contract_template?.type, contract.counterparty, contract.services?.map(service => service.type).join(', ') || '—', contract.start_date, contract.end_date || '—', contract.status])"
+  />
 
   <!-- Contract Form Dialog -->
-  <VDialog v-model="isDialogVisible" max-width="600px" persistent>
+  <VDialog
+    v-model="isDialogVisible"
+    max-width="600px"
+    persistent
+  >
     <VCard>
       <VCardTitle>
         <span class="headline">{{ dialogMode === 'add' ? $t('pages.contracts.allContracts.allContracts.addNewContract') : $t('pages.contracts.allContracts.allContracts.editContract') }}</span>
       </VCardTitle>
 
       <VCardText>
-        <ContractForm :contract="selectedContract || undefined" :templates="templates" :audience="contractAudience" @submit="handleFormSubmit"
-          @cancel="isDialogVisible = false" />
+        <ContractForm
+          :contract="selectedContract || undefined"
+          :templates="templates"
+          :audience="contractAudience"
+          @submit="handleFormSubmit"
+          @cancel="isDialogVisible = false"
+        />
       </VCardText>
     </VCard>
   </VDialog>
 
-  <VDialog v-model="isContractActionDialogVisible" max-width="460px">
+  <VDialog
+    v-model="isContractActionDialogVisible"
+    max-width="460px"
+  >
     <VCard>
       <VCardTitle>{{ $t('pages.contracts.allContracts.allContracts.confirmContractAction') }}</VCardTitle>
       <VCardText>
@@ -574,18 +852,98 @@ onMounted(async () => {
       </VCardText>
       <VCardActions>
         <VSpacer />
-        <VBtn variant="tonal" color="secondary" @click="isContractActionDialogVisible = false">
+        <VBtn
+          variant="tonal"
+          color="secondary"
+          @click="isContractActionDialogVisible = false"
+        >
           {{ $t('common.actions.cancel') }}
         </VBtn>
-        <VBtn :color="pendingContractAction?.type === 'delete' ? 'error' : 'warning'" @click="confirmContractAction">
+        <VBtn
+          :color="pendingContractAction?.type === 'delete' ? 'error' : 'warning'"
+          @click="confirmContractAction"
+        >
           {{ pendingContractAction?.type === 'delete' ? $t('common.actions.delete') : $t('pages.contracts.allContracts.allContracts.cancelContract') }}
         </VBtn>
       </VCardActions>
     </VCard>
   </VDialog>
 
+  <VDialog
+    v-model="isRenewDialogVisible"
+    max-width="520px"
+  >
+    <VCard>
+      <VCardTitle class="d-flex align-center gap-2">
+        <VIcon icon="tabler-refresh" />
+        {{ $t('pages.contracts.allContracts.allContracts.continueContract') }}
+      </VCardTitle>
+      <VCardText>
+        <p class="mb-4">
+          {{ $t('pages.contracts.allContracts.allContracts.renewalDescription', { contract: contractToRenew ? contractName(contractToRenew) : '' }) }}
+        </p>
+        <VRow>
+          <VCol
+            cols="12"
+            sm="6"
+          >
+            <VTextField
+              v-model="renewalStartDate"
+              :label="$t('pages.contracts.allContracts.allContracts.renewalStartDate')"
+              type="date"
+              required
+            />
+          </VCol>
+          <VCol
+            cols="12"
+            sm="6"
+          >
+            <VTextField
+              v-model.number="renewalDurationMonths"
+              :label="$t('pages.contracts.allContracts.allContracts.durationMonths')"
+              type="number"
+              min="1"
+              max="600"
+              step="1"
+              required
+            />
+          </VCol>
+          <VCol cols="12">
+            <VTextField
+              :model-value="renewalEndDate"
+              :label="$t('pages.contracts.allContracts.allContracts.calculatedEndDate')"
+              type="date"
+              readonly
+            />
+          </VCol>
+        </VRow>
+      </VCardText>
+      <VCardActions class="justify-end px-4 pb-4">
+        <VBtn
+          variant="outlined"
+          color="secondary"
+          :disabled="isRenewing"
+          @click="isRenewDialogVisible = false"
+        >
+          {{ $t('common.actions.cancel') }}
+        </VBtn>
+        <VBtn
+          color="primary"
+          :loading="isRenewing"
+          :disabled="!renewalEndDate"
+          @click="confirmRenewal"
+        >
+          {{ $t('pages.contracts.allContracts.allContracts.createRenewalDraft') }}
+        </VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+
   <!-- Print Options Dialog -->
-  <VDialog v-model="isPrintDialogVisible" max-width="480px">
+  <VDialog
+    v-model="isPrintDialogVisible"
+    max-width="480px"
+  >
     <VCard>
       <VCardTitle class="d-flex align-center gap-2">
         <VIcon icon="tabler-printer" />
@@ -593,24 +951,55 @@ onMounted(async () => {
       </VCardTitle>
       <VCardText>
         <p class="mb-4">
-          {{ $t('pages.contracts.allContracts.allContracts.prepare') }} <strong>{{ contractToPrint?.contract || contractToPrint?.contract_template?.name ||
-            $t('pages.contracts.allContracts.allContracts.untitledContract') }}</strong> {{ $t('pages.contracts.allContracts.allContracts.forA4PrintingTheDocumentWillIncludeTheCoverPageAndAllContractTerms') }}
+          {{ $t('pages.contracts.allContracts.allContracts.prepare') }} <strong>{{ contractToPrint?.contract || contractToPrint?.contract_template?.name
+            || $t('pages.contracts.allContracts.allContracts.untitledContract') }}</strong> {{ $t('pages.contracts.allContracts.allContracts.forA4PrintingTheDocumentWillIncludeTheCoverPageAndAllContractTerms') }}
         </p>
         <div class="d-flex flex-column gap-2">
-          <VCheckbox v-model="includeSignatureSection" :label="$t('pages.contracts.allContracts.allContracts.includeFormalSignatureStampSectionAtTheEnd')"
-            density="compact" hide-details />
-          <VCheckbox v-model="includeCustomCover" :label="$t('pages.contracts.allContracts.allContracts.useCustomCoverPageFromSettings')" density="compact" hide-details />
-          <VCheckbox v-model="includeCustomLetterhead" :label="$t('pages.contracts.allContracts.allContracts.useCustomLetterheadFromSettings')" density="compact" hide-details />
-          <VCheckbox v-if="canShowPartyDetails" v-model="includePartyDetails" label="Include core details for both contract parties" density="compact" hide-details />
-          <VCheckbox v-model="includeEmptyLastPage" :label="$t('pages.contracts.allContracts.allContracts.addALastFullyEmptyPage')" density="compact"
-            hide-details />
+          <VCheckbox
+            v-model="includeSignatureSection"
+            :label="$t('pages.contracts.allContracts.allContracts.includeFormalSignatureStampSectionAtTheEnd')"
+            density="compact"
+            hide-details
+          />
+          <VCheckbox
+            v-model="includeCustomCover"
+            :label="$t('pages.contracts.allContracts.allContracts.useCustomCoverPageFromSettings')"
+            density="compact"
+            hide-details
+          />
+          <VCheckbox
+            v-model="includeCustomLetterhead"
+            :label="$t('pages.contracts.allContracts.allContracts.useCustomLetterheadFromSettings')"
+            density="compact"
+            hide-details
+          />
+          <VCheckbox
+            v-if="canShowPartyDetails"
+            v-model="includePartyDetails"
+            label="Include core details for both contract parties"
+            density="compact"
+            hide-details
+          />
+          <VCheckbox
+            v-model="includeEmptyLastPage"
+            :label="$t('pages.contracts.allContracts.allContracts.addALastFullyEmptyPage')"
+            density="compact"
+            hide-details
+          />
         </div>
       </VCardText>
       <VCardActions class="justify-end px-4 pb-4">
-        <VBtn variant="outlined" color="secondary" @click="isPrintDialogVisible = false">
+        <VBtn
+          variant="outlined"
+          color="secondary"
+          @click="isPrintDialogVisible = false"
+        >
           {{ $t('common.actions.cancel') }}
         </VBtn>
-        <VBtn color="primary" @click="executePrint">
+        <VBtn
+          color="primary"
+          @click="executePrint"
+        >
           {{ $t('pages.contracts.allContracts.allContracts.printA4Document') }}
         </VBtn>
       </VCardActions>
@@ -618,23 +1007,38 @@ onMounted(async () => {
   </VDialog>
 
   <!-- Hidden Printable Document Structure -->
-  <div ref="combinedPrintRef" style="display: none;">
+  <div
+    ref="combinedPrintRef"
+    style="display: none;"
+  >
     <template v-if="contractToPrint">
-      <div v-if="includeCustomCover && companySetting?.contract_cover_design_url" class="custom-cover-page">
-        <img :src="companySetting.contract_cover_design_url" alt="" />
+      <div
+        v-if="includeCustomCover && companySetting?.contract_cover_design_url"
+        class="custom-cover-page"
+      >
+        <img
+          :src="companySetting.contract_cover_design_url"
+          alt=""
+        >
       </div>
-      <ContractCover v-else :contractee-name="contractToPrint.counterparty || ''"
+      <ContractCover
+        v-else
+        :contractee-name="contractToPrint.counterparty || ''"
         :logo="company.logo"
         cover-design-url=""
         :contract-number="contractToPrint.contract_number || ''"
         :contract-title="contractToPrint.contract || contractToPrint.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract')"
         :cover-description="contractToPrint.cover_text || contractToPrint.contract_template?.cover_text || ''"
         :contract-type="contractToPrint.type || contractToPrint.contract_template?.type || 'Service Agreement'"
-        :contract-date="formatLocalizedDate(contractToPrint.start_date)" :company-website="company.website || ''"
-        :company-address="company.address || ''" :company-email="company.email || ''"
-        :company-number="company.phone || ''" />
+        :contract-date="formatLocalizedDate(contractToPrint.start_date)"
+        :company-website="company.website || ''"
+        :company-address="company.address || ''"
+        :company-email="company.email || ''"
+        :company-number="company.phone || ''"
+      />
 
-      <ContractPageTemplate v-if="includePartyDetails && canShowPartyDetails"
+      <ContractPageTemplate
+        v-if="includePartyDetails && canShowPartyDetails"
         document-title="Contract parties"
         :document-number="contractToPrint.contract_number || ''"
         :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }"
@@ -642,38 +1046,28 @@ onMounted(async () => {
         :contractee-name="contractToPrint.counterparty || ''"
         :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: 1, total: getContractPagesHtml(contractToPrint).length + 1 })"
         :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"
-        class="contract-content" />
+        class="contract-content"
+      />
 
-      <ContractPageTemplate v-for="(pageHtml, idx) in getContractPagesHtml(contractToPrint)" :key="idx"
+      <ContractPageTemplate
+        v-for="(pageHtml, idx) in getContractPagesHtml(contractToPrint)"
+        :key="idx"
         :document-number="contractToPrint.contract_number || ''"
         :document-title="contractToPrint.contract || contractToPrint.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract')"
-        :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }" :html-content="pageHtml"
+        :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }"
+        :html-content="pageHtml"
         :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: idx + (includePartyDetails && canShowPartyDetails ? 2 : 1), total: getContractPagesHtml(contractToPrint).length + (includePartyDetails && canShowPartyDetails ? 1 : 0) })"
         :show-signature="includeSignatureSection && idx === getContractPagesHtml(contractToPrint).length - 1"
-        :contractee-name="contractToPrint.counterparty || ''" :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"
-        class="contract-content" />
+        :contractee-name="contractToPrint.counterparty || ''"
+        :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"
+        class="contract-content"
+      />
 
-      <div v-if="includeEmptyLastPage" class="empty-print-page" style="width: 210mm; height: 297mm; background: white;">
-      </div>
+      <div
+        v-if="includeEmptyLastPage"
+        class="empty-print-page"
+        style="width: 210mm; height: 297mm; background: white;"
+      />
     </template>
   </div>
 </template>
-
-<script lang="ts">
-export default {
-  methods: {
-    getStatusColor(status: string) {
-      if (!status) return 'default'
-      const statusMap: Record<string, string> = {
-        'active': 'success',
-        'draft': 'info',
-        'pending': 'warning',
-        'expired': 'error',
-        'terminated': 'secondary',
-        'cancelled': 'error',
-      }
-      return statusMap[status.toLowerCase()] || 'default'
-    }
-  }
-}
-</script>

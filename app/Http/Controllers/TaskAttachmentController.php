@@ -15,22 +15,31 @@ class TaskAttachmentController extends Controller
     {
         Gate::authorize('update', $task);
         $validated = $request->validate([
-            'file' => ['required', 'file', 'max:10240'],
+            'file' => [
+                'required', 'file', 'max:10240',
+                'mimes:pdf,txt,csv,doc,docx,xls,xlsx,png,jpg,jpeg,webp',
+            ],
             'section' => ['nullable', 'in:input,results'],
         ]);
 
         $file = $validated['file'];
-        $disk = 'public';
+        $disk = 'local';
         $path = $file->storeAs("task-attachments/{$task->id}", Str::uuid().'.'.$file->extension(), $disk);
-        $attachment = $task->attachments()->create([
-            'user_id' => $request->user()->id,
-            'section' => $validated['section'] ?? 'results',
-            'disk' => $disk,
-            'path' => $path,
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getClientMimeType(),
-            'size' => $file->getSize(),
-        ]);
+        try {
+            $attachment = $task->attachments()->create([
+                'user_id' => $request->user()->id,
+                'section' => $validated['section'] ?? 'results',
+                'disk' => $disk,
+                'path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getMimeType(),
+                'size' => $file->getSize(),
+            ]);
+        } catch (\Throwable $exception) {
+            Storage::disk($disk)->delete($path);
+
+            throw $exception;
+        }
 
         return response()->json(['data' => $this->attachmentData($attachment)], 201);
     }
@@ -49,8 +58,8 @@ class TaskAttachmentController extends Controller
     {
         $this->ensureBelongsToTask($task, $attachment);
         Gate::authorize('update', $task);
-        Storage::disk($attachment->disk)->delete($attachment->path);
         $attachment->delete();
+        Storage::disk($attachment->disk)->delete($attachment->path);
 
         return response()->noContent();
     }
@@ -70,7 +79,7 @@ class TaskAttachmentController extends Controller
             'size' => $attachment->size,
             'uploadedAt' => $attachment->created_at?->toISOString(),
             'downloadUrl' => "/api/tasks/{$attachment->task_id}/attachments/{$attachment->id}/download",
-            'url' => Storage::disk($attachment->disk)->url($attachment->path),
+            'url' => "/api/tasks/{$attachment->task_id}/attachments/{$attachment->id}/download",
         ];
     }
 }

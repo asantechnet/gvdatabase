@@ -24,18 +24,24 @@ class ContractPolicyController extends Controller
     public function store(Request $request): JsonResponse
     {
         $policy = ContractPolicy::create($this->validated($request));
+
         return response()->json(['success' => true, 'data' => new ContractPolicyResource($policy)], 201);
     }
 
     public function update(Request $request, ContractPolicy $contractPolicy): JsonResponse
     {
         $contractPolicy->update($this->validated($request, true));
+
         return response()->json(['success' => true, 'data' => new ContractPolicyResource($contractPolicy)]);
     }
 
     public function destroy(ContractPolicy $contractPolicy): JsonResponse
     {
+        if ($contractPolicy->templates()->exists()) {
+            return response()->json(['success' => false, 'code' => 'business.contract_policy_in_use'], 409);
+        }
         $contractPolicy->delete();
+
         return response()->json(['success' => true]);
     }
 

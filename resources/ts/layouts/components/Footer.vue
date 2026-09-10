@@ -9,7 +9,11 @@ onMounted(loadBranding)
 <template>
   <div class="h-100 d-flex align-center justify-center">
     <span class="d-flex align-center text-medium-emphasis">
-      <img :src="logoUrl" :alt="originalCompanyName" class="footer-logo me-2">
+      <img
+        :src="logoUrl"
+        :alt="originalCompanyName"
+        class="footer-logo me-2"
+      >
       {{ $t('components.navigation.footer.copyright', { year: new Date().getFullYear(), company: originalCompanyName }) }}
     </span>
   </div>

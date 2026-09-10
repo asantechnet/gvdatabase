@@ -61,6 +61,7 @@ class ContractTemplateUpdateTest extends TestCase
             'duration_months' => '۱۲',
         ])->assertCreated()
             ->assertJsonPath('data.customer_id', $customer->id)
+            ->assertJsonPath('data.status', 'active')
             ->assertJsonPath('data.duration_months', 12)
             ->assertJsonPath('data.end_date', '2027-01-15');
     }

@@ -22,7 +22,8 @@ class PhaseSevenWorkingTimeTest extends TestCase
         parent::setUp();
         Setting::create([
             'navigation_clr' => '#111111', 'cards_clr' => '#ffffff', 'footer_clr' => '#111111',
-            'paid_off_days_per_year' => 20, 'website_title' => 'Test', 'website_address' => 'https://example.test',
+            'paid_leave_days_per_year' => 20, 'automatic_attendance_enabled' => true,
+            'website_title' => 'Test', 'website_address' => 'https://example.test',
             'timezone' => 'Asia/Kabul', 'phone' => '123', 'physical_address' => 'Kabul',
             'short_company_name' => 'Test', 'original_company_name' => 'Test Company',
             'office_open_time' => '22:00', 'office_close_time' => '06:00', 'default_break_minutes' => 30,
@@ -128,23 +129,26 @@ class PhaseSevenWorkingTimeTest extends TestCase
     public function test_monthly_command_is_idempotent_handles_paid_leave_and_refreshes_employee_total(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-08-13 12:00:00', 'UTC'));
-        $employee = Employee::factory()->create(['join_date' => '2026-07-30']);
-        PaidTimeOff::create(['employee_id' => $employee->id, 'date' => '2026-07-31', 'year' => 2026, 'reason' => 'Approved']);
+        $employee = Employee::factory()->create(['join_date' => '2026-07-29']);
+        PaidTimeOff::create([
+            'employee_id' => $employee->id, 'date' => '2026-07-30', 'year' => 2026,
+            'duration_days' => 1, 'paid_days' => 1, 'is_granted' => true, 'reason' => 'Approved',
+        ]);
         Attendance::create([
-            'employee_id' => $employee->id, 'date' => '2026-07-30', 'status' => 'present', 'logged_at' => '22:00:00',
+            'employee_id' => $employee->id, 'date' => '2026-07-29', 'status' => 'present', 'logged_at' => '22:00:00',
             'check_in_time' => '22:00', 'check_out_time' => '06:00',
-            'checked_in_at' => Carbon::parse('2026-07-30 17:30:00', 'UTC'),
-            'checked_out_at' => Carbon::parse('2026-07-31 01:30:00', 'UTC'), 'break_minutes' => 30,
+            'checked_in_at' => Carbon::parse('2026-07-29 17:30:00', 'UTC'),
+            'checked_out_at' => Carbon::parse('2026-07-30 01:30:00', 'UTC'), 'break_minutes' => 30,
         ]);
 
-        $this->artisan('attendance:finalize --from=2026-07-30 --to=2026-07-31')->assertSuccessful();
-        $this->artisan('attendance:finalize --from=2026-07-30 --to=2026-07-31')->assertSuccessful();
+        $this->artisan('attendance:finalize --from=2026-07-29 --to=2026-07-30')->assertSuccessful();
+        $this->artisan('attendance:finalize --from=2026-07-29 --to=2026-07-30')->assertSuccessful();
 
         $this->assertDatabaseCount('attendances', 2);
-        $this->assertDatabaseHas('attendances', ['employee_id' => $employee->id, 'date' => '2026-07-31', 'status' => 'paid-off-day']);
+        $this->assertDatabaseHas('attendances', ['employee_id' => $employee->id, 'date' => '2026-07-30', 'status' => 'paid-leave']);
         $summary = MonthlyAttendanceSummary::where('employee_id', $employee->id)->where('year', 2026)->where('month', 7)->firstOrFail();
         $this->assertSame(450, $summary->net_worked_minutes);
-        $this->assertSame(1, $summary->paid_leave_days);
+        $this->assertSame(1.0, $summary->paid_leave_days);
         $this->assertSame(7.5, (float) $employee->fresh()->total_worked_hours);
     }
 

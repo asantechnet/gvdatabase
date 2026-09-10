@@ -51,7 +51,11 @@ export interface Contract {
   cover_text?: string | null
   content?: string | null
   is_custom?: boolean
-  snapshot_data?: { parties?: Record<string, unknown>; entity?: Record<string, unknown> } | null
+  snapshot_data?: {
+    parties?: Record<string, unknown>
+    entity?: Record<string, unknown>
+    renewal?: { source_contract_id: number; source_contract_number?: string | null }
+  } | null
   parties?: ContractPartySnapshot | null
   employee?: Record<string, unknown> | null
   customer?: Record<string, unknown> | null
@@ -102,26 +106,37 @@ const normalizeList = (payload: unknown): Contract[] =>
 const ContractApi = {
   async getAll(params?: ContractParams): Promise<Contract[]> {
     const response = await api.get<{ success: boolean; data: Contract[] }>('/contracts', { params })
+
     return normalizeList(response.data.data)
   },
 
   async getById(id: number): Promise<Contract> {
     const response = await api.get<{ success: boolean; data: Contract }>(`/contracts/${id}`)
+
     return response.data.data
   },
 
   async create(data: ContractCreateData): Promise<Contract> {
     const response = await api.post<{ success: boolean; data: Contract }>('/contracts', data)
+
     return response.data.data
   },
 
   async update(id: number, data: ContractUpdateData): Promise<Contract> {
     const response = await api.put<{ success: boolean; data: Contract }>(`/contracts/${id}`, data)
+
     return response.data.data
   },
 
   async cancel(id: number): Promise<Contract> {
     const response = await api.put<{ success: boolean; data: Contract }>(`/contracts/${id}/cancel`)
+
+    return response.data.data
+  },
+
+  async renew(id: number, data: { duration_months: number; start_date?: string }): Promise<Contract> {
+    const response = await api.post<{ success: boolean; data: Contract }>(`/contracts/${id}/renew`, data)
+
     return response.data.data
   },
 

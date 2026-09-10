@@ -19,15 +19,18 @@ const asRecord = (value: unknown): RecordValue =>
   value && typeof value === 'object' && !Array.isArray(value) ? value as RecordValue : {}
 
 const text = (value: unknown): string | null => {
-  if (typeof value !== 'string' && typeof value !== 'number') return null
+  if (typeof value !== 'string' && typeof value !== 'number')
+    return null
 
   const normalized = String(value).trim()
+
   return normalized || null
 }
 
 const fields = (items: Array<[string, unknown]>): PartyDetail[] =>
   items.flatMap(([label, value]) => {
     const normalized = text(value)
+
     return normalized ? [{ label, value: normalized }] : []
   })
 
@@ -59,6 +62,7 @@ export const partyDetailsFor = (contract: Contract, company: CompanyDetails): Pa
 
   if (type === 'employment') {
     const employee = asRecord(entity.employee ?? contract.employee)
+
     return {
       ourCompany: ourCompanyDetails,
       counterparty: fields([
@@ -77,6 +81,7 @@ export const partyDetailsFor = (contract: Contract, company: CompanyDetails): Pa
 
   if (type === 'customer') {
     const customer = asRecord(entity.customer ?? contract.customer)
+
     return {
       ourCompany: ourCompanyDetails,
       counterparty: fields([
@@ -91,6 +96,7 @@ export const partyDetailsFor = (contract: Contract, company: CompanyDetails): Pa
   }
 
   const counterpartyCompany = asRecord(entity.company ?? contract.company)
+
   return {
     ourCompany: ourCompanyDetails,
     counterparty: fields([

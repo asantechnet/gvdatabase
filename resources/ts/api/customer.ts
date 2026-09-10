@@ -1,5 +1,5 @@
 import api from './axios'
-import type { ApiResponse as ServiceApiResponse, Service } from './services'
+import type { Service, ApiResponse as ServiceApiResponse } from './services'
 
 export type ApiResponse<T> = ServiceApiResponse<T>
 
@@ -60,6 +60,7 @@ export interface CreateCustomerData {
   email?: string | null
   address?: string | null
   tax_number?: string | null
+
   /** Legacy display label retained for older integrations. */
   marketer?: string | null
   marketer_id?: number | null
@@ -114,8 +115,10 @@ const CustomerApi = {
   async getAll(params?: CustomerParams): Promise<ApiResponse<Customer[]>> {
     try {
       const response = await api.get<{ data: Customer[] }>('/customers', { params })
+
       return { success: true, data: response.data.data }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, data: [], message: errorMessage(error, 'Failed to fetch customers') }
     }
   },
@@ -123,8 +126,10 @@ const CustomerApi = {
   async getById(id: number): Promise<ApiResponse<Customer>> {
     try {
       const response = await api.get<{ data: Customer }>(`/customers/${id}`)
+
       return { success: true, data: response.data.data }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, data: emptyCustomer(), message: errorMessage(error, 'Failed to fetch customer') }
     }
   },
@@ -132,8 +137,10 @@ const CustomerApi = {
   async getAllServices(): Promise<ApiResponse<Service[]>> {
     try {
       const response = await api.get<{ data: Service[] }>('/services')
+
       return { success: true, data: response.data.data }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, data: [], message: errorMessage(error, 'Failed to fetch services') }
     }
   },
@@ -141,8 +148,10 @@ const CustomerApi = {
   async create(data: CreateCustomerData): Promise<ApiResponse<Customer>> {
     try {
       const response = await api.post<{ data: Customer }>('/customers', data)
+
       return { success: true, data: response.data.data }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, data: emptyCustomer(), message: errorMessage(error, 'Failed to create customer') }
     }
   },
@@ -150,8 +159,10 @@ const CustomerApi = {
   async update(id: number, data: UpdateCustomerData): Promise<ApiResponse<Customer>> {
     try {
       const response = await api.put<{ data: Customer }>(`/customers/${id}`, data)
+
       return { success: true, data: response.data.data }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, data: emptyCustomer(), message: errorMessage(error, 'Failed to update customer') }
     }
   },
@@ -159,8 +170,10 @@ const CustomerApi = {
   async attachServices(customerId: number, services: CreateCustomerServiceData[]): Promise<ApiResponse<CustomerService[]>> {
     try {
       const response = await api.post<{ data: CustomerService[] }>(`/customers/${customerId}/services`, { services })
+
       return { success: true, data: response.data.data }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, data: [], message: errorMessage(error, 'Failed to attach services') }
     }
   },
@@ -168,8 +181,10 @@ const CustomerApi = {
   async updateService(customerId: number, pivotId: number, data: UpdateCustomerServiceData): Promise<ApiResponse<CustomerService>> {
     try {
       const response = await api.put<{ data: CustomerService }>(`/customers/${customerId}/services/${pivotId}`, data)
+
       return { success: true, data: response.data.data }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, data: {} as CustomerService, message: errorMessage(error, 'Failed to update customer service') }
     }
   },
@@ -177,8 +192,10 @@ const CustomerApi = {
   async detachService(customerId: number, pivotId: number): Promise<ApiResponse<null>> {
     try {
       await api.delete(`/customers/${customerId}/services/${pivotId}`)
+
       return { success: true, data: null }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, data: null, message: errorMessage(error, 'Failed to detach service') }
     }
   },
@@ -186,8 +203,10 @@ const CustomerApi = {
   async delete(id: number): Promise<ApiResponse<null>> {
     try {
       await api.delete(`/customers/${id}`)
+
       return { success: true, data: null }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, data: null, message: errorMessage(error, 'Failed to delete customer') }
     }
   },

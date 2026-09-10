@@ -9,11 +9,13 @@ const props = defineProps<{
   currentLatitude?: number | null
   currentLongitude?: number | null
 }>()
+
 const emit = defineEmits<{
   'update:latitude': [value: number]
   'update:longitude': [value: number]
   'update:radiusMeters': [value: number]
 }>()
+
 const { t } = useI18n()
 
 const container = ref<HTMLElement | null>(null)
@@ -24,6 +26,7 @@ let currentMarker: Marker | null = null
 let syncing = false
 
 const fallback = { latitude: 34.5553, longitude: 69.2075 }
+
 const center = () => ({
   latitude: props.latitude ?? props.currentLatitude ?? fallback.latitude,
   longitude: props.longitude ?? props.currentLongitude ?? fallback.longitude,
@@ -35,8 +38,10 @@ function destination(latitude: number, longitude: number, distanceMeters: number
   const bearing = bearingDegrees * Math.PI / 180
   const latitude1 = latitude * Math.PI / 180
   const longitude1 = longitude * Math.PI / 180
+
   const latitude2 = Math.asin(Math.sin(latitude1) * Math.cos(angular)
     + Math.cos(latitude1) * Math.sin(angular) * Math.cos(bearing))
+
   const longitude2 = longitude1 + Math.atan2(
     Math.sin(bearing) * Math.sin(angular) * Math.cos(latitude1),
     Math.cos(angular) - Math.sin(latitude1) * Math.sin(latitude2),
@@ -57,34 +62,46 @@ function distanceMeters(latitudeA: number, longitudeA: number, latitudeB: number
   const earthRadius = 6371008.8
   const latitudeDelta = (latitudeB - latitudeA) * Math.PI / 180
   const longitudeDelta = (longitudeB - longitudeA) * Math.PI / 180
+
   const a = Math.sin(latitudeDelta / 2) ** 2
     + Math.cos(latitudeA * Math.PI / 180) * Math.cos(latitudeB * Math.PI / 180) * Math.sin(longitudeDelta / 2) ** 2
+
   return Math.round(earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
 }
 
 function syncMap(fly = false) {
-  if (!map || !officeMarker || !radiusMarker || syncing) return
+  if (!map || !officeMarker || !radiusMarker || syncing)
+    return
   syncing = true
+
   const location = center()
   const radius = Math.min(5000, Math.max(10, Number(props.radiusMeters) || 100))
+
   officeMarker.setLngLat([location.longitude, location.latitude])
   radiusMarker.setLngLat(destination(location.latitude, location.longitude, radius, 90))
+
   const source = map.getSource('office-radius') as GeoJSONSource | undefined
+
   source?.setData(circleFeature(location.latitude, location.longitude, radius) as any)
-  if (fly) map.easeTo({ center: [location.longitude, location.latitude], duration: 350 })
+  if (fly)
+    map.easeTo({ center: [location.longitude, location.latitude], duration: 350 })
 
   if (props.currentLatitude != null && props.currentLongitude != null) {
-    if (!currentMarker) currentMarker = new mapboxgl.Marker({ color: '#00a76f', scale: 0.75 })
-      .setPopup(new mapboxgl.Popup({ offset: 20 }).setText(t('pages.settings.geofence.currentLocation')))
-      .addTo(map)
+    if (!currentMarker) {
+      currentMarker = new mapboxgl.Marker({ color: '#00a76f', scale: 0.75 })
+        .setPopup(new mapboxgl.Popup({ offset: 20 }).setText(t('pages.settings.geofence.currentLocation')))
+        .addTo(map)
+    }
     currentMarker.setLngLat([props.currentLongitude, props.currentLatitude])
   }
   syncing = false
 }
 
 onMounted(() => {
-  if (!container.value) return
+  if (!container.value)
+    return
   const location = center()
+
   map = new mapboxgl.Map({
     container: container.value,
     center: [location.longitude, location.latitude],
@@ -111,12 +128,14 @@ onMounted(() => {
 
   officeMarker.on('drag', () => {
     const point = officeMarker!.getLngLat()
+
     emit('update:latitude', Number(point.lat.toFixed(7)))
     emit('update:longitude', Number(point.lng.toFixed(7)))
   })
   radiusMarker.on('drag', () => {
     const point = radiusMarker!.getLngLat()
     const location = center()
+
     emit('update:radiusMeters', Math.min(5000, Math.max(10, distanceMeters(location.latitude, location.longitude, point.lat, point.lng))))
   })
   map.on('click', event => {
@@ -141,7 +160,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="container" class="office-geofence-map" :aria-label="t('pages.settings.geofence.mapLabel')" />
+  <div
+    ref="container"
+    class="office-geofence-map"
+    :aria-label="t('pages.settings.geofence.mapLabel')"
+  />
 </template>
 
 <style scoped>

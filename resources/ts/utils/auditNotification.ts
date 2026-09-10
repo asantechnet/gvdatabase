@@ -6,9 +6,11 @@ export const auditLogIdFromNotification = (notification: AppNotification): numbe
     return dataId
 
   const legacyMatch = notification.go_to_url?.match(/^\/audit-logs\/(\d+)$/)
-  if (legacyMatch) return Number(legacyMatch[1])
+  if (legacyMatch)
+    return Number(legacyMatch[1])
 
   const pageMatch = notification.go_to_url?.match(/^\/audits\?(?:[^#]*&)?audit=(\d+)(?:&|$)/)
+
   return pageMatch ? Number(pageMatch[1]) : null
 }
 

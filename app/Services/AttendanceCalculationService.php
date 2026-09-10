@@ -17,20 +17,18 @@ class AttendanceCalculationService
     /** Recalculate only when raw inputs or schedule settings changed. */
     public function calculate(Attendance $attendance, bool $force = false): bool
     {
-        if (! $this->companyProfile->automaticAttendanceEnabled()) {
-            return false;
-        }
-
         $attendance->loadMissing('staff');
         $setting = Setting::query()->latest('id')->first();
         $timezone = $this->companyProfile->timezone();
         $scheduleStart = $attendance->staff?->work_start_time ?: $setting?->office_open_time;
         $scheduleEnd = $attendance->staff?->work_end_time ?: $setting?->office_close_time;
         $breakMinutes = (int) ($attendance->break_minutes ?? $setting?->default_break_minutes ?? 0);
+        $effectiveStart = $this->punch($attendance, true, $timezone);
+        $effectiveEnd = $this->punch($attendance, false, $timezone);
         $hash = hash('sha256', json_encode([
             self::CALCULATION_VERSION,
-            $attendance->status, $attendance->date?->format('Y-m-d'), $attendance->checked_in_at?->toISOString(),
-            $attendance->checked_out_at?->toISOString(), $attendance->check_in_time, $attendance->check_out_time,
+            $attendance->status, $attendance->date?->format('Y-m-d'), $effectiveStart?->toISOString(),
+            $effectiveEnd?->toISOString(),
             $breakMinutes, $scheduleStart, $scheduleEnd, $timezone, (float) $attendance->leave_duration_days,
         ], JSON_THROW_ON_ERROR));
 

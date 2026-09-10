@@ -12,6 +12,8 @@ declare global {
   const EffectScope: typeof import('vue')['EffectScope']
   const PLACEHOLDER_SPAN_PATTERN: typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
+  const actionWarningState: typeof import('./resources/ts/composables/useActionWarning')['actionWarningState']
+  const addContractMonths: typeof import('./resources/ts/utils/contractExpiry')['addContractMonths']
   const alphaDashValidator: typeof import('./resources/ts/@core/utils/validators')['alphaDashValidator']
   const alphaValidator: typeof import('./resources/ts/@core/utils/validators')['alphaValidator']
   const apiErrorMessage: typeof import('./resources/ts/utils/apiErrors')['apiErrorMessage']
@@ -25,6 +27,7 @@ declare global {
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
   const avatarText: typeof import('./resources/ts/@core/utils/formatters')['avatarText']
   const betweenValidator: typeof import('./resources/ts/@core/utils/validators')['betweenValidator']
+  const calendarDurationUntil: typeof import('./resources/ts/utils/contractExpiry')['calendarDurationUntil']
   const canAccess: typeof import('./resources/ts/utils/authorization')['canAccess']
   const canPrintPartyDetails: typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']
   const clearAuthTokens: typeof import('./resources/ts/utils/authStorage')['clearAuthTokens']
@@ -37,7 +40,9 @@ declare global {
   const computedEager: typeof import('@vueuse/core')['computedEager']
   const computedInject: typeof import('@vueuse/core')['computedInject']
   const computedWithControl: typeof import('@vueuse/core')['computedWithControl']
+  const confirmActionWarning: typeof import('./resources/ts/composables/useActionWarning')['confirmActionWarning']
   const confirmedValidator: typeof import('./resources/ts/@core/utils/validators')['confirmedValidator']
+  const contractExpiryPresentation: typeof import('./resources/ts/utils/contractExpiry')['contractExpiryPresentation']
   const contractTypeSlug: typeof import('./resources/ts/utils/contractPartyDetails')['contractTypeSlug']
   const contrastingTextColor: typeof import('./resources/ts/utils/themeContrast')['contrastingTextColor']
   const controlledComputed: typeof import('@vueuse/core')['controlledComputed']
@@ -57,6 +62,7 @@ declare global {
   const createUrl: typeof import('./resources/ts/@core/composable/createUrl')['createUrl']
   const currentLocale: typeof import('./resources/ts/utils/localization')['currentLocale']
   const customRef: typeof import('vue')['customRef']
+  const dayAfter: typeof import('./resources/ts/utils/contractExpiry')['dayAfter']
   const debouncedRef: typeof import('@vueuse/core')['debouncedRef']
   const debouncedWatch: typeof import('@vueuse/core')['debouncedWatch']
   const defineAsyncComponent: typeof import('vue')['defineAsyncComponent']
@@ -73,6 +79,7 @@ declare global {
   const fieldErrorMessages: typeof import('./resources/ts/utils/formErrors')['fieldErrorMessages']
   const fieldLabel: typeof import('./resources/ts/utils/apiValidation')['fieldLabel']
   const formErrors: typeof import('./resources/ts/utils/formErrors')['formErrors']
+  const formatCalendarDuration: typeof import('./resources/ts/utils/contractExpiry')['formatCalendarDuration']
   const formatDate: typeof import('./resources/ts/@core/utils/formatters')['formatDate']
   const formatDateToMonthShort: typeof import('./resources/ts/@core/utils/formatters')['formatDateToMonthShort']
   const formatLocalizedDate: typeof import('./resources/ts/utils/localization')['formatLocalizedDate']
@@ -91,6 +98,7 @@ declare global {
   const inject: typeof import('vue')['inject']
   const injectLocal: typeof import('@vueuse/core')['injectLocal']
   const integerValidator: typeof import('./resources/ts/@core/utils/validators')['integerValidator']
+  const isActionWarningDismissed: typeof import('./resources/ts/composables/useActionWarning')['isActionWarningDismissed']
   const isApiRequestAllowed: typeof import('./resources/ts/utils/apiAuthorization')['isApiRequestAllowed']
   const isDarkPreferred: typeof import('./src/@core/composable/useThemeConfig')['isDarkPreferred']
   const isDefined: typeof import('@vueuse/core')['isDefined']
@@ -173,6 +181,7 @@ declare global {
   const registerPlugins_: typeof import('./src/@core/utils/plugins')['registerPlugins_']
   const replaceFormErrors: typeof import('./resources/ts/utils/formErrors')['replaceFormErrors']
   const requiredValidator: typeof import('./resources/ts/@core/utils/validators')['requiredValidator']
+  const resolveActionWarning: typeof import('./resources/ts/composables/useActionWarning')['resolveActionWarning']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
@@ -184,6 +193,8 @@ declare global {
   const shallowReactive: typeof import('vue')['shallowReactive']
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
+  const startAccountSettingsGuide: typeof import('./resources/ts/composables/useAccountSettingsGuide')['startAccountSettingsGuide']
+  const startPageGuide: typeof import('./resources/ts/composables/usePageGuide')['startPageGuide']
   const storeAuthTokens: typeof import('./resources/ts/utils/authStorage')['storeAuthTokens']
   const storePermissions: typeof import('./resources/ts/utils/authStorage')['storePermissions']
   const storeToRefs: typeof import('pinia')['storeToRefs']
@@ -219,7 +230,7 @@ declare global {
   const useAbs: typeof import('@vueuse/math')['useAbs']
   const useActiveElement: typeof import('@vueuse/core')['useActiveElement']
   const useAnimate: typeof import('@vueuse/core')['useAnimate']
-  const useApi: typeof import('./resources/ts/composables/useApi.js')['useApi']
+  const useApi: typeof import('./resources/ts/composables/useApi')['useApi']
   const useAppApi: typeof import('./resources/ts/composables/useAppApi')['useAppApi']
   const useArrayDifference: typeof import('@vueuse/core')['useArrayDifference']
   const useArrayEvery: typeof import('@vueuse/core')['useArrayEvery']
@@ -441,6 +452,8 @@ declare module 'vue' {
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly PLACEHOLDER_SPAN_PATTERN: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
+    readonly actionWarningState: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['actionWarningState']>
+    readonly addContractMonths: UnwrapRef<typeof import('./resources/ts/utils/contractExpiry')['addContractMonths']>
     readonly alphaDashValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['alphaDashValidator']>
     readonly alphaValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['alphaValidator']>
     readonly apiErrorMessage: UnwrapRef<typeof import('./resources/ts/utils/apiErrors')['apiErrorMessage']>
@@ -453,6 +466,7 @@ declare module 'vue' {
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly avatarText: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['avatarText']>
     readonly betweenValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['betweenValidator']>
+    readonly calendarDurationUntil: UnwrapRef<typeof import('./resources/ts/utils/contractExpiry')['calendarDurationUntil']>
     readonly canAccess: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canAccess']>
     readonly canPrintPartyDetails: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']>
     readonly clearAuthTokens: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['clearAuthTokens']>
@@ -465,7 +479,9 @@ declare module 'vue' {
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
     readonly computedInject: UnwrapRef<typeof import('@vueuse/core')['computedInject']>
     readonly computedWithControl: UnwrapRef<typeof import('@vueuse/core')['computedWithControl']>
+    readonly confirmActionWarning: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['confirmActionWarning']>
     readonly confirmedValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['confirmedValidator']>
+    readonly contractExpiryPresentation: UnwrapRef<typeof import('./resources/ts/utils/contractExpiry')['contractExpiryPresentation']>
     readonly contractTypeSlug: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['contractTypeSlug']>
     readonly contrastingTextColor: UnwrapRef<typeof import('./resources/ts/utils/themeContrast')['contrastingTextColor']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
@@ -485,6 +501,7 @@ declare module 'vue' {
     readonly createUrl: UnwrapRef<typeof import('./resources/ts/@core/composable/createUrl')['createUrl']>
     readonly currentLocale: UnwrapRef<typeof import('./resources/ts/utils/localization')['currentLocale']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
+    readonly dayAfter: UnwrapRef<typeof import('./resources/ts/utils/contractExpiry')['dayAfter']>
     readonly debouncedRef: UnwrapRef<typeof import('@vueuse/core')['debouncedRef']>
     readonly debouncedWatch: UnwrapRef<typeof import('@vueuse/core')['debouncedWatch']>
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
@@ -517,6 +534,7 @@ declare module 'vue' {
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly integerValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['integerValidator']>
+    readonly isActionWarningDismissed: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['isActionWarningDismissed']>
     readonly isApiRequestAllowed: UnwrapRef<typeof import('./resources/ts/utils/apiAuthorization')['isApiRequestAllowed']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
     readonly isEmpty: UnwrapRef<typeof import('./resources/ts/@core/utils/helpers')['isEmpty']>
@@ -595,6 +613,7 @@ declare module 'vue' {
     readonly registerPlugins: UnwrapRef<typeof import('./resources/ts/@core/utils/plugins')['registerPlugins']>
     readonly replaceFormErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['replaceFormErrors']>
     readonly requiredValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['requiredValidator']>
+    readonly resolveActionWarning: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['resolveActionWarning']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
@@ -606,6 +625,8 @@ declare module 'vue' {
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
+    readonly startAccountSettingsGuide: UnwrapRef<typeof import('./resources/ts/composables/useAccountSettingsGuide')['startAccountSettingsGuide']>
+    readonly startPageGuide: UnwrapRef<typeof import('./resources/ts/composables/usePageGuide')['startPageGuide']>
     readonly storeAuthTokens: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['storeAuthTokens']>
     readonly storePermissions: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['storePermissions']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
@@ -641,7 +662,7 @@ declare module 'vue' {
     readonly useAbs: UnwrapRef<typeof import('@vueuse/math')['useAbs']>
     readonly useActiveElement: UnwrapRef<typeof import('@vueuse/core')['useActiveElement']>
     readonly useAnimate: UnwrapRef<typeof import('@vueuse/core')['useAnimate']>
-    readonly useAppApi: UnwrapRef<typeof import('./resources/ts/composables/useAppApi')['default']>
+    readonly useApi: UnwrapRef<typeof import('./resources/ts/composables/useApi')['useApi']>
     readonly useAppApi: UnwrapRef<typeof import('./resources/ts/composables/useAppApi')['useAppApi']>
     readonly useArrayDifference: UnwrapRef<typeof import('@vueuse/core')['useArrayDifference']>
     readonly useArrayEvery: UnwrapRef<typeof import('@vueuse/core')['useArrayEvery']>

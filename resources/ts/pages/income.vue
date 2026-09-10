@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { VDialog } from 'vuetify/components'
-import { getIncomes, createIncome, updateIncome, deleteIncome, type Income, type IncomeCreateData, type IncomeUpdateData } from '@/api/incomes'
+import { type Income, type IncomeCreateData, type IncomeUpdateData, createIncome, deleteIncome, getIncomes, updateIncome } from '@/api/incomes'
 import InvoiceApi, { type Invoice } from '@/api/invoice'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import CompanyApi, { type Company } from '@/api/company'
@@ -49,18 +49,22 @@ const companies = ref<Company[]>([])
 const formError = ref('')
 
 const typeOptions = ['Service', 'Product', 'Investment', 'Other']
+
 const filterTypeOptions = computed(() => typeOptions.map(value => ({
   title: translateBackendValue(value),
   value,
 })))
+
 const currencyOptions = computed(() => currencies.value
   .filter(currency => currency.isActive)
   .map(currency => ({ title: `${currency.code} — ${currency.name}`, value: currency.id })))
 
 const selectedInvoice = computed(() => {
   const invoiceId = selectedIncome.value?.invoice_id
+
   return invoiceId ? invoices.value.find(invoice => invoice.id === invoiceId) : undefined
 })
+
 const companyOptions = computed(() => companies.value
   .filter(company => company.is_active)
   .map(company => ({ title: company.trade_name || company.legal_name, value: company.id })))
@@ -74,10 +78,13 @@ const currentBaseCurrency = computed(() => currencies.value.find(currency => cur
 const totalReceived = computed(() => incomes.value.reduce((total, income) => total + Number(income.currentBaseAmount ?? income.base_amount ?? 0), 0))
 const linkedIncomeCount = computed(() => incomes.value.filter(income => income.invoice_id).length)
 const averageIncome = computed(() => incomes.value.length ? totalReceived.value / incomes.value.length : 0)
+
 const currentMonthIncome = computed(() => {
   const now = new Date()
+
   return incomes.value.reduce((total, income) => {
     const date = new Date(income.date)
+
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
       ? total + Number(income.currentBaseAmount ?? income.base_amount ?? 0)
       : total
@@ -93,6 +100,7 @@ const fetchUnpaidInvoices = async (includeInvoiceId?: number | null) => {
 
 const fetchCurrencies = async () => {
   const response = await CurrencyApi.getAll()
+
   currencies.value = response.data.filter(currency => currency.isActive)
 }
 
@@ -101,7 +109,8 @@ const fetchCompanies = async () => {
 }
 
 const setDefaultCurrency = () => {
-  if (selectedIncome.value.currency_id) return
+  if (selectedIncome.value.currency_id)
+    return
 
   const currency = currencies.value.find(item => item.isBase) ?? currencies.value[0]
   if (currency) {
@@ -113,18 +122,25 @@ const setDefaultCurrency = () => {
 const fetchIncomes = async () => {
   try {
     isLoading.value = true
+
     const params: any = {}
 
-    if (searchQuery.value) params.search = searchQuery.value
-    if (filterType.value) params.type = filterType.value
-    if (filterCurrency.value) params.currency_id = filterCurrency.value
+    if (searchQuery.value)
+      params.search = searchQuery.value
+    if (filterType.value)
+      params.type = filterType.value
+    if (filterCurrency.value)
+      params.currency_id = filterCurrency.value
 
     const response = await getIncomes(params)
+
     incomes.value = Array.isArray(response) ? response : []
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching incomes:', error)
     incomes.value = []
-  } finally {
+  }
+  finally {
     isLoading.value = false
   }
 }
@@ -144,7 +160,7 @@ const openAddIncomeDialog = () => {
 
 const openEditIncomeDialog = (income: Income) => {
   formError.value = ''
-  selectedIncome.value = {...income}
+  selectedIncome.value = { ...income }
   Promise.all([fetchUnpaidInvoices(income.invoice_id), fetchCurrencies(), fetchCompanies()]).then(() => {
     isEditIncomeDialogVisible.value = true
   }).catch(error => {
@@ -157,11 +173,13 @@ const openEditIncomeDialog = (income: Income) => {
 const handleInvoiceChange = (invoiceId: number | null) => {
   if (!invoiceId) {
     selectedIncome.value.customer_id = null
+
     return
   }
 
   const invoice = invoices.value.find(item => item.id === invoiceId)
-  if (!invoice) return
+  if (!invoice)
+    return
 
   selectedIncome.value.customer_id = invoice.customer_id
   selectedIncome.value.type = 'Service'
@@ -186,18 +204,21 @@ const formatSelectedInvoiceAmount = (amount: number) => amount.toFixed(selectedC
 const messageFromError = (error: unknown): string => apiErrorMessage(error, 'Unable to save the income record.')
 
 const validateIncomeForm = () => {
-  if (!selectedIncome.value.type) return translate('pages.finance.income.income.selectAnIncomeType')
-  if (!selectedIncome.value.currency_id) return translate('common.messages.selectACurrency')
+  if (!selectedIncome.value.type)
+    return translate('pages.finance.income.income.selectAnIncomeType')
+  if (!selectedIncome.value.currency_id)
+    return translate('common.messages.selectACurrency')
   if (!Number.isFinite(Number(selectedIncome.value.amount)) || selectedIncome.value.amount <= 0)
     return translate('pages.finance.income.income.amountMustBeGreaterThanZero')
   if (!Number.isInteger(Number(selectedIncome.value.quantity)) || selectedIncome.value.quantity < 1)
     return translate('pages.finance.income.income.quantityMustBeAWholeNumberOfAtLeastOne')
   if (!Number.isFinite(Number(selectedIncome.value.rate)) || selectedIncome.value.rate <= 0)
     return translate('pages.finance.income.income.exchangeRateMustBeGreaterThanZero')
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedIncome.value.date)) return translate('pages.finance.income.income.selectAValidIncomeDate')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedIncome.value.date))
+    return translate('pages.finance.income.income.selectAValidIncomeDate')
 
   if (selectedInvoice.value && selectedIncome.value.amount * selectedIncome.value.quantity > selectedInvoiceBalance.value + selectedCurrencyStep.value / 2)
-    return `Payment cannot exceed the remaining invoice balance of ${formatSelectedInvoiceAmount(selectedInvoiceBalance.value)} ${selectedInvoice.value.currency.code}.`
+    return `Payment cannot exceed the remaining invoice balance of ${formatSelectedInvoiceAmount(selectedInvoiceBalance.value)} ${selectedInvoice.value.currency.shortname}.`
 
   return ''
 }
@@ -209,15 +230,19 @@ const openDeleteIncomeDialog = (income: Income) => {
 
 const addIncome = async () => {
   formError.value = validateIncomeForm()
-  if (formError.value) return
+  if (formError.value)
+    return
 
   try {
     formError.value = ''
-    const incomeData = {...selectedIncome.value} as IncomeCreateData
+
+    const incomeData = { ...selectedIncome.value } as IncomeCreateData
     const createdIncome = await createIncome(incomeData)
+
     incomes.value.unshift(createdIncome)
     isAddIncomeDialogVisible.value = false
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error creating income:', error)
     formError.value = messageFromError(error)
   }
@@ -226,18 +251,21 @@ const addIncome = async () => {
 const updateIncomeRecord = async () => {
   if (selectedIncome.value.id) {
     formError.value = validateIncomeForm()
-    if (formError.value) return
+    if (formError.value)
+      return
 
     try {
       formError.value = ''
-      const incomeData = {...selectedIncome.value} as IncomeUpdateData
+
+      const incomeData = { ...selectedIncome.value } as IncomeUpdateData
       const updatedIncome = await updateIncome(selectedIncome.value.id, incomeData)
       const index = incomes.value.findIndex(i => i.id === updatedIncome.id)
-      if (index !== -1) {
+      if (index !== -1)
         incomes.value[index] = updatedIncome
-      }
+
       isEditIncomeDialogVisible.value = false
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Error updating income:', error)
       formError.value = messageFromError(error)
     }
@@ -250,7 +278,8 @@ const deleteIncomeRecord = async () => {
       await deleteIncome(selectedIncome.value.id)
       incomes.value = incomes.value.filter(i => i.id !== selectedIncome.value.id)
       isDeleteIncomeDialogVisible.value = false
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Error deleting income:', error)
     }
   }
@@ -258,16 +287,20 @@ const deleteIncomeRecord = async () => {
 
 const calculateTotal = () => {
   const decimals = currentBaseCurrency.value?.decimalPlaces ?? 2
+
   selectedIncome.value.base_amount = Number((selectedIncome.value.amount * selectedIncome.value.quantity / selectedIncome.value.rate).toFixed(decimals))
 }
 
 const markSelectedInvoicePaid = async () => {
-  if (!selectedInvoice.value?.can_mark_paid) return
+  if (!selectedInvoice.value?.can_mark_paid)
+    return
 
   try {
     const updated = await InvoiceApi.markPaid(selectedInvoice.value.id)
+
     invoices.value = invoices.value.map(invoice => invoice.id === updated.id ? updated : invoice)
-  } catch (error) {
+  }
+  catch (error) {
     formError.value = messageFromError(error)
   }
 }
@@ -277,6 +310,7 @@ const formatCurrency = (value: number | string | undefined | null): string => {
   const currency = currentBaseCurrency.value
   const decimals = currency?.decimalPlaces ?? 2
   const formatted = Number.isFinite(numericValue) ? numericValue.toFixed(decimals) : (0).toFixed(decimals)
+
   return `${currency?.symbol ?? ''}${formatted}${currency?.code ? ` ${currency.code}` : ''}`.trim()
 }
 
@@ -297,7 +331,9 @@ const incomeTypeColor = (type: string) => ({
 }[type] ?? 'secondary')
 
 const formatDate = (dateString: string | undefined | null): string => {
-  if (!dateString) return ''
+  if (!dateString)
+    return ''
+
   return formatLocalizedDate(`${dateString}T00:00:00`, {
     day: '2-digit',
     month: 'short',
@@ -316,40 +352,145 @@ onMounted(() => {
 
 <template>
   <div class="income-page">
-    <VCard class="income-command-deck mb-6" elevation="0">
+    <VCard
+      class="income-command-deck mb-6"
+      elevation="0"
+    >
       <VCardText class="pa-6 pa-md-8">
         <div class="hero-topline d-flex flex-wrap align-center justify-space-between gap-5">
           <div class="hero-copy">
-            <div class="eyebrow mb-2"><VIcon icon="tabler-sparkles" size="15" /> {{ $t('pages.finance.income.income.cashflowCOMMANDCENTER') }}</div>
-            <h2 class="text-h4 font-weight-black mb-1">{{ $t('pages.finance.income.income.incomeLedger') }}</h2>
-            <p class="text-body-2 opacity-80 mb-0">{{ $t('pages.finance.income.income.liveReceiptActivityInvoiceCollectionsAndCurrencyTotalsInOneView') }}</p>
+            <div class="eyebrow mb-2">
+              <VIcon
+                icon="tabler-sparkles"
+                size="15"
+              /> {{ $t('pages.finance.income.income.cashflowCOMMANDCENTER') }}
+            </div>
+            <h2 class="text-h4 font-weight-black mb-1">
+              {{ $t('pages.finance.income.income.incomeLedger') }}
+            </h2>
+            <p class="text-body-2 opacity-80 mb-0">
+              {{ $t('pages.finance.income.income.liveReceiptActivityInvoiceCollectionsAndCurrencyTotalsInOneView') }}
+            </p>
           </div>
           <div class="hero-actions d-flex align-center gap-2">
-            <VBtn class="hero-print" icon variant="text" color="white" @click="printTable">
+            <VBtn
+              class="hero-print"
+              icon
+              variant="text"
+              color="white"
+              @click="printTable"
+            >
               <VIcon icon="tabler-printer" />
-              <VTooltip activator="parent" location="top">{{ $t('pages.finance.income.income.printIncomeRecords') }}</VTooltip>
+              <VTooltip
+                activator="parent"
+                location="top"
+              >
+                {{ $t('pages.finance.income.income.printIncomeRecords') }}
+              </VTooltip>
             </VBtn>
-            <VBtn color="white" class="hero-primary-action income-primary-action font-weight-bold" @click="openAddIncomeDialog">
-              <VIcon icon="tabler-plus" class="me-1" /> {{ $t('pages.finance.income.income.recordIncome') }}
+            <VBtn
+              color="white"
+              class="hero-primary-action income-primary-action font-weight-bold"
+              @click="openAddIncomeDialog"
+            >
+              <VIcon
+                icon="tabler-plus"
+                class="me-1"
+              /> {{ $t('pages.finance.income.income.recordIncome') }}
             </VBtn>
           </div>
         </div>
         <VRow class="mt-4">
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--success"><VIcon icon="tabler-wallet" color="success" /><div><div class="metric-label">{{ $t('pages.finance.income.income.recordedValue') }}</div><div class="metric-value">{{ formatCurrency(totalReceived) }}</div></div></div></VCol>
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--info"><VIcon icon="tabler-calendar-month" color="info" /><div><div class="metric-label">{{ $t('common.messages.thisMonth') }}</div><div class="metric-value">{{ formatCurrency(currentMonthIncome) }}</div></div></div></VCol>
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--warning"><VIcon icon="tabler-link" color="warning" /><div><div class="metric-label">{{ $t('pages.finance.income.income.invoicePayments') }}</div><div class="metric-value">{{ linkedIncomeCount }} <span>{{ $t('pages.finance.income.income.linked') }}</span></div></div></div></VCol>
-          <VCol cols="12" sm="6" lg="3"><div class="metric-tile metric-tile--secondary"><VIcon icon="tabler-chart-bar" color="secondary" /><div><div class="metric-label">{{ $t('pages.finance.income.income.averageReceipt') }}</div><div class="metric-value">{{ formatCurrency(averageIncome) }}</div></div></div></VCol>
+          <VCol
+            cols="12"
+            sm="6"
+            lg="3"
+          >
+            <div class="metric-tile metric-tile--success">
+              <VIcon
+                icon="tabler-wallet"
+                color="success"
+              /><div>
+                <div class="metric-label">
+                  {{ $t('pages.finance.income.income.recordedValue') }}
+                </div><div class="metric-value">
+                  {{ formatCurrency(totalReceived) }}
+                </div>
+              </div>
+            </div>
+          </VCol>
+          <VCol
+            cols="12"
+            sm="6"
+            lg="3"
+          >
+            <div class="metric-tile metric-tile--info">
+              <VIcon
+                icon="tabler-calendar-month"
+                color="info"
+              /><div>
+                <div class="metric-label">
+                  {{ $t('common.messages.thisMonth') }}
+                </div><div class="metric-value">
+                  {{ formatCurrency(currentMonthIncome) }}
+                </div>
+              </div>
+            </div>
+          </VCol>
+          <VCol
+            cols="12"
+            sm="6"
+            lg="3"
+          >
+            <div class="metric-tile metric-tile--warning">
+              <VIcon
+                icon="tabler-link"
+                color="warning"
+              /><div>
+                <div class="metric-label">
+                  {{ $t('pages.finance.income.income.invoicePayments') }}
+                </div><div class="metric-value">
+                  {{ linkedIncomeCount }} <span>{{ $t('pages.finance.income.income.linked') }}</span>
+                </div>
+              </div>
+            </div>
+          </VCol>
+          <VCol
+            cols="12"
+            sm="6"
+            lg="3"
+          >
+            <div class="metric-tile metric-tile--secondary">
+              <VIcon
+                icon="tabler-chart-bar"
+                color="secondary"
+              /><div>
+                <div class="metric-label">
+                  {{ $t('pages.finance.income.income.averageReceipt') }}
+                </div><div class="metric-value">
+                  {{ formatCurrency(averageIncome) }}
+                </div>
+              </div>
+            </div>
+          </VCol>
         </VRow>
       </VCardText>
     </VCard>
 
-    <VCard class="mb-6 filter-deck" elevation="0">
+    <VCard
+      class="mb-6 filter-deck"
+      elevation="0"
+    >
       <VCardText class="filter-deck__content">
         <VRow align="center">
-          <VCol cols="12" md="8">
+          <VCol
+            cols="12"
+            md="8"
+          >
             <VTextField
               v-model="searchQuery"
-              class="data-table-search" prepend-inner-icon="tabler-search"
+              class="data-table-search"
+              prepend-inner-icon="tabler-search"
               :placeholder="$t('pages.finance.income.income.searchIncome')"
               density="compact"
               clearable
@@ -358,22 +499,62 @@ onMounted(() => {
             />
           </VCol>
 
-          <VCol cols="12" md="4" class="d-flex align-center justify-md-end ga-2">
-            <DataTableFilterMenu :active="Boolean(filterType || filterCurrency)"
-              @reset="filterType = null; filterCurrency = null; fetchIncomes()">
-              <VSelect v-model="filterType" :items="filterTypeOptions" :label="$t('common.messages.filterByType')" density="compact" clearable hide-details @update:modelValue="fetchIncomes" />
-              <VSelect v-model="filterCurrency" :items="currencyOptions" :label="$t('common.messages.filterByCurrency')" density="compact" clearable hide-details @update:modelValue="fetchIncomes" />
+          <VCol
+            cols="12"
+            md="4"
+            class="d-flex align-center justify-md-end ga-2"
+          >
+            <DataTableFilterMenu
+              :active="Boolean(filterType || filterCurrency)"
+              @reset="filterType = null; filterCurrency = null; fetchIncomes()"
+            >
+              <VSelect
+                v-model="filterType"
+                :items="filterTypeOptions"
+                :label="$t('common.messages.filterByType')"
+                density="compact"
+                clearable
+                hide-details
+                @update:model-value="fetchIncomes"
+              />
+              <VSelect
+                v-model="filterCurrency"
+                :items="currencyOptions"
+                :label="$t('common.messages.filterByCurrency')"
+                density="compact"
+                clearable
+                hide-details
+                @update:model-value="fetchIncomes"
+              />
             </DataTableFilterMenu>
-            <div class="text-caption text-medium-emphasis"><strong class="text-high-emphasis">{{ incomes.length }}</strong> {{ $t('pages.finance.income.income.recordsCurrentlyShown') }}</div>
+            <div class="text-caption text-medium-emphasis">
+              <strong class="text-high-emphasis">{{ incomes.length }}</strong> {{ $t('pages.finance.income.income.recordsCurrentlyShown') }}
+            </div>
           </VCol>
         </VRow>
       </VCardText>
     </VCard>
 
-    <VCard class="ledger-card" elevation="0">
+    <VCard
+      class="ledger-card"
+      elevation="0"
+    >
       <VCardItem class="ledger-card__header">
-        <VCardTitle class="ledger-card__title font-weight-bold"><VIcon icon="tabler-receipt-2" size="20" />{{ $t('pages.finance.income.income.receiptStream') }}</VCardTitle>
-        <template #append><VChip size="small" color="primary" variant="tonal">{{ $t('pages.finance.income.income.liveLedger') }}</VChip></template>
+        <VCardTitle class="ledger-card__title font-weight-bold">
+          <VIcon
+            icon="tabler-receipt-2"
+            size="20"
+          />{{ $t('pages.finance.income.income.receiptStream') }}
+        </VCardTitle>
+        <template #append>
+          <VChip
+            size="small"
+            color="primary"
+            variant="tonal"
+          >
+            {{ $t('pages.finance.income.income.liveLedger') }}
+          </VChip>
+        </template>
       </VCardItem>
       <div class="table-container">
         <ResponsiveDataTable
@@ -386,7 +567,7 @@ onMounted(() => {
             { title: translate('common.fields.amount'), key: 'base_amount', align: 'end' },
             { title: translate('common.fields.date'), key: 'date', align: 'center' },
             { title: translate('common.messages.recordedBy'), key: 'recordedBy.name', align: 'start' },
-            { title: translate('common.messages.actions'), key: 'actions', align: 'center', sortable: false }
+            { title: translate('common.messages.actions'), key: 'actions', align: 'center', sortable: false },
           ]"
           item-value="id"
           class="text-no-wrap"
@@ -395,32 +576,61 @@ onMounted(() => {
           density="compact"
         >
           <template #item.receipt_number="{ item }">
-            <div class="font-weight-bold">{{ item.receipt_number || `RCP-${String(item.id).padStart(6, '0')}` }}</div>
-            <div class="text-caption text-medium-emphasis">{{ $t('common.messages.currencyQuantity', { currency: item.currency?.code ?? '—', quantity: item.quantity }) }}</div>
+            <div class="font-weight-bold">
+              {{ item.receipt_number || `RCP-${String(item.id).padStart(6, '0')}` }}
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              {{ $t('common.messages.currencyQuantity', { currency: item.currency?.code ?? '—', quantity: item.quantity }) }}
+            </div>
           </template>
 
           <template #item.type="{ item }">
-            <VChip size="small" :color="incomeTypeColor(item.type)" variant="tonal">{{ translateBackendValue(item.type) }}</VChip>
+            <VChip
+              size="small"
+              :color="incomeTypeColor(item.type)"
+              variant="tonal"
+            >
+              {{ translateBackendValue(item.type) }}
+            </VChip>
           </template>
 
           <template #item.description="{ item }">
-            <div class="detail-copy">{{ item.description || 'No description added' }}</div>
+            <div class="detail-copy">
+              {{ item.description || 'No description added' }}
+            </div>
           </template>
 
           <template #item.invoice_number="{ item }">
-            <VChip v-if="item.invoice_number" size="small" color="info" variant="outlined" prepend-icon="tabler-file-invoice">{{ item.invoice_number }}</VChip>
-            <span v-else class="text-caption text-medium-emphasis">{{ $t('pages.finance.income.income.standalone') }}</span>
+            <VChip
+              v-if="item.invoice_number"
+              size="small"
+              color="info"
+              variant="outlined"
+              prepend-icon="tabler-file-invoice"
+            >
+              {{ item.invoice_number }}
+            </VChip>
+            <span
+              v-else
+              class="text-caption text-medium-emphasis"
+            >{{ $t('pages.finance.income.income.standalone') }}</span>
           </template>
 
           <template #item.base_amount="{ item }">
-            <div class="font-weight-bold text-success">{{ formatIncomeCurrency(item.amount * item.quantity, item.currency) }}</div>
-            <div class="text-caption text-medium-emphasis">{{ $t('common.messages.quantityExchangeRate', { quantity: item.quantity, rate: formatRate(item.rate) }) }}</div>
+            <div class="font-weight-bold text-success">
+              {{ formatIncomeCurrency(item.amount * item.quantity, item.currency) }}
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              {{ $t('common.messages.quantityExchangeRate', { quantity: item.quantity, rate: formatRate(item.rate) }) }}
+            </div>
           </template>
 
           <template #item.date="{ item }">
             <span>{{ formatDate(item.date) }}</span>
           </template>
-          <template #item.recordedBy.name="{ item }"><span>{{ item.recordedBy?.name || $t('common.messages.systemLegacy') }}</span></template>
+          <template #item.recordedBy.name="{ item }">
+            <span>{{ item.recordedBy?.name || $t('common.messages.systemLegacy') }}</span>
+          </template>
 
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
@@ -431,32 +641,67 @@ onMounted(() => {
                 size="small"
                 color="medium-emphasis"
                 @click="openEditIncomeDialog(item)"
-              ><VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">{{ $t('pages.finance.income.income.editIncomeRecord') }}</VTooltip></VBtn>
+              >
+                <VIcon icon="tabler-edit" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  {{ $t('pages.finance.income.income.editIncomeRecord') }}
+                </VTooltip>
+              </VBtn>
               <VBtn
                 icon="tabler-trash"
                 variant="text"
                 size="small"
                 color="error"
                 @click="openDeleteIncomeDialog(item)"
-              ><VIcon icon="tabler-trash" /><VTooltip activator="parent" location="top">{{ $t('pages.finance.income.income.deleteIncomeRecord') }}</VTooltip></VBtn>
+              >
+                <VIcon icon="tabler-trash" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  {{ $t('pages.finance.income.income.deleteIncomeRecord') }}
+                </VTooltip>
+              </VBtn>
             </div>
           </template>
 
           <template #no-data>
             <div class="ledger-empty">
-              <VAvatar size="48" color="success" variant="tonal" icon="tabler-cash-banknote" />
+              <VAvatar
+                size="48"
+                color="success"
+                variant="tonal"
+                icon="tabler-cash-banknote"
+              />
               <div>
-                <div class="text-subtitle-1 font-weight-bold">Your income ledger is ready</div>
-                <p class="text-body-2 text-medium-emphasis mb-0">Record a receipt to begin tracking incoming cash flow.</p>
+                <div class="text-subtitle-1 font-weight-bold">
+                  Your income ledger is ready
+                </div>
+                <p class="text-body-2 text-medium-emphasis mb-0">
+                  Record a receipt to begin tracking incoming cash flow.
+                </p>
               </div>
-              <VBtn color="success" variant="tonal" prepend-icon="tabler-plus" @click="openAddIncomeDialog">Record income</VBtn>
+              <VBtn
+                color="success"
+                variant="tonal"
+                prepend-icon="tabler-plus"
+                @click="openAddIncomeDialog"
+              >
+                Record income
+              </VBtn>
             </div>
           </template>
         </ResponsiveDataTable>
       </div>
     </VCard>
 
-    <PrintableListReport title="Income Report" subtitle="Income records" :columns="['Receipt', 'Type', 'Details', 'Invoice', 'Amount', 'Date']" :rows="incomes.map(income => [income.receipt_number, income.type, income.description, income.invoice?.invoice_number, formatIncomeCurrency(income.amount * income.quantity, income.currency), formatDate(income.date)])" />
+    <PrintableListReport
+      title="Income Report"
+      subtitle="Income records"
+      :columns="['Receipt', 'Type', 'Details', 'Invoice', 'Amount', 'Date']"
+      :rows="incomes.map(income => [income.receipt_number, income.type, income.description, income.invoice_number, formatIncomeCurrency(income.amount * income.quantity, income.currency), formatDate(income.date)])"
+    />
 
     <!-- Add Income Dialog -->
     <VDialog
@@ -465,12 +710,29 @@ onMounted(() => {
     >
       <VCard class="income-dialog">
         <VCardTitle class="pa-6 pb-2">
-          <div class="d-flex align-center gap-3"><VAvatar color="primary" variant="tonal" icon="tabler-receipt" /><div><div class="text-h5 font-weight-bold">{{ $t('pages.finance.income.income.recordIncome2') }}</div><div class="text-caption text-medium-emphasis">{{ $t('pages.finance.income.income.captureAStandaloneReceiptOrApplyPaymentToAnInvoice') }}</div></div></div>
+          <div class="d-flex align-center gap-3">
+            <VAvatar
+              color="primary"
+              variant="tonal"
+              icon="tabler-receipt"
+            /><div>
+              <div class="text-h5 font-weight-bold">
+                {{ $t('pages.finance.income.income.recordIncome2') }}
+              </div><div class="text-caption text-medium-emphasis">
+                {{ $t('pages.finance.income.income.captureAStandaloneReceiptOrApplyPaymentToAnInvoice') }}
+              </div>
+            </div>
+          </div>
         </VCardTitle>
 
         <VCardText>
           <VForm class="app-form">
-            <VAlert v-if="formError" type="error" variant="tonal" class="mb-4">
+            <VAlert
+              v-if="formError"
+              type="error"
+              variant="tonal"
+              class="mb-4"
+            >
               {{ formError }}
             </VAlert>
             <VRow>
@@ -482,26 +744,70 @@ onMounted(() => {
                   item-value="id"
                   :label="$t('common.messages.associatedInvoiceOptional')"
                   clearable
-                  @update:modelValue="handleInvoiceChange"
+                  @update:model-value="handleInvoiceChange"
                 />
-                <div v-if="selectedInvoice" class="invoice-payment-panel mt-2">
-                  <div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.selectedInvoice') }}</div><div class="font-weight-bold">{{ selectedInvoice.invoice_number }}</div></div>
+                <div
+                  v-if="selectedInvoice"
+                  class="invoice-payment-panel mt-2"
+                >
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('common.messages.selectedInvoice') }}
+                    </div><div class="font-weight-bold">
+                      {{ selectedInvoice.invoice_number }}
+                    </div>
+                  </div>
                   <VDivider vertical />
-                  <div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.remainingBalance') }}</div><div class="text-h6 font-weight-black text-primary">{{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoiceBalance) }}</div></div>
-                  <div class="ms-auto text-right"><div class="text-caption text-medium-emphasis">{{ $t('common.messages.alreadyPaid') }}</div><div class="font-weight-bold">{{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoice.paid_amount) }}</div></div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('common.messages.remainingBalance') }}
+                    </div><div class="text-h6 font-weight-black text-primary">
+                      {{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoiceBalance) }}
+                    </div>
+                  </div>
+                  <div class="ms-auto text-right">
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('common.messages.alreadyPaid') }}
+                    </div><div class="font-weight-bold">
+                      {{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoice.paid_amount) }}
+                    </div>
+                  </div>
                 </div>
-                <VAlert v-if="selectedInvoice" :type="selectedInvoice.can_mark_paid ? 'success' : 'info'" variant="tonal" density="compact" class="mt-3">
+                <VAlert
+                  v-if="selectedInvoice"
+                  :type="selectedInvoice.can_mark_paid ? 'success' : 'info'"
+                  variant="tonal"
+                  density="compact"
+                  class="mt-3"
+                >
                   <div class="d-flex align-center justify-space-between gap-3">
                     <span v-if="selectedInvoice.can_mark_paid">A small balance remains. You can close this invoice as paid.</span>
                     <span v-else>Mark as paid becomes available after payment when the remaining balance is under 5% of the invoice total.</span>
-                    <VBtn size="small" color="success" variant="flat" :disabled="!selectedInvoice.can_mark_paid" @click="markSelectedInvoicePaid">Mark paid</VBtn>
+                    <VBtn
+                      size="small"
+                      color="success"
+                      variant="flat"
+                      :disabled="!selectedInvoice.can_mark_paid"
+                      @click="markSelectedInvoicePaid"
+                    >
+                      Mark paid
+                    </VBtn>
                   </div>
                 </VAlert>
-                <VAlert v-if="selectedInvoice" type="info" variant="tonal" density="compact" class="mt-3">
+                <VAlert
+                  v-if="selectedInvoice"
+                  type="info"
+                  variant="tonal"
+                  density="compact"
+                  class="mt-3"
+                >
                   {{ $t('pages.finance.income.income.customerTypeQuantityCurrencyAndExchangeRateComeFromTheInvoiceEnterOnly') }}
                 </VAlert>
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedIncome.type"
                   :items="typeOptions"
@@ -510,8 +816,16 @@ onMounted(() => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
-                <VSelect v-model="selectedIncome.company_id" :items="companyOptions" label="Company (optional)" clearable />
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedIncome.company_id"
+                  :items="companyOptions"
+                  label="Company (optional)"
+                  clearable
+                />
               </VCol>
               <VCol cols="12">
                 <VTextarea
@@ -522,38 +836,50 @@ onMounted(() => {
                   auto-grow
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model.number="selectedIncome.amount"
                   :label="$t('common.fields.amount')"
                   type="number"
                   :step="selectedCurrencyStep"
                   :max="selectedInvoice ? selectedInvoiceBalance : undefined"
-                  @input="calculateTotal"
                   required
+                  @input="calculateTotal"
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model.number="selectedIncome.quantity"
                   :label="$t('common.messages.quantity')"
                   type="number"
                   :disabled="Boolean(selectedInvoice)"
-                  @input="calculateTotal"
                   required
+                  @input="calculateTotal"
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedIncome.currency_id"
                   :items="currencyOptions"
                   :label="$t('common.fields.currency')"
                   :disabled="Boolean(selectedInvoice)"
-                  @update:modelValue="handleCurrencyChange"
                   required
+                  @update:model-value="handleCurrencyChange"
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model.number="selectedIncome.rate"
                   :label="$t('common.messages.exchangeRate')"
@@ -562,7 +888,10 @@ onMounted(() => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedIncome.base_amount"
                   :label="$t('common.messages.totalAmount')"
@@ -570,7 +899,10 @@ onMounted(() => {
                   readonly
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <AppDateTimePicker
                   v-model="selectedIncome.date"
                   :label="$t('common.fields.date')"
@@ -608,12 +940,29 @@ onMounted(() => {
     >
       <VCard class="income-dialog">
         <VCardTitle class="pa-6 pb-2">
-          <div class="d-flex align-center gap-3"><VAvatar color="primary" variant="tonal" icon="tabler-pencil" /><div><div class="text-h5 font-weight-bold">{{ $t('pages.finance.income.income.editIncome') }}</div><div class="text-caption text-medium-emphasis">{{ $t('pages.finance.income.income.updateReceiptDetailsOrItsInvoiceAllocation') }}</div></div></div>
+          <div class="d-flex align-center gap-3">
+            <VAvatar
+              color="primary"
+              variant="tonal"
+              icon="tabler-pencil"
+            /><div>
+              <div class="text-h5 font-weight-bold">
+                {{ $t('pages.finance.income.income.editIncome') }}
+              </div><div class="text-caption text-medium-emphasis">
+                {{ $t('pages.finance.income.income.updateReceiptDetailsOrItsInvoiceAllocation') }}
+              </div>
+            </div>
+          </div>
         </VCardTitle>
 
         <VCardText>
           <VForm class="app-form">
-            <VAlert v-if="formError" type="error" variant="tonal" class="mb-4">
+            <VAlert
+              v-if="formError"
+              type="error"
+              variant="tonal"
+              class="mb-4"
+            >
               {{ formError }}
             </VAlert>
             <VRow>
@@ -625,26 +974,70 @@ onMounted(() => {
                   item-value="id"
                   :label="$t('common.messages.associatedInvoiceOptional')"
                   clearable
-                  @update:modelValue="handleInvoiceChange"
+                  @update:model-value="handleInvoiceChange"
                 />
-                <div v-if="selectedInvoice" class="invoice-payment-panel mt-2">
-                  <div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.selectedInvoice') }}</div><div class="font-weight-bold">{{ selectedInvoice.invoice_number }}</div></div>
+                <div
+                  v-if="selectedInvoice"
+                  class="invoice-payment-panel mt-2"
+                >
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('common.messages.selectedInvoice') }}
+                    </div><div class="font-weight-bold">
+                      {{ selectedInvoice.invoice_number }}
+                    </div>
+                  </div>
                   <VDivider vertical />
-                  <div><div class="text-caption text-medium-emphasis">{{ $t('common.messages.remainingBalance') }}</div><div class="text-h6 font-weight-black text-primary">{{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoiceBalance) }}</div></div>
-                  <div class="ms-auto text-right"><div class="text-caption text-medium-emphasis">{{ $t('common.messages.alreadyPaid') }}</div><div class="font-weight-bold">{{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoice.paid_amount) }}</div></div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('common.messages.remainingBalance') }}
+                    </div><div class="text-h6 font-weight-black text-primary">
+                      {{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoiceBalance) }}
+                    </div>
+                  </div>
+                  <div class="ms-auto text-right">
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('common.messages.alreadyPaid') }}
+                    </div><div class="font-weight-bold">
+                      {{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoice.paid_amount) }}
+                    </div>
+                  </div>
                 </div>
-                <VAlert v-if="selectedInvoice" :type="selectedInvoice.can_mark_paid ? 'success' : 'info'" variant="tonal" density="compact" class="mt-3">
+                <VAlert
+                  v-if="selectedInvoice"
+                  :type="selectedInvoice.can_mark_paid ? 'success' : 'info'"
+                  variant="tonal"
+                  density="compact"
+                  class="mt-3"
+                >
                   <div class="d-flex align-center justify-space-between gap-3">
                     <span v-if="selectedInvoice.can_mark_paid">A small balance remains. You can close this invoice as paid.</span>
                     <span v-else>Mark as paid becomes available after payment when the remaining balance is under 5% of the invoice total.</span>
-                    <VBtn size="small" color="success" variant="flat" :disabled="!selectedInvoice.can_mark_paid" @click="markSelectedInvoicePaid">Mark paid</VBtn>
+                    <VBtn
+                      size="small"
+                      color="success"
+                      variant="flat"
+                      :disabled="!selectedInvoice.can_mark_paid"
+                      @click="markSelectedInvoicePaid"
+                    >
+                      Mark paid
+                    </VBtn>
                   </div>
                 </VAlert>
-                <VAlert v-if="selectedInvoice" type="info" variant="tonal" density="compact" class="mt-3">
+                <VAlert
+                  v-if="selectedInvoice"
+                  type="info"
+                  variant="tonal"
+                  density="compact"
+                  class="mt-3"
+                >
                   {{ $t('pages.finance.income.income.customerTypeQuantityCurrencyAndExchangeRateAreControlledByTheLinkedInv') }}
                 </VAlert>
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedIncome.type"
                   :items="typeOptions"
@@ -653,8 +1046,16 @@ onMounted(() => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
-                <VSelect v-model="selectedIncome.company_id" :items="companyOptions" label="Company (optional)" clearable />
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedIncome.company_id"
+                  :items="companyOptions"
+                  label="Company (optional)"
+                  clearable
+                />
               </VCol>
               <VCol cols="12">
                 <VTextarea
@@ -665,38 +1066,50 @@ onMounted(() => {
                   auto-grow
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model.number="selectedIncome.amount"
                   :label="$t('common.fields.amount')"
                   type="number"
                   :step="selectedCurrencyStep"
                   :max="selectedInvoice ? selectedInvoiceBalance : undefined"
-                  @input="calculateTotal"
                   required
+                  @input="calculateTotal"
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model.number="selectedIncome.quantity"
                   :label="$t('common.messages.quantity')"
                   type="number"
                   :disabled="Boolean(selectedInvoice)"
-                  @input="calculateTotal"
                   required
+                  @input="calculateTotal"
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedIncome.currency_id"
                   :items="currencyOptions"
                   :label="$t('common.fields.currency')"
                   :disabled="Boolean(selectedInvoice)"
-                  @update:modelValue="handleCurrencyChange"
                   required
+                  @update:model-value="handleCurrencyChange"
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model.number="selectedIncome.rate"
                   :label="$t('common.messages.exchangeRate')"
@@ -705,7 +1118,10 @@ onMounted(() => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VTextField
                   v-model="selectedIncome.base_amount"
                   :label="$t('common.messages.totalAmount')"
@@ -713,7 +1129,10 @@ onMounted(() => {
                   readonly
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <AppDateTimePicker
                   v-model="selectedIncome.date"
                   :label="$t('common.fields.date')"

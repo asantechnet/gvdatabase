@@ -2,8 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Setting;
+use App\Http\Resources\SettingResource;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -130,20 +131,20 @@ class CompanySettingsTest extends TestCase
         $this->patchJson("/api/settings/{$setting->id}", [
             'primary_color' => null,
         ])->assertOk()
-            ->assertJsonPath('data.primary_color', '#7367F0');
+            ->assertJsonPath('data.primary_color', '#0F766E');
 
-        $this->assertSame('#7367F0', $setting->fresh()->primary_color);
+        $this->assertSame('#0F766E', $setting->fresh()->primary_color);
     }
 
     public function test_theme_palette_returns_vuexy_defaults_and_tertiary_is_removed(): void
     {
         $setting = Setting::create($this->validSettings());
 
-        $resource = (new \App\Http\Resources\SettingResource($setting))->resolve();
+        $resource = (new SettingResource($setting))->resolve();
 
-        $this->assertSame('#28C76F', $resource['success_color']);
-        $this->assertSame('#F8F7FA', $resource['light_background_color']);
-        $this->assertSame('#2F3349', $resource['dark_surface_color']);
+        $this->assertSame('#15803D', $resource['success_color']);
+        $this->assertSame('#F5F7F4', $resource['light_background_color']);
+        $this->assertSame('#173330', $resource['dark_surface_color']);
         $this->assertArrayNotHasKey('tertiary_color', $resource);
         $this->assertFalse(\Schema::hasColumn('settings', 'tertiary_color'));
     }
@@ -178,7 +179,7 @@ class CompanySettingsTest extends TestCase
             'navigation_clr' => '#ffffff',
             'cards_clr' => '#ffffff',
             'footer_clr' => '#ffffff',
-            'paid_off_days_per_year' => 20,
+            'paid_leave_days_per_year' => 20,
             'website_title' => 'Asantech',
             'website_address' => 'https://example.com',
             'company_email' => 'people@example.com',
