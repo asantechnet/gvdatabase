@@ -62,6 +62,7 @@ final class AuditPresenter
         $audit->loadMissing(['user:id,name,email', 'employee:id,name', 'auditor:id,name,email']);
         $model = $this->auditedModel($audit);
         $resourceKey = $audit->subject_type ?: AuditRegistry::keyFor($audit->auditable_type);
+        $blockingLaterAuditId = $this->blockingLaterAuditId($audit);
 
         return [
             'id' => $audit->id,
@@ -75,13 +76,27 @@ final class AuditPresenter
             'resolution' => $audit->review_status,
             'audited_at' => $audit->audited_at?->toISOString(),
             'created_at' => $audit->created_at?->toISOString(),
-            'can_revert' => ! $audit->audited_at && in_array($audit->event, ['updated', 'deleted'], true),
+            'can_revert' => ! $audit->audited_at
+                && in_array($audit->event, ['updated', 'deleted'], true)
+                && $blockingLaterAuditId === null,
+            'revert_blocked_by_id' => $blockingLaterAuditId,
         ];
     }
 
     private function person(?string $name, ?int $id): ?array
     {
         return $name ? ['id' => $id, 'name' => $name] : null;
+    }
+
+    private function blockingLaterAuditId(AuditLog $audit): ?int
+    {
+        return AuditLog::query()
+            ->where('auditable_type', $audit->auditable_type)
+            ->where('auditable_id', $audit->auditable_id)
+            ->where('id', '>', $audit->id)
+            ->where(fn ($query) => $query->whereNull('review_status')->orWhere('review_status', '!=', 'discarded'))
+            ->orderByDesc('id')
+            ->value('id');
     }
 
     private function changes(AuditLog $audit): array

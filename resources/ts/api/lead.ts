@@ -24,6 +24,7 @@ export interface Lead {
   marketer_employee: CrmMarketer | null
   stage: LeadStage
   probability: number
+  probability_is_manual: boolean
   estimated_value: string | null
   next_follow_up_at: string | null
   notes: string | null
@@ -45,17 +46,19 @@ export interface CreateLeadData {
   marketer_id?: number | null
   stage?: LeadStage
   probability?: number
+  probability_is_manual?: boolean
   estimated_value?: number | null
   next_follow_up_at?: string | null
   notes?: string | null
 }
 
 export type UpdateLeadData = Partial<CreateLeadData>
+export interface ConvertLeadData { email?: string }
 
 export default {
   async list(params?: LeadListParams) { return (await api.get('/leads', { params })).data },
   async create(data: CreateLeadData) { return (await api.post('/leads', data)).data.data as Lead },
   async update(id: number, data: UpdateLeadData) { return (await api.put(`/leads/${id}`, data)).data.data as Lead },
-  async convert(id: number) { return (await api.post(`/leads/${id}/convert-to-customer`)).data.data },
+  async convert(id: number, data?: ConvertLeadData) { return (await api.post(`/leads/${id}/convert-to-customer`, data)).data.data },
   async fromVisitor(id: number) { return (await api.post(`/visitors/${id}/convert-to-lead`)).data.data as Lead },
 }

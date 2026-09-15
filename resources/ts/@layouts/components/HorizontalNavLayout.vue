@@ -11,6 +11,19 @@ defineProps<{
 }>()
 
 const configStore = useLayoutConfigStore()
+const navScroller = ref<HTMLElement>()
+
+// Keep the behavior local to the navigation bar: no document-level listener,
+// polling, or animation loop. Vertical wheel movement becomes horizontal only
+// when there is actually hidden navigation content to reveal.
+function scrollNavigationWithWheel(event: WheelEvent): void {
+  const element = navScroller.value
+  if (!element || event.ctrlKey || event.deltaY === 0 || element.scrollWidth <= element.clientWidth)
+    return
+
+  event.preventDefault()
+  element.scrollLeft -= event.deltaY
+}
 </script>
 
 <template>
@@ -31,7 +44,11 @@ const configStore = useLayoutConfigStore()
       </div>
       <!-- 👉 Navigation -->
       <div class="layout-horizontal-nav">
-        <div class="horizontal-nav-content-container">
+        <div
+          ref="navScroller"
+          class="horizontal-nav-content-container"
+          @wheel="scrollNavigationWithWheel"
+        >
           <HorizontalNav :nav-items="navItems" />
         </div>
       </div>
@@ -148,6 +165,23 @@ const configStore = useLayoutConfigStore()
 
   .horizontal-nav-content-container {
     @include mixins.boxed-content(true);
+
+    // Navigation is a single deliberate row. On smaller viewports or with
+    // longer localized labels, it scrolls within its own bar instead of
+    // increasing the header height or wrapping into a second row.
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scroll-behavior: smooth;
+    scroll-snap-type: inline proximity;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+
+    // The soft edge treatment hints at horizontal content without adding
+    // fixed arrow controls that would behave poorly in RTL layouts.
+    mask-image: linear-gradient(to right, transparent, #000 1rem, #000 calc(100% - 1rem), transparent);
+
+    &::-webkit-scrollbar { display: none; }
   }
 }
 </style>

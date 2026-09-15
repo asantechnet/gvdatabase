@@ -44,6 +44,7 @@ use App\Http\Controllers\SalaryDeductionController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SubtaskController;
+use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaskAssigneeController;
 use App\Http\Controllers\TaskAttachmentController;
@@ -87,6 +88,12 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         Route::post('/geofence', [AttendanceGeofenceController::class, 'observe'])->middleware(['permission:manage_own_workday', 'throttle:30,1']);
     });
     Route::get('my-work-history', [AttendanceController::class, 'mine']);
+
+    // Any signed-in user can request help; delivery is rate-limited separately
+    // because every ticket also creates an outbound email.
+    Route::get('support-tickets', [SupportTicketController::class, 'index']);
+    Route::post('support-tickets', [SupportTicketController::class, 'store'])->middleware('throttle:5,10');
+    Route::get('support-tickets/{supportTicket}/attachments/{attachment}/download', [SupportTicketController::class, 'download']);
 
     // Auth routes
     Route::prefix('auth')->group(function () {
@@ -393,6 +400,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::patch('audit-resources/{auditResourceSetting}', [AuditResourceController::class, 'update'])->middleware('permission:manage_audit_scope');
     Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show'])->middleware('permission:view_audit_logs');
     Route::patch('audit-logs/{auditLog}/review', [AuditLogController::class, 'review'])->middleware('permission:review_audit_logs');
+    Route::post('audit-logs/bulk-review', [AuditLogController::class, 'bulkReview'])->middleware('permission:review_audit_logs');
     Route::post('audit-logs/{auditLog}/revert', [AuditLogController::class, 'revert'])->middleware('permission:revert_audit_changes');
 
     // Asset routes

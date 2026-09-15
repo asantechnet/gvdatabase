@@ -1,24 +1,25 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { useToast } from 'vue-toastification'
-import { VCheckbox, VDataTable, VSelect, VTextField } from 'vuetify/components'
-import { useRouter } from 'vue-router'
-import moment from 'moment'
-import CustomerApi, { type ApiResponse, type Customer, type CustomerService } from '@/api/customer'
-import { printDocument } from '@/utils/printDocument'
-import PrintableListReport from '@/components/PrintableListReport.vue'
-import ContactActionMenu from '@/components/ContactActionMenu.vue'
-import type { Service } from '@/api/services'
 import CurrencyApi, { type Currency } from '@/api/currency'
+import CustomerApi, { type ApiResponse, type Customer } from '@/api/customer'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import ProjectApi from '@/api/project'
+import type { Service } from '@/api/services'
+import ContactActionMenu from '@/components/ContactActionMenu.vue'
+import PrintableListReport from '@/components/PrintableListReport.vue'
 import { canAccess } from '@/utils/authorization'
+import { printDocument } from '@/utils/printDocument'
+import moment from 'moment'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification'
+import { VCheckbox, VSelect, VTextField } from 'vuetify/components'
 
 // Types
 interface ServiceForm {
   id: number
   service_id: number
   employee_id: number | null
+  employee_ids: number[]
   marketer_id: number | null
   fee: number | null
   currency_id: number | null
@@ -65,6 +66,7 @@ const currentService = ref<ServiceForm>({
   id: 0,
   service_id: 0,
   employee_id: null,
+  employee_ids: [],
   marketer_id: null,
   fee: null,
   currency_id: null,
@@ -106,8 +108,8 @@ const headers = [
 const serviceHeaders = [
   ...(canAccess('create_projects') ? [{ title: '', key: 'projectSelect', sortable: false, width: '44px' }] : []),
   { title: translate('common.fields.type'), key: 'type' },
-  { title: 'Delivery owner', key: 'employee', sortable: false },
-  { title: 'Acquisition', key: 'marketer', sortable: false },
+  { title: translate('pages.contracts.allCustomers.allCustomers.deliveryOwner'), key: 'employee', sortable: false },
+  { title: translate('pages.contracts.allCustomers.allCustomers.acquisition'), key: 'marketer', sortable: false },
   { title: translate('common.messages.fee'), key: 'fee' },
   { title: translate('common.messages.deadline'), key: 'deadline' },
   { title: translate('common.fields.currency'), key: 'currency.code' },
@@ -185,6 +187,13 @@ const eligibleDeliveryEmployees = computed(() => deliveryEmployees.value.filter(
   employee.commissions.some(commission => commission.service_id === currentService.value.service_id),
 ))
 
+// Use the application's locale-aware helper here rather than Vuetify's
+// no-data prop resolving a template expression; this keeps the message
+// reactive and avoids a literal missing-key marker in the service editor.
+const noDeliveryEmployeeMessage = computed(() => translate(
+  'pages.contracts.allCustomers.allCustomers.noCommissionEmployeeForService',
+))
+
 const deliveryEmployeeLabel = (employee: Employee) => {
   const capability = employee.commissions.find(commission => commission.service_id === currentService.value.service_id)
 
@@ -200,11 +209,10 @@ const canCreateProject = computed(() => Boolean(
 ))
 
 watch(() => currentService.value.service_id, serviceId => {
-  if (currentService.value.employee_id && !deliveryEmployees.value.some(employee =>
-    employee.id === currentService.value.employee_id
-    && employee.commissions.some(commission => commission.service_id === serviceId),
-  ))
-    currentService.value.employee_id = null
+  currentService.value.employee_ids = currentService.value.employee_ids.filter(employeeId =>
+    deliveryEmployees.value.some(employee => employee.id === employeeId
+      && employee.commissions.some(commission => commission.service_id === serviceId)),
+  )
 })
 
 // API methods
@@ -334,6 +342,7 @@ const updateService = async (customerId: number, pivotId: number) => {
     const response = await CustomerApi.updateService(customerId, pivotId, {
       service_id: currentService.value.service_id,
       employee_id: currentService.value.employee_id,
+      employee_ids: currentService.value.employee_ids,
       marketer_id: currentService.value.marketer_id,
       fee: currentService.value.fee,
       currency_id: currentService.value.currency_id,
@@ -526,6 +535,7 @@ const openEditService = async (customerId: number, pivotId: number) => {
         id: service.id,
         service_id: service.service_id,
         employee_id: service.employee_id ?? null,
+        employee_ids: service.employee_ids ?? service.employees?.map(employee => employee.id) ?? (service.employee_id ? [service.employee_id] : []),
         marketer_id: service.marketer_id ?? customer.marketer_id ?? null,
         fee: service.fee,
         currency_id: service.currency_id ?? Number(service.currency.id),
@@ -777,7 +787,7 @@ onMounted(() => {
             append-icon="tabler-chevron-right"
             @click="openEditCustomer(item)"
           >
-            Manage
+            {{ $t('pages.contracts.allCustomers.allCustomers.manageServices') }}
           </VBtn>
         </div>
       </template>
@@ -853,9 +863,9 @@ onMounted(() => {
     </ResponsiveDataTable>
   </VCard>
   <PrintableListReport
-    title="Customers Report"
-    subtitle="Filtered customer records"
-    :columns="['Name', 'Company', 'Contact', 'Marketer', 'Registered', 'Services']"
+    :title="$t('common.crmUi.customersReport')"
+    :subtitle="$t('common.crmUi.filteredCustomerRecords')"
+    :columns="[$t('common.crmUi.printColumns.name'), $t('common.crmUi.printColumns.company'), $t('common.crmUi.printColumns.contact'), $t('common.crmUi.printColumns.marketer'), $t('common.crmUi.printColumns.registered'), $t('common.crmUi.printColumns.services')]"
     :rows="filtered.map(customer => [customer.name, customer.company, customer.contact, customer.marketer, customer.date, customer.services.length ? customer.services.map(service => `${service.type}: ${service.fee} ${service.currency?.code ?? ''}${service.deadline ? ` · ${service.deadline}` : ''}`).join(' | ') : '—'])"
   />
 
@@ -937,7 +947,7 @@ onMounted(() => {
                 :model-value="currentMarketerName"
                 :label="$t('common.messages.marketer')"
                 prepend-inner-icon="tabler-user-check"
-                hint="Your marketer attribution is applied automatically."
+                :hint="$t('common.crmUi.customerMarketerAutomatic')"
                 persistent-hint
                 readonly
               />
@@ -954,8 +964,8 @@ onMounted(() => {
                 item-value="id"
                 :label="$t('common.messages.marketer')"
                 :placeholder="$t('common.messages.selectAMarketer')"
-                no-data-text="Create an employee with the Marketer position to assign them here."
-                hint="This employee receives acquisition credit; delivery ownership is chosen per service."
+                :no-data-text="$t('common.crmUi.customerMarketerEmpty')"
+                :hint="$t('common.crmUi.customerMarketerHint')"
                 persistent-hint
                 clearable
               />
@@ -975,14 +985,14 @@ onMounted(() => {
 
           <VRow v-if="isEdit">
             <VCol cols="12">
-              <VCard>
+              <VCard class="customer-services-card">
                 <VCardTitle class="d-flex flex-wrap justify-space-between align-center ga-3 py-4">
                   <div>
                     <div class="text-subtitle-1 font-weight-semibold">
                       {{ $t('pages.contracts.allCustomers.allCustomers.services') }}
                     </div>
                     <div class="text-caption text-medium-emphasis">
-                      Choose delivery owners, then select the purchased services that belong in a project.
+                      {{ $t('pages.contracts.allCustomers.allCustomers.chooseDeliveryOwners') }}
                     </div>
                   </div>
                   <div
@@ -1002,7 +1012,7 @@ onMounted(() => {
                       color="secondary"
                       size="small"
                       variant="tonal"
-                      prepend-icon="tabler-folders-plus"
+                      prepend-icon="tabler-briefcase-2"
                       :disabled="!selectedProjectServices.length"
                       @click="openProjectDialog"
                     >
@@ -1019,11 +1029,14 @@ onMounted(() => {
                   </div>
                 </VCardTitle>
 
+                <div class="customer-services-table-wrap">
                 <ResponsiveDataTable
+                  class="customer-services-table"
                   :headers="serviceHeaders"
                   :items="currentCustomer.services"
                   density="compact"
                   hide-default-footer
+                  sticky-last-column
                 >
                   <template #item.projectSelect="{ item }">
                     <VCheckbox
@@ -1036,7 +1049,7 @@ onMounted(() => {
                   </template>
                   <template #item.employee="{ item }">
                     <div
-                      v-if="item.employee"
+                      v-if="item.employees?.length || item.employee"
                       class="d-flex align-center ga-2"
                     >
                       <VAvatar
@@ -1049,7 +1062,7 @@ onMounted(() => {
                           size="15"
                         />
                       </VAvatar>
-                      <span class="text-body-2">{{ item.employee.name }}</span>
+                      <span class="text-body-2">{{ item.employees?.length ? item.employees.map(employee => employee.name).join(', ') : item.employee.name }}</span>
                     </div>
                     <span
                       v-else
@@ -1091,42 +1104,39 @@ onMounted(() => {
                     {{ item.currency.code }}
                   </template>
                   <template #item.serviceActions="{ item }">
-                    <FullDetailsButton
-                      :item="item"
-                      :title="item.type"
-                    />
-                    <VBtn
-                      icon="tabler-edit"
-                      variant="text"
-                      size="x-small"
-                      color="primary"
-                      @click="openEditService(currentCustomer.id, item.id)"
-                    >
-                      <VIcon icon="tabler-edit" />
-                      <VTooltip
-                        activator="parent"
-                        location="top"
+                    <div class="service-actions">
+                      <FullDetailsButton
+                        :item="item"
+                        :title="item.type"
+                      />
+                      <VBtn
+                        icon="tabler-edit"
+                        variant="text"
+                        size="x-small"
+                        color="primary"
+                        @click="openEditService(currentCustomer.id, item.id)"
                       >
-                        {{ $t('common.messages.editService2') }}
-                      </VTooltip>
-                    </VBtn>
-                    <VBtn
-                      icon="tabler-trash"
-                      variant="text"
-                      size="x-small"
-                      color="error"
-                      @click="removeService(currentCustomer.id, item.id)"
-                    >
-                      <VIcon icon="tabler-trash" />
-                      <VTooltip
-                        activator="parent"
-                        location="top"
+                        <VIcon icon="tabler-edit" />
+                        <VTooltip activator="parent" location="top">
+                          {{ $t('common.messages.editService2') }}
+                        </VTooltip>
+                      </VBtn>
+                      <VBtn
+                        icon="tabler-trash"
+                        variant="text"
+                        size="x-small"
+                        color="error"
+                        @click="removeService(currentCustomer.id, item.id)"
                       >
-                        {{ $t('common.messages.removeService2') }}
-                      </VTooltip>
-                    </VBtn>
+                        <VIcon icon="tabler-trash" />
+                        <VTooltip activator="parent" location="top">
+                          {{ $t('common.messages.removeService2') }}
+                        </VTooltip>
+                      </VBtn>
+                    </div>
                   </template>
                 </ResponsiveDataTable>
+                </div>
               </VCard>
             </VCol>
           </VRow>
@@ -1164,7 +1174,7 @@ onMounted(() => {
           variant="tonal"
           size="40"
         >
-          <VIcon icon="tabler-folders-plus" />
+          <VIcon icon="tabler-briefcase-2" />
         </VAvatar>
         <div>
           <div class="text-h6">
@@ -1213,7 +1223,8 @@ onMounted(() => {
           v-model="projectDraft.due_date"
           label="Target date"
           clearable
-          :config="{ dateFormat: 'Y-m-d' }"
+          class="project-target-date-picker"
+          :config="{ dateFormat: 'Y-m-d', position: 'below' }"
         />
       </VCardText>
       <VCardActions class="pa-5">
@@ -1227,7 +1238,7 @@ onMounted(() => {
         </VBtn>
         <VBtn
           color="primary"
-          prepend-icon="tabler-folders-plus"
+          prepend-icon="tabler-briefcase-2"
           :loading="projectLoading"
           :disabled="!canCreateProject"
           @click="createProjectFromSelectedServices"
@@ -1243,7 +1254,7 @@ onMounted(() => {
     v-model="serviceDialog"
     max-width="600px"
   >
-    <VCard>
+    <VCard class="customer-service-form-card">
       <VCardTitle>
         <span class="text-h5">{{ $t('pages.contracts.allCustomers.allCustomers.editCustomerService') }}</span>
       </VCardTitle>
@@ -1278,17 +1289,26 @@ onMounted(() => {
             </VCol>
             <VCol cols="12">
               <VAutocomplete
-                v-model="currentService.employee_id"
+                v-model="currentService.employee_ids"
                 :items="eligibleDeliveryEmployees"
                 :item-title="deliveryEmployeeLabel"
                 item-value="id"
-                label="Delivery owner (optional)"
+                multiple
+                chips
+                :label="$t('pages.contracts.allCustomers.allCustomers.deliveryOwnerOptional')"
                 prepend-inner-icon="tabler-user-check"
                 clearable
-                no-data-text="No commission employee is enabled for this service yet. Add the service to an employee's capabilities first."
-                hint="Only employees with a configured rate for this catalogue service can be assigned."
+                :hint="$t('pages.contracts.allCustomers.allCustomers.onlyConfiguredRateEmployees')"
                 persistent-hint
-              />
+              >
+                <template #no-data>
+                  <VListItem
+                    class="delivery-owner-empty-state"
+                    prepend-icon="tabler-user-off"
+                    :title="noDeliveryEmployeeMessage"
+                  />
+                </template>
+              </VAutocomplete>
             </VCol>
             <VCol
               v-if="isCurrentUserMarketer"
@@ -1495,3 +1515,123 @@ onMounted(() => {
     </VCard>
   </VDialog>
 </template>
+
+<style scoped>
+.customer-services-card {
+  overflow: hidden;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: rgba(var(--v-theme-surface), 0.72);
+}
+
+.customer-service-form-card :deep(.v-card-title) {
+  padding: 22px 24px 14px;
+  color: rgb(var(--v-theme-primary));
+  font-weight: 700;
+}
+
+.customer-service-form-card :deep(.v-card-text) {
+  padding: 10px 24px 22px;
+}
+
+.customer-service-form-card :deep(.v-field) {
+  border-radius: 10px;
+}
+
+.customer-service-form-card :deep(.v-card-actions) {
+  padding: 14px 24px 20px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+
+.project-target-date-picker :deep(.flatpickr-calendar) {
+  z-index: 3000 !important;
+}
+
+/* Flatpickr portals its calendar to document.body, so a scoped selector
+   cannot affect the popup once it leaves this component's DOM subtree. */
+:global(.flatpickr-calendar) {
+  z-index: 10000 !important;
+}
+
+.customer-services-table-wrap {
+  overflow-x: auto;
+  padding: 0 16px 16px;
+}
+
+.customer-services-table {
+  min-width: 760px;
+}
+
+.customer-services-table :deep(.v-table__wrapper) {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  border-radius: 12px;
+}
+
+.customer-services-table :deep(th) {
+  height: 44px !important;
+  color: rgba(var(--v-theme-on-surface), 0.72) !important;
+  background: rgba(var(--v-theme-primary), 0.08) !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.customer-services-table :deep(td) {
+  height: 60px !important;
+  border-bottom-color: rgba(var(--v-theme-on-surface), 0.08) !important;
+  white-space: nowrap;
+}
+
+.customer-services-table :deep(tbody tr:hover) {
+  background: rgba(var(--v-theme-primary), 0.06) !important;
+}
+
+.service-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  flex-wrap: nowrap;
+  min-width: 96px;
+  white-space: nowrap;
+}
+
+.customer-services-table :deep(td:last-child) {
+  position: sticky;
+  inset-inline-end: 0;
+  z-index: 2;
+  width: 124px;
+  min-width: 124px;
+  border-inline-start: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  background: rgb(var(--v-theme-surface));
+  white-space: nowrap;
+}
+
+.customer-services-table :deep(th:last-child) {
+  position: sticky;
+  inset-inline-end: 0;
+  z-index: 4;
+  width: 124px;
+  min-width: 124px;
+  border-inline-start: 1px solid rgba(var(--v-theme-on-surface), 0.13);
+  background: rgb(var(--v-theme-surface)) !important;
+}
+
+/* Keep the row actions reachable while horizontally reviewing wide service
+   records. Logical insets make the fixed column sit at the correct edge in
+   both LTR and RTL layouts. */
+.customer-services-table :deep(tbody tr:hover td:last-child) {
+  background: rgba(var(--v-theme-primary), 0.06) !important;
+}
+
+.service-owner {
+  min-width: 145px;
+}
+
+@media (max-width: 900px) {
+  .customer-services-table-wrap {
+    padding-inline: 10px;
+  }
+}
+</style>

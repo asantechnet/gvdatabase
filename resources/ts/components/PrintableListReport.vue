@@ -2,6 +2,8 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { formatLocalizedDate } from '@/utils/localization'
 
+const { t } = useI18n()
+
 defineProps<{
   title: string
   subtitle?: string
@@ -53,13 +55,13 @@ onBeforeUnmount(() => document.removeEventListener('app:before-print', setGenera
             :colspan="columns.length"
             class="empty"
           >
-            No records available
+            {{ t('common.crmUi.printNoRecords') }}
           </td>
         </tr>
       </tbody>
     </table>
 
-    <footer>Generated {{ generatedAt }}</footer>
+    <footer>{{ t('common.crmUi.printGenerated', { date: generatedAt }) }}</footer>
   </section>
 </template>
 
@@ -68,6 +70,9 @@ onBeforeUnmount(() => document.removeEventListener('app:before-print', setGenera
 
 @media print {
   .list-print-report { display: block !important; color: #333; font-family: Arial, sans-serif; margin: 8mm; }
+  html.locale-persian-script .list-print-report,
+  html.locale-persian-script .list-print-report * { font-family: Vazirmatn, Estedad, Tahoma, sans-serif !important; }
+  html.locale-persian-script .list-print-report { direction: rtl; text-align: start; }
   .list-print-report header { border-bottom: 3px solid #7367f0; margin-bottom: 18px; padding-bottom: 10px; }
   .list-print-report h1 { color: #666; font-size: 20px; line-height: 1.2; margin: 0 0 7px; }
   .list-print-report header p { color: #777; font-size: 11px; margin: 0; }

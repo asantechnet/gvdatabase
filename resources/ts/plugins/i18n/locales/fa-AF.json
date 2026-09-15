@@ -89,7 +89,6 @@
       "performanceScore": "نمره ارزیابی عملکرد",
       "bonusType": "نوع پاداش (بخششی)",
       "bonusAmount": "مبلغ پاداش",
-      "invoiceType": "نوع فاکتور / بل",
       "customer": "مشتری",
       "contractTemplate": "قالب قرارداد",
       "paymentInstructions": "دستورالعمل‌های پرداخت",
@@ -427,13 +426,16 @@
       "marketers": "بازاریابان",
       "offices": "دفاتر",
       "settings": "تنظیمات",
-      "tasks": "وظایف",
+      "tasks": "پروژه‌ها",
+      "projects": "پروژه‌ها",
       "visitor": "بازدیدکنندگان",
       "leads": "سرنخ‌ها",
       "companies": "شرکت‌ها",
       "otherContracts": "قراردادهای دیگر",
       "contractTemplates": "قالب‌های قرارداد",
-      "audits": "تفتیش‌ها"
+      "audits": "تفتیش‌ها",
+      "support": "پشتیبانی",
+      "recurringEvents": "رویدادهای تکراری"
     },
     "tables": {},
     "dateTime": {},
@@ -445,18 +447,115 @@
       "pashto": "پښتو"
     },
     "crmUi": {
-      "leads": "سرنخ‌ها", "leadSubtitle": "فرصت‌های واجد شرایط را به رابطه با مشتری تبدیل کنید.", "opportunities": "{count} فرصت", "searchLeads": "جستجوی سرنخ‌ها", "pipelineStage": "مرحله فروش", "independent": "مستقل", "confidence": "{value}٪ احتمال", "relationshipNotes": "یادداشت‌های رابطه", "conversationHistory": "تاریخچه گفتگو", "convertCustomer": "تبدیل به مشتری", "convertedCustomer": "سرنخ به مشتری تبدیل شد", "stageUpdated": "مرحله سرنخ به‌روزرسانی شد", "logConversation": "ثبت گفتگو", "conversationTitle": "عنوان گفتگو", "conversationNotes": "یادداشت گفتگو", "conversationHint": "تصمیم‌ها، نیازها، موانع و گام بعدی را ثبت کنید.", "followUp": "پیگیری (اختیاری)", "saveContinue": "ذخیره و ادامه", "qualifyLead": "تبدیل به سرنخ", "visitorNotes": "یادداشت بازدیدکننده", "visitorNotesHint": "علایق و اطلاعات مفید پیش از ارزیابی را ثبت کنید."
+      "leads": "سرنخ‌ها",
+      "leadSubtitle": "فرصت‌های واجد شرایط را به رابطه با مشتری تبدیل کنید.",
+      "opportunities": "{count} فرصت",
+      "searchLeads": "جستجوی سرنخ‌ها",
+      "pipelineStage": "مرحله فروش",
+      "independent": "مستقل",
+      "confidence": "{value}٪ احتمال",
+      "relationshipNotes": "یادداشت‌های رابطه",
+      "conversationHistory": "تاریخچه گفتگو",
+      "convertCustomer": "تبدیل به مشتری",
+      "convertedCustomer": "سرنخ به مشتری تبدیل شد",
+      "stageUpdated": "مرحله سرنخ به‌روزرسانی شد",
+      "logConversation": "ثبت گفتگو",
+      "conversationTitle": "عنوان گفتگو",
+      "conversationNotes": "یادداشت گفتگو",
+      "conversationHint": "تصمیم‌ها، نیازها، موانع و گام بعدی را ثبت کنید.",
+      "followUp": "پیگیری (اختیاری)",
+      "saveContinue": "ذخیره و ادامه",
+      "qualifyLead": "تبدیل به سرنخ",
+      "visitorNotes": "یادداشت بازدیدکننده",
+      "visitorNotesHint": "علایق و اطلاعات مفید پیش از ارزیابی را ثبت کنید.",
+      "invalidPhone": "شماره معتبر نیست",
+      "invalidPhoneHint": "برای فعال‌کردن تماس و پیام، شماره و کد کشور را وارد کنید.",
+      "marketerHint": "اختیاری. این کارمند برای آوردن سرنخ اعتبار می‌گیرد.",
+      "createMarketerHint": "اختیاری. کارمندی را انتخاب کنید که این مخاطب را به همکاری ترغیب کرده است.",
+      "marketerLocked": "انتساب بازاریاب به پروفایل شما قفل است. مسئول فعلی رابطه {name} است.",
+      "customerMarketerAutomatic": "انتساب بازاریاب شما به‌صورت خودکار اعمال می‌شود.",
+      "customerMarketerEmpty": "برای تعیین بازاریاب، یک کارمند با سمت بازاریاب ایجاد کنید.",
+      "customerMarketerHint": "این کارمند اعتبار جذب مشتری را می‌گیرد؛ مسئول تحویل برای هر خدمت جداگانه انتخاب می‌شود.",
+      "paymentCurrencyBookingRate": "واحد پول هنگام ثبت · نرخ {rate}",
+      "commissionHeaders": { "date": "تاریخ", "type": "نوع", "employee": "کارمند", "invoice": "فاکتور", "service": "خدمت", "eligibleRevenue": "درآمد قابل کمیسیون", "rate": "نرخ", "commission": "کمیسیون", "status": "وضعیت", "settlement": "تسویه", "period": "دوره", "amount": "مبلغ", "paymentDate": "تاریخ پرداخت", "actions": "اقدامات" },
+      "commissionRoles": { "title": "حق‌العمل برای", "delivery": "ارائهٔ خدمت", "marketing": "جذب مشتری", "adjustment": "تعدیل" },
+      "commissionRateSetup": { "title": "نرخ‌های حق‌العمل خدمات", "description": "نرخ هر خدمت را تعیین کنید. این نرخ هنگام ارائهٔ خدمت یا زمانی‌که این شخص بازاریابِ منتسب آن است، اعمال می‌شود.", "service": "خدمت مشمول حق‌العمل" },
+      "commissions": { "title": "دفتر کمیسیون", "subtitle": "تعلق‌های پرداخت فاکتور را بررسی کنید، تسویه‌ها را تأیید کنید و کمیسیون پرداخت‌شده را به هزینه‌ها ثبت کنید.", "addAdjustment": "افزودن تعدیل", "newSettlement": "تسویه جدید", "employee": "کارمند", "settlementStatus": "وضعیت تسویه", "refresh": "تازه‌سازی", "accruals": "تعلق‌ها", "settlements": "تسویه‌ها", "accrualCount": "{count} تعلق", "approve": "تأیید", "pay": "پرداخت", "cancel": "لغو", "createSettlement": "ایجاد تسویه کمیسیون", "commissionEmployee": "کارمند کمیسیون", "accrualCurrency": "واحد پول تعلق", "periodStart": "شروع دوره", "periodEnd": "پایان دوره", "notes": "یادداشت‌ها", "createDraft": "ایجاد پیش‌نویس", "paySettlement": "پرداخت تسویه کمیسیون", "paymentWarning": "پرداخت یک هزینه کمیسیون محافظت‌شده ایجاد می‌کند و تعلق‌های شامل‌شده را برای همیشه می‌بندد.", "paymentDate": "تاریخ پرداخت", "recordPayment": "ثبت پرداخت", "adjustmentWarning": "برای بازپس‌گیری یا اصلاح مبلغ منفی و برای درآمد دستی تأییدشده مبلغ مثبت وارد کنید. دلیل در دفتر حسابرسی نگهداری می‌شود.", "currency": "واحد پول", "effectiveDate": "تاریخ مؤثر", "signedAmount": "مبلغ با علامت", "signedAmountHint": "منفی برای بازپس‌گیری؛ مثبت برای درآمد اضافی", "reason": "دلیل", "addToLedger": "افزودن به دفتر", "loadFailed": "بارگذاری رکوردهای کمیسیون ممکن نشد.", "settlementCreated": "پیش‌نویس تسویه کمیسیون ایجاد شد.", "settlementCreateFailed": "ایجاد تسویه ممکن نشد.", "adjustmentAdded": "تعدیل کمیسیون به دفتر در انتظار افزوده شد.", "adjustmentCreateFailed": "ایجاد تعدیل ممکن نشد.", "approvedSuccess": "{number} تأیید شد.", "approveFailed": "تأیید تسویه ممکن نشد.", "paidSuccess": "{number} پرداخت و به هزینه‌ها ثبت شد.", "payFailed": "پرداخت تسویه ممکن نشد.", "cancelledSuccess": "{number} لغو شد؛ تعلق‌های آن دوباره در انتظار هستند.", "cancelFailed": "لغو تسویه ممکن نشد.", "statuses": { "pending": "در انتظار", "draft": "پیش‌نویس", "approved": "تأییدشده", "paid": "پرداخت‌شده", "cancelled": "لغوشده", "void": "باطل" }, "entryTypes": { "invoice_payment": "پرداخت فاکتور", "adjustment": "تعدیل" } },
+      "customersReport": "گزارش مشتریان", "filteredCustomerRecords": "رکوردهای فیلترشده مشتریان", "printNoRecords": "رکوردی موجود نیست", "printGenerated": "ایجاد شده: {date}", "printColumns": { "name": "نام", "company": "شرکت", "contact": "تماس", "marketer": "بازاریاب", "registered": "ثبت‌شده", "services": "خدمات" },
+      "printReports": { "income": { "title": "گزارش درآمد", "subtitle": "رکوردهای درآمد" }, "expenses": { "title": "گزارش هزینه‌ها", "subtitle": "رکوردهای هزینه" }, "staff": { "title": "گزارش کارمندان", "subtitle": "رکوردهای فیلترشده کارمندان" }, "salaries": { "title": "گزارش معاش کارمندان", "subtitle": "پرداخت‌های فیلترشده معاش" }, "assets": { "title": "گزارش دارایی‌ها", "subtitle": "رکوردهای فیلترشده دارایی" }, "visitors": { "title": "گزارش بازدیدکنندگان", "subtitle": "رکوردهای فیلترشده بازدیدکنندگان" }, "columns": { "receipt": "رسید", "type": "نوع", "details": "جزئیات", "invoice": "فاکتور", "amount": "مبلغ", "date": "تاریخ", "expense": "هزینه", "currency": "واحد پول", "id": "شناسه", "name": "نام", "position": "سمت", "contact": "تماس", "email": "ایمیل", "office": "دفتر", "payslip": "فیش معاش", "employee": "کارمند", "payMonth": "ماه پرداخت", "workedDays": "روزهای کار", "totalPaid": "مجموع پرداخت", "serialNumber": "شماره سریال", "item": "مورد", "quantity": "تعداد", "price": "قیمت", "model": "مدل", "condition": "وضعیت", "allocations": "تخصیص‌ها" } },
+      "newLead": "سرنخ جدید", "createLead": "ایجاد سرنخ", "createLeadSubtitle": "فرصت را ثبت کنید و مسئول رابطه را از آغاز مشخص کنید.", "leadWorkspace": "فضای کار سرنخ", "viewLead": "نمایش سرنخ", "marketer": "بازاریاب", "unassigned": "تعیین نشده", "pipeline": "خط فروش", "confidenceLabel": "احتمال", "manualOverride": "ارزیابی دستی", "pipelineScore": "امتیاز خط فروش", "saveConfidence": "ذخیره احتمال", "usePipelineScore": "استفاده از امتیاز خط فروش", "confidenceRangeError": "یک درصد کامل بین ۰ تا ۱۰۰ وارد کنید", "manualConfidenceSaved": "احتمال دستی ذخیره شد", "confidenceSaveFailed": "ذخیره احتمال ممکن نشد", "pipelineConfidenceRestored": "امتیاز خط فروش بازیابی شد", "pipelineConfidenceRestoreFailed": "بازیابی امتیاز خط فروش ممکن نشد", "manualConfidenceHint": "ارزیابی شما با تغییر مرحله حفظ می‌شود.", "pipelineConfidenceHint": "این مقدار از مرحله فعلی خط فروش پیروی می‌کند.", "closedConfidenceHint": "نتیجه‌های بسته احتمال ثابت دارند.", "marketerUpdated": "بازاریاب سرنخ به‌روزرسانی شد", "marketerUpdateFailed": "به‌روزرسانی بازاریاب ممکن نشد", "convertFailed": "تبدیل این سرنخ به مشتری ممکن نشد", "conversionEmailInvalid": "پیش از تبدیل، یک ایمیل معتبر وارد کنید.", "requiredLeadFields": "نام و راه تماس برای ایجاد سرنخ لازم است", "leadCreated": "سرنخ ایجاد شد", "leadCreateFailed": "ایجاد سرنخ ممکن نشد", "stageLabels": { "new": "جدید", "contacted": "تماس گرفته شده", "qualified": "واجد شرایط", "proposal": "پیشنهاد", "won": "برنده", "lost": "از دست‌رفته" }
+    },
+    "pageGuide": {
+      "open": "راهنمای این صفحه", "thisPage": "این صفحه", "pageTitle": "راهنما: {page}", "pageDescription": "این راهنما تصمیم‌های کاری در {page} را توضیح می‌دهد و شما را به صفحه دیگری نمی‌برد.", "filtersTitle": "دامنه بررسی را محدود کنید", "filtersDescription": "از فیلترهای موجود برای یافتن رکوردهای نیازمند تصمیم استفاده کنید و پیش از تغییر، زمینه رکورد را بررسی کنید.", "actionTitle": "تغییر آگاهانه انجام دهید", "actionDescription": "پیش از ذخیره، اثر این اقدام و اطلاعات لازم را بررسی کنید.", "resultsTitle": "زمینه عملیاتی را تأیید کنید", "resultsDescription": "وضعیت، مسئول، تاریخ‌ها و سابقه را پیش از اقدام بررسی کنید.", "accountStepTitle": "بخش فعلی حساب — گام {step}", "accountStepDescription": "این یک کنترل مهم حساب است. مقدارهای قابل مشاهده را بررسی و فقط تغییر مورد نظر را ذخیره کنید.", "progress": "{current} از {total}", "next": "بعدی", "back": "بازگشت", "done": "پایان"
     },
     "crmDetails": {
-      "relationshipDetails": "جزئیات رابطه", "entityRelationship": "رابطه {entity}", "entities": { "visitor": "بازدیدکننده", "lead": "سرنخ", "customer": "مشتری" },
-      "details": "جزئیات", "overview": "یادداشت و فعالیت", "profileTitle": "جزئیات پروفایل", "profileHint": "اطلاعات فعلی CRM و زمینه لازم برای تعامل بعدی.", "customerServices": "خدمات مشتری", "contextHint": "اطلاعاتی که در تمام مراحل CRM همراه این شخص می‌ماند.", "notesPlaceholder": "نیازها، ترجیحات، پیشینه، موانع یا سایر اطلاعات ماندگار…", "saveNotes": "ذخیره یادداشت‌ها", "activityMix": "ترکیب فعالیت‌ها", "addConversation": "افزودن گفتگو", "all": "همه", "emptyTitle": "در این دسته گفتگویی نیست", "emptyHint": "اولین تعامل را اضافه کنید یا دسته دیگری را انتخاب کنید.",
-      "followUpAt": "پیگیری در {date}", "editConversation": "ویرایش گفتگو", "category": "دسته", "notesOutcome": "یادداشت و نتیجه", "contactedAt": "زمان تماس", "saveConversation": "ذخیره گفتگو", "deleteConfirm": "«{title}» حذف شود؟",
-      "notesSaved": "یادداشت‌های رابطه ذخیره شد", "notesSaveFailed": "ذخیره یادداشت‌ها ممکن نشد.", "loadFailed": "بارگذاری جزئیات رابطه ممکن نشد.", "conversationAdded": "گفتگو افزوده شد", "conversationUpdated": "گفتگو به‌روزرسانی شد", "conversationRemoved": "گفتگو حذف شد", "conversationSaveFailed": "ذخیره گفتگو ممکن نشد.", "conversationDeleteFailed": "حذف گفتگو ممکن نشد.",
-      "fields": { "company": "شرکت", "contact": "شماره تماس", "email": "ایمیل", "marketer": "بازاریاب", "service": "خدمت مورد علاقه", "owner": "مسئول رابطه", "stage": "مرحله فروش", "probability": "احتمال", "estimatedValue": "ارزش تخمینی", "nextFollowUp": "پیگیری بعدی", "taxNumber": "شماره مالیاتی", "since": "تاریخ ثبت", "address": "آدرس" },
-      "channels": { "calls": "تماس‌ها", "messages": "پیام‌ها", "emails": "ایمیل‌ها", "meetings": "جلسه‌ها", "notes": "یادداشت‌ها" }
+      "relationshipDetails": "جزئیات رابطه",
+      "entityRelationship": "رابطه {entity}",
+      "entities": {
+        "visitor": "بازدیدکننده",
+        "lead": "سرنخ",
+        "customer": "مشتری"
+      },
+      "details": "جزئیات",
+      "overview": "یادداشت و فعالیت",
+      "profileTitle": "جزئیات پروفایل",
+      "profileHint": "اطلاعات فعلی CRM و زمینه لازم برای تعامل بعدی.",
+      "customerServices": "خدمات مشتری",
+      "contextHint": "اطلاعاتی که در تمام مراحل CRM همراه این شخص می‌ماند.",
+      "notesPlaceholder": "نیازها، ترجیحات، پیشینه، موانع یا سایر اطلاعات ماندگار…",
+      "saveNotes": "ذخیره یادداشت‌ها",
+      "activityMix": "ترکیب فعالیت‌ها",
+      "addConversation": "افزودن گفتگو",
+      "all": "همه",
+      "emptyTitle": "در این دسته گفتگویی نیست",
+      "emptyHint": "اولین تعامل را اضافه کنید یا دسته دیگری را انتخاب کنید.",
+      "followUpAt": "پیگیری در {date}",
+      "editConversation": "ویرایش گفتگو",
+      "category": "دسته",
+      "notesOutcome": "یادداشت و نتیجه",
+      "contactedAt": "زمان تماس",
+      "saveConversation": "ذخیره گفتگو",
+      "deleteConfirm": "«{title}» حذف شود؟",
+      "notesSaved": "یادداشت‌های رابطه ذخیره شد",
+      "notesSaveFailed": "ذخیره یادداشت‌ها ممکن نشد.",
+      "loadFailed": "بارگذاری جزئیات رابطه ممکن نشد.",
+      "conversationAdded": "گفتگو افزوده شد",
+      "conversationUpdated": "گفتگو به‌روزرسانی شد",
+      "conversationRemoved": "گفتگو حذف شد",
+      "conversationSaveFailed": "ذخیره گفتگو ممکن نشد.",
+      "conversationDeleteFailed": "حذف گفتگو ممکن نشد.",
+      "fields": {
+        "company": "شرکت",
+        "contact": "شماره تماس",
+        "email": "ایمیل",
+        "marketer": "بازاریاب",
+        "service": "خدمت مورد علاقه",
+        "owner": "مسئول رابطه",
+        "stage": "مرحله فروش",
+        "probability": "احتمال",
+        "estimatedValue": "ارزش تخمینی",
+        "nextFollowUp": "پیگیری بعدی",
+        "taxNumber": "شماره مالیاتی",
+        "since": "تاریخ ثبت",
+        "address": "آدرس"
+      },
+      "channels": {
+        "calls": "تماس‌ها",
+        "messages": "پیام‌ها",
+        "emails": "ایمیل‌ها",
+        "meetings": "جلسه‌ها",
+        "notes": "یادداشت‌ها"
+      }
     },
     "leaveApproval": {
-      "paidException": "تأیید به‌عنوان استثنای با معاش ({count})", "exceptionTitle": "استثنای رخصتی با معاش", "exceptionHint": "سهمیه رخصتی با معاش یک یا چند کارمند انتخاب‌شده کافی نیست. این مجوز تمام روزهای انتخاب‌شده را با معاش نگه می‌دارد و دلیل آن را در سابقه بررسی ثبت می‌کند.", "usageSummary": "استفاده‌شده {used} · باقی‌مانده {remaining} · انتخاب‌شده {selected} روز", "overLimit": "+{count} بیشتر از سهمیه", "justification": "دلیل تأیید", "approvePaid": "تأیید رخصتی با معاش", "employeeFallback": "کارمند"
+      "paidException": "تأیید به‌عنوان استثنای با معاش ({count})",
+      "exceptionTitle": "استثنای رخصتی با معاش",
+      "exceptionHint": "سهمیه رخصتی با معاش یک یا چند کارمند انتخاب‌شده کافی نیست. این مجوز تمام روزهای انتخاب‌شده را با معاش نگه می‌دارد و دلیل آن را در سابقه بررسی ثبت می‌کند.",
+      "usageSummary": "استفاده‌شده {used} · باقی‌مانده {remaining} · انتخاب‌شده {selected} روز",
+      "overLimit": "+{count} بیشتر از سهمیه",
+      "justification": "دلیل تأیید",
+      "approvePaid": "تأیید رخصتی با معاش",
+      "employeeFallback": "کارمند"
     }
   },
   "pages": {
@@ -543,20 +642,177 @@
     },
     "dashboard": {
       "executive": {
-        "header": { "eyebrow": "داشبورد مدیریتی", "title": "نبض شرکت", "subtitle": "پول، مشتریان، کارمندان، دارایی‌ها و تحویل کار—همه در یک نمای کاربردی.", "updated": "به‌روزرسانی {time}", "refresh": "تازه‌سازی" },
-        "filters": { "label": "دوره داشبورد", "oneMonth": "۱ ماه", "threeMonths": "۳ ماه", "oneYear": "۱ سال", "twoYears": "۲ سال", "custom": "دلخواه", "customTitle": "بازه زمانی دلخواه", "from": "از", "to": "تا", "apply": "اعمال بازه", "selectBothDates": "برای بازه دلخواه هر دو تاریخ را انتخاب کنید." },
-        "common": { "notSet": "تعیین نشده", "noPayroll": "بدون معاش", "minutesShort": "{value} دقیقه", "hoursShort": "{value} ساعت" },
-        "metrics": { "activeWork": "کارهای فعال", "nearingCompletion": "{count} نزدیک به تکمیل", "completedThisMonth": "تکمیل‌شده این ماه", "completionRate": "نرخ تکمیل {rate}٪", "overdueWork": "کارهای تأخیری", "pastDueDates": "گذشته از موعد", "averageProgress": "میانگین پیشرفت", "accessibleWork": "کارهای قابل دسترس", "receivableExposure": "مطالبات باز", "openInvoices": "{count} بل باز", "cashCollection": "وصول نقدی", "collectedOf": "{collected} از {total} وصول شده", "customerBase": "پایگاه مشتریان", "activeCommitments": "{count} تعهد فعال", "latestPayroll": "آخرین پرداخت معاش", "payrollContext": "{period} · {count} کارمند", "visitorsThisMonth": "مراجعین این ماه", "newCustomers": "{count} مشتری جدید" },
-        "answers": { "eyebrow": "اعداد چه می‌گویند", "title": "چهار پاسخ برای امروز", "liveData": "داده زنده عملیاتی", "collectingQuestion": "آیا مطالبات وصول می‌شوند؟", "issuedValue": "{rate}٪ از مبلغ صادرشده", "customersQuestion": "آیا مشتریان فعال‌اند؟", "liveCommitments": "{count} تعهد جاری", "customerContext": "برای {customers} مشتری؛ {due} مورد به‌زودی سررسید می‌شود.", "teamQuestion": "آیا حضور تیم ثبت شده؟", "markedToday": "{rate}٪ امروز ثبت شده", "attendanceMissing": "حضور {count} نفر هنوز ثبت نشده است.", "deliveryQuestion": "آیا تحویل کار در خطر است؟", "overdueCommitments": "{count} تعهد تأخیری", "nearingDone": "{count} وظیفه نزدیک به تکمیل است." },
-        "charts": { "billed": "صورت‌حساب‌شده", "collected": "وصول‌شده", "spent": "مصرف‌شده", "noBillingActivity": "فعالیت صورت‌حساب ثبت نشده", "openBalance": "مانده باز", "visitors": "مراجعین", "newCustomers": "مشتریان جدید", "activeCustomers": "مشتریان فعال", "noActiveServices": "خدمت فعال مشتری وجود ندارد", "activeTasks": "وظایف فعال" },
-        "aging": { "notDue": "هنوز سررسید نشده", "days1To30": "۱ تا ۳۰ روز", "days31To60": "۳۱ تا ۶۰ روز", "days61Plus": "بیش از ۶۱ روز", "noDueDate": "بدون تاریخ سررسید" },
-        "collection": { "noIssuedValue": "هنوز مبلغی برای بل‌های صادرشده موجود نیست.", "noLinkedIncome": "بل صادر شده، اما عاید مرتبط ثبت نشده است.", "trailing": "وصول از مبلغ صورت‌حساب عقب است و پیگیری می‌خواهد.", "healthy": "وصول با مبلغ صورت‌حساب همگام است." },
-        "sections": { "cashMovement": "صورت‌حساب و جریان نقدی", "cashMovementSubtitle": "مبالغ صورت‌حساب‌شده، وصول‌شده و مصرف‌شده در شش ماه", "receivablesAging": "عمر مطالبات", "receivablesAgingSubtitle": "محل توقف مبالغ پرداخت‌نشده", "agingInsight": "بل‌های بدون تاریخ سررسید جدا شده‌اند تا برنامه وصول اصلاح شود.", "commercialMomentum": "روند تجارتی", "commercialMomentumSubtitle": "علاقه مراجعین در مقایسه با جذب مشتری جدید", "servicePortfolio": "سبد خدمات", "servicePortfolioSubtitle": "خدماتی که مشتریان فعال به آن متکی‌اند", "actionCenter": "مرکز اقدامات مدیریتی", "actionCenterSubtitle": "موارد استثنایی اولویت‌دار از سراسر سیستم", "workloadRisk": "ریسک حجم کار", "workloadRiskSubtitle": "وظایف باز بر اساس اولویت" },
-        "actions": { "count": "{count} اقدام", "open": "بازکردن رکورد", "emptyTitle": "مورد بحرانی برای رسیدگی وجود ندارد", "emptyBody": "رکوردهای زیر نظارت در وضعیت مناسب قرار دارند.", "areas": { "delivery": "تحویل", "finance": "مالی", "contracts": "قراردادها", "customers": "مشتریان", "people": "کارمندان", "assets": "دارایی‌ها" }, "overdueTasks": "{count} وظیفه تأخیری", "overdueTasksDetail": "موعد تعهدها گذشته و باید مسئول آن مشخص شود.", "urgentTasks": "{count} وظیفه عاجل فعال", "urgentTasksDetail": "کارهای با اولویت بلند نیازمند نظارت نزدیک‌اند.", "missingInvoiceDueDates": "{count} بل تاریخ سررسید ندارد", "missingInvoiceDueDatesDetail": "برای مدیریت مطالبات، مهلت وصول تعیین کنید.", "overdueInvoices": "{count} بل تأخیری", "overdueInvoicesDetail": "{amount} پس از تاریخ وصول هنوز باز است.", "noContracts": "هیچ قراردادی ثبت نشده", "noContractsDetail": "تعهدهای مشتریان فعلاً پوشش رسمی قرارداد ندارند.", "expiringContracts": "{count} قرارداد به‌زودی ختم می‌شود", "expiringContractsDetail": "قراردادهای ختم‌شونده در ۳۰ روز را تمدید یا بسته کنید.", "serviceDeadlines": "{count} مهلت خدمت نزدیک است", "serviceDeadlinesDetail": "تعهدهای مشتری در ۳۰ روز آینده سررسید می‌شوند.", "unmarkedEmployees": "حضور {count} کارمند امروز ثبت نشده", "unmarkedEmployeesDetail": "ثبت حضور را پیش از ختم روز کامل کنید.", "assetInspection": "{count} قلم جنس نیاز به بررسی دارد", "assetInspectionDetail": "اقلام با وضعیت متوسط، ضعیف یا آسیب‌دیده باید بررسی شوند." },
-        "domains": { "contractCoverage": "پوشش قرارداد", "activeCount": "{count} فعال", "expiring30Days": "ختم در ۳۰ روز", "drafts": "پیش‌نویس‌ها", "peopleReadiness": "آمادگی کارمندان", "employeeCount": "{count} کارمند", "pendingLeave": "رخصتی در انتظار", "overtimeMonth": "اضافه‌کاری این ماه", "assetControl": "کنترول دارایی", "availableAssigned": "موجود / تحویل‌شده", "needInspection": "نیازمند بررسی", "frontDoor": "فعالیت مراجعین", "visitorCount": "{count} مراجعه‌کننده", "newCustomers": "مشتریان جدید", "activeServices": "خدمات فعال" },
-        "receivables": { "title": "مطالبات نیازمند پیگیری", "subtitle": "بزرگ‌ترین مانده‌های باز مشتری", "customerInvoice": "مشتری / بل", "due": "سررسید", "openBalance": "مانده باز", "overdueDate": "تأخیری · {date}", "dueMissing": "تاریخ سررسید ندارد", "empty": "مانده باز مشتری وجود ندارد." },
-        "delivery": { "title": "تعهدهای تحویل", "subtitle": "کارهای فعال با بیشترین پیشرفت", "allTasks": "همه وظایف", "noBoard": "بدون بورد", "empty": "کار فعالی یافت نشد." },
-        "errors": { "load": "نمای کلی کسب‌وکار بارگیری نشد." }
+        "header": {
+          "eyebrow": "داشبورد مدیریتی",
+          "title": "نبض شرکت",
+          "subtitle": "پول، مشتریان، کارمندان، دارایی‌ها و تحویل کار—همه در یک نمای کاربردی.",
+          "updated": "به‌روزرسانی {time}",
+          "refresh": "تازه‌سازی"
+        },
+        "filters": {
+          "label": "دوره داشبورد",
+          "oneMonth": "۱ ماه",
+          "threeMonths": "۳ ماه",
+          "oneYear": "۱ سال",
+          "twoYears": "۲ سال",
+          "custom": "دلخواه",
+          "customTitle": "بازه زمانی دلخواه",
+          "from": "از",
+          "to": "تا",
+          "apply": "اعمال بازه",
+          "selectBothDates": "برای بازه دلخواه هر دو تاریخ را انتخاب کنید."
+        },
+        "common": {
+          "notSet": "تعیین نشده",
+          "noPayroll": "بدون معاش",
+          "minutesShort": "{value} دقیقه",
+          "hoursShort": "{value} ساعت"
+        },
+        "metrics": {
+          "activeWork": "کارهای فعال",
+          "nearingCompletion": "{count} نزدیک به تکمیل",
+          "completedThisMonth": "تکمیل‌شده این ماه",
+          "completionRate": "نرخ تکمیل {rate}٪",
+          "overdueWork": "کارهای تأخیری",
+          "pastDueDates": "گذشته از موعد",
+          "averageProgress": "میانگین پیشرفت",
+          "accessibleWork": "کارهای قابل دسترس",
+          "receivableExposure": "مطالبات باز",
+          "openInvoices": "{count} بل باز",
+          "cashCollection": "وصول نقدی",
+          "collectedOf": "{collected} از {total} وصول شده",
+          "customerBase": "پایگاه مشتریان",
+          "activeCommitments": "{count} تعهد فعال",
+          "latestPayroll": "آخرین پرداخت معاش",
+          "payrollContext": "{period} · {count} کارمند",
+          "visitorsThisMonth": "مراجعین این ماه",
+          "newCustomers": "{count} مشتری جدید"
+        },
+        "answers": {
+          "eyebrow": "اعداد چه می‌گویند",
+          "title": "چهار پاسخ برای امروز",
+          "liveData": "داده زنده عملیاتی",
+          "collectingQuestion": "آیا مطالبات وصول می‌شوند؟",
+          "issuedValue": "{rate}٪ از مبلغ صادرشده",
+          "customersQuestion": "آیا مشتریان فعال‌اند؟",
+          "liveCommitments": "{count} تعهد جاری",
+          "customerContext": "برای {customers} مشتری؛ {due} مورد به‌زودی سررسید می‌شود.",
+          "teamQuestion": "آیا حضور تیم ثبت شده؟",
+          "markedToday": "{rate}٪ امروز ثبت شده",
+          "attendanceMissing": "حضور {count} نفر هنوز ثبت نشده است.",
+          "deliveryQuestion": "آیا تحویل کار در خطر است؟",
+          "overdueCommitments": "{count} تعهد تأخیری",
+          "nearingDone": "{count} وظیفه نزدیک به تکمیل است."
+        },
+        "charts": {
+          "billed": "صورت‌حساب‌شده",
+          "collected": "وصول‌شده",
+          "spent": "مصرف‌شده",
+          "noBillingActivity": "فعالیت صورت‌حساب ثبت نشده",
+          "openBalance": "مانده باز",
+          "visitors": "مراجعین",
+          "newCustomers": "مشتریان جدید",
+          "activeCustomers": "مشتریان فعال",
+          "noActiveServices": "خدمت فعال مشتری وجود ندارد",
+          "activeTasks": "وظایف فعال"
+        },
+        "aging": {
+          "notDue": "هنوز سررسید نشده",
+          "days1To30": "۱ تا ۳۰ روز",
+          "days31To60": "۳۱ تا ۶۰ روز",
+          "days61Plus": "بیش از ۶۱ روز",
+          "noDueDate": "بدون تاریخ سررسید"
+        },
+        "collection": {
+          "noIssuedValue": "هنوز مبلغی برای بل‌های صادرشده موجود نیست.",
+          "noLinkedIncome": "بل صادر شده، اما عاید مرتبط ثبت نشده است.",
+          "trailing": "وصول از مبلغ صورت‌حساب عقب است و پیگیری می‌خواهد.",
+          "healthy": "وصول با مبلغ صورت‌حساب همگام است."
+        },
+        "sections": {
+          "cashMovement": "صورت‌حساب و جریان نقدی",
+          "cashMovementSubtitle": "مبالغ صورت‌حساب‌شده، وصول‌شده و مصرف‌شده در شش ماه",
+          "receivablesAging": "عمر مطالبات",
+          "receivablesAgingSubtitle": "محل توقف مبالغ پرداخت‌نشده",
+          "agingInsight": "بل‌های بدون تاریخ سررسید جدا شده‌اند تا برنامه وصول اصلاح شود.",
+          "commercialMomentum": "روند تجارتی",
+          "commercialMomentumSubtitle": "علاقه مراجعین در مقایسه با جذب مشتری جدید",
+          "servicePortfolio": "سبد خدمات",
+          "servicePortfolioSubtitle": "خدماتی که مشتریان فعال به آن متکی‌اند",
+          "actionCenter": "مرکز اقدامات مدیریتی",
+          "actionCenterSubtitle": "موارد استثنایی اولویت‌دار از سراسر سیستم",
+          "workloadRisk": "ریسک حجم کار",
+          "workloadRiskSubtitle": "وظایف باز بر اساس اولویت"
+        },
+        "actions": {
+          "count": "{count} اقدام",
+          "open": "بازکردن رکورد",
+          "emptyTitle": "مورد بحرانی برای رسیدگی وجود ندارد",
+          "emptyBody": "رکوردهای زیر نظارت در وضعیت مناسب قرار دارند.",
+          "areas": {
+            "delivery": "تحویل",
+            "finance": "مالی",
+            "contracts": "قراردادها",
+            "customers": "مشتریان",
+            "people": "کارمندان",
+            "assets": "دارایی‌ها"
+          },
+          "overdueTasks": "{count} وظیفه تأخیری",
+          "overdueTasksDetail": "موعد تعهدها گذشته و باید مسئول آن مشخص شود.",
+          "urgentTasks": "{count} وظیفه عاجل فعال",
+          "urgentTasksDetail": "کارهای با اولویت بلند نیازمند نظارت نزدیک‌اند.",
+          "missingInvoiceDueDates": "{count} بل تاریخ سررسید ندارد",
+          "missingInvoiceDueDatesDetail": "برای مدیریت مطالبات، مهلت وصول تعیین کنید.",
+          "overdueInvoices": "{count} بل تأخیری",
+          "overdueInvoicesDetail": "{amount} پس از تاریخ وصول هنوز باز است.",
+          "noContracts": "هیچ قراردادی ثبت نشده",
+          "noContractsDetail": "تعهدهای مشتریان فعلاً پوشش رسمی قرارداد ندارند.",
+          "expiringContracts": "{count} قرارداد به‌زودی ختم می‌شود",
+          "expiringContractsDetail": "قراردادهای ختم‌شونده در ۳۰ روز را تمدید یا بسته کنید.",
+          "serviceDeadlines": "{count} مهلت خدمت نزدیک است",
+          "serviceDeadlinesDetail": "تعهدهای مشتری در ۳۰ روز آینده سررسید می‌شوند.",
+          "unmarkedEmployees": "حضور {count} کارمند امروز ثبت نشده",
+          "unmarkedEmployeesDetail": "ثبت حضور را پیش از ختم روز کامل کنید.",
+          "assetInspection": "{count} قلم جنس نیاز به بررسی دارد",
+          "assetInspectionDetail": "اقلام با وضعیت متوسط، ضعیف یا آسیب‌دیده باید بررسی شوند."
+        },
+        "domains": {
+          "contractCoverage": "پوشش قرارداد",
+          "activeCount": "{count} فعال",
+          "expiring30Days": "ختم در ۳۰ روز",
+          "drafts": "پیش‌نویس‌ها",
+          "peopleReadiness": "آمادگی کارمندان",
+          "employeeCount": "{count} کارمند",
+          "pendingLeave": "رخصتی در انتظار",
+          "overtimeMonth": "اضافه‌کاری این ماه",
+          "assetControl": "کنترول دارایی",
+          "availableAssigned": "موجود / تحویل‌شده",
+          "needInspection": "نیازمند بررسی",
+          "frontDoor": "فعالیت مراجعین",
+          "visitorCount": "{count} مراجعه‌کننده",
+          "newCustomers": "مشتریان جدید",
+          "activeServices": "خدمات فعال"
+        },
+        "receivables": {
+          "title": "مطالبات نیازمند پیگیری",
+          "subtitle": "بزرگ‌ترین مانده‌های باز مشتری",
+          "customerInvoice": "مشتری / بل",
+          "due": "سررسید",
+          "openBalance": "مانده باز",
+          "overdueDate": "تأخیری · {date}",
+          "dueMissing": "تاریخ سررسید ندارد",
+          "empty": "مانده باز مشتری وجود ندارد."
+        },
+        "delivery": {
+          "title": "تعهدهای تحویل",
+          "subtitle": "کارهای فعال با بیشترین پیشرفت",
+          "allTasks": "همه وظایف",
+          "noBoard": "بدون بورد",
+          "empty": "کار فعالی یافت نشد."
+        },
+        "errors": {
+          "load": "نمای کلی کسب‌وکار بارگیری نشد."
+        }
       },
       "metrics": {
         "newIncome": "درآمد جدید در این ماه",
@@ -612,6 +868,8 @@
             "type": "نوع",
             "label": "برچسب",
             "header": "سربرگ",
+            "status": "دسترسی",
+            "activeHint": "برای قالب‌های جدید قابل استفاده است",
             "actions": "عملیات",
             "edit": "ویرایش پالیسی",
             "delete": "حذف پالیسی",
@@ -648,6 +906,17 @@
           "reset": "تنظیم مجدد",
           "deleteTemplate2": "حذف قالب؟",
           "contractTemplate": {
+            "documentWorkspace": "محیط قرارداد",
+            "heroDescription": "یک قرارداد حرفه‌ای و قابل استفاده مجدد بسازید و هر زمان جزئیات مناسب را وارد کنید.",
+            "openSavedTemplate": "باز کردن قالب ذخیره‌شده",
+            "startNewTemplate": "شروع قالب جدید",
+            "templateDetails": "جزئیات قالب",
+            "templateDetailsSubtitle": "زمینه سند را پیش از نوشتن محتوا مشخص کنید.",
+            "documentContent": "محتوای سند",
+            "documentContentSubtitle": "برای اطلاعاتی که بین قراردادها تغییر می‌کنند از فیلدهای ادغام استفاده کنید.",
+            "placeholderHint": "برای افزودن فیلدهای متناسب با زمینه، «درج جای‌گذار» را در ویرایشگر انتخاب کنید.",
+            "insertSavedPolicy": "درج سیاست ذخیره‌شده",
+            "noReusablePolicies": "هنوز سیاست قابل استفاده مجددی وجود ندارد. برای استفاده در اینجا یکی را در کتابخانه سیاست ایجاد کنید.",
             "contractType": "نوع قرارداد",
             "selectContractType": "یک نوع قرارداد را انتخاب کنید",
             "system": "سیستمی",
@@ -835,9 +1104,7 @@
           "invoiceVoidedWithoutDeletingItsRecord": "فاکتور بدون حذف رکورد آن باطل شد",
           "failedToLoadInvoicingData": "دریافت معلومات فاکتوردهی ناکام ماند",
           "searchInvoiceNumberOrCustomer": "جستجوی شماره فاکتور یا مشتری",
-          "invoiceType": "نوع فاکتور",
           "voidInvoice2": "باطل کردن فاکتور",
-          "invoiceType2": "نوع فاکتور",
           "invoiceCurrency": "واحد پول فاکتور",
           "newInvoice": "فاکتور جدید",
           "invoiceSetup": "تنظیمات فاکتور",
@@ -960,37 +1227,52 @@
         "builtInDesignWillBeUsed": "از طراحی داخلی (Built-in) استفاده خواهد شد",
         "assetHint": "{hint} · PNG، JPG، یا WEBP تا ۸ مگابایت",
         "resetDefaults": "بازنشانی به پیش‌فرض‌ها",
-          "saveSettings": "ذخیره تنظیمات",
-          "themeColorsPreviewHint": "Changes preview immediately in the application and are saved only when you select Save changes.",
-          "restoreVuexyDefaults": "Restore Vuexy defaults",
-          "brandColors": "Brand colours",
-          "brandColorsHint": "The colours used for primary and secondary actions.",
-          "feedbackColors": "Feedback colours",
-          "feedbackColorsHint": "Status colours used for successful, informational, warning, and error states.",
-          "lightModeSurfaces": "Light-mode canvas and surfaces",
-          "lightModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in light mode.",
-          "darkModeSurfaces": "Dark-mode canvas and surfaces",
-          "darkModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in dark mode.",
-          "successColor": "Success",
-          "infoColor": "Info",
-          "warningColor": "Warning",
-          "errorColor": "Error",
-          "applicationBackground": "Application background",
-          "cardsAndMenus": "Cards and menus",
-          "live": "Live",
-          "noChangesToSave": "There are no changes to save on this page.",
-          "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings.",
-          "settings": "تنظیمات",
-          "manageCompanyPreferences": "تنظیمات شرکت و پیش‌فرض‌های سیستم را مدیریت کنید.",
-          "companyPageDescription": "هویت، اطلاعات تماس و برند.",
-          "emailDeliveryPage": "ارسال ایمیل",
-          "emailDeliveryPageDescription": "هویت فرستنده و اتصال SMTP.",
-          "operationsPageDescription": "ساعات کاری و پیش‌فرض‌های رخصتی.",
-          "appearancePageDescription": "تنظیمات رنگ برنامه.",
-          "documentsPageDescription": "طرح‌های استفاده‌شده در اسناد قرارداد.",
-          "emailDeliveryHint": "اعتبارنامه‌های SMTP به‌صورت امن نگهداری می‌شوند و برای تأیید و بازیابی گذرواژه استفاده می‌گردند. برای استفاده از تنظیمات ایمیل سرور، فیلدهای SMTP را خالی بگذارید.",
-          "fromEmailAddress": "آدرس ایمیل فرستنده", "fromName": "نام فرستنده", "smtpServer": "سرور SMTP", "smtpHost": "میزبان SMTP", "smtpPort": "درگاه SMTP", "smtpUsername": "نام کاربری SMTP", "smtpPassword": "گذرواژه SMTP / گذرواژه برنامه",
-          "smtpPasswordConfigured": "گذرواژه SMTP تنظیم شده است", "usingDefaultMailConfiguration": "استفاده از پیکربندی پیش‌فرض ایمیل", "smtpPasswordSavedHint": "یک گذرواژه ذخیره شده است. فقط برای جایگزینی، مقدار جدید وارد کنید.", "smtpPasswordGmailHint": "برای Gmail از گذرواژه برنامه ۱۶ حرفی استفاده کنید.", "removeSavedSmtpPassword": "حذف گذرواژه ذخیره‌شده SMTP", "replyToEmail": "ایمیل پاسخ (اختیاری)", "encryption": "رمزگذاری", "tlsRecommended": "TLS (پیشنهادشده)", "resetPage": "بازنشانی صفحه", "saveChanges": "ذخیره تغییرات"
+        "saveSettings": "ذخیره تنظیمات",
+        "themeColorsPreviewHint": "Changes preview immediately in the application and are saved only when you select Save changes.",
+        "restoreVuexyDefaults": "Restore Vuexy defaults",
+        "brandColors": "Brand colours",
+        "brandColorsHint": "The colours used for primary and secondary actions.",
+        "feedbackColors": "Feedback colours",
+        "feedbackColorsHint": "Status colours used for successful, informational, warning, and error states.",
+        "lightModeSurfaces": "Light-mode canvas and surfaces",
+        "lightModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in light mode.",
+        "darkModeSurfaces": "Dark-mode canvas and surfaces",
+        "darkModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in dark mode.",
+        "successColor": "Success",
+        "infoColor": "Info",
+        "warningColor": "Warning",
+        "errorColor": "Error",
+        "applicationBackground": "Application background",
+        "cardsAndMenus": "Cards and menus",
+        "live": "Live",
+        "noChangesToSave": "There are no changes to save on this page.",
+        "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings.",
+        "settings": "تنظیمات",
+        "manageCompanyPreferences": "تنظیمات شرکت و پیش‌فرض‌های سیستم را مدیریت کنید.",
+        "companyPageDescription": "هویت، اطلاعات تماس و برند.",
+        "emailDeliveryPage": "ارسال ایمیل",
+        "emailDeliveryPageDescription": "هویت فرستنده و اتصال SMTP.",
+        "operationsPageDescription": "ساعات کاری و پیش‌فرض‌های رخصتی.",
+        "appearancePageDescription": "تنظیمات رنگ برنامه.",
+        "documentsPageDescription": "طرح‌های استفاده‌شده در اسناد قرارداد.",
+        "emailDeliveryHint": "اعتبارنامه‌های SMTP به‌صورت امن نگهداری می‌شوند و برای تأیید و بازیابی گذرواژه استفاده می‌گردند. برای استفاده از تنظیمات ایمیل سرور، فیلدهای SMTP را خالی بگذارید.",
+        "fromEmailAddress": "آدرس ایمیل فرستنده",
+        "fromName": "نام فرستنده",
+        "smtpServer": "سرور SMTP",
+        "smtpHost": "میزبان SMTP",
+        "smtpPort": "درگاه SMTP",
+        "smtpUsername": "نام کاربری SMTP",
+        "smtpPassword": "گذرواژه SMTP / گذرواژه برنامه",
+        "smtpPasswordConfigured": "گذرواژه SMTP تنظیم شده است",
+        "usingDefaultMailConfiguration": "استفاده از پیکربندی پیش‌فرض ایمیل",
+        "smtpPasswordSavedHint": "یک گذرواژه ذخیره شده است. فقط برای جایگزینی، مقدار جدید وارد کنید.",
+        "smtpPasswordGmailHint": "برای Gmail از گذرواژه برنامه ۱۶ حرفی استفاده کنید.",
+        "removeSavedSmtpPassword": "حذف گذرواژه ذخیره‌شده SMTP",
+        "replyToEmail": "ایمیل پاسخ (اختیاری)",
+        "encryption": "رمزگذاری",
+        "tlsRecommended": "TLS (پیشنهادشده)",
+        "resetPage": "بازنشانی صفحه",
+        "saveChanges": "ذخیره تغییرات"
       },
       "users": {
         "user": "کاربر",
@@ -1268,7 +1550,24 @@
         "contractParties": "طرف‌های قرارداد",
         "printPreview": "جلد و صفحات قرارداد را با استفاده از قالب ذخیره‌شده پیش‌نمایش کنید.",
         "includePartyDetails": "جزئیات اصلی هر دو طرف قرارداد را شامل کنید",
-        "defaultTerms": "این توافق‌نامه میان طرف‌های نام‌برده در این قرارداد منعقد می‌شود."
+        "defaultTerms": "این توافق‌نامه میان طرف‌های نام‌برده در این قرارداد منعقد می‌شود.",
+        "fallbackOpening": "این توافق‌نامه میان",
+        "and": "و",
+        "locatedAt": "واقع در",
+        "serviceProvider": "ارائه‌دهنده خدمات",
+        "client": "مشتری",
+        "contractDetails": "جزئیات قرارداد",
+        "contractName": "نام قرارداد",
+        "status": "وضعیت",
+        "startDate": "تاریخ شروع",
+        "termsAndConditions": "شرایط و مقررات",
+        "partiesAgree": "طرفین درباره شرایط زیر توافق می‌کنند:",
+        "obligationsTerm": "هر دو طرف تعهدات خود را طبق این توافق‌نامه انجام می‌دهند.",
+        "changesTerm": "هر تغییری در این توافق‌نامه باید کتبی و با امضای هر دو طرف باشد.",
+        "durationTerm": "قرارداد تا تکمیل خدمات توافق‌شده یا خاتمه طبق مفاد آن معتبر می‌ماند.",
+        "termination": "خاتمه قرارداد",
+        "terminationNotice": "هر یک از طرفین می‌تواند با اطلاع کتبی ۳۰ روزه این قرارداد را خاتمه دهد.",
+        "registeredCompanyAddress": "نشانی ثبت‌شده شرکت"
       },
       "allContracts": {
         "allContracts": {
@@ -1298,18 +1597,18 @@
           "includeFormalSignatureStampSectionAtTheEnd": "گنجاندن بخش رسمی امضا و مهر در انتها",
           "addALastFullyEmptyPage": "افزودن یک صفحه کاملاً خالی در آخر",
           "printA4Document": "چاپ سند A4",
-          "untitledContract": "??????? ???? ?????",
-          "unknownCounterparty": "???? ????? ??????",
-          "loadingContracts": "?? ??? ???????? ?????????...",
-          "employeeContractsReport": "????? ?????????? ????????",
-          "customerContractsReport": "????? ?????????? ???????",
-          "filteredContractRecords": "????? ?????????? ????????",
-          "addNewContract": "?????? ??????? ????",
-          "noActiveEmploymentContractFound": "??? ??????? ??????? ???? ???? ??? ?????? ???? ???.",
-          "useCustomCoverPageFromSettings": "??????? ?? ??? ??? ?????? ?? ???????",
-          "useCustomLetterheadFromSettings": "??????? ?? ????? ?????? ?? ???????",
-          "pageNumber": "???? {page} ?? {total}",
-          "confidentialAllRightsReserved": "??????? - ??? ???? ????? ???",
+          "untitledContract": "قرارداد بدون عنوان",
+          "unknownCounterparty": "طرف قرارداد ناشناخته",
+          "loadingContracts": "در حال بارگذاری قراردادها...",
+          "employeeContractsReport": "گزارش قراردادهای کارمندان",
+          "customerContractsReport": "گزارش قراردادهای مشتریان",
+          "filteredContractRecords": "رکوردهای قرارداد فیلترشده",
+          "addNewContract": "افزودن قرارداد جدید",
+          "noActiveEmploymentContractFound": "برای این کارمند قرارداد استخدامی فعال یافت نشد.",
+          "useCustomCoverPageFromSettings": "استفاده از جلد سفارشی قرارداد از تنظیمات",
+          "useCustomLetterheadFromSettings": "استفاده از سربرگ سفارشی از تنظیمات",
+          "pageNumber": "صفحه {page} از {total}",
+          "confidentialAllRightsReserved": "محرمانه - کلیه حقوق محفوظ است",
           "endDate": "تاریخ پایان",
           "noExpirationDate": "تاریخ انقضا تعیین نشده است.",
           "inactiveScheduledEnd": "این قرارداد {status} است؛ تاریخ پایان برنامه‌ریزی‌شده آن {date} است.",
@@ -1339,6 +1638,8 @@
       "allCustomers": {
         "allCustomers": {
           "registered": "ثبت‌شده",
+          "manageServices": "مدیریت",
+          "noCommissionEmployeeForService": "هنوز هیچ کارمند کمیسیونی برای این خدمت تنظیم نشده است. ابتدا این خدمت را به قابلیت‌های یک کارمند کمیسیونی اضافه کنید.",
           "select": "انتخاب",
           "noDeadline": "بدون مهلت",
           "dueToday0Months": "موعد امروز (۰ ماه)",
@@ -1373,6 +1674,12 @@
           "contactEmailPhone": "تماس (ایمیل/تلیفون)",
           "addMarketersFromSetupMarketers": "افزودن بازاریابان از بخش تنظیمات اولیه → بازاریابان",
           "services": "خدمات",
+          "deliveryOwner": "صاحب تحویل",
+          "deliveryOwnerOptional": "صاحب تحویل (اختیاری)",
+          "acquisition": "جذب",
+          "chooseDeliveryOwners": "صاحبان تحویل را انتخاب کنید، سپس خدمات خریداری‌شده‌ای را که به یک پروژه تعلق دارند انتخاب کنید.",
+          "noCommissionEmployeeForService": "هیچ کارمند کمیسیونی برای این خدمت فعال نیست. ابتدا این خدمت را به قابلیت‌های یک کارمند اضافه کنید.",
+          "onlyConfiguredRateEmployees": "فقط کارکنان دارای نرخ تنظیم‌شده برای این خدمت کاتالوگ می‌توانند اختصاص داده شوند.",
           "editCustomerService": "ویرایش خدمت مشتری",
           "deadline": "ضرب‌الاجل (مهلت)",
           "attachSelectedServices": "ضمیمه کردن خدمات انتخاب‌شده",
@@ -1447,7 +1754,37 @@
           "contractTemplate": "قالب قرارداد",
           "counterparty": "جانب مقابل",
           "selectACustomer": "انتخاب یک مشتری",
-          "noCustomersFound": "هیچ مشتری یافت نشد"
+          "noCustomersFound": "هیچ مشتری یافت نشد",
+          "setup": "تنظیم قرارداد",
+          "setupHint": "ابتدا قالب را انتخاب کنید؛ قالب طرف قرارداد لازم و معلوماتی را که در سند درج می‌شود تعیین می‌کند.",
+          "template": "قالب قرارداد",
+          "templateRequired": "یک قالب قرارداد انتخاب کنید",
+          "employee": "کارمند",
+          "selectEmployee": "کارمند را انتخاب کنید",
+          "noEmployees": "هیچ کارمندی یافت نشد",
+          "employeeRequired": "کارمند را انتخاب کنید",
+          "customer": "مشتری",
+          "selectCustomer": "مشتری را انتخاب کنید",
+          "noCustomers": "هیچ مشتری یافت نشد",
+          "customerRequired": "مشتری را انتخاب کنید",
+          "company": "شرکت طرف قرارداد",
+          "selectCompany": "شرکت را انتخاب کنید",
+          "noCompanies": "هیچ شرکتی یافت نشد",
+          "companyHint": "شرکت‌ها را از صفحه شرکت‌ها در منوی قراردادها مدیریت کنید.",
+          "companyRequired": "شرکت طرف قرارداد را انتخاب کنید",
+          "manageCompanies": "مدیریت شرکت‌ها",
+          "status": "وضعیت",
+          "statusRequired": "وضعیت را انتخاب کنید",
+          "startDate": "تاریخ شروع",
+          "startRequired": "تاریخ شروع را انتخاب کنید",
+          "duration": "مدت ثابت (ماه)",
+          "durationHint": "اختیاری است؛ برای قرارداد بدون تاریخ پایان خالی بگذارید.",
+          "wholeMonths": "تعداد ماه را به‌صورت عدد کامل وارد کنید.",
+          "calculatedEndDate": "تاریخ پایان محاسبه‌شده",
+          "openContract": "قرارداد بدون پایان",
+          "openContractHint": "برای این قرارداد تاریخ پایان تعیین نشده است. در صورت مدت‌دار شدن، بعداً مدت را وارد کنید.",
+          "signatory": "امضاکننده شرکت ما",
+          "signatoryHint": "شخص مجاز برای امضا از جانب شرکت شما."
         }
       }
     },
@@ -1637,22 +1974,174 @@
           "editAssetRecord": "ویرایش رکورد گدام",
           "deleteAssetRecord": "حذف رکورد گدام",
           "addNewAssetItem": "افزودن مورد جدید به گدام",
-          "editAssetItem": "ویرایش مورد گدام"
+          "editAssetItem": "ویرایش مورد گدام",
+          "employeeAllocations": "تخصیص‌های کارمند",
+          "addEmployee": "افزودن کارمند",
+          "employee": "کارمند",
+          "allocationTotalCannotExceed": "تخصیص‌شده: {allocated} / {quantity}. مجموع نمی‌تواند از تعداد موجودی بیشتر باشد.",
+          "allocationReduceBeforeLowering": "تخصیص‌شده: {allocated} / {quantity}. قبل از کاهش تعداد موجودی، تخصیص‌ها را کاهش دهید."
         }
       }
     },
     "reports": {
       "studio": {
-        "header": { "eyebrow": "مرکز گزارش‌دهی", "title": "درک همه‌جانبه کسب‌وکار", "subtitle": "شواهد را بررسی، عملکرد را مقایسه و گزارش آماده تصمیم‌گیری منتشر کنید.", "exportCsv": "صدور CSV", "printReport": "چاپ گزارش" },
-        "profiles": { "financial": { "label": "عملکرد مالی", "description": "صورت‌حساب، وصول، مصارف، وضعیت نقدی و دارایی‌ها.", "question": "پول کجا جریان دارد و کجا متوقف شده؟" }, "payroll": { "label": "کارمندان و معاشات", "description": "هزینه معاش، امتیازات، تغییرات نیروی کار و رخصتی.", "question": "چه مقدار روی کارمندان سرمایه‌گذاری می‌کنیم؟" }, "attendance": { "label": "وقت و حاضری", "description": "حضور، ساعات، اضافه‌کاری، استثناها و گزارش‌های روزانه.", "question": "آیا تیم حاضر، مؤثر و درست ثبت شده است؟" }, "operations": { "label": "عملیات تجارتی", "description": "مشتریان، خدمات، قراردادها، مراجعین، شرکت‌ها و تحویل.", "question": "آیا تقاضا به کار متعهد و تکمیل‌شده تبدیل می‌شود؟" } },
-        "filters": { "analysisWindow": "بازه تحلیل", "thisMonth": "این ماه", "thirtyDays": "۳۰ روز", "quarter": "سه‌ماهه", "year": "سال", "allTime": "تمام مدت", "filters": "فیلترها", "startDate": "تاریخ شروع", "endDate": "تاریخ ختم", "employee": "کارمند", "office": "دفتر", "customer": "مشتری", "currency": "ارز", "taskBoard": "بورد وظایف", "contractType": "نوع قرارداد", "attendanceState": "وضعیت حاضری", "status": "وضعیت", "runAnalysis": "اجرای تحلیل" },
-        "common": { "minutesShort": "{value} دقیقه", "hoursShort": "{value} ساعت", "unspecified": "مشخص نشده", "notAvailable": "—", "yes": "بلی", "no": "نخیر" },
-        "metrics": { "billedValue": "مبلغ صورت‌حساب", "invoicesInPeriod": "{count} بل در این دوره", "cashCollected": "نقد وصول‌شده", "ofBilledValue": "{rate}٪ مبلغ صورت‌حساب", "noBilledValue": "در این بازه بل وجود ندارد", "outstanding": "باقی‌مانده", "collectionFollowup": "نیازمند پیگیری وصول", "noOpenBalance": "در این بازه مانده باز نیست", "netCashFlow": "جریان نقدی خالص", "spent": "{amount} مصرف شده", "payrollCost": "هزینه معاش", "payments": "{count} پرداخت", "bonuses": "امتیازات", "nominations": "{count} نامزدی", "deductions": "کسورات", "acrossSalaryPayments": "در پرداخت‌های معاش", "headcount": "تعداد کارمندان", "joinedInPeriod": "{count} استخدام در دوره", "attendanceRate": "نرخ حاضری", "presentRecords": "{count} ثبت حاضر", "workedTime": "وقت کاری", "netWorkingTime": "وقت خالص ثبت‌شده", "overtime": "اضافه‌کاری", "beyondSchedules": "بیشتر از برنامه لازم", "incompleteRecords": "ثبت‌های ناقص", "missingPunch": "ورود یا خروج ثبت نشده", "newCustomers": "مشتریان جدید", "addedInPeriod": "افزوده‌شده در این دوره", "visitors": "مراجعین", "commercialInterest": "علاقه تجارتی ثبت‌شده", "serviceCommitments": "تعهدهای خدمات", "activeCount": "{count} فعال", "deliveryRisk": "ریسک تحویل", "tasksInReport": "{count} وظیفه در گزارش" },
-        "charts": { "billed": "صورت‌حساب‌شده", "collected": "وصول‌شده", "spent": "مصرف‌شده", "payroll": "معاشات", "bonuses": "امتیازات", "workedHours": "ساعات کاری", "requiredHours": "ساعات لازم", "visitors": "مراجعین", "customers": "مشتریان", "contracts": "قراردادها", "taskDeadlines": "موعد وظایف", "noTrendData": "در این دوره داده روند وجود ندارد", "records": "رکوردها", "noBreakdown": "تفکیک داده موجود نیست" },
-        "insights": { "collectionCoverage": "پوشش وصول {rate}٪", "noBilledValue": "مبلغ صورت‌حساب وجود ندارد", "outstandingBody": "{amount} از بل‌های این بازه هنوز باقی است.", "createInvoices": "برای سنجش عملکرد وصول، بل ایجاد کنید.", "positiveCash": "جریان نقدی عملیاتی مثبت", "negativeCash": "جریان نقدی عملیاتی منفی", "cashPositionBody": "نقد دریافتی منهای مصارف ثبت‌شده {amount} است.", "leavePending": "{count} درخواست رخصتی در انتظار", "leavePendingBody": "پیش از نهایی‌کردن برنامه کاری، درخواست‌ها را بررسی کنید.", "peopleJoined": "{count} نفر استخدام شده", "headcountBody": "تعداد کارمندان شرکت {count} نفر است.", "incompleteSessions": "{count} جلسه ناقص", "incompleteSessionsBody": "ثبت‌های ناقص باید پیش از آماده‌سازی معاش اصلاح شوند.", "supportRequests": "{count} درخواست کمک", "supportRequestsBody": "موانع ذکرشده در گزارش روزانه نیازمند پیگیری مدیریت است.", "conversionRatio": "نرخ تبدیل مراجعه‌کننده به مشتری {rate}٪", "noVisitorActivity": "فعالیت مراجعه‌کننده وجود ندارد", "conversionBody": "در دوره انتخابی {visitors} مراجعه‌کننده و {customers} مشتری جدید ثبت شده.", "overdueRatio": "{rate}٪ وظایف گزارش‌شده تأخیری است", "noTaskCommitments": "تعهد وظیفه وجود ندارد", "overdueBody": "{overdue} از {tasks} وظیفه این گزارش نیازمند پیگیری است." },
-        "result": { "generatedAnalysis": "تحلیل تولیدشده", "detailedRows": "{count} ردیف جزئیات", "performanceOverTime": "عملکرد در طول زمان", "performanceSubtitle": "تغییر معیارهای انتخابی در بازه گزارش", "composition": "ترکیب", "operationsComposition": "سهم رکوردها بر اساس بخش کسب‌وکار", "resultComposition": "توزیع نتیجه فعلی", "traceableEvidence": "شواهد قابل ردیابی", "traceableEvidenceBody": "هر خلاصه زیر به رکوردهای دقیق استفاده‌شده در گزارش وصل است." },
-        "table": { "supportingRecords": "رکوردهای پشتیبان", "supportingRecordsSubtitle": "از خلاصه به شواهد سطح تراکنش بروید", "searchSection": "جست‌وجو در این بخش", "noMatchingRecords": "رکورد مطابق در این بخش نیست.", "rowsPerPage": "ردیف در هر صفحه", "matchingRows": "{count} ردیف مطابق" },
-        "errors": { "generate": "گزارش تولید نشد.", "export": "گزارش صادر نشد.", "print": "نسخه چاپی آماده نشد.", "catalog": "گزینه‌های گزارش بارگیری نشد." }
+        "header": {
+          "eyebrow": "مرکز گزارش‌دهی",
+          "title": "درک همه‌جانبه کسب‌وکار",
+          "subtitle": "شواهد را بررسی، عملکرد را مقایسه و گزارش آماده تصمیم‌گیری منتشر کنید.",
+          "exportCsv": "صدور CSV",
+          "printReport": "چاپ گزارش"
+        },
+        "profiles": {
+          "financial": {
+            "label": "عملکرد مالی",
+            "description": "صورت‌حساب، وصول، مصارف، وضعیت نقدی و دارایی‌ها.",
+            "question": "پول کجا جریان دارد و کجا متوقف شده؟"
+          },
+          "payroll": {
+            "label": "کارمندان و معاشات",
+            "description": "هزینه معاش، امتیازات، تغییرات نیروی کار و رخصتی.",
+            "question": "چه مقدار روی کارمندان سرمایه‌گذاری می‌کنیم؟"
+          },
+          "attendance": {
+            "label": "وقت و حاضری",
+            "description": "حضور، ساعات، اضافه‌کاری، استثناها و گزارش‌های روزانه.",
+            "question": "آیا تیم حاضر، مؤثر و درست ثبت شده است؟"
+          },
+          "operations": {
+            "label": "عملیات تجارتی",
+            "description": "مشتریان، خدمات، قراردادها، مراجعین، شرکت‌ها و تحویل.",
+            "question": "آیا تقاضا به کار متعهد و تکمیل‌شده تبدیل می‌شود؟"
+          }
+        },
+        "filters": {
+          "analysisWindow": "بازه تحلیل",
+          "thisMonth": "این ماه",
+          "thirtyDays": "۳۰ روز",
+          "quarter": "سه‌ماهه",
+          "year": "سال",
+          "allTime": "تمام مدت",
+          "filters": "فیلترها",
+          "startDate": "تاریخ شروع",
+          "endDate": "تاریخ ختم",
+          "employee": "کارمند",
+          "office": "دفتر",
+          "customer": "مشتری",
+          "currency": "ارز",
+          "taskBoard": "بورد وظایف",
+          "contractType": "نوع قرارداد",
+          "attendanceState": "وضعیت حاضری",
+          "status": "وضعیت",
+          "runAnalysis": "اجرای تحلیل"
+        },
+        "common": {
+          "minutesShort": "{value} دقیقه",
+          "hoursShort": "{value} ساعت",
+          "unspecified": "مشخص نشده",
+          "notAvailable": "—",
+          "yes": "بلی",
+          "no": "نخیر"
+        },
+        "metrics": {
+          "billedValue": "مبلغ صورت‌حساب",
+          "invoicesInPeriod": "{count} بل در این دوره",
+          "cashCollected": "نقد وصول‌شده",
+          "ofBilledValue": "{rate}٪ مبلغ صورت‌حساب",
+          "noBilledValue": "در این بازه بل وجود ندارد",
+          "outstanding": "باقی‌مانده",
+          "collectionFollowup": "نیازمند پیگیری وصول",
+          "noOpenBalance": "در این بازه مانده باز نیست",
+          "netCashFlow": "جریان نقدی خالص",
+          "spent": "{amount} مصرف شده",
+          "payrollCost": "هزینه معاش",
+          "payments": "{count} پرداخت",
+          "bonuses": "امتیازات",
+          "nominations": "{count} نامزدی",
+          "deductions": "کسورات",
+          "acrossSalaryPayments": "در پرداخت‌های معاش",
+          "headcount": "تعداد کارمندان",
+          "joinedInPeriod": "{count} استخدام در دوره",
+          "attendanceRate": "نرخ حاضری",
+          "presentRecords": "{count} ثبت حاضر",
+          "workedTime": "وقت کاری",
+          "netWorkingTime": "وقت خالص ثبت‌شده",
+          "overtime": "اضافه‌کاری",
+          "beyondSchedules": "بیشتر از برنامه لازم",
+          "incompleteRecords": "ثبت‌های ناقص",
+          "missingPunch": "ورود یا خروج ثبت نشده",
+          "newCustomers": "مشتریان جدید",
+          "addedInPeriod": "افزوده‌شده در این دوره",
+          "visitors": "مراجعین",
+          "commercialInterest": "علاقه تجارتی ثبت‌شده",
+          "serviceCommitments": "تعهدهای خدمات",
+          "activeCount": "{count} فعال",
+          "deliveryRisk": "ریسک تحویل",
+          "tasksInReport": "{count} وظیفه در گزارش"
+        },
+        "charts": {
+          "billed": "صورت‌حساب‌شده",
+          "collected": "وصول‌شده",
+          "spent": "مصرف‌شده",
+          "payroll": "معاشات",
+          "bonuses": "امتیازات",
+          "workedHours": "ساعات کاری",
+          "requiredHours": "ساعات لازم",
+          "visitors": "مراجعین",
+          "customers": "مشتریان",
+          "contracts": "قراردادها",
+          "taskDeadlines": "موعد وظایف",
+          "noTrendData": "در این دوره داده روند وجود ندارد",
+          "records": "رکوردها",
+          "noBreakdown": "تفکیک داده موجود نیست"
+        },
+        "insights": {
+          "collectionCoverage": "پوشش وصول {rate}٪",
+          "noBilledValue": "مبلغ صورت‌حساب وجود ندارد",
+          "outstandingBody": "{amount} از بل‌های این بازه هنوز باقی است.",
+          "createInvoices": "برای سنجش عملکرد وصول، بل ایجاد کنید.",
+          "positiveCash": "جریان نقدی عملیاتی مثبت",
+          "negativeCash": "جریان نقدی عملیاتی منفی",
+          "cashPositionBody": "نقد دریافتی منهای مصارف ثبت‌شده {amount} است.",
+          "leavePending": "{count} درخواست رخصتی در انتظار",
+          "leavePendingBody": "پیش از نهایی‌کردن برنامه کاری، درخواست‌ها را بررسی کنید.",
+          "peopleJoined": "{count} نفر استخدام شده",
+          "headcountBody": "تعداد کارمندان شرکت {count} نفر است.",
+          "incompleteSessions": "{count} جلسه ناقص",
+          "incompleteSessionsBody": "ثبت‌های ناقص باید پیش از آماده‌سازی معاش اصلاح شوند.",
+          "supportRequests": "{count} درخواست کمک",
+          "supportRequestsBody": "موانع ذکرشده در گزارش روزانه نیازمند پیگیری مدیریت است.",
+          "conversionRatio": "نرخ تبدیل مراجعه‌کننده به مشتری {rate}٪",
+          "noVisitorActivity": "فعالیت مراجعه‌کننده وجود ندارد",
+          "conversionBody": "در دوره انتخابی {visitors} مراجعه‌کننده و {customers} مشتری جدید ثبت شده.",
+          "overdueRatio": "{rate}٪ وظایف گزارش‌شده تأخیری است",
+          "noTaskCommitments": "تعهد وظیفه وجود ندارد",
+          "overdueBody": "{overdue} از {tasks} وظیفه این گزارش نیازمند پیگیری است."
+        },
+        "result": {
+          "generatedAnalysis": "تحلیل تولیدشده",
+          "detailedRows": "{count} ردیف جزئیات",
+          "performanceOverTime": "عملکرد در طول زمان",
+          "performanceSubtitle": "تغییر معیارهای انتخابی در بازه گزارش",
+          "composition": "ترکیب",
+          "operationsComposition": "سهم رکوردها بر اساس بخش کسب‌وکار",
+          "resultComposition": "توزیع نتیجه فعلی",
+          "traceableEvidence": "شواهد قابل ردیابی",
+          "traceableEvidenceBody": "هر خلاصه زیر به رکوردهای دقیق استفاده‌شده در گزارش وصل است."
+        },
+        "table": {
+          "supportingRecords": "رکوردهای پشتیبان",
+          "supportingRecordsSubtitle": "از خلاصه به شواهد سطح تراکنش بروید",
+          "searchSection": "جست‌وجو در این بخش",
+          "noMatchingRecords": "رکورد مطابق در این بخش نیست.",
+          "rowsPerPage": "ردیف در هر صفحه",
+          "matchingRows": "{count} ردیف مطابق"
+        },
+        "errors": {
+          "generate": "گزارش تولید نشد.",
+          "export": "گزارش صادر نشد.",
+          "print": "نسخه چاپی آماده نشد.",
+          "catalog": "گزینه‌های گزارش بارگیری نشد."
+        }
       },
       "reports": {
         "reports": {
@@ -1762,7 +2251,46 @@
         "overdue": "گذشته از موعد",
         "averageProgress": "متوسط پیشرفت",
         "invoicedBase": "مبلغ صورت‌حساب‌شده",
-        "baseCurrency": "ارز پایه", "rate": "نرخ", "item": "قلم", "model": "مدل", "serialNumber": "شماره مسلسل", "assignedTo": "تحویل‌شده به", "condition": "وضعیت", "unitPrice": "قیمت واحد", "assetValue": "ارزش دارایی", "units": "واحدها", "needsAttention": "نیازمند توجه", "position": "سمت", "department": "بخش", "employmentType": "نوع استخدام", "joinDate": "تاریخ استخدام", "companyHeadcount": "تعداد کارمندان شرکت", "joinedInPeriod": "استخدام‌شده در دوره", "classification": "طبقه‌بندی", "requests": "درخواست‌ها", "granted": "تأییدشده", "pending": "در انتظار", "unpaid": "بدون معاش", "summary": "خلاصه", "achievements": "دستاوردها", "challenges": "چالش‌ها", "supportNeeded": "کمک مورد نیاز", "submitted": "ارسال‌شده", "supportRequested": "درخواست کمک", "deadline": "مهلت", "fee": "حق‌الزحمه", "commitments": "تعهدها", "active": "فعال", "industry": "صنعت", "city": "شهر", "representative": "نماینده", "baseAmountByBase": "مبلغ پایه بر اساس ارز", "outstandingByBase": "مانده بر اساس ارز", "deductionsByBase": "کسورات بر اساس ارز", "byCurrency": "بر اساس ارز", "averageProgress": "میانگین پیشرفت"
+        "baseCurrency": "ارز پایه",
+        "rate": "نرخ",
+        "item": "قلم",
+        "model": "مدل",
+        "serialNumber": "شماره مسلسل",
+        "assignedTo": "تحویل‌شده به",
+        "condition": "وضعیت",
+        "unitPrice": "قیمت واحد",
+        "assetValue": "ارزش دارایی",
+        "units": "واحدها",
+        "needsAttention": "نیازمند توجه",
+        "position": "سمت",
+        "department": "بخش",
+        "employmentType": "نوع استخدام",
+        "joinDate": "تاریخ استخدام",
+        "companyHeadcount": "تعداد کارمندان شرکت",
+        "joinedInPeriod": "استخدام‌شده در دوره",
+        "classification": "طبقه‌بندی",
+        "requests": "درخواست‌ها",
+        "granted": "تأییدشده",
+        "pending": "در انتظار",
+        "unpaid": "بدون معاش",
+        "summary": "خلاصه",
+        "achievements": "دستاوردها",
+        "challenges": "چالش‌ها",
+        "supportNeeded": "کمک مورد نیاز",
+        "submitted": "ارسال‌شده",
+        "supportRequested": "درخواست کمک",
+        "deadline": "مهلت",
+        "fee": "حق‌الزحمه",
+        "commitments": "تعهدها",
+        "active": "فعال",
+        "industry": "صنعت",
+        "city": "شهر",
+        "representative": "نماینده",
+        "baseAmountByBase": "مبلغ پایه بر اساس ارز",
+        "outstandingByBase": "مانده بر اساس ارز",
+        "deductionsByBase": "کسورات بر اساس ارز",
+        "byCurrency": "بر اساس ارز",
+        "averageProgress": "میانگین پیشرفت"
       }
     },
     "tasks": {
@@ -1810,7 +2338,10 @@
     },
     "audits": {
       "title": "تفتیش‌ها",
+      "scopeGuide": { "title": "چه چیز تفتیش می‌شود؟", "description": "هر بخش کاری پایین، رکوردهای مشخصی را که نظارت می‌کند نشان می‌دهد. فقط بخش‌هایی را غیرفعال کنید که تغییرات آینده‌شان به سابقه پاسخ‌گویی نیاز ندارد." },
+      "bulkUndo": { "event": "فقط تغییرات و حذف‌ها قابل برگرداندن هستند.", "newer": "یک تغییر جدیدتر برای یکی از این موارد وجود دارد. ابتدا آن تغییر را نیز انتخاب کنید." },
       "subtitle": "تغییرات مهم را بررسی کنید و تعیین نمایید کدام بخش‌های کاری تفتیش شوند.",
+      "bulk": { "selected": "{count} مورد تفتیش انتخاب‌شده", "reviewHint": "نحوه رسیدگی به موارد انتخاب‌شده را تعیین کنید.", "keep": "تأیید موارد", "undo": "برگرداندن موارد", "clear": "لغو انتخاب", "keepTitle": "موارد انتخاب‌شده تأیید شوند؟", "undoTitle": "موارد انتخاب‌شده برگردانده شوند؟", "keepText": "{count} تغییر انتخاب‌شده به‌عنوان بررسی‌شده در تاریخچه تفتیش نگهداری می‌شود.", "undoText": "تلاش می‌شود {count} رکورد انتخاب‌شده به مقدارهای قبلی برگردد. اگر بازگردانی هر تغییر امن نباشد، هیچ تغییری اعمال نمی‌شود.", "keptSuccess": "{count} تغییر انتخاب‌شده تأیید و تفتیش شد.", "undoneSuccess": "{count} تغییر انتخاب‌شده برگردانده و تفتیش شد.", "reviewError": "رسیدگی به موارد تفتیش انتخاب‌شده ممکن نشد. دوباره تلاش کنید." },
       "openPage": "باز کردن تفتیش‌ها",
       "sections": {
         "records": "موارد نیازمند تفتیش",
@@ -1926,7 +2457,8 @@
         "subtasks": "وظایف فرعی",
         "tags": "برچسب‌های وظایف",
         "task_attachments": "ضمیمه‌های وظایف",
-        "tasks": "وظایف",
+        "tasks": "پروژه‌ها",
+        "projects": "پروژه‌ها",
         "users": "کاربران",
         "visitors": "بازدیدکنندگان",
         "worthy_employees": "نامزدی‌های پاداش",
@@ -1992,9 +2524,79 @@
       "otherInformation": "معلومات دیگر",
       "moreChanges": "و {count} مورد دیگر",
       "valueSeparator": "·"
+    },
+    "support": {
+      "title": "مرکز پشتیبانی",
+      "intro": "آنچه رخ داده است را توضیح دهید. درخواست و فایل‌های پشتیبان شما در سابقه ذخیره و مستقیماً به صندوق پشتیبانی فرستاده می‌شود.",
+      "formTitle": "ارسال درخواست پشتیبانی",
+      "formSubtitle": "شدت را براساس تأثیر مشکل انتخاب کنید، نه فقط میزان ناراحت‌کننده‌بودن آن.",
+      "criticalNotice": "درخواست بحرانی برای اختلال عملیاتی یا خطر احتمالی دسترسی و داده است و در ایمیل پشتیبانی به‌روشنی مشخص می‌شود.",
+      "category": "در چه موردی کمک می‌خواهید؟",
+      "severity": "چقدر فوری است؟",
+      "subject": "خلاصه کوتاه",
+      "subjectPlaceholder": "برای نمونه: نمی‌توانم فاکتور را ذخیره کنم",
+      "description": "چه اتفاقی افتاد؟",
+      "descriptionPlaceholder": "نتیجه مورد انتظار، نتیجه واقعی و گام‌هایی که مشکل را تکرار می‌کند بنویسید.",
+      "attachments": "ضمیمه‌ها (اختیاری)",
+      "attachmentsHint": "حداکثر ۳ فایل، هر کدام ۵ مگابایت و مجموعاً ۱۰ مگابایت. تصویر، PDF، Office، CSV و متن پذیرفته می‌شود.",
+      "attachmentsPrivacy": "ضمیمه‌ها خصوصی نگه‌داشته می‌شوند و با درخواست شما فرستاده می‌شوند.",
+      "send": "ارسال درخواست",
+      "historyTitle": "درخواست‌های اخیر شما",
+      "historySubtitle": "فقط شما این سابقه را می‌بینید.",
+      "empty": "هنوز درخواست پشتیبانی نفرستاده‌اید.",
+      "open": "باز",
+      "categories": {
+        "technical": "مشکل فنی",
+        "account": "حساب یا دسترسی",
+        "billing": "حسابداری یا رکورد مالی",
+        "feature_request": "درخواست قابلیت",
+        "other": "موضوع دیگر"
+      },
+      "severities": {
+        "low": "کم",
+        "normal": "عادی",
+        "high": "بالا",
+        "critical": "بحرانی"
+      },
+      "severityChoices": {
+        "low": "کم — مزاحمت جزئی",
+        "normal": "عادی — نیاز به کمک",
+        "high": "بالا — کار متوقف است",
+        "critical": "بحرانی — خطر برای دسترسی، داده یا عملیات"
+      },
+      "severityHelp": {
+        "low": "مزاحمت کوچک است و کار شما را متوقف نمی‌کند.",
+        "normal": "برای بیشتر پرسش‌ها و مشکلات انتخاب درست است.",
+        "high": "بدون کمک نمی‌توانید کار مهم را تکمیل کنید.",
+        "critical": "فقط برای اختلال عملیاتی یا خطر احتمالی دسترسی و داده استفاده کنید."
+      },
+      "validation": {
+        "subjectMin": "حداقل ۵ نویسه وارد کنید.",
+        "descriptionMin": "لطفاً حداقل ۲۰ نویسه توضیح دهید."
+      },
+      "messages": {
+        "loadFailed": "درخواست‌های پشتیبانی بارگیری نشد.",
+        "sendFailed": "درخواست پشتیبانی ارسال نشد.",
+        "sent": "درخواست پشتیبانی {ticket} ارسال شد."
+      },
+      "guide": {
+        "title": "مرکز پشتیبانی",
+        "description": "از این صفحه برای فرستادن یک درخواست روشن استفاده کنید. دسته‌بندی، شدت، توضیحات و ضمیمه‌ها به پشتیبانی کمک می‌کند تا بدون حدس‌زدن مشکل را بررسی کند.",
+        "actionTitle": "یک درخواست مفید بفرستید",
+        "actionDescription": "شدت را براساس تأثیر عملیاتی انتخاب کنید، سپس نتیجه مورد انتظار، نتیجه واقعی و گام‌های تکرار را بنویسید. درخواست ذخیره و به صندوق پشتیبانی فرستاده می‌شود."
+      }
     }
   },
   "components": {
+    "fullDetails": {
+      "fieldAliases": { "availablequantity": "مقدار موجود", "allocatedquantity": "مقدار تخصیص‌یافته" },
+      "eyebrow": "{kind} · {count} جزئیات مفید", "recordFallback": "رکورد {id}", "footer": "جزئیات کاربردی نمایش داده می‌شوند؛ شناسه‌های داخلی دیتابیس پنهان هستند.",
+      "tabs": { "overview": "نمای کلی", "related": "مرتبط", "activity": "فعالیت" },
+      "recordKinds": { "invoice": "فاکتور", "receipt": "رسید", "payroll": "رکورد معاش", "contract": "قرارداد", "asset": "آیتم دارایی", "visitor": "بازدیدکننده", "employee": "کارمند", "customer": "مشتری", "record": "جزئیات رکورد" },
+      "sections": { "essentialTitle": "اطلاعات اساسی", "essentialDescription": "جزئیاتی که برای شناسایی و درک این رکورد نیاز است.", "notesTitle": "یادداشت و زمینه", "notesDescription": "اطلاعات پشتیبان به‌صورت کامل و بدون کوتاه‌شدن نمایش داده می‌شود.", "emptyOverview": "برای این رکورد اطلاعات قابل‌نمایش وجود ندارد.", "relatedTitle": "رکوردهای مرتبط", "relatedDescription": "نام‌ها و زمینهٔ مفید به‌جای شناسه‌های دیتابیس نمایش داده می‌شود.", "collectionDescription": "{count} رکورد مرتبط با جزئیات مفید نمایش داده شده است.", "activityTitle": "فعالیت رکورد", "activityDescription": "تاریخچهٔ چرخهٔ رکورد از اطلاعات روزمره جدا نمایش داده می‌شود." },
+      "values": { "active": "فعال", "inactive": "غیرفعال", "new": "جدید", "pending": "در انتظار", "approved": "تأییدشده", "paid": "پرداخت‌شده", "draft": "پیش‌نویس", "completed": "تکمیل‌شده", "cancelled": "لغوشده", "void": "باطل", "salaried": "معاش‌بگیر", "commission": "کمیسیونی" },
+      "fields": { "id": "شناسه", "name": "نام", "title": "عنوان", "type": "نوع", "status": "وضعیت", "condition": "شرایط", "state": "حالت", "code": "کد", "office": "دفتر", "employee": "کارمند", "customer": "مشتری", "company": "شرکت", "service": "خدمت", "currency": "واحد پول", "amount": "مبلغ", "fee": "هزینه", "quantity": "تعداد", "rate": "نرخ", "date": "تاریخ", "deadline": "مهلت", "description": "توضیحات", "notes": "یادداشت‌ها", "reason": "دلیل", "contact": "تماس", "email": "ایمیل", "phone": "تلفن", "address": "آدرس", "createdat": "ایجادشده در", "updatedat": "به‌روزرسانی‌شده در", "serialnumber": "شماره سریال", "model": "مدل", "asset": "دارایی", "invoicenumber": "شماره فاکتور", "receiptnumber": "شماره رسید", "payslipnumber": "شماره فیش", "contractnumber": "شماره قرارداد", "position": "سمت", "department": "بخش", "salary": "معاش", "employmenttype": "نوع استخدام", "joindate": "تاریخ شروع", "recordedby": "ثبت‌شده توسط", "addr": "آدرس", "basecurrshrt": "واحد پول پایه", "cnvcurrshrt": "واحد پول تراکنش" }
+    },
     "dataTablePageKpis": {
       "overview": "نمای کلی {title}",
       "scrollHint": "در صفحه‌های کوچک جدول‌ها را به‌صورت افقی پیمایش کنید",
@@ -2055,25 +2657,82 @@
       "currenciesRepresented": "ارزهای نمایندگی‌شده",
       "recordsCovered": "رکوردهای پوشش‌داده‌شده",
       "pages": {
-        "visitors": { "title": "بازدیدکنندگان", "description": "فعالیت بازدیدکنندگان را بررسی و برای هر ورود یک رکورد روشن نگهداری کنید." },
-        "assetInventory": { "title": "موجودی انبار", "description": "سطح موجودی، وضعیت و تخصیص‌ها را در یک مکان مشاهده کنید." },
-        "staffSalaries": { "title": "معاش کارمندان", "description": "رکوردهای معاش را بررسی و پرداخت‌های نیازمند توجه را پیدا کنید." },
-        "staffDirectory": { "title": "فهرست کارمندان", "description": "تیم، تخصیص‌ها و رکوردهای نیازمند پیگیری را مشاهده کنید." },
-        "users": { "title": "کاربران", "description": "دسترسی، دعوت‌نامه‌ها و وضعیت فعلی حساب‌های کاربری را مدیریت کنید." },
-        "positions": { "title": "موقعیت‌ها", "description": "نقش‌های تیم، سطح کارمندان و دسترس‌پذیری موقعیت‌ها را بررسی کنید." },
-        "paymentDetails": { "title": "جزئیات پرداخت", "description": "فعالیت پرداخت را بررسی و هر تراکنش را به‌سادگی قابل پیگیری نگه دارید." },
-        "paidTimeOff": { "title": "رخصتی با معاش", "description": "درخواست‌های رخصتی را بررسی و تأییدهای باقی‌مانده را آسان پیدا کنید." },
-        "invoiceOptions": { "title": "گزینه‌های فاکتور", "description": "گزینه‌های قابل استفاده مجدد صورتحساب را پیکربندی و روند فاکتور را یکسان نگه دارید." },
-        "hrOptions": { "title": "گزینه‌های منابع بشری", "description": "تنظیمات قابل استفاده مجدد برای عملیات منابع بشری را مدیریت کنید." },
-        "financeOptions": { "title": "گزینه‌های مالی", "description": "پیش‌فرض‌های مالی را برای عملیات روزمره منظم و آماده نگه دارید." },
-        "contractOptions": { "title": "گزینه‌های قرارداد", "description": "الگوها و پیش‌فرض‌های قابل استفاده مجدد برای قراردادها را نگهداری کنید." },
-        "services": { "title": "خدمات", "description": "فهرست خدمات را مدیریت و وضعیت فعلی آن را به‌سرعت بررسی کنید." },
-        "invoices": { "title": "فاکتورها", "description": "فعالیت صورتحساب را از فاکتورهای پرداخت‌شده تا موارد نیازمند توجه قابل مشاهده نگه دارید." },
-        "companies": { "title": "شرکت‌ها", "description": "طرف‌های قرارداد، جزئیات آن‌ها و توافق‌های مرتبط را مدیریت کنید." },
-        "cancelledContracts": { "title": "قراردادهای لغوشده", "description": "توافق‌های بسته‌شده را بررسی و سوابق لغو را به‌سادگی قابل تفتیش نگه دارید." },
-        "customerDirectory": { "title": "فهرست مشتریان", "description": "رابطه با مشتریان و خدمات فعال آن‌ها را در یک نگاه پیگیری کنید." },
-        "contracts": { "title": "قراردادها", "description": "سبد فعلی قراردادها را ببینید و رکوردهای نیازمند پیگیری را پیدا کنید." },
-        "policyLibrary": { "title": "کتابخانه پالیسی", "description": "بندهای قابل استفاده مجدد قرارداد را برای هر توافق منظم و آماده نگه دارید." }
+        "visitors": {
+          "title": "بازدیدکنندگان",
+          "description": "فعالیت بازدیدکنندگان را بررسی و برای هر ورود یک رکورد روشن نگهداری کنید."
+        },
+        "assetInventory": {
+          "title": "موجودی انبار",
+          "description": "سطح موجودی، وضعیت و تخصیص‌ها را در یک مکان مشاهده کنید."
+        },
+        "staffSalaries": {
+          "title": "معاش کارمندان",
+          "description": "رکوردهای معاش را بررسی و پرداخت‌های نیازمند توجه را پیدا کنید."
+        },
+        "staffDirectory": {
+          "title": "فهرست کارمندان",
+          "description": "تیم، تخصیص‌ها و رکوردهای نیازمند پیگیری را مشاهده کنید."
+        },
+        "users": {
+          "title": "کاربران",
+          "description": "دسترسی، دعوت‌نامه‌ها و وضعیت فعلی حساب‌های کاربری را مدیریت کنید."
+        },
+        "positions": {
+          "title": "موقعیت‌ها",
+          "description": "نقش‌های تیم، سطح کارمندان و دسترس‌پذیری موقعیت‌ها را بررسی کنید."
+        },
+        "paymentDetails": {
+          "title": "جزئیات پرداخت",
+          "description": "فعالیت پرداخت را بررسی و هر تراکنش را به‌سادگی قابل پیگیری نگه دارید."
+        },
+        "paidTimeOff": {
+          "title": "رخصتی با معاش",
+          "description": "درخواست‌های رخصتی را بررسی و تأییدهای باقی‌مانده را آسان پیدا کنید."
+        },
+        "invoiceOptions": {
+          "title": "گزینه‌های فاکتور",
+          "description": "گزینه‌های قابل استفاده مجدد صورتحساب را پیکربندی و روند فاکتور را یکسان نگه دارید."
+        },
+        "hrOptions": {
+          "title": "گزینه‌های منابع بشری",
+          "description": "تنظیمات قابل استفاده مجدد برای عملیات منابع بشری را مدیریت کنید."
+        },
+        "financeOptions": {
+          "title": "گزینه‌های مالی",
+          "description": "پیش‌فرض‌های مالی را برای عملیات روزمره منظم و آماده نگه دارید."
+        },
+        "contractOptions": {
+          "title": "گزینه‌های قرارداد",
+          "description": "الگوها و پیش‌فرض‌های قابل استفاده مجدد برای قراردادها را نگهداری کنید."
+        },
+        "services": {
+          "title": "خدمات",
+          "description": "فهرست خدمات را مدیریت و وضعیت فعلی آن را به‌سرعت بررسی کنید."
+        },
+        "invoices": {
+          "title": "فاکتورها",
+          "description": "فعالیت صورتحساب را از فاکتورهای پرداخت‌شده تا موارد نیازمند توجه قابل مشاهده نگه دارید."
+        },
+        "companies": {
+          "title": "شرکت‌ها",
+          "description": "طرف‌های قرارداد، جزئیات آن‌ها و توافق‌های مرتبط را مدیریت کنید."
+        },
+        "cancelledContracts": {
+          "title": "قراردادهای لغوشده",
+          "description": "توافق‌های بسته‌شده را بررسی و سوابق لغو را به‌سادگی قابل تفتیش نگه دارید."
+        },
+        "customerDirectory": {
+          "title": "فهرست مشتریان",
+          "description": "رابطه با مشتریان و خدمات فعال آن‌ها را در یک نگاه پیگیری کنید."
+        },
+        "contracts": {
+          "title": "قراردادها",
+          "description": "سبد فعلی قراردادها را ببینید و رکوردهای نیازمند پیگیری را پیدا کنید."
+        },
+        "policyLibrary": {
+          "title": "کتابخانه پالیسی",
+          "description": "بندهای قابل استفاده مجدد قرارداد را برای هر توافق منظم و آماده نگه دارید."
+        }
       }
     },
     "taskManager": {
@@ -2135,6 +2794,7 @@
         "linkedServices": "خدمات مرتبط",
         "selectProjectWorkspace": "انتخاب فضای کاری پروژه"
       },
+      "projectPortfolio": { "tab": "پروژه‌ها", "title": "سبد پروژه‌ها", "subtitle": "مالکیت مشتری، خدمات انتخاب‌شده، زمان‌بندی و حجم کار در یک نما.", "total": "مجموع پروژه‌ها", "active": "تحویل فعال", "attention": "نیازمند توجه", "openWorkspace": "باز کردن فضای کاری", "headers": { "project": "پروژه", "customer": "مشتری", "services": "خدمات", "tasks": "وظایف", "due": "موعد", "status": "وضعیت" }, "statuses": { "active": "فعال", "on_hold": "متوقف", "completed": "تکمیل‌شده", "archived": "بایگانی" } },
       "calendarview": {
         "scheduleTimelineView": "نمای خط زمانی برنامه‌ریزی",
         "dragDropActive": "قابلیت کشیدن و رها کردن فعال است",
@@ -2427,7 +3087,13 @@
         "contractPolicies": "پالیسی‌های قرارداد",
         "currencies": "اسعار / ارزها",
         "financeOptions": "گزینه‌های مالی",
-        "trySearchingFor": "این را جستجو کنید:"
+        "trySearchingFor": "این را جستجو کنید:",
+        "openCommandPalette": "باز کردن جستجو",
+        "searchAndCommands": "جستجو و فرمان‌ها",
+        "commandPalette": "جستجو و فرمان‌ها",
+        "searchCommandsAndModules": "جستجوی فرمان‌ها و بخش‌ها",
+        "recent": "اخیراً بازدیدشده",
+        "noResultsFor": "نتیجه‌ای یافت نشد برای"
       },
       "userprofile": {
         "myAccount": "حساب من",
@@ -2829,7 +3495,10 @@
         "office_has_asset": "برای این دفتر موجودی ثبت شده است و قابل حذف نیست.",
         "contract_template_in_use": "قالب‌هایی که در قراردادها استفاده شده‌اند قابل حذف نیستند.",
         "base_currency_cannot_be_deleted": "واحد پول پایه قابل حذف نیست.",
-        "currency_in_use": "واحدهای پولی استفاده‌شده در خدمات، فاکتورها، معاش‌ها، درآمدها یا مصارف قابل حذف نیستند."
+        "currency_in_use": "واحدهای پولی استفاده‌شده در خدمات، فاکتورها، معاش‌ها، درآمدها یا مصارف قابل حذف نیستند.",
+        "support_recipient_not_configured": "ایمیل پشتیبانی هنوز تنظیم نشده است. از مدیر بخواهید SUPPORT_TICKET_RECIPIENT را تنظیم کند.",
+        "support_email_delivery_failed": "درخواست پشتیبانی شما ارسال نشد. چیزی ثبت نشده است؛ لطفاً کمی بعد دوباره تلاش کنید.",
+        "support_attachment_total_exceeded": "مجموع ضمیمه‌ها نباید بیشتر از ۱۰ مگابایت باشد."
       },
       "auth": {
         "email_verification_required": "پیش از ورود، آدرس ایمیل خود را تایید کنید.",
@@ -3017,18 +3686,65 @@
       "description": "یادآوری‌های خودکار و کارهای تکراری را در برنامه نگه دارید.",
       "subtitle": "یک‌بار تنظیم کنید؛ برنامه هنگام سررسید به شما یادآوری می‌کند.",
       "create": "ایجاد رویداد تکراری",
-      "name": "نام", "type": "نوع", "schedule": "برنامه", "nextOccurrence": "رخداد بعدی", "timeRemaining": "زمان باقی‌مانده",
-      "eventType": "نوع رویداد تکراری", "namePlaceholder": "مثلاً کرایه ماهانه دفتر", "frequency": "تناوب", "repeat": "تکرار", "every": "هر", "firstOccurrence": "اولین رخداد", "taskTitle": "عنوان وظیفه", "board": "بورد",
+      "name": "نام",
+      "type": "نوع",
+      "schedule": "برنامه",
+      "nextOccurrence": "رخداد بعدی",
+      "timeRemaining": "زمان باقی‌مانده",
+      "eventType": "نوع رویداد تکراری",
+      "namePlaceholder": "مثلاً کرایه ماهانه دفتر",
+      "frequency": "تناوب",
+      "repeat": "تکرار",
+      "every": "هر",
+      "firstOccurrence": "اولین رخداد",
+      "taskTitle": "عنوان وظیفه",
+      "board": "بورد",
       "descriptionPlaceholder": "جزئیاتی را اضافه کنید که هنگام سررسید این رویداد مفید باشد.",
-      "currencyPermissionRequired": "اجازه دیدن ارزها را ندارید.", "boardPermissionRequired": "اجازه دیدن هیچ بوردی را ندارید.",
-      "everyFrequency": "هر {count} {frequency}", "overdueBy": "{count} روز تأخیر", "dueToday": "امروز سررسید است", "dueTomorrow": "فردا سررسید است", "inDays": "در {count} روز",
-      "occurrenceHistory": "تاریخچه رخدادها", "result": "نتیجه", "execute": "اجرا", "skip": "رد کردن",
-      "eventTypes": { "income": "درآمد", "expense": "مصرف", "task": "وظیفه" },
-      "frequencies": { "daily": "روزانه", "weekly": "هفتگی", "monthly": "ماهانه", "yearly": "سالانه" },
-      "frequencyLabels": { "daily": "روزانه", "weekly": "هفتگی", "monthly": "ماهانه", "yearly": "سالانه" },
-      "recordTypes": { "service": "خدمت", "product": "محصول", "investment": "سرمایه‌گذاری", "other": "سایر" },
-      "statuses": { "pending": "در انتظار", "notified": "اطلاع داده شد", "completed": "تکمیل شد", "skipped": "رد شد" },
-      "eventStatuses": { "active": "فعال", "paused": "متوقف", "completed": "تکمیل شد" }
+      "currencyPermissionRequired": "اجازه دیدن ارزها را ندارید.",
+      "boardPermissionRequired": "اجازه دیدن هیچ بوردی را ندارید.",
+      "everyFrequency": "هر {count} {frequency}",
+      "overdueBy": "{count} روز تأخیر",
+      "dueToday": "امروز سررسید است",
+      "dueTomorrow": "فردا سررسید است",
+      "inDays": "در {count} روز",
+      "occurrenceHistory": "تاریخچه رخدادها",
+      "result": "نتیجه",
+      "execute": "اجرا",
+      "skip": "رد کردن",
+      "eventTypes": {
+        "income": "درآمد",
+        "expense": "مصرف",
+        "task": "وظیفه"
+      },
+      "frequencies": {
+        "daily": "روزانه",
+        "weekly": "هفتگی",
+        "monthly": "ماهانه",
+        "yearly": "سالانه"
+      },
+      "frequencyLabels": {
+        "daily": "روزانه",
+        "weekly": "هفتگی",
+        "monthly": "ماهانه",
+        "yearly": "سالانه"
+      },
+      "recordTypes": {
+        "service": "خدمت",
+        "product": "محصول",
+        "investment": "سرمایه‌گذاری",
+        "other": "سایر"
+      },
+      "statuses": {
+        "pending": "در انتظار",
+        "notified": "اطلاع داده شد",
+        "completed": "تکمیل شد",
+        "skipped": "رد شد"
+      },
+      "eventStatuses": {
+        "active": "فعال",
+        "paused": "متوقف",
+        "completed": "تکمیل شد"
+      }
     }
   }
 }

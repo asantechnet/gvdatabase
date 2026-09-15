@@ -87,7 +87,7 @@ compAttrs.config = {
   // Keep Flatpickr in its document portal. Moving its calendar after Flatpickr
   // has calculated coordinates changes the offset parent and causes the popup
   // to appear at the edge of dialogs/menus, especially in RTL layouts.
-  static: false,
+  static: suppliedConfig.static ?? false,
   disableMobile: suppliedConfig.disableMobile ?? true,
   onReady: suppliedReady,
   prevArrow: '<i class="tabler-chevron-left v-icon" style="font-size: 20px; height: 20px; width: 20px;"></i>',
@@ -427,6 +427,20 @@ input[altinputclass="inlinePicker"] {
       font-size: 0.9375rem;
     }
   }
+}
+
+// Dialog pickers use Flatpickr's static mode to avoid incorrect body-level
+// coordinates when a Vuetify dialog has transforms or scrolling.
+.flatpickr-wrapper {
+  position: relative;
+  overflow: visible !important;
+}
+
+.app-picker-field,
+.app-picker-field .v-input,
+.app-picker-field .v-input__control,
+.app-picker-field .v-field {
+  overflow: visible !important;
 }
 
 .v-theme--dark .flatpickr-calendar {

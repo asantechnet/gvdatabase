@@ -18,6 +18,12 @@ class CustomerServiceResource extends JsonResource
                 'id' => $this->employee->id,
                 'name' => $this->employee->name,
             ] : null),
+            'employee_ids' => $this->whenLoaded('deliveryEmployees', fn () => $this->deliveryEmployees->pluck('id')->values()),
+            'employees' => $this->whenLoaded('deliveryEmployees', fn () => $this->deliveryEmployees->map(fn ($employee) => [
+                'id' => $employee->id,
+                'name' => $employee->name,
+                'percentage' => (float) $employee->pivot->percentage,
+            ])->values()),
             'marketer_id' => $this->marketer_id,
             'marketer' => $this->whenLoaded('marketer', fn () => $this->marketer ? [
                 'id' => $this->marketer->id,

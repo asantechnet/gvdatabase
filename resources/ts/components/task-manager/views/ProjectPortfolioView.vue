@@ -1,12 +1,24 @@
 <script setup lang="ts">
 import type { Project } from '@/api/project'
 
+const { t } = useI18n()
+
 const props = defineProps<{ projects: Project[] }>()
 const emit = defineEmits<{ select: [id: number] }>()
 const active = computed(() => props.projects.filter(project => project.status === 'active').length)
 const overdue = computed(() => props.projects.filter(project => project.status !== 'completed' && project.due_date && new Date(project.due_date) < new Date()).length)
 const taskCount = (project: Project) => project.boards?.reduce((sum, board) => sum + (board.tasks?.length ?? 0), 0) ?? 0
 const statusColor = (status: string) => ({ active: 'success', on_hold: 'warning', completed: 'primary', archived: 'secondary' }[status] || 'secondary')
+const statusLabel = (status: string) => t(`components.taskManager.projectPortfolio.statuses.${status}`)
+const headers = computed(() => [
+  { title: t('components.taskManager.projectPortfolio.headers.project'), key: 'name' },
+  { title: t('components.taskManager.projectPortfolio.headers.customer'), key: 'customer.name' },
+  { title: t('components.taskManager.projectPortfolio.headers.services'), key: 'services' },
+  { title: t('components.taskManager.projectPortfolio.headers.tasks'), key: 'tasks' },
+  { title: t('components.taskManager.projectPortfolio.headers.due'), key: 'due_date' },
+  { title: t('components.taskManager.projectPortfolio.headers.status'), key: 'status' },
+  { title: '', key: 'actions', sortable: false },
+])
 </script>
 
 <template>
@@ -19,7 +31,7 @@ const statusColor = (status: string) => ({ active: 'success', on_hold: 'warning'
         <VCard border>
           <VCardText>
             <div class="text-caption">
-              Total portfolio
+              {{ t('components.taskManager.projectPortfolio.total') }}
             </div><div class="text-h4 font-weight-bold">
               {{ projects.length }}
             </div>
@@ -32,7 +44,7 @@ const statusColor = (status: string) => ({ active: 'success', on_hold: 'warning'
         <VCard border>
           <VCardText>
             <div class="text-caption">
-              Active delivery
+              {{ t('components.taskManager.projectPortfolio.active') }}
             </div><div class="text-h4 font-weight-bold text-success">
               {{ active }}
             </div>
@@ -45,7 +57,7 @@ const statusColor = (status: string) => ({ active: 'success', on_hold: 'warning'
         <VCard border>
           <VCardText>
             <div class="text-caption">
-              Needs attention
+              {{ t('components.taskManager.projectPortfolio.attention') }}
             </div><div class="text-h4 font-weight-bold text-error">
               {{ overdue }}
             </div>
@@ -54,10 +66,10 @@ const statusColor = (status: string) => ({ active: 'success', on_hold: 'warning'
       </VCol>
     </VRow>
     <VCard border>
-      <VCardTitle>Project portfolio</VCardTitle><VCardSubtitle>Customer ownership, selected services, schedule, and workload in one view.</VCardSubtitle>
+      <VCardTitle>{{ t('components.taskManager.projectPortfolio.title') }}</VCardTitle><VCardSubtitle>{{ t('components.taskManager.projectPortfolio.subtitle') }}</VCardSubtitle>
       <ResponsiveDataTable
         :items="projects"
-        :headers="[{ title: 'Project', key: 'name' }, { title: 'Customer', key: 'customer.name' }, { title: 'Services', key: 'services' }, { title: 'Tasks', key: 'tasks' }, { title: 'Due', key: 'due_date' }, { title: 'Status', key: 'status' }, { title: '', key: 'actions', sortable: false }]"
+        :headers="headers"
       >
         <template #item.name="{ item }">
           <div class="font-weight-bold">
@@ -100,7 +112,7 @@ const statusColor = (status: string) => ({ active: 'success', on_hold: 'warning'
             size="small"
             variant="tonal"
           >
-            {{ item.status.replace('_', ' ') }}
+            {{ statusLabel(item.status) }}
           </VChip>
         </template>
         <template #item.actions="{ item }">
@@ -109,7 +121,7 @@ const statusColor = (status: string) => ({ active: 'success', on_hold: 'warning'
             variant="tonal"
             @click="emit('select', item.id)"
           >
-            Open workspace
+            {{ t('components.taskManager.projectPortfolio.openWorkspace') }}
           </VBtn>
         </template>
       </ResponsiveDataTable>

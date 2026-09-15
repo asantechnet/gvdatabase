@@ -696,7 +696,7 @@ const removeInteraction = async (interaction: Interaction) => {
             <AppDateTimePicker
               v-model="form.contacted_at"
               :label="$t('common.crmDetails.contactedAt')"
-              :config="{ enableTime: true, dateFormat: 'Y-m-d H:i' }"
+              :config="{ dateFormat: 'Y-m-d' }"
             />
           </VCol>
           <VCol

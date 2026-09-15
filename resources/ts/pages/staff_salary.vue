@@ -758,7 +758,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
               {{ item.currency?.symbol || '' }} {{ item.currency?.code || item.cnvCurrShrt || '—' }}
             </VChip>
             <div class="text-caption text-medium-emphasis mt-1">
-              Payment currency at booking · rate {{ item.rate }}
+              {{ $t('common.crmUi.paymentCurrencyBookingRate', { rate: item.rate }) }}
             </div>
           </template>
 
@@ -822,9 +822,9 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
     </VCard>
 
     <PrintableListReport
-      title="Staff Salaries Report"
-      subtitle="Filtered salary payments"
-      :columns="['Payslip', 'Employee', 'Pay month', 'Worked days', 'Currency', 'Total paid', 'Date']"
+      :title="$t('common.crmUi.printReports.salaries.title')"
+      :subtitle="$t('common.crmUi.printReports.salaries.subtitle')"
+      :columns="[$t('common.crmUi.printReports.columns.payslip'), $t('common.crmUi.printReports.columns.employee'), $t('common.crmUi.printReports.columns.payMonth'), $t('common.crmUi.printReports.columns.workedDays'), $t('common.crmUi.printReports.columns.currency'), $t('common.crmUi.printReports.columns.totalPaid'), $t('common.crmUi.printReports.columns.date')]"
       :rows="filteredSalaries.map(salary => [salary.payslip_number, salary.employeeName, salary.salaryMonth, `${salary.workedDays}/${salary.totalDays}`, salary.currency?.code, formatSalaryAmount(salary.totalAmount, salary.currency), salary.date])"
     />
 

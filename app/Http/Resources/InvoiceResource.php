@@ -41,7 +41,6 @@ class InvoiceResource extends JsonResource
                 'address' => $this->customer_address,
                 'tax_number' => $this->customer_tax_number,
             ],
-            'class-type' => $this->class_type,
             'deptor' => $this->deptor,
             'status' => $this->status,
             'issue_date' => $this->issue_date?->format('Y-m-d'),
@@ -94,6 +93,11 @@ class InvoiceResource extends JsonResource
                 'commission_employee_id' => $service->pivot->employee_id,
                 'commission_percentage' => $service->pivot->snapshot_commission_percentage !== null
                     ? (float) $service->pivot->snapshot_commission_percentage : null,
+                'commission_recipients' => $service->pivot->commissionRecipients->map(fn ($employee) => [
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employee->name,
+                    'percentage' => (float) $employee->pivot->percentage,
+                ])->values(),
                 'source_fee' => (float) $service->pivot->snapshot_service_fee,
                 'source_currency' => [
                     'code' => $service->pivot->snapshot_service_currency_code,

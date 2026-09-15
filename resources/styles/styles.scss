@@ -117,6 +117,43 @@ html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__progress-bar {
   padding: 1rem;
 }
 
+// Driver.js is mounted directly under <body>, outside Vuetify. It therefore
+// needs an explicit script-font and bidi treatment instead of relying on
+// component inheritance from VApp.
+html.locale-persian-script .driver-popover,
+html.locale-persian-script .driver-popover * {
+  font-family: Vazirmatn, Estedad, 'Public Sans', sans-serif !important;
+}
+
+html.locale-persian-script .driver-popover {
+  direction: rtl;
+  text-align: start;
+  line-height: 1.8;
+}
+
+html.locale-persian-script .driver-popover-title,
+html.locale-persian-script .driver-popover-description {
+  text-align: start;
+}
+
+html.locale-persian-script .driver-popover-title {
+  padding-inline-end: 3rem;
+}
+
+html.locale-persian-script .driver-popover-close-btn {
+  // Driver.js sets `right: 0`; explicitly switch the physical side for RTL
+  // instead of combining logical and physical insets on the same element.
+  inset-inline-start: auto;
+  inset-inline-end: auto;
+  right: auto !important;
+  left: .7rem !important;
+  padding: .5rem;
+}
+
+html.locale-persian-script .driver-popover-footer {
+  direction: rtl;
+}
+
 .driver-popover-title {
   color: rgb(var(--v-theme-on-surface)) !important;
   font-size: 1rem !important;
@@ -132,11 +169,24 @@ html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__progress-bar {
 
 .driver-popover-close-btn {
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)) !important;
-  inset-inline-end: 0.5rem;
-  right: auto;
+  top: .55rem !important;
+  right: .7rem !important;
+  left: auto !important;
 }
 
-.driver-popover-close-btn:hover,
+// Honour an RTL document even if it is not one of the application's bundled
+// Persian-script locales.
+html[dir='rtl'] .driver-popover-close-btn {
+  right: auto !important;
+  left: .7rem !important;
+}
+
+.driver-popover-close-btn:hover {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  outline: none;
+}
+
+// Keep a non-mouse accessibility cue without showing a hover border.
 .driver-popover-close-btn:focus-visible {
   color: rgb(var(--v-theme-on-surface)) !important;
   outline: 2px solid rgb(var(--v-theme-primary));
@@ -179,9 +229,14 @@ html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__progress-bar {
   color: rgb(var(--v-theme-on-primary)) !important;
 }
 
+.driver-popover-navigation-btns {
+  gap: .5rem;
+}
+
 .driver-popover-navigation-btns button + button {
-  margin-inline-start: 0.4rem;
-  margin-left: 0;
+  // Driver.js uses margin-left by default, which collapses or reverses in
+  // RTL. Flex gap is direction-agnostic and works in both layouts.
+  margin: 0 !important;
 }
 
 .driver-popover-arrow {
@@ -208,6 +263,61 @@ html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__progress-bar {
 [dir='rtl'] .layout-vertical-nav .nav-item-icon {
   margin-left: 0.5rem !important;
   margin-inline-end: 0.5rem !important;
+}
+
+// Horizontal menus are teleported out of their scroll container so they are
+// never clipped. They therefore need their visual menu contract at the
+// teleported root rather than only through the original parent selector.
+.horizontal-nav-popper-content {
+  z-index: 1002;
+  border-radius: 6px;
+  background: rgb(var(--v-theme-surface));
+  box-shadow: 0 0.25rem 1rem rgba(var(--v-theme-on-surface), 0.18);
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+  padding-block: 0.3rem;
+
+  > div {
+    max-block-size: calc(100dvh - 8rem);
+    overflow: auto;
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .nav-link.sub-item,
+  .nav-group.sub-item {
+    min-inline-size: 12rem;
+  }
+
+  .nav-link a,
+  .nav-group-label {
+    display: flex;
+    align-items: center;
+    color: inherit;
+    padding: 0.6rem 1rem;
+    text-decoration: none;
+  }
+
+  .nav-link a:hover,
+  .nav-group-label:hover {
+    background: rgba(var(--v-theme-primary), 0.08);
+  }
+
+  .nav-link a.router-link-active {
+    background: rgba(var(--v-theme-primary), 0.1);
+    color: rgb(var(--v-theme-primary));
+  }
+
+  .nav-item-icon {
+    font-size: 1.5rem;
+    margin-inline-end: 0.625rem;
+  }
+
+  .nav-group-label { cursor: pointer; }
+  .nav-group-arrow { margin-inline-start: auto; }
 }
 
 // Shared form rhythm for the application's operational workflows.
@@ -440,7 +550,17 @@ html[dir='rtl'] .Vue-Toastification__toast .Vue-Toastification__progress-bar {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.045em;
   line-height: 1;
+  white-space: nowrap;
   text-shadow: 0 1px 0 rgba(var(--v-theme-surface), 0.5);
+}
+
+.data-table-kpi__value--money {
+  font-size: clamp(0.9rem, 2vw, 1.55rem);
+  letter-spacing: -0.055em;
+}
+
+.data-table-kpi__content--money {
+  padding-inline-end: 0;
 }
 
 .data-table-kpi__label {

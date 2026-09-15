@@ -1,6 +1,6 @@
 export default [
   {
-    title: 'common.navigation.tasks',
+    title: 'common.navigation.projects',
     icon: { icon: 'tabler-checklist' },
     to: 'tasks',
     action: 'read',

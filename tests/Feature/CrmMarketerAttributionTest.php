@@ -56,7 +56,7 @@ class CrmMarketerAttributionTest extends TestCase
     {
         [, $marketer] = $this->marketers();
         $visitor = Visitor::create([
-            'name' => 'Conversion contact', 'company' => 'Conversion Co', 'contact' => '+93700000003',
+            'name' => 'Conversion contact', 'company' => 'Conversion Co', 'contact' => '+93700000003', 'email' => 'conversion@example.test',
             'service' => 'Implementation', 'marketer' => $marketer->name, 'marketer_id' => $marketer->id,
             'date' => '2026-09-03',
         ]);

@@ -282,6 +282,18 @@ const setLink = () => {
   editorRef.chain().focus().extendMarkRange('link').setLink({ href: url, target: '_blank' }).run()
 }
 
+const handleToolbarWheel = (event: WheelEvent) => {
+  if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX))
+    return
+
+  const toolbar = event.currentTarget as HTMLElement
+  if (toolbar.scrollWidth <= toolbar.clientWidth)
+    return
+
+  toolbar.scrollLeft += event.deltaY
+  event.preventDefault()
+}
+
 defineExpose({
   getEditor: (): Editor | undefined => editor.value ?? undefined,
 })
@@ -294,7 +306,8 @@ defineExpose({
   >
     <div
       v-if="editor"
-      class="contract-editor__toolbar d-flex flex-wrap align-center gap-1 pa-2"
+      class="contract-editor__toolbar d-flex flex-nowrap align-center gap-1 pa-2"
+      @wheel="handleToolbarWheel"
     >
       <IconBtn
         size="small"
@@ -782,14 +795,21 @@ defineExpose({
 
   &__toolbar {
     background: rgba(var(--v-theme-surface), 1);
+    flex-wrap: nowrap;
+    max-inline-size: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    white-space: nowrap;
+
+    > * { flex: 0 0 auto; }
+
+    &::-webkit-scrollbar { display: none; }
   }
 
   @media (max-width: 760px) {
     &__toolbar {
-      flex-wrap: nowrap !important;
       overflow-x: auto;
-      overscroll-behavior-inline: contain;
-      scrollbar-width: thin;
     }
   }
 
@@ -805,9 +825,15 @@ defineExpose({
   &__toolbar-select {
     flex: 0 0 auto;
 
+    .v-field {
+      min-block-size: 36px;
+    }
+
     .v-field__input {
       --v-field-input-padding-top: 0;
       --v-field-input-padding-bottom: 0;
+      min-block-size: 34px;
+      padding-block: 0;
       align-items: center;
     }
 

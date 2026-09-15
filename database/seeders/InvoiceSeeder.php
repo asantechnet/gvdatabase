@@ -54,7 +54,6 @@ class InvoiceSeeder extends Seeder
                 'customer_id' => $customer->id,
                 'currency_id' => $currency->id,
                 'base_currency_id' => $currency->id,
-                'class_type' => 'Standard',
                 'deptor' => $customer->name,
                 'status' => 'Issued',
                 'tax_percent' => 0,

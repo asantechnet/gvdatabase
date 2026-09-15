@@ -9,10 +9,15 @@ use Illuminate\Http\Request;
 
 class ContractPolicyController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $query = ContractPolicy::query();
+        if (! $request->boolean('include_inactive')) {
+            $query->where('is_active', true);
+        }
+
         return response()->json(['success' => true, 'data' => ContractPolicyResource::collection(
-            ContractPolicy::query()->orderBy('type')->orderBy('label')->get()
+            $query->orderBy('type')->orderBy('label')->get()
         )]);
     }
 
@@ -53,6 +58,7 @@ class ContractPolicyController extends Controller
             // contexts the resolver understands. Keep API callers aligned
             // with the restricted select shown in the policy editor.
             'type' => ($partial ? 'sometimes' : 'required').'|in:employment,company,customer',
+            'is_active' => ['sometimes', 'boolean'],
             'header' => 'nullable|string|max:255',
             'content' => ($partial ? 'sometimes' : 'required').'|string',
         ]);

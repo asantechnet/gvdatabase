@@ -37,7 +37,8 @@ const templateToDelete = ref<number | null>(null)
 const editorRef = ref<InstanceType<typeof ContractContentEditor> | null>(null)
 const pristineTemplateState = ref('')
 
-const policies = computed(() => allPolicies.value.filter(policy => !policyIds.value.includes(policy.id)))
+const policies = computed(() => allPolicies.value.filter(policy =>
+  policy.is_active && policy.type === selectedType.value?.slug && !policyIds.value.includes(policy.id)))
 const selectedType = computed(() => contractTypes.value.find(type => type.id === contractTypeId.value) ?? null)
 const isEmployment = computed(() => selectedType.value?.slug === 'employment')
 const isSystemSlug = (slug: string) => SYSTEM_TYPE_SLUGS.includes(slug as typeof SYSTEM_TYPE_SLUGS[number])
@@ -112,7 +113,9 @@ const loadTemplates = async () => {
 }
 
 const loadPolicies = async () => {
-  try { allPolicies.value = await ContractPolicyApi.getAll() }
+  // Include inactive clauses only to retain a template's existing history;
+  // the picker itself exposes active, type-compatible clauses only.
+  try { allPolicies.value = await ContractPolicyApi.getAll(true) }
   catch (error) { console.error(error) }
 }
 
@@ -287,11 +290,11 @@ watch(locale, async () => {
                   color="primary"
                   variant="tonal"
                 >
-                  Document workspace
+                  {{ tr('documentWorkspace') }}
                 </VChip>
               </div>
               <p class="text-body-2 text-medium-emphasis mb-0">
-                Build a polished, reusable agreement and insert the right details when you need them.
+                {{ tr('heroDescription') }}
               </p>
             </div>
           </div>
@@ -299,8 +302,8 @@ watch(locale, async () => {
             <VSelect
               :model-value="templateId"
               :items="templates.map(item => ({ title: item.name, value: item.id, props: { subtitle: templateTypeName(item) } }))"
-              label="Open a saved template"
-              placeholder="Start a new template"
+              :label="tr('openSavedTemplate')"
+              :placeholder="tr('startNewTemplate')"
               prepend-inner-icon="tabler-folder-open"
               density="comfortable"
               variant="outlined"
@@ -327,7 +330,7 @@ watch(locale, async () => {
               color="primary"
               class="mr-2"
             />
-          </template><VCardTitle>Template details</VCardTitle><VCardSubtitle>Set the document context before writing its content.</VCardSubtitle><template #append>
+          </template><VCardTitle>{{ tr('templateDetails') }}</VCardTitle><VCardSubtitle>{{ tr('templateDetailsSubtitle') }}</VCardSubtitle><template #append>
             <VChip
               v-if="typeLabel"
               color="primary"
@@ -402,7 +405,7 @@ watch(locale, async () => {
               color="primary"
               class="mr-2"
             />
-          </template><VCardTitle>Document content</VCardTitle><VCardSubtitle>Use merge fields for information that changes from one contract to another.</VCardSubtitle>
+          </template><VCardTitle>{{ tr('documentContent') }}</VCardTitle><VCardSubtitle>{{ tr('documentContentSubtitle') }}</VCardSubtitle>
         </VCardItem>
         <VCardText class="pt-4">
           <VTextarea
@@ -420,12 +423,13 @@ watch(locale, async () => {
               <div class="text-subtitle-2 font-weight-bold">
                 {{ t('pages.settings.policies.policies.contractPOLICIESTERMS') }}
               </div><div class="text-caption text-medium-emphasis">
-                Select “Insert placeholder” in the editor to add context-aware fields.
+                {{ tr('placeholderHint') }}
               </div>
             </div><VAutocomplete
+              v-if="policies.length"
               v-model="selectedPolicyId"
               :items="policies.map(p => ({ title: `${p.type} · ${p.label}`, value: p.id }))"
-              label="Insert saved policy"
+              :label="tr('insertSavedPolicy')"
               density="compact"
               variant="outlined"
               hide-details
@@ -439,7 +443,7 @@ watch(locale, async () => {
             v-if="!policies.length"
             class="template-workspace__empty-policy-note text-caption text-medium-emphasis"
           >
-            No reusable policies are available yet. Create one in the Policy Library to reuse it here.
+            {{ tr('noReusablePolicies') }}
           </div>
           <ContractContentEditor
             ref="editorRef"
@@ -459,7 +463,7 @@ watch(locale, async () => {
           :disabled="isLoading"
           @click="confirmDelete(templateId)"
         >
-          Delete
+          {{ t('common.actions.delete') }}
         </VBtn><VBtn
           color="secondary"
           variant="tonal"
@@ -534,15 +538,14 @@ watch(locale, async () => {
   &__template-picker :deep(.v-input) { flex: 1 1 auto; }
   &__card { margin-block-end: 1.25rem; }
   &__editor-heading { margin-block-end: 0.5rem; }
-  &__editor-heading :deep(.v-input) { flex: 0 1 330px; }
-  &__editor-heading:has(+ &__empty-policy-note) :deep(.v-autocomplete) { display: none; }
+  &__editor-heading :deep(.v-input) { flex: 0 1 360px; inline-size: 360px; max-inline-size: 100%; }
   &__empty-policy-note { margin-block: 0 0.75rem; }
   &__actions { position: sticky; z-index: 2; inset-block-end: 1rem; justify-content: flex-end; flex-wrap: wrap; padding: 0.75rem; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: 0.75rem; background: rgba(var(--v-theme-surface), 0.96); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); backdrop-filter: blur(12px); }
 
   @media (max-width: 700px) {
     &__hero-grid, &__editor-heading { align-items: stretch; flex-direction: column; }
     &__template-picker { flex-basis: auto; }
-    &__editor-heading :deep(.v-input) { flex-basis: auto; }
+    &__editor-heading :deep(.v-input) { flex-basis: auto; inline-size: 100%; }
     &__actions { gap: 0.5rem; }
     &__actions :deep(.v-btn) { flex: 1 1 auto; }
   }

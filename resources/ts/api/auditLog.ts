@@ -28,6 +28,7 @@ export interface AuditLog {
   audited_at: string | null
   created_at: string
   can_revert: boolean
+  revert_blocked_by_id: number | null
 }
 
 export interface AuditResource {
@@ -88,6 +89,12 @@ export const reviewAuditLog = async (id: number, decision: 'approved' | 'discard
   return response.data.data as AuditLog
 }
 
+export const bulkReviewAuditLogs = async (auditIds: number[], decision: 'approved' | 'discarded'): Promise<number> => {
+  const response = await api.post('/audit-logs/bulk-review', { audit_ids: auditIds, decision })
+
+  return Number(response.data.data?.count ?? 0)
+}
+
 export const getAuditResources = async (params?: { page?: number; per_page?: number; state?: 'enabled' | 'disabled'; search?: string }): Promise<Paginated<AuditResource>> => {
   const response = await api.get('/audit-resources', { params })
 
@@ -100,4 +107,4 @@ export const updateAuditResource = async (id: number, enabled: boolean): Promise
   return response.data.data as AuditResource
 }
 
-export default { getAuditLogs, getAuditLog, getPendingAuditCount, reviewAuditLog, getAuditResources, updateAuditResource }
+export default { getAuditLogs, getAuditLog, getPendingAuditCount, reviewAuditLog, bulkReviewAuditLogs, getAuditResources, updateAuditResource }

@@ -48,7 +48,6 @@ export interface Invoice {
     address?: string
     tax_number?: string
   }
-  'class-type': 'Standard'
   services: InvoiceService[]
   deptor: string
   status: 'Issued' | 'Partially Paid' | 'Paid' | 'Overdue' | 'Void'
@@ -91,7 +90,6 @@ export interface CreateInvoiceData {
   customer_id: number
   currency_id: number
   rate: number
-  class_type: Invoice['class-type']
   issue_date?: string
   due_date?: string
   services: Array<{ customer_service_id: number; quantity: number }>

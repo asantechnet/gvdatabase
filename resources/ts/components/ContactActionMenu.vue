@@ -111,6 +111,7 @@ const actions = computed<ContactAction[]>(() => {
     </template>
 
     <VList
+      v-if="actions.length"
       density="compact"
       min-width="150"
     >
@@ -131,6 +132,17 @@ const actions = computed<ContactAction[]>(() => {
         </template>
         <VListItemTitle>{{ action.label }}</VListItemTitle>
       </VListItem>
+    </VList>
+    <VList
+      v-else
+      density="compact"
+      min-width="220"
+    >
+      <VListItem
+        prepend-icon="tabler-alert-circle"
+        :title="$t('common.crmUi.invalidPhone')"
+        :subtitle="$t('common.crmUi.invalidPhoneHint')"
+      />
     </VList>
   </VMenu>
 
@@ -160,10 +172,10 @@ const actions = computed<ContactAction[]>(() => {
           persistent-hint
           class="mb-3"
         />
-        <AppDateTimePicker
+        <VTextField
           v-model="form.follow_up_at"
           :label="$t('common.crmUi.followUp')"
-          :config="{ enableTime: true, dateFormat: 'Y-m-d H:i' }"
+          type="date"
           clearable
         />
       </VCardText>
@@ -204,4 +216,5 @@ const actions = computed<ContactAction[]>(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 </style>

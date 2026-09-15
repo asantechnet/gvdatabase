@@ -13,7 +13,6 @@ class InvoiceFactory extends Factory
         $amount = fake()->randomFloat(2, 100, 10000);
 
         return [
-            'class_type' => 'Standard',
             'customer_id' => Customer::factory(),
             'currency_id' => Currency::factory(),
             'deptor' => fake()->company(),

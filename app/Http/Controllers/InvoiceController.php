@@ -7,6 +7,7 @@ use App\Models\Currency;
 use App\Models\Customer;
 use App\Models\CustomerService;
 use App\Models\Invoice;
+use App\Models\InvoiceService;
 use App\Models\PaymentDetail;
 use App\Services\CurrencyConversionService;
 use Illuminate\Http\Request;
@@ -49,25 +50,22 @@ class InvoiceController extends Controller
         // capability, never from the retired customer-specific rate table.
         $assignments = CustomerService::query()
             ->where('status', 'active')
-            ->whereNotNull('employee_id')
-            ->with(['employee.commissionServices'])
-            ->orderBy('employee_id')
+            ->whereHas('deliveryEmployees')
+            ->with(['deliveryEmployees.commissionServices'])
             ->get()
             ->map(function (CustomerService $customerService): ?array {
-                $employee = $customerService->employee;
-                $capability = $employee?->commissionServices->firstWhere('id', $customerService->service_id);
+                return $customerService->deliveryEmployees->map(function ($employee) use ($customerService): ?array {
+                    $capability = $employee->commissionServices->firstWhere('id', $customerService->service_id);
 
-                if (! $employee || $employee->employment_type !== 'commission' || ! $capability) {
-                    return null;
-                }
-
-                return [
-                    'employee_id' => $employee->id,
-                    'employee_name' => $employee->name,
-                    'customer_service_id' => $customerService->id,
-                    'percentage' => (float) $capability->pivot->percentage,
-                ];
+                    return $employee->employment_type === 'commission' && $capability ? [
+                        'employee_id' => $employee->id,
+                        'employee_name' => $employee->name,
+                        'customer_service_id' => $customerService->id,
+                        'percentage' => (float) $capability->pivot->percentage,
+                    ] : null;
+                });
             })
+            ->flatten(1)
             ->filter()
             ->groupBy('employee_id')
             ->map(fn ($rows) => [
@@ -93,9 +91,6 @@ class InvoiceController extends Controller
                 Rule::exists('currencies', 'id')->where('is_active', true),
             ],
             'rate' => ['nullable', 'numeric', 'gt:0'],
-            // Credit/debit notes need an original-document reference and an
-            // application ledger. Do not pretend a positive invoice is one.
-            'class_type' => ['required', Rule::in(['Standard'])],
             'issue_date' => ['nullable', 'date', 'before_or_equal:today'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'services' => ['required', 'array', 'min:1'],
@@ -133,7 +128,7 @@ class InvoiceController extends Controller
                 ->where('customer_id', $customer->id)
                 ->where('status', 'active')
                 ->whereIn('id', $requestedIds)
-                ->with(['service.currency', 'currency', 'employee.commissionServices'])
+                ->with(['service.currency', 'currency', 'employee.commissionServices', 'deliveryEmployees.commissionServices', 'marketer.commissionServices'])
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get()
@@ -149,6 +144,7 @@ class InvoiceController extends Controller
             $invoiceRate = $this->currencies->rate($invoiceCurrency);
 
             $pivotRows = [];
+            $deliveryRecipientRows = [];
             $subtotal = 0.0;
 
             foreach ($serviceRows as $row) {
@@ -156,16 +152,22 @@ class InvoiceController extends Controller
                 $service = $customerService->service;
                 $sourceCurrency = $customerService->currency ?? $service->currency;
                 $contractedFee = (float) ($customerService->fee ?? $service->fee);
-                $commissionableInvoice = $validated['class_type'] === 'Standard';
-                $commissionEmployee = null;
-                $commissionPercentage = null;
+                $commissionableInvoice = true;
+                $deliveryRecipients = [];
+                $marketingEmployee = null;
+                $marketingPercentage = null;
 
-                // A customer service is the delivery decision. It names the
-                // responsible employee; the employee's service capability
-                // supplies the rate. Invoice users never choose a commission
-                // recipient manually, and the resolved rate is snapshotted.
-                if ($commissionableInvoice && $customerService->employee) {
-                    $deliveryEmployee = $customerService->employee;
+                // A customer service can credit several delivery employees.
+                // Their catalogue capability supplies the rate; each resolved
+                // rate is snapshotted independently on the invoice line.
+                $deliveryEmployees = $customerService->deliveryEmployees;
+                if ($deliveryEmployees->isEmpty() && $customerService->employee) {
+                    // A direct legacy record can exist after deployment but
+                    // before it is edited. Continue honouring its owner.
+                    $deliveryEmployees = collect([$customerService->employee]);
+                }
+
+                foreach ($deliveryEmployees as $deliveryEmployee) {
                     $capability = $deliveryEmployee->commissionServices
                         ->firstWhere('id', $service->id);
 
@@ -175,8 +177,21 @@ class InvoiceController extends Controller
                         ]);
                     }
 
-                    $commissionEmployee = $deliveryEmployee;
-                    $commissionPercentage = (float) $capability->pivot->percentage;
+                    $deliveryRecipients[$deliveryEmployee->id] = (float) $capability->pivot->percentage;
+                }
+
+                // Acquisition credit is independent from delivery. A marketer
+                // earns only when they have explicitly been made a
+                // commission-based employee and have a rate for this service.
+                // This prevents mere CRM attribution from becoming payroll.
+                if ($commissionableInvoice && $customerService->marketer) {
+                    $marketer = $customerService->marketer;
+                    $capability = $marketer->commissionServices->firstWhere('id', $service->id);
+
+                    if ($marketer->employment_type === 'commission' && $capability) {
+                        $marketingEmployee = $marketer;
+                        $marketingPercentage = (float) $capability->pivot->percentage;
+                    }
                 }
 
                 if (! $sourceCurrency || (float) $sourceCurrency->rate <= 0) {
@@ -205,11 +220,17 @@ class InvoiceController extends Controller
                     'snapshot_rate' => $invoiceRate,
                     'snapshot_invoice_rate' => $invoiceRate,
                     'snapshot_converted_fee' => $convertedFee,
-                    'employee_id' => $commissionEmployee?->id,
-                    'snapshot_commission_percentage' => $commissionPercentage,
+                    // Legacy one-recipient fields retain the first recipient
+                    // for older integrations. Recipient rows below are the
+                    // authoritative immutable invoice snapshot.
+                    'employee_id' => array_key_first($deliveryRecipients),
+                    'marketer_employee_id' => $marketingEmployee?->id,
+                    'snapshot_commission_percentage' => $deliveryRecipients[array_key_first($deliveryRecipients)] ?? null,
+                    'snapshot_marketer_commission_percentage' => $marketingPercentage,
                     'quantity' => $quantity,
                     'line_total' => $lineTotal,
                 ];
+                $deliveryRecipientRows[$customerService->id] = $deliveryRecipients;
             }
 
             $subtotal = round($subtotal, $invoiceCurrency->decimal_places);
@@ -229,7 +250,6 @@ class InvoiceController extends Controller
                 'recorded_by' => $recordedBy,
                 'customer_id' => $customer->id,
                 'currency_id' => $invoiceCurrency->id,
-                'class_type' => $validated['class_type'],
                 'deptor' => $customer->name,
                 'customer_company' => $customer->company,
                 'customer_email' => $customer->email,
@@ -262,6 +282,14 @@ class InvoiceController extends Controller
             $invoice->assignDocumentNumber();
 
             $invoice->services()->attach($pivotRows);
+
+            InvoiceService::query()->where('invoice_id', $invoice->id)->get()->each(function (InvoiceService $line) use ($deliveryRecipientRows): void {
+                $line->commissionRecipients()->sync(
+                    collect($deliveryRecipientRows[$line->customer_service_id] ?? [])
+                        ->mapWithKeys(fn (float $percentage, int $employeeId) => [$employeeId => ['percentage' => $percentage]])
+                        ->all(),
+                );
+            });
 
             return $invoice;
         });

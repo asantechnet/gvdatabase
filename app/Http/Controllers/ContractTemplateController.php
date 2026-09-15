@@ -53,7 +53,7 @@ class ContractTemplateController extends Controller
     public function update(Request $request, ContractTemplate $contractTemplate): JsonResponse
     {
         abort_unless(in_array($contractTemplate->contractType?->slug, ['employment', 'customer', 'company'], true), 404);
-        $data = $this->validated($request, partial: true);
+        $data = $this->validated($request, partial: true, existing: $contractTemplate);
 
         $contractTemplate->update($this->payload($data, $contractTemplate));
 
@@ -87,7 +87,7 @@ class ContractTemplateController extends Controller
 
     // ------------------------------------------------------------------
 
-    private function validated(Request $request, bool $partial = false): array
+    private function validated(Request $request, bool $partial = false, ?ContractTemplate $existing = null): array
     {
         $presenceRules = $partial ? ['sometimes', 'required'] : ['required'];
 
@@ -101,7 +101,7 @@ class ContractTemplateController extends Controller
             'policy_ids.*' => ['integer', 'exists:contract_policies,id'],
         ]);
 
-        $validator->after(function ($validator) use ($request, $partial) {
+        $validator->after(function ($validator) use ($request, $partial, $existing) {
             $typeId = $request->input('contract_type_id');
             if ($partial && ! $request->filled('contract_type_id')) {
                 return;
@@ -118,6 +118,24 @@ class ContractTemplateController extends Controller
 
             if ($type->slug === 'employment' && ! $request->filled('position_id')) {
                 $validator->errors()->add('position_id', 'A position is required for an employment template.');
+            }
+
+            if ($request->has('policy_ids')) {
+                $existingPolicyIds = $existing?->policies()->pluck('contract_policies.id')->all() ?? [];
+                $invalidIds = \App\Models\ContractPolicy::query()
+                    ->whereIn('id', $request->input('policy_ids', []))
+                    ->where(function ($query) use ($type, $existingPolicyIds) {
+                        $query->where('type', '!=', $type->slug)
+                            // Inactive clauses cannot be added to a new template,
+                            // but an already-issued template may retain one for a
+                            // stable document history.
+                            ->orWhere(fn ($inactive) => $inactive->where('is_active', false)->whereNotIn('id', $existingPolicyIds));
+                    })
+                    ->pluck('id');
+
+                if ($invalidIds->isNotEmpty()) {
+                    $validator->errors()->add('policy_ids', 'Only active policies matching the selected contract type can be added.');
+                }
             }
         });
 

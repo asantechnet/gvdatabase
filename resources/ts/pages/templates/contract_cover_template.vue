@@ -112,7 +112,7 @@ const printContractCover = async () => {
     <!DOCTYPE html>
     <html lang="${document.documentElement.lang}" dir="${document.documentElement.dir}">
       <head>
-        <title>Print Contract Cover - ${props.contractTitle}</title>
+        <title>${props.contractTitle}</title>
         ${styles}
         <style>
           @media print {

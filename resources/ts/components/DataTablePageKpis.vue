@@ -243,8 +243,14 @@ const metrics = computed<KpiMetric[]>(() => {
             <VIcon
               class="data-table-kpi__background-icon"
               :icon="metric.icon"
-            /><div class="data-table-kpi__content">
-              <div class="data-table-kpi__value">
+            /><div
+              class="data-table-kpi__content"
+              :class="{ 'data-table-kpi__content--money': typeof metric.value === 'string' && metric.value.includes(' ') }"
+            >
+              <div
+                class="data-table-kpi__value"
+                :class="{ 'data-table-kpi__value--money': typeof metric.value === 'string' && metric.value.includes(' ') }"
+              >
                 {{ metric.value }}
               </div><div class="data-table-kpi__label">
                 {{ metric.label }}

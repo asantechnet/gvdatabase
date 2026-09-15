@@ -10,7 +10,6 @@ import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import NavBarI18n from '@core/components/I18n.vue'
 import { HorizontalNavLayout } from '@layouts'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
-import HeaderPageGuide from '@/layouts/components/HeaderPageGuide.vue'
 import NavbarFullscreenToggle from '@/layouts/components/NavbarFullscreenToggle.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
 import NavbarLayoutSwitcher from '@/layouts/components/NavbarLayoutSwitcher.vue'
@@ -55,7 +54,6 @@ onMounted(loadBranding)
       <NavbarFullscreenToggle />
       <NavbarLayoutSwitcher />
       <NavbarThemeSwitcher />
-      <HeaderPageGuide />
       <!-- <NavbarShortcuts /> -->
       <NavBarAuditLogs class="me-2" />
       <NavBarNotifications class="me-2" />

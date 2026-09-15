@@ -1,7 +1,14 @@
 import { driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
+import { currentLocale, translate } from '@/utils/localization'
 
 type AccountSettingsTab = 'account' | 'security' | 'notifications' | 'work-history' | 'deactivation-requests'
+
+const driverProgressText = () => ({
+  en: '{{current}} of {{total}}',
+  'fa-AF': '{{current}} از {{total}}',
+  'ps-AF': '{{current}} له {{total}}',
+}[currentLocale()] ?? '{{current}} of {{total}}')
 
 interface GuideStep {
   element?: string
@@ -27,7 +34,7 @@ const guideSteps: Record<AccountSettingsTab, GuideStep[]> = {
     {
       element: '[data-account-guide="profile-details"]',
       title: 'Profile details',
-      description: 'Keep your contact details, locale, time zone, and preferred currency current. Save changes only after reviewing the fields you changed.',
+      description: 'Keep your name and work contact details current. Save changes only after reviewing the fields you changed.',
       side: 'top',
     },
     {
@@ -126,15 +133,15 @@ export function startAccountSettingsGuide(tab: string) {
     allowClose: true,
     overlayOpacity: 0.55,
     showProgress: true,
-    progressText: '{{current}} of {{total}}',
-    nextBtnText: 'Next',
-    prevBtnText: 'Back',
-    doneBtnText: 'Done',
-    steps: visibleSteps.map(step => ({
+    progressText: driverProgressText(),
+    nextBtnText: translate('common.pageGuide.next'),
+    prevBtnText: translate('common.pageGuide.back'),
+    doneBtnText: translate('common.pageGuide.done'),
+    steps: visibleSteps.map((step, index) => ({
       element: step.element,
       popover: {
-        title: step.title,
-        description: step.description,
+        title: currentLocale() === 'en' ? step.title : translate('common.pageGuide.accountStepTitle', { step: index + 1 }),
+        description: currentLocale() === 'en' ? step.description : translate('common.pageGuide.accountStepDescription'),
         side: step.side,
         align: 'center',
       },

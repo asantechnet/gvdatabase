@@ -83,7 +83,7 @@ watch(
     :height="$vuetify.display.smAndUp ? '531' : '100%'"
     :fullscreen="$vuetify.display.width < 600"
     class="app-bar-search-dialog"
-    aria-label="Command palette"
+    :aria-label="$t('components.navigation.navsearchbar.commandPalette')"
     @update:model-value="dialogModelValueUpdate"
     @keyup.esc="clearSearchAndCloseDialog"
   >
@@ -104,7 +104,7 @@ watch(
           density="compact"
           variant="plain"
           class="app-bar-search-input"
-          aria-label="Search commands and modules"
+          :aria-label="$t('components.navigation.navsearchbar.searchCommandsAndModules')"
           @keyup.esc="clearSearchAndCloseDialog"
           @keydown="getFocusOnSearchList"
           @update:model-value="$emit('search', searchQueryLocal)"
@@ -192,7 +192,7 @@ watch(
                     icon="tabler-file-alert"
                   />
                   <div class="d-flex align-center flex-wrap justify-center gap-2 text-h5 mt-3">
-                    <span>No Result For </span>
+                    <span>{{ $t('components.navigation.navsearchbar.noResultsFor') }}</span>
                     <span>"{{ searchQueryLocal }}"</span>
                   </div>
 

@@ -38,7 +38,7 @@ class PhaseEightReportsTest extends TestCase
         Sanctum::actingAs($this->superAdmin(), ['access']);
         [$currency, $customer] = $this->financialReferences();
         $invoice = Invoice::create([
-            'customer_id' => $customer->id, 'currency_id' => $currency->id, 'class_type' => 'Standard',
+            'customer_id' => $customer->id, 'currency_id' => $currency->id,
             'deptor' => $customer->name, 'status' => 'Issued', 'currency_name' => $currency->name,
             'currency_rate' => 1, 'currency_symbol' => $currency->symbol, 'currency_shortname' => $currency->code,
             'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $currency->code, 'rate' => 1, 'base_amount' => 100,

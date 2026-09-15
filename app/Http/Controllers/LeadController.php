@@ -31,6 +31,18 @@ class LeadController extends Controller
     {
         $data = CrmMarketerAttribution::apply($request, $this->validated($request), creating: true);
         $data['owner_id'] ??= $request->user()->id;
+        $stage = $data['stage'] ?? 'new';
+        $hasManualProbability = array_key_exists('probability', $data);
+
+        if ($this->isTerminalStage($stage)) {
+            $data['probability'] = $this->stageProbability($stage);
+            $data['probability_is_manual'] = false;
+        } elseif ($hasManualProbability) {
+            $data['probability_is_manual'] = true;
+        } else {
+            $data['probability'] = $this->stageProbability($stage);
+            $data['probability_is_manual'] = false;
+        }
 
         return new LeadResource(Lead::create($data)->load(['owner', 'marketerEmployee', 'interactions.creator']));
     }
@@ -43,14 +55,27 @@ class LeadController extends Controller
     public function update(Request $request, Lead $lead): LeadResource
     {
         $data = CrmMarketerAttribution::apply($request, $this->validated($request, true), creating: false);
+        $stage = $data['stage'] ?? $lead->stage;
         if (isset($data['stage']) && $data['stage'] !== $lead->stage) {
-            $this->assertStageTransition($lead->stage, $data['stage']);
-            if ($data['stage'] === 'won') {
-                $data['probability'] = 100;
-            }
-            if ($data['stage'] === 'lost') {
-                $data['probability'] = 0;
-            }
+            $this->assertStageTransition($lead->stage, $stage);
+        }
+
+        $hasManualProbability = array_key_exists('probability', $data);
+        $manualOverride = array_key_exists('probability_is_manual', $data)
+            ? filter_var($data['probability_is_manual'], FILTER_VALIDATE_BOOLEAN)
+            : ($hasManualProbability || $lead->probability_is_manual);
+
+        // Won and lost are factual outcomes, so they remain 100% and 0%.
+        // Every non-terminal stage respects a user-entered confidence until
+        // the user explicitly returns it to the pipeline score.
+        if ($this->isTerminalStage($stage)) {
+            $data['probability'] = $this->stageProbability($stage);
+            $data['probability_is_manual'] = false;
+        } elseif ($hasManualProbability) {
+            $data['probability_is_manual'] = true;
+        } elseif (! $manualOverride) {
+            $data['probability'] = $this->stageProbability($stage);
+            $data['probability_is_manual'] = false;
         }
         $lead->update($data);
 
@@ -84,15 +109,26 @@ class LeadController extends Controller
 
     public function convert(Lead $lead): CustomerResource
     {
-        $customer = DB::transaction(function () use ($lead) {
+        $providedEmail = request()->validate([
+            'email' => ['sometimes', 'nullable', 'email', 'max:255'],
+        ])['email'] ?? null;
+
+        $customer = DB::transaction(function () use ($lead, $providedEmail) {
             $lead = Lead::query()->lockForUpdate()->findOrFail($lead->id);
             abort_if($lead->converted_at || $lead->customer_id, 422, 'business.lead_already_converted');
             $this->assertStageTransition($lead->stage, 'won');
+            $email = trim((string) ($providedEmail ?? $lead->email));
+            abort_unless(filter_var($email, FILTER_VALIDATE_EMAIL), 422, 'business.lead_email_required_for_conversion');
+
+            if ($lead->email !== $email) {
+                $lead->update(['email' => $email]);
+            }
+
             $customer = Customer::create(['name' => $lead->name, 'company' => $lead->company ?: $lead->name, 'contact' => $lead->contact,
-                'email' => $lead->email, 'marketer' => $lead->marketer, 'marketer_id' => $lead->marketer_id, 'notes' => $lead->notes, 'date' => now()->toDateString()]);
+                'email' => $email, 'marketer' => $lead->marketer, 'marketer_id' => $lead->marketer_id, 'notes' => $lead->notes, 'date' => now()->toDateString()]);
             CrmInteraction::query()->where('contactable_type', $lead->getMorphClass())->where('contactable_id', $lead->id)
                 ->update(['contactable_type' => $customer->getMorphClass(), 'contactable_id' => $customer->id]);
-            $lead->update(['stage' => 'won', 'probability' => 100, 'customer_id' => $customer->id, 'converted_at' => now()]);
+            $lead->update(['stage' => 'won', 'probability' => 100, 'probability_is_manual' => false, 'customer_id' => $customer->id, 'converted_at' => now()]);
 
             return $customer;
         });
@@ -106,13 +142,35 @@ class LeadController extends Controller
 
         return $request->validate(['name' => [$required, 'string', 'max:255'], 'company' => ['nullable', 'string', 'max:255'],
             'contact' => [$required, 'string', 'max:255'], 'email' => ['nullable', 'email', 'max:255'], 'service_interest' => ['nullable', 'string', 'max:255'],
-            'marketer' => ['nullable', 'string', 'max:255'], 'marketer_id' => CrmMarketerAttribution::marketerIdRules(), 'stage' => ['sometimes', Rule::in($this->stages())], 'probability' => ['sometimes', 'integer', 'between:0,100'],
+            'marketer' => ['nullable', 'string', 'max:255'], 'marketer_id' => CrmMarketerAttribution::marketerIdRules(), 'stage' => ['sometimes', Rule::in($this->stages())], 'probability' => ['sometimes', 'integer', 'between:0,100'], 'probability_is_manual' => ['sometimes', 'boolean'],
             'estimated_value' => ['nullable', 'numeric', 'min:0'], 'next_follow_up_at' => ['nullable', 'date'], 'notes' => ['nullable', 'string', 'max:10000'], 'owner_id' => ['nullable', 'exists:users,id']]);
     }
 
     private function stages(): array
     {
         return ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
+    }
+
+    /**
+     * Keep the visual confidence indicator meaningful even when a lead is
+     * advanced through the pipeline without a separately entered percentage.
+     */
+    private function stageProbability(string $stage): int
+    {
+        return match ($stage) {
+            'new' => 10,
+            'contacted' => 25,
+            'qualified' => 50,
+            'proposal' => 75,
+            'won' => 100,
+            'lost' => 0,
+            default => 10,
+        };
+    }
+
+    private function isTerminalStage(string $stage): bool
+    {
+        return in_array($stage, ['won', 'lost'], true);
     }
 
     private function assertStageTransition(string $from, string $to): void

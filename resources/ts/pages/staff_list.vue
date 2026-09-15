@@ -880,9 +880,9 @@ onMounted(async () => {
     </VCard>
 
     <PrintableListReport
-      title="Staff Report"
-      subtitle="Filtered staff records"
-      :columns="['ID', 'Name', 'Position', 'Contact', 'Email', 'Office']"
+      :title="$t('common.crmUi.printReports.staff.title')"
+      :subtitle="$t('common.crmUi.printReports.staff.subtitle')"
+      :columns="[$t('common.crmUi.printReports.columns.id'), $t('common.crmUi.printReports.columns.name'), $t('common.crmUi.printReports.columns.position'), $t('common.crmUi.printReports.columns.contact'), $t('common.crmUi.printReports.columns.email'), $t('common.crmUi.printReports.columns.office')]"
       :rows="filteredStaff.map(staff => [staff.id, staff.name, staff.position, staff.contact, staff.email, staff.office?.name])"
     />
 
@@ -1121,10 +1121,10 @@ onMounted(async () => {
                         </VAvatar>
                         <div>
                           <div class="text-subtitle-1 font-weight-semibold">
-                            Service capabilities &amp; commission rates
+                            {{ $t('common.crmUi.commissionRateSetup.title') }}
                           </div>
                           <p class="commission-capabilities__description">
-                            Choose the catalogue services this person can deliver. The delivery assignment on a customer service determines who earns the rate.
+                            {{ $t('common.crmUi.commissionRateSetup.description') }}
                           </p>
                         </div>
                       </div>
@@ -1162,7 +1162,7 @@ onMounted(async () => {
                           :items="availableCommissionServices(commission.service_id)"
                           :item-title="commissionLabel"
                           item-value="id"
-                          label="Service this employee can deliver"
+                          :label="$t('common.crmUi.commissionRateSetup.service')"
                           placeholder="Choose a service"
                           density="comfortable"
                         />
@@ -1510,10 +1510,10 @@ onMounted(async () => {
                         </VAvatar>
                         <div>
                           <div class="text-subtitle-1 font-weight-semibold">
-                            Service capabilities &amp; commission rates
+                            {{ $t('common.crmUi.commissionRateSetup.title') }}
                           </div>
                           <p class="commission-capabilities__description">
-                            Choose the catalogue services this person can deliver. The delivery assignment on a customer service determines who earns the rate.
+                            {{ $t('common.crmUi.commissionRateSetup.description') }}
                           </p>
                         </div>
                       </div>
@@ -1551,7 +1551,7 @@ onMounted(async () => {
                           :items="availableCommissionServices(commission.service_id)"
                           :item-title="commissionLabel"
                           item-value="id"
-                          label="Service this employee can deliver"
+                          :label="$t('common.crmUi.commissionRateSetup.service')"
                           placeholder="Choose a service"
                           density="comfortable"
                         />

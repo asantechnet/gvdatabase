@@ -78,6 +78,7 @@ class CommissionController extends Controller
             'percentage' => 0,
             'commission_base_amount' => round((float) $validated['amount'], 6),
             'entry_type' => 'adjustment',
+            'commission_role' => 'adjustment',
             'adjustment_reason' => $validated['reason'],
             'recorded_by' => $request->user()->id,
             'status' => 'pending',

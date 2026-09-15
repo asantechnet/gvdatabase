@@ -146,4 +146,24 @@ class AuditManagementTest extends TestCase
             ->assertJsonPath('total', 1)
             ->assertJsonPath('data.0.audited_by.id', $auditor->id);
     }
+
+    public function test_pending_audits_can_be_reviewed_together(): void
+    {
+        $auditor = $this->auditor();
+        Sanctum::actingAs($auditor, ['access']);
+        Customer::factory()->count(2)->create();
+        $auditIds = AuditLog::query()
+            ->where('subject_type', 'customers')
+            ->whereNull('audited_at')
+            ->pluck('id')
+            ->all();
+
+        $this->postJson('/api/audit-logs/bulk-review', [
+            'audit_ids' => $auditIds,
+            'decision' => 'approved',
+        ])->assertOk()->assertJsonPath('data.count', count($auditIds));
+
+        $this->assertSame(0, AuditLog::query()->whereIn('id', $auditIds)->whereNull('audited_at')->count());
+        $this->assertSame(count($auditIds), AuditLog::query()->whereIn('id', $auditIds)->where('review_status', 'approved')->count());
+    }
 }

@@ -52,6 +52,8 @@ const errorMessages: Record<string, string> = {
   'business.employee_has_no_account': 'The selected employee does not have a system account.',
   'business.conflict': 'This action conflicts with the current data. Refresh and try again.',
   'business.request_rejected': 'This action is not allowed in the current state.',
+  'business.support_recipient_not_configured': 'Support email is not configured yet. Ask an administrator to set SUPPORT_TICKET_RECIPIENT.',
+  'business.support_email_delivery_failed': 'Your support request could not be delivered. Nothing was submitted; please try again shortly.',
   'business.reset_token_invalid': 'The password reset link is invalid or has expired.',
   'business.board_order_invalid': 'The board order is no longer valid. Refresh and try again.',
   'business.cannot_delete_current_user': 'You cannot delete your own account.',

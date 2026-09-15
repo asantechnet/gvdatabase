@@ -10,6 +10,7 @@ import {
   getAuditLog,
   getAuditLogs,
   getAuditResources,
+  bulkReviewAuditLogs,
   reviewAuditLog,
   updateAuditResource,
 } from '@/api/auditLog'
@@ -32,6 +33,9 @@ const togglingId = ref<number | null>(null)
 const selectedAudit = ref<AuditLog | null>(null)
 const detailsOpen = ref(false)
 const confirmDecision = ref<'approved' | 'discarded' | null>(null)
+const bulkDecision = ref<'approved' | 'discarded' | null>(null)
+const bulkReviewing = ref(false)
+const selectedAuditIds = ref<number[]>([])
 
 const auditPage = ref(Number(route.query.page) || 1)
 const auditPerPage = ref(Number(route.query.per_page) || 25)
@@ -49,7 +53,20 @@ const resourceSearch = ref('')
 
 const canReview = computed(() => canAccess('review_audit_logs'))
 const canManageScope = computed(() => canAccess('manage_audit_scope'))
-const resourceKeys = ['attendances', 'boards', 'comments', 'companies', 'commission_accruals', 'commission_settlements', 'contract_policies', 'contract_templates', 'contract_types', 'contracts', 'currencies', 'customer_services', 'customers', 'daily_reports', 'employees', 'expenses', 'incomes', 'invoices', 'marketers', 'offices', 'leaves', 'payment_details', 'permissions', 'positions', 'salaries', 'services', 'settings', 'assets', 'subtasks', 'tags', 'task_attachments', 'tasks', 'users', 'visitors', 'leads', 'crm_interactions', 'worthy_employees', 'account_deactivations', 'audit_settings']
+// This mirrors the actual auditable registry plus the two audited workflows
+// that are recorded outside model events. Avoid listing tables that merely
+// exist in the database but are not configured as auditable.
+const resourceKeys = ['attendances', 'boards', 'comments', 'companies', 'commission_accruals', 'commission_settlements', 'contract_policies', 'contract_templates', 'contract_types', 'contracts', 'currencies', 'customer_services', 'customers', 'daily_reports', 'employees', 'expenses', 'incomes', 'invoices', 'marketers', 'offices', 'leaves', 'payment_details', 'permissions', 'positions', 'salaries', 'services', 'settings', 'assets', 'subtasks', 'tags', 'task_attachments', 'tasks', 'users', 'visitors', 'worthy_employees', 'account_deactivations', 'audit_settings']
+const resourcePurposes: Record<string, { group: string; description: string }> = {
+  invoices: { group: 'Financial records', description: 'Issued invoices, their values, and payment status.' }, incomes: { group: 'Financial records', description: 'Recorded money received by the company.' }, expenses: { group: 'Financial records', description: 'Recorded business spending.' }, payment_details: { group: 'Financial records', description: 'Payment method and payment-detail records.' }, currencies: { group: 'Financial records', description: 'Currency definitions and exchange rates.' }, salaries: { group: 'Financial records', description: 'Payroll records and their amounts.' }, commission_accruals: { group: 'Financial records', description: 'Commission amounts earned before settlement.' }, commission_settlements: { group: 'Financial records', description: 'Approved and paid commission settlements.' },
+  customers: { group: 'Customers & contracts', description: 'Customer identity and contact records.' }, customer_services: { group: 'Customers & contracts', description: 'Services committed to individual customers.' }, companies: { group: 'Customers & contracts', description: 'Counterparty company records used in agreements.' }, contracts: { group: 'Customers & contracts', description: 'Customer and company agreements.' }, contract_templates: { group: 'Customers & contracts', description: 'Reusable contract documents.' }, contract_policies: { group: 'Customers & contracts', description: 'Reusable policy content for contracts.' }, contract_types: { group: 'Customers & contracts', description: 'Categories used to classify contracts.' }, visitors: { group: 'Customers & contracts', description: 'New prospective contacts.' }, leads: { group: 'Customers & contracts', description: 'Qualified prospects being followed up.' }, crm_interactions: { group: 'Customers & contracts', description: 'Notes and interactions with prospects and customers.' },
+  employees: { group: 'People & attendance', description: 'Employee work profiles.' }, users: { group: 'People & attendance', description: 'System user accounts and access-relevant changes.' }, attendances: { group: 'People & attendance', description: 'Daily check-in, check-out, and working-time records.' }, leaves: { group: 'People & attendance', description: 'Paid and unpaid leave records.' }, daily_reports: { group: 'People & attendance', description: 'End-of-day work reports.' }, positions: { group: 'People & attendance', description: 'Job positions used by staff profiles.' }, marketers: { group: 'People & attendance', description: 'Marketing-assignment records.' }, worthy_employees: { group: 'People & attendance', description: 'Bonus nominations and their decisions.' }, account_deactivations: { group: 'People & attendance', description: 'Account deactivation and reactivation workflow.' },
+  tasks: { group: 'Work management', description: 'Tasks and their progress.' }, subtasks: { group: 'Work management', description: 'Subtasks owned within larger work items.' }, boards: { group: 'Work management', description: 'Task boards and their structure.' }, comments: { group: 'Work management', description: 'Comments attached to work items.' }, task_attachments: { group: 'Work management', description: 'Files attached to tasks.' }, tags: { group: 'Work management', description: 'Task-label catalogue changes.' },
+  assets: { group: 'Operations & setup', description: 'Company assets, assignments, and condition.' }, offices: { group: 'Operations & setup', description: 'Office records, including attendance-related configuration.' }, services: { group: 'Operations & setup', description: 'Service catalogue definitions.' }, settings: { group: 'Operations & setup', description: 'Company-wide operational and communication settings.' }, permissions: { group: 'Operations & setup', description: 'Permission definitions that control system access.' }, audit_settings: { group: 'Operations & setup', description: 'Changes to which business areas are audited.' },
+}
+const resourceLabels: Record<string, string> = {
+  commission_accruals: 'Commission accruals', commission_settlements: 'Commission settlements', leaves: 'Leave', leads: 'Leads', crm_interactions: 'CRM interactions', account_deactivations: 'Account deactivations', audit_settings: 'Audit settings',
+}
 const resourceOptions = computed(() => [...resourceKeys].sort((a, b) => resourceName(a).localeCompare(resourceName(b))).map(value => ({ value, title: resourceName(value) })))
 const eventOptions = computed(() => ['created', 'updated', 'deleted', 'restored', 'audit_scope_enabled', 'audit_scope_disabled'].map(value => ({ value, title: eventLabel(value) })))
 
@@ -66,10 +83,26 @@ const auditHeaders = computed(() => [
 
 const resourceHeaders = computed(() => [
   { title: t('pages.audits.columns.resource'), key: 'resource_key' },
+  { title: 'What is monitored', key: 'purpose', sortable: false },
   { title: t('pages.audits.columns.auditEnabled'), key: 'enabled', sortable: false },
   { title: t('pages.audits.columns.lastChangedBy'), key: 'updated_by', sortable: false },
   { title: t('pages.audits.columns.lastChanged'), key: 'updated_at', sortable: false },
 ])
+
+const selectedAudits = computed(() => logs.value.filter(log => selectedAuditIds.value.includes(log.id)))
+const canUndoSelection = computed(() => {
+  const selectedIds = new Set(selectedAuditIds.value)
+
+  return selectedAudits.value.length > 0 && selectedAudits.value.every(log =>
+    log.can_revert || (log.revert_blocked_by_id !== null && selectedIds.has(log.revert_blocked_by_id)))
+})
+const undoUnavailableReason = computed(() => {
+  const nonRevertible = selectedAudits.value.find(log => !['updated', 'deleted'].includes(log.event))
+  if (nonRevertible)
+    return t('pages.audits.bulkUndo.event')
+
+  return t('pages.audits.bulkUndo.newer')
+})
 
 function localized(key: string, fallbackKey: string): string {
   const value = String(t(key))
@@ -78,7 +111,15 @@ function localized(key: string, fallbackKey: string): string {
 }
 
 function resourceName(key: string): string {
-  return localized(`pages.audits.resources.${key}`, 'pages.audits.unknownRecord')
+  const translated = String(t(`pages.audits.resources.${key}`))
+
+  return translated && !translated.startsWith('[missing:') && translated !== `pages.audits.resources.${key}`
+    ? translated
+    : resourceLabels[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())
+}
+
+function resourcePurpose(key: string): { group: string; description: string } {
+  return resourcePurposes[key] ?? { group: 'Other business records', description: 'Operational records retained for traceability.' }
 }
 
 function eventLabel(event: string): string {
@@ -158,6 +199,7 @@ async function loadAudits() {
     })
 
     logs.value = result.data
+    selectedAuditIds.value = selectedAuditIds.value.filter(id => logs.value.some(log => log.id === id && log.audit_state === 'pending'))
     auditTotal.value = result.total
   }
   catch (error: any) {
@@ -227,6 +269,26 @@ async function applyDecision() {
   }
 }
 
+async function applyBulkDecision() {
+  if (!bulkDecision.value || !selectedAuditIds.value.length)
+    return
+
+  bulkReviewing.value = true
+  try {
+    const count = await bulkReviewAuditLogs(selectedAuditIds.value, bulkDecision.value)
+    toast.success(t(bulkDecision.value === 'approved' ? 'pages.audits.bulk.keptSuccess' : 'pages.audits.bulk.undoneSuccess', { count }))
+    selectedAuditIds.value = []
+    bulkDecision.value = null
+    await loadAudits()
+  }
+  catch (error: any) {
+    toast.error(t('pages.audits.bulk.reviewError'))
+  }
+  finally {
+    bulkReviewing.value = false
+  }
+}
+
 async function toggleResource(item: AuditResource, enabled: boolean) {
   togglingId.value = item.id
   try {
@@ -265,6 +327,7 @@ watch(auditSearch, () => {
   auditSearchTimer = setTimeout(resetAuditPage, 300)
 })
 watch([auditState, eventFilter, resourceFilter], resetAuditPage)
+watch([auditState, eventFilter, resourceFilter, auditPage, auditPerPage], () => { selectedAuditIds.value = [] })
 watch([auditPage, auditPerPage], loadAudits)
 
 let resourceSearchTimer: ReturnType<typeof setTimeout> | undefined
@@ -379,7 +442,53 @@ onUnmounted(() => {
           </VCardText>
           <VDivider />
 
+          <VExpandTransition>
+            <div
+              v-if="selectedAuditIds.length"
+              class="audit-selection-toolbar"
+              role="region"
+              :aria-label="$t('pages.audits.bulk.selected', { count: selectedAuditIds.length })"
+            >
+              <div class="audit-selection-toolbar__summary">
+                <VIcon icon="tabler-checkbox" color="primary" />
+                <strong>{{ $t('pages.audits.bulk.selected', { count: selectedAuditIds.length }) }}</strong>
+                <span>{{ $t('pages.audits.bulk.reviewHint') }}</span>
+              </div>
+              <div class="audit-selection-toolbar__actions">
+                <VBtn
+                  color="success"
+                  prepend-icon="tabler-check"
+                  :disabled="!canReview"
+                  @click="bulkDecision = 'approved'"
+                >
+                  {{ $t('pages.audits.bulk.keep') }}
+                </VBtn>
+                <VTooltip location="top" :disabled="canUndoSelection">
+                  <template #activator="{ props }">
+                    <span v-bind="props" class="audit-selection-toolbar__undo-wrap">
+                      <VBtn
+                        color="error"
+                        variant="tonal"
+                        prepend-icon="tabler-arrow-back-up"
+                        :disabled="!canUndoSelection"
+                        @click="bulkDecision = 'discarded'"
+                      >
+                        {{ $t('pages.audits.bulk.undo') }}
+                      </VBtn>
+                    </span>
+                  </template>
+                  {{ undoUnavailableReason }}
+                </VTooltip>
+                <IconBtn :aria-label="$t('pages.audits.bulk.clear')" @click="selectedAuditIds = []">
+                  <VIcon icon="tabler-x" />
+                  <VTooltip activator="parent">{{ $t('pages.audits.bulk.clear') }}</VTooltip>
+                </IconBtn>
+              </div>
+            </div>
+          </VExpandTransition>
+
           <ResponsiveDataTableServer
+            v-model="selectedAuditIds"
             v-model:page="auditPage"
             v-model:items-per-page="auditPerPage"
             :headers="auditHeaders"
@@ -387,6 +496,8 @@ onUnmounted(() => {
             :items-length="auditTotal"
             :loading="loading"
             item-value="id"
+            show-select
+            :item-selectable="(log: AuditLog) => canReview && log.audit_state === 'pending'"
           >
             <template #item.event="{ item }">
               <VChip
@@ -446,6 +557,14 @@ onUnmounted(() => {
         >
           {{ $t('pages.audits.scopeNotice') }}
         </VAlert>
+        <VAlert
+          type="info"
+          variant="tonal"
+          class="mb-4"
+          :title="$t('pages.audits.scopeGuide.title')"
+        >
+          {{ $t('pages.audits.scopeGuide.description') }}
+        </VAlert>
         <VCard :loading="resourceLoading">
           <VCardText class="audit-filters audit-resource-filters">
             <VBtnToggle
@@ -487,7 +606,18 @@ onUnmounted(() => {
             item-value="id"
           >
             <template #item.resource_key="{ item }">
-              <strong>{{ resourceName(item.resource_key) }}</strong>
+              <div class="audit-resource-name">
+                <strong>{{ resourceName(item.resource_key) }}</strong>
+                <VChip
+                  size="x-small"
+                  variant="tonal"
+                >
+                  {{ resourcePurpose(item.resource_key).group }}
+                </VChip>
+              </div>
+            </template>
+            <template #item.purpose="{ item }">
+              <span class="audit-resource-purpose">{{ resourcePurpose(item.resource_key).description }}</span>
             </template>
             <template #item.enabled="{ item }">
               <VSwitch
@@ -634,6 +764,39 @@ onUnmounted(() => {
         </VCardActions>
       </VCard>
     </VDialog>
+    <VDialog
+      :model-value="Boolean(bulkDecision)"
+      max-width="520"
+      @update:model-value="value => { if (!value) bulkDecision = null }"
+    >
+      <VCard>
+        <VCardItem :title="$t(bulkDecision === 'discarded' ? 'pages.audits.bulk.undoTitle' : 'pages.audits.bulk.keepTitle')" />
+        <VCardText>
+          <template v-if="bulkDecision === 'discarded'">
+            {{ $t('pages.audits.bulk.undoText', { count: selectedAuditIds.length }) }}
+          </template>
+          <template v-else>
+            {{ $t('pages.audits.bulk.keepText', { count: selectedAuditIds.length }) }}
+          </template>
+        </VCardText>
+        <VCardActions class="justify-end">
+          <VBtn
+            variant="text"
+            :disabled="bulkReviewing"
+            @click="bulkDecision = null"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            :color="bulkDecision === 'discarded' ? 'error' : 'success'"
+            :loading="bulkReviewing"
+            @click="applyBulkDecision"
+          >
+            {{ $t(bulkDecision === 'discarded' ? 'pages.audits.bulk.undo' : 'pages.audits.bulk.keep') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 
@@ -643,7 +806,13 @@ onUnmounted(() => {
 .audit-resource-filters { grid-template-columns: auto minmax(240px, 1fr); }
 .audit-filter-toggle { display: inline-flex; inline-size: max-content; max-inline-size: 100%; overflow-x: auto; }
 .audit-filter-toggle :deep(.v-btn) { flex: 0 0 auto; min-inline-size: max-content; padding-inline: 1rem; white-space: nowrap; }
+.audit-selection-toolbar { align-items: center; background: rgba(var(--v-theme-primary), 0.08); border-block-end: 1px solid rgba(var(--v-theme-primary), 0.18); display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; justify-content: space-between; padding: 0.75rem 1rem; }
+.audit-selection-toolbar__summary, .audit-selection-toolbar__actions { align-items: center; display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.audit-selection-toolbar__summary > span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: 0.8125rem; }
+.audit-selection-toolbar__undo-wrap { display: inline-flex; }
 .audit-record { white-space: normal; }
+.audit-resource-name { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }
+.audit-resource-purpose { display: block; max-inline-size: 34rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); white-space: normal; }
 .audit-change-summary { display: block; min-inline-size: 220px; max-inline-size: 440px; white-space: normal; color: rgb(var(--v-theme-on-surface)); }
 .audit-accountability { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .audit-accountability > div { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.85rem; border-radius: 0.6rem; background: rgba(var(--v-theme-on-surface), 0.04); }

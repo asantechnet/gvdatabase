@@ -41,7 +41,6 @@ const pageComponents: Record<string, Component> = {
   contractPolicyLibrary: () => import('@/pages/contract/policy_library.vue'),
   optionsServices: () => import('@/pages/options/services.vue'),
   optionsCurrencies: () => import('@/pages/options/currencies.vue'),
-  optionsInvoice: () => import('@/pages/options_invoice.vue'),
   optionsHr: () => import('@/pages/options_hr.vue'),
   optionsFinance: () => import('@/pages/options_finance.vue'),
   optionsContract: () => import('@/pages/options_contract.vue'),
@@ -52,6 +51,7 @@ const pageComponents: Record<string, Component> = {
   setupOffices: () => import('@/pages/setup/offices.vue'),
   setupSettings: () => import('@/pages/setup/settings.vue'),
   notifications: () => import('@/pages/notifications.vue'),
+  support: () => import('@/pages/support.vue'),
   accountSettings: () => import('@/pages/account-settings.vue'),
   recurringEvents: () => import('@/pages/recurring-events.vue'),
 }
@@ -140,12 +140,6 @@ const routeDefinitions: Array<{
     name: 'options-currencies',
     meta: { requiresAuth: true, action: 'read', subject: 'view_currencies' },
   },
-  {
-    path: '/options/invoice',
-    component: 'optionsInvoice',
-    name: 'options-invoice',
-    meta: { requiresAuth: true, action: 'read', subject: 'view_invoices' },
-  },
   { path: '/options/hr', component: 'optionsHr', name: 'options-hr', meta: { requiresAuth: true, action: 'read', subject: 'view_employees' } },
   {
     path: '/options/finance',
@@ -220,6 +214,7 @@ const routeDefinitions: Array<{
     meta: { unauthenticatedOnly: true, layout: 'blank' },
   },
   { path: '/notifications', component: 'notifications', name: 'notifications', meta: { requiresAuth: true, action: 'read', subject: 'view_own_notifications' } },
+  { path: '/support', component: 'support', name: 'support', meta: { requiresAuth: true } },
   { path: '/account-settings/:tab?', component: 'accountSettings', name: 'account-settings', meta: { requiresAuth: true } },
 ]
 

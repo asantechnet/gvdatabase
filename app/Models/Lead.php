@@ -13,11 +13,11 @@ class Lead extends Model
 {
     use Auditable, HasFactory, SoftDeletes;
 
-    protected $fillable = ['visitor_id', 'customer_id', 'name', 'company', 'contact', 'email', 'service_interest', 'marketer', 'marketer_id', 'stage', 'probability', 'estimated_value', 'next_follow_up_at', 'notes', 'converted_at', 'owner_id'];
+    protected $fillable = ['visitor_id', 'customer_id', 'name', 'company', 'contact', 'email', 'service_interest', 'marketer', 'marketer_id', 'stage', 'probability', 'probability_is_manual', 'estimated_value', 'next_follow_up_at', 'notes', 'converted_at', 'owner_id'];
 
     protected function casts(): array
     {
-        return ['probability' => 'integer', 'estimated_value' => 'decimal:4', 'next_follow_up_at' => 'date:Y-m-d', 'converted_at' => 'immutable_datetime'];
+        return ['probability' => 'integer', 'probability_is_manual' => 'boolean', 'estimated_value' => 'decimal:4', 'next_follow_up_at' => 'date:Y-m-d', 'converted_at' => 'immutable_datetime'];
     }
 
     public function owner(): BelongsTo { return $this->belongsTo(User::class, 'owner_id'); }

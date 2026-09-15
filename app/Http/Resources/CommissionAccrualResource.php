@@ -27,6 +27,7 @@ class CommissionAccrualResource extends JsonResource
             ] : null),
             'earned_at' => $this->earned_at?->toDateString(),
             'entry_type' => $this->entry_type,
+            'commission_role' => $this->commission_role,
             'adjustment_reason' => $this->adjustment_reason,
             'eligible_base_amount' => (float) $this->eligible_base_amount,
             'percentage' => (float) $this->percentage,

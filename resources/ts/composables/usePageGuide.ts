@@ -2,10 +2,13 @@ import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
 import { startAccountSettingsGuide } from './useAccountSettingsGuide'
+import { currentLocale, translate } from '@/utils/localization'
 
 interface PageGuideDefinition {
   title: string
   description: string
+  actionTitle?: string
+  actionDescription?: string
 }
 
 // The header guide is intentionally route-aware: it never changes routes or
@@ -15,24 +18,24 @@ const pageGuides: Record<string, PageGuideDefinition> = {
   tasks: { title: 'Tasks', description: 'Use this workspace to plan work, assign owners, track progress, and keep discussion beside the work it belongs to.' },
   reports: { title: 'Reports', description: 'Use reports to turn current records into reviewable operational, financial, and people insights before exporting or sharing them.' },
   finance: { title: 'Financial overview', description: 'Use this page to review live financial performance; figures are calculated from your current records rather than sample data.' },
-  income: { title: 'Income', description: 'Record and review money received here. Use search and filters before changing an existing financial record.' },
-  expenses: { title: 'Expenses', description: 'Record business spending here. Check the date, currency, and supporting details before saving a new expense.' },
-  innvoice: { title: 'Invoices', description: 'Create invoices from customer services, track their payment status, and keep issued records intact by voiding rather than deleting them.' },
+  income: { title: 'Income', description: 'Record and review money received here. Reconcile the receipt, payment date, currency, and linked customer before changing a financial record.' },
+  expenses: { title: 'Expenses', description: 'Record business spending here. Check the date, currency, approval context, and supporting details before saving an expense.' },
+  innvoice: { title: 'Invoices', description: 'Create invoices from customer services, track their payment status, and keep issued records intact by voiding rather than deleting them.', actionTitle: 'Issue only a review-ready invoice', actionDescription: 'Confirm the customer, service period, tax, currency, and line totals before issuing. An issued document becomes part of the financial history.' },
   asset: { title: 'Assets', description: 'Use this page to track company assets, their assignment, and their current condition.' },
   hr: { title: 'Human resources', description: 'This page brings together the people operations information your role is allowed to review.' },
   'staff-list': { title: 'Staff', description: 'Manage staff profiles, work details, and linked system accounts here. Review a person before editing access-related information.' },
   timesheet: { title: 'Timesheet', description: 'Use the timesheet to review attendance, hours, and daily work information for the selected period.' },
-  leaves: { title: 'Time off', description: 'Review and manage leave requests here. Dates and balances should be checked before approving a request.' },
-  'staff-salary': { title: 'Payroll', description: 'Use payroll to prepare and review salary records. Confirm the period, employee, currency, and deductions before posting.' },
+  leaves: { title: 'Time off', description: 'Review and manage leave requests here. Check the requested duration, balance, paid/unpaid treatment, and overlap before approving.' },
+  'staff-salary': { title: 'Payroll', description: 'Use payroll to prepare and review salary records. Confirm the period, employee, currency, attendance effect, and deductions before posting.' },
   bonuslist: { title: 'Bonuses', description: 'Use this page to review bonus nominations and their approval state before they become part of payroll.' },
   commissions: { title: 'Commissions', description: 'Track commission earnings and settlements here. The page distinguishes pending, approved, and paid amounts.' },
-  contracts: { title: 'Contracts', description: 'Create and manage customer contracts here. Review parties, terms, dates, and the selected template before finalizing.' },
+  contracts: { title: 'Contracts', description: 'Create and manage customer contracts here. Review parties, terms, dates, obligations, and the selected template before finalizing.' },
   'employee-contracts': { title: 'Employee contracts', description: 'Use this page for employee-specific contract records and their printable documents.' },
   'company-contracts': { title: 'Company contracts', description: 'Use this page for company contract records and their current lifecycle state.' },
   'all-customers': { title: 'Customers', description: 'Keep customer details and their active services accurate here; those services feed invoicing and contract workflows.' },
   'cancelled-contracts': { title: 'Cancelled contracts', description: 'This is a historical view of cancelled contracts. Review the record and its reason instead of recreating it blindly.' },
   visitor: { title: 'Visitors', description: 'Capture prospective contacts here, then convert qualified visitors into leads or customers when the relationship is ready.' },
-  leads: { title: 'Leads', description: 'Use leads to follow up on qualified prospects and convert them to customers when work is ready to begin.' },
+  leads: { title: 'Leads', description: 'Use leads to separate pipeline confidence from a relationship owner’s judgement. A manual confidence survives stage changes; conversion requires a valid customer email and records the outcome as won.' },
   companies: { title: 'Companies', description: 'Maintain counterparty company records here so contracts and customer relationships use consistent information.' },
   notifications: { title: 'Notifications', description: 'Review the activity that needs your attention, then mark items read once the underlying work has been handled.' },
   'recurring-events': { title: 'Recurring events', description: 'Schedule repeatable operational work here. Review the cadence and next occurrence before enabling an automation.' },
@@ -50,7 +53,7 @@ const pageGuides: Record<string, PageGuideDefinition> = {
   'options-contract': { title: 'Contract options', description: 'Configure reusable contract options here to keep new agreements consistent.' },
   'contract-templates': { title: 'Contract templates', description: 'Create and maintain reusable contract documents here. Changes affect future agreements, not already-issued contracts.' },
   'contract-policies': { title: 'Contract policies', description: 'Manage reusable contract policy content here before it is used in agreements.' },
-  audits: { title: 'Audit history', description: 'Use the audit trail to understand what changed, when it changed, and who made the change before considering a supervised undo.' },
+  audits: { title: 'Audit history', description: 'Use the audit trail to compare before/after values, identify the exact business record affected, and verify the actor and time before any supervised undo.' },
   'payment-details': { title: 'Payment details', description: 'Manage payment records and their links to invoices here. Financial history is preserved for traceability.' },
 }
 
@@ -61,7 +64,13 @@ const firstVisible = (root: HTMLElement, selectors: string[]) => selectors
   .find(isVisible)
 
 const primaryAction = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>('button, a[role="button"]')]
-  .find(element => isVisible(element) && /\b(add|create|new|issue|record|invite|save)\b/i.test(element.textContent ?? ''))
+  .find(element => isVisible(element) && /\b(add|create|new|issue|record|invite|save|send|submit|request)\b/i.test(element.textContent ?? ''))
+
+const driverProgressText = () => ({
+  en: '{{current}} of {{total}}',
+  'fa-AF': '{{current}} از {{total}}',
+  'ps-AF': '{{current}} له {{total}}',
+}[currentLocale()] ?? '{{current}} of {{total}}')
 
 export function startPageGuide(route: RouteLocationNormalizedLoaded) {
   if (route.name === 'account-settings') {
@@ -74,7 +83,12 @@ export function startPageGuide(route: RouteLocationNormalizedLoaded) {
   if (!pageRoot)
     return
 
-  const definition = pageGuides[String(route.name)] ?? {
+  const definition = route.name === 'support' ? {
+    title: translate('pages.support.guide.title'),
+    description: translate('pages.support.guide.description'),
+    actionTitle: translate('pages.support.guide.actionTitle'),
+    actionDescription: translate('pages.support.guide.actionDescription'),
+  } : pageGuides[String(route.name)] ?? {
     title: 'This page',
     description: 'This guide explains the page currently open. It will not navigate you away or describe controls from another page.',
   }
@@ -83,22 +97,41 @@ export function startPageGuide(route: RouteLocationNormalizedLoaded) {
   const action = primaryAction(pageRoot)
   const results = firstVisible(pageRoot, ['.v-data-table', 'table', '[role="table"]', '[data-page-guide="results"]'])
 
+  const isEnglish = currentLocale() === 'en'
+  const visiblePageName = heading?.textContent?.trim() || translate('common.pageGuide.thisPage')
+  const localizedDefinition = isEnglish || route.name === 'support' ? definition : {
+    title: translate('common.pageGuide.pageTitle', { page: visiblePageName }),
+    description: translate('common.pageGuide.pageDescription', { page: visiblePageName }),
+  }
+  const guideText = (englishTitle: string, englishDescription: string, step: 'filters' | 'action' | 'results') => isEnglish ? {
+    title: englishTitle,
+    description: englishDescription,
+  } : {
+    title: translate(`common.pageGuide.${step}Title`),
+    description: translate(`common.pageGuide.${step}Description`),
+  }
+
   const steps = [
     {
       element: heading,
-      popover: { title: definition.title, description: definition.description, side: 'bottom' as const, align: 'start' as const },
+      popover: { title: localizedDefinition.title, description: localizedDefinition.description, side: 'bottom' as const, align: 'start' as const },
     },
     ...(filters ? [{
       element: filters,
-      popover: { title: 'Find the right record', description: 'Use the visible search or filter controls to narrow this page before opening or editing a record.', side: 'bottom' as const, align: 'start' as const },
+      popover: { ...guideText('Find the right record', 'Use the visible search or filter controls to narrow this page before opening or editing a record.', 'filters'), side: 'bottom' as const, align: 'start' as const },
     }] : []),
     ...(action ? [{
       element: action,
-      popover: { title: 'Start an action', description: 'Use this action to add or create a record. Review required fields before saving.', side: 'bottom' as const, align: 'end' as const },
+      popover: {
+        title: isEnglish ? definition.actionTitle ?? 'Start an action' : translate('common.pageGuide.actionTitle'),
+        description: isEnglish ? definition.actionDescription ?? 'Use this action to add or create a record. Review required fields before saving.' : translate('common.pageGuide.actionDescription'),
+        side: 'bottom' as const,
+        align: 'end' as const,
+      },
     }] : []),
     ...(results ? [{
       element: results,
-      popover: { title: 'Review the current data', description: 'This area shows the records available to you. Open a row or its actions when you need more detail.', side: 'top' as const, align: 'center' as const },
+      popover: { ...guideText('Review the current data', 'This area shows the records available to you. Open a row or its actions when you need more detail.', 'results'), side: 'top' as const, align: 'center' as const },
     }] : []),
   ]
 
@@ -107,10 +140,10 @@ export function startPageGuide(route: RouteLocationNormalizedLoaded) {
     allowClose: true,
     overlayOpacity: 0.55,
     showProgress: true,
-    progressText: '{{current}} of {{total}}',
-    nextBtnText: 'Next',
-    prevBtnText: 'Back',
-    doneBtnText: 'Done',
+    progressText: driverProgressText(),
+    nextBtnText: translate('common.pageGuide.next'),
+    prevBtnText: translate('common.pageGuide.back'),
+    doneBtnText: translate('common.pageGuide.done'),
     steps,
   }).drive()
 }

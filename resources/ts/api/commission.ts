@@ -21,6 +21,7 @@ export interface CommissionAccrual {
   base_currency: CommissionCurrency
   earned_at: string
   entry_type: 'earned' | 'adjustment'
+  commission_role: 'delivery' | 'marketing' | 'adjustment'
   adjustment_reason: string | null
   eligible_base_amount: number
   percentage: number

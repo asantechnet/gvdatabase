@@ -2,7 +2,7 @@ import api from './axios'
 import type { ContractType } from './contractType'
 import type { Service } from './services'
 
-export type ContractStatus = 'draft' | 'active' | 'expired' | 'terminated' | 'cancelled'
+export type ContractStatus = 'draft' | 'active' | 'expired' | 'renewed' | 'terminated' | 'cancelled'
 
 export interface ContractPartySnapshot {
   our_company?: {

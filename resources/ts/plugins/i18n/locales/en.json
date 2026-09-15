@@ -89,7 +89,6 @@
       "performanceScore": "Performance score",
       "bonusType": "Bonus type",
       "bonusAmount": "Bonus amount",
-      "invoiceType": "Invoice type",
       "customer": "Customer",
       "contractTemplate": "Contract template",
       "paymentInstructions": "Payment instructions",
@@ -426,13 +425,16 @@
       "marketers": "Marketers",
       "offices": "Offices",
       "settings": "Settings",
-      "tasks": "Tasks",
+      "tasks": "Projects",
+      "projects": "Projects",
       "visitor": "Visitors",
       "leads": "Leads",
       "companies": "Companies",
       "otherContracts": "Other contracts",
       "contractTemplates": "Contract templates",
-      "audits": "Audits"
+      "audits": "Audits",
+      "support": "Support",
+      "recurringEvents": "Recurring events"
     },
     "tables": {},
     "dateTime": {},
@@ -444,18 +446,115 @@
       "pashto": "پښتو"
     },
     "crmUi": {
-      "leads": "Leads", "leadSubtitle": "Move qualified opportunities toward a customer relationship.", "opportunities": "{count} opportunities", "searchLeads": "Search leads", "pipelineStage": "Pipeline stage", "independent": "Independent", "confidence": "{value}% confidence", "relationshipNotes": "Relationship notes", "conversationHistory": "Conversation history", "convertCustomer": "Convert to customer", "convertedCustomer": "Lead converted to customer", "stageUpdated": "Lead stage updated", "logConversation": "Log conversation", "conversationTitle": "Conversation title", "conversationNotes": "Conversation notes", "conversationHint": "Capture decisions, needs, objections, and the promised next step.", "followUp": "Follow-up (optional)", "saveContinue": "Save & continue", "qualifyLead": "Qualify as lead", "visitorNotes": "Visitor notes", "visitorNotesHint": "Capture interests, context, and anything useful before qualification."
+      "leads": "Leads",
+      "leadSubtitle": "Move qualified opportunities toward a customer relationship.",
+      "opportunities": "{count} opportunities",
+      "searchLeads": "Search leads",
+      "pipelineStage": "Pipeline stage",
+      "independent": "Independent",
+      "confidence": "{value}% confidence",
+      "relationshipNotes": "Relationship notes",
+      "conversationHistory": "Conversation history",
+      "convertCustomer": "Convert to customer",
+      "convertedCustomer": "Lead converted to customer",
+      "stageUpdated": "Lead stage updated",
+      "logConversation": "Log conversation",
+      "conversationTitle": "Conversation title",
+      "conversationNotes": "Conversation notes",
+      "conversationHint": "Capture decisions, needs, objections, and the promised next step.",
+      "followUp": "Follow-up (optional)",
+      "saveContinue": "Save & continue",
+      "qualifyLead": "Qualify as lead",
+      "visitorNotes": "Visitor notes",
+      "visitorNotesHint": "Capture interests, context, and anything useful before qualification.",
+      "invalidPhone": "No valid phone number",
+      "invalidPhoneHint": "Add digits and a country code to enable calling and messaging.",
+      "marketerHint": "Optional. This employee is credited with bringing in the lead.",
+      "createMarketerHint": "Optional. Select the employee who persuaded this prospect to engage.",
+      "marketerLocked": "Marketer attribution is locked to your profile. The current relationship owner is {name}.",
+      "customerMarketerAutomatic": "Your marketer attribution is applied automatically.",
+      "customerMarketerEmpty": "Create an employee with the Marketer position to assign them here.",
+      "customerMarketerHint": "This employee receives acquisition credit; delivery ownership is chosen per service.",
+      "paymentCurrencyBookingRate": "Payment currency at booking · rate {rate}",
+      "commissionHeaders": { "date": "Date", "type": "Type", "employee": "Employee", "invoice": "Invoice", "service": "Service", "eligibleRevenue": "Eligible revenue", "rate": "Rate", "commission": "Commission", "status": "Status", "settlement": "Settlement", "period": "Period", "amount": "Amount", "paymentDate": "Payment date", "actions": "Actions" },
+      "commissionRoles": { "title": "Commission for", "delivery": "Service delivery", "marketing": "Customer acquisition", "adjustment": "Adjustment" },
+      "commissionRateSetup": { "title": "Service commission rates", "description": "Set the rate for each service. It applies when this person delivers the service, or when they are its attributed marketer.", "service": "Commissionable service" },
+      "commissions": { "title": "Commission ledger", "subtitle": "Review invoice-payment accruals, approve settlements, and post paid commissions to expenses.", "addAdjustment": "Add adjustment", "newSettlement": "New settlement", "employee": "Employee", "settlementStatus": "Settlement status", "refresh": "Refresh", "accruals": "Accruals", "settlements": "Settlements", "accrualCount": "{count} accruals", "approve": "Approve", "pay": "Pay", "cancel": "Cancel", "createSettlement": "Create commission settlement", "commissionEmployee": "Commission employee", "accrualCurrency": "Accrual currency", "periodStart": "Period start", "periodEnd": "Period end", "notes": "Notes", "createDraft": "Create draft", "paySettlement": "Pay commission settlement", "paymentWarning": "Payment creates a protected commission expense and permanently closes the included accruals.", "paymentDate": "Payment date", "recordPayment": "Record payment", "adjustmentWarning": "Use a negative amount for a clawback or correction, and a positive amount for an approved manual earning. The reason is retained in the audit ledger.", "currency": "Currency", "effectiveDate": "Effective date", "signedAmount": "Signed amount", "signedAmountHint": "Negative for clawback; positive for additional earning", "reason": "Reason", "addToLedger": "Add to ledger", "loadFailed": "Unable to load commission records.", "settlementCreated": "Draft commission settlement created.", "settlementCreateFailed": "Unable to create the settlement.", "adjustmentAdded": "Commission adjustment added to the pending ledger.", "adjustmentCreateFailed": "Unable to create adjustment.", "approvedSuccess": "{number} approved.", "approveFailed": "Unable to approve settlement.", "paidSuccess": "{number} paid and posted to expenses.", "payFailed": "Unable to pay settlement.", "cancelledSuccess": "{number} cancelled; its accruals are pending again.", "cancelFailed": "Unable to cancel settlement.", "statuses": { "pending": "Pending", "draft": "Draft", "approved": "Approved", "paid": "Paid", "cancelled": "Cancelled", "void": "Void" }, "entryTypes": { "invoice_payment": "Invoice payment", "adjustment": "Adjustment" } },
+      "customersReport": "Customers report", "filteredCustomerRecords": "Filtered customer records", "printNoRecords": "No records available", "printGenerated": "Generated {date}", "printColumns": { "name": "Name", "company": "Company", "contact": "Contact", "marketer": "Marketer", "registered": "Registered", "services": "Services" },
+      "printReports": { "income": { "title": "Income report", "subtitle": "Income records" }, "expenses": { "title": "Expenses report", "subtitle": "Expense records" }, "staff": { "title": "Staff report", "subtitle": "Filtered staff records" }, "salaries": { "title": "Staff salaries report", "subtitle": "Filtered salary payments" }, "assets": { "title": "Asset report", "subtitle": "Filtered asset records" }, "visitors": { "title": "Visitors report", "subtitle": "Filtered visitor records" }, "columns": { "receipt": "Receipt", "type": "Type", "details": "Details", "invoice": "Invoice", "amount": "Amount", "date": "Date", "expense": "Expense", "currency": "Currency", "id": "ID", "name": "Name", "position": "Position", "contact": "Contact", "email": "Email", "office": "Office", "payslip": "Payslip", "employee": "Employee", "payMonth": "Pay month", "workedDays": "Worked days", "totalPaid": "Total paid", "serialNumber": "Serial number", "item": "Item", "quantity": "Quantity", "price": "Price", "model": "Model", "condition": "Condition", "allocations": "Allocations" } },
+      "newLead": "New lead", "createLead": "Create lead", "createLeadSubtitle": "Capture the opportunity and credit the relationship owner from the start.", "leadWorkspace": "Lead workspace", "viewLead": "View lead", "marketer": "Marketer", "unassigned": "Unassigned", "pipeline": "Pipeline", "confidenceLabel": "Confidence", "manualOverride": "Manual override", "pipelineScore": "Pipeline score", "saveConfidence": "Save confidence", "usePipelineScore": "Use pipeline score", "confidenceRangeError": "Enter a whole confidence percentage from 0 to 100", "manualConfidenceSaved": "Manual confidence saved", "confidenceSaveFailed": "Unable to save the confidence", "pipelineConfidenceRestored": "Pipeline confidence restored", "pipelineConfidenceRestoreFailed": "Unable to restore the pipeline confidence", "manualConfidenceHint": "Your assessment stays in place as this lead moves through the pipeline.", "pipelineConfidenceHint": "This follows the current pipeline stage.", "closedConfidenceHint": "Closed outcomes use a fixed confidence.", "marketerUpdated": "Lead marketer updated", "marketerUpdateFailed": "Unable to update the lead marketer", "convertFailed": "Unable to convert this lead to a customer", "conversionEmailInvalid": "Enter a valid email address before converting this lead.", "requiredLeadFields": "Name and contact are required to create a lead", "leadCreated": "Lead created", "leadCreateFailed": "Unable to create the lead", "stageLabels": { "new": "New", "contacted": "Contacted", "qualified": "Qualified", "proposal": "Proposal", "won": "Won", "lost": "Lost" }
+    },
+    "pageGuide": {
+      "open": "Guide for this page", "thisPage": "This page", "pageTitle": "Guide: {page}", "pageDescription": "This guide explains the working decisions on {page}; it does not navigate away or describe another page.", "filtersTitle": "Reduce the review surface", "filtersDescription": "Use the available filters to isolate the records that need a decision, then verify the record context before changing it.", "actionTitle": "Make a deliberate change", "actionDescription": "Check the downstream effect of this action and the required information before saving.", "resultsTitle": "Verify the operational context", "resultsDescription": "Use the visible status, ownership, dates, and history to validate the record before acting.", "accountStepTitle": "Current account section — step {step}", "accountStepDescription": "This is a consequential account control. Review the visible values and save only the change you intend.", "progress": "{current} of {total}", "next": "Next", "back": "Back", "done": "Done"
     },
     "crmDetails": {
-      "relationshipDetails": "Relationship details", "entityRelationship": "{entity} relationship", "entities": { "visitor": "Visitor", "lead": "Lead", "customer": "Customer" },
-      "details": "Details", "overview": "Notes & activity", "profileTitle": "Profile details", "profileHint": "The current CRM record and the context needed for the next interaction.", "customerServices": "Customer services", "contextHint": "Context that stays with this person through every CRM stage.", "notesPlaceholder": "Needs, preferences, background, objections, or other enduring context…", "saveNotes": "Save notes", "activityMix": "Activity mix", "addConversation": "Add conversation", "all": "All", "emptyTitle": "No conversations in this category", "emptyHint": "Add the first interaction or choose another category.",
-      "followUpAt": "Follow up {date}", "editConversation": "Edit conversation", "category": "Category", "notesOutcome": "Notes and outcome", "contactedAt": "Contacted at", "saveConversation": "Save conversation", "deleteConfirm": "Delete “{title}”?",
-      "notesSaved": "Relationship notes saved", "notesSaveFailed": "Unable to save notes.", "loadFailed": "Unable to load relationship details.", "conversationAdded": "Conversation added", "conversationUpdated": "Conversation updated", "conversationRemoved": "Conversation removed", "conversationSaveFailed": "Unable to save conversation.", "conversationDeleteFailed": "Unable to delete conversation.",
-      "fields": { "company": "Company", "contact": "Contact", "email": "Email", "marketer": "Marketer", "service": "Service interest", "owner": "Relationship owner", "stage": "Pipeline stage", "probability": "Probability", "estimatedValue": "Estimated value", "nextFollowUp": "Next follow-up", "taxNumber": "Tax number", "since": "Record date", "address": "Address" },
-      "channels": { "calls": "Calls", "messages": "Messages", "emails": "Emails", "meetings": "Meetings", "notes": "Notes" }
+      "relationshipDetails": "Relationship details",
+      "entityRelationship": "{entity} relationship",
+      "entities": {
+        "visitor": "Visitor",
+        "lead": "Lead",
+        "customer": "Customer"
+      },
+      "details": "Details",
+      "overview": "Notes & activity",
+      "profileTitle": "Profile details",
+      "profileHint": "The current CRM record and the context needed for the next interaction.",
+      "customerServices": "Customer services",
+      "contextHint": "Context that stays with this person through every CRM stage.",
+      "notesPlaceholder": "Needs, preferences, background, objections, or other enduring context…",
+      "saveNotes": "Save notes",
+      "activityMix": "Activity mix",
+      "addConversation": "Add conversation",
+      "all": "All",
+      "emptyTitle": "No conversations in this category",
+      "emptyHint": "Add the first interaction or choose another category.",
+      "followUpAt": "Follow up {date}",
+      "editConversation": "Edit conversation",
+      "category": "Category",
+      "notesOutcome": "Notes and outcome",
+      "contactedAt": "Contacted at",
+      "saveConversation": "Save conversation",
+      "deleteConfirm": "Delete “{title}”?",
+      "notesSaved": "Relationship notes saved",
+      "notesSaveFailed": "Unable to save notes.",
+      "loadFailed": "Unable to load relationship details.",
+      "conversationAdded": "Conversation added",
+      "conversationUpdated": "Conversation updated",
+      "conversationRemoved": "Conversation removed",
+      "conversationSaveFailed": "Unable to save conversation.",
+      "conversationDeleteFailed": "Unable to delete conversation.",
+      "fields": {
+        "company": "Company",
+        "contact": "Contact",
+        "email": "Email",
+        "marketer": "Marketer",
+        "service": "Service interest",
+        "owner": "Relationship owner",
+        "stage": "Pipeline stage",
+        "probability": "Probability",
+        "estimatedValue": "Estimated value",
+        "nextFollowUp": "Next follow-up",
+        "taxNumber": "Tax number",
+        "since": "Record date",
+        "address": "Address"
+      },
+      "channels": {
+        "calls": "Calls",
+        "messages": "Messages",
+        "emails": "Emails",
+        "meetings": "Meetings",
+        "notes": "Notes"
+      }
     },
     "leaveApproval": {
-      "paidException": "Approve as paid exception ({count})", "exceptionTitle": "Paid leave exception", "exceptionHint": "One or more selected employees have insufficient paid-leave allowance. This authorization keeps every selected day paid and records the justification in the audit trail.", "usageSummary": "Used {used} · Remaining {remaining} · Selected {selected} days", "overLimit": "+{count} over limit", "justification": "Approval justification", "approvePaid": "Approve paid leave", "employeeFallback": "Employee"
+      "paidException": "Approve as paid exception ({count})",
+      "exceptionTitle": "Paid leave exception",
+      "exceptionHint": "One or more selected employees have insufficient paid-leave allowance. This authorization keeps every selected day paid and records the justification in the audit trail.",
+      "usageSummary": "Used {used} · Remaining {remaining} · Selected {selected} days",
+      "overLimit": "+{count} over limit",
+      "justification": "Approval justification",
+      "approvePaid": "Approve paid leave",
+      "employeeFallback": "Employee"
     }
   },
   "pages": {
@@ -542,20 +641,177 @@
     },
     "dashboard": {
       "executive": {
-        "header": { "eyebrow": "Executive dashboard", "title": "Company pulse", "subtitle": "Money, customers, people, assets, and delivery—one practical view.", "updated": "Updated {time}", "refresh": "Refresh" },
-        "filters": { "label": "Dashboard period", "oneMonth": "1 month", "threeMonths": "3 months", "oneYear": "1 year", "twoYears": "2 years", "custom": "Custom", "customTitle": "Custom date range", "from": "From", "to": "To", "apply": "Apply range", "selectBothDates": "Select both dates for a custom range." },
-        "common": { "notSet": "Not set", "noPayroll": "No payroll", "minutesShort": "{value} min", "hoursShort": "{value} hr" },
-        "metrics": { "activeWork": "Active work", "nearingCompletion": "{count} nearing completion", "completedThisMonth": "Completed this month", "completionRate": "{rate}% completion rate", "overdueWork": "Overdue work", "pastDueDates": "Past due dates", "averageProgress": "Average progress", "accessibleWork": "Accessible work", "receivableExposure": "Receivable exposure", "openInvoices": "{count} open invoices", "cashCollection": "Cash collection", "collectedOf": "{collected} collected of {total}", "customerBase": "Customer base", "activeCommitments": "{count} active commitments", "latestPayroll": "Latest payroll", "payrollContext": "{period} · {count} employees", "visitorsThisMonth": "Visitors this month", "newCustomers": "{count} new customers" },
-        "answers": { "eyebrow": "What the numbers say", "title": "Four answers for today", "liveData": "Live operational data", "collectingQuestion": "Are we collecting?", "issuedValue": "{rate}% of issued value", "customersQuestion": "Are customers active?", "liveCommitments": "{count} live commitments", "customerContext": "Across {customers} customers; {due} due soon.", "teamQuestion": "Is the team accounted for?", "markedToday": "{rate}% marked today", "attendanceMissing": "{count} people still need an attendance record.", "deliveryQuestion": "Is delivery at risk?", "overdueCommitments": "{count} overdue commitments", "nearingDone": "{count} tasks are close to done." },
-        "charts": { "billed": "Billed", "collected": "Collected", "spent": "Spent", "noBillingActivity": "No billing activity recorded", "openBalance": "Open balance", "visitors": "Visitors", "newCustomers": "New customers", "activeCustomers": "Active customers", "noActiveServices": "No active customer services", "activeTasks": "Active tasks" },
-        "aging": { "notDue": "Not due", "days1To30": "1–30 days", "days31To60": "31–60 days", "days61Plus": "61+ days", "noDueDate": "No due date" },
-        "collection": { "noIssuedValue": "No issued invoice value is available yet.", "noLinkedIncome": "Invoices are issued, but no linked income has been recorded yet.", "trailing": "Collections are trailing billed value and need active follow-up.", "healthy": "Collections are keeping pace with billed value." },
-        "sections": { "cashMovement": "Billing and cash movement", "cashMovementSubtitle": "Billed, collected, and spent in the base currency over six months", "receivablesAging": "Receivables aging", "receivablesAgingSubtitle": "Where unpaid value is sitting", "agingInsight": "Invoices without due dates are separated so the team can fix the collection schedule.", "commercialMomentum": "Commercial momentum", "commercialMomentumSubtitle": "Visitor interest compared with new customer acquisition", "servicePortfolio": "Service portfolio", "servicePortfolioSubtitle": "What active customers currently rely on the company for", "actionCenter": "Executive action center", "actionCenterSubtitle": "Prioritized exceptions from across the system", "workloadRisk": "Workload risk", "workloadRiskSubtitle": "Open tasks by priority" },
-        "actions": { "count": "{count} actions", "open": "Open record", "emptyTitle": "Nothing critical needs intervention", "emptyBody": "The monitored business records are currently in good shape.", "areas": { "delivery": "Delivery", "finance": "Finance", "contracts": "Contracts", "customers": "Customers", "people": "People", "assets": "Assets" }, "overdueTasks": "{count} overdue tasks", "overdueTasksDetail": "Commitments have passed their due dates and need owners.", "urgentTasks": "{count} urgent active tasks", "urgentTasksDetail": "High-priority delivery work needs close monitoring.", "missingInvoiceDueDates": "{count} invoices have no due date", "missingInvoiceDueDatesDetail": "Add collection deadlines so receivables can be managed.", "overdueInvoices": "{count} overdue invoices", "overdueInvoicesDetail": "{amount} remains open past its collection date.", "noContracts": "No contracts are recorded", "noContractsDetail": "Customer commitments currently have no formal contract coverage.", "expiringContracts": "{count} contracts expire soon", "expiringContractsDetail": "Renew or close contracts ending within 30 days.", "serviceDeadlines": "{count} service deadlines are approaching", "serviceDeadlinesDetail": "Customer commitments fall due in the next 30 days.", "unmarkedEmployees": "{count} employees are unmarked today", "unmarkedEmployeesDetail": "Complete attendance records before the day closes.", "assetInspection": "{count} asset items need inspection", "assetInspectionDetail": "Items marked fair, poor, or damaged require review." },
-        "domains": { "contractCoverage": "Contract coverage", "activeCount": "{count} active", "expiring30Days": "Expiring in 30 days", "drafts": "Drafts", "peopleReadiness": "People readiness", "employeeCount": "{count} employees", "pendingLeave": "Pending leave", "overtimeMonth": "Overtime this month", "assetControl": "Asset control", "availableAssigned": "Available / assigned", "needInspection": "Need inspection", "frontDoor": "Front-door activity", "visitorCount": "{count} visitors", "newCustomers": "New customers", "activeServices": "Active services" },
-        "receivables": { "title": "Receivables requiring follow-up", "subtitle": "Largest open customer balances", "customerInvoice": "Customer / invoice", "due": "Due", "openBalance": "Open balance", "overdueDate": "Overdue · {date}", "dueMissing": "Due date missing", "empty": "No open customer balances." },
-        "delivery": { "title": "Delivery commitments", "subtitle": "Highest-progress active work", "allTasks": "All tasks", "noBoard": "No board", "empty": "No active work found." },
-        "errors": { "load": "Unable to load the business overview." }
+        "header": {
+          "eyebrow": "Executive dashboard",
+          "title": "Company pulse",
+          "subtitle": "Money, customers, people, assets, and delivery—one practical view.",
+          "updated": "Updated {time}",
+          "refresh": "Refresh"
+        },
+        "filters": {
+          "label": "Dashboard period",
+          "oneMonth": "1 month",
+          "threeMonths": "3 months",
+          "oneYear": "1 year",
+          "twoYears": "2 years",
+          "custom": "Custom",
+          "customTitle": "Custom date range",
+          "from": "From",
+          "to": "To",
+          "apply": "Apply range",
+          "selectBothDates": "Select both dates for a custom range."
+        },
+        "common": {
+          "notSet": "Not set",
+          "noPayroll": "No payroll",
+          "minutesShort": "{value} min",
+          "hoursShort": "{value} hr"
+        },
+        "metrics": {
+          "activeWork": "Active work",
+          "nearingCompletion": "{count} nearing completion",
+          "completedThisMonth": "Completed this month",
+          "completionRate": "{rate}% completion rate",
+          "overdueWork": "Overdue work",
+          "pastDueDates": "Past due dates",
+          "averageProgress": "Average progress",
+          "accessibleWork": "Accessible work",
+          "receivableExposure": "Receivable exposure",
+          "openInvoices": "{count} open invoices",
+          "cashCollection": "Cash collection",
+          "collectedOf": "{collected} collected of {total}",
+          "customerBase": "Customer base",
+          "activeCommitments": "{count} active commitments",
+          "latestPayroll": "Latest payroll",
+          "payrollContext": "{period} · {count} employees",
+          "visitorsThisMonth": "Visitors this month",
+          "newCustomers": "{count} new customers"
+        },
+        "answers": {
+          "eyebrow": "What the numbers say",
+          "title": "Four answers for today",
+          "liveData": "Live operational data",
+          "collectingQuestion": "Are we collecting?",
+          "issuedValue": "{rate}% of issued value",
+          "customersQuestion": "Are customers active?",
+          "liveCommitments": "{count} live commitments",
+          "customerContext": "Across {customers} customers; {due} due soon.",
+          "teamQuestion": "Is the team accounted for?",
+          "markedToday": "{rate}% marked today",
+          "attendanceMissing": "{count} people still need an attendance record.",
+          "deliveryQuestion": "Is delivery at risk?",
+          "overdueCommitments": "{count} overdue commitments",
+          "nearingDone": "{count} tasks are close to done."
+        },
+        "charts": {
+          "billed": "Billed",
+          "collected": "Collected",
+          "spent": "Spent",
+          "noBillingActivity": "No billing activity recorded",
+          "openBalance": "Open balance",
+          "visitors": "Visitors",
+          "newCustomers": "New customers",
+          "activeCustomers": "Active customers",
+          "noActiveServices": "No active customer services",
+          "activeTasks": "Active tasks"
+        },
+        "aging": {
+          "notDue": "Not due",
+          "days1To30": "1–30 days",
+          "days31To60": "31–60 days",
+          "days61Plus": "61+ days",
+          "noDueDate": "No due date"
+        },
+        "collection": {
+          "noIssuedValue": "No issued invoice value is available yet.",
+          "noLinkedIncome": "Invoices are issued, but no linked income has been recorded yet.",
+          "trailing": "Collections are trailing billed value and need active follow-up.",
+          "healthy": "Collections are keeping pace with billed value."
+        },
+        "sections": {
+          "cashMovement": "Billing and cash movement",
+          "cashMovementSubtitle": "Billed, collected, and spent in the base currency over six months",
+          "receivablesAging": "Receivables aging",
+          "receivablesAgingSubtitle": "Where unpaid value is sitting",
+          "agingInsight": "Invoices without due dates are separated so the team can fix the collection schedule.",
+          "commercialMomentum": "Commercial momentum",
+          "commercialMomentumSubtitle": "Visitor interest compared with new customer acquisition",
+          "servicePortfolio": "Service portfolio",
+          "servicePortfolioSubtitle": "What active customers currently rely on the company for",
+          "actionCenter": "Executive action center",
+          "actionCenterSubtitle": "Prioritized exceptions from across the system",
+          "workloadRisk": "Workload risk",
+          "workloadRiskSubtitle": "Open tasks by priority"
+        },
+        "actions": {
+          "count": "{count} actions",
+          "open": "Open record",
+          "emptyTitle": "Nothing critical needs intervention",
+          "emptyBody": "The monitored business records are currently in good shape.",
+          "areas": {
+            "delivery": "Delivery",
+            "finance": "Finance",
+            "contracts": "Contracts",
+            "customers": "Customers",
+            "people": "People",
+            "assets": "Assets"
+          },
+          "overdueTasks": "{count} overdue tasks",
+          "overdueTasksDetail": "Commitments have passed their due dates and need owners.",
+          "urgentTasks": "{count} urgent active tasks",
+          "urgentTasksDetail": "High-priority delivery work needs close monitoring.",
+          "missingInvoiceDueDates": "{count} invoices have no due date",
+          "missingInvoiceDueDatesDetail": "Add collection deadlines so receivables can be managed.",
+          "overdueInvoices": "{count} overdue invoices",
+          "overdueInvoicesDetail": "{amount} remains open past its collection date.",
+          "noContracts": "No contracts are recorded",
+          "noContractsDetail": "Customer commitments currently have no formal contract coverage.",
+          "expiringContracts": "{count} contracts expire soon",
+          "expiringContractsDetail": "Renew or close contracts ending within 30 days.",
+          "serviceDeadlines": "{count} service deadlines are approaching",
+          "serviceDeadlinesDetail": "Customer commitments fall due in the next 30 days.",
+          "unmarkedEmployees": "{count} employees are unmarked today",
+          "unmarkedEmployeesDetail": "Complete attendance records before the day closes.",
+          "assetInspection": "{count} asset items need inspection",
+          "assetInspectionDetail": "Items marked fair, poor, or damaged require review."
+        },
+        "domains": {
+          "contractCoverage": "Contract coverage",
+          "activeCount": "{count} active",
+          "expiring30Days": "Expiring in 30 days",
+          "drafts": "Drafts",
+          "peopleReadiness": "People readiness",
+          "employeeCount": "{count} employees",
+          "pendingLeave": "Pending leave",
+          "overtimeMonth": "Overtime this month",
+          "assetControl": "Asset control",
+          "availableAssigned": "Available / assigned",
+          "needInspection": "Need inspection",
+          "frontDoor": "Front-door activity",
+          "visitorCount": "{count} visitors",
+          "newCustomers": "New customers",
+          "activeServices": "Active services"
+        },
+        "receivables": {
+          "title": "Receivables requiring follow-up",
+          "subtitle": "Largest open customer balances",
+          "customerInvoice": "Customer / invoice",
+          "due": "Due",
+          "openBalance": "Open balance",
+          "overdueDate": "Overdue · {date}",
+          "dueMissing": "Due date missing",
+          "empty": "No open customer balances."
+        },
+        "delivery": {
+          "title": "Delivery commitments",
+          "subtitle": "Highest-progress active work",
+          "allTasks": "All tasks",
+          "noBoard": "No board",
+          "empty": "No active work found."
+        },
+        "errors": {
+          "load": "Unable to load the business overview."
+        }
       },
       "metrics": {
         "newIncome": "New income this month",
@@ -621,6 +877,17 @@
           "reset": "Reset",
           "deleteTemplate2": "Delete Template?",
           "contractTemplate": {
+            "documentWorkspace": "Document workspace",
+            "heroDescription": "Build a polished, reusable agreement and insert the right details when you need them.",
+            "openSavedTemplate": "Open a saved template",
+            "startNewTemplate": "Start a new template",
+            "templateDetails": "Template details",
+            "templateDetailsSubtitle": "Set the document context before writing its content.",
+            "documentContent": "Document content",
+            "documentContentSubtitle": "Use merge fields for information that changes from one contract to another.",
+            "placeholderHint": "Select ‘Insert placeholder’ in the editor to add context-aware fields.",
+            "insertSavedPolicy": "Insert saved policy",
+            "noReusablePolicies": "No reusable policies are available yet. Create one in the Policy Library to reuse it here.",
             "contractType": "Contract Type",
             "selectContractType": "Select a contract type",
             "system": "System",
@@ -802,6 +1069,8 @@
             "type": "Type",
             "label": "Label",
             "header": "Header",
+            "status": "Availability",
+            "activeHint": "Available for new templates",
             "actions": "Actions",
             "edit": "Edit policy",
             "delete": "Delete policy",
@@ -834,9 +1103,7 @@
           "invoiceVoidedWithoutDeletingItsRecord": "Invoice Voided Without Deleting Its Record",
           "failedToLoadInvoicingData": "Failed To Load Invoicing Data",
           "searchInvoiceNumberOrCustomer": "Search Invoice Number Or Customer",
-          "invoiceType": "Invoice Type",
           "voidInvoice2": "Void invoice",
-          "invoiceType2": "Invoice type",
           "invoiceCurrency": "Invoice currency",
           "newInvoice": "New invoice",
           "invoiceSetup": "Invoice setup",
@@ -909,38 +1176,38 @@
         "updated": "Position updated.",
         "created": "Position created."
       },
-        "settings": {
-          "settingsSavedSuccessfully": "Settings Saved Successfully",
-          "settings": "Settings",
-          "manageCompanyPreferences": "Manage company preferences and system defaults.",
-          "companyPageDescription": "Identity, contact details, and branding.",
-          "emailDeliveryPage": "Email delivery",
-          "emailDeliveryPageDescription": "Sender identity and SMTP connection.",
-          "operationsPageDescription": "Working hours and leave defaults.",
-          "appearancePageDescription": "Application colour preferences.",
-          "documentsPageDescription": "Artwork used on contract documents.",
-          "emailDeliveryHint": "SMTP credentials are stored securely and used for verification and password-reset emails. Leave the SMTP fields empty to use the server mail configuration.",
-          "fromEmailAddress": "From email address",
-          "fromName": "From name",
-          "smtpServer": "SMTP server",
-          "smtpHost": "SMTP host",
-          "smtpPort": "SMTP port",
-          "smtpUsername": "SMTP username",
-          "smtpPassword": "SMTP password / app password",
-          "smtpPasswordConfigured": "SMTP password configured",
-          "usingDefaultMailConfiguration": "Using default mail configuration",
-          "smtpPasswordSavedHint": "A password is saved. Enter a new value only to replace it.",
-          "smtpPasswordGmailHint": "For Gmail, use a 16-character app password.",
-          "removeSavedSmtpPassword": "Remove the saved SMTP password",
-          "replyToEmail": "Reply-to email (optional)",
-          "encryption": "Encryption",
-          "tlsRecommended": "TLS (recommended)",
-          "resetPage": "Reset page",
-          "saveChanges": "Save changes",
+      "settings": {
+        "settingsSavedSuccessfully": "Settings Saved Successfully",
+        "settings": "Settings",
+        "manageCompanyPreferences": "Manage company preferences and system defaults.",
+        "companyPageDescription": "Identity, contact details, and branding.",
+        "emailDeliveryPage": "Email delivery",
+        "emailDeliveryPageDescription": "Sender identity and SMTP connection.",
+        "operationsPageDescription": "Working hours and leave defaults.",
+        "appearancePageDescription": "Application colour preferences.",
+        "documentsPageDescription": "Artwork used on contract documents.",
+        "emailDeliveryHint": "SMTP credentials are stored securely and used for verification and password-reset emails. Leave the SMTP fields empty to use the server mail configuration.",
+        "fromEmailAddress": "From email address",
+        "fromName": "From name",
+        "smtpServer": "SMTP server",
+        "smtpHost": "SMTP host",
+        "smtpPort": "SMTP port",
+        "smtpUsername": "SMTP username",
+        "smtpPassword": "SMTP password / app password",
+        "smtpPasswordConfigured": "SMTP password configured",
+        "usingDefaultMailConfiguration": "Using default mail configuration",
+        "smtpPasswordSavedHint": "A password is saved. Enter a new value only to replace it.",
+        "smtpPasswordGmailHint": "For Gmail, use a 16-character app password.",
+        "removeSavedSmtpPassword": "Remove the saved SMTP password",
+        "replyToEmail": "Reply-to email (optional)",
+        "encryption": "Encryption",
+        "tlsRecommended": "TLS (recommended)",
+        "resetPage": "Reset page",
+        "saveChanges": "Save changes",
         "youCanViewCompanySettingsButYouDoNotHavePermissionToEditThem": "You Can View Company Settings But You Do Not Have Permission To Edit Them",
         "companySettings": "Company Settings",
         "uploadNewLogo": "Upload New Logo",
-          "jpgPNGGIFOrWEBPUpTo2MB": "JPG, PNG, GIF, or WEBP files up to 2 MB",
+        "jpgPNGGIFOrWEBPUpTo2MB": "JPG, PNG, GIF, or WEBP files up to 2 MB",
         "authorizedSignature": "Authorized Signature",
         "uploadSignature": "Upload Signature",
         "shownOnPrintedContracts": "Shown On Printed Contracts",
@@ -956,7 +1223,7 @@
         "physicalAddress": "Physical Address",
         "businessLicence": "Business Licence",
         "licenceNumber": "Licence Number",
-          "paidOffDaysPerYear": "Leave allowance per year",
+        "paidOffDaysPerYear": "Leave allowance per year",
         "officeOpens": "Office Opens",
         "officeCloses": "Office Closes",
         "defaultBreakMinutes": "Default Break Minutes",
@@ -968,48 +1235,48 @@
         "appearancePage": "Appearance",
         "documentsPage": "Documents",
         "vuexyThemeColors": "Vuexy theme colors",
-          "themeColorsHint": "Choose only the theme colors you want to override. Unselected colors keep Vuexy's defaults.",
-          "themeColorsPreviewHint": "Changes preview immediately in the application and are saved only when you select Save changes.",
-          "restoreVuexyDefaults": "Restore Vuexy defaults",
-          "brandColors": "Brand colours",
-          "brandColorsHint": "The colours used for primary and secondary actions.",
-          "feedbackColors": "Feedback colours",
-          "feedbackColorsHint": "Status colours used for successful, informational, warning, and error states.",
-          "lightModeSurfaces": "Light-mode canvas and surfaces",
-          "lightModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in light mode.",
-          "darkModeSurfaces": "Dark-mode canvas and surfaces",
-          "darkModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in dark mode.",
-          "primaryColor": "Primary",
-          "secondaryColor": "Secondary",
-          "tertiaryColor": "Tertiary",
-          "successColor": "Success",
-          "infoColor": "Info",
-          "warningColor": "Warning",
-          "errorColor": "Error",
-          "applicationBackground": "Application background",
-          "cardsAndMenus": "Cards and menus",
-          "live": "Live",
+        "themeColorsHint": "Choose only the theme colors you want to override. Unselected colors keep Vuexy's defaults.",
+        "themeColorsPreviewHint": "Changes preview immediately in the application and are saved only when you select Save changes.",
+        "restoreVuexyDefaults": "Restore Vuexy defaults",
+        "brandColors": "Brand colours",
+        "brandColorsHint": "The colours used for primary and secondary actions.",
+        "feedbackColors": "Feedback colours",
+        "feedbackColorsHint": "Status colours used for successful, informational, warning, and error states.",
+        "lightModeSurfaces": "Light-mode canvas and surfaces",
+        "lightModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in light mode.",
+        "darkModeSurfaces": "Dark-mode canvas and surfaces",
+        "darkModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in dark mode.",
+        "primaryColor": "Primary",
+        "secondaryColor": "Secondary",
+        "tertiaryColor": "Tertiary",
+        "successColor": "Success",
+        "infoColor": "Info",
+        "warningColor": "Warning",
+        "errorColor": "Error",
+        "applicationBackground": "Application background",
+        "cardsAndMenus": "Cards and menus",
+        "live": "Live",
         "notSet": "Not set",
         "headerNavbar": "Header Navbar",
         "footerBar": "Footer Bar",
         "cardsSurfaces": "Cards Surfaces",
         "contractDocumentBranding": "Contract Document Branding",
-          "uploadCleanA4PortraitArtworkContractTextIsLayeredOverTheseImagesAndThe": "Upload clean A4 portrait artwork. Contract text is layered over these images and the artwork should remain uncluttered.",
+        "uploadCleanA4PortraitArtworkContractTextIsLayeredOverTheseImagesAndThe": "Upload clean A4 portrait artwork. Contract text is layered over these images and the artwork should remain uncluttered.",
         "contractLetterhead": "Contract Letterhead",
-          "minimum1000300Pixels": "Minimum 1000 × 300 pixels",
+        "minimum1000300Pixels": "Minimum 1000 × 300 pixels",
         "contractCoverDesign": "Contract Cover Design",
-          "minimum10001400Pixels": "Minimum 1000 × 1400 pixels",
+        "minimum10001400Pixels": "Minimum 1000 × 1400 pixels",
         "builtInDesignWillBeUsed": "Built In Design Will Be Used",
         "assetHint": "{hint} · PNG, JPG, or WEBP up to 8 MB",
         "resetDefaults": "Reset Defaults",
-          "saveSettings": "Save Settings",
-          "noChangesToSave": "There are no changes to save on this page.",
-          "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings."
+        "saveSettings": "Save Settings",
+        "noChangesToSave": "There are no changes to save on this page.",
+        "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings."
       },
       "users": {
         "user": "User",
         "created": "Created",
-          "nameEmailAndAtLeastOneRoleAreRequired": "Name, email, and at least one role are required",
+        "nameEmailAndAtLeastOneRoleAreRequired": "Name, email, and at least one role are required",
         "userDeleted": "User Deleted",
         "searchUsers": "Search Users",
         "inviteUser": "Invite User",
@@ -1282,7 +1549,24 @@
         "contractParties": "Contract parties",
         "printPreview": "Preview the contract cover and pages using its saved template.",
         "includePartyDetails": "Include core details for both contract parties",
-        "defaultTerms": "This agreement is made between the parties named in this contract."
+        "defaultTerms": "This agreement is made between the parties named in this contract.",
+        "fallbackOpening": "This agreement is made between",
+        "and": "and",
+        "locatedAt": "located at",
+        "serviceProvider": "Service Provider",
+        "client": "Client",
+        "contractDetails": "Contract Details",
+        "contractName": "Contract Name",
+        "status": "Status",
+        "startDate": "Start Date",
+        "termsAndConditions": "Terms and Conditions",
+        "partiesAgree": "The parties agree to the following terms:",
+        "obligationsTerm": "Both parties will fulfill their obligations as specified in this agreement.",
+        "changesTerm": "Any changes to this agreement must be made in writing and signed by both parties.",
+        "durationTerm": "The contract will remain in effect until completion of the agreed services or termination as specified herein.",
+        "termination": "Termination",
+        "terminationNotice": "This contract may be terminated by either party with 30 days written notice.",
+        "registeredCompanyAddress": "the registered company address"
       },
       "allContracts": {
         "allContracts": {
@@ -1353,6 +1637,8 @@
       "allCustomers": {
         "allCustomers": {
           "registered": "Registered",
+          "manageServices": "Manage",
+          "noCommissionEmployeeForService": "No commission employee is configured for this service yet. Add this service to a commission employee’s capabilities first.",
           "select": "Select",
           "noDeadline": "No Deadline",
           "dueToday0Months": "Due today",
@@ -1387,6 +1673,12 @@
           "contactEmailPhone": "Contact (Email/Phone)",
           "addMarketersFromSetupMarketers": "Add marketers from Setup → Marketers",
           "services": "Services",
+          "deliveryOwner": "Delivery owner",
+          "deliveryOwnerOptional": "Delivery owner (optional)",
+          "acquisition": "Acquisition",
+          "chooseDeliveryOwners": "Choose delivery owners, then select the purchased services that belong in a project.",
+          "noCommissionEmployeeForService": "No commission employee is enabled for this service yet. Add the service to an employee's capabilities first.",
+          "onlyConfiguredRateEmployees": "Only employees with a configured rate for this catalogue service can be assigned.",
           "editCustomerService": "Edit Customer Service",
           "deadline": "Deadline",
           "attachSelectedServices": "Attach Selected Services",
@@ -1460,8 +1752,38 @@
         "contractform": {
           "contractTemplate": "Contract Template",
           "counterparty": "Counterparty",
-           "selectACustomer": "Select a customer",
-           "noCustomersFound": "No customers found"
+          "selectACustomer": "Select a customer",
+          "noCustomersFound": "No customers found",
+          "setup": "Contract setup",
+          "setupHint": "Choose the template first. It decides which counterparty is required and which details are merged into the document.",
+          "template": "Contract template",
+          "templateRequired": "Choose a contract template",
+          "employee": "Employee",
+          "selectEmployee": "Select an employee",
+          "noEmployees": "No employees found",
+          "employeeRequired": "Choose an employee",
+          "customer": "Customer",
+          "selectCustomer": "Select a customer",
+          "noCustomers": "No customers found",
+          "customerRequired": "Choose a customer",
+          "company": "Counterparty company",
+          "selectCompany": "Select a company",
+          "noCompanies": "No companies found",
+          "companyHint": "Manage companies from the Companies page in the Contracts menu.",
+          "companyRequired": "Choose a counterparty company",
+          "manageCompanies": "Manage companies",
+          "status": "Status",
+          "statusRequired": "Choose a status",
+          "startDate": "Start date",
+          "startRequired": "Choose a start date",
+          "duration": "Fixed duration (months)",
+          "durationHint": "Optional. Leave this empty for an open-ended contract.",
+          "wholeMonths": "Enter a whole number of months.",
+          "calculatedEndDate": "Calculated end date",
+          "openContract": "Open-ended contract",
+          "openContractHint": "This contract has no scheduled end date. Add a duration later if it becomes fixed-term.",
+          "signatory": "Our company signatory",
+          "signatoryHint": "The authorized person signing on behalf of your company."
         }
       }
     },
@@ -1651,22 +1973,174 @@
           "editAssetRecord": "Edit asset record",
           "deleteAssetRecord": "Delete asset record",
           "addNewAssetItem": "Add New Asset Item",
-          "editAssetItem": "Edit Asset Item"
+          "editAssetItem": "Edit Asset Item",
+          "employeeAllocations": "Employee allocations",
+          "addEmployee": "Add employee",
+          "employee": "Employee",
+          "allocationTotalCannotExceed": "Allocated: {allocated} / {quantity}. The total cannot exceed inventory quantity.",
+          "allocationReduceBeforeLowering": "Allocated: {allocated} / {quantity}. Reduce allocations before lowering inventory quantity."
         }
       }
     },
     "reports": {
       "studio": {
-        "header": { "eyebrow": "Reporting studio", "title": "Understand the business", "subtitle": "Explore evidence, compare performance, and publish decision-ready reports.", "exportCsv": "Export CSV", "printReport": "Print report" },
-        "profiles": { "financial": { "label": "Financial performance", "description": "Billing, collections, spending, cash position, and assets.", "question": "Where is money moving—and where is it stuck?" }, "payroll": { "label": "People & payroll", "description": "Payroll cost, bonuses, workforce movement, and leave.", "question": "What are we investing in people?" }, "attendance": { "label": "Time & attendance", "description": "Presence, hours, overtime, exceptions, and daily reports.", "question": "Is the team present, productive, and properly recorded?" }, "operations": { "label": "Commercial operations", "description": "Customers, services, contracts, visitors, companies, and delivery.", "question": "Is demand turning into committed, completed work?" } },
-        "filters": { "analysisWindow": "Analysis window", "thisMonth": "This month", "thirtyDays": "30 days", "quarter": "Quarter", "year": "Year", "allTime": "All time", "filters": "Filters", "startDate": "Start date", "endDate": "End date", "employee": "Employee", "office": "Office", "customer": "Customer", "currency": "Currency", "taskBoard": "Task board", "contractType": "Contract type", "attendanceState": "Attendance state", "status": "Status", "runAnalysis": "Run analysis" },
-        "common": { "minutesShort": "{value} min", "hoursShort": "{value} hr", "unspecified": "Unspecified", "notAvailable": "—", "yes": "Yes", "no": "No" },
-        "metrics": { "billedValue": "Billed value", "invoicesInPeriod": "{count} invoices in period", "cashCollected": "Cash collected", "ofBilledValue": "{rate}% of billed value", "noBilledValue": "No billed value in range", "outstanding": "Outstanding", "collectionFollowup": "Requires collection follow-up", "noOpenBalance": "No open balance in range", "netCashFlow": "Net cash flow", "spent": "{amount} spent", "payrollCost": "Payroll cost", "payments": "{count} payments", "bonuses": "Bonuses", "nominations": "{count} nominations", "deductions": "Deductions", "acrossSalaryPayments": "Across salary payments", "headcount": "Headcount", "joinedInPeriod": "{count} joined in period", "attendanceRate": "Attendance rate", "presentRecords": "{count} present records", "workedTime": "Worked time", "netWorkingTime": "Net recorded working time", "overtime": "Overtime", "beyondSchedules": "Beyond required schedules", "incompleteRecords": "Incomplete records", "missingPunch": "Missing check-in or check-out", "newCustomers": "New customers", "addedInPeriod": "Added during this period", "visitors": "Visitors", "commercialInterest": "Commercial interest recorded", "serviceCommitments": "Service commitments", "activeCount": "{count} active", "deliveryRisk": "Delivery risk", "tasksInReport": "{count} tasks in report" },
-        "charts": { "billed": "Billed", "collected": "Collected", "spent": "Spent", "payroll": "Payroll", "bonuses": "Bonuses", "workedHours": "Worked hours", "requiredHours": "Required hours", "visitors": "Visitors", "customers": "Customers", "contracts": "Contracts", "taskDeadlines": "Task deadlines", "noTrendData": "No trend data in this period", "records": "Records", "noBreakdown": "No breakdown available" },
-        "insights": { "collectionCoverage": "{rate}% collection coverage", "noBilledValue": "No billed value", "outstandingBody": "{amount} remains outstanding from invoices in this range.", "createInvoices": "Create invoices to begin measuring collection performance.", "positiveCash": "Positive operating cash", "negativeCash": "Negative operating cash", "cashPositionBody": "Cash received minus recorded expenses is {amount}.", "leavePending": "{count} leave requests pending", "leavePendingBody": "Resolve pending requests before finalizing workforce schedules.", "peopleJoined": "{count} people joined", "headcountBody": "Company headcount is {count}.", "incompleteSessions": "{count} incomplete sessions", "incompleteSessionsBody": "Missing punches should be corrected before payroll is prepared.", "supportRequests": "{count} support requests", "supportRequestsBody": "Daily reports identifying blockers deserve management follow-up.", "conversionRatio": "{rate}% visitor-to-customer ratio", "noVisitorActivity": "No visitor activity", "conversionBody": "{visitors} visitors and {customers} new customers were recorded in the selected period.", "overdueRatio": "{rate}% of reported tasks overdue", "noTaskCommitments": "No task commitments", "overdueBody": "{overdue} of {tasks} tasks in this report require overdue follow-up." },
-        "result": { "generatedAnalysis": "Generated analysis", "detailedRows": "{count} detailed rows", "performanceOverTime": "Performance over time", "performanceSubtitle": "How the selected measures moved inside this reporting window", "composition": "Composition", "operationsComposition": "Share of records by business area", "resultComposition": "Distribution of the current result", "traceableEvidence": "Evidence you can trace", "traceableEvidenceBody": "Every summary below drills down to the exact recorded rows used in this report." },
-        "table": { "supportingRecords": "Supporting records", "supportingRecordsSubtitle": "Move from the summary to transaction-level evidence", "searchSection": "Search this section", "noMatchingRecords": "No matching records in this section.", "rowsPerPage": "Rows per page", "matchingRows": "{count} matching rows" },
-        "errors": { "generate": "Unable to generate the report.", "export": "Unable to export the report.", "print": "Unable to prepare the printable report.", "catalog": "Unable to load reporting options." }
+        "header": {
+          "eyebrow": "Reporting studio",
+          "title": "Understand the business",
+          "subtitle": "Explore evidence, compare performance, and publish decision-ready reports.",
+          "exportCsv": "Export CSV",
+          "printReport": "Print report"
+        },
+        "profiles": {
+          "financial": {
+            "label": "Financial performance",
+            "description": "Billing, collections, spending, cash position, and assets.",
+            "question": "Where is money moving—and where is it stuck?"
+          },
+          "payroll": {
+            "label": "People & payroll",
+            "description": "Payroll cost, bonuses, workforce movement, and leave.",
+            "question": "What are we investing in people?"
+          },
+          "attendance": {
+            "label": "Time & attendance",
+            "description": "Presence, hours, overtime, exceptions, and daily reports.",
+            "question": "Is the team present, productive, and properly recorded?"
+          },
+          "operations": {
+            "label": "Commercial operations",
+            "description": "Customers, services, contracts, visitors, companies, and delivery.",
+            "question": "Is demand turning into committed, completed work?"
+          }
+        },
+        "filters": {
+          "analysisWindow": "Analysis window",
+          "thisMonth": "This month",
+          "thirtyDays": "30 days",
+          "quarter": "Quarter",
+          "year": "Year",
+          "allTime": "All time",
+          "filters": "Filters",
+          "startDate": "Start date",
+          "endDate": "End date",
+          "employee": "Employee",
+          "office": "Office",
+          "customer": "Customer",
+          "currency": "Currency",
+          "taskBoard": "Task board",
+          "contractType": "Contract type",
+          "attendanceState": "Attendance state",
+          "status": "Status",
+          "runAnalysis": "Run analysis"
+        },
+        "common": {
+          "minutesShort": "{value} min",
+          "hoursShort": "{value} hr",
+          "unspecified": "Unspecified",
+          "notAvailable": "—",
+          "yes": "Yes",
+          "no": "No"
+        },
+        "metrics": {
+          "billedValue": "Billed value",
+          "invoicesInPeriod": "{count} invoices in period",
+          "cashCollected": "Cash collected",
+          "ofBilledValue": "{rate}% of billed value",
+          "noBilledValue": "No billed value in range",
+          "outstanding": "Outstanding",
+          "collectionFollowup": "Requires collection follow-up",
+          "noOpenBalance": "No open balance in range",
+          "netCashFlow": "Net cash flow",
+          "spent": "{amount} spent",
+          "payrollCost": "Payroll cost",
+          "payments": "{count} payments",
+          "bonuses": "Bonuses",
+          "nominations": "{count} nominations",
+          "deductions": "Deductions",
+          "acrossSalaryPayments": "Across salary payments",
+          "headcount": "Headcount",
+          "joinedInPeriod": "{count} joined in period",
+          "attendanceRate": "Attendance rate",
+          "presentRecords": "{count} present records",
+          "workedTime": "Worked time",
+          "netWorkingTime": "Net recorded working time",
+          "overtime": "Overtime",
+          "beyondSchedules": "Beyond required schedules",
+          "incompleteRecords": "Incomplete records",
+          "missingPunch": "Missing check-in or check-out",
+          "newCustomers": "New customers",
+          "addedInPeriod": "Added during this period",
+          "visitors": "Visitors",
+          "commercialInterest": "Commercial interest recorded",
+          "serviceCommitments": "Service commitments",
+          "activeCount": "{count} active",
+          "deliveryRisk": "Delivery risk",
+          "tasksInReport": "{count} tasks in report"
+        },
+        "charts": {
+          "billed": "Billed",
+          "collected": "Collected",
+          "spent": "Spent",
+          "payroll": "Payroll",
+          "bonuses": "Bonuses",
+          "workedHours": "Worked hours",
+          "requiredHours": "Required hours",
+          "visitors": "Visitors",
+          "customers": "Customers",
+          "contracts": "Contracts",
+          "taskDeadlines": "Task deadlines",
+          "noTrendData": "No trend data in this period",
+          "records": "Records",
+          "noBreakdown": "No breakdown available"
+        },
+        "insights": {
+          "collectionCoverage": "{rate}% collection coverage",
+          "noBilledValue": "No billed value",
+          "outstandingBody": "{amount} remains outstanding from invoices in this range.",
+          "createInvoices": "Create invoices to begin measuring collection performance.",
+          "positiveCash": "Positive operating cash",
+          "negativeCash": "Negative operating cash",
+          "cashPositionBody": "Cash received minus recorded expenses is {amount}.",
+          "leavePending": "{count} leave requests pending",
+          "leavePendingBody": "Resolve pending requests before finalizing workforce schedules.",
+          "peopleJoined": "{count} people joined",
+          "headcountBody": "Company headcount is {count}.",
+          "incompleteSessions": "{count} incomplete sessions",
+          "incompleteSessionsBody": "Missing punches should be corrected before payroll is prepared.",
+          "supportRequests": "{count} support requests",
+          "supportRequestsBody": "Daily reports identifying blockers deserve management follow-up.",
+          "conversionRatio": "{rate}% visitor-to-customer ratio",
+          "noVisitorActivity": "No visitor activity",
+          "conversionBody": "{visitors} visitors and {customers} new customers were recorded in the selected period.",
+          "overdueRatio": "{rate}% of reported tasks overdue",
+          "noTaskCommitments": "No task commitments",
+          "overdueBody": "{overdue} of {tasks} tasks in this report require overdue follow-up."
+        },
+        "result": {
+          "generatedAnalysis": "Generated analysis",
+          "detailedRows": "{count} detailed rows",
+          "performanceOverTime": "Performance over time",
+          "performanceSubtitle": "How the selected measures moved inside this reporting window",
+          "composition": "Composition",
+          "operationsComposition": "Share of records by business area",
+          "resultComposition": "Distribution of the current result",
+          "traceableEvidence": "Evidence you can trace",
+          "traceableEvidenceBody": "Every summary below drills down to the exact recorded rows used in this report."
+        },
+        "table": {
+          "supportingRecords": "Supporting records",
+          "supportingRecordsSubtitle": "Move from the summary to transaction-level evidence",
+          "searchSection": "Search this section",
+          "noMatchingRecords": "No matching records in this section.",
+          "rowsPerPage": "Rows per page",
+          "matchingRows": "{count} matching rows"
+        },
+        "errors": {
+          "generate": "Unable to generate the report.",
+          "export": "Unable to export the report.",
+          "print": "Unable to prepare the printable report.",
+          "catalog": "Unable to load reporting options."
+        }
       },
       "reports": {
         "reports": {
@@ -1776,7 +2250,46 @@
         "overdue": "Overdue",
         "averageProgress": "Average Progress",
         "invoicedBase": "Invoiced Base",
-        "baseCurrency": "Base Currency", "rate": "Rate", "item": "Item", "model": "Model", "serialNumber": "Serial Number", "assignedTo": "Assigned To", "condition": "Condition", "unitPrice": "Unit Price", "assetValue": "Asset Value", "units": "Units", "needsAttention": "Needs Attention", "position": "Position", "department": "Department", "employmentType": "Employment Type", "joinDate": "Join Date", "companyHeadcount": "Company Headcount", "joinedInPeriod": "Joined In Period", "classification": "Classification", "requests": "Requests", "granted": "Granted", "pending": "Pending", "unpaid": "Unpaid", "summary": "Summary", "achievements": "Achievements", "challenges": "Challenges", "supportNeeded": "Support Needed", "submitted": "Submitted", "supportRequested": "Support Requested", "deadline": "Deadline", "fee": "Fee", "commitments": "Commitments", "active": "Active", "industry": "Industry", "city": "City", "representative": "Representative", "baseAmountByBase": "Base Amount By Currency", "outstandingByBase": "Outstanding By Currency", "deductionsByBase": "Deductions By Currency", "byCurrency": "By Currency", "averageProgress": "Average Progress"
+        "baseCurrency": "Base Currency",
+        "rate": "Rate",
+        "item": "Item",
+        "model": "Model",
+        "serialNumber": "Serial Number",
+        "assignedTo": "Assigned To",
+        "condition": "Condition",
+        "unitPrice": "Unit Price",
+        "assetValue": "Asset Value",
+        "units": "Units",
+        "needsAttention": "Needs Attention",
+        "position": "Position",
+        "department": "Department",
+        "employmentType": "Employment Type",
+        "joinDate": "Join Date",
+        "companyHeadcount": "Company Headcount",
+        "joinedInPeriod": "Joined In Period",
+        "classification": "Classification",
+        "requests": "Requests",
+        "granted": "Granted",
+        "pending": "Pending",
+        "unpaid": "Unpaid",
+        "summary": "Summary",
+        "achievements": "Achievements",
+        "challenges": "Challenges",
+        "supportNeeded": "Support Needed",
+        "submitted": "Submitted",
+        "supportRequested": "Support Requested",
+        "deadline": "Deadline",
+        "fee": "Fee",
+        "commitments": "Commitments",
+        "active": "Active",
+        "industry": "Industry",
+        "city": "City",
+        "representative": "Representative",
+        "baseAmountByBase": "Base Amount By Currency",
+        "outstandingByBase": "Outstanding By Currency",
+        "deductionsByBase": "Deductions By Currency",
+        "byCurrency": "By Currency",
+        "averageProgress": "Average Progress"
       }
     },
     "tasks": {
@@ -1824,7 +2337,10 @@
     },
     "audits": {
       "title": "Audits",
+      "scopeGuide": { "title": "What is audited?", "description": "Each business area below names the exact records it monitors. Turn off only areas whose future changes do not need an accountability trail." },
+      "bulkUndo": { "event": "Only updates and deletions can be undone.", "newer": "Undo is blocked by a newer change to one of these records. Include that newer change in the selection first." },
       "subtitle": "Review important changes and choose which business areas should be audited.",
+      "bulk": { "selected": "{count} selected audit entries", "reviewHint": "Choose how to resolve this selection.", "keep": "Keep selected", "undo": "Undo selected", "clear": "Clear selection", "keepTitle": "Keep selected changes?", "undoTitle": "Undo selected changes?", "keepText": "This marks {count} selected change(s) as reviewed and retained in the audit history.", "undoText": "This will attempt to restore {count} selected record(s) to their previous values. If any selected change is no longer safe to undo, nothing will be changed.", "keptSuccess": "{count} selected change(s) kept and audited.", "undoneSuccess": "{count} selected change(s) undone and audited.", "reviewError": "The selected audit entries could not be reviewed. Please try again." },
       "openPage": "Open audits",
       "sections": {
         "records": "Rows to audit",
@@ -1940,7 +2456,8 @@
         "subtasks": "Subtasks",
         "tags": "Task tags",
         "task_attachments": "Task attachments",
-        "tasks": "Tasks",
+        "tasks": "Projects",
+        "projects": "Projects",
         "users": "Users",
         "visitors": "Visitors",
         "worthy_employees": "Bonus nominations",
@@ -2006,9 +2523,79 @@
       "otherInformation": "Other information",
       "moreChanges": "and {count} more",
       "valueSeparator": "·"
+    },
+    "support": {
+      "title": "Support centre",
+      "intro": "Tell us what happened. Your request and any supporting files are saved to your history and sent directly to the support inbox.",
+      "formTitle": "Submit a support request",
+      "formSubtitle": "Choose severity based on the impact, not just how frustrating the issue feels.",
+      "criticalNotice": "Critical requests are for operational interruption or potential access/data risk. They are clearly marked in the support email.",
+      "category": "What do you need help with?",
+      "severity": "How urgent is this?",
+      "subject": "Short summary",
+      "subjectPlaceholder": "For example: I cannot save an invoice",
+      "description": "What happened?",
+      "descriptionPlaceholder": "Include what you expected, what happened instead, and any steps that reliably reproduce the problem.",
+      "attachments": "Attachments (optional)",
+      "attachmentsHint": "Up to 3 files, 5 MB each and 10 MB total. Images, PDF, Office, CSV, and text files are accepted.",
+      "attachmentsPrivacy": "Attachments are kept private and sent with your request.",
+      "send": "Send request",
+      "historyTitle": "Your recent requests",
+      "historySubtitle": "Only you can see this history.",
+      "empty": "You have not sent a support request yet.",
+      "open": "Open",
+      "categories": {
+        "technical": "Technical problem",
+        "account": "Account or access",
+        "billing": "Billing or financial record",
+        "feature_request": "Feature request",
+        "other": "Something else"
+      },
+      "severities": {
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "severityChoices": {
+        "low": "Low — minor inconvenience",
+        "normal": "Normal — need help",
+        "high": "High — work is blocked",
+        "critical": "Critical — access, data, or operations at risk"
+      },
+      "severityHelp": {
+        "low": "A small inconvenience; it does not stop your work.",
+        "normal": "The right choice for most questions and issues.",
+        "high": "You cannot complete important work without help.",
+        "critical": "Use only for an operational interruption or possible access/data risk."
+      },
+      "validation": {
+        "subjectMin": "Use at least 5 characters.",
+        "descriptionMin": "Please provide at least 20 characters."
+      },
+      "messages": {
+        "loadFailed": "Could not load your support requests.",
+        "sendFailed": "Your support request could not be sent.",
+        "sent": "Support request {ticket} was sent."
+      },
+      "guide": {
+        "title": "Support centre",
+        "description": "Use this page to send a clear support request. The category, severity, description, and attachments let the support inbox assess the issue without guesswork.",
+        "actionTitle": "Send a useful support request",
+        "actionDescription": "Choose severity by operational impact, then describe the expected result, actual result, and repeatable steps. The request is saved and emailed to the configured support inbox."
+      }
     }
   },
   "components": {
+    "fullDetails": {
+      "fieldAliases": { "availablequantity": "Available quantity", "allocatedquantity": "Allocated quantity" },
+      "eyebrow": "{kind} · {count} useful details", "recordFallback": "Record {id}", "footer": "Showing business-friendly details. Internal database references are hidden.",
+      "tabs": { "overview": "Overview", "related": "Related", "activity": "Activity" },
+      "recordKinds": { "invoice": "Invoice", "receipt": "Receipt", "payroll": "Payroll record", "contract": "Contract", "asset": "Asset item", "visitor": "Visitor", "employee": "Employee", "customer": "Customer", "record": "Record details" },
+      "sections": { "essentialTitle": "Essential information", "essentialDescription": "The details needed to identify and understand this record.", "notesTitle": "Notes & context", "notesDescription": "Supporting information kept in full, without truncation.", "emptyOverview": "No user-facing overview information is available for this record.", "relatedTitle": "Connected records", "relatedDescription": "Names and useful context are shown instead of database IDs.", "collectionDescription": "{count} connected entries, shown with their useful details.", "activityTitle": "Record activity", "activityDescription": "Lifecycle dates are separated from day-to-day business information." },
+      "values": { "active": "Active", "inactive": "Inactive", "new": "New", "pending": "Pending", "approved": "Approved", "paid": "Paid", "draft": "Draft", "completed": "Completed", "cancelled": "Cancelled", "void": "Void", "salaried": "Salaried", "commission": "Commission-based" },
+      "fields": { "id": "ID", "name": "Name", "title": "Title", "type": "Type", "status": "Status", "condition": "Condition", "state": "State", "code": "Code", "office": "Office", "employee": "Employee", "customer": "Customer", "company": "Company", "service": "Service", "currency": "Currency", "amount": "Amount", "fee": "Fee", "quantity": "Quantity", "rate": "Rate", "date": "Date", "deadline": "Deadline", "description": "Description", "notes": "Notes", "reason": "Reason", "contact": "Contact", "email": "Email", "phone": "Phone", "address": "Address", "createdat": "Created at", "updatedat": "Updated at", "serialnumber": "Serial number", "model": "Model", "asset": "Asset", "invoicenumber": "Invoice number", "receiptnumber": "Receipt number", "payslipnumber": "Payslip number", "contractnumber": "Contract number", "position": "Position", "department": "Department", "salary": "Salary", "employmenttype": "Employment type", "joindate": "Join date", "recordedby": "Recorded by", "addr": "Address", "basecurrshrt": "Base currency", "cnvcurrshrt": "Transaction currency" }
+    },
     "dataTablePageKpis": {
       "overview": "{title} overview",
       "scrollHint": "Scroll tables sideways on small screens",
@@ -2069,25 +2656,82 @@
       "currenciesRepresented": "Currencies represented",
       "recordsCovered": "Records covered",
       "pages": {
-        "visitors": { "title": "Visitors", "description": "Review visitor activity and maintain a clear record of every entry." },
-        "assetInventory": { "title": "Asset inventory", "description": "Keep inventory levels, condition, and assignments visible in one place." },
-        "staffSalaries": { "title": "Staff salaries", "description": "Review payroll records and surface payments that require attention." },
-        "staffDirectory": { "title": "Staff directory", "description": "See your team, their assignments, and records that need follow-up." },
-        "users": { "title": "Users", "description": "Manage access, invitations, and the current health of user accounts." },
-        "positions": { "title": "Positions", "description": "Review team roles, staffing levels, and position availability." },
-        "paymentDetails": { "title": "Payment details", "description": "Review payment activity and keep every transaction easy to trace." },
-        "paidTimeOff": { "title": "Leave", "description": "Review leave requests and make outstanding approvals easy to find." },
-        "invoiceOptions": { "title": "Invoice options", "description": "Configure reusable billing options and keep invoice workflows consistent." },
-        "hrOptions": { "title": "HR options", "description": "Manage the reusable settings that support your people operations." },
-        "financeOptions": { "title": "Finance options", "description": "Keep financial defaults organized and ready for everyday operations." },
-        "contractOptions": { "title": "Contract options", "description": "Maintain reusable templates and defaults that support your contracts." },
-        "services": { "title": "Services", "description": "Manage your service catalogue and quickly review its current availability." },
-        "invoices": { "title": "Invoices", "description": "Keep billing activity visible, from paid invoices to items that need attention." },
-        "companies": { "title": "Companies", "description": "Manage counterparties, their details, and the agreements connected to them." },
-        "cancelledContracts": { "title": "Cancelled contracts", "description": "Review closed agreements and keep cancellation records easy to audit." },
-        "customerDirectory": { "title": "Customer directory", "description": "Track customer relationships and their active services at a glance." },
-        "contracts": { "title": "Contracts", "description": "See the current contract portfolio and spot records that need follow-up." },
-        "policyLibrary": { "title": "Policy library", "description": "Keep reusable contract clauses organized and ready for every agreement." }
+        "visitors": {
+          "title": "Visitors",
+          "description": "Review visitor activity and maintain a clear record of every entry."
+        },
+        "assetInventory": {
+          "title": "Asset inventory",
+          "description": "Keep inventory levels, condition, and assignments visible in one place."
+        },
+        "staffSalaries": {
+          "title": "Staff salaries",
+          "description": "Review payroll records and surface payments that require attention."
+        },
+        "staffDirectory": {
+          "title": "Staff directory",
+          "description": "See your team, their assignments, and records that need follow-up."
+        },
+        "users": {
+          "title": "Users",
+          "description": "Manage access, invitations, and the current health of user accounts."
+        },
+        "positions": {
+          "title": "Positions",
+          "description": "Review team roles, staffing levels, and position availability."
+        },
+        "paymentDetails": {
+          "title": "Payment details",
+          "description": "Review payment activity and keep every transaction easy to trace."
+        },
+        "paidTimeOff": {
+          "title": "Leave",
+          "description": "Review leave requests and make outstanding approvals easy to find."
+        },
+        "invoiceOptions": {
+          "title": "Invoice options",
+          "description": "Configure reusable billing options and keep invoice workflows consistent."
+        },
+        "hrOptions": {
+          "title": "HR options",
+          "description": "Manage the reusable settings that support your people operations."
+        },
+        "financeOptions": {
+          "title": "Finance options",
+          "description": "Keep financial defaults organized and ready for everyday operations."
+        },
+        "contractOptions": {
+          "title": "Contract options",
+          "description": "Maintain reusable templates and defaults that support your contracts."
+        },
+        "services": {
+          "title": "Services",
+          "description": "Manage your service catalogue and quickly review its current availability."
+        },
+        "invoices": {
+          "title": "Invoices",
+          "description": "Keep billing activity visible, from paid invoices to items that need attention."
+        },
+        "companies": {
+          "title": "Companies",
+          "description": "Manage counterparties, their details, and the agreements connected to them."
+        },
+        "cancelledContracts": {
+          "title": "Cancelled contracts",
+          "description": "Review closed agreements and keep cancellation records easy to audit."
+        },
+        "customerDirectory": {
+          "title": "Customer directory",
+          "description": "Track customer relationships and their active services at a glance."
+        },
+        "contracts": {
+          "title": "Contracts",
+          "description": "See the current contract portfolio and spot records that need follow-up."
+        },
+        "policyLibrary": {
+          "title": "Policy library",
+          "description": "Keep reusable contract clauses organized and ready for every agreement."
+        }
       }
     },
     "taskManager": {
@@ -2147,8 +2791,10 @@
         "projectName": "Project name",
         "targetDate": "Target date",
         "linkedServices": "Linked services",
-        "selectProjectWorkspace": "Select project workspace"
+        "selectProjectWorkspace": "Select project workspace",
+        "projects": "Projects", "customer": "Customer", "customerHint": "Choose the customer whose purchased services this project will deliver.", "projectServices": "Services included in this project", "projectServicesHint": "Select one or more purchased services. Only these services will be linked to the project.", "projectServicesEmpty": "Select a customer to choose the services this project covers."
       },
+      "projectPortfolio": { "title": "Project portfolio", "subtitle": "Customer ownership, selected services, schedule, and workload in one view.", "total": "Total portfolio", "active": "Active delivery", "attention": "Needs attention", "openWorkspace": "Open workspace", "headers": { "project": "Project", "customer": "Customer", "services": "Services", "tasks": "Tasks", "due": "Due", "status": "Status" }, "statuses": { "active": "Active", "on_hold": "On hold", "completed": "Completed", "archived": "Archived" } },
       "calendarview": {
         "scheduleTimelineView": "Schedule Timeline View",
         "dragDropActive": "Drag & Drop Active",
@@ -2164,7 +2810,7 @@
         "yesDeleteIt": "Yes, Delete It!"
       },
       "ganttview": {
-          "progressIsCalculatedAutomaticallyFromSubTasksTodosEditTheTaskToManageT": "Progress is calculated automatically from sub-tasks and todos. Edit the task to manage them.",
+        "progressIsCalculatedAutomaticallyFromSubTasksTodosEditTheTaskToManageT": "Progress is calculated automatically from sub-tasks and todos. Edit the task to manage them.",
         "projectGanttTimeline": "Project Gantt Timeline"
       },
       "kanbanview": {
@@ -2441,7 +3087,13 @@
         "contractPolicies": "Contract Policies",
         "currencies": "Currencies",
         "financeOptions": "Finance Options",
-        "trySearchingFor": "Try searching for"
+        "trySearchingFor": "Try searching for",
+        "openCommandPalette": "Open search",
+        "searchAndCommands": "Search and commands",
+        "commandPalette": "Search and commands",
+        "searchCommandsAndModules": "Search commands and modules",
+        "recent": "Recent",
+        "noResultsFor": "No results for"
       },
       "userprofile": {
         "myAccount": "My Account",
@@ -2843,7 +3495,10 @@
         "office_has_asset": "This office has asset assigned to it and cannot be deleted.",
         "contract_template_in_use": "Templates used by contracts cannot be deleted.",
         "base_currency_cannot_be_deleted": "The base currency cannot be deleted.",
-        "currency_in_use": "Currencies referenced by services, invoices, salaries, incomes, or expenses cannot be deleted."
+        "currency_in_use": "Currencies referenced by services, invoices, salaries, incomes, or expenses cannot be deleted.",
+        "support_recipient_not_configured": "Support email is not configured yet. Ask an administrator to set SUPPORT_TICKET_RECIPIENT.",
+        "support_email_delivery_failed": "Your support request could not be delivered. Nothing was submitted; please try again shortly.",
+        "support_attachment_total_exceeded": "Attachments together must not exceed 10 MB."
       },
       "auth": {
         "email_verification_required": "Verify your email address before signing in.",
@@ -3056,12 +3711,40 @@
       "result": "Result",
       "execute": "Execute",
       "skip": "Skip",
-      "eventTypes": { "income": "Income", "expense": "Expense", "task": "Task" },
-      "frequencies": { "daily": "daily", "weekly": "weekly", "monthly": "monthly", "yearly": "yearly" },
-      "frequencyLabels": { "daily": "Daily", "weekly": "Weekly", "monthly": "Monthly", "yearly": "Yearly" },
-      "recordTypes": { "service": "Service", "product": "Product", "investment": "Investment", "other": "Other" },
-      "statuses": { "pending": "Pending", "notified": "Notified", "completed": "Completed", "skipped": "Skipped" },
-      "eventStatuses": { "active": "Active", "paused": "Paused", "completed": "Completed" }
+      "eventTypes": {
+        "income": "Income",
+        "expense": "Expense",
+        "task": "Task"
+      },
+      "frequencies": {
+        "daily": "daily",
+        "weekly": "weekly",
+        "monthly": "monthly",
+        "yearly": "yearly"
+      },
+      "frequencyLabels": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "yearly": "Yearly"
+      },
+      "recordTypes": {
+        "service": "Service",
+        "product": "Product",
+        "investment": "Investment",
+        "other": "Other"
+      },
+      "statuses": {
+        "pending": "Pending",
+        "notified": "Notified",
+        "completed": "Completed",
+        "skipped": "Skipped"
+      },
+      "eventStatuses": {
+        "active": "Active",
+        "paused": "Paused",
+        "completed": "Completed"
+      }
     }
   }
 }

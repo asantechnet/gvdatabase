@@ -32,6 +32,7 @@ const updatePopper = async () => {
   if (refPopperContainer.value !== undefined && refPopper.value !== undefined) {
     const { x, y } = await computePosition(refPopperContainer.value,
       refPopper.value, {
+        strategy: 'fixed',
         placement: props.popperInlineEnd ? (props.isRtl ? 'left-start' : 'right-start') : 'bottom-start',
         middleware: [
           ...(configStore.horizontalNavPopoverOffset ? [offset(configStore.horizontalNavPopoverOffset)] : []),
@@ -70,17 +71,26 @@ until(() => configStore.horizontalNavType)
   .then(() => { useEventListener('scroll', updatePopper) })
 
 const isContentShown = ref(false)
+let hideTimer: ReturnType<typeof setTimeout> | undefined
 
 const showContent = () => {
+  if (hideTimer)
+    clearTimeout(hideTimer)
+
   isContentShown.value = true
   updatePopper()
 }
 
 const hideContent = () => {
-  isContentShown.value = false
+  // Teleported content is no longer a DOM sibling of its trigger. A short
+  // grace period lets the pointer travel into the menu without flicker.
+  hideTimer = setTimeout(() => {
+    isContentShown.value = false
+  }, 120)
 }
 
 onMounted(updatePopper)
+onBeforeUnmount(() => clearTimeout(hideTimer))
 
 // ℹ️ Recalculate popper position when it's triggerer changes its position
 watch(
@@ -117,9 +127,10 @@ watch(() => route.fullPath, hideContent)
     <!-- SECTION Popper Content -->
     <!-- 👉 Without transition -->
     <template v-if="!themeConfig.horizontalNav.transition">
+      <Teleport to="body">
       <div
         ref="refPopper"
-        class="popper-content"
+        class="popper-content horizontal-nav-popper-content"
         :style="popperContentStyles"
         @mouseenter="showContent"
         @mouseleave="hideContent"
@@ -128,15 +139,17 @@ watch(() => route.fullPath, hideContent)
           <slot name="content" />
         </div>
       </div>
+      </Teleport>
     </template>
 
     <!-- 👉 CSS Transition -->
     <template v-else-if="typeof themeConfig.horizontalNav.transition === 'string'">
+      <Teleport to="body">
       <Transition :name="themeConfig.horizontalNav.transition">
         <div
           v-show="isContentShown"
           ref="refPopper"
-          class="popper-content"
+          class="popper-content horizontal-nav-popper-content"
           :style="popperContentStyles"
           @mouseenter="showContent"
           @mouseleave="hideContent"
@@ -146,15 +159,17 @@ watch(() => route.fullPath, hideContent)
           </div>
         </div>
       </Transition>
+      </Teleport>
     </template>
 
     <!-- 👉 Transition Component -->
     <template v-else>
+      <Teleport to="body">
       <Component :is="themeConfig.horizontalNav.transition">
         <div
           v-show="isContentShown"
           ref="refPopper"
-          class="popper-content"
+          class="popper-content horizontal-nav-popper-content"
           :style="popperContentStyles"
           @mouseenter="showContent"
           @mouseleave="hideContent"
@@ -164,6 +179,7 @@ watch(() => route.fullPath, hideContent)
           </div>
         </div>
       </Component>
+      </Teleport>
     </template>
     <!-- !SECTION -->
   </div>
@@ -171,6 +187,6 @@ watch(() => route.fullPath, hideContent)
 
 <style lang="scss">
 .popper-content {
-  position: absolute;
+  position: fixed;
 }
 </style>

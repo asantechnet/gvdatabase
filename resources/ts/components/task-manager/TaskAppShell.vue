@@ -91,7 +91,7 @@ const activeTab = computed({
 })
 
 const tabs = [
-  { title: 'Projects', value: 'portfolio', icon: 'tabler-folders' },
+  { title: translate('components.taskManager.projectPortfolio.title'), value: 'portfolio', icon: 'tabler-folders' },
   { title: translate('components.taskManager.taskappshell.kanbanBoard'), value: 'kanban', icon: 'tabler-layout-kanban' },
   { title: translate('common.messages.calendar'), value: 'calendar', icon: 'tabler-calendar-event' },
   { title: translate('components.taskManager.taskappshell.ganttTimeline'), value: 'gantt', icon: 'tabler-chart-bar' },
@@ -218,10 +218,10 @@ const currentComponent = computed(() => {
           <VAutocomplete
             :model-value="newProject.customer_id"
             :items="customerOptions"
-            label="Customer"
+            :label="$t('components.taskManager.taskappshell.customer')"
             clearable
             prepend-inner-icon="tabler-user-dollar"
-            hint="Choose the customer whose purchased services this project will deliver."
+            :hint="$t('components.taskManager.taskappshell.customerHint')"
             persistent-hint
             @update:model-value="selectProjectCustomer"
           />
@@ -231,13 +231,13 @@ const currentComponent = computed(() => {
             :items="projectServiceOptions"
             :item-title="projectServiceLabel"
             item-value="service_id"
-            label="Services included in this project"
+            :label="$t('components.taskManager.taskappshell.projectServices')"
             multiple
             chips
             closable-chips
             prepend-inner-icon="tabler-briefcase"
             class="mt-4"
-            hint="Select one or more purchased services. Only these services will be linked to the project."
+            :hint="$t('components.taskManager.taskappshell.projectServicesHint')"
             persistent-hint
           />
           <VAlert
@@ -247,7 +247,7 @@ const currentComponent = computed(() => {
             density="compact"
             class="mt-4"
           >
-            Select a customer to choose the services this project covers.
+            {{ $t('components.taskManager.taskappshell.projectServicesEmpty') }}
           </VAlert>
         </VCardText>
         <VCardActions>
@@ -256,7 +256,7 @@ const currentComponent = computed(() => {
             variant="text"
             @click="isProjectDialogOpen = false"
           >
-            Cancel
+            {{ $t('common.actions.cancel') }}
           </VBtn>
           <VBtn
             color="primary"

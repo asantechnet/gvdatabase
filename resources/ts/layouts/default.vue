@@ -70,4 +70,15 @@ watch([isFallbackStateActive, refLoadingIndicator], () => {
   color: var(--app-footer-on-color, rgb(var(--v-theme-on-surface))) !important;
   transition: background-color 0.18s ease;
 }
+
+/* Navigation remains physically stable in RTL: controls retain their LTR
+   positions while each label can still render in its own writing direction. */
+[dir='rtl'] .layout-navbar .navbar-content-container {
+  direction: ltr;
+}
+
+[dir='rtl'] .layout-navbar .navbar-content-container input,
+[dir='rtl'] .layout-navbar .navbar-content-container .v-btn__content {
+  direction: rtl;
+}
 </style>

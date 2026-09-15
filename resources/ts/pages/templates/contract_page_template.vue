@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { PartyDetails } from '@/utils/contractPartyDetails'
 
 // 1. Interfaces & Props
@@ -41,10 +42,11 @@ export interface ContractPageProps {
   accentColor?: string
 }
 
+const { t } = useI18n()
 const props = withDefaults(defineProps<ContractPageProps>(), {
-  documentTitle: 'SERVICE AGREEMENT',
-  footerText: translate('documents.contract.defaultFooter'),
-  pageNumberString: 'Page 1 of 1',
+  documentTitle: '',
+  footerText: undefined,
+  pageNumberString: undefined,
   clauses: () => [],
   htmlContent: '',
   showSignature: false,
@@ -53,6 +55,10 @@ const props = withDefaults(defineProps<ContractPageProps>(), {
   partyDetails: undefined,
   accentColor: '#1e293b',
 })
+
+const resolvedFooterText = computed(() => props.footerText ?? t('documents.contract.defaultFooter'))
+const resolvedPageNumber = computed(() => props.pageNumberString ?? t('pages.contracts.allContracts.allContracts.pageNumber', { page: 1, total: 1 }))
+const resolvedDocumentTitle = computed(() => props.documentTitle || t('pages.contracts.shared.contractAgreement'))
 
 // 2. Template Reference
 const contractRef = ref<HTMLElement | null>(null)
@@ -113,7 +119,7 @@ const printContractPage = () => {
     <!DOCTYPE html>
     <html lang="${document.documentElement.lang}" dir="${document.documentElement.dir}">
       <head>
-        <title>Print Contract - ${props.documentTitle}</title>
+        <title>${resolvedDocumentTitle.value}</title>
         ${fallbackStyles}
         <style>
           ${inlineCss}
@@ -227,7 +233,7 @@ defineExpose({
         <header class="contract-header">
           <div class="header-left">
             <h1 class="document-title">
-              {{ documentTitle }}
+              {{ resolvedDocumentTitle }}
             </h1>
             <p>{{ documentNumber }}</p>
             <p
@@ -399,7 +405,7 @@ defineExpose({
         <div class="footer-divider" />
         <div class="contract-footer">
           <div class="footer-col footer-message">
-            <span>{{ footerText }}</span>
+            <span>{{ resolvedFooterText }}</span>
           </div>
 
           <div class="footer-col footer-contact">
@@ -411,7 +417,7 @@ defineExpose({
           </div>
 
           <div class="footer-col footer-page">
-            <span class="page-number">{{ pageNumberString }}</span>
+            <span class="page-number">{{ resolvedPageNumber }}</span>
           </div>
         </div>
       </footer>

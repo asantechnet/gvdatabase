@@ -13,6 +13,7 @@ class ContractPolicyResource extends JsonResource
             'id' => $this->id,
             'label' => $this->label,
             'type' => $this->type,
+            'is_active' => $this->is_active,
             'header' => $this->header,
             'content' => $this->content,
             'created_at' => $this->created_at,

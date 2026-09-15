@@ -37,7 +37,7 @@ const suggestionGroups: SuggestionGroup[] = [
     content: [
       { icon: 'tabler-home', title: translate('components.navigation.navsearchbar.home'), url: { name: 'home' } },
       { icon: 'tabler-chart-bar', title: translate('components.navigation.navsearchbar.reports'), url: { name: 'reports' } },
-      { icon: 'tabler-notes', title: translate('components.navigation.navsearchbar.tasks'), url: { name: 'tasks' } },
+      { icon: 'tabler-notes', title: translate('components.navigation.navsearchbar.projects'), url: { name: 'tasks' } },
     ],
   },
   {
@@ -93,6 +93,17 @@ const routeName = (suggestion: Suggestion) => {
     : suggestion.title
 }
 
+// Recent destinations are persisted in localStorage. Their title is only a
+// display value, so always replace an older stored translation with the
+// current locale's catalogue entry before rendering it.
+const localizedSuggestion = (suggestion: Suggestion): Suggestion => {
+  const matchingSuggestion = suggestionGroups
+    .flatMap(group => group.content)
+    .find(candidate => routeName(candidate) === routeName(suggestion))
+
+  return matchingSuggestion ?? suggestion
+}
+
 const loadRecentSuggestions = () => {
   try {
     const stored = JSON.parse(localStorage.getItem(recentStorageKey) ?? '[]')
@@ -101,8 +112,12 @@ const loadRecentSuggestions = () => {
       ? stored.filter((item): item is Suggestion => typeof item?.title === 'string'
         && typeof item?.icon === 'string'
         && typeof item?.url === 'object'
-        && item.url !== null).slice(0, 5)
+        && item.url !== null).slice(0, 5).map(localizedSuggestion)
       : []
+
+    // Migrate old entries that stored the title from the language active at
+    // the time the user last opened them.
+    localStorage.setItem(recentStorageKey, JSON.stringify(recentSuggestions.value))
   }
   catch {
     recentSuggestions.value = []
@@ -161,19 +176,24 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
     v-bind="$attrs"
   >
     <IconBtn
-      aria-label="Open command palette"
+      :aria-label="$t('components.navigation.navsearchbar.openCommandPalette')"
       @click="openSearch"
     >
       <VIcon icon="tabler-search" />
       <VTooltip activator="parent">
-        Search and commands
+        {{ $t('components.navigation.navsearchbar.searchAndCommands') }}
       </VTooltip>
     </IconBtn>
 
     <span
       v-if="configStore.appContentLayoutNav === 'vertical'"
-      class="d-none d-md-flex align-center text-disabled ms-2"
-      aria-hidden="true"
+      class="d-none d-md-flex align-center text-disabled ms-2 cursor-pointer"
+      role="button"
+      tabindex="0"
+      :aria-label="$t('common.actions.search')"
+      @click="openSearch"
+      @keydown.enter="openSearch"
+      @keydown.space.prevent="openSearch"
     >
       <span class="me-2">{{ $t('common.actions.search') }}</span>
       <span
@@ -201,7 +221,7 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
               class="custom-letter-spacing text-disabled text-uppercase py-2 px-4 mb-0"
               style="font-size: 0.75rem; line-height: 0.875rem;"
             >
-              Recent
+              {{ $t('components.navigation.navsearchbar.recent') }}
             </p>
             <VList class="card-list d-flex flex-wrap">
               <VListItem

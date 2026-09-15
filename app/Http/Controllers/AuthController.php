@@ -239,22 +239,26 @@ class AuthController extends Controller
         return response()->json(['success' => true, 'data' => $tokens]);
     }
 
-    /** Vuexy Account tab: profile fields and account preferences. */
+    /** Account tab: contact and sign-in details only. */
     public function updateAccount(Request $request)
     {
         $user = $request->user();
         $data = $request->validate([
             'name' => 'sometimes|required|string|max:255', 'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'phone' => 'sometimes|nullable|string|max:20', 'address' => 'sometimes|nullable|string|max:2000',
-            'organization' => 'sometimes|nullable|string|max:255', 'state' => 'sometimes|nullable|string|max:255', 'zip' => 'sometimes|nullable|string|max:30',
-            'country' => 'sometimes|nullable|string|max:100', 'language' => 'sometimes|nullable|string|max:100', 'timezone' => 'sometimes|nullable|string|max:100', 'currency' => 'sometimes|nullable|string|size:3',
         ]);
         $originalEmail = $user->email;
         $user->fill(collect($data)->only(['name', 'email', 'phone', 'address'])->all());
         if ($user->email !== $originalEmail) {
             $user->email_verified_at = null;
         }
-        $user->account_settings = array_merge($user->account_settings ?? [], collect($data)->only(['organization', 'state', 'zip', 'country', 'language', 'timezone', 'currency'])->all());
+        // These old preferences were never used. Locale belongs to the browser
+        // and timezone/currency belong to company settings, not a user profile.
+        $settings = $user->account_settings ?? [];
+        foreach (['organization', 'state', 'zip', 'country', 'language', 'timezone', 'currency'] as $legacyKey) {
+            unset($settings[$legacyKey]);
+        }
+        $user->account_settings = $settings;
         $user->save();
         if ($user->email !== $originalEmail) {
             $user->sendEmailVerificationNotification();

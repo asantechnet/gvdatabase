@@ -5,6 +5,7 @@ import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { layoutConfig } from '@layouts'
 import { VerticalNavGroup, VerticalNavLink, VerticalNavSectionTitle } from '@layouts/components'
 import { useLayoutConfigStore } from '@layouts/stores/config'
+import HeaderPageGuide from '@/layouts/components/HeaderPageGuide.vue'
 import { injectionKeyIsVerticalNavHovered } from '@layouts/symbols'
 import type { NavGroup, NavLink, NavSectionTitle, VerticalNavItems } from '@layouts/types'
 
@@ -52,6 +53,7 @@ const updateIsVerticalNavScrolled = (val: boolean) => isVerticalNavScrolled.valu
 const handleNavScroll = (evt: Event) => {
   isVerticalNavScrolled.value = (evt.target as HTMLElement).scrollTop > 0
 }
+
 </script>
 
 <template>
@@ -120,6 +122,9 @@ const handleNavScroll = (evt: Event) => {
           :key="index"
           :item="item"
         />
+        <li class="nav-page-guide">
+          <HeaderPageGuide />
+        </li>
       </PerfectScrollbar>
     </slot>
     <slot name="after-nav-items" />
@@ -173,6 +178,12 @@ const handleNavScroll = (evt: Event) => {
 
     // // ℹ️ We used `overflow-y` instead of `overflow` to mitigate overflow x. Revert back if any issue found.
     // overflow-y: auto;
+  }
+
+  .nav-page-guide {
+    display: flex;
+    justify-content: center;
+    padding-block: .5rem;
   }
 
   .nav-item-title {

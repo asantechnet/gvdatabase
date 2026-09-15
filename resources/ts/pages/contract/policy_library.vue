@@ -17,7 +17,10 @@ const loading = ref(false)
 const dialog = ref(false)
 const editing = ref<ContractPolicy | null>(null)
 const editorRef = ref<InstanceType<typeof ContractContentEditor> | null>(null)
-const form = ref<ContractPolicyPayload>({ label: '', type: 'employment', header: '', content: '' })
+const form = ref<ContractPolicyPayload>({ label: '', type: 'employment', is_active: true, header: '', content: '' })
+const search = ref('')
+const typeFilter = ref<string | null>(null)
+const statusFilter = ref<'active' | 'inactive' | null>(null)
 
 const policyTypes = [
   { title: 'Employment', value: 'employment', icon: 'tabler-briefcase' },
@@ -28,12 +31,19 @@ const policyTypes = [
 const selectedType = computed(() => contractTypes.value.find(type => type.slug === form.value.type) ?? null)
 const knownKeys = computed(() => new Set(placeholderGroups.value.flatMap(group => group.fields.map(field => field.key))))
 const policyTypeLabel = (type: string) => policyTypes.find(item => item.value === type)?.title ?? type
+const filteredPolicies = computed(() => policies.value.filter(policy => {
+  const query = search.value.trim().toLocaleLowerCase()
+
+  return (!typeFilter.value || policy.type === typeFilter.value)
+    && (!statusFilter.value || (statusFilter.value === 'active' ? policy.is_active : !policy.is_active))
+    && (!query || [policy.label, policy.header, policy.content].filter(Boolean).some(value => String(value).toLocaleLowerCase().includes(query)))
+}))
 const hasPolicyContent = computed(() => form.value.content.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim().length > 0)
 
 async function load() {
   loading.value = true
   try {
-    const [items, types] = await Promise.all([ContractPolicyApi.getAll(), ContractTypeApi.getAll({ include_inactive: true })])
+    const [items, types] = await Promise.all([ContractPolicyApi.getAll(true), ContractTypeApi.getAll({ include_inactive: true })])
 
     policies.value = items
     contractTypes.value = types
@@ -53,10 +63,12 @@ async function loadPlaceholders() {
 }
 
 async function open(policy?: ContractPolicy) {
-  editing.value = policy ?? null
-  form.value = policy
-    ? { label: policy.label, type: policy.type, header: policy.header ?? '', content: legacyContentToHtml(policy.content) }
-    : { label: '', type: 'employment', header: '', content: '' }
+  const existingPolicy = policy && typeof policy === 'object' && typeof policy.id === 'number' ? policy : null
+
+  editing.value = existingPolicy
+  form.value = existingPolicy
+    ? { label: existingPolicy.label, type: existingPolicy.type, is_active: existingPolicy.is_active, header: existingPolicy.header ?? '', content: legacyContentToHtml(existingPolicy.content) }
+    : { label: '', type: 'employment', is_active: true, header: '', content: '' }
   dialog.value = true
   await loadPlaceholders()
   form.value.content = hydratePlaceholders(serializePlaceholders(form.value.content), placeholderGroups.value, knownKeys.value)
@@ -118,7 +130,7 @@ onMounted(load)
 
 <template>
   <DataTablePageKpis
-    :items="policies"
+    :items="filteredPolicies"
     title="Policy library"
     description="Keep reusable contract clauses organized and ready for every agreement."
     icon="tabler-book-2"
@@ -132,18 +144,26 @@ onMounted(load)
         <VBtn
           color="primary"
           prepend-icon="tabler-plus"
-          @click="open"
+          @click="open()"
         >
           {{ t('pages.settings.policies.policies.policyLibrary.add') }}
         </VBtn>
       </template>
     </VCardItem>
+    <VCardText class="pb-0">
+      <VRow dense>
+        <VCol cols="12" md="6"><VTextField v-model="search" :label="t('common.actions.search')" prepend-inner-icon="tabler-search" density="compact" /></VCol>
+        <VCol cols="6" md="3"><VSelect v-model="typeFilter" :items="policyTypes" item-title="title" item-value="value" clearable :label="t('pages.settings.policies.policies.policyLibrary.type')" density="compact" /></VCol>
+        <VCol cols="6" md="3"><VSelect v-model="statusFilter" :items="[{ title: t('common.statuses.active'), value: 'active' }, { title: t('common.statuses.inactive'), value: 'inactive' }]" clearable :label="t('pages.settings.policies.policies.policyLibrary.status')" density="compact" /></VCol>
+      </VRow>
+    </VCardText>
     <ResponsiveDataTable
-      :items="policies"
+      :items="filteredPolicies"
       :headers="[
         { title: t('pages.settings.policies.policies.policyLibrary.type'), key: 'type' },
         { title: t('pages.settings.policies.policies.policyLibrary.label'), key: 'label' },
         { title: t('pages.settings.policies.policies.policyLibrary.header'), key: 'header' },
+        { title: t('pages.settings.policies.policies.policyLibrary.status'), key: 'status' },
         { title: t('pages.settings.policies.policies.policyLibrary.actions'), key: 'actions', sortable: false, align: 'end' },
       ]"
       item-value="id"
@@ -160,6 +180,11 @@ onMounted(load)
       </template>
       <template #item.header="{ item }">
         {{ item.header || '—' }}
+      </template>
+      <template #item.status="{ item }">
+        <VChip size="small" :color="item.is_active ? 'success' : 'secondary'" variant="tonal">
+          {{ item.is_active ? t('common.statuses.active') : t('common.statuses.inactive') }}
+        </VChip>
       </template>
       <template #item.actions="{ item }">
         <IconBtn
@@ -248,6 +273,15 @@ onMounted(load)
                   />
                 </template>
               </VSelect>
+            </VCol>
+            <VCol cols="12">
+              <VSwitch
+                v-model="form.is_active"
+                color="success"
+                inset
+                :label="t('pages.settings.policies.policies.policyLibrary.activeHint')"
+                hide-details
+              />
             </VCol>
             <VCol cols="12">
               <VTextField

@@ -6,6 +6,9 @@ import CustomerApi, { type Customer } from '@/api/customer'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import CounterpartyCard, { type CounterpartyDetails } from '@/components/contract/CounterpartyCard.vue'
 
+const { t } = useI18n()
+const tr = (key: string) => t(`pages.contractform.contractform.${key}`)
+
 export interface ContractFormPayload {
   template_id: number | null
   employee_id: number | null
@@ -95,7 +98,7 @@ const normalizeWholeNumber = (value: unknown): number | null => {
 }
 
 const isPositiveWholeNumber = (value: unknown) =>
-  normalizeWholeNumber(value) !== null || 'Enter a whole number of months.'
+  value === null || value === '' || normalizeWholeNumber(value) !== null || tr('wholeMonths')
 
 // ---------------------------------------------------------------------
 // Context metadata drives the whole form; no scattered if/else chains.
@@ -120,8 +123,8 @@ const context = computed<'employee' | 'customer' | 'company' | null>(() => {
 })
 
 const statusOptions = [
-  { title: 'Draft', value: 'draft' },
-  { title: 'Active', value: 'active' },
+  { title: t('common.statuses.draft'), value: 'draft' },
+  { title: t('common.statuses.active'), value: 'active' },
 ]
 
 const visibleTemplates = computed(() => {
@@ -261,9 +264,6 @@ const submit = async () => {
     return
 
   const durationMonths = normalizeWholeNumber(form.value.duration_months)
-  if (durationMonths === null)
-    return
-
   emit('submit', {
     ...form.value,
     employee_id: context.value === 'employee' ? form.value.employee_id : null,
@@ -293,11 +293,10 @@ defineExpose({ submit })
     <VRow>
       <VCol cols="12">
         <p class="app-form__section">
-          Contract setup
+          {{ tr('setup') }}
         </p>
         <p class="app-form__section-help">
-          Pick a template first — its contract type decides which counterparty record is required and which details
-          flow into the document automatically.
+          {{ tr('setupHint') }}
         </p>
       </VCol>
 
@@ -307,8 +306,8 @@ defineExpose({ submit })
           :items="visibleTemplates"
           item-title="name"
           item-value="id"
-          label="Contract Template"
-          :rules="[v => !!v || 'Template is required']"
+          :label="tr('template')"
+          :rules="[v => !!v || tr('templateRequired')]"
           :loading="loadingEntities"
           required
         />
@@ -322,12 +321,12 @@ defineExpose({ submit })
         <VAutocomplete
           v-model="form.employee_id"
           :items="employeeOptions"
-          label="Employee"
-          placeholder="Select employee"
+          :label="tr('employee')"
+          :placeholder="tr('selectEmployee')"
           prepend-inner-icon="tabler-user"
           :loading="loadingEntities"
-          :rules="[v => !!v || 'Employee is required']"
-          no-data-text="No employees found"
+          :rules="[v => !!v || tr('employeeRequired')]"
+          :no-data-text="tr('noEmployees')"
           required
         />
       </VCol>
@@ -339,12 +338,12 @@ defineExpose({ submit })
         <VAutocomplete
           v-model="form.customer_id"
           :items="customerOptions"
-          label="Customer"
-          placeholder="Select a customer"
+          :label="tr('customer')"
+          :placeholder="tr('selectCustomer')"
           prepend-inner-icon="tabler-users"
           :loading="loadingEntities"
-          :rules="[v => !!v || 'A customer is required']"
-          no-data-text="No customers found"
+          :rules="[v => !!v || tr('customerRequired')]"
+          :no-data-text="tr('noCustomers')"
           required
         />
       </VCol>
@@ -356,13 +355,13 @@ defineExpose({ submit })
         <VAutocomplete
           v-model="form.company_id"
           :items="companyOptions"
-          label="Counterparty Company"
-          placeholder="Select a company"
+          :label="tr('company')"
+          :placeholder="tr('selectCompany')"
           prepend-inner-icon="tabler-building"
           :loading="loadingEntities"
-          :rules="[v => !!v || 'A counterparty company is required']"
-          no-data-text="No companies found"
-          hint="Manage companies from the Companies page in the Contracts menu."
+          :rules="[v => !!v || tr('companyRequired')]"
+          :no-data-text="tr('noCompanies')"
+          :hint="tr('companyHint')"
           persistent-hint
           required
         >
@@ -376,7 +375,7 @@ defineExpose({ submit })
                 prepend-icon="tabler-plus"
                 to="/companies"
               >
-                Manage Companies
+                {{ tr('manageCompanies') }}
               </VBtn>
             </div>
           </template>
@@ -396,8 +395,8 @@ defineExpose({ submit })
         <VSelect
           v-model="form.status"
           :items="statusOptions"
-          label="Status"
-          :rules="[v => !!v || 'Status is required']"
+          :label="tr('status')"
+          :rules="[v => !!v || tr('statusRequired')]"
           required
         />
       </VCol>
@@ -408,9 +407,9 @@ defineExpose({ submit })
       >
         <VTextField
           v-model="form.start_date"
-          label="Start Date"
+          :label="tr('startDate')"
           type="date"
-          :rules="[v => !!v || 'Start date is required']"
+          :rules="[v => !!v || tr('startRequired')]"
           required
         />
       </VCol>
@@ -420,14 +419,13 @@ defineExpose({ submit })
       >
         <VTextField
           v-model="form.duration_months"
-          label="Duration (months)"
+          :label="tr('duration')"
           type="number"
           min="1"
           step="1"
-          :rules="[v => !!v || 'Duration is required', isPositiveWholeNumber]"
-          hint="The end date is calculated from the start date."
+          :rules="[isPositiveWholeNumber]"
+          :hint="tr('durationHint')"
           persistent-hint
-          required
         />
       </VCol>
       <VCol
@@ -436,10 +434,15 @@ defineExpose({ submit })
       >
         <VTextField
           v-model="form.end_date"
-          label="Calculated End Date"
+          :label="form.end_date ? tr('calculatedEndDate') : tr('openContract')"
           type="date"
           readonly
         />
+      </VCol>
+      <VCol v-if="!form.end_date" cols="12" md="8">
+        <VAlert color="info" variant="tonal" density="compact" icon="tabler-lock-open">
+          {{ tr('openContractHint') }}
+        </VAlert>
       </VCol>
       <VCol
         cols="12"
@@ -447,8 +450,8 @@ defineExpose({ submit })
       >
         <VTextField
           v-model="form.company_signatory_name"
-          label="Our company signatory"
-          hint="The authorized person signing on behalf of our company."
+          :label="tr('signatory')"
+          :hint="tr('signatoryHint')"
           persistent-hint
         />
       </VCol>

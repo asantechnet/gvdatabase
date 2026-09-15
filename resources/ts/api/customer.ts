@@ -11,6 +11,8 @@ export interface CustomerService {
   fee: number
   employee_id: number | null
   employee: { id: number; name: string } | null
+  employee_ids: number[]
+  employees: Array<{ id: number; name: string; percentage: number }>
   marketer_id: number | null
   marketer: { id: number; name: string } | null
   currency_id: number | null
@@ -72,6 +74,7 @@ export type UpdateCustomerData = Partial<CreateCustomerData>
 export interface CreateCustomerServiceData {
   service_id: number
   employee_id?: number | null
+  employee_ids?: number[]
   marketer_id?: number | null
   fee?: number | null
   currency_id?: number | null
@@ -83,6 +86,7 @@ export interface CreateCustomerServiceData {
 export interface UpdateCustomerServiceData {
   service_id: number
   employee_id?: number | null
+  employee_ids?: number[]
   marketer_id?: number | null
   fee?: number | null
   currency_id?: number | null

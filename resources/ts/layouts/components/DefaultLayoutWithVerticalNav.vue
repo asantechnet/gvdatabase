@@ -6,7 +6,6 @@ import Footer from '@/layouts/components/Footer.vue'
 import NavBarAuditLogs from '@/layouts/components/NavBarAuditLogs.vue'
 import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
-import HeaderPageGuide from '@/layouts/components/HeaderPageGuide.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
 import NavbarLayoutSwitcher from '@/layouts/components/NavbarLayoutSwitcher.vue'
@@ -80,7 +79,6 @@ onMounted(loadBranding)
         />
         <NavbarThemeSwitcher />
         <NavbarLayoutSwitcher />
-        <HeaderPageGuide />
         <NavBarAuditLogs class="me-1" />
         <NavBarNotifications class="me-1" />
         <UserProfile />

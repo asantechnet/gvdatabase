@@ -30,8 +30,14 @@ const props = withDefaults(defineProps<{
 
 const isOpen = ref(false)
 const activeTab = ref('overview')
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const record = computed(() => props.item as DetailRecord)
+
+const detailsText = (key: string, fallback: string, values?: Record<string, unknown>) => {
+  const value = t(`components.fullDetails.${key}`, values)
+
+  return value === `components.fullDetails.${key}` || value.startsWith('[missing:') ? fallback : value
+}
 
 const hiddenKeys = new Set([
   'password',
@@ -66,8 +72,6 @@ const friendlyLabels: Record<string, string> = {
   'currentBaseAmount': 'Current base value',
   'currentBasePaidAmount': 'Paid in current base',
   'currentBaseBalance': 'Balance in current base',
-  'class_type': 'Document type',
-  'class-type': 'Document type',
   'deptor': 'Billed to',
   'recordedBy': 'Recorded by',
   'recorded_by': 'Recorded by',
@@ -76,7 +80,12 @@ const friendlyLabels: Record<string, string> = {
   'unpaidOffDays': 'Unpaid leave days',
 }
 
-const labelFor = (key: string) => friendlyLabels[key] || humanize(key)
+const labelFor = (key: string) => {
+  const fallback = friendlyLabels[key] || humanize(key)
+  const alias = detailsText(`fieldAliases.${normalizedKey(key)}`, fallback)
+
+  return detailsText(`fields.${normalizedKey(key)}`, alias)
+}
 
 const getValue = (source: DetailRecord, path: string) => path
   .split('.')
@@ -121,7 +130,10 @@ const requestedFields = computed<DisplayField[]>(() => {
 
   return fields
     .filter(({ key }) => !shouldHide(key))
-    .map(field => ({ ...field, label: field.label || labelFor(field.key), value: getValue(record.value, field.key) }))
+    // Pages may provide a polished label (for example "Available Quantity").
+    // Treat it as a translation key candidate too, rather than letting that
+    // English convenience label bypass the shared viewer localization.
+    .map(field => ({ ...field, label: labelFor(field.label || field.key), value: getValue(record.value, field.key) }))
 })
 
 const isSystemField = (key: string) => /(^uuid$|created|updated|timestamp|cancelled_at|voided_at)/i.test(key)
@@ -145,28 +157,28 @@ const meaningfulFieldCount = computed(() => requestedFields.value.filter(field =
 const recordTitle = computed(() => props.title || String(
   record.value.name || record.value.title || record.value.legal_name || record.value.invoice_number
   || record.value.receipt_number || record.value.payslip_number || record.value.contract_number
-  || record.value.item_name || record.value.item || `Record ${record.value.id ? `#${record.value.id}` : ''}`,
+  || record.value.item_name || record.value.item || detailsText('recordFallback', `Record ${record.value.id ? `#${record.value.id}` : ''}`, { id: record.value.id ? `#${record.value.id}` : '' }),
 ))
 
 const recordKind = computed(() => {
   if (record.value.invoice_number)
-    return 'Invoice'
+    return detailsText('recordKinds.invoice', 'Invoice')
   if (record.value.receipt_number)
-    return 'Receipt'
+    return detailsText('recordKinds.receipt', 'Receipt')
   if (record.value.payslip_number || record.value.salaryMonth)
-    return 'Payroll record'
+    return detailsText('recordKinds.payroll', 'Payroll record')
   if (record.value.contract_number)
-    return 'Contract'
+    return detailsText('recordKinds.contract', 'Contract')
   if (record.value.serial_number)
-    return 'Asset item'
+    return detailsText('recordKinds.asset', 'Asset item')
   if (record.value.company && record.value.contact && record.value.service)
-    return 'Visitor'
+    return detailsText('recordKinds.visitor', 'Visitor')
   if (record.value.position || record.value.father_name)
-    return 'Employee'
+    return detailsText('recordKinds.employee', 'Employee')
   if (record.value.services)
-    return 'Customer'
+    return detailsText('recordKinds.customer', 'Customer')
 
-  return 'Record details'
+  return detailsText('recordKinds.record', 'Record details')
 })
 
 const recordStatus = computed(() => {
@@ -174,7 +186,7 @@ const recordStatus = computed(() => {
   if (!statusEntry)
     return null
   if (statusEntry[0] === 'is_active')
-    return record.value.is_active ? 'Active' : 'Inactive'
+    return record.value.is_active ? detailsText('values.active', 'Active') : detailsText('values.inactive', 'Inactive')
 
   return String(statusEntry[1])
 })
@@ -197,22 +209,26 @@ const formatScalar = (value: unknown, key = '', source: DetailRecord = record.va
     if (!Number.isNaN(date.getTime())) {
       const includesTime = /[T\s]\d{2}:\d{2}/.test(String(value))
 
-      return new Intl.DateTimeFormat(undefined, includesTime
+      return new Intl.DateTimeFormat(locale.value, includesTime
         ? { dateStyle: 'medium', timeStyle: 'short' }
         : { dateStyle: 'medium' }).format(date)
     }
   }
   if (typeof value === 'number') {
     if (/percent|tax/i.test(key))
-      return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value)}%`
-    const formatted = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value)
+      return `${new Intl.NumberFormat(locale.value, { maximumFractionDigits: 2 }).format(value)}%`
+    const formatted = new Intl.NumberFormat(locale.value, { maximumFractionDigits: 2 }).format(value)
 
     return /amount|fee|salary|price|total|balance|paid|bonus|deduction|discount|earned/i.test(key)
       ? [currencyContext(source), formatted].filter(Boolean).join(' ')
       : formatted
   }
 
-  return String(value).replaceAll('_', ' ')
+  const raw = String(value).replaceAll('_', ' ')
+
+  return /status|condition|state|employment_type|is_active/i.test(key)
+    ? detailsText(`values.${normalizedKey(raw)}`, raw)
+    : raw
 }
 
 const objectTitle = (value: DetailRecord, fallback: string) => String(
@@ -283,10 +299,10 @@ const hrefFor = (value: unknown, key: string) => {
 }
 
 const tabs = computed(() => [
-  { value: 'overview', label: 'Overview', icon: 'tabler-layout-dashboard' },
-  ...(relatedRecords.value.length ? [{ value: 'related', label: 'Related', icon: 'tabler-users-group', count: relatedRecords.value.length }] : []),
-  ...collections.value.map(field => ({ value: `collection-${field.key}`, label: field.label || labelFor(field.key), icon: 'tabler-list-details', count: (field.value as unknown[]).length })),
-  ...(systemFields.value.length ? [{ value: 'activity', label: 'Activity', icon: 'tabler-history', count: systemFields.value.length }] : []),
+  { value: 'overview', label: detailsText('tabs.overview', 'Overview'), icon: 'tabler-layout-dashboard' },
+  ...(relatedRecords.value.length ? [{ value: 'related', label: detailsText('tabs.related', 'Related'), icon: 'tabler-users-group', count: relatedRecords.value.length }] : []),
+  ...collections.value.map(field => ({ value: `collection-${field.key}`, label: labelFor(field.label || field.key), icon: 'tabler-list-details', count: (field.value as unknown[]).length })),
+  ...(systemFields.value.length ? [{ value: 'activity', label: detailsText('tabs.activity', 'Activity'), icon: 'tabler-history', count: systemFields.value.length }] : []),
 ])
 
 watch(isOpen, open => {
@@ -330,7 +346,7 @@ watch(isOpen, open => {
             size="26"
           /></div>
           <div class="detail-viewer__identity">
-            <div class="detail-viewer__eyebrow">{{ recordKind }} · {{ meaningfulFieldCount }} useful details</div>
+            <div class="detail-viewer__eyebrow">{{ detailsText('eyebrow', `${recordKind} · ${meaningfulFieldCount} useful details`, { kind: recordKind, count: meaningfulFieldCount }) }}</div>
             <h2>{{ recordTitle }}</h2>
             <p v-if="subtitle">{{ subtitle }}</p>
           </div>
@@ -341,7 +357,7 @@ watch(isOpen, open => {
             variant="flat"
             size="small"
           >
-            {{ formatScalar(recordStatus) }}
+            {{ formatScalar(recordStatus, 'status') }}
           </VChip>
           <IconBtn
             class="detail-viewer__close"
@@ -402,7 +418,7 @@ watch(isOpen, open => {
                 <div class="detail-section__title"><VIcon
                   icon="tabler-info-square-rounded"
                   size="19"
-                /><div><h3>Essential information</h3><p>The details needed to identify and understand this record.</p></div></div>
+                /><div><h3>{{ detailsText('sections.essentialTitle', 'Essential information') }}</h3><p>{{ detailsText('sections.essentialDescription', 'The details needed to identify and understand this record.') }}</p></div></div>
                 <div class="detail-facts">
                   <article
                     v-for="field in factFields"
@@ -440,7 +456,7 @@ watch(isOpen, open => {
                 <div class="detail-section__title"><VIcon
                   icon="tabler-align-left"
                   size="19"
-                /><div><h3>Notes & context</h3><p>Supporting information kept in full, without truncation.</p></div></div>
+                /><div><h3>{{ detailsText('sections.notesTitle', 'Notes & context') }}</h3><p>{{ detailsText('sections.notesDescription', 'Supporting information kept in full, without truncation.') }}</p></div></div>
                 <div class="detail-narratives">
                   <article
                     v-for="field in narrativeFields"
@@ -453,7 +469,7 @@ watch(isOpen, open => {
                 v-if="!metricFields.length && !factFields.length && !narrativeFields.length"
                 type="info"
                 variant="tonal"
-              >No user-facing overview information is available for this record.</VAlert>
+              >{{ detailsText('sections.emptyOverview', 'No user-facing overview information is available for this record.') }}</VAlert>
             </VWindowItem>
 
             <VWindowItem value="related">
@@ -461,7 +477,7 @@ watch(isOpen, open => {
                 <div class="detail-section__title"><VIcon
                   icon="tabler-link"
                   size="19"
-                /><div><h3>Connected records</h3><p>Names and useful context are shown instead of database IDs.</p></div></div>
+                /><div><h3>{{ detailsText('sections.relatedTitle', 'Connected records') }}</h3><p>{{ detailsText('sections.relatedDescription', 'Names and useful context are shown instead of database IDs.') }}</p></div></div>
                 <div class="related-grid">
                   <article
                     v-for="relation in relatedRecords"
@@ -502,7 +518,7 @@ watch(isOpen, open => {
                 <div class="detail-section__title"><VIcon
                   icon="tabler-list-details"
                   size="19"
-                /><div><h3>{{ collection.label }}</h3><p>{{ (collection.value as unknown[]).length }} connected {{ (collection.value as unknown[]).length === 1 ? 'entry' : 'entries' }}, shown with their useful details.</p></div></div>
+                /><div><h3>{{ collection.label }}</h3><p>{{ detailsText('sections.collectionDescription', `${(collection.value as unknown[]).length} connected entries, shown with their useful details.`, { count: (collection.value as unknown[]).length }) }}</p></div></div>
                 <div
                   v-if="(collection.value as unknown[]).some(entry => isObject(entry))"
                   class="collection-list"
@@ -550,7 +566,7 @@ watch(isOpen, open => {
                 <div class="detail-section__title"><VIcon
                   icon="tabler-history"
                   size="19"
-                /><div><h3>Record activity</h3><p>Lifecycle dates are separated from day-to-day business information.</p></div></div>
+                /><div><h3>{{ detailsText('sections.activityTitle', 'Record activity') }}</h3><p>{{ detailsText('sections.activityDescription', 'Lifecycle dates are separated from day-to-day business information.') }}</p></div></div>
                 <div class="activity-timeline">
                   <article
                     v-for="field in systemFields"
@@ -562,11 +578,18 @@ watch(isOpen, open => {
           </VWindow>
         </VCardText>
 
-        <VCardActions class="detail-viewer__footer"><span>Showing business-friendly details. Internal database references are hidden.</span><VSpacer /><VBtn
-          variant="tonal"
-          color="secondary"
+        <VCardActions class="detail-viewer__footer">
+          <div class="detail-viewer__footer-note">
+            <VIcon icon="tabler-shield-check" size="17" />
+            <span>{{ detailsText('footer', 'Showing business-friendly details. Internal database references are hidden.') }}</span>
+          </div>
+          <VBtn
+            variant="flat"
+            color="primary"
+            prepend-icon="tabler-x"
           @click="isOpen = false"
-        >{{ t('common.actions.close') }}</VBtn></VCardActions>
+          >{{ t('common.actions.close') }}</VBtn>
+        </VCardActions>
       </VCard>
     </VDialog>
   </span>
@@ -633,8 +656,11 @@ watch(isOpen, open => {
 .activity-timeline article > div:last-child { display: grid; }
 .activity-timeline span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .7rem; }
 .activity-timeline strong { font-size: .85rem; }
-.detail-viewer__footer { min-block-size: 54px; padding-inline: 1.35rem !important; border-block-start: 1px solid rgba(var(--v-border-color), .13); }
-.detail-viewer__footer > span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .72rem; }
+.detail-viewer__footer { display: flex; min-block-size: 62px; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 1.35rem !important; border-block-start: 1px solid rgba(var(--v-border-color), .13); background: linear-gradient(90deg, rgba(var(--v-theme-primary), .055), rgba(var(--v-theme-surface), .98) 46%); }
+.detail-viewer__footer-note { display: flex; min-inline-size: 0; align-items: center; gap: .55rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .74rem; line-height: 1.4; }
+.detail-viewer__footer-note .v-icon { flex: 0 0 auto; color: rgb(var(--v-theme-primary)); }
+.detail-viewer__footer-note span { min-inline-size: 0; }
+.detail-viewer__footer .v-btn { flex: 0 0 auto; min-inline-size: 92px; }
 @media (max-width: 700px) {
   .detail-viewer { max-block-size: calc(100dvh - 1rem); border-radius: .8rem !important; }
   .detail-viewer__hero { gap: .7rem; padding: .9rem; }
@@ -644,7 +670,8 @@ watch(isOpen, open => {
   .detail-viewer__body { padding: .9rem !important; }
   .detail-facts, .related-grid { grid-template-columns: minmax(0, 1fr); }
   .collection-card__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .detail-viewer__footer > span { display: none; }
+  .detail-viewer__footer { min-block-size: 56px; padding-inline: .9rem !important; }
+  .detail-viewer__footer-note { display: none; }
 }
 @media (max-width: 420px) { .collection-card__fields { grid-template-columns: minmax(0, 1fr); } }
 </style>

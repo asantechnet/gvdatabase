@@ -203,7 +203,6 @@ class BusinessLogicConsistencyTest extends TestCase
         $this->postJson('/api/invoices', [
             'customer_id' => $customer->id,
             'currency_id' => $currency->id,
-            'class_type' => 'Standard',
             'services' => [['customer_service_id' => $customerService->id, 'quantity' => 1]],
             'tax_percent' => 0,
             'discount' => 101,
@@ -270,7 +269,6 @@ class BusinessLogicConsistencyTest extends TestCase
         $this->postJson('/api/invoices', [
             'customer_id' => $customer->id,
             'currency_id' => $currency->id,
-            'class_type' => 'Standard',
             'services' => [['customer_service_id' => $assignment->id, 'quantity' => 1]],
             'tax_percent' => 0,
         ])->assertUnprocessable()

@@ -105,7 +105,7 @@ watch(year, () => {
         <section class="mb-6">
           <div class="d-flex align-center justify-space-between mb-3">
             <div class="text-subtitle-1 font-weight-bold">
-              Leave balance
+              {{ translate('pages.paidTimeOff.balance') }}
             </div>
             <div class="text-caption text-medium-emphasis">
               {{ year }}
@@ -129,7 +129,7 @@ watch(year, () => {
                   <div class="text-h6 font-weight-bold">
                     {{ allowance }}
                   </div><div class="text-caption text-medium-emphasis">
-                    Allowance
+                    {{ translate('pages.paidTimeOff.allowance') }}
                   </div>
                 </div>
               </VSheet>
@@ -151,7 +151,7 @@ watch(year, () => {
                   <div class="text-h6 font-weight-bold">
                     {{ used }}
                   </div><div class="text-caption text-medium-emphasis">
-                    Paid days granted
+                    {{ translate('pages.paidTimeOff.paidDaysGranted') }}
                   </div>
                 </div>
               </VSheet>
@@ -173,7 +173,7 @@ watch(year, () => {
                   <div class="text-h6 font-weight-bold">
                     {{ pending }}
                   </div><div class="text-caption text-medium-emphasis">
-                    Pending requests
+                    {{ translate('pages.paidTimeOff.pendingRequests') }}
                   </div>
                 </div>
               </VSheet>
@@ -195,7 +195,7 @@ watch(year, () => {
                   <div class="text-h6 font-weight-bold">
                     {{ remaining }}
                   </div><div class="text-caption text-medium-emphasis">
-                    Days remaining
+                    {{ translate('pages.paidTimeOff.daysRemaining') }}
                   </div>
                 </div>
               </VSheet>
@@ -218,9 +218,9 @@ watch(year, () => {
             </VAvatar>
             <div>
               <div class="text-subtitle-1 font-weight-bold">
-                Request time off
+                {{ translate('pages.paidTimeOff.requestTimeOff') }}
               </div><div class="text-caption text-medium-emphasis">
-                Choose your dates and tell us why you need leave.
+                {{ translate('pages.paidTimeOff.requestHint') }}
               </div>
             </div>
           </div>
@@ -264,8 +264,8 @@ watch(year, () => {
             >
               <VSelect
                 v-model="form.duration_days"
-                :items="[{ title: 'Full day', value: 1 }, { title: 'Half day', value: 0.5 }]"
-                label="Duration"
+                :items="[{ title: translate('pages.paidTimeOff.fullDay'), value: 1 }, { title: translate('pages.paidTimeOff.halfDay'), value: 0.5 }]"
+                :label="translate('pages.paidTimeOff.duration')"
               />
             </VCol>
             <VCol

@@ -98,6 +98,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(AccountDeactivationRequest::class);
     }
 
+    public function supportTickets(): HasMany
+    {
+        return $this->hasMany(SupportTicket::class);
+    }
+
     public function dailyReports(): HasMany
     {
         return $this->hasMany(DailyReport::class);

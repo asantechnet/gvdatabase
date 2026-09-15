@@ -14,7 +14,6 @@ class Invoice extends Model
     use Auditable, HasDocumentNumber, HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'class_type',
         'customer_id',
         'currency_id',
         'deptor',
@@ -73,6 +72,7 @@ class Invoice extends Model
         return $this->belongsToMany(Service::class)
             ->using(InvoiceService::class)
             ->withPivot([
+                'id',
                 'snapshot_name',
                 'snapshot_service_fee',
                 'snapshot_service_currency_code',

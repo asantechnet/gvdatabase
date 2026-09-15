@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import { startPageGuide } from '@/composables/usePageGuide'
 
 const route = useRoute()
+const { t } = useI18n()
 
 function openGuide() {
   startPageGuide(route)
@@ -11,12 +12,12 @@ function openGuide() {
 
 <template>
   <IconBtn
-    aria-label="Guide for this page"
+    :aria-label="t('common.pageGuide.open')"
     @click="openGuide"
   >
     <VIcon icon="tabler-help-circle" />
     <VTooltip activator="parent">
-      Guide for this page
+      {{ t('common.pageGuide.open') }}
     </VTooltip>
   </IconBtn>
 </template>

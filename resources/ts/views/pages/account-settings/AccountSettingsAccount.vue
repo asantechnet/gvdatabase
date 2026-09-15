@@ -25,7 +25,7 @@ const passwordFieldGuarded = ref(true)
 const deactivationRequests = ref<AccountDeactivationRequest[]>([])
 const emailVerified = ref(false)
 const initial = ref<AccountUpdatePayload>({})
-const account = ref<AccountUpdatePayload & { avatar: string | null }>({ name: '', email: '', phone: '', address: '', avatar: null, organization: '', state: '', zip: '', country: '', language: '', timezone: '', currency: '' })
+const account = ref<AccountUpdatePayload & { avatar: string | null }>({ name: '', email: '', phone: '', address: '', avatar: null })
 const isSuperAdmin = ref(false)
 const userData = useCookie<Record<string, unknown> | null>('userData')
 
@@ -43,8 +43,6 @@ watch(error, value => {
 })
 
 const displayAvatar = computed(() => account.value.avatar || fallbackAvatar)
-const timezones = Intl.supportedValuesOf?.('timeZone') ?? ['UTC']
-const currencies = ['USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR']
 const pendingDeactivation = computed(() => deactivationRequests.value.find(item => item.status === 'pending') ?? null)
 const canRequestDeactivation = computed(() => !isSuperAdmin.value && canAccess('request_account_deactivation'))
 const canCancelDeactivation = computed(() => canAccess('cancel_own_deactivation_request'))
@@ -277,15 +275,6 @@ onBeforeUnmount(clearDeactivationSecrets)
                 cols="12"
               >
                 <AppTextField
-                  v-model="account.organization"
-                  :label="$t('components.account.accountsettingsaccount.organization')"
-                />
-              </VCol>
-              <VCol
-                md="6"
-                cols="12"
-              >
-                <AppTextField
                   v-model="account.phone"
                   :label="$t('components.account.accountsettingsaccount.phoneNumber')"
                 />
@@ -297,62 +286,6 @@ onBeforeUnmount(clearDeactivationSecrets)
                 <AppTextField
                   v-model="account.address"
                   :label="$t('common.fields.address')"
-                />
-              </VCol>
-              <VCol
-                md="6"
-                cols="12"
-              >
-                <AppTextField
-                  v-model="account.state"
-                  :label="$t('components.account.accountsettingsaccount.state')"
-                />
-              </VCol>
-              <VCol
-                md="6"
-                cols="12"
-              >
-                <AppTextField
-                  v-model="account.zip"
-                  :label="$t('components.account.accountsettingsaccount.zipCode')"
-                />
-              </VCol>
-              <VCol
-                md="6"
-                cols="12"
-              >
-                <AppTextField
-                  v-model="account.country"
-                  :label="$t('components.account.accountsettingsaccount.country')"
-                />
-              </VCol>
-              <VCol
-                md="6"
-                cols="12"
-              >
-                <AppTextField
-                  v-model="account.language"
-                  :label="$t('components.account.accountsettingsaccount.language')"
-                />
-              </VCol>
-              <VCol
-                md="6"
-                cols="12"
-              >
-                <AppSelect
-                  v-model="account.timezone"
-                  :label="$t('components.account.accountsettingsaccount.timezone')"
-                  :items="timezones"
-                />
-              </VCol>
-              <VCol
-                md="6"
-                cols="12"
-              >
-                <AppSelect
-                  v-model="account.currency"
-                  :label="$t('common.fields.currency')"
-                  :items="currencies"
                 />
               </VCol>
               <VCol

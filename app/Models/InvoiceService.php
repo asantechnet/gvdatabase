@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class InvoiceService extends Pivot
 {
@@ -15,7 +16,9 @@ class InvoiceService extends Pivot
         'service_id',
         'customer_service_id',
         'employee_id',
+        'marketer_employee_id',
         'snapshot_commission_percentage',
+        'snapshot_marketer_commission_percentage',
         'snapshot_name',
         'snapshot_service_fee',
         'snapshot_service_currency_code',
@@ -35,6 +38,7 @@ class InvoiceService extends Pivot
         'line_total' => 'decimal:2',
         'quantity' => 'integer',
         'snapshot_commission_percentage' => 'decimal:2',
+        'snapshot_marketer_commission_percentage' => 'decimal:2',
     ];
 
     public function invoice()
@@ -55,5 +59,18 @@ class InvoiceService extends Pivot
     public function employee()
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function marketerEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'marketer_employee_id');
+    }
+
+    /** Immutable delivery-commission recipients snapshotted when invoiced. */
+    public function commissionRecipients(): BelongsToMany
+    {
+        return $this->belongsToMany(Employee::class, 'invoice_service_commission_recipients', 'invoice_service_id', 'employee_id')
+            ->withPivot('percentage')
+            ->withTimestamps();
     }
 }

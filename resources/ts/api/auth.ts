@@ -12,13 +12,6 @@ export interface Account {
   permissions: string[]
   employee: { id: number; position_id: number; is_marketer: boolean } | null
   is_marketer: boolean
-  organization?: string | null
-  state?: string | null
-  zip?: string | null
-  country?: string | null
-  language?: string | null
-  timezone?: string | null
-  currency?: string | null
   notifications?: NotificationPreferences
   two_factor_enabled: boolean
   email_verified: boolean
@@ -32,13 +25,6 @@ export interface AccountUpdatePayload {
   email?: string
   phone?: string | null
   address?: string | null
-  organization?: string | null
-  state?: string | null
-  zip?: string | null
-  country?: string | null
-  language?: string | null
-  timezone?: string | null
-  currency?: string | null
 }
 
 const AuthApi = {

@@ -127,7 +127,7 @@ class CommissionLifecycleTest extends TestCase
             'currency_id' => $currency->id,
         ]);
         $payload = [
-            'customer_id' => $customer->id, 'currency_id' => $currency->id, 'class_type' => 'Standard',
+            'customer_id' => $customer->id, 'currency_id' => $currency->id,
             'services' => [['customer_service_id' => $customerService->id, 'quantity' => 1]], 'tax_percent' => 0,
         ];
 
@@ -140,6 +140,46 @@ class CommissionLifecycleTest extends TestCase
         $this->assertSame(12.5, (float) $line->snapshot_commission_percentage);
         $this->assertSame(175.0, (float) $line->snapshot_service_fee);
         $this->assertSame($customerService->id, (int) $line->customer_service_id);
+    }
+
+    public function test_one_customer_service_can_accrue_delivery_commissions_for_multiple_employees(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
+        $customer = Customer::factory()->create();
+        $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
+        $first = Employee::factory()->create(['employment_type' => 'commission']);
+        $second = Employee::factory()->create(['employment_type' => 'commission']);
+        $first->commissionServices()->attach($service->id, ['percentage' => 10]);
+        $second->commissionServices()->attach($service->id, ['percentage' => 15]);
+        $customerService = CustomerService::create(['customer_id' => $customer->id, 'service_id' => $service->id, 'currency_id' => $currency->id]);
+        $customerService->deliveryEmployees()->sync([
+            $first->id => ['percentage' => 10],
+            $second->id => ['percentage' => 15],
+        ]);
+
+        $invoiceId = $this->postJson('/api/invoices', [
+            'customer_id' => $customer->id,
+            'currency_id' => $currency->id,
+            'services' => [['customer_service_id' => $customerService->id]],
+            'tax_percent' => 0,
+        ])->assertCreated()->json('data.id');
+
+        $line = DB::table('invoice_service')->where('invoice_id', $invoiceId)->sole();
+        $this->assertDatabaseCount('invoice_service_commission_recipients', 2);
+        Income::create([
+            'invoice_id' => $invoiceId, 'currency_id' => $currency->id, 'base_currency_id' => $currency->id,
+            'type' => 'Service', 'description' => 'Receipt', 'amount' => 100, 'quantity' => 1,
+            'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $currency->code, 'rate' => 1,
+            'invoice_amount' => 100, 'date' => '2026-09-01',
+        ]);
+
+        $this->assertDatabaseHas('commission_accruals', [
+            'invoice_service_id' => $line->id, 'employee_id' => $first->id, 'commission_role' => 'delivery', 'percentage' => 10,
+        ]);
+        $this->assertDatabaseHas('commission_accruals', [
+            'invoice_service_id' => $line->id, 'employee_id' => $second->id, 'commission_role' => 'delivery', 'percentage' => 15,
+        ]);
     }
 
     public function test_employee_profiles_allow_zero_base_salary_for_salaried_and_commission_employees(): void

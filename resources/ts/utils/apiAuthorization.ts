@@ -143,6 +143,7 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'GET /audit-logs/deleted': ['view_deleted_records'],
     'GET /audit-logs/:id': ['view_audit_logs'],
     'PATCH /audit-logs/:id/review': ['review_audit_logs'],
+    'POST /audit-logs/bulk-review': ['review_audit_logs'],
     'POST /audit-logs/:id/revert': ['revert_audit_changes'],
     'GET /audit-resources': ['view_audit_logs'],
     'PATCH /audit-resources/:id': ['manage_audit_scope'],

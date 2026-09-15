@@ -501,8 +501,8 @@ onMounted(() => {
     </ResponsiveDataTable>
   </VCard>
   <PrintableListReport
-    title="Visitors Report"
-    subtitle="Filtered visitor records"
+    :title="$t('common.crmUi.printReports.visitors.title')"
+    :subtitle="$t('common.crmUi.printReports.visitors.subtitle')"
     :columns="headers.slice(0, -1).map(header => header.title)"
     :rows="filtered.map(visitor => [visitor.name, visitor.company, visitor.contact, visitor.email || '—', visitor.service, marketerLabel(visitor), visitor.date])"
   />

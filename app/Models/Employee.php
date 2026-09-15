@@ -83,6 +83,14 @@ class Employee extends Model
         return $this->hasMany(CustomerService::class);
     }
 
+    /** Customer services this employee is one of the delivery recipients for. */
+    public function deliveryCustomerServices(): BelongsToMany
+    {
+        return $this->belongsToMany(CustomerService::class, 'employee_customer_service_commissions', 'employee_id', 'customer_service_id')
+            ->withPivot('percentage')
+            ->withTimestamps();
+    }
+
     /** Commission earned from recorded invoice income, in base currency. */
     public function commissionEarnedBase(): float
     {

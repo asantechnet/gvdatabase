@@ -544,37 +544,14 @@ onMounted(() => {
               />
             </div>
           </template>
-          <template #no-data>
-            <div class="ledger-empty">
-              <VAvatar
-                size="48"
-                color="error"
-                variant="tonal"
-                icon="tabler-receipt"
-              /><div>
-                <div class="text-subtitle-1 font-weight-bold">
-                  Your expense ledger is clear
-                </div><p class="text-body-2 text-medium-emphasis mb-0">
-                  Record an expense to start building a clear picture of your spending.
-                </p>
-              </div><VBtn
-                color="error"
-                variant="tonal"
-                prepend-icon="tabler-plus"
-                @click="openAddExpenseDialog"
-              >
-                Record expense
-              </VBtn>
-            </div>
-          </template>
         </ResponsiveDataTable>
       </div>
     </VCard>
 
     <PrintableListReport
-      title="Expenses Report"
-      subtitle="Expense records"
-      :columns="['Expense', 'Type', 'Details', 'Currency', 'Amount', 'Date']"
+      :title="$t('common.crmUi.printReports.expenses.title')"
+      :subtitle="$t('common.crmUi.printReports.expenses.subtitle')"
+      :columns="[$t('common.crmUi.printReports.columns.expense'), $t('common.crmUi.printReports.columns.type'), $t('common.crmUi.printReports.columns.details'), $t('common.crmUi.printReports.columns.currency'), $t('common.crmUi.printReports.columns.amount'), $t('common.crmUi.printReports.columns.date')]"
       :rows="expenses.map(expense => [`EXP-${String(expense.id).padStart(6, '0')}`, expense.type, expense.description, expense.currency?.code, formatExpenseCurrency(expense.amount * expense.quantity, expense.currency), formatDate(expense.date)])"
     />
 

@@ -11,7 +11,9 @@ class ContractPolicy extends Model
 {
     use Auditable, HasFactory, SoftDeletes;
 
-    protected $fillable = ['label', 'type', 'header', 'content'];
+    protected $fillable = ['label', 'type', 'is_active', 'header', 'content'];
+
+    protected $casts = ['is_active' => 'boolean'];
 
     public function templates()
     {

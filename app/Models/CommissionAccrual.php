@@ -16,6 +16,7 @@ class CommissionAccrual extends Model
         'base_currency_id', 'commission_settlement_id', 'earned_at',
         'source_payment_base_amount', 'eligible_base_amount', 'percentage',
         'commission_base_amount', 'status', 'entry_type', 'adjustment_reason', 'recorded_by',
+        'commission_role',
     ];
 
     protected function casts(): array

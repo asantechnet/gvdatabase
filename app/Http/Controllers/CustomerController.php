@@ -14,6 +14,7 @@ class CustomerController extends Controller
         $query = Customer::with([
             'customerServices.service.currency',
             'customerServices.employee',
+            'customerServices.deliveryEmployees',
             'customerServices.marketer',
             'marketerEmployee',
         ])
@@ -52,6 +53,7 @@ class CustomerController extends Controller
         return new CustomerResource($customer->load([
             'customerServices.service.currency',
             'customerServices.employee',
+            'customerServices.deliveryEmployees',
             'customerServices.marketer',
             'interactions.creator',
             'marketerEmployee',
@@ -63,6 +65,7 @@ class CustomerController extends Controller
         return new CustomerResource($customer->load([
             'customerServices.service.currency',
             'customerServices.employee',
+            'customerServices.deliveryEmployees',
             'customerServices.marketer',
             'interactions.creator',
             'marketerEmployee',
@@ -80,6 +83,7 @@ class CustomerController extends Controller
         return new CustomerResource($customer->load([
             'customerServices.service.currency',
             'customerServices.employee',
+            'customerServices.deliveryEmployees',
             'customerServices.marketer',
             'interactions.creator',
             'marketerEmployee',

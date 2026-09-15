@@ -297,14 +297,14 @@ watch(logDate, async () => {
             elevation="2"
             class="stats-card border-inline-start-success"
           >
-            <VCardText class="d-flex align-center justify-space-between py-4">
-              <div>
-                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">
+            <VCardText class="stats-card__body">
+              <div class="stats-card__copy">
+                <h6 class="stats-card__label">
                   {{ $t('pages.attendance.timesheet.timesheet.totalPRESENTRANGE') }}
                 </h6>
-                <h4 class="text-h4 font-weight-bold text-success">
+                <div class="stats-card__value text-success">
                   {{ stats.present }}
-                </h4>
+                </div>
               </div>
               <VAvatar
                 color="success"
@@ -326,14 +326,20 @@ watch(logDate, async () => {
         >
           <VCard
             elevation="2"
-            class="stats-card"
+            class="stats-card border-inline-start-primary"
           >
-            <VCardText>
-              <div class="text-caption">
-                {{ $t('pages.attendance.timesheet.timesheet.totalWORKED') }}
-              </div><div class="text-h5 font-weight-bold">
-                {{ formatDuration(stats.workedMinutes) }}
+            <VCardText class="stats-card__body">
+              <div class="stats-card__copy">
+                <h6 class="stats-card__label">
+                  {{ $t('pages.attendance.timesheet.timesheet.totalWORKED') }}
+                </h6>
+                <div class="stats-card__value">
+                  {{ formatDuration(stats.workedMinutes) }}
+                </div>
               </div>
+              <VAvatar color="primary" variant="tonal" rounded size="42">
+                <VIcon icon="tabler-clock" size="22" />
+              </VAvatar>
             </VCardText>
           </VCard>
         </VCol>
@@ -343,14 +349,20 @@ watch(logDate, async () => {
         >
           <VCard
             elevation="2"
-            class="stats-card"
+            class="stats-card border-inline-start-success"
           >
-            <VCardText>
-              <div class="text-caption">
-                {{ $t('pages.attendance.timesheet.timesheet.overtime') }}
-              </div><div class="text-h5 font-weight-bold text-success">
-                {{ formatDuration(stats.overtimeMinutes) }}
+            <VCardText class="stats-card__body">
+              <div class="stats-card__copy">
+                <h6 class="stats-card__label">
+                  {{ $t('pages.attendance.timesheet.timesheet.overtime') }}
+                </h6>
+                <div class="stats-card__value text-success">
+                  {{ formatDuration(stats.overtimeMinutes) }}
+                </div>
               </div>
+              <VAvatar color="success" variant="tonal" rounded size="42">
+                <VIcon icon="tabler-clock-plus" size="22" />
+              </VAvatar>
             </VCardText>
           </VCard>
         </VCol>
@@ -360,14 +372,20 @@ watch(logDate, async () => {
         >
           <VCard
             elevation="2"
-            class="stats-card"
+            class="stats-card border-inline-start-warning"
           >
-            <VCardText>
-              <div class="text-caption">
-                {{ $t('pages.attendance.timesheet.timesheet.incompleteSESSIONS') }}
-              </div><div class="text-h5 font-weight-bold text-warning">
-                {{ stats.incomplete }}
+            <VCardText class="stats-card__body">
+              <div class="stats-card__copy">
+                <h6 class="stats-card__label">
+                  {{ $t('pages.attendance.timesheet.timesheet.incompleteSESSIONS') }}
+                </h6>
+                <div class="stats-card__value text-warning">
+                  {{ stats.incomplete }}
+                </div>
               </div>
+              <VAvatar color="warning" variant="tonal" rounded size="42">
+                <VIcon icon="tabler-alert-triangle" size="22" />
+              </VAvatar>
             </VCardText>
           </VCard>
         </VCol>
@@ -380,14 +398,14 @@ watch(logDate, async () => {
             elevation="2"
             class="stats-card border-inline-start-error"
           >
-            <VCardText class="d-flex align-center justify-space-between py-4">
-              <div>
-                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">
+            <VCardText class="stats-card__body">
+              <div class="stats-card__copy">
+                <h6 class="stats-card__label">
                   {{ $t('pages.attendance.timesheet.timesheet.totalABSENTRANGE') }}
                 </h6>
-                <h4 class="text-h4 font-weight-bold text-error">
+                <div class="stats-card__value text-error">
                   {{ stats.absent }}
-                </h4>
+                </div>
               </div>
               <VAvatar
                 color="error"
@@ -412,14 +430,14 @@ watch(logDate, async () => {
             elevation="2"
             class="stats-card border-inline-start-warning"
           >
-            <VCardText class="d-flex align-center justify-space-between py-4">
-              <div>
-                <h6 class="text-xs font-weight-medium text-medium-emphasis mb-1">
+            <VCardText class="stats-card__body">
+              <div class="stats-card__copy">
+                <h6 class="stats-card__label">
                   {{ $t('pages.attendance.timesheet.unmarkedFor', { date: formatLocalizedDate(`${logDate}T00:00:00`) }) }}
                 </h6>
-                <h4 class="text-h4 font-weight-bold text-warning">
+                <div class="stats-card__value text-warning">
                   {{ stats.pendingOnLogDate }}
-                </h4>
+                </div>
               </div>
               <VAvatar
                 color="warning"
@@ -1040,6 +1058,10 @@ watch(logDate, async () => {
   border-inline-start: 4px solid rgb(var(--v-theme-success)) !important;
 }
 
+.border-inline-start-primary {
+  border-inline-start: 4px solid rgb(var(--v-theme-primary)) !important;
+}
+
 .border-inline-start-error {
   border-inline-start: 4px solid rgb(var(--v-theme-error)) !important;
 }
@@ -1048,10 +1070,57 @@ watch(logDate, async () => {
   border-inline-start: 4px solid rgb(var(--v-theme-warning)) !important;
 }
 
+.stats-card {
+  block-size: 100%;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 0.75rem;
+  background: rgba(var(--v-theme-surface), 0.7);
+}
+
+.stats-card__body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-block-size: 88px;
+  padding: 1rem 1.25rem !important;
+}
+
+.stats-card__copy {
+  min-inline-size: 0;
+}
+
+.stats-card__label {
+  margin-block-end: 0.35rem;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.stats-card__value {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
 /* Micro interactions */
 .action-btn-success,
 .action-btn-error {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Keep action labels readable against the lighter semantic fills in dark mode. */
+.action-btn-success :deep(.v-btn__content),
+.action-btn-success :deep(.v-icon) {
+  color: #103326 !important;
+}
+
+.action-btn-error :deep(.v-btn__content),
+.action-btn-error :deep(.v-icon) {
+  color: #3a1012 !important;
 }
 
 .action-btn-success:hover:not(:disabled) {

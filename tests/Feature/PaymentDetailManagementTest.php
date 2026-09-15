@@ -77,7 +77,6 @@ class PaymentDetailManagementTest extends TestCase
             'customer_id' => $customer->id,
             'currency_id' => $currency->id,
             'rate' => 1,
-            'class_type' => 'Standard',
             'services' => [['customer_service_id' => $customerService->id, 'quantity' => 1]],
             'tax_percent' => 0,
             'discount' => 0,

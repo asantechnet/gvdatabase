@@ -398,9 +398,9 @@ onMounted(() => {
     </VCard>
 
     <PrintableListReport
-      title="Asset Report"
-      subtitle="Filtered asset records"
-      :columns="['Serial number', 'Item', 'Quantity', 'Price', 'Model', 'Condition', 'Office', 'Allocations']"
+      :title="$t('common.crmUi.printReports.assets.title')"
+      :subtitle="$t('common.crmUi.printReports.assets.subtitle')"
+      :columns="[$t('common.crmUi.printReports.columns.serialNumber'), $t('common.crmUi.printReports.columns.item'), $t('common.crmUi.printReports.columns.quantity'), $t('common.crmUi.printReports.columns.price'), $t('common.crmUi.printReports.columns.model'), $t('common.crmUi.printReports.columns.condition'), $t('common.crmUi.printReports.columns.office'), $t('common.crmUi.printReports.columns.allocations')]"
       :rows="filtered.map(asset => [asset.serial_number, asset.item, asset.quantity, asset.price, asset.model, asset.condition, asset.office?.name, asset.allocations.map(allocation => `${allocation.employee?.name || 'Employee'}: ${allocation.quantity}`).join(', ')])"
     />
 
@@ -494,13 +494,13 @@ onMounted(() => {
               </VCol>
               <VCol cols="12">
                 <div class="d-flex justify-space-between align-center mb-2">
-                  <span class="text-subtitle-2">Employee allocations</span><VBtn
+                  <span class="text-subtitle-2">{{ $t('pages.asset.asset.employeeAllocations') }}</span><VBtn
                     size="small"
                     variant="tonal"
                     prepend-icon="tabler-plus"
                     @click="addAllocation"
                   >
-                    Add employee
+                    {{ $t('pages.asset.asset.addEmployee') }}
                   </VBtn>
                 </div>
                 <VAlert
@@ -509,7 +509,7 @@ onMounted(() => {
                   density="compact"
                   class="mb-3"
                 >
-                  Allocated: {{ allocationTotal(selectedAsset) }} / {{ selectedAsset.quantity }}. The total cannot exceed inventory quantity.
+                  {{ $t('pages.asset.asset.allocationTotalCannotExceed', { allocated: allocationTotal(selectedAsset), quantity: selectedAsset.quantity }) }}
                 </VAlert>
                 <VRow
                   v-for="(allocation, index) in selectedAsset.allocations"
@@ -521,7 +521,7 @@ onMounted(() => {
                   >
                     <VAutocomplete
                       v-model="allocation.employee_id"
-                      label="Employee"
+                      :label="$t('pages.asset.asset.employee')"
                       :items="employees"
                       item-title="name"
                       item-value="id"
@@ -534,7 +534,7 @@ onMounted(() => {
                   >
                     <VTextField
                       v-model.number="allocation.quantity"
-                      label="Quantity"
+                      :label="$t('pages.asset.asset.quantity')"
                       type="number"
                       min="1"
                       :max="selectedAsset.quantity"
@@ -667,13 +667,13 @@ onMounted(() => {
               </VCol>
               <VCol cols="12">
                 <div class="d-flex justify-space-between align-center mb-2">
-                  <span class="text-subtitle-2">Employee allocations</span><VBtn
+                  <span class="text-subtitle-2">{{ $t('pages.asset.asset.employeeAllocations') }}</span><VBtn
                     size="small"
                     variant="tonal"
                     prepend-icon="tabler-plus"
                     @click="addAllocation"
                   >
-                    Add employee
+                    {{ $t('pages.asset.asset.addEmployee') }}
                   </VBtn>
                 </div>
                 <VAlert
@@ -682,7 +682,7 @@ onMounted(() => {
                   density="compact"
                   class="mb-3"
                 >
-                  Allocated: {{ allocationTotal(selectedAsset) }} / {{ selectedAsset.quantity }}. Reduce allocations before lowering inventory quantity.
+                  {{ $t('pages.asset.asset.allocationReduceBeforeLowering', { allocated: allocationTotal(selectedAsset), quantity: selectedAsset.quantity }) }}
                 </VAlert>
                 <VRow
                   v-for="(allocation, index) in selectedAsset.allocations"
@@ -694,7 +694,7 @@ onMounted(() => {
                   >
                     <VAutocomplete
                       v-model="allocation.employee_id"
-                      label="Employee"
+                      :label="$t('pages.asset.asset.employee')"
                       :items="employees"
                       item-title="name"
                       item-value="id"
@@ -707,7 +707,7 @@ onMounted(() => {
                   >
                     <VTextField
                       v-model.number="allocation.quantity"
-                      label="Quantity"
+                      :label="$t('pages.asset.asset.quantity')"
                       type="number"
                       min="1"
                       :max="selectedAsset.quantity"

@@ -115,6 +115,40 @@ class AuditLogController extends Controller
         ]);
     }
 
+    /** Review a deliberate, page-scoped selection without partial results. */
+    public function bulkReview(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'review_audit_logs');
+        $data = $request->validate([
+            'audit_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'audit_ids.*' => ['required', 'integer', 'distinct', 'exists:audit_logs,id'],
+            'decision' => ['required', 'in:approved,discarded'],
+        ]);
+
+        DB::transaction(function () use ($data, $request) {
+            // Undo newest-first so selecting consecutive changes to one record
+            // remains safe. One invalid row rolls back the entire batch.
+            $audits = AuditLog::query()
+                ->whereIn('id', $data['audit_ids'])
+                ->lockForUpdate()
+                ->orderBy('id', $data['decision'] === 'discarded' ? 'desc' : 'asc')
+                ->get();
+
+            abort_unless($audits->count() === count($data['audit_ids']), 404, 'resource.not_found');
+            abort_if($audits->contains(fn (AuditLog $audit) => $audit->audited_at), 409, 'business.audit_already_reviewed');
+
+            foreach ($audits as $audit) {
+                if ($data['decision'] === 'discarded') {
+                    abort_unless(in_array($audit->event, ['updated', 'deleted'], true), 422, 'business.audit_event_not_revertible');
+                    $this->discard($audit);
+                }
+                $this->markAudited($audit, $request->user()->id, $data['decision']);
+            }
+        });
+
+        return response()->json(['success' => true, 'data' => ['count' => count($data['audit_ids'])]]);
+    }
+
     private function markAudited(AuditLog $auditLog, int $userId, string $resolution): void
     {
         $auditLog->forceFill([
@@ -138,6 +172,11 @@ class AuditLogController extends Controller
                     ->where('auditable_type', $auditLog->auditable_type)
                     ->where('auditable_id', $auditLog->auditable_id)
                     ->where('id', '>', $auditLog->id)
+                    // A later audit that was itself discarded represents a
+                    // change already rolled back. It must not prevent a
+                    // newest-first bulk rollback from reaching the preceding
+                    // selected change; approved and pending changes still do.
+                    ->where(fn ($query) => $query->whereNull('review_status')->orWhere('review_status', '!=', 'discarded'))
                     ->exists(),
                 409,
                 'business.audit_not_latest_change'

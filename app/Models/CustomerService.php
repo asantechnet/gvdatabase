@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -47,6 +48,14 @@ class CustomerService extends Pivot
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    /** All commission employees credited for delivering this service. */
+    public function deliveryEmployees(): BelongsToMany
+    {
+        return $this->belongsToMany(Employee::class, 'employee_customer_service_commissions', 'customer_service_id', 'employee_id')
+            ->withPivot('percentage')
+            ->withTimestamps();
     }
 
     /** The employee credited with winning this customer's service. */

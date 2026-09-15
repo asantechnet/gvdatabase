@@ -26,6 +26,9 @@ const pages = computed(() => {
   return content ? [content] : [`<h1>${tr('contractAgreement')}</h1><p>${tr('defaultTerms')}</p>`]
 })
 
+const footerText = computed(() => t('documents.contract.defaultFooter'))
+const pageNumber = computed(() => t('pages.contracts.allContracts.allContracts.pageNumber', { page: 1, total: pages.value.length }))
+
 const canShowPartyDetails = computed(() => documentContract.value !== null && canPrintPartyDetails(documentContract.value))
 
 watch(() => [props.modelValue, props.contract] as const, async ([open, contract]) => {
@@ -99,6 +102,8 @@ async function print() {
             :company="company"
             :contractee-name="documentContract.counterparty || ''"
             :party-details="partyDetailsFor(documentContract, company)"
+            :page-number-string="pageNumber"
+            :footer-text="footerText"
           /><ContractPageTemplate
             v-for="(page, index) in pages"
             :key="index"
@@ -107,6 +112,8 @@ async function print() {
             :company="company"
             :html-content="page"
             :contractee-name="documentContract.counterparty || ''"
+            :page-number-string="pageNumber"
+            :footer-text="footerText"
           />
         </div>
       </VCardText><VCardActions>
@@ -154,15 +161,19 @@ async function print() {
         :document-number="documentContract.contract_number || ''"
         :company="company"
         :contractee-name="documentContract.counterparty || ''"
-        :party-details="partyDetailsFor(documentContract, company)"
+            :party-details="partyDetailsFor(documentContract, company)"
+            :page-number-string="pageNumber"
+            :footer-text="footerText"
       /><ContractPageTemplate
         v-for="(page, index) in pages"
         :key="index"
         :document-number="documentContract.contract_number || ''"
         :document-title="documentContract.contract || documentContract.contract_template?.name || contractLabel()"
         :company="company"
-        :html-content="page"
-        :contractee-name="documentContract.counterparty || ''"
+            :html-content="page"
+            :contractee-name="documentContract.counterparty || ''"
+            :page-number-string="pageNumber"
+            :footer-text="footerText"
       />
     </template>
   </div>

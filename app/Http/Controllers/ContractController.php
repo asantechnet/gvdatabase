@@ -333,12 +333,24 @@ class ContractController extends Controller
             'is_cancelled' => false,
         ];
 
-        $result = $this->createContract($data, [
-            'renewal' => [
-                'source_contract_id' => $contract->id,
-                'source_contract_number' => $contract->contract_number,
-            ],
-        ]);
+        $result = DB::transaction(function () use ($contract, $data): Contract {
+            $result = $this->createContract($data, [
+                'renewal' => [
+                    'source_contract_id' => $contract->id,
+                    'source_contract_number' => $contract->contract_number,
+                ],
+            ]);
+
+            if ($result instanceof JsonResponse) {
+                throw ValidationException::withMessages([
+                    'renewal' => [$result->getContent()],
+                ]);
+            }
+
+            $contract->update(['status' => 'renewed']);
+
+            return $result;
+        });
         if ($result instanceof JsonResponse) {
             return $result;
         }

@@ -666,40 +666,14 @@ onMounted(() => {
             </div>
           </template>
 
-          <template #no-data>
-            <div class="ledger-empty">
-              <VAvatar
-                size="48"
-                color="success"
-                variant="tonal"
-                icon="tabler-cash-banknote"
-              />
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">
-                  Your income ledger is ready
-                </div>
-                <p class="text-body-2 text-medium-emphasis mb-0">
-                  Record a receipt to begin tracking incoming cash flow.
-                </p>
-              </div>
-              <VBtn
-                color="success"
-                variant="tonal"
-                prepend-icon="tabler-plus"
-                @click="openAddIncomeDialog"
-              >
-                Record income
-              </VBtn>
-            </div>
-          </template>
         </ResponsiveDataTable>
       </div>
     </VCard>
 
     <PrintableListReport
-      title="Income Report"
-      subtitle="Income records"
-      :columns="['Receipt', 'Type', 'Details', 'Invoice', 'Amount', 'Date']"
+      :title="$t('common.crmUi.printReports.income.title')"
+      :subtitle="$t('common.crmUi.printReports.income.subtitle')"
+      :columns="[$t('common.crmUi.printReports.columns.receipt'), $t('common.crmUi.printReports.columns.type'), $t('common.crmUi.printReports.columns.details'), $t('common.crmUi.printReports.columns.invoice'), $t('common.crmUi.printReports.columns.amount'), $t('common.crmUi.printReports.columns.date')]"
       :rows="incomes.map(income => [income.receipt_number, income.type, income.description, income.invoice_number, formatIncomeCurrency(income.amount * income.quantity, income.currency), formatDate(income.date)])"
     />
 

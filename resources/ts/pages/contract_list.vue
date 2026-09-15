@@ -72,7 +72,7 @@ const renewalStartDate = ref('')
 const isRenewing = ref(false)
 
 const counterparties = computed(() => [...new Set(contracts.value.map(c => c.counterparty).filter(c => c))])
-const statuses = ['draft', 'active', 'expired', 'terminated', 'cancelled']
+const statuses = ['draft', 'active', 'expired', 'renewed', 'terminated', 'cancelled']
 const canShowPartyDetails = computed(() => contractToPrint.value !== null && canPrintPartyDetails(contractToPrint.value))
 
 const getStatusColor = (status: string) => {
@@ -109,7 +109,7 @@ const headers = [
   { title: translate('common.messages.contract'), key: 'contract', sortable: true },
   { title: translate('common.fields.type'), key: 'type', sortable: true },
   { title: translate('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true },
-  { title: 'Services', key: 'services', sortable: false },
+  { title: translate('common.messages.services'), key: 'services', sortable: false },
   { title: translate('common.fields.startDate'), key: 'start_date', sortable: true },
   { title: translate('pages.contracts.allContracts.allContracts.endDate'), key: 'end_date', sortable: true },
   { title: translate('common.fields.status'), key: 'status', sortable: true },
@@ -148,30 +148,30 @@ const getContractPagesHtml = (contract: Contract): string[] => {
 
   return [
     `
-    <h1>Contract Agreement</h1>
-    <p>This agreement is made between <strong>${company.value.brandName}</strong> and <strong>${contract.counterparty}</strong> on <strong>${startDate}</strong>.</p>
+    <h1>${translate('pages.contracts.shared.contractAgreement')}</h1>
+    <p>${translate('pages.contracts.shared.fallbackOpening')} <strong>${company.value.brandName}</strong> ${translate('pages.contracts.shared.and')} <strong>${contract.counterparty}</strong> on <strong>${startDate}</strong>.</p>
 
-    <h2>1. Parties</h2>
-    <p><strong>Service Provider:</strong> ${company.value.brandName}, located at ${company.value.address || 'the registered company address'}</p>
-    <p><strong>Client:</strong> ${contract.counterparty}</p>
+    <h2>1. ${translate('pages.contracts.shared.contractParties')}</h2>
+    <p><strong>${translate('pages.contracts.shared.serviceProvider')}:</strong> ${company.value.brandName}, ${translate('pages.contracts.shared.locatedAt')} ${company.value.address || translate('pages.contracts.shared.registeredCompanyAddress')}</p>
+    <p><strong>${translate('pages.contracts.shared.client')}:</strong> ${contract.counterparty}</p>
 
-    <h2>2. Contract Details</h2>
-    <p><strong>Contract Name:</strong> ${contractName}</p>
-    <p><strong>Status:</strong> ${contract.status}</p>
-    <p><strong>Start Date:</strong> ${startDate}</p>
+    <h2>2. ${translate('pages.contracts.shared.contractDetails')}</h2>
+    <p><strong>${translate('pages.contracts.shared.contractName')}:</strong> ${contractName}</p>
+    <p><strong>${translate('pages.contracts.shared.status')}:</strong> ${contract.status}</p>
+    <p><strong>${translate('pages.contracts.shared.startDate')}:</strong> ${startDate}</p>
     `,
 
     `
-    <h2>3. Terms and Conditions</h2>
-    <p>The parties agree to the following terms:</p>
+    <h2>3. ${translate('pages.contracts.shared.termsAndConditions')}</h2>
+    <p>${translate('pages.contracts.shared.partiesAgree')}</p>
     <ol>
-      <li>Both parties will fulfill their obligations as specified in this agreement.</li>
-      <li>Any changes to this agreement must be made in writing and signed by both parties.</li>
-      <li>The contract will remain in effect until completion of the agreed services or termination as specified herein.</li>
+      <li>${translate('pages.contracts.shared.obligationsTerm')}</li>
+      <li>${translate('pages.contracts.shared.changesTerm')}</li>
+      <li>${translate('pages.contracts.shared.durationTerm')}</li>
     </ol>
 
-    <h2>4. Termination</h2>
-    <p>This contract may be terminated by either party with 30 days written notice.</p>
+    <h2>4. ${translate('pages.contracts.shared.termination')}</h2>
+    <p>${translate('pages.contracts.shared.terminationNotice')}</p>
     `,
   ]
 }
@@ -504,7 +504,10 @@ const confirmRenewal = async () => {
 
     contracts.value.push(renewed)
     isRenewDialogVisible.value = false
-    selectedContract.value = { ...renewed }
+    // Renewal records are created as drafts by the API so the form can still
+    // validate and persist the final document. For renewals, Active is the
+    // intended default when the user submits this form.
+    selectedContract.value = { ...renewed, status: 'active' }
     dialogMode.value = 'edit'
     isDialogVisible.value = true
     toast.success(translate('pages.contracts.allContracts.allContracts.renewalCreated'))
@@ -976,7 +979,7 @@ onMounted(async () => {
           <VCheckbox
             v-if="canShowPartyDetails"
             v-model="includePartyDetails"
-            label="Include core details for both contract parties"
+            :label="$t('pages.contracts.shared.includePartyDetails')"
             density="compact"
             hide-details
           />
@@ -1029,8 +1032,6 @@ onMounted(async () => {
         :contract-number="contractToPrint.contract_number || ''"
         :contract-title="contractToPrint.contract || contractToPrint.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract')"
         :cover-description="contractToPrint.cover_text || contractToPrint.contract_template?.cover_text || ''"
-        :contract-type="contractToPrint.type || contractToPrint.contract_template?.type || 'Service Agreement'"
-        :contract-date="formatLocalizedDate(contractToPrint.start_date)"
         :company-website="company.website || ''"
         :company-address="company.address || ''"
         :company-email="company.email || ''"
@@ -1039,7 +1040,7 @@ onMounted(async () => {
 
       <ContractPageTemplate
         v-if="includePartyDetails && canShowPartyDetails"
-        document-title="Contract parties"
+        :document-title="$t('pages.contracts.shared.contractParties')"
         :document-number="contractToPrint.contract_number || ''"
         :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }"
         :party-details="partyDetailsFor(contractToPrint, company)"

@@ -24,6 +24,8 @@ class CustomerServiceController extends Controller
                     ->where(fn ($query) => $query->where('customer_id', $customer->id)->whereNull('deleted_at')),
             ],
             'services.*.employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
+            'services.*.employee_ids' => ['sometimes', 'array'],
+            'services.*.employee_ids.*' => ['integer', 'distinct', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
             'services.*.marketer_id' => CrmMarketerAttribution::marketerIdRules(),
             'services.*.deadline' => ['nullable', 'date'],
             'services.*.fee' => ['nullable', 'numeric', 'min:0'],
@@ -38,9 +40,12 @@ class CustomerServiceController extends Controller
             Customer::query()->lockForUpdate()->findOrFail($customer->id);
 
             return collect($validated['services'])->map(function (array $data) use ($customer) {
+                $employeeIds = $this->deliveryEmployeeIds($data);
                 $attributes = [
                     'service_id' => $data['service_id'],
-                    'employee_id' => $data['employee_id'] ?? null,
+                    // Kept for older API consumers. The relation below is the
+                    // authoritative list and may contain more than one person.
+                    'employee_id' => $employeeIds[0] ?? null,
                     // A service normally inherits the customer acquisition
                     // owner. Sending marketer_id explicitly (including null)
                     // lets an authorised user override that attribution.
@@ -67,7 +72,9 @@ class CustomerServiceController extends Controller
                     $record = $customer->customerServices()->create($attributes);
                 }
 
-                return $record->load(['service.currency', 'currency', 'employee', 'marketer']);
+                $this->syncDeliveryEmployees($record, $employeeIds);
+
+                return $record->load(['service.currency', 'currency', 'employee', 'deliveryEmployees', 'marketer']);
             });
         });
 
@@ -88,6 +95,8 @@ class CustomerServiceController extends Controller
                     ->ignore($customerService->id),
             ],
             'employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
+            'employee_ids' => ['sometimes', 'array'],
+            'employee_ids.*' => ['integer', 'distinct', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
             'marketer_id' => CrmMarketerAttribution::marketerIdRules(),
             'fee' => ['nullable', 'numeric', 'min:0'],
             'currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
@@ -96,15 +105,16 @@ class CustomerServiceController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $this->assertDeliveryCapability(
-            $validated['employee_id'] ?? $customerService->employee_id,
-            (int) ($validated['service_id'] ?? $customerService->service_id),
-            'employee_id',
-        );
+        $employeeIds = $this->deliveryEmployeeIds($validated, $customerService);
+        $serviceId = (int) ($validated['service_id'] ?? $customerService->service_id);
+        $this->assertDeliveryEmployeeIds($employeeIds, $serviceId, 'employee_ids');
+        $validated['employee_id'] = $employeeIds[0] ?? null;
+        unset($validated['employee_ids']);
 
         $customerService->update($validated);
+        $this->syncDeliveryEmployees($customerService, $employeeIds);
 
-        return new CustomerServiceResource($customerService->load(['service.currency', 'currency', 'employee', 'marketer']));
+        return new CustomerServiceResource($customerService->load(['service.currency', 'currency', 'employee', 'deliveryEmployees', 'marketer']));
     }
 
     public function destroy(Customer $customer, CustomerService $customerService)
@@ -122,15 +132,13 @@ class CustomerServiceController extends Controller
         $errors = [];
 
         foreach ($services as $index => $service) {
-            $employeeId = $service['employee_id'] ?? null;
-            if ($employeeId === null) {
-                continue;
-            }
-
-            if (! $this->employeeCanDeliver((int) $employeeId, (int) $service['service_id'])) {
-                $errors["services.{$index}.employee_id"] = [
-                    'Choose a commission employee who is configured to deliver this service.',
-                ];
+            foreach ($this->deliveryEmployeeIds($service) as $employeeId) {
+                if (! $this->employeeCanDeliver($employeeId, (int) $service['service_id'])) {
+                    $field = array_key_exists('employee_ids', $service) ? 'employee_ids' : 'employee_id';
+                    $errors["services.{$index}.{$field}"] = [
+                        'Choose commission employees who are configured to deliver this service.',
+                    ];
+                }
             }
         }
 
@@ -139,13 +147,53 @@ class CustomerServiceController extends Controller
         }
     }
 
-    private function assertDeliveryCapability(?int $employeeId, int $serviceId, string $field): void
+    /** @param array<int, int> $employeeIds */
+    private function assertDeliveryEmployeeIds(array $employeeIds, int $serviceId, string $field): void
     {
-        if ($employeeId !== null && ! $this->employeeCanDeliver($employeeId, $serviceId)) {
+        foreach ($employeeIds as $employeeId) {
+            if ($this->employeeCanDeliver($employeeId, $serviceId)) {
+                continue;
+            }
+
             throw ValidationException::withMessages([
                 $field => ['Choose a commission employee who is configured to deliver this service.'],
             ]);
         }
+    }
+
+    /** @param array<string, mixed> $data @return array<int, int> */
+    private function deliveryEmployeeIds(array $data, ?CustomerService $existing = null): array
+    {
+        if (array_key_exists('employee_ids', $data)) {
+            return collect($data['employee_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+        }
+
+        if (array_key_exists('employee_id', $data)) {
+            return $data['employee_id'] === null ? [] : [(int) $data['employee_id']];
+        }
+
+        if (! $existing) {
+            return [];
+        }
+
+        $employeeIds = $existing->deliveryEmployees()->pluck('employees.id')->all();
+
+        return $employeeIds !== []
+            ? $employeeIds
+            : ($existing->employee_id ? [(int) $existing->employee_id] : []);
+    }
+
+    /** @param array<int, int> $employeeIds */
+    private function syncDeliveryEmployees(CustomerService $customerService, array $employeeIds): void
+    {
+        $percentages = Employee::query()->with(['commissionServices' => fn ($query) => $query->whereKey($customerService->service_id)])
+            ->whereIn('id', $employeeIds)
+            ->get()
+            ->mapWithKeys(fn (Employee $employee) => [
+                $employee->id => ['percentage' => $employee->commissionServices->sole()->pivot->percentage],
+            ])->all();
+
+        $customerService->deliveryEmployees()->sync($percentages);
     }
 
     private function employeeCanDeliver(int $employeeId, int $serviceId): bool

@@ -12,7 +12,7 @@ class Contract extends Model
 {
     use Auditable, HasDocumentNumber, HasFactory, SoftDeletes;
 
-    public const STATUSES = ['draft', 'active', 'expired', 'terminated', 'cancelled'];
+    public const STATUSES = ['draft', 'active', 'expired', 'renewed', 'terminated', 'cancelled'];
 
     protected $fillable = [
         'template_id',

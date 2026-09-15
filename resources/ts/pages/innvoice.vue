@@ -19,7 +19,6 @@ const paymentDetails = ref<PaymentDetail[]>([])
 const companySetting = ref<Setting | null>(null)
 const isLoading = ref(false)
 const searchQuery = ref('')
-const selectedTypeFilter = ref<Invoice['class-type'] | null>(null)
 const selectedStatusFilter = ref<Invoice['status'] | null>(null)
 const isDialogActive = ref(false)
 const voidDialog = ref(false)
@@ -29,14 +28,12 @@ const activePrintInvoice = ref<Invoice | null>(null)
 const isInvoicePreviewOpen = ref(false)
 const invoiceTemplateRef = ref<InstanceType<typeof InvoiceTemplate> | null>(null)
 
-const invoiceTypes: Invoice['class-type'][] = ['Standard']
 const invoiceStatuses: Invoice['status'][] = ['Issued', 'Partially Paid', 'Paid', 'Overdue', 'Void']
 
 const defaultForm = () => ({
   customer_id: 0,
   currency_id: 0,
   rate: 1,
-  class_type: 'Standard' as Invoice['class-type'],
   issue_date: new Date().toISOString().slice(0, 10),
   due_date: '',
   service_ids: [] as number[],
@@ -51,7 +48,6 @@ const invoiceForm = ref(defaultForm())
 const headers = [
   { title: translate('pages.settings.innvoice.innvoice.invoiceNumber'), key: 'invoice_number' },
   { title: translate('pages.settings.innvoice.innvoice.customer'), key: 'deptor' },
-  { title: translate('common.fields.type'), key: 'class-type' },
   { title: translate('common.fields.currency'), key: 'currency.shortname' },
   { title: translate('common.messages.total'), key: 'total_amount' },
   { title: translate('common.fields.amountPaid'), key: 'paid_amount' },
@@ -123,10 +119,9 @@ const filteredInvoices = computed(() => invoices.value.filter(invoice => {
   const matchesSearch = invoice.deptor.toLowerCase().includes(query)
     || invoice.invoice_number.toLowerCase().includes(query)
 
-  const matchesType = !selectedTypeFilter.value || invoice['class-type'] === selectedTypeFilter.value
   const matchesStatus = !selectedStatusFilter.value || invoice.status === selectedStatusFilter.value
 
-  return matchesSearch && matchesType && matchesStatus
+  return matchesSearch && matchesStatus
 }))
 
 const getStatusColor = (status: Invoice['status']) => ({
@@ -204,7 +199,6 @@ const createInvoice = async () => {
       customer_id: invoiceForm.value.customer_id,
       currency_id: invoiceForm.value.currency_id,
       rate: Number(invoiceForm.value.rate),
-      class_type: invoiceForm.value.class_type,
       issue_date: invoiceForm.value.issue_date || undefined,
       due_date: invoiceForm.value.due_date || undefined,
       services: invoiceForm.value.service_ids.map(id => ({
@@ -346,17 +340,9 @@ onMounted(async () => {
             class="d-flex justify-end ga-2"
           >
             <DataTableFilterMenu
-              :active="Boolean(selectedTypeFilter || selectedStatusFilter)"
-              @reset="selectedTypeFilter = null; selectedStatusFilter = null"
+              :active="Boolean(selectedStatusFilter)"
+              @reset="selectedStatusFilter = null"
             >
-              <VSelect
-                v-model="selectedTypeFilter"
-                :items="invoiceTypes"
-                :label="$t('pages.settings.innvoice.innvoice.invoiceType')"
-                density="compact"
-                hide-details
-                clearable
-              />
               <VSelect
                 v-model="selectedStatusFilter"
                 :items="invoiceStatuses"
@@ -389,15 +375,6 @@ onMounted(async () => {
         class="text-no-wrap"
         show-expand
       >
-        <template #[`item.class-type`]="{ item }">
-          <VChip
-            size="small"
-            variant="tonal"
-            color="primary"
-          >
-            {{ item['class-type'] }}
-          </VChip>
-        </template>
         <template #item.currency.shortname="{ item }">
           {{ item.currency.shortname }}
         </template>
@@ -544,18 +521,6 @@ onMounted(async () => {
                     :placeholder="$t('pages.settings.innvoice.innvoice.selectCustomer')"
                     clearable
                     @update:model-value="selectCustomer"
-                  />
-                </VCol>
-                <VCol
-                  cols="12"
-                  sm="6"
-                  md="3"
-                >
-                  <VSelect
-                    v-model="invoiceForm.class_type"
-                    :items="invoiceTypes"
-                    :label="$t('pages.settings.innvoice.innvoice.invoiceType2')"
-                    prepend-inner-icon="tabler-file-description"
                   />
                 </VCol>
                 <VCol

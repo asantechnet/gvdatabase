@@ -132,7 +132,8 @@ class EmployeeController extends Controller
 
         if ($Employee->employment_type === 'commission'
             && $targetEmploymentType !== 'commission'
-            && $Employee->customerServices()->whereNull('deleted_at')->exists()) {
+            && ($Employee->customerServices()->whereNull('deleted_at')->exists()
+                || $Employee->deliveryCustomerServices()->whereNull('customer_service.deleted_at')->exists())) {
             throw ValidationException::withMessages([
                 'employment_type' => [
                     'Reassign or clear this employee from their customer services before changing them to salaried.',
@@ -217,7 +218,12 @@ class EmployeeController extends Controller
         DB::transaction(function () use ($Employee) {
             $Employee = Employee::query()->lockForUpdate()->findOrFail($Employee->id);
             abort_if($Employee->assetAllocations()->exists(), 422, 'business.employee_has_asset_allocations');
-            abort_if($Employee->customerServices()->whereIn('status', ['active', 'paused'])->exists(), 422, 'business.employee_has_customer_services');
+            abort_if(
+                $Employee->customerServices()->whereIn('status', ['active', 'paused'])->exists()
+                || $Employee->deliveryCustomerServices()->whereIn('customer_service.status', ['active', 'paused'])->exists(),
+                422,
+                'business.employee_has_customer_services',
+            );
             abort_if($Employee->user?->tasks()->where('progress', '<', 100)->exists(), 422, 'business.employee_has_open_tasks');
 
             $Employee->delete();
