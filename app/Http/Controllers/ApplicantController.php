@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
+use App\Services\ApplicantTaskService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -49,7 +50,7 @@ class ApplicantController extends Controller
         $data = $request->validate(['stage_id' => ['required', 'integer', 'exists:applicant_stages,id'], 'note' => ['nullable', 'string', 'max:5000']]);
         $next = ApplicantStage::findOrFail($data['stage_id']); $current = $applicant->currentStage;
         if ($current && ! $current->allowsTransitionTo($next)) throw ValidationException::withMessages(['stage_id' => ["Transition from {$current->name} to {$next->name} is not permitted."]]);
-        DB::transaction(function () use ($applicant, $current, $next, $data, $request) { $applicant->update(['current_stage_id' => $next->id, 'status' => $next->is_terminal ? 'closed' : 'active']); ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'old_stage_id' => $current?->id, 'new_stage_id' => $next->id, 'changed_by' => $request->user()?->id, 'changed_at' => now(), 'note' => $data['note'] ?? null]); });
+        DB::transaction(function () use ($applicant, $current, $next, $data, $request) { $applicant->update(['current_stage_id' => $next->id, 'status' => $next->is_terminal ? 'closed' : 'active']); ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'old_stage_id' => $current?->id, 'new_stage_id' => $next->id, 'changed_by' => $request->user()?->id, 'changed_at' => now(), 'note' => $data['note'] ?? null]); app(ApplicantTaskService::class)->ensureForStage($applicant->fresh()->load(['customer', 'responsibleEmployee']), $next, $request->user()); });
         return $this->show($applicant->fresh());
     }
 

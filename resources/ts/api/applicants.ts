@@ -28,7 +28,7 @@ export interface Applicant {
   education_level?: { id: number; name: string } | null
   language?: { id: number; name: string } | null
   current_stage?: { id: number; name: string; key: string }
-  tasks?: Array<{ id: number; title: string; progress: number }>
+  tasks?: Array<{ id: number; title: string; progress: number; priority?: string | null; due_date?: string | null }>
   contracts?: Array<{ id: number; contract_number: string; status: string }>
   stage_history?: Array<{ id: number; changed_at: string; note?: string; new_stage?: { name: string }; old_stage?: { name: string } }>
 }

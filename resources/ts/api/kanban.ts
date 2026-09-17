@@ -107,6 +107,10 @@ export interface CreateTaskData {
   start_date?: string
   due_date?: string
   service_ids?: number[]
+  customer_id?: number | null
+  applicant_id?: number | null
+  assignees?: number[]
+  tags?: number[]
 }
 
 export interface UpdateTaskData {
@@ -121,6 +125,8 @@ export interface UpdateTaskData {
   tags?: string[]
   dependencies?: string[]
   service_ids?: number[]
+  customer_id?: number | null
+  applicant_id?: number | null
 }
 
 export interface MoveTaskData {

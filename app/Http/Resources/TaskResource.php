@@ -15,6 +15,8 @@ class TaskResource extends JsonResource
             'boardId' => (string) $this->board_id,
             'customerId' => $this->customer_id,
             'customer' => $this->whenLoaded('customer', fn () => $this->customer ? ['id' => $this->customer->id, 'name' => $this->customer->name, 'company' => $this->customer->company] : null),
+            'applicantId' => $this->applicant_id,
+            'applicant' => $this->whenLoaded('applicant', fn () => $this->applicant ? ['id' => $this->applicant->id, 'status' => $this->applicant->status] : null),
             'title' => $this->title,
             'description' => $this->description ?? '',
             'results' => $this->results ?? '',

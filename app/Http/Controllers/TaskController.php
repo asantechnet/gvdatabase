@@ -30,6 +30,7 @@ class TaskController extends Controller
             'service_ids' => 'sometimes|array',
             'service_ids.*' => 'integer|distinct|exists:services,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
+            'applicant_id' => 'nullable|integer|exists:applicants,id',
         ]);
 
         $board = Board::findOrFail($validated['board_id']);
@@ -46,6 +47,8 @@ class TaskController extends Controller
         $tags = $validated['tags'] ?? [];
         $services = $validated['service_ids'] ?? [];
         $validated['customer_id'] ??= $board->project?->customer_id;
+        $validated['customer_id'] ??= $this->customerIdForApplicant($validated['applicant_id'] ?? null);
+        $this->assertApplicantMatchesCustomer($validated['applicant_id'] ?? null, $validated['customer_id'] ?? null);
         $this->assertCustomerMatchesProject($board, $validated['customer_id']);
         $this->assertServicesMatchProject($board, $services);
         unset($validated['assignees'], $validated['tags'], $validated['service_ids']);
@@ -67,7 +70,7 @@ class TaskController extends Controller
         });
 
         // Load empty relations so the resource doesn't fail
-        $task->load(['users.employee', 'tags', 'services.currency', 'customer', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
+        $task->load(['users.employee', 'tags', 'services.currency', 'customer', 'applicant', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
 
         return new TaskResource($task);
     }
@@ -96,6 +99,7 @@ class TaskController extends Controller
             'service_ids' => 'sometimes|array',
             'service_ids.*' => 'integer|distinct|exists:services,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
+            'applicant_id' => 'nullable|integer|exists:applicants,id',
         ]);
 
         Gate::authorize('update', $task);
@@ -154,6 +158,7 @@ class TaskController extends Controller
 
             $task->update($validated);
             $this->assertCustomerMatchesProject($task->board, $task->customer_id);
+            $this->assertApplicantMatchesCustomer($task->applicant_id, $task->customer_id);
 
             if ($syncAssignees) {
                 $task->users()->sync($assignees);
@@ -172,7 +177,7 @@ class TaskController extends Controller
             return $task;
         });
 
-        return new TaskResource($task->fresh()->load(['users.employee', 'tags', 'services.currency', 'customer', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']));
+        return new TaskResource($task->fresh()->load(['users.employee', 'tags', 'services.currency', 'customer', 'applicant', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']));
     }
 
     public function destroy(Task $task)
@@ -334,6 +339,27 @@ class TaskController extends Controller
         $projectCustomerId = $board->project?->customer_id;
         if ($projectCustomerId !== null && (int) $customerId !== (int) $projectCustomerId) {
             throw ValidationException::withMessages(['customer_id' => ['business.task_customer_must_match_project']]);
+        }
+    }
+
+    private function customerIdForApplicant(?int $applicantId): ?int
+    {
+        if ($applicantId === null) {
+            return null;
+        }
+
+        return \App\Models\Applicant::whereKey($applicantId)->value('customer_id');
+    }
+
+    private function assertApplicantMatchesCustomer(?int $applicantId, ?int $customerId): void
+    {
+        if ($applicantId === null || $customerId === null) {
+            return;
+        }
+
+        $ownerId = \App\Models\Applicant::whereKey($applicantId)->value('customer_id');
+        if ((int) $ownerId !== (int) $customerId) {
+            throw ValidationException::withMessages(['applicant_id' => ['business.task_applicant_must_match_customer']]);
         }
     }
 

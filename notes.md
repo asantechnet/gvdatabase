@@ -67,6 +67,7 @@ No applicant module existed in the repository before this work—the plan’s li
 - [ ] Phase 6: pending-transaction lifecycle, edit-window enforcement, idempotent finance posting, and verification are in progress.
 - [ ] Phase 7: permissions, audit coverage, navigation, pipeline/case UX, reports, dashboards, migration, regression and acceptance testing.
 - [x] Phase 13 (applicant pipeline UI): drag-drop kanban board with filter-respecting counts, tabbed Operation/Final/Cancelled/All list with shared filters/search/pagination, pipeline API, navigation entries, permission wiring, and `ApplicantPipelineTest` (4 tests, 34 assertions). No schema change; no finance/contract writes.
+- [x] Phase 12 (tasks integration): `applicant_id` accepted in task store/update with applicant↔customer consistency checks and customer defaulting; `ApplicantTaskService` auto-creates the plan's stage tasks (documents, university application, visa preparation) idempotently inside the stage-change transaction; case view has a task workspace (open/done lists, create dialog, complete action, permission notes); `TaskResource` exposes applicant linkage; `ApplicantTaskIntegrationTest` (5 tests, 31 assertions). No finance/contract/master-data writes.
 
 ## Pre-audit implementation status
 
