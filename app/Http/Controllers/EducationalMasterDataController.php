@@ -63,8 +63,7 @@ class EducationalMasterDataController extends Controller
     {
         $this->authorizeCatalog($request, $catalog, 'delete');
         $record = $this->model($catalog)::query()->findOrFail($id);
-        if ($record instanceof Country && ($record->universities()->exists() || $record->applicants()->exists())) return $this->inUse();
-        if ($record instanceof University && $record->applicants()->exists()) return $this->inUse();
+        if ($this->isInUse($record)) return $this->inUse();
         $record->delete();
         return response()->noContent();
     }
@@ -88,5 +87,16 @@ class EducationalMasterDataController extends Controller
     }
 
     private function inUse() { return response()->json(['code' => 'business.master_data_in_use'], 409); }
+    private function isInUse(Model $record): bool
+    {
+        return match (true) {
+            $record instanceof Country => $record->universities()->exists() || $record->applicants()->exists(),
+            $record instanceof EducationLevel => $record->applicants()->exists(),
+            $record instanceof Language => $record->applicants()->exists() || $record->contractTemplateVersions()->exists(),
+            $record instanceof PackageType => $record->scholarships()->exists() || $record->testOffers()->exists(),
+            $record instanceof University => $record->applicants()->exists(),
+            default => false,
+        };
+    }
     private function authorizeCatalog(Request $request, string $catalog, string $action): void { $singular = ['countries' => 'country', 'education-levels' => 'education_level', 'languages' => 'language', 'package-types' => 'package_type', 'universities' => 'university'][$catalog]; abort_unless($request->user()?->hasPermission("{$action}_{$singular}"), 403, 'auth.forbidden'); }
 }

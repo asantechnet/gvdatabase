@@ -135,6 +135,22 @@ Verification performed during this audit: the focused feature suite
 `EducationalServiceAttributionTest`) passed with 18 assertions. Passing these
 smoke tests does not remove the remediation items above.
 
+## Phase 1 remediation — 2026-09-17
+
+Phase 1 is accepted for the master-data foundation. Countries, education
+levels, languages, package types, and universities each have protected
+server-side CRUD; university country selection is database-backed; education
+level display order is now editable in the frontend; and all catalogues reject
+deletion while live operational records reference them. The API remains the
+authoritative permission boundary, including a verified forbidden response for
+an authenticated user without catalogue permissions.
+
+`EducationalMasterDataTest` now covers all five catalogues, create/update,
+active filtering, authorisation, reference protection, and soft deletion (29
+assertions). `pnpm typecheck` was re-run: the educational pages no longer have
+parse errors; the remaining errors are the unrelated pre-existing files listed
+in the Current verification section above.
+
 ## Decisions that require business confirmation before the relevant phase
 
 - “Scholarship” may mean an agency service/package or an actual third-party award. The implementation will distinguish these terms and initially use a service-oriented record with space for future award details; it will not silently treat them as the same thing.
