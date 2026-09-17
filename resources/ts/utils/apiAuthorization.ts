@@ -30,6 +30,9 @@ const resources: Record<string, ResourcePermissions> = {
   'companies': { view: 'view_companies', create: 'create_companies', update: 'edit_companies', delete: 'delete_companies' },
   'assets': { view: 'view_assets', create: 'create_assets', update: 'edit_assets', delete: 'delete_assets' },
   'projects': { view: 'view_projects', create: 'create_projects', update: 'edit_projects', delete: 'delete_projects' },
+  'applicants': { view: 'view_applicants', create: 'create_applicants', update: 'edit_applicants', delete: 'delete_applicants' },
+  'applicant-stages': { view: 'view_applicants', create: 'view_applicants', update: 'view_applicants', delete: 'view_applicants' },
+  'applicants-pipeline': { view: 'view_applicants', create: 'view_applicants', update: 'view_applicants', delete: 'view_applicants' },
 }
 
 const normalizedPath = (url = '') => `/${url.replace(/^\/?api\/?/, '').replace(/^\//, '').split('?')[0]}`
@@ -141,6 +144,7 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'GET /attendances/unmarked-staff': ['view_unmarked_attendance_staff'],
     'DELETE /attendances/:id': ['delete_attendance'],
     'PUT /contracts/:id/cancel': ['cancel_contracts'],
+    'POST /applicants/:id/change-stage': ['change_applicant_stage'],
     'GET /contract-placeholders': ['view_contract_templates', 'view_contracts'],
     'POST /contract-types': ['manage_contract_types'],
     'DELETE /contract-types/:id': ['manage_contract_types'],

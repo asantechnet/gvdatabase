@@ -13,7 +13,30 @@ class ApplicantController extends Controller
 {
     public function index(Request $request)
     {
-        return response()->json(['success' => true, 'data' => Applicant::with($this->relations())->when($request->input('stage'), fn ($q, $stage) => $q->whereHas('currentStage', fn ($q) => $q->where('key', $stage)))->latest()->paginate($request->integer('per_page', 25))]);
+        $query = Applicant::with($this->relations());
+        $this->applyFilters($query, $request);
+        $sort = $request->input('sort', 'created_at');
+        $dir = strtolower($request->input('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $sortable = ['application_date', 'created_at', 'id'];
+        $query->orderBy(in_array($sort, $sortable, true) ? $sort : 'created_at', $dir);
+
+        return response()->json(['success' => true, 'data' => $query->paginate($request->integer('per_page', 25))->appends($request->query())]);
+    }
+
+    public function pipeline(Request $request)
+    {
+        $stages = ApplicantStage::query()->where('is_active', true)->orderBy('sort_order')->get();
+        $columns = $stages->map(function (ApplicantStage $stage) use ($request) {
+            $query = Applicant::query();
+            $this->applyFilters($query, $request, $excludeStage = true);
+            $query->where('current_stage_id', $stage->id);
+
+            return ['id' => $stage->id, 'key' => $stage->key, 'name' => $stage->name, 'sort_order' => $stage->sort_order, 'is_terminal' => (bool) $stage->is_terminal, 'allowed_next_keys' => $stage->allowed_next_keys ?? [], 'count' => $query->count()];
+        });
+        $totalsQuery = Applicant::query();
+        $this->applyFilters($totalsQuery, $request, $excludeStage = true);
+
+        return response()->json(['success' => true, 'data' => ['stages' => $columns, 'totals' => ['active' => (clone $totalsQuery)->where('status', 'active')->count(), 'closed' => (clone $totalsQuery)->where('status', 'closed')->count(), 'all' => (clone $totalsQuery)->count()]]]);
     }
     public function show(Applicant $applicant) { return response()->json(['success' => true, 'data' => $applicant->load([...$this->relations(), 'stageHistory.oldStage', 'stageHistory.newStage', 'stageHistory.changer', 'tasks', 'contracts'])]); }
     public function store(Request $request) { return response()->json(['success' => true, 'data' => $this->save($request, new Applicant)], 201); }
@@ -40,4 +63,44 @@ class ApplicantController extends Controller
         return $applicant->fresh()->load($this->relations());
     }
     private function relations(): array { return ['customer', 'responsibleEmployee', 'country', 'university.country', 'educationLevel', 'language', 'currentStage']; }
+
+    private function applyFilters($query, Request $request, bool $excludeStage = false): void
+    {
+        if (! $excludeStage && $request->filled('stage')) {
+            $stage = $request->input('stage');
+            $query->whereHas('currentStage', fn ($q) => $q->where('key', $stage));
+        }
+        if ($request->filled('status') && in_array($request->input('status'), ['active', 'closed'], true)) {
+            $query->where('status', $request->input('status'));
+        }
+        if ($request->filled('board')) {
+            match ($request->input('board')) {
+                'operation' => $query->where('status', 'active'),
+                'final' => $query->whereHas('currentStage', fn ($q) => $q->where('key', 'completed')),
+                'cancelled' => $query->where('status', 'closed')->whereHas('currentStage', fn ($q) => $q->whereIn('key', ['cancelled', 'rejected', 'withdrawn'])),
+                default => null,
+            };
+        }
+        foreach (['customer_id', 'responsible_employee_id', 'country_id', 'university_id', 'education_level_id', 'language_id'] as $field) {
+            if ($request->filled($field)) {
+                $query->where($field, $request->integer($field));
+            }
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('application_date', '>=', $request->input('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('application_date', '<=', $request->input('date_to'));
+        }
+        if ($request->filled('search')) {
+            $search = trim($request->input('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('notes', 'like', "%{$search}%");
+                if (ctype_digit($search)) {
+                    $q->orWhere('id', (int) $search)->orWhere('customer_id', (int) $search);
+                }
+                $q->orWhereHas('customer', fn ($cq) => $cq->where('name', 'like', "%{$search}%")->orWhere('contact', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"));
+            });
+        }
+    }
 }

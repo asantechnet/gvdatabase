@@ -348,6 +348,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         Route::delete('/{id}', [EducationalMasterDataController::class, 'destroy']);
     });
     Route::get('applicant-stages', [ApplicantController::class, 'stages'])->middleware('permission:view_applicants');
+    Route::get('applicants-pipeline', [ApplicantController::class, 'pipeline'])->middleware('permission:view_applicants');
     Route::apiResource('applicants', ApplicantController::class)->middlewareFor(['index','show'], 'permission:view_applicants')->middlewareFor('store', 'permission:create_applicants')->middlewareFor('update', 'permission:edit_applicants')->middlewareFor('destroy', 'permission:delete_applicants');
     Route::post('applicants/{applicant}/change-stage', [ApplicantController::class, 'changeStage'])->middleware('permission:change_applicant_stage');
     Route::get('educational-services/{type}', [EducationalServiceController::class, 'index'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:view_services');

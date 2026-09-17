@@ -66,6 +66,7 @@ No applicant module existed in the repository before this work—the plan’s li
 - [x] Phase 5: scholarship services and test offers are operational records with customer/applicant/employee/currency/package attribution; every sale creates a generic, traceable bonus source. Operational page and attribution test pass.
 - [ ] Phase 6: pending-transaction lifecycle, edit-window enforcement, idempotent finance posting, and verification are in progress.
 - [ ] Phase 7: permissions, audit coverage, navigation, pipeline/case UX, reports, dashboards, migration, regression and acceptance testing.
+- [x] Phase 13 (applicant pipeline UI): drag-drop kanban board with filter-respecting counts, tabbed Operation/Final/Cancelled/All list with shared filters/search/pagination, pipeline API, navigation entries, permission wiring, and `ApplicantPipelineTest` (4 tests, 34 assertions). No schema change; no finance/contract writes.
 
 ## Pre-audit implementation status
 

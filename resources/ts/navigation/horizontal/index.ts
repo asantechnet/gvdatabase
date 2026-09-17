@@ -1,3 +1,4 @@
+import applicants from './applicants'
 import contracts from './contracts'
 import crm from './crm'
 import finance from './finance'
@@ -11,6 +12,7 @@ import type { HorizontalNavItems } from '@layouts/types'
 
 export default [
   ...home,
+  ...applicants,
   ...contracts,
   ...crm,
   ...innvoice,
