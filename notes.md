@@ -77,6 +77,64 @@ An earlier implementation pass added a reversible, unapplied educational foundat
 - [x] `EducationalMasterDataTest` passes: country creation and country-linked university creation are verified through authenticated API calls.
 - [!] Full frontend type-check currently fails on pre-existing unrelated typing issues in `FullDetailsButton`, customer services, commissions, companies, income, outsourcing, and roles pages. The newly added educational master-data files are not reported by the checker.
 
+## Phase 0 re-audit — 2026-09-17
+
+This audit re-ran the Phase 0 analysis against the repository state before the
+educational commits (`3f5e4cc^`) and inspected the later commits separately.
+The earlier notes are useful, but a completion checkbox is not acceptance
+evidence. The following is the authoritative Phase 0 baseline for subsequent
+work.
+
+| Plan inspection item | Verified evidence | Result |
+| --- | --- | --- |
+| Project and frontend architecture | `package.json`, `vite.config.ts`, `resources/ts/plugins/1.router/routes.ts`, `resources/ts/api` | Vue 3, TypeScript, Vite, Vuetify, Pinia, Axios, Vue Router, vue-i18n, and CASL are the established frontend patterns. |
+| Backend and database | `composer.json`, `app/`, `routes/api.php`, `config/database.php`, `database/migrations` | Laravel 12 / PHP 8.2 REST API with Eloquent and migrations. The configured default is **SQLite**, while MySQL, MariaDB, PostgreSQL, and SQL Server are available connections; the prior claim that MySQL/`laravel_test` was the confirmed database was not supported by the configuration. |
+| Authentication and authorization | `routes/api.php`, `app/Models/User.php`, `app/Http/Middleware`, `RoleSeeder`, `PermissionSeeder`, `RolePermissionSeeder` | Sanctum-protected API routes require the `access` ability and active account middleware. Configurable roles and the role-permission pivot are authoritative; super administrators have the explicit permission bypass. |
+| CRM | `Visitor`, `Lead`, `Customer`, `CrmInteraction` models/controllers/routes | Visitor/lead conversion and customer relationships are reusable; the educational case must extend rather than replace them. |
+| Contracts | `Contract`, `ContractTemplate`, `ContractType`, `ContractPolicy`, controller and contract services | Existing rendering, sanitisation, placeholder, snapshot, lifecycle, and printing mechanisms are reusable. |
+| Finance and HR | Income, Expense, Salary, Invoice, Currency, Employee, Position, Office models/controllers/services | Existing official finance tables, currency conversion/snapshots, salary expense synchronisation, staff and commission data are the integration points. |
+| Tasks | `Task`, boards, subtasks, comments, attachments, task policies/controllers | Tasks already own assignment, attachment, audit, and edit-window behaviour; an applicant relation must preserve those checks. |
+| Dashboards and reports | `DashboardController`, `ReportController`, `ReportService` | These are the authoritative query/report surfaces; educational metrics belong here rather than in a parallel dashboard. |
+| Applicants before this programme | Tree and routes at `3f5e4cc^` | No legacy applicant module or route existed before the educational work. The applicant model is therefore a new connected domain module, not a rename of an existing screen. |
+| Migration and seed strategy | `database/migrations`, `DatabaseSeeder`, targeted seeders | Migrations are the schema source of truth. `DatabaseSeeder` is expressly demo/local data and must not be used as a production data migration. |
+| Foreign-key/lifecycle review | migrations, model relationships, lifecycle services, and the dependency map above | The relevant deletion rules are additive and lifecycle-aware: customer records are retained, historical staff/template relations can be read with trashed parents where appropriate, and legal/financial rows are cancelled/rejected rather than erased. All future schema changes must continue to be inspected against the migration-defined foreign keys, not inferred from frontend IDs. |
+
+### Re-audit outcome and remediation queue
+
+Phase 0 is now accepted: it contains a verified architecture and dependency
+baseline, corrected database facts, and the required reuse decisions. No
+business feature belongs in Phase 0, so its implementation is this durable
+analysis record and its cross-reference to the actual source locations.
+
+The previous `[x]` entries for Phases 1–5 mean that a vertical slice was
+committed; they do **not** mean that the plan's Definition of Done has been
+accepted. The following gaps were verified and must be remediated in their
+respective phase commits before those phases are accepted:
+
+- Phase 1: the master-data feature has only a narrow country/university test;
+  full CRUD, authorisation, soft-delete/in-use behaviour, and frontend
+  validation still need acceptance coverage for every catalogue.
+- Phases 2–3: the version API has a passing smoke test, but contract creation
+  does not accept a selected language. It chooses an active version without a
+  language-selection contract, and the normal template editor has no complete
+  version-management workflow. This does not yet satisfy `type + template +
+  language + version` end to end.
+- Phase 4: the applicant API records stage history, but the case screen lacks
+  applicant create/edit UX and does not provide the required services,
+  finance, documents, or activity views. Applicant ownership/assignment
+  enforcement and task creation/linkage also require end-to-end validation.
+- Phase 5: scholarship/test rows and a bonus-source row can be created, but
+  the UI relies on raw numeric IDs, the records are not fully surfaced on the
+  applicant case, and the bonus source is not yet integrated with the existing
+  commission/settlement lifecycle. These are incomplete business workflows,
+  not accepted finished phases.
+
+Verification performed during this audit: the focused feature suite
+(`EducationalMasterDataTest`, `ContractTemplateVersionTest`,
+`VersionedContractGenerationTest`, `ApplicantWorkflowTest`, and
+`EducationalServiceAttributionTest`) passed with 18 assertions. Passing these
+smoke tests does not remove the remediation items above.
+
 ## Decisions that require business confirmation before the relevant phase
 
 - “Scholarship” may mean an agency service/package or an actual third-party award. The implementation will distinguish these terms and initially use a service-oriented record with space for future award details; it will not silently treat them as the same thing.
