@@ -12,6 +12,7 @@ class ContractTypeResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'description' => $this->description,
             'slug' => $this->slug,
             'is_system' => (bool) $this->is_system,
             'is_active' => (bool) $this->is_active,

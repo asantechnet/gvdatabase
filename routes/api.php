@@ -20,6 +20,8 @@ use App\Http\Controllers\CrmInteractionController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerServiceController;
+use App\Http\Controllers\ApplicantController;
+use App\Http\Controllers\EducationalMasterDataController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ExpenseController;
@@ -331,6 +333,20 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         ->middlewareFor('store', 'permission:create_customers')
         ->middlewareFor('update', 'permission:edit_customers')
         ->middlewareFor('destroy', 'permission:delete_customers');
+
+    // Educational visa agency master data and case management. These routes
+    // intentionally reuse configurable RBAC; the dedicated permission catalog
+    // is added in the authorization phase before production role rollout.
+    Route::prefix('educational-master-data/{catalog}')->whereIn('catalog', ['countries', 'education-levels', 'languages', 'package-types', 'universities'])->group(function () {
+        Route::get('/', [EducationalMasterDataController::class, 'index']);
+        Route::post('/', [EducationalMasterDataController::class, 'store']);
+        Route::get('/{id}', [EducationalMasterDataController::class, 'show']);
+        Route::put('/{id}', [EducationalMasterDataController::class, 'update']);
+        Route::delete('/{id}', [EducationalMasterDataController::class, 'destroy']);
+    });
+    Route::get('applicant-stages', [ApplicantController::class, 'stages']);
+    Route::apiResource('applicants', ApplicantController::class);
+    Route::post('applicants/{applicant}/change-stage', [ApplicantController::class, 'changeStage']);
     Route::post('/customers/{customer}/services', [CustomerServiceController::class, 'store'])->middleware('permission:manage_customer_services');
     Route::put('/customers/{customer}/services/{customerService}', [CustomerServiceController::class, 'update'])->middleware('permission:manage_customer_services');
     Route::delete('/customers/{customer}/services/{customerService}', [CustomerServiceController::class, 'destroy'])->middleware('permission:manage_customer_services');

@@ -20,6 +20,7 @@ class Task extends Model
     protected $fillable = [
         'board_id',
         'customer_id',
+        'applicant_id',
         'title',
         'description',
         'results',
@@ -88,6 +89,11 @@ class Task extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function applicant(): BelongsTo
+    {
+        return $this->belongsTo(Applicant::class);
     }
 
     public function users(): BelongsToMany

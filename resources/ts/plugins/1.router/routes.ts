@@ -42,6 +42,7 @@ const pageComponents: Record<string, Component> = {
   contractPolicyLibrary: () => import('@/pages/contract/policy_library.vue'),
   optionsServices: () => import('@/pages/options/services.vue'),
   optionsCurrencies: () => import('@/pages/options/currencies.vue'),
+  educationalMasterData: () => import('@/pages/educational-master-data.vue'),
   optionsHr: () => import('@/pages/options_hr.vue'),
   optionsFinance: () => import('@/pages/options_finance.vue'),
   optionsContract: () => import('@/pages/options_contract.vue'),
@@ -143,6 +144,7 @@ const routeDefinitions: Array<{
     name: 'options-currencies',
     meta: { requiresAuth: true, action: 'read', subject: 'view_currencies' },
   },
+  { path: '/educational-master-data', component: 'educationalMasterData', name: 'educational-master-data', meta: { requiresAuth: true, action: 'read', subject: 'view_country' } },
   { path: '/options/hr', component: 'optionsHr', name: 'options-hr', meta: { requiresAuth: true, action: 'read', subject: 'view_employees' } },
   {
     path: '/options/finance',

@@ -13,7 +13,6 @@ class ContractTypeController extends Controller
     {
         $query = ContractType::query()
             ->withCount(['templates', 'contracts'])
-            ->whereIn('slug', ['employment', 'customer', 'company'])
             ->orderBy('is_system', 'desc')
             ->orderBy('name');
 
@@ -29,10 +28,17 @@ class ContractTypeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'message' => 'Only employment, customer, and company contract types are supported.',
-        ], 422);
+        $data = $request->validate(['name' => ['required', 'string', 'max:255', 'unique:contract_types,name'], 'description' => ['nullable', 'string', 'max:5000'], 'is_active' => ['sometimes', 'boolean']]);
+        $type = ContractType::create($data);
+        return response()->json(['success' => true, 'data' => new ContractTypeResource($type)], 201);
+    }
+
+    public function update(Request $request, ContractType $contractType): JsonResponse
+    {
+        abort_if($contractType->isSystemType() && $request->has('name'), 422, 'System type names are protected.');
+        $data = $request->validate(['name' => ['sometimes', 'string', 'max:255', 'unique:contract_types,name,'.$contractType->id], 'description' => ['nullable', 'string', 'max:5000'], 'is_active' => ['sometimes', 'boolean']]);
+        $contractType->update($data);
+        return response()->json(['success' => true, 'data' => new ContractTypeResource($contractType->fresh())]);
     }
 
     public function show(ContractType $contractType): JsonResponse

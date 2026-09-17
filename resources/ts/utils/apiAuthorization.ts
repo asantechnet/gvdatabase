@@ -225,6 +225,13 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
   if (path.startsWith('/files/download/'))
     return ['download_files']
 
+  const educational = path.match(/^\/educational-master-data\/(countries|education-levels|languages|package-types|universities)(?:\/:id)?$/)
+  if (educational) {
+    const key = ({ countries: 'country', 'education-levels': 'education_level', languages: 'language', 'package-types': 'package_type', universities: 'university' } as Record<string, string>)[educational[1]]
+    const action = requestMethod === 'GET' ? 'view' : requestMethod === 'POST' ? 'create' : requestMethod === 'DELETE' ? 'delete' : 'edit'
+    return [`${action}_${key}`]
+  }
+
   return special[`${requestMethod} ${path}`] ?? restPermission(requestMethod, path)
 }
 

@@ -13,7 +13,7 @@ class ContractType extends Model
 {
     use HasFactory, SoftDeletes, Auditable;
 
-    protected $fillable = ['name', 'slug', 'is_system', 'is_active'];
+    protected $fillable = ['name', 'slug', 'description', 'is_system', 'is_active'];
 
     protected $casts = [
         'is_system' => 'boolean',
