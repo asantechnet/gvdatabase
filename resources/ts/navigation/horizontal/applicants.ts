@@ -17,6 +17,11 @@ export default [
         action: 'read',
         subject: 'view_applicants',
       },
+      {
+        title: 'Search',
+        icon: { icon: 'tabler-search' },
+        to: 'search',
+      },
     ],
   },
 ]

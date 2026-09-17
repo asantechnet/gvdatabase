@@ -47,6 +47,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\SalaryDeductionController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SubtaskController;
@@ -351,6 +352,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::get('applicants-pipeline', [ApplicantController::class, 'pipeline'])->middleware('permission:view_applicants');
     Route::apiResource('applicants', ApplicantController::class)->middlewareFor(['index','show'], 'permission:view_applicants')->middlewareFor('store', 'permission:create_applicants')->middlewareFor('update', 'permission:edit_applicants')->middlewareFor('destroy', 'permission:delete_applicants');
     Route::post('applicants/{applicant}/change-stage', [ApplicantController::class, 'changeStage'])->middleware('permission:change_applicant_stage');
+    // Cross-module staff search. Each result group is permission-gated
+    // inside the controller, so any signed-in user may query it.
+    Route::get('search', [SearchController::class, 'index']);
     Route::get('educational-services/{type}', [EducationalServiceController::class, 'index'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:view_services');
     Route::post('educational-services/{type}', [EducationalServiceController::class, 'store'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:manage_customer_services');
     Route::get('pending-transactions',[PendingTransactionController::class,'index'])->middleware('permission:view_pending_transactions');
