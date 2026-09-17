@@ -28,9 +28,14 @@ export interface Applicant {
   education_level?: { id: number; name: string } | null
   language?: { id: number; name: string } | null
   current_stage?: { id: number; name: string; key: string }
-  tasks?: Array<{ id: number; title: string; progress: number; priority?: string | null; due_date?: string | null }>
+  tasks?: Array<{ id: number; title: string; progress: number; priority?: string | null; due_date?: string | null; attachments?: Array<{ id: number; original_name: string; mime_type?: string | null; size?: number | null }> }>
   contracts?: Array<{ id: number; contract_number: string; status: string }>
   stage_history?: Array<{ id: number; changed_at: string; note?: string; new_stage?: { name: string }; old_stage?: { name: string } }>
+  pending_transactions?: Array<{ id: number; transaction_type: string; reason: string; amount: number | string; approval_status: string; rejection_reason?: string | null }>
+  incomes?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
+  expenses?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
+  scholarships?: Array<{ id: number; fee: number | string; date?: string | null; status?: string | null; currency?: { id: number; code: string } | null }>
+  test_offers?: Array<{ id: number; fee: number | string; date?: string | null; status?: string | null; currency?: { id: number; code: string } | null }>
 }
 
 export type ApplicantBoard = 'operation' | 'final' | 'cancelled'

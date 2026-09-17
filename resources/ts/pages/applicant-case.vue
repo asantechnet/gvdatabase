@@ -22,13 +22,25 @@ const completingId = ref<number | null>(null)
 const taskForm = ref({ board_id: '', title: '', priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent', due_date: '' })
 
 const canCreateTask = computed(() => canAccess('create_tasks'))
+const canEditCase = computed(() => canAccess('edit_applicants'))
+const canViewFinance = computed(() => canAccess('view_pending_transactions') || canAccess('view_incomes') || canAccess('view_expenses'))
 const openTasks = computed(() => (applicant.value?.tasks ?? []).filter(t => t.progress < 100))
 const doneTasks = computed(() => (applicant.value?.tasks ?? []).filter(t => t.progress >= 100))
+const documents = computed(() => (applicant.value?.tasks ?? []).flatMap(task => (task.attachments ?? []).map(a => ({ ...a, task_id: task.id, task_title: task.title }))))
+const postedIncomeTotal = computed(() => (applicant.value?.incomes ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0))
+const postedExpenseTotal = computed(() => (applicant.value?.expenses ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0))
+const money = (value: number | string) => Number(value || 0).toLocaleString()
+const feeOf = (row: { fee: number | string; currency?: { code: string } | null }) => `${money(row.fee)}${row.currency?.code ? ` ${row.currency.code}` : ''}`
+
+const notesDraft = ref('')
+const savingNotes = ref(false)
+const downloadingId = ref<number | null>(null)
 
 async function load() {
   applicant.value = await ApplicantApi.get(Number(route.params.id))
   stages.value = await ApplicantApi.stages()
   selected.value = applicant.value.current_stage_id ?? null
+  notesDraft.value = applicant.value.notes ?? ''
 }
 
 async function loadBoards() {
@@ -125,6 +137,44 @@ async function completeTask(id: number) {
   }
 }
 
+async function saveNotes() {
+  if (!applicant.value)
+    return
+
+  savingNotes.value = true
+  try {
+    applicant.value = await ApplicantApi.update(applicant.value.id, { notes: notesDraft.value })
+    notesDraft.value = applicant.value.notes ?? ''
+    toast.success('Case notes saved.')
+  }
+  catch {
+    toast.error('Unable to save notes.')
+  }
+  finally {
+    savingNotes.value = false
+  }
+}
+
+async function downloadDoc(taskId: number, attachmentId: number, filename: string) {
+  downloadingId.value = attachmentId
+  try {
+    const response = await TaskApi.downloadAttachment(String(taskId), String(attachmentId))
+    const url = URL.createObjectURL(response.data as Blob)
+    const link = document.createElement('a')
+
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+  catch {
+    toast.error('Unable to download the document.')
+  }
+  finally {
+    downloadingId.value = null
+  }
+}
+
 onMounted(async () => {
   await load()
   await loadBoards()
@@ -157,6 +207,39 @@ onMounted(async () => {
       <p v-if="!applicant.tasks?.length" class="text-caption text-medium-emphasis">No operational work yet. Moving this case into a work stage generates it automatically.</p>
       <h3 class="mt-4">Contracts</h3>
       <VList><VListItem v-for="contract in applicant.contracts" :key="contract.id" :title="contract.contract_number" :subtitle="contract.status" /></VList>
+      <h3 class="mt-4">Services sold</h3>
+      <VList>
+        <VListItem v-for="row in applicant.scholarships" :key="`sch-${row.id}`" title="Scholarship service" :subtitle="`${feeOf(row)}${row.date ? ` · ${row.date}` : ''}${row.status ? ` · ${row.status}` : ''}`" />
+        <VListItem v-for="row in applicant.test_offers" :key="`test-${row.id}`" title="Test offer" :subtitle="`${feeOf(row)}${row.date ? ` · ${row.date}` : ''}${row.status ? ` · ${row.status}` : ''}`" />
+      </VList>
+      <p v-if="!applicant.scholarships?.length && !applicant.test_offers?.length" class="text-caption text-medium-emphasis">No services recorded for this case yet.</p>
+      <div v-if="canViewFinance">
+        <div class="d-flex align-center mt-4">
+          <h3>Finance</h3>
+          <VSpacer />
+          <VBtn size="small" variant="text" :to="{ name: 'pending-transactions' }">Pending workspace</VBtn>
+        </div>
+        <p class="text-caption text-medium-emphasis">Posted income {{ money(postedIncomeTotal) }} · posted expenses {{ money(postedExpenseTotal) }}.</p>
+        <VList>
+          <VListItem v-for="row in applicant.pending_transactions" :key="`pt-${row.id}`" :title="`${row.transaction_type} — ${row.reason}`" :subtitle="`${money(row.amount)} · ${row.approval_status.replace('_', ' ')}${row.rejection_reason ? ` · ${row.rejection_reason}` : ''}`" />
+        </VList>
+        <VList>
+          <VListItem v-for="row in applicant.incomes" :key="`in-${row.id}`" title="Income posted" :subtitle="`${money(row.amount)}${row.date ? ` · ${row.date}` : ''}${row.description ? ` · ${row.description}` : ''}`"><template #prepend><VIcon icon="tabler-arrow-down-left" color="success" /></template></VListItem>
+          <VListItem v-for="row in applicant.expenses" :key="`ex-${row.id}`" title="Expense posted" :subtitle="`${money(row.amount)}${row.date ? ` · ${row.date}` : ''}${row.description ? ` · ${row.description}` : ''}`"><template #prepend><VIcon icon="tabler-arrow-up-right" color="error" /></template></VListItem>
+        </VList>
+        <p v-if="!applicant.pending_transactions?.length && !applicant.incomes?.length && !applicant.expenses?.length" class="text-caption text-medium-emphasis">No financial activity for this case yet.</p>
+      </div>
+      <h3 class="mt-4">Documents</h3>
+      <VList>
+        <VListItem v-for="doc in documents" :key="doc.id" :title="doc.original_name" :subtitle="`From task: ${doc.task_title}`">
+          <template #append><VBtn size="small" variant="text" :loading="downloadingId === doc.id" @click="downloadDoc(doc.task_id, doc.id, doc.original_name)">Download</VBtn></template>
+        </VListItem>
+      </VList>
+      <p v-if="!documents.length" class="text-caption text-medium-emphasis">No documents yet. Files attached to this case's tasks appear here.</p>
+      <h3 class="mt-4">Notes</h3>
+      <VTextarea v-model="notesDraft" label="Case notes" :disabled="!canEditCase" />
+      <VBtn v-if="canEditCase" color="primary" :loading="savingNotes" @click="saveNotes">Save notes</VBtn>
+      <p v-else class="text-caption text-medium-emphasis">Editing notes requires permission.</p>
     </VCardText>
   </VCard>
   <VDialog v-model="taskDialog" max-width="560">

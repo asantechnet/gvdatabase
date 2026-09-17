@@ -25,4 +25,9 @@ class Applicant extends Model
     public function stageHistory(): HasMany { return $this->hasMany(ApplicantStageHistory::class)->latest('changed_at'); }
     public function tasks(): HasMany { return $this->hasMany(Task::class); }
     public function contracts(): HasMany { return $this->hasMany(Contract::class); }
+    public function pendingTransactions(): HasMany { return $this->hasMany(PendingTransaction::class); }
+    public function incomes(): HasMany { return $this->hasMany(Income::class); }
+    public function expenses(): HasMany { return $this->hasMany(Expense::class); }
+    public function scholarships(): HasMany { return $this->hasMany(Scholarship::class); }
+    public function testOffers(): HasMany { return $this->hasMany(TestOffer::class); }
 }
