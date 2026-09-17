@@ -16,6 +16,7 @@ const emit = defineEmits<{
 }>()
 
 const ganttContainer = ref<HTMLElement | null>(null)
+const horizontalViewport = ref<HTMLElement | null>(null)
 let ganttInstance: any = null
 let pendingInteractiveDateChange: { id: string; start: string; end: string } | null = null
 let ganttPointerStart: { x: number; y: number } | null = null
@@ -23,6 +24,35 @@ let suppressTaskClickUntil = 0
 
 const localDateString = (date: Date) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
 const isGanttBarTarget = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('.bar-wrapper'))
+
+const scrollToToday = () => {
+  const viewport = horizontalViewport.value
+  const todayMarker = ganttContainer.value?.querySelector<HTMLElement>('.current-highlight, .today-highlight')
+
+  if (!viewport || !todayMarker)
+    return false
+
+  const viewportBounds = viewport.getBoundingClientRect()
+  const markerBounds = todayMarker.getBoundingClientRect()
+
+  viewport.scrollTo({
+    left: Math.max(0, viewport.scrollLeft + markerBounds.left - viewportBounds.left - viewport.clientWidth / 2),
+    behavior: 'smooth',
+  })
+
+  return true
+}
+
+const handleGanttControlClick = (event: MouseEvent) => {
+  const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('.today-button') : null
+
+  // Frappe's button scrolls its own container. Horizontal scrolling lives on
+  // our outer viewport, so intercept it and scroll that viewport instead.
+  if (target && scrollToToday()) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+}
 const handlePointerDown = (event: PointerEvent) => {
   if (isGanttBarTarget(event.target))
     ganttPointerStart = { x: event.clientX, y: event.clientY }
@@ -97,8 +127,6 @@ watch(chartTasks, async tasks => {
       return
     }
   }
-  // Frappe rebuilds its SVG during refresh. Retaining the scroll offset avoids
-  // sending the user back to today whenever another task changes.
   ganttInstance.refresh(tasks)
 }, { deep: true })
 
@@ -113,11 +141,13 @@ onBeforeUnmount(() => {
 
 <template>
   <div
+    ref="horizontalViewport"
     class="frappe-gantt-vue-wrapper w-100"
     @pointerdown.capture="handlePointerDown"
     @pointermove.capture="handlePointerMove"
     @pointerup.capture="handlePointerUp"
     @pointercancel.capture="handlePointerUp"
+    @click.capture="handleGanttControlClick"
   >
     <div ref="ganttContainer" />
     <div
@@ -137,23 +167,28 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.frappe-gantt-vue-wrapper,
-:deep(.gantt-container) {
+.frappe-gantt-vue-wrapper {
   min-width: 0;
   max-width: 100%;
 }
 
-/* Render the chart as a full canvas rather than an embedded scroll region.
- * Timelines stay LTR on purpose: reversing one breaks date and dependency
- * semantics.
+/* The outer wrapper is the single horizontal scroll surface. The canvas stays
+ * vertically open and tall, so task rows are never clipped into a second
+ * vertical scroller. Timelines stay LTR to preserve date/dependency semantics.
  */
 .frappe-gantt-vue-wrapper {
-  overflow: visible;
+  overflow-x: auto;
   overflow-y: visible;
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x pan-y;
   direction: ltr;
+  -webkit-overflow-scrolling: touch;
 }
 
 :deep(.gantt-container) {
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
   height: 1400px !important;
   overflow: visible !important;
   direction: ltr;
