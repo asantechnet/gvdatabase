@@ -1013,7 +1013,7 @@ onMounted(loadDashboard)
                   {{ t('delivery.subtitle') }}
                 </VCardSubtitle>
               </div><VBtn
-                to="/tasks"
+                to="/projects"
                 variant="text"
                 size="small"
                 append-icon="tabler-arrow-right"

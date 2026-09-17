@@ -52,7 +52,7 @@ const contracts: Record<string, Schema> = {
   'POST /visitors': { name: ['required', 'string', 'max:255'], company: ['required', 'string', 'max:255'], contact: ['required', 'string', 'max:255'], service: ['required', 'string', 'max:255'], marketer: ['required', 'string', 'max:255'], date: ['required', 'date'] },
   'PUT /visitors/:id': { name: ['string', 'max:255'], company: ['string', 'max:255'], contact: ['string', 'max:255'], service: ['string', 'max:255'], marketer: ['string', 'max:255'], date: ['date'] },
 
-  'POST /customers': { name: ['required', 'string', 'max:255'], company: ['required', 'string', 'max:255'], contact: ['required', 'string', 'max:255'], marketer: ['required', 'string', 'max:255'], date: ['required', 'date'] },
+  'POST /customers': { name: ['required', 'string', 'max:255'], company: ['required', 'string', 'max:255'], contact: ['required', 'string', 'max:255'], marketer: ['nullable', 'string', 'max:255'], date: ['required', 'date'] },
   'PUT /customers/:id': { name: ['string', 'max:255'], company: ['string', 'max:255'], contact: ['string', 'max:255'], marketer: ['string', 'max:255'], date: ['date'] },
   'POST /customers/:id/services': { 'services': ['required', 'array', 'min:1'], 'services.*.service_id': ['required', 'integer'] },
   'PUT /customers/:id/services/:id': { deadline: ['nullable', 'date'] },
@@ -62,8 +62,11 @@ const contracts: Record<string, Schema> = {
   'POST /payment-details': { method: ['required', 'string', 'max:255'], instruction: ['required', 'string', 'max:5000'] },
   'PUT /payment-details/:id': { method: ['required', 'string', 'max:255'], instruction: ['required', 'string', 'max:5000'] },
   'POST /invoices': { 'customer_id': ['required', 'integer'], 'currency_id': ['required', 'integer'], 'services': ['required', 'array', 'min:1'], 'services.*.customer_service_id': ['required', 'integer'], 'services.*.quantity': ['integer', 'min:1'], 'tax_percent': ['required', 'numeric', 'between:0,100'], 'discount': ['numeric', 'min:0'], 'notes': ['nullable', 'string'], 'payment_detail_id': ['nullable', 'integer'], 'payment_method': ['nullable', 'string', 'max:255'], 'payment_instructions': ['nullable', 'array'] },
-  'POST /commission-settlements': { employee_id: ['required', 'integer'], base_currency_id: ['required', 'integer'], period_start: ['required', 'date'], period_end: ['required', 'date', 'after_or_equal:period_start'], notes: ['nullable', 'string', 'max:2000'] },
+  'POST /commission-settlements': { employee_id: ['required', 'integer'], base_currency_id: ['required', 'integer'], period_start: ['required', 'date'], period_end: ['required', 'date', 'after_or_equal:period_start'], accrual_ids: ['nullable', 'array'], 'accrual_ids.*': ['integer'], notes: ['nullable', 'string', 'max:2000'] },
   'POST /commissions/adjustments': { employee_id: ['required', 'integer'], base_currency_id: ['required', 'integer'], effective_date: ['required', 'date'], amount: ['required', 'numeric'], reason: ['required', 'string', 'min:5', 'max:2000'] },
+  'POST /outsourcing/settlements': { company_id: ['required', 'integer'], base_currency_id: ['required', 'integer'], period_start: ['required', 'date'], period_end: ['required', 'date', 'after_or_equal:period_start'], accrual_ids: ['nullable', 'array'], 'accrual_ids.*': ['integer'], notes: ['nullable', 'string', 'max:2000'] },
+  'POST /outsourcing/adjustments': { company_id: ['required', 'integer'], base_currency_id: ['required', 'integer'], effective_date: ['required', 'date'], amount: ['required', 'numeric'], reason: ['required', 'string', 'min:5', 'max:2000'] },
+  'POST /outsourcing/settlements/:id/pay': { payment_date: ['required', 'date'] },
   'POST /commission-settlements/:id/pay': { payment_date: ['required', 'date'] },
   'PUT /invoices/:id/void': { reason: ['required', 'string', 'max:2000'] },
 

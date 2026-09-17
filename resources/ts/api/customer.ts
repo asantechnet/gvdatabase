@@ -15,6 +15,9 @@ export interface CustomerService {
   employees: Array<{ id: number; name: string; percentage: number }>
   marketer_id: number | null
   marketer: { id: number; name: string } | null
+  outsourcing_company_id: number | null
+  outsourcing_percentage: number | null
+  outsourcing_company: { id: number; name: string } | null
   currency_id: number | null
   currency: {
     id: number | string
@@ -66,6 +69,8 @@ export interface CreateCustomerData {
   /** Legacy display label retained for older integrations. */
   marketer?: string | null
   marketer_id?: number | null
+  outsourcing_company_id?: number | null
+  outsourcing_percentage?: number | null
   date: string
 }
 
@@ -76,6 +81,8 @@ export interface CreateCustomerServiceData {
   employee_id?: number | null
   employee_ids?: number[]
   marketer_id?: number | null
+  outsourcing_company_id?: number | null
+  outsourcing_percentage?: number | null
   fee?: number | null
   currency_id?: number | null
   deadline?: string | null

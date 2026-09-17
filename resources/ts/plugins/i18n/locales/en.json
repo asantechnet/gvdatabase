@@ -475,11 +475,14 @@
       "customerMarketerAutomatic": "Your marketer attribution is applied automatically.",
       "customerMarketerEmpty": "Create an employee with the Marketer position to assign them here.",
       "customerMarketerHint": "This employee receives acquisition credit; delivery ownership is chosen per service.",
+      "serviceMarketer": "Acquisition marketer",
+      "serviceMarketerOptional": "Acquisition marketer (optional)",
+      "serviceMarketerHint": "Defaults to the customer marketer when the service is attached.",
       "paymentCurrencyBookingRate": "Payment currency at booking · rate {rate}",
       "commissionHeaders": { "date": "Date", "type": "Type", "employee": "Employee", "invoice": "Invoice", "service": "Service", "eligibleRevenue": "Eligible revenue", "rate": "Rate", "commission": "Commission", "status": "Status", "settlement": "Settlement", "period": "Period", "amount": "Amount", "paymentDate": "Payment date", "actions": "Actions" },
       "commissionRoles": { "title": "Commission for", "delivery": "Service delivery", "marketing": "Customer acquisition", "adjustment": "Adjustment" },
       "commissionRateSetup": { "title": "Service commission rates", "description": "Set the rate for each service. It applies when this person delivers the service, or when they are its attributed marketer.", "service": "Commissionable service" },
-      "commissions": { "title": "Commission ledger", "subtitle": "Review invoice-payment accruals, approve settlements, and post paid commissions to expenses.", "addAdjustment": "Add adjustment", "newSettlement": "New settlement", "employee": "Employee", "settlementStatus": "Settlement status", "refresh": "Refresh", "accruals": "Accruals", "settlements": "Settlements", "accrualCount": "{count} accruals", "approve": "Approve", "pay": "Pay", "cancel": "Cancel", "createSettlement": "Create commission settlement", "commissionEmployee": "Commission employee", "accrualCurrency": "Accrual currency", "periodStart": "Period start", "periodEnd": "Period end", "notes": "Notes", "createDraft": "Create draft", "paySettlement": "Pay commission settlement", "paymentWarning": "Payment creates a protected commission expense and permanently closes the included accruals.", "paymentDate": "Payment date", "recordPayment": "Record payment", "adjustmentWarning": "Use a negative amount for a clawback or correction, and a positive amount for an approved manual earning. The reason is retained in the audit ledger.", "currency": "Currency", "effectiveDate": "Effective date", "signedAmount": "Signed amount", "signedAmountHint": "Negative for clawback; positive for additional earning", "reason": "Reason", "addToLedger": "Add to ledger", "loadFailed": "Unable to load commission records.", "settlementCreated": "Draft commission settlement created.", "settlementCreateFailed": "Unable to create the settlement.", "adjustmentAdded": "Commission adjustment added to the pending ledger.", "adjustmentCreateFailed": "Unable to create adjustment.", "approvedSuccess": "{number} approved.", "approveFailed": "Unable to approve settlement.", "paidSuccess": "{number} paid and posted to expenses.", "payFailed": "Unable to pay settlement.", "cancelledSuccess": "{number} cancelled; its accruals are pending again.", "cancelFailed": "Unable to cancel settlement.", "statuses": { "pending": "Pending", "draft": "Draft", "approved": "Approved", "paid": "Paid", "cancelled": "Cancelled", "void": "Void" }, "entryTypes": { "invoice_payment": "Invoice payment", "adjustment": "Adjustment" } },
+      "commissions": { "title": "Commission ledger", "subtitle": "Review invoice-payment accruals, prepare controlled payouts, and post paid commissions to expenses.", "addAdjustment": "Add adjustment", "newSettlement": "New settlement", "employee": "Employee", "settlementStatus": "Settlement status", "refresh": "Refresh", "accruals": "Accruals", "settlements": "Settlements", "accrualCount": "{count} accruals", "approve": "Approve", "pay": "Pay", "cancel": "Cancel", "createSettlement": "Create commission settlement", "commissionEmployee": "Commission employee", "accrualCurrency": "Accrual currency", "periodStart": "Period start", "periodEnd": "Period end", "notes": "Notes", "selectAccruals": "Select accruals", "selectAll": "Select all", "clearSelection": "Clear", "settlementPreview": "{count} entries selected · {amount} to pay", "noMatchingAccruals": "No pending accruals match the selected employee, currency, and period.", "createDraft": "Create draft", "paySettlement": "Pay commission settlement", "paymentWarning": "Payment creates a protected commission expense and permanently closes the included accruals.", "paymentDate": "Payment date", "recordPayment": "Record payment", "adjustmentWarning": "Use a negative amount for a clawback or correction, and a positive amount for an approved manual earning. The reason is retained in the audit ledger.", "currency": "Currency", "effectiveDate": "Effective date", "signedAmount": "Signed amount", "signedAmountHint": "Negative for clawback; positive for additional earning", "reason": "Reason", "addToLedger": "Add to ledger", "loadFailed": "Unable to load commission records.", "settlementCreated": "Commission settlement created.", "settlementCreateFailed": "Unable to create the settlement.", "adjustmentAdded": "Commission adjustment added to the pending ledger.", "adjustmentCreateFailed": "Unable to create adjustment.", "approvedSuccess": "{number} approved.", "approveFailed": "Unable to approve settlement.", "paidSuccess": "{number} paid and posted to expenses.", "payFailed": "Unable to pay settlement.", "cancelledSuccess": "{number} cancelled; its accruals are pending again.", "cancelFailed": "Unable to cancel settlement.", "statuses": { "pending": "Pending", "draft": "Draft", "approved": "Approved", "paid": "Paid", "cancelled": "Cancelled", "void": "Void" }, "entryTypes": { "invoice_payment": "Invoice payment", "adjustment": "Adjustment" } },
       "customersReport": "Customers report", "filteredCustomerRecords": "Filtered customer records", "printNoRecords": "No records available", "printGenerated": "Generated {date}", "printColumns": { "name": "Name", "company": "Company", "contact": "Contact", "marketer": "Marketer", "registered": "Registered", "services": "Services" },
       "printReports": { "income": { "title": "Income report", "subtitle": "Income records" }, "expenses": { "title": "Expenses report", "subtitle": "Expense records" }, "staff": { "title": "Staff report", "subtitle": "Filtered staff records" }, "salaries": { "title": "Staff salaries report", "subtitle": "Filtered salary payments" }, "assets": { "title": "Asset report", "subtitle": "Filtered asset records" }, "visitors": { "title": "Visitors report", "subtitle": "Filtered visitor records" }, "columns": { "receipt": "Receipt", "type": "Type", "details": "Details", "invoice": "Invoice", "amount": "Amount", "date": "Date", "expense": "Expense", "currency": "Currency", "id": "ID", "name": "Name", "position": "Position", "contact": "Contact", "email": "Email", "office": "Office", "payslip": "Payslip", "employee": "Employee", "payMonth": "Pay month", "workedDays": "Worked days", "totalPaid": "Total paid", "serialNumber": "Serial number", "item": "Item", "quantity": "Quantity", "price": "Price", "model": "Model", "condition": "Condition", "allocations": "Allocations" } },
       "newLead": "New lead", "createLead": "Create lead", "createLeadSubtitle": "Capture the opportunity and credit the relationship owner from the start.", "leadWorkspace": "Lead workspace", "viewLead": "View lead", "marketer": "Marketer", "unassigned": "Unassigned", "pipeline": "Pipeline", "confidenceLabel": "Confidence", "manualOverride": "Manual override", "pipelineScore": "Pipeline score", "saveConfidence": "Save confidence", "usePipelineScore": "Use pipeline score", "confidenceRangeError": "Enter a whole confidence percentage from 0 to 100", "manualConfidenceSaved": "Manual confidence saved", "confidenceSaveFailed": "Unable to save the confidence", "pipelineConfidenceRestored": "Pipeline confidence restored", "pipelineConfidenceRestoreFailed": "Unable to restore the pipeline confidence", "manualConfidenceHint": "Your assessment stays in place as this lead moves through the pipeline.", "pipelineConfidenceHint": "This follows the current pipeline stage.", "closedConfidenceHint": "Closed outcomes use a fixed confidence.", "marketerUpdated": "Lead marketer updated", "marketerUpdateFailed": "Unable to update the lead marketer", "convertFailed": "Unable to convert this lead to a customer", "conversionEmailInvalid": "Enter a valid email address before converting this lead.", "requiredLeadFields": "Name and contact are required to create a lead", "leadCreated": "Lead created", "leadCreateFailed": "Unable to create the lead", "stageLabels": { "new": "New", "contacted": "Contacted", "qualified": "Qualified", "proposal": "Proposal", "won": "Won", "lost": "Lost" }
@@ -558,6 +561,29 @@
     }
   },
   "pages": {
+    "companies": {
+      "title": "Companies",
+      "description": "Manage counterparties, their details, and the agreements connected to them.",
+      "search": "Search companies",
+      "addCompany": "Add company",
+      "editCompany": "Edit company",
+      "deleteCompany": "Delete company",
+      "createContract": "Create contract",
+      "legalName": "Legal name",
+      "legalNameRequired": "Legal name *",
+      "legalNameRequiredMessage": "Legal name is required",
+      "tradeName": "Trade name",
+      "registrationNumber": "Registration number",
+      "taxNumber": "Tax number",
+      "nationalId": "National ID",
+      "legalForm": "Legal form (LLC, Ltd…)",
+      "city": "City", "representative": "Representative", "number": "Number", "company": "Company",
+      "identity": "Identity", "contactAndAddress": "Contact & address", "businessInformation": "Business information", "authorizedRepresentative": "Authorized representative",
+      "email": "Email", "phone": "Phone", "website": "Website", "addressLine": "Address line", "province": "Province", "postalCode": "Postal code", "country": "Country", "industry": "Industry", "formDescription": "Description", "name": "Name", "representativeTitle": "Title",
+      "loading": "Loading companies…", "empty": "No companies yet — add your first counterparty.",
+      "contractsTitle": "Company contracts", "contractsDescription": "Contracts issued with company-type templates", "newContract": "New company contract", "loadingContracts": "Loading company contracts…", "emptyContracts": "No company contracts yet — create one from a company row above.", "untitledContract": "Untitled contract", "printContract": "Print contract", "editContract": "Edit contract", "createCompanyContract": "Create company contract", "editCompanyContract": "Edit company contract",
+      "notAvailable": "—", "saveChanges": "Save changes", "failedToLoad": "Failed to load companies.", "created": "Company created.", "updated": "Company updated.", "deleted": "Company deleted.", "failedToSave": "Failed to save the company.", "deactivatedInsteadOfDeleted": "This company is referenced by contracts and has been deactivated instead of deleted.", "contractCompanyNotFound": "The company for this contract could not be found.", "contractCreated": "Company contract created.", "contractUpdated": "Company contract updated.", "failedToSaveContract": "Failed to save the company contract.", "deleteConfirmation": "Delete {company}? Companies referenced by existing contracts are deactivated instead so historical documents remain valid."
+    },
     "paymentDetails": {
       "title": "Payment details",
       "subtitle": "Maintain reusable payment methods and customer-facing instructions for invoices.",
@@ -974,7 +1000,11 @@
               "fontSize": "Font size",
               "textColor": "Text color",
               "insertPlaceholder": "Insert Placeholder",
-              "noPlaceholders": "No placeholders are available for this contract type"
+              "noPlaceholders": "No placeholders are available for this contract type",
+              "placeholderInsertHint": "Add a field at the cursor; its value is filled in when the contract is created.",
+              "searchFields": "Search fields",
+              "placeholderSearchHint": "Choose the field you need. The highlighted token stays visible while editing and is replaced with the live value in the final contract.",
+              "noMatchingFields": "No matching fields"
             },
             "placeholders": {
               "employee": {
@@ -1048,7 +1078,8 @@
                   "phone": "Phone",
                   "address": "Address",
                   "website": "Website",
-                  "business_licence": "Business Licence"
+                  "business_licence": "Business Licence",
+                  "signatory_name": "Authorized Signatory"
                 }
               },
               "contract": {
@@ -1063,6 +1094,16 @@
             }
           },
           "policyLibrary": {
+            "pageTitle": "Policy library",
+            "pageDescription": "Keep reusable contract clauses organized and ready for every agreement.",
+            "formSubtitle": "Write a reusable clause with fields that are resolved in the right contract context.",
+            "studioLabel": "Clause studio",
+            "labelPlaceholder": "e.g. Confidentiality",
+            "headerPlaceholder": "Optional heading shown above the clause",
+            "contentHint": "Policy fields are highlighted in purple so this editor stays distinct from full contract templates.",
+            "context": "{type} context",
+            "footerHint": "Use the merge-field menu to insert details safely.",
+            "types": { "employment": "Employment", "company": "Company", "customer": "Customer" },
             "title": "Contract policies",
             "subtitle": "Reusable clauses that help authors build contract templates.",
             "add": "Add policy",
@@ -1174,7 +1215,16 @@
         "thisIsTheSuggestedSalaryForThePositionEachStaffRecordCanStillHaveItsOw": "This is the suggested salary for the position; each staff record can still have its own salary.",
         "deleteConfirmation": "Delete {position}? Positions assigned to staff or users cannot be deleted.",
         "updated": "Position updated.",
-        "created": "Position created."
+        "created": "Position created.",
+        "assignedPeople": "{staff} staff / {users} users",
+        "couldNotLoad": "Could not load positions.",
+        "couldNotSave": "Could not save the position.",
+        "couldNotDelete": "This position could not be deleted.",
+        "currentBaseSalary": "Current-base salary · {currency}",
+        "legacyCurrencyNotRecorded": "Legacy currency not recorded",
+        "editContract": "Edit contract",
+        "positionDetails": "Position details",
+        "positionDetailsHint": "Define the role clearly so it can be reused consistently across staff records."
       },
       "settings": {
         "settingsSavedSuccessfully": "Settings Saved Successfully",
@@ -1223,7 +1273,7 @@
         "physicalAddress": "Physical Address",
         "businessLicence": "Business Licence",
         "licenceNumber": "Licence Number",
-        "paidOffDaysPerYear": "Leave allowance per year",
+        "paidLeaveDaysPerYear": "Paid leave days per year",
         "officeOpens": "Office Opens",
         "officeCloses": "Office Closes",
         "defaultBreakMinutes": "Default Break Minutes",
@@ -1268,14 +1318,28 @@
         "minimum10001400Pixels": "Minimum 1000 × 1400 pixels",
         "builtInDesignWillBeUsed": "Built In Design Will Be Used",
         "assetHint": "{hint} · PNG, JPG, or WEBP up to 8 MB",
+        "documentArtworkHint": "Upload a clear letterhead or cover image in any practical size. It is scaled proportionally for the contract preview and print layout.",
+        "documentImageHint": "Any clear image size; portrait is recommended.",
+        "documentPreviewAlt": "{title} preview",
+        "printSafeAreaHint": "Drag any edge of the box to define the print-safe area. Contract text and details will stay inside this area.",
+        "uploadLetterheadHint": "Upload a full-page letterhead to position its safe area.",
+        "printSafeAreaSampleRtl": "این متن نمونه فارسی در محدوده امن چاپ باقی می‌ماند.",
+        "printSafeAreaSampleLtr": "English sample text stays inside the print-safe area.",
+        "resizePrintSafeArea": "Resize print-safe area: {edge}",
+        "edges": { "top": "top", "right": "right", "bottom": "bottom", "left": "left" },
         "resetDefaults": "Reset Defaults",
         "saveSettings": "Save Settings",
         "noChangesToSave": "There are no changes to save on this page.",
         "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings."
       },
       "users": {
-        "user": "User",
-        "created": "Created",
+          "user": "User",
+          "pageTitle": "Users",
+          "pageDescription": "Manage access, invitations, and the current health of user accounts.",
+          "couldNotLoad": "Could not load users.",
+          "roleOptions": { "super_admin": "Super admin", "admin": "Admin", "manager": "Manager", "staff": "Staff", "viewer": "Viewer" },
+          "verification": { "invited": "Invited", "verified": "Verified", "pending": "Pending verification" },
+          "created": "Created",
         "nameEmailAndAtLeastOneRoleAreRequired": "Name, email, and at least one role are required",
         "userDeleted": "User Deleted",
         "searchUsers": "Search Users",
@@ -1283,8 +1347,15 @@
         "editUser": "Edit user",
         "deleteUser": "Delete user",
         "theUserWillReceiveAVerificationEmailThenCreateTheirOwnPassword": "The user will receive a verification email, then create their own password.",
-        "roles": "Roles",
-        "deleteUser2": "Delete User",
+          "roles": "Roles",
+          "accountDetails": "Account details",
+          "accountDetailsHint": "Use contact details that help teammates identify and reach this user.",
+          "saveUser": "Save",
+          "sendInvitation": "Send invitation",
+          "editUserDialog": "Edit user",
+          "inviteUserDialog": "Invite user",
+          "deactivatedStatusHint": "Use the audited reactivation action in Deactivation Requests.",
+          "deleteUser2": "Delete User",
         "deleteConfirmation": "Delete {user}? This action can be restored only through the database.",
         "updated": "User updated.",
         "invitationSent": "Invitation sent. The user will create a password after verifying their email."
@@ -1321,7 +1392,10 @@
           "deleteStaffRecord": "Delete staff record",
           "addNewStaff": "Add New Staff",
           "editStaff": "Edit Staff",
-          "paidOffDays": "Leave"
+          "paidOffDays": "Leave",
+          "salaryCannotBeNegative": "Salary cannot be negative.",
+          "assignCommissionService": "Assign at least one service and commission percentage.",
+          "service": "Service"
         }
       },
       "apppricing": {
@@ -1363,11 +1437,12 @@
         "notSupported": "Location services are not supported by this browser.",
         "locationFailed": "Your current location could not be read. Check the browser location permission and try again."
       },
+    "rolecards": {
       "rolecards": {
-        "rolecards": {
-          "rolesGrantPermissionsPositionsRemainHRJobTitlesChangesTakeEffectWhenAf": "Roles grant permissions. Positions remain HR job titles. Changes take effect after the user signs in again.",
-          "savePermissions": "Save Permissions"
-        }
+        "rolesGrantPermissionsPositionsRemainHRJobTitlesChangesTakeEffectWhenAf": "Roles grant permissions. Positions remain HR job titles. Changes take effect after the user signs in again.",
+        "savePermissions": "Save Permissions",
+        "totalUsers": "Total {count} users", "editRole": "Edit role", "deleteRole": "Delete role", "deleteRoleAria": "Delete {role}", "addNewRole": "Add new role", "addRoleHint": "Add a role if it does not exist", "createRole": "Create role", "roleName": "Role name", "roleNamePlaceholder": "e.g. Editor, Billing Manager", "roleNameRequired": "Role name is required.", "superAdminLocked": "Super admin permissions cannot be modified", "rolePermissions": "Role permissions", "permissionsHint": "Search and manage permissions by category. Toggle individual permissions or entire categories.", "selectedCount": "{selected} / {total} selected", "searchPermissions": "Search permissions (e.g. export, view users)", "permissionCount": "{count} permissions", "filtered": "filtered", "selectAllFiltered": "Select all filtered", "selectAll": "Select all", "deselectAll": "Deselect all", "noPermissionsFound": "No permissions found", "tryDifferentPermission": "Try searching for a different permission.", "noResultsFor": "No results for “{query}”", "clearSearch": "Clear search", "searchTip": "Tip: Use search to quickly find permissions like “export” across all categories.", "saveChanges": "Save changes", "deleteConfirmation": "Delete {role}? This will remove its permission grants.", "roleUpdated": "Role updated successfully.", "roleCreated": "Role created successfully.", "roleDeleted": "Role deleted successfully.", "unableToLoad": "Unable to load roles and permissions.", "unableToSave": "Unable to save role.", "unableToDelete": "Unable to delete role."
+      }
       }
     },
     "users": {
@@ -1415,8 +1490,8 @@
         },
         "unmarkedFor": "Unmarked for {date}",
         "steps": {
-          "logAttendance": "1. Log attendance",
-          "printRangeFilter": "2. Print range filter"
+        "logAttendance": "Log attendance",
+        "printRangeFilter": "Print range filter"
         },
         "filteredRange": "Filtered view: {start} to {end}"
       }
@@ -1599,8 +1674,15 @@
           "untitledContract": "Untitled contract",
           "unknownCounterparty": "Unknown counterparty",
           "loadingContracts": "Loading contracts...",
+          "customerContracts": "Customer contracts",
+          "customerContractsDescription": "Manage agreements with your customers and follow up on their status.",
           "employeeContractsReport": "Employee contracts report",
+          "employeeContracts": "Employee contracts",
+          "employeeContractsDescription": "Manage employment agreements and follow up on their status.",
           "customerContractsReport": "Customer contracts report",
+          "companyContracts": "Company contracts",
+          "companyContractsDescription": "Manage agreements with other companies and follow up on their status.",
+          "companyContractsReport": "Company contracts report",
           "filteredContractRecords": "Filtered contract records",
           "addNewContract": "Add new contract",
           "noActiveEmploymentContractFound": "No active employment contract was found for this employee.",
@@ -1707,8 +1789,12 @@
           "serviceDeletedSuccessfully": "Service Deleted Successfully",
           "failedToDeleteService": "Failed To Delete Service",
           "searchService": "Search Service",
-          "addService": "Add Service",
-          "eGWebsiteMaintenance": "e.g. Website Maintenance",
+            "addService": "Add Service",
+            "addNewService": "Add New Service",
+            "editService": "Edit Service",
+            "serviceDefinition": "Service definition",
+            "serviceDefinitionHint": "Use a fee and duration that make this service ready to reuse in a contract.",
+            "eGWebsiteMaintenance": "e.g. Website Maintenance",
           "durationMonths": "Duration (months)"
         },
         "durationMonthsValue": "{count} month | {count} months"
@@ -1885,7 +1971,17 @@
           "customerTypeQuantityCurrencyAndExchangeRateComeFromTheInvoiceEnterOnly": "Customer, type, quantity, and currency come from the invoice. Enter the received amount, exchange rate, date, and an optional payment note.",
           "editIncome": "Edit income",
           "updateReceiptDetailsOrItsInvoiceAllocation": "Update receipt details or its invoice allocation.",
-          "customerTypeQuantityCurrencyAndExchangeRateAreControlledByTheLinkedInv": "Customer, type, quantity, and currency are controlled by the linked invoice. The exchange rate remains editable for this receipt."
+          "customerTypeQuantityCurrencyAndExchangeRateAreControlledByTheLinkedInv": "Customer, type, quantity, and currency are controlled by the linked invoice. The exchange rate remains editable for this receipt.",
+          "smallBalanceCanMarkPaid": "A small balance remains. You can close this invoice as paid.",
+          "markPaidThresholdHint": "Mark as paid becomes available after payment when the remaining balance is under 5% of the invoice total.",
+          "markPaid": "Mark paid",
+          "earnedCommission": "Earned",
+          "invoicePaymentContext": "Invoice payment context",
+          "invoiceTotal": "Invoice total",
+          "issuedOn": "Issued {date}",
+          "dueOn": "Due {date}",
+          "includedServices": "Included services",
+          "additionalServices": "+{count} more"
         }
       },
       "currencies": {
@@ -1916,7 +2012,11 @@
           "decimalPrecision": "Decimal Precision",
           "setAsPrimaryBase": "Set as Primary Base",
           "activeStatus": "Active Status",
-          "deleteCurrency": "Delete Currency"
+        "deleteCurrency": "Delete Currency",
+        "changeBaseCurrencyTitle": "Change base currency?",
+        "changeBaseCurrencyWarning": "Dashboard and report totals will be displayed in {currency}.",
+        "changeBaseCurrencyHint": "This will update the base currency for the application.",
+        "confirmSetAsBaseCurrency": "Set as base currency"
         },
         "rateToBase": "Rate to base ({currency})",
         "baseRate": "1.0000 (Base)",
@@ -2587,6 +2687,15 @@
     }
   },
   "components": {
+    "contractCounterpartyCard": {
+      "title": "Counterparty",
+      "selectedRecordHint": "Data from the selected {type} — read-only here",
+      "record": "record",
+      "types": { "employee": "Employee", "customer": "Customer", "company": "Business company" },
+      "registrationNumber": "Registration No.", "taxNumber": "Tax No.", "phone": "Phone", "email": "Email", "address": "Address",
+      "representative": "Representative",
+      "empty": "Select a template and counterparty to see their details here."
+    },
     "fullDetails": {
       "fieldAliases": { "availablequantity": "Available quantity", "allocatedquantity": "Allocated quantity" },
       "eyebrow": "{kind} · {count} useful details", "recordFallback": "Record {id}", "footer": "Showing business-friendly details. Internal database references are hidden.",
@@ -3070,6 +3179,7 @@
         "home": "Home",
         "reports": "Reports",
         "tasks": "Tasks",
+        "projects": "Projects",
         "humanResources": "HR",
         "staffSalary": "Staff Salary",
         "bonusList": "Bonus List",
@@ -3316,7 +3426,14 @@
     "timesheet": {
       "overtimeInline": " · OT {duration}",
       "totals": "Total worked: {worked} · Overtime: {overtime}",
-      "generatedOn": "Generated on {date}"
+      "generatedOn": "Generated on {date}",
+      "legend": "Attendance legend",
+      "statuses": {
+        "present": "Present",
+        "absent": "Absent",
+        "paid-leave": "Paid leave",
+        "unpaid-leave": "Unpaid leave"
+      }
     },
     "contract_cover_template": {
       "contractCoverTemplate": {
@@ -3746,5 +3863,6 @@
         "completed": "Completed"
       }
     }
-  }
+  },
+  "outsourcing": { "nav": "Outsourcing", "title": "Outsourcing ledger", "subtitle": "Track supplier earnings from collected customer payments, settle approved amounts, and post supplier payments to protected expenses.", "company": "Outsourcing company", "rate": "Outsourcing percentage", "newSettlement": "New settlement", "addAdjustment": "Add adjustment", "settlementStatus": "Settlement status", "refresh": "Refresh", "accruals": "Accruals", "settlements": "Settlements", "pendingPayable": "{count} pending supplier entries", "date": "Date", "service": "Service", "invoice": "Invoice", "eligibleRevenue": "Eligible revenue", "amount": "Amount", "status": "Status", "settlement": "Settlement", "period": "Period", "paymentDate": "Payment date", "actions": "Actions", "createSettlement": "Create outsourcing settlement", "accrualCurrency": "Accrual currency", "periodStart": "Period start", "periodEnd": "Period end", "notes": "Notes", "selectAccruals": "Select accruals", "selectAll": "Select all", "clearSelection": "Clear", "settlementPreview": "{count} entries selected · {amount} to pay", "noMatchingAccruals": "No pending supplier accruals match the selected company, currency, and period.", "createDraft": "Create draft", "approve": "Approve", "pay": "Pay", "cancel": "Cancel", "paySettlement": "Pay outsourcing settlement", "paymentWarning": "Payment creates a protected outsourced-services expense and permanently closes the included accruals.", "recordPayment": "Record payment", "adjustmentWarning": "Use a negative amount to recover or correct a supplier charge and a positive amount for an approved manual supplier earning. The reason is retained in the audit ledger.", "currency": "Currency", "effectiveDate": "Effective date", "signedAmount": "Signed amount", "signedAmountHint": "Negative for recovery; positive for additional supplier amount", "reason": "Reason", "addToLedger": "Add to ledger", "manualAdjustment": "Manual adjustment", "loadFailed": "Unable to load outsourcing records.", "settlementCreated": "Outsourcing settlement created.", "settlementCreateFailed": "Unable to create the outsourcing settlement.", "adjustmentAdded": "Outsourcing adjustment added to the pending ledger.", "adjustmentCreateFailed": "Unable to create the adjustment.", "approvedSuccess": "{number} approved.", "approveFailed": "Unable to approve settlement.", "paidSuccess": "{number} paid and posted to expenses.", "payFailed": "Unable to pay settlement.", "cancelledSuccess": "{number} cancelled; its accruals are pending again.", "cancelFailed": "Unable to cancel settlement.", "statuses": { "pending": "Pending", "draft": "Draft", "approved": "Approved", "paid": "Paid", "cancelled": "Cancelled", "void": "Void" } }
 }

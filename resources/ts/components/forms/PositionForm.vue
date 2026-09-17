@@ -12,9 +12,9 @@ const emit = defineEmits<{ submit: []; cancel: [] }>()
     <VRow>
       <VCol cols="12">
         <p class="app-form__section">
-          Position details
+          {{ $t('pages.settings.positions.positionDetails') }}
         </p><p class="app-form__section-help">
-          Define the role clearly so it can be reused consistently across staff records.
+          {{ $t('pages.settings.positions.positionDetailsHint') }}
         </p>
       </VCol>
       <VCol

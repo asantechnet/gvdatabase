@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CommissionAccrual;
 use App\Models\CommissionSettlement;
+use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Customer;
 use App\Models\CustomerService;
@@ -11,7 +12,10 @@ use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
 use App\Models\Invoice;
+use App\Models\Permission;
 use App\Models\Position;
+use App\Models\OutsourcingAccrual;
+use App\Models\OutsourcingSettlement;
 use App\Models\Role;
 use App\Models\Service;
 use App\Models\User;
@@ -76,10 +80,8 @@ class CommissionLifecycleTest extends TestCase
         $settlementId = $this->postJson('/api/commission-settlements', [
             'employee_id' => $employee->id, 'base_currency_id' => $currency->id,
             'period_start' => '2026-09-01', 'period_end' => '2026-09-30',
-        ])->assertCreated()->json('data.id');
+        ])->assertCreated()->assertJsonPath('data.status', 'approved')->json('data.id');
 
-        Sanctum::actingAs($this->superAdmin(), ['access']);
-        $this->postJson("/api/commission-settlements/{$settlementId}/approve")->assertOk();
         $this->putJson("/api/incomes/{$income->id}", ['amount' => 40])->assertUnprocessable()
             ->assertJsonPath('errors.income.0', 'business.commission_payment_reserved');
 
@@ -109,6 +111,53 @@ class CommissionLifecycleTest extends TestCase
         $this->postJson("/api/commission-settlements/{$id}/cancel")->assertOk();
         $this->assertSame('pending', $accrual->fresh()->status);
         $this->assertNull($accrual->fresh()->commission_settlement_id);
+    }
+
+    public function test_settlement_can_pay_only_the_explicitly_selected_accruals(): void
+    {
+        [$currency, $employee, $accrual] = $this->pendingAccrual();
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $adjustmentId = $this->postJson('/api/commissions/adjustments', [
+            'employee_id' => $employee->id,
+            'base_currency_id' => $currency->id,
+            'effective_date' => '2026-09-02',
+            'amount' => 2,
+            'reason' => 'Approved service quality bonus',
+        ])->assertCreated()->json('data.id');
+
+        $settlement = $this->postJson('/api/commission-settlements', [
+            'employee_id' => $employee->id,
+            'base_currency_id' => $currency->id,
+            'period_start' => '2026-09-01',
+            'period_end' => '2026-09-30',
+            'accrual_ids' => [$accrual->id],
+        ])->assertCreated()->json('data');
+
+        $this->assertSame(5.0, (float) $settlement['gross_base_amount']);
+        $this->assertSame('approved', $accrual->fresh()->status);
+        $this->assertSame('pending', CommissionAccrual::findOrFail($adjustmentId)->status);
+    }
+
+    public function test_non_super_admin_creator_still_needs_an_independent_approver(): void
+    {
+        [$currency, $employee] = $this->pendingAccrual();
+        $managerRole = Role::firstOrCreate(['name' => 'commission_manager']);
+        $managerRole->permissions()->sync(Permission::query()
+            ->whereIn('name', ['manage_commission_settlements', 'approve_commissions'])
+            ->pluck('id'));
+        $manager = User::factory()->create(['acc_status' => 'active']);
+        $manager->roles()->attach($managerRole);
+        Sanctum::actingAs($manager, ['access']);
+
+        $settlementId = $this->postJson('/api/commission-settlements', [
+            'employee_id' => $employee->id,
+            'base_currency_id' => $currency->id,
+            'period_start' => '2026-09-01',
+            'period_end' => '2026-09-30',
+        ])->assertCreated()->assertJsonPath('data.status', 'draft')->json('data.id');
+
+        $this->postJson("/api/commission-settlements/{$settlementId}/approve")
+            ->assertUnprocessable();
     }
 
     public function test_commissionable_invoice_service_derives_and_snapshots_the_customer_service_delivery_owner(): void
@@ -205,6 +254,73 @@ class CommissionLifecycleTest extends TestCase
             'employment_type' => 'commission', 'salary' => 0,
             'commissions' => [['service_id' => $service->id, 'percentage' => 10]],
         ])->assertCreated()->assertJsonPath('data.salary', 0);
+    }
+
+    public function test_commission_employee_can_receive_a_regular_salary_as_well(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
+        $employee = Employee::factory()->create(['employment_type' => 'commission', 'salary' => 500]);
+
+        $this->postJson('/api/salaries', [
+            'employee_id' => $employee->id,
+            'currency_id' => $currency->id,
+            'salaryMonth' => today()->format('Y-m'),
+            'amountPaid' => 500,
+            'date' => today()->toDateString(),
+            'deductions' => [],
+        ])->assertCreated()->assertJsonPath('data.employee_id', $employee->id);
+    }
+
+    public function test_outsourced_customer_service_is_snapshotted_accrued_and_paid_to_its_company(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
+        $customer = Customer::factory()->create();
+        $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
+        $company = Company::create(['legal_name' => 'External Delivery Ltd', 'is_active' => true]);
+        $assignment = CustomerService::create([
+            'customer_id' => $customer->id, 'service_id' => $service->id, 'currency_id' => $currency->id,
+            'fee' => 100, 'outsourcing_company_id' => $company->id, 'outsourcing_percentage' => 25,
+        ]);
+
+        $invoiceId = $this->postJson('/api/invoices', [
+            'customer_id' => $customer->id, 'currency_id' => $currency->id,
+            'services' => [['customer_service_id' => $assignment->id]], 'tax_percent' => 0,
+        ])->assertCreated()->json('data.id');
+        $line = DB::table('invoice_service')->where('invoice_id', $invoiceId)->sole();
+        $this->assertSame($company->id, (int) $line->outsourcing_company_id);
+        $this->assertSame(25.0, (float) $line->snapshot_outsourcing_percentage);
+
+        Income::create(['invoice_id' => $invoiceId, 'currency_id' => $currency->id, 'base_currency_id' => $currency->id,
+            'type' => 'Service', 'description' => 'Receipt', 'amount' => 100, 'quantity' => 1,
+            'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $currency->code, 'rate' => 1, 'invoice_amount' => 100, 'date' => '2026-09-01']);
+        $accrual = OutsourcingAccrual::sole();
+        $this->assertSame(25.0, (float) $accrual->outsourcing_base_amount);
+
+        $settlementId = $this->postJson('/api/outsourcing/settlements', ['company_id' => $company->id, 'base_currency_id' => $currency->id,
+            'period_start' => '2026-09-01', 'period_end' => '2026-09-30'])->assertCreated()->assertJsonPath('data.status', 'approved')->json('data.id');
+        $this->postJson("/api/outsourcing/settlements/{$settlementId}/pay", ['payment_date' => '2026-10-01'])->assertOk();
+        $this->assertSame('paid', OutsourcingSettlement::findOrFail($settlementId)->status);
+    }
+
+    public function test_outsourcing_adjustments_are_auditable_pending_ledger_entries(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
+        $company = Company::create(['legal_name' => 'External Delivery Ltd', 'is_active' => true]);
+
+        $this->postJson('/api/outsourcing/adjustments', [
+            'company_id' => $company->id,
+            'base_currency_id' => $currency->id,
+            'effective_date' => '2026-09-16',
+            'amount' => -12.5,
+            'reason' => 'Supplier overcharge correction',
+        ])->assertCreated()->assertJsonPath('data.entry_type', 'adjustment');
+
+        $entry = OutsourcingAccrual::sole();
+        $this->assertSame(-12.5, (float) $entry->outsourcing_base_amount);
+        $this->assertSame('pending', $entry->status);
     }
 
     private function pendingAccrual(): array

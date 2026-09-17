@@ -44,6 +44,7 @@ const isEmployment = computed(() => selectedType.value?.slug === 'employment')
 const isSystemSlug = (slug: string) => SYSTEM_TYPE_SLUGS.includes(slug as typeof SYSTEM_TYPE_SLUGS[number])
 const contractTypeName = (type: ContractType | null) => !type ? '' : isSystemSlug(type.slug) ? tr(`types.${type.slug}`) : type.name
 const templateTypeName = (template: any) => template.type_slug && isSystemSlug(template.type_slug) ? tr(`types.${template.type_slug}`) : template.type || tr('custom')
+const policyTypeName = (policy: ContractPolicy) => isSystemSlug(policy.type) ? tr(`types.${policy.type}`) : policy.type
 
 const typeLabel = computed(() => {
   const name = contractTypeName(selectedType.value)
@@ -428,7 +429,7 @@ watch(locale, async () => {
             </div><VAutocomplete
               v-if="policies.length"
               v-model="selectedPolicyId"
-              :items="policies.map(p => ({ title: `${p.type} · ${p.label}`, value: p.id }))"
+              :items="policies.map(p => ({ title: `${policyTypeName(p)} · ${p.label}`, value: p.id }))"
               :label="tr('insertSavedPolicy')"
               density="compact"
               variant="outlined"

@@ -29,6 +29,12 @@ class CustomerServiceResource extends JsonResource
                 'id' => $this->marketer->id,
                 'name' => $this->marketer->name,
             ] : null),
+            'outsourcing_company_id' => $this->outsourcing_company_id,
+            'outsourcing_percentage' => $this->outsourcing_percentage === null ? null : (float) $this->outsourcing_percentage,
+            'outsourcing_company' => $this->whenLoaded('outsourcingCompany', fn () => $this->outsourcingCompany ? [
+                'id' => $this->outsourcingCompany->id,
+                'name' => $this->outsourcingCompany->trade_name ?: $this->outsourcingCompany->legal_name,
+            ] : null),
             'customer' => $this->whenLoaded('customer', fn () => $this->customer ? [
                 'id' => $this->customer->id,
                 'name' => $this->customer->name,

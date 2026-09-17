@@ -476,6 +476,9 @@
       "customerMarketerAutomatic": "انتساب بازاریاب شما به‌صورت خودکار اعمال می‌شود.",
       "customerMarketerEmpty": "برای تعیین بازاریاب، یک کارمند با سمت بازاریاب ایجاد کنید.",
       "customerMarketerHint": "این کارمند اعتبار جذب مشتری را می‌گیرد؛ مسئول تحویل برای هر خدمت جداگانه انتخاب می‌شود.",
+      "serviceMarketer": "بازاریاب جذب",
+      "serviceMarketerOptional": "بازاریاب جذب (اختیاری)",
+      "serviceMarketerHint": "هنگام افزودن خدمت، به‌صورت پیش‌فرض بازاریاب مشتری استفاده می‌شود.",
       "paymentCurrencyBookingRate": "واحد پول هنگام ثبت · نرخ {rate}",
       "commissionHeaders": { "date": "تاریخ", "type": "نوع", "employee": "کارمند", "invoice": "فاکتور", "service": "خدمت", "eligibleRevenue": "درآمد قابل کمیسیون", "rate": "نرخ", "commission": "کمیسیون", "status": "وضعیت", "settlement": "تسویه", "period": "دوره", "amount": "مبلغ", "paymentDate": "تاریخ پرداخت", "actions": "اقدامات" },
       "commissionRoles": { "title": "حق‌العمل برای", "delivery": "ارائهٔ خدمت", "marketing": "جذب مشتری", "adjustment": "تعدیل" },
@@ -559,6 +562,13 @@
     }
   },
   "pages": {
+    "companies": {
+      "title": "شرکت‌ها", "description": "طرف‌های مقابل، جزئیات آن‌ها و توافق‌نامه‌های مرتبط را مدیریت کنید.", "search": "جستجوی شرکت‌ها", "addCompany": "افزودن شرکت", "editCompany": "ویرایش شرکت", "deleteCompany": "حذف شرکت", "createContract": "ایجاد قرارداد",
+      "legalName": "نام حقوقی", "legalNameRequired": "نام حقوقی *", "legalNameRequiredMessage": "نام حقوقی الزامی است", "tradeName": "نام تجاری", "registrationNumber": "شماره ثبت", "taxNumber": "شماره مالیاتی", "nationalId": "شناسه ملی", "legalForm": "نوع حقوقی (LLC، Ltd…)", "city": "شهر", "representative": "نماینده", "number": "شماره", "company": "شرکت",
+      "identity": "هویت", "contactAndAddress": "تماس و آدرس", "businessInformation": "اطلاعات کسب‌وکار", "authorizedRepresentative": "نماینده مجاز", "email": "ایمیل", "phone": "تلفن", "website": "وب‌سایت", "addressLine": "نشانی", "province": "ولایت", "postalCode": "کد پستی", "country": "کشور", "industry": "صنعت", "formDescription": "توضیحات", "name": "نام", "representativeTitle": "عنوان",
+      "loading": "در حال بارگذاری شرکت‌ها…", "empty": "هنوز شرکتی وجود ندارد — نخستین طرف مقابل را اضافه کنید.", "contractsTitle": "قراردادهای شرکت‌ها", "contractsDescription": "قراردادهای صادرشده با قالب‌های نوع شرکت", "newContract": "قرارداد جدید شرکت", "loadingContracts": "در حال بارگذاری قراردادهای شرکت‌ها…", "emptyContracts": "هنوز قرارداد شرکتی وجود ندارد — از ردیف یک شرکت در بالا ایجاد کنید.", "untitledContract": "قرارداد بدون عنوان", "printContract": "چاپ قرارداد", "editContract": "ویرایش قرارداد", "createCompanyContract": "ایجاد قرارداد شرکت", "editCompanyContract": "ویرایش قرارداد شرکت",
+      "notAvailable": "—", "saveChanges": "ذخیره تغییرات", "failedToLoad": "بارگذاری شرکت‌ها ناکام ماند.", "created": "شرکت ایجاد شد.", "updated": "شرکت به‌روزرسانی شد.", "deleted": "شرکت حذف شد.", "failedToSave": "ذخیره شرکت ناکام ماند.", "deactivatedInsteadOfDeleted": "این شرکت در قراردادها استفاده شده و به جای حذف، غیرفعال شد.", "contractCompanyNotFound": "شرکت مربوط به این قرارداد یافت نشد.", "contractCreated": "قرارداد شرکت ایجاد شد.", "contractUpdated": "قرارداد شرکت به‌روزرسانی شد.", "failedToSaveContract": "ذخیره قرارداد شرکت ناکام ماند.", "deleteConfirmation": "{company} حذف شود؟ شرکت‌های استفاده‌شده در قراردادها برای حفظ اسناد تاریخی غیرفعال می‌شوند."
+    },
     "paymentDetails": {
       "title": "جزئیات پرداخت",
       "subtitle": "روش‌های پرداخت و دستورالعمل‌های قابل استفادهٔ مجدد برای فاکتورها را مدیریت کنید.",
@@ -862,6 +872,16 @@
       "policies": {
         "policies": {
           "policyLibrary": {
+            "pageTitle": "کتابخانه پالیسی",
+            "pageDescription": "بندهای قابل استفاده مجدد قرارداد را برای هر توافق منظم و آماده نگه دارید.",
+            "formSubtitle": "یک بند قابل استفاده مجدد با فیلدهایی بنویسید که در زمینه درست قرارداد تکمیل می‌شوند.",
+            "studioLabel": "ویرایشگر بند",
+            "labelPlaceholder": "مثلاً محرمانگی",
+            "headerPlaceholder": "عنوان اختیاری که بالای بند نمایش داده می‌شود",
+            "contentHint": "فیلدهای پالیسی به رنگ بنفش برجسته شده‌اند.",
+            "context": "زمینه {type}",
+            "footerHint": "برای درج امن جزئیات از منوی فیلد ادغام استفاده کنید.",
+            "types": { "employment": "استخدامی", "company": "شرکت", "customer": "مشتری" },
             "title": "پالیسی‌های قرارداد",
             "subtitle": "بندهای قابل استفاده مجدد برای ساخت قالب‌های قرارداد.",
             "add": "افزودن پالیسی",
@@ -1003,7 +1023,11 @@
               "fontSize": "اندازه قلم",
               "textColor": "رنگ متن",
               "insertPlaceholder": "درج جای‌گیر",
-              "noPlaceholders": "برای این نوع قرارداد جای‌گیری در دسترس نیست"
+              "noPlaceholders": "برای این نوع قرارداد جای‌گیری در دسترس نیست",
+              "placeholderInsertHint": "یک فیلد را در محل نشانگر اضافه کنید؛ مقدار آن هنگام ایجاد قرارداد تکمیل می‌شود.",
+              "searchFields": "جستجوی فیلدها",
+              "placeholderSearchHint": "فیلد مورد نیاز را انتخاب کنید. نشان برجسته هنگام ویرایش دیده می‌شود و در قرارداد نهایی با مقدار واقعی جایگزین می‌گردد.",
+              "noMatchingFields": "فیلد مطابقی یافت نشد"
             },
             "placeholders": {
               "employee": {
@@ -1077,7 +1101,8 @@
                   "phone": "شماره تماس",
                   "address": "نشانی",
                   "website": "وب‌سایت",
-                  "business_licence": "جواز فعالیت"
+                  "business_licence": "جواز فعالیت",
+                  "signatory_name": "امضاکننده مجاز"
                 }
               },
               "contract": {
@@ -1175,7 +1200,16 @@
         "thisIsTheSuggestedSalaryForThePositionEachStaffRecordCanStillHaveItsOw": "این معاش پیشنهادی برای موقف است؛ هر رکورد کارمند هنوز می‌تواند معاش خاص خود را داشته باشد.",
         "deleteConfirmation": "حذف {position}؟ موقف‌های واگذارشده به کارمندان یا کاربران قابل حذف نیستند.",
         "updated": "موقف بروزرسانی شد.",
-        "created": "موقف ایجاد شد."
+        "created": "موقف ایجاد شد.",
+        "assignedPeople": "{staff} کارمند / {users} کاربر",
+        "couldNotLoad": "موقف‌ها بارگذاری نشدند.",
+        "couldNotSave": "موقف ذخیره نشد.",
+        "couldNotDelete": "این موقف قابل حذف نیست.",
+        "currentBaseSalary": "معاش پایهٔ فعلی · {currency}",
+        "legacyCurrencyNotRecorded": "واحد پول قدیمی ثبت نشده است",
+        "editContract": "ویرایش قرارداد",
+        "positionDetails": "جزئیات موقف",
+        "positionDetailsHint": "نقش را واضح تعریف کنید تا در رکوردهای کارمندان به‌گونهٔ یکسان استفاده شود."
       },
       "settings": {
         "settingsSavedSuccessfully": "تنظیمات با موفقیت ذخیره شد",
@@ -1198,7 +1232,7 @@
         "physicalAddress": "آدرس فیزیکی",
         "businessLicence": "جواز تجارت",
         "licenceNumber": "شماره جواز",
-        "paidOffDaysPerYear": "روزهای رخصتی با معاش در سال",
+        "paidLeaveDaysPerYear": "روزهای رخصتی با معاش در سال",
         "officeOpens": "ساعت باز شدن دفتر",
         "officeCloses": "ساعت بسته شدن دفتر",
         "defaultBreakMinutes": "دقایق پیش‌فرض وقفه",
@@ -1226,27 +1260,36 @@
         "minimum10001400Pixels": "حداقل ۱۰۰۰ در ۱۴۰۰ پیکسل",
         "builtInDesignWillBeUsed": "از طراحی داخلی (Built-in) استفاده خواهد شد",
         "assetHint": "{hint} · PNG، JPG، یا WEBP تا ۸ مگابایت",
+        "documentArtworkHint": "یک تصویر واضح از سربرگ یا روی جلد را با هر اندازه مناسب بارگذاری کنید. تصویر برای پیش‌نمایش و چاپ قرارداد به‌صورت متناسب مقیاس می‌شود.",
+        "documentImageHint": "هر اندازه تصویر واضح مناسب است؛ حالت عمودی پیشنهاد می‌شود.",
+        "documentPreviewAlt": "پیش‌نمایش {title}",
+        "printSafeAreaHint": "هر لبه کادر را بکشید تا ناحیه امن چاپ مشخص شود. متن و جزئیات قرارداد در این ناحیه باقی می‌ماند.",
+        "uploadLetterheadHint": "برای تعیین ناحیه امن، یک سربرگ تمام‌صفحه بارگذاری کنید.",
+        "printSafeAreaSampleRtl": "این متن نمونه فارسی در محدوده امن چاپ باقی می‌ماند.",
+        "printSafeAreaSampleLtr": "متن نمونه در محدوده امن چاپ باقی می‌ماند.",
+        "resizePrintSafeArea": "تغییر اندازه ناحیه امن چاپ: {edge}",
+        "edges": { "top": "بالا", "right": "راست", "bottom": "پایین", "left": "چپ" },
         "resetDefaults": "بازنشانی به پیش‌فرض‌ها",
         "saveSettings": "ذخیره تنظیمات",
-        "themeColorsPreviewHint": "Changes preview immediately in the application and are saved only when you select Save changes.",
-        "restoreVuexyDefaults": "Restore Vuexy defaults",
-        "brandColors": "Brand colours",
-        "brandColorsHint": "The colours used for primary and secondary actions.",
-        "feedbackColors": "Feedback colours",
-        "feedbackColorsHint": "Status colours used for successful, informational, warning, and error states.",
-        "lightModeSurfaces": "Light-mode canvas and surfaces",
-        "lightModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in light mode.",
-        "darkModeSurfaces": "Dark-mode canvas and surfaces",
-        "darkModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in dark mode.",
-        "successColor": "Success",
-        "infoColor": "Info",
-        "warningColor": "Warning",
-        "errorColor": "Error",
-        "applicationBackground": "Application background",
-        "cardsAndMenus": "Cards and menus",
-        "live": "Live",
-        "noChangesToSave": "There are no changes to save on this page.",
-        "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings.",
+  "themeColorsPreviewHint": "تغییرات فوراً در برنامه پیش‌نمایش می‌شوند و فقط با انتخاب «ذخیره تغییرات» ذخیره خواهند شد.",
+  "restoreVuexyDefaults": "بازگردانی پیش‌فرض‌های Vuexy",
+  "brandColors": "رنگ‌های برند",
+  "brandColorsHint": "رنگ‌های مورد استفاده برای اقدامات اصلی و فرعی.",
+  "feedbackColors": "رنگ‌های وضعیت",
+  "feedbackColorsHint": "رنگ‌های وضعیت برای حالت‌های موفقیت، اطلاع‌رسانی، هشدار و خطا.",
+  "lightModeSurfaces": "پس‌زمینه و سطوح حالت روشن",
+  "lightModeSurfacesHint": "پس‌زمینه برنامه، کارت‌ها، پنجره‌ها، منوها و پنل‌ها در حالت روشن.",
+  "darkModeSurfaces": "پس‌زمینه و سطوح حالت تیره",
+  "darkModeSurfacesHint": "پس‌زمینه برنامه، کارت‌ها، پنجره‌ها، منوها و پنل‌ها در حالت تیره.",
+  "successColor": "موفقیت",
+  "infoColor": "اطلاعات",
+  "warningColor": "هشدار",
+  "errorColor": "خطا",
+  "applicationBackground": "پس‌زمینه برنامه",
+  "cardsAndMenus": "کارت‌ها و منوها",
+  "live": "زنده",
+  "noChangesToSave": "تغییری برای ذخیره در این صفحه وجود ندارد.",
+  "completeCompanyProfileFirst": "پیش از پیکربندی سایر تنظیمات، نمایه شرکت را تکمیل و ذخیره کنید.",
         "settings": "تنظیمات",
         "manageCompanyPreferences": "تنظیمات شرکت و پیش‌فرض‌های سیستم را مدیریت کنید.",
         "companyPageDescription": "هویت، اطلاعات تماس و برند.",
@@ -1275,8 +1318,13 @@
         "saveChanges": "ذخیره تغییرات"
       },
       "users": {
-        "user": "کاربر",
-        "created": "ایجاد شد",
+          "user": "کاربر",
+          "pageTitle": "کاربران",
+          "pageDescription": "دسترسی‌ها، دعوت‌نامه‌ها و وضعیت فعلی حساب‌های کاربری را مدیریت کنید.",
+          "couldNotLoad": "بارگذاری کاربران ممکن نشد.",
+          "roleOptions": { "super_admin": "مدیر ارشد", "admin": "مدیر", "manager": "مدیر بخش", "staff": "کارمند", "viewer": "بیننده" },
+          "verification": { "invited": "دعوت شده", "verified": "تایید شده", "pending": "در انتظار تایید" },
+          "created": "ایجاد شد",
         "nameEmailAndAtLeastOneRoleAreRequired": "نام، ایمیل و حداقل یک نقش الزامی است",
         "userDeleted": "کاربر حذف شد",
         "searchUsers": "جستجوی کاربران",
@@ -1284,8 +1332,15 @@
         "editUser": "ویرایش کاربر",
         "deleteUser": "حذف کاربر",
         "theUserWillReceiveAVerificationEmailThenCreateTheirOwnPassword": "کاربر یک ایمیل تاییدی دریافت می‌کند، سپس رمز عبور خود را می‌سازد.",
-        "roles": "نقش‌ها",
-        "deleteUser2": "حذف کاربر",
+          "roles": "نقش‌ها",
+          "accountDetails": "جزئیات حساب",
+          "accountDetailsHint": "از اطلاعات تماس استفاده کنید تا همکاران بتوانند این کاربر را شناسایی کرده و با او ارتباط بگیرند.",
+          "saveUser": "ذخیره",
+          "sendInvitation": "ارسال دعوت‌نامه",
+          "editUserDialog": "ویرایش کاربر",
+          "inviteUserDialog": "دعوت کاربر",
+          "deactivatedStatusHint": "برای فعال‌سازی دوباره از عملیات بررسی‌شده در درخواست‌های غیرفعال‌سازی استفاده کنید.",
+          "deleteUser2": "حذف کاربر",
         "deleteConfirmation": "حذف {user}؟ این عمل تنها از طریق دیتابیس قابل بازیابی است.",
         "updated": "کاربر بروزرسانی شد.",
         "invitationSent": "دعوت‌نامه ارسال شد. کاربر پس از تایید ایمیل خود، رمز عبور خواهد ساخت."
@@ -1322,7 +1377,10 @@
           "deleteStaffRecord": "حذف رکورد کارمند",
           "addNewStaff": "افزودن کارمند جدید",
           "editStaff": "ویرایش کارمند",
-          "paidOffDays": "روزهای رخصتی با معاش"
+          "paidOffDays": "روزهای رخصتی با معاش",
+          "salaryCannotBeNegative": "معاش نمی‌تواند منفی باشد.",
+          "assignCommissionService": "حداقل یک خدمت و فیصدی کمیسیون تعیین کنید.",
+          "service": "خدمت"
         }
       },
       "apppricing": {
@@ -1364,11 +1422,12 @@
         "notSupported": "خدمات موقعیت‌یابی توسط این مرورگر پشتیبانی نمی‌شود.",
         "locationFailed": "موقعیت فعلی شما قابل خواندن نیست. اجازه موقعیت‌یابی مرورگر را بررسی کرده و دوباره امتحان کنید."
       },
+    "rolecards": {
       "rolecards": {
-        "rolecards": {
-          "rolesGrantPermissionsPositionsRemainHRJobTitlesChangesTakeEffectWhenAf": "نقش‌ها دسترسی‌ها را اعطا می‌کنند. موقف‌ها به عنوان عناوین وظیفوی منابع بشری باقی می‌مانند. تغییرات پس از اعمال موثر می‌شوند...",
-          "savePermissions": "ذخیره دسترسی‌ها (صلاحیت‌ها)"
-        }
+        "rolesGrantPermissionsPositionsRemainHRJobTitlesChangesTakeEffectWhenAf": "نقش‌ها دسترسی‌ها را اعطا می‌کنند. موقف‌ها به عنوان عناوین وظیفوی منابع بشری باقی می‌مانند. تغییرات پس از اعمال موثر می‌شوند...",
+        "savePermissions": "ذخیره دسترسی‌ها (صلاحیت‌ها)",
+        "totalUsers": "مجموع {count} کاربر", "editRole": "ویرایش نقش", "deleteRole": "حذف نقش", "deleteRoleAria": "حذف {role}", "addNewRole": "افزودن نقش جدید", "addRoleHint": "اگر نقش وجود ندارد، آن را اضافه کنید", "createRole": "ایجاد نقش", "roleName": "نام نقش", "roleNamePlaceholder": "مثلاً ویرایشگر، مدیر مالی", "roleNameRequired": "نام نقش الزامی است.", "superAdminLocked": "دسترسی‌های مدیر ارشد قابل تغییر نیست", "rolePermissions": "دسترسی‌های نقش", "permissionsHint": "دسترسی‌ها را بر اساس دسته جستجو و مدیریت کنید. دسترسی‌های تکی یا همه دسته را تغییر دهید.", "selectedCount": "{selected} از {total} انتخاب شده", "searchPermissions": "جستجوی دسترسی‌ها (مثلاً خروجی، مشاهده کاربران)", "permissionCount": "{count} دسترسی", "filtered": "فیلتر شده", "selectAllFiltered": "انتخاب همه فیلترشده‌ها", "selectAll": "انتخاب همه", "deselectAll": "لغو انتخاب همه", "noPermissionsFound": "دسترسی یافت نشد", "tryDifferentPermission": "دسترسی دیگری را جستجو کنید.", "noResultsFor": "نتیجه‌ای برای «{query}» یافت نشد", "clearSearch": "پاک کردن جستجو", "searchTip": "نکته: با جستجو دسترسی‌هایی مانند «خروجی» را در همه دسته‌ها سریع پیدا کنید.", "saveChanges": "ذخیره تغییرات", "deleteConfirmation": "{role} حذف شود؟ دسترسی‌های آن حذف می‌شود.", "roleUpdated": "نقش با موفقیت به‌روزرسانی شد.", "roleCreated": "نقش با موفقیت ایجاد شد.", "roleDeleted": "نقش با موفقیت حذف شد.", "unableToLoad": "بارگذاری نقش‌ها و دسترسی‌ها ممکن نشد.", "unableToSave": "ذخیره نقش ممکن نشد.", "unableToDelete": "حذف نقش ممکن نشد."
+      }
       }
     },
     "users": {
@@ -1416,8 +1475,8 @@
         },
         "unmarkedFor": "ثبت‌نشده برای {date}",
         "steps": {
-          "logAttendance": "۱. ثبت حاضری",
-          "printRangeFilter": "۲. چاپ بر اساس فیلتر محدوده"
+        "logAttendance": "ثبت حاضری",
+        "printRangeFilter": "چاپ بر اساس فیلتر محدوده"
         },
         "filteredRange": "نمای فیلترشده: {start} تا {end}"
       }
@@ -1600,8 +1659,15 @@
           "untitledContract": "قرارداد بدون عنوان",
           "unknownCounterparty": "طرف قرارداد ناشناخته",
           "loadingContracts": "در حال بارگذاری قراردادها...",
+          "customerContracts": "قراردادهای مشتریان",
+          "customerContractsDescription": "توافق‌نامه‌های مشتریان را مدیریت کرده و وضعیت آن‌ها را پیگیری کنید.",
           "employeeContractsReport": "گزارش قراردادهای کارمندان",
+          "employeeContracts": "قراردادهای کارمندان",
+          "employeeContractsDescription": "توافق‌نامه‌های استخدامی را مدیریت کرده و وضعیت آن‌ها را پیگیری کنید.",
           "customerContractsReport": "گزارش قراردادهای مشتریان",
+          "companyContracts": "قراردادهای شرکت‌ها",
+          "companyContractsDescription": "توافق‌نامه‌های شرکت‌های دیگر را مدیریت کرده و وضعیت آن‌ها را پیگیری کنید.",
+          "companyContractsReport": "گزارش قراردادهای شرکت‌ها",
           "filteredContractRecords": "رکوردهای قرارداد فیلترشده",
           "addNewContract": "افزودن قرارداد جدید",
           "noActiveEmploymentContractFound": "برای این کارمند قرارداد استخدامی فعال یافت نشد.",
@@ -1708,8 +1774,12 @@
           "serviceDeletedSuccessfully": "خدمت با موفقیت حذف شد",
           "failedToDeleteService": "حذف خدمت ناکام ماند",
           "searchService": "جستجوی خدمت",
-          "addService": "افزودن خدمت",
-          "eGWebsiteMaintenance": "به عنوان مثال نگهداری وب‌سایت",
+            "addService": "افزودن خدمت",
+            "addNewService": "افزودن خدمت جدید",
+            "editService": "ویرایش خدمت",
+            "serviceDefinition": "تعریف خدمت",
+            "serviceDefinitionHint": "فیس و مدتی تعیین کنید که این خدمت برای استفاده دوباره در قرارداد آماده باشد.",
+            "eGWebsiteMaintenance": "به عنوان مثال نگهداری وب‌سایت",
           "durationMonths": "مدت (ماه‌ها)"
         },
         "durationMonthsValue": "{count} ماه | {count} ماه"
@@ -1886,7 +1956,17 @@
           "customerTypeQuantityCurrencyAndExchangeRateComeFromTheInvoiceEnterOnly": "مشتری، نوع، تعداد و ارز از فاکتور می‌آیند. مبلغ دریافتی، نرخ اسعار، تاریخ و یادداشت پرداخت (اختیاری) را وارد کنید.",
           "editIncome": "ویرایش درآمد",
           "updateReceiptDetailsOrItsInvoiceAllocation": "بروزرسانی جزئیات رسید یا تخصیص فاکتور آن.",
-          "customerTypeQuantityCurrencyAndExchangeRateAreControlledByTheLinkedInv": "مشتری، نوع، تعداد و ارز توسط فاکتور لینک‌شده کنترل می‌شوند. نرخ اسعار برای این رسید قابل ویرایش است."
+          "customerTypeQuantityCurrencyAndExchangeRateAreControlledByTheLinkedInv": "مشتری، نوع، تعداد و ارز توسط فاکتور لینک‌شده کنترل می‌شوند. نرخ اسعار برای این رسید قابل ویرایش است.",
+          "smallBalanceCanMarkPaid": "یک مبلغ اندک باقی مانده است. می‌توانید این فاکتور را پرداخت‌شده ببندید.",
+          "markPaidThresholdHint": "گزینهٔ پرداخت‌شده‌کردن پس از پرداخت، زمانی فعال می‌شود که باقیمانده کمتر از ۵٪ مجموع فاکتور باشد.",
+          "markPaid": "پرداخت‌شده علامت بزنید",
+          "earnedCommission": "کسب‌شده",
+          "invoicePaymentContext": "جزئیات پرداخت فاکتور",
+          "invoiceTotal": "مجموع فاکتور",
+          "issuedOn": "صدور: {date}",
+          "dueOn": "سررسید: {date}",
+          "includedServices": "خدمات شامل",
+          "additionalServices": "+{count} مورد دیگر"
         }
       },
       "currencies": {
@@ -1917,7 +1997,11 @@
           "decimalPrecision": "دقت اعشار",
           "setAsPrimaryBase": "تنظیم به عنوان پایه اصلی",
           "activeStatus": "وضعیت فعال",
-          "deleteCurrency": "حذف واحد پول"
+        "deleteCurrency": "حذف واحد پول",
+        "changeBaseCurrencyTitle": "ارز پایه تغییر شود؟",
+        "changeBaseCurrencyWarning": "مجموع داشبورد و گزارش‌ها با {currency} نمایش داده خواهد شد.",
+        "changeBaseCurrencyHint": "این کار ارز پایهٔ برنامه را تغییر می‌دهد.",
+        "confirmSetAsBaseCurrency": "تنظیم به‌عنوان ارز پایه"
         },
         "rateToBase": "نرخ به پایه ({currency})",
         "baseRate": "۱.۰۰۰۰ (پایه)",
@@ -2588,6 +2672,15 @@
     }
   },
   "components": {
+    "contractCounterpartyCard": {
+      "title": "جانب مقابل",
+      "selectedRecordHint": "اطلاعات از {type} انتخاب‌شده — فقط برای مشاهده",
+      "record": "رکورد",
+      "types": { "employee": "کارمند", "customer": "مشتری", "company": "شرکت تجارتی" },
+      "registrationNumber": "شماره ثبت", "taxNumber": "شماره مالیاتی", "phone": "شماره تماس", "email": "ایمیل", "address": "نشانی",
+      "representative": "نماینده",
+      "empty": "برای دیدن جزئیات، یک قالب و جانب مقابل را انتخاب کنید."
+    },
     "fullDetails": {
       "fieldAliases": { "availablequantity": "مقدار موجود", "allocatedquantity": "مقدار تخصیص‌یافته" },
       "eyebrow": "{kind} · {count} جزئیات مفید", "recordFallback": "رکورد {id}", "footer": "جزئیات کاربردی نمایش داده می‌شوند؛ شناسه‌های داخلی دیتابیس پنهان هستند.",
@@ -2731,6 +2824,14 @@
         },
         "policyLibrary": {
           "title": "کتابخانه پالیسی",
+          "formSubtitle": "یک بند قابل استفاده مجدد با فیلدهایی بنویسید که در زمینه درست قرارداد تکمیل می‌شوند.",
+          "studioLabel": "ویرایشگر بند",
+          "labelPlaceholder": "مثلاً محرمانگی",
+          "headerPlaceholder": "عنوان اختیاری که بالای بند نمایش داده می‌شود",
+          "contentHint": "فیلدهای پالیسی به رنگ بنفش برجسته شده‌اند.",
+          "context": "زمینه {type}",
+          "footerHint": "برای درج امن جزئیات از منوی فیلد ادغام استفاده کنید.",
+          "types": { "employment": "استخدامی", "company": "شرکت", "customer": "مشتری" },
           "description": "بندهای قابل استفاده مجدد قرارداد را برای هر توافق منظم و آماده نگه دارید."
         }
       }
@@ -2792,7 +2893,12 @@
         "projectName": "نام پروژه",
         "targetDate": "تاریخ هدف",
         "linkedServices": "خدمات مرتبط",
-        "selectProjectWorkspace": "انتخاب فضای کاری پروژه"
+        "selectProjectWorkspace": "انتخاب فضای کاری پروژه",
+        "customer": "مشتری",
+        "customerHint": "مشتری‌ای را انتخاب کنید که این پروژه خدمات خریداری‌شده او را ارائه می‌کند.",
+        "projectServices": "خدمات شامل این پروژه",
+        "projectServicesHint": "یک یا چند خدمت خریداری‌شده را انتخاب کنید. فقط همین خدمات به پروژه پیوند داده می‌شوند.",
+        "projectServicesEmpty": "برای انتخاب خدمات تحت پوشش پروژه، یک مشتری انتخاب کنید."
       },
       "projectPortfolio": { "tab": "پروژه‌ها", "title": "سبد پروژه‌ها", "subtitle": "مالکیت مشتری، خدمات انتخاب‌شده، زمان‌بندی و حجم کار در یک نما.", "total": "مجموع پروژه‌ها", "active": "تحویل فعال", "attention": "نیازمند توجه", "openWorkspace": "باز کردن فضای کاری", "headers": { "project": "پروژه", "customer": "مشتری", "services": "خدمات", "tasks": "وظایف", "due": "موعد", "status": "وضعیت" }, "statuses": { "active": "فعال", "on_hold": "متوقف", "completed": "تکمیل‌شده", "archived": "بایگانی" } },
       "calendarview": {
@@ -3070,6 +3176,7 @@
         "home": "صفحه اصلی",
         "reports": "گزارش‌ها",
         "tasks": "وظایف",
+        "projects": "پروژه‌ها",
         "humanResources": "منابع بشری",
         "staffSalary": "معاش کارمندان",
         "bonusList": "لیست پاداش‌ها",
@@ -3316,7 +3423,14 @@
     "timesheet": {
       "overtimeInline": " · اضافه‌کاری {duration}",
       "totals": "مجموع کارکرد: {worked} · اضافه‌کاری: {overtime}",
-      "generatedOn": "ایجادشده در {date}"
+      "generatedOn": "ایجادشده در {date}",
+      "legend": "راهنمای وضعیت حاضری",
+      "statuses": {
+        "present": "حاضر",
+        "absent": "غایب",
+        "paid-leave": "رخصتی با معاش",
+        "unpaid-leave": "رخصتی بدون معاش"
+      }
     },
     "contract_cover_template": {
       "contractCoverTemplate": {
@@ -3746,5 +3860,6 @@
         "completed": "تکمیل شد"
       }
     }
-  }
+  },
+  "outsourcing": { "nav": "برون‌سپاری", "title": "دفتر برون‌سپاری", "subtitle": "درآمد شرکت‌های همکار از پرداخت‌های دریافت‌شده را بررسی، تسویه و پرداخت آن را ثبت کنید.", "company": "شرکت برون‌سپاری", "rate": "درصد برون‌سپاری", "newSettlement": "تسویه جدید", "addAdjustment": "افزودن تعدیل", "settlementStatus": "وضعیت تسویه", "refresh": "تازه‌سازی", "accruals": "تعلقات", "settlements": "تسویه‌ها", "pendingPayable": "{count} مورد در انتظار پرداخت", "date": "تاریخ", "service": "خدمت", "invoice": "فاکتور", "eligibleRevenue": "درآمد قابل محاسبه", "amount": "مبلغ", "status": "وضعیت", "settlement": "تسویه", "period": "دوره", "paymentDate": "تاریخ پرداخت", "actions": "اقدامات", "createSettlement": "ایجاد تسویه برون‌سپاری", "accrualCurrency": "واحد پول تعلق", "periodStart": "شروع دوره", "periodEnd": "پایان دوره", "notes": "یادداشت‌ها", "selectAccruals": "انتخاب تعلقات", "selectAll": "انتخاب همه", "clearSelection": "پاک کردن", "settlementPreview": "{count} مورد انتخاب شده · {amount} برای پرداخت", "noMatchingAccruals": "تعلق در انتظار مطابق با شرکت، واحد پول و دوره انتخابی نیست.", "createDraft": "ایجاد پیش‌نویس", "approve": "تأیید", "pay": "پرداخت", "cancel": "لغو", "paySettlement": "پرداخت تسویه برون‌سپاری", "paymentWarning": "پرداخت، هزینهٔ محافظت‌شدهٔ خدمات برون‌سپاری ایجاد می‌کند و تعلقات شامل‌شده را نهایی می‌سازد.", "recordPayment": "ثبت پرداخت", "adjustmentWarning": "برای بازیابی یا اصلاح، مبلغ منفی و برای مبلغ دستی تأییدشده، مبلغ مثبت وارد کنید. دلیل در دفتر حسابرسی حفظ می‌شود.", "currency": "واحد پول", "effectiveDate": "تاریخ مؤثر", "signedAmount": "مبلغ با علامت", "signedAmountHint": "منفی برای بازیابی؛ مثبت برای مبلغ اضافی", "reason": "دلیل", "addToLedger": "افزودن به دفتر", "manualAdjustment": "تعدیل دستی", "loadFailed": "بارگذاری سوابق برون‌سپاری ممکن نشد.", "settlementCreated": "تسویه برون‌سپاری ایجاد شد.", "settlementCreateFailed": "ایجاد تسویه برون‌سپاری ممکن نشد.", "adjustmentAdded": "تعدیل برون‌سپاری به دفتر در انتظار افزوده شد.", "adjustmentCreateFailed": "ایجاد تعدیل ممکن نشد.", "approvedSuccess": "{number} تأیید شد.", "approveFailed": "تأیید تسویه ممکن نشد.", "paidSuccess": "{number} پرداخت و به هزینه‌ها ثبت شد.", "payFailed": "پرداخت تسویه ممکن نشد.", "cancelledSuccess": "{number} لغو شد؛ تعلقات آن دوباره در انتظار است.", "cancelFailed": "لغو تسویه ممکن نشد.", "statuses": { "pending": "در انتظار", "draft": "پیش‌نویس", "approved": "تأییدشده", "paid": "پرداخت‌شده", "cancelled": "لغوشده", "void": "باطل" } }
 }

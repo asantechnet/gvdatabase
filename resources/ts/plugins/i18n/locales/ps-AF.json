@@ -18,6 +18,15 @@
     }
   },
   "components": {
+    "contractCounterpartyCard": {
+      "title": "مقابل لوری",
+      "selectedRecordHint": "د ټاکل شوي {type} معلومات — دلته یوازې د لیدلو لپاره",
+      "record": "ریکارډ",
+      "types": { "employee": "کارکوونکی", "customer": "پېرودونکی", "company": "سوداګریز شرکت" },
+      "registrationNumber": "د ثبت شمېره", "taxNumber": "د مالیې شمېره", "phone": "تلیفون", "email": "برېښنالیک", "address": "پته",
+      "representative": "استازی",
+      "empty": "د جزئیاتو د لیدلو لپاره یو ټیمپلیټ او مقابل لوری وټاکئ."
+    },
     "fullDetails": {
       "fieldAliases": { "availablequantity": "شته شمېر", "allocatedquantity": "تخصیص شوی شمېر" },
       "eyebrow": "{kind} · {count} ګټور جزیات", "recordFallback": "ریکارډ {id}", "footer": "د کاروونکي لپاره ګټور جزیات ښودل کېږي؛ د ډیټابېس داخلي پېژندونه پټه ده.",
@@ -157,7 +166,12 @@
         "projectName": "د پروژې نوم",
         "targetDate": "موخه نېټه",
         "linkedServices": "تړلي خدمتونه",
-        "selectProjectWorkspace": "د پروژې کاري فضا وټاکئ"
+        "selectProjectWorkspace": "د پروژې کاري فضا وټاکئ",
+        "customer": "پېرودونکی",
+        "customerHint": "هغه پېرودونکی وټاکئ چې دا پروژه به یې پېرودل شوي خدمتونه وړاندې کوي.",
+        "projectServices": "په دې پروژه کې شامل خدمتونه",
+        "projectServicesHint": "یو یا ډېر پېرودل شوي خدمتونه وټاکئ. یوازې همدا خدمتونه به له پروژې سره وتړل شي.",
+        "projectServicesEmpty": "د پروژې د پوښښ خدمتونو د ټاکلو لپاره یو پېرودونکی وټاکئ."
       },
       "projectPortfolio": { "tab": "پروژې", "title": "د پروژو ټولګه", "subtitle": "د پېرودونکي مسئولیت، ټاکل شوي خدمتونه، مهالویش او کاري بار په یوه لید کې.", "total": "ټولې پروژې", "active": "فعاله سپارنه", "attention": "پاملرنې ته اړتیا", "openWorkspace": "کاري ځای پرانیزئ", "headers": { "project": "پروژه", "customer": "پېرودونکی", "services": "خدمتونه", "tasks": "دندې", "due": "موعد", "status": "حالت" }, "statuses": { "active": "فعال", "on_hold": "ځنډول شوې", "completed": "بشپړه", "archived": "ارشیف" } },
       "kanbanview": {
@@ -645,6 +659,9 @@
       "customerMarketerAutomatic": "ستاسې د بازارموندنې تړاو په اتومات ډول پلي کېږي.",
       "customerMarketerEmpty": "د ټاکلو لپاره د بازارموندونکي دندې یو کارکوونکی جوړ کړئ.",
       "customerMarketerHint": "دې کارکوونکي ته د پېرودونکي د جذب اعتبار ورکول کېږي؛ د سپارنې مسئول د هر خدمت لپاره جلا ټاکل کېږي.",
+      "serviceMarketer": "د جذب بازارموندونکی",
+      "serviceMarketerOptional": "د جذب بازارموندونکی (اختیاري)",
+      "serviceMarketerHint": "کله چې خدمت ورزیاتېږي، د پېرودونکي بازارموندونکی په اتومات ډول کارول کېږي.",
       "paymentCurrencyBookingRate": "د ثبت پر مهال پیسه · کچه {rate}",
       "commissionHeaders": { "date": "نېټه", "type": "ډول", "employee": "کارکوونکی", "invoice": "بل", "service": "خدمت", "eligibleRevenue": "وړ عاید", "rate": "کچه", "commission": "کمېسیون", "status": "حالت", "settlement": "تصفیه", "period": "دوره", "amount": "مبلغ", "paymentDate": "د تادیې نېټه", "actions": "کړنې" },
       "commissionRoles": { "title": "کمېسیون د", "delivery": "د خدمت سپارل", "marketing": "د پېرودونکي جذب", "adjustment": "سمون" },
@@ -671,6 +688,13 @@
     }
   },
   "pages": {
+    "companies": {
+      "title": "شرکتونه", "description": "مقابل لوري، د هغوی معلومات او تړلي تړونونه اداره کړئ.", "search": "شرکتونه وپلټئ", "addCompany": "شرکت زیات کړئ", "editCompany": "شرکت بدل کړئ", "deleteCompany": "شرکت حذف کړئ", "createContract": "قرارداد جوړ کړئ",
+      "legalName": "قانوني نوم", "legalNameRequired": "قانوني نوم *", "legalNameRequiredMessage": "قانوني نوم اړین دی", "tradeName": "تجارتي نوم", "registrationNumber": "د ثبت شمېره", "taxNumber": "د مالیې شمېره", "nationalId": "ملي پېژند", "legalForm": "قانوني بڼه (LLC، Ltd…)", "city": "ښار", "representative": "استازی", "number": "شمېره", "company": "شرکت",
+      "identity": "پېژندنه", "contactAndAddress": "اړیکه او پته", "businessInformation": "سوداګریز معلومات", "authorizedRepresentative": "با صلاحیته استازی", "email": "برېښنالیک", "phone": "تلیفون", "website": "وېب‌پاڼه", "addressLine": "د پته کرښه", "province": "ولایت", "postalCode": "پوستي کوډ", "country": "هېواد", "industry": "صنعت", "formDescription": "تشریح", "name": "نوم", "representativeTitle": "عنوان",
+      "loading": "شرکتونه پورته کېږي…", "empty": "لا تر اوسه شرکت نشته — خپل لومړی مقابل لوری زیات کړئ.", "contractsTitle": "د شرکتونو قراردادونه", "contractsDescription": "د شرکت-ډول بڼو پر بنسټ صادر شوي قراردادونه", "newContract": "د شرکت نوی قرارداد", "loadingContracts": "د شرکتونو قراردادونه پورته کېږي…", "emptyContracts": "لا تر اوسه د شرکت قرارداد نشته — له پورته شرکت ردیف څخه یې جوړ کړئ.", "untitledContract": "ناټاکل شوی قرارداد", "printContract": "قرارداد چاپ کړئ", "editContract": "قرارداد بدل کړئ", "createCompanyContract": "د شرکت قرارداد جوړ کړئ", "editCompanyContract": "د شرکت قرارداد بدل کړئ",
+      "notAvailable": "—", "saveChanges": "بدلونونه خوندي کړئ", "failedToLoad": "شرکتونه پورته نه شول.", "created": "شرکت جوړ شو.", "updated": "شرکت تازه شو.", "deleted": "شرکت حذف شو.", "failedToSave": "شرکت خوندي نه شو.", "deactivatedInsteadOfDeleted": "دا شرکت په قراردادونو کې کارول شوی؛ د حذف پر ځای غیرفعال شو.", "contractCompanyNotFound": "د دې قرارداد شرکت ونه موندل شو.", "contractCreated": "د شرکت قرارداد جوړ شو.", "contractUpdated": "د شرکت قرارداد تازه شو.", "failedToSaveContract": "د شرکت قرارداد خوندي نه شو.", "deleteConfirmation": "{company} حذف کړئ؟ په موجوده قراردادونو کې کارول شوي شرکتونه د تاریخي سندونو د ساتنې لپاره غیرفعال کېږي."
+    },
     "paymentDetails": {
       "title": "د تادیې جزئیات",
       "subtitle": "د بلونو لپاره بیا کارېدونکي د تادیې لارې او لارښوونې اداره کړئ.",
@@ -817,6 +841,16 @@
       "policies": {
         "policies": {
           "policyLibrary": {
+            "pageTitle": "د پالیسۍ کتابتون",
+            "pageDescription": "د هر تړون لپاره د بیا کارېدونکو قرارداد بندونه منظم او چمتو وساتئ.",
+            "formSubtitle": "د هغو برخو سره د بیا کارېدونکې مادې لیکل چې د قرارداد په سمه زمینه کې بشپړېږي.",
+            "studioLabel": "د مادې سمونګر",
+            "labelPlaceholder": "لکه: محرمیت",
+            "headerPlaceholder": "اختیاري سرلیک چې د مادې له پاسه ښکاري",
+            "contentHint": "د پالیسۍ برخې په بنفشي رنګ روښانه شوې دي.",
+            "context": "د {type} زمینه",
+            "footerHint": "د جزئیاتو د خوندي درج لپاره د merge-field له مېنو څخه کار واخلئ.",
+            "types": { "employment": "استخدام", "company": "شرکت", "customer": "پېرودونکی" },
             "title": "د قرارداد پالیسۍ",
             "subtitle": "د قرارداد د قالبونو جوړولو لپاره د بیا کارېدونکو مادو ټولګه.",
             "add": "پالیسي زیاتول",
@@ -958,7 +992,11 @@
               "fontSize": "د لیکنې اندازه",
               "textColor": "د متن رنګ",
               "insertPlaceholder": "ځای‌نیونکی ورزیات کړئ",
-              "noPlaceholders": "د دې قرارداد ډول لپاره ځای‌نیونکی نشته"
+              "noPlaceholders": "د دې قرارداد ډول لپاره ځای‌نیونکی نشته",
+              "placeholderInsertHint": "په ځری کې یوه برخه ورزیاته کړئ؛ ارزښت یې د قرارداد د جوړېدو پر مهال ډکېږي.",
+              "searchFields": "برخې ولټوئ",
+              "placeholderSearchHint": "هغه برخه وټاکئ چې ورته اړتیا لرئ. روښانه نښه د سمون پر مهال ښکاره پاتې کېږي او په وروستي قرارداد کې له اصلي ارزښت سره بدلېږي.",
+              "noMatchingFields": "ورته برخه ونه موندل شوه"
             },
             "placeholders": {
               "employee": {
@@ -1032,7 +1070,8 @@
                   "phone": "د ټیلیفون شمېره",
                   "address": "پته",
                   "website": "وېب‌پاڼه",
-                  "business_licence": "د فعالیت جواز"
+                  "business_licence": "د فعالیت جواز",
+                  "signatory_name": "با صلاحیته لاسلیک کوونکی"
                 }
               },
               "contract": {
@@ -1130,7 +1169,16 @@
         "thisIsTheSuggestedSalaryForThePositionEachStaffRecordCanStillHaveItsOw": "دا د دې موقف لپاره وړاندیز شوی معاش دی؛ هر کارمند بیا هم کولی شي خپل ځانګړی معاش ولري.",
         "deleteConfirmation": "{position} حذف کړئ؟ هغه موقفونه چې کارمندانو یا کاروونکو ته ورکړل شوي وي نشي حذف کېدلی.",
         "updated": "موقف نوی شو.",
-        "created": "موقف جوړ شو."
+        "created": "موقف جوړ شو.",
+        "assignedPeople": "{staff} کارکوونکي / {users} کاروونکي",
+        "couldNotLoad": "موقفونه پورته نشول.",
+        "couldNotSave": "موقف خوندي نشو.",
+        "couldNotDelete": "دا موقف نشي حذف کېدلی.",
+        "currentBaseSalary": "اوسنی بنسټیز معاش · {currency}",
+        "legacyCurrencyNotRecorded": "پخوانۍ کرنسي ثبت شوې نه ده",
+        "editContract": "قرارداد بدل کړئ",
+        "positionDetails": "د موقف جزیات",
+        "positionDetailsHint": "رول په څرګند ډول تعریف کړئ، ترڅو د کارکوونکو په ریکارډونو کې یو شان وکارول شي."
       },
       "settings": {
         "settingsSavedSuccessfully": "تنظیمات په بریالیتوب سره خوندي شول",
@@ -1153,7 +1201,7 @@
         "physicalAddress": "فزیکي پته",
         "businessLicence": "د سوداګرۍ جواز (لایسنس)",
         "licenceNumber": "د جواز شمېره",
-        "paidOffDaysPerYear": "په کال کې با معاشه رخصتۍ",
+        "paidLeaveDaysPerYear": "په کال کې با معاشه رخصتۍ",
         "officeOpens": "دفتر خلاصیږي",
         "officeCloses": "دفتر تړل کیږي",
         "defaultBreakMinutes": "د دمې (تفرېح) دقیقې",
@@ -1181,27 +1229,36 @@
         "minimum10001400Pixels": "لږترلږه 1000x1400 پکسله",
         "builtInDesignWillBeUsed": "په سیستم کې شتون لرونکی ډیزاین به وکارول شي",
         "assetHint": "{hint} · تر ۸ مېګابایټ پورې PNG, JPG, یا WEBP فایل",
+        "documentArtworkHint": "د لیک سرلیک یا پوښ روښانه انځور په هر مناسب اندازه اپلوډ کړئ. انځور به د قرارداد د مخکتنې او چاپ لپاره په متناسب ډول اندازه شي.",
+        "documentImageHint": "هره روښانه د انځور اندازه مناسبه ده؛ عمودي بڼه سپارښتنه کېږي.",
+        "documentPreviewAlt": "د {title} مخکتنه",
+        "printSafeAreaHint": "د چاپ خوندي ساحې د ټاکلو لپاره د بکس هره څنډه راکش کړئ. د قرارداد متن او جزئیات به په دې ساحه کې پاتې شي.",
+        "uploadLetterheadHint": "د خوندي ساحې د ټاکلو لپاره د بشپړې پاڼې لیک سرلیک اپلوډ کړئ.",
+        "printSafeAreaSampleRtl": "دا بېلګه متن د چاپ په خوندي ساحه کې پاتې کېږي.",
+        "printSafeAreaSampleLtr": "د بېلګې متن د چاپ په خوندي ساحه کې پاتې کېږي.",
+        "resizePrintSafeArea": "د چاپ د خوندي ساحې اندازه بدله کړئ: {edge}",
+        "edges": { "top": "پورته", "right": "ښي", "bottom": "لاندې", "left": "کيڼ" },
         "resetDefaults": "بېرته اصلي حالت (ډیفالټ) ته راوستل",
           "saveSettings": "تنظیمات خوندي کړئ",
-          "themeColorsPreviewHint": "Changes preview immediately in the application and are saved only when you select Save changes.",
-          "restoreVuexyDefaults": "Restore Vuexy defaults",
-          "brandColors": "Brand colours",
-          "brandColorsHint": "The colours used for primary and secondary actions.",
-          "feedbackColors": "Feedback colours",
-          "feedbackColorsHint": "Status colours used for successful, informational, warning, and error states.",
-          "lightModeSurfaces": "Light-mode canvas and surfaces",
-          "lightModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in light mode.",
-          "darkModeSurfaces": "Dark-mode canvas and surfaces",
-          "darkModeSurfacesHint": "The application background, cards, dialogs, menus, and panels in dark mode.",
-          "successColor": "Success",
-          "infoColor": "Info",
-          "warningColor": "Warning",
-          "errorColor": "Error",
-          "applicationBackground": "Application background",
-          "cardsAndMenus": "Cards and menus",
-          "live": "Live",
-          "noChangesToSave": "There are no changes to save on this page.",
-          "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings.",
+  "themeColorsPreviewHint": "بدلونونه سمدستي په اپلېکېشن کې ښودل کېږي او یوازې د «بدلونونه خوندي کړئ» په ټاکلو سره خوندي کېږي.",
+  "restoreVuexyDefaults": "د Vuexy اصلي ارزښتونه بېرته راوستل",
+  "brandColors": "د برانډ رنګونه",
+  "brandColorsHint": "هغه رنګونه چې د اصلي او فرعي کړنو لپاره کارېږي.",
+  "feedbackColors": "د حالت رنګونه",
+  "feedbackColorsHint": "د بریا، معلوماتو، خبرداري او تېروتنې حالتونو لپاره کارېدونکي رنګونه.",
+  "lightModeSurfaces": "د روښانه حالت شالید او سطحې",
+  "lightModeSurfacesHint": "په روښانه حالت کې د اپلېکېشن شالید، کارتونه، ډایلاګونه، مېنوګانې او پینلونه.",
+  "darkModeSurfaces": "د تیاره حالت شالید او سطحې",
+  "darkModeSurfacesHint": "په تیاره حالت کې د اپلېکېشن شالید، کارتونه، ډایلاګونه، مېنوګانې او پینلونه.",
+  "successColor": "بریا",
+  "infoColor": "معلومات",
+  "warningColor": "خبرداری",
+  "errorColor": "تېروتنه",
+  "applicationBackground": "د اپلېکېشن شالید",
+  "cardsAndMenus": "کارتونه او مېنوګانې",
+  "live": "ژوندی",
+  "noChangesToSave": "په دې پاڼه کې د خوندي کولو لپاره بدلون نشته.",
+  "completeCompanyProfileFirst": "د نورو امستنو له تنظیمولو مخکې د شرکت پروفایل بشپړ او خوندي کړئ.",
           "settings": "امستنې",
           "manageCompanyPreferences": "د شرکت غوره‌توبونه او د سیسټم اصلي امستنې اداره کړئ.",
           "companyPageDescription": "هویت، د اړیکو معلومات او نښه.",
@@ -1215,8 +1272,13 @@
           "smtpPasswordConfigured": "د SMTP پټنوم ټاکل شوی", "usingDefaultMailConfiguration": "د برېښنالیک اصلي امستنې کارول کېږي", "smtpPasswordSavedHint": "یو پټنوم خوندي شوی. یوازې د بدلولو لپاره نوی ارزښت دننه کړئ.", "smtpPasswordGmailHint": "د Gmail لپاره د ۱۶-توري اپ پټنوم وکاروئ.", "removeSavedSmtpPassword": "خوندي شوی SMTP پټنوم لرې کړئ", "replyToEmail": "د ځواب برېښنالیک (اختیاري)", "encryption": "کوډیزه ساتنه", "tlsRecommended": "TLS (سپارښتنه کېږي)", "resetPage": "پاڼه بېرته وټاکئ", "saveChanges": "بدلونونه خوندي کړئ"
       },
       "users": {
-        "user": "کاروونکی",
-        "created": "جوړ شو",
+          "user": "کاروونکی",
+          "pageTitle": "کاروونکي",
+          "pageDescription": "لاسرسی، بلنې او د کارن حسابونو اوسنی حالت اداره کړئ.",
+          "couldNotLoad": "کاروونکي پورته نه شول.",
+          "roleOptions": { "super_admin": "لوړ مدیر", "admin": "مدیر", "manager": "مسؤول", "staff": "کارکوونکی", "viewer": "کتونکی" },
+          "verification": { "invited": "بلل شوی", "verified": "تایید شوی", "pending": "د تایید په انتظار" },
+          "created": "جوړ شو",
         "nameEmailAndAtLeastOneRoleAreRequired": "نوم، برېښنالیک او لږترلږه یو رول اړین دي",
         "userDeleted": "کاروونکی حذف شو",
         "searchUsers": "کاروونکي وپلټئ",
@@ -1224,8 +1286,15 @@
         "editUser": "کاروونکی بدل کړئ",
         "deleteUser": "کاروونکی حذف کړئ",
         "theUserWillReceiveAVerificationEmailThenCreateTheirOwnPassword": "کاروونکی به د تایید برېښنالیک ترلاسه کړي، بیا به خپل پټنوم جوړ کړي.",
-        "roles": "رولونه (صلاحیتونه)",
-        "deleteUser2": "کاروونکی حذف کړئ",
+          "roles": "رولونه (صلاحیتونه)",
+          "accountDetails": "د حساب معلومات",
+          "accountDetailsHint": "د اړیکو معلومات وکاروئ ترڅو همکاران دا کاروونکی وپېژني او ورسره اړیکه ونیسي.",
+          "saveUser": "خوندي کړئ",
+          "sendInvitation": "بلنه ولېږئ",
+          "editUserDialog": "کاروونکی بدل کړئ",
+          "inviteUserDialog": "کاروونکي ته بلنه ورکړئ",
+          "deactivatedStatusHint": "د بیا فعالولو لپاره د غیرفعالولو غوښتنو کې د پلټل شوې کړنې څخه کار واخلئ.",
+          "deleteUser2": "کاروونکی حذف کړئ",
         "deleteConfirmation": "{user} حذف کړئ؟ دا کړنه یوازې د ډېټابیس له لارې بېرته راګرځېدلی شي.",
         "updated": "کاروونکی نوی شو.",
         "invitationSent": "بلنه ولېږل شوه. کاروونکی به د خپل برېښنالیک تایید وروسته پټنوم جوړ کړي."
@@ -1262,7 +1331,10 @@
           "deleteStaffRecord": "د کارمند ریکارډ حذف کړئ",
           "addNewStaff": "نوی کارمند اضافه کړئ",
           "editStaff": "کارمند بدل کړئ",
-          "paidOffDays": "بامعاشه رخصتۍ"
+          "paidOffDays": "بامعاشه رخصتۍ",
+          "salaryCannotBeNegative": "معاش منفي کېدای نشي.",
+          "assignCommissionService": "لږترلږه یو خدمت او د کمېسیون سلنه وټاکئ.",
+          "service": "خدمت"
         }
       },
       "apppricing": {
@@ -1304,11 +1376,12 @@
         "notSupported": "دا براوزر (Browser) د موقعیت موندلو خدمتونه نه ملاتړ کوي.",
         "locationFailed": "ستاسو اوسنی موقعیت پیدا نشو. د براوزر د موقعیت اجازې وګورئ او بیا هڅه وکړئ."
       },
+    "rolecards": {
       "rolecards": {
-        "rolecards": {
-          "rolesGrantPermissionsPositionsRemainHRJobTitlesChangesTakeEffectWhenAf": "رولونه صلاحیتونه ورکوي، موقفونه د بشري سرچینو کاري عنوانونه پاتې کیږي. بدلونونه د ننوتلو وروسته پلي کیږي.",
-          "savePermissions": "صلاحیتونه خوندي کړئ"
-        }
+        "rolesGrantPermissionsPositionsRemainHRJobTitlesChangesTakeEffectWhenAf": "رولونه صلاحیتونه ورکوي، موقفونه د بشري سرچینو کاري عنوانونه پاتې کیږي. بدلونونه د ننوتلو وروسته پلي کیږي.",
+        "savePermissions": "صلاحیتونه خوندي کړئ",
+        "totalUsers": "ټول {count} کاروونکي", "editRole": "رول بدل کړئ", "deleteRole": "رول حذف کړئ", "deleteRoleAria": "{role} حذف کړئ", "addNewRole": "نوی رول زیات کړئ", "addRoleHint": "که رول نشته، زیات یې کړئ", "createRole": "رول جوړ کړئ", "roleName": "د رول نوم", "roleNamePlaceholder": "لکه: اېډیټر، د حسابونو مدیر", "roleNameRequired": "د رول نوم اړین دی.", "superAdminLocked": "د لوړ مدیر صلاحیتونه نه شي بدلېدلی", "rolePermissions": "د رول صلاحیتونه", "permissionsHint": "صلاحیتونه د کتګورۍ له مخې ولټوئ او اداره یې کړئ. انفرادي صلاحیتونه یا ټولې کتګورۍ بدل کړئ.", "selectedCount": "{selected} / {total} ټاکل شوي", "searchPermissions": "صلاحیتونه ولټوئ (لکه صادرول، د کاروونکو لیدل)", "permissionCount": "{count} صلاحیتونه", "filtered": "فلټر شوي", "selectAllFiltered": "ټول فلټر شوي وټاکئ", "selectAll": "ټول وټاکئ", "deselectAll": "د ټولو ټاکنه لغوه کړئ", "noPermissionsFound": "صلاحیتونه ونه موندل شول", "tryDifferentPermission": "بل صلاحیت ولټوئ.", "noResultsFor": "د «{query}» لپاره پایله نشته", "clearSearch": "لټون پاک کړئ", "searchTip": "لارښوونه: د «صادرولو» په څېر صلاحیتونه په ټولو کتګوریو کې ژر ومومئ.", "saveChanges": "بدلونونه خوندي کړئ", "deleteConfirmation": "{role} حذف کړئ؟ د هغه صلاحیتونه به لرې شي.", "roleUpdated": "رول په بریالیتوب سره بدل شو.", "roleCreated": "رول په بریالیتوب سره جوړ شو.", "roleDeleted": "رول په بریالیتوب سره حذف شو.", "unableToLoad": "رولونه او صلاحیتونه پورته نه شول.", "unableToSave": "رول خوندي نه شو.", "unableToDelete": "رول حذف نه شو."
+      }
       }
     },
     "users": {
@@ -1356,8 +1429,8 @@
         },
         "unmarkedFor": "د {date} لپاره حاضري نده اخیستل شوې",
         "steps": {
-          "logAttendance": "۱. حاضري ثبت کړئ",
-          "printRangeFilter": "۲. د مودې فلټر چاپ کړئ"
+        "logAttendance": "حاضري ثبت کړئ",
+        "printRangeFilter": "د مودې فلټر چاپ کړئ"
         },
         "filteredRange": "فلټر شوې موده: له {start} تر {end}"
       }
@@ -1539,10 +1612,17 @@
           "printA4Document": "د A4 سایز سند چاپ کړئ",
            "untitledContract": "ناټاکل شوی قرارداد",
            "unknownCounterparty": "ناپېژندل شوی مقابل لوری",
-           "loadingContracts": "قراردادونه پورته کېږي...",
-           "employeeContractsReport": "د کارکوونکو قراردادونو راپور",
-           "customerContractsReport": "د پېرودونکو قراردادونو راپور",
-           "filteredContractRecords": "فلټر شوي قرارداد ریکارډونه",
+          "loadingContracts": "قراردادونه پورته کېږي...",
+          "customerContracts": "د پېرودونکو قراردادونه",
+          "customerContractsDescription": "د پېرودونکو تړونونه اداره کړئ او حالت یې وڅارئ.",
+          "employeeContractsReport": "د کارکوونکو قراردادونو راپور",
+          "employeeContracts": "د کارکوونکو قراردادونه",
+          "employeeContractsDescription": "د کارموندنې تړونونه اداره کړئ او حالت یې وڅارئ.",
+          "customerContractsReport": "د پېرودونکو قراردادونو راپور",
+          "companyContracts": "د شرکتونو قراردادونه",
+          "companyContractsDescription": "له نورو شرکتونو سره تړونونه اداره کړئ او حالت یې وڅارئ.",
+          "companyContractsReport": "د شرکتونو قراردادونو راپور",
+          "filteredContractRecords": "فلټر شوي قرارداد ریکارډونه",
            "addNewContract": "نوی قرارداد زیاتول",
            "noActiveEmploymentContractFound": "د دې کارکوونکي لپاره فعال کاري قرارداد ونه موندل شو.",
            "useCustomCoverPageFromSettings": "له امستنو څخه ځانګړې پوښ پاڼه وکاروئ",
@@ -1648,8 +1728,12 @@
           "serviceDeletedSuccessfully": "خدمت په بریالیتوب سره حذف شو",
           "failedToDeleteService": "د خدمت حذف کول ناکام شول",
           "searchService": "خدمت وپلټئ",
-          "addService": "خدمت اضافه کړئ",
-          "eGWebsiteMaintenance": "لکه: د وېبسایټ مراقبت (ساتنه)",
+            "addService": "خدمت اضافه کړئ",
+            "addNewService": "نوی خدمت اضافه کړئ",
+            "editService": "خدمت بدل کړئ",
+            "serviceDefinition": "د خدمت تعریف",
+            "serviceDefinitionHint": "داسې فیس او موده وټاکئ چې دا خدمت په قرارداد کې د بیا کارولو لپاره چمتو وي.",
+            "eGWebsiteMaintenance": "لکه: د وېبسایټ مراقبت (ساتنه)",
           "durationMonths": "موده (په میاشتو)"
         },
         "durationMonthsValue": "{count} میاشت | {count} میاشتې"
@@ -1826,7 +1910,17 @@
           "customerTypeQuantityCurrencyAndExchangeRateComeFromTheInvoiceEnterOnly": "مشتري، ډول، تعداد، پولي واحد او د تبادلې نرخ له انوایس څخه راځي. یوازې ترلاسه شوی مبلغ، نېټه او اختیاري یادښت ولیکئ.",
           "editIncome": "عاید بدل کړئ",
           "updateReceiptDetailsOrItsInvoiceAllocation": "د رسید جزئیات یا د هغې د انوایس تخصیص بدل کړئ.",
-          "customerTypeQuantityCurrencyAndExchangeRateAreControlledByTheLinkedInv": "مشتري، ډول، تعداد، پولي واحد او د تبادلې نرخ د تړل شوي انوایس لخوا کنټرولیږي."
+          "customerTypeQuantityCurrencyAndExchangeRateAreControlledByTheLinkedInv": "مشتري، ډول، تعداد، پولي واحد او د تبادلې نرخ د تړل شوي انوایس لخوا کنټرولیږي.",
+          "smallBalanceCanMarkPaid": "یو لږ پاتې مبلغ شته. کولای شئ دا انوایس ورکړل شوی وتړئ.",
+          "markPaidThresholdHint": "د ورکړل شوي نښه کولو اختیار له تادیې وروسته هغه وخت فعالېږي چې پاتې بیلانس د انوایس د ټول مبلغ له ۵٪ کم وي.",
+          "markPaid": "ورکړل شوی نښه کړئ",
+          "earnedCommission": "ترلاسه شوی",
+          "invoicePaymentContext": "د انوایس د تادیې جزیات",
+          "invoiceTotal": "د انوایس ټول مبلغ",
+          "issuedOn": "صادر شوی: {date}",
+          "dueOn": "د ورکړې وروستۍ نېټه: {date}",
+          "includedServices": "شامل خدمتونه",
+          "additionalServices": "+{count} نور"
         }
       },
       "currencies": {
@@ -1850,7 +1944,11 @@
           "editCurrency": "پولي واحد بدل کړئ",
           "noCurrenciesFoundMatchingYourSearch": "ستاسو د پلټنې سره ورته کوم پولي واحد ونه موندل شو.",
           "loadingCurrencies": "د پولي واحدونو په خلاصولو کې دی...",
-          "currencyName": "د پولي واحد نوم"
+        "currencyName": "د پولي واحد نوم",
+        "changeBaseCurrencyTitle": "اصلي پولي واحد بدل کړئ؟",
+        "changeBaseCurrencyWarning": "د ډشبورډ او راپورونو ټولیز مبلغونه به په {currency} وښودل شي.",
+        "changeBaseCurrencyHint": "دا به د اپلېکېشن اصلي پولي واحد بدل کړي.",
+        "confirmSetAsBaseCurrency": "د اصلي پولي واحد په توګه یې وټاکئ"
         }
       }
     },
@@ -1930,6 +2028,24 @@
       "telephone": "ټیلیفون: {phone}",
       "licence": "جواز: {licence}"
     },
+    "timesheet": {
+      "overtimeInline": " · اضافي کار {duration}",
+      "totals": "ټول کار: {worked} · اضافي کار: {overtime}",
+      "generatedOn": "جوړ شوی: {date}",
+      "legend": "د حاضرۍ لارښود",
+      "statuses": {
+        "present": "حاضر",
+        "absent": "غایب",
+        "paid-leave": "بامعاشه رخصتي",
+        "unpaid-leave": "بې‌معاشه رخصتي"
+      }
+    },
+    "timesheet_template": {
+      "timesheetTemplate": {
+        "printTimesheet": "ټایم‌شیټ چاپ کړئ",
+        "monthlyAttendanceRecord": "د میاشتې د حاضرۍ ریکارډ"
+      }
+    },
     "contract_cover_template": {
       "contractCoverTemplate": {
         "coverPAGE": "د پوښ پاڼه",
@@ -1984,5 +2100,6 @@
       "statuses": { "pending": "په تمه", "notified": "خبرتیا ورکړل شوې", "completed": "بشپړ شوی", "skipped": "پرېښودل شوی" },
       "eventStatuses": { "active": "فعال", "paused": "درول شوی", "completed": "بشپړ شوی" }
     }
-  }
+  },
+  "outsourcing": { "nav": "برون‌سپارنه", "title": "د برون‌سپارنې دفتر", "subtitle": "د ترلاسه شوو پېرودونکو تادیاتو څخه د همکار شرکت عاید وڅارئ، تصفیه او تادیه ثبت کړئ.", "company": "د برون‌سپارنې شرکت", "rate": "د برون‌سپارنې سلنه", "newSettlement": "نوې تصفیه", "addAdjustment": "سمون زیاتول", "settlementStatus": "د تصفیې حالت", "refresh": "تازه کول", "accruals": "مستحقات", "settlements": "تصفیې", "pendingPayable": "{count} د تادیې په تمه موارد", "date": "نېټه", "service": "خدمت", "invoice": "بل", "eligibleRevenue": "وړ عاید", "amount": "مبلغ", "status": "حالت", "settlement": "تصفیه", "period": "موده", "paymentDate": "د تادیې نېټه", "actions": "کړنې", "createSettlement": "د برون‌سپارنې تصفیه جوړول", "accrualCurrency": "د مستحقاتو اسعار", "periodStart": "د مودې پیل", "periodEnd": "د مودې پای", "notes": "یادښتونه", "selectAccruals": "مستحقات وټاکئ", "selectAll": "ټول وټاکئ", "clearSelection": "پاکول", "settlementPreview": "{count} ټاکل شوي موارد · {amount} د تادیې لپاره", "noMatchingAccruals": "د ټاکل شوي شرکت، اسعارو او مودې سره سم په تمه مستحقات نشته.", "createDraft": "مسوده جوړول", "approve": "تایید", "pay": "تادیه", "cancel": "لغوه", "paySettlement": "د برون‌سپارنې تصفیه تادیه کول", "paymentWarning": "تادیه د برون‌سپارل شوو خدماتو خوندي لګښت جوړوي او شامل مستحقات وروستي کوي.", "recordPayment": "تادیه ثبتول", "adjustmentWarning": "د بېرته اخیستلو یا سمون لپاره منفي او د لاسي تایید شوي مبلغ لپاره مثبت وکاروئ. دلیل د پلټنې په دفتر کې ساتل کېږي.", "currency": "اسعار", "effectiveDate": "اغېزمنه نېټه", "signedAmount": "نښه لرونکی مبلغ", "signedAmountHint": "منفي د بېرته اخیستلو لپاره؛ مثبت د اضافي مبلغ لپاره", "reason": "دلیل", "addToLedger": "دفتر ته زیاتول", "manualAdjustment": "لاسي سمون", "loadFailed": "د برون‌سپارنې ریکارډونه پورته نشول.", "settlementCreated": "د برون‌سپارنې تصفیه جوړه شوه.", "settlementCreateFailed": "د برون‌سپارنې تصفیه جوړه نه شوه.", "adjustmentAdded": "د برون‌سپارنې سمون د انتظار دفتر ته زیات شو.", "adjustmentCreateFailed": "سمون جوړ نه شو.", "approvedSuccess": "{number} تایید شو.", "approveFailed": "تصفیه تایید نه شوه.", "paidSuccess": "{number} تادیه او لګښتونو ته ثبت شو.", "payFailed": "تصفیه تادیه نه شوه.", "cancelledSuccess": "{number} لغوه شو؛ مستحقات یې بیا په تمه دي.", "cancelFailed": "تصفیه لغوه نه شوه.", "statuses": { "pending": "په تمه", "draft": "مسوده", "approved": "تایید شوی", "paid": "تادیه شوی", "cancelled": "لغوه شوی", "void": "باطل" } }
 }

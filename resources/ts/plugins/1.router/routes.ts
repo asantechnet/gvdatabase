@@ -26,6 +26,7 @@ const pageComponents: Record<string, Component> = {
   bonuslist: () => import('@/pages/bonuslist.vue'),
   staffSalary: () => import('@/pages/staff_salary.vue'),
   commissions: () => import('@/pages/commissions.vue'),
+  outsourcing: () => import('@/pages/outsourcing.vue'),
   contracts: () => import('@/pages/customer_contracts.vue'),
   employeeContracts: () => import('@/pages/employee_contracts.vue'),
   companyContracts: () => import('@/pages/company_contracts.vue'),
@@ -104,7 +105,8 @@ const routeDefinitions: Array<{
     name: 'cancelled-contracts',
     meta: { requiresAuth: true, action: 'read', subject: 'view_contracts' },
   },
-  { path: '/tasks', component: 'tasks', name: 'tasks', meta: { requiresAuth: true, anyPermissions: ['view_all_boards', 'view_assigned_boards'] } },
+  { path: '/projects', component: 'tasks', name: 'projects', meta: { requiresAuth: true, anyPermissions: ['view_all_boards', 'view_assigned_boards'] } },
+  { path: '/tasks', redirect: { name: 'projects' } },
   { path: '/visitor', component: 'visitor', name: 'visitor', meta: { requiresAuth: true, action: 'read', subject: 'view_visitors' } },
   { path: '/leads', component: 'leads', name: 'leads', meta: { requiresAuth: true, action: 'read', subject: 'view_visitors' } },
   { path: '/innvoice', component: 'innvoice', name: 'innvoice', meta: { requiresAuth: true, action: 'read', subject: 'view_invoices' } },
@@ -122,6 +124,7 @@ const routeDefinitions: Array<{
     meta: { requiresAuth: true, action: 'read', subject: 'view_companies' },
   },
   { path: '/commissions', component: 'commissions', name: 'commissions', meta: { requiresAuth: true, action: 'read', subject: 'view_commissions' } },
+  { path: '/outsourcing', component: 'outsourcing', name: 'outsourcing', meta: { requiresAuth: true, action: 'read', subject: 'view_outsourcing' } },
   {
     path: '/contract-policies',
     component: 'contractPolicyLibrary',
@@ -229,7 +232,7 @@ const mappedRoutes = routeDefinitions.map(route => ({
 // Keep old bookmarks functional while exposing the feature under its real name.
 export const routes: RouteRecordRaw[] = [
   ...mappedRoutes,
-  { path: '/notes', redirect: { name: 'tasks' } },
+  { path: '/notes', redirect: { name: 'projects' } },
 ]
 
 export const explicitRoutes = routes.map(route => setupLayouts([route])[0])

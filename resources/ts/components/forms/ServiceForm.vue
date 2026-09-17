@@ -58,9 +58,9 @@ function submit() {
           <VRow>
             <VCol cols="12">
               <p class="app-form__section">
-                Service definition
+                {{ $t('pages.contracts.services.services.serviceDefinition') }}
               </p><p class="app-form__section-help">
-                Use a fee and duration that make this service ready to reuse in a contract.
+                {{ $t('pages.contracts.services.services.serviceDefinitionHint') }}
               </p>
             </VCol>
             <VCol

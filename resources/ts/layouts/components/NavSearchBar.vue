@@ -37,7 +37,7 @@ const suggestionGroups: SuggestionGroup[] = [
     content: [
       { icon: 'tabler-home', title: translate('components.navigation.navsearchbar.home'), url: { name: 'home' } },
       { icon: 'tabler-chart-bar', title: translate('components.navigation.navsearchbar.reports'), url: { name: 'reports' } },
-      { icon: 'tabler-notes', title: translate('components.navigation.navsearchbar.projects'), url: { name: 'tasks' } },
+      { icon: 'tabler-notes', title: translate('components.navigation.navsearchbar.projects'), url: { name: 'projects' } },
     ],
   },
   {

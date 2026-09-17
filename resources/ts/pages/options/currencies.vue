@@ -678,7 +678,7 @@ const toggleStatus = async (currency: Currency) => {
               size="20"
             />
           </VAvatar>
-          <span>Change base currency?</span>
+          <span>{{ $t('pages.finance.currencies.currencies.changeBaseCurrencyTitle') }}</span>
         </VCardTitle>
         <VCardText class="pt-3">
           <VAlert
@@ -687,10 +687,9 @@ const toggleStatus = async (currency: Currency) => {
             density="comfortable"
             class="mb-3"
           >
-            Dashboard and report totals will be displayed in
-            <strong>{{ currencyToSetAsBase?.code }}</strong>.
+            {{ $t('pages.finance.currencies.currencies.changeBaseCurrencyWarning', { currency: currencyToSetAsBase?.code }) }}
           </VAlert>
-          This will update the base currency for the application.
+          {{ $t('pages.finance.currencies.currencies.changeBaseCurrencyHint') }}
         </VCardText>
         <VCardActions class="justify-end gap-2 pa-4">
           <VBtn
@@ -705,7 +704,7 @@ const toggleStatus = async (currency: Currency) => {
             variant="flat"
             @click="confirmSetAsBaseCurrency"
           >
-            Set as base currency
+            {{ $t('pages.finance.currencies.currencies.confirmSetAsBaseCurrency') }}
           </VBtn>
         </VCardActions>
       </VCard>

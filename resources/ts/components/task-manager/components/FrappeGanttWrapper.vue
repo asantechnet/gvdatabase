@@ -2,7 +2,7 @@
 import type { FrappeGanttTask } from '@/types/taskManager'
 import Gantt from 'frappe-gantt'
 import 'frappe-gantt/dist/frappe-gantt.css'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   tasks: FrappeGanttTask[]
@@ -23,7 +23,6 @@ let suppressTaskClickUntil = 0
 
 const localDateString = (date: Date) => [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
 const isGanttBarTarget = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('.bar-wrapper'))
-
 const handlePointerDown = (event: PointerEvent) => {
   if (isGanttBarTarget(event.target))
     ganttPointerStart = { x: event.clientX, y: event.clientY }
@@ -59,7 +58,7 @@ const initGantt = () => {
     padding: 18,
     view_mode: props.viewMode,
     date_format: 'YYYY-MM-DD',
-    container_height: 900,
+    container_height: 1400,
     infinite_padding: false,
     on_click: (task: FrappeGanttTask) => {
       if (Date.now() >= suppressTaskClickUntil)
@@ -98,11 +97,18 @@ watch(chartTasks, async tasks => {
       return
     }
   }
+  // Frappe rebuilds its SVG during refresh. Retaining the scroll offset avoids
+  // sending the user back to today whenever another task changes.
   ganttInstance.refresh(tasks)
 }, { deep: true })
 
 watch(() => props.viewMode, mode => ganttInstance?.change_view_mode(mode))
 onMounted(initGantt)
+onBeforeUnmount(() => {
+  ganttInstance = null
+  ganttPointerStart = null
+})
+
 </script>
 
 <template>
@@ -133,16 +139,33 @@ onMounted(initGantt)
 <style scoped>
 .frappe-gantt-vue-wrapper,
 :deep(.gantt-container) {
-  overflow: visible !important;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Render the chart as a full canvas rather than an embedded scroll region.
+ * Timelines stay LTR on purpose: reversing one breaks date and dependency
+ * semantics.
+ */
+.frappe-gantt-vue-wrapper {
+  overflow: visible;
+  overflow-y: visible;
+  direction: ltr;
 }
 
 :deep(.gantt-container) {
-  height: 900px;
-  touch-action: pan-y;
+  height: 1400px !important;
+  overflow: visible !important;
+  direction: ltr;
 }
 
+:deep(.gantt) { min-width: max-content; }
 :deep(.gantt .bar-wrapper) { cursor: pointer; }
+:deep(.gantt .bar-label),
+:deep(.gantt .upper-text),
+:deep(.gantt .lower-text) { unicode-bidi: plaintext; }
 :deep(.gantt .bar-progress) { fill: rgb(var(--v-theme-primary)); }
 :deep(.gantt .bar) { fill: rgba(var(--v-theme-primary), 0.2); }
 :deep(.gantt .grid-header) { fill: rgb(var(--v-theme-surface)); stroke: rgba(var(--v-border-color), var(--v-border-opacity)); }
+
 </style>

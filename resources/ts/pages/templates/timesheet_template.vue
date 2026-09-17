@@ -23,7 +23,7 @@ const props = defineProps<{
   totalOvertimeMinutes: number
 }>()
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 
 const formatDuration = (minutes: number | null) => minutes === null
   ? '—'
@@ -32,6 +32,17 @@ const formatDuration = (minutes: number | null) => minutes === null
 const weekDays = computed(() => Array.from({ length: 7 }, (_, day) =>
   new Intl.DateTimeFormat(locale.value, { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2023, 0, day + 1))),
 ))
+
+const attendanceStatuses: Attendance['status'][] = ['present', 'absent', 'paid-leave', 'unpaid-leave']
+const statusLabel = (status: Attendance['status']) => t(`documents.timesheet.statuses.${status}`)
+const employeeInitials = (name: string) => name
+  .trim()
+  .split(/\s+/)
+  .filter(Boolean)
+  .slice(0, 2)
+  .map(part => part[0])
+  .join('')
+  .toLocaleUpperCase(locale.value)
 
 // Helper to format date cleanly avoiding timezone shifting issues
 const formatDateKey = (year: number, month: number, day: number): string => {
@@ -218,50 +229,10 @@ const printReport = () => {
                 v-for="att in cell.attendances"
                 :key="att.id"
                 class="attendance-item"
+                :class="[`attendance-item--${att.status}`, { 'attendance-item--incomplete': att.missing_punch_state !== 'none' }]"
+                :title="`${att.name} · ${statusLabel(att.status)}`"
               >
-                <div class="status-icon">
-                  <!-- Green Checkmark -->
-                  <svg
-                    v-if="att.status === 'present'"
-                    class="icon-present"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-
-                  <!-- Red Cross -->
-                  <svg
-                    v-else-if="att.status === 'absent'"
-                    class="icon-absent"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <line
-                      x1="18"
-                      y1="6"
-                      x2="6"
-                      y2="18"
-                    />
-                    <line
-                      x1="6"
-                      y1="6"
-                      x2="18"
-                      y2="18"
-                    />
-                  </svg>
-                </div>
-                <span class="staff-name">{{ att.name }}</span>
+                <span class="attendance-avatar">{{ employeeInitials(att.name) }}</span>
                 <span
                   v-if="att.status === 'present'"
                   class="staff-hours"
@@ -275,8 +246,21 @@ const printReport = () => {
         </div>
 
         <footer class="page-footer">
-          <p>{{ $t('documents.timesheet.totals', { worked: formatDuration(totalWorkedMinutes), overtime: formatDuration(totalOvertimeMinutes) }) }}</p>
-          <p>{{ $t('documents.timesheet.generatedOn', { date: formatLocalizedDate(new Date()) }) }}</p>
+          <div class="attendance-legend">
+            <span class="attendance-legend__title">{{ $t('documents.timesheet.legend') }}</span>
+            <span
+              v-for="status in attendanceStatuses"
+              :key="status"
+              class="attendance-legend__item"
+            >
+              <i :class="`attendance-legend__swatch attendance-legend__swatch--${status}`" />
+              {{ statusLabel(status) }}
+            </span>
+          </div>
+          <div class="page-footer__meta">
+            <p>{{ $t('documents.timesheet.totals', { worked: formatDuration(totalWorkedMinutes), overtime: formatDuration(totalOvertimeMinutes) }) }}</p>
+            <p>{{ $t('documents.timesheet.generatedOn', { date: formatLocalizedDate(new Date()) }) }}</p>
+          </div>
         </footer>
       </div>
     </div>
@@ -298,6 +282,8 @@ const printReport = () => {
   --bg-out-of-month: #f8fafc;
   --color-present: #10b981;
   --color-absent: #ef4444;
+  --color-paid-leave: #3b82f6;
+  --color-unpaid-leave: #f59e0b;
 
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--text-main);
@@ -380,13 +366,56 @@ const printReport = () => {
 }
 
 .page-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
   margin-top: auto;
   padding-top: 1rem;
   font-size: 0.75rem;
   color: var(--text-muted);
-  text-align: end;
   border-top: 1px solid var(--border-light);
 }
+
+.page-footer__meta {
+  text-align: end;
+}
+
+.page-footer p {
+  margin: 0.15rem 0;
+}
+
+.attendance-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.7rem;
+  max-inline-size: 66%;
+}
+
+.attendance-legend__title {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.attendance-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.attendance-legend__swatch {
+  display: inline-block;
+  inline-size: 0.6rem;
+  block-size: 0.6rem;
+  border-radius: 50%;
+}
+
+.attendance-legend__swatch--present { background: var(--color-present); }
+.attendance-legend__swatch--absent { background: var(--color-absent); }
+.attendance-legend__swatch--paid-leave { background: var(--color-paid-leave); }
+.attendance-legend__swatch--unpaid-leave { background: var(--color-unpaid-leave); }
 
 /* ==========================================
    Calendar Grid System
@@ -479,25 +508,32 @@ const printReport = () => {
   text-overflow: ellipsis;
 }
 
-.status-icon {
-  width: 12px;
-  height: 12px;
+.attendance-avatar {
+  inline-size: 18px;
+  block-size: 18px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
-.icon-present {
-  stroke: var(--color-present);
+.attendance-item--present .attendance-avatar { background: var(--color-present); }
+.attendance-item--absent .attendance-avatar { background: var(--color-absent); }
+.attendance-item--paid-leave .attendance-avatar { background: var(--color-paid-leave); }
+.attendance-item--unpaid-leave .attendance-avatar { background: var(--color-unpaid-leave); }
+
+.attendance-item--incomplete .attendance-avatar {
+  outline: 1px dashed var(--color-unpaid-leave);
+  outline-offset: 1px;
 }
 
-.icon-absent {
-  stroke: var(--color-absent);
-}
-
-.staff-name {
-  font-weight: 500;
+.staff-hours {
+  min-inline-size: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -508,6 +544,10 @@ const printReport = () => {
 
 [dir='rtl'] .attendance-item {
   flex-direction: row-reverse;
+}
+
+[dir='rtl'] .page-footer__meta {
+  text-align: start;
 }
 
 /* ==========================================

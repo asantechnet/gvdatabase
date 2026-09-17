@@ -30,7 +30,7 @@ return new class extends Migration
         Schema::create('audit_resource_settings', function (Blueprint $table) {
             $table->id();
             $table->string('resource_key', 80)->unique();
-            $table->boolean('enabled')->default(true);
+            $table->boolean('enabled')->default(false);
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->index(['enabled', 'resource_key']);
@@ -48,7 +48,7 @@ return new class extends Migration
         foreach (array_keys(AuditRegistry::resources()) as $resourceKey) {
             DB::table('audit_resource_settings')->insertOrIgnore([
                 'resource_key' => $resourceKey,
-                'enabled' => true,
+                'enabled' => false,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);

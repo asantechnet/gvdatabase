@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\ExpenseResource;
 use App\Models\CommissionSettlement;
+use App\Models\OutsourcingSettlement;
 use App\Models\Currency;
 use App\Models\Expense;
 use App\Services\CurrencyConversionService;
@@ -82,7 +83,7 @@ class ExpenseController extends Controller
 
     public function update(Request $request, Expense $expense)
     {
-        if ($expense->salary_id || CommissionSettlement::where('expense_id', $expense->id)->exists()) {
+        if ($expense->salary_id || CommissionSettlement::where('expense_id', $expense->id)->exists() || OutsourcingSettlement::where('expense_id', $expense->id)->exists()) {
             throw ValidationException::withMessages(['expense' => ['business.salary_expense_managed_by_payroll']]);
         }
         $validator = Validator::make($request->all(), [
@@ -113,7 +114,7 @@ class ExpenseController extends Controller
 
     public function destroy(Expense $expense)
     {
-        if ($expense->salary_id || CommissionSettlement::where('expense_id', $expense->id)->exists()) {
+        if ($expense->salary_id || CommissionSettlement::where('expense_id', $expense->id)->exists() || OutsourcingSettlement::where('expense_id', $expense->id)->exists()) {
             throw ValidationException::withMessages(['expense' => ['business.salary_expense_managed_by_payroll']]);
         }
         $expense->delete();

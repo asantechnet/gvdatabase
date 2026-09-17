@@ -29,6 +29,12 @@
 - All UI must work correctly with both light and dark themes.
 - Interfaces must be responsive across mobile, tablet, and desktop sizes.
 
+## Vuexy Quirks
+
+- `AppDateTimePicker` (Flatpickr) inside a Vuetify dialog must stay in its normal body-level popup mode (`static: false`). Static mode can be clipped or hidden by the dialog structure.
+- When using that picker in a dialog, apply a zero-offset transform after `onOpen`: `transform: translateY(0) scale(0.86)` with `transform-origin: top left`. The explicit zero-offset transform is required for the calendar to stay docked to its input; do not remove it merely because it has no visible vertical offset.
+- Keep the opened Flatpickr calendar above dialog content with an appropriately high z-index.
+
 ## Documents and Printing
 
 - Document rendering and printing are core requirements and must be treated as high-importance functionality.

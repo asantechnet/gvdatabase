@@ -20,6 +20,8 @@ export interface AppRole {
 }
 
 const toast = useToast()
+const { t } = useI18n()
+const tr = (key: string, values?: Record<string, unknown>) => t(`pages.settings.rolecards.rolecards.${key}`, values)
 const permissions = ref<Permission[]>([])
 const roles = ref<AppRole[]>([])
 const loading = ref(false)
@@ -191,7 +193,7 @@ const loadAll = async () => {
     roles.value = rolesResponse as unknown as AppRole[]
   }
   catch (error) {
-    toast.error(apiErrorMessage(error, 'Unable to load roles and permissions.'))
+    toast.error(apiErrorMessage(error, tr('unableToLoad')))
   }
   finally {
     loading.value = false
@@ -217,7 +219,7 @@ const openEditRole = (role: AppRole) => {
 
 const saveRole = async () => {
   if (!roleForm.value.name.trim()) {
-    toast.error('Role name is required.')
+    toast.error(tr('roleNameRequired'))
 
     return
   }
@@ -235,7 +237,7 @@ const saveRole = async () => {
       if (editingRole.value.name !== 'super_admin')
         await RoleApi.updateRolePermissions(editingRole.value.id, selectedPermissions.value)
 
-      toast.success('Role updated successfully.')
+      toast.success(tr('roleUpdated'))
     }
     else {
       savedRole = await RoleApi.createRole({ name: roleForm.value.name })
@@ -243,14 +245,14 @@ const saveRole = async () => {
 
       // Persist permissions for newly created roles
       await RoleApi.updateRolePermissions(savedRole.id, selectedPermissions.value)
-      toast.success('Role created successfully.')
+      toast.success(tr('roleCreated'))
     }
 
     roleDialog.value = false
     await loadAll()
   }
   catch (error) {
-    toast.error(apiErrorMessage(error, 'Unable to save role.'))
+    toast.error(apiErrorMessage(error, tr('unableToSave')))
   }
   finally {
     savingRole.value = false
@@ -269,10 +271,10 @@ const confirmDeleteRole = async () => {
     await RoleApi.deleteRole(deletingRole.value.id)
     roles.value = roles.value.filter(r => r.id !== deletingRole.value?.id)
     deleteRoleDialog.value = false
-    toast.success('Role deleted successfully.')
+    toast.success(tr('roleDeleted'))
   }
   catch (error) {
-    toast.error(apiErrorMessage(error, 'Unable to delete role.'))
+    toast.error(apiErrorMessage(error, tr('unableToDelete')))
   }
 }
 
@@ -307,7 +309,7 @@ onMounted(loadAll)
       >
         <VCard>
           <VCardText class="d-flex align-center pb-4">
-            <span class="text-subtitle-1">Total {{ role.users_count || 0 }} users</span>
+            <span class="text-subtitle-1">{{ tr('totalUsers', { count: role.users_count || 0 }) }}</span>
             <VSpacer />
 
             <!-- Dynamic Avatars based on Employee relation -->
@@ -352,12 +354,12 @@ onMounted(loadAll)
                 class="text-primary font-weight-medium"
                 @click.prevent="openEditRole(role)"
               >
-                Edit Role
+                {{ tr('editRole') }}
               </a>
               <VSpacer />
               <IconBtn
                 v-if="role.name !== 'super_admin'"
-                :aria-label="`Delete ${role.name}`"
+                :aria-label="tr('deleteRoleAria', { role: role.name })"
                 color="error"
                 size="small"
                 @click.stop="askDeleteRole(role)"
@@ -399,9 +401,9 @@ onMounted(loadAll)
                   class="mb-2"
                   @click.stop="openCreateRole"
                 >
-                  Add New Role
+                  {{ tr('addNewRole') }}
                 </VBtn>
-                <span class="text-caption">Add role, if it doesn't exist</span>
+                <span class="text-caption">{{ tr('addRoleHint') }}</span>
               </VCardText>
             </VCol>
           </VRow>
@@ -418,7 +420,7 @@ onMounted(loadAll)
       <VCard>
         <VCardItem class="pb-2">
           <VCardTitle class="text-h5 font-weight-bold">
-            {{ editingRole ? 'Edit Role' : 'Create Role' }}
+            {{ editingRole ? tr('editRole') : tr('createRole') }}
           </VCardTitle>
           <template #append>
             <IconBtn
@@ -448,8 +450,8 @@ onMounted(loadAll)
               >
                 <VTextField
                   v-model="roleForm.name"
-                  label="Role Name"
-                  placeholder="e.g. Editor, Billing Manager"
+                  :label="tr('roleName')"
+                  :placeholder="tr('roleNamePlaceholder')"
                   required
                   :disabled="isProtected"
                   hide-details="auto"
@@ -464,7 +466,7 @@ onMounted(loadAll)
                     icon="tabler-lock"
                     size="14"
                   />
-                  Super admin permissions cannot be modified
+                  {{ tr('superAdminLocked') }}
                 </p>
               </VCol>
 
@@ -480,13 +482,13 @@ onMounted(loadAll)
                           size="22"
                           color="primary"
                         />
-                        Role Permissions
+                        {{ tr('rolePermissions') }}
                       </h6>
                       <p
                         class="text-body-2 text-medium-emphasis mb-0"
                         style="line-height: 1.5;"
                       >
-                        Search and manage permissions by category. Toggle individual permissions or entire categories.
+                        {{ tr('permissionsHint') }}
                       </p>
                     </div>
                     <VChip
@@ -496,7 +498,7 @@ onMounted(loadAll)
                       variant="tonal"
                       class="font-weight-semibold flex-shrink-0"
                     >
-                      {{ selectedPermissions.length }} / {{ permissions.length }} selected
+                      {{ tr('selectedCount', { selected: selectedPermissions.length, total: permissions.length }) }}
                     </VChip>
                   </div>
 
@@ -513,7 +515,7 @@ onMounted(loadAll)
                       >
                         <VTextField
                           v-model="permissionSearch"
-                          placeholder="Search permissions (e.g. export, view users)"
+                          :placeholder="tr('searchPermissions')"
                           prepend-inner-icon="tabler-search"
                           density="compact"
                           variant="outlined"
@@ -537,8 +539,8 @@ onMounted(loadAll)
                       </div>
                       <div class="d-flex align-center gap-2 ms-auto">
                         <span class="text-body-2 text-medium-emphasis d-none d-sm-inline">
-                          {{ filteredPermissions.length }} permissions
-                          <template v-if="permissionSearch"> · filtered</template>
+                          {{ tr('permissionCount', { count: filteredPermissions.length }) }}
+                          <template v-if="permissionSearch"> · {{ tr('filtered') }}</template>
                         </span>
                         <VDivider
                           vertical
@@ -549,7 +551,7 @@ onMounted(loadAll)
                           :model-value="allFilteredSelected"
                           :indeterminate="isAllFilteredIndeterminate"
                           :disabled="isProtected || !filteredPermissions.length"
-                          label="Select all filtered"
+                          :label="tr('selectAllFiltered')"
                           density="compact"
                           hide-details
                           color="primary"
@@ -609,7 +611,7 @@ onMounted(loadAll)
                               </VChip>
                             </div>
                             <span class="text-caption text-medium-emphasis">
-                              {{ categoryMetaMap[String(category)]?.total ?? 0 }} permissions
+                              {{ tr('permissionCount', { count: categoryMetaMap[String(category)]?.total ?? 0 }) }}
                             </span>
                           </div>
                         </div>
@@ -622,7 +624,7 @@ onMounted(loadAll)
                             :model-value="categoryMetaMap[String(category)]?.allSelected ?? false"
                             :indeterminate="categoryMetaMap[String(category)]?.indeterminate ?? false"
                             :disabled="isProtected"
-                            :label="categoryMetaMap[String(category)]?.allSelected ? 'Deselect All' : 'Select All'"
+                            :label="categoryMetaMap[String(category)]?.allSelected ? tr('deselectAll') : tr('selectAll')"
                             density="compact"
                             hide-details
                             color="primary"
@@ -692,12 +694,12 @@ onMounted(loadAll)
                       </div>
                       <div>
                         <h6 class="text-h6 font-weight-bold mb-1">
-                          No permissions found
+                          {{ tr('noPermissionsFound') }}
                         </h6>
                         <p class="text-body-2 text-medium-emphasis mb-0">
-                          Try searching for a different permission.
+                          {{ tr('tryDifferentPermission') }}
                           <template v-if="permissionSearch">
-                            No results for "<strong class="text-high-emphasis">{{ permissionSearch }}</strong>"
+                            {{ tr('noResultsFor', { query: permissionSearch }) }}
                           </template>
                         </p>
                       </div>
@@ -709,7 +711,7 @@ onMounted(loadAll)
                         class="mt-2"
                         @click="clearSearch"
                       >
-                        Clear search
+                        {{ tr('clearSearch') }}
                       </VBtn>
                     </div>
                   </VCard>
@@ -723,7 +725,7 @@ onMounted(loadAll)
                       icon="tabler-info-circle"
                       size="14"
                     />
-                    <span>Tip: Use search to quickly find permissions like "export" across all categories.</span>
+                    <span>{{ tr('searchTip') }}</span>
                   </div>
                 </div>
               </VCol>
@@ -738,7 +740,7 @@ onMounted(loadAll)
             color="secondary"
             @click="roleDialog = false"
           >
-            Cancel
+            {{ $t('common.actions.cancel') }}
           </VBtn>
           <VBtn
             color="primary"
@@ -746,7 +748,7 @@ onMounted(loadAll)
             :disabled="isProtected"
             @click="saveRole"
           >
-            {{ editingRole ? 'Save Changes' : 'Create Role' }}
+            {{ editingRole ? tr('saveChanges') : tr('createRole') }}
           </VBtn>
         </VCardActions>
       </VCard>
@@ -757,11 +759,9 @@ onMounted(loadAll)
       v-model="deleteRoleDialog"
       max-width="420"
     >
-      <VCard title="Delete Role">
+      <VCard :title="tr('deleteRole')">
         <VCardText>
-          Are you sure you want to delete <strong>{{ deletingRole?.name.replace('_', ' ') }}</strong>? This will remove
-          its
-          permission grants.
+          {{ tr('deleteConfirmation', { role: deletingRole?.name.replace('_', ' ') ?? '' }) }}
         </VCardText>
         <VDivider />
         <VCardActions>
@@ -770,13 +770,13 @@ onMounted(loadAll)
             variant="tonal"
             @click="deleteRoleDialog = false"
           >
-            Cancel
+            {{ $t('common.actions.cancel') }}
           </VBtn>
           <VBtn
             color="error"
             @click="confirmDeleteRole"
           >
-            Delete
+            {{ $t('common.actions.delete') }}
           </VBtn>
         </VCardActions>
       </VCard>

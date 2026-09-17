@@ -24,30 +24,33 @@ defineProps<{
   details: CounterpartyDetails | null
 }>()
 
+const { t } = useI18n()
+const tr = (key: string, values: Record<string, unknown> = {}) => t(`components.contractCounterpartyCard.${key}`, values)
+
 const meta = {
   employee: {
     icon: 'tabler-user',
-    label: 'Employee',
+    label: 'employee',
     color: 'info',
   },
   customer: {
     icon: 'tabler-users',
-    label: 'Customer',
+    label: 'customer',
     color: 'success',
   },
   company: {
     icon: 'tabler-building',
-    label: 'Business Company',
+    label: 'company',
     color: 'primary',
   },
 } as const
 
 const rowsFor = (details: CounterpartyDetails) => [
-  { icon: 'tabler-hash', label: 'Registration No.', value: details.registrationNumber },
-  { icon: 'tabler-receipt-tax', label: 'Tax No.', value: details.taxNumber },
-  { icon: 'tabler-phone', label: 'Phone', value: details.phone },
-  { icon: 'tabler-mail', label: 'Email', value: details.email },
-  { icon: 'tabler-map-pin', label: 'Address', value: details.address },
+  { icon: 'tabler-hash', label: tr('registrationNumber'), value: details.registrationNumber },
+  { icon: 'tabler-receipt-tax', label: tr('taxNumber'), value: details.taxNumber },
+  { icon: 'tabler-phone', label: tr('phone'), value: details.phone },
+  { icon: 'tabler-mail', label: tr('email'), value: details.email },
+  { icon: 'tabler-map-pin', label: tr('address'), value: details.address },
 ].filter(row => row.value)
 </script>
 
@@ -62,17 +65,15 @@ const rowsFor = (details: CounterpartyDetails) => [
         <VAvatar
           :color="details?.kind ? meta[details.kind].color : undefined"
           variant="tonal"
-          icon="tabler-help"
           size="40"
         >
           <VIcon
-            v-if="details?.kind"
-            :icon="meta[details.kind].icon"
+            :icon="details?.kind ? meta[details.kind].icon : 'tabler-users-group'"
           />
         </VAvatar>
       </template>
       <VCardTitle class="text-body-1">
-        Counterparty
+        {{ tr('title') }}
       </VCardTitle>
       <VCardSubtitle>
         <VChip
@@ -82,9 +83,9 @@ const rowsFor = (details: CounterpartyDetails) => [
           variant="tonal"
           class="me-2"
         >
-          {{ meta[details.kind].label }}
+          {{ tr(`types.${meta[details.kind].label}`) }}
         </VChip>
-        Data from the selected {{ details?.kind ?? 'record' }} — read-only here
+        {{ tr('selectedRecordHint', { type: details?.kind ? tr(`types.${meta[details.kind].label}`) : tr('record') }) }}
       </VCardSubtitle>
     </VCardItem>
 
@@ -126,7 +127,7 @@ const rowsFor = (details: CounterpartyDetails) => [
       <template v-if="details.representativeName">
         <VDivider class="my-3" />
         <p class="text-subtitle-2 text-medium-emphasis mb-1">
-          Representative
+          {{ tr('representative') }}
         </p>
         <p class="text-body-2 mb-0">
           {{ details.representativeName }}
@@ -148,7 +149,7 @@ const rowsFor = (details: CounterpartyDetails) => [
         class="text-disabled mb-2"
       />
       <p class="text-body-2 text-medium-emphasis mb-0">
-        Select a template and counterparty to see their details here.
+        {{ tr('empty') }}
       </p>
     </VCardText>
   </VCard>

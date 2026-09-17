@@ -7,7 +7,7 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import CounterpartyCard, { type CounterpartyDetails } from '@/components/contract/CounterpartyCard.vue'
 
 const { t } = useI18n()
-const tr = (key: string) => t(`pages.contractform.contractform.${key}`)
+const tr = (key: string) => t(`pages.contracts.contractform.contractform.${key}`)
 
 export interface ContractFormPayload {
   template_id: number | null

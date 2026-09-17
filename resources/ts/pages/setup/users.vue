@@ -2,8 +2,10 @@
 import { useToast } from 'vue-toastification'
 import { type ManagedUser, type UserPayload, type UserRole, type UserStatus, createUser, deleteUser, getUsers, updateUser } from '@/api/user'
 import UserForm from '@/components/forms/UserForm.vue'
+import { formatLocalizedDate } from '@/utils/localization'
 
 const toast = useToast()
+const { t } = useI18n()
 const users = ref<ManagedUser[]>([])
 const loading = ref(false)
 const search = ref('')
@@ -20,14 +22,17 @@ const roles: UserRole[] = ['super_admin', 'admin', 'manager', 'staff', 'viewer']
 const statuses: UserStatus[] = ['active', 'inactive', 'deactivated']
 const editableStatuses: UserStatus[] = ['active', 'inactive']
 
-const headers = [
-  { title: translate('pages.settings.users.user'), key: 'name' },
-  { title: translate('common.messages.roles'), key: 'roles', sortable: false },
-  { title: translate('common.fields.status'), key: 'acc_status' },
-  { title: translate('common.fields.email'), key: 'email_verified' },
-  { title: translate('pages.settings.users.created'), key: 'created_at' },
-  { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
-]
+const roleOptions = computed(() => roles.map(value => ({ value, title: t(`pages.settings.users.roleOptions.${value}`) })))
+const statusOptions = computed(() => statuses.map(value => ({ value, title: t(`common.statuses.${value}`) })))
+const editableStatusOptions = computed(() => editableStatuses.map(value => ({ value, title: t(`common.statuses.${value}`) })))
+const headers = computed(() => [
+  { title: t('pages.settings.users.user'), key: 'name' },
+  { title: t('common.messages.roles'), key: 'roles', sortable: false },
+  { title: t('common.fields.status'), key: 'acc_status' },
+  { title: t('common.fields.email'), key: 'email_verified' },
+  { title: t('pages.settings.users.created'), key: 'created_at' },
+  { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
+])
 
 const filteredUsers = computed(() => users.value.filter(user => {
   const matchesSearch = `${user.name} ${user.email}`.toLowerCase().includes(search.value.toLowerCase())
@@ -36,12 +41,16 @@ const filteredUsers = computed(() => users.value.filter(user => {
 }))
 
 const statusColor = (status: UserStatus) => ({ active: 'success', inactive: 'secondary', deactivated: 'warning' }[status])
-const formatDate = (date: string | null) => date ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(date)) : '—'
+const formatDate = (date: string | null) => date ? formatLocalizedDate(date, 'short') : t('common.messages.notAvailable')
+const roleLabel = (role: UserRole) => t(`pages.settings.users.roleOptions.${role}`)
+const verificationLabel = (user: ManagedUser) => user.password_setup_pending
+  ? t('pages.settings.users.verification.invited')
+  : user.email_verified ? t('pages.settings.users.verification.verified') : t('pages.settings.users.verification.pending')
 
 async function loadUsers() {
   loading.value = true
   try { users.value = await getUsers() }
-  catch (error: any) { toast.error(error.message || 'Could not load users.') }
+  catch (error: any) { toast.error(error.message || t('pages.settings.users.couldNotLoad')) }
   finally { loading.value = false }
 }
 
@@ -95,8 +104,8 @@ onMounted(loadUsers)
 <template>
   <DataTablePageKpis
     :items="filteredUsers"
-    title="Users"
-    description="Manage access, invitations, and the current health of user accounts."
+    :title="$t('pages.settings.users.pageTitle')"
+    :description="$t('pages.settings.users.pageDescription')"
     icon="tabler-user-cog"
     status-key="acc_status"
   />
@@ -131,14 +140,14 @@ onMounted(loadUsers)
           >
             <VSelect
               v-model="roleFilter"
-              :items="roles"
+              :items="roleOptions"
               :label="$t('common.fields.role')"
               density="compact"
               hide-details
               clearable
             /><VSelect
               v-model="statusFilter"
-              :items="statuses"
+              :items="statusOptions"
               :label="$t('common.fields.status')"
               density="compact"
               hide-details
@@ -178,7 +187,7 @@ onMounted(loadUsers)
             size="small"
             label
           >
-            {{ role.replace('_', ' ') }}
+            {{ roleLabel(role) }}
           </VChip>
         </div>
       </template>
@@ -188,7 +197,7 @@ onMounted(loadUsers)
           label
           :color="statusColor(item.acc_status)"
         >
-          {{ item.acc_status }}
+          {{ $t(`common.statuses.${item.acc_status}`) }}
         </VChip>
       </template>
       <template #item.email_verified="{ item }">
@@ -197,7 +206,7 @@ onMounted(loadUsers)
           label
           :color="item.email_verified && !item.password_setup_pending ? 'success' : 'warning'"
         >
-          {{ item.password_setup_pending ? 'Invited' : item.email_verified ? 'Verified' : 'Pending verification' }}
+          {{ verificationLabel(item) }}
         </VChip>
       </template>
       <template #item.created_at="{ item }">
@@ -226,7 +235,7 @@ onMounted(loadUsers)
     v-model="dialogOpen"
     max-width="700"
   >
-    <VCard :title="editingUser ? 'Edit User' : 'Invite User'">
+  <VCard :title="$t(editingUser ? 'pages.settings.users.editUserDialog' : 'pages.settings.users.inviteUserDialog')">
       <VCardText>
         <VAlert
           v-if="!editingUser"
@@ -238,10 +247,10 @@ onMounted(loadUsers)
         </VAlert>
         <UserForm
           :form="form"
-          :roles="roles"
-          :status-items="editingUser?.acc_status === 'deactivated' ? statuses : editableStatuses"
+          :roles="roleOptions"
+          :status-items="editingUser?.acc_status === 'deactivated' ? statusOptions : editableStatusOptions"
           :status-disabled="editingUser?.acc_status === 'deactivated'"
-          :status-hint="editingUser?.acc_status === 'deactivated' ? 'Use the audited reactivation action in Deactivation Requests.' : undefined"
+          :status-hint="editingUser?.acc_status === 'deactivated' ? $t('pages.settings.users.deactivatedStatusHint') : undefined"
           :editing="Boolean(editingUser)"
           :loading="loading"
           @submit="save"

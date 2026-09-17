@@ -5,7 +5,12 @@ import { startPageGuide } from '@/composables/usePageGuide'
 const route = useRoute()
 const { t } = useI18n()
 
-function openGuide() {
+const props = defineProps<{
+  beforeOpen?: () => void | Promise<void>
+}>()
+
+async function openGuide() {
+  await props.beforeOpen?.()
   startPageGuide(route)
 }
 </script>

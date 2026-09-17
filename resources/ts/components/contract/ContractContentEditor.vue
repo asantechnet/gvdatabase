@@ -710,7 +710,7 @@ defineExpose({
                 {{ tr('editor.insertPlaceholder') }}
               </div>
               <div class="text-caption text-medium-emphasis">
-                Add a field at the cursor; its value is filled in when the contract is created.
+                {{ tr('editor.placeholderInsertHint') }}
               </div>
             </div>
           </div>
@@ -722,7 +722,7 @@ defineExpose({
               hide-details
               clearable
               prepend-inner-icon="tabler-search"
-              placeholder="Search fields"
+              :placeholder="tr('editor.searchFields')"
               class="mb-3"
             />
             <div class="contract-editor__placeholder-help">
@@ -730,7 +730,7 @@ defineExpose({
                 icon="tabler-info-circle"
                 size="17"
               />
-              <span>Choose the field you need. The highlighted token stays visible while editing and is replaced with the live value in the final contract.</span>
+              <span>{{ tr('editor.placeholderSearchHint') }}</span>
             </div>
             <div class="contract-editor__placeholder-results">
               <section
@@ -765,7 +765,7 @@ defineExpose({
                 v-if="!filteredPlaceholderGroups.length"
                 class="text-center text-caption text-medium-emphasis py-6"
               >
-                No matching fields
+                {{ tr('editor.noMatchingFields') }}
               </div>
             </div>
           </VCardText>

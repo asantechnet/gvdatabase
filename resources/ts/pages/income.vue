@@ -8,6 +8,8 @@ import CompanyApi, { type Company } from '@/api/company'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import InvoicePaymentContext from '@/components/income/InvoicePaymentContext.vue'
+import InvoiceSelect from '@/components/income/InvoiceSelect.vue'
 
 const incomes = ref<Income[]>([])
 const isAddIncomeDialogVisible = ref(false)
@@ -711,42 +713,15 @@ onMounted(() => {
             </VAlert>
             <VRow>
               <VCol cols="12">
-                <VSelect
+                <InvoiceSelect
                   v-model="selectedIncome.invoice_id"
-                  :items="invoices"
-                  item-title="invoice_number"
-                  item-value="id"
-                  :label="$t('common.messages.associatedInvoiceOptional')"
-                  clearable
-                  @update:model-value="handleInvoiceChange"
+                  :invoices="invoices"
+                  @change="handleInvoiceChange"
                 />
-                <div
+                <InvoicePaymentContext
                   v-if="selectedInvoice"
-                  class="invoice-payment-panel mt-2"
-                >
-                  <div>
-                    <div class="text-caption text-medium-emphasis">
-                      {{ $t('common.messages.selectedInvoice') }}
-                    </div><div class="font-weight-bold">
-                      {{ selectedInvoice.invoice_number }}
-                    </div>
-                  </div>
-                  <VDivider vertical />
-                  <div>
-                    <div class="text-caption text-medium-emphasis">
-                      {{ $t('common.messages.remainingBalance') }}
-                    </div><div class="text-h6 font-weight-black text-primary">
-                      {{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoiceBalance) }}
-                    </div>
-                  </div>
-                  <div class="ms-auto text-right">
-                    <div class="text-caption text-medium-emphasis">
-                      {{ $t('common.messages.alreadyPaid') }}
-                    </div><div class="font-weight-bold">
-                      {{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoice.paid_amount) }}
-                    </div>
-                  </div>
-                </div>
+                  :invoice="selectedInvoice"
+                />
                 <VAlert
                   v-if="selectedInvoice"
                   :type="selectedInvoice.can_mark_paid ? 'success' : 'info'"
@@ -755,8 +730,8 @@ onMounted(() => {
                   class="mt-3"
                 >
                   <div class="d-flex align-center justify-space-between gap-3">
-                    <span v-if="selectedInvoice.can_mark_paid">A small balance remains. You can close this invoice as paid.</span>
-                    <span v-else>Mark as paid becomes available after payment when the remaining balance is under 5% of the invoice total.</span>
+                    <span v-if="selectedInvoice.can_mark_paid">{{ $t('pages.finance.income.income.smallBalanceCanMarkPaid') }}</span>
+                    <span v-else>{{ $t('pages.finance.income.income.markPaidThresholdHint') }}</span>
                     <VBtn
                       size="small"
                       color="success"
@@ -764,7 +739,7 @@ onMounted(() => {
                       :disabled="!selectedInvoice.can_mark_paid"
                       @click="markSelectedInvoicePaid"
                     >
-                      Mark paid
+                      {{ $t('pages.finance.income.income.markPaid') }}
                     </VBtn>
                   </div>
                 </VAlert>
@@ -798,6 +773,7 @@ onMounted(() => {
                   v-model="selectedIncome.company_id"
                   :items="companyOptions"
                   label="Company (optional)"
+                  :disabled="Boolean(selectedInvoice)"
                   clearable
                 />
               </VCol>
@@ -941,42 +917,15 @@ onMounted(() => {
             </VAlert>
             <VRow>
               <VCol cols="12">
-                <VSelect
+                <InvoiceSelect
                   v-model="selectedIncome.invoice_id"
-                  :items="invoices"
-                  item-title="invoice_number"
-                  item-value="id"
-                  :label="$t('common.messages.associatedInvoiceOptional')"
-                  clearable
-                  @update:model-value="handleInvoiceChange"
+                  :invoices="invoices"
+                  @change="handleInvoiceChange"
                 />
-                <div
+                <InvoicePaymentContext
                   v-if="selectedInvoice"
-                  class="invoice-payment-panel mt-2"
-                >
-                  <div>
-                    <div class="text-caption text-medium-emphasis">
-                      {{ $t('common.messages.selectedInvoice') }}
-                    </div><div class="font-weight-bold">
-                      {{ selectedInvoice.invoice_number }}
-                    </div>
-                  </div>
-                  <VDivider vertical />
-                  <div>
-                    <div class="text-caption text-medium-emphasis">
-                      {{ $t('common.messages.remainingBalance') }}
-                    </div><div class="text-h6 font-weight-black text-primary">
-                      {{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoiceBalance) }}
-                    </div>
-                  </div>
-                  <div class="ms-auto text-right">
-                    <div class="text-caption text-medium-emphasis">
-                      {{ $t('common.messages.alreadyPaid') }}
-                    </div><div class="font-weight-bold">
-                      {{ selectedInvoice.currency.symbol }}{{ formatSelectedInvoiceAmount(selectedInvoice.paid_amount) }}
-                    </div>
-                  </div>
-                </div>
+                  :invoice="selectedInvoice"
+                />
                 <VAlert
                   v-if="selectedInvoice"
                   :type="selectedInvoice.can_mark_paid ? 'success' : 'info'"
@@ -985,8 +934,8 @@ onMounted(() => {
                   class="mt-3"
                 >
                   <div class="d-flex align-center justify-space-between gap-3">
-                    <span v-if="selectedInvoice.can_mark_paid">A small balance remains. You can close this invoice as paid.</span>
-                    <span v-else>Mark as paid becomes available after payment when the remaining balance is under 5% of the invoice total.</span>
+                    <span v-if="selectedInvoice.can_mark_paid">{{ $t('pages.finance.income.income.smallBalanceCanMarkPaid') }}</span>
+                    <span v-else>{{ $t('pages.finance.income.income.markPaidThresholdHint') }}</span>
                     <VBtn
                       size="small"
                       color="success"
@@ -994,7 +943,7 @@ onMounted(() => {
                       :disabled="!selectedInvoice.can_mark_paid"
                       @click="markSelectedInvoicePaid"
                     >
-                      Mark paid
+                      {{ $t('pages.finance.income.income.markPaid') }}
                     </VBtn>
                   </div>
                 </VAlert>
@@ -1028,6 +977,7 @@ onMounted(() => {
                   v-model="selectedIncome.company_id"
                   :items="companyOptions"
                   label="Company (optional)"
+                  :disabled="Boolean(selectedInvoice)"
                   clearable
                 />
               </VCol>

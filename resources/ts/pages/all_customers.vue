@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CurrencyApi, { type Currency } from '@/api/currency'
+import CompanyApi, { type Company } from '@/api/company'
 import CustomerApi, { type ApiResponse, type Customer } from '@/api/customer'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import ProjectApi from '@/api/project'
@@ -21,6 +22,8 @@ interface ServiceForm {
   employee_id: number | null
   employee_ids: number[]
   marketer_id: number | null
+  outsourcing_company_id: number | null
+  outsourcing_percentage: number | null
   fee: number | null
   currency_id: number | null
   deadline: string | null
@@ -39,6 +42,7 @@ const servicesLoading = ref(false)
 const currencies = ref<Currency[]>([])
 const marketers = ref<Employee[]>([])
 const deliveryEmployees = ref<Employee[]>([])
+const outsourcingCompanies = ref<Company[]>([])
 const userData = useCookie<{ is_marketer?: boolean; employee?: { id: number; is_marketer?: boolean } | null } | null>('userData')
 
 // Form state
@@ -55,6 +59,8 @@ const currentCustomer = ref<Customer>({
   tax_number: null,
   marketer: '',
   marketer_id: null,
+  outsourcing_company_id: null,
+  outsourcing_percentage: null,
   marketer_employee: null,
   date: new Date().toISOString().split('T')[0],
   services: [],
@@ -101,7 +107,13 @@ const headers = [
   { title: translate('common.fields.company'), key: 'company', sortable: true },
   { title: translate('common.messages.contact'), key: 'contact', sortable: true },
   { title: translate('common.fields.email'), key: 'email', sortable: true },
-  { title: translate('common.messages.services'), key: 'services', sortable: false },
+  {
+    title: translate('common.messages.services'),
+    key: 'services',
+    sortable: false,
+    headerProps: { class: 'd-none d-md-table-cell' },
+    cellProps: { class: 'd-none d-md-table-cell' },
+  },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false },
 ]
 
@@ -271,6 +283,11 @@ const fetchCurrencies = async () => {
   }
 }
 
+const fetchOutsourcingCompanies = async () => {
+  try { outsourcingCompanies.value = await CompanyApi.getAll() }
+  catch (err) { console.error('Failed to fetch outsourcing companies:', err) }
+}
+
 const createCustomer = async () => {
   try {
     const response: ApiResponse<Customer> = await CustomerApi.create({
@@ -285,7 +302,8 @@ const createCustomer = async () => {
     })
 
     if (response.success) {
-      customers.value.push(response.data)
+      // Keep the newly created record on the first page of the paginated table.
+      customers.value.unshift(response.data)
       dialog.value = false
     }
     else {
@@ -344,6 +362,8 @@ const updateService = async (customerId: number, pivotId: number) => {
       employee_id: currentService.value.employee_id,
       employee_ids: currentService.value.employee_ids,
       marketer_id: currentService.value.marketer_id,
+      outsourcing_company_id: currentService.value.outsourcing_company_id,
+      outsourcing_percentage: currentService.value.outsourcing_percentage,
       fee: currentService.value.fee,
       currency_id: currentService.value.currency_id,
       deadline: currentService.value.deadline,
@@ -537,6 +557,8 @@ const openEditService = async (customerId: number, pivotId: number) => {
         employee_id: service.employee_id ?? null,
         employee_ids: service.employee_ids ?? service.employees?.map(employee => employee.id) ?? (service.employee_id ? [service.employee_id] : []),
         marketer_id: service.marketer_id ?? customer.marketer_id ?? null,
+        outsourcing_company_id: service.outsourcing_company_id ?? null,
+        outsourcing_percentage: service.outsourcing_percentage ?? null,
         fee: service.fee,
         currency_id: service.currency_id ?? Number(service.currency.id),
         deadline: service.deadline,
@@ -647,6 +669,7 @@ onMounted(() => {
   fetchCurrencies()
   fetchMarketers()
   fetchDeliveryEmployees()
+  fetchOutsourcingCompanies()
 })
 </script>
 
@@ -784,7 +807,8 @@ onMounted(() => {
             v-if="item.services.length"
             size="x-small"
             variant="text"
-            append-icon="tabler-chevron-right"
+            append-icon="tabler-chevron-left"
+            class="mt-1 manage-services-button"
             @click="openEditCustomer(item)"
           >
             {{ $t('pages.contracts.allCustomers.allCustomers.manageServices') }}
@@ -1205,6 +1229,13 @@ onMounted(() => {
             {{ service.type }}
           </VChip>
         </div>
+        <AppDateTimePicker
+          v-model="projectDraft.due_date"
+          label="Target date"
+          clearable
+          class="project-target-date-picker mb-4"
+          :config="{ dateFormat: 'Y-m-d', position: 'below' }"
+        />
         <VTextField
           v-model="projectDraft.name"
           label="Project name"
@@ -1218,13 +1249,6 @@ onMounted(() => {
           rows="3"
           auto-grow
           class="mb-4"
-        />
-        <AppDateTimePicker
-          v-model="projectDraft.due_date"
-          label="Target date"
-          clearable
-          class="project-target-date-picker"
-          :config="{ dateFormat: 'Y-m-d', position: 'below' }"
         />
       </VCardText>
       <VCardActions class="pa-5">
@@ -1317,7 +1341,7 @@ onMounted(() => {
             >
               <VTextField
                 :model-value="currentMarketerName"
-                label="Acquisition marketer"
+                :label="$t('common.crmUi.serviceMarketer')"
                 prepend-inner-icon="tabler-speakerphone"
                 hint="Your attribution is applied automatically."
                 persistent-hint
@@ -1334,11 +1358,41 @@ onMounted(() => {
                 :items="marketers"
                 item-title="name"
                 item-value="id"
-                label="Acquisition marketer (optional)"
+                :label="$t('common.crmUi.serviceMarketerOptional')"
                 prepend-inner-icon="tabler-speakerphone"
                 clearable
-                hint="Defaults to the customer marketer when the service is attached."
+                :hint="$t('common.crmUi.serviceMarketerHint')"
                 persistent-hint
+              />
+            </VCol>
+            <VCol
+              cols="12"
+              md="6"
+            >
+              <VAutocomplete
+                v-model="currentService.outsourcing_company_id"
+                :items="outsourcingCompanies"
+                :item-title="(company: Company) => company.trade_name || company.legal_name"
+                item-value="id"
+                :label="t('outsourcing.company')"
+                prepend-inner-icon="tabler-building-factory-2"
+                clearable
+                @update:model-value="value => { if (!value) currentService.outsourcing_percentage = null }"
+              />
+            </VCol>
+            <VCol
+              cols="12"
+              md="6"
+            >
+              <VTextField
+                v-model.number="currentService.outsourcing_percentage"
+                :label="t('outsourcing.rate')"
+                type="number"
+                min="0.01"
+                max="100"
+                step="0.01"
+                suffix="%"
+                :disabled="!currentService.outsourcing_company_id"
               />
             </VCol>
             <VCol
@@ -1559,6 +1613,14 @@ onMounted(() => {
 
 .customer-services-table {
   min-width: 760px;
+}
+
+.customer-services-summary {
+  padding: 4px 6px;
+}
+
+.manage-services-button :deep(.v-btn__append .v-icon) {
+  transform: none !important;
 }
 
 .customer-services-table :deep(.v-table__wrapper) {

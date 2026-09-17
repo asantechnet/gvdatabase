@@ -29,6 +29,7 @@ const pageGuides: Record<string, PageGuideDefinition> = {
   'staff-salary': { title: 'Payroll', description: 'Use payroll to prepare and review salary records. Confirm the period, employee, currency, attendance effect, and deductions before posting.' },
   bonuslist: { title: 'Bonuses', description: 'Use this page to review bonus nominations and their approval state before they become part of payroll.' },
   commissions: { title: 'Commissions', description: 'Track commission earnings and settlements here. The page distinguishes pending, approved, and paid amounts.' },
+  outsourcing: { title: 'Outsourcing', description: 'Review supplier earnings from collected customer payments, prepare a controlled settlement, and record the protected supplier expense when paid.' },
   contracts: { title: 'Contracts', description: 'Create and manage customer contracts here. Review parties, terms, dates, obligations, and the selected template before finalizing.' },
   'employee-contracts': { title: 'Employee contracts', description: 'Use this page for employee-specific contract records and their printable documents.' },
   'company-contracts': { title: 'Company contracts', description: 'Use this page for company contract records and their current lifecycle state.' },

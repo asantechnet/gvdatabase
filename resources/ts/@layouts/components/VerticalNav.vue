@@ -54,6 +54,18 @@ const handleNavScroll = (evt: Event) => {
   isVerticalNavScrolled.value = (evt.target as HTMLElement).scrollTop > 0
 }
 
+const closeOverlayBeforeGuide = async () => {
+  if (!configStore.isLessThanOverlayNavBreakpoint || !props.isOverlayNavActive)
+    return
+
+  props.toggleIsOverlayNavActive(false)
+  await nextTick()
+
+  // Wait for the drawer's close transition so Driver.js measures the page,
+  // rather than the overlay navigation, on small screens.
+  await new Promise<void>(resolve => window.setTimeout(resolve, 250))
+}
+
 </script>
 
 <template>
@@ -123,7 +135,7 @@ const handleNavScroll = (evt: Event) => {
           :item="item"
         />
         <li class="nav-page-guide">
-          <HeaderPageGuide />
+          <HeaderPageGuide :before-open="closeOverlayBeforeGuide" />
         </li>
       </PerfectScrollbar>
     </slot>

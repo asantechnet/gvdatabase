@@ -196,6 +196,13 @@ const currentComponent = computed(() => {
           <p class="text-body-2 text-medium-emphasis mb-5">
             {{ $t('components.taskManager.taskappshell.projectWorkspaceDescription') }}
           </p>
+          <AppDateTimePicker
+            v-model="newProject.due_date"
+            :label="$t('components.taskManager.taskappshell.targetDate')"
+            class="mb-4"
+            :config="{ dateFormat: 'Y-m-d' }"
+            clearable
+          />
           <VTextField
             v-model="newProject.name"
             :label="$t('components.taskManager.taskappshell.projectName')"
@@ -207,13 +214,6 @@ const currentComponent = computed(() => {
             :label="$t('common.fields.description')"
             rows="2"
             class="mb-4"
-          />
-          <AppDateTimePicker
-            v-model="newProject.due_date"
-            :label="$t('components.taskManager.taskappshell.targetDate')"
-            class="mb-4"
-            :config="{ dateFormat: 'Y-m-d' }"
-            clearable
           />
           <VAutocomplete
             :model-value="newProject.customer_id"

@@ -128,7 +128,7 @@ class InvoiceController extends Controller
                 ->where('customer_id', $customer->id)
                 ->where('status', 'active')
                 ->whereIn('id', $requestedIds)
-                ->with(['service.currency', 'currency', 'employee.commissionServices', 'deliveryEmployees.commissionServices', 'marketer.commissionServices'])
+                ->with(['service.currency', 'currency', 'employee.commissionServices', 'deliveryEmployees.commissionServices', 'marketer.commissionServices', 'outsourcingCompany'])
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get()
@@ -156,6 +156,8 @@ class InvoiceController extends Controller
                 $deliveryRecipients = [];
                 $marketingEmployee = null;
                 $marketingPercentage = null;
+                $outsourcingCompanyId = null;
+                $outsourcingPercentage = null;
 
                 // A customer service can credit several delivery employees.
                 // Their catalogue capability supplies the rate; each resolved
@@ -194,6 +196,14 @@ class InvoiceController extends Controller
                     }
                 }
 
+                // Outsourcing is contractual supplier work, independent from
+                // employee payroll. Snapshot both the provider and its agreed
+                // share now so later agreement changes cannot alter invoices.
+                if ($customerService->outsourcingCompany && $customerService->outsourcing_percentage !== null) {
+                    $outsourcingCompanyId = $customerService->outsourcingCompany->id;
+                    $outsourcingPercentage = (float) $customerService->outsourcing_percentage;
+                }
+
                 if (! $sourceCurrency || (float) $sourceCurrency->rate <= 0) {
                     throw ValidationException::withMessages([
                         'services' => 'business.service_currency_rate_invalid',
@@ -225,8 +235,10 @@ class InvoiceController extends Controller
                     // authoritative immutable invoice snapshot.
                     'employee_id' => array_key_first($deliveryRecipients),
                     'marketer_employee_id' => $marketingEmployee?->id,
+                    'outsourcing_company_id' => $outsourcingCompanyId,
                     'snapshot_commission_percentage' => $deliveryRecipients[array_key_first($deliveryRecipients)] ?? null,
                     'snapshot_marketer_commission_percentage' => $marketingPercentage,
+                    'snapshot_outsourcing_percentage' => $outsourcingPercentage,
                     'quantity' => $quantity,
                     'line_total' => $lineTotal,
                 ];

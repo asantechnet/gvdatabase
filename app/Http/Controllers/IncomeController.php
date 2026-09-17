@@ -7,6 +7,7 @@ use App\Models\Currency;
 use App\Models\Income;
 use App\Models\Invoice;
 use App\Services\CommissionAccrualService;
+use App\Services\OutsourcingAccrualService;
 use App\Services\CurrencyConversionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ class IncomeController extends Controller
     public function __construct(
         private readonly CurrencyConversionService $currencies,
         private readonly CommissionAccrualService $commissions,
+        private readonly OutsourcingAccrualService $outsourcing,
     ) {}
 
     public function index(Request $request)
@@ -129,6 +131,7 @@ class IncomeController extends Controller
         $data = $validator->validated();
         $income = DB::transaction(function () use ($data, $income) {
             $this->commissions->assertIncomeMutable($income);
+            $this->outsourcing->assertIncomeMutable($income);
             $invoiceId = array_key_exists('invoice_id', $data) ? $data['invoice_id'] : $income->invoice_id;
             $affectedInvoiceIds = array_filter([$income->invoice_id, $invoiceId]);
             $invoices = Invoice::whereIn('id', $affectedInvoiceIds)->lockForUpdate()->get()->keyBy('id');
@@ -184,6 +187,7 @@ class IncomeController extends Controller
     {
         DB::transaction(function () use ($income) {
             $this->commissions->assertIncomeMutable($income);
+            $this->outsourcing->assertIncomeMutable($income);
             $invoice = $income->invoice_id
                 ? Invoice::whereKey($income->invoice_id)->lockForUpdate()->first()
                 : null;

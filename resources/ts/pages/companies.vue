@@ -11,6 +11,8 @@ import { formatLocalizedDate } from '@/utils/localization'
 
 const router = useRouter()
 const toast = useToast()
+const { t } = useI18n()
+const tr = (key: string, values?: Record<string, unknown>) => t(`pages.companies.${key}`, values)
 
 const search = ref('')
 const printDialogVisible = ref(false)
@@ -80,24 +82,24 @@ const form = ref<CompanyForm>(emptyForm())
 const selectedCompanyId = ref<number | null>(null)
 const companyPendingDeletion = ref<Company | null>(null)
 
-const headers = [
-  { title: 'Legal Name', key: 'legal_name', sortable: true },
-  { title: 'Trade Name', key: 'trade_name', sortable: true },
-  { title: 'Registration No.', key: 'registration_number', sortable: false },
-  { title: 'Tax No.', key: 'tax_number', sortable: false },
-  { title: 'City', key: 'city', sortable: true },
-  { title: 'Representative', key: 'representative_name', sortable: false },
-  { title: 'Actions', key: 'actions', sortable: false },
-]
+const headers = computed(() => [
+  { title: tr('legalName'), key: 'legal_name', sortable: true },
+  { title: tr('tradeName'), key: 'trade_name', sortable: true },
+  { title: tr('registrationNumber'), key: 'registration_number', sortable: false },
+  { title: tr('taxNumber'), key: 'tax_number', sortable: false },
+  { title: tr('city'), key: 'city', sortable: true },
+  { title: tr('representative'), key: 'representative_name', sortable: false },
+  { title: t('common.messages.actions'), key: 'actions', sortable: false },
+])
 
-const contractHeaders = [
-  { title: 'Contract', key: 'contract', sortable: true },
-  { title: 'Number', key: 'contract_number', sortable: true },
-  { title: 'Company', key: 'company_name', sortable: true },
-  { title: 'Start Date', key: 'start_date', sortable: true },
-  { title: 'Status', key: 'status', sortable: true },
-  { title: 'Actions', key: 'actions', sortable: false },
-]
+const contractHeaders = computed(() => [
+  { title: t('common.messages.contract'), key: 'contract', sortable: true },
+  { title: tr('number'), key: 'contract_number', sortable: true },
+  { title: tr('company'), key: 'company_name', sortable: true },
+  { title: t('common.fields.startDate'), key: 'start_date', sortable: true },
+  { title: t('common.fields.status'), key: 'status', sortable: true },
+  { title: t('common.messages.actions'), key: 'actions', sortable: false },
+])
 
 // company_id → most relevant (active first, then newest) contract
 const latestContractFor = (companyId: number): Contract | null => {
@@ -115,7 +117,7 @@ const latestContractFor = (companyId: number): Contract | null => {
 }
 
 const companyNameFor = (companyId: number | null | undefined) =>
-  companies.value.find(company => company.id === companyId)?.legal_name || '—'
+  companies.value.find(company => company.id === companyId)?.legal_name || tr('notAvailable')
 
 const contractStatusColor = (status: string) => ({
   active: 'success',
@@ -169,7 +171,7 @@ const fetchCompanies = async () => {
   }
   catch (error) {
     console.error('Failed to load companies:', error)
-    toast.error('Failed to load companies.')
+    toast.error(tr('failedToLoad'))
   }
   finally {
     isLoading.value = false
@@ -214,20 +216,20 @@ const submit = async () => {
       const created = await CompanyApi.create(payload)
 
       companies.value.unshift(created)
-      toast.success('Company created.')
+      toast.success(tr('created'))
     }
     else if (selectedCompanyId.value) {
       const updated = await CompanyApi.update(selectedCompanyId.value, payload)
       const index = companies.value.findIndex(company => company.id === selectedCompanyId.value)
       if (index !== -1)
         companies.value[index] = updated
-      toast.success('Company updated.')
+      toast.success(tr('updated'))
     }
     isDialogVisible.value = false
   }
   catch (error) {
     console.error('Failed to save company:', error)
-    toast.error('Failed to save the company.')
+    toast.error(tr('failedToSave'))
   }
   finally {
     saving.value = false
@@ -243,11 +245,11 @@ const confirmDelete = async () => {
   try {
     await CompanyApi.delete(target.id)
     companies.value = companies.value.filter(company => company.id !== target.id)
-    toast.success('Company deleted.')
+    toast.success(tr('deleted'))
   }
   catch {
     await fetchCompanies()
-    toast.warning('This company is referenced by contracts and has been deactivated instead of deleted.')
+    toast.warning(tr('deactivatedInsteadOfDeleted'))
   }
 }
 
@@ -275,7 +277,7 @@ const createContract = (company: Company) => {
 const editContract = (contract: Contract) => {
   const company = companies.value.find(item => item.id === contract.company_id)
   if (!company) {
-    toast.error('The company for this contract could not be found.')
+    toast.error(tr('contractCompanyNotFound'))
 
     return
   }
@@ -306,11 +308,11 @@ const saveContract = async (payload: ContractFormPayload) => {
     else companyContracts.value[index] = saved
 
     isContractDialogVisible.value = false
-    toast.success(contractDialogMode.value === 'add' ? 'Company contract created.' : 'Company contract updated.')
+    toast.success(contractDialogMode.value === 'add' ? tr('contractCreated') : tr('contractUpdated'))
   }
   catch (error) {
     console.error('Failed to save company contract:', error)
-    toast.error('Failed to save the company contract.')
+    toast.error(tr('failedToSaveContract'))
   }
   finally {
     savingContract.value = false
@@ -321,8 +323,8 @@ const saveContract = async (payload: ContractFormPayload) => {
 <template>
   <DataTablePageKpis
     :items="filtered"
-    title="Companies"
-    description="Manage counterparties, their details, and the agreements connected to them."
+    :title="tr('title')"
+    :description="tr('description')"
     icon="tabler-building"
   />
   <VCard>
@@ -340,7 +342,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             v-model="search"
             class="data-table-search"
             prepend-inner-icon="tabler-search"
-            placeholder="Search companies"
+            :placeholder="tr('search')"
             density="compact"
             clearable
             hide-details
@@ -357,7 +359,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             prepend-icon="tabler-plus"
             @click="openAdd"
           >
-            Add Company
+            {{ tr('addCompany') }}
           </VBtn>
         </VCol>
       </VRow>
@@ -369,12 +371,12 @@ const saveContract = async (payload: ContractFormPayload) => {
       item-value="id"
       class="text-no-wrap"
       :loading="isLoading"
-      loading-text="Loading companies..."
+      :loading-text="tr('loading')"
       style="overflow-x: auto;"
-      no-data-text="No companies yet — add your first counterparty."
+      :no-data-text="tr('empty')"
     >
       <template #no-data>
-        No companies yet — add your first counterparty.
+        {{ tr('empty') }}
       </template>
       <template #item.legal_name="{ item }">
         <div class="d-flex flex-column py-1">
@@ -408,7 +410,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             activator="parent"
             location="top"
           >
-            Create contract
+            {{ tr('createContract') }}
           </VTooltip>
         </VBtn>
         <VBtn
@@ -422,7 +424,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             activator="parent"
             location="top"
           >
-            Edit company
+            {{ tr('editCompany') }}
           </VTooltip>
         </VBtn>
         <VBtn
@@ -436,7 +438,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             activator="parent"
             location="top"
           >
-            Delete company
+            {{ tr('deleteCompany') }}
           </VTooltip>
         </VBtn>
       </template>
@@ -457,8 +459,8 @@ const saveContract = async (payload: ContractFormPayload) => {
           class="text-primary mr-2"
         />
       </template>
-      <VCardTitle>Company Contracts</VCardTitle>
-      <VCardSubtitle>Contracts issued with company-type templates</VCardSubtitle>
+      <VCardTitle>{{ tr('contractsTitle') }}</VCardTitle>
+      <VCardSubtitle>{{ tr('contractsDescription') }}</VCardSubtitle>
       <template #append>
         <VBtn
           variant="tonal"
@@ -468,7 +470,7 @@ const saveContract = async (payload: ContractFormPayload) => {
           :disabled="!filtered.length"
           @click="createContract(filtered[0])"
         >
-          New Company Contract
+          {{ tr('newContract') }}
         </VBtn>
       </template>
     </VCardItem>
@@ -481,15 +483,15 @@ const saveContract = async (payload: ContractFormPayload) => {
       item-value="id"
       class="text-no-wrap"
       :loading="isLoading"
-      loading-text="Loading company contracts..."
+      :loading-text="tr('loadingContracts')"
       style="overflow-x: auto;"
-      no-data-text="No company contracts yet — create one from a company row above."
+      :no-data-text="tr('emptyContracts')"
     >
       <template #no-data>
-        No company contracts yet — create one from a company row above.
+        {{ tr('emptyContracts') }}
       </template>
       <template #item.contract="{ item }">
-        {{ item.contract || item.contract_template?.name || 'Untitled contract' }}
+        {{ item.contract || item.contract_template?.name || tr('untitledContract') }}
       </template>
       <template #item.contract_number="{ item }">
         {{ item.contract_number || '—' }}
@@ -506,7 +508,7 @@ const saveContract = async (payload: ContractFormPayload) => {
           size="small"
           class="font-weight-medium text-capitalize"
         >
-          {{ item.status }}
+          {{ translateBackendValue(item.status) }}
         </VChip>
       </template>
       <template #item.actions="{ item }">
@@ -520,7 +522,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             activator="parent"
             location="top"
           >
-            Print contract
+            {{ tr('printContract') }}
           </VTooltip>
         </VBtn>
         <VBtn
@@ -533,7 +535,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             activator="parent"
             location="top"
           >
-            Edit contract
+            {{ tr('editContract') }}
           </VTooltip>
         </VBtn>
       </template>
@@ -550,7 +552,7 @@ const saveContract = async (payload: ContractFormPayload) => {
     <VCard>
       <VCardTitle class="d-flex align-center gap-2">
         <VIcon icon="tabler-building" />
-        {{ dialogMode === 'add' ? 'Add Company' : 'Edit Company' }}
+        {{ dialogMode === 'add' ? tr('addCompany') : tr('editCompany') }}
       </VCardTitle>
 
       <VCardText>
@@ -560,7 +562,7 @@ const saveContract = async (payload: ContractFormPayload) => {
           @submit.prevent="submit"
         >
           <p class="app-form__section">
-            Identity
+            {{ tr('identity') }}
           </p>
           <VRow>
             <VCol
@@ -569,8 +571,8 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.legal_name"
-                label="Legal Name *"
-                :rules="[v => !!v?.trim() || 'Legal name is required']"
+                :label="tr('legalNameRequired')"
+                :rules="[v => !!v?.trim() || tr('legalNameRequiredMessage')]"
               />
             </VCol>
             <VCol
@@ -579,7 +581,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.trade_name"
-                label="Trade Name"
+                :label="tr('tradeName')"
               />
             </VCol>
             <VCol
@@ -589,7 +591,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.registration_number"
-                label="Registration Number"
+                :label="tr('registrationNumber')"
               />
             </VCol>
             <VCol
@@ -599,7 +601,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.tax_number"
-                label="Tax Number"
+                :label="tr('taxNumber')"
               />
             </VCol>
             <VCol
@@ -609,7 +611,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.national_id"
-                label="National ID"
+                :label="tr('nationalId')"
               />
             </VCol>
             <VCol
@@ -619,13 +621,13 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.legal_form"
-                label="Legal Form (LLC, Ltd…)"
+                :label="tr('legalForm')"
               />
             </VCol>
           </VRow>
 
           <p class="app-form__section mt-4">
-            Contact & Address
+            {{ tr('contactAndAddress') }}
           </p>
           <VRow>
             <VCol
@@ -634,7 +636,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.email"
-                label="Email"
+                :label="tr('email')"
                 type="email"
               />
             </VCol>
@@ -644,7 +646,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.phone"
-                label="Phone"
+                :label="tr('phone')"
               />
             </VCol>
             <VCol
@@ -653,7 +655,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.website"
-                label="Website"
+                :label="tr('website')"
               />
             </VCol>
             <!-- Keep the short fields readable at the dialog's desktop width. -->
@@ -664,7 +666,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.address_line"
-                label="Address Line"
+                :label="tr('addressLine')"
               />
             </VCol>
             <VCol
@@ -674,7 +676,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.city"
-                label="City"
+                :label="tr('city')"
               />
             </VCol>
             <VCol
@@ -684,7 +686,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.province"
-                label="Province"
+                :label="tr('province')"
               />
             </VCol>
             <VCol
@@ -694,7 +696,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.postal_code"
-                label="Postal"
+                :label="tr('postalCode')"
               />
             </VCol>
             <VCol
@@ -704,13 +706,13 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.country"
-                label="Country"
+                :label="tr('country')"
               />
             </VCol>
           </VRow>
 
           <p class="app-form__section mt-4">
-            Business Information
+            {{ tr('businessInformation') }}
           </p>
           <VRow>
             <VCol
@@ -719,13 +721,13 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.industry"
-                label="Industry"
+                :label="tr('industry')"
               />
             </VCol>
             <VCol cols="12">
               <VTextarea
                 v-model="form.description"
-                label="Description"
+                :label="tr('formDescription')"
                 rows="2"
                 auto-grow
               />
@@ -733,7 +735,7 @@ const saveContract = async (payload: ContractFormPayload) => {
           </VRow>
 
           <p class="app-form__section mt-4">
-            Authorized Representative
+            {{ tr('authorizedRepresentative') }}
           </p>
           <VRow>
             <VCol
@@ -743,7 +745,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.representative_name"
-                label="Name"
+                :label="tr('name')"
               />
             </VCol>
             <VCol
@@ -753,7 +755,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.representative_title"
-                label="Title"
+                :label="tr('representativeTitle')"
               />
             </VCol>
             <VCol
@@ -763,7 +765,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.representative_phone"
-                label="Phone"
+                :label="tr('phone')"
               />
             </VCol>
             <VCol
@@ -773,7 +775,7 @@ const saveContract = async (payload: ContractFormPayload) => {
             >
               <VTextField
                 v-model="form.representative_email"
-                label="Email"
+                :label="tr('email')"
                 type="email"
               />
             </VCol>
@@ -787,14 +789,14 @@ const saveContract = async (payload: ContractFormPayload) => {
           color="secondary"
           @click="isDialogVisible = false"
         >
-          Cancel
+          {{ t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="primary"
           :loading="saving"
           @click="submit"
         >
-          {{ dialogMode === 'add' ? 'Create' : 'Save Changes' }}
+          {{ dialogMode === 'add' ? t('common.actions.create') : tr('saveChanges') }}
         </VBtn>
       </VCardActions>
     </VCard>
@@ -808,7 +810,7 @@ const saveContract = async (payload: ContractFormPayload) => {
   >
     <VCard>
       <VCardTitle>
-        {{ contractDialogMode === 'add' ? 'Create Company Contract' : 'Edit Company Contract' }}
+        {{ contractDialogMode === 'add' ? tr('createCompanyContract') : tr('editCompanyContract') }}
       </VCardTitle>
       <VCardText>
         <ContractForm
@@ -834,11 +836,9 @@ const saveContract = async (payload: ContractFormPayload) => {
     @update:model-value="companyPendingDeletion = null"
   >
     <VCard>
-      <VCardTitle>Delete company</VCardTitle>
+      <VCardTitle>{{ tr('deleteCompany') }}</VCardTitle>
       <VCardText>
-        Delete <strong>{{ companyPendingDeletion?.legal_name }}</strong>?
-        Companies referenced by existing contracts are deactivated instead of deleted so historical documents remain
-        valid.
+        {{ tr('deleteConfirmation', { company: companyPendingDeletion?.legal_name ?? '' }) }}
       </VCardText>
       <VCardActions class="justify-end">
         <VBtn
@@ -846,13 +846,13 @@ const saveContract = async (payload: ContractFormPayload) => {
           color="secondary"
           @click="companyPendingDeletion = null"
         >
-          Cancel
+          {{ t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="error"
           @click="confirmDelete"
         >
-          Delete
+          {{ t('common.actions.delete') }}
         </VBtn>
       </VCardActions>
     </VCard>

@@ -19,6 +19,13 @@ export default [
         subject: 'view_expenses',
       },
       {
+        title: 'outsourcing.nav',
+        icon: { icon: 'tabler-building-store' },
+        to: 'outsourcing',
+        action: 'read',
+        subject: 'view_outsourcing',
+      },
+      {
         title: 'common.navigation.asset',
         icon: { icon: 'tabler-package' },
         to: 'asset',

@@ -31,6 +31,7 @@ use App\Http\Controllers\LeadController;
 use App\Http\Controllers\MarketerController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficeController;
+use App\Http\Controllers\OutsourcingController;
 use App\Http\Controllers\PaidTimeOffController;
 use App\Http\Controllers\PaymentDetailController;
 use App\Http\Controllers\PermissionController;
@@ -249,6 +250,14 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::post('commission-settlements/{commissionSettlement}/approve', [CommissionController::class, 'approve'])->middleware('permission:approve_commissions');
     Route::post('commission-settlements/{commissionSettlement}/pay', [CommissionController::class, 'pay'])->middleware('permission:pay_commissions');
     Route::post('commission-settlements/{commissionSettlement}/cancel', [CommissionController::class, 'cancel'])->middleware('permission:manage_commission_settlements');
+
+    Route::get('outsourcing/accruals', [OutsourcingController::class, 'accruals'])->middleware('permission:view_outsourcing');
+    Route::get('outsourcing/settlements', [OutsourcingController::class, 'settlements'])->middleware('permission:view_outsourcing');
+    Route::post('outsourcing/adjustments', [OutsourcingController::class, 'storeAdjustment'])->middleware('permission:manage_outsourcing_settlements');
+    Route::post('outsourcing/settlements', [OutsourcingController::class, 'storeSettlement'])->middleware('permission:manage_outsourcing_settlements');
+    Route::post('outsourcing/settlements/{outsourcingSettlement}/approve', [OutsourcingController::class, 'approve'])->middleware('permission:approve_outsourcing');
+    Route::post('outsourcing/settlements/{outsourcingSettlement}/pay', [OutsourcingController::class, 'pay'])->middleware('permission:pay_outsourcing');
+    Route::post('outsourcing/settlements/{outsourcingSettlement}/cancel', [OutsourcingController::class, 'cancel'])->middleware('permission:manage_outsourcing_settlements');
 
     // Invoice routes
     Route::apiResource('payment-details', PaymentDetailController::class)

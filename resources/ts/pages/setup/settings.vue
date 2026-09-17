@@ -886,7 +886,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <VTextField
                 v-model.number="form.paid_leave_days_per_year"
-                label="Paid leave days per year"
+                :label="$t('pages.settings.settings.paidLeaveDaysPerYear')"
                 type="number"
                 min="0"
                 max="366"
@@ -1031,13 +1031,13 @@ onBeforeUnmount(revokeObjectUrls)
               variant="tonal"
               class="mb-5"
             >
-              Upload a clear letterhead or cover image in any practical size. It is scaled proportionally for the contract preview and print layout.
+              {{ $t('pages.settings.settings.documentArtworkHint') }}
             </VAlert>
             <VRow>
               <VCol
                 v-for="asset in [
-                  { field: 'contract_letterhead' as const, title: translate('pages.settings.settings.contractLetterhead'), preview: letterheadPreview, hint: 'Any clear image size; portrait is recommended.' },
-                  { field: 'contract_cover_design' as const, title: translate('pages.settings.settings.contractCoverDesign'), preview: coverDesignPreview, hint: 'Any clear image size; portrait is recommended.' },
+                  { field: 'contract_letterhead' as const, title: translate('pages.settings.settings.contractLetterhead'), preview: letterheadPreview, hint: translate('pages.settings.settings.documentImageHint') },
+                  { field: 'contract_cover_design' as const, title: translate('pages.settings.settings.contractCoverDesign'), preview: coverDesignPreview, hint: translate('pages.settings.settings.documentImageHint') },
                 ]"
                 :key="asset.field"
                 cols="12"
@@ -1050,7 +1050,7 @@ onBeforeUnmount(revokeObjectUrls)
                   <VImg
                     v-if="asset.preview"
                     :src="asset.preview"
-                    :alt="`${asset.title} preview`"
+                    :alt="$t('pages.settings.settings.documentPreviewAlt', { title: asset.title })"
                     cover
                   />
                   <div
@@ -1108,7 +1108,7 @@ onBeforeUnmount(revokeObjectUrls)
                   class="mt-4"
                 >
                   <p class="text-caption text-medium-emphasis mb-2">
-                    Drag any edge of the box to define the print-safe area. Contract text and details will stay inside this area.
+                    {{ $t('pages.settings.settings.printSafeAreaHint') }}
                   </p>
                   <div class="letterhead-safe-preview">
                     <VImg
@@ -1120,7 +1120,7 @@ onBeforeUnmount(revokeObjectUrls)
                       v-else
                       class="letterhead-preview-placeholder"
                     >
-                      Upload a full-page letterhead to position its safe area.
+                      {{ $t('pages.settings.settings.uploadLetterheadHint') }}
                     </div>
                     <div
                       class="letterhead-safe-box"
@@ -1130,20 +1130,20 @@ onBeforeUnmount(revokeObjectUrls)
                         class="preview-copy"
                         dir="rtl"
                       >
-                        این متن نمونه فارسی در محدوده امن چاپ باقی می‌ماند.
+                        {{ $t('pages.settings.settings.printSafeAreaSampleRtl') }}
                       </div>
                       <div
                         class="preview-copy"
                         dir="ltr"
                       >
-                        English lorem ipsum stays inside the print-safe area.
+                        {{ $t('pages.settings.settings.printSafeAreaSampleLtr') }}
                       </div>
                       <button
                         v-for="edge in ['top', 'right', 'bottom', 'left']"
                         :key="edge"
                         type="button"
                         :class="`safe-area-handle safe-area-handle--${edge}`"
-                        :aria-label="`Resize safe area ${edge}`"
+                        :aria-label="$t('pages.settings.settings.resizePrintSafeArea', { edge: $t(`pages.settings.settings.edges.${edge}`) })"
                         @pointerdown="resizeLetterheadSafeArea($event, edge as 'top' | 'right' | 'bottom' | 'left')"
                       />
                     </div>

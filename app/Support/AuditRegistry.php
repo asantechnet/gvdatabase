@@ -23,6 +23,8 @@ use App\Models\Income;
 use App\Models\Invoice;
 use App\Models\Marketer;
 use App\Models\Office;
+use App\Models\OutsourcingAccrual;
+use App\Models\OutsourcingSettlement;
 use App\Models\PaidTimeOff;
 use App\Models\PaymentDetail;
 use App\Models\Permission;
@@ -67,6 +69,8 @@ final class AuditRegistry
             'invoices' => Invoice::class,
             'marketers' => Marketer::class,
             'offices' => Office::class,
+            'outsourcing_accruals' => OutsourcingAccrual::class,
+            'outsourcing_settlements' => OutsourcingSettlement::class,
             'leaves' => PaidTimeOff::class,
             'payment_details' => PaymentDetail::class,
             'permissions' => Permission::class,
@@ -96,10 +100,10 @@ final class AuditRegistry
     {
         $key = self::keyFor($model);
         if ($key === 'other' || ! Schema::hasTable('audit_resource_settings')) {
-            return true;
+            return false;
         }
 
-        return AuditResourceSetting::query()->where('resource_key', $key)->value('enabled') ?? true;
+        return AuditResourceSetting::query()->where('resource_key', $key)->value('enabled') ?? false;
     }
 
     public static function ensureSettings(): void
@@ -107,7 +111,7 @@ final class AuditRegistry
         $now = now();
         AuditResourceSetting::query()->insertOrIgnore(array_map(fn (string $key) => [
             'resource_key' => $key,
-            'enabled' => true,
+            'enabled' => false,
             'created_at' => $now,
             'updated_at' => $now,
         ], array_keys(self::resources())));
@@ -125,6 +129,8 @@ final class AuditRegistry
             'worthy_employees' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getAttribute('bonus_month')),
             'commission_accruals' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getAttribute('earned_at')),
             'commission_settlements' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getAttribute('settlement_number')),
+            'outsourcing_accruals' => self::joinedLabel(self::relatedLabel($model, 'company'), $model->getAttribute('earned_at')),
+            'outsourcing_settlements' => self::joinedLabel(self::relatedLabel($model, 'company'), $model->getAttribute('settlement_number')),
             default => '',
         };
         if ($contextLabel !== '') {
@@ -138,6 +144,8 @@ final class AuditRegistry
             'salaries' => ['payslip_number', 'salary_month'],
             'commission_settlements' => ['settlement_number', 'period_start'],
             'commission_accruals' => ['earned_at', 'status'],
+            'outsourcing_settlements' => ['settlement_number', 'period_start'],
+            'outsourcing_accruals' => ['earned_at', 'status'],
             'assets' => ['serial_number', 'item', 'model'],
             'companies' => ['trade_name', 'legal_name', 'registration_number'],
             'positions' => ['title'],

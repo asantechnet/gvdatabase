@@ -6,7 +6,8 @@
       "Bash(npm run *)",
       "Bash(grep protected \\\\$table *)",
       "Bash(grep -rn ''\\\\''role'\\\\'' =>\\\\|'\\\\''role'\\\\'' =>\\\\|=> $role\\\\|'\\\\''role'\\\\''' database/migrations/)",
-      "Bash(grep *)"
+      "Bash(grep *)",
+      "Bash(echo \"old-key refs remaining: $?\")"
     ]
   }
 }

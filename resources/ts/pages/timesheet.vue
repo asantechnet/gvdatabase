@@ -288,7 +288,7 @@ watch(logDate, async () => {
     <!-- MAIN INTERACTIVE UI (Hidden during print output) -->
     <div class="timesheet-screen">
       <!-- TOP ROW: Range Metric Indicators -->
-      <VRow class="mb-6">
+      <VRow class="timesheet-kpi-strip mb-6">
         <VCol
           cols="12"
           sm="4"
@@ -467,12 +467,11 @@ watch(logDate, async () => {
             class="pa-5 mb-6"
             elevation="3"
           >
-            <div class="d-flex align-center mb-4">
+            <div class="d-flex align-center gap-3 mb-4">
               <VAvatar
                 color="primary"
                 variant="flat"
                 size="36"
-                class="mr-3"
               >
                 <VIcon
                   icon="tabler-user-plus"
@@ -606,12 +605,11 @@ watch(logDate, async () => {
             class="pa-5 mb-6"
             elevation="3"
           >
-            <div class="d-flex align-center mb-4">
+            <div class="d-flex align-center gap-3 mb-4">
               <VAvatar
                 color="primary"
                 variant="flat"
                 size="36"
-                class="mr-3"
               >
                 <VIcon
                   icon="tabler-calendar"
@@ -1104,6 +1102,32 @@ watch(logDate, async () => {
   font-weight: 700;
   line-height: 1.1;
   white-space: nowrap;
+}
+
+@media (max-width: 599px) {
+  .timesheet-kpi-strip {
+    position: relative;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-block-end: 0.25rem;
+    border-radius: 0.75rem;
+    scroll-snap-type: inline proximity;
+    scrollbar-width: none;
+  }
+
+  .timesheet-kpi-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .timesheet-kpi-strip > .v-col {
+    position: relative;
+    z-index: 0;
+    flex: 0 0 min(84vw, 21rem) !important;
+    inline-size: min(84vw, 21rem) !important;
+    max-inline-size: min(84vw, 21rem) !important;
+    scroll-snap-align: start;
+  }
 }
 
 /* Micro interactions */

@@ -17,8 +17,10 @@ class InvoiceService extends Pivot
         'customer_service_id',
         'employee_id',
         'marketer_employee_id',
+        'outsourcing_company_id',
         'snapshot_commission_percentage',
         'snapshot_marketer_commission_percentage',
+        'snapshot_outsourcing_percentage',
         'snapshot_name',
         'snapshot_service_fee',
         'snapshot_service_currency_code',
@@ -39,6 +41,7 @@ class InvoiceService extends Pivot
         'quantity' => 'integer',
         'snapshot_commission_percentage' => 'decimal:2',
         'snapshot_marketer_commission_percentage' => 'decimal:2',
+        'snapshot_outsourcing_percentage' => 'decimal:2',
     ];
 
     public function invoice()
@@ -64,6 +67,11 @@ class InvoiceService extends Pivot
     public function marketerEmployee()
     {
         return $this->belongsTo(Employee::class, 'marketer_employee_id');
+    }
+
+    public function outsourcingCompany()
+    {
+        return $this->belongsTo(Company::class, 'outsourcing_company_id');
     }
 
     /** Immutable delivery-commission recipients snapshotted when invoiced. */

@@ -25,6 +25,7 @@ const props = withDefaults(defineProps<{
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const currentListRoute = () => ({
   customers: 'contracts',
@@ -74,6 +75,24 @@ const isRenewing = ref(false)
 const counterparties = computed(() => [...new Set(contracts.value.map(c => c.counterparty).filter(c => c))])
 const statuses = ['draft', 'active', 'expired', 'renewed', 'terminated', 'cancelled']
 const canShowPartyDetails = computed(() => contractToPrint.value !== null && canPrintPartyDetails(contractToPrint.value))
+const hasRelatedServices = computed(() => props.contractAudience === 'customers')
+const audienceCopy = computed(() => ({
+  customers: {
+    title: 'pages.contracts.allContracts.allContracts.customerContracts',
+    description: 'pages.contracts.allContracts.allContracts.customerContractsDescription',
+    report: 'pages.contracts.allContracts.allContracts.customerContractsReport',
+  },
+  employees: {
+    title: 'pages.contracts.allContracts.allContracts.employeeContracts',
+    description: 'pages.contracts.allContracts.allContracts.employeeContractsDescription',
+    report: 'pages.contracts.allContracts.allContracts.employeeContractsReport',
+  },
+  companies: {
+    title: 'pages.contracts.allContracts.allContracts.companyContracts',
+    description: 'pages.contracts.allContracts.allContracts.companyContractsDescription',
+    report: 'pages.contracts.allContracts.allContracts.companyContractsReport',
+  },
+}[props.contractAudience]))
 
 const getStatusColor = (status: string) => {
   const statusMap: Record<string, string> = {
@@ -104,16 +123,27 @@ const filtered = computed(() => {
   })
 })
 
-const headers = [
-  { title: translate('common.messages.contractNumber'), key: 'contract_number', sortable: true },
-  { title: translate('common.messages.contract'), key: 'contract', sortable: true },
-  { title: translate('common.fields.type'), key: 'type', sortable: true },
-  { title: translate('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true },
-  { title: translate('common.messages.services'), key: 'services', sortable: false },
-  { title: translate('common.fields.startDate'), key: 'start_date', sortable: true },
-  { title: translate('pages.contracts.allContracts.allContracts.endDate'), key: 'end_date', sortable: true },
-  { title: translate('common.fields.status'), key: 'status', sortable: true },
-  { title: translate('common.messages.actions'), key: 'actions', sortable: false },
+const headers = computed(() => [
+  { title: t('common.messages.contractNumber'), key: 'contract_number', sortable: true },
+  { title: t('common.messages.contract'), key: 'contract', sortable: true },
+  { title: t('common.fields.type'), key: 'type', sortable: true },
+  { title: t('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true },
+  ...(hasRelatedServices.value ? [{ title: t('common.messages.services'), key: 'services', sortable: false }] : []),
+  { title: t('common.fields.startDate'), key: 'start_date', sortable: true },
+  { title: t('pages.contracts.allContracts.allContracts.endDate'), key: 'end_date', sortable: true },
+  { title: t('common.fields.status'), key: 'status', sortable: true },
+  { title: t('common.messages.actions'), key: 'actions', sortable: false },
+])
+
+const contractReportRow = (contract: Contract) => [
+  contract.contract_number,
+  contract.contract || contract.contract_template?.name,
+  contract.type || contract.contract_template?.type,
+  contract.counterparty,
+  ...(hasRelatedServices.value ? [contract.services?.map(service => service.type).join(', ') || '—'] : []),
+  contract.start_date,
+  contract.end_date || '—',
+  contract.status,
 ]
 
 const companySetting = ref<Setting | null>(null)
@@ -589,8 +619,8 @@ onMounted(async () => {
 <template>
   <DataTablePageKpis
     :items="filtered"
-    title="Contracts"
-    description="See the current contract portfolio and spot records that need follow-up."
+    :title="t(audienceCopy.title)"
+    :description="t(audienceCopy.description)"
     icon="tabler-file-description"
   />
   <VCard>
@@ -702,7 +732,10 @@ onMounted(async () => {
       <template #item.counterparty="{ item }">
         {{ item.counterparty || $t('pages.contracts.allContracts.allContracts.unknownCounterparty') }}
       </template>
-      <template #item.services="{ item }">
+      <template
+        v-if="hasRelatedServices"
+        #item.services="{ item }"
+      >
         {{ item.services?.map((service: { type: string }) => service.type).join(', ') || '—' }}
       </template>
       <template #item.start_date="{ item }">
@@ -809,14 +842,10 @@ onMounted(async () => {
     </ResponsiveDataTable>
   </VCard>
   <PrintableListReport
-    :title="contractAudience === 'employees'
-      ? $t('pages.contracts.allContracts.allContracts.employeeContractsReport')
-      : contractAudience === 'customers'
-        ? $t('pages.contracts.allContracts.allContracts.customerContractsReport')
-        : 'Contract records'"
+    :title="t(audienceCopy.report)"
     :subtitle="$t('pages.contracts.allContracts.allContracts.filteredContractRecords')"
     :columns="headers.slice(0, -1).map(header => header.title)"
-    :rows="filtered.map(contract => [contract.contract_number, contract.contract || contract.contract_template?.name, contract.type || contract.contract_template?.type, contract.counterparty, contract.services?.map(service => service.type).join(', ') || '—', contract.start_date, contract.end_date || '—', contract.status])"
+    :rows="filtered.map(contractReportRow)"
   />
 
   <!-- Contract Form Dialog -->

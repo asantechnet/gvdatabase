@@ -132,6 +132,9 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
     },
     mobileTitleKey: String,
     mobileActionKey: String,
+    // Opt in when a data-dense operational table should become expandable
+    // cards on phones instead of retaining a scrollable table grid.
+    mobileCards: Boolean,
 
     // These opt-in hooks keep the generic table useful for operational grids
     // without forcing sticky cells onto short or form-oriented tables.
@@ -141,9 +144,8 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
   setup(props, { attrs, slots }) {
     const { t } = useI18n({ useScope: 'global' })
 
-    // Keep the table structure on phones. Columns remain predictable and can
-    // be reached by scrolling instead of being converted into stacked cards.
-    const mobile = computed(() => false)
+    const isNarrowViewport = useMediaQuery('(max-width: 959px)')
+    const mobile = computed(() => props.mobileCards && isNarrowViewport.value)
     const expandedCards = ref(new Set<string>())
     const actionSheetOpen = ref(false)
     const actionSheetState = ref<{ item: Record<string, any>; index: number; column: DataTableColumn; body: TableBodySlotProps } | null>(null)
@@ -452,6 +454,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
         ...attrs,
         class: [
           'responsive-data-table',
+          mobile.value && 'responsive-data-table--mobile-cards',
           props.stickyFirstColumn && 'responsive-data-table--sticky-first',
           props.stickyLastColumn && 'responsive-data-table--sticky-last',
           attrs.class,

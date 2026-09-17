@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import CommissionApi, { type CommissionAccrual, type CommissionSettlement, type CommissionSummary } from '@/api/commission'
 import EmployeeApi, { type Employee } from '@/api/employee'
@@ -9,6 +9,7 @@ const { t } = useI18n()
 const tr = (key: string, values?: Record<string, unknown>) => t(`common.crmUi.commissions.${key}`, values)
 
 const toast = useToast()
+const userData = useCookie<{ roles?: string[] } | null>('userData')
 const loading = ref(false)
 const activeTab = ref<'accruals' | 'settlements'>('accruals')
 const accruals = ref<CommissionAccrual[]>([])
@@ -21,6 +22,7 @@ const dialog = ref(false)
 const adjustmentDialog = ref(false)
 const paymentDialog = ref(false)
 const selectedSettlement = ref<CommissionSettlement | null>(null)
+const selectedAccrualIds = ref<number[]>([])
 const paymentDate = ref(new Date().toISOString().slice(0, 10))
 
 const form = ref({
@@ -34,6 +36,8 @@ const form = ref({
 const adjustmentForm = ref({ employee_id: null as number | null, base_currency_id: null as number | null, effective_date: new Date().toISOString().slice(0, 10), amount: 0, reason: '' })
 
 const commissionEmployees = computed(() => employees.value.filter(employee => employee.employment_type === 'commission'))
+const isSuperAdmin = computed(() => userData.value?.roles?.includes('super_admin') ?? false)
+const filteredAccruals = computed(() => accruals.value.filter(row => !employeeFilter.value || row.employee_id === employeeFilter.value))
 
 const pendingCurrencies = computed(() => {
   const ids = new Set<number>()
@@ -44,6 +48,33 @@ const pendingCurrencies = computed(() => {
 })
 
 const summaryCards = computed(() => summary.value.filter(row => row.status !== 'void'))
+
+const settlementCandidates = computed(() => accruals.value.filter(row =>
+  row.status === 'pending'
+  && row.employee_id === form.value.employee_id
+  && row.base_currency_id === form.value.base_currency_id
+  && row.earned_at >= form.value.period_start
+  && row.earned_at <= form.value.period_end,
+))
+
+const selectedSettlementAccruals = computed(() => settlementCandidates.value
+  .filter(row => selectedAccrualIds.value.includes(row.id)))
+
+const settlementTotal = computed(() => selectedSettlementAccruals.value
+  .reduce((total, row) => total + Number(row.commission_base_amount || 0), 0))
+
+const settlementCurrency = computed(() => settlementCandidates.value[0]?.base_currency)
+
+const selectAllSettlementCandidates = () => {
+  selectedAccrualIds.value = settlementCandidates.value.map(row => row.id)
+}
+
+watch([
+  () => form.value.employee_id,
+  () => form.value.base_currency_id,
+  () => form.value.period_start,
+  () => form.value.period_end,
+], selectAllSettlementCandidates)
 
 const ledgerCurrencies = computed(() => {
   const rows = [...summary.value.map(row => row.currency), ...accruals.value.map(row => row.base_currency)]
@@ -60,12 +91,10 @@ const statusLabel = (status: string) => tr(`statuses.${status}`)
 const load = async () => {
   loading.value = true
   try {
-    const params = employeeFilter.value ? { employee_id: employeeFilter.value } : undefined
-
     const [accrualRows, settlementRows, summaryRows, employeeRows] = await Promise.all([
-      CommissionApi.accruals(params),
-      CommissionApi.settlements({ ...(params ?? {}), ...(statusFilter.value ? { status: statusFilter.value } : {}) }),
-      CommissionApi.summary(params),
+      CommissionApi.accruals(),
+      CommissionApi.settlements({ ...(employeeFilter.value ? { employee_id: employeeFilter.value } : {}), ...(statusFilter.value ? { status: statusFilter.value } : {}) }),
+      CommissionApi.summary(employeeFilter.value ? { employee_id: employeeFilter.value } : undefined),
       EmployeeApi.getOptions(),
     ])
 
@@ -85,12 +114,18 @@ const load = async () => {
 const openSettlement = () => {
   form.value.employee_id = employeeFilter.value
   form.value.base_currency_id = null
+  const oldestPending = accruals.value
+    .filter(row => row.status === 'pending' && (!employeeFilter.value || row.employee_id === employeeFilter.value))
+    .sort((a, b) => a.earned_at.localeCompare(b.earned_at))[0]
+  form.value.period_start = oldestPending?.earned_at ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
+  form.value.period_end = new Date().toISOString().slice(0, 10)
   form.value.notes = ''
+  selectedAccrualIds.value = []
   dialog.value = true
 }
 
 const createSettlement = async () => {
-  if (!form.value.employee_id || !form.value.base_currency_id)
+  if (!form.value.employee_id || !form.value.base_currency_id || !selectedAccrualIds.value.length || settlementTotal.value <= 0)
     return
   loading.value = true
   try {
@@ -99,6 +134,7 @@ const createSettlement = async () => {
       base_currency_id: form.value.base_currency_id,
       period_start: form.value.period_start,
       period_end: form.value.period_end,
+      accrual_ids: selectedAccrualIds.value,
       notes: form.value.notes || undefined,
     })
     dialog.value = false
@@ -284,7 +320,7 @@ onMounted(load)
         <VWindowItem value="accruals">
           <ResponsiveDataTable
             :loading="loading"
-            :items="accruals"
+              :items="filteredAccruals"
             :headers="[
               { title: t('common.crmUi.commissionHeaders.date'), key: 'earned_at' }, { title: t('common.crmUi.commissionHeaders.type'), key: 'entry_type' }, { title: t('common.crmUi.commissionHeaders.employee'), key: 'employee' }, { title: t('common.crmUi.commissionRoles.title'), key: 'commission_role' },
               { title: t('common.crmUi.commissionHeaders.invoice'), key: 'invoice_number' }, { title: t('common.crmUi.commissionHeaders.service'), key: 'service' },
@@ -299,8 +335,9 @@ onMounted(load)
               <VChip
                 size="small"
                 variant="tonal"
+                class="ma-1"
               >
-                {{ tr(`entryTypes.${item.entry_type}`) }}
+                {{ item.entry_type === 'earned' ? t('pages.finance.income.income.earnedCommission') : tr(`entryTypes.${item.entry_type}`) }}
               </VChip><div
                 v-if="item.adjustment_reason"
                 class="text-caption text-medium-emphasis"
@@ -368,7 +405,7 @@ onMounted(load)
                   {{ tr('approve') }}
                 </VBtn>
                 <VBtn
-                  v-if="item.status === 'approved' && canAccess('pay_commissions')"
+                  v-if="(item.status === 'approved' || (isSuperAdmin && item.status === 'draft')) && canAccess('pay_commissions')"
                   size="small"
                   color="success"
                   variant="tonal"
@@ -394,7 +431,7 @@ onMounted(load)
 
     <VDialog
       v-model="dialog"
-      max-width="650"
+      max-width="900"
     >
       <VCard :title="tr('createSettlement')">
         <VCardText>
@@ -421,20 +458,22 @@ onMounted(load)
               cols="12"
               sm="6"
             >
-              <VTextField
+              <AppDateTimePicker
                 v-model="form.period_start"
-                type="date"
                 :label="tr('periodStart')"
+                :config="{ dateFormat: 'Y-m-d' }"
+                class="w-100"
               />
             </VCol>
             <VCol
               cols="12"
               sm="6"
             >
-              <VTextField
+              <AppDateTimePicker
                 v-model="form.period_end"
-                type="date"
                 :label="tr('periodEnd')"
+                :config="{ dateFormat: 'Y-m-d' }"
+                class="w-100"
               />
             </VCol>
             <VCol cols="12">
@@ -443,6 +482,45 @@ onMounted(load)
                 :label="tr('notes')"
                 rows="2"
               />
+            </VCol>
+            <VCol cols="12">
+              <VAlert
+                :type="settlementTotal > 0 ? 'info' : 'warning'"
+                variant="tonal"
+              >
+                {{ tr('settlementPreview', { count: selectedSettlementAccruals.length, amount: money(settlementTotal, settlementCurrency) }) }}
+              </VAlert>
+            </VCol>
+            <VCol cols="12">
+              <div class="d-flex align-center justify-space-between mb-2">
+                <span class="text-subtitle-2">{{ tr('selectAccruals') }}</span>
+                <div class="d-flex ga-1">
+                  <VBtn size="small" variant="text" @click="selectAllSettlementCandidates">
+                    {{ tr('selectAll') }}
+                  </VBtn>
+                  <VBtn size="small" variant="text" @click="selectedAccrualIds = []">
+                    {{ tr('clearSelection') }}
+                  </VBtn>
+                </div>
+              </div>
+              <ResponsiveDataTable
+                v-model="selectedAccrualIds"
+                :items="settlementCandidates"
+                :headers="[
+                  { title: t('common.crmUi.commissionHeaders.date'), key: 'earned_at' }, { title: t('common.crmUi.commissionHeaders.invoice'), key: 'invoice_number' },
+                  { title: t('common.crmUi.commissionHeaders.service'), key: 'service' }, { title: t('common.crmUi.commissionHeaders.commission'), key: 'commission_base_amount' },
+                ]"
+                item-value="id"
+                show-select
+                density="compact"
+              >
+                <template #no-data>
+                  {{ tr('noMatchingAccruals') }}
+                </template>
+                <template #item.commission_base_amount="{ item }">
+                  {{ money(item.commission_base_amount, item.base_currency) }}
+                </template>
+              </ResponsiveDataTable>
             </VCol>
           </VRow>
         </VCardText><VCardActions>
@@ -453,9 +531,10 @@ onMounted(load)
             {{ tr('cancel') }}
           </VBtn><VBtn
             :loading="loading"
+            :disabled="!selectedSettlementAccruals.length || settlementTotal <= 0"
             @click="createSettlement"
           >
-            {{ tr('createDraft') }}
+            {{ isSuperAdmin ? tr('createSettlement') : tr('createDraft') }}
           </VBtn>
         </VCardActions>
       </VCard>
@@ -474,10 +553,11 @@ onMounted(load)
           >
             {{ tr('paymentWarning') }}
           </VAlert>
-          <VTextField
+          <AppDateTimePicker
             v-model="paymentDate"
-            type="date"
             :label="tr('paymentDate')"
+            :config="{ dateFormat: 'Y-m-d' }"
+            class="w-100"
           />
         </VCardText><VCardActions>
           <VSpacer /><VBtn
@@ -522,22 +602,26 @@ onMounted(load)
               cols="12"
               sm="6"
             >
+              <VLabel class="mb-1">
+                {{ tr('currency') }}
+              </VLabel>
               <VSelect
                 v-model="adjustmentForm.base_currency_id"
                 :items="ledgerCurrencies"
                 item-title="title"
                 item-value="id"
-                :label="tr('currency')"
+                hide-details
               />
             </VCol>
             <VCol
               cols="12"
               sm="6"
             >
-              <VTextField
+              <AppDateTimePicker
                 v-model="adjustmentForm.effective_date"
-                type="date"
                 :label="tr('effectiveDate')"
+                :config="{ dateFormat: 'Y-m-d' }"
+                class="w-100"
               />
             </VCol>
             <VCol cols="12">

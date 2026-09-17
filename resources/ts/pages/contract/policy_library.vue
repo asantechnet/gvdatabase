@@ -23,14 +23,23 @@ const typeFilter = ref<string | null>(null)
 const statusFilter = ref<'active' | 'inactive' | null>(null)
 
 const policyTypes = [
-  { title: 'Employment', value: 'employment', icon: 'tabler-briefcase' },
-  { title: 'Company', value: 'company', icon: 'tabler-building' },
-  { title: 'Customer', value: 'customer', icon: 'tabler-users' },
+  { value: 'employment', icon: 'tabler-briefcase' },
+  { value: 'company', icon: 'tabler-building' },
+  { value: 'customer', icon: 'tabler-users' },
 ]
 
 const selectedType = computed(() => contractTypes.value.find(type => type.slug === form.value.type) ?? null)
 const knownKeys = computed(() => new Set(placeholderGroups.value.flatMap(group => group.fields.map(field => field.key))))
-const policyTypeLabel = (type: string) => policyTypes.find(item => item.value === type)?.title ?? type
+const localizedPlaceholderGroups = computed<PlaceholderGroup[]>(() => placeholderGroups.value.map(group => ({
+  ...group,
+  label: t(`pages.settings.policies.policies.contractTemplate.placeholders.${group.key}.label`),
+  fields: group.fields.map(field => ({
+    ...field,
+    label: t(`pages.settings.policies.policies.contractTemplate.placeholders.${group.key}.fields.${field.key.slice(group.key.length + 1)}`),
+  })),
+})))
+const policyTypeLabel = (type: string) => t(`pages.settings.policies.policies.policyLibrary.types.${type}`)
+const policyTypeItems = computed(() => policyTypes.map(item => ({ ...item, title: policyTypeLabel(item.value) })))
 const filteredPolicies = computed(() => policies.value.filter(policy => {
   const query = search.value.trim().toLocaleLowerCase()
 
@@ -71,7 +80,7 @@ async function open(policy?: ContractPolicy) {
     : { label: '', type: 'employment', is_active: true, header: '', content: '' }
   dialog.value = true
   await loadPlaceholders()
-  form.value.content = hydratePlaceholders(serializePlaceholders(form.value.content), placeholderGroups.value, knownKeys.value)
+  form.value.content = hydratePlaceholders(serializePlaceholders(form.value.content), localizedPlaceholderGroups.value, knownKeys.value)
 }
 
 async function save() {
@@ -121,7 +130,7 @@ async function remove(policy: ContractPolicy) {
 watch(() => form.value.type, async () => {
   await loadPlaceholders()
   await nextTick()
-  form.value.content = hydratePlaceholders(serializePlaceholders(form.value.content), placeholderGroups.value, knownKeys.value)
+  form.value.content = hydratePlaceholders(serializePlaceholders(form.value.content), localizedPlaceholderGroups.value, knownKeys.value)
   editorRef.value?.getEditor()?.commands.setContent(form.value.content, { emitUpdate: false })
 })
 
@@ -131,8 +140,8 @@ onMounted(load)
 <template>
   <DataTablePageKpis
     :items="filteredPolicies"
-    title="Policy library"
-    description="Keep reusable contract clauses organized and ready for every agreement."
+    :title="t('pages.settings.policies.policies.policyLibrary.pageTitle')"
+    :description="t('pages.settings.policies.policies.policyLibrary.pageDescription')"
     icon="tabler-book-2"
   />
   <VCard :loading="loading">
@@ -153,7 +162,7 @@ onMounted(load)
     <VCardText class="pb-0">
       <VRow dense>
         <VCol cols="12" md="6"><VTextField v-model="search" :label="t('common.actions.search')" prepend-inner-icon="tabler-search" density="compact" /></VCol>
-        <VCol cols="6" md="3"><VSelect v-model="typeFilter" :items="policyTypes" item-title="title" item-value="value" clearable :label="t('pages.settings.policies.policies.policyLibrary.type')" density="compact" /></VCol>
+        <VCol cols="6" md="3"><VSelect v-model="typeFilter" :items="policyTypeItems" item-title="title" item-value="value" clearable :label="t('pages.settings.policies.policies.policyLibrary.type')" density="compact" /></VCol>
         <VCol cols="6" md="3"><VSelect v-model="statusFilter" :items="[{ title: t('common.statuses.active'), value: 'active' }, { title: t('common.statuses.inactive'), value: 'inactive' }]" clearable :label="t('pages.settings.policies.policies.policyLibrary.status')" density="compact" /></VCol>
       </VRow>
     </VCardText>
@@ -225,14 +234,14 @@ onMounted(load)
           </VAvatar>
         </template>
         <VCardTitle>{{ t(editing ? 'pages.settings.policies.policies.policyLibrary.editTitle' : 'pages.settings.policies.policies.policyLibrary.addTitle') }}</VCardTitle>
-        <VCardSubtitle>Write a reusable clause with fields that are resolved in the right contract context.</VCardSubtitle>
+        <VCardSubtitle>{{ t('pages.settings.policies.policies.policyLibrary.formSubtitle') }}</VCardSubtitle>
         <template #append>
           <VChip
             color="secondary"
             size="small"
             variant="tonal"
           >
-            Clause studio
+            {{ t('pages.settings.policies.policies.policyLibrary.studioLabel') }}
           </VChip>
         </template>
       </VCardItem>
@@ -247,7 +256,7 @@ onMounted(load)
               <VTextField
                 v-model="form.label"
                 :label="t('pages.settings.policies.policies.policyLibrary.label')"
-                placeholder="e.g. Confidentiality"
+                :placeholder="t('pages.settings.policies.policies.policyLibrary.labelPlaceholder')"
                 prepend-inner-icon="tabler-bookmark"
                 variant="outlined"
                 autofocus
@@ -259,7 +268,7 @@ onMounted(load)
             >
               <VSelect
                 v-model="form.type"
-                :items="policyTypes"
+                :items="policyTypeItems"
                 item-title="title"
                 item-value="value"
                 :label="t('pages.settings.policies.policies.policyLibrary.type')"
@@ -287,7 +296,7 @@ onMounted(load)
               <VTextField
                 v-model="form.header"
                 :label="t('pages.settings.policies.policies.policyLibrary.clauseHeader')"
-                placeholder="Optional heading shown above the clause"
+                :placeholder="t('pages.settings.policies.policies.policyLibrary.headerPlaceholder')"
                 prepend-inner-icon="tabler-heading"
                 variant="outlined"
               />
@@ -296,29 +305,29 @@ onMounted(load)
           <div class="policy-studio__editor-label">
             <div>
               <div class="text-subtitle-2 font-weight-bold">
-                Clause content
+                {{ t('pages.settings.policies.policies.policyLibrary.content') }}
               </div><div class="text-caption text-medium-emphasis">
-                Policy fields are highlighted in purple so this editor stays distinct from full contract templates.
+                {{ t('pages.settings.policies.policies.policyLibrary.contentHint') }}
               </div>
             </div><VChip
               size="small"
               color="secondary"
               variant="tonal"
             >
-              {{ policyTypeLabel(form.type) }} context
+              {{ t('pages.settings.policies.policies.policyLibrary.context', { type: policyTypeLabel(form.type) }) }}
             </VChip>
           </div>
           <ContractContentEditor
             ref="editorRef"
             v-model="form.content"
-            :placeholder-groups="placeholderGroups"
+            :placeholder-groups="localizedPlaceholderGroups"
             variant="policy"
             min-height="370px"
           />
         </VForm>
       </VCardText>
       <VCardActions class="policy-studio__actions">
-        <span class="text-caption text-medium-emphasis">Use the merge-field menu to insert details safely.</span><VSpacer /><VBtn
+        <span class="text-caption text-medium-emphasis">{{ t('pages.settings.policies.policies.policyLibrary.footerHint') }}</span><VSpacer /><VBtn
           variant="tonal"
           @click="dialog = false"
         >

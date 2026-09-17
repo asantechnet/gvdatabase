@@ -55,6 +55,7 @@ const handleProgressChange = (ganttTask: FrappeGanttTask, attemptedProgress: num
   // The wrapper restores the authoritative subtask-derived progress after
   // Frappe's drag preview; no unnecessary backend update is needed here.
 }
+
 </script>
 
 <template>
@@ -64,19 +65,19 @@ const handleProgressChange = (ganttTask: FrappeGanttTask, attemptedProgress: num
       class="border"
     >
       <!-- Header & Controls -->
-      <VCardItem class="bg-surface border-b pb-4">
+      <VCardItem class="gantt-header bg-surface border-b">
         <template #title>
-          <div class="d-flex align-center">
+          <div class="d-flex align-center min-w-0">
             <VIcon
               icon="tabler-chart-bar"
               color="primary"
               class="me-2"
             />
-            <span class="text-h5 font-weight-bold">{{ $t('components.taskManager.ganttview.projectGanttTimeline') }}</span>
+            <span class="text-h5 font-weight-bold text-truncate">{{ $t('components.taskManager.ganttview.projectGanttTimeline') }}</span>
           </div>
         </template>
         <template #append>
-          <div class="d-flex align-center gap-4">
+          <div class="gantt-controls">
             <VSelect
               v-model="activeViewMode"
               :items="viewOptions"
@@ -84,7 +85,7 @@ const handleProgressChange = (ganttTask: FrappeGanttTask, attemptedProgress: num
               variant="outlined"
               hide-details
               prepend-inner-icon="tabler-zoom-in"
-              style="width: 140px"
+              class="gantt-controls__zoom"
             />
           </div>
         </template>
@@ -133,9 +134,52 @@ const handleProgressChange = (ganttTask: FrappeGanttTask, attemptedProgress: num
 </template>
 
 <style scoped>
-/* Ensures the SVG canvas does not collapse vertically and handles horizontal bounds properly */
+.gantt-wrapper {
+  min-width: 0;
+}
+
+.gantt-header :deep(.v-card-item__append) {
+  min-width: 0;
+}
+
+.gantt-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.gantt-controls__zoom {
+  flex: 0 1 8.75rem;
+  min-width: 7.5rem;
+}
+
+/* The component owns the scroll viewport. Do not clip this outer layer: the
+ * library positions popovers outside an individual bar. */
 .gantt-scroll-container {
+  min-width: 0;
   width: 100%;
   position: relative;
+}
+
+@media (max-width: 700px) {
+  .gantt-header :deep(.v-card-item__content),
+  .gantt-header :deep(.v-card-item__append) {
+    flex-basis: 100%;
+  }
+
+  .gantt-header :deep(.v-card-item__append) {
+    margin-inline-start: 0;
+    margin-block-start: 0.75rem;
+  }
+
+  .gantt-controls {
+    justify-content: space-between;
+  }
+
+  .gantt-controls__zoom {
+    flex: 1 1 8.75rem;
+  }
 }
 </style>

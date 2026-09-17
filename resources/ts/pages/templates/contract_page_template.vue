@@ -488,7 +488,7 @@ defineExpose({
   position: absolute;
   top: 16mm;
   bottom: 12mm;
-  left: 8mm;
+  inset-inline-start: 8mm;
   width: 4px;
   background: var(--brand-accent);
   border-radius: 2px;
@@ -497,11 +497,11 @@ defineExpose({
 .margin-corner-top-right {
   position: absolute;
   top: 8mm;
-  right: 8mm;
+  inset-inline-start: 8mm;
   width: 24px;
   height: 24px;
   border-top: 3px solid var(--brand-accent);
-  border-inline-end: 3px solid var(--brand-accent);
+  border-inline-start: 3px solid var(--brand-accent);
   opacity: 0.6;
 }
 

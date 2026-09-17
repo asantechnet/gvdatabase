@@ -22,6 +22,8 @@ class CustomerService extends Pivot
         'service_id',
         'employee_id',
         'marketer_id',
+        'outsourcing_company_id',
+        'outsourcing_percentage',
         'fee',
         'currency_id',
         'deadline',
@@ -32,6 +34,7 @@ class CustomerService extends Pivot
     protected $casts = [
         'deadline' => 'date',
         'fee' => 'decimal:2',
+        'outsourcing_percentage' => 'decimal:2',
     ];
 
     public function customer(): BelongsTo
@@ -62,6 +65,12 @@ class CustomerService extends Pivot
     public function marketer(): BelongsTo
     {
         return $this->belongsTo(Employee::class, 'marketer_id');
+    }
+
+    /** External company contractually responsible for delivering this service. */
+    public function outsourcingCompany(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'outsourcing_company_id');
     }
 
     public function currency(): BelongsTo

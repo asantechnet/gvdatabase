@@ -72,6 +72,8 @@ declare module 'vue' {
     FullDetailsButton: typeof import('./resources/ts/components/FullDetailsButton.vue')['default']
     GanttView: typeof import('./resources/ts/components/task-manager/views/GanttView.vue')['default']
     I18n: typeof import('./resources/ts/@core/components/I18n.vue')['default']
+    InvoicePaymentContext: typeof import('./resources/ts/components/income/InvoicePaymentContext.vue')['default']
+    InvoiceSelect: typeof import('./resources/ts/components/income/InvoiceSelect.vue')['default']
     KanbanTaskEditForm: typeof import('./resources/ts/components/forms/KanbanTaskEditForm.vue')['default']
     KanbanView: typeof import('./resources/ts/components/task-manager/views/KanbanView.vue')['default']
     LoginForm: typeof import('./resources/ts/components/forms/LoginForm.vue')['default']

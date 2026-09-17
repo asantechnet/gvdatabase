@@ -123,6 +123,7 @@ class CommissionController extends Controller
         ]);
 
         $settlement = DB::transaction(function () use ($validated, $request) {
+            $isSuperAdmin = $request->user()->isSuperAdmin();
             $employee = Employee::query()->lockForUpdate()->findOrFail($validated['employee_id']);
             if ($employee->employment_type !== 'commission') {
                 throw ValidationException::withMessages(['employee_id' => ['business.employee_not_commission_based']]);
@@ -150,10 +151,19 @@ class CommissionController extends Controller
                 'period_start' => $validated['period_start'],
                 'period_end' => $validated['period_end'],
                 'gross_base_amount' => round((float) $accruals->sum('commission_base_amount'), 6),
-                'status' => 'draft', 'notes' => $validated['notes'] ?? null,
+                // Super administrators are trusted to complete the internal
+                // review themselves. Everyone else still follows the normal
+                // draft -> approved -> paid control flow.
+                'status' => $isSuperAdmin ? 'approved' : 'draft',
+                'notes' => $validated['notes'] ?? null,
                 'recorded_by' => $request->user()->id,
+                'approved_by' => $isSuperAdmin ? $request->user()->id : null,
+                'approved_at' => $isSuperAdmin ? now() : null,
             ]);
-            CommissionAccrual::whereKey($accruals->modelKeys())->update(['commission_settlement_id' => $settlement->id]);
+            CommissionAccrual::whereKey($accruals->modelKeys())->update([
+                'commission_settlement_id' => $settlement->id,
+                'status' => $isSuperAdmin ? 'approved' : 'pending',
+            ]);
 
             return $settlement;
         });
@@ -169,7 +179,12 @@ class CommissionController extends Controller
             if ($settlement->status !== 'draft') {
                 throw ValidationException::withMessages(['settlement' => ['business.commission_settlement_not_draft']]);
             }
-            abort_if((int) $settlement->recorded_by === (int) $request->user()->id, 422, 'business.commission_creator_cannot_approve');
+            abort_if(
+                ! $request->user()->isSuperAdmin()
+                && (int) $settlement->recorded_by === (int) $request->user()->id,
+                422,
+                'business.commission_creator_cannot_approve',
+            );
             $settlement->update(['status' => 'approved', 'approved_by' => $request->user()->id, 'approved_at' => now()]);
             $settlement->accruals()->update(['status' => 'approved']);
 
@@ -184,10 +199,23 @@ class CommissionController extends Controller
         $validated = $request->validate(['payment_date' => ['required', 'date'], 'notes' => ['nullable', 'string', 'max:2000']]);
         $settlement = DB::transaction(function () use ($request, $validated, $commissionSettlement) {
             $settlement = CommissionSettlement::with(['employee', 'baseCurrency'])->lockForUpdate()->findOrFail($commissionSettlement->id);
+            if ($settlement->status === 'draft' && $request->user()->isSuperAdmin()) {
+                $settlement->update([
+                    'status' => 'approved',
+                    'approved_by' => $request->user()->id,
+                    'approved_at' => now(),
+                ]);
+                $settlement->accruals()->update(['status' => 'approved']);
+            }
             if ($settlement->status !== 'approved') {
                 throw ValidationException::withMessages(['settlement' => ['business.commission_settlement_not_approved']]);
             }
-            abort_if((int) $settlement->approved_by === (int) $request->user()->id, 422, 'business.commission_approver_cannot_pay');
+            abort_if(
+                ! $request->user()->isSuperAdmin()
+                && (int) $settlement->approved_by === (int) $request->user()->id,
+                422,
+                'business.commission_approver_cannot_pay',
+            );
             abort_if(Carbon::parse($validated['payment_date'])->lt($settlement->period_end), 422, 'business.commission_payment_before_period_end');
             $currency = Currency::query()->lockForUpdate()->findOrFail($settlement->base_currency_id);
             $snapshot = $this->currencies->snapshot($currency);

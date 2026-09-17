@@ -17,7 +17,7 @@ import {
 import { formatLocalizedDate, formatLocalizedNumber, translateBackendValue } from '@/utils/localization'
 import { canAccess } from '@/utils/authorization'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const $t = t
 const toast = useToast()
 const route = useRoute()
@@ -69,24 +69,28 @@ const resourceLabels: Record<string, string> = {
 }
 const resourceOptions = computed(() => [...resourceKeys].sort((a, b) => resourceName(a).localeCompare(resourceName(b))).map(value => ({ value, title: resourceName(value) })))
 const eventOptions = computed(() => ['created', 'updated', 'deleted', 'restored', 'audit_scope_enabled', 'audit_scope_disabled'].map(value => ({ value, title: eventLabel(value) })))
+const hideOnMobile = {
+  headerProps: { class: 'd-none d-md-table-cell' },
+  cellProps: { class: 'd-none d-md-table-cell' },
+}
 
 const auditHeaders = computed(() => [
-  { title: t('pages.audits.columns.action'), key: 'event', width: '120px' },
+  { title: t('pages.audits.columns.action'), key: 'event', width: '120px', ...hideOnMobile },
   { title: t('pages.audits.columns.record'), key: 'record' },
-  { title: t('pages.audits.columns.change'), key: 'changes', sortable: false },
-  { title: t('pages.audits.columns.changedBy'), key: 'changed_by', sortable: false },
-  { title: t('pages.audits.columns.when'), key: 'created_at' },
-  { title: t('pages.audits.columns.auditedBy'), key: 'audited_by', sortable: false },
-  { title: t('pages.audits.columns.status'), key: 'audit_state', sortable: false },
+  { title: t('pages.audits.columns.change'), key: 'changes', sortable: false, ...hideOnMobile },
+  { title: t('pages.audits.columns.changedBy'), key: 'changed_by', sortable: false, ...hideOnMobile },
+  { title: t('pages.audits.columns.when'), key: 'created_at', ...hideOnMobile },
+  { title: t('pages.audits.columns.auditedBy'), key: 'audited_by', sortable: false, ...hideOnMobile },
+  { title: t('pages.audits.columns.status'), key: 'audit_state', sortable: false, ...hideOnMobile },
   { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
 ])
 
 const resourceHeaders = computed(() => [
   { title: t('pages.audits.columns.resource'), key: 'resource_key' },
-  { title: 'What is monitored', key: 'purpose', sortable: false },
+  { title: 'What is monitored', key: 'purpose', sortable: false, ...hideOnMobile },
   { title: t('pages.audits.columns.auditEnabled'), key: 'enabled', sortable: false },
-  { title: t('pages.audits.columns.lastChangedBy'), key: 'updated_by', sortable: false },
-  { title: t('pages.audits.columns.lastChanged'), key: 'updated_at', sortable: false },
+  { title: t('pages.audits.columns.lastChangedBy'), key: 'updated_by', sortable: false, ...hideOnMobile },
+  { title: t('pages.audits.columns.lastChanged'), key: 'updated_at', sortable: false, ...hideOnMobile },
 ])
 
 const selectedAudits = computed(() => logs.value.filter(log => selectedAuditIds.value.includes(log.id)))
@@ -184,6 +188,12 @@ function stateLabel(log: AuditLog): string {
     return String(t('pages.audits.states.pending'))
 
   return String(t(`pages.audits.states.${log.resolution}`))
+}
+
+function compactAuditDate(value: string): string {
+  return ['fa-AF', 'ps-AF'].includes(String(locale.value))
+    ? formatLocalizedDate(value, { year: '2-digit', month: '2-digit', day: '2-digit' })
+    : formatLocalizedDate(value, 'short')
 }
 
 async function loadAudits() {
@@ -497,6 +507,9 @@ onUnmounted(() => {
             :loading="loading"
             item-value="id"
             show-select
+            mobile-cards
+            mobile-title-key="record"
+            mobile-action-key="actions"
             :item-selectable="(log: AuditLog) => canReview && log.audit_state === 'pending'"
           >
             <template #item.event="{ item }">
@@ -509,7 +522,19 @@ onUnmounted(() => {
               </VChip>
             </template>
             <template #item.record="{ item }">
-              <strong class="audit-record">{{ recordLabel(item) }}</strong>
+              <div class="audit-record">
+                <strong>{{ recordLabel(item) }}</strong>
+                <div class="audit-record__mobile-meta d-md-none">
+                  <VChip size="x-small" variant="tonal" color="primary">
+                    {{ eventLabel(item.event) }}
+                  </VChip>
+                  <VChip size="x-small" :color="stateColor(item)" variant="tonal">
+                    {{ stateLabel(item) }}
+                  </VChip>
+                  <span>{{ item.changed_by?.name ?? $t('pages.audits.system') }}</span>
+                  <span>{{ compactAuditDate(item.created_at) }}</span>
+                </div>
+              </div>
             </template>
             <template #item.changes="{ item }">
               <span class="audit-change-summary">{{ shortChanges(item) }}</span>
@@ -518,7 +543,7 @@ onUnmounted(() => {
               {{ item.changed_by?.name ?? $t('pages.audits.system') }}
             </template>
             <template #item.created_at="{ item }">
-              {{ formatLocalizedDate(item.created_at, 'long') }}
+              {{ compactAuditDate(item.created_at) }}
             </template>
             <template #item.audited_by="{ item }">
               {{ item.audited_by?.name ?? $t('pages.audits.notAuditedYet') }}
@@ -604,6 +629,8 @@ onUnmounted(() => {
             :items-length="resourceTotal"
             :loading="resourceLoading"
             item-value="id"
+            mobile-cards
+            mobile-title-key="resource_key"
           >
             <template #item.resource_key="{ item }">
               <div class="audit-resource-name">
@@ -614,6 +641,7 @@ onUnmounted(() => {
                 >
                   {{ resourcePurpose(item.resource_key).group }}
                 </VChip>
+                <span class="audit-resource-name__mobile-purpose d-md-none">{{ resourcePurpose(item.resource_key).description }}</span>
               </div>
             </template>
             <template #item.purpose="{ item }">
@@ -634,7 +662,7 @@ onUnmounted(() => {
               {{ item.updated_by?.name ?? $t('pages.audits.system') }}
             </template>
             <template #item.updated_at="{ item }">
-              {{ item.updated_at ? formatLocalizedDate(item.updated_at, 'long') : $t('common.messages.notAvailable') }}
+              {{ item.updated_at ? compactAuditDate(item.updated_at) : $t('common.messages.notAvailable') }}
             </template>
             <template #no-data>
               <div class="pa-10 text-center text-medium-emphasis">
@@ -810,7 +838,10 @@ onUnmounted(() => {
 .audit-selection-toolbar__summary, .audit-selection-toolbar__actions { align-items: center; display: flex; flex-wrap: wrap; gap: 0.6rem; }
 .audit-selection-toolbar__summary > span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: 0.8125rem; }
 .audit-selection-toolbar__undo-wrap { display: inline-flex; }
-.audit-record { white-space: normal; }
+.audit-record { display: flex; flex-direction: column; gap: 0.4rem; min-inline-size: 0; white-space: normal; }
+.audit-record__mobile-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: 0.75rem; }
+.audit-record__mobile-meta > span { flex-basis: 100%; min-inline-size: 0; overflow-wrap: anywhere; }
+.audit-resource-name__mobile-purpose { flex-basis: 100%; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: 0.8125rem; line-height: 1.4; }
 .audit-resource-name { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }
 .audit-resource-purpose { display: block; max-inline-size: 34rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); white-space: normal; }
 .audit-change-summary { display: block; min-inline-size: 220px; max-inline-size: 440px; white-space: normal; color: rgb(var(--v-theme-on-surface)); }
@@ -826,5 +857,17 @@ onUnmounted(() => {
   .audit-filters, .audit-resource-filters, .audit-accountability { grid-template-columns: 1fr; }
   .audit-filter-toggle { inline-size: 100%; }
   .audit-filter-toggle :deep(.v-btn) { flex-grow: 1; }
+  .audit-page :deep(.v-data-table__td) { padding-inline: 0.75rem; }
+  .audit-page :deep(.v-data-table__td:first-child), .audit-page :deep(.v-data-table__th:first-child) { padding-inline-end: 0.25rem; }
+  .audit-page :deep(.v-data-table__td:last-child), .audit-page :deep(.v-data-table__th:last-child) { padding-inline-start: 0.25rem; }
+  .audit-page :deep(.v-data-table-footer) { flex-wrap: wrap; justify-content: center; gap: 0.5rem; padding-inline: 0.5rem; }
+  .audit-page :deep(.responsive-data-table--mobile-cards .v-data-table__thead) { display: none; }
+  .audit-page :deep(.responsive-data-table--mobile-cards) { inline-size: min(100%, calc(100vw - 2rem)); max-inline-size: calc(100vw - 2rem); margin-inline: auto; overflow: clip; }
+  .audit-page :deep(.responsive-data-table--mobile-cards .v-data-table__wrapper) { inline-size: 100%; max-inline-size: 100%; overflow: clip; }
+  .audit-page :deep(.responsive-data-table--mobile-cards table) { inline-size: 100% !important; min-inline-size: 0 !important; max-inline-size: 100% !important; table-layout: fixed; }
+  .audit-page :deep(.responsive-data-table--mobile-cards .responsive-data-table__mobile-row > td) { inline-size: 100%; max-inline-size: 100%; padding: 0.75rem; }
+  .audit-page :deep(.responsive-data-table--mobile-cards .responsive-data-table__card), .audit-page :deep(.responsive-data-table--mobile-cards .responsive-data-table__card-toggle), .audit-page :deep(.responsive-data-table--mobile-cards .v-card-item__content), .audit-page :deep(.responsive-data-table--mobile-cards .responsive-data-table__card-title) { inline-size: 100%; min-inline-size: 0; max-inline-size: 100%; }
+  .audit-page :deep(.responsive-data-table--mobile-cards .responsive-data-table__card-title) { overflow-wrap: anywhere; white-space: normal; }
+  .audit-page :deep(.responsive-data-table--mobile-cards .v-chip) { align-self: flex-start; display: inline-flex !important; flex: 0 0 auto !important; inline-size: fit-content !important; width: fit-content !important; max-inline-size: 100%; }
 }
 </style>

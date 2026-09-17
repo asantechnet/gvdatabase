@@ -6,6 +6,7 @@ import PositionForm from '@/components/forms/PositionForm.vue'
 
 const toast = useToast()
 const router = useRouter()
+const { t } = useI18n()
 const positions = ref<Position[]>([])
 const search = ref('')
 const statusFilter = ref<Position['status'] | null>(null)
@@ -16,14 +17,14 @@ const editingPosition = ref<Position | null>(null)
 const deletingPosition = ref<Position | null>(null)
 const form = ref<PositionPayload>({ title: '', description: '', salary: 0, status: 'active' })
 
-const headers = [
-  { title: translate('common.messages.position'), key: 'title' },
-  { title: translate('common.fields.description'), key: 'description', sortable: false },
-  { title: translate('pages.settings.positions.defaultSalary'), key: 'salary' },
-  { title: translate('common.fields.status'), key: 'status' },
-  { title: translate('pages.settings.positions.assigned'), key: 'employee_count' },
-  { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
-]
+const headers = computed(() => [
+  { title: t('common.messages.position'), key: 'title' },
+  { title: t('common.fields.description'), key: 'description', sortable: false },
+  { title: t('pages.settings.positions.defaultSalary'), key: 'salary' },
+  { title: t('common.fields.status'), key: 'status' },
+  { title: t('pages.settings.positions.assigned'), key: 'employee_count' },
+  { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
+])
 
 const filteredPositions = computed(() => {
   const query = search.value.trim().toLowerCase()
@@ -35,7 +36,7 @@ const filteredPositions = computed(() => {
   })
 })
 
-const assignedLabel = (position: Position) => `${position.employee_count} staff / ${position.user_count} users`
+const assignedLabel = (position: Position) => t('pages.settings.positions.assignedPeople', { staff: position.employee_count, users: position.user_count })
 
 const formatSalary = (position: Position) => {
   const precision = position.currency?.decimalPlaces ?? 2
@@ -52,7 +53,7 @@ async function loadPositions() {
     positions.value = response.data.data
   }
   catch (error: any) {
-    toast.error(error.message || 'Could not load positions.')
+    toast.error(error.message || t('pages.settings.positions.couldNotLoad'))
   }
   finally {
     loading.value = false
@@ -98,7 +99,7 @@ async function save() {
     toast.success(translate(editingPosition.value ? 'pages.settings.positions.updated' : 'pages.settings.positions.created'))
   }
   catch (error: any) {
-    toast.error(error.errors?.title?.[0] || error.message || 'Could not save the position.')
+    toast.error(error.errors?.title?.[0] || error.message || t('pages.settings.positions.couldNotSave'))
   }
   finally {
     loading.value = false
@@ -121,7 +122,7 @@ async function confirmDelete() {
     toast.success(translate('pages.settings.positions.positionDeleted'))
   }
   catch (error: any) {
-    toast.error(error.message || 'This position could not be deleted.')
+    toast.error(error.message || t('pages.settings.positions.couldNotDelete'))
   }
   finally {
     loading.value = false
@@ -211,7 +212,7 @@ onMounted(loadPositions)
         <div class="font-weight-medium">
           {{ formatSalary(item) }}
         </div><div class="text-caption text-medium-emphasis">
-          {{ item.currency?.code ? `Current-base salary · ${item.currency.code}` : 'Legacy currency not recorded' }}
+          {{ item.currency?.code ? $t('pages.settings.positions.currentBaseSalary', { currency: item.currency.code }) : $t('pages.settings.positions.legacyCurrencyNotRecorded') }}
         </div>
       </template>
       <template #item.status="{ item }">
@@ -239,7 +240,7 @@ onMounted(loadPositions)
           prepend-icon="tabler-file-pencil"
           @click="editPositionContract(item)"
         >
-          Edit contract
+          {{ $t('pages.settings.positions.editContract') }}
         </VBtn>
         <IconBtn
           :aria-label="$t('pages.settings.positions.editPosition')"
@@ -266,7 +267,7 @@ onMounted(loadPositions)
     v-model="dialogOpen"
     max-width="620"
   >
-    <VCard :title="editingPosition ? 'Edit position' : 'Add position'">
+    <VCard :title="editingPosition ? $t('pages.settings.positions.editPosition') : $t('pages.settings.positions.addPosition')">
       <VCardText>
         <PositionForm
           :form="form"

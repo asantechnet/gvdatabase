@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasDocumentNumber;
 use App\Services\CommissionAccrualService;
+use App\Services\OutsourcingAccrualService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -80,6 +81,11 @@ class Income extends Model
         return $this->hasMany(CommissionAccrual::class);
     }
 
+    public function outsourcingAccruals(): HasMany
+    {
+        return $this->hasMany(OutsourcingAccrual::class);
+    }
+
     protected function documentNumberColumn(): string
     {
         return 'receipt_number';
@@ -96,11 +102,15 @@ class Income extends Model
             $income->base_amount = ($income->amount * $income->quantity) / $income->rate;
         });
 
-        static::created(fn (Income $income) => app(CommissionAccrualService::class)->syncForIncome($income));
+        static::created(function (Income $income): void {
+            app(CommissionAccrualService::class)->syncForIncome($income);
+            app(OutsourcingAccrualService::class)->syncForIncome($income);
+        });
 
         static::updating(function ($income) {
             if ($income->isDirty(['invoice_id', 'amount', 'quantity', 'rate', 'date', 'base_currency_id'])) {
                 app(CommissionAccrualService::class)->assertIncomeMutable($income);
+                app(OutsourcingAccrualService::class)->assertIncomeMutable($income);
             }
             if ($income->isDirty(['amount', 'quantity', 'rate'])) {
                 $income->base_amount = ($income->amount * $income->quantity) / $income->rate;
@@ -110,11 +120,13 @@ class Income extends Model
         static::updated(function (Income $income) {
             if ($income->wasChanged(['invoice_id', 'amount', 'quantity', 'rate', 'date', 'base_currency_id', 'base_amount'])) {
                 app(CommissionAccrualService::class)->syncForIncome($income->fresh());
+                app(OutsourcingAccrualService::class)->syncForIncome($income->fresh());
             }
         });
 
         static::deleting(function (Income $income) {
             app(CommissionAccrualService::class)->voidForIncome($income);
+            app(OutsourcingAccrualService::class)->voidForIncome($income);
         });
     }
 }

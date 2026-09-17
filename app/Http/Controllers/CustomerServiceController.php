@@ -27,6 +27,8 @@ class CustomerServiceController extends Controller
             'services.*.employee_ids' => ['sometimes', 'array'],
             'services.*.employee_ids.*' => ['integer', 'distinct', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
             'services.*.marketer_id' => CrmMarketerAttribution::marketerIdRules(),
+            'services.*.outsourcing_company_id' => ['nullable', 'integer', Rule::exists('companies', 'id')->where('is_active', true)->whereNull('deleted_at')],
+            'services.*.outsourcing_percentage' => ['nullable', 'numeric', 'gt:0', 'lte:100', 'required_with:services.*.outsourcing_company_id'],
             'services.*.deadline' => ['nullable', 'date'],
             'services.*.fee' => ['nullable', 'numeric', 'min:0'],
             'services.*.currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
@@ -35,6 +37,7 @@ class CustomerServiceController extends Controller
         ]);
 
         $this->assertDeliveryCapabilities($validated['services']);
+        $this->assertOutsourcingTerms($validated['services']);
 
         $records = DB::transaction(function () use ($customer, $validated) {
             Customer::query()->lockForUpdate()->findOrFail($customer->id);
@@ -52,6 +55,8 @@ class CustomerServiceController extends Controller
                     'marketer_id' => array_key_exists('marketer_id', $data)
                         ? $data['marketer_id']
                         : $customer->marketer_id,
+                    'outsourcing_company_id' => $data['outsourcing_company_id'] ?? null,
+                    'outsourcing_percentage' => $data['outsourcing_percentage'] ?? null,
                     'deadline' => $data['deadline'] ?? null,
                     'fee' => $data['fee'] ?? null,
                     'currency_id' => $data['currency_id'] ?? null,
@@ -74,7 +79,7 @@ class CustomerServiceController extends Controller
 
                 $this->syncDeliveryEmployees($record, $employeeIds);
 
-                return $record->load(['service.currency', 'currency', 'employee', 'deliveryEmployees', 'marketer']);
+                return $record->load(['service.currency', 'currency', 'employee', 'deliveryEmployees', 'marketer', 'outsourcingCompany']);
             });
         });
 
@@ -98,6 +103,8 @@ class CustomerServiceController extends Controller
             'employee_ids' => ['sometimes', 'array'],
             'employee_ids.*' => ['integer', 'distinct', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
             'marketer_id' => CrmMarketerAttribution::marketerIdRules(),
+            'outsourcing_company_id' => ['nullable', 'integer', Rule::exists('companies', 'id')->where('is_active', true)->whereNull('deleted_at')],
+            'outsourcing_percentage' => ['nullable', 'numeric', 'gt:0', 'lte:100', 'required_with:outsourcing_company_id'],
             'fee' => ['nullable', 'numeric', 'min:0'],
             'currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
             'deadline' => ['nullable', 'date'],
@@ -105,7 +112,15 @@ class CustomerServiceController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        if (array_key_exists('outsourcing_company_id', $validated) && $validated['outsourcing_company_id'] === null) {
+            $validated['outsourcing_percentage'] = null;
+        }
+        $outsourcingTerms = [
+            'outsourcing_company_id' => array_key_exists('outsourcing_company_id', $validated) ? $validated['outsourcing_company_id'] : $customerService->outsourcing_company_id,
+            'outsourcing_percentage' => array_key_exists('outsourcing_percentage', $validated) ? $validated['outsourcing_percentage'] : $customerService->outsourcing_percentage,
+        ];
         $employeeIds = $this->deliveryEmployeeIds($validated, $customerService);
+        $this->assertOutsourcingTerms([$outsourcingTerms]);
         $serviceId = (int) ($validated['service_id'] ?? $customerService->service_id);
         $this->assertDeliveryEmployeeIds($employeeIds, $serviceId, 'employee_ids');
         $validated['employee_id'] = $employeeIds[0] ?? null;
@@ -114,7 +129,7 @@ class CustomerServiceController extends Controller
         $customerService->update($validated);
         $this->syncDeliveryEmployees($customerService, $employeeIds);
 
-        return new CustomerServiceResource($customerService->load(['service.currency', 'currency', 'employee', 'deliveryEmployees', 'marketer']));
+        return new CustomerServiceResource($customerService->load(['service.currency', 'currency', 'employee', 'deliveryEmployees', 'marketer', 'outsourcingCompany']));
     }
 
     public function destroy(Customer $customer, CustomerService $customerService)
@@ -203,5 +218,20 @@ class CustomerServiceController extends Controller
             ->where('employment_type', 'commission')
             ->whereHas('commissionServices', fn ($query) => $query->whereKey($serviceId))
             ->exists();
+    }
+
+    /** @param array<int, array<string, mixed>> $services */
+    private function assertOutsourcingTerms(array $services): void
+    {
+        foreach ($services as $index => $service) {
+            $hasCompany = ! empty($service['outsourcing_company_id']);
+            $hasRate = array_key_exists('outsourcing_percentage', $service) && $service['outsourcing_percentage'] !== null;
+            if ($hasCompany === $hasRate) {
+                continue;
+            }
+            throw ValidationException::withMessages([
+                "services.{$index}.outsourcing_company_id" => ['Select both an outsourcing company and its agreed percentage, or leave both blank.'],
+            ]);
+        }
     }
 }

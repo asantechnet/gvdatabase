@@ -72,7 +72,7 @@ export default {
   async settlements(params?: Record<string, unknown>): Promise<CommissionSettlement[]> {
     return data<CommissionSettlement[]>((await api.get('/commission-settlements', { params })))
   },
-  async createSettlement(payload: { employee_id: number; base_currency_id: number; period_start: string; period_end: string; notes?: string }): Promise<CommissionSettlement> {
+  async createSettlement(payload: { employee_id: number; base_currency_id: number; period_start: string; period_end: string; accrual_ids?: number[]; notes?: string }): Promise<CommissionSettlement> {
     return data<CommissionSettlement>((await api.post('/commission-settlements', payload)))
   },
   async approve(id: number): Promise<CommissionSettlement> {

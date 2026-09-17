@@ -750,6 +750,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
 
           <template #item.currency.code="{ item }">
             <VChip
+              class="staff-salary-currency-chip"
               size="small"
               color="primary"
               variant="tonal"
@@ -1515,5 +1516,9 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
 }
 .table-container {
   overflow-x: auto;
+}
+
+.staff-salary-currency-chip {
+  margin-inline: 0.5rem;
 }
 </style>

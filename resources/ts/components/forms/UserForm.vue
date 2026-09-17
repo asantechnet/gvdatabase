@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { UserRole, UserStatus } from '@/api/user'
 
-defineProps<{ form: { name: string; email: string; phone: string | null; address: string | null; roles: UserRole[]; acc_status: UserStatus }; roles: UserRole[]; statusItems: UserStatus[]; statusDisabled: boolean; statusHint?: string; editing: boolean; loading: boolean }>()
+defineProps<{ form: { name: string; email: string; phone: string | null; address: string | null; roles: UserRole[]; acc_status: UserStatus }; roles: Array<{ title: string; value: UserRole }>; statusItems: Array<{ title: string; value: UserStatus }>; statusDisabled: boolean; statusHint?: string; editing: boolean; loading: boolean }>()
 
 const emit = defineEmits<{ submit: []; cancel: [] }>()
 </script>
@@ -14,9 +14,9 @@ const emit = defineEmits<{ submit: []; cancel: [] }>()
     <VRow>
       <VCol cols="12">
         <p class="app-form__section">
-          Account details
+          {{ $t('pages.settings.users.accountDetails') }}
         </p><p class="app-form__section-help">
-          Use contact details that help teammates identify and reach this user.
+          {{ $t('pages.settings.users.accountDetailsHint') }}
         </p>
       </VCol>
       <VCol
@@ -96,7 +96,7 @@ const emit = defineEmits<{ submit: []; cancel: [] }>()
         type="submit"
         :loading="loading"
       >
-        {{ editing ? 'Save' : 'Send invitation' }}
+        {{ $t(editing ? 'pages.settings.users.saveUser' : 'pages.settings.users.sendInvitation') }}
       </VBtn>
     </div>
   </VForm>

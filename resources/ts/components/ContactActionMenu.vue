@@ -14,6 +14,13 @@ const pendingAction = ref<ContactAction | null>(null)
 const saving = ref(false)
 const form = ref({ title: '', notes: '', follow_up_at: null as string | null })
 
+const offsetFollowUpCalendar = (_selectedDates: Date[], _dateString: string, instance: { calendarContainer: HTMLElement }) => {
+  requestAnimationFrame(() => {
+    instance.calendarContainer.style.setProperty('transform', 'translateY(0) scale(0.86)', 'important')
+    instance.calendarContainer.style.setProperty('transform-origin', 'top left', 'important')
+  })
+}
+
 const begin = (action: ContactAction, event: MouseEvent | KeyboardEvent) => {
   if (!props.contactableType || !props.contactableId)
     return
@@ -158,6 +165,13 @@ const actions = computed<ContactAction[]>(() => {
         />{{ $t('common.crmUi.logConversation') }}
       </VCardTitle>
       <VCardText>
+        <AppDateTimePicker
+          v-model="form.follow_up_at"
+          :label="$t('common.crmUi.followUp')"
+          clearable
+          class="mb-3"
+          :config="{ enableTime: true, dateFormat: 'Y-m-d H:i', static: false, position: 'below', onOpen: offsetFollowUpCalendar }"
+        />
         <VTextField
           v-model="form.title"
           :label="$t('common.crmUi.conversationTitle')"
@@ -171,12 +185,6 @@ const actions = computed<ContactAction[]>(() => {
           :hint="$t('common.crmUi.conversationHint')"
           persistent-hint
           class="mb-3"
-        />
-        <VTextField
-          v-model="form.follow_up_at"
-          :label="$t('common.crmUi.followUp')"
-          type="date"
-          clearable
         />
       </VCardText>
       <VCardActions>
@@ -197,6 +205,13 @@ const actions = computed<ContactAction[]>(() => {
     </VCard>
   </VDialog>
 </template>
+
+<style>
+.flatpickr-calendar.open {
+  z-index: 9999 !important;
+}
+
+</style>
 
 <style scoped>
 .contact-action-menu__trigger {

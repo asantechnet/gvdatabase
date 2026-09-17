@@ -12,7 +12,7 @@ const authorizedLandingRoute = () => {
   if (canAccess('view_dashboard'))
     return { name: 'home' }
   if (canAccess('view_all_boards') || canAccess('view_assigned_boards'))
-    return { name: 'tasks' }
+    return { name: 'projects' }
 
   // Every authenticated user can still manage their own account, even when
   // their operational role has no application-area permissions yet.

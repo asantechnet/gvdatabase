@@ -213,7 +213,7 @@ const validateStaffForm = () => {
     isValid = false
   }
   else if (Number(selectedStaff.value.salary) < 0) {
-    formErrors.value.salary = 'Salary cannot be negative.'
+    formErrors.value.salary = translate('pages.settings.staffList.staffList.salaryCannotBeNegative')
     isValid = false
   }
   else {
@@ -221,7 +221,7 @@ const validateStaffForm = () => {
   }
 
   if (selectedStaff.value?.employment_type === 'commission' && selectedStaff.value.commissions.length === 0) {
-    formErrors.value.commissions = 'Assign at least one service and commission percentage.'
+    formErrors.value.commissions = translate('pages.settings.staffList.staffList.assignCommissionService')
     isValid = false
   }
   else {
@@ -625,9 +625,11 @@ const removeCommission = (index: number) => selectedStaff.value?.commissions.spl
 
 const commissionLabel = (service: CommissionServiceOption) => {
   const currency = service.currency
-  const amount = Number(service.fee).toFixed(currency?.decimalPlaces ?? 2)
+  const fee = Number(service.fee)
+  const amount = Number.isFinite(fee) ? fee.toFixed(currency?.decimalPlaces ?? 2) : '—'
+  const type = service.type || translate('pages.settings.staffList.staffList.service')
 
-  return `${service.type} · ${currency?.symbol ?? ''}${amount} ${currency?.code ?? ''}`.trim()
+  return `${type} · ${currency?.symbol ?? ''}${amount} ${currency?.code ?? ''}`.trim()
 }
 
 const availableCommissionServices = (currentServiceId: number) => commissionServices.value.filter(service =>

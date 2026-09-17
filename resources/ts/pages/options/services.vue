@@ -56,7 +56,9 @@ const services = ref<ServiceItem[]>([])
 const currencyOptions = ref<CurrencyOption[]>([])
 
 // --- Computed ---
-const formTitle = computed(() => (editedItemId.value === null ? 'Add New Service' : 'Edit Service'))
+const formTitle = computed(() => (editedItemId.value === null
+  ? translate('pages.contracts.services.services.addNewService')
+  : translate('pages.contracts.services.services.editService')))
 const statusOptions: Array<ServiceItem['status']> = ['active', 'inactive']
 
 // --- Lifecycle Hooks ---
