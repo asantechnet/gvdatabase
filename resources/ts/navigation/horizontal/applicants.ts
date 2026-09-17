@@ -29,6 +29,13 @@ export default [
         action: 'read',
         subject: 'view_dashboard',
       },
+      {
+        title: 'Visa reports',
+        icon: { icon: 'tabler-report' },
+        to: 'visa-reports',
+        action: 'read',
+        subject: 'view_reports',
+      },
     ],
   },
 ]
