@@ -10,7 +10,7 @@ import { canAccess } from '@/utils/authorization'
 const toast = useToast()
 const route = useRoute()
 const applicant = ref<Applicant | null>(null)
-const stages = ref<Array<{ id: number; name: string; key: string }>>([])
+const stages = ref<Array<{ id: number; name: string; key: string; is_terminal?: boolean }>>([])
 const selected = ref<number | null>(null)
 const note = ref('')
 const moving = ref(false)
@@ -48,6 +48,16 @@ async function loadBoards() {
 async function move() {
   if (!selected.value)
     return
+
+  const target = stages.value.find(s => s.id === selected.value)
+
+  // Terminal moves (cancel, reject, withdraw, complete) must carry a reason
+  // for the audit trail — the history row is permanent.
+  if (target?.is_terminal && !note.value.trim()) {
+    toast.error('A note is required when closing a case (cancelled, rejected, withdrawn, completed).')
+
+    return
+  }
 
   moving.value = true
   try {
@@ -127,7 +137,7 @@ onMounted(async () => {
       <VChip color="primary">{{ applicant.current_stage?.name }}</VChip>
       <VChip v-if="openTasks.length" color="warning" size="small" class="ms-2">{{ openTasks.length }} open task{{ openTasks.length === 1 ? '' : 's' }}</VChip>
       <VSelect v-model="selected" :items="stages.map(s => ({ title: s.name, value: s.id }))" label="Move case to stage" class="mt-4" />
-      <VTextarea v-model="note" label="Stage note" />
+      <VTextarea v-model="note" label="Stage note (required to close a case)" />
       <VBtn color="primary" :loading="moving" @click="move">Record stage change</VBtn>
       <VDivider class="my-6" />
       <h3>Timeline</h3>

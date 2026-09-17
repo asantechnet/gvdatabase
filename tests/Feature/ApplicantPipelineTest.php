@@ -92,4 +92,35 @@ class ApplicantPipelineTest extends TestCase
 
         $this->postJson("/api/applicants/{$a['id']}/change-stage", ['stage_id' => $completed->id])->assertUnprocessable();
     }
+
+    public function test_cancel_withdraw_reject_and_appeal_paths_are_reachable(): void
+    {
+        $customer = Customer::factory()->create();
+        $stageId = fn (string $key) => ApplicantStage::query()->where('key', $key)->firstOrFail()->id;
+        $move = fn (int $id, string $key) => $this->postJson("/api/applicants/{$id}/change-stage", ['stage_id' => $stageId($key)])->assertOk();
+
+        // Cancel from an early active stage; withdrawn case re-engages.
+        $a = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+        $move($a['id'], 'consultation');
+        $move($a['id'], 'cancelled');
+        $this->getJson('/api/applicants?board=cancelled')->assertOk()->assertJsonFragment(['id' => $a['id']]);
+
+        $b = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+        $move($b['id'], 'consultation');
+        $move($b['id'], 'withdrawn');
+        $moved = $move($b['id'], 'consultation');
+        $this->assertSame('active', $moved->json('data.status'));
+
+        // Walk to a decision stage, record a refusal, then appeal.
+        $c = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+        foreach (['consultation', 'documents_required', 'documents_complete', 'university_selection', 'university_application', 'admission_pending'] as $key) {
+            $move($c['id'], $key);
+        }
+        $rejected = $move($c['id'], 'rejected');
+        $this->assertSame('closed', $rejected->json('data.status'));
+        $appealed = $move($c['id'], 'visa_preparation');
+        $this->assertSame('active', $appealed->json('data.status'));
+        // Creation + 6 walk moves + refusal + appeal are all audited.
+        $this->assertSame(9, Applicant::query()->whereKey($c['id'])->first()->stageHistory()->count());
+    }
 }

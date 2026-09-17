@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import ApplicantApi, { type Applicant, type ApplicantBoard, type ApplicantStage } from '@/api/applicants'
+import CustomerApi, { type Customer } from '@/api/customer'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
@@ -38,8 +39,14 @@ const levels = ref<MasterDataRecord[]>([])
 const languages = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
 const stages = ref<ApplicantStage[]>([])
+const customers = ref<Customer[]>([])
 
 const canViewPipeline = computed(() => canAccess('view_applicants'))
+const canCreate = computed(() => canAccess('create_applicants'))
+
+const createDialog = ref(false)
+const creating = ref(false)
+const createForm = ref({ customer_id: null as number | null, responsible_employee_id: null as number | null, country_id: null as number | null, university_id: null as number | null, education_level_id: null as number | null, language_id: null as number | null, application_date: '', notes: '' })
 const tabs: Array<{ value: Tab; title: string }> = [
   { value: 'operation', title: 'Operation List' },
   { value: 'final', title: 'Final List' },
@@ -82,13 +89,14 @@ async function load() {
 
 async function loadCatalogs() {
   try {
-    const [countryRows, universityRows, levelRows, languageRows, employeeRows, stageRows] = await Promise.all([
+    const [countryRows, universityRows, levelRows, languageRows, employeeRows, stageRows, customerResponse] = await Promise.all([
       MasterDataApi.list('countries'),
       MasterDataApi.list('universities'),
       MasterDataApi.list('education-levels'),
       MasterDataApi.list('languages'),
       EmployeeApi.getOptions(),
       ApplicantApi.stages(),
+      CustomerApi.getAll({}),
     ])
 
     countries.value = countryRows
@@ -97,6 +105,7 @@ async function loadCatalogs() {
     languages.value = languageRows
     employees.value = employeeRows
     stages.value = stageRows
+    customers.value = customerResponse.data
   }
   catch {
     toast.error('Unable to load applicant filters.')
@@ -106,6 +115,45 @@ async function loadCatalogs() {
 function onTabChange() {
   page.value = 1
   load()
+}
+
+function openCreate() {
+  createForm.value = { customer_id: null, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, language_id: null, application_date: '', notes: '' }
+  createDialog.value = true
+}
+
+async function create() {
+  if (!createForm.value.customer_id)
+    return
+
+  creating.value = true
+  try {
+    const payload: Record<string, unknown> = { customer_id: createForm.value.customer_id }
+
+    for (const key of ['responsible_employee_id', 'country_id', 'university_id', 'education_level_id', 'language_id'] as const) {
+      if (createForm.value[key])
+        payload[key] = createForm.value[key]
+    }
+
+    if (createForm.value.application_date)
+      payload.application_date = createForm.value.application_date
+
+    if (createForm.value.notes.trim())
+      payload.notes = createForm.value.notes.trim()
+
+    const created = await ApplicantApi.create(payload)
+
+    createDialog.value = false
+    await load()
+    toast.success(`Case #${created.id} created in New stage.`)
+    router.push({ name: 'applicant-case', params: { id: created.id } })
+  }
+  catch {
+    toast.error('Unable to create the case.')
+  }
+  finally {
+    creating.value = false
+  }
 }
 
 function clearFilters() {
@@ -145,6 +193,7 @@ onMounted(async () => {
     <VCardTitle class="d-flex flex-wrap align-center gap-2">
       <span>Applicants / Visa Cases</span>
       <VSpacer />
+      <VBtn v-if="canCreate" size="small" color="primary" prepend-icon="tabler-plus" @click="openCreate">New case</VBtn>
       <VBtn v-if="canViewPipeline" size="small" color="primary" variant="tonal" :to="{ name: 'applicant-pipeline' }">Pipeline board</VBtn>
     </VCardTitle>
     <VCardText>
@@ -191,4 +240,25 @@ onMounted(async () => {
       <VSelect v-model="perPage" :items="[10, 25, 50, 100]" label="Per page" style="max-inline-size: 140px;" @update:model-value="page = 1; load()" />
     </VCardText>
   </VCard>
+  <VDialog v-model="createDialog" max-width="600">
+    <VCard title="New applicant case">
+      <VCardText>
+        <VSelect v-model="createForm.customer_id" :items="customers.map(c => ({ title: c.name, value: c.id }))" label="Customer (payer)" class="mb-3" />
+        <VSelect v-model="createForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" label="Responsible employee" clearable class="mb-3" />
+        <VRow dense>
+          <VCol cols="6"><VSelect v-model="createForm.country_id" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" label="Destination country" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VSelect v-model="createForm.university_id" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" label="University" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VSelect v-model="createForm.education_level_id" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" label="Education level" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VSelect v-model="createForm.language_id" :items="languages.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" label="Language" clearable class="mb-3" /></VCol>
+        </VRow>
+        <VTextField v-model="createForm.application_date" type="date" label="Application date" clearable class="mb-3" />
+        <VTextarea v-model="createForm.notes" label="Notes" />
+      </VCardText>
+      <VCardActions>
+        <VSpacer />
+        <VBtn @click="createDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :loading="creating" :disabled="!createForm.customer_id" @click="create">Create case</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
 </template>
