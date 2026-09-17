@@ -19,6 +19,13 @@ export default [
         subject: 'view_expenses',
       },
       {
+        title: 'Pending transactions',
+        icon: { icon: 'tabler-clock-dollar' },
+        to: 'pending-transactions',
+        action: 'read',
+        subject: 'view_pending_transactions',
+      },
+      {
         title: 'outsourcing.nav',
         icon: { icon: 'tabler-building-store' },
         to: 'outsourcing',

@@ -46,6 +46,7 @@ const pageComponents: Record<string, Component> = {
   applicants: () => import('@/pages/applicants.vue'),
   applicantCase: () => import('@/pages/applicant-case.vue'),
   educationalServices: () => import('@/pages/educational-services.vue'),
+  pendingTransactions: () => import('@/pages/pending-transactions.vue'),
   optionsHr: () => import('@/pages/options_hr.vue'),
   optionsFinance: () => import('@/pages/options_finance.vue'),
   optionsContract: () => import('@/pages/options_contract.vue'),
@@ -151,6 +152,7 @@ const routeDefinitions: Array<{
   { path: '/applicants', component: 'applicants', name: 'applicants', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
   { path: '/applicants/:id', component: 'applicantCase', name: 'applicant-case', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
   { path: '/educational-services', component: 'educationalServices', name: 'educational-services', meta: { requiresAuth: true, action: 'read', subject: 'view_services' } },
+  { path: '/pending-transactions', component: 'pendingTransactions', name: 'pending-transactions', meta: { requiresAuth: true, action: 'read', subject: 'view_pending_transactions' } },
   { path: '/options/hr', component: 'optionsHr', name: 'options-hr', meta: { requiresAuth: true, action: 'read', subject: 'view_employees' } },
   {
     path: '/options/finance',

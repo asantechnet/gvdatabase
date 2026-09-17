@@ -163,6 +163,18 @@ version ID, language ID, and version number. The multilingual generation test
 creates English and Persian versions and verifies that choosing Persian uses
 only the Persian content. Frontend type checking passes.
 
+## Phase 6 completion — 2026-09-17
+
+Pending transactions are now an end-to-end, permission-protected finance
+workflow. Staff submit an income, expense, or salary request with real master
+data selectors; reviewers can move it to review, approve it, or reject it with
+an auditable reason; and authorized finance users can post only approved
+requests. The server forbids self-approval, edits by another requester,
+posting before approval, invalid transitions, and duplicate posting. Each
+official income, expense, or salary record stores a unique link back to its
+originating pending transaction. The Finance navigation includes the new
+screen. `PendingTransactionTest` (8 assertions) and `pnpm typecheck` pass.
+
 ## Decisions that require business confirmation before the relevant phase
 
 - “Scholarship” may mean an agency service/package or an actual third-party award. The implementation will distinguish these terms and initially use a service-oriented record with space for future award details; it will not silently treat them as the same thing.
