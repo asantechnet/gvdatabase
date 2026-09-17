@@ -4,6 +4,7 @@ import CompanyApi, { type Company } from '@/api/company'
 import type { ContractStatus } from '@/api/contracts'
 import CustomerApi, { type Customer } from '@/api/customer'
 import EmployeeApi, { type Employee } from '@/api/employee'
+import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import CounterpartyCard, { type CounterpartyDetails } from '@/components/contract/CounterpartyCard.vue'
 
 const { t } = useI18n()
@@ -11,6 +12,7 @@ const tr = (key: string) => t(`pages.contracts.contractform.contractform.${key}`
 
 export interface ContractFormPayload {
   template_id: number | null
+  language_id: number | null
   employee_id: number | null
   customer_id: number | null
   company_id: number | null
@@ -29,6 +31,7 @@ interface TemplateOption {
   name: string
   type_slug?: string | null
   cover_text?: string | null
+  versions?: Array<{ language_id: number; status: string; is_current: boolean; language?: { id: number; name: string; code: string } }>
 }
 
 const props = defineProps<{
@@ -63,10 +66,12 @@ const formRef = ref()
 const customers = ref<Customer[]>([])
 const employees = ref<Employee[]>([])
 const companies = ref<Company[]>([])
+const languages = ref<MasterDataRecord[]>([])
 const loadingEntities = ref(true)
 
 const form = ref({
   template_id: (props.contract?.template_id ?? null) as number | null,
+  language_id: null as number | null,
   employee_id: (props.contract?.employee_id ?? null) as number | null,
   customer_id: (props.contract?.customer_id ?? null) as number | null,
   company_id: (props.contract?.company_id ?? null) as number | null,
@@ -115,6 +120,12 @@ const selectedTemplate = computed(() =>
 const activeSlug = computed<string | null>(() => {
   return selectedTemplate.value?.type_slug ?? null
 })
+
+const activeTemplateVersions = computed(() => selectedTemplate.value?.versions?.filter(version => version.is_current && version.status === 'active') ?? [])
+const requiresLanguage = computed(() => activeTemplateVersions.value.length > 0)
+const languageOptions = computed(() => languages.value
+  .filter(language => language.is_active && activeTemplateVersions.value.some(version => version.language_id === language.id))
+  .map(language => ({ title: `${language.name}${language.code ? ` (${language.code})` : ''}`, value: language.id })))
 
 const context = computed<'employee' | 'customer' | 'company' | null>(() => {
   const slug = activeSlug.value
@@ -211,10 +222,11 @@ const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
 
 onMounted(async () => {
   try {
-    const [customerResult, employeeResult, companyResult] = await Promise.allSettled([
+    const [customerResult, employeeResult, companyResult, languageResult] = await Promise.allSettled([
       CustomerApi.getAll(),
       EmployeeApi.getOptions(),
       CompanyApi.getAll(),
+      MasterDataApi.list('languages'),
     ])
 
     if (customerResult.status === 'fulfilled' && customerResult.value.success)
@@ -223,6 +235,8 @@ onMounted(async () => {
       employees.value = employeeResult.value
     if (companyResult.status === 'fulfilled')
       companies.value = companyResult.value.filter(company => company.is_active !== false)
+    if (languageResult.status === 'fulfilled')
+      languages.value = languageResult.value.filter(language => language.is_active)
   }
   finally {
     loadingEntities.value = false
@@ -242,6 +256,11 @@ watch(context, currentContext => {
   form.value.employee_id = currentContext === 'employee' ? (props.contract?.employee_id ?? form.value.employee_id) : null
   form.value.customer_id = currentContext === 'customer' ? (props.contract?.customer_id ?? form.value.customer_id) : null
   form.value.company_id = currentContext === 'company' ? (props.contract?.company_id ?? form.value.company_id) : null
+})
+
+watch(() => form.value.template_id, () => {
+  if (!activeTemplateVersions.value.some(version => version.language_id === form.value.language_id))
+    form.value.language_id = null
 })
 
 watch([() => form.value.start_date, () => form.value.duration_months], ([startDate, duration]) => {
@@ -298,6 +317,19 @@ defineExpose({ submit })
         <p class="app-form__section-help">
           {{ tr('setupHint') }}
         </p>
+      </VCol>
+
+      <VCol
+        v-if="requiresLanguage"
+        cols="12"
+      >
+        <VSelect
+          v-model="form.language_id"
+          :items="languageOptions"
+          label="Contract language"
+          :rules="[value => !!value || 'Select the contract language']"
+          required
+        />
       </VCol>
 
       <VCol cols="12">

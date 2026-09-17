@@ -151,6 +151,18 @@ assertions). `pnpm typecheck` was re-run: the educational pages no longer have
 parse errors; the remaining errors are the unrelated pre-existing files listed
 in the Current verification section above.
 
+## Phase 3 remediation — 2026-09-17
+
+Contract creation now requires a language whenever a template is versioned and
+resolves only that template's active, current version for the selected
+language. The API rejects omitted language selection, mismatched template or
+language versions, and inactive/non-current versions. The contract form loads
+active languages from the master-data API and limits its language selector to
+the template's active versions. The generated snapshot retains the selected
+version ID, language ID, and version number. The multilingual generation test
+creates English and Persian versions and verifies that choosing Persian uses
+only the Persian content. Frontend type checking passes.
+
 ## Decisions that require business confirmation before the relevant phase
 
 - “Scholarship” may mean an agency service/package or an actual third-party award. The implementation will distinguish these terms and initially use a service-oriented record with space for future award details; it will not silently treat them as the same thing.

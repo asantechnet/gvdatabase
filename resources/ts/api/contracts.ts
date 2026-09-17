@@ -43,6 +43,7 @@ export interface Contract {
   cancelled_at?: string | null
   template_id: number | null
   contract_template_version_id?: number | null
+  language_id?: number | null
   contract_type_id?: number | null
   employee_id?: number | null
   customer_id?: number | null

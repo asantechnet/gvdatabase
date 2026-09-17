@@ -319,6 +319,7 @@ class ContractController extends Controller
         $durationMonths = (int) $validated['duration_months'];
         $data = [
             'template_id' => $contract->template_id,
+            'language_id' => $contract->templateVersion?->language_id,
             'contract_type_id' => $contract->contract_type_id,
             'employee_id' => $contract->employee_id,
             'customer_id' => $contract->customer_id,
@@ -423,6 +424,7 @@ class ContractController extends Controller
         $validator = Validator::make($request->all(), [
             'template_id' => ['nullable', 'integer', 'exists:contract_templates,id'],
             'contract_template_version_id' => ['nullable', 'integer', 'exists:contract_template_versions,id'],
+            'language_id' => ['nullable', 'integer', 'exists:languages,id'],
             'contract_type_id' => ['nullable', 'integer', 'exists:contract_types,id'],
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
@@ -473,9 +475,18 @@ class ContractController extends Controller
         [$template, $type] = $this->resolveTemplateAndType($data);
         $contextEntity = $this->resolveContextEntity($type?->slug, $data);
         $version = isset($data['contract_template_version_id']) ? \App\Models\ContractTemplateVersion::find($data['contract_template_version_id']) : null;
-        if ($template && ! $version) { $version = $template->versions()->where('is_current', true)->where('status', 'active')->first(); }
+        if ($template && ! $version && isset($data['language_id'])) {
+            $version = $template->versions()
+                ->where('language_id', $data['language_id'])
+                ->where('is_current', true)
+                ->where('status', 'active')
+                ->first();
+        }
+        abort_if($template && ! isset($data['language_id']) && ! $version, 422, 'business.contract_template_language_required');
         abort_if($template && ! $version, 422, 'business.contract_template_version_unavailable');
         abort_if($version && $version->contract_template_id !== $template?->id, 422, 'business.contract_template_version_mismatch');
+        abort_if($version && isset($data['language_id']) && $version->language_id !== (int) $data['language_id'], 422, 'business.contract_template_version_language_mismatch');
+        abort_if($version && (! $version->is_current || $version->status !== 'active'), 422, 'business.contract_template_version_unavailable');
         $content = $version?->content ?? ($template ? ($template->content ?? '') : ($data['content'] ?? ''));
 
         $rendered = $this->resolver->resolve(
