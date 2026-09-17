@@ -61,7 +61,7 @@ No applicant module existed in the repository before this work—the plan’s li
 - [x] Phase 0: inspected project/frontend/backend/database/auth/RBAC; CRM, contracts, finance, HR, task, dashboard/report, audit, service/commission modules; migration/seeding strategy; foreign-key/lifecycle relationships; controllers/services; static router/navigation and API-contract patterns. The dependency map above is the implementation baseline.
 - [x] Phase 1: master-data and contract-type foundation complete: protected CRUD API, typed frontend management page, country-linked universities, static navigation/route, auditable models, reversible migration, and permission catalog implemented.
 - [x] Phase 2: logical contract templates now support per-language, immutable numbered versions with controlled activation, audit fields, protected APIs, typed frontend API support, and tested historical activation behavior.
-- [ ] Phase 3: contract generation from immutable versions.
+- [x] Phase 3: contract generation resolves the active language-specific template version, persists its ID, renders from that immutable content, and stores version metadata in the contract snapshot. End-to-end API coverage passes.
 - [ ] Phase 4: applicant/case model, stage workflow, history, and connected case detail.
 - [ ] Phase 5: scholarship services, test offers, attribution, and bonus ledger integration.
 - [ ] Phase 6: pending transactions, approval, edit policy, and safe posting to finance.

@@ -422,6 +422,7 @@ class ContractController extends Controller
 
         $validator = Validator::make($request->all(), [
             'template_id' => ['nullable', 'integer', 'exists:contract_templates,id'],
+            'contract_template_version_id' => ['nullable', 'integer', 'exists:contract_template_versions,id'],
             'contract_type_id' => ['nullable', 'integer', 'exists:contract_types,id'],
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
@@ -471,7 +472,11 @@ class ContractController extends Controller
     {
         [$template, $type] = $this->resolveTemplateAndType($data);
         $contextEntity = $this->resolveContextEntity($type?->slug, $data);
-        $content = $template ? ($template->content ?? '') : ($data['content'] ?? '');
+        $version = isset($data['contract_template_version_id']) ? \App\Models\ContractTemplateVersion::find($data['contract_template_version_id']) : null;
+        if ($template && ! $version) { $version = $template->versions()->where('is_current', true)->where('status', 'active')->first(); }
+        abort_if($template && ! $version, 422, 'business.contract_template_version_unavailable');
+        abort_if($version && $version->contract_template_id !== $template?->id, 422, 'business.contract_template_version_mismatch');
+        $content = $version?->content ?? ($template ? ($template->content ?? '') : ($data['content'] ?? ''));
 
         $rendered = $this->resolver->resolve(
             $content,
@@ -514,6 +519,7 @@ class ContractController extends Controller
             'contract_type_id' => $type?->id,
             'type' => $type?->name,
             'is_custom' => ! $template,
+            'contract_template_version_id' => $version?->id,
             ...$counterparty['fields'],
             ...$contextEntity['foreign_keys'],
             'snapshot_data' => [
@@ -522,6 +528,7 @@ class ContractController extends Controller
                     'counterparty' => $counterparty,
                 ],
                 'entity' => $contextEntity['snapshot'],
+                'template_version' => $version ? ['id'=>$version->id,'language_id'=>$version->language_id,'version_number'=>$version->version_number] : null,
                 ...$snapshotMetadata,
             ],
         ]);

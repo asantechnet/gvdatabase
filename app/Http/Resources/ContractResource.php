@@ -29,6 +29,7 @@ class ContractResource extends JsonResource
             'is_cancelled' => $this->is_cancelled || $this->status === 'cancelled',
             'cancelled_at' => $this->cancelled_at?->toISOString(),
             'template_id' => $this->template_id,
+            'contract_template_version_id' => $this->contract_template_version_id,
             'employee_id' => $this->employee_id,
             'customer_id' => $this->customer_id,
             'company_id' => $this->company_id,
@@ -48,6 +49,7 @@ class ContractResource extends JsonResource
             'contract_template' => $this->whenLoaded('template', function () {
                 return new ContractTemplateResource($this->template);
             }),
+            'contract_template_version' => $this->whenLoaded('templateVersion', fn () => ['id'=>$this->templateVersion?->id,'language_id'=>$this->templateVersion?->language_id,'version_number'=>$this->templateVersion?->version_number,'status'=>$this->templateVersion?->status]),
             // Services are inferred from the customer's current assignments.
             'services' => ServiceResource::collection(
                 $this->relationLoaded('customer') && $this->customer?->relationLoaded('customerServices')

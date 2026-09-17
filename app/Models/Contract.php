@@ -16,6 +16,7 @@ class Contract extends Model
 
     protected $fillable = [
         'template_id',
+        'contract_template_version_id',
         'contract_type_id',
         'employee_id',
         'customer_id',
@@ -80,6 +81,7 @@ class Contract extends Model
     {
         return $this->belongsTo(Customer::class)->withTrashed();
     }
+    public function templateVersion(){ return $this->belongsTo(ContractTemplateVersion::class, 'contract_template_version_id')->withTrashed(); }
 
     public function applicant()
     {
