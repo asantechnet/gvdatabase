@@ -17,6 +17,7 @@ class Expense extends Model
         'company_id',
         'project_id',
         'salary_id',
+        'pending_transaction_id',
         'currency_id',
         'base_currency_id',
         'currency',

@@ -64,7 +64,7 @@ No applicant module existed in the repository before this work—the plan’s li
 - [x] Phase 3: contract generation resolves the active language-specific template version, persists its ID, renders from that immutable content, and stores version metadata in the contract snapshot. End-to-end API coverage passes.
 - [x] Phase 4: applicant/case management is operational: protected case APIs, controlled ordered stage changes with immutable history, applicant list and case-detail pages, and connected contracts/tasks timeline. Workflow API test passes.
 - [x] Phase 5: scholarship services and test offers are operational records with customer/applicant/employee/currency/package attribution; every sale creates a generic, traceable bonus source. Operational page and attribution test pass.
-- [ ] Phase 6: pending transactions, approval, edit policy, and safe posting to finance.
+- [ ] Phase 6: pending-transaction lifecycle, edit-window enforcement, idempotent finance posting, and verification are in progress.
 - [ ] Phase 7: permissions, audit coverage, navigation, pipeline/case UX, reports, dashboards, migration, regression and acceptance testing.
 
 ## Pre-audit implementation status

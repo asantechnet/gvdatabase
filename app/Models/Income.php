@@ -21,6 +21,7 @@ class Income extends Model
         'customer_id',
         'company_id',
         'invoice_id',
+        'pending_transaction_id',
         'currency_id',
         'base_currency_id',
         'type',
