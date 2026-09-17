@@ -10,6 +10,7 @@ use App\Models\Expense;
 use App\Models\Income;
 use App\Models\PendingTransaction;
 use App\Models\Salary;
+use App\Services\ActiveContractService;
 use App\Support\EditWindow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -93,8 +94,8 @@ class PendingTransactionController extends Controller
             $common = ['currency_id' => $currency->id, 'base_currency_id' => $baseCurrency->id, 'rate' => $rate, 'base_amount' => $pending->amount / $rate, 'recorded_by' => $request->user()->id];
 
             $record = match ($pending->transaction_type) {
-                'income' => Income::create([...$common, 'pending_transaction_id' => $pending->id, 'customer_id' => $pending->customer_id, 'type' => 'Other', 'description' => $pending->reason, 'amount' => $pending->amount, 'quantity' => 1, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $baseCurrency->code, 'date' => now()->toDateString()]),
-                'expense' => Expense::create([...$common, 'pending_transaction_id' => $pending->id, 'customer_id' => $pending->customer_id, 'currency' => $currency->code, 'type' => 'Pending transaction', 'description' => $pending->reason, 'amount' => $pending->amount, 'quantity' => 1, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $baseCurrency->code, 'date' => now()->toDateString()]),
+                'income' => Income::create([...$common, 'pending_transaction_id' => $pending->id, 'customer_id' => $pending->customer_id, 'applicant_id' => $pending->applicant_id, 'employee_id' => $pending->employee_id, 'type' => 'Other', 'description' => $pending->reason, 'amount' => $pending->amount, 'quantity' => 1, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $baseCurrency->code, 'date' => now()->toDateString()]),
+                'expense' => Expense::create([...$common, 'pending_transaction_id' => $pending->id, 'customer_id' => $pending->customer_id, 'applicant_id' => $pending->applicant_id, 'employee_id' => $pending->employee_id, 'currency' => $currency->code, 'type' => 'Pending transaction', 'description' => $pending->reason, 'amount' => $pending->amount, 'quantity' => 1, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $baseCurrency->code, 'date' => now()->toDateString()]),
                 'salary' => Salary::create(['employee_id' => $pending->employee_id, 'pending_transaction_id' => $pending->id, ...$common, 'currency_code' => $currency->code, 'currency_name' => $currency->name, 'currency_symbol' => $currency->symbol, 'currency_decimal_places' => $currency->decimal_places, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $baseCurrency->code, 'salary_month' => now()->startOfMonth()->toDateString(), 'amount_paid' => $pending->amount, 'total_amount' => $pending->amount, 'total_days' => 0, 'remarks' => $pending->reason, 'payment_date' => now()->toDateString()]),
             };
 
@@ -124,7 +125,14 @@ class PendingTransactionController extends Controller
         ]);
         $type = $data['transaction_type'] ?? $request->route('pendingTransaction')?->transaction_type;
         if ($type === 'salary' && ! ($data['employee_id'] ?? $request->route('pendingTransaction')?->employee_id)) throw ValidationException::withMessages(['employee_id' => ['Salary requires an employee.']]);
-        if (isset($data['applicant_id'], $data['customer_id']) && ! DB::table('applicants')->whereKey($data['applicant_id'])->where('customer_id', $data['customer_id'])->exists()) throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
+        if (isset($data['applicant_id'], $data['customer_id']) && ! Applicant::whereKey($data['applicant_id'])->where('customer_id', $data['customer_id'])->exists()) throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
+        // Plan §21: customer-specific operational expenses require an active
+        // contract. Income (customer payments) and salary are exempt — money
+        // in and payroll must flow regardless of contract state.
+        $customerId = $data['customer_id'] ?? ($partial ? $request->route('pendingTransaction')?->customer_id : null);
+        if ($type === 'expense') {
+            app(ActiveContractService::class)->requireActiveContractForExpense($customerId);
+        }
 
         return $data;
     }

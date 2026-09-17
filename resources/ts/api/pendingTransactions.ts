@@ -20,6 +20,7 @@ export interface PendingTransaction {
   posted_at: string | null
   currency?: { id: number; code: string; symbol: string }
   customer?: { id: number; name: string }
+  applicant?: { id: number }
   employee?: { id: number; name: string }
   requester?: { id: number; name: string }
   approver?: { id: number; name: string }

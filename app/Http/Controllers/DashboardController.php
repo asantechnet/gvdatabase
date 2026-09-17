@@ -496,7 +496,7 @@ class DashboardController extends Controller
             ->where('status', 'active')
             ->whereBetween('deadline', [$now->toDateString(), $now->copy()->addDays(30)->toDateString()])
             ->count() : null;
-        $activeContracts = $canViewContracts ? Contract::query()->where('status', 'active')->where('is_cancelled', false)->count() : null;
+        $activeContracts = $canViewContracts ? app(ActiveContractService::class)->activeContractCount() : null;
         $expiringContracts = $canViewContracts ? Contract::query()
             ->where('status', 'active')
             ->where('is_cancelled', false)
