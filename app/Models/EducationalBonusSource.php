@@ -1,0 +1,1 @@
+<?php namespace App\Models; use App\Models\Concerns\Auditable; use Illuminate\Database\Eloquent\Model; class EducationalBonusSource extends Model { use Auditable; protected $fillable=['employee_id','customer_id','applicant_id','source_type','source_id','source_amount','bonus_amount','status','rule_source']; }

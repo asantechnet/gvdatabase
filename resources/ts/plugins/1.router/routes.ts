@@ -45,6 +45,7 @@ const pageComponents: Record<string, Component> = {
   educationalMasterData: () => import('@/pages/educational-master-data.vue'),
   applicants: () => import('@/pages/applicants.vue'),
   applicantCase: () => import('@/pages/applicant-case.vue'),
+  educationalServices: () => import('@/pages/educational-services.vue'),
   optionsHr: () => import('@/pages/options_hr.vue'),
   optionsFinance: () => import('@/pages/options_finance.vue'),
   optionsContract: () => import('@/pages/options_contract.vue'),
@@ -149,6 +150,7 @@ const routeDefinitions: Array<{
   { path: '/educational-master-data', component: 'educationalMasterData', name: 'educational-master-data', meta: { requiresAuth: true, action: 'read', subject: 'view_country' } },
   { path: '/applicants', component: 'applicants', name: 'applicants', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
   { path: '/applicants/:id', component: 'applicantCase', name: 'applicant-case', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
+  { path: '/educational-services', component: 'educationalServices', name: 'educational-services', meta: { requiresAuth: true, action: 'read', subject: 'view_services' } },
   { path: '/options/hr', component: 'optionsHr', name: 'options-hr', meta: { requiresAuth: true, action: 'read', subject: 'view_employees' } },
   {
     path: '/options/finance',
