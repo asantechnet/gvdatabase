@@ -35,11 +35,20 @@ export interface PendingTransactionInput {
   employee_id: number | null
 }
 
+export interface PendingTransactionOptions {
+  currencies: Array<{ id: number; name: string; code: string; symbol: string; is_base: boolean }>
+  customers: Array<{ id: number; name: string }>
+  employees: Array<{ id: number; name: string }>
+  applicants: Array<{ id: number; customer_id: number; customer?: { id: number; name: string } }>
+}
+
 const unwrap = <T>(response: { data: { data: T } }) => response.data.data
 
 export default {
   list: async () => unwrap<PendingTransaction[]>(await api.get('/pending-transactions')),
   create: async (data: PendingTransactionInput) => unwrap<PendingTransaction>(await api.post('/pending-transactions', data)),
+  update: async (id: number, data: Partial<PendingTransactionInput>) => unwrap<PendingTransaction>(await api.put(`/pending-transactions/${id}`, data)),
+  options: async () => unwrap<PendingTransactionOptions>(await api.get('/pending-transactions/options')),
   review: async (id: number) => unwrap<PendingTransaction>(await api.post(`/pending-transactions/${id}/review`)),
   approve: async (id: number) => unwrap<PendingTransaction>(await api.post(`/pending-transactions/${id}/approve`)),
   reject: async (id: number, rejection_reason: string) => unwrap<PendingTransaction>(await api.post(`/pending-transactions/${id}/reject`, { rejection_reason })),

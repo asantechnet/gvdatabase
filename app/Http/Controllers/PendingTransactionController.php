@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Currency;
+use App\Models\Applicant;
+use App\Models\Customer;
+use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
 use App\Models\PendingTransaction;
@@ -17,6 +20,16 @@ class PendingTransactionController extends Controller
     public function index()
     {
         return response()->json(['success' => true, 'data' => PendingTransaction::with(['currency', 'requester', 'approver', 'customer', 'applicant', 'employee'])->latest()->get()]);
+    }
+
+    public function options()
+    {
+        return response()->json(['success' => true, 'data' => [
+            'currencies' => Currency::query()->where('is_active', true)->orderBy('code')->get(['id', 'name', 'code', 'symbol', 'is_base']),
+            'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
+            'employees' => Employee::query()->orderBy('name')->get(['id', 'name']),
+            'applicants' => Applicant::query()->with('customer:id,name')->latest()->get(['id', 'customer_id']),
+        ]]);
     }
 
     public function store(Request $request)

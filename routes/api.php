@@ -24,6 +24,7 @@ use App\Http\Controllers\CustomerServiceController;
 use App\Http\Controllers\ApplicantController;
 use App\Http\Controllers\EducationalDashboardController;
 use App\Http\Controllers\EducationalMasterDataController;
+use App\Http\Controllers\EducationalReportController;
 use App\Http\Controllers\EducationalServiceController;
 use App\Http\Controllers\PendingTransactionController;
 use App\Http\Controllers\DashboardController;
@@ -359,9 +360,14 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     // Agency operations overview. Read-only aggregates over applicant,
     // sales, task and approval rows; any dashboard viewer may open it.
     Route::get('educational-dashboard', [EducationalDashboardController::class, 'index'])->middleware('permission:view_dashboard');
+    // Visa-agency tabular reports plus CSV export. New controller on purpose:
+    // the finance report surface stays untouched by agency reporting.
+    Route::get('educational-reports/{type}', [EducationalReportController::class, 'show'])->middleware('permission:view_reports');
+    Route::get('educational-reports/{type}/export', [EducationalReportController::class, 'export'])->middleware('permission:view_reports');
     Route::get('educational-services/{type}', [EducationalServiceController::class, 'index'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:view_services');
     Route::post('educational-services/{type}', [EducationalServiceController::class, 'store'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:manage_customer_services');
     Route::get('pending-transactions',[PendingTransactionController::class,'index'])->middleware('permission:view_pending_transactions');
+    Route::get('pending-transactions/options',[PendingTransactionController::class,'options'])->middleware('permission:create_pending_transactions');
     Route::post('pending-transactions',[PendingTransactionController::class,'store'])->middleware('permission:create_pending_transactions');
     Route::put('pending-transactions/{pendingTransaction}',[PendingTransactionController::class,'update'])->middleware('permission:create_pending_transactions');
     Route::post('pending-transactions/{pendingTransaction}/review',[PendingTransactionController::class,'review'])->middleware('permission:approve_pending_transactions');
