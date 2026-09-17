@@ -182,6 +182,19 @@ official income, expense, or salary record stores a unique link back to its
 originating pending transaction. The Finance navigation includes the new
 screen. `PendingTransactionTest` (8 assertions) and `pnpm typecheck` pass.
 
+## Phase 7 remediation — 2026-09-17
+
+Phase 7 is accepted for employee sales and bonuses. Scholarship and test-offer
+sales now have complete protected CRUD, database-backed selectors, relationship
+validation, linked record names, and an auditable, generic bonus source. The
+same source workflow supports customer-service contracts without inventing a
+separate bonus table: attribution is inherited from the source employee,
+customer, and applicant, while contract sources require an explicit source
+amount. A bonus can progress from pending to approved to paid; paid sources
+and their service records are immutable, and voiding an unpaid sale voids its
+source. `EducationalServiceAttributionTest` passes 16 assertions and
+`pnpm typecheck` passes.
+
 ## Decisions that require business confirmation before the relevant phase
 
 - “Scholarship” may mean an agency service/package or an actual third-party award. The implementation will distinguish these terms and initially use a service-oriented record with space for future award details; it will not silently treat them as the same thing.

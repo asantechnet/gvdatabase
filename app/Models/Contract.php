@@ -6,6 +6,7 @@ use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasDocumentNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Contract extends Model
@@ -91,6 +92,12 @@ class Contract extends Model
     public function company()
     {
         return $this->belongsTo(Company::class)->withTrashed();
+    }
+
+    /** Optional commission/bonus record for a customer-service contract. */
+    public function bonusSource(): MorphOne
+    {
+        return $this->morphOne(EducationalBonusSource::class, 'source');
     }
 
     /**

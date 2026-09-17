@@ -161,6 +161,15 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'GET /dashboard/stats': ['view_dashboard'],
     'GET /dashboard/chart-data': ['view_dashboard'],
     'GET /educational-dashboard': ['view_dashboard'],
+    'GET /educational-services/options': ['view_services'],
+    'GET /educational-services/:id': ['view_services'],
+    'GET /educational-services/:id/:id': ['view_services'],
+    'POST /educational-services/:id': ['manage_customer_services'],
+    'PUT /educational-services/:id/:id': ['manage_customer_services'],
+    'DELETE /educational-services/:id/:id': ['manage_customer_services'],
+    'GET /educational-bonus-sources': ['view_bonuses'],
+    'POST /educational-bonus-sources': ['manage_commission_settlements'],
+    'PUT /educational-bonus-sources/:id': ['manage_commission_settlements'],
     'GET /reports/invoices': ['view_financial_reports'],
     'GET /reports/expences': ['view_financial_reports'],
     'GET /reports/expenses': ['view_financial_reports'],
@@ -243,6 +252,13 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     const key = ({ countries: 'country', 'education-levels': 'education_level', languages: 'language', 'package-types': 'package_type', universities: 'university' } as Record<string, string>)[educational[1]]
     const action = requestMethod === 'GET' ? 'view' : requestMethod === 'POST' ? 'create' : requestMethod === 'DELETE' ? 'delete' : 'edit'
     return [`${action}_${key}`]
+  }
+
+  const educationalService = path.match(/^\/educational-services\/(scholarships|test-offers)(?:\/:id)?$/)
+  if (educationalService) {
+    return requestMethod === 'GET'
+      ? ['view_services']
+      : ['manage_customer_services']
   }
 
   return special[`${requestMethod} ${path}`] ?? restPermission(requestMethod, path)
