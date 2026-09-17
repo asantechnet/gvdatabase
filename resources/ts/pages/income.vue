@@ -15,8 +15,9 @@ const incomes = ref<Income[]>([])
 const isAddIncomeDialogVisible = ref(false)
 const isEditIncomeDialogVisible = ref(false)
 const isDeleteIncomeDialogVisible = ref(false)
-type IncomeForm = IncomeCreateData & {
+type IncomeForm = Omit<IncomeCreateData, 'invoice_id'> & {
   id: number
+  invoice_id: number | null
   base_amount: number
   receipt_number?: string
   invoice_number?: string | null

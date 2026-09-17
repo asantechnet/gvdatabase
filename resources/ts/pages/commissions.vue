@@ -6,7 +6,7 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
 
 const { t } = useI18n()
-const tr = (key: string, values?: Record<string, unknown>) => t(`common.crmUi.commissions.${key}`, values)
+const tr = (key: string, values?: Record<string, unknown>) => t(`common.crmUi.commissions.${key}`, values ?? {})
 
 const toast = useToast()
 const userData = useCookie<{ roles?: string[] } | null>('userData')

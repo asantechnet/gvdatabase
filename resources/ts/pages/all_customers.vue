@@ -33,6 +33,7 @@ interface ServiceForm {
 
 // State
 const toast = useToast()
+const { t } = useI18n()
 const router = useRouter()
 const customers = ref<Customer[]>([])
 const allServices = ref<Service[]>([])
@@ -74,6 +75,8 @@ const currentService = ref<ServiceForm>({
   employee_id: null,
   employee_ids: [],
   marketer_id: null,
+  outsourcing_company_id: null,
+  outsourcing_percentage: null,
   fee: null,
   currency_id: null,
   deadline: null,
@@ -518,6 +521,8 @@ const openAddCustomer = () => {
     tax_number: null,
     marketer: '',
     marketer_id: isCurrentUserMarketer.value ? currentUserEmployeeId.value : null,
+    outsourcing_company_id: null,
+    outsourcing_percentage: null,
     marketer_employee: null,
     date: new Date().toISOString().split('T')[0],
     services: [],
@@ -1086,7 +1091,7 @@ onMounted(() => {
                           size="15"
                         />
                       </VAvatar>
-                      <span class="text-body-2">{{ item.employees?.length ? item.employees.map(employee => employee.name).join(', ') : item.employee.name }}</span>
+                      <span class="text-body-2">{{ item.employees?.length ? item.employees.map((employee: Employee) => employee.name).join(', ') : item.employee.name }}</span>
                     </div>
                     <span
                       v-else

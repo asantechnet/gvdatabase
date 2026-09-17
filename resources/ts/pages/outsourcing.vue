@@ -6,7 +6,7 @@ import OutsourcingApi, { type OutsourcingAccrual, type OutsourcingSettlement } f
 import { canAccess } from '@/utils/authorization'
 
 const { t } = useI18n()
-const tr = (key: string, values?: Record<string, unknown>) => t(`outsourcing.${key}`, values)
+const tr = (key: string, values?: Record<string, unknown>) => t(`outsourcing.${key}`, values ?? {})
 const toast = useToast()
 const userData = useCookie<{ roles?: string[] } | null>('userData')
 const today = new Date().toISOString().slice(0, 10)

@@ -21,7 +21,7 @@ export interface AppRole {
 
 const toast = useToast()
 const { t } = useI18n()
-const tr = (key: string, values?: Record<string, unknown>) => t(`pages.settings.rolecards.rolecards.${key}`, values)
+const tr = (key: string, values?: Record<string, unknown>) => t(`pages.settings.rolecards.rolecards.${key}`, values ?? {})
 const permissions = ref<Permission[]>([])
 const roles = ref<AppRole[]>([])
 const loading = ref(false)

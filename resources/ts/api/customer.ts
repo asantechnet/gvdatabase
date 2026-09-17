@@ -43,6 +43,8 @@ export interface Customer {
   tax_number: string | null
   marketer: string | null
   marketer_id: number | null
+  outsourcing_company_id: number | null
+  outsourcing_percentage: number | null
   marketer_employee: { id: number; name: string } | null
   date: string
   services: CustomerService[]
@@ -95,6 +97,8 @@ export interface UpdateCustomerServiceData {
   employee_id?: number | null
   employee_ids?: number[]
   marketer_id?: number | null
+  outsourcing_company_id?: number | null
+  outsourcing_percentage?: number | null
   fee?: number | null
   currency_id?: number | null
   deadline: string | null
@@ -112,6 +116,8 @@ const emptyCustomer = (): Customer => ({
   tax_number: null,
   marketer: '',
   marketer_id: null,
+  outsourcing_company_id: null,
+  outsourcing_percentage: null,
   marketer_employee: null,
   date: '',
   services: [],

@@ -34,7 +34,7 @@ const { t, locale } = useI18n()
 const record = computed(() => props.item as DetailRecord)
 
 const detailsText = (key: string, fallback: string, values?: Record<string, unknown>) => {
-  const value = t(`components.fullDetails.${key}`, values)
+  const value = t(`components.fullDetails.${key}`, values ?? {})
 
   return value === `components.fullDetails.${key}` || value.startsWith('[missing:') ? fallback : value
 }

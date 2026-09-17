@@ -12,7 +12,7 @@ import { formatLocalizedDate } from '@/utils/localization'
 const router = useRouter()
 const toast = useToast()
 const { t } = useI18n()
-const tr = (key: string, values?: Record<string, unknown>) => t(`pages.companies.${key}`, values)
+const tr = (key: string, values?: Record<string, unknown>) => t(`pages.companies.${key}`, values ?? {})
 
 const search = ref('')
 const printDialogVisible = ref(false)
