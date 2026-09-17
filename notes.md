@@ -62,7 +62,7 @@ No applicant module existed in the repository before this work—the plan’s li
 - [x] Phase 1: master-data and contract-type foundation complete: protected CRUD API, typed frontend management page, country-linked universities, static navigation/route, auditable models, reversible migration, and permission catalog implemented.
 - [x] Phase 2: logical contract templates now support per-language, immutable numbered versions with controlled activation, audit fields, protected APIs, typed frontend API support, and tested historical activation behavior.
 - [x] Phase 3: contract generation resolves the active language-specific template version, persists its ID, renders from that immutable content, and stores version metadata in the contract snapshot. End-to-end API coverage passes.
-- [ ] Phase 4: applicant/case model, stage workflow, history, and connected case detail.
+- [x] Phase 4: applicant/case management is operational: protected case APIs, controlled ordered stage changes with immutable history, applicant list and case-detail pages, and connected contracts/tasks timeline. Workflow API test passes.
 - [ ] Phase 5: scholarship services, test offers, attribution, and bonus ledger integration.
 - [ ] Phase 6: pending transactions, approval, edit policy, and safe posting to finance.
 - [ ] Phase 7: permissions, audit coverage, navigation, pipeline/case UX, reports, dashboards, migration, regression and acceptance testing.

@@ -345,9 +345,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         Route::put('/{id}', [EducationalMasterDataController::class, 'update']);
         Route::delete('/{id}', [EducationalMasterDataController::class, 'destroy']);
     });
-    Route::get('applicant-stages', [ApplicantController::class, 'stages']);
-    Route::apiResource('applicants', ApplicantController::class);
-    Route::post('applicants/{applicant}/change-stage', [ApplicantController::class, 'changeStage']);
+    Route::get('applicant-stages', [ApplicantController::class, 'stages'])->middleware('permission:view_applicants');
+    Route::apiResource('applicants', ApplicantController::class)->middlewareFor(['index','show'], 'permission:view_applicants')->middlewareFor('store', 'permission:create_applicants')->middlewareFor('update', 'permission:edit_applicants')->middlewareFor('destroy', 'permission:delete_applicants');
+    Route::post('applicants/{applicant}/change-stage', [ApplicantController::class, 'changeStage'])->middleware('permission:change_applicant_stage');
     Route::post('/customers/{customer}/services', [CustomerServiceController::class, 'store'])->middleware('permission:manage_customer_services');
     Route::put('/customers/{customer}/services/{customerService}', [CustomerServiceController::class, 'update'])->middleware('permission:manage_customer_services');
     Route::delete('/customers/{customer}/services/{customerService}', [CustomerServiceController::class, 'destroy'])->middleware('permission:manage_customer_services');
