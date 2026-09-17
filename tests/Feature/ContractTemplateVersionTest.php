@@ -1,0 +1,7 @@
+<?php
+namespace Tests\Feature;
+use App\Models\ContractTemplate; use App\Models\ContractType; use App\Models\Language; use App\Models\Role; use App\Models\User; use Illuminate\Foundation\Testing\RefreshDatabase; use Laravel\Sanctum\Sanctum; use Tests\TestCase;
+class ContractTemplateVersionTest extends TestCase { use RefreshDatabase;
+ protected function setUp(): void { parent::setUp(); $u=User::factory()->create(); $u->roles()->attach(Role::firstOrCreate(['name'=>'super_admin'])); Sanctum::actingAs($u,['access']); }
+ public function test_versions_are_language_scoped_and_activation_preserves_history(): void { $type=ContractType::firstOrCreate(['slug'=>'educational-service'],['name'=>'Educational Service']); $template=ContractTemplate::create(['name'=>'Admission agreement','contract_type_id'=>$type->id,'cover_text'=>'','content'=>'<p>legacy</p>']); $language=Language::create(['name'=>'English','code'=>'en']); $first=$this->postJson("/api/contract-templates/{$template->id}/versions",['language_id'=>$language->id,'content'=>'<p>v1</p>'])->assertCreated()->json('data'); $second=$this->postJson("/api/contract-templates/{$template->id}/versions",['language_id'=>$language->id,'content'=>'<p>v2</p>'])->assertCreated()->assertJsonPath('data.version_number',2)->json('data'); $this->postJson("/api/contract-templates/{$template->id}/versions/{$second['id']}/activate")->assertOk()->assertJsonPath('data.is_current',true); $this->assertDatabaseHas('contract_template_versions',['id'=>$first['id'],'is_current'=>false]); }
+}

@@ -19,7 +19,9 @@ export interface ContractTemplate {
   contracts_count?: number
   created_at: string
   updated_at: string
+  versions?: ContractTemplateVersion[]
 }
+export interface ContractTemplateVersion { id: number; language_id: number; version_number: number; content?: string; status: 'draft' | 'active' | 'archived'; is_current: boolean }
 
 export interface ContractTemplateCreateData {
   name: string
@@ -83,6 +85,9 @@ const ContractTemplateApi = {
   async delete(id: number): Promise<void> {
     await api.delete(`/contract-templates/${id}`)
   },
+  async versions(id: number): Promise<ContractTemplateVersion[]> { return (await api.get(`/contract-templates/${id}/versions`)).data.data },
+  async createVersion(id: number, data: Pick<ContractTemplateVersion, 'language_id' | 'content'> & { status?: string }): Promise<ContractTemplateVersion> { return (await api.post(`/contract-templates/${id}/versions`, data)).data.data },
+  async activateVersion(templateId: number, versionId: number): Promise<ContractTemplateVersion> { return (await api.post(`/contract-templates/${templateId}/versions/${versionId}/activate`)).data.data },
 }
 
 export default ContractTemplateApi

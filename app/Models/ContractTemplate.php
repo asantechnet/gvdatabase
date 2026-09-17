@@ -13,6 +13,7 @@ class ContractTemplate extends Model
 
     protected $fillable = [
         'name',
+        'description', 'is_active', 'created_by',
         'contract_type_id',
         'position_id',
         'cover_text',
@@ -43,6 +44,7 @@ class ContractTemplate extends Model
         return $this->belongsToMany(ContractPolicy::class, 'contract_policy_contract_template')
             ->withPivot('sort_order')->orderByPivot('sort_order');
     }
+    public function versions(){ return $this->hasMany(ContractTemplateVersion::class); }
 
     public function getTypeSlugAttribute(): ?string
     {

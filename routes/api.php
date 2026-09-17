@@ -15,6 +15,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\ContractPolicyController;
 use App\Http\Controllers\ContractTemplateController;
+use App\Http\Controllers\ContractTemplateVersionController;
 use App\Http\Controllers\ContractTypeController;
 use App\Http\Controllers\CrmInteractionController;
 use App\Http\Controllers\CurrencyController;
@@ -380,6 +381,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::apiResource('contract-templates', ContractTemplateController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_contract_templates')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_contract_templates');
+    Route::get('contract-templates/{template}/versions', [ContractTemplateVersionController::class, 'index'])->middleware('permission:view_contract_templates');
+    Route::post('contract-templates/{template}/versions', [ContractTemplateVersionController::class, 'store'])->middleware('permission:create_contract_template_versions');
+    Route::post('contract-templates/{template}/versions/{version}/activate', [ContractTemplateVersionController::class, 'activate'])->middleware('permission:activate_contract_template_versions');
     Route::apiResource('contract-policies', ContractPolicyController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_contract_policies')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_contract_policies');

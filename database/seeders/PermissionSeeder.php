@@ -124,6 +124,8 @@ class PermissionSeeder extends Seeder
         ['name' => 'download_contracts', 'category' => 'customer_contracts'],
         ['name' => 'view_contract_templates', 'category' => 'customer_contracts'],
         ['name' => 'manage_contract_templates', 'category' => 'customer_contracts'],
+        ['name' => 'create_contract_template_versions', 'category' => 'educational_visa'],
+        ['name' => 'activate_contract_template_versions', 'category' => 'educational_visa'],
         ['name' => 'view_contract_policies', 'category' => 'customer_contracts'],
         ['name' => 'manage_contract_policies', 'category' => 'customer_contracts'],
         ['name' => 'view_contract_types', 'category' => 'customer_contracts'],
