@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import ApplicantApi, { type Applicant, type ApplicantListParams, type PipelineColumn } from '@/api/applicants'
@@ -33,6 +33,15 @@ const activeCountries = computed(() => countries.value.filter(c => c.is_active))
 const activeUniversities = computed(() => universities.value.filter(u => u.is_active && (!filters.value.country_id || u.country_id === filters.value.country_id)))
 const activeLevels = computed(() => levels.value.filter(l => l.is_active))
 const activeLanguages = computed(() => languages.value.filter(l => l.is_active))
+
+// A university selected for one country must not silently filter everything
+// out after the country changes.
+watch(() => filters.value.country_id, () => {
+  const stillVisible = activeUniversities.value.some(u => u.id === filters.value.university_id)
+
+  if (!stillVisible)
+    filters.value.university_id = null
+})
 
 function stageOf(applicant: Applicant) {
   return stages.value.find(s => s.id === applicant.current_stage_id)
@@ -123,6 +132,10 @@ async function onDrop(target: PipelineColumn) {
   if (!id)
     return
 
+  await moveApplicant(id, target)
+}
+
+async function moveApplicant(id: number, target: PipelineColumn) {
   const applicant = Object.values(cards.value).flat().find(a => a.id === id)
 
   if (!applicant)
@@ -218,6 +231,12 @@ onMounted(async () => {
                 <div class="text-caption text-medium-emphasis">{{ applicant.responsible_employee?.name ?? 'Unassigned' }}</div>
                 <div class="d-flex gap-1 mt-2">
                   <VBtn size="x-small" variant="text" @click="openCase(applicant.id)">Open case</VBtn>
+                  <VMenu v-if="canMove && allowedTargets(applicant).length">
+                    <template #activator="{ props }"><VBtn size="x-small" variant="text" color="primary" v-bind="props">Move</VBtn></template>
+                    <VList density="compact">
+                      <VListItem v-for="target in allowedTargets(applicant)" :key="target.id" :title="`Move to ${target.name}`" @click="moveApplicant(applicant.id, target)" />
+                    </VList>
+                  </VMenu>
                   <VChip v-if="movingId === applicant.id" size="x-small" color="primary">Moving…</VChip>
                 </div>
                 <div v-if="canMove && allowedTargets(applicant).length" class="text-caption text-medium-emphasis mt-1">Next: {{ allowedTargets(applicant).map(s => s.name).join(', ') }}</div>

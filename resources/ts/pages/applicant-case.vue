@@ -101,8 +101,14 @@ async function completeTask(id: number) {
     await load()
     toast.success('Task marked complete.')
   }
-  catch {
-    toast.error('You do not have permission to complete this task.')
+  catch (error: unknown) {
+    // The server distinguishes permission denials from business rules
+    // (subtasks open, dependencies incomplete) — show its reason.
+    const message = (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message
+      || (error as { message?: string })?.message
+      || 'Unable to complete this task.'
+
+    toast.error(message)
   }
   finally {
     completingId.value = null

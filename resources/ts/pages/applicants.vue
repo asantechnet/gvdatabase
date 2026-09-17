@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import ApplicantApi, { type Applicant, type ApplicantBoard } from '@/api/applicants'
+import ApplicantApi, { type Applicant, type ApplicantBoard, type ApplicantStage } from '@/api/applicants'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
@@ -37,6 +37,7 @@ const universities = ref<MasterDataRecord[]>([])
 const levels = ref<MasterDataRecord[]>([])
 const languages = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
+const stages = ref<ApplicantStage[]>([])
 
 const canViewPipeline = computed(() => canAccess('view_applicants'))
 const tabs: Array<{ value: Tab; title: string }> = [
@@ -81,12 +82,13 @@ async function load() {
 
 async function loadCatalogs() {
   try {
-    const [countryRows, universityRows, levelRows, languageRows, employeeRows] = await Promise.all([
+    const [countryRows, universityRows, levelRows, languageRows, employeeRows, stageRows] = await Promise.all([
       MasterDataApi.list('countries'),
       MasterDataApi.list('universities'),
       MasterDataApi.list('education-levels'),
       MasterDataApi.list('languages'),
       EmployeeApi.getOptions(),
+      ApplicantApi.stages(),
     ])
 
     countries.value = countryRows
@@ -94,6 +96,7 @@ async function loadCatalogs() {
     levels.value = levelRows
     languages.value = languageRows
     employees.value = employeeRows
+    stages.value = stageRows
   }
   catch {
     toast.error('Unable to load applicant filters.')
@@ -120,7 +123,17 @@ function clearFilters() {
   load()
 }
 
-watch([page, perPage], load)
+// Pagination controls call load() explicitly; no page watcher, so changing
+// pages never fires duplicate requests.
+watch(countryId, () => {
+  const stillVisible = universities.value
+    .filter(u => u.is_active && (!countryId.value || u.country_id === countryId.value))
+    .some(u => u.id === universityId.value)
+
+  if (!stillVisible)
+    universityId.value = null
+})
+
 onMounted(async () => {
   await loadCatalogs()
   await load()
@@ -140,7 +153,7 @@ onMounted(async () => {
       </VTabs>
       <VRow dense class="mt-4">
         <VCol cols="12" md="3"><VTextField v-model="search" label="Search name, phone, email, ID" clearable @keyup.enter="page = 1; load()" /></VCol>
-        <VCol cols="12" md="3"><VTextField v-model="stage" label="Stage key (e.g. consultation)" clearable @keyup.enter="page = 1; load()" /></VCol>
+        <VCol cols="12" md="3"><VSelect v-model="stage" :items="stages.map(s => ({ title: s.name, value: s.key }))" label="Stage" clearable @update:model-value="page = 1; load()" /></VCol>
         <VCol cols="12" md="2"><VSelect v-model="status" :items="[{ title: 'Active', value: 'active' }, { title: 'Closed', value: 'closed' }]" label="Status" clearable /></VCol>
         <VCol cols="12" md="2"><VSelect v-model="responsibleEmployeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" label="Employee" clearable /></VCol>
         <VCol cols="12" md="2"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" label="Country" clearable /></VCol>
@@ -174,7 +187,7 @@ onMounted(async () => {
       </tbody>
     </VTable>
     <VCardText class="d-flex align-center gap-4">
-      <VPagination v-model="page" :length="Math.max(lastPage, 1)" size="small" />
+      <VPagination v-model="page" :length="Math.max(lastPage, 1)" size="small" @update:model-value="load" />
       <VSelect v-model="perPage" :items="[10, 25, 50, 100]" label="Per page" style="max-inline-size: 140px;" @update:model-value="page = 1; load()" />
     </VCardText>
   </VCard>
