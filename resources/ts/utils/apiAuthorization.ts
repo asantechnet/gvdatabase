@@ -160,6 +160,7 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'PATCH /audit-resources/:id': ['manage_audit_scope'],
     'GET /dashboard/stats': ['view_dashboard'],
     'GET /dashboard/chart-data': ['view_dashboard'],
+    'GET /educational-dashboard': ['view_dashboard'],
     'GET /reports/invoices': ['view_financial_reports'],
     'GET /reports/expences': ['view_financial_reports'],
     'GET /reports/expenses': ['view_financial_reports'],

@@ -22,6 +22,13 @@ export default [
         icon: { icon: 'tabler-search' },
         to: 'search',
       },
+      {
+        title: 'Agency overview',
+        icon: { icon: 'tabler-dashboard' },
+        to: 'agency-overview',
+        action: 'read',
+        subject: 'view_dashboard',
+      },
     ],
   },
 ]

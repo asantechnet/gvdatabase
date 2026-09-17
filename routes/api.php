@@ -22,6 +22,7 @@ use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerServiceController;
 use App\Http\Controllers\ApplicantController;
+use App\Http\Controllers\EducationalDashboardController;
 use App\Http\Controllers\EducationalMasterDataController;
 use App\Http\Controllers\EducationalServiceController;
 use App\Http\Controllers\PendingTransactionController;
@@ -355,6 +356,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     // Cross-module staff search. Each result group is permission-gated
     // inside the controller, so any signed-in user may query it.
     Route::get('search', [SearchController::class, 'index']);
+    // Agency operations overview. Read-only aggregates over applicant,
+    // sales, task and approval rows; any dashboard viewer may open it.
+    Route::get('educational-dashboard', [EducationalDashboardController::class, 'index'])->middleware('permission:view_dashboard');
     Route::get('educational-services/{type}', [EducationalServiceController::class, 'index'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:view_services');
     Route::post('educational-services/{type}', [EducationalServiceController::class, 'store'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:manage_customer_services');
     Route::get('pending-transactions',[PendingTransactionController::class,'index'])->middleware('permission:view_pending_transactions');
