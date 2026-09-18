@@ -22,6 +22,7 @@ use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerServiceController;
 use App\Http\Controllers\ApplicantController;
+use App\Http\Controllers\ApplicantUniversityController;
 use App\Http\Controllers\EducationalDashboardController;
 use App\Http\Controllers\EducationalMasterDataController;
 use App\Http\Controllers\EducationalReportController;
@@ -355,6 +356,10 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::get('applicants-pipeline', [ApplicantController::class, 'pipeline'])->middleware('permission:view_applicants');
     Route::apiResource('applicants', ApplicantController::class)->middlewareFor(['index','show'], 'permission:view_applicants')->middlewareFor('store', 'permission:create_applicants')->middlewareFor('update', 'permission:edit_applicants')->middlewareFor('destroy', 'permission:delete_applicants');
     Route::post('applicants/{applicant}/change-stage', [ApplicantController::class, 'changeStage'])->middleware('permission:change_applicant_stage');
+    Route::get('applicants/{applicant}/universities', [ApplicantUniversityController::class, 'index'])->middleware('permission:view_applicants');
+    Route::post('applicants/{applicant}/universities', [ApplicantUniversityController::class, 'store'])->middleware('permission:edit_applicants');
+    Route::put('applicants/{applicant}/universities/{application}', [ApplicantUniversityController::class, 'update'])->middleware('permission:edit_applicants');
+    Route::delete('applicants/{applicant}/universities/{application}', [ApplicantUniversityController::class, 'destroy'])->middleware('permission:edit_applicants');
     // Cross-module staff search. Each result group is permission-gated
     // inside the controller, so any signed-in user may query it.
     Route::get('search', [SearchController::class, 'index']);

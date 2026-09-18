@@ -2,8 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import ApplicantApi, { type Applicant } from '@/api/applicants'
+import ApplicantApi, { type Applicant, ApplicantUniversityApi } from '@/api/applicants'
 import BoardApi from '@/api/board'
+import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import TaskApi from '@/api/task'
 import { canAccess } from '@/utils/authorization'
 
@@ -35,6 +36,13 @@ const feeOf = (row: { fee: number | string; currency?: { code: string } | null }
 const notesDraft = ref('')
 const savingNotes = ref(false)
 const downloadingId = ref<number | null>(null)
+
+const universities = ref<MasterDataRecord[]>([])
+const uniDialog = ref(false)
+const savingUni = ref(false)
+const uniForm = ref({ university_id: null as number | null, status: 'pending', intake: '', notes: '' })
+const uniStatuses = ['pending', 'applied', 'admitted', 'rejected', 'withdrawn']
+const statusColor = (status: string) => ({ pending: 'secondary', applied: 'info', admitted: 'success', rejected: 'error', withdrawn: 'warning' }[status] ?? 'secondary')
 
 async function load() {
   applicant.value = await ApplicantApi.get(Number(route.params.id))
@@ -175,9 +183,86 @@ async function downloadDoc(taskId: number, attachmentId: number, filename: strin
   }
 }
 
+function openUniDialog() {
+  uniForm.value = { university_id: null, status: 'pending', intake: '', notes: '' }
+  uniDialog.value = true
+}
+
+async function saveUni() {
+  if (!applicant.value || !uniForm.value.university_id)
+    return
+
+  savingUni.value = true
+  try {
+    await ApplicantUniversityApi.create(applicant.value.id, {
+      university_id: uniForm.value.university_id,
+      status: uniForm.value.status,
+      intake: uniForm.value.intake.trim() || undefined,
+      notes: uniForm.value.notes.trim() || undefined,
+    })
+    uniDialog.value = false
+    await load()
+    toast.success('University application added.')
+  }
+  catch {
+    toast.error('Unable to add — this university/intake is already tracked for the case.')
+  }
+  finally {
+    savingUni.value = false
+  }
+}
+
+async function setUniStatus(id: number, status: string) {
+  if (!applicant.value)
+    return
+
+  try {
+    await ApplicantUniversityApi.update(applicant.value.id, id, { status })
+    await load()
+    toast.success(`Application marked ${status}.`)
+  }
+  catch {
+    toast.error('Unable to update the application.')
+  }
+}
+
+async function removeUni(id: number) {
+  if (!applicant.value || !confirm('Remove this university application from the case?'))
+    return
+
+  try {
+    await ApplicantUniversityApi.remove(applicant.value.id, id)
+    await load()
+    toast.success('Application removed.')
+  }
+  catch {
+    toast.error('Unable to remove the application.')
+  }
+}
+
+async function setPrimaryUniversity(universityId: number) {
+  if (!applicant.value)
+    return
+
+  try {
+    applicant.value = await ApplicantApi.update(applicant.value.id, { university_id: universityId })
+    toast.success('Primary university updated.')
+  }
+  catch {
+    toast.error('Unable to set the primary university.')
+  }
+}
+
 onMounted(async () => {
   await load()
   await loadBoards()
+
+  try {
+    universities.value = await MasterDataApi.list('universities')
+  }
+  catch {
+    toast.error('Unable to load universities.')
+  }
 })
 </script>
 <template>
@@ -207,6 +292,26 @@ onMounted(async () => {
       <p v-if="!applicant.tasks?.length" class="text-caption text-medium-emphasis">No operational work yet. Moving this case into a work stage generates it automatically.</p>
       <h3 class="mt-4">Contracts</h3>
       <VList><VListItem v-for="contract in applicant.contracts" :key="contract.id" :title="contract.contract_number" :subtitle="contract.status" /></VList>
+      <div class="d-flex align-center mt-4">
+        <h3>University applications</h3>
+        <VSpacer />
+        <VBtn v-if="canEditCase" size="small" prepend-icon="tabler-plus" @click="openUniDialog">Add application</VBtn>
+      </div>
+      <p v-if="applicant.university" class="text-caption text-medium-emphasis">Primary choice: {{ applicant.university.name }}</p>
+      <VList>
+        <VListItem v-for="app in applicant.universities" :key="app.id" :title="app.university?.name ?? `University #${app.university_id}`" :subtitle="`${app.status}${app.intake ? ` · intake ${app.intake}` : ''}${app.notes ? ` · ${app.notes}` : ''}`">
+          <template #prepend><VChip size="small" :color="statusColor(app.status)">{{ app.status }}</VChip></template>
+          <template v-if="canEditCase" #append>
+            <VMenu>
+              <template #activator="{ props }"><VBtn size="small" variant="text" v-bind="props">Status</VBtn></template>
+              <VList density="compact"><VListItem v-for="s in uniStatuses" :key="s" :title="s" @click="setUniStatus(app.id, s)" /></VList>
+            </VMenu>
+            <VBtn v-if="app.university_id !== applicant.university_id" size="small" variant="text" @click="setPrimaryUniversity(app.university_id)">Primary</VBtn>
+            <VBtn size="small" variant="text" color="error" @click="removeUni(app.id)">Remove</VBtn>
+          </template>
+        </VListItem>
+      </VList>
+      <p v-if="!applicant.universities?.length" class="text-caption text-medium-emphasis">No applications tracked yet. Add every university the student applies to — each keeps its own outcome.</p>
       <h3 class="mt-4">Services sold</h3>
       <VList>
         <VListItem v-for="row in applicant.scholarships" :key="`sch-${row.id}`" title="Scholarship service" :subtitle="`${feeOf(row)}${row.date ? ` · ${row.date}` : ''}${row.status ? ` · ${row.status}` : ''}`" />
@@ -254,6 +359,21 @@ onMounted(async () => {
         <VSpacer />
         <VBtn @click="taskDialog = false">Cancel</VBtn>
         <VBtn color="primary" :loading="creatingTask" :disabled="!taskForm.board_id || !taskForm.title.trim()" @click="createTask">Create</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+  <VDialog v-model="uniDialog" max-width="560">
+    <VCard title="Add university application">
+      <VCardText>
+        <VSelect v-model="uniForm.university_id" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" label="University" class="mb-3" />
+        <VSelect v-model="uniForm.status" :items="uniStatuses" label="Outcome" class="mb-3" />
+        <VTextField v-model="uniForm.intake" label="Intake (e.g. Fall 2026)" clearable class="mb-3" />
+        <VTextarea v-model="uniForm.notes" label="Notes" />
+      </VCardText>
+      <VCardActions>
+        <VSpacer />
+        <VBtn @click="uniDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :loading="savingUni" :disabled="!uniForm.university_id" @click="saveUni">Add</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

@@ -30,4 +30,5 @@ class Applicant extends Model
     public function expenses(): HasMany { return $this->hasMany(Expense::class); }
     public function scholarships(): HasMany { return $this->hasMany(Scholarship::class); }
     public function testOffers(): HasMany { return $this->hasMany(TestOffer::class); }
+    public function universities(): HasMany { return $this->hasMany(ApplicantUniversity::class); }
 }

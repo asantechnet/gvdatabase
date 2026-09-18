@@ -39,7 +39,7 @@ class ApplicantController extends Controller
 
         return response()->json(['success' => true, 'data' => ['stages' => $columns, 'totals' => ['active' => (clone $totalsQuery)->where('status', 'active')->count(), 'closed' => (clone $totalsQuery)->where('status', 'closed')->count(), 'all' => (clone $totalsQuery)->count()]]]);
     }
-    public function show(Applicant $applicant) { return response()->json(['success' => true, 'data' => $applicant->load([...$this->relations(), 'stageHistory.oldStage', 'stageHistory.newStage', 'stageHistory.changer', 'tasks.attachments', 'contracts', 'pendingTransactions.currency', 'incomes', 'expenses', 'scholarships.currency', 'testOffers.currency'])]); }
+    public function show(Applicant $applicant) { return response()->json(['success' => true, 'data' => $applicant->load([...$this->relations(), 'stageHistory.oldStage', 'stageHistory.newStage', 'stageHistory.changer', 'tasks.attachments', 'contracts', 'pendingTransactions.currency', 'incomes', 'expenses', 'scholarships.currency', 'testOffers.currency', 'universities.university'])]); }
     public function store(Request $request) { return response()->json(['success' => true, 'data' => $this->save($request, new Applicant)], 201); }
     public function update(Request $request, Applicant $applicant) { return response()->json(['success' => true, 'data' => $this->save($request, $applicant, true)]); }
     public function destroy(Applicant $applicant) { if ($applicant->contracts()->exists()) return response()->json(['code' => 'business.applicant_has_contracts'], 409); $applicant->delete(); return response()->noContent(); }

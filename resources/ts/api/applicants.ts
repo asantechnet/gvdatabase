@@ -36,6 +36,7 @@ export interface Applicant {
   expenses?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
   scholarships?: Array<{ id: number; fee: number | string; date?: string | null; status?: string | null; currency?: { id: number; code: string } | null }>
   test_offers?: Array<{ id: number; fee: number | string; date?: string | null; status?: string | null; currency?: { id: number; code: string } | null }>
+  universities?: Array<{ id: number; university_id: number; status: string; intake?: string | null; notes?: string | null; university?: { id: number; name: string } | null }>
 }
 
 export type ApplicantBoard = 'operation' | 'final' | 'cancelled'
@@ -131,4 +132,21 @@ export default {
   update: async (id: number, data: Partial<Applicant>) => (await api.put(`/applicants/${id}`, data)).data.data as Applicant,
   stages: async () => (await api.get('/applicant-stages')).data.data as ApplicantStage[],
   changeStage: async (id: number, stage_id: number, note?: string) => (await api.post(`/applicants/${id}/change-stage`, { stage_id, note })).data.data as Applicant,
+}
+
+export interface ApplicantUniversity {
+  id: number
+  applicant_id: number
+  university_id: number
+  status: string
+  intake?: string | null
+  notes?: string | null
+  university?: { id: number; name: string } | null
+}
+
+export const ApplicantUniversityApi = {
+  list: async (applicantId: number) => (await api.get(`/applicants/${applicantId}/universities`)).data.data as ApplicantUniversity[],
+  create: async (applicantId: number, data: Partial<ApplicantUniversity>) => (await api.post(`/applicants/${applicantId}/universities`, data)).data.data as ApplicantUniversity,
+  update: async (applicantId: number, id: number, data: Partial<ApplicantUniversity>) => (await api.put(`/applicants/${applicantId}/universities/${id}`, data)).data.data as ApplicantUniversity,
+  remove: async (applicantId: number, id: number) => api.delete(`/applicants/${applicantId}/universities/${id}`),
 }

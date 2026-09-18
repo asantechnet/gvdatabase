@@ -253,7 +253,43 @@ class EducationalReportController extends Controller
         }
         usort($rows, fn ($a, $b) => $b['total'] <=> $a['total']);
 
-        return ['columns' => $columns, 'rows' => $rows, 'total' => count($rows)];
+        return ['columns' => $columns, 'rows' => $rows, 'total' => count($rows), 'by_university' => $this->universityOutcomes($filters)];
+    }
+
+    private function universityOutcomes(array $filters): array
+    {
+        $query = \App\Models\ApplicantUniversity::query()
+            ->join('applicants', 'applicants.id', '=', 'applicant_universities.applicant_id')
+            ->join('universities', 'universities.id', '=', 'applicant_universities.university_id')
+            ->selectRaw('universities.name as university, applicant_universities.status as status, COUNT(*) as total')
+            ->groupBy('universities.name', 'applicant_universities.status');
+        if (! empty($filters['university_id'])) {
+            $query->where('applicant_universities.university_id', $filters['university_id']);
+        }
+        if (! empty($filters['country_id'])) {
+            $query->where('applicants.country_id', $filters['country_id']);
+        }
+
+        $buckets = [];
+        foreach ($query->get() as $row) {
+            $buckets[$row->university]['university'] = $row->university;
+            $buckets[$row->university][$row->status] = ($buckets[$row->university][$row->status] ?? 0) + $row->total;
+            $buckets[$row->university]['applications'] = ($buckets[$row->university]['applications'] ?? 0) + $row->total;
+        }
+
+        $rows = [];
+        foreach ($buckets as $b) {
+            $admitted = $b['admitted'] ?? 0;
+            $rows[] = [
+                'university' => $b['university'],
+                'applications' => $b['applications'],
+                'admitted' => $admitted,
+                'admission_rate_pct' => $b['applications'] > 0 ? round($admitted / $b['applications'] * 100, 1) : 0,
+            ];
+        }
+        usort($rows, fn ($a, $b) => $b['applications'] <=> $a['applications']);
+
+        return ['columns' => ['university', 'applications', 'admitted', 'admission_rate_pct'], 'rows' => $rows, 'total' => count($rows)];
     }
 
     private function csvValue(mixed $value): string
