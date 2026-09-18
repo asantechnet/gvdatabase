@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import ApplicantApi, { type Applicant, ApplicantUniversityApi } from '@/api/applicants'
 import BoardApi from '@/api/board'
+import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import TaskApi from '@/api/task'
 import { canAccess } from '@/utils/authorization'
@@ -38,11 +39,19 @@ const savingNotes = ref(false)
 const downloadingId = ref<number | null>(null)
 
 const universities = ref<MasterDataRecord[]>([])
+const countries = ref<MasterDataRecord[]>([])
+const levels = ref<MasterDataRecord[]>([])
+const languages = ref<MasterDataRecord[]>([])
+const employees = ref<Employee[]>([])
 const uniDialog = ref(false)
 const savingUni = ref(false)
 const uniForm = ref({ university_id: null as number | null, status: 'pending', intake: '', notes: '' })
 const uniStatuses = ['pending', 'applied', 'admitted', 'rejected', 'withdrawn']
 const statusColor = (status: string) => ({ pending: 'secondary', applied: 'info', admitted: 'success', rejected: 'error', withdrawn: 'warning' }[status] ?? 'secondary')
+
+const editDialog = ref(false)
+const savingCase = ref(false)
+const editForm = ref({ responsible_employee_id: null as number | null, country_id: null as number | null, university_id: null as number | null, education_level_id: null as number | null, language_id: null as number | null, application_date: '' })
 
 async function load() {
   applicant.value = await ApplicantApi.get(Number(route.params.id))
@@ -183,6 +192,46 @@ async function downloadDoc(taskId: number, attachmentId: number, filename: strin
   }
 }
 
+function openEditCase() {
+  if (!applicant.value)
+    return
+
+  editForm.value = {
+    responsible_employee_id: applicant.value.responsible_employee_id ?? null,
+    country_id: applicant.value.country_id ?? null,
+    university_id: applicant.value.university_id ?? null,
+    education_level_id: applicant.value.education_level_id ?? null,
+    language_id: applicant.value.language_id ?? null,
+    application_date: applicant.value.application_date ?? '',
+  }
+  editDialog.value = true
+}
+
+async function saveCase() {
+  if (!applicant.value)
+    return
+
+  savingCase.value = true
+  try {
+    const payload: Record<string, unknown> = {}
+
+    for (const [key, value] of Object.entries(editForm.value)) {
+      if (value !== null && value !== '')
+        payload[key] = value
+    }
+
+    applicant.value = await ApplicantApi.update(applicant.value.id, payload)
+    editDialog.value = false
+    toast.success('Case updated.')
+  }
+  catch {
+    toast.error('Unable to update the case.')
+  }
+  finally {
+    savingCase.value = false
+  }
+}
+
 function openUniDialog() {
   uniForm.value = { university_id: null, status: 'pending', intake: '', notes: '' }
   uniDialog.value = true
@@ -258,7 +307,19 @@ onMounted(async () => {
   await loadBoards()
 
   try {
-    universities.value = await MasterDataApi.list('universities')
+    const [universityRows, countryRows, levelRows, languageRows, employeeRows] = await Promise.all([
+      MasterDataApi.list('universities'),
+      MasterDataApi.list('countries'),
+      MasterDataApi.list('education-levels'),
+      MasterDataApi.list('languages'),
+      EmployeeApi.getOptions(),
+    ])
+
+    universities.value = universityRows
+    countries.value = countryRows
+    levels.value = levelRows
+    languages.value = languageRows
+    employees.value = employeeRows
   }
   catch {
     toast.error('Unable to load universities.')
@@ -267,7 +328,11 @@ onMounted(async () => {
 </script>
 <template>
   <VCard v-if="applicant">
-    <VCardTitle>{{ applicant.customer?.name }} — Visa case</VCardTitle>
+    <VCardTitle class="d-flex align-center">
+      <span>{{ applicant.customer?.name }} — Visa case</span>
+      <VSpacer />
+      <VBtn v-if="canEditCase" size="small" variant="text" prepend-icon="tabler-pencil" @click="openEditCase">Edit case</VBtn>
+    </VCardTitle>
     <VCardText>
       <VChip color="primary">{{ applicant.current_stage?.name }}</VChip>
       <VChip v-if="openTasks.length" color="warning" size="small" class="ms-2">{{ openTasks.length }} open task{{ openTasks.length === 1 ? '' : 's' }}</VChip>
@@ -374,6 +439,26 @@ onMounted(async () => {
         <VSpacer />
         <VBtn @click="uniDialog = false">Cancel</VBtn>
         <VBtn color="primary" :loading="savingUni" :disabled="!uniForm.university_id" @click="saveUni">Add</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+  <VDialog v-model="editDialog" max-width="600">
+    <VCard title="Edit case">
+      <VCardText>
+        <VSelect v-model="editForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" label="Responsible employee" clearable class="mb-3" />
+        <VRow dense>
+          <VCol cols="6"><VSelect v-model="editForm.country_id" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" label="Destination country" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VSelect v-model="editForm.university_id" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" label="Primary university" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VSelect v-model="editForm.education_level_id" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" label="Education level" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VSelect v-model="editForm.language_id" :items="languages.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" label="Language" clearable class="mb-3" /></VCol>
+        </VRow>
+        <VTextField v-model="editForm.application_date" type="date" label="Application date" clearable />
+        <p class="text-caption text-medium-emphasis mt-2">The paying customer cannot be changed here — it would orphan contracts and sales. Notes are edited in the Notes section below.</p>
+      </VCardText>
+      <VCardActions>
+        <VSpacer />
+        <VBtn @click="editDialog = false">Cancel</VBtn>
+        <VBtn color="primary" :loading="savingCase" @click="saveCase">Save</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

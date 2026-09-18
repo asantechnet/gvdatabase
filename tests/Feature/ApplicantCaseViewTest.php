@@ -61,4 +61,18 @@ class ApplicantCaseViewTest extends TestCase
         $this->assertSame($currency->code, $case['scholarships'][0]['currency']['code']);
         $this->assertCount(1, $case['test_offers']);
     }
+
+    public function test_case_fields_are_editable_with_validation(): void
+    {
+        $country = \App\Models\Country::create(['name' => 'Iran', 'code' => 'IRN', 'is_active' => true]);
+        $employee = \App\Models\Employee::factory()->create();
+        $customer = Customer::factory()->create();
+        $a = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+
+        $updated = $this->putJson("/api/applicants/{$a['id']}", ['country_id' => $country->id, 'responsible_employee_id' => $employee->id])->assertOk()->json('data');
+        $this->assertSame($country->id, $updated['country_id']);
+        $this->assertSame($employee->id, $updated['responsible_employee_id']);
+
+        $this->putJson("/api/applicants/{$a['id']}", ['university_id' => 999999])->assertUnprocessable();
+    }
 }
