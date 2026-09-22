@@ -39,8 +39,7 @@ export interface Applicant {
   pending_transactions?: Array<{ id: number; transaction_type: string; reason: string; amount: number | string; approval_status: string; rejection_reason?: string | null }>
   incomes?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
   expenses?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
-  scholarships?: Array<{ id: number; service_id: number; employee_id: number; currency_id: number; package_type_id?: number | null; country_id?: number | null; education_level_id?: number | null; language_id?: number | null; fee: number | string; date?: string | null; status?: 'active' | 'completed' | 'cancelled'; currency?: { id: number; code: string } | null; bonus_source?: { bonus_amount: number | string; rule_source?: string | null } | null }>
-  test_offers?: Array<{ id: number; service_id: number; employee_id: number; currency_id: number; package_type_id?: number | null; country_id?: number | null; education_level_id?: number | null; language_id?: number | null; fee: number | string; date?: string | null; status?: 'active' | 'completed' | 'cancelled'; currency?: { id: number; code: string } | null; bonus_source?: { bonus_amount: number | string; rule_source?: string | null } | null }>
+  services?: Array<{ id: number; service_id: number; type: string; category?: string; employee_id?: number | null; currency_id: number; package_type_id?: number | null; country_id?: number | null; education_level_id?: number | null; language_id?: number | null; fee: number | string; date?: string | null; status?: 'active' | 'paused' | 'completed' | 'cancelled'; currency?: { id: number; code: string } | null; bonus_source?: { bonus_amount: number | string; rule_source?: string | null } | null }>
   universities?: Array<{ id: number; university_id: number; semester_id?: number | null; status: string; intake?: string | null; notes?: string | null; university?: { id: number; name: string } | null; semester?: { id: number; name: string; code?: string } | null }>
 }
 
@@ -137,7 +136,9 @@ export default {
   create: async (data: Partial<Applicant>) => (await api.post('/applicants', data)).data.data as Applicant,
   update: async (id: number, data: Partial<Applicant>) => (await api.put(`/applicants/${id}`, data)).data.data as Applicant,
   stages: async (params?: Pick<ApplicantListParams, 'country_id' | 'university_id'>) => (await api.get('/applicant-stages', { params: clean(params) })).data.data as ApplicantStage[],
-  stageDefinitions: async () => (await api.get('/applicant-stages', { params: { all: true } })).data.data as ApplicantStage[],
+  // Laravel's boolean validation accepts 1/0 query values reliably; URL query
+  // serialization of `true` can otherwise arrive as the invalid string "true".
+  stageDefinitions: async () => (await api.get('/applicant-stages', { params: { all: 1 } })).data.data as ApplicantStage[],
   createStage: async (data: Partial<ApplicantStage>) => (await api.post('/applicant-stages', data)).data.data as ApplicantStage,
   updateStageDefinition: async (id: number, data: Partial<ApplicantStage>) => (await api.put(`/applicant-stages/${id}`, data)).data.data as ApplicantStage,
   removeStageDefinition: async (id: number) => api.delete(`/applicant-stages/${id}`),

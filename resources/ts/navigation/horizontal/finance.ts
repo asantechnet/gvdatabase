@@ -19,13 +19,6 @@ export default [
         subject: 'view_expenses',
       },
       {
-        title: 'common.navigation.sales',
-        icon: { icon: 'tabler-coin' },
-        to: 'educational-services',
-        action: 'read',
-        subject: 'view_educational_services',
-      },
-      {
         title: 'common.navigation.invoice',
         icon: { icon: 'tabler-invoice' },
         to: 'innvoice',

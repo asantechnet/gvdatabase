@@ -32,7 +32,7 @@ const resources: Record<string, ResourcePermissions> = {
   'assets': { view: 'view_assets', create: 'create_assets', update: 'edit_assets', delete: 'delete_assets' },
   'projects': { view: 'view_projects', create: 'create_projects', update: 'edit_projects', delete: 'delete_projects' },
   'applicants': { view: 'view_applicants', create: 'create_applicants', update: 'edit_applicants', delete: 'delete_applicants' },
-  'applicant-stages': { view: 'view_applicants', create: 'view_applicants', update: 'view_applicants', delete: 'view_applicants' },
+  'applicant-stages': { view: 'view_applicant_stages', create: 'manage_applicant_stages', update: 'manage_applicant_stages', delete: 'manage_applicant_stages' },
   'applicants-pipeline': { view: 'view_applicants', create: 'view_applicants', update: 'view_applicants', delete: 'view_applicants' },
 }
 

@@ -7,7 +7,9 @@ import ApplicantApi, { type Applicant, type ApplicantStage, ApplicantUniversityA
 import ApplicantPortalApi from '@/api/applicantPortal'
 import ContractApi from '@/api/contracts'
 import ContractTemplateApi, { type ContractTemplate } from '@/api/contractTemplate'
-import EducationalServiceApi, { type EducationalServiceInput, type EducationalServiceOptions, type EducationalServiceType } from '@/api/educationalServices'
+import CustomerApi, { type CreateCustomerServiceData, type UpdateCustomerServiceData } from '@/api/customer'
+import CurrencyApi from '@/api/currency'
+import type { Service } from '@/api/services'
 import BoardApi from '@/api/board'
 import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
 import EmployeeApi, { type Employee } from '@/api/employee'
@@ -44,7 +46,7 @@ const canCreatePendingTransactions = computed(() => canAccess('create_pending_tr
 const canViewContracts = computed(() => canAccess('view_applicant_contracts'))
 const canCreateContracts = computed(() => canAccess('create_contracts'))
 const canViewServices = computed(() => canAccess('view_applicant_services'))
-const canManageServices = computed(() => canAccess('manage_educational_services'))
+const canManageServices = computed(() => canAccess('manage_customer_services'))
 const transitionOptions = computed(() => {
   const current = applicant.value?.current_stage?.key
   if (!current) return stages.value
@@ -60,6 +62,13 @@ const postedExpenseTotal = computed(() => (applicant.value?.expenses ?? []).redu
 const money = (value: number | string) => n(Number(value || 0), 'decimal')
 const feeOf = (row: { fee: number | string; currency?: { code: string } | null }) => `${money(row.fee)}${row.currency?.code ? ` ${row.currency.code}` : ''}`
 const formatDate = (value?: string | null) => value ? formatLocalizedDate(value, 'short') : ''
+const formatDateTime = (value?: string | null) => value ? formatLocalizedDate(value, 'long') : ''
+const stageSubtitle = (item: { changed_at: string; note?: string | null }) => {
+  const when = formatDateTime(item.changed_at)
+  const desc = item.note?.trim()
+
+  return desc ? `${when} · ${desc}` : when
+}
 const taskSummary = (task: { progress: number; priority?: string | null; due_date?: string | null }) => t('educational.caseUi.taskSummary', {
   progress: n(task.progress),
   priority: task.priority ? translateBackendValue(task.priority) : t('common.messages.notAvailable'),
@@ -93,10 +102,10 @@ const savingContract = ref(false)
 const contractTemplates = ref<ContractTemplate[]>([])
 const serviceDialog = ref(false)
 const savingService = ref(false)
-const editingService = ref<{ type: EducationalServiceType; id: number } | null>(null)
-const serviceType = ref<EducationalServiceType>('scholarships')
-const serviceOptions = ref<EducationalServiceOptions>({ customers: [], employees: [], applicants: [], currencies: [], package_types: [], services: [], countries: [], education_levels: [], languages: [], contracts: [] })
-const serviceForm = ref<EducationalServiceInput>({ customer_id: null, service_id: null, applicant_id: null, country_id: null, education_level_id: null, language_id: null, employee_id: null, currency_id: null, package_type_id: null, date: '', fee: null, status: 'active', bonus_amount: 0, bonus_rule_source: '' })
+const editingService = ref<number | null>(null)
+const serviceCatalog = ref<Service[]>([])
+const serviceCurrencies = ref<Array<{ id: number; name: string; code: string; is_base?: boolean }>>([])
+const serviceForm = ref({ service_id: null as number | null, currency_id: null as number | null, fee: null as number | null, status: 'active' as 'active' | 'paused' | 'completed' | 'cancelled', sold_at: '', notes: '' })
 const financeDialog = ref(false)
 const savingFinance = ref(false)
 const financeOptions = ref<PendingTransactionOptions>({ currencies: [], customers: [], employees: [], applicants: [] })
@@ -442,47 +451,24 @@ async function createCaseContract(payload: ContractFormPayload) {
   }
 }
 
-function newServiceForm(): EducationalServiceInput {
-  const caseData = applicant.value
-
-  return {
-    customer_id: caseData?.customer_id ?? null,
-    service_id: null,
-    applicant_id: caseData?.id ?? null,
-    country_id: caseData?.country_id ?? null,
-    education_level_id: caseData?.education_level_id ?? null,
-    language_id: caseData?.language_id ?? null,
-    employee_id: serviceOptions.value.employees.length === 1 ? serviceOptions.value.employees[0].id : null,
-    currency_id: serviceOptions.value.currencies.find(currency => currency.is_base)?.id ?? null,
-    package_type_id: null,
-    date: new Date().toISOString().slice(0, 10),
-    fee: null,
-    status: 'active',
-    bonus_amount: 0,
-    bonus_rule_source: '',
-  }
+function newServiceForm() {
+  return { service_id: null, currency_id: serviceCurrencies.value.find(currency => currency.is_base)?.id ?? null, fee: null, status: 'active' as const, sold_at: new Date().toISOString().slice(0, 10), notes: '' }
 }
 
-async function openServiceDialog(type: EducationalServiceType, row?: NonNullable<Applicant['scholarships']>[number] | NonNullable<Applicant['test_offers']>[number]) {
+async function openServiceDialog(row?: NonNullable<Applicant['services']>[number]) {
   try {
-    serviceOptions.value = await EducationalServiceApi.options()
-    serviceType.value = type
-    editingService.value = row ? { type, id: row.id } : null
+    const [services, currencies] = await Promise.all([CustomerApi.getAllServices(), CurrencyApi.getAll()])
+    serviceCatalog.value = services.data.filter(service => service.status === 'active')
+    serviceCurrencies.value = currencies.data
+    editingService.value = row?.id ?? null
     serviceForm.value = row
       ? {
           ...newServiceForm(),
-          employee_id: row.employee_id,
           service_id: row.service_id,
           currency_id: row.currency_id,
-          package_type_id: row.package_type_id ?? null,
-          country_id: row.country_id ?? applicant.value?.country_id ?? null,
-          education_level_id: row.education_level_id ?? applicant.value?.education_level_id ?? null,
-          language_id: row.language_id ?? applicant.value?.language_id ?? null,
-          date: row.date ?? new Date().toISOString().slice(0, 10),
+          sold_at: row.date ?? new Date().toISOString().slice(0, 10),
           fee: Number(row.fee),
           status: row.status ?? 'active',
-          bonus_amount: Number(row.bonus_source?.bonus_amount ?? 0),
-          bonus_rule_source: row.bonus_source?.rule_source ?? '',
         }
       : newServiceForm()
     serviceDialog.value = true
@@ -493,15 +479,16 @@ async function openServiceDialog(type: EducationalServiceType, row?: NonNullable
 }
 
 async function saveService() {
-  if (!serviceForm.value.employee_id || !serviceForm.value.currency_id || !serviceForm.value.date || !serviceForm.value.fee || serviceForm.value.fee <= 0)
+  if (!applicant.value || !serviceForm.value.service_id || !serviceForm.value.currency_id || !serviceForm.value.sold_at || !serviceForm.value.fee || serviceForm.value.fee <= 0)
     return
 
   savingService.value = true
   try {
+    const payload: CreateCustomerServiceData = { ...serviceForm.value, applicant_id: applicant.value.id }
     if (editingService.value)
-      await EducationalServiceApi.update(editingService.value.type, editingService.value.id, serviceForm.value)
+      await CustomerApi.updateService(applicant.value.customer_id, editingService.value, { ...payload, deadline: null } as UpdateCustomerServiceData)
     else
-      await EducationalServiceApi.create(serviceType.value, serviceForm.value)
+      await CustomerApi.attachServices(applicant.value.customer_id, [payload])
     serviceDialog.value = false
     await load()
     toast.success('Service linked to this visa case.')
@@ -514,12 +501,14 @@ async function saveService() {
   }
 }
 
-async function removeService(type: EducationalServiceType, id: number) {
+async function removeService(id: number) {
   if (!confirm('Remove this service from the visa case?'))
     return
 
   try {
-    await EducationalServiceApi.remove(type, id)
+    if (!applicant.value)
+      return
+    await CustomerApi.detachService(applicant.value.customer_id, id)
     await load()
     toast.success('Service removed from this visa case.')
   }
@@ -641,7 +630,7 @@ onMounted(async () => {
       </div>
       <VDivider class="my-8" />
       <h3>{{ t('educational.caseUi.timeline') }}</h3>
-      <VList><VListItem v-for="item in stageHistory" :key="item.id" :title="t('educational.caseUi.stageTransition', { from: item.old_stage?.name ?? t('educational.caseUi.started'), to: item.new_stage?.name })" :subtitle="item.note || formatDate(item.changed_at)" /></VList>
+      <VList><VListItem v-for="item in stageHistory" :key="item.id" :title="t('educational.caseUi.stageTransition', { from: item.old_stage?.name ?? t('educational.caseUi.started'), to: item.new_stage?.name })" :subtitle="stageSubtitle(item)" /></VList>
       <div class="d-flex align-center mt-4">
         <h3>{{ t('educational.caseUi.tasks') }}</h3>
         <VSpacer />
@@ -688,18 +677,14 @@ onMounted(async () => {
         <div class="d-flex align-center mt-4">
           <h3>{{ t('educational.caseUi.servicesSold') }}</h3>
           <VSpacer />
-          <VBtn v-if="canManageServices" size="small" prepend-icon="tabler-plus" @click="openServiceDialog('scholarships')">Add scholarship</VBtn>
-          <VBtn v-if="canManageServices" size="small" class="ms-2" prepend-icon="tabler-plus" @click="openServiceDialog('test-offers')">Add test offer</VBtn>
+          <VBtn v-if="canManageServices" size="small" prepend-icon="tabler-plus" @click="openServiceDialog()">Add service</VBtn>
         </div>
         <VList>
-          <VListItem v-for="row in applicant.scholarships" :key="`sch-${row.id}`" :title="t('educational.scholarshipService')" :subtitle="t('educational.caseUi.serviceSummary', { fee: feeOf(row), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), status: row.status ? translateBackendValue(row.status) : t('common.messages.notAvailable') })">
-            <template v-if="canManageServices" #append><VBtn size="small" variant="text" @click="openServiceDialog('scholarships', row)">{{ t('common.actions.edit') }}</VBtn><VBtn size="small" variant="text" color="error" @click="removeService('scholarships', row.id)">{{ t('common.actions.void') }}</VBtn></template>
-          </VListItem>
-          <VListItem v-for="row in applicant.test_offers" :key="`test-${row.id}`" :title="t('educational.testOffer')" :subtitle="t('educational.caseUi.serviceSummary', { fee: feeOf(row), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), status: row.status ? translateBackendValue(row.status) : t('common.messages.notAvailable') })">
-            <template v-if="canManageServices" #append><VBtn size="small" variant="text" @click="openServiceDialog('test-offers', row)">{{ t('common.actions.edit') }}</VBtn><VBtn size="small" variant="text" color="error" @click="removeService('test-offers', row.id)">{{ t('common.actions.void') }}</VBtn></template>
+          <VListItem v-for="row in applicant.services" :key="`service-${row.id}`" :title="row.type" :subtitle="t('educational.caseUi.serviceSummary', { fee: feeOf(row), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), status: row.status ? translateBackendValue(row.status) : t('common.messages.notAvailable') })">
+            <template v-if="canManageServices" #append><VBtn size="small" variant="text" @click="openServiceDialog(row)">{{ t('common.actions.edit') }}</VBtn><VBtn size="small" variant="text" color="error" @click="removeService(row.id)">{{ t('common.actions.void') }}</VBtn></template>
           </VListItem>
         </VList>
-        <p v-if="!applicant.scholarships?.length && !applicant.test_offers?.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noServices') }}</p>
+        <p v-if="!applicant.services?.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noServices') }}</p>
       </template>
       <div v-if="canViewFinance">
         <div class="d-flex align-center mt-4">
@@ -817,24 +802,21 @@ onMounted(async () => {
     </VCard>
   </VDialog>
   <VDialog v-model="serviceDialog" max-width="640">
-    <VCard :title="editingService ? 'Edit visa case service' : serviceType === 'scholarships' ? 'Add scholarship service' : 'Add test offer'">
+    <VCard :title="editingService ? 'Edit visa case service' : 'Add visa case service'">
       <VCardText class="case-dialog-body">
         <VRow>
-          <VCol cols="12" sm="6"><VSelect v-model="serviceForm.employee_id" :items="serviceOptions.employees.map(row => ({ title: row.name, value: row.id }))" label="Selling employee" /></VCol>
-          <VCol cols="12" sm="6"><VSelect v-model="serviceForm.currency_id" :items="serviceOptions.currencies.map(row => ({ title: `${row.code} — ${row.name}`, value: row.id }))" label="Currency" /></VCol>
-          <VCol cols="12" sm="6"><VSelect v-model="serviceForm.service_id" :items="serviceOptions.services.filter(row => row.category === (serviceType === 'scholarships' ? 'scholarship' : 'test_offer')).map(row => ({ title: row.type, value: row.id }))" label="Service" :disabled="!!serviceForm.package_type_id || !!editingService" clearable /></VCol>
-          <VCol cols="12" sm="6"><VSelect v-model="serviceForm.package_type_id" :items="serviceOptions.package_types.map(row => ({ title: row.name, value: row.id }))" label="Package" :disabled="!!serviceForm.service_id || !!editingService" clearable /></VCol>
+          <VCol cols="12" sm="6"><VSelect v-model="serviceForm.service_id" :items="serviceCatalog.map(row => ({ title: row.type, value: row.id }))" label="Service" :disabled="!!editingService" /></VCol>
+          <VCol cols="12" sm="6"><VSelect v-model="serviceForm.currency_id" :items="serviceCurrencies.map(row => ({ title: `${row.code} — ${row.name}`, value: row.id }))" label="Currency" /></VCol>
           <VCol cols="12" sm="6"><VSelect v-model="serviceForm.status" :items="['active', 'completed', 'cancelled'].map(value => ({ title: translateBackendValue(value), value }))" label="Status" /></VCol>
-          <VCol cols="12" sm="6"><VTextField v-model="serviceForm.date" type="date" label="Date" /></VCol>
+          <VCol cols="12" sm="6"><VTextField v-model="serviceForm.sold_at" type="date" label="Date" /></VCol>
           <VCol cols="12" sm="6"><VTextField v-model.number="serviceForm.fee" type="number" min="0.000001" label="Service fee" /></VCol>
-          <VCol cols="12" sm="6"><VTextField v-model.number="serviceForm.bonus_amount" type="number" min="0" label="Bonus amount" /></VCol>
-          <VCol cols="12" sm="6"><VTextField v-model="serviceForm.bonus_rule_source" label="Bonus rule/source" /></VCol>
+          <VCol cols="12"><VTextarea v-model="serviceForm.notes" label="Notes" rows="2" /></VCol>
         </VRow>
       </VCardText>
       <VCardActions>
         <VSpacer />
         <VBtn @click="serviceDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="savingService" :disabled="!serviceForm.employee_id || !serviceForm.currency_id || !serviceForm.date || !serviceForm.fee || serviceForm.fee <= 0" @click="saveService">{{ t('common.actions.save') }}</VBtn>
+        <VBtn color="primary" :loading="savingService" :disabled="!serviceForm.service_id || !serviceForm.currency_id || !serviceForm.sold_at || !serviceForm.fee || serviceForm.fee <= 0" @click="saveService">{{ t('common.actions.save') }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

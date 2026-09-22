@@ -11,6 +11,12 @@ import CounterpartyCard, { type CounterpartyDetails } from '@/components/contrac
 const { t } = useI18n()
 const tr = (key: string) => t(`pages.contracts.contractform.contractform.${key}`)
 
+// Signatory is the editable account Full Name (users.name). Staff are locked
+// to their own account name; super-admin is auto-filled but remains editable.
+const userData = useCookie<{ name?: string; roles?: string[] } | null>('userData')
+const isSuperAdmin = computed(() => userData.value?.roles?.includes('super_admin') ?? false)
+const currentUserName = computed(() => String(userData.value?.name ?? '').trim() || null)
+
 export interface ContractFormPayload {
   template_id: number | null
   contract_template_version_id: number | null
@@ -97,8 +103,14 @@ const form = ref({
   start_date: props.contract?.start_date || new Date().toISOString().slice(0, 10),
   end_date: (props.contract?.end_date || null) as string | null,
   duration_months: props.contract?.duration_months ?? null,
-  company_signatory_name: props.contract?.company_signatory_name ?? null,
+  company_signatory_name: (props.contract?.company_signatory_name ?? currentUserName.value ?? null) as string | null,
 })
+
+// Non-super-admin staff always sign with their own account name.
+watch([isSuperAdmin, currentUserName], ([superAdmin, accountName]) => {
+  if (!superAdmin && accountName)
+    form.value.company_signatory_name = accountName
+}, { immediate: true })
 
 const normalizeWholeNumber = (value: unknown): number | null => {
   if (typeof value === 'number')
@@ -339,6 +351,9 @@ const submit = async () => {
   const durationMonths = normalizeWholeNumber(form.value.duration_months)
   emit('submit', {
     ...form.value,
+    company_signatory_name: !isSuperAdmin.value && currentUserName.value
+      ? currentUserName.value
+      : (form.value.company_signatory_name?.trim() || currentUserName.value),
     contract_template_version_id: selectedTemplateVersion.value?.id ?? null,
     employee_id: context.value === 'employee' ? form.value.employee_id : null,
     customer_id: context.value === 'customer' ? form.value.customer_id : null,
@@ -574,6 +589,7 @@ defineExpose({ submit })
           :label="tr('signatory')"
           :hint="tr('signatoryHint')"
           persistent-hint
+          :readonly="!isSuperAdmin"
         />
       </VCol>
     </VRow>

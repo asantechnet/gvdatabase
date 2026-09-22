@@ -1,15 +1,3 @@
-export default [
-  {
-    title: 'common.navigation.sales',
-    icon: { icon: 'tabler-coin' },
-    children: [
-      {
-        title: 'common.navigation.serviceSales',
-        icon: { icon: 'tabler-receipt' },
-        to: 'educational-services',
-        action: 'read',
-        subject: 'view_educational_services',
-      },
-    ],
-  },
-]
+// Service definitions and case assignments now share the unified services
+// model; the old scholarship/test-offer sales workspace is no longer exposed.
+export default []

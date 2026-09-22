@@ -18,13 +18,6 @@ export default [
         subject: 'view_roles',
       },
       {
-        title: 'common.navigation.positions',
-        icon: { icon: 'tabler-briefcase' },
-        to: 'setup-positions',
-        action: 'read',
-        subject: 'view_positions',
-      },
-      {
         title: 'common.navigation.offices',
         icon: { icon: 'tabler-building' },
         to: 'setup-offices',

@@ -50,7 +50,6 @@ const pageComponents: Record<string, Component> = {
   educationalReports: () => import('@/pages/educational-reports.vue'),
   applicantCase: () => import('@/pages/applicant-case.vue'),
   applicantPortal: () => import('@/pages/applicant-portal.vue'),
-  educationalServices: () => import('@/pages/educational-services.vue'),
   pendingTransactions: () => import('@/pages/pending-transactions.vue'),
   optionsHr: () => import('@/pages/options_hr.vue'),
   optionsFinance: () => import('@/pages/options_finance.vue'),
@@ -162,7 +161,6 @@ const routeDefinitions: Array<{
   { path: '/visa-reports', component: 'educationalReports', name: 'visa-reports', meta: { requiresAuth: true, action: 'read', subject: 'view_reports' } },
   { path: '/applicants/:id', component: 'applicantCase', name: 'applicant-case', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
   { path: '/my-case', component: 'applicantPortal', name: 'applicant-portal', meta: { requiresAuth: true, action: 'read', subject: 'view_own_applicant_portal' } },
-  { path: '/educational-services', component: 'educationalServices', name: 'educational-services', meta: { requiresAuth: true, action: 'read', subject: 'view_educational_services' } },
   { path: '/pending-transactions', component: 'pendingTransactions', name: 'pending-transactions', meta: { requiresAuth: true, action: 'read', subject: 'view_pending_transactions' } },
   { path: '/options/hr', component: 'optionsHr', name: 'options-hr', meta: { requiresAuth: true, action: 'read', subject: 'view_employees' } },
   {

@@ -10,7 +10,8 @@ use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Language;
 use App\Models\Role;
-use App\Models\Scholarship;
+use App\Models\CustomerService;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -56,7 +57,9 @@ class EducationalContractIntegrityTest extends TestCase
 
         $this->postJson('/api/contracts', ['template_id' => $template->id, 'customer_id' => $otherCustomer->id, 'applicant_id' => $case->id, 'language_id' => $language->id, 'status' => 'draft', 'start_date' => now()->toDateString()])->assertUnprocessable()->assertJsonValidationErrors('applicant_id');
 
-        Scholarship::create(['customer_id' => $customer->id, 'applicant_id' => $case->id, 'employee_id' => Employee::factory()->create()->id, 'currency_id' => Currency::factory()->create()->id, 'date' => now()->toDateString(), 'fee' => 100]);
-        $this->deleteJson('/api/applicants/'.$case->id)->assertConflict()->assertJsonPath('code', 'business.applicant_has_activity')->assertJsonPath('blocking.scholarships', 1);
+        $currency = Currency::factory()->create();
+        $service = Service::factory()->create(['currency_id' => $currency->id]);
+        CustomerService::create(['customer_id' => $customer->id, 'applicant_id' => $case->id, 'service_id' => $service->id, 'currency_id' => $currency->id, 'sold_at' => now()->toDateString(), 'fee' => 100]);
+        $this->deleteJson('/api/applicants/'.$case->id)->assertConflict()->assertJsonPath('code', 'business.applicant_has_activity')->assertJsonPath('blocking.services', 1);
     }
 }

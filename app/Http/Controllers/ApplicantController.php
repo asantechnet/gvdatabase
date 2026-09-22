@@ -61,14 +61,12 @@ class ApplicantController extends Controller
             array_push($relations, 'pendingTransactions.currency', 'incomes', 'expenses');
         }
         if ($request->user()->hasPermission('view_applicant_services')) {
-            array_push($relations, 'scholarships.service.currency', 'scholarships.currency', 'scholarships.soldByEmployee', 'scholarships.customerPackage.package', 'scholarships.bonusSource',
-                'testOffers.service.currency', 'testOffers.currency', 'testOffers.soldByEmployee', 'testOffers.customerPackage.package', 'testOffers.bonusSource');
+            array_push($relations, 'services.service.currency', 'services.currency', 'services.soldByEmployee', 'services.customerPackage.package', 'services.bonusSource');
         }
 
         $applicant->load($relations);
         if ($request->user()->hasPermission('view_applicant_services')) {
-            $applicant->setRelation('scholarships', $applicant->scholarships->map(fn ($service) => $this->presentEducationalService($service)));
-            $applicant->setRelation('testOffers', $applicant->testOffers->map(fn ($service) => $this->presentEducationalService($service)));
+            $applicant->setRelation('services', $applicant->services->map(fn ($service) => $this->presentService($service)));
         }
 
         return response()->json(['success' => true, 'data' => $applicant]);
@@ -97,7 +95,7 @@ class ApplicantController extends Controller
     public function destroy(Applicant $applicant)
     {
         $this->assertCaseAccess(request(), $applicant);
-        $blocking = ['contracts' => $applicant->contracts()->count(), 'scholarships' => $applicant->scholarships()->count(), 'test_offers' => $applicant->testOffers()->count(), 'tasks' => $applicant->tasks()->count(), 'pending_transactions' => $applicant->pendingTransactions()->count(), 'official_finance' => $applicant->incomes()->count() + $applicant->expenses()->count()];
+        $blocking = ['contracts' => $applicant->contracts()->count(), 'services' => $applicant->services()->count(), 'tasks' => $applicant->tasks()->count(), 'pending_transactions' => $applicant->pendingTransactions()->count(), 'official_finance' => $applicant->incomes()->count() + $applicant->expenses()->count()];
         if (array_sum($blocking) > 0) {
             return response()->json(['code' => 'business.applicant_has_activity', 'blocking' => $blocking], 409);
         } $applicant->delete();
@@ -158,8 +156,7 @@ class ApplicantController extends Controller
         }
         if ($updating && array_key_exists('customer_id', $data) && $data['customer_id'] !== $applicant->customer_id) {
             $hasOperationalHistory = $applicant->contracts()->exists()
-                || $applicant->scholarships()->exists()
-                || $applicant->testOffers()->exists()
+                || $applicant->services()->exists()
                 || $applicant->pendingTransactions()->exists()
                 || $applicant->incomes()->exists()
                 || $applicant->expenses()->exists();
@@ -184,10 +181,10 @@ class ApplicantController extends Controller
         return ['customer', 'responsibleEmployee', 'country', 'university.country', 'educationLevel', 'language', 'semester', 'currentStage'];
     }
 
-    private function presentEducationalService(CustomerService $record): array
+    private function presentService(CustomerService $record): array
     {
         return [
-            'id' => $record->id, 'service_id' => $record->service_id, 'employee_id' => $record->sold_by_employee_id,
+            'id' => $record->id, 'service_id' => $record->service_id, 'type' => $record->service->type, 'category' => $record->service->category, 'employee_id' => $record->sold_by_employee_id,
             'currency_id' => $record->currency_id ?? $record->service->currency_id, 'package_type_id' => $record->customerPackage?->package_id,
             'country_id' => $record->country_id, 'education_level_id' => $record->education_level_id, 'language_id' => $record->language_id,
             'date' => $record->sold_at?->toDateString(), 'fee' => $record->fee ?? $record->service->fee, 'status' => $record->status,

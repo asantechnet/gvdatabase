@@ -239,7 +239,7 @@ onMounted(async () => {
   <div class="education-workspace"><VCard class="education-panel">
     <VCardItem :title="$t('educational.applicantPipeline')" :subtitle="$t('educational.pipelineInstructions')">
       <template #append>
-        <VBtn v-if="canAccess('manage_applicant_stages')" size="small" variant="text" :to="{ name: 'applicant-stages' }">{{ $t('educational.stage') }}</VBtn>
+<VBtn v-if="canAccess('manage_applicant_stages')" size="small" variant="text" :to="{ name: 'educational-master-data', query: { catalog: 'applicant-stages' } }">{{ $t('educational.stage') }}</VBtn>
         <VChip color="success" size="small" class="me-2">{{ $t('educational.activeCount', { count: totals.active }) }}</VChip>
         <VChip color="secondary" size="small" class="me-2">{{ $t('educational.closedCount', { count: totals.closed }) }}</VChip>
         <VChip color="primary" size="small">{{ $t('educational.allCount', { count: totals.all }) }}</VChip>

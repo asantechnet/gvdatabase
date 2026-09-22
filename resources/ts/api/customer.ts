@@ -7,6 +7,7 @@ export interface CustomerService {
   id: number
   service_id: number
   customer_id: number
+  applicant_id?: number | null
   type: string
   fee: number
   employee_id: number | null
@@ -80,6 +81,8 @@ export type UpdateCustomerData = Partial<CreateCustomerData>
 
 export interface CreateCustomerServiceData {
   service_id: number
+  applicant_id?: number | null
+  sold_by_employee_id?: number | null
   employee_id?: number | null
   employee_ids?: number[]
   marketer_id?: number | null
@@ -88,12 +91,15 @@ export interface CreateCustomerServiceData {
   fee?: number | null
   currency_id?: number | null
   deadline?: string | null
-  status?: 'active' | 'paused' | 'completed'
+  status?: 'active' | 'paused' | 'completed' | 'cancelled'
   notes?: string | null
+  sold_at?: string | null
 }
 
 export interface UpdateCustomerServiceData {
   service_id: number
+  applicant_id?: number | null
+  sold_by_employee_id?: number | null
   employee_id?: number | null
   employee_ids?: number[]
   marketer_id?: number | null
@@ -102,8 +108,9 @@ export interface UpdateCustomerServiceData {
   fee?: number | null
   currency_id?: number | null
   deadline: string | null
-  status: 'active' | 'paused' | 'completed'
+  status: 'active' | 'paused' | 'completed' | 'cancelled'
   notes?: string | null
+  sold_at?: string | null
 }
 
 const emptyCustomer = (): Customer => ({

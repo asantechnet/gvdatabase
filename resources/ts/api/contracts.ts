@@ -107,7 +107,7 @@ export interface ContractParams {
   audience?: 'customers' | 'employees' | 'other' | 'educational'
   type_slug?: string
   service_id?: number
-  without_service?: boolean
+  without_service?: boolean | 0 | 1
   status?: ContractStatus
   search?: string
   only_cancelled?: boolean

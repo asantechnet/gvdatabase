@@ -4917,6 +4917,18 @@
       "educationLevels": "Education levels",
       "languages": "Languages",
       "packageTypes": "Package types",
+      "applicantStages": "Applicant pipeline stages",
+      "stageKey": "Stage key",
+      "allowedNextStages": "Allowed next stages",
+      "terminalStage": "Terminal stage",
+      "stageDetails": "Order: {order} · Next: {next}",
+      "stageKeyHint": "A permanent machine-readable identifier used by workflow rules. It cannot be changed after the stage is created.",
+      "stageOrderHint": "Controls the left-to-right order of this stage in the applicant pipeline.",
+      "countryScopeHint": "Leave empty to make this stage available for cases in every destination country.",
+      "universityScopeHint": "Optionally restrict this stage to cases for one university. It must belong to the selected country.",
+      "allowedNextStagesHint": "Cases can move from this stage only to one of the selected stages. Leave empty when no further move is allowed.",
+      "terminalStageHint": "Use for a final outcome such as approved, rejected, or cancelled. Moving a case here closes it.",
+      "activeStageHint": "Inactive stages remain in history but are unavailable for new cases and pipeline moves.",
       "universities": "Universities",
       "details": "Details",
       "displayOrder": "Display order",
@@ -4960,7 +4972,14 @@
       "saveFailed": "Unable to save the transaction. It may be locked or outside the edit window.",
       "transitioned": "Transaction is now {status}.",
       "rejected": "Transaction rejected.",
-      "rejectFailed": "Unable to reject the transaction."
+      "rejectFailed": "Unable to reject the transaction.",
+      "actions": {
+        "edit": "Edit this loan request",
+        "review": "Send to review",
+        "approve": "Approve this request",
+        "reject": "Reject with a reason",
+        "post": "Post to official records"
+      }
     },
     "search": {
       "title": "Search",

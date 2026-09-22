@@ -91,19 +91,16 @@ class Applicant extends Model
         return $this->hasMany(Expense::class);
     }
 
-    public function scholarships(): HasMany
-    {
-        return $this->hasMany(CustomerService::class)->whereHas('service', fn ($query) => $query->where('category', 'scholarship'));
-    }
-
-    public function testOffers(): HasMany
-    {
-        return $this->hasMany(CustomerService::class)->whereHas('service', fn ($query) => $query->where('category', 'test_offer'));
-    }
-
-    public function customerServices(): HasMany
+    /** Services sold or assigned as part of this visa case. */
+    public function services(): HasMany
     {
         return $this->hasMany(CustomerService::class);
+    }
+
+    /** @deprecated Use services() for case-scoped service records. */
+    public function customerServices(): HasMany
+    {
+        return $this->services();
     }
 
     public function customerPackages(): HasMany

@@ -341,6 +341,7 @@ class ContractController extends Controller
         }
 
         $durationMonths = (int) $validated['duration_months'];
+        $actor = $request->user();
         $data = [
             'template_id' => $contract->template_id,
             'language_id' => $contract->templateVersion?->language_id,
@@ -356,7 +357,7 @@ class ContractController extends Controller
             'start_date' => $startDate->toDateString(),
             'end_date' => $startDate->copy()->addMonthsNoOverflow($durationMonths)->toDateString(),
             'duration_months' => $durationMonths,
-            'company_signatory_name' => $contract->company_signatory_name,
+            'company_signatory_name' => $actor && ! $actor->isSuperAdmin() ? $actor->name : ($contract->company_signatory_name ?: $actor?->name),
             'is_cancelled' => false,
         ];
 
@@ -504,6 +505,20 @@ class ContractController extends Controller
             $data['end_date'] = Carbon::parse($data['start_date'])
                 ->addMonthsNoOverflow((int) $data['duration_months'])
                 ->toDateString();
+        }
+
+        // Signatory is the editable account Full Name (users.name). Staff are
+        // hard-locked to their own account name; super-admin is auto-filled
+        // but remains editable.
+        $actor = $request->user();
+        if ($actor) {
+            if (! $actor->isSuperAdmin()) {
+                $data['company_signatory_name'] = $actor->name;
+            } elseif (! $partial || array_key_exists('company_signatory_name', $data)) {
+                if (empty(trim((string) ($data['company_signatory_name'] ?? '')))) {
+                    $data['company_signatory_name'] = $actor->name;
+                }
+            }
         }
 
         return $data;

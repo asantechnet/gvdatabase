@@ -57,9 +57,8 @@ class ApplicantCaseViewTest extends TestCase
         $this->postJson('/api/educational-services/test-offers', ['customer_id' => $customer->id, 'applicant_id' => $a['id'], 'employee_id' => $employee->id, 'currency_id' => $currency->id, 'date' => now()->toDateString(), 'fee' => 120, 'status' => 'active'])->assertCreated();
 
         $case = $this->getJson("/api/applicants/{$a['id']}")->assertOk()->json('data');
-        $this->assertCount(1, $case['scholarships']);
-        $this->assertSame($currency->code, $case['scholarships'][0]['currency']['code']);
-        $this->assertCount(1, $case['test_offers']);
+        $this->assertCount(2, $case['services']);
+        $this->assertSame($currency->code, $case['services'][0]['currency']['code']);
     }
 
     public function test_case_fields_are_editable_with_validation(): void

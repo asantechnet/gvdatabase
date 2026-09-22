@@ -74,6 +74,9 @@ until(() => configStore.horizontalNavType)
 const isContentShown = ref(false)
 let hideTimer: ReturnType<typeof setTimeout> | undefined
 
+// The popover is teleported outside the horizontal navigation bar. Handle the
+// wheel locally so the bar's horizontal-wheel behavior cannot consume input
+// intended for a long dropdown.
 const showContent = () => {
   if (hideTimer)
     clearTimeout(hideTimer)

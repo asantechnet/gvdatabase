@@ -122,7 +122,7 @@ onMounted(async () => {
         <button class="education-metric education-metric--success" type="button" @click="router.push({ name: 'educational-reports' })">
           <VIcon icon="tabler-cash-banknote" /><span><small>{{ $t('educational.postedIncome') }}</small><strong class="education-money">{{ money(data.financial.income) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
         </button>
-        <button class="education-metric" type="button" @click="router.push({ name: 'educational-services' })">
+        <button class="education-metric" type="button" @click="router.push({ name: 'options-services' })">
           <VIcon icon="tabler-shopping-bag" /><span><small>{{ $t('educational.salesRecorded') }}</small><strong>{{ n(totalSales) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
         </button>
       </section>

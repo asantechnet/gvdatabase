@@ -53,6 +53,13 @@ export default [
         action: 'read',
         subject: 'view_bonuses',
       },
+      {
+        title: 'common.navigation.positions',
+        icon: { icon: 'tabler-briefcase' },
+        to: 'setup-positions',
+        action: 'read',
+        subject: 'view_positions',
+      },
     ],
   },
 ]

@@ -80,7 +80,7 @@ const selectedServiceName = computed(() => typeof route.query.serviceName === 's
 const contractRequest = computed(() => ({
   audience: props.contractAudience,
   ...(selectedServiceId.value ? { service_id: selectedServiceId.value } : {}),
-  ...(isWithoutService.value ? { without_service: true } : {}),
+  ...(isWithoutService.value ? { without_service: 1 } : {}),
 }))
 const pageTitle = computed(() => selectedServiceName.value
   ? t('pages.contracts.allContracts.allContracts.serviceContracts', { service: selectedServiceName.value })
