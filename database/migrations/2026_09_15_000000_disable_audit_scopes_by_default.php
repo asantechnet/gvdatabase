@@ -14,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasTable('audit_resource_settings')) {
-            DB::table('audit_resource_settings')->update(['enabled' => false]);
+            DB::table('audit_resource_settings')->update(['enabled' => true]);
         }
     }
 

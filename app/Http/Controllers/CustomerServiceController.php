@@ -19,10 +19,10 @@ class CustomerServiceController extends Controller
         $validated = $request->validate([
             'services' => ['required', 'array', 'min:1'],
             'services.*.service_id' => [
-                'required', 'integer', 'distinct', 'exists:services,id',
-                Rule::unique('customer_service', 'service_id')
-                    ->where(fn ($query) => $query->where('customer_id', $customer->id)->whereNull('deleted_at')),
+                'required', 'integer', 'exists:services,id',
             ],
+            'services.*.applicant_id' => ['nullable', 'integer', Rule::exists('applicants', 'id')->where('customer_id', $customer->id)],
+            'services.*.sold_by_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'services.*.employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
             'services.*.employee_ids' => ['sometimes', 'array'],
             'services.*.employee_ids.*' => ['integer', 'distinct', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
@@ -32,7 +32,11 @@ class CustomerServiceController extends Controller
             'services.*.deadline' => ['nullable', 'date'],
             'services.*.fee' => ['nullable', 'numeric', 'min:0'],
             'services.*.currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
-            'services.*.status' => ['nullable', 'in:active,paused,completed'],
+            'services.*.status' => ['nullable', 'in:active,paused,completed,cancelled'],
+            'services.*.sold_at' => ['nullable', 'date'],
+            'services.*.country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'services.*.education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
+            'services.*.language_id' => ['nullable', 'integer', 'exists:languages,id'],
             'services.*.notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -46,6 +50,8 @@ class CustomerServiceController extends Controller
                 $employeeIds = $this->deliveryEmployeeIds($data);
                 $attributes = [
                     'service_id' => $data['service_id'],
+                    'applicant_id' => $data['applicant_id'] ?? null,
+                    'sold_by_employee_id' => $data['sold_by_employee_id'] ?? null,
                     // Kept for older API consumers. The relation below is the
                     // authoritative list and may contain more than one person.
                     'employee_id' => $employeeIds[0] ?? null,
@@ -62,24 +68,16 @@ class CustomerServiceController extends Controller
                     'currency_id' => $data['currency_id'] ?? null,
                     'status' => $data['status'] ?? 'active',
                     'notes' => $data['notes'] ?? null,
+                    'sold_at' => $data['sold_at'] ?? now()->toDateString(),
+                    'country_id' => $data['country_id'] ?? null,
+                    'education_level_id' => $data['education_level_id'] ?? null,
+                    'language_id' => $data['language_id'] ?? null,
                 ];
-
-                $record = CustomerService::withTrashed()
-                    ->where('customer_id', $customer->id)
-                    ->where('service_id', $data['service_id'])
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($record?->trashed()) {
-                    $record->restore();
-                    $record->update($attributes);
-                } else {
-                    $record = $customer->customerServices()->create($attributes);
-                }
+                $record = $customer->customerServices()->create($attributes);
 
                 $this->syncDeliveryEmployees($record, $employeeIds);
 
-                return $record->load(['service.currency', 'currency', 'employee', 'deliveryEmployees', 'marketer', 'outsourcingCompany']);
+                return $record->load(['service.currency', 'currency', 'employee', 'deliveryEmployees', 'marketer', 'outsourcingCompany', 'applicant', 'customerPackage.package', 'country', 'educationLevel', 'language', 'bonusSource']);
             });
         });
 
@@ -89,16 +87,16 @@ class CustomerServiceController extends Controller
     public function update(Request $request, Customer $customer, CustomerService $customerService)
     {
         abort_unless($customerService->customer_id === $customer->id, 404);
+        abort_if($customerService->customer_package_id, 422, 'business.package_service_managed_as_bundle');
 
         $validated = $request->validate([
             'service_id' => [
                 'sometimes',
                 'integer',
                 'exists:services,id',
-                Rule::unique('customer_service', 'service_id')
-                    ->where(fn ($query) => $query->where('customer_id', $customer->id))
-                    ->ignore($customerService->id),
             ],
+            'applicant_id' => ['nullable', 'integer', Rule::exists('applicants', 'id')->where('customer_id', $customer->id)],
+            'sold_by_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
             'employee_ids' => ['sometimes', 'array'],
             'employee_ids.*' => ['integer', 'distinct', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('employment_type', 'commission')],
@@ -108,7 +106,11 @@ class CustomerServiceController extends Controller
             'fee' => ['nullable', 'numeric', 'min:0'],
             'currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
             'deadline' => ['nullable', 'date'],
-            'status' => ['required', 'in:active,paused,completed'],
+            'status' => ['required', 'in:active,paused,completed,cancelled'],
+            'sold_at' => ['nullable', 'date'],
+            'country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
+            'language_id' => ['nullable', 'integer', 'exists:languages,id'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -129,12 +131,13 @@ class CustomerServiceController extends Controller
         $customerService->update($validated);
         $this->syncDeliveryEmployees($customerService, $employeeIds);
 
-        return new CustomerServiceResource($customerService->load(['service.currency', 'currency', 'employee', 'deliveryEmployees', 'marketer', 'outsourcingCompany']));
+        return new CustomerServiceResource($customerService->load(['service.currency', 'currency', 'employee', 'deliveryEmployees', 'marketer', 'outsourcingCompany', 'applicant', 'customerPackage.package', 'country', 'educationLevel', 'language', 'bonusSource']));
     }
 
     public function destroy(Customer $customer, CustomerService $customerService)
     {
         abort_unless($customerService->customer_id === $customer->id, 404);
+        abort_if($customerService->customer_package_id, 422, 'business.package_service_managed_as_bundle');
 
         $customerService->delete();
 

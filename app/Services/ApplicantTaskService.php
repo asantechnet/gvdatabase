@@ -44,10 +44,13 @@ class ApplicantTaskService
             return [];
         }
 
-        $board = Board::query()->orderBy('order')->orderBy('id')->first();
-        if (! $board) {
-            return [];
-        }
+        // Workflow tasks belong to a deterministic operational board. Creating
+        // it on demand keeps stage automation functional in fresh installations
+        // and avoids silently placing visa work on an unrelated project board.
+        $board = Board::query()->firstOrCreate(
+            ['title' => 'Applicant Cases', 'project_id' => null],
+            ['order' => (Board::query()->max('order') ?? -1) + 1],
+        );
 
         $assigneeId = $applicant->responsibleEmployee?->user_id ?? $actor?->id;
         $created = [];

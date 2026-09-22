@@ -29,6 +29,7 @@ class ExpenseResource extends JsonResource
             'base_currency_id' => $this->base_currency_id,
             'type' => $this->type,
             'description' => $this->description,
+            'document' => $this->document_path ? ['name' => $this->document_name, 'mimeType' => $this->document_mime, 'size' => $this->document_size, 'downloadUrl' => "/api/expenses/{$this->id}/document"] : null,
             'amount' => $this->amount,
             'quantity' => $this->quantity,
             'currency' => $currency ? [

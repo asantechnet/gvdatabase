@@ -9,10 +9,19 @@ export const currentLocale = (): SupportedLocale => {
 export const translate = (key: string, values?: Record<string, unknown>): string =>
   String(getI18n().global.t(key, values ?? {}))
 
+const calendarDate = (value: string | number | Date): Date => {
+  // Date-only API values represent a local calendar day. Parsing them as UTC
+  // can display the previous day for users west of UTC.
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value))
+    return new Date(`${value}T00:00:00`)
+
+  return value instanceof Date ? value : new Date(value)
+}
+
 export const formatLocalizedDate = (value: string | number | Date | null | undefined, style: 'short' | 'long' | 'time' | Intl.DateTimeFormatOptions = 'short'): string => {
   if (value === null || value === undefined || value === '')
     return translate('common.messages.notAvailable')
-  const date = value instanceof Date ? value : new Date(value)
+  const date = calendarDate(value)
   if (Number.isNaN(date.getTime()))
     return String(value)
 
@@ -63,4 +72,41 @@ export const translateBackendValue = (value: unknown, namespace = 'common.status
   const translated = translate(key)
 
   return translated.startsWith('[missing:') || translated === '' ? String(value) : translated
+}
+
+const policyTypeBases = [
+  'pages.settings.policies.policies.policyLibrary.types',
+  'pages.settings.policies.policies.contractTemplate.types',
+]
+
+const humanizeSlug = (slug: string) =>
+  slug.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\b\w/g, letter => letter.toUpperCase())
+
+// Contract policy clauses are scoped by contract-type slug. System and
+// educational slugs have catalogue entries; user-defined types fall back to
+// the stored contract-type name and finally to a humanized slug so the UI
+// never renders a raw machine key.
+export const translateContractPolicyType = (slug: unknown, fallbackName?: string | null): string => {
+  const raw = String(slug ?? '').trim()
+  if (!raw)
+    return translate('common.messages.notAvailable')
+  for (const base of policyTypeBases) {
+    const translated = translate(`${base}.${raw}`)
+    if (translated !== '' && !translated.startsWith('[missing:'))
+      return translated
+  }
+  if (fallbackName)
+    return fallbackName
+
+  return humanizeSlug(raw) || raw
+}
+
+export const translateContractTypeRecord = (type: { slug: string; name: string } | null | undefined): string => {
+  if (!type)
+    return ''
+  const translated = translateContractPolicyType(type.slug)
+
+  // translateContractPolicyType only returns the raw/humanized slug when no
+  // catalogue entry exists; in that case the stored custom name is correct.
+  return translated === humanizeSlug(type.slug) ? type.name : translated
 }

@@ -1,36 +1,36 @@
 export default [
   {
-    title: 'Applicants',
+    title: 'common.navigation.applicants',
     icon: { icon: 'tabler-school' },
     children: [
       {
-        title: 'All applicants',
+        title: 'common.navigation.allApplicants',
         icon: { icon: 'tabler-users' },
         to: 'applicants',
         action: 'read',
         subject: 'view_applicants',
       },
       {
-        title: 'Pipeline board',
-        icon: { icon: 'tabler-kanban' },
+        title: 'common.navigation.pipelineBoard',
+        icon: { icon: 'tabler-layout-kanban' },
         to: 'applicant-pipeline',
         action: 'read',
         subject: 'view_applicants',
       },
       {
-        title: 'Search',
+        title: 'common.navigation.globalSearch',
         icon: { icon: 'tabler-search' },
         to: 'search',
       },
       {
-        title: 'Agency overview',
+        title: 'common.navigation.agencyOverview',
         icon: { icon: 'tabler-dashboard' },
         to: 'agency-overview',
         action: 'read',
         subject: 'view_dashboard',
       },
       {
-        title: 'Visa reports',
+        title: 'common.navigation.visaReports',
         icon: { icon: 'tabler-report' },
         to: 'visa-reports',
         action: 'read',

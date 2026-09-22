@@ -11,6 +11,9 @@ import { registerPlugins } from '@core/utils/plugins'
 import '@core-scss/template/index.scss'
 import '@styles/styles.scss'
 import 'vue-toastification/dist/index.css'
+import { restoreUiScale } from '@/utils/uiScale'
+
+restoreUiScale()
 
 // Browsers do not expose reliable hover selectors for viewport scrollbars.
 // Track the narrow scrollbar gutter so the full rail is only shown on intent.

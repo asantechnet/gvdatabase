@@ -1,14 +1,14 @@
 export default [
   {
-    title: 'Sales',
+    title: 'common.navigation.sales',
     icon: { icon: 'tabler-coin' },
     children: [
       {
-        title: 'Service sales',
+        title: 'common.navigation.serviceSales',
         icon: { icon: 'tabler-receipt' },
         to: 'educational-services',
         action: 'read',
-        subject: 'view_services',
+        subject: 'view_educational_services',
       },
     ],
   },

@@ -18,7 +18,7 @@ const deletingUser = ref<ManagedUser | null>(null)
 const emptyForm = (): UserPayload => ({ name: '', email: '', phone: '', address: '', roles: ['staff'], acc_status: 'active' })
 const form = ref<UserPayload>(emptyForm())
 
-const roles: UserRole[] = ['super_admin', 'admin', 'manager', 'staff', 'viewer']
+const roles: UserRole[] = ['super_admin', 'admin', 'manager', 'staff', 'viewer', 'applicant']
 const statuses: UserStatus[] = ['active', 'inactive', 'deactivated']
 const editableStatuses: UserStatus[] = ['active', 'inactive']
 

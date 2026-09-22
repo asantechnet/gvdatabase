@@ -31,6 +31,8 @@ class LeadController extends Controller
     {
         $data = CrmMarketerAttribution::apply($request, $this->validated($request), creating: true);
         $data['owner_id'] ??= $request->user()->id;
+        // Every lead enters the visible New pipeline; no orphaned cards.
+        $data['stage'] ??= 'new';
         $stage = $data['stage'] ?? 'new';
         $hasManualProbability = array_key_exists('probability', $data);
 
@@ -116,7 +118,9 @@ class LeadController extends Controller
         $customer = DB::transaction(function () use ($lead, $providedEmail) {
             $lead = Lead::query()->lockForUpdate()->findOrFail($lead->id);
             abort_if($lead->converted_at || $lead->customer_id, 422, 'business.lead_already_converted');
-            $this->assertStageTransition($lead->stage, 'won');
+            if ($lead->stage !== 'won') {
+                $this->assertStageTransition($lead->stage, 'won');
+            }
             $email = trim((string) ($providedEmail ?? $lead->email));
             abort_unless(filter_var($email, FILTER_VALIDATE_EMAIL), 422, 'business.lead_email_required_for_conversion');
 

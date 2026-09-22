@@ -88,6 +88,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasOne(Employee::class);
     }
 
+    public function applicantCase(): HasOne
+    {
+        return $this->hasOne(Applicant::class);
+    }
+
     public function marketer(): HasOne
     {
         return $this->hasOne(Marketer::class);

@@ -18,7 +18,10 @@ const includePartyDetails = ref(false)
 const { t } = useI18n()
 const tr = (key: string) => t(`pages.contracts.shared.${key}`)
 const contractLabel = () => t('common.messages.contract')
-const company = computed<CompanyDetails>(() => ({ brandName: setting.value?.original_company_name || setting.value?.short_company_name || setting.value?.website_title || 'Company', logo: setting.value?.website_logo_url || undefined, address: setting.value?.physical_address || undefined, phone: setting.value?.phone || undefined, email: setting.value?.company_email || undefined, website: setting.value?.website_address || undefined, letterheadUrl: setting.value?.contract_letterhead_url || undefined, letterheadSafeX: setting.value?.contract_letterhead_safe_x, letterheadSafeY: setting.value?.contract_letterhead_safe_y, letterheadSafeWidth: setting.value?.contract_letterhead_safe_width, letterheadSafeHeight: setting.value?.contract_letterhead_safe_height, signatureUrl: setting.value?.company_signature_url || undefined }))
+const documentDesign = computed(() => documentContract.value?.snapshot_data?.document_design)
+const company = computed<CompanyDetails>(() => ({ brandName: setting.value?.original_company_name || setting.value?.short_company_name || setting.value?.website_title || 'Educational Agency', logo: setting.value?.website_logo_url || undefined, address: setting.value?.physical_address || undefined, phone: setting.value?.phone || undefined, email: setting.value?.company_email || undefined, website: setting.value?.website_address || undefined, letterheadUrl: documentDesign.value?.letterhead_url || setting.value?.contract_letterhead_url || undefined, letterheadSafeX: documentDesign.value?.safe_x ?? setting.value?.contract_letterhead_safe_x, letterheadSafeY: documentDesign.value?.safe_y ?? setting.value?.contract_letterhead_safe_y, letterheadSafeWidth: documentDesign.value?.safe_width ?? setting.value?.contract_letterhead_safe_width, letterheadSafeHeight: documentDesign.value?.safe_height ?? setting.value?.contract_letterhead_safe_height, signatureUrl: setting.value?.company_signature_url || undefined }))
+const versionLabel = computed(() => documentContract.value?.snapshot_data?.template_version?.version_number ? `v${documentContract.value.snapshot_data.template_version.version_number}` : null)
+const printedTitle = computed(() => [documentContract.value?.contract || documentContract.value?.contract_template?.name || contractLabel(), versionLabel.value].filter(Boolean).join(' - '))
 
 const pages = computed(() => {
   const content = legacyContentToHtml(documentContract.value?.content ?? documentContract.value?.contract_template?.content)
@@ -79,17 +82,17 @@ async function print() {
           class="mb-4"
         /><div class="contract-print-preview">
           <div
-            v-if="setting?.contract_cover_design_url"
+            v-if="documentDesign?.cover_design_url || setting?.contract_cover_design_url"
             class="custom-cover-page"
           >
             <img
-              :src="setting.contract_cover_design_url"
+              :src="documentDesign?.cover_design_url || setting!.contract_cover_design_url!"
               alt=""
             >
           </div><ContractCover
             v-else
             :logo="company.logo"
-            :contract-title="documentContract.contract || documentContract.contract_template?.name || contractLabel()"
+            :contract-title="printedTitle"
             :contract-number="documentContract.contract_number || ''"
             :contractee-name="documentContract.counterparty || ''"
             :company-address="company.address || ''"
@@ -108,7 +111,7 @@ async function print() {
             v-for="(page, index) in pages"
             :key="index"
             :document-number="documentContract.contract_number || ''"
-            :document-title="documentContract.contract || documentContract.contract_template?.name || contractLabel()"
+            :document-title="printedTitle"
             :company="company"
             :html-content="page"
             :contractee-name="documentContract.counterparty || ''"
@@ -139,17 +142,17 @@ async function print() {
   >
     <template v-if="documentContract">
       <div
-        v-if="setting?.contract_cover_design_url"
+        v-if="documentDesign?.cover_design_url || setting?.contract_cover_design_url"
         class="custom-cover-page"
       >
         <img
-          :src="setting.contract_cover_design_url"
+          :src="documentDesign?.cover_design_url || setting!.contract_cover_design_url!"
           alt=""
         >
       </div><ContractCover
         v-else
         :logo="company.logo"
-        :contract-title="documentContract.contract || documentContract.contract_template?.name || contractLabel()"
+        :contract-title="printedTitle"
         :contract-number="documentContract.contract_number || ''"
         :contractee-name="documentContract.counterparty || ''"
         :company-address="company.address || ''"
@@ -168,7 +171,7 @@ async function print() {
         v-for="(page, index) in pages"
         :key="index"
         :document-number="documentContract.contract_number || ''"
-        :document-title="documentContract.contract || documentContract.contract_template?.name || contractLabel()"
+        :document-title="printedTitle"
         :company="company"
             :html-content="page"
             :contractee-name="documentContract.counterparty || ''"

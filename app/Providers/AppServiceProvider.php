@@ -57,6 +57,18 @@ class AppServiceProvider extends ServiceProvider
         });
 
         VerifyEmail::toMailUsing(function (object $notifiable, string $verificationUrl): MailMessage {
+            if (method_exists($notifiable, 'roleNames') && in_array('applicant', $notifiable->roleNames(), true)) {
+                $message = (new MailMessage)
+                    ->subject('Set up your educational visa applicant portal')
+                    ->greeting('Hello '.$notifiable->name.'!')
+                    ->line('Your educational visa agency has created a secure applicant portal for your case.')
+                    ->line('Verify your email address, then create your password to view your case progress and update your profile.')
+                    ->action('Set Up My Applicant Portal', $verificationUrl)
+                    ->line('For your security, ignore this message if you were not expecting an invitation and contact the agency directly.');
+
+                return $this->applyCompanyMailSettings($message);
+            }
+
             $message = (new MailMessage)
                 ->subject('Verify Email Address')
                 ->greeting('Hello!')

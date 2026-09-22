@@ -7,6 +7,7 @@ use App\Models\Contract;
 use App\Models\Currency;
 use App\Models\Customer;
 use App\Models\Employee;
+use App\Models\PackageType;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -41,6 +42,7 @@ class EducationalServiceAttributionTest extends TestCase
             'bonus_amount' => 75,
             'bonus_rule_source' => 'September referral policy',
         ])->assertCreated()
+            ->assertJsonPath('data.date', '2026-09-17')
             ->assertJsonPath('data.customer.name', $customer->name)
             ->assertJsonPath('data.employee.name', $employee->name)
             ->assertJsonPath('data.bonus_source.bonus_amount', '75.000000')
@@ -59,6 +61,19 @@ class EducationalServiceAttributionTest extends TestCase
             'bonus_amount' => 75,
             'rule_source' => 'September referral policy',
         ]);
+    }
+
+    public function test_service_options_load_active_package_types_without_a_sort_order_column(): void
+    {
+        PackageType::create(['name' => 'Zeta package', 'is_active' => true]);
+        PackageType::create(['name' => 'Alpha package', 'is_active' => true]);
+        PackageType::create(['name' => 'Inactive package', 'is_active' => false]);
+
+        $this->getJson('/api/educational-services/options')
+            ->assertOk()
+            ->assertJsonPath('data.package_types.0.name', 'Alpha package')
+            ->assertJsonPath('data.package_types.1.name', 'Zeta package')
+            ->assertJsonMissing(['name' => 'Inactive package']);
     }
 
     public function test_service_rejects_an_applicant_owned_by_another_customer(): void

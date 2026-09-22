@@ -14,6 +14,8 @@ class SalaryResource extends JsonResource
     {
         $deductions = (float) $this->deductions->sum('amount');
         $netAmount = (float) $this->total_amount - $deductions;
+        $amountDue = (float) ($this->amount_due ?? $netAmount);
+        $amountPaid = (float) ($this->amount_paid_total ?? $this->amount_paid);
         $currency = $this->resource->currency;
 
         return [
@@ -34,7 +36,10 @@ class SalaryResource extends JsonResource
             'currencySnapshotSource' => $this->currency_snapshot_source,
             'currencySnapshotNote' => $this->currency_snapshot_note,
             'salaryMonth' => $this->salary_month,
-            'amountPaid' => $this->amount_paid,
+            'amountPaid' => $amountPaid,
+            'amountDue' => $amountDue,
+            'amountOutstanding' => max(0, $amountDue - $amountPaid),
+            'paymentStatus' => $this->payment_status ?? ($amountPaid >= $amountDue ? 'paid' : 'open'),
             'bonus' => $this->bonus,
             'workedDays' => $this->worked_days,
             'paidLeaveDays' => $this->paid_leave_days,
@@ -56,6 +61,10 @@ class SalaryResource extends JsonResource
             'currentBaseNetAmount' => $this->currentBaseAmount($netAmount, $currency),
             'currentBaseCurrency' => $this->currentBaseCurrencyData(),
             'expenseId' => $this->expense?->id,
+            'payments' => $this->whenLoaded('payments', fn () => $this->payments->map(fn ($payment) => [
+                'id' => $payment->id, 'paymentNumber' => $payment->payment_number, 'amount' => (float) $payment->amount,
+                'date' => $payment->payment_date?->toDateString(), 'remarks' => $payment->remarks, 'expenseId' => $payment->expense_id,
+            ])),
             'recordedBy' => $this->whenLoaded('recorder', fn () => $this->recorder ? ['id' => $this->recorder->id, 'name' => $this->recorder->name] : null),
         ];
     }

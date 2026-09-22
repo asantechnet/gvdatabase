@@ -16,11 +16,17 @@ class ServiceResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            // `type` remains the storage column for compatibility. New UI and
+            // API consumers should use `name`; it is a service, not a type.
+            'name' => $this->type,
             'type' => $this->type,
-            'duration' => $this->duration, // Duration is now in months
+            'category' => $this->category,
+            'description' => $this->description,
+            'duration' => $this->duration,
             'fee' => (float) $this->fee,
             'status' => $this->status,
             'currency' => new CurrencyResource($this->whenLoaded('currency')),
+            'packages' => $this->whenLoaded('packages'),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

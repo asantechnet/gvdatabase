@@ -7,4 +7,9 @@
 
 html {
   box-sizing: border-box;
+  font-size: calc(16px * var(--app-ui-scale, 1));
+}
+
+@media print {
+  html { font-size: 16px !important; }
 }

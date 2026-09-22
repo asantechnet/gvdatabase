@@ -4,92 +4,152 @@ namespace App\Http\Controllers;
 
 use App\Models\Applicant;
 use App\Models\Contract;
+use App\Models\Country;
 use App\Models\Currency;
 use App\Models\Customer;
+use App\Models\CustomerService;
+use App\Models\EducationLevel;
 use App\Models\Employee;
-use App\Models\PackageType;
-use App\Models\Scholarship;
-use App\Models\TestOffer;
+use App\Models\Language;
+use App\Models\Package;
+use App\Models\Service;
 use App\Services\EducationalBonusSourceService;
-use Illuminate\Database\Eloquent\Model;
+use App\Services\EducationalWorkflowNotificationService;
+use App\Services\PackageIssuanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class EducationalServiceController extends Controller
 {
-    public function __construct(private readonly EducationalBonusSourceService $bonusSources) {}
+    public function __construct(
+        private readonly EducationalBonusSourceService $bonusSources,
+        private readonly PackageIssuanceService $packages,
+        private readonly EducationalWorkflowNotificationService $notifications,
+    ) {}
 
-    public function index(string $type)
+    public function index(Request $request, string $type)
     {
-        return response()->json(['success' => true, 'data' => $this->query($type)->latest('date')->latest()->get()]);
+        $page = $this->scopeToActor($this->query($type), $request)
+            ->latest('sold_at')->latest()->paginate($request->integer('per_page', 50));
+        $page->through(fn (CustomerService $service) => $this->present($service));
+
+        return response()->json(['success' => true, 'data' => $page]);
     }
 
-    public function show(string $type, int $id)
+    public function show(Request $request, string $type, int $id)
     {
-        return response()->json(['success' => true, 'data' => $this->query($type)->findOrFail($id)]);
+        $record = $this->scopeToActor($this->query($type), $request)->findOrFail($id);
+
+        return response()->json(['success' => true, 'data' => $this->present($record)]);
     }
 
-    public function options()
+    public function options(Request $request)
     {
+        $employeeQuery = Employee::query()->orderBy('name');
+        $applicantQuery = Applicant::query()->with('customer:id,name')->latest();
+        $contractQuery = Contract::query()->whereNotNull('employee_id')->whereNotNull('customer_id')->latest();
+        if (! $this->canViewAll($request)) {
+            $employeeQuery->where('user_id', $request->user()->id);
+            $applicantQuery->whereHas('responsibleEmployee', fn ($employee) => $employee->where('user_id', $request->user()->id));
+            $contractQuery->whereHas('employee', fn ($employee) => $employee->where('user_id', $request->user()->id));
+        }
+        $customerIds = (clone $applicantQuery)->pluck('customer_id');
+
         return response()->json(['success' => true, 'data' => [
-            'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
-            'employees' => Employee::query()->orderBy('name')->get(['id', 'name']),
-            'applicants' => Applicant::query()->with('customer:id,name')->latest()->get(['id', 'customer_id']),
+            'customers' => Customer::query()->when(! $this->canViewAll($request), fn ($query) => $query->whereIn('id', $customerIds))->orderBy('name')->get(['id', 'name']),
+            'employees' => $employeeQuery->get(['id', 'name']),
+            'applicants' => $applicantQuery->get(['id', 'customer_id']),
             'currencies' => Currency::query()->where('is_active', true)->orderBy('code')->get(['id', 'name', 'code', 'symbol', 'is_base']),
-            'package_types' => PackageType::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
-            'contracts' => Contract::query()
-                ->whereNotNull('employee_id')
-                ->whereNotNull('customer_id')
-                ->latest()
-                ->get(['id', 'contract_number', 'name', 'employee_id', 'customer_id', 'applicant_id']),
+            'package_types' => Package::query()->with('services:id,type,category')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'fee', 'currency_id']),
+            'services' => Service::query()->where('status', 'active')->whereIn('category', ['scholarship', 'test_offer'])->orderBy('type')->get(['id', 'type', 'category', 'fee', 'currency_id']),
+            'countries' => Country::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'education_levels' => EducationLevel::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
+            'languages' => Language::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'contracts' => $contractQuery->get(['id', 'contract_number', 'name', 'employee_id', 'customer_id', 'applicant_id']),
         ]]);
     }
 
     public function store(Request $request, string $type)
     {
-        $data = $this->validated($request);
+        $data = $this->validated($request, $type);
+        $this->assertEmployeeAttribution($request, (int) $data['sold_by_employee_id']);
 
-        $record = DB::transaction(function () use ($type, $data) {
-            /** @var Scholarship|TestOffer $service */
-            $service = $this->model($type)::create($data['service']);
-            $this->bonusSources->createFor($service, $data['bonus']);
+        if (! empty($data['package_id'])) {
+            abort_unless($request->user()->hasPermission('issue_packages'), 403, 'auth.forbidden');
+            $package = Package::query()->whereHas('services', fn ($query) => $query->where('category', $this->category($type)))->findOrFail($data['package_id']);
+            $purchase = $this->packages->issue($package, Customer::findOrFail($data['customer_id']), [
+                'applicant_id' => $data['applicant_id'] ?? null,
+                'sold_by_employee_id' => $data['sold_by_employee_id'],
+                'currency_id' => $data['currency_id'] ?? $package->currency_id,
+                'fee' => $data['fee'] ?? $package->fee,
+                'purchased_at' => $data['sold_at'],
+                'notes' => $data['notes'] ?? null,
+            ]);
+            $this->notifications->packageIssued($purchase, $request->user()?->id);
+            $record = $purchase->services()->whereHas('service', fn ($query) => $query->where('category', $this->category($type)))->firstOrFail();
+            if (($data['bonus_amount'] ?? 0) > 0 || ! empty($data['bonus_rule_source'])) {
+                $this->bonusSources->createFor($record, $this->bonusPayload($data));
+            }
+        } else {
+            $record = DB::transaction(function () use ($data, $type): CustomerService {
+                $service = isset($data['service_id'])
+                    ? Service::query()->where('category', $this->category($type))->findOrFail($data['service_id'])
+                    : Service::query()->where('category', $this->category($type))->where('status', 'active')->orderBy('id')->first()
+                        ?? Service::create([
+                            'type' => $type === 'scholarships' ? 'Scholarship Assistance' : 'Test Offer',
+                            'category' => $this->category($type), 'duration' => 1, 'fee' => $data['fee'],
+                            'status' => 'active', 'currency_id' => $data['currency_id'],
+                        ]);
+                $record = CustomerService::create([
+                    'customer_id' => $data['customer_id'], 'applicant_id' => $data['applicant_id'] ?? null,
+                    'service_id' => $service->id, 'sold_by_employee_id' => $data['sold_by_employee_id'],
+                    'marketer_id' => $data['sold_by_employee_id'], 'currency_id' => $data['currency_id'] ?? $service->currency_id,
+                    'fee' => $data['fee'] ?? $service->fee, 'sold_at' => $data['sold_at'], 'status' => $data['status'] ?? 'active',
+                    'country_id' => $data['country_id'] ?? null, 'education_level_id' => $data['education_level_id'] ?? null,
+                    'language_id' => $data['language_id'] ?? null, 'notes' => $data['notes'] ?? null,
+                ]);
+                $this->bonusSources->createFor($record, $this->bonusPayload($data));
 
-            return $service;
-        });
+                return $record;
+            });
+        }
 
-        return response()->json(['success' => true, 'data' => $this->load($record)], 201);
+        return response()->json(['success' => true, 'data' => $this->present($this->load($record))], 201);
     }
 
     public function update(Request $request, string $type, int $id)
     {
-        /** @var Scholarship|TestOffer $record */
-        $record = $this->model($type)::query()->findOrFail($id);
+        $record = $this->scopeToActor($this->query($type), $request)->findOrFail($id);
+        abort_if($record->customer_package_id, 422, 'business.package_service_managed_as_bundle');
         abort_if($record->bonusSource()->where('status', 'paid')->exists(), 422, 'business.paid_bonus_source_immutable');
-        $data = $this->validated($request, $record, true);
+        $data = $this->validated($request, $type, $record, true);
+        if (isset($data['sold_by_employee_id'])) {
+            $this->assertEmployeeAttribution($request, (int) $data['sold_by_employee_id']);
+        }
 
-        DB::transaction(function () use ($record, $data) {
-            $record->update($data['service']);
+        DB::transaction(function () use ($record, $data): void {
+            $record->update(collect($data)->only(['applicant_id', 'sold_by_employee_id', 'currency_id', 'fee', 'sold_at', 'status', 'country_id', 'education_level_id', 'language_id', 'notes'])->all());
             $this->bonusSources->syncForService($record->fresh());
-
-            if ($data['bonus'] !== []) {
-                $record->bonusSource()->update($data['bonus']);
+            $bonus = $this->bonusPayload($data);
+            if ($bonus !== []) {
+                $record->bonusSource()->update($bonus);
             }
-            if (($data['service']['status'] ?? null) === 'cancelled') {
+            if (($data['status'] ?? null) === 'cancelled') {
                 $record->bonusSource()->update(['status' => 'void']);
             }
         });
 
-        return response()->json(['success' => true, 'data' => $this->load($record->fresh())]);
+        return response()->json(['success' => true, 'data' => $this->present($this->load($record->fresh()))]);
     }
 
-    public function destroy(string $type, int $id)
+    public function destroy(Request $request, string $type, int $id)
     {
-        /** @var Scholarship|TestOffer $record */
-        $record = $this->model($type)::query()->findOrFail($id);
+        $record = $this->scopeToActor($this->query($type), $request)->findOrFail($id);
+        abort_if($record->customer_package_id, 422, 'business.package_service_managed_as_bundle');
         abort_if($record->bonusSource()->where('status', 'paid')->exists(), 422, 'business.paid_bonus_source_immutable');
-
-        DB::transaction(function () use ($record) {
+        DB::transaction(function () use ($record): void {
             $record->bonusSource()->update(['status' => 'void']);
             $record->delete();
         });
@@ -97,69 +157,109 @@ class EducationalServiceController extends Controller
         return response()->noContent();
     }
 
-    /** @return class-string<Scholarship|TestOffer> */
-    private function model(string $type): string
+    private function query(string $type)
+    {
+        return CustomerService::query()->whereHas('service', fn ($query) => $query->where('category', $this->category($type)))
+            ->with($this->relations());
+    }
+
+    private function relations(): array
+    {
+        return ['service.currency', 'customer:id,name', 'applicant:id,customer_id', 'applicant.customer:id,name', 'soldByEmployee:id,name',
+            'currency:id,name,code,symbol', 'customerPackage.package:id,name', 'country:id,name', 'educationLevel:id,name', 'language:id,name', 'bonusSource'];
+    }
+
+    private function load(CustomerService $record): CustomerService
+    {
+        return $record->load($this->relations());
+    }
+
+    private function present(CustomerService $record): array
+    {
+        return [
+            'id' => $record->id, 'customer_id' => $record->customer_id, 'applicant_id' => $record->applicant_id,
+            'service_id' => $record->service_id, 'service' => $record->service, 'employee_id' => $record->sold_by_employee_id,
+            'currency_id' => $record->currency_id ?? $record->service->currency_id,
+            'package_type_id' => $record->customerPackage?->package_id, 'date' => $record->sold_at?->toDateString() ?? $record->created_at->toDateString(),
+            'fee' => $record->fee ?? $record->service->fee, 'status' => $record->status,
+            'customer' => $record->customer, 'applicant' => $record->applicant, 'employee' => $record->soldByEmployee,
+            'currency' => $record->currency ?? $record->service->currency, 'package_type' => $record->customerPackage?->package,
+            'country' => $record->country, 'education_level' => $record->educationLevel, 'language' => $record->language,
+            'country_id' => $record->country_id, 'education_level_id' => $record->education_level_id, 'language_id' => $record->language_id,
+            'bonus_source' => $record->bonusSource,
+        ];
+    }
+
+    private function category(string $type): string
     {
         return match ($type) {
-            'scholarships' => Scholarship::class,
-            'test-offers' => TestOffer::class,
-            default => abort(404),
+            'scholarships' => 'scholarship', 'test-offers' => 'test_offer', default => abort(404)
         };
     }
 
-    private function query(string $type)
+    private function scopeToActor($query, Request $request)
     {
-        return $this->model($type)::query()->with([
-            'customer:id,name', 'employee:id,name', 'applicant:id,customer_id',
-            'applicant.customer:id,name', 'currency:id,name,code,symbol',
-            'packageType:id,name', 'bonusSource',
-        ]);
+        if (! $this->canViewAll($request)) {
+            $query->whereHas('soldByEmployee', fn ($employee) => $employee->where('user_id', $request->user()->id));
+        }
+
+        return $query;
     }
 
-    private function load(Model $service): Model
+    private function canViewAll(Request $request): bool
     {
-        return $service->load([
-            'customer:id,name', 'employee:id,name', 'applicant:id,customer_id',
-            'applicant.customer:id,name', 'currency:id,name,code,symbol',
-            'packageType:id,name', 'bonusSource',
-        ]);
+        return $request->user()->isSuperAdmin() || array_intersect($request->user()->roleNames(), ['admin', 'manager']) !== [];
     }
 
-    /** @return array{service: array<string, mixed>, bonus: array<string, mixed>} */
-    private function validated(Request $request, ?Model $record = null, bool $partial = false): array
+    private function assertEmployeeAttribution(Request $request, int $employeeId): void
+    {
+        if (! $this->canViewAll($request)) {
+            abort_unless(Employee::query()->whereKey($employeeId)->where('user_id', $request->user()->id)->exists(), 403, 'auth.forbidden');
+        }
+    }
+
+    private function validated(Request $request, string $type, ?CustomerService $record = null, bool $partial = false): array
     {
         $presence = $partial ? 'sometimes' : 'required';
-        $service = $request->validate([
-            'customer_id' => [$presence, 'integer', 'exists:customers,id'],
-            'applicant_id' => ['nullable', 'integer', 'exists:applicants,id'],
-            'employee_id' => [$presence, 'integer', 'exists:employees,id'],
-            'currency_id' => [$presence, 'integer', 'exists:currencies,id'],
-            'package_type_id' => ['nullable', 'integer', 'exists:package_types,id'],
-            'date' => [$presence, 'date'],
-            'fee' => [$presence, 'numeric', 'gt:0'],
-            'status' => ['sometimes', 'in:active,completed,cancelled'],
-            'bonus_amount' => ['sometimes', 'numeric', 'gte:0'],
-            'bonus_rule_source' => ['sometimes', 'nullable', 'string', 'max:255'],
+        $data = $request->validate([
+            'customer_id' => [$presence, 'integer', 'exists:customers,id'], 'applicant_id' => ['nullable', 'integer', 'exists:applicants,id'],
+            'service_id' => ['nullable', 'integer', Rule::exists('services', 'id')->where('category', $this->category($type))->whereNull('deleted_at')],
+            'employee_id' => [$presence, 'integer', 'exists:employees,id'], 'sold_by_employee_id' => ['sometimes', 'integer', 'exists:employees,id'],
+            'currency_id' => [$presence, 'integer', 'exists:currencies,id'], 'package_type_id' => ['nullable', 'integer', 'exists:package_types,id'],
+            'package_id' => ['nullable', 'integer', 'exists:package_types,id'], 'date' => [$presence, 'date'], 'sold_at' => ['sometimes', 'date'],
+            'fee' => [$presence, 'numeric', 'gte:0'], 'status' => ['sometimes', 'in:active,paused,completed,cancelled'],
+            'country_id' => ['nullable', 'integer', 'exists:countries,id'], 'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
+            'language_id' => ['nullable', 'integer', 'exists:languages,id'], 'notes' => ['nullable', 'string', 'max:5000'],
+            'bonus_amount' => ['sometimes', 'numeric', 'gte:0'], 'bonus_rule_source' => ['sometimes', 'nullable', 'string', 'max:255'],
             'bonus_status' => ['sometimes', 'in:pending,approved,paid,void'],
         ]);
+        $data['sold_by_employee_id'] = $data['sold_by_employee_id'] ?? $data['employee_id'] ?? $record?->sold_by_employee_id;
+        $data['sold_at'] = $data['sold_at'] ?? $data['date'] ?? $record?->sold_at?->toDateString();
+        $data['package_id'] = $data['package_id'] ?? $data['package_type_id'] ?? null;
+        unset($data['employee_id'], $data['date'], $data['package_type_id']);
 
-        $customerId = $service['customer_id'] ?? $record?->customer_id;
-        $applicantId = array_key_exists('applicant_id', $service) ? $service['applicant_id'] : $record?->applicant_id;
+        $customerId = $data['customer_id'] ?? $record?->customer_id;
+        $applicantId = array_key_exists('applicant_id', $data) ? $data['applicant_id'] : $record?->applicant_id;
         if ($applicantId && ! Applicant::query()->whereKey($applicantId)->where('customer_id', $customerId)->exists()) {
             throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
         }
-        $currencyId = $service['currency_id'] ?? $record?->currency_id;
-        if ($currencyId && ! Currency::query()->whereKey($currencyId)->where('is_active', true)->exists()) {
-            throw ValidationException::withMessages(['currency_id' => ['The selected currency is not active.']]);
+        if ($applicantId) {
+            $case = Applicant::findOrFail($applicantId);
+            foreach (['country_id', 'education_level_id', 'language_id'] as $field) {
+                if (isset($data[$field]) && $case->{$field} && (int) $data[$field] !== (int) $case->{$field}) {
+                    throw ValidationException::withMessages([$field => ['The selected value must match the linked applicant case.']]);
+                }
+                if (! array_key_exists($field, $data)) {
+                    $data[$field] = $case->{$field};
+                }
+            }
         }
 
-        $bonus = array_filter([
-            'bonus_amount' => $service['bonus_amount'] ?? null,
-            'rule_source' => $service['bonus_rule_source'] ?? null,
-            'status' => $service['bonus_status'] ?? null,
-        ], static fn ($value) => $value !== null);
-        unset($service['bonus_amount'], $service['bonus_rule_source'], $service['bonus_status']);
+        return $data;
+    }
 
-        return ['service' => $service, 'bonus' => $bonus];
+    private function bonusPayload(array $data): array
+    {
+        return array_filter(['bonus_amount' => $data['bonus_amount'] ?? null, 'rule_source' => $data['bonus_rule_source'] ?? null, 'status' => $data['bonus_status'] ?? null], fn ($value) => $value !== null);
     }
 }

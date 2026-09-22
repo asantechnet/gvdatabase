@@ -26,10 +26,9 @@ const pageComponents: Record<string, Component> = {
   bonuslist: () => import('@/pages/bonuslist.vue'),
   staffSalary: () => import('@/pages/staff_salary.vue'),
   commissions: () => import('@/pages/commissions.vue'),
-  outsourcing: () => import('@/pages/outsourcing.vue'),
   contracts: () => import('@/pages/customer_contracts.vue'),
   employeeContracts: () => import('@/pages/employee_contracts.vue'),
-  companyContracts: () => import('@/pages/company_contracts.vue'),
+  otherContracts: () => import('@/pages/other_contracts.vue'),
   allCustomers: () => import('@/pages/all_customers.vue'),
   cancelledContracts: () => import('@/pages/cancelled_contracts.vue'),
   tasks: () => import('@/pages/tasks.vue'),
@@ -38,17 +37,19 @@ const pageComponents: Record<string, Component> = {
   innvoice: () => import('@/pages/innvoice.vue'),
   paymentDetails: () => import('@/pages/payment-details.vue'),
   contractPolicies: () => import('@/pages/contract/policies.vue'),
-  companies: () => import('@/pages/companies.vue'),
   contractPolicyLibrary: () => import('@/pages/contract/policy_library.vue'),
+  contractDocuments: () => import('@/pages/contract/index.vue'),
   optionsServices: () => import('@/pages/options/services.vue'),
   optionsCurrencies: () => import('@/pages/options/currencies.vue'),
   educationalMasterData: () => import('@/pages/educational-master-data.vue'),
   applicants: () => import('@/pages/applicants.vue'),
   applicantPipeline: () => import('@/pages/applicant-pipeline.vue'),
+  applicantStages: () => import('@/pages/applicant-stages.vue'),
   applicantSearch: () => import('@/pages/search.vue'),
   educationalDashboard: () => import('@/pages/educational-dashboard.vue'),
   educationalReports: () => import('@/pages/educational-reports.vue'),
   applicantCase: () => import('@/pages/applicant-case.vue'),
+  applicantPortal: () => import('@/pages/applicant-portal.vue'),
   educationalServices: () => import('@/pages/educational-services.vue'),
   pendingTransactions: () => import('@/pages/pending-transactions.vue'),
   optionsHr: () => import('@/pages/options_hr.vue'),
@@ -70,7 +71,7 @@ const routeDefinitions: Array<{
   path: string
   name?: string
   component?: string
-  redirect?: { name: string }
+  redirect?: RouteRecordRaw['redirect']
   meta?: Record<string, unknown>
 }> = [
   {
@@ -101,7 +102,8 @@ const routeDefinitions: Array<{
   { path: '/bonuslist', component: 'bonuslist', name: 'bonuslist', meta: { requiresAuth: true, action: 'read', subject: 'view_bonuses' } },
   { path: '/contracts', component: 'contracts', name: 'contracts', meta: { requiresAuth: true, action: 'read', subject: 'view_contracts' } },
   { path: '/employee-contracts', component: 'employeeContracts', name: 'employee-contracts', meta: { requiresAuth: true, action: 'read', subject: 'view_contracts' } },
-  { path: '/company-contracts', component: 'companyContracts', name: 'company-contracts', meta: { requiresAuth: true, action: 'read', subject: 'view_contracts' } },
+  { path: '/other-contracts', component: 'otherContracts', name: 'other-contracts', meta: { requiresAuth: true, action: 'read', subject: 'view_contracts' } },
+  { path: '/company-contracts', redirect: { name: 'other-contracts' } },
   {
     path: '/all-customers',
     component: 'allCustomers',
@@ -121,24 +123,23 @@ const routeDefinitions: Array<{
   { path: '/innvoice', component: 'innvoice', name: 'innvoice', meta: { requiresAuth: true, action: 'read', subject: 'view_invoices' } },
   { path: '/invoice/payment-details', component: 'paymentDetails', name: 'payment-details', meta: { requiresAuth: true, action: 'read', subject: 'view_payment_details' } },
   {
-    path: '/contract-templates',
-    component: 'contractPolicies',
-    name: 'contract-templates',
-    meta: { requiresAuth: true, action: 'read', subject: 'view_contract_templates' },
+    // Templates and policies live on one page with in-page tab navigation.
+    // The tab is kept in `?tab=` so each section stays deep-linkable.
+    path: '/contract-documents',
+    component: 'contractDocuments',
+    name: 'contract-documents',
+    meta: { requiresAuth: true, anyPermissions: ['view_contract_templates', 'view_contract_policies'] },
   },
   {
-    path: '/companies',
-    component: 'companies',
-    name: 'companies',
-    meta: { requiresAuth: true, action: 'read', subject: 'view_companies' },
+    path: '/contract-templates',
+    name: 'contract-templates',
+    redirect: to => ({ name: 'contract-documents', query: { ...to.query, tab: 'templates' } }),
   },
   { path: '/commissions', component: 'commissions', name: 'commissions', meta: { requiresAuth: true, action: 'read', subject: 'view_commissions' } },
-  { path: '/outsourcing', component: 'outsourcing', name: 'outsourcing', meta: { requiresAuth: true, action: 'read', subject: 'view_outsourcing' } },
   {
     path: '/contract-policies',
-    component: 'contractPolicyLibrary',
     name: 'contract-policies',
-    meta: { requiresAuth: true, action: 'read', subject: 'view_contract_policies' },
+    redirect: to => ({ name: 'contract-documents', query: { ...to.query, tab: 'policies' } }),
   },
   {
     path: '/options/services',
@@ -155,11 +156,13 @@ const routeDefinitions: Array<{
   { path: '/educational-master-data', component: 'educationalMasterData', name: 'educational-master-data', meta: { requiresAuth: true, action: 'read', subject: 'view_country' } },
   { path: '/applicants', component: 'applicants', name: 'applicants', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
   { path: '/applicant-pipeline', component: 'applicantPipeline', name: 'applicant-pipeline', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
+  { path: '/applicant-stages', component: 'applicantStages', name: 'applicant-stages', meta: { requiresAuth: true, action: 'manage', subject: 'manage_applicant_stages' } },
   { path: '/search', component: 'applicantSearch', name: 'search', meta: { requiresAuth: true } },
   { path: '/agency-overview', component: 'educationalDashboard', name: 'agency-overview', meta: { requiresAuth: true, action: 'read', subject: 'view_dashboard' } },
   { path: '/visa-reports', component: 'educationalReports', name: 'visa-reports', meta: { requiresAuth: true, action: 'read', subject: 'view_reports' } },
   { path: '/applicants/:id', component: 'applicantCase', name: 'applicant-case', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
-  { path: '/educational-services', component: 'educationalServices', name: 'educational-services', meta: { requiresAuth: true, action: 'read', subject: 'view_services' } },
+  { path: '/my-case', component: 'applicantPortal', name: 'applicant-portal', meta: { requiresAuth: true, action: 'read', subject: 'view_own_applicant_portal' } },
+  { path: '/educational-services', component: 'educationalServices', name: 'educational-services', meta: { requiresAuth: true, action: 'read', subject: 'view_educational_services' } },
   { path: '/pending-transactions', component: 'pendingTransactions', name: 'pending-transactions', meta: { requiresAuth: true, action: 'read', subject: 'view_pending_transactions' } },
   { path: '/options/hr', component: 'optionsHr', name: 'options-hr', meta: { requiresAuth: true, action: 'read', subject: 'view_employees' } },
   {

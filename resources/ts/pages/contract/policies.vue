@@ -4,30 +4,37 @@ import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { type PlaceholderGroup, getPlaceholders } from '@/api/contractPlaceholders'
 import ContractPolicyApi, { type ContractPolicy } from '@/api/contractPolicy'
-import ContractTemplateApi from '@/api/contractTemplate'
+import ContractTemplateApi, { type ContractTemplateVersion } from '@/api/contractTemplate'
 import ContractTypeApi, { type ContractType, SYSTEM_TYPE_SLUGS } from '@/api/contractType'
 import PositionApi, { type Position } from '@/api/position'
+import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
+import ServiceApi, { type Service } from '@/api/services'
 import ContractContentEditor from '@/components/contract/ContractContentEditor.vue'
 import ContractTypeSelector from '@/components/contract/ContractTypeSelector.vue'
 import { confirmActionWarning } from '@/composables/useActionWarning'
 import { extractPlaceholderKeys, hydratePlaceholders, legacyContentToHtml, serializePlaceholders } from '@/utils/contractPlaceholders'
+import { translateBackendValue, translateContractPolicyType, translateContractTypeRecord } from '@/utils/localization'
+import { canAccess } from '@/utils/authorization'
 
 const route = useRoute()
 const toast = useToast()
 const { locale, t } = useI18n()
 const tr = (key: string, values: Record<string, unknown> = {}) => t(`pages.settings.policies.policies.contractTemplate.${key}`, values)
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 
 const formRef = ref()
 const contractName = ref('')
 const contractTypeId = ref<number | null>(null)
 const coverText = ref('')
 const positionId = ref<number | null>(null)
+const serviceId = ref<number | null>(null)
 const policyIds = ref<number[]>([])
 const contentHtml = ref('')
 const selectedPolicyId = ref<number | null>(null)
 const contractTypes = ref<ContractType[]>([])
 const allPolicies = ref<ContractPolicy[]>([])
 const positions = ref<Position[]>([])
+const services = ref<Service[]>([])
 const templates = ref<any[]>([])
 const templateId = ref<number | null>(null)
 const rawPlaceholderGroups = ref<PlaceholderGroup[]>([])
@@ -36,15 +43,37 @@ const deleteDialog = ref(false)
 const templateToDelete = ref<number | null>(null)
 const editorRef = ref<InstanceType<typeof ContractContentEditor> | null>(null)
 const pristineTemplateState = ref('')
+const countries = ref<MasterDataRecord[]>([])
+const languages = ref<MasterDataRecord[]>([])
+const versions = ref<ContractTemplateVersion[]>([])
+const versionsLoading = ref(false)
+const versionDialog = ref(false)
+const activatingVersionId = ref<number | null>(null)
+const versionCountryFilter = ref<number | null>(null)
+const versionLanguageFilter = ref<number | null>(null)
+const versionForm = ref({ country_id: null as number | null, language_id: null as number | null, status: 'draft' as 'draft' | 'active' })
+const initialVersion = ref({ country_id: null as number | null, language_id: null as number | null })
+const previewVersion = ref<ContractTemplateVersion | null>(null)
+const editorDialog = ref(false)
+const templateSearch = ref('')
+const templateCountryFilter = ref<number | null>(null)
+const templateLanguageFilter = ref<number | null>(null)
 
+const policyScopeCountryId = computed(() => templateId.value ? versionCountryFilter.value : initialVersion.value.country_id)
+const policyScopeLanguageId = computed(() => templateId.value ? versionLanguageFilter.value : initialVersion.value.language_id)
 const policies = computed(() => allPolicies.value.filter(policy =>
-  policy.is_active && policy.type === selectedType.value?.slug && !policyIds.value.includes(policy.id)))
+  policy.is_active
+  && policy.type === selectedType.value?.slug
+  && (!policy.country_id || policy.country_id === policyScopeCountryId.value)
+  && (!policy.language_id || policy.language_id === policyScopeLanguageId.value)
+  && !policyIds.value.includes(policy.id)))
 const selectedType = computed(() => contractTypes.value.find(type => type.id === contractTypeId.value) ?? null)
 const isEmployment = computed(() => selectedType.value?.slug === 'employment')
+const isServiceType = computed(() => selectedType.value?.slug.includes('service') ?? false)
 const isSystemSlug = (slug: string) => SYSTEM_TYPE_SLUGS.includes(slug as typeof SYSTEM_TYPE_SLUGS[number])
-const contractTypeName = (type: ContractType | null) => !type ? '' : isSystemSlug(type.slug) ? tr(`types.${type.slug}`) : type.name
-const templateTypeName = (template: any) => template.type_slug && isSystemSlug(template.type_slug) ? tr(`types.${template.type_slug}`) : template.type || tr('custom')
-const policyTypeName = (policy: ContractPolicy) => isSystemSlug(policy.type) ? tr(`types.${policy.type}`) : policy.type
+const contractTypeName = (type: ContractType | null) => translateContractTypeRecord(type)
+const templateTypeName = (template: any) => template.type_slug ? translateContractPolicyType(template.type_slug, template.type) : template.type || tr('custom')
+const policyTypeName = (policy: ContractPolicy) => translateContractPolicyType(policy.type)
 
 const typeLabel = computed(() => {
   const name = contractTypeName(selectedType.value)
@@ -64,12 +93,27 @@ const templateState = computed(() => JSON.stringify({
   name: contractName.value,
   type: contractTypeId.value,
   position: positionId.value,
+  service: serviceId.value,
   policies: policyIds.value,
   cover: coverText.value,
   content: serializePlaceholders(contentHtml.value),
+  initialVersion: templateId.value ? null : initialVersion.value,
 }))
 
 const hasTemplateChanges = computed(() => templateState.value !== pristineTemplateState.value)
+const canCreateVersions = computed(() => canAccess('create_contract_template_versions'))
+const canActivateVersions = computed(() => canAccess('activate_contract_template_versions'))
+const visibleVersions = computed(() => versions.value.filter(version => (!versionCountryFilter.value || version.country_id === versionCountryFilter.value) && (!versionLanguageFilter.value || version.language_id === versionLanguageFilter.value)))
+const versionCountryName = (version: ContractTemplateVersion) => version.country?.name ?? countries.value.find(country => country.id === version.country_id)?.name ?? '—'
+const versionLanguageName = (version: ContractTemplateVersion) => version.language?.name ?? languages.value.find(language => language.id === version.language_id)?.name ?? '—'
+const filteredTemplates = computed(() => templates.value.filter(template => {
+  const search = templateSearch.value.trim().toLowerCase()
+  const matchesSearch = !search || template.name.toLowerCase().includes(search) || templateTypeName(template).toLowerCase().includes(search)
+  const versions = template.versions ?? []
+  return matchesSearch
+    && (!templateCountryFilter.value || versions.some((version: ContractTemplateVersion) => version.country_id === templateCountryFilter.value))
+    && (!templateLanguageFilter.value || versions.some((version: ContractTemplateVersion) => version.language_id === templateLanguageFilter.value))
+}))
 
 const markTemplatePristine = () => {
   pristineTemplateState.value = templateState.value
@@ -125,6 +169,54 @@ const loadPositions = async () => {
   catch (error) { console.error(error) }
 }
 
+const loadVersions = async (id = templateId.value) => {
+  if (!id) {
+    versions.value = []
+    return
+  }
+  versionsLoading.value = true
+  try { versions.value = await ContractTemplateApi.versions(id) }
+  catch (error) { toast.error(tr('versions.loadError')); console.error(error) }
+  finally { versionsLoading.value = false }
+}
+
+const openVersionDialog = () => {
+  versionForm.value = { country_id: versionCountryFilter.value, language_id: versionLanguageFilter.value, status: 'draft' }
+  versionDialog.value = true
+}
+
+const createVersion = async () => {
+  if (!templateId.value || !versionForm.value.country_id || !versionForm.value.language_id) {
+    toast.warning(tr('versions.countryLanguageRequired'))
+    return
+  }
+  try {
+    versionsLoading.value = true
+    await ContractTemplateApi.createVersion(templateId.value, { ...versionForm.value, content: serializePlaceholders(contentHtml.value) })
+    versionDialog.value = false
+    await loadVersions()
+    toast.success(tr('versions.created'))
+  }
+  catch (error) { toast.error(tr('versions.createError')); console.error(error) }
+  finally { versionsLoading.value = false }
+}
+
+const activateVersion = async (version: ContractTemplateVersion) => {
+  if (!templateId.value || version.is_current)
+    return
+  const confirmed = await confirmActionWarning({ key: `activate-template-version-${version.id}`, title: tr('versions.activateTitle'), message: tr('versions.activateMessage', { version: version.version_number }), confirmText: t('common.actions.confirm'), cancelText: t('common.actions.cancel'), icon: 'tabler-circle-check' })
+  if (!confirmed)
+    return
+  activatingVersionId.value = version.id
+  try {
+    await ContractTemplateApi.activateVersion(templateId.value, version.id)
+    await loadVersions()
+    toast.success(tr('versions.activated'))
+  }
+  catch (error) { toast.error(tr('versions.activateError')); console.error(error) }
+  finally { activatingVersionId.value = null }
+}
+
 const loadContractTypes = async () => {
   try { contractTypes.value = await ContractTypeApi.getAll({ include_inactive: true }) }
   catch (error) { console.error(error) }
@@ -132,13 +224,21 @@ const loadContractTypes = async () => {
 
 onMounted(async () => {
   isLoading.value = true
-  await Promise.all([loadTemplates(), loadPolicies(), loadPositions(), loadContractTypes()])
+  await Promise.all([
+    loadTemplates(), loadPolicies(), loadPositions(), loadContractTypes(),
+    ServiceApi.getAll().then(result => { services.value = result.data }),
+    MasterDataApi.list('countries').then(rows => { countries.value = rows }),
+    MasterDataApi.list('languages').then(rows => { languages.value = rows }),
+  ])
   isLoading.value = false
   if (route.query.positionId) {
     positionId.value = Number(route.query.positionId)
 
     const template = templates.value.find(item => item.position_id === positionId.value)
-    if (template) { await loadTemplate(template.id) }
+    if (template) {
+      await loadTemplate(template.id)
+      editorDialog.value = true
+    }
     else {
       const position = positions.value.find(item => item.id === positionId.value)
 
@@ -146,7 +246,10 @@ onMounted(async () => {
       contractTypeId.value = contractTypes.value.find(type => type.slug === 'employment')?.id ?? null
     }
   }
-  else if (route.params.id) { await loadTemplate(Number(route.params.id)) }
+  else if (route.params.id) {
+    await loadTemplate(Number(route.params.id))
+    editorDialog.value = true
+  }
   markTemplatePristine()
 })
 
@@ -155,10 +258,13 @@ const resetForm = () => {
   contractTypeId.value = null
   coverText.value = ''
   positionId.value = route.query.positionId ? Number(route.query.positionId) : null
+  serviceId.value = null
   policyIds.value = []
   templateId.value = null
   contentHtml.value = ''
   rawPlaceholderGroups.value = []
+  versions.value = []
+  initialVersion.value = { country_id: null, language_id: null }
   nextTick(() => {
     formRef.value?.resetValidation()
     markTemplatePristine()
@@ -174,11 +280,13 @@ const loadTemplate = async (id: number) => {
     contractName.value = template.name
     contractTypeId.value = template.contract_type_id ?? null
     positionId.value = template.position_id ?? null
+    serviceId.value = template.service_id ?? null
     policyIds.value = template.policies?.map(policy => policy.id) ?? []
     coverText.value = template.cover_text ?? ''
     templateId.value = template.id
     await loadPlaceholders()
     contentHtml.value = hydratePlaceholders(legacyContentToHtml(template.content), placeholderGroups.value, knownKeys.value)
+    await loadVersions(template.id)
     markTemplatePristine()
   }
   catch (error) { toast.error(tr('messages.loadTemplateDetailsError')); console.error(error) }
@@ -226,23 +334,54 @@ const saveContract = async () => {
 
     return
   }
-  const payload = { name: contractName.value.trim(), contract_type_id: contractTypeId.value, position_id: positionId.value, policy_ids: policyIds.value, cover_text: coverText.value, content: serialized }
+  const isNewTemplate = !templateId.value
+  if (isNewTemplate && (!initialVersion.value.country_id || !initialVersion.value.language_id)) {
+    toast.warning(tr('messages.selectInitialVersion'))
+
+    return
+  }
+  const payload = { name: contractName.value.trim(), contract_type_id: contractTypeId.value, service_id: serviceId.value, position_id: positionId.value, policy_ids: policyIds.value, cover_text: coverText.value, content: serialized }
   try {
     isLoading.value = true
 
     const saved = templateId.value ? await ContractTemplateApi.update(templateId.value, payload) : await ContractTemplateApi.create(payload)
+    if (isNewTemplate) {
+      await ContractTemplateApi.createVersion(saved.id, {
+        ...initialVersion.value,
+        status: 'active',
+        content: serialized,
+      })
+    }
     const index = templates.value.findIndex(item => item.id === saved.id)
     if (index < 0)
       templates.value.unshift(saved)
     else templates.value[index] = saved
-    toast.success(tr(templateId.value ? 'messages.templateUpdated' : 'messages.templateCreated'))
+    toast.success(tr(isNewTemplate ? 'messages.templateCreated' : 'messages.templateUpdated'))
+    await loadTemplates()
     resetForm()
+    editorDialog.value = false
   }
   catch (error) { toast.error(tr('messages.saveTemplateError')); console.error(error) }
   finally { isLoading.value = false }
 }
 
 const confirmDelete = (id: number) => { templateToDelete.value = id; deleteDialog.value = true }
+
+const closeTemplateEditor = () => {
+  editorDialog.value = false
+  resetForm()
+}
+
+const openTemplateEditor = async (id?: number) => {
+  if (id)
+    await loadTemplate(id)
+  else
+    resetForm()
+
+  editorDialog.value = true
+}
+
+defineExpose({ openEditor: () => openTemplateEditor() })
 
 const deleteTemplate = async () => {
   if (!templateToDelete.value)
@@ -266,58 +405,39 @@ watch(locale, async () => {
 </script>
 
 <template>
-  <main class="template-workspace">
-    <VCard class="template-workspace__hero">
-      <VCardText class="pa-5 pa-md-6">
-        <div class="template-workspace__hero-grid">
-          <div class="d-flex align-start gap-4">
-            <VAvatar
-              color="primary"
-              variant="tonal"
-              rounded="lg"
-              size="52"
-            >
-              <VIcon
-                icon="tabler-file-description"
-                size="28"
-              />
-            </VAvatar>
-            <div>
-              <div class="d-flex flex-wrap align-center gap-2 mb-1">
-                <h1 class="text-h5 font-weight-bold">
-                  {{ t('pages.settings.policies.policies.contractTemplates') }}
-                </h1><VChip
-                  size="small"
-                  color="primary"
-                  variant="tonal"
-                >
-                  {{ tr('documentWorkspace') }}
-                </VChip>
-              </div>
-              <p class="text-body-2 text-medium-emphasis mb-0">
-                {{ tr('heroDescription') }}
-              </p>
-            </div>
-          </div>
-          <div class="template-workspace__template-picker">
-            <VSelect
-              :model-value="templateId"
-              :items="templates.map(item => ({ title: item.name, value: item.id, props: { subtitle: templateTypeName(item) } }))"
-              :label="tr('openSavedTemplate')"
-              :placeholder="tr('startNewTemplate')"
-              prepend-inner-icon="tabler-folder-open"
-              density="comfortable"
-              variant="outlined"
-              hide-details
-              clearable
-              :loading="isLoading && !templates.length"
-              @update:model-value="selectTemplate"
-            />
-          </div>
-        </div>
-      </VCardText>
-    </VCard>
+  <main class="template-workspace policy-library-layout">
+    <DataTablePageKpis
+      v-if="!props.embedded"
+      :items="templates"
+      :title="t('pages.settings.policies.policies.contractTemplates')"
+      :description="tr('heroDescription')"
+      icon="tabler-file-description"
+    />
+    <component :is="props.embedded ? 'div' : 'VCard'" :class="['template-library', { 'template-library--embedded': props.embedded }]" :loading="isLoading">
+      <VCardItem v-if="!props.embedded" :title="t('pages.settings.policies.policies.contractTemplates')" :subtitle="tr('heroDescription')">
+        <template #append><VBtn color="secondary" prepend-icon="tabler-plus" @click="openTemplateEditor()">{{ tr('createNewTemplate') }}</VBtn></template>
+      </VCardItem>
+      <VCardText class="pb-0"><VRow dense>
+        <VCol cols="12" md="6"><VTextField v-model="templateSearch" :label="t('common.actions.search')" prepend-inner-icon="tabler-search" density="compact" /></VCol>
+        <VCol cols="6" md="3"><VSelect v-model="templateCountryFilter" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="t('common.fields.country')" clearable density="compact" /></VCol>
+        <VCol cols="6" md="3"><VSelect v-model="templateLanguageFilter" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" :label="t('common.fields.language')" clearable density="compact" /></VCol>
+      </VRow></VCardText>
+      <ResponsiveDataTable :items="filteredTemplates" :headers="[
+        { title: t('pages.settings.policies.policies.contractName'), key: 'name' }, { title: t('common.fields.type'), key: 'type_slug' }, { title: tr('position'), key: 'position.title' }, { title: tr('versions.title'), key: 'versions' }, { title: t('pages.settings.policies.policies.policyLibrary.actions'), key: 'actions', sortable: false, align: 'end' },
+      ]" item-value="id">
+        <template #item.type_slug="{ item }"><VChip size="small" color="secondary" variant="tonal">{{ templateTypeName(item) }}</VChip></template>
+        <template #item.position.title="{ item }">{{ item.position?.title || '—' }}</template>
+        <template #item.versions="{ item }">{{ item.versions?.length || 0 }}</template>
+        <template #item.actions="{ item }"><IconBtn aria-label="Edit template" @click="openTemplateEditor(item.id)"><VIcon icon="tabler-pencil" /></IconBtn><IconBtn aria-label="Delete template" @click="confirmDelete(item.id)"><VIcon icon="tabler-trash" /></IconBtn></template>
+        <template #no-data><div class="pa-8 text-center text-medium-emphasis">{{ tr('noMatchingTemplates') }}</div></template>
+      </ResponsiveDataTable>
+    </component>
 
+    <VDialog v-model="editorDialog" max-width="1180" scrollable content-class="policy-studio-dialog">
+      <VCard class="policy-studio">
+        <VCardItem class="policy-studio__header" :title="templateId ? tr('updateTemplate') : tr('createNewTemplate')" :subtitle="tr('templateDetailsSubtitle')"><template #prepend><VAvatar color="secondary" variant="tonal" size="42"><VIcon icon="tabler-file-description" /></VAvatar></template><template #append><VChip color="secondary" size="small" variant="tonal">{{ tr('documentWorkspace') }}</VChip></template></VCardItem>
+        <VDivider />
+      <VCardText class="policy-studio__body pt-5">
     <VForm
       ref="formRef"
       class="app-form contract-template-form"
@@ -346,7 +466,7 @@ watch(locale, async () => {
           <VRow>
             <VCol
               cols="12"
-              md="7"
+              :md="isEmployment ? 4 : 6"
             >
               <VTextField
                 v-model="contractName"
@@ -360,7 +480,7 @@ watch(locale, async () => {
             <VCol
               v-if="isEmployment"
               cols="12"
-              md="5"
+              md="4"
             >
               <VSelect
                 v-model="positionId"
@@ -373,13 +493,73 @@ watch(locale, async () => {
                 :rules="[v => !!v || tr('validation.positionRequired')]"
               />
             </VCol>
-            <VCol cols="12">
+            <VCol
+              cols="12"
+              :md="isEmployment ? 4 : 6"
+            >
               <ContractTypeSelector
                 v-model="contractTypeId"
                 required
                 @types-changed="types => contractTypes = types"
               />
             </VCol>
+            <VCol
+              v-if="isServiceType"
+              cols="12"
+              md="4"
+            >
+              <VSelect
+                v-model="serviceId"
+                :items="services.filter(service => service.status === 'active')"
+                item-title="type"
+                item-value="id"
+                :label="t('common.navigation.services')"
+                prepend-inner-icon="tabler-briefcase-2"
+                variant="outlined"
+                :rules="[value => !!value || tr('validation.serviceRequired')]"
+              />
+            </VCol>
+            <template v-if="!templateId">
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="initialVersion.country_id"
+                  :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))"
+                  :label="tr('initialVersionCountry')"
+                  prepend-inner-icon="tabler-world"
+                  variant="outlined"
+                  :rules="[value => !!value || tr('validation.initialVersionCountryRequired')]"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="initialVersion.language_id"
+                  :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))"
+                  :label="tr('initialVersionLanguage')"
+                  prepend-inner-icon="tabler-language"
+                  variant="outlined"
+                  :rules="[value => !!value || tr('validation.initialVersionLanguageRequired')]"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                class="pt-0"
+              >
+                <VAlert
+                  color="secondary"
+                  variant="tonal"
+                  density="compact"
+                  icon="tabler-versions"
+                >
+                  {{ tr('initialVersionHint') }}
+                </VAlert>
+              </VCol>
+            </template>
             <VCol
               v-if="typeLabel"
               cols="12"
@@ -450,12 +630,66 @@ watch(locale, async () => {
             ref="editorRef"
             v-model="contentHtml"
             :placeholder-groups="placeholderGroups"
+            variant="policy"
             min-height="520px"
           />
         </VCardText>
       </VCard>
 
-      <div class="template-workspace__actions">
+      <VCard
+        v-if="templateId"
+        class="template-workspace__card"
+      >
+        <VCardItem>
+          <template #prepend><VIcon icon="tabler-versions" color="primary" class="mr-2" /></template>
+          <VCardTitle>{{ tr('versions.title') }}</VCardTitle>
+          <VCardSubtitle>{{ tr('versions.subtitle') }}</VCardSubtitle>
+          <template #append>
+            <VBtn
+              v-if="canCreateVersions"
+              color="primary"
+              prepend-icon="tabler-plus"
+              :disabled="versionsLoading"
+              @click="openVersionDialog"
+            >
+              {{ tr('versions.createVersion') }}
+            </VBtn>
+          </template>
+        </VCardItem>
+        <VCardText>
+          <VAlert color="info" variant="tonal" density="compact" icon="tabler-info-circle" class="mb-4">
+            {{ tr('versions.saveFirstHint') }}
+          </VAlert>
+          <VRow dense class="mb-2">
+            <VCol cols="12" sm="5"><VSelect v-model="versionCountryFilter" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="t('common.fields.country')" clearable hide-details /></VCol>
+            <VCol cols="12" sm="5"><VSelect v-model="versionLanguageFilter" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" :label="t('common.fields.language')" clearable hide-details /></VCol>
+            <VCol cols="12" sm="2" class="d-flex justify-end"><VBtn icon="tabler-refresh" variant="text" :loading="versionsLoading" @click="loadVersions" /></VCol>
+          </VRow>
+          <VProgressLinear v-if="versionsLoading" indeterminate class="mb-3" />
+          <VTable density="comfortable">
+            <thead><tr><th>{{ tr('versions.version') }}</th><th>{{ t('common.fields.country') }}</th><th>{{ t('common.fields.language') }}</th><th>{{ t('common.fields.status') }}</th><th class="text-end">{{ t('pages.settings.policies.policies.policyLibrary.actions') }}</th></tr></thead>
+            <tbody>
+              <tr v-for="version in visibleVersions" :key="version.id">
+                <td class="font-weight-medium">v{{ version.version_number }}</td>
+                <td>{{ versionCountryName(version) }}</td>
+                <td>{{ versionLanguageName(version) }}</td>
+                <td><VChip size="small" :color="version.is_current ? 'success' : version.status === 'draft' ? 'warning' : 'secondary'" variant="tonal">{{ version.is_current ? tr('versions.active') : translateBackendValue(version.status) }}</VChip></td>
+                <td class="text-end text-no-wrap"><VBtn size="small" variant="text" @click="previewVersion = version">{{ tr('versions.preview') }}</VBtn><VBtn v-if="canActivateVersions && !version.is_current" size="small" color="success" variant="text" :loading="activatingVersionId === version.id" @click="activateVersion(version)">{{ tr('versions.activate') }}</VBtn></td>
+              </tr>
+              <tr v-if="!versionsLoading && !visibleVersions.length"><td colspan="5" class="text-center text-medium-emphasis py-6">{{ tr('versions.empty') }}</td></tr>
+            </tbody>
+          </VTable>
+        </VCardText>
+      </VCard>
+
+      <div class="template-workspace__actions policy-studio__actions">
+        <VBtn
+          variant="tonal"
+          :disabled="isLoading"
+          @click="closeTemplateEditor"
+        >
+          {{ t('common.actions.cancel') }}
+        </VBtn>
         <VBtn
           v-if="templateId"
           color="error"
@@ -475,7 +709,7 @@ watch(locale, async () => {
           {{ t('pages.settings.policies.policies.reset') }}
         </VBtn><VBtn
           type="submit"
-          color="primary"
+          color="secondary"
           prepend-icon="tabler-device-floppy"
           :loading="isLoading"
         >
@@ -483,7 +717,36 @@ watch(locale, async () => {
         </VBtn>
       </div>
     </VForm>
+        </VCardText>
+      </VCard>
+    </VDialog>
   </main>
+
+  <VDialog v-model="versionDialog" max-width="620">
+    <VCard>
+      <VCardItem :title="tr('versions.dialogTitle')" :subtitle="tr('versions.dialogSubtitle')" />
+      <VCardText>
+        <VAlert v-if="hasTemplateChanges" color="warning" variant="tonal" density="compact" icon="tabler-alert-triangle" class="mb-4">
+          {{ tr('versions.unsavedHint') }}
+        </VAlert>
+        <VRow>
+          <VCol cols="12" sm="6"><VSelect v-model="versionForm.country_id" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="t('common.fields.country')" :rules="[value => !!value || tr('versions.countryRequired')]" /></VCol>
+          <VCol cols="12" sm="6"><VSelect v-model="versionForm.language_id" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" :label="t('common.fields.language')" :rules="[value => !!value || tr('versions.languageRequired')]" /></VCol>
+          <VCol cols="12"><VSelect v-model="versionForm.status" :items="[{ title: tr('versions.draft'), value: 'draft' }, { title: tr('versions.activateNow'), value: 'active' }]" :label="t('common.fields.status')" /></VCol>
+        </VRow>
+      </VCardText>
+      <VCardActions><VSpacer/><VBtn variant="text" :disabled="versionsLoading" @click="versionDialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="primary" :loading="versionsLoading" :disabled="hasTemplateChanges" @click="createVersion">{{ tr('versions.createVersion') }}</VBtn></VCardActions>
+    </VCard>
+  </VDialog>
+
+  <VDialog :model-value="!!previewVersion" max-width="900" @update:model-value="value => { if (!value) previewVersion = null }">
+    <VCard>
+      <VCardItem :title="previewVersion ? `Version ${previewVersion.version_number}` : ''" :subtitle="previewVersion ? `${versionCountryName(previewVersion)} · ${versionLanguageName(previewVersion)}` : ''" />
+      <VDivider />
+      <VCardText class="contract-version-preview" v-html="previewVersion?.content" />
+      <VCardActions><VSpacer/><VBtn @click="previewVersion = null">{{ $t('common.actions.close') }}</VBtn></VCardActions>
+    </VCard>
+  </VDialog>
 
   <VDialog
     v-model="deleteDialog"
@@ -531,17 +794,20 @@ watch(locale, async () => {
   max-inline-size: 1180px;
   margin-inline: auto;
 
-  &__hero, &__card { border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
-  &__hero { overflow: hidden; margin-block-end: 1.25rem; background: linear-gradient(118deg, rgba(var(--v-theme-primary), 0.11), rgba(var(--v-theme-surface), 1) 48%); }
+  &__hero, &__card { overflow: hidden; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: 0.9rem; }
+  &__hero { margin-block-end: 1.25rem; background: linear-gradient(118deg, rgba(var(--v-theme-secondary), 0.11), transparent 58%); }
   &__hero-grid, &__template-picker, &__editor-heading, &__actions { display: flex; gap: 1rem; align-items: center; }
   &__hero-grid, &__editor-heading { justify-content: space-between; }
   &__template-picker { flex: 0 1 430px; inline-size: 100%; }
   &__template-picker :deep(.v-input) { flex: 1 1 auto; }
   &__card { margin-block-end: 1.25rem; }
+  &__card :deep(.v-card-item) { min-block-size: 92px; padding: 1.25rem 1.5rem; background: linear-gradient(118deg, rgba(var(--v-theme-secondary), 0.11), transparent 58%); }
+  &__card :deep(.v-card-item__prepend) { margin-inline-end: 1rem; }
+  &__card :deep(.v-card-subtitle) { margin-block-start: 0.2rem; white-space: normal; }
   &__editor-heading { margin-block-end: 0.5rem; }
   &__editor-heading :deep(.v-input) { flex: 0 1 360px; inline-size: 360px; max-inline-size: 100%; }
   &__empty-policy-note { margin-block: 0 0.75rem; }
-  &__actions { position: sticky; z-index: 2; inset-block-end: 1rem; justify-content: flex-end; flex-wrap: wrap; padding: 0.75rem; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: 0.75rem; background: rgba(var(--v-theme-surface), 0.96); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); backdrop-filter: blur(12px); }
+  &__actions { position: sticky; z-index: 2; inset-block-end: 1rem; justify-content: flex-end; flex-wrap: wrap; min-block-size: 68px; padding: 0.75rem 1.5rem; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: 0.75rem; background: rgba(var(--v-theme-surface), 0.96); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); backdrop-filter: blur(12px); }
 
   @media (max-width: 700px) {
     &__hero-grid, &__editor-heading { align-items: stretch; flex-direction: column; }
@@ -550,5 +816,63 @@ watch(locale, async () => {
     &__actions { gap: 0.5rem; }
     &__actions :deep(.v-btn) { flex: 1 1 auto; }
   }
+}
+
+.contract-version-preview {
+  max-block-size: 65vh;
+  overflow: auto;
+  line-height: 1.7;
+}
+
+.template-library {
+  overflow: hidden;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 0.9rem;
+}
+.template-library--embedded { border: 0; border-radius: 0; }
+
+.policy-studio-dialog { margin: 24px; max-block-size: calc(100% - 48px) !important; }
+.policy-studio { overflow: hidden; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: 0.9rem; }
+.policy-studio__header { min-block-size: 92px; padding: 1.25rem 1.5rem; background: linear-gradient(118deg, rgba(var(--v-theme-secondary), 0.11), transparent 58%); }
+.policy-studio__header :deep(.v-card-item__prepend) { margin-inline-end: 1rem; }
+.policy-studio__header :deep(.v-card-subtitle) { margin-block-start: 0.2rem; white-space: normal; }
+.policy-studio__body { padding-inline: 1.5rem; }
+
+/* The template fields remain specific to contracts, but use the same single-studio
+ * surface as the Policies editor rather than nested workspace cards. */
+.policy-studio .template-workspace__card {
+  overflow: visible;
+  margin-block: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.policy-studio .template-workspace__card + .template-workspace__card {
+  margin-block-start: 1.5rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.policy-studio .template-workspace__card :deep(.v-card-item) {
+  min-block-size: 0;
+  padding: 0 0 0.75rem;
+  background: transparent;
+}
+
+.policy-studio .template-workspace__card :deep(.v-card-text) { padding-inline: 0; }
+.policy-studio .template-workspace__card :deep(.v-card-item__prepend) { margin-inline-end: 0.75rem; }
+
+.policy-studio .template-workspace__actions {
+  position: static;
+  min-block-size: 68px;
+  margin: 1.5rem -1.5rem -1.25rem;
+  padding: 0.75rem 1.5rem;
+  border: 0;
+  border-block-start: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 </style>

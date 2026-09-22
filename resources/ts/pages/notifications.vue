@@ -24,7 +24,7 @@ const messageFor = (notification: AppNotification) => notificationText(notificat
 async function load() {
   loading.value = true
   try { notifications.value = await getNotifications({ limit: 100 }) }
-  catch (error: any) { toast.error(error.message || 'Failed to load notifications.') }
+  catch (error: any) { toast.error(error.message || t('notificationInbox.loadFailed')) }
   finally { loading.value = false }
 }
 
@@ -55,12 +55,12 @@ async function reviewRecurring(notification: AppNotification) {
 
 async function markAllRead() {
   try { await markAllNotificationsRead(); notifications.value.forEach(notification => { notification.is_read = true }); toast.success(translate('pages.settings.notifications.notifications.allNotificationsMarkedAsRead')) }
-  catch (error: any) { toast.error(error.message || 'Could not update notifications.') }
+  catch (error: any) { toast.error(error.message || t('notificationInbox.updateFailed')) }
 }
 
 async function remove(notification: AppNotification) {
   try { await deleteNotification(notification.id); notifications.value = notifications.value.filter(item => item.id !== notification.id); toast.success(translate('common.messages.notificationDeleted')) }
-  catch (error: any) { toast.error(error.message || 'You are not allowed to delete this notification.') }
+  catch (error: any) { toast.error(error.message || t('notificationInbox.deleteFailed')) }
 }
 
 onMounted(load)
@@ -137,7 +137,7 @@ onMounted(load)
               size="small"
               @click.stop="reviewRecurring(notification)"
             >
-              Review
+              {{ $t('notificationInbox.review') }}
             </VBtn><span class="text-caption text-disabled d-none d-sm-inline">{{ formatDate(notification.date_time) }}</span><IconBtn
               :aria-label="$t('pages.settings.notifications.notifications.deleteNotification')"
               @click.stop="remove(notification)"
@@ -150,7 +150,7 @@ onMounted(load)
       <VListItem
         v-if="!loading && !visibleNotifications.length"
         :title="$t('pages.settings.notifications.notifications.noNotificationsFound')"
-        subtitle="You are all caught up."
+        :subtitle="$t('notificationInbox.allCaughtUp')"
       />
     </VList>
   </VCard>

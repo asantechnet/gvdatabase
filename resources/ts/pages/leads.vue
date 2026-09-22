@@ -32,6 +32,8 @@ const leadAwaitingConversion = ref<Lead | null>(null)
 const conversionEmail = ref('')
 const conversionEmailError = ref('')
 const converting = ref(false)
+const draggingLeadId = ref<number | null>(null)
+const leadKanban = ref<HTMLElement>()
 
 const isDetailsOpen = computed({
   get: () => selected.value !== null,
@@ -49,6 +51,7 @@ const stages: LeadStage[] = ['new', 'contacted', 'qualified', 'proposal', 'won',
 const stageItems = computed(() => stages.map(value => ({ title: t(`common.crmUi.stageLabels.${value}`), value })))
 const stageColor = (value: LeadStage) => ({ new: 'info', contacted: 'primary', qualified: 'success', proposal: 'warning', won: 'success', lost: 'error' }[value])
 const stageLabel = (value: LeadStage) => t(`common.crmUi.stageLabels.${value}`)
+const leadsByStage = computed(() => Object.fromEntries(stages.map(current => [current, leads.value.filter(lead => lead.stage === current)])) as Record<LeadStage, Lead[]>)
 const isCurrentUserMarketer = computed(() => Boolean(userData.value?.is_marketer || userData.value?.employee?.is_marketer))
 
 const currentMarketerName = computed(() => {
@@ -68,6 +71,14 @@ const load = async () => {
 }
 
 const updateStage = async (lead: Lead, value: LeadStage) => { Object.assign(lead, await LeadApi.update(lead.id, { stage: value })); confidenceDraft.value = lead.probability; toast.success(t('common.crmUi.stageUpdated')) }
+const moveLead = async (target: LeadStage) => {
+  const lead = leads.value.find(item => item.id === draggingLeadId.value)
+  draggingLeadId.value = null
+  if (!lead || lead.stage === target)
+    return
+  try { await updateStage(lead, target) }
+  catch { toast.error(t('common.crmUi.stageUpdateFailed')) }
+}
 
 const saveConfidence = async (lead: Lead) => {
   const confidence = Number(confidenceDraft.value)
@@ -168,6 +179,24 @@ const confirmConversionEmail = async () => {
 const openCreate = () => {
   leadForm.value = emptyLeadForm()
   createDialog.value = true
+}
+
+const scrollLeadKanban = (event: WheelEvent) => {
+  const board = leadKanban.value
+  if (!board || board.scrollWidth <= board.clientWidth)
+    return
+
+  const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX
+  if (!delta)
+    return
+
+  const maxScrollLeft = board.scrollWidth - board.clientWidth
+  const nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, board.scrollLeft + delta))
+
+  if (nextScrollLeft !== board.scrollLeft) {
+    event.preventDefault()
+    board.scrollLeft = nextScrollLeft
+  }
 }
 
 const createLead = async () => {
@@ -275,18 +304,33 @@ watch(selected, lead => { confidenceDraft.value = lead?.probability ?? null })
         </VBtn>
       </VCardText>
     </VCard>
-    <VRow>
-      <VCol
-        v-for="lead in leads"
-        :key="lead.id"
-        cols="12"
-        md="6"
-        xl="4"
+    <div
+      ref="leadKanban"
+      class="lead-kanban"
+      @wheel="scrollLeadKanban"
+    >
+      <section
+        v-for="pipelineStage in stages"
+        :key="pipelineStage"
+        class="lead-kanban__column"
+        :class="{ 'lead-kanban__column--drop': draggingLeadId !== null }"
+        @dragover.prevent
+        @drop="moveLead(pipelineStage)"
       >
-        <VCard
-          border
-          class="lead-card"
-        >
+        <header class="d-flex align-center justify-space-between mb-3 px-1">
+          <VTooltip location="top"><template #activator="{ props }"><span v-bind="props" class="font-weight-medium text-truncate">{{ stageLabel(pipelineStage) }}</span></template>{{ stageLabel(pipelineStage) }}</VTooltip>
+          <VChip size="x-small" :color="stageColor(pipelineStage)" variant="tonal">{{ leadsByStage[pipelineStage].length }}</VChip>
+        </header>
+        <div class="lead-kanban__cards">
+      <VCard
+        v-for="lead in leadsByStage[pipelineStage]"
+        :key="lead.id"
+        draggable="true"
+        border
+        class="lead-card"
+        @dragstart="draggingLeadId = lead.id"
+        @dragend="draggingLeadId = null"
+      >
           <VCardText>
             <div class="d-flex justify-space-between align-start">
               <div>
@@ -355,9 +399,10 @@ watch(selected, lead => { confidenceDraft.value = lead?.probability ?? null })
               {{ t('common.crmUi.viewLead') }}
             </VBtn>
           </VCardActions>
-        </VCard>
-      </VCol>
-    </VRow>
+      </VCard>
+        </div>
+      </section>
+    </div>
     <VDialog
       v-model="createDialog"
       max-width="720"
@@ -745,7 +790,7 @@ watch(selected, lead => { confidenceDraft.value = lead?.probability ?? null })
 
         <div class="lead-details-drawer__footer">
           <VBtn
-            v-if="selected.stage !== 'won'"
+            v-if="!selected.converted_at"
             block
             color="success"
             prepend-icon="tabler-user-check"
@@ -764,6 +809,22 @@ watch(selected, lead => { confidenceDraft.value = lead?.probability ?? null })
   block-size: 100%;
   transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
+
+.lead-kanban {
+  display: grid;
+  grid-auto-columns: minmax(270px, 1fr);
+  grid-auto-flow: column;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-block-end: .75rem;
+  scrollbar-width: none;
+}
+
+.lead-kanban::-webkit-scrollbar { display: none; }
+
+.lead-kanban__column { min-block-size: 17rem; }
+.lead-kanban__column--drop { border-radius: 10px; }
+.lead-kanban__cards { display: grid; gap: .75rem; }
 
 .lead-card:hover {
   border-color: rgba(var(--v-theme-primary), .4) !important;

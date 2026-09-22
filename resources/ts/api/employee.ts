@@ -43,6 +43,7 @@ export interface Employee {
   created_at: string | null
   updated_at: string | null
   avatar?: string | null
+  document?: { name: string; mimeType: string; size: number; downloadUrl: string } | null
 }
 
 export interface EmployeeAccount {
@@ -110,6 +111,12 @@ export interface UpdateEmployeeData {
 
 // Employee API endpoints
 const EmployeeApi = {
+  uploadDocument: async (id: number, document: File): Promise<Employee> => {
+    const body = new FormData()
+    body.append('document', document)
+    return (await api.post<{ data: Employee }>(`/employees/${id}/document`, body)).data.data
+  },
+  removeDocument: async (id: number): Promise<Employee> => (await api.delete<{ data: Employee }>(`/employees/${id}/document`)).data.data,
   getAccountOptions: async (): Promise<EmployeeAccount[]> => {
     const response = await api.get<{ data: EmployeeAccount[] }>('/employees/account-options')
 

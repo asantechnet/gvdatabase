@@ -13,9 +13,18 @@ export function notificationText(notification: AppNotification, translate: Trans
     record: String(notification.data?.record ?? ''),
     requester: String(notification.data?.requester ?? ''),
     reviewer: String(notification.data?.reviewer ?? ''),
+    applicant: String(notification.data?.applicant ?? ''),
+    stage: String(notification.data?.stage ?? ''),
+    days: String(notification.data?.days ?? ''),
+    status: translateBackendValue(String(notification.data?.status ?? '')),
+    type: translateBackendValue(String(notification.data?.transaction_type ?? '')),
+    amount: String(notification.data?.amount ?? ''),
+    reason: String(notification.data?.reason ?? ''),
+    package: String(notification.data?.package ?? ''),
+    employee: String(notification.data?.employee ?? ''),
   }
 
-  const normalizedKey = key?.startsWith('bonus.review.') ? 'bonus.review' : key
+  const normalizedKey = String(notification.data?.translation_key || (key?.startsWith('bonus.review.') ? 'bonus.review' : key))
   const baseKey = normalizedKey ? `notifications.${normalizedKey}` : `notifications.types.${notification.type}`
   const title = translate(`${baseKey}.title`, values)
   const message = translate(`${baseKey}.message`, values)

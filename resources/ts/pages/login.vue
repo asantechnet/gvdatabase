@@ -70,7 +70,9 @@ const handleLogin = async () => {
       localStorage.removeItem('remembered_login_email')
 
     await router.replace(
-      session.user.permissions?.includes('view_dashboard')
+      session.user.roles?.includes('applicant') && session.user.permissions?.includes('view_own_applicant_portal')
+        ? '/my-case'
+        : session.user.permissions?.includes('view_dashboard')
         ? '/home'
         : session.user.permissions?.some((permission: string) => ['view_all_boards', 'view_assigned_boards'].includes(permission))
           ? '/projects'

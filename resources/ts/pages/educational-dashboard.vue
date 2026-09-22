@@ -2,151 +2,185 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
+import { useI18n } from 'vue-i18n'
 import DashboardApi, { type EducationalDashboard } from '@/api/educationalDashboard'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
 
 const toast = useToast()
+const { t, n } = useI18n()
 const router = useRouter()
-
 const loading = ref(false)
+const filtersOpen = ref(false)
 const data = ref<EducationalDashboard | null>(null)
-
 const countries = ref<MasterDataRecord[]>([])
 const universities = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
-
 const employeeId = ref<number | null>(null)
 const countryId = ref<number | null>(null)
 const universityId = ref<number | null>(null)
 const dateFrom = ref('')
 const dateTo = ref('')
 
-const maxStage = computed(() => Math.max(1, ...(data.value?.pipeline.stages.map(s => s.count) ?? [1])))
+const activeFilterCount = computed(() => [employeeId.value, countryId.value, universityId.value, dateFrom.value, dateTo.value].filter(Boolean).length)
+const maxStage = computed(() => Math.max(1, ...(data.value?.pipeline.stages.map(stage => stage.count) ?? [1])))
+const attentionCount = computed(() => data.value
+  ? data.value.attention.stuck_applicants.length + data.value.attention.overdue_tasks.length + data.value.attention.missing_documents.length + data.value.attention.contracts_requiring_attention.length + data.value.attention.pending_approvals
+  : 0)
+const totalSales = computed(() => data.value ? Object.values(data.value.sales).reduce((sum, row) => sum + row.sold, 0) : 0)
+const visibleStages = computed(() => data.value?.pipeline.stages.filter(stage => stage.count > 0) ?? [])
+const topCountries = computed(() => [...(data.value?.countries ?? [])].sort((a, b) => b.total - a.total).slice(0, 6))
+const attentionGroups = computed(() => data.value ? [
+  { icon: 'tabler-clock-exclamation', color: 'warning', title: t('educational.stuckCases'), rows: data.value.attention.stuck_applicants },
+  { icon: 'tabler-calendar-due', color: 'error', title: t('educational.overdueCaseTasks'), rows: data.value.attention.overdue_tasks },
+  { icon: 'tabler-file-alert', color: 'info', title: t('educational.missingDocuments'), rows: data.value.attention.missing_documents },
+  { icon: 'tabler-file-invoice', color: 'secondary', title: t('educational.contractAttention'), rows: data.value.attention.contracts_requiring_attention },
+] : [])
+
+const money = (rows: Array<{ amount: number; currency: string | null }>) => rows.map(row => `${n(row.amount, 'decimal')} ${row.currency ?? ''}`.trim()).join(' · ') || '—'
+const salesName = (name: string) => t(`educational.salesTypes.${name}`)
 
 async function load() {
   loading.value = true
   try {
-    data.value = await DashboardApi.get({
-      responsible_employee_id: employeeId.value,
-      country_id: countryId.value,
-      university_id: universityId.value,
-      date_from: dateFrom.value || undefined,
-      date_to: dateTo.value || undefined,
-    })
+    data.value = await DashboardApi.get({ responsible_employee_id: employeeId.value, country_id: countryId.value, university_id: universityId.value, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined })
   }
-  catch {
-    toast.error('Unable to load the agency overview.')
-  }
-  finally {
-    loading.value = false
-  }
+  catch { toast.error(t('educational.loadOverviewFailed')) }
+  finally { loading.value = false }
 }
 
-async function loadCatalogs() {
-  try {
-    const [countryRows, universityRows, employeeRows] = await Promise.all([
-      MasterDataApi.list('countries'),
-      MasterDataApi.list('universities'),
-      EmployeeApi.getOptions(),
-    ])
+function applyFilters() {
+  filtersOpen.value = false
+  load()
+}
 
+function clearFilters() {
+  employeeId.value = null
+  countryId.value = null
+  universityId.value = null
+  dateFrom.value = ''
+  dateTo.value = ''
+  applyFilters()
+}
+
+function openStage(key: string) { router.push({ name: 'applicants', query: { stage: key } }) }
+
+onMounted(async () => {
+  try {
+    const [countryRows, universityRows, employeeRows] = await Promise.all([MasterDataApi.list('countries'), MasterDataApi.list('universities'), EmployeeApi.getOptions()])
     countries.value = countryRows
     universities.value = universityRows
     employees.value = employeeRows
   }
-  catch {
-    toast.error('Unable to load dashboard filters.')
-  }
-}
-
-function openStage(key: string) {
-  router.push({ name: 'applicants', query: { stage: key } })
-}
-
-onMounted(async () => {
-  await loadCatalogs()
+  catch { toast.error(t('educational.loadFiltersFailed')) }
   await load()
 })
 </script>
 
 <template>
-  <VCard>
-    <VCardItem title="Agency overview" subtitle="Live counts from cases, sales, tasks, and approvals — no stored counters." />
-    <VCardText>
-      <VRow dense>
-        <VCol cols="12" md="3"><VSelect v-model="employeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" label="Employee" clearable /></VCol>
-        <VCol cols="12" md="3"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" label="Country" clearable /></VCol>
-        <VCol cols="12" md="3"><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" label="University" clearable /></VCol>
-        <VCol cols="6" md="1"><VTextField v-model="dateFrom" type="date" label="From" clearable /></VCol>
-        <VCol cols="6" md="2"><VTextField v-model="dateTo" type="date" label="To" clearable /></VCol>
-      </VRow>
-      <VBtn color="primary" :loading="loading" @click="load">Apply</VBtn>
-    </VCardText>
-    <VProgressLinear v-if="loading" indeterminate />
-    <VCardText v-if="data">
-      <div class="d-flex gap-2 flex-wrap mb-4">
-        <VChip color="success">Active: {{ data.pipeline.totals.active }}</VChip>
-        <VChip color="secondary">Closed: {{ data.pipeline.totals.closed }}</VChip>
-        <VChip color="primary">All: {{ data.pipeline.totals.all }}</VChip>
-        <VChip color="warning">Pending approvals: {{ data.attention.pending_approvals }}</VChip>
+  <div class="education-workspace">
+    <header class="education-page-header">
+      <div>
+        <div class="education-eyebrow">{{ $t('educational.operationsCenter') }}</div>
+        <h1>{{ $t('educational.agencyOverview') }}</h1>
+        <p>{{ $t('educational.agencyOverviewSubtitle') }}</p>
       </div>
-      <VRow>
-        <VCol cols="12" md="6">
-          <h3 class="mb-2">Pipeline</h3>
-          <div v-for="stage in data.pipeline.stages" :key="stage.key" class="d-flex align-center gap-2 mb-1">
-            <span class="text-caption" style="inline-size: 150px;">{{ stage.name }}</span>
-            <VProgressLinear :model-value="(stage.count / maxStage) * 100" :color="stage.is_terminal ? 'secondary' : 'primary'" style="flex: 1;" />
-            <VBtn size="x-small" variant="text" @click="openStage(stage.key)">{{ stage.count }}</VBtn>
-          </div>
+      <div class="d-flex flex-wrap gap-2">
+        <VBtn variant="tonal" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">
+          {{ $t('educational.filters') }}
+          <VBadge v-if="activeFilterCount" :content="activeFilterCount" color="primary" inline />
+        </VBtn>
+        <VBtn color="primary" prepend-icon="tabler-user-plus" :to="{ name: 'applicants' }">{{ $t('educational.manageApplicants') }}</VBtn>
+      </div>
+    </header>
+
+    <VExpandTransition>
+      <VCard v-if="filtersOpen" class="education-filter-card mb-4" variant="outlined">
+        <VCardText>
+          <VRow dense>
+            <VCol cols="12" sm="6" lg="3"><VSelect v-model="employeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.responsibleEmployee')" clearable hide-details /></VCol>
+            <VCol cols="12" sm="6" lg="3"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.destinationCountry')" clearable hide-details /></VCol>
+            <VCol cols="12" sm="6" lg="3"><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable hide-details /></VCol>
+            <VCol cols="6" sm="3" lg="1"><VTextField v-model="dateFrom" type="date" :label="$t('educational.from')" clearable hide-details /></VCol>
+            <VCol cols="6" sm="3" lg="2"><VTextField v-model="dateTo" type="date" :label="$t('educational.to')" clearable hide-details /></VCol>
+          </VRow>
+          <div class="d-flex justify-end gap-2 mt-3"><VBtn variant="text" @click="clearFilters">{{ $t('educational.clear') }}</VBtn><VBtn color="primary" :loading="loading" @click="applyFilters">{{ $t('educational.apply') }}</VBtn></div>
+        </VCardText>
+      </VCard>
+    </VExpandTransition>
+
+    <VProgressLinear v-if="loading" indeterminate color="primary" class="mb-3" rounded />
+
+    <template v-if="data">
+      <section class="education-metric-grid mb-4">
+        <button class="education-metric education-metric--primary" type="button" @click="router.push({ name: 'applicants', query: { status: 'active' } })">
+          <VIcon icon="tabler-users-group" /><span><small>{{ $t('educational.activeCasesLabel') }}</small><strong>{{ n(data.pipeline.totals.active) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
+        </button>
+        <button class="education-metric education-metric--warning" type="button" @click="router.push({ name: 'applicants' })">
+          <VIcon icon="tabler-alert-triangle" /><span><small>{{ $t('educational.needsAttention') }}</small><strong>{{ n(attentionCount) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
+        </button>
+        <button class="education-metric education-metric--success" type="button" @click="router.push({ name: 'educational-reports' })">
+          <VIcon icon="tabler-cash-banknote" /><span><small>{{ $t('educational.postedIncome') }}</small><strong class="education-money">{{ money(data.financial.income) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
+        </button>
+        <button class="education-metric" type="button" @click="router.push({ name: 'educational-services' })">
+          <VIcon icon="tabler-shopping-bag" /><span><small>{{ $t('educational.salesRecorded') }}</small><strong>{{ n(totalSales) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
+        </button>
+      </section>
+
+      <VRow dense>
+        <VCol cols="12" lg="8">
+          <VCard class="education-panel h-100">
+            <VCardItem :title="$t('educational.applicantPipeline')" :subtitle="$t('educational.pipelineHelp')">
+              <template #append><VBtn size="small" variant="text" append-icon="tabler-arrow-right" :to="{ name: 'applicant-pipeline' }">{{ $t('educational.openBoard') }}</VBtn></template>
+            </VCardItem>
+            <VCardText>
+              <div v-for="stage in visibleStages" :key="stage.key" class="pipeline-row" role="button" tabindex="0" @click="openStage(stage.key)" @keyup.enter="openStage(stage.key)">
+                <div class="pipeline-row__label"><span>{{ stage.name }}</span><strong>{{ n(stage.count) }}</strong></div>
+                <VProgressLinear :model-value="stage.count / maxStage * 100" :color="stage.is_terminal ? 'success' : 'primary'" height="7" rounded />
+              </div>
+              <div v-if="!visibleStages.length" class="education-empty"><VIcon icon="tabler-route-off" size="34" /><span>{{ $t('educational.noActivePipeline') }}</span></div>
+            </VCardText>
+          </VCard>
         </VCol>
-        <VCol cols="12" md="6">
-          <h3 class="mb-2">Sales</h3>
-          <VTable density="compact">
-            <thead><tr><th>Service</th><th>Sold</th><th>Revenue</th></tr></thead>
-            <tbody>
-              <tr v-for="(row, key) in data.sales" :key="key">
-                <td class="text-capitalize">{{ String(key).replace('_', ' ') }}</td>
-                <td>{{ row.sold }}</td>
-                <td>{{ row.by_currency.map(c => `${c.revenue.toLocaleString()} ${c.currency ?? ''}`.trim()).join(' · ') || '—' }}</td>
-              </tr>
-            </tbody>
-          </VTable>
-          <h3 class="mt-4 mb-2">Cases by country</h3>
-          <VTable density="compact">
-            <thead><tr><th>Country</th><th>Active</th><th>Total</th></tr></thead>
-            <tbody>
-              <tr v-for="row in data.countries" :key="row.id"><td>{{ row.name }}</td><td>{{ row.active }}</td><td>{{ row.total }}</td></tr>
-              <tr v-if="!data.countries.length"><td colspan="3" class="text-center text-medium-emphasis">No country data yet.</td></tr>
-            </tbody>
-          </VTable>
+        <VCol cols="12" lg="4">
+          <VCard class="education-panel h-100">
+            <VCardItem :title="$t('educational.attentionRequired')" :subtitle="$t('educational.attentionHelp')">
+              <template #append><VChip :color="attentionCount ? 'warning' : 'success'" size="small">{{ attentionCount }}</VChip></template>
+            </VCardItem>
+            <VList class="education-action-list" lines="two">
+              <template v-for="group in attentionGroups" :key="group.title">
+                <VListItem v-for="hit in group.rows.slice(0, 2)" :key="`${group.title}-${hit.id}`" :title="hit.title" :subtitle="hit.subtitle" :to="hit.route">
+                  <template #prepend><VAvatar :color="group.color" variant="tonal" size="34"><VIcon :icon="group.icon" size="18" /></VAvatar></template>
+                  <template #append><VIcon icon="tabler-chevron-right" size="17" /></template>
+                </VListItem>
+              </template>
+              <VListItem v-if="!attentionCount" :title="$t('educational.allCaughtUp')" :subtitle="$t('educational.nothingNeedsAttention')"><template #prepend><VAvatar color="success" variant="tonal"><VIcon icon="tabler-circle-check" /></VAvatar></template></VListItem>
+            </VList>
+          </VCard>
         </VCol>
       </VRow>
-      <h3 class="mt-4 mb-2">Employee performance</h3>
-      <VTable density="compact">
-        <thead><tr><th>Employee</th><th>Active cases</th><th>Sales recorded</th><th>Sales value</th></tr></thead>
-        <tbody>
-          <tr v-for="row in data.staff" :key="row.id"><td>{{ row.name }}</td><td>{{ row.active_applicants }}</td><td>{{ row.sales_recorded }}</td><td>{{ row.sales_source_total.toLocaleString() }}</td></tr>
-          <tr v-if="!data.staff.length"><td colspan="4" class="text-center text-medium-emphasis">No staff rows.</td></tr>
-        </tbody>
-      </VTable>
-      <h3 class="mt-4 mb-2">Attention required</h3>
-      <VRow>
-        <VCol cols="12" md="6">
-          <h4 class="text-caption text-medium-emphasis mb-1">STUCK CASES (IDLE 14+ DAYS)</h4>
-          <VList density="compact">
-            <VListItem v-for="hit in data.attention.stuck_applicants" :key="hit.id" :title="hit.title" :subtitle="hit.subtitle" :to="{ name: 'applicant-case', params: { id: hit.id } }" />
-          </VList>
-          <p v-if="!data.attention.stuck_applicants.length" class="text-caption text-medium-emphasis">Nothing stuck. Good.</p>
+
+      <VRow dense class="mt-1">
+        <VCol cols="12" md="6" lg="4">
+          <VCard class="education-panel h-100"><VCardItem :title="$t('educational.financialSnapshot')" :subtitle="$t('educational.postedRecordsOnly')" /><VList density="compact">
+            <VListItem :title="$t('educational.postedIncome')" :subtitle="money(data.financial.income)"><template #prepend><VIcon color="success" icon="tabler-trending-up" /></template></VListItem>
+            <VListItem :title="$t('educational.postedExpenses')" :subtitle="money(data.financial.expenses)"><template #prepend><VIcon color="error" icon="tabler-trending-down" /></template></VListItem>
+            <VListItem :title="$t('educational.postedSalaries')" :subtitle="money(data.financial.salaries)"><template #prepend><VIcon color="info" icon="tabler-wallet" /></template></VListItem>
+            <VListItem :title="$t('educational.awaitingApproval')" :subtitle="String(data.attention.pending_approvals)"><template #prepend><VIcon color="warning" icon="tabler-hourglass" /></template></VListItem>
+          </VList></VCard>
         </VCol>
-        <VCol cols="12" md="6">
-          <h4 class="text-caption text-medium-emphasis mb-1">OVERDUE CASE TASKS</h4>
-          <VList density="compact">
-            <VListItem v-for="hit in data.attention.overdue_tasks" :key="hit.id" :title="hit.title" :subtitle="hit.subtitle" :to="{ name: 'applicant-case', params: { id: hit.route.params?.id } }" />
-          </VList>
-          <p v-if="!data.attention.overdue_tasks.length" class="text-caption text-medium-emphasis">No overdue case tasks.</p>
+        <VCol cols="12" md="6" lg="4">
+          <VCard class="education-panel h-100"><VCardItem :title="$t('educational.salesByService')" :subtitle="$t('educational.salesHelp')" /><VTable density="compact" class="education-table"><tbody><tr v-for="(row, name) in data.sales" :key="name"><td><strong>{{ salesName(String(name)) }}</strong><div class="text-caption text-medium-emphasis">{{ row.by_currency.map(c => `${n(c.revenue)} ${c.currency ?? ''}`.trim()).join(' · ') || '—' }}</div></td><td class="text-end"><VChip size="small" variant="tonal">{{ row.sold }}</VChip></td></tr></tbody></VTable></VCard>
+        </VCol>
+        <VCol cols="12" lg="4">
+          <VCard class="education-panel h-100"><VCardItem :title="$t('educational.casesByCountry')" :subtitle="$t('educational.countryHelp')" /><VCardText><div v-for="country in topCountries" :key="country.id" class="country-row"><span>{{ country.name }}</span><span class="text-medium-emphasis">{{ country.active }} / {{ country.total }}</span><VProgressLinear :model-value="country.total ? country.active / country.total * 100 : 0" height="5" rounded /></div><div v-if="!topCountries.length" class="education-empty">{{ $t('educational.noCountryData') }}</div></VCardText></VCard>
         </VCol>
       </VRow>
-    </VCardText>
-  </VCard>
+
+      <VCard class="education-panel mt-4">
+        <VCardItem :title="$t('educational.employeePerformance')" :subtitle="$t('educational.performanceHelp')" />
+        <div class="education-table-scroll"><VTable density="compact" class="education-table"><thead><tr><th>{{ $t('educational.employee') }}</th><th>{{ $t('educational.activeCases') }}</th><th>{{ $t('educational.servicesReport') }}</th><th>{{ $t('educational.contractsReport') }}</th><th>{{ $t('educational.bonusesGenerated') }}</th></tr></thead><tbody><tr v-for="row in data.staff" :key="row.id"><td class="font-weight-medium">{{ row.name }}</td><td>{{ n(row.active_applicants) }}</td><td>{{ n(row.sales_recorded) }}</td><td>{{ n(row.contracts_sold) }}</td><td>{{ n(row.bonuses_generated) }}</td></tr><tr v-if="!data.staff.length"><td colspan="5" class="education-empty">{{ $t('educational.noStaff') }}</td></tr></tbody></VTable></div>
+      </VCard>
+    </template>
+  </div>
 </template>

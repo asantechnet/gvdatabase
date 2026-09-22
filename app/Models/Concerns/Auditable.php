@@ -3,6 +3,7 @@
 namespace App\Models\Concerns;
 
 use App\Models\AuditLog;
+use App\Models\Applicant;
 use App\Models\Employee;
 use App\Models\Notification;
 use App\Models\User;
@@ -69,7 +70,11 @@ trait Auditable
         $userId = (int) auth()->id();
 
         return ($this instanceof User && (int) $this->getKey() === $userId)
-            || ($this instanceof Employee && (int) $this->user_id === $userId);
+            || ($this instanceof Employee && (int) $this->user_id === $userId)
+            // Applicant portal data can include identity documents. The
+            // applicant's own profile submission must never duplicate those
+            // values into broadly visible audit payloads.
+            || ($this instanceof Applicant && (int) $this->user_id === $userId);
     }
 
     private function auditSerializableValue(mixed $value): mixed

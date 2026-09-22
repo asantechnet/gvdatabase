@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\ContractResource;
 use App\Models\Company;
+use App\Models\Applicant;
 use App\Models\Contract;
+use App\Models\ContractDocumentDesign;
 use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\Customer;
@@ -22,6 +24,9 @@ use Illuminate\Validation\ValidationException;
 
 class ContractController extends Controller
 {
+    private const EDUCATIONAL_SLUGS = [];
+    private const SUPPORTED_SLUGS = ['employment', 'customer', 'other'];
+
     public function __construct(
         private readonly PlaceholderResolver $resolver,
         private readonly ContentSanitizer $sanitizer,
@@ -31,15 +36,15 @@ class ContractController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'audience' => 'sometimes|string|in:customers,employees,companies',
-            'type_slug' => 'sometimes|string|in:employment,customer,company',
+            'audience' => 'sometimes|string|in:customers,employees,other',
+            'type_slug' => 'sometimes|string',
             'status' => 'sometimes|string|in:'.implode(',', Contract::STATUSES),
         ]);
 
-        $query = Contract::with(['template.contractType', 'contractType', 'employee.position', 'employee.office', 'employee.user', 'customer.customerServices.service.currency', 'company']);
+        $query = Contract::with(['template.contractType', 'contractType', 'service.currency', 'employee.position', 'employee.office', 'employee.user', 'customer.customerServices.service.currency', 'company']);
         $query->where(function ($query) {
-            $query->whereHas('contractType', fn ($type) => $type->whereIn('slug', ['employment', 'customer', 'company']))
-                ->orWhereHas('template.contractType', fn ($type) => $type->whereIn('slug', ['employment', 'customer', 'company']))
+                $query->whereHas('contractType', fn ($type) => $type->where('is_active', true))
+                ->orWhereHas('template.contractType', fn ($type) => $type->where('is_active', true))
                 ->orWhere(function ($legacy) {
                     $legacy->whereNull('contract_type_id')->whereNull('template_id')
                         ->whereRaw('LOWER(COALESCE(type, "")) IN ("employment", "customer", "company")');
@@ -72,23 +77,28 @@ class ContractController extends Controller
             // contract types must not appear in this list.
             $query->where(function ($query) {
                 $query->where(function ($q) {
-                    $q->whereHas('contractType', fn ($t) => $t->where('slug', 'customer'))
-                        ->orWhereHas('template.contractType', fn ($t) => $t->where('slug', 'customer'));
+                    $q->whereHas('contractType', fn ($t) => $t->whereIn('slug', ['customer', ...self::EDUCATIONAL_SLUGS]))
+                        ->orWhereHas('template.contractType', fn ($t) => $t->whereIn('slug', ['customer', ...self::EDUCATIONAL_SLUGS]));
                 })->orWhereDoesntHave('contractType');
             })->where(function ($query) {
                 $query->where(function ($q) {
                     $q->whereNull('contract_type_id')->whereNull('template_id')
                         ->whereRaw('LOWER(COALESCE(type, "")) = "customer"');
-                })->orWhereHas('contractType', fn ($t) => $t->where('slug', 'customer'))
-                    ->orWhereHas('template.contractType', fn ($t) => $t->where('slug', 'customer'));
+                })->orWhereHas('contractType', fn ($t) => $t->whereIn('slug', ['customer', ...self::EDUCATIONAL_SLUGS]))
+                    ->orWhereHas('template.contractType', fn ($t) => $t->whereIn('slug', ['customer', ...self::EDUCATIONAL_SLUGS]));
             });
-        } elseif ($request->input('audience') === 'companies') {
+        } elseif ($request->input('audience') === 'educational') {
+            $query->where(function ($q) {
+                $q->whereHas('contractType', fn ($t) => $t->whereIn('slug', self::EDUCATIONAL_SLUGS))
+                    ->orWhereHas('template.contractType', fn ($t) => $t->whereIn('slug', self::EDUCATIONAL_SLUGS));
+            });
+        } elseif ($request->input('audience') === 'other') {
             $query->where(function ($query) {
-                $query->whereHas('contractType', fn ($t) => $t->where('slug', 'company'))
-                    ->orWhereHas('template.contractType', fn ($t) => $t->where('slug', 'company'))
+                $query->whereHas('contractType', fn ($t) => $t->where('slug', 'other')->orWhere('is_system', false))
+                    ->orWhereHas('template.contractType', fn ($t) => $t->where('slug', 'other')->orWhere('is_system', false))
                     ->orWhere(function ($legacy) {
                         $legacy->whereNull('contract_type_id')->whereNull('template_id')
-                            ->whereRaw('LOWER(COALESCE(type, "")) = "company"');
+                        ->whereRaw('LOWER(COALESCE(type, "")) IN ("company", "other")');
                     });
             });
         }
@@ -128,13 +138,13 @@ class ContractController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'employee', 'customer.customerServices.service.currency', 'company'])),
+            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'service.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $contract = Contract::with(['template.contractType', 'contractType', 'employee.position', 'customer.customerServices.service.currency', 'company'])->find($id);
+        $contract = Contract::with(['template.contractType', 'contractType', 'service.currency', 'employee.position', 'customer.customerServices.service.currency', 'company'])->find($id);
         if (! $contract) {
             return $this->notFound();
         }
@@ -161,7 +171,7 @@ class ContractController extends Controller
         if (array_key_exists('contract_type_id', $data)) {
             $type = ContractType::find($data['contract_type_id']) ?? $type;
         }
-        abort_unless(in_array($type?->slug, ['employment', 'customer', 'company'], true), 422, 'Only supported contract types may be used.');
+        abort_unless($type?->is_active, 422, 'Select an active contract type.');
         $slug = $type?->slug;
         if (array_key_exists('duration_months', $data)) {
             $startDate = $data['start_date'] ?? $contract->start_date?->toDateString();
@@ -182,7 +192,7 @@ class ContractController extends Controller
 
         // Re-render only when the template or one of its input values changed.
         $renderInputs = [
-            'template_id', 'employee_id', 'customer_id', 'company_id', 'content',
+            'template_id', 'contract_template_version_id', 'service_id', 'employee_id', 'customer_id', 'applicant_id', 'company_id', 'content',
             'start_date', 'end_date', 'duration_months', 'status', 'company_signatory_name',
         ];
         $shouldRender = collect($renderInputs)->contains(fn (string $field) => array_key_exists($field, $data));
@@ -202,11 +212,22 @@ class ContractController extends Controller
             $contextEntity = $this->resolveContextEntity($slug, [
                 'employee_id' => $data['employee_id'] ?? $contract->employee_id,
                 'customer_id' => $data['customer_id'] ?? $contract->customer_id,
+                'applicant_id' => $data['applicant_id'] ?? $contract->applicant_id,
                 'company_id' => $data['company_id'] ?? $contract->company_id,
                 'contract_type_id' => $type?->id,
             ]);
 
-            $content = $template?->content ?? ($data['content'] ?? $contract->content);
+            $versionId = $data['contract_template_version_id'] ?? $contract->contract_template_version_id;
+            $version = $versionId ? \App\Models\ContractTemplateVersion::query()->find($versionId) : null;
+            $caseCountryId = ! empty($data['applicant_id'] ?? $contract->applicant_id)
+                ? Applicant::query()->whereKey($data['applicant_id'] ?? $contract->applicant_id)->value('country_id')
+                : null;
+            abort_if($version && $version->contract_template_id !== $template?->id, 422, 'business.contract_template_version_mismatch');
+            abort_if($version && $version->country_id && (int) $version->country_id !== (int) $caseCountryId, 422, 'business.contract_template_version_country_mismatch');
+            if (array_key_exists('contract_template_version_id', $data)) {
+                abort_if($version && (! $version->is_current || $version->status !== 'active'), 422, 'business.contract_template_version_unavailable');
+            }
+            $content = $version?->content ?? $template?->content ?? ($data['content'] ?? $contract->content);
             $rendered = $this->resolver->resolve((string) $content, $contextEntity['context'] + [
                 'start_date' => $data['start_date'] ?? $contract->start_date?->toDateString(),
                 'end_date' => $data['end_date'] ?? $contract->end_date?->toDateString(),
@@ -246,6 +267,7 @@ class ContractController extends Controller
                         'counterparty' => $counterparty,
                     ],
                     'entity' => $contextEntity['snapshot'],
+                    'template_version' => $version ? ['id' => $version->id, 'country_id' => $version->country_id, 'language_id' => $version->language_id, 'version_number' => $version->version_number] : null,
                 ],
                 ...$counterparty['fields'],
                 ...$contextEntity['foreign_keys'],
@@ -256,7 +278,7 @@ class ContractController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'employee', 'customer.customerServices.service.currency', 'company'])),
+            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'service.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
         ]);
     }
 
@@ -321,8 +343,10 @@ class ContractController extends Controller
             'template_id' => $contract->template_id,
             'language_id' => $contract->templateVersion?->language_id,
             'contract_type_id' => $contract->contract_type_id,
+            'service_id' => $contract->service_id,
             'employee_id' => $contract->employee_id,
             'customer_id' => $contract->customer_id,
+            'applicant_id' => $contract->applicant_id,
             'company_id' => $contract->company_id,
             'name' => $contract->name,
             'cover_text' => $contract->cover_text,
@@ -348,8 +372,6 @@ class ContractController extends Controller
                 ]);
             }
 
-            $contract->update(['status' => 'renewed']);
-
             return $result;
         });
         if ($result instanceof JsonResponse) {
@@ -358,7 +380,7 @@ class ContractController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'employee', 'customer.customerServices.service.currency', 'company'])),
+            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'service.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
         ], 201);
     }
 
@@ -380,7 +402,7 @@ class ContractController extends Controller
 
     public function templates(): JsonResponse
     {
-        $templates = ContractTemplate::whereHas('contractType', fn ($type) => $type->whereIn('slug', ['employment', 'customer', 'company']))
+        $templates = ContractTemplate::whereHas('contractType', fn ($type) => $type->where('is_active', true))
             ->with('contractType')->get();
 
         return response()->json([
@@ -426,8 +448,10 @@ class ContractController extends Controller
             'contract_template_version_id' => ['nullable', 'integer', 'exists:contract_template_versions,id'],
             'language_id' => ['nullable', 'integer', 'exists:languages,id'],
             'contract_type_id' => ['nullable', 'integer', 'exists:contract_types,id'],
+            'service_id' => ['nullable', 'integer', 'exists:services,id'],
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
+            'applicant_id' => ['nullable', 'integer', 'exists:applicants,id'],
             'company_id' => ['nullable', 'integer', 'exists:companies,id'],
             'is_custom' => ['prohibited'],
             'name' => [...$sometimes, 'string', 'max:255'],
@@ -440,6 +464,11 @@ class ContractController extends Controller
                 : ['nullable', 'date', 'after_or_equal:start_date'],
             'duration_months' => ['nullable', 'integer', 'min:1', 'max:600'],
             'company_signatory_name' => ['nullable', 'string', 'max:255'],
+            'counterparty' => ['nullable', 'string', 'max:255'],
+            'counterparty_company' => ['nullable', 'string', 'max:255'],
+            'counterparty_email' => ['nullable', 'email', 'max:255'],
+            'counterparty_contact' => ['nullable', 'string', 'max:255'],
+            'counterparty_address' => ['nullable', 'string', 'max:5000'],
             'is_cancelled' => ['prohibited'],
         ]);
 
@@ -451,10 +480,13 @@ class ContractController extends Controller
 
         $validator->validate();
 
-        $data = collect($validator->validated())->except([
-            'counterparty', 'counterparty_company', 'counterparty_email',
-            'counterparty_contact', 'counterparty_address',
-        ])->all();
+        $data = $validator->validated();
+
+        $customerId = $data['customer_id'] ?? null;
+        $applicantId = $data['applicant_id'] ?? null;
+        if ($applicantId && $customerId && ! Applicant::query()->whereKey($applicantId)->where('customer_id', $customerId)->exists()) {
+            throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
+        }
 
         if (! $partial && empty($data['start_date'])) {
             $data['start_date'] = now()->toDateString();
@@ -473,19 +505,26 @@ class ContractController extends Controller
     private function createContract(array $data, array $snapshotMetadata = []): Contract|JsonResponse
     {
         [$template, $type] = $this->resolveTemplateAndType($data);
+        $data['service_id'] ??= $template?->service_id;
         $contextEntity = $this->resolveContextEntity($type?->slug, $data);
+        $caseCountryId = ! empty($data['applicant_id']) ? Applicant::query()->whereKey($data['applicant_id'])->value('country_id') : null;
         $version = isset($data['contract_template_version_id']) ? \App\Models\ContractTemplateVersion::find($data['contract_template_version_id']) : null;
         if ($template && ! $version && isset($data['language_id'])) {
             $version = $template->versions()
                 ->where('language_id', $data['language_id'])
+                ->where('country_id', $caseCountryId)
                 ->where('is_current', true)
                 ->where('status', 'active')
                 ->first();
         }
-        abort_if($template && ! isset($data['language_id']) && ! $version, 422, 'business.contract_template_language_required');
-        abort_if($template && ! $version, 422, 'business.contract_template_version_unavailable');
+        // Existing pre-version templates remain usable until a language
+        // version is explicitly added; versioned templates never fall back.
+        $hasVersions = $template?->versions()->exists() ?? false;
+        abort_if($template && $hasVersions && ! isset($data['language_id']) && ! $version, 422, 'business.contract_template_language_required');
+        abort_if($template && $hasVersions && ! $version, 422, 'business.contract_template_version_unavailable');
         abort_if($version && $version->contract_template_id !== $template?->id, 422, 'business.contract_template_version_mismatch');
         abort_if($version && isset($data['language_id']) && $version->language_id !== (int) $data['language_id'], 422, 'business.contract_template_version_language_mismatch');
+        abort_if($version && $version->country_id && (int) $version->country_id !== (int) $caseCountryId, 422, 'business.contract_template_version_country_mismatch');
         abort_if($version && (! $version->is_current || $version->status !== 'active'), 422, 'business.contract_template_version_unavailable');
         $content = $version?->content ?? ($template ? ($template->content ?? '') : ($data['content'] ?? ''));
 
@@ -521,6 +560,21 @@ class ContractController extends Controller
         }
 
         $counterparty = $this->buildCounterparty($type?->slug, $contextEntity);
+        if ($type?->slug === 'other' || ! $type?->is_system) {
+            $counterparty['fields'] = [
+                'counterparty' => $data['counterparty'] ?? '',
+                'counterparty_company' => $data['counterparty_company'] ?? null,
+                'counterparty_email' => $data['counterparty_email'] ?? null,
+                'counterparty_contact' => $data['counterparty_contact'] ?? null,
+                'counterparty_address' => $data['counterparty_address'] ?? null,
+            ];
+            $counterparty['label'] = $counterparty['fields']['counterparty'];
+        }
+        $design = ContractDocumentDesign::query()
+            ->where('contract_type_id', $type?->id)
+            ->where(fn ($query) => $query->where('service_id', $data['service_id'] ?? $template?->service_id)->orWhereNull('service_id'))
+            ->orderByRaw('service_id IS NULL')
+            ->first();
 
         return Contract::create([
             ...$data,
@@ -539,7 +593,11 @@ class ContractController extends Controller
                     'counterparty' => $counterparty,
                 ],
                 'entity' => $contextEntity['snapshot'],
-                'template_version' => $version ? ['id'=>$version->id,'language_id'=>$version->language_id,'version_number'=>$version->version_number] : null,
+                'template_version' => $version ? ['id'=>$version->id,'country_id'=>$version->country_id,'language_id'=>$version->language_id,'version_number'=>$version->version_number] : null,
+                'document_design' => $design ? [
+                    'id' => $design->id, 'letterhead' => $design->letterhead, 'cover_design' => $design->cover_design,
+                    'safe_x' => $design->safe_x, 'safe_y' => $design->safe_y, 'safe_width' => $design->safe_width, 'safe_height' => $design->safe_height,
+                ] : null,
                 ...$snapshotMetadata,
             ],
         ]);
@@ -558,6 +616,10 @@ class ContractController extends Controller
         }
 
         $normalized = strtr(trim($value), [
+            "\u{06F0}" => '0', "\u{06F1}" => '1', "\u{06F2}" => '2', "\u{06F3}" => '3', "\u{06F4}" => '4',
+            "\u{06F5}" => '5', "\u{06F6}" => '6', "\u{06F7}" => '7', "\u{06F8}" => '8', "\u{06F9}" => '9',
+            "\u{0660}" => '0', "\u{0661}" => '1', "\u{0662}" => '2', "\u{0663}" => '3', "\u{0664}" => '4',
+            "\u{0665}" => '5', "\u{0666}" => '6', "\u{0667}" => '7', "\u{0668}" => '8', "\u{0669}" => '9',
             '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
             '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
             '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
@@ -575,7 +637,7 @@ class ContractController extends Controller
         $template = isset($data['template_id']) ? ContractTemplate::with('contractType')->find($data['template_id']) : null;
 
         if ($template) {
-            abort_unless(in_array($template->contractType?->slug, ['employment', 'customer', 'company'], true), 422, 'Only supported contract types may be used.');
+            abort_unless($template->contractType?->is_active, 422, 'The selected contract type is inactive.');
 
             return [$template, $template->contractType];
         }
@@ -584,7 +646,7 @@ class ContractController extends Controller
             ? ContractType::find($data['contract_type_id'])
             : null;
 
-        abort_unless(in_array($type?->slug, ['employment', 'customer', 'company'], true), 422, 'Only supported contract types may be used.');
+        abort_unless($type?->is_active, 422, 'Select an active contract type.');
 
         return [null, $type];
     }
@@ -599,6 +661,7 @@ class ContractController extends Controller
     {
         $employeeId = isset($data['employee_id']) ? (int) $data['employee_id'] : null;
         $customerId = isset($data['customer_id']) ? (int) $data['customer_id'] : null;
+        $applicantId = isset($data['applicant_id']) ? (int) $data['applicant_id'] : null;
         $companyId = isset($data['company_id']) ? (int) $data['company_id'] : null;
 
         switch ($slug) {
@@ -618,6 +681,10 @@ class ContractController extends Controller
                 ];
 
             case 'customer':
+            case 'educational-service':
+            case 'scholarship-service':
+            case 'test-service':
+            case 'visa-service':
                 if (! $customerId) {
                     abort(response()->json([
                         'success' => false,
@@ -625,31 +692,20 @@ class ContractController extends Controller
                     ], 422));
                 }
                 $customer = Customer::findOrFail($customerId);
-
-                return [
-                    'context' => ['customer' => $customer],
-                    'snapshot' => ['customer' => $customer->only(['id', 'name', 'company', 'contact', 'email', 'address', 'tax_number'])],
-                    'foreign_keys' => ['employee_id' => null, 'customer_id' => $customerId, 'company_id' => null],
-                ];
-
-            case 'company':
-                if (! $companyId) {
-                    abort(response()->json([
-                        'success' => false,
-                        'message' => 'A counterparty company is required for a company contract.',
-                    ], 422));
+                $service = ! empty($data['service_id']) ? \App\Models\Service::query()->find($data['service_id']) : null;
+                $applicant = $applicantId ? Applicant::query()->findOrFail($applicantId) : null;
+                if ($applicant && (int) $applicant->customer_id !== $customerId) {
+                    throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
                 }
-                $company = Company::findOrFail($companyId);
 
                 return [
-                    'context' => ['company' => $company],
-                    'snapshot' => ['company' => $company->only([
-                        'id', 'legal_name', 'trade_name', 'registration_number', 'tax_number',
-                        'legal_form', 'email', 'phone', 'city', 'country', 'address_line',
-                        'representative_name', 'representative_title',
-                    ])],
-                    'foreign_keys' => ['employee_id' => null, 'customer_id' => null, 'company_id' => $companyId],
+                    'context' => ['customer' => $customer, 'service' => $service],
+                    'snapshot' => ['customer' => $customer->only(['id', 'name', 'company', 'contact', 'email', 'address', 'tax_number']), 'service' => $service?->only(['id', 'type', 'category', 'description', 'duration', 'fee']), 'applicant_id' => $applicant?->id],
+                    'foreign_keys' => ['employee_id' => null, 'customer_id' => $customerId, 'applicant_id' => $applicantId, 'company_id' => null],
                 ];
+
+            case 'other':
+                return ['context' => [], 'snapshot' => [], 'foreign_keys' => ['employee_id' => null, 'customer_id' => null, 'company_id' => null]];
 
             default:
                 // Custom types carry no mandatory entity; clear stale links.

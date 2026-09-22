@@ -18,7 +18,7 @@ import { printDocument } from '@/utils/printDocument'
 import { canPrintPartyDetails, partyDetailsFor } from '@/utils/contractPartyDetails'
 
 const props = withDefaults(defineProps<{
-  contractAudience?: 'customers' | 'employees' | 'companies'
+  contractAudience?: 'customers' | 'employees' | 'other'
 }>(), {
   contractAudience: 'customers',
 })
@@ -30,7 +30,7 @@ const { t } = useI18n()
 const currentListRoute = () => ({
   customers: 'contracts',
   employees: 'employee-contracts',
-  companies: 'company-contracts',
+  other: 'other-contracts',
 }[props.contractAudience])
 
 const {
@@ -87,10 +87,10 @@ const audienceCopy = computed(() => ({
     description: 'pages.contracts.allContracts.allContracts.employeeContractsDescription',
     report: 'pages.contracts.allContracts.allContracts.employeeContractsReport',
   },
-  companies: {
-    title: 'pages.contracts.allContracts.allContracts.companyContracts',
-    description: 'pages.contracts.allContracts.allContracts.companyContractsDescription',
-    report: 'pages.contracts.allContracts.allContracts.companyContractsReport',
+  other: {
+    title: 'pages.contracts.allContracts.allContracts.otherContracts',
+    description: 'pages.contracts.allContracts.allContracts.otherContractsDescription',
+    report: 'pages.contracts.allContracts.allContracts.otherContractsReport',
   },
 }[props.contractAudience]))
 
@@ -147,6 +147,13 @@ const contractReportRow = (contract: Contract) => [
 ]
 
 const companySetting = ref<Setting | null>(null)
+const snapshotDesign = computed(() => contractToPrint.value?.snapshot_data?.document_design)
+const printedContractTitle = computed(() => {
+  const name = contractToPrint.value?.contract || contractToPrint.value?.contract_template?.name || translate('pages.contracts.allContracts.allContracts.untitledContract')
+  const version = contractToPrint.value?.snapshot_data?.template_version?.version_number
+
+  return version ? `${name} - v${version}` : name
+})
 
 const company = computed<CompanyDetails>(() => ({
   brandName: companySetting.value?.original_company_name || companySetting.value?.short_company_name || companySetting.value?.website_title || 'Company',
@@ -157,11 +164,11 @@ const company = computed<CompanyDetails>(() => ({
   email: companySetting.value?.company_email || undefined,
   licence: companySetting.value?.business_licence || undefined,
   signatureUrl: companySetting.value?.company_signature_url || undefined,
-  letterheadUrl: companySetting.value?.contract_letterhead_url || undefined,
-  letterheadSafeX: companySetting.value?.contract_letterhead_safe_x,
-  letterheadSafeY: companySetting.value?.contract_letterhead_safe_y,
-  letterheadSafeWidth: companySetting.value?.contract_letterhead_safe_width,
-  letterheadSafeHeight: companySetting.value?.contract_letterhead_safe_height,
+  letterheadUrl: snapshotDesign.value?.letterhead_url || companySetting.value?.contract_letterhead_url || undefined,
+  letterheadSafeX: snapshotDesign.value?.safe_x ?? companySetting.value?.contract_letterhead_safe_x,
+  letterheadSafeY: snapshotDesign.value?.safe_y ?? companySetting.value?.contract_letterhead_safe_y,
+  letterheadSafeWidth: snapshotDesign.value?.safe_width ?? companySetting.value?.contract_letterhead_safe_width,
+  letterheadSafeHeight: snapshotDesign.value?.safe_height ?? companySetting.value?.contract_letterhead_safe_height,
 }))
 
 const getContractPagesHtml = (contract: Contract): string[] => {
@@ -580,7 +587,7 @@ onMounted(async () => {
       ? template.type_slug === 'employment'
       : props.contractAudience === 'customers'
         ? template.type_slug === 'customer'
-        : template.type_slug === 'company',
+        : template.type_slug !== 'employment' && template.type_slug !== 'customer',
   )
 
   const employeeId = Number(route.query.employeeId)
@@ -1044,12 +1051,12 @@ onMounted(async () => {
     style="display: none;"
   >
     <template v-if="contractToPrint">
-      <div
-        v-if="includeCustomCover && companySetting?.contract_cover_design_url"
+        <div
+          v-if="includeCustomCover && (snapshotDesign?.cover_design_url || companySetting?.contract_cover_design_url)"
         class="custom-cover-page"
       >
         <img
-          :src="companySetting.contract_cover_design_url"
+            :src="snapshotDesign?.cover_design_url || companySetting!.contract_cover_design_url!"
           alt=""
         >
       </div>
@@ -1059,7 +1066,7 @@ onMounted(async () => {
         :logo="company.logo"
         cover-design-url=""
         :contract-number="contractToPrint.contract_number || ''"
-        :contract-title="contractToPrint.contract || contractToPrint.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract')"
+            :contract-title="printedContractTitle"
         :cover-description="contractToPrint.cover_text || contractToPrint.contract_template?.cover_text || ''"
         :company-website="company.website || ''"
         :company-address="company.address || ''"
@@ -1083,7 +1090,7 @@ onMounted(async () => {
         v-for="(pageHtml, idx) in getContractPagesHtml(contractToPrint)"
         :key="idx"
         :document-number="contractToPrint.contract_number || ''"
-        :document-title="contractToPrint.contract || contractToPrint.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract')"
+            :document-title="printedContractTitle"
         :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }"
         :html-content="pageHtml"
         :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: idx + (includePartyDetails && canShowPartyDetails ? 2 : 1), total: getContractPagesHtml(contractToPrint).length + (includePartyDetails && canShowPartyDetails ? 1 : 0) })"

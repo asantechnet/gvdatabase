@@ -175,7 +175,7 @@ const saveBonusReview = async () => {
     markRejected.value = false
   }
   catch (error: any) {
-    bonusReviewError.value = error?.response?.data?.message ?? 'Unable to save the bonus review.'
+    bonusReviewError.value = error?.response?.data?.message ?? translate('components.taskManager.taskdetaildrawer.unableToSaveBonusReview')
   }
   finally {
     isSavingBonusReview.value = false
@@ -233,7 +233,7 @@ const saveBonusReview = async () => {
               <VTextField
                 v-model="localTask.title"
                 :label="$t('common.fields.title')"
-                :rules="[v => !!v || 'Title is required']"
+                :rules="[v => !!v || $t('components.taskManager.taskdetaildrawer.titleRequired')]"
                 :disabled="!canEditTask()"
                 required
               />
@@ -302,7 +302,7 @@ const saveBonusReview = async () => {
               <VSwitch
                 :model-value="localTask.progress === 100"
                 color="success"
-                label="Completed"
+                :label="$t('components.taskManager.taskdetaildrawer.completed')"
                 :disabled="!canEditTask()"
                 @update:model-value="localTask.progress = $event ? 100 : 0"
               />
@@ -397,7 +397,7 @@ const saveBonusReview = async () => {
         </VForm>
       </PerfectScrollbar>
 
-      <VCardActions class="border-t pa-5 d-flex justify-space-between">
+      <VCardActions class="task-detail-actions border-t pa-5">
         <VBtn
           v-if="canDeleteTask()"
           color="error"
@@ -408,7 +408,7 @@ const saveBonusReview = async () => {
           {{ $t('common.actions.delete') }}
         </VBtn>
 
-        <div class="d-flex gap-2">
+        <div class="task-detail-actions__primary">
           <VBtn
             variant="outlined"
             color="secondary"
@@ -464,6 +464,39 @@ const saveBonusReview = async () => {
 <style scoped>
 .task-detail-drawer {
   z-index: 1001;
+  max-width: 100vw;
+}
+
+.task-detail-drawer :deep(.v-navigation-drawer__content) {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.task-detail-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.task-detail-actions__primary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
+
+@media (max-width: 420px) {
+  .task-detail-actions {
+    padding: 0.75rem !important;
+  }
+
+  .task-detail-actions > .v-btn,
+  .task-detail-actions__primary,
+  .task-detail-actions__primary > .v-btn {
+    flex: 1 1 auto;
+  }
 }
 
 .task-content-preview {

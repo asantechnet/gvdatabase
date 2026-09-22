@@ -26,5 +26,7 @@ Schedule::command('contracts:process-lifecycle')
     ->dailyAt('00:10')->timezone($companyTimezone)->withoutOverlapping()->onOneServer();
 Schedule::command('customer-services:process-lifecycle')
     ->dailyAt('00:15')->timezone($companyTimezone)->withoutOverlapping()->onOneServer();
+Schedule::command('applicants:send-reminders')
+    ->dailyAt('08:00')->timezone($companyTimezone)->withoutOverlapping()->onOneServer();
 Schedule::command('sanctum:prune-expired --hours=24')
     ->dailyAt('02:30')->timezone($companyTimezone)->withoutOverlapping()->onOneServer();

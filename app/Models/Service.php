@@ -18,6 +18,8 @@ class Service extends Model
 
     protected $fillable = [
         'type',
+        'category',
+        'description',
         'duration',
         'fee',
         'status',
@@ -52,6 +54,12 @@ class Service extends Model
     public function customerServices()
     {
         return $this->hasMany(CustomerService::class);
+    }
+
+    public function packages(): BelongsToMany
+    {
+        return $this->belongsToMany(Package::class, 'package_service')
+            ->withPivot(['allocated_fee', 'sort_order'])->withTimestamps();
     }
 
     /**

@@ -1,6 +1,6 @@
 import api from './axios'
 
-export type EducationalReportType = 'applicants' | 'employee-performance' | 'sales' | 'visa-outcomes'
+export type EducationalReportType = 'applicants' | 'employee-performance' | 'contracts' | 'services' | 'financial' | 'universities' | 'visa-outcomes'
 
 export interface EducationalReport {
   columns: string[]

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 
 class RoleController extends Controller
 {
+    private const PROTECTED_ROLE_NAMES = ['super_admin', 'applicant'];
     public function index(Request $request): JsonResponse
     {
         abort_unless($request->user()->hasPermission('view_roles'), 403, 'auth.forbidden');
@@ -67,7 +68,7 @@ class RoleController extends Controller
     public function update(Request $request, Role $role): JsonResponse
     {
         abort_unless($request->user()->hasPermission('edit_roles'), 403, 'auth.forbidden');
-        abort_if($role->name === 'super_admin', 422, 'business.request_rejected');
+        abort_if(in_array($role->name, self::PROTECTED_ROLE_NAMES, true), 422, 'business.request_rejected');
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255|unique:roles,name,' . $role->id,
@@ -85,7 +86,7 @@ class RoleController extends Controller
     public function destroy(Request $request, Role $role): JsonResponse
     {
         abort_unless($request->user()->hasPermission('delete_roles'), 403, 'auth.forbidden');
-        abort_if($role->name === 'super_admin', 422, 'business.request_rejected');
+        abort_if(in_array($role->name, self::PROTECTED_ROLE_NAMES, true), 422, 'business.request_rejected');
 
         $role->delete();
 

@@ -12,7 +12,7 @@ export interface ContractType {
   updated_at?: string
 }
 
-export const SYSTEM_TYPE_SLUGS = ['employment', 'customer', 'company'] as const
+export const SYSTEM_TYPE_SLUGS = ['employment', 'customer', 'other'] as const
 
 const ContractTypeApi = {
   async getAll(params?: { include_inactive?: boolean }): Promise<ContractType[]> {

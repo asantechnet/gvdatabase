@@ -112,6 +112,15 @@ const detailItems = computed(() => {
 const formatDateTime = (value: string) => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 const pickerDate = (value: string) => value.slice(0, 16).replace('T', ' ')
 
+// Keep the calendar compact inside the relationship dialog without adding a
+// visual offset away from the field that opened it.
+const compactCalendar = (_selectedDates: Date[], _dateString: string, instance: { calendarContainer: HTMLElement }) => {
+  requestAnimationFrame(() => {
+    instance.calendarContainer.style.setProperty('transform', 'translateY(-100px) scale(0.86)', 'important')
+    instance.calendarContainer.style.setProperty('transform-origin', 'top left', 'important')
+  })
+}
+
 const load = async () => {
   loading.value = true
   try {
@@ -524,7 +533,7 @@ const removeInteraction = async (interaction: Interaction) => {
                       color="primary"
                       variant="flat"
                       prepend-icon="tabler-plus"
-                      @click="startInteraction"
+                      @click="startInteraction()"
                     >
                       {{ $t('common.crmDetails.addConversation') }}
                     </VBtn>
@@ -556,7 +565,7 @@ const removeInteraction = async (interaction: Interaction) => {
               <VSpacer />
               <VBtn
                 prepend-icon="tabler-plus"
-                @click="startInteraction"
+                @click="startInteraction()"
               >
                 {{ $t('common.crmDetails.addConversation') }}
               </VBtn>
@@ -696,7 +705,7 @@ const removeInteraction = async (interaction: Interaction) => {
             <AppDateTimePicker
               v-model="form.contacted_at"
               :label="$t('common.crmDetails.contactedAt')"
-              :config="{ dateFormat: 'Y-m-d' }"
+              :config="{ enableTime: true, dateFormat: 'Y-m-d H:i', static: false, position: 'below', onOpen: compactCalendar }"
             />
           </VCol>
           <VCol
@@ -707,7 +716,7 @@ const removeInteraction = async (interaction: Interaction) => {
               v-model="form.follow_up_at"
               :label="$t('common.crmUi.followUp')"
               clearable
-              :config="{ enableTime: true, dateFormat: 'Y-m-d H:i' }"
+              :config="{ enableTime: true, dateFormat: 'Y-m-d H:i', static: false, position: 'below', onOpen: compactCalendar }"
             />
           </VCol>
         </VRow>

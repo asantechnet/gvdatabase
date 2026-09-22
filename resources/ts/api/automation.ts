@@ -3,6 +3,9 @@ import api from './axios'
 export interface BonusRules {
   minimum_completed_tasks: number
   amount_per_completed_task: number
+  minimum_cases_won: number
+  amount_per_case_won: number
+  task_quality_weighting_enabled: boolean
   maximum_monthly_bonus: number
   excluded_employee_ids: number[]
   excluded_office_ids: number[]

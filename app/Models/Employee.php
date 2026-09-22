@@ -37,6 +37,7 @@ class Employee extends Model
         'join_date',
         'contract_duration',
         'avatar',
+        'document_path', 'document_name', 'document_mime', 'document_size',
         'user_id',
     ];
 

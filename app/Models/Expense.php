@@ -26,6 +26,7 @@ class Expense extends Model
         'currency',
         'type',
         'description',
+        'document_path', 'document_name', 'document_mime', 'document_size',
         'amount',
         'quantity',
         'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',

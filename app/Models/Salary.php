@@ -89,6 +89,11 @@ class Salary extends Model
         return $this->hasOne(Expense::class);
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(SalaryPayment::class)->orderBy('payment_date')->orderBy('id');
+    }
+
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');

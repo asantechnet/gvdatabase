@@ -6,8 +6,8 @@ import { type ThemeColorPreferences, persistThemeColors, readStoredThemeColors, 
 
 const logoUrl = ref(fallbackLogo)
 const isLogoSquare = ref<boolean | null>(null)
-const shortCompanyName = ref('Asantech')
-const originalCompanyName = ref('Asantech')
+const shortCompanyName = ref('Educational Visa')
+const originalCompanyName = ref('Educational Visa Services')
 let brandingRequest: Promise<void> | null = null
 let logoProbeId = 0
 

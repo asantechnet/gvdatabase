@@ -11,6 +11,9 @@ import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
 import { canAccess } from '@/utils/authorization'
 import { contrastingTextColor } from '@/utils/themeContrast'
 import { type ThemeColorField, type ThemeColorPreferences, applyThemePalette, persistThemeColors, themeColorDefaults, themeColorFields } from '@/utils/themePersistence'
+import ContractDocumentDesignApi, { type ContractDocumentDesign } from '@/api/contractDocumentDesigns'
+import ContractTypeApi, { type ContractType } from '@/api/contractType'
+import ServiceApi, { type Service } from '@/api/services'
 
 type UploadField = 'website_logo' | 'company_signature' | 'contract_letterhead' | 'contract_cover_design'
 type SettingsPage = 'company' | 'email' | 'operations' | 'appearance' | 'documents'
@@ -31,7 +34,7 @@ const { t: translate } = useI18n()
 const defaultForm = (): SettingForm => ({
   ...themeColorDefaults,
   paid_leave_days_per_year: 0,
-  website_title: 'Asantech',
+  website_title: 'Educational Agency Portal',
   website_logo: null,
   company_signature: null,
   contract_letterhead: null,
@@ -55,8 +58,8 @@ const defaultForm = (): SettingForm => ({
   timezone: 'Asia/Kabul',
   phone: '',
   physical_address: '',
-  short_company_name: 'Asantech',
-  original_company_name: 'Asantech',
+  short_company_name: 'Educational Agency',
+  original_company_name: 'Educational Agency',
   business_licence: '',
   office_open_time: '09:00',
   office_close_time: '17:00',
@@ -75,6 +78,18 @@ const coverDesignPreview = ref<string | null>(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 const objectUrls = new Set<string>()
+const documentDesigns = ref<ContractDocumentDesign[]>([])
+const contractTypes = ref<ContractType[]>([])
+const services = ref<Service[]>([])
+const selectedDesignTypeId = ref<number | null>(null)
+const selectedDesignServiceId = ref<number | null>(null)
+const designLetterhead = ref<File | null>(null)
+const designCover = ref<File | null>(null)
+const designSaving = ref(false)
+
+const selectedDocumentDesign = computed(() => documentDesigns.value.find(design => design.contract_type_id === selectedDesignTypeId.value && design.service_id === selectedDesignServiceId.value) ?? null)
+const typeOptions = computed(() => contractTypes.value.filter(type => type.is_active).map(type => ({ title: type.name, value: type.id })))
+const serviceOptions = computed(() => services.value.filter(service => service.status === 'active').map(service => ({ title: service.name || service.type, value: service.id })))
 
 const settingsPages = computed(() => [
   { value: 'company' as const, icon: 'tabler-building', title: translate('pages.settings.settings.companyPage'), description: translate('pages.settings.settings.companyPageDescription') },
@@ -243,6 +258,32 @@ async function loadSettings() {
   finally {
     isLoading.value = false
   }
+}
+
+async function loadDocumentDesigns() {
+  const [types, catalog, designs] = await Promise.all([ContractTypeApi.getAll(), ServiceApi.getAll(), ContractDocumentDesignApi.getAll()])
+  contractTypes.value = types
+  services.value = catalog.data
+  documentDesigns.value = designs
+  selectedDesignTypeId.value ??= types.find(type => type.is_active)?.id ?? null
+}
+
+async function saveDocumentDesign() {
+  if (!canEditSettings.value || !selectedDesignTypeId.value) return
+  designSaving.value = true
+  try {
+    const data = new FormData()
+    data.append('contract_type_id', String(selectedDesignTypeId.value))
+    if (selectedDesignServiceId.value) data.append('service_id', String(selectedDesignServiceId.value))
+    if (designLetterhead.value) data.append('letterhead', designLetterhead.value)
+    if (designCover.value) data.append('cover_design', designCover.value)
+    const saved = await ContractDocumentDesignApi.save(selectedDocumentDesign.value?.id ?? null, data)
+    documentDesigns.value = [...documentDesigns.value.filter(design => design.id !== saved.id), saved]
+    designLetterhead.value = null
+    designCover.value = null
+    toast.success('Document design saved.')
+  }
+  finally { designSaving.value = false }
 }
 
 function handleImageUpload(event: Event, field: UploadField) {
@@ -512,7 +553,9 @@ async function saveSettings() {
   }
 }
 
-onMounted(loadSettings)
+onMounted(async () => {
+  await Promise.all([loadSettings(), loadDocumentDesigns()])
+})
 onBeforeUnmount(revokeObjectUrls)
 </script>
 
@@ -1033,6 +1076,30 @@ onBeforeUnmount(revokeObjectUrls)
             >
               {{ $t('pages.settings.settings.documentArtworkHint') }}
             </VAlert>
+            <VCard variant="outlined" class="mb-5">
+              <VCardItem title="Contract-specific artwork" subtitle="Choose a contract type and, optionally, a service. This design is saved with each newly issued contract." />
+              <VCardText>
+                <VRow>
+                  <VCol cols="12" md="6">
+                    <VSelect v-model="selectedDesignTypeId" :items="typeOptions" label="Contract type" :disabled="!canEditSettings" />
+                  </VCol>
+                  <VCol cols="12" md="6">
+                    <VSelect v-model="selectedDesignServiceId" :items="serviceOptions" label="Service (optional)" clearable :disabled="!canEditSettings" />
+                  </VCol>
+                  <VCol cols="12" md="6">
+                    <VFileInput v-model="designLetterhead" label="Letterhead" accept="image/jpeg,image/png,image/webp" prepend-icon="tabler-file-upload" :disabled="!canEditSettings" />
+                    <VImg v-if="selectedDocumentDesign?.letterhead_url" :src="selectedDocumentDesign.letterhead_url" height="120" cover class="mt-2" />
+                  </VCol>
+                  <VCol cols="12" md="6">
+                    <VFileInput v-model="designCover" label="Cover" accept="image/jpeg,image/png,image/webp" prepend-icon="tabler-file-upload" :disabled="!canEditSettings" />
+                    <VImg v-if="selectedDocumentDesign?.cover_design_url" :src="selectedDocumentDesign.cover_design_url" height="120" cover class="mt-2" />
+                  </VCol>
+                </VRow>
+                <VBtn color="primary" prepend-icon="tabler-device-floppy" :loading="designSaving" :disabled="!canEditSettings || !selectedDesignTypeId || (!designLetterhead && !designCover)" @click="saveDocumentDesign">
+                  Save contract design
+                </VBtn>
+              </VCardText>
+            </VCard>
             <VRow>
               <VCol
                 v-for="asset in [

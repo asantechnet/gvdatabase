@@ -11,7 +11,7 @@ class ContractPolicyController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = ContractPolicy::query();
+        $query = ContractPolicy::query()->with(['country', 'language']);
         if (! $request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
@@ -57,7 +57,9 @@ class ContractPolicyController extends Controller
             // A policy clause is reusable only within one of the contract
             // contexts the resolver understands. Keep API callers aligned
             // with the restricted select shown in the policy editor.
-            'type' => ($partial ? 'sometimes' : 'required').'|in:employment,company,customer',
+            'type' => ($partial ? 'sometimes' : 'required').'|string|max:100',
+            'country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'language_id' => ['nullable', 'integer', 'exists:languages,id'],
             'is_active' => ['sometimes', 'boolean'],
             'header' => 'nullable|string|max:255',
             'content' => ($partial ? 'sometimes' : 'required').'|string',

@@ -23,7 +23,7 @@ class EducationalBonusSourceController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'source_type' => ['required', 'in:contract,scholarship,test_offer'],
+            'source_type' => ['required', 'in:contract,service'],
             'source_id' => ['required', 'integer', 'min:1'],
             'source_amount' => ['nullable', 'numeric', 'gt:0'],
             'bonus_amount' => ['nullable', 'numeric', 'gte:0'],

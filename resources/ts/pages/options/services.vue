@@ -10,8 +10,9 @@ import { apiErrorMessage } from '@/utils/apiErrors'
 interface ServiceItem {
   id: number
   type: string
+  description?: string | null
   fee: number
-  duration: number
+  duration: number | null
   currency: string
   currency_id: number
   status: 'active' | 'inactive'
@@ -24,7 +25,7 @@ interface CurrencyOption {
 
 // --- Headers matching the table layout ---
 const headers = [
-  { title: translate('common.fields.type2'), key: 'type', align: 'start' },
+  { title: 'Service', key: 'type', align: 'start' },
   { title: translate('pages.contracts.services.services.fee'), key: 'fee', align: 'start' },
   { title: translate('pages.contracts.services.services.durationMONTHS'), key: 'duration', align: 'start' },
   { title: translate('common.fields.currency2'), key: 'currency', align: 'start' },
@@ -44,8 +45,9 @@ const toast = useToast()
 // Default form state
 const defaultItem: Omit<ServiceItem, 'id'> = {
   type: '',
+  description: '',
   fee: 0,
-  duration: 1,
+  duration: null,
   currency: 'USD',
   currency_id: 1,
   status: 'active',
@@ -76,8 +78,9 @@ const fetchServices = async () => {
 
     services.value = response.data.map(service => ({
       id: service.id,
-      type: service.type,
-      duration: service.duration,
+      type: service.name || service.type,
+      description: service.description,
+      duration: service.duration ?? null,
       fee: Number(service.fee),
       status: service.status as 'active' | 'inactive',
       currency: service.currency.code,
@@ -122,6 +125,7 @@ const createService = async () => {
 
     const payload: CreateServiceData = {
       type: editedItem.value.type,
+      description: editedItem.value.description,
       duration: editedItem.value.duration,
       fee: editedItem.value.fee,
       status: editedItem.value.status,
@@ -157,6 +161,7 @@ const updateService = async () => {
 
     const payload: UpdateServiceData = {
       type: editedItem.value.type,
+      description: editedItem.value.description,
       duration: editedItem.value.duration,
       fee: editedItem.value.fee,
       status: editedItem.value.status,
@@ -171,6 +176,7 @@ const updateService = async () => {
       services.value[index] = {
         id: response.data.id,
         type: response.data.type,
+        description: response.data.description,
         duration: response.data.duration,
         fee: Number(response.data.fee),
         status: response.data.status as 'active' | 'inactive',
@@ -229,6 +235,7 @@ const openEditModal = (item: ServiceItem) => {
   editedItemId.value = item.id
   editedItem.value = {
     type: item.type,
+    description: item.description,
     fee: item.fee,
     duration: item.duration,
     currency: item.currency,

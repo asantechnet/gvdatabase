@@ -15,7 +15,7 @@ class ServiceController extends Controller
      */
     public function index(): JsonResponse
     {
-        $services = Service::with('currency')->get();
+        $services = Service::with(['currency', 'packages'])->orderBy('type')->get();
 
         return response()->json(ServiceResource::collection($services));
     }
@@ -27,7 +27,9 @@ class ServiceController extends Controller
     {
         $validated = $request->validate([
             'type' => 'required|string|max:255',
-            'duration' => 'required|integer|min:1',
+            'category' => ['sometimes', 'string', Rule::in(['general', 'scholarship', 'test_offer'])],
+            'description' => 'nullable|string|max:5000',
+            'duration' => 'nullable|integer|min:1',
             'fee' => 'required|numeric|min:0',
             'status' => [
                 'required',
@@ -39,7 +41,7 @@ class ServiceController extends Controller
 
         $service = Service::create($validated);
 
-        return response()->json(new ServiceResource($service->load('currency')), 201);
+        return response()->json(new ServiceResource($service->load(['currency', 'packages'])), 201);
     }
 
     /**
@@ -47,7 +49,7 @@ class ServiceController extends Controller
      */
     public function show(Service $service): JsonResponse
     {
-        return response()->json(new ServiceResource($service->load('currency')));
+        return response()->json(new ServiceResource($service->load(['currency', 'packages'])));
     }
 
     /**
@@ -57,7 +59,9 @@ class ServiceController extends Controller
     {
         $validated = $request->validate([
             'type' => 'sometimes|required|string|max:255',
-            'duration' => 'sometimes|required|integer|min:1',
+            'category' => ['sometimes', 'string', Rule::in(['general', 'scholarship', 'test_offer'])],
+            'description' => 'nullable|string|max:5000',
+            'duration' => 'sometimes|nullable|integer|min:1',
             'fee' => 'sometimes|required|numeric|min:0',
             'status' => [
                 'sometimes',
@@ -70,7 +74,7 @@ class ServiceController extends Controller
 
         $service->update($validated);
 
-        return response()->json(new ServiceResource($service->load('currency')));
+        return response()->json(new ServiceResource($service->load(['currency', 'packages'])));
     }
 
     /**
@@ -78,7 +82,7 @@ class ServiceController extends Controller
      */
     public function destroy(Service $service): JsonResponse
     {
-        if ($service->invoices()->exists() || $service->customerServices()->exists() || $service->projects()->exists()) {
+        if ($service->invoices()->exists() || $service->customerServices()->exists() || $service->projects()->exists() || $service->packages()->exists()) {
             return response()->json([
                 'message' => 'Assigned, projected, or invoiced services cannot be deleted. Mark the service inactive instead.',
             ], 409);

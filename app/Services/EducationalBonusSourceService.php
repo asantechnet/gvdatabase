@@ -3,9 +3,8 @@
 namespace App\Services;
 
 use App\Models\Contract;
+use App\Models\CustomerService;
 use App\Models\EducationalBonusSource;
-use App\Models\Scholarship;
-use App\Models\TestOffer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
@@ -16,8 +15,7 @@ class EducationalBonusSourceService
     {
         return [
             'contract' => Contract::class,
-            'scholarship' => Scholarship::class,
-            'test_offer' => TestOffer::class,
+            'service' => CustomerService::class,
         ];
     }
 
@@ -26,11 +24,11 @@ class EducationalBonusSourceService
      * The employee, customer, applicant and fee always come from the source
      * record so callers cannot misattribute a sale to another case.
      *
-     * @param array{bonus_amount?: numeric, rule_source?: string|null, status?: string, source_amount?: numeric} $bonus
+     * @param  array{bonus_amount?: numeric, rule_source?: string|null, status?: string, source_amount?: numeric}  $bonus
      */
     public function createFor(Model $source, array $bonus = []): EducationalBonusSource
     {
-        $employeeId = $source->getAttribute('employee_id');
+        $employeeId = $source->getAttribute('sold_by_employee_id') ?? $source->getAttribute('employee_id');
         $customerId = $source->getAttribute('customer_id');
 
         if (! $employeeId || ! $customerId) {
@@ -40,6 +38,9 @@ class EducationalBonusSourceService
         }
 
         $sourceAmount = $source->getAttribute('fee');
+        if ($source instanceof CustomerService && $sourceAmount === null) {
+            $sourceAmount = $source->service?->fee;
+        }
         if ($sourceAmount === null) {
             $sourceAmount = $bonus['source_amount'] ?? null;
         }
@@ -69,10 +70,10 @@ class EducationalBonusSourceService
     public function syncForService(Model $source): void
     {
         $source->bonusSource()->update([
-            'employee_id' => $source->employee_id,
+            'employee_id' => $source->sold_by_employee_id ?? $source->employee_id,
             'customer_id' => $source->customer_id,
             'applicant_id' => $source->applicant_id,
-            'source_amount' => $source->fee,
+            'source_amount' => $source->fee ?? $source->service?->fee,
         ]);
     }
 }

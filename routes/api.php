@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\AccountDeactivationRequestController;
+use App\Http\Controllers\ApplicantController;
+use App\Http\Controllers\ApplicantPortalController;
+use App\Http\Controllers\ApplicantStageController;
+use App\Http\Controllers\ApplicantUniversityController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceGeofenceController;
@@ -13,6 +17,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ContractController;
+use App\Http\Controllers\ContractDocumentDesignController;
 use App\Http\Controllers\ContractPolicyController;
 use App\Http\Controllers\ContractTemplateController;
 use App\Http\Controllers\ContractTemplateVersionController;
@@ -21,15 +26,12 @@ use App\Http\Controllers\CrmInteractionController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerServiceController;
-use App\Http\Controllers\ApplicantController;
-use App\Http\Controllers\ApplicantUniversityController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EducationalBonusSourceController;
 use App\Http\Controllers\EducationalDashboardController;
 use App\Http\Controllers\EducationalMasterDataController;
 use App\Http\Controllers\EducationalReportController;
 use App\Http\Controllers\EducationalServiceController;
-use App\Http\Controllers\EducationalBonusSourceController;
-use App\Http\Controllers\PendingTransactionController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FileController;
@@ -41,8 +43,10 @@ use App\Http\Controllers\MarketerController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficeController;
 use App\Http\Controllers\OutsourcingController;
+use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PaidTimeOffController;
 use App\Http\Controllers\PaymentDetailController;
+use App\Http\Controllers\PendingTransactionController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PositionController;
 use App\Http\Controllers\ProjectController;
@@ -51,6 +55,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\SalaryDeductionController;
+use App\Http\Controllers\SalaryPaymentController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SettingController;
@@ -115,6 +120,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         Route::delete('/account/avatar', [AuthController::class, 'removeAvatar']);
         Route::put('/account/password', [AuthController::class, 'updatePassword']);
         Route::put('/account/notifications', [AuthController::class, 'updateNotifications']);
+        Route::put('/account/ui-scale', [AuthController::class, 'updateUiScale']);
         Route::post('/account/two-factor', [AuthController::class, 'beginTwoFactor']);
         Route::post('/account/two-factor/confirm', [AuthController::class, 'confirmTwoFactor']);
         Route::delete('/account/two-factor', [AuthController::class, 'disableTwoFactor']);
@@ -219,6 +225,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         ->middlewareFor('store', 'permission:create_employees')
         ->middlewareFor('update', 'permission:edit_employees')
         ->middlewareFor('destroy', 'permission:delete_employees');
+    Route::post('employees/{employee}/document', [EmployeeController::class, 'uploadDocument'])->middleware('permission:edit_employees');
+    Route::get('employees/{employee}/document', [EmployeeController::class, 'downloadDocument'])->middleware('permission:view_employees');
+    Route::delete('employees/{employee}/document', [EmployeeController::class, 'removeDocument'])->middleware('permission:edit_employees');
 
     // Position routes
     Route::apiResource('positions', PositionController::class)
@@ -241,6 +250,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
 
     // Employee Salary routes
     Route::get('salaries/granted-bonuses', [SalaryController::class, 'grantedBonuses'])->middleware('permission:view_bonuses');
+    Route::post('salaries/{salary}/payments', [SalaryPaymentController::class, 'store'])->middleware('permission:create_salaries');
+    Route::delete('salaries/{salary}/payments/{payment}', [SalaryPaymentController::class, 'destroy'])->middleware('permission:delete_salaries');
     Route::get('salaries/{salary}/deductions', [SalaryDeductionController::class, 'index'])->middleware('permission:view_salary_deductions');
     Route::post('salaries/{salary}/deductions', [SalaryDeductionController::class, 'store'])->middleware('permission:create_salary_deductions');
     Route::patch('salaries/{salary}/deductions/{deduction}', [SalaryDeductionController::class, 'update'])->middleware('permission:edit_salary_deductions');
@@ -290,6 +301,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         ->middlewareFor('store', 'permission:create_expenses')
         ->middlewareFor('update', 'permission:edit_expenses')
         ->middlewareFor('destroy', 'permission:delete_expenses');
+    Route::post('expenses/{expense}/document', [ExpenseController::class, 'uploadDocument'])->middleware('permission:edit_expenses');
+    Route::get('expenses/{expense}/document', [ExpenseController::class, 'downloadDocument'])->middleware('permission:view_expenses');
+    Route::delete('expenses/{expense}/document', [ExpenseController::class, 'removeDocument'])->middleware('permission:edit_expenses');
 
     // Income routes
     Route::apiResource('incomes', IncomeController::class)
@@ -345,16 +359,22 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     // Educational visa agency master data and case management. These routes
     // intentionally reuse configurable RBAC; the dedicated permission catalog
     // is added in the authorization phase before production role rollout.
-    Route::prefix('educational-master-data/{catalog}')->whereIn('catalog', ['countries', 'education-levels', 'languages', 'package-types', 'universities'])->group(function () {
+    Route::prefix('educational-master-data/{catalog}')->whereIn('catalog', ['countries', 'education-levels', 'languages', 'package-types', 'universities', 'semesters'])->group(function () {
         Route::get('/', [EducationalMasterDataController::class, 'index']);
         Route::post('/', [EducationalMasterDataController::class, 'store']);
         Route::get('/{id}', [EducationalMasterDataController::class, 'show']);
         Route::put('/{id}', [EducationalMasterDataController::class, 'update']);
         Route::delete('/{id}', [EducationalMasterDataController::class, 'destroy']);
     });
-    Route::get('applicant-stages', [ApplicantController::class, 'stages'])->middleware('permission:view_applicants');
+    Route::get('applicant-stages', [ApplicantStageController::class, 'index'])->middleware('permission:view_applicant_stages');
+    Route::post('applicant-stages', [ApplicantStageController::class, 'store'])->middleware('permission:manage_applicant_stages');
+    Route::put('applicant-stages/{applicantStage}', [ApplicantStageController::class, 'update'])->middleware('permission:manage_applicant_stages');
+    Route::delete('applicant-stages/{applicantStage}', [ApplicantStageController::class, 'destroy'])->middleware('permission:manage_applicant_stages');
+    Route::get('applicant-portal', [ApplicantPortalController::class, 'show'])->middleware('permission:view_own_applicant_portal');
+    Route::put('applicant-portal/profile', [ApplicantPortalController::class, 'updateProfile'])->middleware('permission:edit_own_applicant_profile');
+    Route::post('applicants/{applicant}/portal-invitation', [ApplicantPortalController::class, 'invite'])->middleware('permission:invite_applicant_portal');
     Route::get('applicants-pipeline', [ApplicantController::class, 'pipeline'])->middleware('permission:view_applicants');
-    Route::apiResource('applicants', ApplicantController::class)->middlewareFor(['index','show'], 'permission:view_applicants')->middlewareFor('store', 'permission:create_applicants')->middlewareFor('update', 'permission:edit_applicants')->middlewareFor('destroy', 'permission:delete_applicants');
+    Route::apiResource('applicants', ApplicantController::class)->middlewareFor(['index', 'show'], 'permission:view_applicants')->middlewareFor('store', 'permission:create_applicants')->middlewareFor('update', 'permission:edit_applicants')->middlewareFor('destroy', 'permission:delete_applicants');
     Route::post('applicants/{applicant}/change-stage', [ApplicantController::class, 'changeStage'])->middleware('permission:change_applicant_stage');
     Route::get('applicants/{applicant}/universities', [ApplicantUniversityController::class, 'index'])->middleware('permission:view_applicants');
     Route::post('applicants/{applicant}/universities', [ApplicantUniversityController::class, 'store'])->middleware('permission:edit_applicants');
@@ -368,25 +388,35 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::get('educational-dashboard', [EducationalDashboardController::class, 'index'])->middleware('permission:view_dashboard');
     // Visa-agency tabular reports plus CSV export. New controller on purpose:
     // the finance report surface stays untouched by agency reporting.
-    Route::get('educational-reports/{type}', [EducationalReportController::class, 'show'])->middleware('permission:view_reports');
-    Route::get('educational-reports/{type}/export', [EducationalReportController::class, 'export'])->middleware('permission:view_reports');
-    Route::get('educational-services/options', [EducationalServiceController::class, 'options'])->middleware('permission:view_services');
-    Route::get('educational-services/{type}', [EducationalServiceController::class, 'index'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:view_services');
-    Route::get('educational-services/{type}/{id}', [EducationalServiceController::class, 'show'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:view_services');
-    Route::post('educational-services/{type}', [EducationalServiceController::class, 'store'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:manage_customer_services');
-    Route::put('educational-services/{type}/{id}', [EducationalServiceController::class, 'update'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:manage_customer_services');
-    Route::delete('educational-services/{type}/{id}', [EducationalServiceController::class, 'destroy'])->whereIn('type',['scholarships','test-offers'])->middleware('permission:manage_customer_services');
+    Route::get('educational-reports/{type}', [EducationalReportController::class, 'show'])->middleware('permission:view_visa_reports');
+    Route::get('educational-reports/{type}/export', [EducationalReportController::class, 'export'])->middleware('permission:view_visa_reports');
+    Route::get('educational-services/options', [EducationalServiceController::class, 'options'])->middleware('permission:view_educational_services');
+    Route::get('educational-services/{type}', [EducationalServiceController::class, 'index'])->whereIn('type', ['scholarships', 'test-offers'])->middleware('permission:view_educational_services');
+    Route::get('educational-services/{type}/{id}', [EducationalServiceController::class, 'show'])->whereIn('type', ['scholarships', 'test-offers'])->middleware('permission:view_educational_services');
+    Route::post('educational-services/{type}', [EducationalServiceController::class, 'store'])->whereIn('type', ['scholarships', 'test-offers'])->middleware('permission:manage_educational_services');
+    Route::put('educational-services/{type}/{id}', [EducationalServiceController::class, 'update'])->whereIn('type', ['scholarships', 'test-offers'])->middleware('permission:manage_educational_services');
+    Route::delete('educational-services/{type}/{id}', [EducationalServiceController::class, 'destroy'])->whereIn('type', ['scholarships', 'test-offers'])->middleware('permission:manage_educational_services');
     Route::get('educational-bonus-sources', [EducationalBonusSourceController::class, 'index'])->middleware('permission:view_bonuses');
-    Route::post('educational-bonus-sources', [EducationalBonusSourceController::class, 'store'])->middleware('permission:manage_commission_settlements');
-    Route::put('educational-bonus-sources/{educationalBonusSource}', [EducationalBonusSourceController::class, 'update'])->middleware('permission:manage_commission_settlements');
-    Route::get('pending-transactions',[PendingTransactionController::class,'index'])->middleware('permission:view_pending_transactions');
-    Route::get('pending-transactions/options',[PendingTransactionController::class,'options'])->middleware('permission:create_pending_transactions');
-    Route::post('pending-transactions',[PendingTransactionController::class,'store'])->middleware('permission:create_pending_transactions');
-    Route::put('pending-transactions/{pendingTransaction}',[PendingTransactionController::class,'update'])->middleware('permission:create_pending_transactions');
-    Route::post('pending-transactions/{pendingTransaction}/review',[PendingTransactionController::class,'review'])->middleware('permission:approve_pending_transactions');
-    Route::post('pending-transactions/{pendingTransaction}/approve',[PendingTransactionController::class,'approve'])->middleware('permission:approve_pending_transactions');
-    Route::post('pending-transactions/{pendingTransaction}/reject',[PendingTransactionController::class,'reject'])->middleware('permission:approve_pending_transactions');
-    Route::post('pending-transactions/{pendingTransaction}/post',[PendingTransactionController::class,'post'])->middleware('permission:post_pending_transactions');
+    Route::post('educational-bonus-sources', [EducationalBonusSourceController::class, 'store'])->middleware('permission:manage_educational_bonuses');
+    Route::put('educational-bonus-sources/{educationalBonusSource}', [EducationalBonusSourceController::class, 'update'])->middleware('permission:manage_educational_bonuses');
+    // Loans are the canonical public workflow. The older pending-transactions
+    // endpoints remain below only for already deployed clients.
+    Route::get('loans', [PendingTransactionController::class, 'index'])->middleware('permission:view_pending_transactions');
+    Route::get('loans/options', [PendingTransactionController::class, 'options'])->middleware('permission:create_pending_transactions');
+    Route::post('loans', [PendingTransactionController::class, 'store'])->middleware('permission:create_pending_transactions');
+    Route::put('loans/{pendingTransaction}', [PendingTransactionController::class, 'update'])->middleware('permission:create_pending_transactions');
+    Route::post('loans/{pendingTransaction}/review', [PendingTransactionController::class, 'review'])->middleware('permission:approve_pending_transactions');
+    Route::post('loans/{pendingTransaction}/approve', [PendingTransactionController::class, 'approve'])->middleware('permission:approve_pending_transactions');
+    Route::post('loans/{pendingTransaction}/reject', [PendingTransactionController::class, 'reject'])->middleware('permission:approve_pending_transactions');
+    Route::post('loans/{pendingTransaction}/post', [PendingTransactionController::class, 'post'])->middleware('permission:post_pending_transactions');
+    Route::get('pending-transactions', [PendingTransactionController::class, 'index'])->middleware('permission:view_pending_transactions');
+    Route::get('pending-transactions/options', [PendingTransactionController::class, 'options'])->middleware('permission:create_pending_transactions');
+    Route::post('pending-transactions', [PendingTransactionController::class, 'store'])->middleware('permission:create_pending_transactions');
+    Route::put('pending-transactions/{pendingTransaction}', [PendingTransactionController::class, 'update'])->middleware('permission:create_pending_transactions');
+    Route::post('pending-transactions/{pendingTransaction}/review', [PendingTransactionController::class, 'review'])->middleware('permission:approve_pending_transactions');
+    Route::post('pending-transactions/{pendingTransaction}/approve', [PendingTransactionController::class, 'approve'])->middleware('permission:approve_pending_transactions');
+    Route::post('pending-transactions/{pendingTransaction}/reject', [PendingTransactionController::class, 'reject'])->middleware('permission:approve_pending_transactions');
+    Route::post('pending-transactions/{pendingTransaction}/post', [PendingTransactionController::class, 'post'])->middleware('permission:post_pending_transactions');
     Route::post('/customers/{customer}/services', [CustomerServiceController::class, 'store'])->middleware('permission:manage_customer_services');
     Route::put('/customers/{customer}/services/{customerService}', [CustomerServiceController::class, 'update'])->middleware('permission:manage_customer_services');
     Route::delete('/customers/{customer}/services/{customerService}', [CustomerServiceController::class, 'destroy'])->middleware('permission:manage_customer_services');
@@ -404,6 +434,12 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::apiResource('services', ServiceController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_services')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_services');
+
+    Route::apiResource('packages', PackageController::class)
+        ->middlewareFor(['index', 'show'], 'permission:view_packages')
+        ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_packages');
+    Route::post('packages/{package}/issue', [PackageController::class, 'issue'])
+        ->middleware('permission:issue_packages');
 
     // Currency routes
     Route::apiResource('currencies', CurrencyController::class)
@@ -431,6 +467,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::apiResource('contract-types', ContractTypeController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_contract_types')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_contract_types');
+    Route::apiResource('contract-document-designs', ContractDocumentDesignController::class)->only(['index', 'store', 'update'])
+        ->middlewareFor('index', 'permission:view_contract_types')
+        ->middlewareFor(['store', 'update'], 'permission:manage_contract_types');
 
     // Context-aware placeholder definitions for the template editor
     Route::get('contract-placeholders', [ContractController::class, 'placeholders'])

@@ -2,11 +2,13 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
+import { useI18n } from 'vue-i18n'
 import SearchApi, { type SearchGroup, type SearchHit, type SearchResponse } from '@/api/search'
 
 const toast = useToast()
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 const q = ref((route.query.q as string) ?? '')
 const loading = ref(false)
@@ -15,11 +17,11 @@ let timer: ReturnType<typeof setTimeout> | null = null
 
 const groups = computed(() => result.value?.groups ?? {})
 const groupOrder: SearchGroup[] = ['applicants', 'customers', 'contracts']
-const groupMeta: Record<SearchGroup, { title: string; icon: string; empty: string }> = {
-  applicants: { title: 'Applicants / visa cases', icon: 'tabler-school', empty: 'No matching cases. Try the customer name, phone, email, or case ID.' },
-  customers: { title: 'Customers', icon: 'tabler-users', empty: 'No matching customers.' },
-  contracts: { title: 'Contracts', icon: 'tabler-file-text', empty: 'No matching contracts. Try the contract number.' },
-}
+const groupMeta = computed<Record<SearchGroup, { title: string; icon: string; empty: string }>>(() => ({
+  applicants: { title: t('educational.search.groups.applicants'), icon: 'tabler-school', empty: t('educational.search.empty.applicants') },
+  customers: { title: t('educational.search.groups.customers'), icon: 'tabler-users', empty: t('educational.search.empty.customers') },
+  contracts: { title: t('educational.search.groups.contracts'), icon: 'tabler-file-text', empty: t('educational.search.empty.contracts') },
+}))
 const totalHits = computed(() => Object.values(groups.value).reduce((sum, hits) => sum + (hits?.length ?? 0), 0))
 const searched = computed(() => result.value !== null)
 
@@ -40,7 +42,7 @@ async function run() {
     router.replace({ name: 'search', query: { q: query } })
   }
   catch {
-    toast.error('Search is unavailable right now.')
+    toast.error(t('educational.search.unavailable'))
   }
   finally {
     loading.value = false
@@ -63,11 +65,11 @@ watch(q, debounced)
 
 <template>
   <VCard>
-    <VCardTitle>Search</VCardTitle>
+    <VCardTitle>{{ $t('educational.search.title') }}</VCardTitle>
     <VCardText>
-      <VTextField v-model="q" label="Name, phone, email, case ID, or contract number" prepend-inner-icon="tabler-search" clearable autofocus :loading="loading" hint="Type an ID or at least 2 characters" persistent-hint @keyup.enter="run" />
-      <p v-if="!searched && !loading" class="text-caption text-medium-emphasis mt-4">Results appear here grouped by applicants, customers, and contracts. You only see records your role may open.</p>
-      <p v-if="searched && !loading" class="text-caption text-medium-emphasis mt-4">{{ totalHits }} result{{ totalHits === 1 ? '' : 's' }} for “{{ result?.query }}”.</p>
+      <VTextField v-model="q" :label="$t('educational.search.label')" prepend-inner-icon="tabler-search" clearable autofocus :loading="loading" :hint="$t('educational.search.hint')" persistent-hint @keyup.enter="run" />
+      <p v-if="!searched && !loading" class="text-caption text-medium-emphasis mt-4">{{ $t('educational.search.help') }}</p>
+      <p v-if="searched && !loading" class="text-caption text-medium-emphasis mt-4">{{ $t('educational.search.resultSummary', { count: totalHits, query: result?.query }) }}</p>
     </VCardText>
     <VProgressLinear v-if="loading" indeterminate />
     <VCardText v-if="searched && !loading">
@@ -87,7 +89,7 @@ watch(q, debounced)
           <p v-else class="text-caption text-medium-emphasis">{{ groupMeta[key].empty }}</p>
         </template>
       </div>
-      <p v-if="!totalHits" class="text-center text-medium-emphasis py-6">Nothing found. Check the spelling or try an ID or phone number.</p>
+      <p v-if="!totalHits" class="text-center text-medium-emphasis py-6">{{ $t('educational.search.nothingFound') }}</p>
     </VCardText>
   </VCard>
 </template>

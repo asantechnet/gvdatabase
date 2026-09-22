@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Models\Visitor;
 use App\Models\DailyAnalytics;
 use App\Support\CompanyProfile;
+use App\Services\ActiveContractService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

@@ -17,7 +17,7 @@ class ContractTemplateController extends Controller
 
     public function index(): JsonResponse
     {
-        $templates = ContractTemplate::with(['policies', 'contractType', 'position', 'versions.language'])->latest('id')->get();
+        $templates = ContractTemplate::with(['policies', 'contractType', 'position', 'versions.language', 'versions.country'])->latest('id')->get();
 
         return response()->json([
             'success' => true,
@@ -89,6 +89,7 @@ class ContractTemplateController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => [...$presenceRules, 'string', 'max:255'],
             'contract_type_id' => [...$presenceRules, 'integer', 'exists:contract_types,id'],
+            'service_id' => ['nullable', 'integer', 'exists:services,id'],
             'position_id' => ['nullable', 'integer', 'exists:positions,id'],
             'cover_text' => ['nullable', 'string'],
             'content' => [...$presenceRules, 'string'],

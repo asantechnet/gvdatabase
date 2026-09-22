@@ -3,8 +3,9 @@ import { ref, watch } from 'vue'
 
 interface ServiceFormData {
   type: string
+  description?: string | null
   fee: number
-  duration: number
+  duration: number | null
   currency_id: number
   status: 'active' | 'inactive'
 }
@@ -35,7 +36,7 @@ function close() {
 }
 
 function submit() {
-  emit('submit', { ...form.value, fee: Number(form.value.fee), duration: Number(form.value.duration) })
+  emit('submit', { ...form.value, fee: Number(form.value.fee), duration: form.value.duration === null || form.value.duration === '' ? null : Number(form.value.duration) })
 }
 </script>
 
@@ -69,7 +70,7 @@ function submit() {
             >
               <VTextField
                 v-model="form.type"
-                :label="$t('common.messages.serviceType')"
+                label="Service name"
                 :placeholder="$t('pages.contracts.services.services.eGWebsiteMaintenance')"
                 required
               />
@@ -85,6 +86,9 @@ function submit() {
                 item-title="title"
                 item-value="value"
               />
+            </VCol>
+            <VCol cols="12">
+              <VTextarea v-model="form.description" label="Description" rows="2" />
             </VCol>
             <VCol
               cols="12"
@@ -107,6 +111,7 @@ function submit() {
                 :label="$t('pages.contracts.services.services.durationMonths')"
                 type="number"
                 min="1"
+                clearable
               />
             </VCol>
             <VCol

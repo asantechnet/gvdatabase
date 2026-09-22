@@ -13,6 +13,7 @@ export interface Expense {
   currency_id: number
   type: string
   description: string
+  document?: { name: string; mimeType: string; size: number; downloadUrl: string } | null
   amount: number
   quantity: number
   currency: Pick<Currency, 'id' | 'code' | 'symbol' | 'rate' | 'decimalPlaces'> | null
@@ -130,3 +131,12 @@ export const deleteExpense = async (id: number): Promise<void> => {
     throw error
   }
 }
+
+export const uploadExpenseDocument = async (id: number, document: File): Promise<Expense> => {
+  const body = new FormData()
+  body.append('document', document)
+  return (await api.post<{ data: Expense }>(`/expenses/${id}/document`, body)).data.data
+}
+
+export const removeExpenseDocument = async (id: number): Promise<Expense> =>
+  (await api.delete<{ data: Expense }>(`/expenses/${id}/document`)).data.data

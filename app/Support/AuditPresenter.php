@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Applicant;
 use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\Contract;
@@ -9,15 +10,18 @@ use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\Currency;
 use App\Models\Customer;
+use App\Models\CustomerPackage;
 use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\Office;
+use App\Models\Package;
 use App\Models\PaymentDetail;
 use App\Models\Position;
 use App\Models\Service;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -48,6 +52,9 @@ final class AuditPresenter
         'office_id' => Office::class,
         'position_id' => Position::class,
         'service_id' => Service::class,
+        'applicant_id' => Applicant::class,
+        'package_id' => Package::class,
+        'customer_package_id' => CustomerPackage::class,
         'task_id' => Task::class,
         'source_task_id' => Task::class,
         'template_id' => ContractTemplate::class,
@@ -142,6 +149,9 @@ final class AuditPresenter
             'office_id' => 'office',
             'position_id' => 'position',
             'service_id' => 'service',
+            'applicant_id' => 'applicant',
+            'package_id' => 'package',
+            'customer_package_id' => 'customerPackage',
             'task_id', 'source_task_id' => 'task',
             'template_id' => 'contractTemplate',
             'contract_type_id' => 'contractType',
@@ -188,7 +198,7 @@ final class AuditPresenter
 
         try {
             $query = $class::query();
-            if (in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, class_uses_recursive($class), true)) {
+            if (in_array(SoftDeletes::class, class_uses_recursive($class), true)) {
                 $query->withTrashed();
             }
             $model = $query->find($id);
@@ -208,7 +218,7 @@ final class AuditPresenter
 
         try {
             $query = $class::query();
-            if (in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, class_uses_recursive($class), true)) {
+            if (in_array(SoftDeletes::class, class_uses_recursive($class), true)) {
                 $query->withTrashed();
             }
 

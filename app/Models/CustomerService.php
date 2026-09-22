@@ -19,8 +19,11 @@ class CustomerService extends Pivot
 
     protected $fillable = [
         'customer_id',
+        'applicant_id',
         'service_id',
+        'customer_package_id',
         'employee_id',
+        'sold_by_employee_id',
         'marketer_id',
         'outsourcing_company_id',
         'outsourcing_percentage',
@@ -29,12 +32,19 @@ class CustomerService extends Pivot
         'deadline',
         'status',
         'notes',
+        'country_id',
+        'education_level_id',
+        'language_id',
+        'sold_at',
+        'legacy_source_type',
+        'legacy_source_id',
     ];
 
     protected $casts = [
         'deadline' => 'date',
         'fee' => 'decimal:2',
         'outsourcing_percentage' => 'decimal:2',
+        'sold_at' => 'date',
     ];
 
     public function customer(): BelongsTo
@@ -45,6 +55,41 @@ class CustomerService extends Pivot
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function applicant(): BelongsTo
+    {
+        return $this->belongsTo(Applicant::class);
+    }
+
+    public function customerPackage(): BelongsTo
+    {
+        return $this->belongsTo(CustomerPackage::class);
+    }
+
+    public function soldByEmployee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'sold_by_employee_id');
+    }
+
+    public function country(): BelongsTo
+    {
+        return $this->belongsTo(Country::class);
+    }
+
+    public function educationLevel(): BelongsTo
+    {
+        return $this->belongsTo(EducationLevel::class);
+    }
+
+    public function language(): BelongsTo
+    {
+        return $this->belongsTo(Language::class);
+    }
+
+    public function bonusSource()
+    {
+        return $this->morphOne(EducationalBonusSource::class, 'source');
     }
 
     /** The employee responsible for delivering this customer's service. */

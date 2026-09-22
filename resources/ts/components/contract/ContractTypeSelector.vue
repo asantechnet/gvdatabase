@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 import ContractTypeApi, { type ContractType, SYSTEM_TYPE_SLUGS } from '@/api/contractType'
+import { translateContractPolicyType } from '@/utils/localization'
 
 const props = defineProps<{
   modelValue: number | null
@@ -36,9 +37,14 @@ interface TypeItem {
 const systemItems = computed<TypeItem[]>(() =>
   types.value
     .filter(type => isSystemSlug(type.slug))
-    .map(type => ({ title: tr(`types.${type.slug}`), value: type.id, isSystem: true, inactive: !type.is_active })))
+    .map(type => ({ title: translateContractPolicyType(type.slug, type.name), value: type.id, isSystem: true, inactive: !type.is_active })))
 
-const selectItems = computed(() => systemItems.value)
+const customItems = computed<TypeItem[]>(() =>
+  types.value
+    .filter(type => !isSystemSlug(type.slug) && type.is_active)
+    .map(type => ({ title: type.name, value: type.id, isSystem: false, inactive: false })))
+
+const selectItems = computed(() => [...systemItems.value.filter(item => !item.inactive), ...customItems.value])
 
 const rules = computed(() =>
   props.required ? [(v: unknown) => !!v || tr('validation.contractTypeRequired')] : [])
@@ -95,7 +101,7 @@ defineExpose({ fetchTypes })
                 :color="item.raw.isSystem ? 'primary' : 'secondary'"
                 variant="tonal"
               >
-                {{ tr('system') }}
+                {{ item.raw.isSystem ? tr('system') : tr('custom') }}
               </VChip>
               <VChip
                 v-if="item.raw.inactive"
@@ -111,7 +117,7 @@ defineExpose({ fetchTypes })
           <template #item="{ item, props: itemProps }">
             <VListItem v-bind="itemProps">
               <VListItemSubtitle class="text-caption">
-                {{ tr('systemTypeAvailable') }}
+                {{ item.raw.isSystem ? tr('systemTypeAvailable') : tr('customType') }}
                 <template v-if="item.raw.inactive">
                   · {{ tr('currentlyInactive') }}
                 </template>

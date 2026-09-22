@@ -42,16 +42,23 @@ export interface PendingTransactionOptions {
   employees: Array<{ id: number; name: string }>
   applicants: Array<{ id: number; customer_id: number; customer?: { id: number; name: string } }>
 }
+export interface PendingTransactionPage {
+  data: PendingTransaction[]
+  current_page: number
+  last_page: number
+  per_page: number
+  total: number
+}
 
 const unwrap = <T>(response: { data: { data: T } }) => response.data.data
 
 export default {
-  list: async () => unwrap<PendingTransaction[]>(await api.get('/pending-transactions')),
-  create: async (data: PendingTransactionInput) => unwrap<PendingTransaction>(await api.post('/pending-transactions', data)),
-  update: async (id: number, data: Partial<PendingTransactionInput>) => unwrap<PendingTransaction>(await api.put(`/pending-transactions/${id}`, data)),
-  options: async () => unwrap<PendingTransactionOptions>(await api.get('/pending-transactions/options')),
-  review: async (id: number) => unwrap<PendingTransaction>(await api.post(`/pending-transactions/${id}/review`)),
-  approve: async (id: number) => unwrap<PendingTransaction>(await api.post(`/pending-transactions/${id}/approve`)),
-  reject: async (id: number, rejection_reason: string) => unwrap<PendingTransaction>(await api.post(`/pending-transactions/${id}/reject`, { rejection_reason })),
-  post: async (id: number) => unwrap<PendingTransaction>(await api.post(`/pending-transactions/${id}/post`)),
+  list: async (page = 1, perPage = 25) => unwrap<PendingTransactionPage>(await api.get('/loans', { params: { page, per_page: perPage } })),
+  create: async (data: PendingTransactionInput) => unwrap<PendingTransaction>(await api.post('/loans', data)),
+  update: async (id: number, data: Partial<PendingTransactionInput>) => unwrap<PendingTransaction>(await api.put(`/loans/${id}`, data)),
+  options: async () => unwrap<PendingTransactionOptions>(await api.get('/loans/options')),
+  review: async (id: number) => unwrap<PendingTransaction>(await api.post(`/loans/${id}/review`)),
+  approve: async (id: number) => unwrap<PendingTransaction>(await api.post(`/loans/${id}/approve`)),
+  reject: async (id: number, rejection_reason: string) => unwrap<PendingTransaction>(await api.post(`/loans/${id}/reject`, { rejection_reason })),
+  post: async (id: number) => unwrap<PendingTransaction>(await api.post(`/loans/${id}/post`)),
 }

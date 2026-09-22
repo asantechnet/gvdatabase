@@ -11,7 +11,7 @@ class ContractPolicy extends Model
 {
     use Auditable, HasFactory, SoftDeletes;
 
-    protected $fillable = ['label', 'type', 'is_active', 'header', 'content'];
+    protected $fillable = ['label', 'type', 'country_id', 'language_id', 'is_active', 'header', 'content'];
 
     protected $casts = ['is_active' => 'boolean'];
 
@@ -20,4 +20,7 @@ class ContractPolicy extends Model
         return $this->belongsToMany(ContractTemplate::class, 'contract_policy_contract_template')
             ->withPivot('sort_order')->orderByPivot('sort_order');
     }
+
+    public function country() { return $this->belongsTo(Country::class); }
+    public function language() { return $this->belongsTo(Language::class); }
 }

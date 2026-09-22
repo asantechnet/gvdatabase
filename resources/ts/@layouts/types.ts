@@ -82,6 +82,7 @@ export interface NavLink extends NavLinkProps, Partial<AclProperties> {
   badgeContent?: string
   badgeClass?: string
   disable?: boolean
+  requiredRole?: string
 }
 
 // 👉 Vertical nav group

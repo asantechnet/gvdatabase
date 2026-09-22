@@ -7,7 +7,8 @@
       "Bash(grep protected \\\\$table *)",
       "Bash(grep -rn ''\\\\''role'\\\\'' =>\\\\|'\\\\''role'\\\\'' =>\\\\|=> $role\\\\|'\\\\''role'\\\\''' database/migrations/)",
       "Bash(grep *)",
-      "Bash(echo \"old-key refs remaining: $?\")"
+      "Bash(echo \"old-key refs remaining: $?\")",
+      "Bash(awk '/createForm/,/\\\\/VCard/' resources/ts/pages/applicants.vue)"
     ]
   }
 }

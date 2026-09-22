@@ -304,9 +304,9 @@ watch(year, () => {
           <div class="d-flex align-center justify-space-between mb-3">
             <div>
               <div class="text-subtitle-1 font-weight-bold">
-                Request history
+                {{ translate('pages.paidTimeOff.historyTitle') }}
               </div><div class="text-caption text-medium-emphasis">
-                Track the status of your submitted requests.
+                {{ translate('pages.paidTimeOff.historySubtitle') }}
               </div>
             </div><VChip
               size="small"

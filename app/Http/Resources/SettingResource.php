@@ -41,7 +41,7 @@ class SettingResource extends JsonResource
             'mail_password_configured' => filled($this->mail_password),
             'mail_from_name' => $this->mail_from_name,
             'mail_reply_to' => $this->mail_reply_to,
-            'timezone' => $this->timezone ?: 'UTC',
+            'timezone' => $this->timezone ?: config('app.timezone', 'Asia/Kabul'),
             'phone' => $this->phone,
             'physical_address' => $this->physical_address,
             'short_company_name' => $this->short_company_name,

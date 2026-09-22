@@ -28,6 +28,7 @@ export interface Lead {
   estimated_value: string | null
   next_follow_up_at: string | null
   notes: string | null
+  converted_at: string | null
   interactions: CrmInteraction[]
 }
 

@@ -33,6 +33,7 @@ interface Staff {
   total_worked_hours: number
   addr: string
   join_date: string
+  document?: Employee['document']
   avatar?: string | null
 }
 

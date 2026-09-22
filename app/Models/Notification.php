@@ -78,6 +78,7 @@ class Notification extends Model
             str_contains($classification, 'income'),
             str_contains($classification, 'expense'),
             str_contains($classification, 'payment') => 'finance_updates',
+            str_contains($classification, 'applicant') => 'applicant_updates',
             str_contains($classification, 'task'),
             str_contains($classification, 'board'),
             str_contains($classification, 'comment'),

@@ -12,7 +12,7 @@ class ApplicantUniversity extends Model
 
     public const STATUSES = ['pending', 'applied', 'admitted', 'rejected', 'withdrawn'];
 
-    protected $fillable = ['applicant_id', 'university_id', 'status', 'intake', 'notes'];
+    protected $fillable = ['applicant_id', 'university_id', 'semester_id', 'status', 'intake', 'notes'];
     protected $attributes = ['status' => 'pending'];
 
     public function applicant(): BelongsTo
@@ -24,4 +24,5 @@ class ApplicantUniversity extends Model
     {
         return $this->belongsTo(University::class);
     }
+    public function semester(): BelongsTo { return $this->belongsTo(Semester::class); }
 }

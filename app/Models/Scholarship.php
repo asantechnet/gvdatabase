@@ -12,11 +12,14 @@ class Scholarship extends Model
 {
     use Auditable, SoftDeletes;
 
-    protected $fillable = ['customer_id', 'applicant_id', 'employee_id', 'currency_id', 'package_type_id', 'date', 'fee', 'status'];
-    protected $casts = ['date' => 'date', 'fee' => 'decimal:6'];
+    protected $fillable = ['customer_id', 'applicant_id', 'country_id', 'education_level_id', 'language_id', 'employee_id', 'currency_id', 'package_type_id', 'date', 'fee', 'status'];
+    protected $casts = ['date' => 'date:Y-m-d', 'fee' => 'decimal:6'];
 
     public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
     public function applicant(): BelongsTo { return $this->belongsTo(Applicant::class); }
+    public function country(): BelongsTo { return $this->belongsTo(Country::class); }
+    public function educationLevel(): BelongsTo { return $this->belongsTo(EducationLevel::class); }
+    public function language(): BelongsTo { return $this->belongsTo(Language::class); }
     public function employee(): BelongsTo { return $this->belongsTo(Employee::class); }
     public function currency(): BelongsTo { return $this->belongsTo(Currency::class); }
     public function packageType(): BelongsTo { return $this->belongsTo(PackageType::class, 'package_type_id'); }

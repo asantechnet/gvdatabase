@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { layoutConfig } from '@layouts'
 import { can } from '@layouts/plugins/casl'
+import { useCookie } from '@core/composable/useCookie'
 import type { NavLink } from '@layouts/types'
 import {
   getComputedNavLinkToProp,
@@ -18,11 +19,13 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   isSubItem: false,
 })
+const userData = useCookie<{ roles?: string[] } | null>('userData')
+const hasRequiredRole = (item: NavLink) => !item.requiredRole || userData.value?.roles?.includes(item.requiredRole)
 </script>
 
 <template>
   <li
-    v-if="can(item.action, item.subject)"
+    v-if="can(item.action, item.subject) && hasRequiredRole(item)"
     class="nav-link"
     :class="[
       {

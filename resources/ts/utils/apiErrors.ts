@@ -104,6 +104,8 @@ const errorMessages: Record<string, string> = {
   'business.outsourcing_settlement_immutable': 'Paid supplier settlements are permanent accounting records.',
   'business.task_label_exists': 'A task label with this name already exists.',
   'business.task_bonus_review_requires_completion': 'Only completed tasks can receive bonus review inputs.',
+  'business.package_in_use': 'A package that has already been sold cannot be deleted. Mark it inactive instead.',
+  'business.package_service_managed_as_bundle': 'This service was issued by a package and must be managed through that package purchase.',
   'business.task_contributions_must_total_100': 'Contribution percentages must total 100%.',
   'business.task_contributions_assignees_mismatch': 'Provide one contribution percentage for every assigned user.',
   'business.task_contribution_user_not_assigned': 'Every contribution user must be assigned to the task.',

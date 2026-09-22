@@ -23,6 +23,7 @@ const resources: Record<string, ResourcePermissions> = {
   'visitors': { view: 'view_visitors', create: 'create_visitors', update: 'edit_visitors', delete: 'delete_visitors' },
   'customers': { view: 'view_customers', create: 'create_customers', update: 'edit_customers', delete: 'delete_customers' },
   'services': { view: 'view_services', create: 'manage_services', update: 'manage_services', delete: 'manage_services' },
+  'packages': { view: 'view_packages', create: 'manage_packages', update: 'manage_packages', delete: 'manage_packages' },
   'currencies': { view: 'view_currencies', create: 'manage_currencies', update: 'manage_currencies', delete: 'manage_currencies' },
   'settings': { view: 'view_settings', create: 'edit_settings', update: 'edit_settings', delete: 'edit_settings' },
   'contract-templates': { view: 'view_contract_templates', create: 'manage_contract_templates', update: 'manage_contract_templates', delete: 'manage_contract_templates' },
@@ -76,13 +77,6 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'POST /commission-settlements/:id/approve': ['approve_commissions'],
     'POST /commission-settlements/:id/pay': ['pay_commissions'],
     'POST /commission-settlements/:id/cancel': ['manage_commission_settlements'],
-    'GET /outsourcing/accruals': ['view_outsourcing'],
-    'GET /outsourcing/settlements': ['view_outsourcing'],
-    'POST /outsourcing/adjustments': ['manage_outsourcing_settlements'],
-    'POST /outsourcing/settlements': ['manage_outsourcing_settlements'],
-    'POST /outsourcing/settlements/:id/approve': ['approve_outsourcing'],
-    'POST /outsourcing/settlements/:id/pay': ['pay_outsourcing'],
-    'POST /outsourcing/settlements/:id/cancel': ['manage_outsourcing_settlements'],
     'GET /kanban': ['view_all_boards', 'view_assigned_boards'],
     'GET /boards': ['view_all_boards', 'view_assigned_boards'],
     'POST /boards': ['create_boards'],
@@ -128,6 +122,7 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'DELETE /salaries/:id/deductions/:id': ['delete_salary_deductions'],
     'PUT /invoices/:id/void': ['void_invoices'],
     'POST /customers/:id/services': ['manage_customer_services'],
+    'POST /packages/:id/issue': ['issue_packages'],
     'PUT /customers/:id/services/:id': ['manage_customer_services'],
     'DELETE /customers/:id/services/:id': ['manage_customer_services'],
     'PATCH /crm/customer/:id/notes': ['view_customers'],
@@ -145,6 +140,9 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'DELETE /attendances/:id': ['delete_attendance'],
     'PUT /contracts/:id/cancel': ['cancel_contracts'],
     'POST /applicants/:id/change-stage': ['change_applicant_stage'],
+    'GET /applicant-portal': ['view_own_applicant_portal'],
+    'PUT /applicant-portal/profile': ['edit_own_applicant_profile'],
+    'POST /applicants/:id/portal-invitation': ['invite_applicant_portal'],
     'GET /applicants/:id/universities': ['view_applicants'],
     'POST /applicants/:id/universities': ['edit_applicants'],
     'PUT /applicants/:id/universities/:id': ['edit_applicants'],
@@ -165,15 +163,18 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'GET /dashboard/stats': ['view_dashboard'],
     'GET /dashboard/chart-data': ['view_dashboard'],
     'GET /educational-dashboard': ['view_dashboard'],
-    'GET /educational-services/options': ['view_services'],
-    'GET /educational-services/:id': ['view_services'],
-    'GET /educational-services/:id/:id': ['view_services'],
-    'POST /educational-services/:id': ['manage_customer_services'],
-    'PUT /educational-services/:id/:id': ['manage_customer_services'],
-    'DELETE /educational-services/:id/:id': ['manage_customer_services'],
+    'GET /educational-services/options': ['view_educational_services'],
     'GET /educational-bonus-sources': ['view_bonuses'],
-    'POST /educational-bonus-sources': ['manage_commission_settlements'],
-    'PUT /educational-bonus-sources/:id': ['manage_commission_settlements'],
+    'POST /educational-bonus-sources': ['manage_educational_bonuses'],
+    'PUT /educational-bonus-sources/:id': ['manage_educational_bonuses'],
+    'GET /pending-transactions': ['view_pending_transactions'],
+    'GET /pending-transactions/options': ['create_pending_transactions'],
+    'POST /pending-transactions': ['create_pending_transactions'],
+    'PUT /pending-transactions/:id': ['create_pending_transactions'],
+    'POST /pending-transactions/:id/review': ['approve_pending_transactions'],
+    'POST /pending-transactions/:id/approve': ['approve_pending_transactions'],
+    'POST /pending-transactions/:id/reject': ['approve_pending_transactions'],
+    'POST /pending-transactions/:id/post': ['post_pending_transactions'],
     'GET /reports/invoices': ['view_financial_reports'],
     'GET /reports/expences': ['view_financial_reports'],
     'GET /reports/expenses': ['view_financial_reports'],
@@ -261,9 +262,14 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
   const educationalService = path.match(/^\/educational-services\/(scholarships|test-offers)(?:\/:id)?$/)
   if (educationalService) {
     return requestMethod === 'GET'
-      ? ['view_services']
-      : ['manage_customer_services']
+      ? ['view_educational_services']
+      : ['manage_educational_services']
   }
+
+  if (/^\/educational-reports\/[^/]+\/export$/.test(path) && requestMethod === 'GET')
+    return ['export_reports']
+  if (/^\/educational-reports\/[^/]+$/.test(path) && requestMethod === 'GET')
+    return ['view_reports']
 
   return special[`${requestMethod} ${path}`] ?? restPermission(requestMethod, path)
 }

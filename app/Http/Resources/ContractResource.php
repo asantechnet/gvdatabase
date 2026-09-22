@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ContractResource extends JsonResource
 {
@@ -15,6 +16,7 @@ class ContractResource extends JsonResource
             'contract' => $this->name ?? $this->template?->name ?? 'Untitled Contract',
             'type' => $this->type,
             'contract_type_id' => $this->contract_type_id,
+            'service_id' => $this->service_id,
             'type_slug' => $this->type_slug,
             'status' => strtolower((string) $this->status),
             'start_date' => $this->start_date?->toDateString(),
@@ -32,10 +34,11 @@ class ContractResource extends JsonResource
             'contract_template_version_id' => $this->contract_template_version_id,
             'employee_id' => $this->employee_id,
             'customer_id' => $this->customer_id,
+            'applicant_id' => $this->applicant_id,
             'company_id' => $this->company_id,
             'cover_text' => $this->cover_text,
             'content' => $this->content,
-            'snapshot_data' => $this->snapshot_data,
+            'snapshot_data' => $this->snapshotWithDocumentUrls(),
             'is_custom' => $this->is_custom,
 
             // Snapshot of the counterparty at issue time; historical
@@ -50,14 +53,24 @@ class ContractResource extends JsonResource
                 return new ContractTemplateResource($this->template);
             }),
             'contract_template_version' => $this->whenLoaded('templateVersion', fn () => ['id'=>$this->templateVersion?->id,'language_id'=>$this->templateVersion?->language_id,'version_number'=>$this->templateVersion?->version_number,'status'=>$this->templateVersion?->status]),
-            // Services are inferred from the customer's current assignments.
-            'services' => ServiceResource::collection(
-                $this->relationLoaded('customer') && $this->customer?->relationLoaded('customerServices')
-                    ? $this->customer->customerServices->map->service->filter()
-                    : collect(),
-            ),
+            'service' => new ServiceResource($this->whenLoaded('service')),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];
+    }
+
+    private function snapshotWithDocumentUrls(): ?array
+    {
+        $snapshot = $this->snapshot_data;
+        if (! is_array($snapshot) || ! isset($snapshot['document_design']) || ! is_array($snapshot['document_design'])) {
+            return $snapshot;
+        }
+
+        foreach (['letterhead', 'cover_design'] as $field) {
+            $path = $snapshot['document_design'][$field] ?? null;
+            $snapshot['document_design']["{$field}_url"] = $path ? Storage::disk('public')->url($path) : null;
+        }
+
+        return $snapshot;
     }
 }

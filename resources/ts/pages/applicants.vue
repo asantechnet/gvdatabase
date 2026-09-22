@@ -2,15 +2,19 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
+import { useI18n } from 'vue-i18n'
 import ApplicantApi, { type Applicant, type ApplicantBoard, type ApplicantStage } from '@/api/applicants'
 import CustomerApi, { type Customer } from '@/api/customer'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
+import { translateBackendValue } from '@/utils/localization'
+import { apiErrorMessage } from '@/utils/apiErrors'
 
 const toast = useToast()
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 type Tab = '' | ApplicantBoard
 
@@ -21,6 +25,7 @@ const page = ref(1)
 const lastPage = ref(1)
 const perPage = ref(25)
 const total = ref(0)
+const filtersOpen = ref(false)
 
 const search = ref((route.query.search as string) ?? '')
 const stage = ref((route.query.stage as string) ?? '')
@@ -30,6 +35,7 @@ const countryId = ref<number | null>(null)
 const universityId = ref<number | null>(null)
 const educationLevelId = ref<number | null>(null)
 const languageId = ref<number | null>(null)
+const semesterId = ref<number | null>(null)
 const dateFrom = ref('')
 const dateTo = ref('')
 
@@ -37,21 +43,27 @@ const countries = ref<MasterDataRecord[]>([])
 const universities = ref<MasterDataRecord[]>([])
 const levels = ref<MasterDataRecord[]>([])
 const languages = ref<MasterDataRecord[]>([])
+const semesters = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
 const stages = ref<ApplicantStage[]>([])
 const customers = ref<Customer[]>([])
 
 const canViewPipeline = computed(() => canAccess('view_applicants'))
 const canCreate = computed(() => canAccess('create_applicants'))
+const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
+const activeFilterCount = computed(() => [search.value, stage.value, status.value, responsibleEmployeeId.value, countryId.value, universityId.value, educationLevelId.value, languageId.value, semesterId.value, dateFrom.value, dateTo.value].filter(Boolean).length)
 
 const createDialog = ref(false)
 const creating = ref(false)
-const createForm = ref({ customer_id: null as number | null, responsible_employee_id: null as number | null, country_id: null as number | null, university_id: null as number | null, education_level_id: null as number | null, language_id: null as number | null, application_date: '', notes: '' })
+const createForm = ref({ customer_id: null as number | null, responsible_employee_id: null as number | null, country_id: null as number | null, university_id: null as number | null, education_level_id: null as number | null, language_id: null as number | null, semester_id: null as number | null, application_date: '', notes: '' })
+const createUniversityOptions = computed(() => universities.value
+  .filter(university => university.is_active && university.country_id === createForm.value.country_id)
+  .map(university => ({ title: university.name, value: university.id })))
 const tabs: Array<{ value: Tab; title: string }> = [
-  { value: 'operation', title: 'Operation List' },
-  { value: 'final', title: 'Final List' },
-  { value: 'cancelled', title: 'Cancel List' },
-  { value: '', title: 'All Applicants' },
+  { value: 'operation', title: t('educational.operationList') },
+  { value: 'final', title: t('educational.finalList') },
+  { value: 'cancelled', title: t('educational.cancelList') },
+  { value: '', title: t('educational.allApplicants') },
 ]
 
 async function load() {
@@ -67,6 +79,7 @@ async function load() {
       university_id: universityId.value,
       education_level_id: educationLevelId.value,
       language_id: languageId.value,
+      semester_id: semesterId.value,
       date_from: dateFrom.value || undefined,
       date_to: dateTo.value || undefined,
       page: page.value,
@@ -80,7 +93,7 @@ async function load() {
     total.value = result.total
   }
   catch {
-    toast.error('Unable to load applicants.')
+    toast.error(t('educational.messages.loadApplicantsFailed'))
   }
   finally {
     loading.value = false
@@ -89,11 +102,12 @@ async function load() {
 
 async function loadCatalogs() {
   try {
-    const [countryRows, universityRows, levelRows, languageRows, employeeRows, stageRows, customerResponse] = await Promise.all([
+    const [countryRows, universityRows, levelRows, languageRows, semesterRows, employeeRows, stageRows, customerResponse] = await Promise.all([
       MasterDataApi.list('countries'),
       MasterDataApi.list('universities'),
       MasterDataApi.list('education-levels'),
       MasterDataApi.list('languages'),
+      MasterDataApi.list('semesters'),
       EmployeeApi.getOptions(),
       ApplicantApi.stages(),
       CustomerApi.getAll({}),
@@ -103,12 +117,13 @@ async function loadCatalogs() {
     universities.value = universityRows
     levels.value = levelRows
     languages.value = languageRows
+    semesters.value = semesterRows
     employees.value = employeeRows
     stages.value = stageRows
     customers.value = customerResponse.data
   }
   catch {
-    toast.error('Unable to load applicant filters.')
+    toast.error(t('educational.messages.loadFiltersFailed'))
   }
 }
 
@@ -118,7 +133,7 @@ function onTabChange() {
 }
 
 function openCreate() {
-  createForm.value = { customer_id: null, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, language_id: null, application_date: '', notes: '' }
+  createForm.value = { customer_id: null, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, language_id: null, semester_id: null, application_date: '', notes: '' }
   createDialog.value = true
 }
 
@@ -130,7 +145,7 @@ async function create() {
   try {
     const payload: Record<string, unknown> = { customer_id: createForm.value.customer_id }
 
-    for (const key of ['responsible_employee_id', 'country_id', 'university_id', 'education_level_id', 'language_id'] as const) {
+    for (const key of ['responsible_employee_id', 'country_id', 'university_id', 'education_level_id', 'language_id', 'semester_id'] as const) {
       if (createForm.value[key])
         payload[key] = createForm.value[key]
     }
@@ -145,11 +160,11 @@ async function create() {
 
     createDialog.value = false
     await load()
-    toast.success(`Case #${created.id} created in New stage.`)
+    toast.success(t('educational.messages.caseCreated', { id: created.id }))
     router.push({ name: 'applicant-case', params: { id: created.id } })
   }
-  catch {
-    toast.error('Unable to create the case.')
+  catch (error) {
+    toast.error(apiErrorMessage(error, t('educational.messages.createCaseFailed')))
   }
   finally {
     creating.value = false
@@ -165,6 +180,7 @@ function clearFilters() {
   universityId.value = null
   educationLevelId.value = null
   languageId.value = null
+  semesterId.value = null
   dateFrom.value = ''
   dateTo.value = ''
   page.value = 1
@@ -182,6 +198,15 @@ watch(countryId, () => {
     universityId.value = null
 })
 
+watch(() => createForm.value.country_id, () => {
+  if (!createForm.value.university_id)
+    return
+
+  const selectedUniversity = universities.value.find(university => university.id === createForm.value.university_id)
+  if (!selectedUniversity || selectedUniversity.country_id !== createForm.value.country_id)
+    createForm.value.university_id = null
+})
+
 onMounted(async () => {
   await loadCatalogs()
   await load()
@@ -189,75 +214,79 @@ onMounted(async () => {
 </script>
 
 <template>
-  <VCard>
-    <VCardTitle class="d-flex flex-wrap align-center gap-2">
-      <span>Applicants / Visa Cases</span>
-      <VSpacer />
-      <VBtn v-if="canCreate" size="small" color="primary" prepend-icon="tabler-plus" @click="openCreate">New case</VBtn>
-      <VBtn v-if="canViewPipeline" size="small" color="primary" variant="tonal" :to="{ name: 'applicant-pipeline' }">Pipeline board</VBtn>
-    </VCardTitle>
-    <VCardText>
-      <VTabs v-model="tab" @update:model-value="onTabChange">
-        <VTab v-for="item in tabs" :key="item.title" :value="item.value">{{ item.title }}</VTab>
-      </VTabs>
+  <div class="education-workspace">
+    <header class="education-page-header">
+      <div><div class="education-eyebrow">{{ $t('educational.caseManagement') }}</div><h1>{{ $t('educational.applicantCases') }}</h1><p>{{ $t('educational.applicantCasesHelp') }}</p></div>
+      <div class="d-flex flex-wrap gap-2"><VBtn variant="tonal" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">{{ $t('educational.filters') }}<VBadge v-if="activeFilterCount" :content="activeFilterCount" color="primary" inline /></VBtn><VBtn v-if="canViewPipeline" color="primary" variant="tonal" prepend-icon="tabler-layout-kanban" :to="{ name: 'applicant-pipeline' }">{{ $t('educational.pipelineBoard') }}</VBtn><VBtn v-if="canCreate" color="primary" prepend-icon="tabler-plus" @click="openCreate">{{ $t('educational.newCase') }}</VBtn></div>
+    </header>
+  <VCard class="education-panel">
+    <VTabs v-model="tab" show-arrows class="px-3" @update:model-value="onTabChange">
+      <VTab v-for="item in tabs" :key="item.title" :value="item.value">{{ item.title }}</VTab>
+    </VTabs>
+    <VDivider />
+    <VExpandTransition><VCardText v-if="filtersOpen" class="education-filter-card rounded-0 border-0">
       <VRow dense class="mt-4">
-        <VCol cols="12" md="3"><VTextField v-model="search" label="Search name, phone, email, ID" clearable @keyup.enter="page = 1; load()" /></VCol>
-        <VCol cols="12" md="3"><VSelect v-model="stage" :items="stages.map(s => ({ title: s.name, value: s.key }))" label="Stage" clearable @update:model-value="page = 1; load()" /></VCol>
-        <VCol cols="12" md="2"><VSelect v-model="status" :items="[{ title: 'Active', value: 'active' }, { title: 'Closed', value: 'closed' }]" label="Status" clearable /></VCol>
-        <VCol cols="12" md="2"><VSelect v-model="responsibleEmployeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" label="Employee" clearable /></VCol>
-        <VCol cols="12" md="2"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" label="Country" clearable /></VCol>
-        <VCol cols="12" md="2"><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" label="University" clearable /></VCol>
-        <VCol cols="12" md="2"><VSelect v-model="educationLevelId" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" label="Education level" clearable /></VCol>
-        <VCol cols="12" md="2"><VSelect v-model="languageId" :items="languages.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" label="Language" clearable /></VCol>
-        <VCol cols="6" md="2"><VTextField v-model="dateFrom" type="date" label="From" clearable /></VCol>
-        <VCol cols="6" md="2"><VTextField v-model="dateTo" type="date" label="To" clearable /></VCol>
+        <VCol cols="12" md="3"><VTextField v-model="search" :label="$t('educational.searchApplicant')" clearable @keyup.enter="page = 1; load()" /></VCol>
+        <VCol cols="12" md="3"><VSelect v-model="stage" :items="stages.map(s => ({ title: s.name, value: s.key }))" :label="$t('educational.stage')" clearable @update:model-value="page = 1; load()" /></VCol>
+        <VCol cols="12" md="2"><VSelect v-model="status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable /></VCol>
+        <VCol cols="12" md="2"><VSelect v-model="responsibleEmployeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable /></VCol>
+        <VCol cols="12" md="2"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable /></VCol>
+        <VCol cols="12" md="2"><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable /></VCol>
+        <VCol cols="12" md="2"><VSelect v-model="educationLevelId" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable /></VCol>
+        <VCol cols="12" md="2"><VSelect v-model="languageId" :items="languages.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.language')" clearable /></VCol>
+        <VCol cols="12" md="2"><VSelect v-model="semesterId" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="$t('educational.semester')" clearable /></VCol>
+        <VCol cols="6" md="2"><VTextField v-model="dateFrom" type="date" :label="$t('educational.from')" clearable /></VCol>
+        <VCol cols="6" md="2"><VTextField v-model="dateTo" type="date" :label="$t('educational.to')" clearable /></VCol>
       </VRow>
       <div class="d-flex gap-2 mt-2">
-        <VBtn color="primary" :loading="loading" @click="page = 1; load()">Apply</VBtn>
-        <VBtn variant="text" @click="clearFilters">Clear</VBtn>
+        <VBtn color="primary" :loading="loading" @click="page = 1; load()">{{ $t('educational.apply') }}</VBtn>
+        <VBtn variant="text" @click="clearFilters">{{ $t('educational.clear') }}</VBtn>
         <VSpacer />
-        <span class="text-caption text-medium-emphasis align-self-center">{{ total }} case{{ total === 1 ? '' : 's' }}</span>
+        <span class="text-caption text-medium-emphasis align-self-center">{{ $t('educational.caseCount', { count: total }) }}</span>
       </div>
-    </VCardText>
+    </VCardText></VExpandTransition>
+    <div class="d-flex align-center gap-2 px-4 py-3"><VIcon icon="tabler-users" color="primary" /><strong>{{ $t('educational.resultCount', { count: total }) }}</strong><VSpacer /><VBtn v-if="activeFilterCount" size="small" variant="text" prepend-icon="tabler-filter" @click="filtersOpen = true">{{ $t('educational.activeFilters', { count: activeFilterCount }) }}</VBtn></div>
     <VProgressLinear v-if="loading" indeterminate />
-    <VTable>
-      <thead><tr><th>ID</th><th>Customer</th><th>Employee</th><th>Country / University</th><th>Stage</th><th>Status</th><th /></tr></thead>
+    <div class="education-table-scroll"><VTable density="compact" class="education-table">
+      <thead><tr><th>{{ $t('educational.id') }}</th><th>{{ $t('educational.customer') }}</th><th>{{ $t('educational.employee') }}</th><th>{{ $t('educational.destination') }}</th><th>{{ $t('educational.stage') }}</th><th>{{ $t('educational.status') }}</th><th /></tr></thead>
       <tbody>
-        <tr v-for="row in rows" :key="row.id">
+        <tr v-for="row in rows" :key="row.id" class="cursor-pointer" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">
           <td>#{{ row.id }}</td>
           <td>{{ row.customer?.name ?? '—' }}</td>
-          <td>{{ row.responsible_employee?.name ?? 'Unassigned' }}</td>
+          <td>{{ row.responsible_employee?.name ?? $t('educational.unassigned') }}</td>
           <td>{{ row.country?.name ?? '—' }}{{ row.university?.name ? ` · ${row.university.name}` : '' }}</td>
           <td>{{ row.current_stage?.name ?? '—' }}</td>
-          <td><VChip size="small" :color="row.status === 'active' ? 'success' : 'secondary'">{{ row.status }}</VChip></td>
-          <td class="text-end"><VBtn size="small" variant="text" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">Open case</VBtn></td>
+          <td><VChip size="small" :color="row.status === 'active' ? 'success' : 'secondary'">{{ translateBackendValue(row.status) }}</VChip></td>
+          <td class="text-end"><VBtn size="small" variant="text" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">{{ $t('educational.openCase') }}</VBtn></td>
         </tr>
-        <tr v-if="!loading && !rows.length"><td colspan="7" class="text-center text-medium-emphasis py-8">No applicants match these filters.</td></tr>
+        <tr v-if="!loading && !rows.length"><td colspan="7" class="text-center text-medium-emphasis py-8">{{ $t('educational.noApplicants') }}</td></tr>
       </tbody>
-    </VTable>
+    </VTable></div>
     <VCardText class="d-flex align-center gap-4">
       <VPagination v-model="page" :length="Math.max(lastPage, 1)" size="small" @update:model-value="load" />
-      <VSelect v-model="perPage" :items="[10, 25, 50, 100]" label="Per page" style="max-inline-size: 140px;" @update:model-value="page = 1; load()" />
+      <VSelect v-model="perPage" :items="[10, 25, 50, 100]" :label="$t('educational.perPage')" style="max-inline-size: 140px;" @update:model-value="page = 1; load()" />
     </VCardText>
   </VCard>
+  </div>
   <VDialog v-model="createDialog" max-width="600">
-    <VCard title="New applicant case">
+    <VCard :title="$t('educational.newApplicantCase')">
       <VCardText>
-        <VSelect v-model="createForm.customer_id" :items="customers.map(c => ({ title: c.name, value: c.id }))" label="Customer (payer)" class="mb-3" />
-        <VSelect v-model="createForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" label="Responsible employee" clearable class="mb-3" />
+        <VSelect v-model="createForm.customer_id" :items="customers.map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.customerPayer')" class="mb-3" />
+        <VSelect v-if="canAssignEmployee" v-model="createForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.responsibleEmployee')" clearable class="mb-3" />
         <VRow dense>
-          <VCol cols="6"><VSelect v-model="createForm.country_id" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" label="Destination country" clearable class="mb-3" /></VCol>
-          <VCol cols="6"><VSelect v-model="createForm.university_id" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" label="University" clearable class="mb-3" /></VCol>
-          <VCol cols="6"><VSelect v-model="createForm.education_level_id" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" label="Education level" clearable class="mb-3" /></VCol>
-          <VCol cols="6"><VSelect v-model="createForm.language_id" :items="languages.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" label="Language" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VSelect v-model="createForm.country_id" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.destinationCountry')" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VSelect v-model="createForm.university_id" :items="createUniversityOptions" :label="$t('educational.university')" :disabled="!createForm.country_id" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VSelect v-model="createForm.education_level_id" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VSelect v-model="createForm.language_id" :items="languages.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.language')" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VSelect v-model="createForm.semester_id" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="$t('educational.semester')" clearable class="mb-3" /></VCol>
         </VRow>
-        <VTextField v-model="createForm.application_date" type="date" label="Application date" clearable class="mb-3" />
-        <VTextarea v-model="createForm.notes" label="Notes" />
+        <VTextField v-model="createForm.application_date" type="date" :label="$t('educational.applicationDate')" clearable class="mb-3" />
+        <VTextarea v-model="createForm.notes" :label="$t('educational.notes')" />
       </VCardText>
       <VCardActions>
         <VSpacer />
-        <VBtn @click="createDialog = false">Cancel</VBtn>
-        <VBtn color="primary" :loading="creating" :disabled="!createForm.customer_id" @click="create">Create case</VBtn>
+        <VBtn @click="createDialog = false">{{ $t('common.actions.cancel') }}</VBtn>
+        <VBtn color="primary" :loading="creating" :disabled="!createForm.customer_id" @click="create">{{ $t('educational.createCase') }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

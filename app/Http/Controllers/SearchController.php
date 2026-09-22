@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\Customer;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 /**
@@ -36,7 +37,7 @@ class SearchController extends Controller
         $result = ['query' => $q, 'groups' => []];
 
         if ($user->hasPermission('view_applicants')) {
-            $result['groups']['applicants'] = $this->searchApplicants($q, $limit);
+            $result['groups']['applicants'] = $this->searchApplicants($q, $limit, $user);
         }
         if ($user->hasPermission('view_customers')) {
             $result['groups']['customers'] = $this->searchCustomers($q, $limit);
@@ -48,10 +49,11 @@ class SearchController extends Controller
         return response()->json(['success' => true, 'data' => $result]);
     }
 
-    private function searchApplicants(string $q, int $limit): array
+    private function searchApplicants(string $q, int $limit, User $user): array
     {
         return Applicant::query()
             ->with(['customer', 'currentStage'])
+            ->when(! $user->isSuperAdmin() && ! $user->hasPermission('view_all_applicants'), fn ($query) => $query->whereHas('responsibleEmployee', fn ($employee) => $employee->where('user_id', $user->id)))
             ->where(function ($query) use ($q) {
                 $query->where('notes', 'like', "%{$q}%");
                 if (ctype_digit($q)) {

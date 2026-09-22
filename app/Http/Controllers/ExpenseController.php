@@ -10,6 +10,8 @@ use App\Models\Expense;
 use App\Services\CurrencyConversionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ExpenseController extends Controller
@@ -117,9 +119,33 @@ class ExpenseController extends Controller
         if ($expense->salary_id || CommissionSettlement::where('expense_id', $expense->id)->exists() || OutsourcingSettlement::where('expense_id', $expense->id)->exists()) {
             throw ValidationException::withMessages(['expense' => ['business.salary_expense_managed_by_payroll']]);
         }
+        if ($expense->document_path) Storage::disk('local')->delete($expense->document_path);
         $expense->delete();
 
         return response()->noContent();
+    }
+
+    public function uploadDocument(Request $request, Expense $expense)
+    {
+        $request->validate(['document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx', 'max:5120']]);
+        $file = $request->file('document');
+        $path = $file->storeAs("expense-documents/{$expense->id}", Str::uuid().'.'.$file->extension(), 'local');
+        if ($expense->document_path) Storage::disk('local')->delete($expense->document_path);
+        $expense->update(['document_path' => $path, 'document_name' => $file->getClientOriginalName(), 'document_mime' => $file->getMimeType(), 'document_size' => $file->getSize()]);
+        return new ExpenseResource($expense->fresh(['expenseCurrency', 'project', 'recorder']));
+    }
+
+    public function downloadDocument(Expense $expense)
+    {
+        abort_unless($expense->document_path && Storage::disk('local')->exists($expense->document_path), 404);
+        return Storage::disk('local')->download($expense->document_path, $expense->document_name ?: 'expense-document');
+    }
+
+    public function removeDocument(Expense $expense)
+    {
+        if ($expense->document_path) Storage::disk('local')->delete($expense->document_path);
+        $expense->update(['document_path' => null, 'document_name' => null, 'document_mime' => null, 'document_size' => null]);
+        return new ExpenseResource($expense->fresh(['expenseCurrency', 'project', 'recorder']));
     }
 
     /** @param array<string, mixed> $data */

@@ -198,7 +198,7 @@ onMounted(() => {
     temporary
     border="0"
     :model-value="props.isDrawerOpen"
-    style="z-index: 99999 !important; padding-top: 1em !important; height: 100vh !important; position: fixed !important; top: 0;"
+    class="kanban-task-edit-drawer"
     @update:model-value="handleDrawerModelValueUpdate"
   >
     <!-- 👉 Header -->
@@ -210,8 +210,8 @@ onMounted(() => {
     <VDivider />
 
     <PerfectScrollbar
+      class="kanban-task-edit-drawer__body"
       :options="{ wheelPropagation: false }"
-      style="block-size: calc(100vh - 4rem);"
     >
       <KanbanTaskEditForm
         v-if="localKanbanItem"
@@ -395,6 +395,24 @@ onMounted(() => {
 </template>
 
 <style lang="scss">
+.kanban-task-edit-drawer {
+  z-index: 99999 !important;
+  max-inline-size: 100vw;
+
+  .v-navigation-drawer__content {
+    display: flex;
+    flex-direction: column;
+    block-size: 100%;
+    min-block-size: 0;
+    overflow: hidden;
+  }
+
+  &__body {
+    flex: 1 1 auto;
+    min-block-size: 0;
+  }
+}
+
 .kanban-editor-drawer {
   .assignee-select {
     .v-field__append-inner {

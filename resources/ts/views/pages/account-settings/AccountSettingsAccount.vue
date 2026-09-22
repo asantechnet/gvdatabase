@@ -8,6 +8,7 @@ import {
   requestAccountDeactivation,
 } from '@/api/accountDeactivation'
 import { canAccess } from '@/utils/authorization'
+import { applyUiScale, uiScaleOptions } from '@/utils/uiScale'
 
 const fallbackAvatar = 'https://ui-avatars.com/api/?background=7367f0&color=fff&name=User'
 const toast = useToast()
@@ -28,6 +29,7 @@ const initial = ref<AccountUpdatePayload>({})
 const account = ref<AccountUpdatePayload & { avatar: string | null }>({ name: '', email: '', phone: '', address: '', avatar: null })
 const isSuperAdmin = ref(false)
 const userData = useCookie<Record<string, unknown> | null>('userData')
+const uiScale = ref(1)
 
 watch(message, value => {
   if (!value)
@@ -57,7 +59,18 @@ function setAccount(data: Account) {
   emailVerified.value = data.email_verified
   isSuperAdmin.value = data.roles.includes('super_admin')
   account.value = { ...account.value, ...values, avatar }
+  uiScale.value = data.ui_scale ?? 1
   initial.value = { ...values }
+}
+
+async function saveUiScale() {
+  try {
+    const data = responseData(await AuthApi.updateUiScale(uiScale.value))
+    applyUiScale(data.ui_scale)
+    userData.value = { ...(userData.value ?? {}), ui_scale: data.ui_scale }
+    message.value = 'Display size saved.'
+  }
+  catch (e: any) { error.value = e.message || 'Unable to save display size.' }
 }
 
 async function resendVerification() {
@@ -229,6 +242,17 @@ onBeforeUnmount(clearDeactivationSecrets)
             @submit.prevent="saveAccount"
           >
             <VRow>
+              <VCol cols="12">
+                <VSelect
+                  v-model="uiScale"
+                  :items="uiScaleOptions"
+                  label="Display size"
+                  hint="Changes the interactive application only; printed documents keep their fixed layout."
+                  persistent-hint
+                  :disabled="loading"
+                  @update:model-value="saveUiScale"
+                />
+              </VCol>
               <VCol
                 md="6"
                 cols="12"

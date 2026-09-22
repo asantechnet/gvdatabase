@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\RolePermission;
 use Illuminate\Database\Seeder;
 
 /** Seeds conservative defaults; super administrators retain the policy bypass. */
@@ -39,12 +40,13 @@ class RolePermissionSeeder extends Seeder
                 'view_positions', 'view_marketers', 'view_offices',
                 'view_customers', 'create_customers', 'edit_customers', 'manage_customer_services',
                 'view_contracts', 'create_contracts', 'edit_contracts', 'cancel_contracts', 'download_contracts',
-                'view_contract_templates', 'view_contract_policies', 'view_services',
+                'view_contract_templates', 'manage_contract_templates', 'create_contract_template_versions', 'activate_contract_template_versions', 'view_contract_policies', 'view_services',
                 'view_contract_types', 'view_companies',
                 'view_invoices', 'create_invoices', 'edit_invoices',
                 'view_payment_details', 'create_payment_details', 'edit_payment_details', 'delete_payment_details',
                 'view_incomes', 'create_incomes', 'edit_incomes',
                 'view_expenses', 'create_expenses', 'edit_expenses',
+                'view_pending_transactions', 'create_pending_transactions', 'approve_pending_transactions', 'post_pending_transactions',
                 'view_recurring_events', 'create_recurring_events', 'edit_recurring_events', 'delete_recurring_events', 'manage_recurring_events', 'execute_recurring_events', 'create_recurring_incomes', 'create_recurring_expenses', 'create_recurring_tasks',
                 'view_assets', 'create_assets', 'edit_assets',
                 'view_currencies', 'view_financial_reports',
@@ -57,6 +59,12 @@ class RolePermissionSeeder extends Seeder
                 'view_visitors', 'create_visitors', 'edit_visitors',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications', 'send_notifications',
                 'upload_files', 'view_files', 'download_files',
+                'view_country', 'create_country', 'edit_country', 'view_education_level', 'create_education_level', 'edit_education_level',
+                'view_language', 'create_language', 'edit_language', 'view_package_type', 'create_package_type', 'edit_package_type', 'view_packages', 'manage_packages', 'issue_packages',
+                'view_university', 'create_university', 'edit_university', 'view_semester', 'create_semester', 'edit_semester',
+                'view_applicants', 'view_all_applicants', 'create_applicants', 'edit_applicants', 'delete_applicants', 'change_applicant_stage', 'view_applicant_stages', 'manage_applicant_stages', 'assign_applicant_employee',
+                'view_applicant_financials', 'view_applicant_contracts', 'view_applicant_services', 'invite_applicant_portal',
+                'view_educational_services', 'manage_educational_services', 'manage_educational_bonuses', 'view_visa_reports',
             ],
 
             // Assigned work only. A staff member cannot change a parent task,
@@ -69,6 +77,12 @@ class RolePermissionSeeder extends Seeder
                 'create_subtasks_on_assigned_tasks', 'edit_own_subtasks', 'delete_own_subtasks',
                 'create_comments_on_assigned_tasks', 'edit_own_comments', 'delete_own_comments',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
+                'view_customers', 'view_contracts', 'create_contracts', 'view_contract_templates', 'view_services', 'manage_customer_services',
+                'view_country', 'view_education_level', 'view_language', 'view_package_type', 'view_packages', 'issue_packages', 'view_university', 'view_semester',
+                'view_applicants', 'create_applicants', 'edit_applicants', 'change_applicant_stage', 'view_applicant_stages',
+                'view_applicant_financials', 'view_applicant_contracts', 'view_applicant_services', 'invite_applicant_portal',
+                'view_educational_services', 'manage_educational_services',
+                'view_pending_transactions', 'create_pending_transactions',
             ],
 
             'viewer' => [
@@ -76,6 +90,13 @@ class RolePermissionSeeder extends Seeder
                 'manage_own_workday', 'submit_own_daily_report',
                 'request_own_paid_time_off',
                 'view_assigned_boards', 'view_assigned_tasks', 'view_task_tags',
+                'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
+            ],
+
+            // Applicants never receive operational permissions. Their portal
+            // endpoints additionally resolve the case through applicants.user_id.
+            'applicant' => [
+                'view_own_applicant_portal', 'edit_own_applicant_profile',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
             ],
         ];
@@ -90,7 +111,7 @@ class RolePermissionSeeder extends Seeder
             foreach (array_unique($permissionNames) as $permissionName) {
                 $permissionId = $permissionIds[$permissionName] ?? null;
                 if ($permissionId) {
-                    \App\Models\RolePermission::query()->firstOrCreate([
+                    RolePermission::query()->firstOrCreate([
                         'role_id' => $roleId,
                         'permission_id' => $permissionId,
                     ]);

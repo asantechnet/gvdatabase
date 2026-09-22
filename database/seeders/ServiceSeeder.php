@@ -2,8 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\Currency;
 use App\Models\Service;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 class ServiceSeeder extends Seeder
@@ -22,28 +23,32 @@ class ServiceSeeder extends Seeder
         // Reset auto-increment
         DB::statement('ALTER TABLE services AUTO_INCREMENT = 1');
 
-        // Sample service types with fees
+        $baseCurrencyId = Currency::query()->where('is_base', true)->value('id')
+            ?? throw new \RuntimeException('Seed the base currency before services.');
+
+        // Practical starter catalog for an educational visa agency. Fees are
+        // deliberately modest AFN defaults and remain editable by authorized staff.
         $services = [
-            ['type' => 'Consulting', 'duration' => 7, 'fee' => 1000.00],
-            ['type' => 'Development', 'duration' => 30, 'fee' => 3000.00],
-            ['type' => 'Support', 'duration' => 30, 'fee' => 500.00],
-            ['type' => 'Maintenance', 'duration' => 30, 'fee' => 200.00],
-            ['type' => 'Training', 'duration' => 5, 'fee' => 1500.00],
-            ['type' => 'Design', 'duration' => 14, 'fee' => 2500.00],
-            ['type' => 'Marketing', 'duration' => 30, 'fee' => 1200.00],
-            ['type' => 'Hosting', 'duration' => 30, 'fee' => 100.00],
-            ['type' => 'Security', 'duration' => 30, 'fee' => 800.00],
-            ['type' => 'Analytics', 'duration' => 7, 'fee' => 600.00]
+            ['type' => 'Initial Education Consultation', 'category' => 'general', 'duration' => 7, 'fee' => 1500.00],
+            ['type' => 'Document Review', 'category' => 'general', 'duration' => 10, 'fee' => 5000.00],
+            ['type' => 'University Application Support', 'category' => 'general', 'duration' => 30, 'fee' => 15000.00],
+            ['type' => 'Scholarship Application Support', 'category' => 'scholarship', 'duration' => 30, 'fee' => 12000.00],
+            ['type' => 'English Language Test Offer', 'category' => 'test_offer', 'duration' => 14, 'fee' => 5000.00],
+            ['type' => 'Student Visa Application Support', 'category' => 'general', 'duration' => 30, 'fee' => 20000.00],
+            ['type' => 'Statement of Purpose and CV Review', 'category' => 'general', 'duration' => 10, 'fee' => 8000.00],
+            ['type' => 'Visa Interview Preparation', 'category' => 'general', 'duration' => 7, 'fee' => 5000.00],
+            ['type' => 'Translation Coordination', 'category' => 'general', 'duration' => 14, 'fee' => 3000.00],
         ];
 
         // Create sample services
         foreach ($services as $service) {
             Service::create([
                 'type' => $service['type'],
+                'category' => $service['category'],
                 'duration' => $service['duration'],
                 'fee' => $service['fee'],
                 'status' => 'active',
-                'currency_id' => 1 // Assuming USD is currency_id 1
+                'currency_id' => $baseCurrencyId,
             ]);
         }
 

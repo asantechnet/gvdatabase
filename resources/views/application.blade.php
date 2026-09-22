@@ -5,7 +5,7 @@
   <link rel="icon" href="{{ asset('favicon.ico') }}" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ optional(\App\Models\Setting::latest('id')->first())->website_title ?: config('app.name') }}</title>
+  <title>{{ optional(\App\Models\Setting::latest('id')->first())->website_title ?: 'Educational Agency Portal' }}</title>
   <link rel="stylesheet" type="text/css" href="{{ asset('loader.css') }}" />
   @vite(['resources/ts/main.ts'])
 </head>

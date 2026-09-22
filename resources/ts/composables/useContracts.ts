@@ -9,7 +9,7 @@ export function useContracts() {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  const fetchContracts = async (params?: ContractParams | boolean | 'customers' | 'employees' | 'companies') => {
+  const fetchContracts = async (params?: ContractParams | boolean | 'customers' | 'employees' | 'other') => {
     try {
       isLoading.value = true
       error.value = null
@@ -19,7 +19,7 @@ export function useContracts() {
         request = params
       else if (params === true)
         request = { only_cancelled: true }
-      else if (params === 'customers' || params === 'employees' || params === 'companies')
+      else if (params === 'customers' || params === 'employees' || params === 'other')
         request = { audience: params }
 
       contracts.value = await ContractApi.getAll(request)

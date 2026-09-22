@@ -73,7 +73,7 @@ async function load() {
     rows.value = result.data
     allowance.value = result.allowance
   }
-  catch (error) { toast.error(apiErrorMessage(error, translate('pages.paidTimeOff.unableToLoad'))) }
+  catch (error) { toast.error(apiErrorMessage(error, $t('pages.paidTimeOff.unableToLoad'))) }
   finally { loading.value = false }
 }
 
@@ -84,15 +84,15 @@ async function grantSelected(forcePaid = false) {
   try {
     const result = await PaidTimeOffApi.grant(selected.value, forcePaid, approvalNote.value || undefined)
 
-    toast.success(translate('pages.paidTimeOff.requestsGranted', { count: selected.value.length }))
+    toast.success($t('pages.paidTimeOff.requestsGranted', { count: selected.value.length }))
     if (result.exceeded)
-      toast.warning(translate('pages.paidTimeOff.allowanceExceeded', { count: result.exceeded }))
+      toast.warning($t('pages.paidTimeOff.allowanceExceeded', { count: result.exceeded }))
     selected.value = []
     overrideDialog.value = false
     approvalNote.value = ''
     await load()
   }
-  catch (error) { toast.error(apiErrorMessage(error, translate('pages.paidTimeOff.unableToGrant'))) }
+  catch (error) { toast.error(apiErrorMessage(error, $t('pages.paidTimeOff.unableToGrant'))) }
   finally { loading.value = false }
 }
 

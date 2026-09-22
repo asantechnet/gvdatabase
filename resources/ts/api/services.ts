@@ -2,8 +2,11 @@ import api from './axios'
 
 export interface Service {
   id: number
+  name: string
   type: string
-  duration: number
+  category: 'general' | 'scholarship' | 'test_offer'
+  description?: string | null
+  duration: number | null
   fee: number
   status: 'active' | 'inactive'
   currency: {
@@ -18,7 +21,9 @@ export interface Service {
 
 export interface CreateServiceData {
   type: string
-  duration: number
+  category?: Service['category']
+  description?: string | null
+  duration?: number | null
   fee: number
   status: 'active' | 'inactive'
   currency_id: number
@@ -26,7 +31,9 @@ export interface CreateServiceData {
 
 export interface UpdateServiceData {
   type?: string
-  duration?: number
+  category?: Service['category']
+  description?: string | null
+  duration?: number | null
   fee?: number
   status?: 'active' | 'inactive'
   currency_id?: number

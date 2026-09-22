@@ -85,6 +85,11 @@ class Customer extends Model
         return $this->hasMany(Task::class);
     }
 
+    public function customerPackages()
+    {
+        return $this->hasMany(CustomerPackage::class);
+    }
+
     public function applicants()
     {
         return $this->hasMany(Applicant::class);

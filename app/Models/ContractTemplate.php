@@ -15,6 +15,7 @@ class ContractTemplate extends Model
         'name',
         'description', 'is_active', 'created_by',
         'contract_type_id',
+        'service_id',
         'position_id',
         'cover_text',
         'content',
@@ -43,6 +44,11 @@ class ContractTemplate extends Model
     {
         return $this->belongsToMany(ContractPolicy::class, 'contract_policy_contract_template')
             ->withPivot('sort_order')->orderByPivot('sort_order');
+    }
+
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
     }
     public function versions(){ return $this->hasMany(ContractTemplateVersion::class); }
 

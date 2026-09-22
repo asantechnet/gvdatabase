@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -226,6 +227,7 @@ class EmployeeController extends Controller
             );
             abort_if($Employee->user?->tasks()->where('progress', '<', 100)->exists(), 422, 'business.employee_has_open_tasks');
 
+            if ($Employee->document_path) Storage::disk('local')->delete($Employee->document_path);
             $Employee->delete();
             $Employee->user?->update(['acc_status' => 'inactive']);
             $Employee->user?->tokens()->delete();
@@ -234,6 +236,29 @@ class EmployeeController extends Controller
         return response()->json([
             'message' => 'Employee record successfully deleted.',
         ]);
+    }
+
+    public function uploadDocument(Request $request, Employee $employee): EmployeeResource
+    {
+        $request->validate(['document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx', 'max:5120']]);
+        $file = $request->file('document');
+        $path = $file->storeAs("employee-documents/{$employee->id}", Str::uuid().'.'.$file->extension(), 'local');
+        if ($employee->document_path) Storage::disk('local')->delete($employee->document_path);
+        $employee->update(['document_path' => $path, 'document_name' => $file->getClientOriginalName(), 'document_mime' => $file->getMimeType(), 'document_size' => $file->getSize()]);
+        return new EmployeeResource($employee->fresh(['position', 'office', 'user', 'commissionServices.currency']));
+    }
+
+    public function downloadDocument(Employee $employee)
+    {
+        abort_unless($employee->document_path && Storage::disk('local')->exists($employee->document_path), 404);
+        return Storage::disk('local')->download($employee->document_path, $employee->document_name ?: 'employee-document');
+    }
+
+    public function removeDocument(Employee $employee): EmployeeResource
+    {
+        if ($employee->document_path) Storage::disk('local')->delete($employee->document_path);
+        $employee->update(['document_path' => null, 'document_name' => null, 'document_mime' => null, 'document_size' => null]);
+        return new EmployeeResource($employee->fresh(['position', 'office', 'user', 'commissionServices.currency']));
     }
 
     private function syncCommissions(Employee $employee, array $commissions): void

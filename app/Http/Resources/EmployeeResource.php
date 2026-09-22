@@ -56,6 +56,7 @@ class EmployeeResource extends JsonResource
             'total_worked_hours' => (float) $this->total_worked_hours,
             'addr' => $this->addr,
             'avatar' => $this->avatar,
+            'document' => $this->document_path ? ['name' => $this->document_name, 'mimeType' => $this->document_mime, 'size' => $this->document_size, 'downloadUrl' => "/api/employees/{$this->id}/document"] : null,
             'join_date' => $this->join_date->format('Y-m-d'),
             'contract_duration' => $this->contract_duration,
         ];

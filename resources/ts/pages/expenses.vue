@@ -4,7 +4,7 @@ import { VDialog } from 'vuetify/components'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import CompanyApi, { type Company } from '@/api/company'
 import ProjectApi, { type Project } from '@/api/project'
-import { type Expense, type ExpenseCreateData, type ExpenseFormData, type ExpenseUpdateData, createExpense, deleteExpense, getExpenses, updateExpense } from '@/api/expenses'
+import { type Expense, type ExpenseCreateData, type ExpenseFormData, type ExpenseUpdateData, createExpense, deleteExpense, getExpenses, removeExpenseDocument, updateExpense, uploadExpenseDocument } from '@/api/expenses'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
@@ -24,6 +24,7 @@ const filterCurrency = ref<number | null>(null)
 const isLoading = ref(false)
 const formError = ref('')
 const fieldErrors = ref<Record<string, string>>({})
+const expenseDocumentInput = ref<HTMLInputElement | null>(null)
 
 const typeOptions = ['Utilities', 'Software/SaaS', 'Marketing', 'Office Supplies', 'Travel & Dining', 'Salaries']
 
@@ -141,6 +142,27 @@ const openEditExpenseDialog = async (expense: Expense) => {
 const openDeleteExpenseDialog = (expense: Expense) => {
   selectedExpense.value = expense
   isDeleteExpenseDialogVisible.value = true
+}
+
+async function selectExpenseDocument(expense: Expense, event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  try {
+    const saved = await uploadExpenseDocument(expense.id, file)
+    const index = expenses.value.findIndex(item => item.id === saved.id)
+    if (index >= 0) expenses.value[index] = saved
+  }
+  catch (error: any) { formError.value = apiErrorMessage(error, 'Unable to upload the expense document.') }
+  finally { (event.target as HTMLInputElement).value = '' }
+}
+
+async function deleteExpenseDocument(expense: Expense) {
+  try {
+    const saved = await removeExpenseDocument(expense.id)
+    const index = expenses.value.findIndex(item => item.id === saved.id)
+    if (index >= 0) expenses.value[index] = saved
+  }
+  catch (error: any) { formError.value = apiErrorMessage(error, 'Unable to remove the expense document.') }
 }
 
 const handleCurrencyChange = (currencyId: number) => {
@@ -529,6 +551,10 @@ onMounted(() => {
           </template>
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
+              <input :ref="el => { if (el) expenseDocumentInput = el as HTMLInputElement }" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx" hidden @change="selectExpenseDocument(item, $event)">
+              <VBtn v-if="item.document" :href="item.document.downloadUrl" icon="tabler-paperclip" variant="text" size="small" />
+              <VBtn icon="tabler-file-upload" variant="text" size="small" @click="expenseDocumentInput?.click()" />
+              <VBtn v-if="item.document" icon="tabler-paperclip-off" variant="text" size="small" color="error" @click="deleteExpenseDocument(item)" />
               <FullDetailsButton :item="item" /><VBtn
                 icon="tabler-edit"
                 variant="text"

@@ -22,6 +22,8 @@ export interface AppRole {
 const toast = useToast()
 const { t } = useI18n()
 const tr = (key: string, values?: Record<string, unknown>) => t(`pages.settings.rolecards.rolecards.${key}`, values ?? {})
+const isIdentityProtectedRoleName = (name?: string | null) => name === 'super_admin' || name === 'applicant'
+const isPermissionProtectedRoleName = (name?: string | null) => name === 'super_admin'
 const permissions = ref<Permission[]>([])
 const roles = ref<AppRole[]>([])
 const loading = ref(false)
@@ -127,7 +129,7 @@ const isCategoryAllSelected = (category: string) => getCategoryMeta(category).al
 const isCategoryIndeterminate = (category: string) => getCategoryMeta(category).indeterminate
 
 const toggleCategoryPermissions = (category: string) => {
-  if (editingRole.value?.name === 'super_admin')
+  if (isPermissionProtectedRoleName(editingRole.value?.name))
     return
   const catPerms = (groupedPermissions.value[category] ?? []).map(p => p.name)
   if (!catPerms.length)
@@ -160,7 +162,7 @@ const isAllFilteredIndeterminate = computed(() => {
 })
 
 const toggleAllFiltered = () => {
-  if (editingRole.value?.name === 'super_admin')
+  if (isPermissionProtectedRoleName(editingRole.value?.name))
     return
   const names = filteredPermissions.value.map(p => p.name)
   const allSelected = names.every(n => selectedPermissions.value.includes(n))
@@ -179,7 +181,8 @@ const clearSearch = () => {
   permissionSearch.value = ''
 }
 
-const isProtected = computed(() => editingRole.value?.name === 'super_admin')
+const isIdentityProtected = computed(() => isIdentityProtectedRoleName(editingRole.value?.name))
+const isPermissionProtected = computed(() => isPermissionProtectedRoleName(editingRole.value?.name))
 
 const loadAll = async () => {
   loading.value = true
@@ -227,14 +230,16 @@ const saveRole = async () => {
   try {
     let savedRole: any
     if (editingRole.value) {
-      savedRole = await RoleApi.updateRole(editingRole.value.id, { name: roleForm.value.name })
+      savedRole = isIdentityProtected.value
+        ? editingRole.value
+        : await RoleApi.updateRole(editingRole.value.id, { name: roleForm.value.name })
 
       const idx = roles.value.findIndex(r => r.id === savedRole.id)
       if (idx !== -1)
         roles.value[idx] = savedRole
 
       // Persist the selected permissions only for editable roles
-      if (editingRole.value.name !== 'super_admin')
+      if (!isPermissionProtectedRoleName(editingRole.value.name))
         await RoleApi.updateRolePermissions(editingRole.value.id, selectedPermissions.value)
 
       toast.success(tr('roleUpdated'))
@@ -358,7 +363,7 @@ onMounted(loadAll)
               </a>
               <VSpacer />
               <IconBtn
-                v-if="role.name !== 'super_admin'"
+                v-if="!isIdentityProtectedRoleName(role.name)"
                 :aria-label="tr('deleteRoleAria', { role: role.name })"
                 color="error"
                 size="small"
@@ -453,13 +458,13 @@ onMounted(loadAll)
                   :label="tr('roleName')"
                   :placeholder="tr('roleNamePlaceholder')"
                   required
-                  :disabled="isProtected"
+                  :disabled="isIdentityProtected"
                   hide-details="auto"
                   density="comfortable"
                   variant="outlined"
                 />
                 <p
-                  v-if="isProtected"
+                  v-if="isPermissionProtected"
                   class="text-caption text-warning mt-2 d-flex align-center gap-1"
                 >
                   <VIcon
@@ -521,7 +526,7 @@ onMounted(loadAll)
                           variant="outlined"
                           hide-details
                           clearable
-                          :disabled="isProtected"
+                          :disabled="isPermissionProtected"
                           @click:clear="clearSearch"
                         >
                           <template
@@ -550,7 +555,7 @@ onMounted(loadAll)
                         <VCheckbox
                           :model-value="allFilteredSelected"
                           :indeterminate="isAllFilteredIndeterminate"
-                          :disabled="isProtected || !filteredPermissions.length"
+                          :disabled="isPermissionProtected || !filteredPermissions.length"
                           :label="tr('selectAllFiltered')"
                           density="compact"
                           hide-details
@@ -623,7 +628,7 @@ onMounted(loadAll)
                           <VCheckbox
                             :model-value="categoryMetaMap[String(category)]?.allSelected ?? false"
                             :indeterminate="categoryMetaMap[String(category)]?.indeterminate ?? false"
-                            :disabled="isProtected"
+                            :disabled="isPermissionProtected"
                             :label="categoryMetaMap[String(category)]?.allSelected ? tr('deselectAll') : tr('selectAll')"
                             density="compact"
                             hide-details
@@ -647,9 +652,9 @@ onMounted(loadAll)
                                 class="permission-row d-flex align-center gap-2 px-3 py-2 rounded cursor-pointer"
                                 :class="[
                                   selectedPermissions.includes(permission.name) ? 'permission-row--selected' : '',
-                                  isProtected ? 'permission-row--disabled' : '',
+                                  isPermissionProtected ? 'permission-row--disabled' : '',
                                 ]"
-                                @click.prevent="!isProtected && (selectedPermissions.includes(permission.name) ? selectedPermissions = selectedPermissions.filter(p => p !== permission.name) : selectedPermissions = [...selectedPermissions, permission.name])"
+                                @click.prevent="!isPermissionProtected && (selectedPermissions.includes(permission.name) ? selectedPermissions = selectedPermissions.filter(p => p !== permission.name) : selectedPermissions = [...selectedPermissions, permission.name])"
                               >
                                 <VCheckboxBtn
                                   v-model="selectedPermissions"
@@ -657,7 +662,7 @@ onMounted(loadAll)
                                   color="primary"
                                   density="compact"
                                   hide-details
-                                  :disabled="isProtected"
+                                  :disabled="isPermissionProtected"
                                   tabindex="-1"
                                   class="permission-checkbox"
                                   @click.stop
@@ -745,7 +750,7 @@ onMounted(loadAll)
           <VBtn
             color="primary"
             :loading="savingRole"
-            :disabled="isProtected"
+            :disabled="isPermissionProtected"
             @click="saveRole"
           >
             {{ editingRole ? tr('saveChanges') : tr('createRole') }}
@@ -793,7 +798,7 @@ onMounted(loadAll)
 
 .v-avatar-group .v-avatar {
   border: 2px solid rgb(var(--v-theme-surface));
-  margin-left: -0.8rem;
+  margin-inline-start: -0.8rem;
   transition: transform 0.15s ease;
 }
 
@@ -803,7 +808,7 @@ onMounted(loadAll)
 }
 
 .v-avatar-group .v-avatar:first-child {
-  margin-left: 0;
+  margin-inline-start: 0;
 }
 
 /* Permissions section */

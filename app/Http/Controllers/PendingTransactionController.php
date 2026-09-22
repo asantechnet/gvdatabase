@@ -11,6 +11,7 @@ use App\Models\Income;
 use App\Models\PendingTransaction;
 use App\Models\Salary;
 use App\Services\ActiveContractService;
+use App\Services\EducationalWorkflowNotificationService;
 use App\Support\EditWindow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,31 +19,44 @@ use Illuminate\Validation\ValidationException;
 
 class PendingTransactionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(['success' => true, 'data' => PendingTransaction::with(['currency', 'requester', 'approver', 'customer', 'applicant', 'employee'])->latest()->get()]);
+        $query = PendingTransaction::with(['currency', 'requester', 'approver', 'customer', 'applicant', 'employee']);
+        if (! $request->user()->hasPermission('approve_pending_transactions') && ! $request->user()->hasPermission('post_pending_transactions')) {
+            $query->where('requested_by', $request->user()->id);
+        }
+
+        return response()->json(['success' => true, 'data' => $query->latest()->paginate($request->integer('per_page', 25))]);
     }
 
-    public function options()
+    public function options(Request $request)
     {
+        $isManager = $this->isManager($request);
+        $ownEmployeeId = $isManager ? null : Employee::query()->where('user_id', $request->user()->id)->value('id');
+
         return response()->json(['success' => true, 'data' => [
             'currencies' => Currency::query()->where('is_active', true)->orderBy('code')->get(['id', 'name', 'code', 'symbol', 'is_base']),
-            'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
-            'employees' => Employee::query()->orderBy('name')->get(['id', 'name']),
-            'applicants' => Applicant::query()->with('customer:id,name')->latest()->get(['id', 'customer_id']),
+            'customers' => Customer::query()
+                ->when(! $isManager, fn ($query) => $query->whereHas('applicants', fn ($applicants) => $applicants->where('responsible_employee_id', $ownEmployeeId)))
+                ->orderBy('name')->get(['id', 'name']),
+            'employees' => Employee::query()->when(! $isManager, fn ($query) => $query->whereKey($ownEmployeeId))->orderBy('name')->get(['id', 'name']),
+            'applicants' => Applicant::query()->when(! $isManager, fn ($query) => $query->where('responsible_employee_id', $ownEmployeeId))->with('customer:id,name')->latest()->get(['id', 'customer_id']),
         ]]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, EducationalWorkflowNotificationService $notifications)
     {
         $data = $this->validated($request);
 
-        return response()->json(['success' => true, 'data' => PendingTransaction::create([
+        $pending = PendingTransaction::create([
             ...$data,
             'requested_by' => $request->user()->id,
             'approval_status' => PendingTransaction::SUBMITTED,
             'requested_at' => now(),
-        ])], 201);
+        ])->load('requester');
+        $notifications->pendingSubmitted($pending);
+
+        return response()->json(['success' => true, 'data' => $pending], 201);
     }
 
     public function update(Request $request, PendingTransaction $pendingTransaction, EditWindow $editWindow)
@@ -55,21 +69,21 @@ class PendingTransactionController extends Controller
         return response()->json(['success' => true, 'data' => $pendingTransaction->fresh()]);
     }
 
-    public function review(Request $request, PendingTransaction $pendingTransaction)
+    public function review(Request $request, PendingTransaction $pendingTransaction, EducationalWorkflowNotificationService $notifications)
     {
-        return $this->transition($request, $pendingTransaction, [PendingTransaction::SUBMITTED], PendingTransaction::UNDER_REVIEW);
+        return $this->transition($request, $pendingTransaction, [PendingTransaction::SUBMITTED], PendingTransaction::UNDER_REVIEW, notifications: $notifications);
     }
 
-    public function approve(Request $request, PendingTransaction $pendingTransaction)
+    public function approve(Request $request, PendingTransaction $pendingTransaction, EducationalWorkflowNotificationService $notifications)
     {
         abort_if($pendingTransaction->requested_by === $request->user()->id, 422, 'business.pending_transaction_self_approval');
 
         return $this->transition($request, $pendingTransaction, [PendingTransaction::SUBMITTED, PendingTransaction::UNDER_REVIEW], PendingTransaction::APPROVED, [
             'approved_at' => now(),
-        ]);
+        ], $notifications);
     }
 
-    public function reject(Request $request, PendingTransaction $pendingTransaction)
+    public function reject(Request $request, PendingTransaction $pendingTransaction, EducationalWorkflowNotificationService $notifications)
     {
         $data = $request->validate(['rejection_reason' => ['required', 'string', 'max:5000']]);
         abort_if($pendingTransaction->requested_by === $request->user()->id, 422, 'business.pending_transaction_self_approval');
@@ -77,12 +91,12 @@ class PendingTransactionController extends Controller
         return $this->transition($request, $pendingTransaction, [PendingTransaction::SUBMITTED, PendingTransaction::UNDER_REVIEW], PendingTransaction::REJECTED, [
             ...$data,
             'rejected_at' => now(),
-        ]);
+        ], $notifications);
     }
 
-    public function post(Request $request, PendingTransaction $pendingTransaction)
+    public function post(Request $request, PendingTransaction $pendingTransaction, EducationalWorkflowNotificationService $notifications)
     {
-        return DB::transaction(function () use ($request, $pendingTransaction) {
+        return DB::transaction(function () use ($request, $pendingTransaction, $notifications) {
             $pending = PendingTransaction::query()->lockForUpdate()->findOrFail($pendingTransaction->id);
             if ($pending->posted_at) return response()->json(['success' => true, 'data' => $pending]);
             abort_unless($pending->approval_status === PendingTransaction::APPROVED, 422, 'business.pending_transaction_not_approved');
@@ -100,17 +114,19 @@ class PendingTransactionController extends Controller
             };
 
             $pending->update(['approval_status' => PendingTransaction::POSTED, 'posted_at' => now(), 'posted_record_type' => $record::class, 'posted_record_id' => $record->id]);
+            $notifications->pendingStatusChanged($pending->fresh(), PendingTransaction::POSTED, $request->user()->id);
 
             return response()->json(['success' => true, 'data' => $pending->fresh()]);
         });
     }
 
-    private function transition(Request $request, PendingTransaction $pendingTransaction, array $from, string $to, array $attributes = [])
+    private function transition(Request $request, PendingTransaction $pendingTransaction, array $from, string $to, array $attributes = [], ?EducationalWorkflowNotificationService $notifications = null)
     {
-        return DB::transaction(function () use ($request, $pendingTransaction, $from, $to, $attributes) {
+        return DB::transaction(function () use ($request, $pendingTransaction, $from, $to, $attributes, $notifications) {
             $pending = PendingTransaction::query()->lockForUpdate()->findOrFail($pendingTransaction->id);
             abort_unless(in_array($pending->approval_status, $from, true), 422, 'business.pending_transaction_invalid_transition');
             $pending->update([...$attributes, 'approval_status' => $to, 'approver_id' => $request->user()->id]);
+            $notifications?->pendingStatusChanged($pending->fresh(), $to, $request->user()->id);
 
             return response()->json(['success' => true, 'data' => $pending->fresh()]);
         });
@@ -123,6 +139,20 @@ class PendingTransactionController extends Controller
             'transaction_type' => [$presence, 'in:income,expense,salary'], 'reason' => [$presence, 'string', 'max:5000'], 'amount' => [$presence, 'numeric', 'gt:0'],
             'currency_id' => [$presence, 'exists:currencies,id'], 'customer_id' => ['nullable', 'exists:customers,id'], 'applicant_id' => ['nullable', 'exists:applicants,id'], 'employee_id' => ['nullable', 'exists:employees,id'],
         ]);
+
+        if (! $this->isManager($request)) {
+            $ownEmployeeId = Employee::query()->where('user_id', $request->user()->id)->value('id');
+            abort_unless($ownEmployeeId, 422, 'business.employee_profile_missing');
+            if (isset($data['employee_id'])) {
+                abort_unless((int) $data['employee_id'] === (int) $ownEmployeeId, 403, 'auth.forbidden');
+            }
+            if (isset($data['applicant_id'])) {
+                abort_unless(Applicant::query()->whereKey($data['applicant_id'])->where('responsible_employee_id', $ownEmployeeId)->exists(), 403, 'auth.forbidden');
+            }
+            if (isset($data['customer_id'])) {
+                abort_unless(Applicant::query()->where('customer_id', $data['customer_id'])->where('responsible_employee_id', $ownEmployeeId)->exists(), 403, 'auth.forbidden');
+            }
+        }
         $type = $data['transaction_type'] ?? $request->route('pendingTransaction')?->transaction_type;
         if ($type === 'salary' && ! ($data['employee_id'] ?? $request->route('pendingTransaction')?->employee_id)) throw ValidationException::withMessages(['employee_id' => ['Salary requires an employee.']]);
         if (isset($data['applicant_id'], $data['customer_id']) && ! Applicant::whereKey($data['applicant_id'])->where('customer_id', $data['customer_id'])->exists()) throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
@@ -135,5 +165,12 @@ class PendingTransactionController extends Controller
         }
 
         return $data;
+    }
+
+    private function isManager(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user->isSuperAdmin() || array_intersect($user->roleNames(), ['admin', 'manager']) !== [];
     }
 }

@@ -29,7 +29,7 @@ class SalaryController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'expense', 'recorder']);
+        $query = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'recorder']);
 
         // Handle frontend filtering
         if ($request->filled('salaryMonthFilter')) {
@@ -85,16 +85,24 @@ class SalaryController extends Controller
             }
             $this->syncDeductions($salary, $validated['deductions']);
             $this->expenses->sync($salary);
+            $initialPayment = (float) ($validated['initial_payment'] ?? 0);
+            $netDue = max(0, (float) $salary->amount_due);
+            if ($initialPayment > $netDue + 0.00000001) {
+                throw ValidationException::withMessages(['initialPayment' => ['The initial payment cannot exceed the payroll balance.']]);
+            }
+            if ($initialPayment > 0) {
+                $this->expenses->createPayment($salary, $initialPayment, $validated['payment_date'], $validated['remarks'], $validated['recorded_by']);
+            }
 
             return $salary;
         });
 
-        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'expense', 'recorder']));
+        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'recorder']));
     }
 
     public function show(Salary $salary): SalaryResource
     {
-        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'expense', 'recorder']));
+        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'recorder']));
     }
 
     public function update(Request $request, Salary $salary): SalaryResource
@@ -121,13 +129,15 @@ class SalaryController extends Controller
         });
 
         // Returns updated resource to populate the form view in place
-        return new SalaryResource($salary->fresh(['employee', 'currency', 'bonuses', 'deductions', 'expense', 'recorder']));
+        return new SalaryResource($salary->fresh(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'recorder']));
     }
 
     public function destroy(Salary $salary): JsonResponse
     {
         DB::transaction(function () use ($salary) {
-            $salary->expense?->delete();
+            $salary->payments()->with('expense')->get()->each(function ($payment): void {
+                $payment->expense?->delete();
+            });
             $salary->delete();
         });
 
@@ -180,6 +190,7 @@ class SalaryController extends Controller
             'rate' => ['sometimes', 'numeric', 'gt:0'],
             'salaryMonth' => ['required', 'string', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
             'amountPaid' => 'required|numeric|gt:0',
+            'initialPayment' => ['nullable', 'numeric', 'min:0'],
             // Kept as optional compatibility inputs; attendance is the sole
             // source of truth for worked and total working days.
             'workedDays' => ['sometimes', 'numeric', 'between:0,31', 'multiple_of:0.5'],
@@ -221,6 +232,7 @@ class SalaryController extends Controller
             'rate' => 1,
             'salary_month' => $validated['salaryMonth'],
             'amount_paid' => $validated['amountPaid'],
+            'initial_payment' => $validated['initialPayment'] ?? 0,
             'worked_days' => 0,
             'total_days' => 1,
             'remarks' => $validated['remarks'] ?? null,

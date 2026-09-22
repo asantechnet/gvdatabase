@@ -61,11 +61,13 @@ return [
     |
     | Here you may specify the default timezone for your application, which
     | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | defaults to Kabul for the agency while remaining configurable per deploy.
     |
     */
 
-    'timezone' => 'UTC',
+    // Persist and serialize instants in UTC. CompanyProfile applies the
+    // business timezone (Asia/Kabul by default) at scheduling/UI boundaries.
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

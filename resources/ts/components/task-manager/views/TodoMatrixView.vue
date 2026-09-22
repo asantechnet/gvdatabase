@@ -229,7 +229,7 @@ const handleAddTodo = () => {
       >
         <VCardItem class="bg-light-primary rounded-t pa-5">
           <template #title>
-            <div class="text-h5 font-weight-bold mb-1">
+            <div class="todo-matrix-task-title text-h5 font-weight-bold mb-1">
               {{ store.selectedTask.title }}
             </div>
             <TaskCompletionChip :progress="store.selectedTask.progress" />
@@ -331,8 +331,8 @@ const handleAddTodo = () => {
           </VList>
         </VCardText>
 
-        <VCardText class="pa-5">
-          <div class="d-flex align-center justify-space-between mb-4">
+        <VCardText class="pa-5 todo-matrix-section">
+          <div class="todo-matrix-section__header mb-4">
             <h6 class="text-h6 font-weight-medium ma-0">
               Checklist
             </h6>
@@ -467,8 +467,8 @@ const handleAddTodo = () => {
           </VList>
         </VCardText>
 
-        <VCardText class="pa-5 border-t">
-          <div class="d-flex align-center justify-space-between mb-3">
+        <VCardText class="pa-5 border-t todo-matrix-section">
+          <div class="todo-matrix-section__header mb-3">
             <div class="text-subtitle-1 font-weight-bold">
               {{ $t('components.taskManager.todomatrixview.results') }}
             </div>
@@ -476,6 +476,7 @@ const handleAddTodo = () => {
               v-if="canEditTask()"
               size="small"
               color="primary"
+              class="todo-matrix-save-results"
               :loading="isSavingResults"
               @click="saveResults"
             >
@@ -642,6 +643,42 @@ const handleAddTodo = () => {
 .html-content :deep(img) {
   max-width: 100%;
   border-radius: 8px;
+}
+
+.todo-matrix-section {
+  min-inline-size: 0;
+}
+
+.todo-matrix-section__header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  min-inline-size: 0;
+  padding-block: 0.25rem;
+}
+
+.todo-matrix-task-title {
+  padding-block-start: 0.25rem;
+}
+
+.todo-matrix-save-results {
+  margin-inline-start: 0.25rem;
+}
+
+@media (max-width: 420px) {
+  .todo-matrix-section {
+    padding: 1rem !important;
+  }
+
+  .todo-matrix-section__header > * {
+    min-inline-size: 0;
+  }
+
+  .todo-matrix-section__header > .v-btn {
+    inline-size: 100%;
+  }
 }
 
 .list-transition-enter-active,

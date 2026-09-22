@@ -22,6 +22,10 @@ export interface Salary {
   currencySnapshotSource: string
   currencySnapshotNote: string | null
   amountPaid: number
+  amountDue: number
+  amountOutstanding: number
+  paymentStatus: 'open' | 'partially_paid' | 'paid'
+  payments?: Array<{ id: number; paymentNumber: string | null; amount: number; date: string; remarks: string | null; expenseId: number | null }>
   bonus: number
   workedDays?: number
   paidLeaveDays: number
@@ -59,6 +63,7 @@ export interface CreateSalaryData {
   currency_id: number
   rate: number
   amountPaid: number
+  initialPayment?: number
   workedDays: number
   totalDays?: number
   remarks?: string
@@ -119,6 +124,16 @@ const SalaryApi = {
   getDeductions: async (salaryId: number) => {
     const response = await api.get<{ data: SalaryDeduction[] }>(`/salaries/${salaryId}/deductions`)
 
+    return response.data
+  },
+
+  addPayment: async (salaryId: number, payment: { amount: number; date: string; remarks?: string }) => {
+    const response = await api.post<{ data: Salary }>(`/salaries/${salaryId}/payments`, payment)
+    return response.data
+  },
+
+  deletePayment: async (salaryId: number, paymentId: number) => {
+    const response = await api.delete<{ data: Salary }>(`/salaries/${salaryId}/payments/${paymentId}`)
     return response.data
   },
 

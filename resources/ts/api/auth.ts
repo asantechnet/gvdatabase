@@ -13,6 +13,7 @@ export interface Account {
   employee: { id: number; position_id: number; is_marketer: boolean } | null
   is_marketer: boolean
   notifications?: NotificationPreferences
+  ui_scale?: number
   two_factor_enabled: boolean
   email_verified: boolean
   email_verified_at: string | null
@@ -38,6 +39,7 @@ const AuthApi = {
   resendEmailVerification: (email: string) => api.post('/auth/email/verification-notification', { email }),
   me: () => api.get('/auth/me'),
   updateAccount: (data: AccountUpdatePayload) => api.put('/auth/account', data),
+  updateUiScale: (ui_scale: number) => api.put('/auth/account/ui-scale', { ui_scale }),
   uploadAvatar: (avatar: File) => {
     const formData = new FormData()
 

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Expense;
 use App\Models\Salary;
+use App\Models\SalaryPayment;
 
 class SalaryExpenseSynchronizer
 {
@@ -12,27 +13,48 @@ class SalaryExpenseSynchronizer
     {
         $salary->loadMissing(['employee', 'deductions']);
         $netAmount = max(0, (float) $salary->total_amount - (float) $salary->deductions->sum('amount'));
+        $salary->forceFill(['amount_due' => $netAmount])->saveQuietly();
+        $this->refreshPaymentTotals($salary);
+    }
+
+    /** Record one actual payroll disbursement and its matching expense. */
+    public function createPayment(Salary $salary, float $amount, string $date, ?string $remarks, ?int $recordedBy, ?int $pendingTransactionId = null): SalaryPayment
+    {
+        $salary->loadMissing(['employee', 'deductions']);
         $details = sprintf(
-            'Payroll %s for %s (%s); payable: %.1f, paid leave: %.1f, absent: %.1f, unpaid leave: %.1f',
-            $salary->payslip_number, $salary->employee?->name ?? 'employee', $salary->salary_month,
+            'Payroll installment for %s (%s); payable: %.1f, paid leave: %.1f, absent: %.1f, unpaid leave: %.1f',
+            $salary->employee?->name ?? 'employee', $salary->salary_month,
             $salary->worked_days, $salary->paid_leave_days, $salary->absent_days, $salary->unpaid_leave_days,
         );
 
-        $expense = Expense::firstOrNew(['salary_id' => $salary->id]);
-        $expense->fill([
+        $expense = Expense::create([
             'currency_id' => $salary->currency_id,
             'base_currency_id' => $salary->base_currency_id,
             'currency' => $salary->currency_code,
             'type' => 'Salaries',
             'description' => $details,
-            'amount' => $netAmount,
+            'amount' => $amount,
             'quantity' => 1,
             'cnv_curr_shrt' => $salary->cnv_curr_shrt,
             'base_curr_shrt' => $salary->base_curr_shrt,
             'rate' => $salary->rate,
-            'date' => $salary->payment_date,
-            'recorded_by' => $salary->recorded_by,
+            'date' => $date,
+            'recorded_by' => $recordedBy ?? $salary->recorded_by,
         ]);
-        $expense->save();
+        $payment = SalaryPayment::create([
+            'salary_id' => $salary->id, 'expense_id' => $expense->id, 'pending_transaction_id' => $pendingTransactionId,
+            'amount' => $amount, 'payment_date' => $date, 'remarks' => $remarks, 'recorded_by' => $recordedBy,
+        ]);
+        $this->refreshPaymentTotals($salary->fresh(['deductions']));
+
+        return $payment;
+    }
+
+    public function refreshPaymentTotals(Salary $salary): void
+    {
+        $due = max(0, (float) ($salary->amount_due ?? ((float) $salary->total_amount - (float) $salary->deductions()->sum('amount'))));
+        $paid = (float) $salary->payments()->whereNull('deleted_at')->sum('amount');
+        $status = $paid <= 0 ? 'open' : ($paid + 0.00000001 >= $due ? 'paid' : 'partially_paid');
+        $salary->forceFill(['amount_due' => $due, 'amount_paid_total' => $paid, 'payment_status' => $status])->saveQuietly();
     }
 }

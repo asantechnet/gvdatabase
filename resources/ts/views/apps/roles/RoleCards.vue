@@ -216,7 +216,7 @@ onMounted(loadAll)
             </VChip>
           </div>
           <div
-            v-if="role.name !== 'super_admin'"
+            v-if="!role.is_protected"
             class="d-flex align-center"
           >
             <IconBtn

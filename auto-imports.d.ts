@@ -22,6 +22,7 @@ declare global {
   const applyPermissions: typeof import('./resources/ts/utils/authorization')['applyPermissions']
   const applyThemeColorCssVariables: typeof import('./resources/ts/utils/themePersistence')['applyThemeColorCssVariables']
   const applyThemePalette: typeof import('./resources/ts/utils/themePersistence')['applyThemePalette']
+  const applyUiScale: typeof import('./resources/ts/utils/uiScale')['applyUiScale']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
   const auditLogIdFromNotification: typeof import('./resources/ts/utils/auditNotification')['auditLogIdFromNotification']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
@@ -186,6 +187,7 @@ declare global {
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
   const resolveVuetifyTheme: typeof import('./resources/ts/@core/utils/vuetify')['resolveVuetifyTheme']
+  const restoreUiScale: typeof import('./resources/ts/utils/uiScale')['restoreUiScale']
   const rgbaToHex: typeof import('./resources/ts/@core/utils/colorConverter')['rgbaToHex']
   const serializePlaceholders: typeof import('./resources/ts/utils/contractPlaceholders')['serializePlaceholders']
   const setActivePinia: typeof import('pinia')['setActivePinia']
@@ -216,12 +218,15 @@ declare global {
   const toValue: typeof import('vue')['toValue']
   const translate: typeof import('./resources/ts/utils/localization')['translate']
   const translateBackendValue: typeof import('./resources/ts/utils/localization')['translateBackendValue']
+  const translateContractPolicyType: typeof import('./resources/ts/utils/localization')['translateContractPolicyType']
+  const translateContractTypeRecord: typeof import('./resources/ts/utils/localization')['translateContractTypeRecord']
   const triggerRef: typeof import('vue')['triggerRef']
   const tryOnBeforeMount: typeof import('@vueuse/core')['tryOnBeforeMount']
   const tryOnBeforeUnmount: typeof import('@vueuse/core')['tryOnBeforeUnmount']
   const tryOnMounted: typeof import('@vueuse/core')['tryOnMounted']
   const tryOnScopeDispose: typeof import('@vueuse/core')['tryOnScopeDispose']
   const tryOnUnmounted: typeof import('@vueuse/core')['tryOnUnmounted']
+  const uiScaleOptions: typeof import('./resources/ts/utils/uiScale')['uiScaleOptions']
   const unref: typeof import('vue')['unref']
   const unrefElement: typeof import('@vueuse/core')['unrefElement']
   const until: typeof import('@vueuse/core')['until']
@@ -461,6 +466,7 @@ declare module 'vue' {
     readonly applyAccessibleThemeColors: UnwrapRef<typeof import('./resources/ts/utils/themeContrast')['applyAccessibleThemeColors']>
     readonly applyPermissions: UnwrapRef<typeof import('./resources/ts/utils/authorization')['applyPermissions']>
     readonly applyThemePalette: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['applyThemePalette']>
+    readonly applyUiScale: UnwrapRef<typeof import('./resources/ts/utils/uiScale')['applyUiScale']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly auditLogIdFromNotification: UnwrapRef<typeof import('./resources/ts/utils/auditNotification')['auditLogIdFromNotification']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
@@ -618,6 +624,7 @@ declare module 'vue' {
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
     readonly resolveVuetifyTheme: UnwrapRef<typeof import('./resources/ts/@core/utils/vuetify')['resolveVuetifyTheme']>
+    readonly restoreUiScale: UnwrapRef<typeof import('./resources/ts/utils/uiScale')['restoreUiScale']>
     readonly rgbaToHex: UnwrapRef<typeof import('./resources/ts/@core/utils/colorConverter')['rgbaToHex']>
     readonly serializePlaceholders: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['serializePlaceholders']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
@@ -648,12 +655,15 @@ declare module 'vue' {
     readonly toValue: UnwrapRef<typeof import('vue')['toValue']>
     readonly translate: UnwrapRef<typeof import('./resources/ts/utils/localization')['translate']>
     readonly translateBackendValue: UnwrapRef<typeof import('./resources/ts/utils/localization')['translateBackendValue']>
+    readonly translateContractPolicyType: UnwrapRef<typeof import('./resources/ts/utils/localization')['translateContractPolicyType']>
+    readonly translateContractTypeRecord: UnwrapRef<typeof import('./resources/ts/utils/localization')['translateContractTypeRecord']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
     readonly tryOnBeforeMount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeMount']>
     readonly tryOnBeforeUnmount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeUnmount']>
     readonly tryOnMounted: UnwrapRef<typeof import('@vueuse/core')['tryOnMounted']>
     readonly tryOnScopeDispose: UnwrapRef<typeof import('@vueuse/core')['tryOnScopeDispose']>
     readonly tryOnUnmounted: UnwrapRef<typeof import('@vueuse/core')['tryOnUnmounted']>
+    readonly uiScaleOptions: UnwrapRef<typeof import('./resources/ts/utils/uiScale')['uiScaleOptions']>
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>

@@ -34,7 +34,6 @@ const pageTranslationKeys: Record<string, string> = {
   'Contract options': 'contractOptions',
   'Services': 'services',
   'Invoices': 'invoices',
-  'Companies': 'companies',
   'Cancelled contracts': 'cancelledContracts',
   'Customer directory': 'customerDirectory',
   'Contracts': 'contracts',
@@ -186,13 +185,6 @@ const metrics = computed<KpiMetric[]>(() => {
       { label: t('components.dataTablePageKpis.officesRepresented'), value: unique('office_id'), icon: 'tabler-building', tone: 'status' },
       { label: t('components.dataTablePageKpis.withoutOffice'), value: count(item => !item.office_id), icon: 'tabler-map-pin-off', tone: 'attention' }]
   }
-  if (page === 'companies') {
-    return [base,
-      { label: t('components.dataTablePageKpis.activeCompanies'), value: count(item => item.status === 'active'), icon: 'tabler-building-check', tone: 'status' },
-      { label: t('components.dataTablePageKpis.withRepresentative'), value: count(item => Boolean(item.representative_name)), icon: 'tabler-user-check', tone: 'insight' },
-      { label: t('components.dataTablePageKpis.profileIncomplete'), value: count(item => !item.email && !item.phone), icon: 'tabler-alert-circle', tone: 'attention' }]
-  }
-
   return [base,
     { label: t('components.dataTablePageKpis.activeComplete'), value: healthy.value, icon: 'tabler-circle-check', tone: 'status' },
     { label: t('components.dataTablePageKpis.needAttention'), value: needsAttention.value, icon: 'tabler-alert-circle', tone: 'attention' },

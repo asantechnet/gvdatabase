@@ -4,6 +4,8 @@ export interface ApplicantStage {
   id: number
   name: string
   key: string
+  country_id?: number | null
+  university_id?: number | null
   sort_order?: number
   is_terminal?: boolean
   allowed_next_keys?: string[]
@@ -11,22 +13,25 @@ export interface ApplicantStage {
 
 export interface Applicant {
   id: number
+  user_id?: number | null
   customer_id: number
   responsible_employee_id?: number | null
   country_id?: number | null
   university_id?: number | null
   education_level_id?: number | null
   language_id?: number | null
+  semester_id?: number | null
   current_stage_id?: number | null
   application_date?: string | null
   status: string
   notes?: string | null
-  customer?: { id?: number; name: string; contact?: string | null }
+  customer?: { id?: number; name: string; contact?: string | null; email?: string | null }
   responsible_employee?: { id: number; name: string } | null
   country?: { id: number; name: string } | null
   university?: { id: number; name: string } | null
   education_level?: { id: number; name: string } | null
   language?: { id: number; name: string } | null
+  semester?: { id: number; name: string; code?: string } | null
   current_stage?: { id: number; name: string; key: string }
   tasks?: Array<{ id: number; title: string; progress: number; priority?: string | null; due_date?: string | null; attachments?: Array<{ id: number; original_name: string; mime_type?: string | null; size?: number | null }> }>
   contracts?: Array<{ id: number; contract_number: string; status: string }>
@@ -34,9 +39,9 @@ export interface Applicant {
   pending_transactions?: Array<{ id: number; transaction_type: string; reason: string; amount: number | string; approval_status: string; rejection_reason?: string | null }>
   incomes?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
   expenses?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
-  scholarships?: Array<{ id: number; fee: number | string; date?: string | null; status?: string | null; currency?: { id: number; code: string } | null }>
-  test_offers?: Array<{ id: number; fee: number | string; date?: string | null; status?: string | null; currency?: { id: number; code: string } | null }>
-  universities?: Array<{ id: number; university_id: number; status: string; intake?: string | null; notes?: string | null; university?: { id: number; name: string } | null }>
+  scholarships?: Array<{ id: number; service_id: number; employee_id: number; currency_id: number; package_type_id?: number | null; country_id?: number | null; education_level_id?: number | null; language_id?: number | null; fee: number | string; date?: string | null; status?: 'active' | 'completed' | 'cancelled'; currency?: { id: number; code: string } | null; bonus_source?: { bonus_amount: number | string; rule_source?: string | null } | null }>
+  test_offers?: Array<{ id: number; service_id: number; employee_id: number; currency_id: number; package_type_id?: number | null; country_id?: number | null; education_level_id?: number | null; language_id?: number | null; fee: number | string; date?: string | null; status?: 'active' | 'completed' | 'cancelled'; currency?: { id: number; code: string } | null; bonus_source?: { bonus_amount: number | string; rule_source?: string | null } | null }>
+  universities?: Array<{ id: number; university_id: number; semester_id?: number | null; status: string; intake?: string | null; notes?: string | null; university?: { id: number; name: string } | null; semester?: { id: number; name: string; code?: string } | null }>
 }
 
 export type ApplicantBoard = 'operation' | 'final' | 'cancelled'
@@ -51,6 +56,7 @@ export interface ApplicantListParams {
   university_id?: number | null
   education_level_id?: number | null
   language_id?: number | null
+  semester_id?: number | null
   search?: string
   date_from?: string
   date_to?: string
@@ -130,7 +136,11 @@ export default {
   get: async (id: number) => (await api.get(`/applicants/${id}`)).data.data as Applicant,
   create: async (data: Partial<Applicant>) => (await api.post('/applicants', data)).data.data as Applicant,
   update: async (id: number, data: Partial<Applicant>) => (await api.put(`/applicants/${id}`, data)).data.data as Applicant,
-  stages: async () => (await api.get('/applicant-stages')).data.data as ApplicantStage[],
+  stages: async (params?: Pick<ApplicantListParams, 'country_id' | 'university_id'>) => (await api.get('/applicant-stages', { params: clean(params) })).data.data as ApplicantStage[],
+  stageDefinitions: async () => (await api.get('/applicant-stages', { params: { all: true } })).data.data as ApplicantStage[],
+  createStage: async (data: Partial<ApplicantStage>) => (await api.post('/applicant-stages', data)).data.data as ApplicantStage,
+  updateStageDefinition: async (id: number, data: Partial<ApplicantStage>) => (await api.put(`/applicant-stages/${id}`, data)).data.data as ApplicantStage,
+  removeStageDefinition: async (id: number) => api.delete(`/applicant-stages/${id}`),
   changeStage: async (id: number, stage_id: number, note?: string) => (await api.post(`/applicants/${id}/change-stage`, { stage_id, note })).data.data as Applicant,
 }
 

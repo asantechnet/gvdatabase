@@ -5,10 +5,13 @@ import { useToast } from 'vue-toastification'
 import { type PlaceholderGroup, getPlaceholders } from '@/api/contractPlaceholders'
 import ContractPolicyApi, { type ContractPolicy, type ContractPolicyPayload } from '@/api/contractPolicy'
 import ContractTypeApi, { type ContractType } from '@/api/contractType'
+import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import ContractContentEditor from '@/components/contract/ContractContentEditor.vue'
 import { extractPlaceholderKeys, hydratePlaceholders, legacyContentToHtml, serializePlaceholders } from '@/utils/contractPlaceholders'
+import { translateContractPolicyType } from '@/utils/localization'
 
 const { t } = useI18n()
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 const toast = useToast()
 const policies = ref<ContractPolicy[]>([])
 const contractTypes = ref<ContractType[]>([])
@@ -17,16 +20,16 @@ const loading = ref(false)
 const dialog = ref(false)
 const editing = ref<ContractPolicy | null>(null)
 const editorRef = ref<InstanceType<typeof ContractContentEditor> | null>(null)
-const form = ref<ContractPolicyPayload>({ label: '', type: 'employment', is_active: true, header: '', content: '' })
+const form = ref<ContractPolicyPayload>({ label: '', type: 'employment', country_id: null, language_id: null, is_active: true, header: '', content: '' })
+const countries = ref<MasterDataRecord[]>([])
+const languages = ref<MasterDataRecord[]>([])
 const search = ref('')
 const typeFilter = ref<string | null>(null)
 const statusFilter = ref<'active' | 'inactive' | null>(null)
+const countryFilter = ref<number | null>(null)
+const languageFilter = ref<number | null>(null)
 
-const policyTypes = [
-  { value: 'employment', icon: 'tabler-briefcase' },
-  { value: 'company', icon: 'tabler-building' },
-  { value: 'customer', icon: 'tabler-users' },
-]
+const policyTypes = computed(() => contractTypes.value.filter(type => type.is_active).map(type => ({ value: type.slug, icon: type.slug === 'employment' ? 'tabler-briefcase' : type.slug === 'customer' ? 'tabler-users' : 'tabler-file-description' })))
 
 const selectedType = computed(() => contractTypes.value.find(type => type.slug === form.value.type) ?? null)
 const knownKeys = computed(() => new Set(placeholderGroups.value.flatMap(group => group.fields.map(field => field.key))))
@@ -38,13 +41,15 @@ const localizedPlaceholderGroups = computed<PlaceholderGroup[]>(() => placeholde
     label: t(`pages.settings.policies.policies.contractTemplate.placeholders.${group.key}.fields.${field.key.slice(group.key.length + 1)}`),
   })),
 })))
-const policyTypeLabel = (type: string) => t(`pages.settings.policies.policies.policyLibrary.types.${type}`)
-const policyTypeItems = computed(() => policyTypes.map(item => ({ ...item, title: policyTypeLabel(item.value) })))
+const policyTypeLabel = (type: string) => translateContractPolicyType(type, contractTypes.value.find(item => item.slug === type)?.name)
+const policyTypeItems = computed(() => policyTypes.value.map(item => ({ ...item, title: translateContractPolicyType(item.value, contractTypes.value.find(type => type.slug === item.value)?.name) })))
 const filteredPolicies = computed(() => policies.value.filter(policy => {
   const query = search.value.trim().toLocaleLowerCase()
 
   return (!typeFilter.value || policy.type === typeFilter.value)
     && (!statusFilter.value || (statusFilter.value === 'active' ? policy.is_active : !policy.is_active))
+    && (!countryFilter.value || policy.country_id === countryFilter.value)
+    && (!languageFilter.value || policy.language_id === languageFilter.value)
     && (!query || [policy.label, policy.header, policy.content].filter(Boolean).some(value => String(value).toLocaleLowerCase().includes(query)))
 }))
 const hasPolicyContent = computed(() => form.value.content.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim().length > 0)
@@ -52,10 +57,12 @@ const hasPolicyContent = computed(() => form.value.content.replace(/<[^>]+>/g, '
 async function load() {
   loading.value = true
   try {
-    const [items, types] = await Promise.all([ContractPolicyApi.getAll(true), ContractTypeApi.getAll({ include_inactive: true })])
+  const [items, types, countryRows, languageRows] = await Promise.all([ContractPolicyApi.getAll(true), ContractTypeApi.getAll({ include_inactive: true }), MasterDataApi.list('countries'), MasterDataApi.list('languages')])
 
     policies.value = items
     contractTypes.value = types
+    countries.value = countryRows
+    languages.value = languageRows
   }
   catch { toast.error(t('pages.settings.policies.policies.policyLibrary.loadError')) }
   finally { loading.value = false }
@@ -76,12 +83,14 @@ async function open(policy?: ContractPolicy) {
 
   editing.value = existingPolicy
   form.value = existingPolicy
-    ? { label: existingPolicy.label, type: existingPolicy.type, is_active: existingPolicy.is_active, header: existingPolicy.header ?? '', content: legacyContentToHtml(existingPolicy.content) }
-    : { label: '', type: 'employment', is_active: true, header: '', content: '' }
+    ? { label: existingPolicy.label, type: existingPolicy.type, country_id: existingPolicy.country_id, language_id: existingPolicy.language_id, is_active: existingPolicy.is_active, header: existingPolicy.header ?? '', content: legacyContentToHtml(existingPolicy.content) }
+    : { label: '', type: 'employment', country_id: null, language_id: null, is_active: true, header: '', content: '' }
   dialog.value = true
   await loadPlaceholders()
   form.value.content = hydratePlaceholders(serializePlaceholders(form.value.content), localizedPlaceholderGroups.value, knownKeys.value)
 }
+
+defineExpose({ openEditor: () => open() })
 
 async function save() {
   if (!form.value.label.trim() || !form.value.type || !hasPolicyContent.value) {
@@ -139,13 +148,15 @@ onMounted(load)
 
 <template>
   <DataTablePageKpis
+    v-if="!props.embedded"
     :items="filteredPolicies"
     :title="t('pages.settings.policies.policies.policyLibrary.pageTitle')"
     :description="t('pages.settings.policies.policies.policyLibrary.pageDescription')"
     icon="tabler-book-2"
   />
-  <VCard :loading="loading">
+  <component :is="props.embedded ? 'div' : 'VCard'" :loading="loading">
     <VCardItem
+      v-if="!props.embedded"
       :title="t('pages.settings.policies.policies.policyLibrary.title')"
       :subtitle="t('pages.settings.policies.policies.policyLibrary.subtitle')"
     >
@@ -161,15 +172,19 @@ onMounted(load)
     </VCardItem>
     <VCardText class="pb-0">
       <VRow dense>
-        <VCol cols="12" md="6"><VTextField v-model="search" :label="t('common.actions.search')" prepend-inner-icon="tabler-search" density="compact" /></VCol>
-        <VCol cols="6" md="3"><VSelect v-model="typeFilter" :items="policyTypeItems" item-title="title" item-value="value" clearable :label="t('pages.settings.policies.policies.policyLibrary.type')" density="compact" /></VCol>
-        <VCol cols="6" md="3"><VSelect v-model="statusFilter" :items="[{ title: t('common.statuses.active'), value: 'active' }, { title: t('common.statuses.inactive'), value: 'inactive' }]" clearable :label="t('pages.settings.policies.policies.policyLibrary.status')" density="compact" /></VCol>
+        <VCol cols="12" md="4"><VTextField v-model="search" :label="t('common.actions.search')" prepend-inner-icon="tabler-search" density="compact" /></VCol>
+        <VCol cols="6" md="2"><VSelect v-model="typeFilter" :items="policyTypeItems" item-title="title" item-value="value" clearable :label="t('pages.settings.policies.policies.policyLibrary.type')" density="compact" /></VCol>
+        <VCol cols="6" md="2"><VSelect v-model="countryFilter" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" clearable :label="t('common.fields.country')" density="compact" /></VCol>
+        <VCol cols="6" md="2"><VSelect v-model="languageFilter" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" clearable :label="t('common.fields.language')" density="compact" /></VCol>
+        <VCol cols="6" md="2"><VSelect v-model="statusFilter" :items="[{ title: t('common.statuses.active'), value: 'active' }, { title: t('common.statuses.inactive'), value: 'inactive' }]" clearable :label="t('pages.settings.policies.policies.policyLibrary.status')" density="compact" /></VCol>
       </VRow>
     </VCardText>
     <ResponsiveDataTable
       :items="filteredPolicies"
       :headers="[
         { title: t('pages.settings.policies.policies.policyLibrary.type'), key: 'type' },
+        { title: t('common.fields.country'), key: 'country.name' },
+        { title: t('common.fields.language'), key: 'language.name' },
         { title: t('pages.settings.policies.policies.policyLibrary.label'), key: 'label' },
         { title: t('pages.settings.policies.policies.policyLibrary.header'), key: 'header' },
         { title: t('pages.settings.policies.policies.policyLibrary.status'), key: 'status' },
@@ -184,9 +199,11 @@ onMounted(load)
           variant="tonal"
           prepend-icon="tabler-category"
         >
-          {{ policyTypeLabel(item.type) }}
+          {{ translateContractPolicyType(item.type, contractTypes.find(type => type.slug === item.type)?.name) }}
         </VChip>
       </template>
+      <template #item.country.name="{ item }">{{ item.country?.name ?? '—' }}</template>
+      <template #item.language.name="{ item }">{{ item.language?.name ?? '—' }}</template>
       <template #item.header="{ item }">
         {{ item.header || '—' }}
       </template>
@@ -214,7 +231,7 @@ onMounted(load)
         </div>
       </template>
     </ResponsiveDataTable>
-  </VCard>
+  </component>
 
   <VDialog
     v-model="dialog"
@@ -282,6 +299,12 @@ onMounted(load)
                   />
                 </template>
               </VSelect>
+            </VCol>
+            <VCol cols="12" md="6">
+              <VSelect v-model="form.country_id" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="t('common.fields.country')" clearable variant="outlined" />
+            </VCol>
+            <VCol cols="12" md="6">
+              <VSelect v-model="form.language_id" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" :label="t('common.fields.language')" clearable variant="outlined" />
             </VCol>
             <VCol cols="12">
               <VSwitch

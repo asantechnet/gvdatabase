@@ -19,6 +19,7 @@ class Contract extends Model
         'template_id',
         'contract_template_version_id',
         'contract_type_id',
+        'service_id',
         'employee_id',
         'customer_id',
         'applicant_id',
@@ -82,6 +83,11 @@ class Contract extends Model
     {
         return $this->belongsTo(Customer::class)->withTrashed();
     }
+
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
+    }
     public function templateVersion(){ return $this->belongsTo(ContractTemplateVersion::class, 'contract_template_version_id')->withTrashed(); }
 
     public function applicant()
@@ -113,7 +119,7 @@ class Contract extends Model
         return match (strtolower((string) ($this->attributes['type'] ?? ''))) {
             'employment' => 'employment',
             'customer' => 'customer',
-            'company' => 'company',
+            'company', 'other' => 'other',
             default => null,
         };
     }

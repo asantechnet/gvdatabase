@@ -1,23 +1,29 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
+import { useI18n } from 'vue-i18n'
 import ReportApi, { type EducationalReport, type EducationalReportType } from '@/api/educationalReports'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
+import ApplicantApi, { type ApplicantStage } from '@/api/applicants'
 import { canAccess } from '@/utils/authorization'
+import { formatLocalizedDate } from '@/utils/localization'
 
 const toast = useToast()
+const { t } = useI18n()
 
 const tab = ref<EducationalReportType>('applicants')
 const report = ref<EducationalReport | null>(null)
 const loading = ref(false)
 const exporting = ref(false)
 const page = ref(1)
+const filtersOpen = ref(false)
 
 const countries = ref<MasterDataRecord[]>([])
 const universities = ref<MasterDataRecord[]>([])
 const levels = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
+const stages = ref<ApplicantStage[]>([])
 
 const countryId = ref<number | ''>('')
 const universityId = ref<number | ''>('')
@@ -29,12 +35,29 @@ const dateFrom = ref('')
 const dateTo = ref('')
 
 const canExport = computed(() => canAccess('export_reports'))
+const activeFilterCount = computed(() => [countryId.value, universityId.value, levelId.value, employeeId.value, stage.value, status.value, dateFrom.value, dateTo.value].filter(Boolean).length)
 const tabs: Array<{ value: EducationalReportType; title: string }> = [
-  { value: 'applicants', title: 'Applicants' },
-  { value: 'employee-performance', title: 'Employee performance' },
-  { value: 'sales', title: 'Sales' },
-  { value: 'visa-outcomes', title: 'Visa outcomes' },
+  { value: 'applicants', title: t('educational.applicants') },
+  { value: 'employee-performance', title: t('educational.employeePerformance') },
+  { value: 'contracts', title: t('educational.contractsReport') },
+  { value: 'services', title: t('educational.servicesReport') },
+  { value: 'financial', title: t('educational.financialReport') },
+  { value: 'universities', title: t('educational.universityReport') },
+  { value: 'visa-outcomes', title: t('educational.visaOutcomes') },
 ]
+const activeTab = computed(() => tabs.find(item => item.value === tab.value))
+const columnLabel = (column: string) => t(`educational.reportColumns.${column}`)
+const isDateColumn = (column: string) => column === 'date' || column.endsWith('_date')
+
+function displayValue(column: string, value: string | number | null | undefined): string | number {
+  if (value === null || value === undefined || value === '')
+    return '—'
+
+  if (isDateColumn(column))
+    return formatLocalizedDate(String(value), { year: 'numeric', month: 'short', day: 'numeric' })
+
+  return value
+}
 
 function params() {
   return {
@@ -56,7 +79,7 @@ async function load() {
     report.value = await ReportApi.get(tab.value, params())
   }
   catch {
-    toast.error('Unable to load the report.')
+    toast.error(t('educational.loadReportFailed'))
   }
   finally {
     loading.value = false
@@ -74,10 +97,10 @@ async function download() {
     link.download = `visa-${tab.value}-report.csv`
     link.click()
     URL.revokeObjectURL(url)
-    toast.success('Report exported.')
+    toast.success(t('educational.exported'))
   }
   catch {
-    toast.error('Unable to export the report.')
+    toast.error(t('educational.exportFailed'))
   }
   finally {
     exporting.value = false
@@ -89,22 +112,37 @@ function onTabChange() {
   load()
 }
 
+function clearFilters() {
+  countryId.value = ''
+  universityId.value = ''
+  levelId.value = ''
+  employeeId.value = ''
+  stage.value = ''
+  status.value = ''
+  dateFrom.value = ''
+  dateTo.value = ''
+  page.value = 1
+  load()
+}
+
 async function loadCatalogs() {
   try {
-    const [countryRows, universityRows, levelRows, employeeRows] = await Promise.all([
+    const [countryRows, universityRows, levelRows, employeeRows, stageRows] = await Promise.all([
       MasterDataApi.list('countries'),
       MasterDataApi.list('universities'),
       MasterDataApi.list('education-levels'),
       EmployeeApi.getOptions(),
+      ApplicantApi.stages(),
     ])
 
     countries.value = countryRows
     universities.value = universityRows
     levels.value = levelRows
     employees.value = employeeRows
+    stages.value = stageRows
   }
   catch {
-    toast.error('Unable to load report filters.')
+    toast.error(t('educational.loadFiltersFailed'))
   }
 }
 
@@ -115,41 +153,41 @@ onMounted(async () => {
 </script>
 
 <template>
-  <VCard>
-    <VCardItem title="Visa reports" subtitle="Tabular detail behind the overview, with CSV export.">
-      <template #append><VBtn v-if="canExport" color="primary" :loading="exporting" prepend-icon="tabler-download" @click="download">Export CSV</VBtn></template>
-    </VCardItem>
-    <VCardText>
-      <VTabs v-model="tab" @update:model-value="onTabChange">
-        <VTab v-for="item in tabs" :key="item.value" :value="item.value">{{ item.title }}</VTab>
-      </VTabs>
-      <VRow dense class="mt-4">
-        <VCol cols="12" md="2"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" label="Country" clearable /></VCol>
-        <VCol cols="12" md="2"><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" label="University" clearable /></VCol>
-        <VCol cols="12" md="2"><VSelect v-model="levelId" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" label="Education level" clearable /></VCol>
-        <VCol cols="12" md="2"><VSelect v-model="employeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" label="Employee" clearable /></VCol>
-        <VCol v-if="tab === 'applicants'" cols="12" md="2"><VTextField v-model="stage" label="Stage key" clearable /></VCol>
-        <VCol v-if="tab === 'applicants'" cols="12" md="2"><VSelect v-model="status" :items="[{ title: 'Active', value: 'active' }, { title: 'Closed', value: 'closed' }]" label="Status" clearable /></VCol>
-        <VCol cols="6" md="2"><VTextField v-model="dateFrom" type="date" label="From" clearable /></VCol>
-        <VCol cols="6" md="2"><VTextField v-model="dateTo" type="date" label="To" clearable /></VCol>
-      </VRow>
-      <div class="d-flex gap-2 mt-2">
-        <VBtn color="primary" :loading="loading" @click="page = 1; load()">Apply</VBtn>
-        <VBtn v-if="!canExport" variant="text" disabled>CSV export requires permission</VBtn>
-        <VSpacer />
-        <span class="text-caption text-medium-emphasis align-self-center">{{ report?.total ?? 0 }} row{{ (report?.total ?? 0) === 1 ? '' : 's' }}</span>
+  <div class="education-workspace">
+    <header class="education-page-header">
+      <div><div class="education-eyebrow">{{ $t('educational.decisionReports') }}</div><h1>{{ $t('educational.visaReports') }}</h1><p>{{ $t('educational.reportsSubtitle') }}</p></div>
+      <div class="d-flex gap-2"><VBtn variant="tonal" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">{{ $t('educational.filters') }}<VBadge v-if="activeFilterCount" :content="activeFilterCount" color="primary" inline /></VBtn><VBtn v-if="canExport" color="primary" :loading="exporting" prepend-icon="tabler-download" @click="download">{{ $t('educational.exportCsv') }}</VBtn></div>
+    </header>
+
+    <VCard class="education-panel">
+      <VTabs v-model="tab" show-arrows class="px-3 report-tabs" @update:model-value="onTabChange"><VTab v-for="item in tabs" :key="item.value" :value="item.value">{{ item.title }}</VTab></VTabs>
+      <VDivider />
+      <VExpandTransition><VCardText v-if="filtersOpen" class="education-filter-card rounded-0 border-0">
+        <VRow dense>
+          <VCol cols="12" sm="6" lg="3"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable hide-details /></VCol>
+          <VCol cols="12" sm="6" lg="3"><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable hide-details /></VCol>
+          <VCol cols="12" sm="6" lg="3"><VSelect v-model="levelId" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable hide-details /></VCol>
+          <VCol cols="12" sm="6" lg="3"><VSelect v-model="employeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable hide-details /></VCol>
+          <VCol v-if="tab === 'applicants'" cols="12" sm="6" lg="3"><VSelect v-model="stage" :items="stages.map(item => ({ title: item.name, value: item.key }))" :label="$t('educational.stage')" clearable hide-details /></VCol>
+          <VCol v-if="tab === 'applicants'" cols="12" sm="6" lg="3"><VSelect v-model="status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable hide-details /></VCol>
+          <VCol cols="6" sm="3" lg="2"><VTextField v-model="dateFrom" type="date" :label="$t('educational.from')" clearable hide-details /></VCol>
+          <VCol cols="6" sm="3" lg="2"><VTextField v-model="dateTo" type="date" :label="$t('educational.to')" clearable hide-details /></VCol>
+        </VRow>
+        <div class="d-flex justify-end gap-2 mt-3"><VBtn variant="text" @click="clearFilters">{{ $t('educational.clear') }}</VBtn><VBtn color="primary" :loading="loading" @click="page = 1; load()">{{ $t('educational.apply') }}</VBtn></div>
+      </VCardText></VExpandTransition>
+
+      <div class="d-flex align-center flex-wrap gap-2 px-4 py-3">
+        <VAvatar color="primary" variant="tonal" size="36"><VIcon icon="tabler-chart-bar" size="20" /></VAvatar>
+        <div><strong>{{ activeTab?.title }}</strong><div class="text-caption text-medium-emphasis">{{ $t('educational.resultCount', { count: report?.total ?? 0 }) }}</div></div>
+        <VSpacer /><VBtn v-if="activeFilterCount" size="small" variant="text" prepend-icon="tabler-filter" @click="filtersOpen = true">{{ $t('educational.activeFilters', { count: activeFilterCount }) }}</VBtn><span v-if="!canExport" class="text-caption text-medium-emphasis">{{ $t('educational.exportRequired') }}</span>
       </div>
-    </VCardText>
-    <VProgressLinear v-if="loading" indeterminate />
-    <VTable v-if="report">
-      <thead><tr><th v-for="column in report.columns" :key="column" class="text-capitalize">{{ column.replaceAll('_', ' ') }}</th></tr></thead>
-      <tbody>
-        <tr v-for="(row, index) in report.rows" :key="index"><td v-for="column in report.columns" :key="column">{{ row[column] }}</td></tr>
-        <tr v-if="!report.rows.length"><td :colspan="report.columns.length || 1" class="text-center text-medium-emphasis py-8">No rows match these filters.</td></tr>
-      </tbody>
-    </VTable>
-    <VCardText v-if="report?.last_page && report.last_page > 1" class="d-flex">
-      <VPagination v-model="page" :length="report.last_page" size="small" @update:model-value="load" />
-    </VCardText>
-  </VCard>
+      <VProgressLinear v-if="loading" indeterminate />
+      <div v-if="report" class="education-table-scroll"><VTable density="compact" class="education-table report-table">
+        <thead><tr><th v-for="column in report.columns" :key="column">{{ columnLabel(column) }}</th></tr></thead>
+        <tbody><tr v-for="(row, index) in report.rows" :key="index"><td v-for="column in report.columns" :key="column">{{ displayValue(column, row[column]) }}</td></tr><tr v-if="!report.rows.length"><td :colspan="report.columns.length || 1"><div class="education-empty"><VIcon icon="tabler-report-off" size="34" /><strong>{{ $t('educational.noRows') }}</strong><span>{{ $t('educational.adjustFilters') }}</span></div></td></tr></tbody>
+      </VTable></div>
+      <VDivider v-if="report?.last_page && report.last_page > 1" />
+      <VCardText v-if="report?.last_page && report.last_page > 1" class="d-flex justify-center py-2"><VPagination v-model="page" :length="report.last_page" size="small" :total-visible="7" @update:model-value="load" /></VCardText>
+    </VCard>
+  </div>
 </template>

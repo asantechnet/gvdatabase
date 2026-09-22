@@ -38,13 +38,6 @@ export default [
         action: 'read',
         subject: 'view_settings',
       },
-      {
-        title: 'Educational data',
-        icon: { icon: 'tabler-school' },
-        to: 'educational-master-data',
-        action: 'read',
-        subject: 'view_country',
-      },
     ],
   },
 ]

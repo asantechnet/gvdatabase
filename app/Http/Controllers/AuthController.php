@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\User;
+use App\Services\ApplicantPortalCrmSynchronizer;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
@@ -79,6 +80,8 @@ class AuthController extends Controller
         if ($user->two_factor_confirmed_at && ! $this->validTotp($user->two_factor_secret, (string) $request->two_factor_code)) {
             return response()->json(['success' => false, 'two_factor_required' => true], 422);
         }
+
+        app(ApplicantPortalCrmSynchronizer::class)->synchronize($user);
 
         $tokens = $this->issueTokens($user, $request->boolean('remember'));
 
@@ -324,6 +327,18 @@ class AuthController extends Controller
         $user->save();
 
         return response()->json(['success' => true, 'data' => $user->account_settings]);
+    }
+
+    /** Accessibility preference: scales interactive application UI, never print output. */
+    public function updateUiScale(Request $request)
+    {
+        $data = $request->validate(['ui_scale' => ['required', 'numeric', 'between:0.85,1.25']]);
+        $user = $request->user();
+        $settings = $user->account_settings ?? [];
+        $user->account_settings = array_merge($settings, ['ui_scale' => round((float) $data['ui_scale'], 2)]);
+        $user->save();
+
+        return response()->json(['success' => true, 'data' => $this->accountData($user->fresh())]);
     }
 
     public function beginTwoFactor(Request $request)

@@ -15,7 +15,8 @@ use App\Models\Setting;
  */
 class PlaceholderRegistry
 {
-    public const SYSTEM_SLUGS = ['employment', 'customer', 'company'];
+    public const EDUCATIONAL_SLUGS = ['educational-service', 'scholarship-service', 'test-service', 'visa-service'];
+    public const SYSTEM_SLUGS = ['employment', 'customer', 'company', ...self::EDUCATIONAL_SLUGS];
 
     /**
      * Placeholder groups. Each field key is globally unique and stable.
@@ -58,7 +59,7 @@ class PlaceholderRegistry
             [
                 'key' => 'customer',
                 'label' => 'Customer',
-                'contexts' => ['customer'],
+                'contexts' => ['customer', ...self::EDUCATIONAL_SLUGS],
                 'fields' => [
                     ['key' => 'customer.name', 'label' => 'Name'],
                     ['key' => 'customer.company_name', 'label' => 'Company'],
@@ -66,6 +67,18 @@ class PlaceholderRegistry
                     ['key' => 'customer.email', 'label' => 'Email'],
                     ['key' => 'customer.address', 'label' => 'Address'],
                     ['key' => 'customer.tax_number', 'label' => 'Tax Number'],
+                ],
+            ],
+            [
+                'key' => 'service',
+                'label' => 'Service',
+                'contexts' => self::EDUCATIONAL_SLUGS,
+                'fields' => [
+                    ['key' => 'service.name', 'label' => 'Service Name'],
+                    ['key' => 'service.category', 'label' => 'Category'],
+                    ['key' => 'service.description', 'label' => 'Description'],
+                    ['key' => 'service.duration', 'label' => 'Duration'],
+                    ['key' => 'service.fee', 'label' => 'Fee'],
                 ],
             ],
             [

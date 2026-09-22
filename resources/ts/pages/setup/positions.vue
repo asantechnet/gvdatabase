@@ -73,7 +73,7 @@ function openEdit(position: Position) {
 }
 
 function editPositionContract(position: Position) {
-  router.push({ name: 'contract-templates', query: { positionId: position.id } })
+  router.push({ name: 'contract-documents', query: { tab: 'templates', positionId: position.id } })
 }
 
 async function save() {

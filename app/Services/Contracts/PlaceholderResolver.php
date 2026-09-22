@@ -5,6 +5,7 @@ namespace App\Services\Contracts;
 use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Employee;
+use App\Models\Service;
 
 /**
  * Resolves whitelisted placeholders against explicit value maps.
@@ -98,6 +99,15 @@ class PlaceholderResolver
                 'customer.email' => $customer->email,
                 'customer.address' => $customer->address,
                 'customer.tax_number' => $customer->tax_number,
+            ];
+        }
+        if ($service = $context['service'] ?? null) {
+            $values += [
+                'service.name' => $service->type,
+                'service.category' => $service->category,
+                'service.description' => $service->description,
+                'service.duration' => $service->duration,
+                'service.fee' => $service->fee,
             ];
         }
 

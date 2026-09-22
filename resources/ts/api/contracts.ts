@@ -45,8 +45,10 @@ export interface Contract {
   contract_template_version_id?: number | null
   language_id?: number | null
   contract_type_id?: number | null
+  service_id?: number | null
   employee_id?: number | null
   customer_id?: number | null
+  applicant_id?: number | null
   company_id?: number | null
   type_slug?: string | null
   type?: string | null
@@ -56,6 +58,8 @@ export interface Contract {
   snapshot_data?: {
     parties?: Record<string, unknown>
     entity?: Record<string, unknown>
+    template_version?: { id: number; version_number: number; language_id?: number | null } | null
+    document_design?: { letterhead_url?: string | null; cover_design_url?: string | null; safe_x?: number; safe_y?: number; safe_width?: number; safe_height?: number } | null
     renewal?: { source_contract_id: number; source_contract_number?: string | null }
   } | null
   parties?: ContractPartySnapshot | null
@@ -76,10 +80,13 @@ export interface Contract {
 export interface ContractCreateData {
   template_id?: number | null
   contract_template_version_id?: number | null
+  language_id?: number | null
   contract_type_id?: number | null
   employee_id?: number | null
   customer_id?: number | null
+  applicant_id?: number | null
   company_id?: number | null
+  service_id?: number | null
   is_custom?: boolean
   name?: string
   cover_text?: string | null
@@ -96,7 +103,7 @@ export interface ContractUpdateData extends Partial<Omit<ContractCreateData, 'st
 }
 
 export interface ContractParams {
-  audience?: 'customers' | 'employees' | 'companies'
+  audience?: 'customers' | 'employees' | 'other' | 'educational'
   type_slug?: string
   status?: ContractStatus
   search?: string

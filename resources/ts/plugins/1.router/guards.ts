@@ -8,7 +8,11 @@ import AuthApi from '@/api/auth'
 let sessionPermissionRequest: Promise<void> | null = null
 let sessionPermissionRequestAttempted = false
 
+const isApplicantPortalUser = () => useCookie<{ roles?: string[] } | null>('userData').value?.roles?.includes('applicant') === true
+
 const authorizedLandingRoute = () => {
+  if (isApplicantPortalUser() && canAccess('view_own_applicant_portal'))
+    return { name: 'applicant-portal' }
   if (canAccess('view_dashboard'))
     return { name: 'home' }
   if (canAccess('view_all_boards') || canAccess('view_assigned_boards'))
@@ -80,6 +84,9 @@ export const setupGuards = (router: Router) => {
 
     if (!isLoggedIn)
       return { path: '/login' }
+
+    if (to.name === 'applicant-portal' && !isApplicantPortalUser())
+      return authorizedLandingRoute()
 
     if (!canNavigate(to)) {
       const fallback = authorizedLandingRoute()

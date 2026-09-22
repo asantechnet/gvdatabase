@@ -5,6 +5,7 @@ import type { ContractStatus } from '@/api/contracts'
 import CustomerApi, { type Customer } from '@/api/customer'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
+import ServiceApi, { type Service } from '@/api/services'
 import CounterpartyCard, { type CounterpartyDetails } from '@/components/contract/CounterpartyCard.vue'
 
 const { t } = useI18n()
@@ -12,9 +13,12 @@ const tr = (key: string) => t(`pages.contracts.contractform.contractform.${key}`
 
 export interface ContractFormPayload {
   template_id: number | null
+  contract_template_version_id: number | null
   language_id: number | null
   employee_id: number | null
   customer_id: number | null
+  service_id: number | null
+  applicant_id?: number | null
   company_id: number | null
   name: string
   cover_text: string | null
@@ -31,7 +35,7 @@ interface TemplateOption {
   name: string
   type_slug?: string | null
   cover_text?: string | null
-  versions?: Array<{ language_id: number; status: string; is_current: boolean; language?: { id: number; name: string; code: string } }>
+  versions?: Array<{ id: number; country_id?: number | null; language_id: number; status: string; is_current: boolean; country?: { id: number; name: string }; language?: { id: number; name: string; code: string } }>
 }
 
 const props = defineProps<{
@@ -44,9 +48,11 @@ const props = defineProps<{
     duration_months?: number | null
     company_signatory_name?: string | null
     template_id: number | null
+    contract_template_version_id?: number | null
     contract_type_id?: number | null
     employee_id?: number | null
     customer_id?: number | null
+    service_id?: number | null
     company_id?: number | null
     is_custom?: boolean
     type_slug?: string | null
@@ -54,7 +60,10 @@ const props = defineProps<{
     content?: string | null
   }
   templates: TemplateOption[]
-  audience?: 'customers' | 'employees' | 'companies'
+  audience?: 'customers' | 'employees' | 'other'
+  applicantId?: number | null
+  applicantCountryId?: number | null
+  customerId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -66,14 +75,19 @@ const formRef = ref()
 const customers = ref<Customer[]>([])
 const employees = ref<Employee[]>([])
 const companies = ref<Company[]>([])
+const countries = ref<MasterDataRecord[]>([])
 const languages = ref<MasterDataRecord[]>([])
+const services = ref<Service[]>([])
 const loadingEntities = ref(true)
 
 const form = ref({
   template_id: (props.contract?.template_id ?? null) as number | null,
+  contract_template_version_id: (props.contract?.contract_template_version_id ?? null) as number | null,
+  country_id: (props.applicantCountryId ?? null) as number | null,
   language_id: null as number | null,
   employee_id: (props.contract?.employee_id ?? null) as number | null,
-  customer_id: (props.contract?.customer_id ?? null) as number | null,
+  customer_id: (props.contract?.customer_id ?? props.customerId ?? null) as number | null,
+  service_id: (props.contract?.service_id ?? null) as number | null,
   company_id: (props.contract?.company_id ?? null) as number | null,
   name: props.contract?.contract || '',
   cover_text: (props.contract?.cover_text || null) as string | null,
@@ -112,6 +126,10 @@ const CONTEXT_BY_SLUG: Record<string, 'employee' | 'customer' | 'company' | null
   employment: 'employee',
   customer: 'customer',
   company: 'company',
+  'educational-service': 'customer',
+  'scholarship-service': 'customer',
+  'test-service': 'customer',
+  'visa-service': 'customer',
 }
 
 const selectedTemplate = computed(() =>
@@ -122,10 +140,25 @@ const activeSlug = computed<string | null>(() => {
 })
 
 const activeTemplateVersions = computed(() => selectedTemplate.value?.versions?.filter(version => version.is_current && version.status === 'active') ?? [])
-const requiresLanguage = computed(() => activeTemplateVersions.value.length > 0)
+const requiresVersionSelection = computed(() => activeTemplateVersions.value.length > 0)
+const hasTemplateVersions = computed(() => (selectedTemplate.value?.versions?.length ?? 0) > 0)
+const countryOptions = computed(() => {
+  const versionCountryIds = [...new Set(activeTemplateVersions.value.map(version => version.country_id ?? null))]
+
+  return versionCountryIds.map(countryId => ({
+    title: countryId === null
+      ? tr('allCountries')
+      : countries.value.find(country => country.id === countryId)?.name
+        ?? activeTemplateVersions.value.find(version => version.country_id === countryId)?.country?.name
+        ?? tr('country'),
+    value: countryId,
+  }))
+})
+const countryScopedVersions = computed(() => activeTemplateVersions.value.filter(version => version.country_id === form.value.country_id))
 const languageOptions = computed(() => languages.value
-  .filter(language => language.is_active && activeTemplateVersions.value.some(version => version.language_id === language.id))
+  .filter(language => language.is_active && countryScopedVersions.value.some(version => version.language_id === language.id))
   .map(language => ({ title: `${language.name}${language.code ? ` (${language.code})` : ''}`, value: language.id })))
+const selectedTemplateVersion = computed(() => countryScopedVersions.value.find(version => version.language_id === form.value.language_id) ?? null)
 
 const context = computed<'employee' | 'customer' | 'company' | null>(() => {
   const slug = activeSlug.value
@@ -145,8 +178,8 @@ const visibleTemplates = computed(() => {
   if (props.audience === 'customers')
     return props.templates.filter(template => template.type_slug === 'customer')
 
-  if (props.audience === 'companies')
-    return props.templates.filter(template => template.type_slug === 'company')
+  if (props.audience === 'other')
+    return props.templates.filter(template => template.type_slug !== 'employment' && template.type_slug !== 'customer')
 
   return props.templates
 })
@@ -168,6 +201,7 @@ const companyOptions = computed(() => companies.value.map(company => ({
 
 const selectedEmployee = computed(() => employees.value.find(item => item.id === form.value.employee_id) ?? null)
 const selectedCustomer = computed(() => customers.value.find(item => item.id === form.value.customer_id) ?? null)
+const serviceOptions = computed(() => services.value.filter(service => service.status === 'active').map(service => ({ title: service.name || service.type, value: service.id })))
 const selectedCompany = computed(() => companies.value.find(item => item.id === form.value.company_id) ?? null)
 
 const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
@@ -222,11 +256,13 @@ const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
 
 onMounted(async () => {
   try {
-    const [customerResult, employeeResult, companyResult, languageResult] = await Promise.allSettled([
+    const [customerResult, employeeResult, companyResult, countryResult, languageResult, serviceResult] = await Promise.allSettled([
       CustomerApi.getAll(),
       EmployeeApi.getOptions(),
       CompanyApi.getAll(),
+      MasterDataApi.list('countries'),
       MasterDataApi.list('languages'),
+      ServiceApi.getAll(),
     ])
 
     if (customerResult.status === 'fulfilled' && customerResult.value.success)
@@ -235,8 +271,12 @@ onMounted(async () => {
       employees.value = employeeResult.value
     if (companyResult.status === 'fulfilled')
       companies.value = companyResult.value.filter(company => company.is_active !== false)
+    if (countryResult.status === 'fulfilled')
+      countries.value = countryResult.value.filter(country => country.is_active)
     if (languageResult.status === 'fulfilled')
       languages.value = languageResult.value.filter(language => language.is_active)
+    if (serviceResult.status === 'fulfilled')
+      services.value = serviceResult.value.data
   }
   finally {
     loadingEntities.value = false
@@ -259,8 +299,21 @@ watch(context, currentContext => {
 })
 
 watch(() => form.value.template_id, () => {
-  if (!activeTemplateVersions.value.some(version => version.language_id === form.value.language_id))
+  const existingVersion = activeTemplateVersions.value.find(version => version.id === form.value.contract_template_version_id)
+
+  form.value.country_id = props.applicantCountryId ?? existingVersion?.country_id ?? countryOptions.value[0]?.value ?? null
+  form.value.language_id = existingVersion?.language_id ?? null
+  form.value.contract_template_version_id = existingVersion?.id ?? null
+}, { immediate: true })
+
+watch(() => form.value.country_id, () => {
+  if (!countryScopedVersions.value.some(version => version.language_id === form.value.language_id))
     form.value.language_id = null
+  form.value.contract_template_version_id = null
+})
+
+watch(() => form.value.language_id, () => {
+  form.value.contract_template_version_id = selectedTemplateVersion.value?.id ?? null
 })
 
 watch([() => form.value.start_date, () => form.value.duration_months], ([startDate, duration]) => {
@@ -285,8 +338,11 @@ const submit = async () => {
   const durationMonths = normalizeWholeNumber(form.value.duration_months)
   emit('submit', {
     ...form.value,
+    contract_template_version_id: selectedTemplateVersion.value?.id ?? null,
     employee_id: context.value === 'employee' ? form.value.employee_id : null,
     customer_id: context.value === 'customer' ? form.value.customer_id : null,
+    service_id: context.value === 'customer' ? form.value.service_id : null,
+    applicant_id: context.value === 'customer' ? props.applicantId ?? null : null,
     company_id: context.value === 'company' ? form.value.company_id : null,
     duration_months: durationMonths,
 
@@ -310,26 +366,16 @@ defineExpose({ submit })
     @submit.prevent="submit"
   >
     <VRow>
-      <VCol cols="12">
+      <VCol
+        cols="12"
+        :md="selectedTemplate ? 6 : 12"
+      >
         <p class="app-form__section">
           {{ tr('setup') }}
         </p>
         <p class="app-form__section-help">
           {{ tr('setupHint') }}
         </p>
-      </VCol>
-
-      <VCol
-        v-if="requiresLanguage"
-        cols="12"
-      >
-        <VSelect
-          v-model="form.language_id"
-          :items="languageOptions"
-          label="Contract language"
-          :rules="[value => !!value || 'Select the contract language']"
-          required
-        />
       </VCol>
 
       <VCol cols="12">
@@ -343,6 +389,50 @@ defineExpose({ submit })
           :loading="loadingEntities"
           required
         />
+      </VCol>
+
+      <VCol
+        v-if="selectedTemplate"
+        cols="12"
+        md="3"
+      >
+        <VSelect
+          v-model="form.country_id"
+          :items="countryOptions"
+          :label="tr('country')"
+          :disabled="!!applicantCountryId || !requiresVersionSelection"
+          :hint="applicantCountryId ? tr('countryFromApplicant') : tr('countryVersionHint')"
+          persistent-hint
+        />
+      </VCol>
+      <VCol
+        v-if="selectedTemplate"
+        cols="12"
+        md="3"
+      >
+        <VSelect
+          v-model="form.language_id"
+          :items="languageOptions"
+          :label="tr('language')"
+          :disabled="!requiresVersionSelection"
+          :rules="[value => !requiresVersionSelection || !!value || tr('languageRequired')]"
+          :hint="tr('languageVersionHint')"
+          persistent-hint
+          required
+        />
+      </VCol>
+      <VCol
+        v-if="selectedTemplate && !requiresVersionSelection"
+        cols="12"
+      >
+        <VAlert
+          :color="hasTemplateVersions ? 'warning' : 'info'"
+          variant="tonal"
+          density="compact"
+          icon="tabler-language"
+        >
+          {{ hasTemplateVersions ? tr('noActiveVersions') : tr('noVersions') }}
+        </VAlert>
       </VCol>
 
       <!-- Context-driven counterparty selection -->
@@ -381,6 +471,19 @@ defineExpose({ submit })
       </VCol>
 
       <VCol
+        v-if="context === 'customer'"
+        cols="12"
+      >
+        <VSelect
+          v-model="form.service_id"
+          :items="serviceOptions"
+          label="Related service (optional)"
+          clearable
+          prepend-inner-icon="tabler-briefcase"
+        />
+      </VCol>
+
+      <VCol
         v-else-if="context === 'company'"
         cols="12"
       >
@@ -396,22 +499,7 @@ defineExpose({ submit })
           :hint="tr('companyHint')"
           persistent-hint
           required
-        >
-          <template #append-item>
-            <div class="pa-2">
-              <VBtn
-                variant="tonal"
-                color="primary"
-                size="small"
-                block
-                prepend-icon="tabler-plus"
-                to="/companies"
-              >
-                {{ tr('manageCompanies') }}
-              </VBtn>
-            </div>
-          </template>
-        </VAutocomplete>
+        />
       </VCol>
 
       <!-- Read-only identity summary of the selected record -->

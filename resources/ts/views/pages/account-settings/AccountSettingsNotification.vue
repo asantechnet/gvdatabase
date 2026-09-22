@@ -8,6 +8,7 @@ const notificationEvents = ref<NotificationEvent[]>([
   { key: 'audit_activity', title: translate('components.account.accountsettingsnotification.auditActivity'), description: translate('components.account.accountsettingsnotification.recordEditsDeletionsRestoresAndReviewActions'), in_app: true },
   { key: 'finance_updates', title: translate('components.account.accountsettingsnotification.financeUpdates'), description: translate('components.account.accountsettingsnotification.invoicesIncomeExpensesAndPaymentActivity'), in_app: true },
   { key: 'work_updates', title: translate('components.account.accountsettingsnotification.workUpdates'), description: translate('components.account.accountsettingsnotification.tasksBoardsCommentsAndContractActivity'), in_app: true },
+  { key: 'applicant_updates', title: translate('notificationPreferences.applicantUpdates'), description: translate('notificationPreferences.applicantCaseAssignmentsStagesAndReminders'), in_app: true },
   { key: 'staff_updates', title: translate('components.account.accountsettingsnotification.staffUpdates'), description: translate('components.account.accountsettingsnotification.employeeAttendanceSalaryAndBonusActivity'), in_app: true },
 ])
 
@@ -34,7 +35,7 @@ async function load() {
     initialPreferences.value = structuredClone(preferences())
   }
   catch (exception: any) {
-    toast.error(exception.message || 'Unable to load notification preferences.')
+    toast.error(exception.message || translate('notificationPreferences.loadFailed'))
   }
 }
 
@@ -48,7 +49,7 @@ async function save() {
     toast.success(translate('components.account.accountsettingsnotification.notificationPreferencesSaved'))
   }
   catch (exception: any) {
-    toast.error(exception.message || 'Unable to save notification preferences.')
+    toast.error(exception.message || translate('notificationPreferences.saveFailed'))
   }
   finally {
     saving.value = false
@@ -66,7 +67,7 @@ onMounted(load)
   <VCard>
     <VCardItem
       :title="$t('components.account.accountsettingsnotification.notificationPreferences')"
-      subtitle="Choose which Asantech Mini Management events appear in your in-app inbox."
+      :subtitle="$t('notificationPreferences.subtitle')"
     />
 
     <VCardText

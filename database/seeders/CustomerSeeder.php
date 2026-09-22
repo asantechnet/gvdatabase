@@ -29,9 +29,14 @@ class CustomerSeeder extends Seeder
         // Re-enable foreign key checks
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        $consultingService = Service::where('type', 'Consulting')->firstOrFail();
-        $trainingService = Service::where('type', 'Training')->firstOrFail();
-        $developmentService = Service::where('type', 'Development')->firstOrFail();
+        // Keep the demo customer data coupled to the current service catalog.
+        // The old seeder expected legacy Consulting/Training/Development rows,
+        // but the application now ships with an educational service catalog.
+        $services = Service::query()->orderBy('id')->take(3)->get();
+        if ($services->count() < 3) {
+            throw new \RuntimeException('Seed at least three services before customers.');
+        }
+        [$consultingService, $trainingService, $developmentService] = $services->all();
 
         // Create customers
         $john = Customer::create([

@@ -54,6 +54,10 @@ class DatabaseSeeder extends Seeder
             WorthyEmployeeSeeder::class,
             VisitorSeeder::class,
             NotificationSeeder::class,
+
+            // New CRM relationship records and educational visa operations.
+            CrmSeeder::class,
+            EducationalSeeder::class,
         ]);
     }
 }
