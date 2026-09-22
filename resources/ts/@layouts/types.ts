@@ -74,10 +74,21 @@ export interface NavLinkProps {
   href?: string
   target?: ATagTargetAttrValues
   rel?: ATagRelAttrValues
+
+  /*
+    ℹ️ RouterLink's built-in active matching ignores query/params, so links that
+    share a route (e.g. Contracts services differing only by `serviceId`) would
+    all highlight at once. We neutralize those automatic classes here and drive
+    highlighting solely via the query-aware `isNavLinkActive` binding instead.
+  */
+  activeClass?: string
+  exactActiveClass?: string
 }
 
 export interface NavLink extends NavLinkProps, Partial<AclProperties> {
   title: string
+  /** Set false for labels supplied by application data rather than locale files. */
+  isTitleTranslationKey?: boolean
   icon?: unknown
   badgeContent?: string
   badgeClass?: string

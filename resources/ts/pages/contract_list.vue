@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import ContractCover from './templates/contract_cover_template.vue'
@@ -71,6 +71,25 @@ const contractToRenew = ref<Contract | null>(null)
 const renewalDurationMonths = ref<number | null>(null)
 const renewalStartDate = ref('')
 const isRenewing = ref(false)
+const selectedServiceId = computed(() => {
+  const value = Number(route.query.serviceId)
+  return Number.isSafeInteger(value) && value > 0 ? value : null
+})
+const isWithoutService = computed(() => route.query.withoutService === '1')
+const selectedServiceName = computed(() => typeof route.query.serviceName === 'string' ? route.query.serviceName : null)
+const contractRequest = computed(() => ({
+  audience: props.contractAudience,
+  ...(selectedServiceId.value ? { service_id: selectedServiceId.value } : {}),
+  ...(isWithoutService.value ? { without_service: true } : {}),
+}))
+const pageTitle = computed(() => selectedServiceName.value
+  ? t('pages.contracts.allContracts.allContracts.serviceContracts', { service: selectedServiceName.value })
+  : isWithoutService.value
+    ? t('pages.contracts.allContracts.allContracts.unassignedContracts')
+    : t(audienceCopy.value.title))
+const pageDescription = computed(() => selectedServiceName.value
+  ? t('pages.contracts.allContracts.allContracts.serviceContractsDescription', { service: selectedServiceName.value })
+  : t(audienceCopy.value.description))
 
 const counterparties = computed(() => [...new Set(contracts.value.map(c => c.counterparty).filter(c => c))])
 const statuses = ['draft', 'active', 'expired', 'renewed', 'terminated', 'cancelled']
@@ -128,7 +147,7 @@ const headers = computed(() => [
   { title: t('common.messages.contract'), key: 'contract', sortable: true },
   { title: t('common.fields.type'), key: 'type', sortable: true },
   { title: t('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true },
-  ...(hasRelatedServices.value ? [{ title: t('common.messages.services'), key: 'services', sortable: false }] : []),
+  ...(hasRelatedServices.value ? [{ title: t('common.messages.services'), key: 'service', sortable: false }] : []),
   { title: t('common.fields.startDate'), key: 'start_date', sortable: true },
   { title: t('pages.contracts.allContracts.allContracts.endDate'), key: 'end_date', sortable: true },
   { title: t('common.fields.status'), key: 'status', sortable: true },
@@ -140,7 +159,7 @@ const contractReportRow = (contract: Contract) => [
   contract.contract || contract.contract_template?.name,
   contract.type || contract.contract_template?.type,
   contract.counterparty,
-  ...(hasRelatedServices.value ? [contract.services?.map(service => service.type).join(', ') || '—'] : []),
+  ...(hasRelatedServices.value ? [contract.service?.name || contract.service?.type || '—'] : []),
   contract.start_date,
   contract.end_date || '—',
   contract.status,
@@ -472,7 +491,7 @@ const confirmContractAction = async () => {
     else {
       isCancelling.value = true
       await ContractApi.cancel(action.contract.id)
-      await fetchContracts({ audience: props.contractAudience })
+      await fetchContracts(contractRequest.value)
       toast.success(translate('pages.contracts.allContracts.allContracts.contractCancelled'))
     }
   }
@@ -579,7 +598,7 @@ const handleFormSubmit = async (contractData: ContractFormPayload) => {
 
 onMounted(async () => {
   await Promise.all([
-    fetchContracts({ audience: props.contractAudience }),
+    fetchContracts(contractRequest.value),
     fetchTemplates(),
   ])
   templates.value = templates.value.filter(template =>
@@ -621,13 +640,15 @@ onMounted(async () => {
     // Printing still works with neutral fallback company details.
   }
 })
+
+watch([selectedServiceId, isWithoutService], () => fetchContracts(contractRequest.value))
 </script>
 
 <template>
   <DataTablePageKpis
     :items="filtered"
-    :title="t(audienceCopy.title)"
-    :description="t(audienceCopy.description)"
+    :title="pageTitle"
+    :description="pageDescription"
     icon="tabler-file-description"
   />
   <VCard>
@@ -741,9 +762,9 @@ onMounted(async () => {
       </template>
       <template
         v-if="hasRelatedServices"
-        #item.services="{ item }"
+        #item.service="{ item }"
       >
-        {{ item.services?.map((service: { type: string }) => service.type).join(', ') || '—' }}
+        {{ item.service?.name || item.service?.type || '—' }}
       </template>
       <template #item.start_date="{ item }">
         {{ formatLocalizedDate(item.start_date) }}
@@ -871,6 +892,7 @@ onMounted(async () => {
           :contract="selectedContract || undefined"
           :templates="templates"
           :audience="contractAudience"
+          :default-service-id="selectedServiceId"
           @submit="handleFormSubmit"
           @cancel="isDialogVisible = false"
         />

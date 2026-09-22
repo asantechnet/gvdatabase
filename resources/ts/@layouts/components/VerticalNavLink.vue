@@ -48,7 +48,7 @@ const hasRequiredRole = (item: NavLink) => !item.requiredRole || userData.value?
       <TransitionGroup name="transition-slide-x">
         <!-- 👉 Title -->
         <Component
-          :is="layoutConfig.app.i18n.enable ? 'i18n-t' : 'span'"
+          :is="layoutConfig.app.i18n.enable && item.isTitleTranslationKey !== false ? 'i18n-t' : 'span'"
           v-show="!hideTitleAndBadge"
           key="title"
           class="nav-item-title"

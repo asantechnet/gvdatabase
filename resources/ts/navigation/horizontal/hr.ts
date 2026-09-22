@@ -12,6 +12,13 @@ export default [
         subject: 'view_employees',
       },
       {
+        title: 'common.navigation.employmentContracts',
+        icon: { icon: 'tabler-file-text' },
+        to: 'employee-contracts',
+        action: 'read',
+        subject: 'view_contracts',
+      },
+      {
         title: 'common.navigation.timesheet',
         icon: { icon: 'tabler-clock' },
         to: 'timesheet',

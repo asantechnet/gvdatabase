@@ -54,7 +54,7 @@ const hasRequiredRole = (item: NavLink) => !item.requiredRole || userData.value?
         "
       />
       <Component
-        :is="layoutConfig.app.i18n.enable ? 'i18n-t' : 'span'"
+        :is="layoutConfig.app.i18n.enable && item.isTitleTranslationKey !== false ? 'i18n-t' : 'span'"
         class="nav-item-title"
         v-bind="getDynamicI18nProps(item.title, 'span')"
       >

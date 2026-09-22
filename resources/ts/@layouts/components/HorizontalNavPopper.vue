@@ -9,6 +9,7 @@ interface Props {
   popperInlineEnd?: boolean
   tag?: string
   contentContainerTag?: string
+  contentClass?: string
   isRtl?: boolean
 }
 
@@ -131,6 +132,7 @@ watch(() => route.fullPath, hideContent)
       <div
         ref="refPopper"
         class="popper-content horizontal-nav-popper-content"
+        :class="contentClass"
         :style="popperContentStyles"
         @mouseenter="showContent"
         @mouseleave="hideContent"
@@ -150,6 +152,7 @@ watch(() => route.fullPath, hideContent)
           v-show="isContentShown"
           ref="refPopper"
           class="popper-content horizontal-nav-popper-content"
+          :class="contentClass"
           :style="popperContentStyles"
           @mouseenter="showContent"
           @mouseleave="hideContent"
@@ -170,6 +173,7 @@ watch(() => route.fullPath, hideContent)
           v-show="isContentShown"
           ref="refPopper"
           class="popper-content horizontal-nav-popper-content"
+          :class="contentClass"
           :style="popperContentStyles"
           @mouseenter="showContent"
           @mouseleave="hideContent"

@@ -13,15 +13,20 @@ import { useBranding } from '@/composables/useBranding'
 import NavBarI18n from '@core/components/I18n.vue'
 import { VerticalNavLayout } from '@layouts'
 import { useLayoutConfigStore } from '@layouts/stores/config'
+import { useServiceContractNavigation } from '@/composables/useServiceContractNavigation'
+import type { HorizontalNavItems, VerticalNavItems } from '@layouts/types'
 
 const { logoUrl, isLogoSquare, shortCompanyName, handleLogoLoad, loadBranding } = useBranding()
 const layoutConfigStore = useLayoutConfigStore()
+const { navItems: serviceNavItems, loadServiceContracts } = useServiceContractNavigation(navItems as HorizontalNavItems)
 
-onMounted(loadBranding)
+onMounted(async () => {
+  await Promise.all([loadBranding(), loadServiceContracts()])
+})
 </script>
 
 <template>
-  <VerticalNavLayout :nav-items="navItems">
+  <VerticalNavLayout :nav-items="serviceNavItems as unknown as VerticalNavItems">
     <template #vertical-nav-header="{ toggleVerticalOverlayNavActive }">
       <RouterLink
         to="/"

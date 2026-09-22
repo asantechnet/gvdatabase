@@ -1,12 +1,13 @@
+default_permissions = "no_vuexy_workspace"
+
 [permissions.no_vuexy_workspace]
 description = "Standard workspace sandbox excluding core Vuexy template layouts and configs."
 extends = ":workspace"
 
 [permissions.no_vuexy_workspace.filesystem]
-# Explicitly deny access to core Vuexy template architecture paths
-"**/src/@core/**" = "deny"
-"**/src/configs/**" = "deny"
-"**/demo-configs/**" = "deny"
-
-# Optional: Add any extra custom theme blocks or starter files you want ignored
-"**/src/views/apps/**" = "deny"
+":workspace_roots" = { 
+  "src/@core/**" = "deny",
+  "src/configs/**" = "deny",
+  "demo-configs/**" = "deny",
+  "src/views/apps/**" = "deny"
+}

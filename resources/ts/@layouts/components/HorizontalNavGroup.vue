@@ -107,14 +107,6 @@ watch(
       align-items: center;
       cursor: pointer;
     }
-
-    .popper-content {
-      z-index: 1;
-
-      >div {
-        overflow: hidden auto;
-      }
-    }
   }
 }
 </style>

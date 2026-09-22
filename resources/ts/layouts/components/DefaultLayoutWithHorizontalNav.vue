@@ -14,14 +14,18 @@ import NavbarFullscreenToggle from '@/layouts/components/NavbarFullscreenToggle.
 import UserProfile from '@/layouts/components/UserProfile.vue'
 import NavbarLayoutSwitcher from '@/layouts/components/NavbarLayoutSwitcher.vue'
 import { useBranding } from '@/composables/useBranding'
+import { useServiceContractNavigation } from '@/composables/useServiceContractNavigation'
 
 const { logoUrl, isLogoSquare, shortCompanyName, handleLogoLoad, loadBranding } = useBranding()
+const { navItems: serviceNavItems, loadServiceContracts } = useServiceContractNavigation(navItems)
 
-onMounted(loadBranding)
+onMounted(async () => {
+  await Promise.all([loadBranding(), loadServiceContracts()])
+})
 </script>
 
 <template>
-  <HorizontalNavLayout :nav-items="navItems">
+  <HorizontalNavLayout :nav-items="serviceNavItems">
     <!-- 👉 navbar -->
     <template #navbar>
       <RouterLink

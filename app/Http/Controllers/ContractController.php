@@ -38,6 +38,8 @@ class ContractController extends Controller
         $request->validate([
             'audience' => 'sometimes|string|in:customers,employees,other',
             'type_slug' => 'sometimes|string',
+            'service_id' => 'sometimes|integer|exists:services,id',
+            'without_service' => 'sometimes|boolean',
             'status' => 'sometimes|string|in:'.implode(',', Contract::STATUSES),
         ]);
 
@@ -486,6 +488,12 @@ class ContractController extends Controller
         $applicantId = $data['applicant_id'] ?? null;
         if ($applicantId && $customerId && ! Applicant::query()->whereKey($applicantId)->where('customer_id', $customerId)->exists()) {
             throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
+        }
+
+        if ($request->filled('service_id')) {
+            $query->where('service_id', $request->integer('service_id'));
+        } elseif ($request->boolean('without_service')) {
+            $query->whereNull('service_id');
         }
 
         if (! $partial && empty($data['start_date'])) {

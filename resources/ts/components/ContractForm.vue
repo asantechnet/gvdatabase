@@ -64,6 +64,7 @@ const props = defineProps<{
   applicantId?: number | null
   applicantCountryId?: number | null
   customerId?: number | null
+  defaultServiceId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -87,7 +88,7 @@ const form = ref({
   language_id: null as number | null,
   employee_id: (props.contract?.employee_id ?? null) as number | null,
   customer_id: (props.contract?.customer_id ?? props.customerId ?? null) as number | null,
-  service_id: (props.contract?.service_id ?? null) as number | null,
+  service_id: (props.contract?.service_id ?? props.defaultServiceId ?? null) as number | null,
   company_id: (props.contract?.company_id ?? null) as number | null,
   name: props.contract?.contract || '',
   cover_text: (props.contract?.cover_text || null) as string | null,

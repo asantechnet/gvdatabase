@@ -15,6 +15,13 @@ export const getComputedNavLinkToProp = computed(() => (link: NavLink) => {
   const props: NavLinkProps = {
     target: link.target,
     rel: link.rel,
+
+    // Neutralize RouterLink's automatic active classes: they match on route
+    // record only and ignore query/params, which would highlight every link
+    // pointing at the same route (e.g. all Contracts services). Highlighting
+    // is applied manually via the query-aware `isNavLinkActive` instead.
+    activeClass: 'nav-link-auto-active',
+    exactActiveClass: 'nav-link-auto-exact-active',
   }
 
   // If route is string => it assumes string is route name => Create route object from route name
@@ -43,10 +50,11 @@ export const resolveNavLinkRouteName = (link: NavLink, router: Router) => {
 }
 
 /**
- * Check if nav-link is active
- * @param {object} link nav-link object
+ * Check if nav-link's route record matches the current route (name only,
+ * query/params ignored). Used for nav groups so a parent stays highlighted
+ * while any of its children routes is open.
  */
-export const isNavLinkActive = (link: NavLink, router: Router) => {
+const isNavRouteNameMatched = (link: NavLink, router: Router): boolean => {
   // Matched routes array of current route
   const matchedRoutes = router.currentRoute.value?.matched ?? []
 
@@ -65,7 +73,43 @@ export const isNavLinkActive = (link: NavLink, router: Router) => {
 }
 
 /**
+ * Check if nav-link is active
+ * In addition to the route name, query & params declared on the link must
+ * match the current route. This keeps links that share a route but differ
+ * only by query (e.g. Contracts services with different `serviceId`) from
+ * all highlighting at once.
+ * @param {object} link nav-link object
+ */
+export const isNavLinkActive = (link: NavLink, router: Router) => {
+  if (!isNavRouteNameMatched(link, router))
+    return false
+
+  if (link.to && typeof link.to === 'object') {
+    // Access reactive query/params so template usages re-evaluate when
+    // only the query changes (same path, e.g. switching services).
+    const currentRoute = router.currentRoute.value
+    const to = link.to as { query?: Record<string, unknown>, params?: Record<string, unknown> }
+
+    const queryEntries = Object.entries(to.query ?? {})
+    for (const [key, value] of queryEntries) {
+      if (String(currentRoute.query[key]) !== String(value))
+        return false
+    }
+
+    const paramsEntries = Object.entries(to.params ?? {})
+    for (const [key, value] of paramsEntries) {
+      if (String(currentRoute.params[key]) !== String(value))
+        return false
+    }
+  }
+
+  return true
+}
+
+/**
  * Check if nav group is active
+ * Name-based on purpose: the group stays highlighted while any child route
+ * is open, regardless of the active child's query/params.
  * @param {Array} children Group children
  */
 export const isNavGroupActive = (
@@ -78,7 +122,7 @@ export const isNavGroupActive = (
       return isNavGroupActive(child.children, router)
 
     // else it's link => Check for matched Route
-    return isNavLinkActive(child, router)
+    return isNavRouteNameMatched(child, router)
   })
 
 /**

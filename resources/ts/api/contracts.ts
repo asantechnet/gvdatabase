@@ -34,6 +34,7 @@ export interface Contract {
   duration_months?: number | null
   company_signatory_name?: string | null
   services?: Service[]
+  service?: Service | null
   counterparty: string | null
   counterparty_company?: string | null
   counterparty_email?: string | null
@@ -105,6 +106,8 @@ export interface ContractUpdateData extends Partial<Omit<ContractCreateData, 'st
 export interface ContractParams {
   audience?: 'customers' | 'employees' | 'other' | 'educational'
   type_slug?: string
+  service_id?: number
+  without_service?: boolean
   status?: ContractStatus
   search?: string
   only_cancelled?: boolean
