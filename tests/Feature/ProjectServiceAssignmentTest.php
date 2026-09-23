@@ -4,7 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Currency;
 use App\Models\Customer;
-use App\Models\CustomerService;
+use App\Models\Contract;
+use App\Models\ContractType;
 use App\Models\Role;
 use App\Models\Service;
 use App\Models\User;
@@ -16,7 +17,7 @@ class ProjectServiceAssignmentTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_a_project_tracks_only_the_customer_services_selected_for_it(): void
+    public function test_a_project_tracks_only_the_contracted_services_selected_for_it(): void
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create();
@@ -24,8 +25,8 @@ class ProjectServiceAssignmentTest extends TestCase
         $design = Service::factory()->create(['type' => 'Brand design', 'currency_id' => $currency->id]);
         $hosting = Service::factory()->create(['type' => 'Website hosting', 'currency_id' => $currency->id]);
 
-        CustomerService::query()->create(['customer_id' => $customer->id, 'service_id' => $design->id]);
-        CustomerService::query()->create(['customer_id' => $customer->id, 'service_id' => $hosting->id]);
+        $this->contractedService($customer, $design->id);
+        $this->contractedService($customer, $hosting->id);
 
         $projectId = $this->postJson('/api/projects', [
             'name' => 'Website relaunch',
@@ -55,7 +56,7 @@ class ProjectServiceAssignmentTest extends TestCase
         $customer = Customer::factory()->create();
         $otherCustomer = Customer::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id]);
-        CustomerService::query()->create(['customer_id' => $otherCustomer->id, 'service_id' => $service->id]);
+        $this->contractedService($otherCustomer, $service->id);
 
         $this->postJson('/api/projects', [
             'name' => 'Invalid delivery scope',
@@ -66,6 +67,18 @@ class ProjectServiceAssignmentTest extends TestCase
 
         $this->assertDatabaseMissing('projects', ['name' => 'Invalid delivery scope']);
         $this->assertDatabaseCount('project_service', 0);
+    }
+
+    private function contractedService(Customer $customer, int $serviceId): void
+    {
+        $contract = Contract::create([
+            'contract_type_id' => ContractType::query()->where('slug', 'customer')->value('id'),
+            'customer_id' => $customer->id,
+            'name' => 'Agreement', 'type' => 'Customer', 'status' => 'active',
+            'start_date' => '2026-09-01', 'counterparty' => $customer->name,
+            'content' => '', 'is_custom' => true,
+        ]);
+        $contract->contractServices()->create(['service_id' => $serviceId]);
     }
 
     private function superAdmin(): User

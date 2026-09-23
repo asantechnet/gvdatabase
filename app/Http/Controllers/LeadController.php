@@ -137,7 +137,7 @@ class LeadController extends Controller
             return $customer;
         });
 
-        return new CustomerResource($customer->load(['customerServices.service.currency', 'marketerEmployee', 'interactions.creator']));
+        return new CustomerResource($customer->load(['contractServices.service.currency', 'marketerEmployee', 'interactions.creator']));
     }
 
     private function validated(Request $request, bool $partial = false): array

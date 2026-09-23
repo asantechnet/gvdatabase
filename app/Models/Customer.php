@@ -30,18 +30,10 @@ class Customer extends Model
         'date' => 'date',
     ];
 
-    public function services()
+    /** Contracted service lines of this customer (through its contracts). */
+    public function contractServices()
     {
-        return $this->belongsToMany(Service::class)
-            ->using(CustomerService::class)
-            ->wherePivotNull('deleted_at')
-            ->withPivot('id', 'deadline')
-            ->withTimestamps();
-    }
-
-    public function customerServices()
-    {
-        return $this->hasMany(CustomerService::class);
+        return $this->hasManyThrough(ContractService::class, Contract::class);
     }
 
     public function invoices()

@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Contract;
-use App\Models\CustomerService;
+use App\Models\ContractService;
 use App\Models\EducationalBonusSource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
@@ -15,7 +15,7 @@ class EducationalBonusSourceService
     {
         return [
             'contract' => Contract::class,
-            'service' => CustomerService::class,
+            'service' => ContractService::class,
         ];
     }
 
@@ -29,7 +29,9 @@ class EducationalBonusSourceService
     public function createFor(Model $source, array $bonus = []): EducationalBonusSource
     {
         $employeeId = $source->getAttribute('sold_by_employee_id') ?? $source->getAttribute('employee_id');
-        $customerId = $source->getAttribute('customer_id');
+        // Contract lines carry the customer on their parent contract.
+        $customerId = $source->getAttribute('customer_id') ?? $source->contract?->customer_id;
+        $applicantId = $source->getAttribute('applicant_id') ?? $source->contract?->applicant_id;
 
         if (! $employeeId || ! $customerId) {
             throw ValidationException::withMessages([
@@ -38,7 +40,7 @@ class EducationalBonusSourceService
         }
 
         $sourceAmount = $source->getAttribute('fee');
-        if ($source instanceof CustomerService && $sourceAmount === null) {
+        if ($source instanceof ContractService && $sourceAmount === null) {
             $sourceAmount = $source->service?->fee;
         }
         if ($sourceAmount === null) {
@@ -53,7 +55,7 @@ class EducationalBonusSourceService
         $attributes = [
             'employee_id' => $employeeId,
             'customer_id' => $customerId,
-            'applicant_id' => $source->getAttribute('applicant_id'),
+            'applicant_id' => $applicantId,
             'source_amount' => $sourceAmount,
             'bonus_amount' => $bonus['bonus_amount'] ?? 0,
             'status' => $bonus['status'] ?? 'pending',
@@ -70,9 +72,9 @@ class EducationalBonusSourceService
     public function syncForService(Model $source): void
     {
         $source->bonusSource()->update([
-            'employee_id' => $source->sold_by_employee_id ?? $source->employee_id,
-            'customer_id' => $source->customer_id,
-            'applicant_id' => $source->applicant_id,
+            'employee_id' => $source->sold_by_employee_id ?? $source->employee_id ?? null,
+            'customer_id' => $source->customer_id ?? $source->contract?->customer_id,
+            'applicant_id' => $source->applicant_id ?? $source->contract?->applicant_id,
             'source_amount' => $source->fee ?? $source->service?->fee,
         ]);
     }

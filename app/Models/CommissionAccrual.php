@@ -12,7 +12,7 @@ class CommissionAccrual extends Model
     use Auditable, SoftDeletes;
 
     protected $fillable = [
-        'income_id', 'invoice_id', 'invoice_service_id', 'employee_id', 'service_id', 'customer_service_id',
+        'income_id', 'invoice_id', 'invoice_service_id', 'employee_id', 'service_id', 'contract_service_id',
         'base_currency_id', 'commission_settlement_id', 'earned_at',
         'source_payment_base_amount', 'eligible_base_amount', 'percentage',
         'commission_base_amount', 'status', 'entry_type', 'adjustment_reason', 'recorded_by',
@@ -55,9 +55,9 @@ class CommissionAccrual extends Model
         return $this->belongsTo(Service::class)->withTrashed();
     }
 
-    public function customerService(): BelongsTo
+    public function contractService(): BelongsTo
     {
-        return $this->belongsTo(CustomerService::class)->withTrashed();
+        return $this->belongsTo(ContractService::class)->withTrashed();
     }
 
     public function baseCurrency(): BelongsTo

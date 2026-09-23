@@ -91,16 +91,10 @@ class Applicant extends Model
         return $this->hasMany(Expense::class);
     }
 
-    /** Services sold or assigned as part of this visa case. */
+    /** Contracted services sold as part of this visa case. */
     public function services(): HasMany
     {
-        return $this->hasMany(CustomerService::class);
-    }
-
-    /** @deprecated Use services() for case-scoped service records. */
-    public function customerServices(): HasMany
-    {
-        return $this->services();
+        return $this->hasMany(ContractService::class);
     }
 
     public function customerPackages(): HasMany

@@ -24,7 +24,6 @@ use App\Models\Country;
 use App\Models\Currency;
 use App\Models\Customer;
 use App\Models\CustomerPackage;
-use App\Models\CustomerService;
 use App\Models\DailyReport;
 use App\Models\EducationalBonusSource;
 use App\Models\EducationLevel;
@@ -84,7 +83,6 @@ final class AuditRegistry
             'contract_services' => ContractService::class,
             'currencies' => Currency::class,
             'countries' => Country::class,
-            'customer_services' => CustomerService::class,
             'customer_packages' => CustomerPackage::class,
             'customers' => Customer::class,
             'daily_reports' => DailyReport::class,
@@ -158,7 +156,6 @@ final class AuditRegistry
             'attendances' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getRawOriginal('date')),
             'leaves' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getRawOriginal('date')),
             'daily_reports' => self::joinedLabel(self::relatedLabel($model, 'user'), $model->getRawOriginal('report_date')),
-            'customer_services' => self::joinedLabel(self::relatedLabel($model, 'customer'), self::relatedLabel($model, 'service')),
             'contract_services' => self::joinedLabel(self::relatedLabel($model, 'contract'), self::relatedLabel($model, 'service')),
             'customer_packages' => self::joinedLabel(self::relatedLabel($model, 'customer'), self::relatedLabel($model, 'package')),
             'case_wins' => self::joinedLabel(self::relatedLabel($model, 'employee'), self::relatedLabel($model, 'applicant')),
@@ -199,7 +196,7 @@ final class AuditRegistry
             'daily_reports' => ['report_date'],
             'attendances' => ['date'],
             'leaves' => ['date', 'duration_days', 'reason', 'approval_note'],
-            'customer_services' => ['deadline', 'status'],
+            'contract_services' => ['notes'],
             'worthy_employees' => ['bonus_month', 'selected_type'],
             'settings' => ['short_company_name', 'website_title'],
         ][$key] ?? ['name', 'title', 'code', 'serial_number', 'email', 'date', 'type'];

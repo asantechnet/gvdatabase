@@ -77,7 +77,7 @@ class CommissionAccrualService
                         'invoice_id' => $invoice->id,
                         'employee_id' => $recipient['employee_id'],
                         'service_id' => $line->service_id,
-                        'customer_service_id' => $line->customer_service_id,
+                        'contract_service_id' => $line->contract_service_id,
                         'base_currency_id' => $income->base_currency_id,
                         'commission_settlement_id' => null,
                         'entry_type' => 'earned',

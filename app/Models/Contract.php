@@ -13,13 +13,12 @@ class Contract extends Model
 {
     use Auditable, HasDocumentNumber, HasFactory, SoftDeletes;
 
-    public const STATUSES = ['draft', 'active', 'completed', 'expired', 'renewed', 'terminated', 'cancelled'];
+    public const STATUSES = ['draft', 'active', 'completed', 'terminated', 'cancelled'];
 
     protected $fillable = [
         'template_id',
         'contract_template_version_id',
         'contract_type_id',
-        'service_id',
         'employee_id',
         'sold_by_employee_id',
         'marketer_id',
@@ -34,8 +33,6 @@ class Contract extends Model
         'is_custom',
         'status',
         'start_date',
-        'end_date',
-        'duration_months',
         'counterparty',
         'counterparty_company',
         'counterparty_email',
@@ -48,8 +45,6 @@ class Contract extends Model
 
     protected $casts = [
         'start_date' => 'date',
-        'end_date' => 'date',
-        'duration_months' => 'integer',
         'is_cancelled' => 'boolean',
         'cancelled_at' => 'immutable_datetime',
         'is_custom' => 'boolean',
@@ -86,15 +81,10 @@ class Contract extends Model
         return $this->belongsTo(Customer::class)->withTrashed();
     }
 
-    public function service()
-    {
-        return $this->belongsTo(Service::class);
-    }
-
     /**
-     * Contracted services (multi-select). Successor of the standalone
-     * `customer_service` assignment: each line carries its own per-customer
-     * fee, currency, attribution, outsourcing and case dimensions.
+     * Contracted services (multi-select). Each line carries its own
+     * per-customer fee, currency, attribution, outsourcing and case
+     * dimensions.
      */
     public function contractServices()
     {

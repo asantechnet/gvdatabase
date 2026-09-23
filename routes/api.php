@@ -25,7 +25,6 @@ use App\Http\Controllers\ContractTypeController;
 use App\Http\Controllers\CrmInteractionController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\CustomerServiceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EducationalBonusSourceController;
 use App\Http\Controllers\EducationalDashboardController;
@@ -417,10 +416,6 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::post('pending-transactions/{pendingTransaction}/approve', [PendingTransactionController::class, 'approve'])->middleware('permission:approve_pending_transactions');
     Route::post('pending-transactions/{pendingTransaction}/reject', [PendingTransactionController::class, 'reject'])->middleware('permission:approve_pending_transactions');
     Route::post('pending-transactions/{pendingTransaction}/post', [PendingTransactionController::class, 'post'])->middleware('permission:post_pending_transactions');
-    Route::post('/customers/{customer}/services', [CustomerServiceController::class, 'store'])->middleware('permission:manage_customer_services');
-    Route::put('/customers/{customer}/services/{customerService}', [CustomerServiceController::class, 'update'])->middleware('permission:manage_customer_services');
-    Route::delete('/customers/{customer}/services/{customerService}', [CustomerServiceController::class, 'destroy'])->middleware('permission:manage_customer_services');
-
     // Timesheet routes
     Route::prefix('attendances')->group(function () {
         Route::get('/', [AttendanceController::class, 'index'])->middleware('permission:view_attendance');
@@ -489,7 +484,6 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         ->middlewareFor('update', 'permission:edit_contracts')
         ->middlewareFor('destroy', 'permission:delete_contracts');
     Route::put('/contracts/{id}/cancel', [ContractController::class, 'cancel'])->middleware('permission:cancel_contracts');
-    Route::post('/contracts/{id}/renew', [ContractController::class, 'renew'])->middleware('permission:create_contracts');
 
     // Notification routes
     Route::patch('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->middleware('permission:update_own_notifications');

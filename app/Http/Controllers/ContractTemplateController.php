@@ -8,6 +8,7 @@ use App\Models\ContractType;
 use App\Services\Contracts\ContentSanitizer;
 use App\Services\Contracts\PlaceholderRegistry;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -110,7 +111,7 @@ class ContractTemplateController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => [...$presenceRules, 'string', 'max:255'],
             'contract_type_id' => [...$presenceRules, 'integer', 'exists:contract_types,id'],
-            'service_id' => ['nullable', 'integer', 'exists:services,id'],
+            'service_id' => ['nullable', 'integer', Rule::exists('services', 'id')->where('status', 'active')->whereNull('deleted_at')],
             'position_id' => ['nullable', 'integer', 'exists:positions,id'],
             'cover_text' => ['nullable', 'string'],
             'content' => [...$presenceRules, 'string'],
@@ -119,17 +120,22 @@ class ContractTemplateController extends Controller
         ]);
 
         $validator->after(function ($validator) use ($request, $partial, $existing) {
-            $typeId = $request->input('contract_type_id');
-            if ($partial && ! $request->filled('contract_type_id')) {
-                return;
-            }
-
-            $type = ContractType::find($typeId);
+            $type = $request->filled('contract_type_id')
+                ? ContractType::find($request->input('contract_type_id'))
+                : $existing?->contractType;
             if (! $type) {
                 return;
             }
 
-            if ($type->slug === 'employment' && ! $request->filled('position_id')) {
+            // Customer templates are always bound to exactly one catalogue
+            // service; employment templates to exactly one position.
+            $serviceId = $request->input('service_id', $existing?->service_id);
+            if ($type->slug === 'customer' && ! $serviceId) {
+                $validator->errors()->add('service_id', 'A service is required for a customer template.');
+            }
+
+            $positionId = $request->input('position_id', $existing?->position_id);
+            if ($type->slug === 'employment' && ! $positionId) {
                 $validator->errors()->add('position_id', 'A position is required for an employment template.');
             }
 

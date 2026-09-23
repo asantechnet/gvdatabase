@@ -28,9 +28,12 @@ class ContractTypeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:255', 'unique:contract_types,name'], 'description' => ['nullable', 'string', 'max:5000'], 'is_active' => ['sometimes', 'boolean']]);
-        $type = ContractType::create($data);
-        return response()->json(['success' => true, 'data' => new ContractTypeResource($type)], 201);
+        // The application vocabulary is fixed: employment, customer, other.
+        return response()->json([
+            'success' => false,
+            'message' => 'Only employment, customer and other contract types are supported.',
+            'code' => 'business.contract_type_fixed_vocabulary',
+        ], 422);
     }
 
     public function update(Request $request, ContractType $contractType): JsonResponse

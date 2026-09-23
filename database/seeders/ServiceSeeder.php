@@ -29,15 +29,15 @@ class ServiceSeeder extends Seeder
         // Practical starter catalog for an educational visa agency. Fees are
         // deliberately modest AFN defaults and remain editable by authorized staff.
         $services = [
-            ['type' => 'Initial Education Consultation', 'category' => 'general', 'duration' => 7, 'fee' => 1500.00],
-            ['type' => 'Document Review', 'category' => 'general', 'duration' => 10, 'fee' => 5000.00],
-            ['type' => 'University Application Support', 'category' => 'general', 'duration' => 30, 'fee' => 15000.00],
-            ['type' => 'Scholarship Application Support', 'category' => 'scholarship', 'duration' => 30, 'fee' => 12000.00],
-            ['type' => 'English Language Test Offer', 'category' => 'test_offer', 'duration' => 14, 'fee' => 5000.00],
-            ['type' => 'Student Visa Application Support', 'category' => 'general', 'duration' => 30, 'fee' => 20000.00],
-            ['type' => 'Statement of Purpose and CV Review', 'category' => 'general', 'duration' => 10, 'fee' => 8000.00],
-            ['type' => 'Visa Interview Preparation', 'category' => 'general', 'duration' => 7, 'fee' => 5000.00],
-            ['type' => 'Translation Coordination', 'category' => 'general', 'duration' => 14, 'fee' => 3000.00],
+            ['type' => 'Initial Education Consultation', 'category' => 'general', 'fee' => 1500.00],
+            ['type' => 'Document Review', 'category' => 'general', 'fee' => 5000.00],
+            ['type' => 'University Application Support', 'category' => 'general', 'fee' => 15000.00],
+            ['type' => 'Scholarship Application Support', 'category' => 'scholarship', 'fee' => 12000.00],
+            ['type' => 'English Language Test Offer', 'category' => 'test_offer', 'fee' => 5000.00],
+            ['type' => 'Student Visa Application Support', 'category' => 'general', 'fee' => 20000.00],
+            ['type' => 'Statement of Purpose and CV Review', 'category' => 'general', 'fee' => 8000.00],
+            ['type' => 'Visa Interview Preparation', 'category' => 'general', 'fee' => 5000.00],
+            ['type' => 'Translation Coordination', 'category' => 'general', 'fee' => 3000.00],
         ];
 
         // Create sample services
@@ -45,7 +45,6 @@ class ServiceSeeder extends Seeder
             Service::create([
                 'type' => $service['type'],
                 'category' => $service['category'],
-                'duration' => $service['duration'],
                 'fee' => $service['fee'],
                 'status' => 'active',
                 'currency_id' => $baseCurrencyId,

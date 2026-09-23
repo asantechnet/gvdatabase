@@ -14,7 +14,7 @@ class InvoiceService extends Pivot
     protected $fillable = [
         'invoice_id',
         'service_id',
-        'customer_service_id',
+        'contract_service_id',
         'employee_id',
         'marketer_employee_id',
         'outsourcing_company_id',
@@ -54,9 +54,9 @@ class InvoiceService extends Pivot
         return $this->belongsTo(Service::class);
     }
 
-    public function customerService()
+    public function contractService()
     {
-        return $this->belongsTo(CustomerService::class);
+        return $this->belongsTo(ContractService::class);
     }
 
     public function employee()

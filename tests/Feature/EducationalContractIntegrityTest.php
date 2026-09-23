@@ -7,10 +7,8 @@ use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\Currency;
 use App\Models\Customer;
-use App\Models\Employee;
 use App\Models\Language;
 use App\Models\Role;
-use App\Models\CustomerService;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,37 +27,39 @@ class EducationalContractIntegrityTest extends TestCase
         Sanctum::actingAs($user, ['access']);
     }
 
-    public function test_educational_contract_is_versioned_and_linked_to_its_case(): void
+    public function test_customer_contract_is_versioned_and_linked_to_its_case(): void
     {
-        $type = ContractType::query()->where('slug', 'educational-service')->firstOrFail();
-        $template = ContractTemplate::create(['name' => 'Student service agreement', 'contract_type_id' => $type->id, 'cover_text' => '', 'content' => '<p>Legacy copy</p>']);
+        $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
+        $currency = Currency::factory()->create();
+        $service = Service::factory()->create(['currency_id' => $currency->id]);
+        $template = ContractTemplate::create(['name' => 'Student service agreement', 'contract_type_id' => $type->id, 'service_id' => $service->id, 'cover_text' => '', 'content' => '<p>Legacy copy</p>']);
         $language = Language::create(['name' => 'English', 'code' => 'en', 'is_active' => true]);
         $this->postJson("/api/contract-templates/{$template->id}/versions", ['language_id' => $language->id, 'content' => '<p>Educational agreement for {{customer.name}}</p>', 'status' => 'active'])->assertCreated();
         $customer = Customer::factory()->create();
         $case = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
 
-        $contract = $this->postJson('/api/contracts', ['template_id' => $template->id, 'customer_id' => $customer->id, 'applicant_id' => $case['id'], 'language_id' => $language->id, 'status' => 'draft', 'start_date' => now()->toDateString()])
-            ->assertCreated()->assertJsonPath('data.applicant_id', $case['id'])->assertJsonPath('data.type_slug', 'educational-service')->json('data');
+        $contract = $this->postJson('/api/contracts', ['template_id' => $template->id, 'customer_id' => $customer->id, 'applicant_id' => $case['id'], 'service_ids' => [$service->id], 'language_id' => $language->id, 'status' => 'draft', 'start_date' => now()->toDateString()])
+            ->assertCreated()->assertJsonPath('data.applicant_id', $case['id'])->assertJsonPath('data.type_slug', 'customer')->json('data');
 
         $this->getJson('/api/applicants/'.$case['id'])->assertOk()->assertJsonPath('data.contracts.0.id', $contract['id']);
-        $this->getJson('/api/contracts?audience=educational')->assertOk()->assertJsonPath('data.0.id', $contract['id']);
+        $this->getJson('/api/contracts?audience=customers')->assertOk()->assertJsonPath('data.0.id', $contract['id']);
     }
 
     public function test_contract_and_applicant_links_cannot_cross_customers_and_case_activity_blocks_delete(): void
     {
-        $type = ContractType::query()->where('slug', 'educational-service')->firstOrFail();
-        $template = ContractTemplate::create(['name' => 'Student service agreement', 'contract_type_id' => $type->id, 'cover_text' => '', 'content' => '<p>Terms</p>']);
+        $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
+        $currency = Currency::factory()->create();
+        $service = Service::factory()->create(['currency_id' => $currency->id]);
+        $template = ContractTemplate::create(['name' => 'Student service agreement', 'contract_type_id' => $type->id, 'service_id' => $service->id, 'cover_text' => '', 'content' => '<p>Terms</p>']);
         $language = Language::create(['name' => 'English', 'code' => 'en', 'is_active' => true]);
         $this->postJson("/api/contract-templates/{$template->id}/versions", ['language_id' => $language->id, 'content' => '<p>Terms</p>', 'status' => 'active'])->assertCreated();
         $customer = Customer::factory()->create();
         $otherCustomer = Customer::factory()->create();
         $case = Applicant::create(['customer_id' => $customer->id]);
 
-        $this->postJson('/api/contracts', ['template_id' => $template->id, 'customer_id' => $otherCustomer->id, 'applicant_id' => $case->id, 'language_id' => $language->id, 'status' => 'draft', 'start_date' => now()->toDateString()])->assertUnprocessable()->assertJsonValidationErrors('applicant_id');
+        $this->postJson('/api/contracts', ['template_id' => $template->id, 'customer_id' => $otherCustomer->id, 'applicant_id' => $case->id, 'service_ids' => [$service->id], 'language_id' => $language->id, 'status' => 'draft', 'start_date' => now()->toDateString()])->assertUnprocessable()->assertJsonValidationErrors('applicant_id');
 
-        $currency = Currency::factory()->create();
-        $service = Service::factory()->create(['currency_id' => $currency->id]);
-        CustomerService::create(['customer_id' => $customer->id, 'applicant_id' => $case->id, 'service_id' => $service->id, 'currency_id' => $currency->id, 'sold_at' => now()->toDateString(), 'fee' => 100]);
+        $this->postJson('/api/contracts', ['template_id' => $template->id, 'customer_id' => $customer->id, 'applicant_id' => $case->id, 'service_ids' => [$service->id], 'language_id' => $language->id, 'status' => 'draft', 'start_date' => now()->toDateString()])->assertCreated();
         $this->deleteJson('/api/applicants/'.$case->id)->assertConflict()->assertJsonPath('code', 'business.applicant_has_activity')->assertJsonPath('blocking.services', 1);
     }
 }

@@ -15,8 +15,6 @@ use App\Models\Employee;
 use App\Services\Contracts\ContentSanitizer;
 use App\Services\Contracts\PlaceholderRegistry;
 use App\Services\Contracts\PlaceholderResolver;
-use App\Support\CompanyProfile;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,7 +30,6 @@ class ContractController extends Controller
     public function __construct(
         private readonly PlaceholderResolver $resolver,
         private readonly ContentSanitizer $sanitizer,
-        private readonly CompanyProfile $companyProfile,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -47,21 +44,18 @@ class ContractController extends Controller
             'status' => 'sometimes|string|in:'.implode(',', Contract::STATUSES),
         ]);
 
-        $query = Contract::with(['template.contractType', 'contractType', 'service.currency', 'contractServices.service.currency', 'contractServices.currency', 'employee.position', 'employee.office', 'employee.user', 'customer.customerServices.service.currency', 'company']);
+        $query = Contract::with(['template.contractType', 'contractType', 'contractServices.service.currency', 'contractServices.currency', 'employee.position', 'employee.office', 'employee.user', 'customer.contractServices.service.currency', 'company']);
 
-        // Service filter: matches the legacy singular link or any pivot line.
+        // Service filter: matches any contracted service line.
         $serviceIds = $request->input('service_ids', []);
         if ($request->filled('service_id')) {
             $serviceIds[] = $request->integer('service_id');
         }
         $serviceIds = collect($serviceIds)->map(fn ($id) => (int) $id)->unique()->values()->all();
         if ($serviceIds !== []) {
-            $query->where(function ($q) use ($serviceIds) {
-                $q->whereIn('service_id', $serviceIds)
-                    ->orWhereHas('contractServices', fn ($lines) => $lines->whereIn('service_id', $serviceIds));
-            });
+            $query->whereHas('contractServices', fn ($lines) => $lines->whereIn('service_id', $serviceIds));
         } elseif ($request->boolean('without_service')) {
-            $query->whereNull('service_id')->whereDoesntHave('contractServices');
+            $query->whereDoesntHave('contractServices');
         }
         $query->where(function ($query) {
                 $query->whereHas('contractType', fn ($type) => $type->where('is_active', true))
@@ -159,13 +153,13 @@ class ContractController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'service.currency', 'contractServices.service.currency', 'contractServices.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
+            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'contractServices.service.currency', 'contractServices.currency', 'employee', 'customer.contractServices.service.currency', 'company'])),
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $contract = Contract::with(['template.contractType', 'contractType', 'service.currency', 'contractServices.service.currency', 'contractServices.currency', 'employee.position', 'customer.customerServices.service.currency', 'company'])->find($id);
+        $contract = Contract::with(['template.contractType', 'contractType', 'contractServices.service.currency', 'contractServices.currency', 'employee.position', 'customer.contractServices.service.currency', 'company'])->find($id);
         if (! $contract) {
             return $this->notFound();
         }
@@ -194,27 +188,11 @@ class ContractController extends Controller
         }
         abort_unless($type?->is_active, 422, 'Select an active contract type.');
         $slug = $type?->slug;
-        if (array_key_exists('duration_months', $data)) {
-            $startDate = $data['start_date'] ?? $contract->start_date?->toDateString();
-            if ($data['duration_months'] && $startDate) {
-                $data['end_date'] = Carbon::parse($startDate)->addMonthsNoOverflow((int) $data['duration_months'])->toDateString();
-            }
-        }
-
-        $effectiveStartDate = $data['start_date'] ?? $contract->start_date?->toDateString();
-        $effectiveEndDate = array_key_exists('end_date', $data)
-            ? $data['end_date']
-            : $contract->end_date?->toDateString();
-        if ($effectiveStartDate && $effectiveEndDate && Carbon::parse($effectiveEndDate)->lt(Carbon::parse($effectiveStartDate))) {
-            throw ValidationException::withMessages([
-                'end_date' => ['validation.after_or_equal'],
-            ]);
-        }
 
         // Re-render only when the template or one of its input values changed.
         $renderInputs = [
             'template_id', 'contract_template_version_id', 'service_id', 'service_ids', 'service_lines', 'employee_id', 'customer_id', 'applicant_id', 'company_id', 'content',
-            'start_date', 'end_date', 'duration_months', 'status', 'company_signatory_name',
+            'start_date', 'status', 'company_signatory_name',
         ];
         $shouldRender = collect($renderInputs)->contains(fn (string $field) => array_key_exists($field, $data));
 
@@ -236,7 +214,7 @@ class ContractController extends Controller
                 'applicant_id' => $data['applicant_id'] ?? $contract->applicant_id,
                 'company_id' => $data['company_id'] ?? $contract->company_id,
                 'contract_type_id' => $type?->id,
-                'service_id' => $data['service_id'] ?? $contract->service_id,
+                'service_id' => $data['service_id'] ?? null,
                 'service_ids' => $data['service_ids'] ?? $contract->contractServices()->pluck('service_id')->all(),
                 'service_lines' => $data['service_lines'] ?? [],
             ]);
@@ -254,7 +232,6 @@ class ContractController extends Controller
             $content = $version?->content ?? $template?->content ?? ($data['content'] ?? $contract->content);
             $rendered = $this->resolver->resolve((string) $content, $contextEntity['context'] + [
                 'start_date' => $data['start_date'] ?? $contract->start_date?->toDateString(),
-                'end_date' => $data['end_date'] ?? $contract->end_date?->toDateString(),
                 'status' => $data['status'] ?? $contract->status,
                 'company_signatory_name' => $data['company_signatory_name'] ?? $contract->company_signatory_name,
             ], $slug);
@@ -315,7 +292,7 @@ class ContractController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'service.currency', 'contractServices.service.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
+            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'contractServices.service.currency', 'employee', 'customer.contractServices.service.currency', 'company'])),
         ]);
     }
 
@@ -334,107 +311,6 @@ class ContractController extends Controller
             'success' => true,
             'data' => new ContractResource($contract->load(['template.contractType', 'contractType'])),
         ]);
-    }
-
-    /**
-     * Continue an active or expired agreement as a new draft. The source
-     * contract remains immutable and the new document gets fresh dates,
-     * placeholders, snapshots, and a distinct contract number.
-     */
-    public function renew(Request $request, $id): JsonResponse
-    {
-        $contract = Contract::with(['template.contractType', 'contractType'])->find($id);
-        if (! $contract) {
-            return $this->notFound();
-        }
-
-        abort_if($contract->is_cancelled, 422, 'business.contract_not_renewable');
-        abort_unless(in_array(strtolower($contract->status), ['active', 'expired'], true), 422, 'business.contract_not_renewable');
-        abort_unless($contract->template_id && ContractTemplate::query()->whereKey($contract->template_id)->exists(), 422, 'business.contract_template_unavailable');
-        abort_if(Contract::query()
-            ->where('snapshot_data->renewal->source_contract_id', $contract->id)
-            ->whereRaw('LOWER(status) NOT IN (?, ?)', ['cancelled', 'terminated'])
-            ->exists(), 422, 'business.contract_renewal_exists');
-
-        $this->normalizeLocalizedInteger($request, 'duration_months');
-        $validated = $request->validate([
-            'duration_months' => ['required', 'integer', 'min:1', 'max:600'],
-            'start_date' => ['nullable', 'date'],
-        ]);
-
-        $today = Carbon::today($this->companyProfile->timezone());
-        $earliestStart = $contract->end_date?->copy()->addDay();
-        if (! $earliestStart || $earliestStart->lt($today)) {
-            $earliestStart = $today;
-        }
-        $startDate = Carbon::parse($validated['start_date'] ?? $earliestStart->toDateString());
-
-        if ($startDate->lt($earliestStart)) {
-            throw ValidationException::withMessages([
-                'start_date' => ['The renewal must start on or after '.$earliestStart->toDateString().'.'],
-            ]);
-        }
-
-        $durationMonths = (int) $validated['duration_months'];
-        $actor = $request->user();
-        $data = [
-            'template_id' => $contract->template_id,
-            'language_id' => $contract->templateVersion?->language_id,
-            'contract_type_id' => $contract->contract_type_id,
-            'service_id' => $contract->service_id,
-            'employee_id' => $contract->employee_id,
-            'customer_id' => $contract->customer_id,
-            'applicant_id' => $contract->applicant_id,
-            'company_id' => $contract->company_id,
-            'name' => $contract->name,
-            'cover_text' => $contract->cover_text,
-            'status' => 'draft',
-            'start_date' => $startDate->toDateString(),
-            'end_date' => $startDate->copy()->addMonthsNoOverflow($durationMonths)->toDateString(),
-            'duration_months' => $durationMonths,
-            'company_signatory_name' => $actor && ! $actor->isSuperAdmin() ? $actor->name : ($contract->company_signatory_name ?: $actor?->name),
-            'is_cancelled' => false,
-        ];
-
-        $result = DB::transaction(function () use ($contract, $data): Contract {
-            $result = $this->createContract($data, [
-                'renewal' => [
-                    'source_contract_id' => $contract->id,
-                    'source_contract_number' => $contract->contract_number,
-                ],
-            ]);
-
-            if ($result instanceof JsonResponse) {
-                throw ValidationException::withMessages([
-                    'renewal' => [$result->getContent()],
-                ]);
-            }
-
-            // Renewals inherit the contracted service lines of the source.
-            foreach ($contract->contractServices()->with('deliveryEmployees')->get() as $line) {
-                $copy = $result->contractServices()->create($line->only([
-                    'service_id', 'fee', 'currency_id', 'applicant_id', 'customer_package_id',
-                    'sold_by_employee_id', 'marketer_id', 'outsourcing_company_id',
-                    'outsourcing_percentage', 'country_id', 'education_level_id',
-                    'language_id', 'notes',
-                ]));
-                $copy->deliveryEmployees()->sync(
-                    $line->deliveryEmployees->mapWithKeys(fn ($employee) => [
-                        $employee->id => ['percentage' => $employee->pivot->percentage],
-                    ])->all()
-                );
-            }
-
-            return $result;
-        });
-        if ($result instanceof JsonResponse) {
-            return $result;
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'service.currency', 'contractServices.service.currency', 'contractServices.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
-        ], 201);
     }
 
     public function destroy($id): JsonResponse
@@ -492,8 +368,6 @@ class ContractController extends Controller
 
     private function validatedData(Request $request, bool $partial = false): array
     {
-        $this->normalizeLocalizedInteger($request, 'duration_months');
-
         $sometimes = $partial ? ['sometimes'] : [];
 
         $validator = Validator::make($request->all(), [
@@ -534,12 +408,8 @@ class ContractController extends Controller
             'name' => [...$sometimes, 'string', 'max:255'],
             'cover_text' => ['nullable', 'string'],
             'content' => [...$sometimes, 'string'],
-            'status' => [...$sometimes, 'string', 'in:draft,active'],
+            'status' => [...$sometimes, 'string', 'in:draft,active,completed,terminated'],
             'start_date' => [$partial ? 'sometimes' : 'nullable', 'date'],
-            'end_date' => $partial
-                ? ['sometimes', 'nullable', 'date']
-                : ['nullable', 'date', 'after_or_equal:start_date'],
-            'duration_months' => ['nullable', 'integer', 'min:1', 'max:600'],
             'company_signatory_name' => ['nullable', 'string', 'max:255'],
             'counterparty' => ['nullable', 'string', 'max:255'],
             'counterparty_company' => ['nullable', 'string', 'max:255'],
@@ -569,12 +439,6 @@ class ContractController extends Controller
             $data['start_date'] = now()->toDateString();
         }
 
-        if (! $partial && ! empty($data['duration_months'])) {
-            $data['end_date'] = Carbon::parse($data['start_date'])
-                ->addMonthsNoOverflow((int) $data['duration_months'])
-                ->toDateString();
-        }
-
         // Signatory is the editable account Full Name (users.name). Staff are
         // hard-locked to their own account name; super-admin is auto-filled
         // but remains editable.
@@ -596,7 +460,11 @@ class ContractController extends Controller
     private function createContract(array $data, array $snapshotMetadata = []): Contract|JsonResponse
     {
         [$template, $type] = $this->resolveTemplateAndType($data);
-        $data['service_id'] ??= $template?->service_id;
+        // Single-service shorthand: an explicit service_id behaves like a
+        // one-item service_ids list; the template's own service is the
+        // fallback so template-bound contracts stay linked automatically.
+        $fallbackServiceId = $data['service_id'] ?? $template?->service_id;
+        unset($data['service_id']);
         $contextEntity = $this->resolveContextEntity($type?->slug, $data);
         $caseCountryId = ! empty($data['applicant_id']) ? Applicant::query()->whereKey($data['applicant_id'])->value('country_id') : null;
         $version = isset($data['contract_template_version_id']) ? \App\Models\ContractTemplateVersion::find($data['contract_template_version_id']) : null;
@@ -623,7 +491,6 @@ class ContractController extends Controller
             $content,
             $contextEntity['context'] + [
                 'start_date' => $data['start_date'],
-                'end_date' => $data['end_date'] ?? null,
                 'status' => $data['status'],
                 'company_signatory_name' => $data['company_signatory_name'] ?? null,
             ],
@@ -661,13 +528,12 @@ class ContractController extends Controller
             ];
             $counterparty['label'] = $counterparty['fields']['counterparty'];
         }
+        $serviceLines = $this->normalizeServiceLines($data, $fallbackServiceId);
         $design = ContractDocumentDesign::query()
             ->where('contract_type_id', $type?->id)
-            ->where(fn ($query) => $query->where('service_id', $data['service_id'] ?? $template?->service_id)->orWhereNull('service_id'))
+            ->where(fn ($query) => $query->where('service_id', $serviceLines[0]['service_id'] ?? null)->orWhereNull('service_id'))
             ->orderByRaw('service_id IS NULL')
             ->first();
-
-        $serviceLines = $this->normalizeServiceLines($data, $data['service_id'] ?? $template?->service_id);
         if ($serviceLines !== []) {
             $contextEntity['snapshot']['services'] = collect($serviceLines)->map(fn (array $line) => [
                 'service_id' => $line['service_id'],
@@ -764,34 +630,6 @@ class ContractController extends Controller
         }
     }
 
-    /**
-     * HTML number inputs can submit Persian or Arabic-Indic digits when the
-     * application is used in a right-to-left locale. Laravel's integer rule
-     * only accepts ASCII digits, so normalize those representations first.
-     */
-    private function normalizeLocalizedInteger(Request $request, string $field): void
-    {
-        $value = $request->input($field);
-        if (! is_string($value)) {
-            return;
-        }
-
-        $normalized = strtr(trim($value), [
-            "\u{06F0}" => '0', "\u{06F1}" => '1', "\u{06F2}" => '2', "\u{06F3}" => '3', "\u{06F4}" => '4',
-            "\u{06F5}" => '5', "\u{06F6}" => '6', "\u{06F7}" => '7', "\u{06F8}" => '8', "\u{06F9}" => '9',
-            "\u{0660}" => '0', "\u{0661}" => '1', "\u{0662}" => '2', "\u{0663}" => '3', "\u{0664}" => '4',
-            "\u{0665}" => '5', "\u{0666}" => '6', "\u{0667}" => '7', "\u{0668}" => '8', "\u{0669}" => '9',
-            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
-            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
-            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
-            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
-        ]);
-
-        if ($normalized !== $value) {
-            $request->merge([$field => $normalized]);
-        }
-    }
-
     /** @return array{0: ?ContractTemplate, 1: ?ContractType} */
     private function resolveTemplateAndType(array $data): array
     {
@@ -842,10 +680,6 @@ class ContractController extends Controller
                 ];
 
             case 'customer':
-            case 'educational-service':
-            case 'scholarship-service':
-            case 'test-service':
-            case 'visa-service':
                 if (! $customerId) {
                     abort(response()->json([
                         'success' => false,
@@ -853,27 +687,49 @@ class ContractController extends Controller
                     ], 422));
                 }
                 $customer = Customer::findOrFail($customerId);
-                $service = ! empty($data['service_id']) ? \App\Models\Service::query()->find($data['service_id']) : null;
                 $multiIds = collect($data['service_lines'] ?? [])
                     ->map(fn ($line) => (int) ($line['service_id'] ?? 0))->filter()
                     ->merge(collect($data['service_ids'] ?? [])->map(fn ($id) => (int) $id))
+                    ->merge(! empty($data['service_id']) ? [(int) $data['service_id']] : [])
                     ->unique()->values()->all();
-                $services = $multiIds !== []
-                    ? \App\Models\Service::query()->whereIn('id', $multiIds)->get()
-                    : collect($service ? [$service] : []);
+                if ($multiIds === []) {
+                    abort(response()->json([
+                        'success' => false,
+                        'message' => 'At least one service is required for a customer contract.',
+                    ], 422));
+                }
+                $services = \App\Models\Service::query()->where('status', 'active')->whereIn('id', $multiIds)->get();
+                if ($services->count() !== count($multiIds)) {
+                    abort(response()->json([
+                        'success' => false,
+                        'message' => 'Only active services can be registered on a contract.',
+                    ], 422));
+                }
                 $applicant = $applicantId ? Applicant::query()->findOrFail($applicantId) : null;
                 if ($applicant && (int) $applicant->customer_id !== $customerId) {
                     throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
                 }
 
                 return [
-                    'context' => ['customer' => $customer, 'service' => $service ?? $services->first(), 'services' => $services],
-                    'snapshot' => ['customer' => $customer->only(['id', 'name', 'company', 'contact', 'email', 'address', 'tax_number']), 'service' => $service?->only(['id', 'type', 'category', 'description', 'duration', 'fee']), 'applicant_id' => $applicant?->id],
+                    'context' => ['customer' => $customer, 'services' => $services],
+                    'snapshot' => ['customer' => $customer->only(['id', 'name', 'company', 'contact', 'email', 'address', 'tax_number']), 'applicant_id' => $applicant?->id],
                     'foreign_keys' => ['employee_id' => null, 'customer_id' => $customerId, 'applicant_id' => $applicantId, 'company_id' => null],
                 ];
 
             case 'other':
-                return ['context' => [], 'snapshot' => [], 'foreign_keys' => ['employee_id' => null, 'customer_id' => null, 'company_id' => null]];
+                $otherIds = collect($data['service_lines'] ?? [])
+                    ->map(fn ($line) => (int) ($line['service_id'] ?? 0))->filter()
+                    ->merge(collect($data['service_ids'] ?? [])->map(fn ($id) => (int) $id))
+                    ->unique()->values()->all();
+                $otherServices = $otherIds !== []
+                    ? \App\Models\Service::query()->where('status', 'active')->whereIn('id', $otherIds)->get()
+                    : collect();
+
+                return [
+                    'context' => ['services' => $otherServices],
+                    'snapshot' => [],
+                    'foreign_keys' => ['employee_id' => null, 'customer_id' => $customerId, 'company_id' => $companyId],
+                ];
 
             default:
                 // Custom types carry no mandatory entity; clear stale links.

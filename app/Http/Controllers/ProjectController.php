@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\ProjectResource;
-use App\Models\CustomerService;
+use App\Models\ContractService;
 use App\Models\Project;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -147,8 +147,8 @@ class ProjectController extends Controller
             return;
         }
 
-        $availableIds = CustomerService::query()
-            ->where('customer_id', $project->customer_id)
+        $availableIds = ContractService::query()
+            ->whereHas('contract', fn ($contracts) => $contracts->where('customer_id', $project->customer_id))
             ->whereIn('service_id', $serviceIds)
             ->whereNull('deleted_at')
             ->pluck('service_id')

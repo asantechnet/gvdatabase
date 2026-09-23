@@ -7,7 +7,9 @@ use App\Models\CommissionSettlement;
 use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Customer;
-use App\Models\CustomerService;
+use App\Models\Contract;
+use App\Models\ContractService;
+use App\Models\ContractType;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
@@ -33,7 +35,7 @@ class CommissionLifecycleTest extends TestCase
         $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1, 'code' => 'USD']);
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
         $customer = Customer::factory()->create();
-        $customerService = CustomerService::create(['customer_id' => $customer->id, 'service_id' => $service->id, 'fee' => 100, 'currency_id' => $currency->id]);
+        $customerService = $this->contractedService($customer, $service, ['fee' => 100, 'currency_id' => $currency->id]);
         $employee = Employee::factory()->create(['employment_type' => 'commission', 'salary' => null]);
         $otherEmployee = Employee::factory()->create(['employment_type' => 'commission', 'salary' => null]);
         $employee->commissionServices()->attach($service->id, ['percentage' => 10]);
@@ -45,7 +47,7 @@ class CommissionLifecycleTest extends TestCase
             'subtotal' => 100, 'tax_percent' => 10, 'discount' => 10, 'amount' => 100, 'base_amount' => 100,
         ]);
         $invoice->services()->attach($service->id, [
-            'customer_service_id' => $customerService->id,
+            'contract_service_id' => $customerService->id,
             'employee_id' => $employee->id, 'snapshot_commission_percentage' => 10,
             'snapshot_name' => $service->type, 'snapshot_service_fee' => 100,
             'snapshot_service_currency_code' => 'USD', 'snapshot_service_currency_symbol' => '$',
@@ -168,16 +170,14 @@ class CommissionLifecycleTest extends TestCase
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
         $employee = Employee::factory()->create(['employment_type' => 'commission', 'salary' => null]);
         $employee->commissionServices()->attach($service->id, ['percentage' => 12.5]);
-        $customerService = CustomerService::create([
-            'customer_id' => $customer->id,
-            'service_id' => $service->id,
-            'employee_id' => $employee->id,
+        $customerService = $this->contractedService($customer, $service, [
             'fee' => 175,
             'currency_id' => $currency->id,
         ]);
+        $customerService->deliveryEmployees()->sync([$employee->id => ['percentage' => 12.5]]);
         $payload = [
             'customer_id' => $customer->id, 'currency_id' => $currency->id,
-            'services' => [['customer_service_id' => $customerService->id, 'quantity' => 1]], 'tax_percent' => 0,
+            'services' => [['contract_service_id' => $customerService->id, 'quantity' => 1]], 'tax_percent' => 0,
         ];
 
         // A forged client-side employee_id is deliberately ignored. The
@@ -188,7 +188,7 @@ class CommissionLifecycleTest extends TestCase
         $this->assertSame($employee->id, (int) $line->employee_id);
         $this->assertSame(12.5, (float) $line->snapshot_commission_percentage);
         $this->assertSame(175.0, (float) $line->snapshot_service_fee);
-        $this->assertSame($customerService->id, (int) $line->customer_service_id);
+        $this->assertSame($customerService->id, (int) $line->contract_service_id);
     }
 
     public function test_one_customer_service_can_accrue_delivery_commissions_for_multiple_employees(): void
@@ -201,7 +201,7 @@ class CommissionLifecycleTest extends TestCase
         $second = Employee::factory()->create(['employment_type' => 'commission']);
         $first->commissionServices()->attach($service->id, ['percentage' => 10]);
         $second->commissionServices()->attach($service->id, ['percentage' => 15]);
-        $customerService = CustomerService::create(['customer_id' => $customer->id, 'service_id' => $service->id, 'currency_id' => $currency->id]);
+        $customerService = $this->contractedService($customer, $service, ['currency_id' => $currency->id]);
         $customerService->deliveryEmployees()->sync([
             $first->id => ['percentage' => 10],
             $second->id => ['percentage' => 15],
@@ -210,7 +210,7 @@ class CommissionLifecycleTest extends TestCase
         $invoiceId = $this->postJson('/api/invoices', [
             'customer_id' => $customer->id,
             'currency_id' => $currency->id,
-            'services' => [['customer_service_id' => $customerService->id]],
+            'services' => [['contract_service_id' => $customerService->id]],
             'tax_percent' => 0,
         ])->assertCreated()->json('data.id');
 
@@ -279,14 +279,14 @@ class CommissionLifecycleTest extends TestCase
         $customer = Customer::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
         $company = Company::create(['legal_name' => 'External Delivery Ltd', 'is_active' => true]);
-        $assignment = CustomerService::create([
-            'customer_id' => $customer->id, 'service_id' => $service->id, 'currency_id' => $currency->id,
-            'fee' => 100, 'outsourcing_company_id' => $company->id, 'outsourcing_percentage' => 25,
+        $assignment = $this->contractedService($customer, $service, [
+            'currency_id' => $currency->id, 'fee' => 100,
+            'outsourcing_company_id' => $company->id, 'outsourcing_percentage' => 25,
         ]);
 
         $invoiceId = $this->postJson('/api/invoices', [
             'customer_id' => $customer->id, 'currency_id' => $currency->id,
-            'services' => [['customer_service_id' => $assignment->id]], 'tax_percent' => 0,
+            'services' => [['contract_service_id' => $assignment->id]], 'tax_percent' => 0,
         ])->assertCreated()->json('data.id');
         $line = DB::table('invoice_service')->where('invoice_id', $invoiceId)->sole();
         $this->assertSame($company->id, (int) $line->outsourcing_company_id);
@@ -328,11 +328,11 @@ class CommissionLifecycleTest extends TestCase
         $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1, 'code' => 'USD']);
         $service = Service::factory()->create(['currency_id' => $currency->id]);
         $customer = Customer::factory()->create();
-        $customerService = CustomerService::create(['customer_id' => $customer->id, 'service_id' => $service->id, 'currency_id' => $currency->id]);
+        $customerService = $this->contractedService($customer, $service, ['currency_id' => $currency->id]);
         $employee = Employee::factory()->create(['employment_type' => 'commission', 'salary' => null]);
         $invoice = Invoice::factory()->create(['customer_id' => $customer->id, 'currency_id' => $currency->id, 'base_currency_id' => $currency->id, 'amount' => 100, 'subtotal' => 100]);
         $invoice->services()->attach($service->id, [
-            'customer_service_id' => $customerService->id,
+            'contract_service_id' => $customerService->id,
             'employee_id' => $employee->id, 'snapshot_commission_percentage' => 10,
             'snapshot_name' => $service->type, 'snapshot_service_fee' => 100,
             'snapshot_service_currency_code' => 'USD', 'snapshot_service_currency_symbol' => '$',
@@ -346,6 +346,19 @@ class CommissionLifecycleTest extends TestCase
         ]);
 
         return [$currency, $employee, CommissionAccrual::sole()];
+    }
+
+    private function contractedService(Customer $customer, Service $service, array $line = []): ContractService
+    {
+        $contract = Contract::create([
+            'contract_type_id' => ContractType::query()->where('slug', 'customer')->value('id'),
+            'customer_id' => $customer->id,
+            'name' => $service->type, 'type' => 'Customer', 'status' => 'active',
+            'start_date' => '2026-09-01', 'counterparty' => $customer->name,
+            'content' => '', 'is_custom' => true,
+        ]);
+
+        return $contract->contractServices()->create(['service_id' => $service->id] + $line);
     }
 
     private function superAdmin(): User

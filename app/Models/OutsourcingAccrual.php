@@ -12,7 +12,7 @@ class OutsourcingAccrual extends Model
     use Auditable, SoftDeletes;
 
     protected $fillable = [
-        'income_id', 'invoice_id', 'invoice_service_id', 'company_id', 'service_id', 'customer_service_id',
+        'income_id', 'invoice_id', 'invoice_service_id', 'company_id', 'service_id', 'contract_service_id',
         'base_currency_id', 'outsourcing_settlement_id', 'earned_at', 'source_payment_base_amount',
         'eligible_base_amount', 'percentage', 'outsourcing_base_amount', 'entry_type', 'adjustment_reason',
         'recorded_by', 'status',
@@ -32,7 +32,7 @@ class OutsourcingAccrual extends Model
     public function invoiceService(): BelongsTo { return $this->belongsTo(InvoiceService::class); }
     public function company(): BelongsTo { return $this->belongsTo(Company::class)->withTrashed(); }
     public function service(): BelongsTo { return $this->belongsTo(Service::class)->withTrashed(); }
-    public function customerService(): BelongsTo { return $this->belongsTo(CustomerService::class)->withTrashed(); }
+    public function contractService(): BelongsTo { return $this->belongsTo(ContractService::class)->withTrashed(); }
     public function baseCurrency(): BelongsTo { return $this->belongsTo(Currency::class, 'base_currency_id'); }
     public function settlement(): BelongsTo { return $this->belongsTo(OutsourcingSettlement::class, 'outsourcing_settlement_id'); }
     public function recorder(): BelongsTo { return $this->belongsTo(User::class, 'recorded_by'); }

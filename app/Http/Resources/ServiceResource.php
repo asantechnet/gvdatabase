@@ -22,7 +22,7 @@ class ServiceResource extends JsonResource
             'type' => $this->type,
             'category' => $this->category,
             'description' => $this->description,
-            'duration' => $this->duration,
+
             'fee' => (float) $this->fee,
             'status' => $this->status,
             'currency' => new CurrencyResource($this->whenLoaded('currency')),

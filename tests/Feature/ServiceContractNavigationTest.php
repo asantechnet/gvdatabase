@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Contract;
+use App\Models\ContractType;
 use App\Models\Currency;
+use App\Models\Customer;
 use App\Models\Role;
 use App\Models\Service;
 use App\Models\User;
@@ -22,9 +24,15 @@ class ServiceContractNavigationTest extends TestCase
         Sanctum::actingAs($admin, ['access']);
         $currency = Currency::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id]);
-        $matching = Contract::factory()->create(['service_id' => $service->id]);
-        $unassigned = Contract::factory()->create(['service_id' => null]);
+        $customerTypeId = ContractType::query()->where('slug', 'customer')->value('id');
+        $customer = Customer::factory()->create();
 
+        $matching = Contract::factory()->create(['contract_type_id' => $customerTypeId, 'customer_id' => $customer->id, 'counterparty' => $customer->name]);
+        $matching->contractServices()->create(['service_id' => $service->id]);
+        $unassigned = Contract::factory()->create(['contract_type_id' => $customerTypeId, 'customer_id' => $customer->id, 'counterparty' => $customer->name]);
+
+        $this->getJson("/api/contracts?audience=customers&service_ids[]={$service->id}")
+            ->assertOk()->assertJsonPath('data.0.id', $matching->id);
         $this->getJson("/api/contracts?audience=customers&service_id={$service->id}")
             ->assertOk()->assertJsonPath('data.0.id', $matching->id);
         $this->getJson('/api/contracts?audience=customers&without_service=1')

@@ -16,14 +16,11 @@ class ContractResource extends JsonResource
             'contract' => $this->name ?? $this->template?->name ?? 'Untitled Contract',
             'type' => $this->type,
             'contract_type_id' => $this->contract_type_id,
-            'service_id' => $this->service_id,
             'service_ids' => $this->whenLoaded('contractServices', fn () => $this->contractServices->pluck('service_id')->values()),
             'services' => ContractServiceResource::collection($this->whenLoaded('contractServices')),
             'type_slug' => $this->type_slug,
             'status' => strtolower((string) $this->status),
             'start_date' => $this->start_date?->toDateString(),
-            'end_date' => $this->end_date?->toDateString(),
-            'duration_months' => $this->duration_months,
             'company_signatory_name' => $this->company_signatory_name,
             'counterparty' => $this->counterparty,
             'counterparty_company' => $this->counterparty_company,
@@ -57,7 +54,6 @@ class ContractResource extends JsonResource
                 return new ContractTemplateResource($this->template);
             }),
             'contract_template_version' => $this->whenLoaded('templateVersion', fn () => ['id'=>$this->templateVersion?->id,'language_id'=>$this->templateVersion?->language_id,'version_number'=>$this->templateVersion?->version_number,'status'=>$this->templateVersion?->status]),
-            'service' => new ServiceResource($this->whenLoaded('service')),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

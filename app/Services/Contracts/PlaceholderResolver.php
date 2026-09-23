@@ -17,7 +17,7 @@ use App\Models\Service;
 class PlaceholderResolver
 {
     /**
-     * @param  array{employee?: ?Employee, customer?: ?Customer, company?: ?Company, contract_number?: ?string, start_date?: ?string, end_date?: ?string, status?: ?string}  $context
+     * @param  array{employee?: ?Employee, customer?: ?Customer, company?: ?Company, contract_number?: ?string, start_date?: ?string, status?: ?string}  $context
      * @return array{content: string, unresolved: list<string>, missing: list<string>}
      */
     public function resolve(string $content, array $context, ?string $typeSlug = null): array
@@ -111,7 +111,6 @@ class PlaceholderResolver
                 'service.name' => $service->type,
                 'service.category' => $service->category,
                 'service.description' => $service->description,
-                'service.duration' => $service->duration,
                 'service.fee' => $service->fee,
             ];
         }
@@ -161,7 +160,6 @@ class PlaceholderResolver
         $values += [
             'contract.number' => $context['contract_number'] ?? null,
             'contract.start_date' => $context['start_date'] ?? null,
-            'contract.end_date' => $context['end_date'] ?? null,
             'contract.status' => $context['status'] ?? null,
         ];
 

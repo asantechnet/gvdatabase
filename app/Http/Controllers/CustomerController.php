@@ -12,10 +12,9 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         $query = Customer::with([
-            'customerServices.service.currency',
-            'customerServices.employee',
-            'customerServices.deliveryEmployees', 'customerServices.outsourcingCompany',
-            'customerServices.marketer',
+            'contractServices.service.currency', 'contractServices.contract',
+            'contractServices.deliveryEmployees', 'contractServices.outsourcingCompany',
+            'contractServices.marketer', 'contractServices.soldByEmployee',
             'marketerEmployee',
         ])
             ->when(! $request->boolean('compact'), fn ($query) => $query->with('interactions.creator'));
@@ -51,10 +50,9 @@ class CustomerController extends Controller
         ));
 
         return new CustomerResource($customer->load([
-            'customerServices.service.currency',
-            'customerServices.employee',
-            'customerServices.deliveryEmployees', 'customerServices.outsourcingCompany',
-            'customerServices.marketer',
+            'contractServices.service.currency', 'contractServices.contract',
+            'contractServices.deliveryEmployees', 'contractServices.outsourcingCompany',
+            'contractServices.marketer', 'contractServices.soldByEmployee',
             'interactions.creator',
             'marketerEmployee',
         ]));
@@ -63,10 +61,9 @@ class CustomerController extends Controller
     public function show(Customer $customer)
     {
         return new CustomerResource($customer->load([
-            'customerServices.service.currency',
-            'customerServices.employee',
-            'customerServices.deliveryEmployees', 'customerServices.outsourcingCompany',
-            'customerServices.marketer',
+            'contractServices.service.currency', 'contractServices.contract',
+            'contractServices.deliveryEmployees', 'contractServices.outsourcingCompany',
+            'contractServices.marketer', 'contractServices.soldByEmployee',
             'interactions.creator',
             'marketerEmployee',
         ]));
@@ -81,10 +78,9 @@ class CustomerController extends Controller
         ));
 
         return new CustomerResource($customer->load([
-            'customerServices.service.currency',
-            'customerServices.employee',
-            'customerServices.deliveryEmployees', 'customerServices.outsourcingCompany',
-            'customerServices.marketer',
+            'contractServices.service.currency', 'contractServices.contract',
+            'contractServices.deliveryEmployees', 'contractServices.outsourcingCompany',
+            'contractServices.marketer', 'contractServices.soldByEmployee',
             'interactions.creator',
             'marketerEmployee',
         ]));
@@ -93,7 +89,6 @@ class CustomerController extends Controller
     public function destroy(Customer $customer)
     {
         if ($customer->invoices()->exists()
-            || $customer->customerServices()->exists()
             || $customer->projects()->exists()
             || $customer->contracts()->exists()
             || $customer->incomes()->exists()

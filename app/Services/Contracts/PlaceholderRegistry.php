@@ -141,7 +141,6 @@ class PlaceholderRegistry
                 'fields' => [
                     ['key' => 'contract.number', 'label' => 'Contract Number'],
                     ['key' => 'contract.start_date', 'label' => 'Start Date'],
-                    ['key' => 'contract.end_date', 'label' => 'End Date'],
                     ['key' => 'contract.status', 'label' => 'Status'],
                 ],
             ],

@@ -45,7 +45,7 @@ class OutsourcingAccrualService
                     ['income_id' => $income->id, 'invoice_service_id' => $line->id],
                     [
                         'invoice_id' => $invoice->id, 'company_id' => $line->outsourcing_company_id,
-                        'service_id' => $line->service_id, 'customer_service_id' => $line->customer_service_id,
+                        'service_id' => $line->service_id, 'contract_service_id' => $line->contract_service_id,
                         'base_currency_id' => $income->base_currency_id, 'outsourcing_settlement_id' => null,
                         'earned_at' => $income->date, 'source_payment_base_amount' => $income->base_amount,
                         'eligible_base_amount' => round($eligibleBase, 6), 'percentage' => $line->snapshot_outsourcing_percentage,

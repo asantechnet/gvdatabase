@@ -13,7 +13,7 @@ class OptionalServiceDurationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_a_service_can_be_created_without_a_duration(): void
+    public function test_a_service_is_created_without_any_duration_concept(): void
     {
         $admin = User::factory()->create();
         $admin->roles()->attach(Role::query()->where('name', 'super_admin')->firstOrFail());
@@ -25,7 +25,7 @@ class OptionalServiceDurationTest extends TestCase
             'fee' => 100,
             'status' => 'active',
             'currency_id' => $currency->id,
-        ])->assertCreated()->assertJsonPath('data.name', 'University application review')
-            ->assertJsonPath('data.duration', null);
+        ])->assertCreated()->assertJsonPath('name', 'University application review')
+            ->assertJsonMissingPath('duration');
     }
 }

@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\Contract;
 use App\Models\CommissionSettlement;
+use App\Models\ContractService;
 use App\Models\Customer;
-use App\Models\CustomerService;
 use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Expense;
@@ -56,7 +56,7 @@ class DashboardController extends Controller
         $canViewCommissions = $user->hasPermission('view_commissions');
         $canViewPayroll = $canViewSalaries || $canViewCommissions;
         $canViewVisitors = $user->hasPermission('view_visitors');
-        $canViewServices = $user->hasPermission('view_services') || $user->hasPermission('manage_customer_services');
+        $canViewServices = $user->hasPermission('view_services');
 
         $weeklyActivity = $this->weeklyTaskActivity($tasks, $now, $canViewAllTasks);
         $dailyTaskCompletion = $this->dailyTaskCompletion($tasks, $now, $canViewAllTasks);
@@ -492,17 +492,10 @@ class DashboardController extends Controller
     ): array {
         $invoiceTotal = $canViewInvoices ? round($this->invoiceSum(Invoice::query()->whereNull('voided_at')), 2) : null;
         $collectedTotal = $canViewInvoices ? round($this->incomeSum(Income::query()->whereNotNull('invoice_id')), 2) : null;
-        $activeServices = $canViewServices ? CustomerService::query()->where('status', 'active')->count() : null;
-        $serviceDeadlines = $canViewServices ? CustomerService::query()
-            ->where('status', 'active')
-            ->whereBetween('deadline', [$now->toDateString(), $now->copy()->addDays(30)->toDateString()])
+        $activeServices = $canViewServices ? ContractService::query()
+            ->whereHas('contract', fn ($contracts) => $contracts->where('status', 'active')->where('is_cancelled', false))
             ->count() : null;
         $activeContracts = $canViewContracts ? app(ActiveContractService::class)->activeContractCount() : null;
-        $expiringContracts = $canViewContracts ? Contract::query()
-            ->where('status', 'active')
-            ->where('is_cancelled', false)
-            ->whereBetween('end_date', [$now->toDateString(), $now->copy()->addDays(30)->toDateString()])
-            ->count() : null;
 
         return [
             'customers' => $canViewCustomers ? Customer::query()->count() : null,
@@ -514,9 +507,7 @@ class DashboardController extends Controller
                 ? round(min(100, (($collectedTotal ?? 0) / $invoiceTotal) * 100), 1)
                 : 0.0,
             'active_services' => $activeServices,
-            'service_deadlines_30_days' => $serviceDeadlines,
             'active_contracts' => $activeContracts,
-            'expiring_contracts_30_days' => $expiringContracts,
             'draft_contracts' => $canViewContracts ? Contract::query()->where('status', 'draft')->count() : null,
             'visitors_this_month' => $canViewVisitors ? Visitor::query()
                 ->whereBetween('date', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])->count() : null,
@@ -665,9 +656,11 @@ class DashboardController extends Controller
 
     private function servicePortfolio(): array
     {
-        return CustomerService::query()
-            ->join('services', 'services.id', '=', 'customer_service.service_id')
-            ->where('customer_service.status', 'active')
+        return ContractService::query()
+            ->join('services', 'services.id', '=', 'contract_service.service_id')
+            ->join('contracts', 'contracts.id', '=', 'contract_service.contract_id')
+            ->where('contracts.status', 'active')
+            ->where('contracts.is_cancelled', false)
             ->selectRaw('services.type as label, COUNT(*) as total')
             ->groupBy('services.type')
             ->orderByDesc('total')
@@ -715,13 +708,7 @@ class DashboardController extends Controller
         }
         if ($canViewContracts) {
             $contractCount = Contract::query()->count();
-            $expiring = Contract::query()->where('status', 'active')->whereBetween('end_date', [$now->toDateString(), $now->copy()->addDays(30)->toDateString()])->count();
             $add($contractCount === 0, 'contracts', 'noContracts', 'noContractsDetail', [], 'medium', 'tabler-file-text', '/contracts');
-            $add($expiring > 0, 'contracts', 'expiringContracts', 'expiringContractsDetail', ['count' => $expiring], 'medium', 'tabler-file-time', '/contracts');
-        }
-        if ($canViewServices) {
-            $deadlines = CustomerService::query()->where('status', 'active')->whereBetween('deadline', [$now->toDateString(), $now->copy()->addDays(30)->toDateString()])->count();
-            $add($deadlines > 0, 'customers', 'serviceDeadlines', 'serviceDeadlinesDetail', ['count' => $deadlines], 'medium', 'tabler-progress-check', '/all-customers');
         }
         if ($canViewAttendance) {
             $employees = Employee::query()->count();

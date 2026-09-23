@@ -133,11 +133,11 @@ class EmployeeController extends Controller
 
         if ($Employee->employment_type === 'commission'
             && $targetEmploymentType !== 'commission'
-            && ($Employee->customerServices()->whereNull('deleted_at')->exists()
-                || $Employee->deliveryCustomerServices()->whereNull('customer_service.deleted_at')->exists())) {
+            && ($Employee->soldContractServices()->whereNull('contract_service.deleted_at')->exists()
+                || $Employee->deliveryContractServices()->whereNull('contract_service.deleted_at')->exists())) {
             throw ValidationException::withMessages([
                 'employment_type' => [
-                    'Reassign or clear this employee from their customer services before changing them to salaried.',
+                    'Reassign or clear this employee from their contracted services before changing them to salaried.',
                 ],
             ]);
         }
@@ -220,8 +220,8 @@ class EmployeeController extends Controller
             $Employee = Employee::query()->lockForUpdate()->findOrFail($Employee->id);
             abort_if($Employee->assetAllocations()->exists(), 422, 'business.employee_has_asset_allocations');
             abort_if(
-                $Employee->customerServices()->whereIn('status', ['active', 'paused'])->exists()
-                || $Employee->deliveryCustomerServices()->whereIn('customer_service.status', ['active', 'paused'])->exists(),
+                $Employee->soldContractServices()->whereHas('contract', fn ($contracts) => $contracts->whereIn('status', ['active']))->exists()
+                || $Employee->deliveryContractServices()->whereHas('contract', fn ($contracts) => $contracts->whereIn('status', ['active']))->exists(),
                 422,
                 'business.employee_has_customer_services',
             );

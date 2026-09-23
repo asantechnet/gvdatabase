@@ -68,8 +68,8 @@ class Employee extends Model
 
     /**
      * Catalogue services this commission-based employee can deliver, together
-     * with the rate agreed for each service. Customer-specific responsibility
-     * lives on customer_service; this relation deliberately stays reusable.
+     * with the rate agreed for each service. Contract-specific responsibility
+     * lives on contract_service; this relation deliberately stays reusable.
      */
     public function commissionServices(): BelongsToMany
     {
@@ -78,16 +78,16 @@ class Employee extends Model
             ->withTimestamps();
     }
 
-    /** Customer services currently assigned to this delivery employee. */
-    public function customerServices(): HasMany
+    /** Contracted services sold by this employee. */
+    public function soldContractServices(): HasMany
     {
-        return $this->hasMany(CustomerService::class);
+        return $this->hasMany(ContractService::class, 'sold_by_employee_id');
     }
 
-    /** Customer services this employee is one of the delivery recipients for. */
-    public function deliveryCustomerServices(): BelongsToMany
+    /** Contracted services this employee is one of the delivery recipients for. */
+    public function deliveryContractServices(): BelongsToMany
     {
-        return $this->belongsToMany(CustomerService::class, 'employee_customer_service_commissions', 'employee_id', 'customer_service_id')
+        return $this->belongsToMany(ContractService::class, 'contract_service_employee', 'employee_id', 'contract_service_id')
             ->withPivot('percentage')
             ->withTimestamps();
     }

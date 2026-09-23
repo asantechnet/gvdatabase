@@ -12,7 +12,6 @@ class ServiceFactory extends Factory
     {
         return [
             'type' => fake()->words(2, true),
-            'duration' => fake()->numberBetween(1, 365),
             'fee' => fake()->randomFloat(2, 0, 10000),
             'status' => Service::STATUS_ACTIVE,
             'currency_id' => Currency::factory(),

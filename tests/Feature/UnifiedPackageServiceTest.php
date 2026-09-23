@@ -45,12 +45,12 @@ class UnifiedPackageServiceTest extends TestCase
         $purchase = $this->postJson("/api/packages/{$package['id']}/issue", $payload)
             ->assertCreated()->assertJsonCount(2, 'data.services')->json('data');
         $this->assertDatabaseCount('customer_packages', 1);
-        $this->assertDatabaseCount('customer_service', 2);
+        $this->assertDatabaseCount('contract_service', 2);
         $this->assertEqualsWithDelta(900, (float) collect($purchase['services'])->sum('fee'), .001);
 
         $this->postJson("/api/packages/{$package['id']}/issue", $payload)
             ->assertUnprocessable()->assertJsonValidationErrors('package_id');
-        $this->assertDatabaseCount('customer_service', 2);
+        $this->assertDatabaseCount('contract_service', 2);
 
         $this->getJson('/api/educational-services/scholarships')->assertOk()->assertJsonPath('data.total', 1);
         $this->getJson('/api/educational-services/test-offers')->assertOk()->assertJsonPath('data.total', 1);

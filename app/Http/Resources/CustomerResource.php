@@ -31,12 +31,12 @@ class CustomerResource extends JsonResource
             'notes' => $this->notes,
             'date' => $this->date->toDateString(),
             'services' => $request->boolean('compact')
-                ? $this->whenLoaded('customerServices', fn () => $this->customerServices->map(fn ($item) => [
+                ? $this->whenLoaded('contractServices', fn () => $this->contractServices->map(fn ($item) => [
                     'id' => $item->id, 'service_id' => $item->service_id, 'type' => $item->service?->type,
-                    'status' => $item->status, 'deadline' => $item->deadline?->toDateString(),
+                    'status' => $item->contract?->status,
                     'currency' => $item->service?->currency?->only(['id', 'code', 'symbol']),
                 ]), [])
-                : CustomerServiceResource::collection($this->whenLoaded('customerServices')),
+                : ContractServiceResource::collection($this->whenLoaded('contractServices')),
             'interactions' => CrmInteractionResource::collection($this->whenLoaded('interactions')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

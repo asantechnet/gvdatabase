@@ -20,7 +20,6 @@ class Service extends Model
         'type',
         'category',
         'description',
-        'duration',
         'fee',
         'status',
         'currency_id',
@@ -43,17 +42,16 @@ class Service extends Model
         return $this->belongsTo(Currency::class);
     }
 
-    public function customers()
+    /** Contract lines selling this catalogue service. */
+    public function contractServices()
     {
-        return $this->belongsToMany(Customer::class)
-            ->using(CustomerService::class)
-            ->withPivot('id', 'deadline')
-            ->withTimestamps();
+        return $this->hasMany(ContractService::class);
     }
 
-    public function customerServices()
+    public function contracts()
     {
-        return $this->hasMany(CustomerService::class);
+        return $this->belongsToMany(Contract::class, 'contract_service')
+            ->withTimestamps();
     }
 
     public function packages(): BelongsToMany

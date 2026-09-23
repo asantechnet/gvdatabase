@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
-use App\Models\CustomerService;
+use App\Models\ContractService;
 use App\Models\Employee;
 use App\Models\University;
 use App\Services\ApplicantTaskService;
@@ -61,7 +61,7 @@ class ApplicantController extends Controller
             array_push($relations, 'pendingTransactions.currency', 'incomes', 'expenses');
         }
         if ($request->user()->hasPermission('view_applicant_services')) {
-            array_push($relations, 'services.service.currency', 'services.currency', 'services.soldByEmployee', 'services.customerPackage.package', 'services.bonusSource');
+            array_push($relations, 'services.service.currency', 'services.currency', 'services.soldByEmployee', 'services.customerPackage.package', 'services.bonusSource', 'services.contract');
         }
 
         $applicant->load($relations);
@@ -181,13 +181,13 @@ class ApplicantController extends Controller
         return ['customer', 'responsibleEmployee', 'country', 'university.country', 'educationLevel', 'language', 'semester', 'currentStage'];
     }
 
-    private function presentService(CustomerService $record): array
+    private function presentService(ContractService $record): array
     {
         return [
             'id' => $record->id, 'service_id' => $record->service_id, 'type' => $record->service->type, 'category' => $record->service->category, 'employee_id' => $record->sold_by_employee_id,
             'currency_id' => $record->currency_id ?? $record->service->currency_id, 'package_type_id' => $record->customerPackage?->package_id,
             'country_id' => $record->country_id, 'education_level_id' => $record->education_level_id, 'language_id' => $record->language_id,
-            'date' => $record->sold_at?->toDateString(), 'fee' => $record->fee ?? $record->service->fee, 'status' => $record->status,
+            'date' => $record->contract?->start_date?->toDateString(), 'fee' => $record->fee ?? $record->service->fee, 'status' => $record->contract?->status,
             'currency' => $record->currency ?? $record->service->currency, 'package_type' => $record->customerPackage?->package,
             'bonus_source' => $record->bonusSource,
         ];

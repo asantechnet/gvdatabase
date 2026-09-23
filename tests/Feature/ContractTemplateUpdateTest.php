@@ -42,27 +42,15 @@ class ContractTemplateUpdateTest extends TestCase
             ->assertJsonPath('data.content', '<p>Updated terms</p>');
     }
 
-    public function test_contract_creation_accepts_localized_whole_month_duration(): void
+    public function test_customer_template_requires_a_service(): void
     {
         $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
-        $template = ContractTemplate::query()->create([
+
+        $this->postJson('/api/contract-templates', [
             'name' => 'Customer Agreement',
             'contract_type_id' => $type->id,
             'cover_text' => 'Cover',
             'content' => '<p>Terms</p>',
-        ]);
-        $customer = Customer::factory()->create();
-
-        $this->postJson('/api/contracts', [
-            'template_id' => $template->id,
-            'customer_id' => $customer->id,
-            'status' => 'active',
-            'start_date' => '2026-01-15',
-            'duration_months' => '۱۲',
-        ])->assertCreated()
-            ->assertJsonPath('data.customer_id', $customer->id)
-            ->assertJsonPath('data.status', 'active')
-            ->assertJsonPath('data.duration_months', 12)
-            ->assertJsonPath('data.end_date', '2027-01-15');
+        ])->assertUnprocessable()->assertJsonValidationErrors('service_id');
     }
 }

@@ -29,7 +29,6 @@ class ServiceController extends Controller
             'type' => 'required|string|max:255',
             'category' => ['sometimes', 'string', Rule::in(['general', 'scholarship', 'test_offer'])],
             'description' => 'nullable|string|max:5000',
-            'duration' => 'nullable|integer|min:1',
             'fee' => 'required|numeric|min:0',
             'status' => [
                 'required',
@@ -61,7 +60,6 @@ class ServiceController extends Controller
             'type' => 'sometimes|required|string|max:255',
             'category' => ['sometimes', 'string', Rule::in(['general', 'scholarship', 'test_offer'])],
             'description' => 'nullable|string|max:5000',
-            'duration' => 'sometimes|nullable|integer|min:1',
             'fee' => 'sometimes|required|numeric|min:0',
             'status' => [
                 'sometimes',
@@ -82,7 +80,7 @@ class ServiceController extends Controller
      */
     public function destroy(Service $service): JsonResponse
     {
-        if ($service->invoices()->exists() || $service->customerServices()->exists() || $service->projects()->exists() || $service->packages()->exists()) {
+        if ($service->invoices()->exists() || $service->contractServices()->exists() || $service->projects()->exists() || $service->packages()->exists()) {
             return response()->json([
                 'message' => 'Assigned, projected, or invoiced services cannot be deleted. Mark the service inactive instead.',
             ], 409);

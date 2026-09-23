@@ -3,10 +3,11 @@
 namespace App\Services;
 
 use App\Models\Applicant;
+use App\Models\Contract;
+use App\Models\ContractService;
 use App\Models\Currency;
 use App\Models\Customer;
 use App\Models\CustomerPackage;
-use App\Models\CustomerService;
 use App\Models\Package;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -61,6 +62,30 @@ class PackageIssuanceService
             $currencyPrecision = $saleCurrencyId ? (int) (Currency::query()->whereKey($saleCurrencyId)->value('decimal_places') ?? 2) : 2;
             $lastId = $package->services->last()->id;
 
+            // A package sale is a customer contract: one agreement holding one
+            // line per packaged service.
+            $contractTypeId = \App\Models\ContractType::query()->where('slug', 'customer')->value('id');
+            abort_unless($contractTypeId, 500, 'Customer contract type is missing.');
+            $contract = Contract::create([
+                'contract_type_id' => $contractTypeId,
+                'customer_id' => $customer->id,
+                'applicant_id' => $applicant?->id,
+                'sold_by_employee_id' => $purchase->sold_by_employee_id,
+                'marketer_id' => $purchase->sold_by_employee_id ?? $customer->marketer_id,
+                'name' => $package->name,
+                'type' => 'Customer',
+                'status' => 'active',
+                'start_date' => $purchase->purchased_at->toDateString(),
+                'counterparty' => $customer->name,
+                'counterparty_company' => $customer->company,
+                'counterparty_email' => $customer->email,
+                'counterparty_contact' => $customer->contact,
+                'counterparty_address' => $customer->address,
+                'content' => '',
+                'is_custom' => true,
+                'snapshot_data' => ['entity' => ['package_id' => $package->id, 'customer_package_id' => $purchase->id]],
+            ]);
+
             foreach ($package->services as $service) {
                 if ($saleFee === null) {
                     $fee = $service->pivot->allocated_fee ?? $service->fee;
@@ -73,17 +98,15 @@ class PackageIssuanceService
                     $currencyId = $saleCurrencyId;
                 }
 
-                CustomerService::create([
-                    'customer_id' => $customer->id,
-                    'applicant_id' => $applicant?->id,
+                ContractService::create([
+                    'contract_id' => $contract->id,
                     'service_id' => $service->id,
                     'customer_package_id' => $purchase->id,
+                    'applicant_id' => $applicant?->id,
                     'sold_by_employee_id' => $purchase->sold_by_employee_id,
                     'marketer_id' => $purchase->sold_by_employee_id ?? $customer->marketer_id,
                     'fee' => $fee,
                     'currency_id' => $currencyId,
-                    'status' => 'active',
-                    'sold_at' => $purchase->purchased_at,
                     'country_id' => $applicant?->country_id,
                     'education_level_id' => $applicant?->education_level_id,
                     'language_id' => $applicant?->language_id,

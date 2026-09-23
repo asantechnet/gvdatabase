@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Currency;
 use App\Models\Customer;
-use App\Models\CustomerService;
+use App\Models\Contract;
+use App\Models\ContractService;
+use App\Models\ContractType;
 use App\Models\Invoice;
 use App\Models\PaymentDetail;
 use App\Models\Service;
@@ -64,10 +66,14 @@ class PaymentDetailManagementTest extends TestCase
             'currency_id' => $currency->id,
             'fee' => 250,
         ]);
-        $customerService = CustomerService::create([
+        $contract = Contract::create([
+            'contract_type_id' => ContractType::query()->where('slug', 'customer')->value('id'),
             'customer_id' => $customer->id,
-            'service_id' => $service->id,
+            'name' => $service->type, 'type' => 'Customer', 'status' => 'active',
+            'start_date' => '2026-09-01', 'counterparty' => $customer->name,
+            'content' => '', 'is_custom' => true,
         ]);
+        $customerService = $contract->contractServices()->create(['service_id' => $service->id]);
         $paymentDetail = PaymentDetail::create([
             'method' => 'Bank transfer',
             'instruction' => "Account: 12345\nReference the invoice number.",
@@ -77,7 +83,7 @@ class PaymentDetailManagementTest extends TestCase
             'customer_id' => $customer->id,
             'currency_id' => $currency->id,
             'rate' => 1,
-            'services' => [['customer_service_id' => $customerService->id, 'quantity' => 1]],
+            'services' => [['contract_service_id' => $customerService->id, 'quantity' => 1]],
             'tax_percent' => 0,
             'discount' => 0,
             'payment_detail_id' => $paymentDetail->id,

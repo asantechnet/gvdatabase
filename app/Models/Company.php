@@ -44,9 +44,9 @@ class Company extends Model
         return $this->hasMany(Contract::class);
     }
 
-    public function outsourcedCustomerServices()
+    public function outsourcedContractServices()
     {
-        return $this->hasMany(CustomerService::class, 'outsourcing_company_id');
+        return $this->hasMany(ContractService::class, 'outsourcing_company_id');
     }
 
     public function outsourcingAccruals()

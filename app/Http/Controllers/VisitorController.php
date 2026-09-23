@@ -141,7 +141,7 @@ class VisitorController extends Controller
         });
 
         return new CustomerResource($customer->load([
-            'customerServices.service.currency',
+            'contractServices.service.currency',
             'marketerEmployee',
             'interactions.creator',
         ]));

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\InvoiceResource;
+use App\Models\ContractService;
 use App\Models\Currency;
 use App\Models\Customer;
-use App\Models\CustomerService;
 use App\Models\Invoice;
 use App\Models\InvoiceService;
 use App\Models\PaymentDetail;
@@ -45,22 +45,21 @@ class InvoiceController extends Controller
 
     public function commissionCandidates()
     {
-        // Kept for API compatibility. Candidates are now derived from the
-        // customer-service delivery assignment plus the employee's catalogue
-        // capability, never from the retired customer-specific rate table.
-        $assignments = CustomerService::query()
-            ->where('status', 'active')
+        // Candidates are derived from contracted-service delivery assignments
+        // on active contracts plus the employee's catalogue capability.
+        $assignments = ContractService::query()
+            ->whereHas('contract', fn ($contracts) => $contracts->where('status', 'active')->where('is_cancelled', false))
             ->whereHas('deliveryEmployees')
-            ->with(['deliveryEmployees.commissionServices'])
+            ->with(['deliveryEmployees.commissionServices', 'contract:id,customer_id'])
             ->get()
-            ->map(function (CustomerService $customerService): ?array {
-                return $customerService->deliveryEmployees->map(function ($employee) use ($customerService): ?array {
-                    $capability = $employee->commissionServices->firstWhere('id', $customerService->service_id);
+            ->map(function (ContractService $line): ?array {
+                return $line->deliveryEmployees->map(function ($employee) use ($line): ?array {
+                    $capability = $employee->commissionServices->firstWhere('id', $line->service_id);
 
                     return $employee->employment_type === 'commission' && $capability ? [
                         'employee_id' => $employee->id,
                         'employee_name' => $employee->name,
-                        'customer_service_id' => $customerService->id,
+                        'contract_service_id' => $line->id,
                         'percentage' => (float) $capability->pivot->percentage,
                     ] : null;
                 });
@@ -71,8 +70,8 @@ class InvoiceController extends Controller
             ->map(fn ($rows) => [
                 'id' => $rows->first()['employee_id'],
                 'name' => $rows->first()['employee_name'],
-                'customer_services' => $rows->map(fn (array $row) => [
-                    'customer_service_id' => $row['customer_service_id'],
+                'contract_services' => $rows->map(fn (array $row) => [
+                    'contract_service_id' => $row['contract_service_id'],
                     'percentage' => $row['percentage'],
                 ])->values(),
             ])
@@ -94,7 +93,7 @@ class InvoiceController extends Controller
             'issue_date' => ['nullable', 'date', 'before_or_equal:today'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'services' => ['required', 'array', 'min:1'],
-            'services.*.customer_service_id' => ['required', 'integer', 'distinct', 'exists:customer_service,id'],
+            'services.*.contract_service_id' => ['required', 'integer', 'distinct', 'exists:contract_service,id'],
             'services.*.quantity' => ['sometimes', 'integer', 'min:1'],
             'tax_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'discount' => ['sometimes', 'numeric', 'min:0'],
@@ -123,12 +122,14 @@ class InvoiceController extends Controller
             $customer = Customer::query()->lockForUpdate()->findOrFail($validated['customer_id']);
             $invoiceCurrency = Currency::findOrFail($validated['currency_id']);
             $serviceRows = collect($validated['services']);
-            $requestedIds = $serviceRows->pluck('customer_service_id');
-            $assignedServices = CustomerService::query()
-                ->where('customer_id', $customer->id)
-                ->where('status', 'active')
+            $requestedIds = $serviceRows->pluck('contract_service_id');
+            $assignedServices = ContractService::query()
                 ->whereIn('id', $requestedIds)
-                ->with(['service.currency', 'currency', 'employee.commissionServices', 'deliveryEmployees.commissionServices', 'marketer.commissionServices', 'outsourcingCompany'])
+                ->whereHas('contract', fn ($contracts) => $contracts
+                    ->where('customer_id', $customer->id)
+                    ->where('status', 'active')
+                    ->where('is_cancelled', false))
+                ->with(['service.currency', 'currency', 'deliveryEmployees.commissionServices', 'marketer.commissionServices', 'outsourcingCompany'])
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get()
@@ -148,10 +149,10 @@ class InvoiceController extends Controller
             $subtotal = 0.0;
 
             foreach ($serviceRows as $row) {
-                $customerService = $assignedServices->get($row['customer_service_id']);
-                $service = $customerService->service;
-                $sourceCurrency = $customerService->currency ?? $service->currency;
-                $contractedFee = (float) ($customerService->fee ?? $service->fee);
+                $contractService = $assignedServices->get($row['contract_service_id']);
+                $service = $contractService->service;
+                $sourceCurrency = $contractService->currency ?? $service->currency;
+                $contractedFee = (float) ($contractService->fee ?? $service->fee);
                 $commissionableInvoice = true;
                 $deliveryRecipients = [];
                 $marketingEmployee = null;
@@ -159,15 +160,10 @@ class InvoiceController extends Controller
                 $outsourcingCompanyId = null;
                 $outsourcingPercentage = null;
 
-                // A customer service can credit several delivery employees.
+                // A contracted service can credit several delivery employees.
                 // Their catalogue capability supplies the rate; each resolved
                 // rate is snapshotted independently on the invoice line.
-                $deliveryEmployees = $customerService->deliveryEmployees;
-                if ($deliveryEmployees->isEmpty() && $customerService->employee) {
-                    // A direct legacy record can exist after deployment but
-                    // before it is edited. Continue honouring its owner.
-                    $deliveryEmployees = collect([$customerService->employee]);
-                }
+                $deliveryEmployees = $contractService->deliveryEmployees;
 
                 foreach ($deliveryEmployees as $deliveryEmployee) {
                     $capability = $deliveryEmployee->commissionServices
@@ -186,8 +182,8 @@ class InvoiceController extends Controller
                 // earns only when they have explicitly been made a
                 // commission-based employee and have a rate for this service.
                 // This prevents mere CRM attribution from becoming payroll.
-                if ($commissionableInvoice && $customerService->marketer) {
-                    $marketer = $customerService->marketer;
+                if ($commissionableInvoice && $contractService->marketer) {
+                    $marketer = $contractService->marketer;
                     $capability = $marketer->commissionServices->firstWhere('id', $service->id);
 
                     if ($marketer->employment_type === 'commission' && $capability) {
@@ -199,9 +195,9 @@ class InvoiceController extends Controller
                 // Outsourcing is contractual supplier work, independent from
                 // employee payroll. Snapshot both the provider and its agreed
                 // share now so later agreement changes cannot alter invoices.
-                if ($customerService->outsourcingCompany && $customerService->outsourcing_percentage !== null) {
-                    $outsourcingCompanyId = $customerService->outsourcingCompany->id;
-                    $outsourcingPercentage = (float) $customerService->outsourcing_percentage;
+                if ($contractService->outsourcingCompany && $contractService->outsourcing_percentage !== null) {
+                    $outsourcingCompanyId = $contractService->outsourcingCompany->id;
+                    $outsourcingPercentage = (float) $contractService->outsourcing_percentage;
                 }
 
                 if (! $sourceCurrency || (float) $sourceCurrency->rate <= 0) {
@@ -219,7 +215,7 @@ class InvoiceController extends Controller
                 $subtotal += $lineTotal;
 
                 $pivotRows[$service->id] = [
-                    'customer_service_id' => $customerService->id,
+                    'contract_service_id' => $contractService->id,
                     'snapshot_name' => $service->type,
                     'snapshot_service_fee' => $contractedFee,
                     'snapshot_service_currency_code' => $sourceCurrency->code,
@@ -242,7 +238,7 @@ class InvoiceController extends Controller
                     'quantity' => $quantity,
                     'line_total' => $lineTotal,
                 ];
-                $deliveryRecipientRows[$customerService->id] = $deliveryRecipients;
+                $deliveryRecipientRows[$contractService->id] = $deliveryRecipients;
             }
 
             $subtotal = round($subtotal, $invoiceCurrency->decimal_places);
@@ -297,7 +293,7 @@ class InvoiceController extends Controller
 
             InvoiceService::query()->where('invoice_id', $invoice->id)->get()->each(function (InvoiceService $line) use ($deliveryRecipientRows): void {
                 $line->commissionRecipients()->sync(
-                    collect($deliveryRecipientRows[$line->customer_service_id] ?? [])
+                    collect($deliveryRecipientRows[$line->contract_service_id] ?? [])
                         ->mapWithKeys(fn (float $percentage, int $employeeId) => [$employeeId => ['percentage' => $percentage]])
                         ->all(),
                 );

@@ -85,7 +85,7 @@ class InvoiceResource extends JsonResource
             'recordedBy' => $this->whenLoaded('recorder', fn () => $this->recorder ? ['id' => $this->recorder->id, 'name' => $this->recorder->name] : null),
             'services' => $this->services->map(fn ($service) => [
                 'id' => $service->id,
-                'customer_service_id' => $service->pivot->customer_service_id,
+                'contract_service_id' => $service->pivot->contract_service_id,
                 'name' => $service->pivot->snapshot_name,
                 'price' => (float) $service->pivot->snapshot_converted_fee,
                 'quantity' => $service->pivot->quantity,

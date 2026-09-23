@@ -15,7 +15,7 @@ class CommissionAccrualResource extends JsonResource
             'employee' => $this->whenLoaded('employee', fn () => $this->employee?->name),
             'service_id' => $this->service_id,
             'service' => $this->whenLoaded('service', fn () => $this->service?->type),
-            'customer_service_id' => $this->customer_service_id,
+            'contract_service_id' => $this->contract_service_id,
             'invoice_id' => $this->invoice_id,
             'invoice_number' => $this->whenLoaded('invoice', fn () => $this->invoice?->invoice_number),
             'income_id' => $this->income_id,

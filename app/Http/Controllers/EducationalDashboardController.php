@@ -7,7 +7,7 @@ use App\Models\ApplicantStage;
 use App\Models\ApplicantUniversity;
 use App\Models\Contract;
 use App\Models\Country;
-use App\Models\CustomerService;
+use App\Models\ContractService;
 use App\Models\EducationalBonusSource;
 use App\Models\Employee;
 use App\Models\Expense;
@@ -114,7 +114,7 @@ class EducationalDashboardController extends Controller
         }
         $out['contracts']['sold'] = $contractQuery->count();
         foreach (['scholarships' => 'scholarship', 'test_offers' => 'test_offer'] as $key => $category) {
-            $query = CustomerService::query()->whereHas('service', fn ($service) => $service->where('category', $category));
+            $query = ContractService::query()->whereHas('service', fn ($service) => $service->where('category', $category));
             if (! empty($filters['responsible_employee_id'])) {
                 $query->where('sold_by_employee_id', $filters['responsible_employee_id']);
             }
@@ -128,10 +128,10 @@ class EducationalDashboardController extends Controller
                 $query->whereHas('applicant', fn ($aq) => $aq->where('university_id', $filters['university_id']));
             }
             if (! empty($filters['date_from'])) {
-                $query->whereDate('sold_at', '>=', $filters['date_from']);
+                $query->whereHas('contract', fn ($contracts) => $contracts->whereDate('start_date', '>=', $filters['date_from']));
             }
             if (! empty($filters['date_to'])) {
-                $query->whereDate('sold_at', '<=', $filters['date_to']);
+                $query->whereHas('contract', fn ($contracts) => $contracts->whereDate('start_date', '<=', $filters['date_to']));
             }
             $rows = $query->selectRaw('currency_id, COUNT(*) as sold, COALESCE(SUM(fee), 0) as revenue')->groupBy('currency_id')->get();
             $byCurrency = $rows->map(fn ($row) => [
@@ -267,11 +267,7 @@ class EducationalDashboardController extends Controller
             ->limit(10)->get()
             ->map(fn (Applicant $a) => ['id' => $a->id, 'title' => $a->customer?->name ?? "Applicant #{$a->id}", 'subtitle' => 'Documents have not been attached to a case task yet.', 'route' => ['name' => 'applicant-case', 'params' => ['id' => $a->id]]])->all();
         $contractsRequiringAttention = Contract::query()->with(['customer:id,name', 'applicant:id,customer_id'])
-            ->where(function ($q) {
-                $q->where('status', 'draft')->orWhere('status', 'expired')->orWhere(function ($aq) {
-                    $aq->where('status', 'active')->whereDate('end_date', '<=', now()->addDays(14)->toDateString());
-                });
-            })
+            ->whereIn('status', ['draft', 'terminated'])
             ->when(! empty($filters['responsible_employee_id']), fn ($q) => $q->where('employee_id', $filters['responsible_employee_id']))
             ->limit(10)->get()
             ->map(fn (Contract $c) => ['id' => $c->id, 'title' => $c->contract_number ?? "Contract #{$c->id}", 'subtitle' => ($c->customer?->name ?? 'No customer').' · '.$c->status, 'route' => $c->applicant_id ? ['name' => 'applicant-case', 'params' => ['id' => $c->applicant_id]] : ['name' => 'contracts']])->all();

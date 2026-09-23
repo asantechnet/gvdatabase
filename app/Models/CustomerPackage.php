@@ -43,6 +43,6 @@ class CustomerPackage extends Model
 
     public function services(): HasMany
     {
-        return $this->hasMany(CustomerService::class);
+        return $this->hasMany(ContractService::class);
     }
 }

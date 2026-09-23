@@ -115,7 +115,6 @@ class PermissionSeeder extends Seeder
         ['name' => 'create_customers', 'category' => 'customer_contracts'],
         ['name' => 'edit_customers', 'category' => 'customer_contracts'],
         ['name' => 'delete_customers', 'category' => 'customer_contracts'],
-        ['name' => 'manage_customer_services', 'category' => 'customer_contracts'],
         ['name' => 'view_contracts', 'category' => 'customer_contracts'],
         ['name' => 'create_contracts', 'category' => 'customer_contracts'],
         ['name' => 'edit_contracts', 'category' => 'customer_contracts'],

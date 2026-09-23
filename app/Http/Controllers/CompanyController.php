@@ -66,7 +66,7 @@ class CompanyController extends Controller
 
     public function destroy(Company $company): JsonResponse
     {
-        if ($company->contracts()->exists() || $company->outsourcedCustomerServices()->exists() || $company->outsourcingAccruals()->exists() || $company->outsourcingSettlements()->exists()) {
+        if ($company->contracts()->exists() || $company->outsourcedContractServices()->exists() || $company->outsourcingAccruals()->exists() || $company->outsourcingSettlements()->exists()) {
             // Historical contractual and financial references must stay renderable; deactivate instead.
             $company->update(['is_active' => false]);
 

@@ -10,7 +10,7 @@ use App\Models\CommissionSettlement;
 use App\Models\Contract;
 use App\Models\Currency;
 use App\Models\Customer;
-use App\Models\CustomerService;
+use App\Models\ContractService;
 use App\Models\DailyReport;
 use App\Models\Employee;
 use App\Models\Expense;
@@ -372,20 +372,17 @@ class ReportService
                 ->map(fn (Customer $row) => ['date' => $row->date?->format('Y-m-d'), 'name' => $row->name, 'company' => $row->company, 'contact' => $row->contact, 'marketer' => $row->marketer]);
             $sections[] = $this->section('customers', ['date', 'name', 'company', 'contact', 'marketer'], $rows, ['count' => $rows->count()]);
 
-            $services = CustomerService::query()->with(['customer:id,name,company', 'service:id,type', 'currency:id,code'])
-                ->where(function (Builder $q) use ($start, $end) {
-                    $q->whereBetween('created_at', [$start->copy()->utc(), $end->copy()->utc()])
-                        ->orWhereBetween('deadline', [$start->toDateString(), $end->toDateString()]);
-                })
-                ->when($filters['customer_id'] ?? null, fn (Builder $q, $id) => $q->where('customer_id', $id))
-                ->when($filters['status'] ?? null, fn (Builder $q, $status) => $q->where('status', $status))
-                ->latest('deadline')->get()->map(fn (CustomerService $row) => [
-                    'customer' => $row->customer?->company ?: $row->customer?->name,
-                    'service' => $row->service?->type, 'status' => $row->status,
-                    'deadline' => $row->deadline?->format('Y-m-d'), 'fee' => $row->fee === null ? null : (float) $row->fee,
+            $services = ContractService::query()->with(['contract.customer:id,name,company', 'service:id,type', 'currency:id,code'])
+                ->whereBetween('contract_service.created_at', [$start->copy()->utc(), $end->copy()->utc()])
+                ->when($filters['customer_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('contract', fn ($contracts) => $contracts->where('customer_id', $id)))
+                ->when($filters['status'] ?? null, fn (Builder $q, $status) => $q->whereHas('contract', fn ($contracts) => $contracts->where('status', $status)))
+                ->latest('contract_service.id')->get()->map(fn (ContractService $row) => [
+                    'customer' => $row->contract?->customer?->company ?: $row->contract?->customer?->name,
+                    'service' => $row->service?->type, 'status' => $row->contract?->status,
+                    'fee' => $row->fee === null ? null : (float) $row->fee,
                     'currency' => $row->currency?->code,
                 ]);
-            $sections[] = $this->section('customer_services', ['customer', 'service', 'status', 'deadline', 'fee', 'currency'], $services, [
+            $sections[] = $this->section('contract_services', ['customer', 'service', 'status', 'fee', 'currency'], $services, [
                 'commitments' => $services->count(), 'active' => $services->where('status', 'active')->count(),
             ]);
         }
