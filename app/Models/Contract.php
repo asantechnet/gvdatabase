@@ -13,7 +13,7 @@ class Contract extends Model
 {
     use Auditable, HasDocumentNumber, HasFactory, SoftDeletes;
 
-    public const STATUSES = ['draft', 'active', 'expired', 'renewed', 'terminated', 'cancelled'];
+    public const STATUSES = ['draft', 'active', 'completed', 'expired', 'renewed', 'terminated', 'cancelled'];
 
     protected $fillable = [
         'template_id',
@@ -21,6 +21,8 @@ class Contract extends Model
         'contract_type_id',
         'service_id',
         'employee_id',
+        'sold_by_employee_id',
+        'marketer_id',
         'customer_id',
         'applicant_id',
         'company_id',
@@ -87,6 +89,39 @@ class Contract extends Model
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+    /**
+     * Contracted services (multi-select). Successor of the standalone
+     * `customer_service` assignment: each line carries its own per-customer
+     * fee, currency, attribution, outsourcing and case dimensions.
+     */
+    public function contractServices()
+    {
+        return $this->hasMany(ContractService::class);
+    }
+
+    public function services()
+    {
+        return $this->belongsToMany(Service::class, 'contract_service')
+            ->using(ContractService::class)
+            ->withPivot([
+                'id', 'fee', 'currency_id', 'applicant_id', 'customer_package_id',
+                'sold_by_employee_id', 'marketer_id', 'outsourcing_company_id',
+                'outsourcing_percentage', 'country_id', 'education_level_id',
+                'language_id', 'notes',
+            ])
+            ->withTimestamps();
+    }
+
+    public function soldByEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'sold_by_employee_id')->withTrashed();
+    }
+
+    public function marketerEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'marketer_id')->withTrashed();
     }
     public function templateVersion(){ return $this->belongsTo(ContractTemplateVersion::class, 'contract_template_version_id')->withTrashed(); }
 

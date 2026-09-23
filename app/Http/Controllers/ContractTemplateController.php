@@ -15,9 +15,30 @@ class ContractTemplateController extends Controller
 {
     public function __construct(private readonly ContentSanitizer $sanitizer) {}
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $templates = ContractTemplate::with(['policies', 'contractType', 'position', 'versions.language', 'versions.country'])->latest('id')->get();
+        $request->validate([
+            'service_ids' => ['sometimes', 'array'],
+            'service_ids.*' => ['integer', 'exists:services,id'],
+            'contract_type_id' => ['sometimes', 'integer', 'exists:contract_types,id'],
+            'include_generic' => ['sometimes', 'boolean'],
+        ]);
+
+        $templates = ContractTemplate::with(['policies', 'contractType', 'position', 'service', 'versions.language', 'versions.country'])
+            ->when($request->filled('contract_type_id'), fn ($query) => $query->where('contract_type_id', $request->integer('contract_type_id')))
+            // Print/create-page picker: when services are selected, show only
+            // templates linked to those services (plus generic templates with
+            // no linked service unless explicitly excluded).
+            ->when($request->filled('service_ids'), function ($query) use ($request) {
+                $ids = collect($request->input('service_ids'))->map(fn ($id) => (int) $id)->all();
+                $query->where(function ($q) use ($ids, $request) {
+                    $q->whereIn('service_id', $ids);
+                    if ($request->boolean('include_generic', true)) {
+                        $q->orWhereNull('service_id');
+                    }
+                });
+            })
+            ->latest('id')->get();
 
         return response()->json([
             'success' => true,

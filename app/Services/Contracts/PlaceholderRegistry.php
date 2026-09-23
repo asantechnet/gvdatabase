@@ -72,13 +72,24 @@ class PlaceholderRegistry
             [
                 'key' => 'service',
                 'label' => 'Service',
-                'contexts' => self::EDUCATIONAL_SLUGS,
+                'contexts' => ['customer', 'other', ...self::EDUCATIONAL_SLUGS],
                 'fields' => [
                     ['key' => 'service.name', 'label' => 'Service Name'],
                     ['key' => 'service.category', 'label' => 'Category'],
                     ['key' => 'service.description', 'label' => 'Description'],
                     ['key' => 'service.duration', 'label' => 'Duration'],
                     ['key' => 'service.fee', 'label' => 'Fee'],
+                ],
+            ],
+            [
+                'key' => 'services',
+                'label' => 'Services',
+                'contexts' => ['customer', 'other'],
+                'fields' => [
+                    ['key' => 'services.names', 'label' => 'Service Names'],
+                    ['key' => 'services.count', 'label' => 'Service Count'],
+                    ['key' => 'services.total_fee', 'label' => 'Total Fee'],
+                    ['key' => 'services.table', 'label' => 'Services Table'],
                 ],
             ],
             [

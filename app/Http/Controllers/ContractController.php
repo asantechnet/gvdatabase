@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\ContractResource;
 use App\Models\Company;
+use App\Models\ContractService;
 use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\ContractDocumentDesign;
@@ -20,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ContractController extends Controller
@@ -39,11 +41,28 @@ class ContractController extends Controller
             'audience' => 'sometimes|string|in:customers,employees,other',
             'type_slug' => 'sometimes|string',
             'service_id' => 'sometimes|integer|exists:services,id',
+            'service_ids' => 'sometimes|array',
+            'service_ids.*' => 'integer|exists:services,id',
             'without_service' => 'sometimes|boolean',
             'status' => 'sometimes|string|in:'.implode(',', Contract::STATUSES),
         ]);
 
-        $query = Contract::with(['template.contractType', 'contractType', 'service.currency', 'employee.position', 'employee.office', 'employee.user', 'customer.customerServices.service.currency', 'company']);
+        $query = Contract::with(['template.contractType', 'contractType', 'service.currency', 'contractServices.service.currency', 'contractServices.currency', 'employee.position', 'employee.office', 'employee.user', 'customer.customerServices.service.currency', 'company']);
+
+        // Service filter: matches the legacy singular link or any pivot line.
+        $serviceIds = $request->input('service_ids', []);
+        if ($request->filled('service_id')) {
+            $serviceIds[] = $request->integer('service_id');
+        }
+        $serviceIds = collect($serviceIds)->map(fn ($id) => (int) $id)->unique()->values()->all();
+        if ($serviceIds !== []) {
+            $query->where(function ($q) use ($serviceIds) {
+                $q->whereIn('service_id', $serviceIds)
+                    ->orWhereHas('contractServices', fn ($lines) => $lines->whereIn('service_id', $serviceIds));
+            });
+        } elseif ($request->boolean('without_service')) {
+            $query->whereNull('service_id')->whereDoesntHave('contractServices');
+        }
         $query->where(function ($query) {
                 $query->whereHas('contractType', fn ($type) => $type->where('is_active', true))
                 ->orWhereHas('template.contractType', fn ($type) => $type->where('is_active', true))
@@ -140,13 +159,13 @@ class ContractController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'service.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
+            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'service.currency', 'contractServices.service.currency', 'contractServices.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $contract = Contract::with(['template.contractType', 'contractType', 'service.currency', 'employee.position', 'customer.customerServices.service.currency', 'company'])->find($id);
+        $contract = Contract::with(['template.contractType', 'contractType', 'service.currency', 'contractServices.service.currency', 'contractServices.currency', 'employee.position', 'customer.customerServices.service.currency', 'company'])->find($id);
         if (! $contract) {
             return $this->notFound();
         }
@@ -194,7 +213,7 @@ class ContractController extends Controller
 
         // Re-render only when the template or one of its input values changed.
         $renderInputs = [
-            'template_id', 'contract_template_version_id', 'service_id', 'employee_id', 'customer_id', 'applicant_id', 'company_id', 'content',
+            'template_id', 'contract_template_version_id', 'service_id', 'service_ids', 'service_lines', 'employee_id', 'customer_id', 'applicant_id', 'company_id', 'content',
             'start_date', 'end_date', 'duration_months', 'status', 'company_signatory_name',
         ];
         $shouldRender = collect($renderInputs)->contains(fn (string $field) => array_key_exists($field, $data));
@@ -217,6 +236,9 @@ class ContractController extends Controller
                 'applicant_id' => $data['applicant_id'] ?? $contract->applicant_id,
                 'company_id' => $data['company_id'] ?? $contract->company_id,
                 'contract_type_id' => $type?->id,
+                'service_id' => $data['service_id'] ?? $contract->service_id,
+                'service_ids' => $data['service_ids'] ?? $contract->contractServices()->pluck('service_id')->all(),
+                'service_lines' => $data['service_lines'] ?? [],
             ]);
 
             $versionId = $data['contract_template_version_id'] ?? $contract->contract_template_version_id;
@@ -276,11 +298,24 @@ class ContractController extends Controller
             ];
         }
 
-        $contract->update($data);
+        $contract->update(collect($data)->except(['service_ids', 'service_lines'])->all());
+
+        if (array_key_exists('service_ids', $data) || array_key_exists('service_lines', $data)) {
+            $contract->contractServices()->delete();
+            $lines = $this->normalizeServiceLines($data);
+            $this->persistContractServices($contract, $lines);
+            $snapshot = $contract->snapshot_data ?? [];
+            $snapshot['entity']['services'] = collect($lines)->map(fn (array $line) => [
+                'service_id' => $line['service_id'],
+                'fee' => $line['fee'] ?? null,
+                'currency_id' => $line['currency_id'] ?? null,
+            ])->values()->all();
+            $contract->update(['snapshot_data' => $snapshot]);
+        }
 
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'service.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
+            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'service.currency', 'contractServices.service.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
         ]);
     }
 
@@ -375,6 +410,21 @@ class ContractController extends Controller
                 ]);
             }
 
+            // Renewals inherit the contracted service lines of the source.
+            foreach ($contract->contractServices()->with('deliveryEmployees')->get() as $line) {
+                $copy = $result->contractServices()->create($line->only([
+                    'service_id', 'fee', 'currency_id', 'applicant_id', 'customer_package_id',
+                    'sold_by_employee_id', 'marketer_id', 'outsourcing_company_id',
+                    'outsourcing_percentage', 'country_id', 'education_level_id',
+                    'language_id', 'notes',
+                ]));
+                $copy->deliveryEmployees()->sync(
+                    $line->deliveryEmployees->mapWithKeys(fn ($employee) => [
+                        $employee->id => ['percentage' => $employee->pivot->percentage],
+                    ])->all()
+                );
+            }
+
             return $result;
         });
         if ($result instanceof JsonResponse) {
@@ -383,7 +433,7 @@ class ContractController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'service.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
+            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'service.currency', 'contractServices.service.currency', 'contractServices.currency', 'employee', 'customer.customerServices.service.currency', 'company'])),
         ], 201);
     }
 
@@ -452,7 +502,31 @@ class ContractController extends Controller
             'language_id' => ['nullable', 'integer', 'exists:languages,id'],
             'contract_type_id' => ['nullable', 'integer', 'exists:contract_types,id'],
             'service_id' => ['nullable', 'integer', 'exists:services,id'],
+            // Multi-select successor of `service_id`: only active catalogue
+            // services may be registered on a contract.
+            'service_ids' => ['nullable', 'array'],
+            'service_ids.*' => ['integer', Rule::exists('services', 'id')->where('status', 'active')->whereNull('deleted_at')],
+            // Per-service line overrides (fee/currency/notes/attribution).
+            // Keys align with the `contract_service` pivot columns.
+            'service_lines' => ['nullable', 'array'],
+            'service_lines.*.service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('status', 'active')->whereNull('deleted_at')],
+            'service_lines.*.fee' => ['nullable', 'numeric', 'min:0'],
+            'service_lines.*.currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
+            'service_lines.*.applicant_id' => ['nullable', 'integer', 'exists:applicants,id'],
+            'service_lines.*.customer_package_id' => ['nullable', 'integer', 'exists:customer_packages,id'],
+            'service_lines.*.sold_by_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'service_lines.*.marketer_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'service_lines.*.outsourcing_company_id' => ['nullable', 'integer', 'exists:companies,id'],
+            'service_lines.*.outsourcing_percentage' => ['nullable', 'numeric', 'gt:0', 'lte:100'],
+            'service_lines.*.country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'service_lines.*.education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
+            'service_lines.*.language_id' => ['nullable', 'integer', 'exists:languages,id'],
+            'service_lines.*.notes' => ['nullable', 'string', 'max:2000'],
+            'service_lines.*.employee_ids' => ['nullable', 'array'],
+            'service_lines.*.employee_ids.*' => ['integer', 'exists:employees,id'],
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'sold_by_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'marketer_id' => ['nullable', 'integer', 'exists:employees,id'],
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
             'applicant_id' => ['nullable', 'integer', 'exists:applicants,id'],
             'company_id' => ['nullable', 'integer', 'exists:companies,id'],
@@ -489,12 +563,6 @@ class ContractController extends Controller
         $applicantId = $data['applicant_id'] ?? null;
         if ($applicantId && $customerId && ! Applicant::query()->whereKey($applicantId)->where('customer_id', $customerId)->exists()) {
             throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
-        }
-
-        if ($request->filled('service_id')) {
-            $query->where('service_id', $request->integer('service_id'));
-        } elseif ($request->boolean('without_service')) {
-            $query->whereNull('service_id');
         }
 
         if (! $partial && empty($data['start_date'])) {
@@ -599,7 +667,17 @@ class ContractController extends Controller
             ->orderByRaw('service_id IS NULL')
             ->first();
 
-        return Contract::create([
+        $serviceLines = $this->normalizeServiceLines($data, $data['service_id'] ?? $template?->service_id);
+        if ($serviceLines !== []) {
+            $contextEntity['snapshot']['services'] = collect($serviceLines)->map(fn (array $line) => [
+                'service_id' => $line['service_id'],
+                'fee' => $line['fee'] ?? null,
+                'currency_id' => $line['currency_id'] ?? null,
+                'notes' => $line['notes'] ?? null,
+            ])->values()->all();
+        }
+
+        $contract = Contract::create([
             ...$data,
             'name' => $data['name'] ?? $template?->name,
             'cover_text' => $data['cover_text'] ?? $template?->cover_text,
@@ -624,6 +702,66 @@ class ContractController extends Controller
                 ...$snapshotMetadata,
             ],
         ]);
+
+        $this->persistContractServices($contract, $serviceLines);
+
+        return $contract->load(['contractServices.service.currency', 'contractServices.currency']);
+    }
+
+    /**
+     * Normalize the multi-select service input into `contract_service` rows.
+     * Explicit `service_lines` win; bare `service_ids` become fee-inheriting
+     * lines; otherwise the legacy singular link is mirrored as one line so
+     * the new structure stays complete for old single-service contracts.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeServiceLines(array $data, mixed $fallbackServiceId = null): array
+    {
+        if (! empty($data['service_lines'])) {
+            $lines = collect($data['service_lines']);
+        } elseif (! empty($data['service_ids'])) {
+            $lines = collect($data['service_ids'])->map(fn ($id) => ['service_id' => (int) $id]);
+        } elseif ($fallbackServiceId) {
+            $lines = collect([['service_id' => (int) $fallbackServiceId]]);
+        } else {
+            return [];
+        }
+
+        return $lines
+            ->map(fn ($line) => is_array($line) ? $line : ['service_id' => (int) $line])
+            ->unique(fn ($line) => (int) $line['service_id'])
+            ->values()
+            ->all();
+    }
+
+    /** @param list<array<string, mixed>> $lines */
+    private function persistContractServices(Contract $contract, array $lines): void
+    {
+        foreach ($lines as $line) {
+            $employeeIds = collect($line['employee_ids'] ?? [])
+                ->map(fn ($id) => (int) $id)->unique()->values()->all();
+            unset($line['employee_ids']);
+
+            /** @var ContractService $row */
+            $row = $contract->contractServices()->create($line);
+
+            if ($employeeIds === []) {
+                continue;
+            }
+
+            $percentages = Employee::query()
+                ->with(['commissionServices' => fn ($query) => $query->whereKey($row->service_id)])
+                ->whereIn('id', $employeeIds)
+                ->get()
+                ->mapWithKeys(function (Employee $employee) use ($row) {
+                    $capability = $employee->commissionServices->firstWhere('id', $row->service_id);
+
+                    return [$employee->id => ['percentage' => $capability?->pivot->percentage]];
+                })->all();
+
+            $row->deliveryEmployees()->sync($percentages);
+        }
     }
 
     /**
@@ -716,13 +854,20 @@ class ContractController extends Controller
                 }
                 $customer = Customer::findOrFail($customerId);
                 $service = ! empty($data['service_id']) ? \App\Models\Service::query()->find($data['service_id']) : null;
+                $multiIds = collect($data['service_lines'] ?? [])
+                    ->map(fn ($line) => (int) ($line['service_id'] ?? 0))->filter()
+                    ->merge(collect($data['service_ids'] ?? [])->map(fn ($id) => (int) $id))
+                    ->unique()->values()->all();
+                $services = $multiIds !== []
+                    ? \App\Models\Service::query()->whereIn('id', $multiIds)->get()
+                    : collect($service ? [$service] : []);
                 $applicant = $applicantId ? Applicant::query()->findOrFail($applicantId) : null;
                 if ($applicant && (int) $applicant->customer_id !== $customerId) {
                     throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
                 }
 
                 return [
-                    'context' => ['customer' => $customer, 'service' => $service],
+                    'context' => ['customer' => $customer, 'service' => $service ?? $services->first(), 'services' => $services],
                     'snapshot' => ['customer' => $customer->only(['id', 'name', 'company', 'contact', 'email', 'address', 'tax_number']), 'service' => $service?->only(['id', 'type', 'category', 'description', 'duration', 'fee']), 'applicant_id' => $applicant?->id],
                     'foreign_keys' => ['employee_id' => null, 'customer_id' => $customerId, 'applicant_id' => $applicantId, 'company_id' => null],
                 ];

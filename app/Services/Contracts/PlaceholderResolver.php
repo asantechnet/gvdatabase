@@ -27,9 +27,9 @@ class PlaceholderResolver
         $unresolved = [];
         $missing = [];
         $allowed = PlaceholderRegistry::keysForSlug($typeSlug);
-        // employee.identity is rendered as an HTML table and is exempt from
-        // escaping like other values.
-        $raw = ['employee.identity'];
+        // employee.identity and services.table render as HTML tables and are
+        // exempt from escaping like other values.
+        $raw = ['employee.identity', 'services.table'];
 
         $resolved = preg_replace_callback('/{{\s*([a-zA-Z0-9_.]+)\s*}}/', function (array $matches) use ($values, $allowed, &$unresolved, &$missing, $raw) {
             $key = strtolower($matches[1]);
@@ -101,13 +101,32 @@ class PlaceholderResolver
                 'customer.tax_number' => $customer->tax_number,
             ];
         }
-        if ($service = $context['service'] ?? null) {
+        $services = collect($context['services'] ?? []);
+        if (($service = $context['service'] ?? null) === null && $services->isNotEmpty()) {
+            // Contract lines: singular keys fall back to the first service.
+            $service = $services->first()->service ?? $services->first();
+        }
+        if ($service = $service instanceof \App\Models\ContractService ? $service->service : $service) {
             $values += [
                 'service.name' => $service->type,
                 'service.category' => $service->category,
                 'service.description' => $service->description,
                 'service.duration' => $service->duration,
                 'service.fee' => $service->fee,
+            ];
+        }
+        if ($services->isNotEmpty()) {
+            $rows = $services->map(function ($line) {
+                $service = $line instanceof \App\Models\ContractService ? $line->service : $line;
+                $fee = $line instanceof \App\Models\ContractService ? ($line->fee ?? $service?->fee) : $service?->fee;
+
+                return ['name' => $service?->type, 'fee' => $fee];
+            })->filter(fn ($row) => $row['name'] !== null);
+            $values += [
+                'services.names' => $rows->pluck('name')->implode(', '),
+                'services.count' => $rows->count(),
+                'services.total_fee' => $rows->sum(fn ($row) => (float) ($row['fee'] ?? 0)),
+                'services.table' => $this->servicesTableHtml($rows),
             ];
         }
 
@@ -147,6 +166,16 @@ class PlaceholderResolver
         ];
 
         return $values;
+    }
+
+    /** @param \Illuminate\Support\Collection<int, array{name: ?string, fee: mixed}> $rows */
+    private function servicesTableHtml($rows): string
+    {
+        $body = $rows->map(fn ($row) => '<tr><td>'.e((string) $row['name']).'</td><td>'
+            .e($row['fee'] !== null ? (string) $row['fee'] : '').'</td></tr>')->implode('');
+
+        return '<section class="contract-services"><h2>Contracted services</h2><table><thead><tr><th>Service</th><th>Fee</th></tr></thead><tbody>'
+            .$body.'</tbody></table></section>';
     }
 
     private function employeeIdentityHtml(Employee $employee): string

@@ -16,6 +16,7 @@ use App\Models\CommissionSettlement;
 use App\Models\Company;
 use App\Models\Contract;
 use App\Models\ContractPolicy;
+use App\Models\ContractService;
 use App\Models\ContractTemplate;
 use App\Models\ContractTemplateVersion;
 use App\Models\ContractType;
@@ -80,6 +81,7 @@ final class AuditRegistry
             'contract_template_versions' => ContractTemplateVersion::class,
             'contract_types' => ContractType::class,
             'contracts' => Contract::class,
+            'contract_services' => ContractService::class,
             'currencies' => Currency::class,
             'countries' => Country::class,
             'customer_services' => CustomerService::class,
@@ -157,6 +159,7 @@ final class AuditRegistry
             'leaves' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getRawOriginal('date')),
             'daily_reports' => self::joinedLabel(self::relatedLabel($model, 'user'), $model->getRawOriginal('report_date')),
             'customer_services' => self::joinedLabel(self::relatedLabel($model, 'customer'), self::relatedLabel($model, 'service')),
+            'contract_services' => self::joinedLabel(self::relatedLabel($model, 'contract'), self::relatedLabel($model, 'service')),
             'customer_packages' => self::joinedLabel(self::relatedLabel($model, 'customer'), self::relatedLabel($model, 'package')),
             'case_wins' => self::joinedLabel(self::relatedLabel($model, 'employee'), self::relatedLabel($model, 'applicant')),
             'comments' => self::relatedLabel($model, 'task'),
