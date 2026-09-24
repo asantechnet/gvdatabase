@@ -268,3 +268,12 @@ Backend commit `e174ed2`, frontend commit (this session):
   `ContractSeeder`'s stale `expired` status became `completed`. Full
   `migrate:fresh` + `db:seed` verified green including `EducationalSeeder`
   (package issuance → contracts, bonus source from the contract line).
+- **Single service per contract (2026-09-24)**: customer contracts accept
+  exactly one service (`service_ids`/`service_lines` `max:1`, 422 otherwise:
+  "A customer contract must have exactly one service."); `other` max one;
+  employment none. Package issuance now creates one customer contract per
+  packaged service (same shared `CustomerPackage` record). Migration
+  `2026_09_24_000001` soft-deletes surplus lines on historical multi-line
+  contracts (keeping the earliest; invoice/accrual history untouched).
+  Frontend `ContractForm` uses a single service select and the template
+  picker narrows to that service.

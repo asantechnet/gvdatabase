@@ -23,7 +23,8 @@ export interface ContractFormPayload {
   language_id: number | null
   employee_id: number | null
   customer_id: number | null
-  service_ids: number[]
+  service_id: number | null
+  service_ids?: number[] | null
   applicant_id?: number | null
   company_id: number | null
   name: string
@@ -79,7 +80,7 @@ const props = defineProps<{
   applicantId?: number | null
   applicantCountryId?: number | null
   customerId?: number | null
-  defaultServiceIds?: number[] | null
+  defaultServiceId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -96,12 +97,12 @@ const services = ref<Service[]>([])
 const positions = ref<Position[]>([])
 const loadingEntities = ref(true)
 
-const initialServiceIds = (): number[] => {
+const initialServiceId = (): number | null => {
   if (props.contract?.service_ids?.length)
-    return [...props.contract.service_ids]
+    return props.contract.service_ids[0] ?? null
   if (props.contract?.service_id)
-    return [props.contract.service_id]
-  return props.defaultServiceIds ? [...props.defaultServiceIds] : []
+    return props.contract.service_id
+  return props.defaultServiceId ?? null
 }
 
 const form = ref({
@@ -112,7 +113,7 @@ const form = ref({
   position_id: null as number | null,
   employee_id: (props.contract?.employee_id ?? null) as number | null,
   customer_id: (props.contract?.customer_id ?? props.customerId ?? null) as number | null,
-  service_ids: initialServiceIds(),
+  service_id: initialServiceId(),
   company_id: (props.contract?.company_id ?? null) as number | null,
   name: props.contract?.contract || '',
   cover_text: (props.contract?.cover_text || null) as string | null,
@@ -196,13 +197,13 @@ const audienceTemplates = computed(() => {
   return props.templates
 })
 
-// Print/create-page rule: when services are selected, only templates related
-// to those services (plus generic templates with no linked service) show up.
+// Print/create-page rule: when a service is selected, only templates related
+// to that service (plus generic templates with no linked service) show up.
 const visibleTemplates = computed(() => {
-  if ((context.value === 'customer' || context.value === 'other') && form.value.service_ids.length > 0) {
+  if ((context.value === 'customer' || context.value === 'other') && form.value.service_id) {
     return audienceTemplates.value.filter(template =>
       template.service_id === null || template.service_id === undefined
-      || form.value.service_ids.includes(template.service_id),
+      || template.service_id === form.value.service_id,
     )
   }
 
@@ -230,7 +231,7 @@ const selectedEmployee = computed(() => employees.value.find(item => item.id ===
 const selectedCustomer = computed(() => customers.value.find(item => item.id === form.value.customer_id) ?? null)
 const activeServices = computed(() => services.value.filter(service => service.status === 'active'))
 const serviceOptions = computed(() => activeServices.value.map(service => ({ title: service.name || service.type, value: service.id })))
-const selectedServices = computed(() => activeServices.value.filter(service => form.value.service_ids.includes(service.id)))
+const selectedService = computed(() => activeServices.value.find(service => service.id === form.value.service_id) ?? null)
 
 const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
   switch (context.value) {
@@ -316,14 +317,14 @@ watch(context, currentContext => {
   form.value.employee_id = currentContext === 'employee' ? (props.contract?.employee_id ?? form.value.employee_id) : null
   form.value.customer_id = currentContext === 'customer' || currentContext === 'other' ? (props.contract?.customer_id ?? form.value.customer_id) : null
   if (currentContext !== 'customer' && currentContext !== 'other')
-    form.value.service_ids = []
+    form.value.service_id = null
   if (currentContext !== 'employee')
     form.value.position_id = null
 })
 
-// If the selected services narrow the template list so the current template
+// If the selected service narrows the template list so the current template
 // is no longer related, fall back to the first related template.
-watch(() => [form.value.service_ids, visibleTemplates.value] as const, () => {
+watch(() => [form.value.service_id, visibleTemplates.value] as const, () => {
   if (form.value.template_id && !visibleTemplates.value.some(template => template.id === form.value.template_id) && visibleTemplates.value[0])
     form.value.template_id = visibleTemplates.value[0].id
 })
@@ -369,7 +370,8 @@ const submit = async () => {
     contract_template_version_id: selectedTemplateVersion.value?.id ?? null,
     employee_id: context.value === 'employee' ? form.value.employee_id : null,
     customer_id: context.value === 'customer' || context.value === 'other' ? form.value.customer_id : null,
-    service_ids: context.value === 'customer' || context.value === 'other' ? [...form.value.service_ids] : [],
+    service_id: context.value === 'customer' || context.value === 'other' ? form.value.service_id : null,
+    service_ids: context.value === 'customer' || context.value === 'other' ? (form.value.service_id ? [form.value.service_id] : []) : [],
     applicant_id: context.value === 'customer' ? props.applicantId ?? null : null,
     company_id: null,
 
@@ -519,25 +521,22 @@ defineExpose({ submit })
         cols="12"
       >
         <VSelect
-          v-model="form.service_ids"
+          v-model="form.service_id"
           :items="serviceOptions"
-          :label="tr('services')"
-          :placeholder="tr('selectServices')"
+          :label="tr('service')"
+          :placeholder="tr('selectService')"
           prepend-inner-icon="tabler-briefcase"
           :loading="loadingEntities"
-          :rules="context === 'customer' ? [v => (v && v.length > 0) || tr('servicesRequired')] : []"
+          :rules="context === 'customer' ? [v => !!v || tr('servicesRequired')] : []"
           :no-data-text="tr('noServices')"
           :required="context === 'customer'"
           :clearable="context === 'other'"
-          multiple
-          chips
-          closable-chips
         />
         <p
-          v-if="selectedServices.length"
+          v-if="selectedService"
           class="text-caption text-medium-emphasis mt-1"
         >
-          {{ tr('selectedServicesHint') }}: {{ selectedServices.map(service => service.name || service.type).join(', ') }}
+          {{ tr('selectedServicesHint') }}: {{ selectedService.name || selectedService.type }}
         </p>
       </VCol>
 

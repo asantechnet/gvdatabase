@@ -2252,7 +2252,9 @@
           "counterpartyPlaceholder": "Person or organization on the other side",
           "counterpartyEmail": "Counterparty email",
           "counterpartyContact": "Counterparty phone",
-          "counterpartyRequired": "Enter a counterparty or select a customer"
+          "counterpartyRequired": "Enter a counterparty or select a customer",
+          "service": "Service",
+          "selectService": "Select a service"
         }
       }
     },

@@ -35,12 +35,11 @@ class ContractServiceLinesTest extends TestCase
         ])->assertCreated()->json('data.id');
     }
 
-    public function test_customer_contract_accepts_service_multiselect_with_per_customer_fees(): void
+    public function test_customer_contract_accepts_a_single_service_with_a_per_customer_fee(): void
     {
         $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
         $currency = Currency::factory()->create();
         $catalogue = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 500]);
-        $extra = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 200]);
         $templateId = $this->customerTemplate($type->id, $catalogue->id);
         $customer = Customer::factory()->create();
 
@@ -49,21 +48,45 @@ class ContractServiceLinesTest extends TestCase
             'customer_id' => $customer->id,
             'status' => 'draft',
             'start_date' => now()->toDateString(),
-            'service_ids' => [$catalogue->id, $extra->id],
             'service_lines' => [
                 ['service_id' => $catalogue->id, 'fee' => 450, 'currency_id' => $currency->id, 'notes' => 'per-customer discount'],
-                ['service_id' => $extra->id],
             ],
         ])->assertCreated()->json('data');
 
-        $this->assertEqualsCanonicalizing([$catalogue->id, $extra->id], $contract['service_ids']);
-        $this->assertCount(2, $contract['services']);
+        $this->assertSame([$catalogue->id], $contract['service_ids']);
+        $this->assertCount(1, $contract['services']);
         $this->assertDatabaseHas('contract_service', [
             'contract_id' => $contract['id'],
             'service_id' => $catalogue->id,
             'fee' => 450,
         ]);
         $this->assertStringContainsString($catalogue->type, $contract['content']);
+    }
+
+    public function test_customer_contract_rejects_more_than_one_service(): void
+    {
+        $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
+        $currency = Currency::factory()->create();
+        $first = Service::factory()->create(['currency_id' => $currency->id]);
+        $second = Service::factory()->create(['currency_id' => $currency->id]);
+        $templateId = $this->customerTemplate($type->id, $first->id);
+        $customer = Customer::factory()->create();
+
+        $this->postJson('/api/contracts', [
+            'template_id' => $templateId,
+            'customer_id' => $customer->id,
+            'status' => 'draft',
+            'start_date' => now()->toDateString(),
+            'service_ids' => [$first->id, $second->id],
+        ])->assertUnprocessable()->assertJsonValidationErrors('service_ids');
+
+        $this->postJson('/api/contracts', [
+            'template_id' => $templateId,
+            'customer_id' => $customer->id,
+            'status' => 'draft',
+            'start_date' => now()->toDateString(),
+            'service_lines' => [['service_id' => $first->id], ['service_id' => $second->id]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('service_lines');
     }
 
     public function test_customer_contract_requires_at_least_one_service(): void

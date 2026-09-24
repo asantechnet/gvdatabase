@@ -62,29 +62,10 @@ class PackageIssuanceService
             $currencyPrecision = $saleCurrencyId ? (int) (Currency::query()->whereKey($saleCurrencyId)->value('decimal_places') ?? 2) : 2;
             $lastId = $package->services->last()->id;
 
-            // A package sale is a customer contract: one agreement holding one
-            // line per packaged service.
+            // A package sale is one customer contract PER packaged service:
+            // each contract holds exactly one service line.
             $contractTypeId = \App\Models\ContractType::query()->where('slug', 'customer')->value('id');
             abort_unless($contractTypeId, 500, 'Customer contract type is missing.');
-            $contract = Contract::create([
-                'contract_type_id' => $contractTypeId,
-                'customer_id' => $customer->id,
-                'applicant_id' => $applicant?->id,
-                'sold_by_employee_id' => $purchase->sold_by_employee_id,
-                'marketer_id' => $purchase->sold_by_employee_id ?? $customer->marketer_id,
-                'name' => $package->name,
-                'type' => 'Customer',
-                'status' => 'active',
-                'start_date' => $purchase->purchased_at->toDateString(),
-                'counterparty' => $customer->name,
-                'counterparty_company' => $customer->company,
-                'counterparty_email' => $customer->email,
-                'counterparty_contact' => $customer->contact,
-                'counterparty_address' => $customer->address,
-                'content' => '',
-                'is_custom' => true,
-                'snapshot_data' => ['entity' => ['package_id' => $package->id, 'customer_package_id' => $purchase->id]],
-            ]);
 
             foreach ($package->services as $service) {
                 if ($saleFee === null) {
@@ -97,6 +78,26 @@ class PackageIssuanceService
                     $remaining = round($remaining - $fee, $currencyPrecision);
                     $currencyId = $saleCurrencyId;
                 }
+
+                $contract = Contract::create([
+                    'contract_type_id' => $contractTypeId,
+                    'customer_id' => $customer->id,
+                    'applicant_id' => $applicant?->id,
+                    'sold_by_employee_id' => $purchase->sold_by_employee_id,
+                    'marketer_id' => $purchase->sold_by_employee_id ?? $customer->marketer_id,
+                    'name' => $service->type,
+                    'type' => 'Customer',
+                    'status' => 'active',
+                    'start_date' => $purchase->purchased_at->toDateString(),
+                    'counterparty' => $customer->name,
+                    'counterparty_company' => $customer->company,
+                    'counterparty_email' => $customer->email,
+                    'counterparty_contact' => $customer->contact,
+                    'counterparty_address' => $customer->address,
+                    'content' => '',
+                    'is_custom' => true,
+                    'snapshot_data' => ['entity' => ['package_id' => $package->id, 'customer_package_id' => $purchase->id, 'services' => [['service_id' => $service->id, 'fee' => $fee, 'currency_id' => $currencyId]]]],
+                ]);
 
                 ContractService::create([
                     'contract_id' => $contract->id,

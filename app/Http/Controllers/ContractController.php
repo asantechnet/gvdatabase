@@ -382,11 +382,11 @@ class ContractController extends Controller
             'service_id' => ['nullable', 'integer', 'exists:services,id'],
             // Multi-select successor of `service_id`: only active catalogue
             // services may be registered on a contract.
-            'service_ids' => ['nullable', 'array'],
+            'service_ids' => ['nullable', 'array', 'max:1'],
             'service_ids.*' => ['integer', Rule::exists('services', 'id')->where('status', 'active')->whereNull('deleted_at')],
             // Per-service line overrides (fee/currency/notes/attribution).
             // Keys align with the `contract_service` pivot columns.
-            'service_lines' => ['nullable', 'array'],
+            'service_lines' => ['nullable', 'array', 'max:1'],
             'service_lines.*.service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('status', 'active')->whereNull('deleted_at')],
             'service_lines.*.fee' => ['nullable', 'numeric', 'min:0'],
             'service_lines.*.currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
@@ -700,10 +700,10 @@ class ContractController extends Controller
                     ->merge(collect($data['service_ids'] ?? [])->map(fn ($id) => (int) $id))
                     ->merge(! empty($data['service_id']) ? [(int) $data['service_id']] : [])
                     ->unique()->values()->all();
-                if ($multiIds === []) {
+                if (count($multiIds) !== 1) {
                     abort(response()->json([
                         'success' => false,
-                        'message' => 'At least one service is required for a customer contract.',
+                        'message' => 'A customer contract must have exactly one service.',
                     ], 422));
                 }
                 $services = \App\Models\Service::query()->where('status', 'active')->whereIn('id', $multiIds)->get();
