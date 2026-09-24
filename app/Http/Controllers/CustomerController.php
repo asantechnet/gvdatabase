@@ -12,7 +12,7 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         $query = Customer::with([
-            'contractServices.service.currency', 'contractServices.contract',
+            'contractServices.service.currency', 'contractServices.service', 'contractServices.currency', 'contractServices.contract', 'contractServices.soldByEmployee', 'contractServices.marketer', 'contractServices.deliveryEmployees',
             'contractServices.deliveryEmployees', 'contractServices.outsourcingCompany',
             'contractServices.marketer', 'contractServices.soldByEmployee',
             'marketerEmployee',
@@ -50,7 +50,7 @@ class CustomerController extends Controller
         ));
 
         return new CustomerResource($customer->load([
-            'contractServices.service.currency', 'contractServices.contract',
+            'contractServices.service.currency', 'contractServices.service', 'contractServices.currency', 'contractServices.contract', 'contractServices.soldByEmployee', 'contractServices.marketer', 'contractServices.deliveryEmployees',
             'contractServices.deliveryEmployees', 'contractServices.outsourcingCompany',
             'contractServices.marketer', 'contractServices.soldByEmployee',
             'interactions.creator',
@@ -61,7 +61,7 @@ class CustomerController extends Controller
     public function show(Customer $customer)
     {
         return new CustomerResource($customer->load([
-            'contractServices.service.currency', 'contractServices.contract',
+            'contractServices.service.currency', 'contractServices.service', 'contractServices.currency', 'contractServices.contract', 'contractServices.soldByEmployee', 'contractServices.marketer', 'contractServices.deliveryEmployees',
             'contractServices.deliveryEmployees', 'contractServices.outsourcingCompany',
             'contractServices.marketer', 'contractServices.soldByEmployee',
             'interactions.creator',
@@ -78,7 +78,7 @@ class CustomerController extends Controller
         ));
 
         return new CustomerResource($customer->load([
-            'contractServices.service.currency', 'contractServices.contract',
+            'contractServices.service.currency', 'contractServices.service', 'contractServices.currency', 'contractServices.contract', 'contractServices.soldByEmployee', 'contractServices.marketer', 'contractServices.deliveryEmployees',
             'contractServices.deliveryEmployees', 'contractServices.outsourcingCompany',
             'contractServices.marketer', 'contractServices.soldByEmployee',
             'interactions.creator',

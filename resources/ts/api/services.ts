@@ -6,7 +6,6 @@ export interface Service {
   type: string
   category: 'general' | 'scholarship' | 'test_offer'
   description?: string | null
-  duration: number | null
   fee: number
   status: 'active' | 'inactive'
   currency: {
@@ -23,7 +22,6 @@ export interface CreateServiceData {
   type: string
   category?: Service['category']
   description?: string | null
-  duration?: number | null
   fee: number
   status: 'active' | 'inactive'
   currency_id: number
@@ -33,7 +31,6 @@ export interface UpdateServiceData {
   type?: string
   category?: Service['category']
   description?: string | null
-  duration?: number | null
   fee?: number
   status?: 'active' | 'inactive'
   currency_id?: number

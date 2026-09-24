@@ -12,7 +12,6 @@ interface ServiceItem {
   type: string
   description?: string | null
   fee: number
-  duration: number | null
   currency: string
   currency_id: number
   status: 'active' | 'inactive'
@@ -27,7 +26,6 @@ interface CurrencyOption {
 const headers = [
   { title: 'Service', key: 'type', align: 'start' },
   { title: translate('pages.contracts.services.services.fee'), key: 'fee', align: 'start' },
-  { title: translate('pages.contracts.services.services.durationMONTHS'), key: 'duration', align: 'start' },
   { title: translate('common.fields.currency2'), key: 'currency', align: 'start' },
   { title: translate('common.fields.status2'), key: 'status', align: 'start' },
   { title: translate('pages.contracts.services.services.actions'), key: 'actions', align: 'end', sortable: false },
@@ -47,7 +45,6 @@ const defaultItem: Omit<ServiceItem, 'id'> = {
   type: '',
   description: '',
   fee: 0,
-  duration: null,
   currency: 'USD',
   currency_id: 1,
   status: 'active',
@@ -80,7 +77,6 @@ const fetchServices = async () => {
       id: service.id,
       type: service.name || service.type,
       description: service.description,
-      duration: service.duration ?? null,
       fee: Number(service.fee),
       status: service.status as 'active' | 'inactive',
       currency: service.currency.code,
@@ -126,7 +122,6 @@ const createService = async () => {
     const payload: CreateServiceData = {
       type: editedItem.value.type,
       description: editedItem.value.description,
-      duration: editedItem.value.duration,
       fee: editedItem.value.fee,
       status: editedItem.value.status,
       currency_id: editedItem.value.currency_id,
@@ -162,7 +157,6 @@ const updateService = async () => {
     const payload: UpdateServiceData = {
       type: editedItem.value.type,
       description: editedItem.value.description,
-      duration: editedItem.value.duration,
       fee: editedItem.value.fee,
       status: editedItem.value.status,
       currency_id: editedItem.value.currency_id,
@@ -177,7 +171,6 @@ const updateService = async () => {
         id: response.data.id,
         type: response.data.type,
         description: response.data.description,
-        duration: response.data.duration,
         fee: Number(response.data.fee),
         status: response.data.status as 'active' | 'inactive',
         currency: response.data.currency.code,
@@ -237,7 +230,6 @@ const openEditModal = (item: ServiceItem) => {
     type: item.type,
     description: item.description,
     fee: item.fee,
-    duration: item.duration,
     currency: item.currency,
     currency_id: item.currency_id,
     status: item.status,
@@ -325,11 +317,6 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
       <!-- FEE Slot -->
       <template #item.fee="{ item }">
         <span class="font-weight-medium">{{ formatLocalizedNumber(item.fee) }}</span>
-      </template>
-
-      <!-- DURATION Slot -->
-      <template #item.duration="{ item }">
-        <span class="font-weight-medium">{{ $t('pages.contracts.services.durationMonthsValue', { count: item.duration }) }}</span>
       </template>
 
       <!-- STATUS Slot -->

@@ -5,30 +5,29 @@ export type ApiResponse<T> = ServiceApiResponse<T>
 
 export interface CustomerService {
   id: number
+  contract_id: number
   service_id: number
-  customer_id: number
+  customer_id?: number | null
   applicant_id?: number | null
-  type: string
-  fee: number
-  employee_id: number | null
-  employee: { id: number; name: string } | null
-  employee_ids: number[]
-  employees: Array<{ id: number; name: string; percentage: number }>
-  marketer_id: number | null
-  marketer: { id: number; name: string } | null
-  outsourcing_company_id: number | null
-  outsourcing_percentage: number | null
-  outsourcing_company: { id: number; name: string } | null
-  currency_id: number | null
-  currency: {
+  type?: string | null
+  service?: { id: number; name?: string | null; type?: string | null; fee?: number | string | null; currency?: { id: number | string; code: string; symbol: string } | null } | null
+  fee: number | string | null
+  employee_id?: number | null
+  employee?: { id: number; name: string } | null
+  marketer_id?: number | null
+  marketer?: { id: number; name: string } | null
+  outsourcing_company_id?: number | null
+  outsourcing_percentage?: number | string | null
+  outsourcing_company?: { id: number; name: string } | null
+  currency_id?: number | null
+  currency?: {
     id: number | string
-    name: string
+    name?: string | null
     code: string
     symbol: string
     rate: number
-  }
-  deadline: string | null
-  status: string
+  } | null
+  status?: string | null
   notes?: string | null
   created_at: string
   updated_at: string
@@ -78,40 +77,6 @@ export interface CreateCustomerData {
 }
 
 export type UpdateCustomerData = Partial<CreateCustomerData>
-
-export interface CreateCustomerServiceData {
-  service_id: number
-  applicant_id?: number | null
-  sold_by_employee_id?: number | null
-  employee_id?: number | null
-  employee_ids?: number[]
-  marketer_id?: number | null
-  outsourcing_company_id?: number | null
-  outsourcing_percentage?: number | null
-  fee?: number | null
-  currency_id?: number | null
-  deadline?: string | null
-  status?: 'active' | 'paused' | 'completed' | 'cancelled'
-  notes?: string | null
-  sold_at?: string | null
-}
-
-export interface UpdateCustomerServiceData {
-  service_id: number
-  applicant_id?: number | null
-  sold_by_employee_id?: number | null
-  employee_id?: number | null
-  employee_ids?: number[]
-  marketer_id?: number | null
-  outsourcing_company_id?: number | null
-  outsourcing_percentage?: number | null
-  fee?: number | null
-  currency_id?: number | null
-  deadline: string | null
-  status: 'active' | 'paused' | 'completed' | 'cancelled'
-  notes?: string | null
-  sold_at?: string | null
-}
 
 const emptyCustomer = (): Customer => ({
   id: 0,
@@ -188,39 +153,6 @@ const CustomerApi = {
     }
     catch (error) {
       return { success: false, data: emptyCustomer(), message: errorMessage(error, 'Failed to update customer') }
-    }
-  },
-
-  async attachServices(customerId: number, services: CreateCustomerServiceData[]): Promise<ApiResponse<CustomerService[]>> {
-    try {
-      const response = await api.post<{ data: CustomerService[] }>(`/customers/${customerId}/services`, { services })
-
-      return { success: true, data: response.data.data }
-    }
-    catch (error) {
-      return { success: false, data: [], message: errorMessage(error, 'Failed to attach services') }
-    }
-  },
-
-  async updateService(customerId: number, pivotId: number, data: UpdateCustomerServiceData): Promise<ApiResponse<CustomerService>> {
-    try {
-      const response = await api.put<{ data: CustomerService }>(`/customers/${customerId}/services/${pivotId}`, data)
-
-      return { success: true, data: response.data.data }
-    }
-    catch (error) {
-      return { success: false, data: {} as CustomerService, message: errorMessage(error, 'Failed to update customer service') }
-    }
-  },
-
-  async detachService(customerId: number, pivotId: number): Promise<ApiResponse<null>> {
-    try {
-      await api.delete(`/customers/${customerId}/services/${pivotId}`)
-
-      return { success: true, data: null }
-    }
-    catch (error) {
-      return { success: false, data: null, message: errorMessage(error, 'Failed to detach service') }
     }
   },
 

@@ -459,7 +459,6 @@ declare module 'vue' {
     readonly PLACEHOLDER_SPAN_PATTERN: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly actionWarningState: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['actionWarningState']>
-    readonly addContractMonths: UnwrapRef<typeof import('./resources/ts/utils/contractExpiry')['addContractMonths']>
     readonly alphaDashValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['alphaDashValidator']>
     readonly alphaValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['alphaValidator']>
     readonly apiErrorMessage: UnwrapRef<typeof import('./resources/ts/utils/apiErrors')['apiErrorMessage']>
@@ -473,7 +472,6 @@ declare module 'vue' {
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly avatarText: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['avatarText']>
     readonly betweenValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['betweenValidator']>
-    readonly calendarDurationUntil: UnwrapRef<typeof import('./resources/ts/utils/contractExpiry')['calendarDurationUntil']>
     readonly canAccess: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canAccess']>
     readonly canPrintPartyDetails: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']>
     readonly clearAuthTokens: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['clearAuthTokens']>
@@ -488,7 +486,6 @@ declare module 'vue' {
     readonly computedWithControl: UnwrapRef<typeof import('@vueuse/core')['computedWithControl']>
     readonly confirmActionWarning: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['confirmActionWarning']>
     readonly confirmedValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['confirmedValidator']>
-    readonly contractExpiryPresentation: UnwrapRef<typeof import('./resources/ts/utils/contractExpiry')['contractExpiryPresentation']>
     readonly contractTypeSlug: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['contractTypeSlug']>
     readonly contrastingTextColor: UnwrapRef<typeof import('./resources/ts/utils/themeContrast')['contrastingTextColor']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
@@ -508,7 +505,6 @@ declare module 'vue' {
     readonly createUrl: UnwrapRef<typeof import('./resources/ts/@core/composable/createUrl')['createUrl']>
     readonly currentLocale: UnwrapRef<typeof import('./resources/ts/utils/localization')['currentLocale']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
-    readonly dayAfter: UnwrapRef<typeof import('./resources/ts/utils/contractExpiry')['dayAfter']>
     readonly debouncedRef: UnwrapRef<typeof import('@vueuse/core')['debouncedRef']>
     readonly debouncedWatch: UnwrapRef<typeof import('@vueuse/core')['debouncedWatch']>
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>

@@ -223,7 +223,7 @@ const metrics = computed<Metric[]>(() => {
   return [
     { label: rt('metrics.newCustomers'), value: number(numericTotal(section('customers'), 'count')), detail: rt('metrics.addedInPeriod'), icon: 'tabler-user-plus', color: 'primary' },
     { label: rt('metrics.visitors'), value: number(numericTotal(section('visitors'), 'count')), detail: rt('metrics.commercialInterest'), icon: 'tabler-walk', color: 'info' },
-    { label: rt('metrics.serviceCommitments'), value: number(numericTotal(section('customer_services'), 'commitments')), detail: rt('metrics.activeCount', { count: number(numericTotal(section('customer_services'), 'active')) }), icon: 'tabler-heart-handshake', color: 'success' },
+    { label: rt('metrics.serviceCommitments'), value: number(numericTotal(section('contract_services'), 'commitments')), detail: rt('metrics.activeCount', { count: number(numericTotal(section('contract_services'), 'active')) }), icon: 'tabler-heart-handshake', color: 'success' },
     { label: rt('metrics.deliveryRisk'), value: number(numericTotal(section('tasks'), 'overdue')), detail: rt('metrics.tasksInReport', { count: number(numericTotal(section('tasks'), 'count')) }), icon: 'tabler-calendar-exclamation', color: numericTotal(section('tasks'), 'overdue') ? 'error' : 'success' },
   ]
 })

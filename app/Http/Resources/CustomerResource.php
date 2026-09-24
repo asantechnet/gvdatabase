@@ -34,7 +34,8 @@ class CustomerResource extends JsonResource
                 ? $this->whenLoaded('contractServices', fn () => $this->contractServices->map(fn ($item) => [
                     'id' => $item->id, 'service_id' => $item->service_id, 'type' => $item->service?->type,
                     'status' => $item->contract?->status,
-                    'currency' => $item->service?->currency?->only(['id', 'code', 'symbol']),
+                    'fee' => $item->fee ?? $item->service?->fee,
+                    'currency' => $item->service?->currency?->only(['id', 'code', 'symbol', 'rate']),
                 ]), [])
                 : ContractServiceResource::collection($this->whenLoaded('contractServices')),
             'interactions' => CrmInteractionResource::collection($this->whenLoaded('interactions')),

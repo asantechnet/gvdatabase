@@ -777,7 +777,9 @@
       "changePassword": "پټنوم بدل کړئ",
       "newPassword": "نوی پټنوم",
       "saveChanges": "بدلونونه خوندي کړئ",
-      "unableToSaveChanges": "ستاسو بدلونونه خوندي نشول."
+      "unableToSaveChanges": "ستاسو بدلونونه خوندي نشول.",
+      "newServiceContract": "New service contract",
+      "manageInContracts": "Manage in contracts"
     },
     "confirmations": {
       "areYouSureYouWantToDeleteThisCustomer": "ایا ډاډه یاست چې دا مشتري حذف کړئ؟",
@@ -2444,10 +2446,10 @@
           "untitledContract": "ناټاکل شوی قرارداد",
           "unknownCounterparty": "ناپېژندل شوی مقابل لوری",
           "loadingContracts": "قراردادونه پورته کېږي...",
- "customerContracts": "د پېرودونکو قراردادونه",
- "serviceContracts": "د {service} قراردادونه",
- "serviceContractsDescription": "د {service} خدمت لپاره د پېرودونکو قراردادونه اداره کړئ.",
- "unassignedContracts": "بې له خدمت قراردادونه",
+          "customerContracts": "د پېرودونکو قراردادونه",
+          "serviceContracts": "د {service} قراردادونه",
+          "serviceContractsDescription": "د {service} خدمت لپاره د پېرودونکو قراردادونه اداره کړئ.",
+          "unassignedContracts": "بې له خدمت قراردادونه",
           "customerContractsDescription": "د پېرودونکو تړونونه اداره کړئ او حالت یې وڅارئ.",
           "employeeContractsReport": "د کارکوونکو قراردادونو راپور",
           "employeeContracts": "د کارکوونکو قراردادونه",
@@ -2646,7 +2648,20 @@
           "openContract": "پرانیستی تړون",
           "openContractHint": "دا تړون د پای ټاکلې نېټه نه لري. که وروسته موده‌لرونکی شي، موده ورزیاته کړئ.",
           "signatory": "زموږ د شرکت لاسلیک کوونکی",
-          "signatoryHint": "هغه واکمن کس چې ستاسو د شرکت په استازیتوب لاسلیک کوي."
+          "signatoryHint": "هغه واکمن کس چې ستاسو د شرکت په استازیتوب لاسلیک کوي.",
+          "position": "Position",
+          "selectPosition": "Select a position",
+          "positionRequired": "Choose a position",
+          "noPositions": "No positions found",
+          "services": "Contracted services",
+          "selectServices": "Select services",
+          "servicesRequired": "Choose at least one service",
+          "noServices": "No active services found",
+          "selectedServicesHint": "Selected services",
+          "counterpartyPlaceholder": "Person or organization on the other side",
+          "counterpartyEmail": "Counterparty email",
+          "counterpartyContact": "Counterparty phone",
+          "counterpartyRequired": "Enter a counterparty or select a customer"
         }
       }
     },

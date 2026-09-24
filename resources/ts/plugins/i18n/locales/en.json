@@ -357,7 +357,9 @@
       "changePassword": "Change Password",
       "newPassword": "New Password",
       "saveChanges": "Save Changes",
-      "unableToSaveChanges": "Unable to save your changes."
+      "unableToSaveChanges": "Unable to save your changes.",
+      "newServiceContract": "New service contract",
+      "manageInContracts": "Manage in contracts"
     },
     "confirmations": {
       "areYouSureYouWantToDeleteThisCustomer": "Are you sure you want to delete this customer?",
@@ -2237,7 +2239,20 @@
           "openContract": "Open-ended contract",
           "openContractHint": "This contract has no scheduled end date. Add a duration later if it becomes fixed-term.",
           "signatory": "Our company signatory",
-          "signatoryHint": "The authorized person signing on behalf of your company."
+          "signatoryHint": "The authorized person signing on behalf of your company.",
+          "position": "Position",
+          "selectPosition": "Select a position",
+          "positionRequired": "Choose a position",
+          "noPositions": "No positions found",
+          "services": "Contracted services",
+          "selectServices": "Select services",
+          "servicesRequired": "Choose at least one service",
+          "noServices": "No active services found",
+          "selectedServicesHint": "Selected services",
+          "counterpartyPlaceholder": "Person or organization on the other side",
+          "counterpartyEmail": "Counterparty email",
+          "counterpartyContact": "Counterparty phone",
+          "counterpartyRequired": "Enter a counterparty or select a customer"
         }
       }
     },

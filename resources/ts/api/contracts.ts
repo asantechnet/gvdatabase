@@ -2,7 +2,7 @@ import api from './axios'
 import type { ContractType } from './contractType'
 import type { Service } from './services'
 
-export type ContractStatus = 'draft' | 'active' | 'expired' | 'renewed' | 'terminated' | 'cancelled'
+export type ContractStatus = 'draft' | 'active' | 'completed' | 'terminated' | 'cancelled'
 
 export interface ContractPartySnapshot {
   our_company?: {
@@ -24,17 +24,26 @@ export interface ContractPartySnapshot {
   [key: string]: unknown
 }
 
+export interface ContractServiceLine {
+  id: number
+  contract_id: number
+  service_id: number
+  service?: Service | null
+  fee?: number | string | null
+  currency_id?: number | null
+  applicant_id?: number | null
+  notes?: string | null
+}
+
 export interface Contract {
   id: number
   contract_number: string | null
   contract: string
   status: ContractStatus
   start_date: string | null
-  end_date: string | null
-  duration_months?: number | null
   company_signatory_name?: string | null
-  services?: Service[]
-  service?: Service | null
+  service_ids?: number[]
+  services?: ContractServiceLine[]
   counterparty: string | null
   counterparty_company?: string | null
   counterparty_email?: string | null
@@ -48,6 +57,8 @@ export interface Contract {
   contract_type_id?: number | null
   service_id?: number | null
   employee_id?: number | null
+  sold_by_employee_id?: number | null
+  marketer_id?: number | null
   customer_id?: number | null
   applicant_id?: number | null
   company_id?: number | null
@@ -56,6 +67,7 @@ export interface Contract {
   cover_text?: string | null
   content?: string | null
   is_custom?: boolean
+  position_id?: number | null
   snapshot_data?: {
     parties?: Record<string, unknown>
     entity?: Record<string, unknown>
@@ -88,14 +100,13 @@ export interface ContractCreateData {
   applicant_id?: number | null
   company_id?: number | null
   service_id?: number | null
+  service_ids?: number[] | null
   is_custom?: boolean
   name?: string
   cover_text?: string | null
   content?: string
   status: ContractStatus
   start_date: string
-  end_date?: string | null
-  duration_months?: number | null
   company_signatory_name?: string | null
 }
 
@@ -107,6 +118,7 @@ export interface ContractParams {
   audience?: 'customers' | 'employees' | 'other' | 'educational'
   type_slug?: string
   service_id?: number
+  service_ids?: number[]
   without_service?: boolean | 0 | 1
   status?: ContractStatus
   search?: string
@@ -143,12 +155,6 @@ const ContractApi = {
 
   async cancel(id: number): Promise<Contract> {
     const response = await api.put<{ success: boolean; data: Contract }>(`/contracts/${id}/cancel`)
-
-    return response.data.data
-  },
-
-  async renew(id: number, data: { duration_months: number; start_date?: string }): Promise<Contract> {
-    const response = await api.post<{ success: boolean; data: Contract }>(`/contracts/${id}/renew`, data)
 
     return response.data.data
   },

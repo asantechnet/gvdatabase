@@ -1,49 +1,25 @@
 <script setup lang="ts">
 import CurrencyApi, { type Currency } from '@/api/currency'
-import CompanyApi, { type Company } from '@/api/company'
 import CustomerApi, { type ApiResponse, type Customer } from '@/api/customer'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import ProjectApi from '@/api/project'
-import type { Service } from '@/api/services'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import { canAccess } from '@/utils/authorization'
 import { printDocument } from '@/utils/printDocument'
-import moment from 'moment'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { VCheckbox, VSelect, VTextField } from 'vuetify/components'
 
-// Types
-interface ServiceForm {
-  id: number
-  service_id: number
-  employee_id: number | null
-  employee_ids: number[]
-  marketer_id: number | null
-  outsourcing_company_id: number | null
-  outsourcing_percentage: number | null
-  fee: number | null
-  currency_id: number | null
-  deadline: string | null
-  status: 'active' | 'paused' | 'completed'
-  notes: string | null
-}
-
-// State
 const toast = useToast()
 const { t } = useI18n()
 const router = useRouter()
 const customers = ref<Customer[]>([])
-const allServices = ref<Service[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
-const servicesLoading = ref(false)
 const currencies = ref<Currency[]>([])
 const marketers = ref<Employee[]>([])
-const deliveryEmployees = ref<Employee[]>([])
-const outsourcingCompanies = ref<Company[]>([])
 const userData = useCookie<{ is_marketer?: boolean; employee?: { id: number; is_marketer?: boolean } | null } | null>('userData')
 
 // Form state
@@ -69,32 +45,8 @@ const currentCustomer = ref<Customer>({
   updated_at: '',
 })
 
-const currentService = ref<ServiceForm>({
-  id: 0,
-  service_id: 0,
-  employee_id: null,
-  employee_ids: [],
-  marketer_id: null,
-  outsourcing_company_id: null,
-  outsourcing_percentage: null,
-  fee: null,
-  currency_id: null,
-  deadline: null,
-  status: 'active',
-  notes: null,
-})
-
-const serviceDialog = ref(false)
-const attachServiceDialog = ref(false)
 const deleteDialog = ref(false)
 const customerToDelete = ref<number | null>(null)
-const serviceToEdit = ref<number | null>(null)
-const serviceLoading = ref(false)
-
-const selectedServices = ref<{
-  service_id: number
-}[]>([])
-
 const selectedProjectServiceIds = ref<number[]>([])
 const projectDialog = ref(false)
 const projectLoading = ref(false)
@@ -126,39 +78,12 @@ const serviceHeaders = [
   { title: translate('pages.contracts.allCustomers.allCustomers.deliveryOwner'), key: 'employee', sortable: false },
   { title: translate('pages.contracts.allCustomers.allCustomers.acquisition'), key: 'marketer', sortable: false },
   { title: translate('common.messages.fee'), key: 'fee' },
-  { title: translate('common.messages.deadline'), key: 'deadline' },
+  { title: translate('common.fields.status'), key: 'status', sortable: false },
   { title: translate('common.fields.currency'), key: 'currency.code' },
   { title: translate('common.messages.actions'), key: 'serviceActions', sortable: false },
 ]
 
-const availableServiceHeaders = [
-  { title: translate('pages.contracts.allCustomers.allCustomers.select'), key: 'select', sortable: false },
-  { title: translate('common.fields.type'), key: 'type' },
-  { title: translate('common.messages.deadline'), key: 'duration' },
-  { title: translate('common.messages.fee'), key: 'fee', sortable: false },
-  { title: translate('common.fields.currency'), key: 'currency.code', sortable: false },
-  { title: translate('common.messages.actions'), key: 'details', sortable: false, align: 'end' as const },
-]
 
-const deadlineMeta = (deadline: string | null) => {
-  if (!deadline)
-    return { color: 'secondary', title: translate('pages.contracts.allCustomers.allCustomers.noDeadline') }
-  const today = moment().startOf('day')
-  const dueDate = moment(deadline).startOf('day')
-  const monthDifference = Math.ceil(Math.abs(dueDate.diff(today, 'months', true)))
-  const unit = monthDifference === 1 ? 'month' : 'months'
-
-  if (dueDate.isBefore(today))
-    return { color: 'error', title: `${monthDifference} ${unit} overdue` }
-
-  if (dueDate.isSame(today, 'day'))
-    return { color: 'warning', title: translate('pages.contracts.allCustomers.allCustomers.dueToday0Months') }
-
-  if (dueDate.diff(today, 'months') === 0)
-    return { color: 'warning', title: translate('pages.contracts.allCustomers.allCustomers.dueWithin1Month') }
-
-  return { color: 'success', title: `${monthDifference} ${unit} remaining` }
-}
 
 // Computed filtered customers
 const filtered = computed(() => {
@@ -170,20 +95,10 @@ const filtered = computed(() => {
       || (c.marketer || '').toLowerCase().includes(search.value.toLowerCase())
 
     const matchesCurrency = !filterCurrency.value
-      || c.services.some(s => s.currency.code === filterCurrency.value)
+      || c.services.some(s => (s.currency?.code ?? s.service?.currency?.code) === filterCurrency.value)
 
     return matchesSearch && matchesCurrency
   })
-})
-
-// Computed available services (excluding already attached ones)
-const availableServices = computed(() => {
-  if (!currentCustomer.value.id)
-    return allServices.value
-
-  const attachedServiceIds = currentCustomer.value.services.map(s => s.service_id)
-
-  return allServices.value.filter(s => !attachedServiceIds.includes(s.id))
 })
 
 const isCurrentUserMarketer = computed(() => Boolean(
@@ -198,23 +113,6 @@ const currentMarketerName = computed(() => {
   return marketers.value.find(marketer => marketer.id === employeeId)?.name ?? 'You'
 })
 
-const eligibleDeliveryEmployees = computed(() => deliveryEmployees.value.filter(employee =>
-  employee.commissions.some(commission => commission.service_id === currentService.value.service_id),
-))
-
-// Use the application's locale-aware helper here rather than Vuetify's
-// no-data prop resolving a template expression; this keeps the message
-// reactive and avoids a literal missing-key marker in the service editor.
-const noDeliveryEmployeeMessage = computed(() => translate(
-  'pages.contracts.allCustomers.allCustomers.noCommissionEmployeeForService',
-))
-
-const deliveryEmployeeLabel = (employee: Employee) => {
-  const capability = employee.commissions.find(commission => commission.service_id === currentService.value.service_id)
-
-  return capability ? `${employee.name} · ${capability.percentage}% commission` : employee.name
-}
-
 const selectedProjectServices = computed(() => currentCustomer.value.services.filter(service =>
   selectedProjectServiceIds.value.includes(service.service_id),
 ))
@@ -222,13 +120,6 @@ const selectedProjectServices = computed(() => currentCustomer.value.services.fi
 const canCreateProject = computed(() => Boolean(
   currentCustomer.value.id && selectedProjectServices.value.length && projectDraft.value.name.trim(),
 ))
-
-watch(() => currentService.value.service_id, serviceId => {
-  currentService.value.employee_ids = currentService.value.employee_ids.filter(employeeId =>
-    deliveryEmployees.value.some(employee => employee.id === employeeId
-      && employee.commissions.some(commission => commission.service_id === serviceId)),
-  )
-})
 
 // API methods
 const fetchCustomers = async () => {
@@ -255,25 +146,6 @@ const fetchCustomers = async () => {
   }
 }
 
-const fetchAllServices = async () => {
-  try {
-    servicesLoading.value = true
-
-    const response = await CustomerApi.getAllServices()
-    if (response.success)
-      allServices.value = response.data
-    else
-      error.value = translate('pages.contracts.allCustomers.allCustomers.failedToFetchServices') + (response.message || 'Unknown error')
-  }
-  catch (err) {
-    error.value = translate('pages.contracts.allCustomers.allCustomers.failedToFetchServices2')
-    console.error(err)
-  }
-  finally {
-    servicesLoading.value = false
-  }
-}
-
 const fetchCurrencies = async () => {
   try {
     const response = await CurrencyApi.getAll()
@@ -284,11 +156,6 @@ const fetchCurrencies = async () => {
     error.value = translate('common.messages.failedToFetchCurrencies')
     console.error(err)
   }
-}
-
-const fetchOutsourcingCompanies = async () => {
-  try { outsourcingCompanies.value = await CompanyApi.getAll() }
-  catch (err) { console.error('Failed to fetch outsourcing companies:', err) }
 }
 
 const createCustomer = async () => {
@@ -356,99 +223,6 @@ const updateCustomer = async () => {
   }
 }
 
-const updateService = async (customerId: number, pivotId: number) => {
-  try {
-    serviceLoading.value = true
-
-    const response = await CustomerApi.updateService(customerId, pivotId, {
-      service_id: currentService.value.service_id,
-      employee_id: currentService.value.employee_id,
-      employee_ids: currentService.value.employee_ids,
-      marketer_id: currentService.value.marketer_id,
-      outsourcing_company_id: currentService.value.outsourcing_company_id,
-      outsourcing_percentage: currentService.value.outsourcing_percentage,
-      fee: currentService.value.fee,
-      currency_id: currentService.value.currency_id,
-      deadline: currentService.value.deadline,
-      status: currentService.value.status,
-      notes: currentService.value.notes,
-    })
-
-    if (!response.success) {
-      toast.error(response.message || 'Failed to update customer service')
-
-      return
-    }
-
-    // Refresh the customer data
-    const customerResponse = await CustomerApi.getById(customerId)
-    if (customerResponse.success) {
-      const index = customers.value.findIndex(c => c.id === customerId)
-      if (index !== -1)
-        customers.value[index] = customerResponse.data
-
-      // Also update the current customer in the dialog if it's the same customer
-      if (currentCustomer.value.id === customerId) {
-        currentCustomer.value = customerResponse.data
-        selectedProjectServiceIds.value = selectedProjectServiceIds.value.filter(serviceId =>
-          customerResponse.data.services.some(service => service.service_id === serviceId),
-        )
-      }
-    }
-
-    serviceDialog.value = false
-    toast.success(translate('pages.contracts.allCustomers.allCustomers.customerServiceUpdated'))
-  }
-  catch (err) {
-    toast.error(translate('pages.contracts.allCustomers.allCustomers.failedToUpdateCustomerService'))
-    console.error(err)
-  }
-  finally {
-    serviceLoading.value = false
-  }
-}
-
-const attachSelectedServices = async () => {
-  if (!currentCustomer.value.id || selectedServices.value.length === 0)
-    return
-
-  try {
-    serviceLoading.value = true
-
-    const response = await CustomerApi.attachServices(currentCustomer.value.id, selectedServices.value)
-
-    if (!response.success) {
-      toast.error(response.message || 'Failed to attach services')
-
-      return
-    }
-
-    // Refresh the customer data
-    const customerResponse = await CustomerApi.getById(currentCustomer.value.id)
-    if (customerResponse.success) {
-      const index = customers.value.findIndex(c => c.id === currentCustomer.value.id)
-      if (index !== -1)
-        customers.value[index] = customerResponse.data
-
-      // Update the current customer in the dialog
-      currentCustomer.value = customerResponse.data
-
-      // Reset selected services and close dialog
-      selectedServices.value = []
-      selectedProjectServiceIds.value = []
-      attachServiceDialog.value = false
-      toast.success(translate('pages.contracts.allCustomers.allCustomers.servicesAttached'))
-    }
-  }
-  catch (err) {
-    error.value = translate('pages.contracts.allCustomers.allCustomers.failedToAttachServices')
-    console.error(err)
-  }
-  finally {
-    serviceLoading.value = false
-  }
-}
-
 const deleteCustomer = async () => {
   if (!customerToDelete.value)
     return
@@ -465,37 +239,6 @@ const deleteCustomer = async () => {
   }
   catch (err) {
     error.value = translate('pages.contracts.allCustomers.allCustomers.failedToDeleteCustomer2')
-    console.error(err)
-  }
-}
-
-const removeService = async (customerId: number, pivotId: number) => {
-  try {
-    const response = await CustomerApi.detachService(customerId, pivotId)
-    if (!response.success) {
-      error.value = translate('pages.contracts.allCustomers.allCustomers.failedToRemoveService') + (response.message || 'Unknown error')
-
-      return
-    }
-
-    // Refresh the customer data
-    const customerResponse = await CustomerApi.getById(customerId)
-    if (customerResponse.success) {
-      const index = customers.value.findIndex(c => c.id === customerId)
-      if (index !== -1)
-        customers.value[index] = customerResponse.data
-
-      // Also update the current customer in the dialog if it's the same customer
-      if (currentCustomer.value.id === customerId) {
-        currentCustomer.value = customerResponse.data
-        selectedProjectServiceIds.value = selectedProjectServiceIds.value.filter(serviceId =>
-          customerResponse.data.services.some(service => service.service_id === serviceId),
-        )
-      }
-    }
-  }
-  catch (err) {
-    error.value = translate('pages.contracts.allCustomers.allCustomers.failedToRemoveService2')
     console.error(err)
   }
 }
@@ -549,65 +292,12 @@ const saveCustomer = () => {
     createCustomer()
 }
 
-const openEditService = async (customerId: number, pivotId: number) => {
-  const response = await CustomerApi.getById(customerId)
-  const customer = response.success ? response.data : customers.value.find(c => c.id === customerId)
-  if (customer) {
-    const service = customer.services.find(s => s.id === pivotId)
-    if (service) {
-      currentCustomer.value = { ...customer }
-      currentService.value = {
-        id: service.id,
-        service_id: service.service_id,
-        employee_id: service.employee_id ?? null,
-        employee_ids: service.employee_ids ?? service.employees?.map(employee => employee.id) ?? (service.employee_id ? [service.employee_id] : []),
-        marketer_id: service.marketer_id ?? customer.marketer_id ?? null,
-        outsourcing_company_id: service.outsourcing_company_id ?? null,
-        outsourcing_percentage: service.outsourcing_percentage ?? null,
-        fee: service.fee,
-        currency_id: service.currency_id ?? Number(service.currency.id),
-        deadline: service.deadline,
-        status: service.status as ServiceForm['status'],
-        notes: service.notes ?? null,
-      }
-      serviceToEdit.value = pivotId
-      serviceDialog.value = true
-    }
-  }
-}
-
-const openAttachServices = async (customerId: number) => {
-  const response = await CustomerApi.getById(customerId)
-  const customer = response.success ? response.data : customers.value.find(c => c.id === customerId)
-  if (customer) {
-    currentCustomer.value = { ...customer }
-    selectedServices.value = []
-    attachServiceDialog.value = true
-    await fetchAllServices()
-  }
-}
-
-const saveService = async () => {
-  if (currentCustomer.value.id && serviceToEdit.value)
-    await updateService(currentCustomer.value.id, serviceToEdit.value)
-}
-
 const fetchMarketers = async () => {
   try {
     marketers.value = await EmployeeApi.getMarketerOptions()
   }
   catch (err) {
     console.error('Failed to fetch marketers:', err)
-  }
-}
-
-const fetchDeliveryEmployees = async () => {
-  try {
-    deliveryEmployees.value = (await EmployeeApi.getOptions())
-      .filter(employee => employee.employment_type === 'commission')
-  }
-  catch (err) {
-    console.error('Failed to fetch commission-capable employees:', err)
   }
 }
 
@@ -622,17 +312,12 @@ const openProjectDialog = () => {
   if (!currentCustomer.value.id || !selectedProjectServices.value.length)
     return
 
-  const serviceNames = selectedProjectServices.value.map(service => service.type).join(' + ')
-
-  const earliestDeadline = selectedProjectServices.value
-    .map(service => service.deadline)
-    .filter((deadline): deadline is string => Boolean(deadline))
-    .sort()[0] ?? null
+  const serviceNames = selectedProjectServices.value.map(service => service.service?.type ?? service.type).join(' + ')
 
   projectDraft.value = {
     name: `${currentCustomer.value.name} — ${serviceNames}`.slice(0, 255),
     description: `Delivery workspace for ${serviceNames}.`,
-    due_date: earliestDeadline,
+    due_date: null,
   }
   projectDialog.value = true
 }
@@ -667,14 +352,15 @@ const issueInvoice = (customerId: number) => {
   router.push({ name: 'innvoice', query: { customer: customerId } })
 }
 
+const openServiceContract = (customerId: number) => {
+  router.push({ name: 'contracts', query: { action: 'create', customerId } })
+}
+
 // Lifecycle hooks
 onMounted(() => {
   fetchCustomers()
-  fetchAllServices()
   fetchCurrencies()
   fetchMarketers()
-  fetchDeliveryEmployees()
-  fetchOutsourcingCompanies()
 })
 </script>
 
@@ -799,7 +485,7 @@ onMounted(() => {
             variant="tonal"
             color="primary"
           >
-            {{ service.type }}
+            {{ service.service?.type ?? service.type }}
           </VChip>
           <VChip
             v-if="item.services.length > 2"
@@ -847,14 +533,14 @@ onMounted(() => {
           variant="text"
           size="small"
           color="success"
-          @click="openAttachServices(item.id)"
+          @click="openServiceContract(item.id)"
         >
           <VIcon icon="tabler-plus" />
           <VTooltip
             activator="parent"
             location="top"
           >
-            {{ $t('common.messages.attachServices') }}
+            {{ $t('common.messages.newServiceContract') }}
           </VTooltip>
         </VBtn>
         <VBtn
@@ -895,7 +581,7 @@ onMounted(() => {
     :title="$t('common.crmUi.customersReport')"
     :subtitle="$t('common.crmUi.filteredCustomerRecords')"
     :columns="[$t('common.crmUi.printColumns.name'), $t('common.crmUi.printColumns.company'), $t('common.crmUi.printColumns.contact'), $t('common.crmUi.printColumns.marketer'), $t('common.crmUi.printColumns.registered'), $t('common.crmUi.printColumns.services')]"
-    :rows="filtered.map(customer => [customer.name, customer.company, customer.contact, customer.marketer, customer.date, customer.services.length ? customer.services.map(service => `${service.type}: ${service.fee} ${service.currency?.code ?? ''}${service.deadline ? ` · ${service.deadline}` : ''}`).join(' | ') : '—'])"
+    :rows="filtered.map(customer => [customer.name, customer.company, customer.contact, customer.marketer, customer.date, customer.services.length ? customer.services.map(service => `${service.service?.type ?? service.type}: ${service.fee ?? service.service?.fee ?? ''} ${service.currency?.code ?? service.service?.currency?.code ?? ''}`).join(' | ') : '—'])"
   />
 
   <!-- Customer Form Dialog -->
@@ -1051,9 +737,9 @@ onMounted(() => {
                       color="primary"
                       size="small"
                       prepend-icon="tabler-plus"
-                      @click="openAttachServices(currentCustomer.id)"
+                      @click="openServiceContract(currentCustomer.id)"
                     >
-                      {{ $t('common.messages.attachServices') }}
+                      {{ $t('common.messages.newServiceContract') }}
                     </VBtn>
                   </div>
                 </VCardTitle>
@@ -1072,13 +758,13 @@ onMounted(() => {
                       :model-value="selectedProjectServiceIds.includes(item.service_id)"
                       density="compact"
                       hide-details
-                      :aria-label="`Include ${item.type} in a new project`"
+                      :aria-label="`Include ${item.service?.type ?? item.type} in a new project`"
                       @update:model-value="toggleProjectService(item.service_id, $event)"
                     />
                   </template>
                   <template #item.employee="{ item }">
                     <div
-                      v-if="item.employees?.length || item.employee"
+                      v-if="item.delivery_employees?.length || item.sold_by"
                       class="d-flex align-center ga-2"
                     >
                       <VAvatar
@@ -1091,16 +777,22 @@ onMounted(() => {
                           size="15"
                         />
                       </VAvatar>
-                      <span class="text-body-2">{{ item.employees?.length ? item.employees.map((employee: Employee) => employee.name).join(', ') : item.employee.name }}</span>
+                      <span class="text-body-2">{{ item.delivery_employees?.length ? item.delivery_employees.map((employee: { name: string }) => employee.name).join(', ') : item.sold_by?.name }}</span>
                     </div>
                     <span
                       v-else
                       class="text-caption text-warning"
                     >Unassigned</span>
                   </template>
+                  <template #item.type="{ item }">
+                    <span class="text-body-2 font-weight-medium">{{ item.service?.type ?? item.type ?? '—' }}</span>
+                  </template>
+                  <template #item.fee="{ item }">
+                    {{ Number(item.fee ?? item.service?.fee ?? 0).toFixed(2) }}
+                  </template>
                   <template #item.marketer="{ item }">
                     <span
-                      v-if="item.marketer"
+                      v-if="item.marketer?.name"
                       class="text-body-2"
                     >{{ item.marketer.name }}</span>
                     <span
@@ -1108,58 +800,34 @@ onMounted(() => {
                       class="text-medium-emphasis"
                     >—</span>
                   </template>
-                  <template #item.deadline="{ item }">
+                  <template #item.status="{ item }">
                     <VChip
-                      v-if="item.deadline"
-                      :color="deadlineMeta(item.deadline).color"
                       size="small"
                       label
                       variant="tonal"
                     >
-                      {{ formatLocalizedDate(`${item.deadline}T00:00:00`) }}
-                      <VTooltip
-                        activator="parent"
-                        location="top"
-                      >
-                        {{ deadlineMeta(item.deadline).title }}
-                      </VTooltip>
+                      {{ translateBackendValue(item.status || 'unknown') }}
                     </VChip>
-                    <span
-                      v-else
-                      class="text-medium-emphasis"
-                    >{{ $t('common.messages.noDeadline') }}</span>
                   </template>
                   <template #item.currency.code="{ item }">
-                    {{ item.currency.code }}
+                    {{ item.currency?.code || item.service?.currency?.code || '—' }}
                   </template>
                   <template #item.serviceActions="{ item }">
                     <div class="service-actions">
                       <FullDetailsButton
                         :item="item"
-                        :title="item.type"
+                        :title="item.service?.type ?? item.type"
                       />
                       <VBtn
-                        icon="tabler-edit"
+                        icon="tabler-file-text"
                         variant="text"
                         size="x-small"
                         color="primary"
-                        @click="openEditService(currentCustomer.id, item.id)"
+                        @click="openServiceContract(currentCustomer.id)"
                       >
-                        <VIcon icon="tabler-edit" />
+                        <VIcon icon="tabler-file-text" />
                         <VTooltip activator="parent" location="top">
-                          {{ $t('common.messages.editService2') }}
-                        </VTooltip>
-                      </VBtn>
-                      <VBtn
-                        icon="tabler-trash"
-                        variant="text"
-                        size="x-small"
-                        color="error"
-                        @click="removeService(currentCustomer.id, item.id)"
-                      >
-                        <VIcon icon="tabler-trash" />
-                        <VTooltip activator="parent" location="top">
-                          {{ $t('common.messages.removeService2') }}
+                          {{ $t('common.messages.manageInContracts') }}
                         </VTooltip>
                       </VBtn>
                     </div>
@@ -1273,271 +941,6 @@ onMounted(() => {
           @click="createProjectFromSelectedServices"
         >
           Create project
-        </VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
-
-  <!-- Service Form Dialog -->
-  <VDialog
-    v-model="serviceDialog"
-    max-width="600px"
-  >
-    <VCard class="customer-service-form-card">
-      <VCardTitle>
-        <span class="text-h5">{{ $t('pages.contracts.allCustomers.allCustomers.editCustomerService') }}</span>
-      </VCardTitle>
-
-      <VCardText>
-        <VForm class="app-form">
-          <VRow>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VSelect
-                v-model="currentService.service_id"
-                :items="allServices"
-                item-title="type"
-                item-value="id"
-                :label="$t('common.messages.serviceType')"
-                :loading="servicesLoading"
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VSelect
-                v-model="currentService.currency_id"
-                :items="currencies"
-                item-title="code"
-                item-value="id"
-                :label="$t('common.fields.currency')"
-              />
-            </VCol>
-            <VCol cols="12">
-              <VAutocomplete
-                v-model="currentService.employee_ids"
-                :items="eligibleDeliveryEmployees"
-                :item-title="deliveryEmployeeLabel"
-                item-value="id"
-                multiple
-                chips
-                :label="$t('pages.contracts.allCustomers.allCustomers.deliveryOwnerOptional')"
-                prepend-inner-icon="tabler-user-check"
-                clearable
-                :hint="$t('pages.contracts.allCustomers.allCustomers.onlyConfiguredRateEmployees')"
-                persistent-hint
-              >
-                <template #no-data>
-                  <VListItem
-                    class="delivery-owner-empty-state"
-                    prepend-icon="tabler-user-off"
-                    :title="noDeliveryEmployeeMessage"
-                  />
-                </template>
-              </VAutocomplete>
-            </VCol>
-            <VCol
-              v-if="isCurrentUserMarketer"
-              cols="12"
-              md="6"
-            >
-              <VTextField
-                :model-value="currentMarketerName"
-                :label="$t('common.crmUi.serviceMarketer')"
-                prepend-inner-icon="tabler-speakerphone"
-                hint="Your attribution is applied automatically."
-                persistent-hint
-                readonly
-              />
-            </VCol>
-            <VCol
-              v-else
-              cols="12"
-              md="6"
-            >
-              <VAutocomplete
-                v-model="currentService.marketer_id"
-                :items="marketers"
-                item-title="name"
-                item-value="id"
-                :label="$t('common.crmUi.serviceMarketerOptional')"
-                prepend-inner-icon="tabler-speakerphone"
-                clearable
-                :hint="$t('common.crmUi.serviceMarketerHint')"
-                persistent-hint
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VAutocomplete
-                v-model="currentService.outsourcing_company_id"
-                :items="outsourcingCompanies"
-                :item-title="(company: Company) => company.trade_name || company.legal_name"
-                item-value="id"
-                :label="t('outsourcing.company')"
-                prepend-inner-icon="tabler-building-factory-2"
-                clearable
-                @update:model-value="value => { if (!value) currentService.outsourcing_percentage = null }"
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VTextField
-                v-model.number="currentService.outsourcing_percentage"
-                :label="t('outsourcing.rate')"
-                type="number"
-                min="0.01"
-                max="100"
-                step="0.01"
-                suffix="%"
-                :disabled="!currentService.outsourcing_company_id"
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VTextField
-                v-model="currentService.deadline"
-                :label="$t('pages.contracts.allCustomers.allCustomers.deadline')"
-                type="date"
-                clearable
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VTextField
-                v-model.number="currentService.fee"
-                :label="$t('common.messages.fee')"
-                type="number"
-                min="0"
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VSelect
-                v-model="currentService.status"
-                :items="['active', 'paused', 'completed']"
-                :label="$t('common.fields.status')"
-              />
-            </VCol>
-            <VCol cols="12">
-              <VTextarea
-                v-model="currentService.notes"
-                :label="$t('common.messages.notes')"
-                rows="2"
-                auto-grow
-              />
-            </VCol>
-          </VRow>
-        </VForm>
-      </VCardText>
-
-      <VCardActions>
-        <VSpacer />
-        <VBtn
-          color="secondary"
-          variant="outlined"
-          @click="serviceDialog = false"
-        >
-          {{ $t('common.actions.cancel') }}
-        </VBtn>
-        <VBtn
-          color="primary"
-          :loading="serviceLoading"
-          @click="saveService"
-        >
-          {{ $t('common.actions.save') }}
-        </VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
-
-  <!-- Attach Services Dialog -->
-  <VDialog
-    v-model="attachServiceDialog"
-    max-width="800px"
-  >
-    <VCard>
-      <VCardTitle>
-        <span class="text-h5">{{ $t('pages.contracts.allCustomers.attachServicesTo', { customer: currentCustomer.name }) }}</span>
-      </VCardTitle>
-
-      <VCardText>
-        <VRow>
-          <VCol cols="12">
-            <ResponsiveDataTable
-              :headers="availableServiceHeaders"
-              :items="availableServices"
-              :loading="servicesLoading"
-              item-value="id"
-              density="compact"
-            >
-              <template #item.select="{ item }">
-                <VCheckbox
-                  :model-value="selectedServices.some(s => s.service_id === item.id)"
-                  @update:model-value="(value) => {
-                    if (value) {
-                      selectedServices.push({
-                        service_id: item.id,
-                      })
-                    }
-                    else {
-                      selectedServices = selectedServices.filter(s => s.service_id !== item.id)
-                    }
-                  }"
-                />
-              </template>
-
-              <template #item.duration="{ item }">
-                {{ formatLocalizedDate(moment().add(item.duration, 'months').toDate()) }}
-              </template>
-
-              <template #item.fee="{ item }">
-                {{ item.currency.symbol }}{{ Number(item.fee).toFixed(2) }}
-              </template>
-
-              <template #item.currency.code="{ item }">
-                {{ item.currency.code }}
-              </template>
-              <template #item.details="{ item }">
-                <FullDetailsButton
-                  :item="item"
-                  :title="item.type"
-                />
-              </template>
-            </ResponsiveDataTable>
-          </VCol>
-        </VRow>
-      </VCardText>
-
-      <VCardActions>
-        <VSpacer />
-        <VBtn
-          color="secondary"
-          variant="outlined"
-          @click="attachServiceDialog = false"
-        >
-          {{ $t('common.actions.cancel') }}
-        </VBtn>
-        <VBtn
-          color="primary"
-          :loading="serviceLoading"
-          :disabled="selectedServices.length === 0"
-          @click="attachSelectedServices"
-        >
-          {{ $t('pages.contracts.allCustomers.allCustomers.attachSelectedServices') }}
         </VBtn>
       </VCardActions>
     </VCard>

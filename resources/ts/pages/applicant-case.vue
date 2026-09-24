@@ -7,9 +7,6 @@ import ApplicantApi, { type Applicant, type ApplicantStage, ApplicantUniversityA
 import ApplicantPortalApi from '@/api/applicantPortal'
 import ContractApi from '@/api/contracts'
 import ContractTemplateApi, { type ContractTemplate } from '@/api/contractTemplate'
-import CustomerApi, { type CreateCustomerServiceData, type UpdateCustomerServiceData } from '@/api/customer'
-import CurrencyApi from '@/api/currency'
-import type { Service } from '@/api/services'
 import BoardApi from '@/api/board'
 import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
 import EmployeeApi, { type Employee } from '@/api/employee'
@@ -46,7 +43,7 @@ const canCreatePendingTransactions = computed(() => canAccess('create_pending_tr
 const canViewContracts = computed(() => canAccess('view_applicant_contracts'))
 const canCreateContracts = computed(() => canAccess('create_contracts'))
 const canViewServices = computed(() => canAccess('view_applicant_services'))
-const canManageServices = computed(() => canAccess('manage_customer_services'))
+const canManageServices = computed(() => canAccess('create_contracts'))
 const transitionOptions = computed(() => {
   const current = applicant.value?.current_stage?.key
   if (!current) return stages.value
@@ -60,7 +57,7 @@ const documents = computed(() => (applicant.value?.tasks ?? []).flatMap(task => 
 const postedIncomeTotal = computed(() => (applicant.value?.incomes ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0))
 const postedExpenseTotal = computed(() => (applicant.value?.expenses ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0))
 const money = (value: number | string) => n(Number(value || 0), 'decimal')
-const feeOf = (row: { fee: number | string; currency?: { code: string } | null }) => `${money(row.fee)}${row.currency?.code ? ` ${row.currency.code}` : ''}`
+const feeOf = (row: { fee: number | string | null; currency?: { code: string } | null }) => row.fee === null || row.fee === undefined ? t('common.messages.notAvailable') : `${money(row.fee)}${row.currency?.code ? ` ${row.currency.code}` : ''}`
 const formatDate = (value?: string | null) => value ? formatLocalizedDate(value, 'short') : ''
 const formatDateTime = (value?: string | null) => value ? formatLocalizedDate(value, 'long') : ''
 const stageSubtitle = (item: { changed_at: string; note?: string | null }) => {
@@ -100,12 +97,6 @@ const portalForm = ref({ name: '', email: '', phone: '', address: '' })
 const contractDialog = ref(false)
 const savingContract = ref(false)
 const contractTemplates = ref<ContractTemplate[]>([])
-const serviceDialog = ref(false)
-const savingService = ref(false)
-const editingService = ref<number | null>(null)
-const serviceCatalog = ref<Service[]>([])
-const serviceCurrencies = ref<Array<{ id: number; name: string; code: string; is_base?: boolean }>>([])
-const serviceForm = ref({ service_id: null as number | null, currency_id: null as number | null, fee: null as number | null, status: 'active' as 'active' | 'paused' | 'completed' | 'cancelled', sold_at: '', notes: '' })
 const financeDialog = ref(false)
 const savingFinance = ref(false)
 const financeOptions = ref<PendingTransactionOptions>({ currencies: [], customers: [], employees: [], applicants: [] })
@@ -419,8 +410,7 @@ async function setPrimaryUniversity(universityId: number) {
 
 async function openContractDialog() {
   try {
-    const educationalSlugs = ['educational-service', 'scholarship-service', 'test-service', 'visa-service']
-    contractTemplates.value = (await ContractTemplateApi.getAll()).filter(template => educationalSlugs.includes(template.type_slug ?? ''))
+    contractTemplates.value = (await ContractTemplateApi.getAll()).filter(template => template.type_slug === 'customer')
     contractDialog.value = true
   }
   catch {
@@ -448,72 +438,6 @@ async function createCaseContract(payload: ContractFormPayload) {
   }
   finally {
     savingContract.value = false
-  }
-}
-
-function newServiceForm() {
-  return { service_id: null, currency_id: serviceCurrencies.value.find(currency => currency.is_base)?.id ?? null, fee: null, status: 'active' as const, sold_at: new Date().toISOString().slice(0, 10), notes: '' }
-}
-
-async function openServiceDialog(row?: NonNullable<Applicant['services']>[number]) {
-  try {
-    const [services, currencies] = await Promise.all([CustomerApi.getAllServices(), CurrencyApi.getAll()])
-    serviceCatalog.value = services.data.filter(service => service.status === 'active')
-    serviceCurrencies.value = currencies.data
-    editingService.value = row?.id ?? null
-    serviceForm.value = row
-      ? {
-          ...newServiceForm(),
-          service_id: row.service_id,
-          currency_id: row.currency_id,
-          sold_at: row.date ?? new Date().toISOString().slice(0, 10),
-          fee: Number(row.fee),
-          status: row.status ?? 'active',
-        }
-      : newServiceForm()
-    serviceDialog.value = true
-  }
-  catch {
-    toast.error('Unable to load service options.')
-  }
-}
-
-async function saveService() {
-  if (!applicant.value || !serviceForm.value.service_id || !serviceForm.value.currency_id || !serviceForm.value.sold_at || !serviceForm.value.fee || serviceForm.value.fee <= 0)
-    return
-
-  savingService.value = true
-  try {
-    const payload: CreateCustomerServiceData = { ...serviceForm.value, applicant_id: applicant.value.id }
-    if (editingService.value)
-      await CustomerApi.updateService(applicant.value.customer_id, editingService.value, { ...payload, deadline: null } as UpdateCustomerServiceData)
-    else
-      await CustomerApi.attachServices(applicant.value.customer_id, [payload])
-    serviceDialog.value = false
-    await load()
-    toast.success('Service linked to this visa case.')
-  }
-  catch {
-    // The shared API notifier displays the server's specific validation error.
-  }
-  finally {
-    savingService.value = false
-  }
-}
-
-async function removeService(id: number) {
-  if (!confirm('Remove this service from the visa case?'))
-    return
-
-  try {
-    if (!applicant.value)
-      return
-    await CustomerApi.detachService(applicant.value.customer_id, id)
-    await load()
-    toast.success('Service removed from this visa case.')
-  }
-  catch {
-    // The shared API notifier displays the server's specific validation error.
   }
 }
 
@@ -677,11 +601,10 @@ onMounted(async () => {
         <div class="d-flex align-center mt-4">
           <h3>{{ t('educational.caseUi.servicesSold') }}</h3>
           <VSpacer />
-          <VBtn v-if="canManageServices" size="small" prepend-icon="tabler-plus" @click="openServiceDialog()">Add service</VBtn>
+          <VBtn v-if="canManageServices" size="small" prepend-icon="tabler-plus" @click="openContractDialog()">New contract</VBtn>
         </div>
         <VList>
           <VListItem v-for="row in applicant.services" :key="`service-${row.id}`" :title="row.type" :subtitle="t('educational.caseUi.serviceSummary', { fee: feeOf(row), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), status: row.status ? translateBackendValue(row.status) : t('common.messages.notAvailable') })">
-            <template v-if="canManageServices" #append><VBtn size="small" variant="text" @click="openServiceDialog(row)">{{ t('common.actions.edit') }}</VBtn><VBtn size="small" variant="text" color="error" @click="removeService(row.id)">{{ t('common.actions.void') }}</VBtn></template>
           </VListItem>
         </VList>
         <p v-if="!applicant.services?.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noServices') }}</p>
@@ -792,32 +715,13 @@ onMounted(async () => {
       <VCardText class="case-dialog-body">
         <ContractForm
           :templates="contractTemplates"
-          :applicant-country-id="applicant.country_id"
+          :applicant-country-id="applicant?.country_id ?? null"
           :customer-id="applicant?.customer_id ?? null"
           :applicant-id="applicant?.id ?? null"
           @submit="createCaseContract"
           @cancel="contractDialog = false"
         />
       </VCardText>
-    </VCard>
-  </VDialog>
-  <VDialog v-model="serviceDialog" max-width="640">
-    <VCard :title="editingService ? 'Edit visa case service' : 'Add visa case service'">
-      <VCardText class="case-dialog-body">
-        <VRow>
-          <VCol cols="12" sm="6"><VSelect v-model="serviceForm.service_id" :items="serviceCatalog.map(row => ({ title: row.type, value: row.id }))" label="Service" :disabled="!!editingService" /></VCol>
-          <VCol cols="12" sm="6"><VSelect v-model="serviceForm.currency_id" :items="serviceCurrencies.map(row => ({ title: `${row.code} — ${row.name}`, value: row.id }))" label="Currency" /></VCol>
-          <VCol cols="12" sm="6"><VSelect v-model="serviceForm.status" :items="['active', 'completed', 'cancelled'].map(value => ({ title: translateBackendValue(value), value }))" label="Status" /></VCol>
-          <VCol cols="12" sm="6"><VTextField v-model="serviceForm.sold_at" type="date" label="Date" /></VCol>
-          <VCol cols="12" sm="6"><VTextField v-model.number="serviceForm.fee" type="number" min="0.000001" label="Service fee" /></VCol>
-          <VCol cols="12"><VTextarea v-model="serviceForm.notes" label="Notes" rows="2" /></VCol>
-        </VRow>
-      </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn @click="serviceDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="savingService" :disabled="!serviceForm.service_id || !serviceForm.currency_id || !serviceForm.sold_at || !serviceForm.fee || serviceForm.fee <= 0" @click="saveService">{{ t('common.actions.save') }}</VBtn>
-      </VCardActions>
     </VCard>
   </VDialog>
   <VDialog v-model="financeDialog" max-width="600">

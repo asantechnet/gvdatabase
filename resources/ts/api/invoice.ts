@@ -18,7 +18,7 @@ export interface CurrentBaseCurrency {
 
 export interface InvoiceService {
   id: number
-  customer_service_id?: number | null
+  contract_service_id?: number | null
   name: string
   price: number
   quantity: number
@@ -92,7 +92,7 @@ export interface CreateInvoiceData {
   rate: number
   issue_date?: string
   due_date?: string
-  services: Array<{ customer_service_id: number; quantity: number }>
+  services: Array<{ contract_service_id: number; quantity: number }>
   tax_percent: number
   discount?: number
   notes?: string

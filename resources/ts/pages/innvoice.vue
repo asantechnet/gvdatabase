@@ -72,7 +72,6 @@ const serviceHeaders = [
   { title: translate('pages.settings.innvoice.innvoice.originalFee'), key: 'fee' },
   { title: translate('pages.settings.innvoice.innvoice.invoiceAmount'), key: 'converted' },
   { title: 'Delivery owner', key: 'commission_employee', sortable: false },
-  { title: translate('common.messages.deadline'), key: 'deadline' },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
 ]
 
@@ -97,13 +96,14 @@ const selectedServices = computed(() =>
 )
 
 const convertServiceFee = (service: CustomerService) => {
-  const sourceRate = Number(service.currency.rate)
+  const sourceRate = Number(service.currency?.rate ?? 1)
   const targetRate = Number(invoiceForm.value.rate)
+  const fee = Number(service.fee ?? (service as unknown as { service?: { fee?: number | string | null } }).service?.fee ?? 0)
 
   if (sourceRate <= 0 || targetRate <= 0)
     return 0
 
-  return Number(service.fee) / sourceRate * targetRate
+  return fee / sourceRate * targetRate
 }
 
 const formSubtotal = computed(() =>
@@ -202,7 +202,7 @@ const createInvoice = async () => {
       issue_date: invoiceForm.value.issue_date || undefined,
       due_date: invoiceForm.value.due_date || undefined,
       services: invoiceForm.value.service_ids.map(id => ({
-        customer_service_id: id,
+        contract_service_id: id,
         quantity: 1,
       })),
       tax_percent: Number(invoiceForm.value.tax_percent),
@@ -644,16 +644,11 @@ onMounted(async () => {
                   </template>
                   <template #item.type="{ item }">
                     <div class="font-weight-medium">
-                      {{ item.type }}
-                    </div><div
-                      v-if="item.deadline"
-                      class="text-caption text-medium-emphasis"
-                    >
-                      {{ formatLocalizedDate(item.deadline) }}
+                      {{ item.service?.type || item.type }}
                     </div>
                   </template>
                   <template #item.fee="{ item }">
-                    {{ item.currency.symbol }}{{ Number(item.fee).toFixed(2) }} {{ item.currency.code }}
+                    {{ item.currency?.symbol }}{{ Number(item.fee ?? item.service?.fee ?? 0).toFixed(2) }} {{ item.currency?.code }}
                   </template>
                   <template #item.converted="{ item }">
                     <span class="font-weight-bold text-primary">{{ formatMoney(convertServiceFee(item), invoiceCurrency ? { symbol: invoiceCurrency.symbol, shortname: invoiceCurrency.code } : undefined) }}</span>

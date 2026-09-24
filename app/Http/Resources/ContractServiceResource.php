@@ -27,6 +27,11 @@ class ContractServiceResource extends JsonResource
             'education_level_id' => $this->education_level_id,
             'language_id' => $this->language_id,
             'notes' => $this->notes,
+            'status' => $this->contract?->status,
+            'contract_number' => $this->contract?->contract_number,
+            'sold_by' => $this->whenLoaded('soldByEmployee', fn () => $this->soldByEmployee ? ['id' => $this->soldByEmployee->id, 'name' => $this->soldByEmployee->name] : null),
+            'marketer' => $this->whenLoaded('marketer', fn () => $this->marketer ? ['id' => $this->marketer->id, 'name' => $this->marketer->name] : null),
+            'delivery_employees' => $this->whenLoaded('deliveryEmployees', fn () => $this->deliveryEmployees->map(fn ($employee) => ['id' => $employee->id, 'name' => $employee->name])->values()),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

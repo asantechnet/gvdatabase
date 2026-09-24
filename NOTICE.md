@@ -197,26 +197,68 @@ related); other → both.
 
 ## 5. Still to wire (next batches, all non-destructive until §3 executes)
 
-1. `ContractTemplateController@validated`: `service_id` required iff type =
-   `customer`; `position_id` required iff `employment` (currently only
-   employment-position is enforced).
-2. `ContractController@validatedData`: `service_ids` required/min:1 iff
-   customer; prohibited iff employment; optional iff other (currently all
-   optional). Delivery-capability assertion for `employee_ids` (mirror
-   `CustomerServiceController`).
-3. Invoice/commission/outsourcing/package/project/dashboard/report/educational
-   rewires listed in §3.
-4. Frontend: `ContractForm.vue` (services multiselect, position single-select,
-   template-by-service filter, drop duration/end-date, signatory rule already
-   correct), `contract_list.vue` (services column, service filter limited to
-   active services, print-dialog template picker, drop renewal/expiry UI),
-   `contract/policies.vue` (single service select for customer, required),
-   nav (`contracts.ts` — Service Contracts entry already exists), delete
-   attach UIs, permission strings, locale keys.
-5. Data migration (one-way, at removal time): each `customer_service` row → one
-   customer contract + one `contract_service` line per §2; re-link
-   `invoice_service`/`commission_accruals`/`outsourcing_accruals` to
-   `contract_service_id`; backfill `contracts.service_id` → lines; then drop
-   `customer_service`, `employee_customer_service_commissions`,
-   `contracts.service_id/end_date/duration_months`, `services.duration`,
-   `*_accruals.customer_service_id`, `invoice_service.customer_service_id`.
+> SUPERSEDED 2026-09-24 — everything below was executed destructively in §6.
+> Only §5.6 (delivery-capability assertion) remains open.
+
+1. DONE — `ContractTemplateController@validated`: `service_id` required iff
+   type = `customer`; `position_id` required iff `employment`.
+2. DONE — `ContractController`: customer requires ≥1 active service
+   (else 422); employment ignores services; other optional. OPEN: no
+   commission-capability assertion for line `employee_ids` yet (percentages
+   resolve to null when the catalogue capability is missing).
+3. DONE — invoice/commission/outsourcing/package/project/dashboard/report/
+   educational rewires from §3.
+4. DONE — frontend rewire from §3 (forms, lists, print, apis, nav, locales).
+5. DONE — data migration + drops from §3, in migration
+   `2026_09_23_000002_drop_customer_service_merge_into_contracts`.
+
+## 6. Destructive session (2026-09-24) — executed and committed
+
+Backend commit `e174ed2`, frontend commit (this session):
+
+- **Migration `..._000002`**: educational types remapped to `customer` and
+  deleted (only `employment | customer | other` remain); each
+  `customer_service` row carried into a customer contract + line
+  (paused→terminated); commissions copied; bonus sources and invoice/
+  commission/outsourcing lines re-pointed; then dropped `customer_service`,
+  `employee_customer_service_commissions`, `contracts.service_id/end_date/
+  duration_months`, `services.duration`, old line columns, and the
+  `manage_customer_services` permission.
+- **Deleted**: `CustomerService` model/controller/resource/factory,
+  both lifecycle engines + artisan commands + schedules, `renew` endpoint,
+  `ContractExpiryDate` + `contractExpiry` + `CustomerServiceFormDialog`.
+- **Enforced**: customer contracts ≥1 active service; customer templates
+  exactly one service; employment templates exactly one position;
+  `ContractTypeController@store` 422s (fixed 3-type vocabulary);
+  statuses `draft/active/completed/terminated/cancelled`.
+- **Rewired**: invoices (per `contract_service_id` on active contracts),
+  accruals, bonus sources (customer resolved via parent contract),
+  package issuance (one customer contract + lines), educational workspace
+  (same response shape over lines), projects, dashboards, reports,
+  applicant case services, audits (`contract_services`), seeders.
+- **Frontend**: `ContractForm` (services multiselect for customer/other,
+  position single-select + position-filtered employees for employment,
+  template list narrows to selected services, no duration/end-date,
+  signatory still locked for staff / editable for super-admin);
+  `contract_list` (services column, active-service filter, no renewal/
+  expiry UI, `?customerId&action=create` deep-link);
+  `all_customers` (attach/edit/delete replaced by contracts deep-links,
+  no deadline UI); `applicant-case` (service CRUD replaced by the contract
+  dialog scoped to customer templates); `innvoice`
+  (`contract_service_id`); `policies.vue` editor; catalogue duration
+  removed; `manage_customer_services` strings removed; new locale keys in
+  `en/fa/ps` (fa/ps use English fallback text — needs native review).
+- **Verified**: `vue-tsc` clean for all touched files (remaining errors are
+  pre-existing in untouched files); i18n check reports no new missing keys;
+  feature suites green: ContractServiceLines, ServiceContractNavigation,
+  ContractTemplateUpdate, EducationalContractIntegrity, CommissionLifecycle,
+  BusinessLogicConsistency, PaymentDetailManagement, ProjectServiceAssignment,
+  UnifiedPackageService, OptionalServiceDuration, AuditManagement,
+  EducationalWorkflowIntegration/Attribution, ApplicantCaseView,
+  ContractTemplateVersion.
+- **Known pre-existing failures** (fail on the additive commit too, untouched
+  by this merge): one university-scope test in
+  `EducationalWorkflowIntegrationTest`, and stale `fa/ps` translations.
+- Test env note: suite needs MySQL on 127.0.0.1 (`laravel_test` + `testing`
+  DBs); a user-level `mysqld` with its own datadir under `/tmp/opencode`
+  was used here since the system service is not startable.

@@ -5,7 +5,6 @@ interface ServiceFormData {
   type: string
   description?: string | null
   fee: number
-  duration: number | null
   currency_id: number
   status: 'active' | 'inactive'
 }
@@ -36,7 +35,7 @@ function close() {
 }
 
 function submit() {
-  emit('submit', { ...form.value, fee: Number(form.value.fee), duration: form.value.duration === null || form.value.duration === '' ? null : Number(form.value.duration) })
+  emit('submit', { ...form.value, fee: Number(form.value.fee) })
 }
 </script>
 
@@ -100,18 +99,6 @@ function submit() {
                 type="number"
                 min="0"
                 step="0.01"
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VTextField
-                v-model.number="form.duration"
-                :label="$t('pages.contracts.services.services.durationMonths')"
-                type="number"
-                min="1"
-                clearable
               />
             </VCol>
             <VCol

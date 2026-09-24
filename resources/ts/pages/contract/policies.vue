@@ -69,7 +69,7 @@ const policies = computed(() => allPolicies.value.filter(policy =>
   && !policyIds.value.includes(policy.id)))
 const selectedType = computed(() => contractTypes.value.find(type => type.id === contractTypeId.value) ?? null)
 const isEmployment = computed(() => selectedType.value?.slug === 'employment')
-const isServiceType = computed(() => selectedType.value?.slug.includes('service') ?? false)
+const isServiceType = computed(() => selectedType.value?.slug === 'customer' || selectedType.value?.slug === 'other')
 const isSystemSlug = (slug: string) => SYSTEM_TYPE_SLUGS.includes(slug as typeof SYSTEM_TYPE_SLUGS[number])
 const contractTypeName = (type: ContractType | null) => translateContractTypeRecord(type)
 const templateTypeName = (template: any) => template.type_slug ? translateContractPolicyType(template.type_slug, template.type) : template.type || tr('custom')
@@ -137,6 +137,8 @@ const loadPlaceholders = async () => {
 watch(contractTypeId, async () => {
   if (!isEmployment.value)
     positionId.value = null
+  if (!isServiceType.value)
+    serviceId.value = null
   await loadPlaceholders()
 })
 
@@ -327,6 +329,8 @@ const saveContract = async () => {
   }
   if (!isEmployment.value)
     positionId.value = null
+  if (!isServiceType.value)
+    serviceId.value = null
   const serialized = serializePlaceholders(contentHtml.value)
   const invalidKeys = extractPlaceholderKeys(serialized).filter(key => !knownKeys.value.has(key))
   if (invalidKeys.length) {
@@ -516,7 +520,8 @@ watch(locale, async () => {
                 :label="t('common.navigation.services')"
                 prepend-inner-icon="tabler-briefcase-2"
                 variant="outlined"
-                :rules="[value => !!value || tr('validation.serviceRequired')]"
+                clearable
+                :rules="[value => selectedType?.slug !== 'customer' || !!value || tr('validation.serviceRequired')]"
               />
             </VCol>
             <template v-if="!templateId">

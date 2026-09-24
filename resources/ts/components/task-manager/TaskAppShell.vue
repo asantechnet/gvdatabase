@@ -7,7 +7,7 @@ import TodoMatrixView from './views/TodoMatrixView.vue'
 import TaskSettingsView from './views/TaskSettingsView.vue'
 import ProjectPortfolioView from './views/ProjectPortfolioView.vue'
 import { canAccess } from '@/utils/authorization'
-import CustomerApi, { type Customer } from '@/api/customer'
+import CustomerApi, { type Customer, type CustomerService } from '@/api/customer'
 import ProjectApi, { type Project } from '@/api/project'
 import { useTaskStore } from '@/stores/useTaskStore'
 
@@ -39,8 +39,8 @@ const selectedProjectCustomer = computed(() => customers.value.find(customer => 
 
 const projectServiceOptions = computed(() => selectedProjectCustomer.value?.services ?? [])
 
-const projectServiceLabel = (service: { type: string; fee: number; currency?: { symbol?: string; code?: string } | null }) =>
-  `${service.type} · ${service.currency?.symbol ?? ''}${Number(service.fee ?? 0).toFixed(2)} ${service.currency?.code ?? ''}`.trim()
+const projectServiceLabel = (service: CustomerService) =>
+  `${service.service?.type ?? service.type ?? ''} · ${service.currency?.symbol ?? ''}${Number(service.fee ?? service.service?.fee ?? 0).toFixed(2)} ${service.currency?.code ?? ''}`.trim()
 
 const selectProjectCustomer = (customerId: number | null) => {
   newProject.value.customer_id = customerId === null ? null : Number(customerId)

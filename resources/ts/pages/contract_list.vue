@@ -6,13 +6,12 @@ import ContractCover from './templates/contract_cover_template.vue'
 import ContractPageTemplate, { type CompanyDetails } from './templates/contract_page_template.vue'
 import ContractApi from '@/api/contracts'
 import ContractTemplateApi from '@/api/contractTemplate'
-import type { Contract } from '@/api/contracts'
+import type { Contract, ContractServiceLine } from '@/api/contracts'
 import SettingApi, { type Setting } from '@/api/setting'
 import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
-import ContractExpiryDate from '@/components/contract/ContractExpiryDate.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import ServiceApi from '@/api/services'
 import { useContracts } from '@/composables/useContracts'
-import { addContractMonths, dayAfter } from '@/utils/contractExpiry'
 import { legacyContentToHtml } from '@/utils/contractPlaceholders'
 import { printDocument } from '@/utils/printDocument'
 import { canPrintPartyDetails, partyDetailsFor } from '@/utils/contractPartyDetails'
@@ -66,21 +65,26 @@ const isCancelling = ref(false)
 const toast = useToast()
 const isContractActionDialogVisible = ref(false)
 const pendingContractAction = ref<{ type: 'delete' | 'cancel'; contract: Contract } | null>(null)
-const isRenewDialogVisible = ref(false)
-const contractToRenew = ref<Contract | null>(null)
-const renewalDurationMonths = ref<number | null>(null)
-const renewalStartDate = ref('')
-const isRenewing = ref(false)
 const selectedServiceId = computed(() => {
   const value = Number(route.query.serviceId)
   return Number.isSafeInteger(value) && value > 0 ? value : null
 })
 const isWithoutService = computed(() => route.query.withoutService === '1')
+const customerIdQuery = computed(() => {
+  const value = Number(route.query.customerId)
+  return Number.isSafeInteger(value) && value > 0 ? value : null
+})
 const selectedServiceName = computed(() => typeof route.query.serviceName === 'string' ? route.query.serviceName : null)
+const serviceFilterId = computed({
+  get: () => selectedServiceId.value,
+  set: (value: number | null) => {
+    router.replace({ query: { ...route.query, ...(value ? { serviceId: String(value) } : { serviceId: undefined }) } })
+  },
+})
 const contractRequest = computed(() => ({
   audience: props.contractAudience,
   ...(selectedServiceId.value ? { service_id: selectedServiceId.value } : {}),
-  ...(isWithoutService.value ? { without_service: 1 } : {}),
+  ...(isWithoutService.value ? { without_service: 1 as const } : {}),
 }))
 const pageTitle = computed(() => selectedServiceName.value
   ? t('pages.contracts.allContracts.allContracts.serviceContracts', { service: selectedServiceName.value })
@@ -92,9 +96,9 @@ const pageDescription = computed(() => selectedServiceName.value
   : t(audienceCopy.value.description))
 
 const counterparties = computed(() => [...new Set(contracts.value.map(c => c.counterparty).filter(c => c))])
-const statuses = ['draft', 'active', 'expired', 'renewed', 'terminated', 'cancelled']
+const statuses = ['draft', 'active', 'completed', 'terminated', 'cancelled']
 const canShowPartyDetails = computed(() => contractToPrint.value !== null && canPrintPartyDetails(contractToPrint.value))
-const hasRelatedServices = computed(() => props.contractAudience === 'customers')
+const serviceFilterOptions = ref<Array<{ title: string; value: number }>>([])
 const audienceCopy = computed(() => ({
   customers: {
     title: 'pages.contracts.allContracts.allContracts.customerContracts',
@@ -118,7 +122,7 @@ const getStatusColor = (status: string) => {
     active: 'success',
     draft: 'info',
     pending: 'warning',
-    expired: 'error',
+    completed: 'primary',
     terminated: 'secondary',
     cancelled: 'error',
   }
@@ -147,9 +151,8 @@ const headers = computed(() => [
   { title: t('common.messages.contract'), key: 'contract', sortable: true },
   { title: t('common.fields.type'), key: 'type', sortable: true },
   { title: t('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true },
-  ...(hasRelatedServices.value ? [{ title: t('common.messages.services'), key: 'service', sortable: false }] : []),
+  { title: t('common.messages.services'), key: 'service', sortable: false },
   { title: t('common.fields.startDate'), key: 'start_date', sortable: true },
-  { title: t('pages.contracts.allContracts.allContracts.endDate'), key: 'end_date', sortable: true },
   { title: t('common.fields.status'), key: 'status', sortable: true },
   { title: t('common.messages.actions'), key: 'actions', sortable: false },
 ])
@@ -159,9 +162,8 @@ const contractReportRow = (contract: Contract) => [
   contract.contract || contract.contract_template?.name,
   contract.type || contract.contract_template?.type,
   contract.counterparty,
-  ...(hasRelatedServices.value ? [contract.service?.name || contract.service?.type || '—'] : []),
+  contract.services?.map(line => line.service?.name || line.service?.type).filter(Boolean).join(', ') || '—',
   contract.start_date,
-  contract.end_date || '—',
   contract.status,
 ]
 
@@ -444,10 +446,8 @@ const executePrint = () => {
   isPrintDialogVisible.value = false
 }
 
-const addNew = (companyId?: number) => {
+const addNew = () => {
   dialogMode.value = 'add'
-
-  const companyTemplate = templates.value.find(template => template.type_slug === 'company')
 
   selectedContract.value = {
     id: 0,
@@ -455,11 +455,10 @@ const addNew = (companyId?: number) => {
     contract: '',
     status: 'active',
     start_date: new Date().toISOString().slice(0, 10),
-    end_date: null,
     counterparty: '',
     is_cancelled: false,
-    template_id: companyId ? (companyTemplate?.id || 0) : (templates.value[0]?.id || 0),
-    company_id: companyId ?? null,
+    template_id: templates.value[0]?.id || 0,
+    company_id: null,
   }
   isDialogVisible.value = true
 }
@@ -515,75 +514,10 @@ const deleteContractUI = (contract: Contract) => {
   requestContractAction('delete', contract)
 }
 
-const hasCurrentRenewal = (source: Contract) => contracts.value.some(contract =>
-  contract.snapshot_data?.renewal?.source_contract_id === source.id
-  && !['cancelled', 'terminated'].includes(contract.status),
-)
-
-const localToday = () => {
-  const today = new Date()
-
-  return [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-')
-}
-
-const renewalEndDate = computed(() => {
-  const months = Number(renewalDurationMonths.value)
-
-  return renewalStartDate.value && Number.isSafeInteger(months) && months > 0
-    ? addContractMonths(renewalStartDate.value, months)
-    : null
-})
-
-const requestRenewal = (contract: Contract) => {
-  const today = localToday()
-  const afterCurrentContract = contract.end_date ? dayAfter(contract.end_date) : null
-
-  contractToRenew.value = contract
-  renewalDurationMonths.value = contract.duration_months || 12
-  renewalStartDate.value = afterCurrentContract && afterCurrentContract > today ? afterCurrentContract : today
-  isRenewDialogVisible.value = true
-}
-
-const confirmRenewal = async () => {
-  const contract = contractToRenew.value
-  const duration = Number(renewalDurationMonths.value)
-  if (!contract || !renewalStartDate.value || !Number.isSafeInteger(duration) || duration < 1)
-    return
-
-  try {
-    isRenewing.value = true
-
-    const renewed = await ContractApi.renew(contract.id, {
-      duration_months: duration,
-      start_date: renewalStartDate.value,
-    })
-
-    contracts.value.push(renewed)
-    isRenewDialogVisible.value = false
-    // Renewal records are created as drafts by the API so the form can still
-    // validate and persist the final document. For renewals, Active is the
-    // intended default when the user submits this form.
-    selectedContract.value = { ...renewed, status: 'active' }
-    dialogMode.value = 'edit'
-    isDialogVisible.value = true
-    toast.success(translate('pages.contracts.allContracts.allContracts.renewalCreated'))
-  }
-  catch (err) {
-    console.error('Failed to renew contract:', err)
-    toast.error(translate('pages.contracts.allContracts.allContracts.renewalFailed'))
-  }
-  finally {
-    isRenewing.value = false
-  }
-}
-
 const handleFormSubmit = async (contractData: ContractFormPayload) => {
   try {
     if (dialogMode.value === 'add') {
-      await addContract({
-        ...contractData,
-        content: contractData.content || undefined,
-      })
+      await addContract(contractData)
     }
     else if (selectedContract.value) {
       await editContract(selectedContract.value.id, contractData)
@@ -616,9 +550,8 @@ onMounted(async () => {
       await printContract(contract)
     else toast.warning(translate('pages.contracts.allContracts.allContracts.noActiveEmploymentContractFound'))
   }
-  const companyId = Number(route.query.companyId)
-  if (route.query.action === 'create' && companyId) {
-    addNew(companyId)
+  if (route.query.action === 'create' && (Number(route.query.companyId) || customerIdQuery.value)) {
+    addNew()
     await router.replace({ name: currentListRoute() })
   }
   const contractId = Number(route.query.contractId)
@@ -632,6 +565,15 @@ onMounted(async () => {
     const contract = contracts.value.find(item => item.id === contractId)
     if (contract)
       search.value = contract.contract_number || contract.counterparty || contract.contract
+  }
+  try {
+    const serviceResult = await ServiceApi.getAll()
+    serviceFilterOptions.value = serviceResult.data
+      .filter(service => service.status === 'active')
+      .map(service => ({ title: service.name || service.type, value: service.id }))
+  }
+  catch {
+    // Service filter stays empty; the table still renders.
   }
   try {
     companySetting.value = (await SettingApi.getCompanyProfile()).data
@@ -659,14 +601,28 @@ watch([selectedServiceId, isWithoutService], () => fetchContracts(contractReques
       >
         <VCol
           cols="12"
-          md="7"
-          lg="9"
+          md="4"
+          lg="6"
         >
           <VTextField
             v-model="search"
             class="data-table-search"
             prepend-inner-icon="tabler-search"
             :placeholder="$t('pages.contracts.allContracts.allContracts.searchContracts')"
+            density="compact"
+            clearable
+            hide-details
+          />
+        </VCol>
+        <VCol
+          v-if="contractAudience === 'customers'"
+          cols="12"
+          md="3"
+        >
+          <VSelect
+            v-model="serviceFilterId"
+            :items="serviceFilterOptions"
+            :label="$t('common.navigation.services')"
             density="compact"
             clearable
             hide-details
@@ -760,20 +716,11 @@ watch([selectedServiceId, isWithoutService], () => fetchContracts(contractReques
       <template #item.counterparty="{ item }">
         {{ item.counterparty || $t('pages.contracts.allContracts.allContracts.unknownCounterparty') }}
       </template>
-      <template
-        v-if="hasRelatedServices"
-        #item.service="{ item }"
-      >
-        {{ item.service?.name || item.service?.type || '—' }}
+      <template #item.service="{ item }">
+        {{ item.services?.map((line: ContractServiceLine) => line.service?.name || line.service?.type).filter(Boolean).join(', ') || '—' }}
       </template>
       <template #item.start_date="{ item }">
         {{ formatLocalizedDate(item.start_date) }}
-      </template>
-      <template #item.end_date="{ item }">
-        <ContractExpiryDate
-          :end-date="item.end_date"
-          :status="item.status"
-        />
       </template>
       <template #item.status="{ item }">
         <VChip
@@ -804,22 +751,6 @@ watch([selectedServiceId, isWithoutService], () => fetchContracts(contractReques
             location="top"
           >
             {{ $t('pages.contracts.allContracts.allContracts.cancelContract') }}
-          </VTooltip>
-        </VBtn>
-        <VBtn
-          v-if="!item.is_cancelled && ['active', 'expired'].includes(item.status) && !hasCurrentRenewal(item)"
-          icon="tabler-refresh"
-          variant="text"
-          size="small"
-          class="me-2"
-          color="primary"
-          @click="requestRenewal(item)"
-        >
-          <VIcon icon="tabler-refresh" /><VTooltip
-            activator="parent"
-            location="top"
-          >
-            {{ $t('pages.contracts.allContracts.allContracts.continueAsRenewalDraft') }}
           </VTooltip>
         </VBtn>
         <VBtn
@@ -892,7 +823,8 @@ watch([selectedServiceId, isWithoutService], () => fetchContracts(contractReques
           :contract="selectedContract || undefined"
           :templates="templates"
           :audience="contractAudience"
-          :default-service-id="selectedServiceId"
+          :customer-id="customerIdQuery"
+          :default-service-ids="selectedServiceId ? [selectedServiceId] : null"
           @submit="handleFormSubmit"
           @cancel="isDialogVisible = false"
         />
@@ -925,76 +857,6 @@ watch([selectedServiceId, isWithoutService], () => fetchContracts(contractReques
           @click="confirmContractAction"
         >
           {{ pendingContractAction?.type === 'delete' ? $t('common.actions.delete') : $t('pages.contracts.allContracts.allContracts.cancelContract') }}
-        </VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
-
-  <VDialog
-    v-model="isRenewDialogVisible"
-    max-width="520px"
-  >
-    <VCard>
-      <VCardTitle class="d-flex align-center gap-2">
-        <VIcon icon="tabler-refresh" />
-        {{ $t('pages.contracts.allContracts.allContracts.continueContract') }}
-      </VCardTitle>
-      <VCardText>
-        <p class="mb-4">
-          {{ $t('pages.contracts.allContracts.allContracts.renewalDescription', { contract: contractToRenew ? contractName(contractToRenew) : '' }) }}
-        </p>
-        <VRow>
-          <VCol
-            cols="12"
-            sm="6"
-          >
-            <VTextField
-              v-model="renewalStartDate"
-              :label="$t('pages.contracts.allContracts.allContracts.renewalStartDate')"
-              type="date"
-              required
-            />
-          </VCol>
-          <VCol
-            cols="12"
-            sm="6"
-          >
-            <VTextField
-              v-model.number="renewalDurationMonths"
-              :label="$t('pages.contracts.allContracts.allContracts.durationMonths')"
-              type="number"
-              min="1"
-              max="600"
-              step="1"
-              required
-            />
-          </VCol>
-          <VCol cols="12">
-            <VTextField
-              :model-value="renewalEndDate"
-              :label="$t('pages.contracts.allContracts.allContracts.calculatedEndDate')"
-              type="date"
-              readonly
-            />
-          </VCol>
-        </VRow>
-      </VCardText>
-      <VCardActions class="justify-end px-4 pb-4">
-        <VBtn
-          variant="outlined"
-          color="secondary"
-          :disabled="isRenewing"
-          @click="isRenewDialogVisible = false"
-        >
-          {{ $t('common.actions.cancel') }}
-        </VBtn>
-        <VBtn
-          color="primary"
-          :loading="isRenewing"
-          :disabled="!renewalEndDate"
-          @click="confirmRenewal"
-        >
-          {{ $t('pages.contracts.allContracts.allContracts.createRenewalDraft') }}
         </VBtn>
       </VCardActions>
     </VCard>

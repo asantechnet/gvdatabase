@@ -6,6 +6,8 @@ export interface ContractTemplate {
   type: string | null
   contract_type_id: number | null
   type_slug: string | null
+  service_id: number | null
+  service?: { id: number; name?: string | null; type?: string | null } | null
   position_id: number | null
   cover_text: string | null
   content: string | null
@@ -26,6 +28,7 @@ export interface ContractTemplateVersion { id: number; country_id?: number | nul
 export interface ContractTemplateCreateData {
   name: string
   contract_type_id: number
+  service_id?: number | null
   position_id?: number | null
   policy_ids?: number[]
   cover_text?: string | null
@@ -41,11 +44,11 @@ export interface ContractTemplateUpdateData extends Partial<
 }
 
 const ContractTemplateApi = {
-  async getAll(): Promise<ContractTemplate[]> {
+  async getAll(params?: { service_ids?: number[]; contract_type_id?: number | null; include_generic?: boolean }): Promise<ContractTemplate[]> {
     const response = await api.get<{
       success: boolean
       data: ContractTemplate[]
-    }>('/contract-templates')
+    }>('/contract-templates', { params })
 
     return Array.isArray(response.data.data) ? response.data.data : []
   },
