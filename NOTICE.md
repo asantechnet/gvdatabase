@@ -262,3 +262,9 @@ Backend commit `e174ed2`, frontend commit (this session):
 - Test env note: suite needs MySQL on 127.0.0.1 (`laravel_test` + `testing`
   DBs); a user-level `mysqld` with its own datadir under `/tmp/opencode`
   was used here since the system service is not startable.
+- **Seeder fixup (2026-09-24, commit `db01c21`)**: `InvoiceSeeder` still used
+  the removed `Customer::services()` relation and crashed `db:seed` — it now
+  invoices the customer's active contract lines (`contract_service_id`).
+  `ContractSeeder`'s stale `expired` status became `completed`. Full
+  `migrate:fresh` + `db:seed` verified green including `EducationalSeeder`
+  (package issuance → contracts, bonus source from the contract line).
