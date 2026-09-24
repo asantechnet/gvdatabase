@@ -280,6 +280,10 @@ class ContractController extends Controller
         if (array_key_exists('service_ids', $data) || array_key_exists('service_lines', $data)) {
             $contract->contractServices()->delete();
             $lines = $this->normalizeServiceLines($data);
+            foreach ($lines as &$serviceLine) {
+                $serviceLine['applicant_id'] ??= $data['applicant_id'] ?? $contract->applicant_id;
+            }
+            unset($serviceLine);
             $this->persistContractServices($contract, $lines);
             $snapshot = $contract->snapshot_data ?? [];
             $snapshot['entity']['services'] = collect($lines)->map(fn (array $line) => [
@@ -529,6 +533,10 @@ class ContractController extends Controller
             $counterparty['label'] = $counterparty['fields']['counterparty'];
         }
         $serviceLines = $this->normalizeServiceLines($data, $fallbackServiceId);
+        foreach ($serviceLines as &$serviceLine) {
+            $serviceLine['applicant_id'] ??= $data['applicant_id'] ?? null;
+        }
+        unset($serviceLine);
         $design = ContractDocumentDesign::query()
             ->where('contract_type_id', $type?->id)
             ->where(fn ($query) => $query->where('service_id', $serviceLines[0]['service_id'] ?? null)->orWhereNull('service_id'))
