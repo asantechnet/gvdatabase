@@ -17,62 +17,70 @@ class InvoiceSeeder extends Seeder
             return;
         }
 
-        Customer::with('services.currency')->take(2)->get()->each(function (Customer $customer) use ($currency) {
-            if ($customer->services->isEmpty()) {
-                return;
-            }
+        Customer::with(['contractServices.service.currency', 'contractServices.currency', 'contractServices.contract'])
+            ->take(2)->get()->each(function (Customer $customer) use ($currency) {
+                $lines = $customer->contractServices->filter(fn ($line) =>
+                    $line->contract?->status === 'active' && ! $line->contract?->is_cancelled);
 
-            $subtotal = 0.0;
-            $pivotRows = [];
+                if ($lines->isEmpty()) {
+                    return;
+                }
 
-            foreach ($customer->services as $service) {
-                $serviceRate = max((float) ($service->currency?->rate ?? 1), 0.00000001);
-                $invoiceRate = max((float) $currency->rate, 0.00000001);
-                $convertedFee = round(
-                    ((float) $service->fee / $serviceRate) * $invoiceRate,
-                    $currency->decimal_places
-                );
-                $subtotal += $convertedFee;
+                $subtotal = 0.0;
+                $pivotRows = [];
 
-                $pivotRows[$service->id] = [
-                    'snapshot_name' => $service->type,
-                    'snapshot_service_fee' => $service->fee,
-                    'snapshot_service_currency_code' => $service->currency->code,
-                    'snapshot_service_currency_symbol' => $service->currency->symbol,
-                    'snapshot_service_rate' => $serviceRate,
-                    'snapshot_cnv_curr_shrt' => $currency->code,
-                    'snapshot_base_curr_shrt' => $currency->code,
-                    'snapshot_rate' => $invoiceRate,
-                    'snapshot_invoice_rate' => $invoiceRate,
-                    'snapshot_converted_fee' => $convertedFee,
-                    'quantity' => 1,
-                    'line_total' => $convertedFee,
-                ];
-            }
+                foreach ($lines as $line) {
+                    $service = $line->service;
+                    $sourceCurrency = $line->currency ?? $service?->currency;
+                    $serviceRate = max((float) ($sourceCurrency?->rate ?? 1), 0.00000001);
+                    $invoiceRate = max((float) $currency->rate, 0.00000001);
+                    $contractedFee = (float) ($line->fee ?? $service?->fee ?? 0);
+                    $convertedFee = round(
+                        ($contractedFee / $serviceRate) * $invoiceRate,
+                        $currency->decimal_places
+                    );
+                    $subtotal += $convertedFee;
 
-            $invoice = Invoice::create([
-                'customer_id' => $customer->id,
-                'currency_id' => $currency->id,
-                'base_currency_id' => $currency->id,
-                'deptor' => $customer->name,
-                'status' => 'Issued',
-                'tax_percent' => 0,
-                'currency_name' => $currency->name,
-                'currency_symbol' => $currency->symbol,
-                'currency_shortname' => $currency->code,
-                'cnv_curr_shrt' => $currency->code,
-                'base_curr_shrt' => $currency->code,
-                'rate' => 1,
-                'base_amount' => $subtotal,
-                'subtotal' => $subtotal,
-                'amount' => $subtotal,
-                'discount' => 0,
-                'notes' => 'Seeded invoice',
-                'payment_method' => 'Bank Transfer',
-                'payment_instructions' => [],
-            ]);
+                    $pivotRows[$service->id] = [
+                        'contract_service_id' => $line->id,
+                        'snapshot_name' => $service->type,
+                        'snapshot_service_fee' => $contractedFee,
+                        'snapshot_service_currency_code' => $sourceCurrency->code,
+                        'snapshot_service_currency_symbol' => $sourceCurrency->symbol,
+                        'snapshot_service_rate' => $serviceRate,
+                        'snapshot_cnv_curr_shrt' => $currency->code,
+                        'snapshot_base_curr_shrt' => $currency->code,
+                        'snapshot_rate' => $invoiceRate,
+                        'snapshot_invoice_rate' => $invoiceRate,
+                        'snapshot_converted_fee' => $convertedFee,
+                        'quantity' => 1,
+                        'line_total' => $convertedFee,
+                    ];
+                }
 
-            $invoice->services()->attach($pivotRows);
-        });
+                $invoice = Invoice::create([
+                    'customer_id' => $customer->id,
+                    'currency_id' => $currency->id,
+                    'base_currency_id' => $currency->id,
+                    'deptor' => $customer->name,
+                    'status' => 'Issued',
+                    'tax_percent' => 0,
+                    'currency_name' => $currency->name,
+                    'currency_symbol' => $currency->symbol,
+                    'currency_shortname' => $currency->code,
+                    'cnv_curr_shrt' => $currency->code,
+                    'base_curr_shrt' => $currency->code,
+                    'rate' => 1,
+                    'base_amount' => $subtotal,
+                    'subtotal' => $subtotal,
+                    'amount' => $subtotal,
+                    'discount' => 0,
+                    'notes' => 'Seeded invoice',
+                    'payment_method' => 'Bank Transfer',
+                    'payment_instructions' => [],
+                ]);
+
+                $invoice->services()->attach($pivotRows);
+            });
     }
 }

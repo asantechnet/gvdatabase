@@ -23,7 +23,7 @@ class ContractSeeder extends Seeder
             [
                 'contract' => 'Maintenance Contract',
                 'start_date' => '2023-03-15',
-                'status' => 'expired',
+                'status' => 'completed',
                 'counterparty' => 'Globex',
                 'is_cancelled' => true
             ],
