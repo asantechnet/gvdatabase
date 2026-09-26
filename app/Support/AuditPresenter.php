@@ -9,7 +9,6 @@ use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\Currency;
-use App\Models\Customer;
 use App\Models\CustomerPackage;
 use App\Models\Employee;
 use App\Models\Invoice;
@@ -46,7 +45,6 @@ final class AuditPresenter
         'requested_by' => User::class,
         'granted_by' => User::class,
         'quality_reviewed_by' => User::class,
-        'customer_id' => Customer::class,
         'invoice_id' => Invoice::class,
         'currency_id' => Currency::class,
         'office_id' => Office::class,
@@ -143,7 +141,6 @@ final class AuditPresenter
         return match ($field) {
             'staff_id', 'employee_id' => 'employee',
             'user_id', 'requested_by', 'granted_by', 'quality_reviewed_by' => 'user',
-            'customer_id' => 'customer',
             'invoice_id' => 'invoice',
             'currency_id' => 'currency',
             'office_id' => 'office',

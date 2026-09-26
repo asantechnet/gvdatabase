@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Applicant;
-use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Package;
 use App\Services\EducationalWorkflowNotificationService;
@@ -73,8 +72,7 @@ class PackageController extends Controller
     public function issue(Request $request, Package $package, PackageIssuanceService $issuer, EducationalWorkflowNotificationService $notifications)
     {
         $data = $request->validate([
-            'customer_id' => ['required', 'integer', 'exists:customers,id'],
-            'applicant_id' => ['nullable', 'integer', 'exists:applicants,id'],
+            'applicant_id' => ['required', 'integer', 'exists:applicants,id'],
             'sold_by_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
             'fee' => ['nullable', 'numeric', 'gte:0'],
@@ -84,11 +82,9 @@ class PackageController extends Controller
         if (! $request->user()->isSuperAdmin() && array_intersect($request->user()->roleNames(), ['admin', 'manager']) === []) {
             $ownEmployeeId = Employee::query()->where('user_id', $request->user()->id)->value('id');
             abort_unless($ownEmployeeId && (int) ($data['sold_by_employee_id'] ?? 0) === (int) $ownEmployeeId, 403, 'auth.forbidden');
-            if (! empty($data['applicant_id'])) {
-                abort_unless(Applicant::query()->whereKey($data['applicant_id'])->where('responsible_employee_id', $ownEmployeeId)->exists(), 403, 'auth.forbidden');
-            }
+            abort_unless(Applicant::query()->whereKey($data['applicant_id'])->where('responsible_employee_id', $ownEmployeeId)->exists(), 403, 'auth.forbidden');
         }
-        $purchase = $issuer->issue($package, Customer::findOrFail($data['customer_id']), $data);
+        $purchase = $issuer->issue($package, Applicant::findOrFail($data['applicant_id']), $data);
         $notifications->packageIssued($purchase, $request->user()?->id);
 
         return response()->json(['success' => true, 'data' => $purchase], 201);

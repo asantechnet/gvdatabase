@@ -54,7 +54,7 @@ class ExpenseController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'customer_id' => 'nullable|exists:customers,id',
+            'applicant_id' => 'nullable|exists:applicants,id',
             'company_id' => 'nullable|exists:companies,id',
             'project_id' => 'nullable|exists:projects,id',
             'type' => 'required|string|max:255',
@@ -89,7 +89,7 @@ class ExpenseController extends Controller
             throw ValidationException::withMessages(['expense' => ['business.salary_expense_managed_by_payroll']]);
         }
         $validator = Validator::make($request->all(), [
-            'customer_id' => 'nullable|exists:customers,id',
+            'applicant_id' => 'nullable|exists:applicants,id',
             'company_id' => 'nullable|exists:companies,id',
             'project_id' => 'nullable|exists:projects,id',
             'type' => 'sometimes|string|max:255',

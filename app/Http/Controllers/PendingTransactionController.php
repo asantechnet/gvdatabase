@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Currency;
 use App\Models\Applicant;
-use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
@@ -21,7 +20,7 @@ class PendingTransactionController extends Controller
 {
     public function index(Request $request)
     {
-        $query = PendingTransaction::with(['currency', 'requester', 'approver', 'customer', 'applicant', 'employee']);
+        $query = PendingTransaction::with(['currency', 'requester', 'approver', 'applicant', 'employee']);
         if (! $request->user()->hasPermission('approve_pending_transactions') && ! $request->user()->hasPermission('post_pending_transactions')) {
             $query->where('requested_by', $request->user()->id);
         }
@@ -36,11 +35,8 @@ class PendingTransactionController extends Controller
 
         return response()->json(['success' => true, 'data' => [
             'currencies' => Currency::query()->where('is_active', true)->orderBy('code')->get(['id', 'name', 'code', 'symbol', 'is_base']),
-            'customers' => Customer::query()
-                ->when(! $isManager, fn ($query) => $query->whereHas('applicants', fn ($applicants) => $applicants->where('responsible_employee_id', $ownEmployeeId)))
-                ->orderBy('name')->get(['id', 'name']),
             'employees' => Employee::query()->when(! $isManager, fn ($query) => $query->whereKey($ownEmployeeId))->orderBy('name')->get(['id', 'name']),
-            'applicants' => Applicant::query()->when(! $isManager, fn ($query) => $query->where('responsible_employee_id', $ownEmployeeId))->with('customer:id,name')->latest()->get(['id', 'customer_id']),
+            'applicants' => Applicant::query()->when(! $isManager, fn ($query) => $query->where('responsible_employee_id', $ownEmployeeId))->latest()->get(['id', 'name']),
         ]]);
     }
 
@@ -108,8 +104,8 @@ class PendingTransactionController extends Controller
             $common = ['currency_id' => $currency->id, 'base_currency_id' => $baseCurrency->id, 'rate' => $rate, 'base_amount' => $pending->amount / $rate, 'recorded_by' => $request->user()->id];
 
             $record = match ($pending->transaction_type) {
-                'income' => Income::create([...$common, 'pending_transaction_id' => $pending->id, 'customer_id' => $pending->customer_id, 'applicant_id' => $pending->applicant_id, 'employee_id' => $pending->employee_id, 'type' => 'Other', 'description' => $pending->reason, 'amount' => $pending->amount, 'quantity' => 1, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $baseCurrency->code, 'date' => now()->toDateString()]),
-                'expense' => Expense::create([...$common, 'pending_transaction_id' => $pending->id, 'customer_id' => $pending->customer_id, 'applicant_id' => $pending->applicant_id, 'employee_id' => $pending->employee_id, 'currency' => $currency->code, 'type' => 'Pending transaction', 'description' => $pending->reason, 'amount' => $pending->amount, 'quantity' => 1, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $baseCurrency->code, 'date' => now()->toDateString()]),
+                'income' => Income::create([...$common, 'pending_transaction_id' => $pending->id, 'applicant_id' => $pending->applicant_id, 'employee_id' => $pending->employee_id, 'type' => 'Other', 'description' => $pending->reason, 'amount' => $pending->amount, 'quantity' => 1, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $baseCurrency->code, 'date' => now()->toDateString()]),
+                'expense' => Expense::create([...$common, 'pending_transaction_id' => $pending->id, 'applicant_id' => $pending->applicant_id, 'employee_id' => $pending->employee_id, 'currency' => $currency->code, 'type' => 'Pending transaction', 'description' => $pending->reason, 'amount' => $pending->amount, 'quantity' => 1, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $baseCurrency->code, 'date' => now()->toDateString()]),
                 'salary' => Salary::create(['employee_id' => $pending->employee_id, 'pending_transaction_id' => $pending->id, ...$common, 'currency_code' => $currency->code, 'currency_name' => $currency->name, 'currency_symbol' => $currency->symbol, 'currency_decimal_places' => $currency->decimal_places, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $baseCurrency->code, 'salary_month' => now()->startOfMonth()->toDateString(), 'amount_paid' => $pending->amount, 'total_amount' => $pending->amount, 'total_days' => 0, 'remarks' => $pending->reason, 'payment_date' => now()->toDateString()]),
             };
 
@@ -137,7 +133,7 @@ class PendingTransactionController extends Controller
         $presence = $partial ? 'sometimes' : 'required';
         $data = $request->validate([
             'transaction_type' => [$presence, 'in:income,expense,salary'], 'reason' => [$presence, 'string', 'max:5000'], 'amount' => [$presence, 'numeric', 'gt:0'],
-            'currency_id' => [$presence, 'exists:currencies,id'], 'customer_id' => ['nullable', 'exists:customers,id'], 'applicant_id' => ['nullable', 'exists:applicants,id'], 'employee_id' => ['nullable', 'exists:employees,id'],
+            'currency_id' => [$presence, 'exists:currencies,id'], 'applicant_id' => ['nullable', 'exists:applicants,id'], 'employee_id' => ['nullable', 'exists:employees,id'],
         ]);
 
         if (! $this->isManager($request)) {
@@ -149,19 +145,15 @@ class PendingTransactionController extends Controller
             if (isset($data['applicant_id'])) {
                 abort_unless(Applicant::query()->whereKey($data['applicant_id'])->where('responsible_employee_id', $ownEmployeeId)->exists(), 403, 'auth.forbidden');
             }
-            if (isset($data['customer_id'])) {
-                abort_unless(Applicant::query()->where('customer_id', $data['customer_id'])->where('responsible_employee_id', $ownEmployeeId)->exists(), 403, 'auth.forbidden');
-            }
         }
         $type = $data['transaction_type'] ?? $request->route('pendingTransaction')?->transaction_type;
         if ($type === 'salary' && ! ($data['employee_id'] ?? $request->route('pendingTransaction')?->employee_id)) throw ValidationException::withMessages(['employee_id' => ['Salary requires an employee.']]);
-        if (isset($data['applicant_id'], $data['customer_id']) && ! Applicant::whereKey($data['applicant_id'])->where('customer_id', $data['customer_id'])->exists()) throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
-        // Plan §21: customer-specific operational expenses require an active
-        // contract. Income (customer payments) and salary are exempt — money
-        // in and payroll must flow regardless of contract state.
-        $customerId = $data['customer_id'] ?? ($partial ? $request->route('pendingTransaction')?->customer_id : null);
+        // Plan §21: applicant-specific operational expenses require an active
+        // contract. Income (payments in) and salary are exempt — money in and
+        // payroll must flow regardless of contract state.
+        $applicantId = $data['applicant_id'] ?? ($partial ? $request->route('pendingTransaction')?->applicant_id : null);
         if ($type === 'expense') {
-            app(ActiveContractService::class)->requireActiveContractForExpense($customerId);
+            app(ActiveContractService::class)->requireActiveContractForExpense($applicantId);
         }
 
         return $data;

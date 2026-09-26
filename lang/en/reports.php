@@ -16,7 +16,7 @@ return [
         'bonuses' => 'Bonuses',
         'attendance' => 'Attendance, working hours and overtime',
         'contracts' => 'Contracts',
-        'customers' => 'Customers',
+        'applicants' => 'Applicants',
         'visitors' => 'Visitors',
         'tasks' => 'Tasks and employee performance inputs',
         'asset_assets' => 'Asset and assets',
@@ -27,7 +27,7 @@ return [
         'companies' => 'Companies',
     ],
     'columns' => [
-        'number' => 'Number', 'date' => 'Date', 'customer' => 'Customer', 'status' => 'Status',
+        'number' => 'Number', 'date' => 'Date', 'applicant' => 'Applicant', 'status' => 'Status',
         'amount' => 'Amount', 'currency' => 'Currency', 'rate_to_base' => 'Rate to base', 'base_amount' => 'Base amount',
         'paid_base' => 'Paid (base)', 'outstanding_base' => 'Outstanding (base)', 'reference' => 'Reference',
         'type' => 'Type', 'description' => 'Description', 'quantity' => 'Quantity', 'income_base' => 'Income (base)',

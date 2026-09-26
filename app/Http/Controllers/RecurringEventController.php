@@ -97,7 +97,7 @@ class RecurringEventController extends Controller
             'payload.due_date' => ['nullable', 'date'],
             'payload.assignees' => ['sometimes', 'array'],
             'payload.assignees.*' => ['integer', 'distinct', Rule::exists('users', 'id')->whereNull('deleted_at')->where('acc_status', 'active')],
-            'payload.customer_id' => ['nullable', 'exists:customers,id'],
+            'payload.applicant_id' => ['nullable', 'exists:applicants,id'],
             'payload.company_id' => ['nullable', 'exists:companies,id'],
             'payload.project_id' => ['nullable', 'exists:projects,id'],
         ];

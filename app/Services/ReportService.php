@@ -125,7 +125,7 @@ class ReportService
             $paidBase = min($amountBase, $this->currentBaseAmount($paidInvoiceAmount, $invoice->currency));
             return [
                 'number' => $invoice->invoice_number, 'date' => $invoice->created_at?->toDateString(),
-                'customer' => $invoice->applicant?->name ?? $invoice->deptor, 'status' => $invoice->status,
+                'applicant' => $invoice->applicant?->name ?? $invoice->deptor, 'status' => $invoice->status,
                 'amount' => (float) $invoice->amount, 'currency' => $invoice->currency_shortname,
                 'base_currency' => $base?->code ?? 'BASE', 'rate' => (float) ($invoice->currency?->rate ?? 0), 'base_amount' => round($amountBase, 4),
                 'paid_base' => round($paidBase, 4), 'outstanding_base' => round(max(0, $amountBase - $paidBase), 4),
@@ -139,14 +139,14 @@ class ReportService
         $netBase = $this->netByBaseCurrency($incomeBase, $expenseBase);
 
         $sections = [
-            $this->section('invoices', ['number', 'date', 'customer', 'status', 'amount', 'currency', 'base_currency', 'rate', 'base_amount', 'paid_base', 'outstanding_base'], $invoices, [
+            $this->section('invoices', ['number', 'date', 'applicant', 'status', 'amount', 'currency', 'base_currency', 'rate', 'base_amount', 'paid_base', 'outstanding_base'], $invoices, [
                 'count' => $invoices->count(), 'base_amount_by_base' => $invoiceBase,
                 'outstanding_by_base' => $this->byBaseCurrency($invoices, 'outstanding_base'), 'by_currency' => $this->byCurrency($invoices),
             ]),
-            $this->section('income', ['date', 'reference', 'customer', 'type', 'description', 'amount', 'quantity', 'currency', 'base_currency', 'rate', 'base_amount'], $income, [
+            $this->section('income', ['date', 'reference', 'applicant', 'type', 'description', 'amount', 'quantity', 'currency', 'base_currency', 'rate', 'base_amount'], $income, [
                 'count' => $income->count(), 'base_amount_by_base' => $incomeBase, 'by_currency' => $this->byCurrency($income),
             ]),
-            $this->section('expenses', ['date', 'customer', 'type', 'description', 'amount', 'quantity', 'currency', 'base_currency', 'rate', 'base_amount'], $expenses, [
+            $this->section('expenses', ['date', 'applicant', 'type', 'description', 'amount', 'quantity', 'currency', 'base_currency', 'rate', 'base_amount'], $expenses, [
                 'count' => $expenses->count(), 'base_amount_by_base' => $expenseBase, 'by_currency' => $this->byCurrency($expenses),
             ]),
             $this->section('net_cash_flow', ['income_base', 'expense_base', 'net_base'], collect([[
@@ -377,12 +377,12 @@ class ReportService
                 ->when($filters['applicant_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('contract', fn ($contracts) => $contracts->where('applicant_id', $id)))
                 ->when($filters['status'] ?? null, fn (Builder $q, $status) => $q->whereHas('contract', fn ($contracts) => $contracts->where('status', $status)))
                 ->latest('contract_service.id')->get()->map(fn (ContractService $row) => [
-                    'customer' => $row->contract?->applicant?->company ?: $row->contract?->applicant?->name,
+                    'applicant' => $row->contract?->applicant?->company ?: $row->contract?->applicant?->name,
                     'service' => $row->service?->type, 'status' => $row->contract?->status,
                     'fee' => $row->fee === null ? null : (float) $row->fee,
                     'currency' => $row->currency?->code,
                 ]);
-            $sections[] = $this->section('contract_services', ['customer', 'service', 'status', 'fee', 'currency'], $services, [
+            $sections[] = $this->section('contract_services', ['applicant', 'service', 'status', 'fee', 'currency'], $services, [
                 'commitments' => $services->count(), 'active' => $services->where('status', 'active')->count(),
             ]);
         }
@@ -438,7 +438,7 @@ class ReportService
         $currency = $row instanceof Income ? $row->incomeCurrency : $row->expenseCurrency;
         return [
             'date' => $row->date?->format('Y-m-d'), 'reference' => $row instanceof Income ? $row->receipt_number : null,
-            'customer' => $row->applicant?->name, 'type' => $row->type, 'description' => $row->description,
+            'applicant' => $row->applicant?->name, 'type' => $row->type, 'description' => $row->description,
             'amount' => (float) $row->amount, 'quantity' => (int) $row->quantity,
             'currency' => $currency?->code ?? $row->cnv_curr_shrt ?? 'UNK',
             'base_currency' => $base?->code ?? 'BASE',

@@ -8,7 +8,6 @@ use App\Models\ContractService;
 use App\Models\ContractType;
 use App\Models\Country;
 use App\Models\Currency;
-use App\Models\Customer;
 use App\Models\EducationLevel;
 use App\Models\Employee;
 use App\Models\Language;
@@ -25,7 +24,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * Scholarship / test-offer sales workspace.
  *
- * Every sale is a customer contract under the hood: this controller reads and
+ * Every sale is a contract under the hood: this controller reads and
  * writes `contract_service` lines (joined to their parent contract) and
  * presents them in the historical per-sale shape the workspace UI consumes.
  */
@@ -57,26 +56,23 @@ class EducationalServiceController extends Controller
     public function options(Request $request)
     {
         $employeeQuery = Employee::query()->orderBy('name');
-        $applicantQuery = Applicant::query()->with('customer:id,name')->latest();
-        $contractQuery = Contract::query()->whereNotNull('employee_id')->whereNotNull('customer_id')->latest();
+        $applicantQuery = Applicant::query()->latest();
+        $contractQuery = Contract::query()->whereNotNull('employee_id')->whereNotNull('applicant_id')->latest();
         if (! $this->canViewAll($request)) {
             $employeeQuery->where('user_id', $request->user()->id);
             $applicantQuery->whereHas('responsibleEmployee', fn ($employee) => $employee->where('user_id', $request->user()->id));
             $contractQuery->whereHas('employee', fn ($employee) => $employee->where('user_id', $request->user()->id));
         }
-        $customerIds = (clone $applicantQuery)->pluck('customer_id');
-
         return response()->json(['success' => true, 'data' => [
-            'customers' => Customer::query()->when(! $this->canViewAll($request), fn ($query) => $query->whereIn('id', $customerIds))->orderBy('name')->get(['id', 'name']),
             'employees' => $employeeQuery->get(['id', 'name']),
-            'applicants' => $applicantQuery->get(['id', 'customer_id']),
+            'applicants' => $applicantQuery->get(['id', 'name']),
             'currencies' => Currency::query()->where('is_active', true)->orderBy('code')->get(['id', 'name', 'code', 'symbol', 'is_base']),
             'package_types' => Package::query()->with('services:id,type,category')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'fee', 'currency_id']),
             'services' => Service::query()->where('status', 'active')->whereIn('category', ['scholarship', 'test_offer'])->orderBy('type')->get(['id', 'type', 'category', 'fee', 'currency_id']),
             'countries' => Country::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'education_levels' => EducationLevel::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
             'languages' => Language::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'contracts' => $contractQuery->get(['id', 'contract_number', 'name', 'employee_id', 'customer_id', 'applicant_id']),
+            'contracts' => $contractQuery->get(['id', 'contract_number', 'name', 'employee_id', 'applicant_id']),
         ]]);
     }
 
@@ -88,8 +84,8 @@ class EducationalServiceController extends Controller
         if (! empty($data['package_id'])) {
             abort_unless($request->user()->hasPermission('issue_packages'), 403, 'auth.forbidden');
             $package = Package::query()->whereHas('services', fn ($query) => $query->where('category', $this->category($type)))->findOrFail($data['package_id']);
-            $purchase = $this->packages->issue($package, Customer::findOrFail($data['customer_id']), [
-                'applicant_id' => $data['applicant_id'] ?? null,
+            $purchase = $this->packages->issue($package, Applicant::findOrFail($data['applicant_id']), [
+                'applicant_id' => $data['applicant_id'],
                 'sold_by_employee_id' => $data['sold_by_employee_id'],
                 'currency_id' => $data['currency_id'] ?? $package->currency_id,
                 'fee' => $data['fee'] ?? $package->fee,
@@ -111,22 +107,23 @@ class EducationalServiceController extends Controller
                             'category' => $this->category($type), 'fee' => $data['fee'],
                             'status' => 'active', 'currency_id' => $data['currency_id'],
                         ]);
-                $customer = Customer::findOrFail($data['customer_id']);
+                $applicant = Applicant::findOrFail($data['applicant_id']);
                 $contract = Contract::create([
+                    // The 'customer' contract-type slug is frozen vocabulary
+                    // shared with the contract-templates work (see warning.md).
                     'contract_type_id' => ContractType::query()->where('slug', 'customer')->value('id'),
-                    'customer_id' => $customer->id,
-                    'applicant_id' => $data['applicant_id'] ?? null,
+                    'applicant_id' => $applicant->id,
                     'sold_by_employee_id' => $data['sold_by_employee_id'],
                     'marketer_id' => $data['sold_by_employee_id'],
                     'name' => $service->type,
                     'type' => 'Customer',
                     'status' => $this->normalizeStatus($data['status'] ?? 'active'),
                     'start_date' => $data['sold_at'],
-                    'counterparty' => $customer->name,
-                    'counterparty_company' => $customer->company,
-                    'counterparty_email' => $customer->email,
-                    'counterparty_contact' => $customer->contact,
-                    'counterparty_address' => $customer->address,
+                    'counterparty' => $applicant->name,
+                    'counterparty_company' => $applicant->company,
+                    'counterparty_email' => $applicant->email,
+                    'counterparty_contact' => $applicant->contact,
+                    'counterparty_address' => $applicant->address,
                     'content' => '',
                     'is_custom' => true,
                     'snapshot_data' => ['entity' => ['sold_via' => 'educational_workspace']],
@@ -210,7 +207,7 @@ class EducationalServiceController extends Controller
 
     private function relations(): array
     {
-        return ['service.currency', 'contract.customer:id,name', 'contract:id,customer_id,applicant_id,status,start_date', 'applicant:id,customer_id', 'applicant.customer:id,name', 'soldByEmployee:id,name',
+        return ['service.currency', 'contract.applicant:id,name', 'contract:id,applicant_id,status,start_date', 'applicant:id,name', 'soldByEmployee:id,name',
             'currency:id,name,code,symbol', 'customerPackage.package:id,name', 'country:id,name', 'educationLevel:id,name', 'language:id,name', 'bonusSource'];
     }
 
@@ -222,16 +219,16 @@ class EducationalServiceController extends Controller
     private function present(ContractService $record): array
     {
         $contract = $record->contract;
-        $customer = $contract?->customer ?? $record->applicant?->customer;
+        $applicant = $contract?->applicant ?? $record->applicant;
 
         return [
-            'id' => $record->id, 'customer_id' => $contract?->customer_id, 'applicant_id' => $record->applicant_id,
+            'id' => $record->id, 'applicant_id' => $record->applicant_id ?? $contract?->applicant_id,
             'service_id' => $record->service_id, 'service' => $record->service, 'employee_id' => $record->sold_by_employee_id,
             'currency_id' => $record->currency_id ?? $record->service->currency_id,
             'package_type_id' => $record->customerPackage?->package_id,
             'date' => $contract?->start_date?->toDateString() ?? $record->created_at->toDateString(),
             'fee' => $record->fee ?? $record->service->fee, 'status' => $contract?->status ?? 'active',
-            'customer' => $customer, 'applicant' => $record->applicant, 'employee' => $record->soldByEmployee,
+            'applicant' => $applicant, 'employee' => $record->soldByEmployee,
             'currency' => $record->currency ?? $record->service->currency, 'package_type' => $record->customerPackage?->package,
             'country' => $record->country, 'education_level' => $record->educationLevel, 'language' => $record->language,
             'country_id' => $record->country_id, 'education_level_id' => $record->education_level_id, 'language_id' => $record->language_id,
@@ -280,7 +277,7 @@ class EducationalServiceController extends Controller
     {
         $presence = $partial ? 'sometimes' : 'required';
         $data = $request->validate([
-            'customer_id' => [$presence, 'integer', 'exists:customers,id'], 'applicant_id' => ['nullable', 'integer', 'exists:applicants,id'],
+            'applicant_id' => [$presence, 'integer', 'exists:applicants,id'],
             'service_id' => ['nullable', 'integer', Rule::exists('services', 'id')->where('category', $this->category($type))->where('status', 'active')->whereNull('deleted_at')],
             'employee_id' => [$presence, 'integer', 'exists:employees,id'], 'sold_by_employee_id' => ['sometimes', 'integer', 'exists:employees,id'],
             'currency_id' => [$presence, 'integer', 'exists:currencies,id'], 'package_type_id' => ['nullable', 'integer', 'exists:package_types,id'],
@@ -296,11 +293,7 @@ class EducationalServiceController extends Controller
         $data['package_id'] = $data['package_id'] ?? $data['package_type_id'] ?? null;
         unset($data['employee_id'], $data['date'], $data['package_type_id']);
 
-        $customerId = $data['customer_id'] ?? $record?->contract?->customer_id;
         $applicantId = array_key_exists('applicant_id', $data) ? $data['applicant_id'] : $record?->applicant_id;
-        if ($applicantId && ! Applicant::query()->whereKey($applicantId)->where('customer_id', $customerId)->exists()) {
-            throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
-        }
         if ($applicantId) {
             $case = Applicant::findOrFail($applicantId);
             foreach (['country_id', 'education_level_id', 'language_id'] as $field) {

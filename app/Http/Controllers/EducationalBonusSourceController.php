@@ -15,7 +15,7 @@ class EducationalBonusSourceController extends Controller
     public function index()
     {
         return response()->json(['success' => true, 'data' => EducationalBonusSource::query()
-            ->with(['employee:id,name', 'customer:id,name', 'applicant.customer:id,name', 'source'])
+            ->with(['employee:id,name', 'applicant:id,name', 'source'])
             ->latest()
             ->get()]);
     }
@@ -61,6 +61,6 @@ class EducationalBonusSourceController extends Controller
 
     private function load(EducationalBonusSource $bonus): EducationalBonusSource
     {
-        return $bonus->load(['employee:id,name', 'customer:id,name', 'applicant.customer:id,name', 'source']);
+        return $bonus->load(['employee:id,name', 'applicant:id,name', 'source']);
     }
 }

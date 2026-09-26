@@ -101,7 +101,7 @@ class EducationalReportController extends Controller
 
     private function applicantScope(array $filters)
     {
-        $query = Applicant::query()->with(['customer:id,name', 'responsibleEmployee:id,name', 'country:id,name', 'university:id,name', 'educationLevel:id,name', 'language:id,name', 'currentStage:id,name,key']);
+        $query = Applicant::query()->with(['responsibleEmployee:id,name', 'country:id,name', 'university:id,name', 'educationLevel:id,name', 'language:id,name', 'currentStage:id,name,key']);
         foreach (['responsible_employee_id', 'country_id', 'university_id', 'education_level_id', 'language_id'] as $field) {
             if (! empty($filters[$field])) {
                 $query->where($field, $filters[$field]);
@@ -128,10 +128,10 @@ class EducationalReportController extends Controller
 
     private function applicantReport(array $filters, bool $paginate, Request $request): array
     {
-        $columns = ['id', 'customer', 'employee', 'country', 'university', 'education_level', 'language', 'stage', 'status', 'application_date'];
+        $columns = ['id', 'applicant', 'employee', 'country', 'university', 'education_level', 'language', 'stage', 'status', 'application_date'];
         $map = fn (Applicant $a) => [
             'id' => $a->id,
-            'customer' => $a->customer?->name ?? "Customer #{$a->customer_id}",
+            'applicant' => $a->name ?: "Applicant #{$a->id}",
             'employee' => $a->responsibleEmployee?->name ?? 'Unassigned',
             'country' => $a->country?->name ?? '—',
             'university' => $a->university?->name ?? '—',
@@ -185,7 +185,7 @@ class EducationalReportController extends Controller
     private function serviceQuery(string $category, array $filters)
     {
         $query = ContractService::query()->whereHas('service', fn ($service) => $service->where('category', $category))
-            ->with(['service:id,type,category,fee,currency_id', 'contract.customer:id,name', 'soldByEmployee:id,name', 'country:id,name', 'educationLevel:id,name', 'customerPackage.package:id,name', 'applicant.country:id,name', 'applicant.educationLevel:id,name', 'contract:id,customer_id,status,start_date']);
+            ->with(['service:id,type,category,fee,currency_id', 'contract.applicant:id,name', 'soldByEmployee:id,name', 'country:id,name', 'educationLevel:id,name', 'customerPackage.package:id,name', 'applicant.country:id,name', 'applicant.educationLevel:id,name', 'contract:id,applicant_id,status,start_date']);
         $employee = $filters['employee_id'] ?? $filters['responsible_employee_id'] ?? null;
         if ($employee) {
             $query->where('sold_by_employee_id', $employee);
@@ -213,14 +213,13 @@ class EducationalReportController extends Controller
 
     private function salesReport(array $filters, bool $paginate, Request $request): array
     {
-        $columns = ['id', 'service', 'customer', 'applicant_id', 'employee', 'country', 'education_level', 'package_type', 'fee', 'currency', 'date', 'status'];
+        $columns = ['id', 'service', 'applicant', 'employee', 'country', 'education_level', 'package_type', 'fee', 'currency', 'date', 'status'];
         $codes = DB::table('currencies')->pluck('code', 'id');
         $collect = function ($items, string $service) use ($codes) {
             return $items->map(fn ($s) => [
                 'id' => $s->id,
                 'service' => $service,
-                'customer' => $s->contract?->customer?->name ?? "Customer #{$s->contract?->customer_id}",
-                'applicant_id' => $s->applicant_id ?? '',
+                'applicant' => $s->contract?->applicant?->name ?? $s->applicant?->name ?? "Applicant #{$s->applicant_id}",
                 'country' => $s->country?->name ?? $s->applicant?->country?->name ?? '—',
                 'education_level' => $s->educationLevel?->name ?? $s->applicant?->educationLevel?->name ?? '—',
                 'package_type' => $s->customerPackage?->package?->name ?? '—',
@@ -251,8 +250,8 @@ class EducationalReportController extends Controller
 
     private function contractReport(array $filters, bool $paginate, Request $request): array
     {
-        $columns = ['id', 'contract_number', 'contract_type', 'template', 'version', 'language', 'employee', 'customer', 'applicant_id', 'status', 'start_date'];
-        $query = Contract::query()->with(['contractType:id,name', 'template:id,name', 'templateVersion.language:id,name', 'employee:id,name', 'customer:id,name'])
+        $columns = ['id', 'contract_number', 'contract_type', 'template', 'version', 'language', 'employee', 'applicant', 'status', 'start_date'];
+        $query = Contract::query()->with(['contractType:id,name', 'template:id,name', 'templateVersion.language:id,name', 'employee:id,name', 'applicant:id,name'])
             ->when(! empty($filters['contract_type_id']), fn ($q) => $q->where('contract_type_id', $filters['contract_type_id']))
             ->when(! empty($filters['employee_id']), fn ($q) => $q->where('employee_id', $filters['employee_id']))
             ->when(! empty($filters['language_id']), fn ($q) => $q->whereHas('templateVersion', fn ($vq) => $vq->where('language_id', $filters['language_id'])))
@@ -260,7 +259,7 @@ class EducationalReportController extends Controller
             ->when(! empty($filters['date_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['date_from']))
             ->when(! empty($filters['date_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['date_to']))
             ->latest();
-        $map = fn (Contract $c) => ['id' => $c->id, 'contract_number' => $c->contract_number ?? "Contract #{$c->id}", 'contract_type' => $c->contractType?->name ?? '—', 'template' => $c->template?->name ?? '—', 'version' => $c->templateVersion?->version_number ?? 'Legacy', 'language' => $c->templateVersion?->language?->name ?? '—', 'employee' => $c->employee?->name ?? '—', 'customer' => $c->customer?->name ?? '—', 'applicant_id' => $c->applicant_id ?? '', 'status' => $c->status, 'start_date' => $c->start_date?->format('Y-m-d') ?? ''];
+        $map = fn (Contract $c) => ['id' => $c->id, 'contract_number' => $c->contract_number ?? "Contract #{$c->id}", 'contract_type' => $c->contractType?->name ?? '—', 'template' => $c->template?->name ?? '—', 'version' => $c->templateVersion?->version_number ?? 'Legacy', 'language' => $c->templateVersion?->language?->name ?? '—', 'employee' => $c->employee?->name ?? '—', 'applicant' => $c->applicant?->name ?? '—', 'status' => $c->status, 'start_date' => $c->start_date?->format('Y-m-d') ?? ''];
         if (! $paginate) {
             return ['columns' => $columns, 'rows' => $query->limit(5000)->get()->map($map)->all(), 'total' => $query->count()];
         }
@@ -292,7 +291,7 @@ class EducationalReportController extends Controller
 
     private function financialReport(array $filters, bool $paginate, Request $request): array
     {
-        $columns = ['record_type', 'id', 'status', 'category', 'customer', 'applicant_id', 'employee', 'amount', 'currency', 'date', 'reason'];
+        $columns = ['record_type', 'id', 'status', 'category', 'applicant', 'employee', 'amount', 'currency', 'date', 'reason'];
         $codes = DB::table('currencies')->pluck('code', 'id');
         $rows = collect();
 
@@ -302,7 +301,7 @@ class EducationalReportController extends Controller
                 ->when(! empty($filters['date_from']), fn ($q) => $q->whereDate($date, '>=', $filters['date_from']))
                 ->when(! empty($filters['date_to']), fn ($q) => $q->whereDate($date, '<=', $filters['date_to']));
             if (in_array($model, [Income::class, Expense::class], true)) {
-                $query->with('customer:id,name');
+                $query->with('applicant:id,name');
                 if (! empty($filters['country_id']) || ! empty($filters['university_id'])) {
                     $query->whereHas('applicant', function ($aq) use ($filters) {
                         if (! empty($filters['country_id'])) {
@@ -316,21 +315,21 @@ class EducationalReportController extends Controller
             }
             $rows = $rows->merge($query->limit(2500)->get()->map(fn ($r) => [
                 'record_type' => $type, 'id' => $r->id, 'status' => 'posted', 'category' => $r->type ?? $type,
-                'customer' => $r->customer?->name ?? '—', 'applicant_id' => $r->applicant_id ?? '',
+                'applicant' => $r->applicant?->name ?? '—',
                 'employee' => $r->employee?->name ?? '—', 'amount' => (float) $r->{$amount},
                 'currency' => $codes[$r->currency_id] ?? '', 'date' => $r->{$date}?->format('Y-m-d') ?? '',
                 'reason' => $r->{$reason} ?? '',
             ]));
         }
 
-        $pending = PendingTransaction::query()->with(['customer:id,name', 'employee:id,name'])
+        $pending = PendingTransaction::query()->with(['applicant:id,name', 'employee:id,name'])
             ->when(! empty($filters['employee_id']), fn ($q) => $q->where('employee_id', $filters['employee_id']))
             ->when(! empty($filters['date_from']), fn ($q) => $q->whereDate('requested_at', '>=', $filters['date_from']))
             ->when(! empty($filters['date_to']), fn ($q) => $q->whereDate('requested_at', '<=', $filters['date_to']))
             ->limit(2500)->get()->map(fn (PendingTransaction $r) => [
                 'record_type' => 'pending_transaction', 'id' => $r->id, 'status' => $r->approval_status,
-                'category' => $r->transaction_type, 'customer' => $r->customer?->name ?? '—',
-                'applicant_id' => $r->applicant_id ?? '', 'employee' => $r->employee?->name ?? '—',
+                'category' => $r->transaction_type, 'applicant' => $r->applicant?->name ?? '—',
+                'employee' => $r->employee?->name ?? '—',
                 'amount' => (float) $r->amount, 'currency' => $codes[$r->currency_id] ?? '',
                 'date' => $r->requested_at?->format('Y-m-d') ?? '', 'reason' => $r->reason,
             ]);

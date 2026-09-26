@@ -31,7 +31,6 @@ class KanbanController extends Controller
                 'tasks.users.employee',
                 'tasks.tags',
                 'tasks.services.currency',
-                'tasks.customer',
                 'tasks.subtasks',
                 'tasks.comments.user.employee', // Names and avatars for comments
                 'tasks.dependencies',

@@ -22,7 +22,6 @@ use App\Models\ContractTemplateVersion;
 use App\Models\ContractType;
 use App\Models\Country;
 use App\Models\Currency;
-use App\Models\Customer;
 use App\Models\CustomerPackage;
 use App\Models\DailyReport;
 use App\Models\EducationalBonusSource;
@@ -84,7 +83,6 @@ final class AuditRegistry
             'currencies' => Currency::class,
             'countries' => Country::class,
             'customer_packages' => CustomerPackage::class,
-            'customers' => Customer::class,
             'daily_reports' => DailyReport::class,
             'education_levels' => EducationLevel::class,
             'educational_bonus_sources' => EducationalBonusSource::class,
@@ -157,7 +155,7 @@ final class AuditRegistry
             'leaves' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getRawOriginal('date')),
             'daily_reports' => self::joinedLabel(self::relatedLabel($model, 'user'), $model->getRawOriginal('report_date')),
             'contract_services' => self::joinedLabel(self::relatedLabel($model, 'contract'), self::relatedLabel($model, 'service')),
-            'customer_packages' => self::joinedLabel(self::relatedLabel($model, 'customer'), self::relatedLabel($model, 'package')),
+            'customer_packages' => self::joinedLabel(self::relatedLabel($model, 'applicant'), self::relatedLabel($model, 'package')),
             'case_wins' => self::joinedLabel(self::relatedLabel($model, 'employee'), self::relatedLabel($model, 'applicant')),
             'comments' => self::relatedLabel($model, 'task'),
             'worthy_employees' => self::joinedLabel(self::relatedLabel($model, 'employee'), $model->getAttribute('bonus_month')),
@@ -208,7 +206,7 @@ final class AuditRegistry
             }
         }
 
-        foreach (['employee', 'customer', 'user', 'task'] as $relation) {
+        foreach (['employee', 'applicant', 'user', 'task'] as $relation) {
             if (! method_exists($model, $relation)) {
                 continue;
             }

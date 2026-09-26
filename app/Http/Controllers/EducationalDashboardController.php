@@ -233,17 +233,17 @@ class EducationalDashboardController extends Controller
         $cutoff = now()->subDays($staleDays)->toDateTimeString();
 
         $stuck = $this->applicantScope($filters)
-            ->with(['customer:id,name', 'currentStage:id,name,key'])
+            ->with(['currentStage:id,name,key'])
             ->where('status', 'active')
             ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('applicant_stage_histories')->whereColumn('applicant_stage_histories.applicant_id', 'applicants.id')->where('applicant_stage_histories.changed_at', '>=', $cutoff))
             ->latest('applicants.updated_at')
             ->limit(10)
             ->get()
-            ->map(fn (Applicant $a) => ['id' => $a->id, 'title' => $a->customer?->name ?? "Applicant #{$a->id}", 'subtitle' => ($a->currentStage?->name ?? 'No stage')." · idle {$staleDays}+ days", 'route' => ['name' => 'applicant-case', 'params' => ['id' => $a->id]]])
+            ->map(fn (Applicant $a) => ['id' => $a->id, 'title' => $a->name ?: "Applicant #{$a->id}", 'subtitle' => ($a->currentStage?->name ?? 'No stage')." · idle {$staleDays}+ days", 'route' => ['name' => 'applicant-case', 'params' => ['id' => $a->id]]])
             ->all();
 
         $overdue = Task::query()
-            ->with(['applicant:id,customer_id', 'applicant.customer:id,name'])
+            ->with(['applicant:id,name'])
             ->whereNotNull('applicant_id')
             ->where('progress', '<', 100)
             ->whereDate('due_date', '<', now()->toDateString())
@@ -251,7 +251,7 @@ class EducationalDashboardController extends Controller
             ->latest('due_date')
             ->limit(10)
             ->get()
-            ->map(fn (Task $t) => ['id' => $t->id, 'title' => $t->title, 'subtitle' => ($t->applicant?->customer?->name ?? "Applicant #{$t->applicant_id}")." · due {$t->due_date}", 'route' => ['name' => 'applicant-case', 'params' => ['id' => $t->applicant_id]]])
+            ->map(fn (Task $t) => ['id' => $t->id, 'title' => $t->title, 'subtitle' => ($t->applicant?->name ?: "Applicant #{$t->applicant_id}")." · due {$t->due_date}", 'route' => ['name' => 'applicant-case', 'params' => ['id' => $t->applicant_id]]])
             ->all();
 
         $pendingApprovals = PendingTransaction::query()
@@ -260,17 +260,16 @@ class EducationalDashboardController extends Controller
             ->when(empty($filters['_actor_user_id']) && ! empty($filters['responsible_employee_id']), fn ($q) => $q->where('employee_id', $filters['responsible_employee_id']))
             ->count();
         $missingDocuments = $this->applicantScope($filters)
-            ->with('customer:id,name')
             ->where('status', 'active')
             ->whereHas('currentStage', fn ($q) => $q->where('key', 'documents_required'))
             ->whereDoesntHave('tasks.attachments')
             ->limit(10)->get()
-            ->map(fn (Applicant $a) => ['id' => $a->id, 'title' => $a->customer?->name ?? "Applicant #{$a->id}", 'subtitle' => 'Documents have not been attached to a case task yet.', 'route' => ['name' => 'applicant-case', 'params' => ['id' => $a->id]]])->all();
-        $contractsRequiringAttention = Contract::query()->with(['customer:id,name', 'applicant:id,customer_id'])
+            ->map(fn (Applicant $a) => ['id' => $a->id, 'title' => $a->name ?: "Applicant #{$a->id}", 'subtitle' => 'Documents have not been attached to a case task yet.', 'route' => ['name' => 'applicant-case', 'params' => ['id' => $a->id]]])->all();
+        $contractsRequiringAttention = Contract::query()->with(['applicant:id,name'])
             ->whereIn('status', ['draft', 'terminated'])
             ->when(! empty($filters['responsible_employee_id']), fn ($q) => $q->where('employee_id', $filters['responsible_employee_id']))
             ->limit(10)->get()
-            ->map(fn (Contract $c) => ['id' => $c->id, 'title' => $c->contract_number ?? "Contract #{$c->id}", 'subtitle' => ($c->customer?->name ?? 'No customer').' · '.$c->status, 'route' => $c->applicant_id ? ['name' => 'applicant-case', 'params' => ['id' => $c->applicant_id]] : ['name' => 'contracts']])->all();
+            ->map(fn (Contract $c) => ['id' => $c->id, 'title' => $c->contract_number ?? "Contract #{$c->id}", 'subtitle' => ($c->applicant?->name ?? 'No applicant').' · '.$c->status, 'route' => $c->applicant_id ? ['name' => 'applicant-case', 'params' => ['id' => $c->applicant_id]] : ['name' => 'contracts']])->all();
 
         return ['stuck_applicants' => $stuck, 'overdue_tasks' => $overdue, 'pending_approvals' => $pendingApprovals, 'missing_documents' => $missingDocuments, 'contracts_requiring_attention' => $contractsRequiringAttention];
     }

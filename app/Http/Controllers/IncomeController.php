@@ -54,7 +54,7 @@ class IncomeController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'customer_id' => 'nullable|exists:customers,id',
+            'applicant_id' => 'nullable|exists:applicants,id',
             'company_id' => 'nullable|exists:companies,id',
             'invoice_id' => 'nullable|exists:invoices,id',
             'type' => ['required', Rule::in(['Service', 'Product', 'Investment', 'Other'])],
@@ -90,7 +90,7 @@ class IncomeController extends Controller
                     'date' => ['business.invoice_payment_before_issue'],
                 ]);
             }
-            $data['customer_id'] = $invoice->customer_id;
+            $data['applicant_id'] = $invoice->applicant_id;
             $data['company_id'] = null;
             $data['currency_id'] = $invoice->currency_id;
             $this->applyCurrencySnapshot($data);
@@ -114,7 +114,7 @@ class IncomeController extends Controller
     public function update(Request $request, Income $income)
     {
         $validator = Validator::make($request->all(), [
-            'customer_id' => 'nullable|exists:customers,id',
+            'applicant_id' => 'nullable|exists:applicants,id',
             'company_id' => 'nullable|exists:companies,id',
             'invoice_id' => 'nullable|exists:invoices,id',
             'type' => ['sometimes', Rule::in(['Service', 'Product', 'Investment', 'Other'])],
@@ -153,7 +153,7 @@ class IncomeController extends Controller
                         'date' => ['business.invoice_payment_before_issue'],
                     ]);
                 }
-                $data['customer_id'] = $invoice->customer_id;
+                $data['applicant_id'] = $invoice->applicant_id;
                 $data['company_id'] = null;
                 $data['currency_id'] = $invoice->currency_id;
                 if ((int) $invoiceId !== (int) $income->invoice_id || array_key_exists('rate', $data)) {
@@ -167,7 +167,7 @@ class IncomeController extends Controller
                 }
                 if (array_key_exists('invoice_id', $data)) {
                     $data['invoice_amount'] = null;
-                    $data['customer_id'] = $data['customer_id'] ?? $income->customer_id;
+                    $data['applicant_id'] = $data['applicant_id'] ?? $income->applicant_id;
                 }
             }
 
