@@ -110,11 +110,7 @@ class PermissionSeeder extends Seeder
         ['name' => 'view_offices', 'category' => 'human_resources'],
         ['name' => 'manage_offices', 'category' => 'human_resources'],
 
-        // Customers, contracts, and their service catalog
-        ['name' => 'view_customers', 'category' => 'customer_contracts'],
-        ['name' => 'create_customers', 'category' => 'customer_contracts'],
-        ['name' => 'edit_customers', 'category' => 'customer_contracts'],
-        ['name' => 'delete_customers', 'category' => 'customer_contracts'],
+        // Contracts and their service catalog
         ['name' => 'view_contracts', 'category' => 'customer_contracts'],
         ['name' => 'create_contracts', 'category' => 'customer_contracts'],
         ['name' => 'edit_contracts', 'category' => 'customer_contracts'],
@@ -124,7 +120,9 @@ class PermissionSeeder extends Seeder
         ['name' => 'view_contract_templates', 'category' => 'customer_contracts'],
         ['name' => 'manage_contract_templates', 'category' => 'customer_contracts'],
         ['name' => 'create_contract_template_versions', 'category' => 'educational_visa'],
+        ['name' => 'edit_draft_contract_template_versions', 'category' => 'customer_contracts'],
         ['name' => 'activate_contract_template_versions', 'category' => 'educational_visa'],
+        ['name' => 'archive_contract_template_versions', 'category' => 'customer_contracts'],
         ['name' => 'view_contract_policies', 'category' => 'customer_contracts'],
         ['name' => 'manage_contract_policies', 'category' => 'customer_contracts'],
         ['name' => 'view_contract_types', 'category' => 'customer_contracts'],

@@ -2,44 +2,38 @@
 
 namespace Database\Seeders;
 
+use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\ContractType;
-use Illuminate\Database\Seeder;
-use App\Models\Customer;
 use App\Models\Service;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class CustomerSeeder extends Seeder
+class ApplicantSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * Seeds the party records that used to live in `customers`. They are now
+     * plain applicants: a case is layered onto one of them by
+     * EducationalSeeder, which is the same shape the cutover migration produced
+     * when it folded each case-less customer into its own applicant row.
      */
     public function run(): void
     {
-        // Disable foreign key checks temporarily
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
-        // Clear existing customers
-        Customer::query()->delete();
-
-        // Reset auto-increment
-        DB::statement('ALTER TABLE customers AUTO_INCREMENT = 1');
-
-        // Clear contracted service lines
+        // Clear contracted service lines before the contracts that own them.
         DB::table('contract_service')->truncate();
 
-        // Re-enable foreign key checks
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        // Keep the demo customer data coupled to the current service catalog.
+        // Keep the demo party data coupled to the current service catalog.
         $services = Service::query()->orderBy('id')->take(3)->get();
         if ($services->count() < 3) {
-            throw new \RuntimeException('Seed at least three services before customers.');
+            throw new \RuntimeException('Seed at least three services before applicants.');
         }
         [$consultingService, $trainingService, $developmentService] = $services->all();
 
-        // Create customers
-        $john = Customer::create([
+        $john = Applicant::create([
             'name' => 'John Doe',
             'company' => 'Acme Corp',
             'contact' => '555-1234',
@@ -47,7 +41,7 @@ class CustomerSeeder extends Seeder
             'date' => '2023-10-15',
         ]);
 
-        $jane = Customer::create([
+        $jane = Applicant::create([
             'name' => 'Jane Smith',
             'company' => 'Globex',
             'contact' => '555-5678',
@@ -55,7 +49,7 @@ class CustomerSeeder extends Seeder
             'date' => '2023-10-16',
         ]);
 
-        $bob = Customer::create([
+        $bob = Applicant::create([
             'name' => 'Bob Wilson',
             'company' => 'Initech',
             'contact' => '555-9012',
@@ -70,8 +64,8 @@ class CustomerSeeder extends Seeder
 
         $this->contractFor($bob, [$developmentService->id]);
 
-        // Add a customer with multiple services
-        $alice = Customer::create([
+        // Add an applicant with multiple services.
+        $alice = Applicant::create([
             'name' => 'Alice Cooper',
             'company' => 'Wayne Enterprises',
             'contact' => '555-3456',
@@ -83,18 +77,19 @@ class CustomerSeeder extends Seeder
     }
 
     /** @param list<int> $serviceIds */
-    private function contractFor(Customer $customer, array $serviceIds): Contract
+    private function contractFor(Applicant $applicant, array $serviceIds): Contract
     {
         $contract = Contract::create([
             'contract_type_id' => ContractType::query()->where('slug', 'customer')->value('id'),
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'name' => 'Seeded service agreement',
+            // `type` and the contract_types slug stay "Customer" — see warning.md.
             'type' => 'Customer',
             'status' => 'active',
             'start_date' => now()->toDateString(),
-            'counterparty' => $customer->name,
-            'counterparty_company' => $customer->company,
-            'counterparty_contact' => $customer->contact,
+            'counterparty' => $applicant->name,
+            'counterparty_company' => $applicant->company,
+            'counterparty_contact' => $applicant->contact,
             'content' => '',
             'is_custom' => true,
         ]);

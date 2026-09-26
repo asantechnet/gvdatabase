@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Applicant;
 use App\Models\Currency;
-use App\Models\Customer;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class InvoiceFactory extends Factory
@@ -13,9 +13,9 @@ class InvoiceFactory extends Factory
         $amount = fake()->randomFloat(2, 100, 10000);
 
         return [
-            'customer_id' => Customer::factory(),
+            'applicant_id' => Applicant::factory(),
             'currency_id' => Currency::factory(),
-            'deptor' => fake()->company(),
+            'deptor' => fake()->name(),
             'status' => 'Issued',
             'tax_percent' => 0,
             'currency_name' => 'US Dollar',

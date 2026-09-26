@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
 
             // Catalogues before records that reference them.
             ServiceSeeder::class,
-            CustomerSeeder::class,
+            ApplicantSeeder::class,
             ContractSeeder::class,
             AssetSeeder::class,
 

@@ -30,6 +30,11 @@ class EducationalBonusSource extends Model
         'bonus_amount' => 'decimal:6',
     ];
 
+    public function applicant(): BelongsTo
+    {
+        return $this->belongsTo(Applicant::class);
+    }
+
     public function source(): MorphTo
     {
         return $this->morphTo();

@@ -86,6 +86,11 @@ class Task extends Model
     }
 
 
+    public function applicant(): BelongsTo
+    {
+        return $this->belongsTo(Applicant::class);
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'task_user')->withPivot('contribution_percent');

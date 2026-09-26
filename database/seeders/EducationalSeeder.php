@@ -8,7 +8,6 @@ use App\Models\ApplicantStageHistory;
 use App\Models\ApplicantUniversity;
 use App\Models\Country;
 use App\Models\Currency;
-use App\Models\Customer;
 use App\Models\CustomerPackage;
 use App\Models\EducationalBonusSource;
 use App\Models\EducationLevel;
@@ -28,8 +27,10 @@ class EducationalSeeder extends Seeder
     {
         $currency = Currency::query()->where('is_base', true)->first() ?? Currency::query()->firstOrFail();
         $employee = Employee::query()->orderBy('id')->firstOrFail();
-        $customer = Customer::query()->orderBy('id')->firstOrFail();
-        $secondCustomer = Customer::query()->orderBy('id')->skip(1)->first() ?? $customer;
+        // Promote the first two seeded parties into cases, mirroring how the
+        // cutover migration folded each case-less customer into its own row.
+        $firstParty = Applicant::query()->orderBy('id')->firstOrFail();
+        $secondParty = Applicant::query()->orderBy('id')->skip(1)->first() ?? $firstParty;
 
         $countries = collect([
             ['name' => 'Canada', 'code' => 'CA'],
@@ -74,8 +75,9 @@ class EducationalSeeder extends Seeder
 
         $stage = ApplicantStage::query()->where('key', 'consultation')->firstOrFail();
         $applicant = Applicant::withTrashed()->updateOrCreate(
-            ['customer_id' => $customer->id, 'application_date' => now()->subDays(10)->toDateString()],
+            ['id' => $firstParty->id],
             [
+                'application_date' => now()->subDays(10)->toDateString(),
                 'responsible_employee_id' => $employee->id,
                 'country_id' => $countries['CA']->id,
                 'university_id' => $universities[0]->id,
@@ -106,21 +108,39 @@ class EducationalSeeder extends Seeder
         $issuer = app(PackageIssuanceService::class);
         $scholarshipPurchase = CustomerPackage::withTrashed()->where('issuance_key', "applicant:{$applicant->id}:package:{$packages['Scholarship Support Package']->id}")->first();
         if (! $scholarshipPurchase) {
-            $scholarshipPurchase = $issuer->issue($packages['Scholarship Support Package'], $customer, ['applicant_id' => $applicant->id, 'sold_by_employee_id' => $employee->id, 'currency_id' => $currency->id, 'fee' => 12000, 'purchased_at' => now()->subDays(5)->toDateString()]);
+            $scholarshipPurchase = $issuer->issue($packages['Scholarship Support Package'], $applicant, ['sold_by_employee_id' => $employee->id, 'currency_id' => $currency->id, 'fee' => 12000, 'purchased_at' => now()->subDays(5)->toDateString()]);
         }
-        $testPurchase = CustomerPackage::withTrashed()->where('issuance_key', "customer:{$secondCustomer->id}:package:{$packages['Test Preparation Package']->id}")->first();
+
+        // A second, smaller case so the package and bonus data is not all
+        // attached to one applicant.
+        $secondApplicant = Applicant::withTrashed()->updateOrCreate(
+            ['id' => $secondParty->id],
+            [
+                'application_date' => now()->subDays(6)->toDateString(),
+                'responsible_employee_id' => $employee->id,
+                'country_id' => $countries['TR']->id,
+                'education_level_id' => $levels['Bachelor']->id,
+                'language_id' => $languages['en']->id,
+                'current_stage_id' => $stage->id,
+                'status' => 'active',
+                'notes' => 'Demo test-preparation case.',
+                'deleted_at' => null,
+            ],
+        );
+
+        $testPurchase = CustomerPackage::withTrashed()->where('issuance_key', "applicant:{$secondApplicant->id}:package:{$packages['Test Preparation Package']->id}")->first();
         if (! $testPurchase) {
-            $testPurchase = $issuer->issue($packages['Test Preparation Package'], $secondCustomer, ['sold_by_employee_id' => $employee->id, 'currency_id' => $currency->id, 'fee' => 5000, 'purchased_at' => now()->subDays(3)->toDateString()]);
+            $testPurchase = $issuer->issue($packages['Test Preparation Package'], $secondApplicant, ['sold_by_employee_id' => $employee->id, 'currency_id' => $currency->id, 'fee' => 5000, 'purchased_at' => now()->subDays(3)->toDateString()]);
         }
         $scholarship = $scholarshipPurchase->services()->whereHas('service', fn ($query) => $query->where('category', 'scholarship'))->firstOrFail();
 
         EducationalBonusSource::updateOrCreate(
             ['source_type' => $scholarship->getMorphClass(), 'source_id' => $scholarship->id, 'employee_id' => $employee->id],
-            ['customer_id' => $customer->id, 'applicant_id' => $applicant->id, 'source_amount' => 12000, 'bonus_amount' => 600, 'status' => 'approved', 'rule_source' => 'demo educational bonus'],
+            ['applicant_id' => $applicant->id, 'source_amount' => 12000, 'bonus_amount' => 600, 'status' => 'approved', 'rule_source' => 'demo educational bonus'],
         );
 
         PendingTransaction::withTrashed()->updateOrCreate(
-            ['customer_id' => $customer->id, 'applicant_id' => $applicant->id, 'transaction_type' => 'income'],
+            ['applicant_id' => $applicant->id, 'transaction_type' => 'income'],
             ['reason' => 'Pending educational service fee approval', 'amount' => 12000, 'currency_id' => $currency->id, 'employee_id' => $employee->id, 'approval_status' => PendingTransaction::SUBMITTED, 'requested_at' => now()->subDay(), 'deleted_at' => null],
         );
     }

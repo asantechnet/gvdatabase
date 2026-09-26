@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Applicant;
 use App\Models\Currency;
-use App\Models\Customer;
 use App\Models\Invoice;
 use Illuminate\Database\Seeder;
 
@@ -17,9 +17,9 @@ class InvoiceSeeder extends Seeder
             return;
         }
 
-        Customer::with(['contractServices.service.currency', 'contractServices.currency', 'contractServices.contract'])
-            ->take(2)->get()->each(function (Customer $customer) use ($currency) {
-                $lines = $customer->contractServices->filter(fn ($line) =>
+        Applicant::with(['contractServices.service.currency', 'contractServices.currency', 'contractServices.contract'])
+            ->take(2)->get()->each(function (Applicant $applicant) use ($currency) {
+                $lines = $applicant->contractServices->filter(fn ($line) =>
                     $line->contract?->status === 'active' && ! $line->contract?->is_cancelled);
 
                 if ($lines->isEmpty()) {
@@ -59,10 +59,15 @@ class InvoiceSeeder extends Seeder
                 }
 
                 $invoice = Invoice::create([
-                    'customer_id' => $customer->id,
+                    'applicant_id' => $applicant->id,
                     'currency_id' => $currency->id,
                     'base_currency_id' => $currency->id,
-                    'deptor' => $customer->name,
+                    'deptor' => $applicant->name,
+                    'customer_company' => $applicant->company,
+                    'customer_contact' => $applicant->contact,
+                    'customer_email' => $applicant->email,
+                    'customer_address' => $applicant->address,
+                    'customer_tax_number' => $applicant->tax_number,
                     'status' => 'Issued',
                     'tax_percent' => 0,
                     'currency_name' => $currency->name,
