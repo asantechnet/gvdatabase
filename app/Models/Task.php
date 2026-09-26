@@ -19,7 +19,6 @@ class Task extends Model
 
     protected $fillable = [
         'board_id',
-        'customer_id',
         'applicant_id',
         'title',
         'description',
@@ -86,9 +85,9 @@ class Task extends Model
         return $this->belongsTo(Board::class);
     }
 
-    public function customer(): BelongsTo
+    public function applicant()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Applicant::class);
     }
 
     public function applicant(): BelongsTo

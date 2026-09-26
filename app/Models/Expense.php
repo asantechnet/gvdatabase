@@ -13,7 +13,7 @@ class Expense extends Model
     use Auditable, HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'customer_id',
+        'applicant_id',
         'applicant_id',
         'visitor_id',
         'employee_id',
@@ -40,7 +40,7 @@ class Expense extends Model
         'rate' => 'decimal:8',
         'base_amount' => 'decimal:4',
         'date' => 'date',
-        'customer_id' => 'integer',
+        'applicant_id' => 'integer',
         'applicant_id' => 'integer',
         'visitor_id' => 'integer',
         'employee_id' => 'integer',
@@ -50,9 +50,9 @@ class Expense extends Model
         'base_currency_id' => 'integer',
     ];
 
-    public function customer()
+    public function applicant()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Applicant::class);
     }
 
     public function applicant(): BelongsTo

@@ -12,13 +12,13 @@ class CustomerPackage extends Model
 {
     use Auditable, SoftDeletes;
 
-    protected $fillable = ['customer_id', 'applicant_id', 'package_id', 'sold_by_employee_id', 'currency_id', 'fee', 'purchased_at', 'status', 'issuance_key', 'notes'];
+    protected $fillable = ['applicant_id', 'package_id', 'sold_by_employee_id', 'currency_id', 'fee', 'purchased_at', 'status', 'issuance_key', 'notes'];
 
     protected $casts = ['purchased_at' => 'date', 'fee' => 'decimal:6'];
 
-    public function customer(): BelongsTo
+    public function applicant()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Applicant::class);
     }
 
     public function applicant(): BelongsTo

@@ -14,7 +14,7 @@ class Invoice extends Model
     use Auditable, HasDocumentNumber, HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'customer_id',
+        'applicant_id',
         'currency_id',
         'deptor',
         'customer_company', 'customer_email', 'customer_contact', 'customer_address', 'customer_tax_number',
@@ -88,9 +88,9 @@ class Invoice extends Model
             ->withTimestamps();
     }
 
-    public function customer()
+    public function applicant()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Applicant::class);
     }
 
     public function currency()

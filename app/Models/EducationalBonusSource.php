@@ -16,7 +16,6 @@ class EducationalBonusSource extends Model
 
     protected $fillable = [
         'employee_id',
-        'customer_id',
         'applicant_id',
         'source_type',
         'source_id',
@@ -41,9 +40,9 @@ class EducationalBonusSource extends Model
         return $this->belongsTo(Employee::class);
     }
 
-    public function customer(): BelongsTo
+    public function applicant()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Applicant::class);
     }
 
     public function applicant(): BelongsTo

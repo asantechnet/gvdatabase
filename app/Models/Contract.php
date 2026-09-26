@@ -22,7 +22,6 @@ class Contract extends Model
         'employee_id',
         'sold_by_employee_id',
         'marketer_id',
-        'customer_id',
         'applicant_id',
         'company_id',
         'name',
@@ -76,9 +75,9 @@ class Contract extends Model
         return $this->belongsTo(Employee::class)->withTrashed();
     }
 
-    public function customer()
+    public function applicant()
     {
-        return $this->belongsTo(Customer::class)->withTrashed();
+        return $this->belongsTo(Applicant::class)->withTrashed();
     }
 
     /**

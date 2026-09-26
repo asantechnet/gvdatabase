@@ -18,7 +18,7 @@ class Income extends Model
 
     protected $fillable = [
         'receipt_number',
-        'customer_id',
+        'applicant_id',
         'applicant_id',
         'visitor_id',
         'employee_id',
@@ -43,7 +43,7 @@ class Income extends Model
         'base_amount' => 'decimal:6',
         'invoice_amount' => 'decimal:6',
         'date' => 'date',
-        'customer_id' => 'integer',
+        'applicant_id' => 'integer',
         'applicant_id' => 'integer',
         'visitor_id' => 'integer',
         'employee_id' => 'integer',
@@ -53,9 +53,9 @@ class Income extends Model
         'base_currency_id' => 'integer',
     ];
 
-    public function customer()
+    public function applicant()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Applicant::class);
     }
 
     public function applicant(): BelongsTo

@@ -6,19 +6,70 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * An applicant is the single customer-facing record: it carries both the
+ * visa case (stage, country, university, ...) and the billing/CRM party
+ * identity (name, company, contact, email, address, tax number, marketer).
+ *
+ * The former `Customer` entity was merged into this model, so every
+ * `applicant_id` foreign key in the system points at one of these rows and
+ * `Customer` no longer exists.
+ */
 class Applicant extends Model
 {
     use Auditable, SoftDeletes;
 
-    protected $fillable = ['user_id', 'customer_id', 'responsible_employee_id', 'country_id', 'university_id', 'education_level_id', 'language_id', 'semester_id', 'current_stage_id', 'application_date', 'status', 'notes', 'profile_data', 'profile_completed_at'];
+    protected $fillable = [
+        'user_id',
+        'parent_applicant_id',
+        'name',
+        'company',
+        'contact',
+        'email',
+        'address',
+        'tax_number',
+        'marketer',
+        'marketer_id',
+        'date',
+        'responsible_employee_id',
+        'country_id',
+        'university_id',
+        'education_level_id',
+        'language_id',
+        'semester_id',
+        'current_stage_id',
+        'application_date',
+        'status',
+        'notes',
+        'profile_data',
+        'profile_completed_at',
+    ];
 
-    protected $casts = ['application_date' => 'date:Y-m-d', 'profile_data' => 'array', 'profile_completed_at' => 'datetime'];
+    protected $casts = [
+        'application_date' => 'date:Y-m-d',
+        'date' => 'date',
+        'profile_data' => 'array',
+        'profile_completed_at' => 'datetime',
+    ];
 
-    public function customer(): BelongsTo
+    /**
+     * The root of a shared billing party. Was `applicants.customer_id` when a
+     * customer could own several cases; the earliest case of the group is the
+     * root and its siblings point at it.
+     */
+    public function parentApplicant(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(self::class, 'parent_applicant_id');
+    }
+
+    /** Sibling cases that share this record's billing party. */
+    public function childApplicants(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_applicant_id');
     }
 
     public function user(): BelongsTo
@@ -29,6 +80,12 @@ class Applicant extends Model
     public function responsibleEmployee(): BelongsTo
     {
         return $this->belongsTo(Employee::class, 'responsible_employee_id');
+    }
+
+    /** The employee who acquired this record. Absorbed from `customers`. */
+    public function marketerEmployee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'marketer_id');
     }
 
     public function country(): BelongsTo
@@ -91,10 +148,26 @@ class Applicant extends Model
         return $this->hasMany(Expense::class);
     }
 
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
+
     /** Contracted services sold as part of this visa case. */
     public function services(): HasMany
     {
         return $this->hasMany(ContractService::class);
+    }
+
+    /** Contracted service lines reached through this applicant's contracts. */
+    public function contractServices(): HasManyThrough
+    {
+        return $this->hasManyThrough(ContractService::class, Contract::class);
     }
 
     public function customerPackages(): HasMany
@@ -110,5 +183,11 @@ class Applicant extends Model
     public function universities(): HasMany
     {
         return $this->hasMany(ApplicantUniversity::class);
+    }
+
+    /** CRM conversation history. Absorbed from `customers`. */
+    public function interactions(): MorphMany
+    {
+        return $this->morphMany(CrmInteraction::class, 'contactable')->latest('contacted_at');
     }
 }

@@ -14,7 +14,7 @@ class Project extends Model
 {
     use Auditable, HasFactory, SoftDeletes;
 
-    protected $fillable = ['customer_id', 'name', 'description', 'status', 'start_date', 'due_date', 'created_by'];
+    protected $fillable = ['applicant_id', 'name', 'description', 'status', 'start_date', 'due_date', 'created_by'];
 
     protected function casts(): array
     {
@@ -26,7 +26,7 @@ class Project extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
+    public function applicant(): BelongsTo { return $this->belongsTo(Applicant::class); }
 
     /**
      * The catalogue services this delivery project covers.
