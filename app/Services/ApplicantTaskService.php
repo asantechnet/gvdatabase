@@ -67,7 +67,6 @@ class ApplicantTaskService
 
             $task = Task::create([
                 'board_id' => $board->id,
-                'customer_id' => $applicant->customer_id,
                 'applicant_id' => $applicant->id,
                 'title' => $template['title'],
                 'description' => $this->describe($applicant, $stage),
@@ -90,8 +89,8 @@ class ApplicantTaskService
 
     private function describe(Applicant $applicant, ApplicantStage $stage): string
     {
-        $customer = $applicant->customer?->name ?? "customer #{$applicant->customer_id}";
+        $party = $applicant->name ?: "applicant #{$applicant->id}";
 
-        return "Applicant #{$applicant->id} ({$customer}) entered stage {$stage->name}.";
+        return "Applicant #{$applicant->id} ({$party}) entered stage {$stage->name}.";
     }
 }

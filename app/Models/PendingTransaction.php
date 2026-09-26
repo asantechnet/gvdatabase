@@ -18,7 +18,6 @@ class PendingTransaction extends Model
     public function postedRecord(): MorphTo { return $this->morphTo(); }
     public function currency(): BelongsTo { return $this->belongsTo(Currency::class); }
     public function applicant(): BelongsTo { return $this->belongsTo(Applicant::class); }
-    public function applicant(): BelongsTo { return $this->belongsTo(Applicant::class); }
     public function employee(): BelongsTo { return $this->belongsTo(Employee::class); }
     public function requester(): BelongsTo { return $this->belongsTo(User::class, 'requested_by'); }
     public function approver(): BelongsTo { return $this->belongsTo(User::class, 'approver_id'); }

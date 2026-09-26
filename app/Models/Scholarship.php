@@ -16,7 +16,6 @@ class Scholarship extends Model
     protected $casts = ['date' => 'date:Y-m-d', 'fee' => 'decimal:6'];
 
     public function applicant(): BelongsTo { return $this->belongsTo(Applicant::class); }
-    public function applicant(): BelongsTo { return $this->belongsTo(Applicant::class); }
     public function country(): BelongsTo { return $this->belongsTo(Country::class); }
     public function educationLevel(): BelongsTo { return $this->belongsTo(EducationLevel::class); }
     public function language(): BelongsTo { return $this->belongsTo(Language::class); }

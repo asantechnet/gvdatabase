@@ -2,7 +2,7 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Visitor;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -25,7 +25,7 @@ class MarketerResource extends JsonResource
                 'email' => $this->user->email,
                 'acc_status' => $this->user->acc_status,
             ] : null),
-            'customer_count' => Customer::where('marketer', $this->name)->count(),
+            'applicant_count' => Applicant::where('marketer', $this->name)->count(),
             'visitor_count' => Visitor::where('marketer', $this->name)->count(),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

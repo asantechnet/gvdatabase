@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LeadResource;
 use App\Models\CrmInteraction;
-use App\Models\Customer;
+use App\Models\Applicant;
+use App\Models\ApplicantStage;
 use App\Models\Lead;
 use App\Models\Visitor;
 use App\Support\CrmMarketerAttribution;
@@ -109,15 +109,15 @@ class LeadController extends Controller
         return new LeadResource($lead->load(['owner', 'marketerEmployee', 'interactions.creator']));
     }
 
-    public function convert(Lead $lead): CustomerResource
+    public function convert(Lead $lead): ApplicantResource
     {
         $providedEmail = request()->validate([
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
         ])['email'] ?? null;
 
-        $customer = DB::transaction(function () use ($lead, $providedEmail) {
+        $applicant = DB::transaction(function () use ($lead, $providedEmail) {
             $lead = Lead::query()->lockForUpdate()->findOrFail($lead->id);
-            abort_if($lead->converted_at || $lead->customer_id, 422, 'business.lead_already_converted');
+            abort_if($lead->converted_at || $lead->applicant_id, 422, 'business.lead_already_converted');
             if ($lead->stage !== 'won') {
                 $this->assertStageTransition($lead->stage, 'won');
             }
@@ -128,16 +128,28 @@ class LeadController extends Controller
                 $lead->update(['email' => $email]);
             }
 
-            $customer = Customer::create(['name' => $lead->name, 'company' => $lead->company ?: $lead->name, 'contact' => $lead->contact,
-                'email' => $email, 'marketer' => $lead->marketer, 'marketer_id' => $lead->marketer_id, 'notes' => $lead->notes, 'date' => now()->toDateString()]);
+            // A converted lead becomes a real case, so it enters the pipeline at
+            // the opening stage the same way a hand-created applicant does.
+            $applicant = Applicant::create([
+                'name' => $lead->name,
+                'company' => $lead->company ?: $lead->name,
+                'contact' => $lead->contact,
+                'email' => $email,
+                'marketer' => $lead->marketer,
+                'marketer_id' => $lead->marketer_id,
+                'notes' => $lead->notes,
+                'date' => now()->toDateString(),
+                'status' => 'active',
+                'current_stage_id' => ApplicantStage::query()->where('key', 'new')->value('id'),
+            ]);
             CrmInteraction::query()->where('contactable_type', $lead->getMorphClass())->where('contactable_id', $lead->id)
-                ->update(['contactable_type' => $customer->getMorphClass(), 'contactable_id' => $customer->id]);
-            $lead->update(['stage' => 'won', 'probability' => 100, 'probability_is_manual' => false, 'customer_id' => $customer->id, 'converted_at' => now()]);
+                ->update(['contactable_type' => $applicant->getMorphClass(), 'contactable_id' => $applicant->id]);
+            $lead->update(['stage' => 'won', 'probability' => 100, 'probability_is_manual' => false, 'applicant_id' => $applicant->id, 'converted_at' => now()]);
 
-            return $customer;
+            return $applicant;
         });
 
-        return new CustomerResource($customer->load(['contractServices.service.currency', 'marketerEmployee', 'interactions.creator']));
+        return new ApplicantResource($applicant->load(['contractServices.service.currency', 'marketerEmployee', 'interactions.creator']));
     }
 
     private function validated(Request $request, bool $partial = false): array

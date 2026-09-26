@@ -16,7 +16,7 @@ class ExpenseResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'customer_id' => $this->customer_id,
+            'applicant_id' => $this->applicant_id,
             'company_id' => $this->company_id,
             'company' => $this->whenLoaded('company', fn () => $this->company ? [
                 'id' => $this->company->id, 'name' => $this->company->trade_name ?: $this->company->legal_name,

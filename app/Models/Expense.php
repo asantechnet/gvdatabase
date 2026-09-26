@@ -14,7 +14,6 @@ class Expense extends Model
 
     protected $fillable = [
         'applicant_id',
-        'applicant_id',
         'visitor_id',
         'employee_id',
         'company_id',
@@ -49,11 +48,6 @@ class Expense extends Model
         'currency_id' => 'integer',
         'base_currency_id' => 'integer',
     ];
-
-    public function applicant()
-    {
-        return $this->belongsTo(Applicant::class);
-    }
 
     public function applicant(): BelongsTo
     {

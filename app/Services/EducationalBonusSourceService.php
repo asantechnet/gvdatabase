@@ -21,21 +21,20 @@ class EducationalBonusSourceService
 
     /**
      * Creates the single traceable bonus source for an eligible service.
-     * The employee, customer, applicant and fee always come from the source
-     * record so callers cannot misattribute a sale to another case.
+     * The employee, applicant and fee always come from the source record so
+     * callers cannot misattribute a sale to another case.
      *
      * @param  array{bonus_amount?: numeric, rule_source?: string|null, status?: string, source_amount?: numeric}  $bonus
      */
     public function createFor(Model $source, array $bonus = []): EducationalBonusSource
     {
         $employeeId = $source->getAttribute('sold_by_employee_id') ?? $source->getAttribute('employee_id');
-        // Contract lines carry the customer on their parent contract.
-        $customerId = $source->getAttribute('customer_id') ?? $source->contract?->customer_id;
+        // Contract lines carry the party on their parent contract.
         $applicantId = $source->getAttribute('applicant_id') ?? $source->contract?->applicant_id;
 
-        if (! $employeeId || ! $customerId) {
+        if (! $employeeId || ! $applicantId) {
             throw ValidationException::withMessages([
-                'source_id' => ['The selected source must identify both its selling employee and customer.'],
+                'source_id' => ['The selected source must identify both its selling employee and applicant.'],
             ]);
         }
 
@@ -54,7 +53,6 @@ class EducationalBonusSourceService
 
         $attributes = [
             'employee_id' => $employeeId,
-            'customer_id' => $customerId,
             'applicant_id' => $applicantId,
             'source_amount' => $sourceAmount,
             'bonus_amount' => $bonus['bonus_amount'] ?? 0,
@@ -73,7 +71,6 @@ class EducationalBonusSourceService
     {
         $source->bonusSource()->update([
             'employee_id' => $source->sold_by_employee_id ?? $source->employee_id ?? null,
-            'customer_id' => $source->customer_id ?? $source->contract?->customer_id,
             'applicant_id' => $source->applicant_id ?? $source->contract?->applicant_id,
             'source_amount' => $source->fee ?? $source->service?->fee,
         ]);

@@ -17,7 +17,7 @@ class EducationalWorkflowNotificationService
 {
     public function caseWon(CaseWin $win, ?int $actorId = null): void
     {
-        $win->loadMissing(['applicant.customer', 'employee']);
+        $win->loadMissing(['applicant', 'employee']);
         $recipientIds = $this->usersWithPermission('grant_bonuses');
         $employeeUserId = $win->employee?->user_id;
         if ($employeeUserId && (int) $employeeUserId !== $actorId) {
@@ -42,7 +42,7 @@ class EducationalWorkflowNotificationService
             'Package services issued',
             "{$purchase->package->name} was issued with {$purchase->services()->count()} service(s).",
             ['translation_key' => 'package.issued', 'customer_package_id' => $purchase->id, 'package' => $purchase->package->name, 'applicant_id' => $purchase->applicant_id],
-            $purchase->applicant_id ? "/applicants/{$purchase->applicant_id}" : '/customers',
+            "/applicants/{$purchase->applicant_id}",
             $recipientIds,
         );
     }
@@ -141,7 +141,7 @@ class EducationalWorkflowNotificationService
 
         Applicant::query()
             ->where('status', 'active')
-            ->with(['customer:id,name', 'currentStage:id,name', 'responsibleEmployee.user:id'])
+            ->with(['currentStage:id,name', 'responsibleEmployee.user:id'])
             ->orderBy('id')
             ->each(function (Applicant $applicant) use ($today, &$sent): void {
                 $history = $applicant->stageHistory()->reorder()->latest('changed_at')->first();
@@ -216,7 +216,7 @@ class EducationalWorkflowNotificationService
 
     private function applicantLabel(Applicant $applicant): string
     {
-        return $applicant->customer?->name ?: "Case #{$applicant->id}";
+        return $applicant->name ?: "Case #{$applicant->id}";
     }
 
     private function pendingData(PendingTransaction $pending): array

@@ -24,7 +24,6 @@ use App\Http\Controllers\ContractTemplateVersionController;
 use App\Http\Controllers\ContractTypeController;
 use App\Http\Controllers\CrmInteractionController;
 use App\Http\Controllers\CurrencyController;
-use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EducationalBonusSourceController;
 use App\Http\Controllers\EducationalDashboardController;
@@ -327,19 +326,19 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         ->middlewareFor('store', 'permission:create_visitors')
         ->middlewareFor('update', 'permission:edit_visitors')
         ->middlewareFor('destroy', 'permission:delete_visitors');
-    Route::post('visitors/{visitor}/convert-to-customer', [VisitorController::class, 'convertToCustomer'])
-        ->middleware('permission:create_customers');
+    Route::post('visitors/{visitor}/convert-to-applicant', [VisitorController::class, 'convertToApplicant'])
+        ->middleware('permission:create_applicants');
     Route::post('visitors/{visitor}/convert-to-lead', [LeadController::class, 'fromVisitor'])->middleware('permission:create_visitors');
     Route::apiResource('leads', LeadController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_visitors')
         ->middlewareFor('store', 'permission:create_visitors')
         ->middlewareFor('update', 'permission:edit_visitors')
         ->middlewareFor('destroy', 'permission:delete_visitors');
-    Route::post('leads/{lead}/convert-to-customer', [LeadController::class, 'convert'])->middleware('permission:create_customers');
+    Route::post('leads/{lead}/convert-to-applicant', [LeadController::class, 'convert'])->middleware('permission:create_applicants');
     Route::post('crm/{type}/{id}/interactions', [CrmInteractionController::class, 'store'])
-        ->whereIn('type', ['visitor', 'lead', 'customer']);
+        ->whereIn('type', ['visitor', 'lead', 'applicant']);
     Route::patch('crm/{type}/{id}/notes', [CrmInteractionController::class, 'updateNotes'])
-        ->whereIn('type', ['visitor', 'lead', 'customer']);
+        ->whereIn('type', ['visitor', 'lead', 'applicant']);
     Route::put('crm/interactions/{interaction}', [CrmInteractionController::class, 'update']);
     Route::delete('crm/interactions/{interaction}', [CrmInteractionController::class, 'destroy']);
 
@@ -347,13 +346,6 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::apiResource('tags', TagController::class)
         ->middlewareFor('index', 'permission:view_task_tags')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_task_tags_catalog');
-
-    // Customer routes
-    Route::apiResource('customers', CustomerController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_customers')
-        ->middlewareFor('store', 'permission:create_customers')
-        ->middlewareFor('update', 'permission:edit_customers')
-        ->middlewareFor('destroy', 'permission:delete_customers');
 
     // Educational visa agency master data and case management. These routes
     // intentionally reuse configurable RBAC; the dedicated permission catalog

@@ -8,8 +8,8 @@ use App\Models\Company;
 use App\Models\CommissionAccrual;
 use App\Models\CommissionSettlement;
 use App\Models\Contract;
+use App\Models\Applicant;
 use App\Models\Currency;
-use App\Models\Customer;
 use App\Models\ContractService;
 use App\Models\DailyReport;
 use App\Models\Employee;
@@ -46,8 +46,8 @@ class ReportService
             'employees' => $this->canSeeEmployees($user) ? Employee::selectable()->orderBy('name')->get(['id', 'name', 'office_id'])->all() : [],
             'offices' => $user->hasPermission('view_offices') || $user->hasPermission('view_attendance')
                 ? Office::query()->orderBy('name')->get(['id', 'name', 'code'])->all() : [],
-            'customers' => $user->hasPermission('view_customers') || $user->hasPermission('view_financial_reports')
-                ? Customer::query()->orderBy('name')->get(['id', 'name'])->all() : [],
+            'applicants' => $user->hasPermission('view_applicants') || $user->hasPermission('view_financial_reports')
+                ? Applicant::query()->orderBy('name')->get(['id', 'name'])->all() : [],
             'currencies' => $user->hasPermission('view_currencies') || $user->hasPermission('view_financial_reports')
                 ? Currency::query()->orderByDesc('is_base')->orderBy('code')->get(['id', 'code', 'symbol', 'decimal_places', 'is_base'])->all() : [],
             'boards' => $user->hasPermission('view_all_tasks') ? Board::query()->orderBy('title')->get(['id', 'title'])->all() : [],
@@ -100,7 +100,7 @@ class ReportService
             'financial' => $user->hasPermission('view_financial_reports'),
             'payroll' => $user->hasPermission('view_salaries') || $user->hasPermission('view_bonuses') || $user->hasPermission('view_commissions'),
             'attendance' => $user->hasPermission('view_attendance'),
-            'operations' => $user->hasPermission('view_contracts') || $user->hasPermission('view_customers')
+            'operations' => $user->hasPermission('view_contracts') || $user->hasPermission('view_applicants')
                 || $user->hasPermission('view_visitors') || $user->hasPermission('view_all_tasks'),
             default => false,
         };
@@ -115,8 +115,8 @@ class ReportService
     private function financial(array $filters, Carbon $start, Carbon $end, User $user): array
     {
         $base = $this->currentBase();
-        $invoiceQuery = Invoice::query()->with(['customer', 'currency', 'incomes'])->whereBetween('created_at', [$start->copy()->utc(), $end->copy()->utc()])
-            ->when($filters['customer_id'] ?? null, fn (Builder $q, $id) => $q->where('customer_id', $id))
+        $invoiceQuery = Invoice::query()->with(['applicant', 'currency', 'incomes'])->whereBetween('created_at', [$start->copy()->utc(), $end->copy()->utc()])
+            ->when($filters['applicant_id'] ?? null, fn (Builder $q, $id) => $q->where('applicant_id', $id))
             ->when($filters['currency_id'] ?? null, fn (Builder $q, $id) => $q->where('currency_id', $id))
             ->when($filters['status'] ?? null, fn (Builder $q, $status) => $q->where('status', $status));
         $invoices = $invoiceQuery->latest()->get()->map(function (Invoice $invoice) use ($base) {
@@ -125,7 +125,7 @@ class ReportService
             $paidBase = min($amountBase, $this->currentBaseAmount($paidInvoiceAmount, $invoice->currency));
             return [
                 'number' => $invoice->invoice_number, 'date' => $invoice->created_at?->toDateString(),
-                'customer' => $invoice->customer?->name ?? $invoice->deptor, 'status' => $invoice->status,
+                'customer' => $invoice->applicant?->name ?? $invoice->deptor, 'status' => $invoice->status,
                 'amount' => (float) $invoice->amount, 'currency' => $invoice->currency_shortname,
                 'base_currency' => $base?->code ?? 'BASE', 'rate' => (float) ($invoice->currency?->rate ?? 0), 'base_amount' => round($amountBase, 4),
                 'paid_base' => round($paidBase, 4), 'outstanding_base' => round(max(0, $amountBase - $paidBase), 4),
@@ -366,18 +366,18 @@ class ReportService
                 ]);
             $sections[] = $this->section('contracts', ['number', 'date', 'title', 'type', 'counterparty', 'status'], $rows, ['count' => $rows->count()]);
         }
-        if ($user->hasPermission('view_customers')) {
-            $rows = Customer::query()->whereBetween('date', [$start->toDateString(), $end->toDateString()])
-                ->when($filters['customer_id'] ?? null, fn (Builder $q, $id) => $q->whereKey($id))->latest('date')->get()
-                ->map(fn (Customer $row) => ['date' => $row->date?->format('Y-m-d'), 'name' => $row->name, 'company' => $row->company, 'contact' => $row->contact, 'marketer' => $row->marketer]);
-            $sections[] = $this->section('customers', ['date', 'name', 'company', 'contact', 'marketer'], $rows, ['count' => $rows->count()]);
+        if ($user->hasPermission('view_applicants')) {
+            $rows = Applicant::query()->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+                ->when($filters['applicant_id'] ?? null, fn (Builder $q, $id) => $q->whereKey($id))->latest('date')->get()
+                ->map(fn (Applicant $row) => ['date' => $row->date?->format('Y-m-d'), 'name' => $row->name, 'company' => $row->company, 'contact' => $row->contact, 'marketer' => $row->marketer]);
+            $sections[] = $this->section('applicants', ['date', 'name', 'company', 'contact', 'marketer'], $rows, ['count' => $rows->count()]);
 
-            $services = ContractService::query()->with(['contract.customer:id,name,company', 'service:id,type', 'currency:id,code'])
+            $services = ContractService::query()->with(['contract.applicant:id,name,company', 'service:id,type', 'currency:id,code'])
                 ->whereBetween('contract_service.created_at', [$start->copy()->utc(), $end->copy()->utc()])
-                ->when($filters['customer_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('contract', fn ($contracts) => $contracts->where('customer_id', $id)))
+                ->when($filters['applicant_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('contract', fn ($contracts) => $contracts->where('applicant_id', $id)))
                 ->when($filters['status'] ?? null, fn (Builder $q, $status) => $q->whereHas('contract', fn ($contracts) => $contracts->where('status', $status)))
                 ->latest('contract_service.id')->get()->map(fn (ContractService $row) => [
-                    'customer' => $row->contract?->customer?->company ?: $row->contract?->customer?->name,
+                    'customer' => $row->contract?->applicant?->company ?: $row->contract?->applicant?->name,
                     'service' => $row->service?->type, 'status' => $row->contract?->status,
                     'fee' => $row->fee === null ? null : (float) $row->fee,
                     'currency' => $row->currency?->code,
@@ -427,8 +427,8 @@ class ReportService
 
     private function cashRows(Builder $query, array $filters, Carbon $start, Carbon $end, string $currencyRelation): Collection
     {
-        return $query->with(['customer', $currencyRelation])->whereBetween('date', [$start->toDateString(), $end->toDateString()])
-            ->when($filters['customer_id'] ?? null, fn (Builder $q, $id) => $q->where('customer_id', $id))
+        return $query->with(['applicant', $currencyRelation])->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->when($filters['applicant_id'] ?? null, fn (Builder $q, $id) => $q->where('applicant_id', $id))
             ->when($filters['currency_id'] ?? null, fn (Builder $q, $id) => $q->where('currency_id', $id))
             ->latest('date')->get();
     }
@@ -438,7 +438,7 @@ class ReportService
         $currency = $row instanceof Income ? $row->incomeCurrency : $row->expenseCurrency;
         return [
             'date' => $row->date?->format('Y-m-d'), 'reference' => $row instanceof Income ? $row->receipt_number : null,
-            'customer' => $row->customer?->name, 'type' => $row->type, 'description' => $row->description,
+            'customer' => $row->applicant?->name, 'type' => $row->type, 'description' => $row->description,
             'amount' => (float) $row->amount, 'quantity' => (int) $row->quantity,
             'currency' => $currency?->code ?? $row->cnv_curr_shrt ?? 'UNK',
             'base_currency' => $base?->code ?? 'BASE',

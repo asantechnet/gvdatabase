@@ -28,7 +28,7 @@ class TaskBonusCalculationService
         $currency = Currency::query()->where('is_base', true)->where('is_active', true)->firstOrFail();
         $tasks = Task::query()->with(['users.employee'])->where('progress', 100)->whereBetween('completed_at', [$start, $end])->get();
         $taskCredits = $this->taskCredits($tasks, (bool) $rules['task_quality_weighting_enabled']);
-        $wins = CaseWin::query()->with('applicant:id,customer_id')->whereBetween('won_at', [$start, $end])->get()
+        $wins = CaseWin::query()->with('applicant:id,name')->whereBetween('won_at', [$start, $end])->get()
             ->map(fn (CaseWin $win) => ['case_win_id' => $win->id, 'applicant_id' => $win->applicant_id, 'employee_id' => $win->employee_id, 'won_at' => $win->won_at->toISOString(), 'stage_key' => $win->stage_key]);
 
         $employeeIds = $taskCredits->pluck('employee_id')->merge($wins->pluck('employee_id'))->unique();

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\CrmInteractionResource;
+use App\Models\Applicant;
 use App\Models\CrmInteraction;
-use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Visitor;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +19,7 @@ class CrmInteractionController extends Controller
         $model = match ($type) {
             'visitor' => Visitor::findOrFail($id),
             'lead' => Lead::findOrFail($id),
-            'customer' => Customer::findOrFail($id),
+            'applicant' => Applicant::findOrFail($id),
             default => abort(404),
         };
         $data = $request->validate(['notes' => ['nullable', 'string', 'max:10000']]);
@@ -32,7 +32,7 @@ class CrmInteractionController extends Controller
     {
         $this->authorizeMutation($request, $type);
         $model = match ($type) {
-            'visitor' => Visitor::findOrFail($id), 'lead' => Lead::findOrFail($id), 'customer' => Customer::findOrFail($id), default => abort(404)
+            'visitor' => Visitor::findOrFail($id), 'lead' => Lead::findOrFail($id), 'applicant' => Applicant::findOrFail($id), default => abort(404)
         };
         $data = $request->validate(['channel' => ['required', Rule::in(['call', 'message', 'email', 'meeting', 'note'])], 'title' => ['required', 'string', 'max:255'],
             'notes' => ['required', 'string', 'max:10000'], 'contacted_at' => ['nullable', 'date'], 'follow_up_at' => ['nullable', 'date', 'after_or_equal:contacted_at']]);
@@ -63,7 +63,7 @@ class CrmInteractionController extends Controller
     private function authorizeInteractionMutation(Request $request, CrmInteraction $interaction): void
     {
         $type = match ($interaction->contactable_type) {
-            (new Customer)->getMorphClass(), Customer::class => 'customer',
+            (new Applicant)->getMorphClass(), Applicant::class => 'applicant',
             (new Visitor)->getMorphClass(), Visitor::class => 'visitor',
             (new Lead)->getMorphClass(), Lead::class => 'lead',
             default => abort(404),
@@ -74,7 +74,7 @@ class CrmInteractionController extends Controller
 
     private function authorizeMutation(Request $request, string $type): void
     {
-        $permission = $type === 'customer' ? 'edit_customers' : 'edit_visitors';
+        $permission = $type === 'applicant' ? 'edit_applicants' : 'edit_visitors';
         abort_unless($request->user()?->hasPermission($permission), 403, 'auth.forbidden');
     }
 }

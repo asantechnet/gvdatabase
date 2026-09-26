@@ -34,7 +34,6 @@ class ContractResource extends JsonResource
             'employee_id' => $this->employee_id,
             'sold_by_employee_id' => $this->sold_by_employee_id,
             'marketer_id' => $this->marketer_id,
-            'customer_id' => $this->customer_id,
             'applicant_id' => $this->applicant_id,
             'company_id' => $this->company_id,
             'cover_text' => $this->cover_text,
@@ -47,7 +46,7 @@ class ContractResource extends JsonResource
             'parties' => $this->snapshot_data['parties'] ?? null,
 
             'employee' => new EmployeeResource($this->whenLoaded('employee')),
-            'customer' => new CustomerResource($this->whenLoaded('customer')),
+            'applicant' => new ApplicantResource($this->whenLoaded('applicant')),
             'company' => new CompanyResource($this->whenLoaded('company')),
             'contract_type' => new ContractTypeResource($this->whenLoaded('contractType')),
             'contract_template' => $this->whenLoaded('template', function () {

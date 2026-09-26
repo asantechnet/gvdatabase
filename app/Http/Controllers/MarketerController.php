@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\MarketerResource;
 use App\Http\Resources\UserResource;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Marketer;
 use App\Models\Visitor;
 use App\Models\User;
@@ -46,7 +46,7 @@ class MarketerController extends Controller
             $marketer->update($this->validated($request, $marketer));
 
             if ($oldName !== $marketer->name) {
-                Customer::where('marketer', $oldName)->update(['marketer' => $marketer->name]);
+                Applicant::where('marketer', $oldName)->update(['marketer' => $marketer->name]);
                 Visitor::where('marketer', $oldName)->update(['marketer' => $marketer->name]);
             }
         });
@@ -56,7 +56,7 @@ class MarketerController extends Controller
 
     public function destroy(Marketer $marketer): JsonResponse
     {
-        if (Customer::where('marketer', $marketer->name)->exists() || Visitor::where('marketer', $marketer->name)->exists()) {
+        if (Applicant::where('marketer', $marketer->name)->exists() || Visitor::where('marketer', $marketer->name)->exists()) {
             return response()->json(['success' => false, 'code' => 'business.marketer_in_use'], 409);
         }
 

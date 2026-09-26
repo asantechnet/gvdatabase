@@ -121,7 +121,7 @@ class ApplicantController extends Controller
         DB::transaction(function () use ($applicant, $current, $next, $data, $request, $notifications) {
             $applicant->update(['current_stage_id' => $next->id, 'status' => $next->is_terminal ? 'closed' : 'active']);
             $history = ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'old_stage_id' => $current?->id, 'new_stage_id' => $next->id, 'changed_by' => $request->user()?->id, 'changed_at' => now(), 'note' => $data['note'] ?? null]);
-            $applicant = $applicant->fresh()->load(['customer', 'user', 'responsibleEmployee.user']);
+            $applicant = $applicant->fresh()->load(['user', 'responsibleEmployee.user']);
             $caseWin = app(CaseWinService::class)->record($applicant, $next, $history);
             app(ApplicantTaskService::class)->ensureForStage($applicant, $next, $request->user());
             $notifications->applicantStageChanged($applicant, $next, $history, $request->user()?->id);
@@ -136,7 +136,25 @@ class ApplicantController extends Controller
     private function save(Request $request, Applicant $applicant, bool $updating = false): Applicant
     {
         $presence = $updating ? 'sometimes' : 'required';
-        $data = $request->validate(['customer_id' => [$presence, 'integer', 'exists:customers,id'], 'responsible_employee_id' => ['nullable', 'integer', 'exists:employees,id'], 'country_id' => ['nullable', 'integer', 'exists:countries,id'], 'university_id' => ['nullable', 'integer', 'exists:universities,id'], 'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'], 'language_id' => ['nullable', 'integer', 'exists:languages,id'], 'semester_id' => ['nullable', 'integer', 'exists:semesters,id'], 'application_date' => ['nullable', 'date'], 'notes' => ['nullable', 'string', 'max:10000']]);
+        $data = $request->validate([
+            'name' => [$presence, 'nullable', 'string', 'max:255'],
+            'company' => ['nullable', 'string', 'max:255'],
+            'contact' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'address' => ['nullable', 'string', 'max:1000'],
+            'tax_number' => ['nullable', 'string', 'max:255'],
+            'marketer' => ['nullable', 'string', 'max:255'],
+            'marketer_id' => ['nullable', 'integer', 'exists:marketers,id'],
+            'date' => ['nullable', 'date'],
+            'responsible_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'university_id' => ['nullable', 'integer', 'exists:universities,id'],
+            'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
+            'language_id' => ['nullable', 'integer', 'exists:languages,id'],
+            'semester_id' => ['nullable', 'integer', 'exists:semesters,id'],
+            'application_date' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string', 'max:10000'],
+        ]);
         $effectiveCountry = $data['country_id'] ?? $applicant->country_id;
         $effectiveUniversity = $data['university_id'] ?? $applicant->university_id;
         if ($effectiveUniversity) {
@@ -154,16 +172,6 @@ class ApplicantController extends Controller
                 $data['responsible_employee_id'] = $ownEmployeeId;
             }
         }
-        if ($updating && array_key_exists('customer_id', $data) && $data['customer_id'] !== $applicant->customer_id) {
-            $hasOperationalHistory = $applicant->contracts()->exists()
-                || $applicant->services()->exists()
-                || $applicant->pendingTransactions()->exists()
-                || $applicant->incomes()->exists()
-                || $applicant->expenses()->exists();
-            if ($hasOperationalHistory) {
-                throw ValidationException::withMessages(['customer_id' => ['The customer cannot change after case activity has been recorded.']]);
-            }
-        }
         if (! $updating) {
             $stage = $this->stagesForContext($effectiveCountry, $effectiveUniversity)->firstWhere('key', 'new') ?? ApplicantStage::query()->where('key', 'new')->firstOrFail();
             $data['current_stage_id'] = $stage->id;
@@ -178,7 +186,7 @@ class ApplicantController extends Controller
 
     private function relations(): array
     {
-        return ['customer', 'responsibleEmployee', 'country', 'university.country', 'educationLevel', 'language', 'semester', 'currentStage'];
+        return ['responsibleEmployee', 'country', 'university.country', 'educationLevel', 'language', 'semester', 'currentStage'];
     }
 
     private function presentService(ContractService $record): array
@@ -210,7 +218,7 @@ class ApplicantController extends Controller
                 default => null,
             };
         }
-        foreach (['customer_id', 'responsible_employee_id', 'country_id', 'university_id', 'education_level_id', 'language_id', 'semester_id'] as $field) {
+        foreach (['responsible_employee_id', 'country_id', 'university_id', 'education_level_id', 'language_id', 'semester_id'] as $field) {
             if ($request->filled($field)) {
                 $query->where($field, $request->integer($field));
             }
@@ -226,9 +234,12 @@ class ApplicantController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('notes', 'like', "%{$search}%");
                 if (ctype_digit($search)) {
-                    $q->orWhere('id', (int) $search)->orWhere('customer_id', (int) $search);
+                    $q->orWhere('id', (int) $search);
                 }
-                $q->orWhereHas('customer', fn ($cq) => $cq->where('name', 'like', "%{$search}%")->orWhere('contact', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"));
+                $q->orWhere('name', 'like', "%{$search}%")
+                    ->orWhere('company', 'like', "%{$search}%")
+                    ->orWhere('contact', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
     }

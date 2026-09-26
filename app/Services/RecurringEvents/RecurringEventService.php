@@ -162,7 +162,7 @@ class RecurringEventService
     {
         $data = $event->payload;
         $board = Board::query()->with('project')->lockForUpdate()->findOrFail($data['board_id']);
-        $data['customer_id'] ??= $board->project?->customer_id;
+        $data['applicant_id'] ??= $board->project?->applicant_id;
         $task = Task::create([...$data, 'start_date' => $occurrence->occurrence_date, 'due_date' => $data['due_date'] ?? $occurrence->occurrence_date, 'order' => (Task::where('board_id', $data['board_id'])->max('order') ?? -1) + 1]);
         $task->users()->sync($data['assignees'] ?? [$user->id]);
 

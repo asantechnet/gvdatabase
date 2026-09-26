@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\CustomerResource;
 use App\Http\Resources\VisitorResource;
 use App\Models\CrmInteraction;
-use App\Models\Customer;
+use App\Models\Applicant;
+use App\Models\ApplicantStage;
 use App\Models\Visitor;
 use App\Support\CrmMarketerAttribution;
 use Illuminate\Http\JsonResponse;
@@ -111,12 +111,12 @@ class VisitorController extends Controller
         return response()->json(null, 204);
     }
 
-    public function convertToCustomer(Visitor $visitor): CustomerResource
+    public function convertToApplicant(Visitor $visitor): ApplicantResource
     {
-        $customer = DB::transaction(function () use ($visitor) {
+        $applicant = DB::transaction(function () use ($visitor) {
             $visitor = Visitor::query()->lockForUpdate()->findOrFail($visitor->id);
             abort_if($visitor->converted_at, 422, 'business.visitor_already_converted');
-            $customer = Customer::create([
+            $applicant = Applicant::create([
                 'name' => $visitor->name,
                 'company' => $visitor->company,
                 'contact' => $visitor->contact,
@@ -125,22 +125,24 @@ class VisitorController extends Controller
                 'marketer_id' => $visitor->marketer_id,
                 'notes' => $visitor->notes,
                 'date' => now()->toDateString(),
+                'status' => 'active',
+                'current_stage_id' => ApplicantStage::query()->where('key', 'new')->value('id'),
             ]);
 
             CrmInteraction::query()
                 ->where('contactable_type', $visitor->getMorphClass())
                 ->where('contactable_id', $visitor->id)
                 ->update([
-                    'contactable_type' => $customer->getMorphClass(),
-                    'contactable_id' => $customer->id,
+                    'contactable_type' => $applicant->getMorphClass(),
+                    'contactable_id' => $applicant->id,
                 ]);
 
             $visitor->update(['converted_at' => now()]);
 
-            return $customer;
+            return $applicant;
         });
 
-        return new CustomerResource($customer->load([
+        return new ApplicantResource($applicant->load([
             'contractServices.service.currency',
             'marketerEmployee',
             'interactions.creator',

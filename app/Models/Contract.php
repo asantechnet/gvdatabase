@@ -114,11 +114,6 @@ class Contract extends Model
     }
     public function templateVersion(){ return $this->belongsTo(ContractTemplateVersion::class, 'contract_template_version_id')->withTrashed(); }
 
-    public function applicant()
-    {
-        return $this->belongsTo(Applicant::class);
-    }
-
     public function company()
     {
         return $this->belongsTo(Company::class)->withTrashed();

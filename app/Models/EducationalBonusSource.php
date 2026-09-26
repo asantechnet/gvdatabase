@@ -40,13 +40,4 @@ class EducationalBonusSource extends Model
         return $this->belongsTo(Employee::class);
     }
 
-    public function applicant()
-    {
-        return $this->belongsTo(Applicant::class);
-    }
-
-    public function applicant(): BelongsTo
-    {
-        return $this->belongsTo(Applicant::class);
-    }
 }

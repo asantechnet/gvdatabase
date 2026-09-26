@@ -11,8 +11,8 @@ class ProjectResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'customer_id' => $this->customer_id,
-            'customer' => $this->whenLoaded('customer', fn () => $this->customer ? ['id' => $this->customer->id, 'name' => $this->customer->name, 'company' => $this->customer->company] : null),
+            'applicant_id' => $this->applicant_id,
+            'applicant' => $this->whenLoaded('applicant', fn () => $this->applicant ? ['id' => $this->applicant->id, 'name' => $this->applicant->name, 'company' => $this->applicant->company] : null),
             'name' => $this->name,
             'description' => $this->description,
             'status' => $this->status,

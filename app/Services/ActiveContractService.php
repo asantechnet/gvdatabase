@@ -7,8 +7,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Single source of truth for the Active Contract business rule
- * (Implementation Plan §21): a customer is eligible for
- * customer-specific operational expenses when the customer exists
+ * (Implementation Plan §21): a party is eligible for
+ * applicant-specific operational expenses when the applicant exists
  * AND at least one relevant contract is active.
  *
  * Active means status `active` on a non-cancelled contract. The
@@ -17,37 +17,37 @@ use Illuminate\Validation\ValidationException;
  */
 class ActiveContractService
 {
-    public function query(?int $customerId = null)
+    public function query(?int $applicantId = null)
     {
         $query = Contract::query()->where('status', 'active')->where('is_cancelled', false);
-        if ($customerId !== null) {
-            $query->where('customer_id', $customerId);
+        if ($applicantId !== null) {
+            $query->where('applicant_id', $applicantId);
         }
 
         return $query;
     }
 
-    public function hasActiveContract(int $customerId): bool
+    public function hasActiveContract(int $applicantId): bool
     {
-        return $this->query($customerId)->exists();
+        return $this->query($applicantId)->exists();
     }
 
-    public function activeContractCount(?int $customerId = null): int
+    public function activeContractCount(?int $applicantId = null): int
     {
-        return $this->query($customerId)->count();
+        return $this->query($applicantId)->count();
     }
 
     /**
      * @throws ValidationException
      */
-    public function requireActiveContractForExpense(?int $customerId): void
+    public function requireActiveContractForExpense(?int $applicantId): void
     {
-        if ($customerId === null) {
+        if ($applicantId === null) {
             return;
         }
 
-        if (! $this->hasActiveContract($customerId)) {
-            throw ValidationException::withMessages(['customer_id' => ['Customer-specific expenses require the customer to have at least one active contract.']]);
+        if (! $this->hasActiveContract($applicantId)) {
+            throw ValidationException::withMessages(['applicant_id' => ['Applicant-specific expenses require the applicant to have at least one active contract.']]);
         }
     }
 }

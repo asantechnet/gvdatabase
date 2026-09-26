@@ -3,40 +3,37 @@
 namespace App\Services;
 
 use App\Models\Applicant;
-use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-/** Creates one traceable CRM customer/lead for an applicant portal account. */
+/**
+ * Keeps a traceable CRM lead for an applicant portal account.
+ *
+ * This used to also create a separate `Customer` and attach it to the case.
+ * The applicant now *is* the party, so the synchronizer only backfills the
+ * absorbed identity fields on the case and links the lead directly to it.
+ */
 class ApplicantPortalCrmSynchronizer
 {
     public function synchronize(User $user): void
     {
-        if (! in_array('applicant', $user->roleNames(), true)) return;
+        if (! in_array('applicant', $user->roleNames(), true)) {
+            return;
+        }
 
         DB::transaction(function () use ($user): void {
             $applicant = Applicant::query()->lockForUpdate()->where('user_id', $user->id)->first();
-            if (! $applicant) return;
+            if (! $applicant) {
+                return;
+            }
 
-            $customer = $applicant->customer_id
-                ? Customer::query()->lockForUpdate()->find($applicant->customer_id)
-                : Customer::query()->lockForUpdate()->where('email', $user->email)->first();
-            $customer ??= Customer::create([
-                'name' => $user->name,
-                'company' => $user->name,
-                'contact' => $user->phone ?: $user->email,
-                'email' => $user->email,
-                'address' => $user->address,
-                'date' => now()->toDateString(),
-            ]);
-
-            if ($applicant->customer_id !== $customer->id) $applicant->update(['customer_id' => $customer->id]);
+            $this->backfillIdentity($applicant, $user);
 
             Lead::firstOrCreate(['applicant_id' => $applicant->id], [
-                'customer_id' => $customer->id,
+                'applicant_id' => $applicant->id,
                 'name' => $user->name,
-                'company' => $customer->company,
+                'company' => $applicant->company ?: $user->name,
                 'contact' => $user->phone ?: $user->email,
                 'email' => $user->email,
                 'service_interest' => 'Educational application services',
@@ -47,5 +44,26 @@ class ApplicantPortalCrmSynchronizer
                 'owner_id' => $user->id,
             ]);
         });
+    }
+
+    /**
+     * The portal account is the authority on the person's own contact details,
+     * so fill in whatever the case is still missing. Never overwrite: staff may
+     * have corrected a value that the portal does not know about.
+     */
+    private function backfillIdentity(Applicant $applicant, User $user): void
+    {
+        $fill = array_filter([
+            'name' => $user->name,
+            'company' => $user->name,
+            'contact' => $user->phone ?: $user->email,
+            'email' => $user->email,
+            'address' => $user->address,
+        ], fn ($value) => $value !== null && $value !== '');
+
+        $missing = array_filter($fill, fn ($value, $key) => blank($applicant->$key), ARRAY_FILTER_USE_BOTH);
+        if ($missing !== []) {
+            $applicant->fill($missing)->save();
+        }
     }
 }

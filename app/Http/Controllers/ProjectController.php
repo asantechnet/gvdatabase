@@ -36,7 +36,7 @@ class ProjectController extends Controller
             $project = Project::create($data);
 
             if ($syncServices) {
-                $this->assertServicesBelongToCustomer($project, $serviceIds);
+                $this->assertServicesBelongToApplicant($project, $serviceIds);
                 $project->services()->sync($serviceIds);
             }
 
@@ -59,10 +59,10 @@ class ProjectController extends Controller
         $data = $this->validated($request, true);
         $syncServices = array_key_exists('service_ids', $data);
         $serviceIds = $this->serviceIds($data['service_ids'] ?? []);
-        $customerChanged = array_key_exists('customer_id', $data) && (int) $data['customer_id'] !== (int) $project->customer_id;
+        $applicantChanged = array_key_exists('applicant_id', $data) && (int) $data['applicant_id'] !== (int) $project->applicant_id;
         unset($data['service_ids']);
 
-        $project = DB::transaction(function () use ($project, $data, $syncServices, $serviceIds, $customerChanged): Project {
+        $project = DB::transaction(function () use ($project, $data, $syncServices, $serviceIds, $applicantChanged): Project {
             $project = Project::query()->lockForUpdate()->findOrFail($project->id);
             $nextStatus = $data['status'] ?? $project->status;
             if ($nextStatus === 'completed') {
@@ -74,13 +74,13 @@ class ProjectController extends Controller
             $project->update($data);
 
             if ($syncServices) {
-                $this->assertServicesBelongToCustomer($project, $serviceIds);
+                $this->assertServicesBelongToApplicant($project, $serviceIds);
                 $project->services()->sync($serviceIds);
-            } elseif ($customerChanged) {
+            } elseif ($applicantChanged) {
                 // Moving a project must not leave it pointing at services the
-                // new customer does not have. The caller can send an explicit
+                // new applicant does not have. The caller can send an explicit
                 // service_ids array in the same request to replace them.
-                $this->assertServicesBelongToCustomer(
+                $this->assertServicesBelongToApplicant(
                     $project,
                     $project->services()->pluck('services.id')->map(fn ($id) => (int) $id)->all(),
                 );
@@ -116,7 +116,7 @@ class ProjectController extends Controller
             'status' => [$partial ? 'sometimes' : 'nullable', 'in:active,on_hold,completed,archived'],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'customer_id' => [$required, 'integer', 'exists:customers,id'],
+            'applicant_id' => [$required, 'integer', 'exists:applicants,id'],
             'service_ids' => ['sometimes', 'array'],
             'service_ids.*' => ['required', 'integer', 'distinct', 'exists:services,id'],
         ]);
@@ -125,7 +125,7 @@ class ProjectController extends Controller
     /** @return list<string> */
     private function projectRelations(): array
     {
-        return ['customer', 'services.currency', 'boards.tasks'];
+        return ['applicant', 'services.currency', 'boards.tasks'];
     }
 
     /** @param array<int, int|string> $serviceIds @return list<int> */
@@ -135,20 +135,20 @@ class ProjectController extends Controller
     }
 
     /**
-     * A project is a delivery plan for the services this specific customer has
+     * A project is a delivery plan for the services this specific applicant has
      * purchased. Keeping that check here protects the relation regardless of
-     * whether it is edited from the customer page or the project workspace.
+     * whether it is edited from the applicant page or the project workspace.
      *
      * @param  list<int>  $serviceIds
      */
-    private function assertServicesBelongToCustomer(Project $project, array $serviceIds): void
+    private function assertServicesBelongToApplicant(Project $project, array $serviceIds): void
     {
         if ($serviceIds === []) {
             return;
         }
 
         $availableIds = ContractService::query()
-            ->whereHas('contract', fn ($contracts) => $contracts->where('customer_id', $project->customer_id))
+            ->whereHas('contract', fn ($contracts) => $contracts->where('applicant_id', $project->applicant_id))
             ->whereIn('service_id', $serviceIds)
             ->whereNull('deleted_at')
             ->pluck('service_id')
@@ -157,7 +157,7 @@ class ProjectController extends Controller
 
         if (array_diff($serviceIds, $availableIds) !== []) {
             throw ValidationException::withMessages([
-                'service_ids' => ['Each selected service must be assigned to the project customer.'],
+                'service_ids' => ['Each selected service must be assigned to the project applicant.'],
             ]);
         }
     }

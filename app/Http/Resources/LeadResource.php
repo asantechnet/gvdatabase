@@ -9,7 +9,7 @@ class LeadResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        return ['id' => $this->id, 'visitor_id' => $this->visitor_id, 'customer_id' => $this->customer_id, 'name' => $this->name,
+        return ['id' => $this->id, 'visitor_id' => $this->visitor_id, 'applicant_id' => $this->applicant_id, 'name' => $this->name,
             'company' => $this->company, 'contact' => $this->contact, 'email' => $this->email, 'service_interest' => $this->service_interest,
             'marketer' => $this->marketer, 'marketer_id' => $this->marketer_id,
             'marketer_employee' => $this->whenLoaded('marketerEmployee', fn () => $this->marketerEmployee ? [

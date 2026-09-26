@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\InvoiceResource;
 use App\Models\ContractService;
 use App\Models\Currency;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Invoice;
 use App\Models\InvoiceService;
 use App\Models\PaymentDetail;
@@ -21,9 +21,9 @@ class InvoiceController extends Controller
 
     public function index(Request $request)
     {
-        $query = Invoice::with(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']);
+        $query = Invoice::with(['applicant', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']);
 
-        $query->when($request->filled('customer_id'), fn ($query) => $query->where('customer_id', $request->integer('customer_id'))
+        $query->when($request->filled('applicant_id'), fn ($query) => $query->where('applicant_id', $request->integer('applicant_id'))
         );
 
         $query->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status'))
@@ -50,7 +50,7 @@ class InvoiceController extends Controller
         $assignments = ContractService::query()
             ->whereHas('contract', fn ($contracts) => $contracts->where('status', 'active')->where('is_cancelled', false))
             ->whereHas('deliveryEmployees')
-            ->with(['deliveryEmployees.commissionServices', 'contract:id,customer_id'])
+            ->with(['deliveryEmployees.commissionServices', 'contract:id,applicant_id'])
             ->get()
             ->map(function (ContractService $line): ?array {
                 return $line->deliveryEmployees->map(function ($employee) use ($line): ?array {
@@ -83,7 +83,7 @@ class InvoiceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'customer_id' => ['required', 'integer', 'exists:customers,id'],
+            'applicant_id' => ['required', 'integer', 'exists:applicants,id'],
             'currency_id' => [
                 'required',
                 'integer',
@@ -119,14 +119,14 @@ class InvoiceController extends Controller
 
         $recordedBy = $request->user()->id;
         $invoice = DB::transaction(function () use ($validated, $recordedBy) {
-            $customer = Customer::query()->lockForUpdate()->findOrFail($validated['customer_id']);
+            $applicant = Applicant::query()->lockForUpdate()->findOrFail($validated['applicant_id']);
             $invoiceCurrency = Currency::findOrFail($validated['currency_id']);
             $serviceRows = collect($validated['services']);
             $requestedIds = $serviceRows->pluck('contract_service_id');
             $assignedServices = ContractService::query()
                 ->whereIn('id', $requestedIds)
                 ->whereHas('contract', fn ($contracts) => $contracts
-                    ->where('customer_id', $customer->id)
+                    ->where('applicant_id', $applicant->id)
                     ->where('status', 'active')
                     ->where('is_cancelled', false))
                 ->with(['service.currency', 'currency', 'deliveryEmployees.commissionServices', 'marketer.commissionServices', 'outsourcingCompany'])
@@ -256,14 +256,14 @@ class InvoiceController extends Controller
 
             $invoice = Invoice::create([
                 'recorded_by' => $recordedBy,
-                'customer_id' => $customer->id,
+                'applicant_id' => $applicant->id,
                 'currency_id' => $invoiceCurrency->id,
-                'deptor' => $customer->name,
-                'customer_company' => $customer->company,
-                'customer_email' => $customer->email,
-                'customer_contact' => $customer->contact,
-                'customer_address' => $customer->address,
-                'customer_tax_number' => $customer->tax_number,
+                'deptor' => $applicant->name,
+                'customer_company' => $applicant->company,
+                'customer_email' => $applicant->email,
+                'customer_contact' => $applicant->contact,
+                'customer_address' => $applicant->address,
+                'customer_tax_number' => $applicant->tax_number,
                 'status' => 'Issued',
                 'issue_date' => $validated['issue_date'],
                 'due_date' => $validated['due_date'],
@@ -302,14 +302,14 @@ class InvoiceController extends Controller
             return $invoice;
         });
 
-        return (new InvoiceResource($invoice->load(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder'])))
+        return (new InvoiceResource($invoice->load(['applicant', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder'])))
             ->response()
             ->setStatusCode(201);
     }
 
     public function show(Invoice $invoice)
     {
-        return new InvoiceResource($invoice->load(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']));
+        return new InvoiceResource($invoice->load(['applicant', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']));
     }
 
     public function update()
@@ -350,7 +350,7 @@ class InvoiceController extends Controller
             return $invoice;
         });
 
-        return new InvoiceResource($invoice->load(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']));
+        return new InvoiceResource($invoice->load(['applicant', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']));
     }
 
     public function markPaid(Invoice $invoice)
@@ -371,7 +371,7 @@ class InvoiceController extends Controller
             return $invoice;
         });
 
-        return new InvoiceResource($invoice->load(['customer', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']));
+        return new InvoiceResource($invoice->load(['applicant', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder']));
     }
 
     public function destroy()

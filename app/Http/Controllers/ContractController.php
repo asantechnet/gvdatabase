@@ -10,7 +10,6 @@ use App\Models\Contract;
 use App\Models\ContractDocumentDesign;
 use App\Models\ContractTemplate;
 use App\Models\ContractType;
-use App\Models\Customer;
 use App\Models\Employee;
 use App\Services\Contracts\ContentSanitizer;
 use App\Services\Contracts\PlaceholderRegistry;
@@ -191,7 +190,7 @@ class ContractController extends Controller
 
         // Re-render only when the template or one of its input values changed.
         $renderInputs = [
-            'template_id', 'contract_template_version_id', 'service_id', 'service_ids', 'service_lines', 'employee_id', 'customer_id', 'applicant_id', 'company_id', 'content',
+            'template_id', 'contract_template_version_id', 'service_id', 'service_ids', 'service_lines', 'employee_id', 'applicant_id', 'company_id', 'content',
             'start_date', 'status', 'company_signatory_name',
         ];
         $shouldRender = collect($renderInputs)->contains(fn (string $field) => array_key_exists($field, $data));
@@ -210,7 +209,6 @@ class ContractController extends Controller
         if ($shouldRender) {
             $contextEntity = $this->resolveContextEntity($slug, [
                 'employee_id' => $data['employee_id'] ?? $contract->employee_id,
-                'customer_id' => $data['customer_id'] ?? $contract->customer_id,
                 'applicant_id' => $data['applicant_id'] ?? $contract->applicant_id,
                 'company_id' => $data['company_id'] ?? $contract->company_id,
                 'contract_type_id' => $type?->id,
@@ -405,7 +403,6 @@ class ContractController extends Controller
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'sold_by_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'marketer_id' => ['nullable', 'integer', 'exists:employees,id'],
-            'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
             'applicant_id' => ['nullable', 'integer', 'exists:applicants,id'],
             'company_id' => ['nullable', 'integer', 'exists:companies,id'],
             'is_custom' => ['prohibited'],
@@ -433,11 +430,6 @@ class ContractController extends Controller
 
         $data = $validator->validated();
 
-        $customerId = $data['customer_id'] ?? null;
-        $applicantId = $data['applicant_id'] ?? null;
-        if ($applicantId && $customerId && ! Applicant::query()->whereKey($applicantId)->where('customer_id', $customerId)->exists()) {
-            throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
-        }
 
         if (! $partial && empty($data['start_date'])) {
             $data['start_date'] = now()->toDateString();
@@ -660,14 +652,13 @@ class ContractController extends Controller
 
     /**
      * Enforce the contract-type → entity mapping on the backend:
-     * employment ⇒ employee, customer ⇒ customer, company ⇒ company.
+     * employment ⇒ employee, customer ⇒ applicant, company ⇒ company.
      *
      * @return array{context: array, snapshot: array, foreign_keys: array}
      */
     private function resolveContextEntity(?string $slug, array $data): array
     {
         $employeeId = isset($data['employee_id']) ? (int) $data['employee_id'] : null;
-        $customerId = isset($data['customer_id']) ? (int) $data['customer_id'] : null;
         $applicantId = isset($data['applicant_id']) ? (int) $data['applicant_id'] : null;
         $companyId = isset($data['company_id']) ? (int) $data['company_id'] : null;
 
@@ -684,17 +675,19 @@ class ContractController extends Controller
                 return [
                     'context' => ['employee' => $employee],
                     'snapshot' => ['employee' => $this->employeeSnapshot($employee)],
-                    'foreign_keys' => ['employee_id' => $employeeId, 'customer_id' => null, 'company_id' => null],
+                    'foreign_keys' => ['employee_id' => $employeeId, 'applicant_id' => null, 'company_id' => null],
                 ];
 
             case 'customer':
-                if (! $customerId) {
+                if (! $applicantId) {
                     abort(response()->json([
                         'success' => false,
-                        'message' => 'A customer is required for a customer contract.',
+                        'message' => 'An applicant is required for a customer contract.',
                     ], 422));
                 }
-                $customer = Customer::findOrFail($customerId);
+                // The `customer` contract type keeps its slug, but the party it
+                // points at is now the applicant, which absorbed Customer.
+                $applicant = Applicant::findOrFail($applicantId);
                 $multiIds = collect($data['service_lines'] ?? [])
                     ->map(fn ($line) => (int) ($line['service_id'] ?? 0))->filter()
                     ->merge(collect($data['service_ids'] ?? [])->map(fn ($id) => (int) $id))
@@ -713,15 +706,12 @@ class ContractController extends Controller
                         'message' => 'Only active services can be registered on a contract.',
                     ], 422));
                 }
-                $applicant = $applicantId ? Applicant::query()->findOrFail($applicantId) : null;
-                if ($applicant && (int) $applicant->customer_id !== $customerId) {
-                    throw ValidationException::withMessages(['applicant_id' => ['The applicant must belong to the selected customer.']]);
-                }
-
+                // `customer` stays as a context alias so the `customer.*`
+                // placeholder set keeps resolving (see warning.md).
                 return [
-                    'context' => ['customer' => $customer, 'services' => $services],
-                    'snapshot' => ['customer' => $customer->only(['id', 'name', 'company', 'contact', 'email', 'address', 'tax_number']), 'applicant_id' => $applicant?->id],
-                    'foreign_keys' => ['employee_id' => null, 'customer_id' => $customerId, 'applicant_id' => $applicantId, 'company_id' => null],
+                    'context' => ['applicant' => $applicant, 'customer' => $applicant, 'services' => $services],
+                    'snapshot' => ['customer' => $applicant->only(['id', 'name', 'company', 'contact', 'email', 'address', 'tax_number']), 'applicant_id' => $applicant->id],
+                    'foreign_keys' => ['employee_id' => null, 'applicant_id' => $applicantId, 'company_id' => null],
                 ];
 
             case 'other':
@@ -736,7 +726,7 @@ class ContractController extends Controller
                 return [
                     'context' => ['services' => $otherServices],
                     'snapshot' => [],
-                    'foreign_keys' => ['employee_id' => null, 'customer_id' => $customerId, 'company_id' => $companyId],
+                    'foreign_keys' => ['employee_id' => null, 'applicant_id' => $applicantId, 'company_id' => $companyId],
                 ];
 
             default:
@@ -746,7 +736,7 @@ class ContractController extends Controller
                     'snapshot' => [],
                     'foreign_keys' => [
                         'employee_id' => $employeeId,
-                        'customer_id' => $customerId,
+                        'applicant_id' => $applicantId,
                         'company_id' => $companyId,
                     ],
                 ];
@@ -780,15 +770,15 @@ class ContractController extends Controller
                 'counterparty_contact' => $employee->contact,
                 'counterparty_address' => $employee->addr,
             ];
-        } elseif (($customer = $contextEntity['context']['customer'] ?? null) !== null) {
-            $label = $customer->name;
+        } elseif (($applicant = $contextEntity['context']['applicant'] ?? $contextEntity['context']['customer'] ?? null) !== null) {
+            $label = $applicant->name;
             $fields = [
                 ...$fields,
-                'counterparty' => $customer->name,
-                'counterparty_company' => $customer->company ?: null,
-                'counterparty_email' => $customer->email,
-                'counterparty_contact' => $customer->contact,
-                'counterparty_address' => $customer->address,
+                'counterparty' => $applicant->name,
+                'counterparty_company' => $applicant->company ?: null,
+                'counterparty_email' => $applicant->email,
+                'counterparty_contact' => $applicant->contact,
+                'counterparty_address' => $applicant->address,
             ];
         } elseif (($company = $contextEntity['context']['company'] ?? null) !== null) {
             $label = $company->legal_name;

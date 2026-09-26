@@ -16,15 +16,6 @@ class CustomerPackage extends Model
 
     protected $casts = ['purchased_at' => 'date', 'fee' => 'decimal:6'];
 
-    public function applicant()
-    {
-        return $this->belongsTo(Applicant::class);
-    }
-
-    public function applicant(): BelongsTo
-    {
-        return $this->belongsTo(Applicant::class);
-    }
 
     public function package(): BelongsTo
     {

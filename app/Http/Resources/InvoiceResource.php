@@ -31,15 +31,18 @@ class InvoiceResource extends JsonResource
         return [
             'id' => $this->id,
             'invoice_number' => $this->invoice_number,
-            'customer_id' => $this->customer_id,
-            'customer' => [
-                'id' => $this->customer_id,
+            'applicant_id' => $this->applicant_id,
+            // Issued invoices are immutable (see AI.md), so the snapshot columns
+            // win and the live applicant is only a fallback for rows issued
+            // before those columns were populated.
+            'applicant' => [
+                'id' => $this->applicant_id,
                 'name' => $this->deptor,
-                'company' => $this->customer?->company,
-                'contact' => $this->customer?->contact,
-                'email' => $this->customer_email,
-                'address' => $this->customer_address,
-                'tax_number' => $this->customer_tax_number,
+                'company' => $this->customer_company ?: $this->applicant?->company,
+                'contact' => $this->customer_contact ?: $this->applicant?->contact,
+                'email' => $this->customer_email ?: $this->applicant?->email,
+                'address' => $this->customer_address ?: $this->applicant?->address,
+                'tax_number' => $this->customer_tax_number ?: $this->applicant?->tax_number,
             ],
             'deptor' => $this->deptor,
             'status' => $this->status,

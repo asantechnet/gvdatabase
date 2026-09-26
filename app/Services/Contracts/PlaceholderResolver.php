@@ -2,8 +2,8 @@
 
 namespace App\Services\Contracts;
 
+use App\Models\Applicant;
 use App\Models\Company;
-use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Service;
 
@@ -17,7 +17,7 @@ use App\Models\Service;
 class PlaceholderResolver
 {
     /**
-     * @param  array{employee?: ?Employee, customer?: ?Customer, company?: ?Company, contract_number?: ?string, start_date?: ?string, status?: ?string}  $context
+     * @param  array{employee?: ?Employee, applicant?: ?Applicant, customer?: ?Applicant, company?: ?Company, contract_number?: ?string, start_date?: ?string, status?: ?string}  $context
      * @return array{content: string, unresolved: list<string>, missing: list<string>}
      */
     public function resolve(string $content, array $context, ?string $typeSlug = null): array
@@ -91,14 +91,16 @@ class PlaceholderResolver
             ];
         }
 
-        if ($customer = $context['customer'] ?? null) {
+        // `applicant` is the primary key; `customer` is the frozen placeholder
+        // alias that ContractController still supplies (see warning.md).
+        if ($applicant = $context['applicant'] ?? $context['customer'] ?? null) {
             $values += [
-                'customer.name' => $customer->name,
-                'customer.company_name' => $customer->company,
-                'customer.phone' => $customer->contact,
-                'customer.email' => $customer->email,
-                'customer.address' => $customer->address,
-                'customer.tax_number' => $customer->tax_number,
+                'customer.name' => $applicant->name,
+                'customer.company_name' => $applicant->company,
+                'customer.phone' => $applicant->contact,
+                'customer.email' => $applicant->email,
+                'customer.address' => $applicant->address,
+                'customer.tax_number' => $applicant->tax_number,
             ];
         }
         $services = collect($context['services'] ?? []);

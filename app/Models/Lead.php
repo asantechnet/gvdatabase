@@ -23,7 +23,6 @@ class Lead extends Model
     public function owner(): BelongsTo { return $this->belongsTo(User::class, 'owner_id'); }
     public function marketerEmployee(): BelongsTo { return $this->belongsTo(Employee::class, 'marketer_id'); }
     public function applicant(): BelongsTo { return $this->belongsTo(Applicant::class); }
-    public function applicant(): BelongsTo { return $this->belongsTo(Applicant::class); }
     public function visitor(): BelongsTo { return $this->belongsTo(Visitor::class); }
     public function interactions(): MorphMany { return $this->morphMany(CrmInteraction::class, 'contactable')->latest('contacted_at'); }
 }
