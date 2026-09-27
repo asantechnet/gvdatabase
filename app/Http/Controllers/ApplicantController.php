@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\CrmMarketerAttribution;
 use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
@@ -144,7 +145,7 @@ class ApplicantController extends Controller
             'address' => ['nullable', 'string', 'max:1000'],
             'tax_number' => ['nullable', 'string', 'max:255'],
             'marketer' => ['nullable', 'string', 'max:255'],
-            'marketer_id' => ['nullable', 'integer', 'exists:marketers,id'],
+            'marketer_id' => CrmMarketerAttribution::marketerIdRules(),
             'date' => ['nullable', 'date'],
             'responsible_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
@@ -155,6 +156,9 @@ class ApplicantController extends Controller
             'application_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:10000'],
         ]);
+        // The applicant is the CRM's party record, so it follows the same
+        // ownership rules as leads and visitors.
+        $data = CrmMarketerAttribution::apply($request, $data, creating: ! $updating);
         $effectiveCountry = $data['country_id'] ?? $applicant->country_id;
         $effectiveUniversity = $data['university_id'] ?? $applicant->university_id;
         if ($effectiveUniversity) {

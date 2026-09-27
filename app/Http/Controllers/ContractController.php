@@ -43,7 +43,7 @@ class ContractController extends Controller
             'status' => 'sometimes|string|in:'.implode(',', Contract::STATUSES),
         ]);
 
-        $query = Contract::with(['template.contractType', 'contractType', 'contractServices.service.currency', 'contractServices.currency', 'employee.position', 'employee.office', 'employee.user', 'customer.contractServices.service.currency', 'company']);
+        $query = Contract::with(['template.contractType', 'contractType', 'contractServices.service.currency', 'contractServices.currency', 'employee.position', 'employee.office', 'employee.user', 'applicant.contractServices.service.currency', 'company']);
 
         // Service filter: matches any contracted service line.
         $serviceIds = $request->input('service_ids', []);
@@ -152,13 +152,13 @@ class ContractController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'contractServices.service.currency', 'contractServices.currency', 'employee', 'customer.contractServices.service.currency', 'company'])),
+            'data' => new ContractResource($result->load(['template.contractType', 'contractType', 'contractServices.service.currency', 'contractServices.currency', 'employee', 'applicant.contractServices.service.currency', 'company'])),
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $contract = Contract::with(['template.contractType', 'contractType', 'contractServices.service.currency', 'contractServices.currency', 'employee.position', 'customer.contractServices.service.currency', 'company'])->find($id);
+        $contract = Contract::with(['template.contractType', 'contractType', 'contractServices.service.currency', 'contractServices.currency', 'employee.position', 'applicant.contractServices.service.currency', 'company'])->find($id);
         if (! $contract) {
             return $this->notFound();
         }
@@ -294,7 +294,7 @@ class ContractController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'contractServices.service.currency', 'employee', 'customer.contractServices.service.currency', 'company'])),
+            'data' => new ContractResource($contract->load(['template.contractType', 'contractType', 'contractServices.service.currency', 'employee', 'applicant.contractServices.service.currency', 'company'])),
         ]);
     }
 

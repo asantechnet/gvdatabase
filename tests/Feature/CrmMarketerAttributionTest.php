@@ -6,9 +6,11 @@ use App\Http\Controllers\ApplicantController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\VisitorController;
 use App\Models\Applicant;
+use App\Services\EducationalWorkflowNotificationService;
 use App\Models\Employee;
 use App\Models\Lead;
 use App\Models\Position;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\Visitor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,7 +29,7 @@ class CrmMarketerAttributionTest extends TestCase
         app(ApplicantController::class)->store($this->request($user, '/api/applicants', [
             'name' => 'Applicant contact', 'company' => 'Applicant Co', 'contact' => '+93700000000',
             'date' => '2026-09-03', 'marketer_id' => $otherMarketer->id, 'marketer' => $otherMarketer->name,
-        ]));
+        ]), app(EducationalWorkflowNotificationService::class));
         app(LeadController::class)->store($this->request($user, '/api/leads', [
             'name' => 'Lead contact', 'company' => 'Lead Co', 'contact' => '+93700000001',
             'marketer_id' => $otherMarketer->id, 'marketer' => $otherMarketer->name,
@@ -47,7 +49,7 @@ class CrmMarketerAttributionTest extends TestCase
         $applicant = Applicant::query()->firstOrFail();
         app(ApplicantController::class)->update($this->request($user, "/api/applicants/{$applicant->id}", [
             'marketer_id' => $otherMarketer->id,
-        ], 'PUT'), $applicant);
+        ], 'PUT'), $applicant, app(EducationalWorkflowNotificationService::class));
 
         $this->assertSame($marketer->id, $applicant->fresh()->marketer_id);
     }
@@ -83,18 +85,20 @@ class CrmMarketerAttributionTest extends TestCase
         app(ApplicantController::class)->store($this->request($user, '/api/applicants', [
             'name' => 'Applicant contact', 'company' => 'Applicant Co', 'contact' => '+93700000000',
             'date' => '2026-09-03', 'marketer_id' => $nonMarketer->id,
-        ]));
+        ]), app(EducationalWorkflowNotificationService::class));
     }
 
     public function test_legacy_marketer_label_is_upgraded_to_the_matching_employee_id(): void
     {
         [, $marketer] = $this->marketers();
         $user = User::factory()->create();
+        // Assigning by legacy label needs the applicant-employee permission.
+        $user->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
 
         app(ApplicantController::class)->store($this->request($user, '/api/applicants', [
             'name' => 'Applicant contact', 'company' => 'Applicant Co', 'contact' => '+93700000000',
             'date' => '2026-09-03', 'marketer' => $marketer->name,
-        ]));
+        ]), app(EducationalWorkflowNotificationService::class));
 
         $applicant = Applicant::query()->firstOrFail();
         $this->assertSame($marketer->id, $applicant->marketer_id);

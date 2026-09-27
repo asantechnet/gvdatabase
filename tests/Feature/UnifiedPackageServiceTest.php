@@ -68,7 +68,7 @@ class UnifiedPackageServiceTest extends TestCase
         $approved = ApplicantStage::where('key', 'visa_approved')->firstOrFail();
         $completed = ApplicantStage::where('key', 'completed')->firstOrFail();
         $applicant = Applicant::create([
-            'applicant_id' => Applicant::factory()->create()->id,
+            'name' => 'Package Case',
             'responsible_employee_id' => $employee->id,
             'current_stage_id' => $processing->id,
             'status' => 'active',

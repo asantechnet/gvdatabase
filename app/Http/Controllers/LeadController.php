@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ApplicantResource;
 use App\Http\Resources\LeadResource;
 use App\Models\CrmInteraction;
 use App\Models\Applicant;

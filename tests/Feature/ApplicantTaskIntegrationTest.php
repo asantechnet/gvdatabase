@@ -6,6 +6,7 @@ use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\Board;
 use App\Models\Employee;
+use App\Models\Project;
 use App\Models\Role;
 use App\Models\Task;
 use App\Models\User;
@@ -46,7 +47,7 @@ class ApplicantTaskIntegrationTest extends TestCase
 
         $task = Task::query()->where('applicant_id', $a['id'])->firstOrFail();
         $this->assertSame('Collect required applicant documents', $task->title);
-        $this->assertSame($applicant->id, $task->applicant_id);
+        $this->assertSame($a['id'], $task->applicant_id);
         $this->assertSame('high', $task->priority);
         $this->assertNotNull($task->due_date);
         $this->assertTrue($task->users()->whereKey($employee->user_id)->exists());
@@ -81,10 +82,10 @@ class ApplicantTaskIntegrationTest extends TestCase
 
         foreach (['documents_required', 'university_application', 'visa_preparation'] as $key) {
             $stage = ApplicantStage::query()->where('key', $key)->firstOrFail();
-            $created = $service->ensureForStage($applicant->fresh()->load(['applicant', 'responsibleEmployee']), $stage, null);
+            $created = $service->ensureForStage($applicant->fresh()->load('responsibleEmployee'), $stage, null);
             $this->assertNotEmpty($created);
             // Second call for the same stage must not duplicate open work.
-            $this->assertSame([], $service->ensureForStage($applicant->fresh()->load(['applicant', 'responsibleEmployee']), $stage, null));
+            $this->assertSame([], $service->ensureForStage($applicant->fresh()->load('responsibleEmployee'), $stage, null));
         }
 
         $this->assertSame(3, Task::query()->where('applicant_id', $applicant->id)->count());
@@ -107,7 +108,8 @@ class ApplicantTaskIntegrationTest extends TestCase
         $other = Applicant::factory()->create();
         $a = $this->postJson('/api/applicants', ['name' => 'Task Case'])->assertCreated()->json('data');
         $board = Board::factory()->create();
-        $board->project()->create(['name' => 'Case board project', 'applicant_id' => $a['id']]);
+        // `boards.project_id` is the link, so the project has to be attached to the board.
+        $board->update(['project_id' => Project::create(['name' => 'Case board project', 'applicant_id' => $a['id']])->id]);
 
         // Explicit linkage matching the board's project is accepted.
         $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Call the student', 'applicant_id' => $a['id']])
