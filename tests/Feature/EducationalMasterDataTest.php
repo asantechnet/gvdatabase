@@ -7,7 +7,6 @@ use App\Models\ContractTemplate;
 use App\Models\ContractTemplateVersion;
 use App\Models\ContractType;
 use App\Models\Currency;
-use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Package;
 use App\Models\Role;
@@ -57,11 +56,13 @@ class EducationalMasterDataTest extends TestCase
         $this->putJson("/api/educational-master-data/languages/{$language['id']}", ['is_active' => false])->assertOk()->assertJsonPath('data.is_active', false);
         $this->getJson('/api/educational-master-data/languages?active=1')->assertOk()->assertJsonMissing(['id' => $language['id']]);
 
-        $customer = Customer::factory()->create();
-        Applicant::create(['customer_id' => $customer->id, 'country_id' => $country['id'], 'university_id' => $university['id'], 'education_level_id' => $level['id'], 'language_id' => $language['id']]);
+        $applicant = Applicant::factory()->create([
+            'country_id' => $country['id'], 'university_id' => $university['id'],
+            'education_level_id' => $level['id'], 'language_id' => $language['id'],
+        ]);
         $template = ContractTemplate::create(['name' => 'Admission agreement', 'contract_type_id' => ContractType::firstOrCreate(['slug' => 'educational-service'], ['name' => 'Educational service'])->id, 'cover_text' => '', 'content' => '<p>Legacy</p>']);
         ContractTemplateVersion::create(['contract_template_id' => $template->id, 'language_id' => $language['id'], 'version_number' => 1, 'content' => '<p>Version 1</p>']);
-        app(PackageIssuanceService::class)->issue(Package::findOrFail($package['id']), $customer, ['applicant_id' => Applicant::firstOrFail()->id, 'sold_by_employee_id' => Employee::factory()->create()->id, 'purchased_at' => now()->toDateString()]);
+        app(PackageIssuanceService::class)->issue(Package::findOrFail($package['id']), $applicant, ['sold_by_employee_id' => Employee::factory()->create()->id, 'purchased_at' => now()->toDateString()]);
 
         foreach ([['countries', $country['id']], ['education-levels', $level['id']], ['languages', $language['id']], ['package-types', $package['id']], ['universities', $university['id']]] as [$catalog, $id]) {
             $this->deleteJson("/api/educational-master-data/{$catalog}/{$id}")->assertConflict()->assertJsonPath('code', 'business.master_data_in_use');

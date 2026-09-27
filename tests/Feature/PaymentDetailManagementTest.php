@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Currency;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\ContractService;
 use App\Models\ContractType;
@@ -61,29 +61,29 @@ class PaymentDetailManagementTest extends TestCase
             'is_base' => true,
             'is_active' => true,
         ]);
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
         $service = Service::factory()->create([
             'currency_id' => $currency->id,
             'fee' => 250,
         ]);
         $contract = Contract::create([
             'contract_type_id' => ContractType::query()->where('slug', 'customer')->value('id'),
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'name' => $service->type, 'type' => 'Customer', 'status' => 'active',
-            'start_date' => '2026-09-01', 'counterparty' => $customer->name,
+            'start_date' => '2026-09-01', 'counterparty' => $applicant->name,
             'content' => '', 'is_custom' => true,
         ]);
-        $customerService = $contract->contractServices()->create(['service_id' => $service->id]);
+        $applicantService = $contract->contractServices()->create(['service_id' => $service->id]);
         $paymentDetail = PaymentDetail::create([
             'method' => 'Bank transfer',
             'instruction' => "Account: 12345\nReference the invoice number.",
         ]);
 
         $response = $this->postJson('/api/invoices', [
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'currency_id' => $currency->id,
             'rate' => 1,
-            'services' => [['contract_service_id' => $customerService->id, 'quantity' => 1]],
+            'services' => [['contract_service_id' => $applicantService->id, 'quantity' => 1]],
             'tax_percent' => 0,
             'discount' => 0,
             'payment_detail_id' => $paymentDetail->id,

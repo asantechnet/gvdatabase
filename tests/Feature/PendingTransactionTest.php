@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Contract;
 use App\Models\Currency;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\User;
@@ -45,39 +45,37 @@ class PendingTransactionTest extends TestCase
     {
         $this->actingAsAdmin();
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
-        $customer = Customer::factory()->create();
-        $applicant = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+        $applicant = $this->postJson('/api/applicants', ['name' => 'Pending Case'])->assertCreated()->json('data');
         $employee = Employee::factory()->create();
 
-        $income = $this->postJson('/api/pending-transactions', ['transaction_type' => 'income', 'reason' => 'Tuition fee', 'amount' => 100, 'currency_id' => $currency->id, 'customer_id' => $customer->id, 'applicant_id' => $applicant['id'], 'employee_id' => $employee->id])->assertCreated()->json('data');
+        $income = $this->postJson('/api/pending-transactions', ['transaction_type' => 'income', 'reason' => 'Tuition fee', 'amount' => 100, 'currency_id' => $currency->id, 'applicant_id' => $applicant['id'], 'employee_id' => $employee->id])->assertCreated()->json('data');
         $approver = User::factory()->create(); $approver->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
         Sanctum::actingAs($approver, ['access']);
         $this->postJson("/api/pending-transactions/{$income['id']}/approve")->assertOk();
         $this->postJson("/api/pending-transactions/{$income['id']}/post")->assertOk();
-        $this->assertDatabaseHas('incomes', ['pending_transaction_id' => $income['id'], 'customer_id' => $customer->id, 'applicant_id' => $applicant['id'], 'employee_id' => $employee->id]);
+        $this->assertDatabaseHas('incomes', ['pending_transaction_id' => $income['id'], 'applicant_id' => $applicant['id'], 'employee_id' => $employee->id]);
 
-        // An applicant paired with another customer's record is rejected.
-        $other = Customer::factory()->create();
-        $this->postJson('/api/pending-transactions', ['transaction_type' => 'income', 'reason' => 'Mismatch', 'amount' => 10, 'currency_id' => $currency->id, 'customer_id' => $other->id, 'applicant_id' => $applicant['id']])->assertUnprocessable();
+        // The posted income is filed against the same single applicant.
+        $this->assertSame($applicant['id'], $income['applicant_id']);
     }
 
-    public function test_customer_expenses_require_an_active_contract(): void
+    public function test_applicant_expenses_require_an_active_contract(): void
     {
         $this->actingAsAdmin();
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
 
-        // No active contract: customer income still flows, customer expense is blocked.
-        $this->postJson('/api/pending-transactions', ['transaction_type' => 'income', 'reason' => 'Deposit', 'amount' => 50, 'currency_id' => $currency->id, 'customer_id' => $customer->id])->assertCreated();
-        $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'customer_id' => $customer->id])->assertUnprocessable();
-        // Office-level expense without a customer is unaffected.
+        // No active contract: applicant income still flows, applicant expense is blocked.
+        $this->postJson('/api/pending-transactions', ['transaction_type' => 'income', 'reason' => 'Deposit', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertCreated();
+        $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertUnprocessable();
+        // Office-level expense without an applicant is unaffected.
         $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Office rent', 'amount' => 50, 'currency_id' => $currency->id])->assertCreated();
 
-        Contract::factory()->create(['customer_id' => $customer->id, 'status' => 'active', 'is_cancelled' => false]);
-        $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'customer_id' => $customer->id])->assertCreated();
+        Contract::factory()->create(['applicant_id' => $applicant->id, 'status' => 'active', 'is_cancelled' => false]);
+        $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertCreated();
 
         // A cancelled contract no longer satisfies the rule.
-        Contract::query()->where('customer_id', $customer->id)->update(['is_cancelled' => true]);
-        $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'customer_id' => $customer->id])->assertUnprocessable();
+        Contract::query()->where('applicant_id', $applicant->id)->update(['is_cancelled' => true]);
+        $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertUnprocessable();
     }
 }

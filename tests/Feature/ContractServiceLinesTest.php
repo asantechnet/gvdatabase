@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ContractType;
 use App\Models\Currency;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Role;
 use App\Models\Service;
 use App\Models\User;
@@ -24,7 +24,7 @@ class ContractServiceLinesTest extends TestCase
         Sanctum::actingAs($user, ['access']);
     }
 
-    private function customerTemplate(int $typeId, ?int $serviceId, string $name = 'Service agreement'): int
+    private function applicantTemplate(int $typeId, ?int $serviceId, string $name = 'Service agreement'): int
     {
         return $this->postJson('/api/contract-templates', [
             'name' => $name,
@@ -40,16 +40,16 @@ class ContractServiceLinesTest extends TestCase
         $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
         $currency = Currency::factory()->create();
         $catalogue = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 500]);
-        $templateId = $this->customerTemplate($type->id, $catalogue->id);
-        $customer = Customer::factory()->create();
+        $templateId = $this->applicantTemplate($type->id, $catalogue->id);
+        $applicant = Applicant::factory()->create();
 
         $contract = $this->postJson('/api/contracts', [
             'template_id' => $templateId,
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'status' => 'draft',
             'start_date' => now()->toDateString(),
             'service_lines' => [
-                ['service_id' => $catalogue->id, 'fee' => 450, 'currency_id' => $currency->id, 'notes' => 'per-customer discount'],
+                ['service_id' => $catalogue->id, 'fee' => 450, 'currency_id' => $currency->id, 'notes' => 'per-applicant discount'],
             ],
         ])->assertCreated()->json('data');
 
@@ -69,12 +69,12 @@ class ContractServiceLinesTest extends TestCase
         $currency = Currency::factory()->create();
         $first = Service::factory()->create(['currency_id' => $currency->id]);
         $second = Service::factory()->create(['currency_id' => $currency->id]);
-        $templateId = $this->customerTemplate($type->id, $first->id);
-        $customer = Customer::factory()->create();
+        $templateId = $this->applicantTemplate($type->id, $first->id);
+        $applicant = Applicant::factory()->create();
 
         $this->postJson('/api/contracts', [
             'template_id' => $templateId,
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'status' => 'draft',
             'start_date' => now()->toDateString(),
             'service_ids' => [$first->id, $second->id],
@@ -82,7 +82,7 @@ class ContractServiceLinesTest extends TestCase
 
         $this->postJson('/api/contracts', [
             'template_id' => $templateId,
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'status' => 'draft',
             'start_date' => now()->toDateString(),
             'service_lines' => [['service_id' => $first->id], ['service_id' => $second->id]],
@@ -94,12 +94,12 @@ class ContractServiceLinesTest extends TestCase
         $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
         $currency = Currency::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id]);
-        $templateId = $this->customerTemplate($type->id, $service->id);
-        $customer = Customer::factory()->create();
+        $templateId = $this->applicantTemplate($type->id, $service->id);
+        $applicant = Applicant::factory()->create();
 
         $this->postJson('/api/contracts', [
             'template_id' => $templateId,
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'status' => 'draft',
             'start_date' => now()->toDateString(),
         ])->assertUnprocessable();
@@ -110,13 +110,13 @@ class ContractServiceLinesTest extends TestCase
         $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
         $currency = Currency::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id]);
-        $templateId = $this->customerTemplate($type->id, $service->id);
+        $templateId = $this->applicantTemplate($type->id, $service->id);
         $inactive = Service::factory()->create(['currency_id' => $currency->id, 'status' => 'inactive']);
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
 
         $this->postJson('/api/contracts', [
             'template_id' => $templateId,
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'status' => 'draft',
             'start_date' => now()->toDateString(),
             'service_ids' => [$inactive->id],
@@ -129,8 +129,8 @@ class ContractServiceLinesTest extends TestCase
         $otherType = ContractType::query()->where('slug', 'other')->firstOrFail();
         $currency = Currency::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id]);
-        $linked = $this->customerTemplate($type->id, $service->id, 'Linked template');
-        $generic = $this->customerTemplate($otherType->id, null, 'Generic template');
+        $linked = $this->applicantTemplate($type->id, $service->id, 'Linked template');
+        $generic = $this->applicantTemplate($otherType->id, null, 'Generic template');
 
         $ids = collect($this->getJson("/api/contract-templates?service_ids[]={$service->id}")->assertOk()->json('data'))->pluck('id')->all();
         $this->assertContains($linked, $ids);

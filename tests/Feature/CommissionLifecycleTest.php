@@ -6,7 +6,7 @@ use App\Models\CommissionAccrual;
 use App\Models\CommissionSettlement;
 use App\Models\Company;
 use App\Models\Currency;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\ContractService;
 use App\Models\ContractType;
@@ -34,20 +34,20 @@ class CommissionLifecycleTest extends TestCase
     {
         $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1, 'code' => 'USD']);
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
-        $customer = Customer::factory()->create();
-        $customerService = $this->contractedService($customer, $service, ['fee' => 100, 'currency_id' => $currency->id]);
+        $applicant = Applicant::factory()->create();
+        $applicantService = $this->contractedService($applicant, $service, ['fee' => 100, 'currency_id' => $currency->id]);
         $employee = Employee::factory()->create(['employment_type' => 'commission', 'salary' => null]);
         $otherEmployee = Employee::factory()->create(['employment_type' => 'commission', 'salary' => null]);
         $employee->commissionServices()->attach($service->id, ['percentage' => 10]);
         $otherEmployee->commissionServices()->attach($service->id, ['percentage' => 20]);
 
         $invoice = Invoice::factory()->create([
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'currency_id' => $currency->id, 'base_currency_id' => $currency->id,
             'subtotal' => 100, 'tax_percent' => 10, 'discount' => 10, 'amount' => 100, 'base_amount' => 100,
         ]);
         $invoice->services()->attach($service->id, [
-            'contract_service_id' => $customerService->id,
+            'contract_service_id' => $applicantService->id,
             'employee_id' => $employee->id, 'snapshot_commission_percentage' => 10,
             'snapshot_name' => $service->type, 'snapshot_service_fee' => 100,
             'snapshot_service_currency_code' => 'USD', 'snapshot_service_currency_symbol' => '$',
@@ -77,7 +77,7 @@ class CommissionLifecycleTest extends TestCase
         $this->postJson('/api/commissions/adjustments', [
             'employee_id' => $employee->id, 'base_currency_id' => $currency->id,
             'effective_date' => '2026-09-02', 'amount' => -1.5,
-            'reason' => 'Customer refund clawback',
+            'reason' => 'Applicant refund clawback',
         ])->assertCreated()->assertJsonPath('data.entry_type', 'adjustment');
         $settlementId = $this->postJson('/api/commission-settlements', [
             'employee_id' => $employee->id, 'base_currency_id' => $currency->id,
@@ -166,51 +166,51 @@ class CommissionLifecycleTest extends TestCase
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
         $employee = Employee::factory()->create(['employment_type' => 'commission', 'salary' => null]);
         $employee->commissionServices()->attach($service->id, ['percentage' => 12.5]);
-        $customerService = $this->contractedService($customer, $service, [
+        $applicantService = $this->contractedService($applicant, $service, [
             'fee' => 175,
             'currency_id' => $currency->id,
         ]);
-        $customerService->deliveryEmployees()->sync([$employee->id => ['percentage' => 12.5]]);
+        $applicantService->deliveryEmployees()->sync([$employee->id => ['percentage' => 12.5]]);
         $payload = [
-            'customer_id' => $customer->id, 'currency_id' => $currency->id,
-            'services' => [['contract_service_id' => $customerService->id, 'quantity' => 1]], 'tax_percent' => 0,
+            'applicant_id' => $applicant->id, 'currency_id' => $currency->id,
+            'services' => [['contract_service_id' => $applicantService->id, 'quantity' => 1]], 'tax_percent' => 0,
         ];
 
         // A forged client-side employee_id is deliberately ignored. The
-        // customer-service delivery assignment is the authoritative source.
+        // applicant-service delivery assignment is the authoritative source.
         $payload['services'][0]['employee_id'] = Employee::factory()->create(['employment_type' => 'commission'])->id;
         $invoiceId = $this->postJson('/api/invoices', $payload)->assertCreated()->json('data.id');
         $line = DB::table('invoice_service')->where('invoice_id', $invoiceId)->sole();
         $this->assertSame($employee->id, (int) $line->employee_id);
         $this->assertSame(12.5, (float) $line->snapshot_commission_percentage);
         $this->assertSame(175.0, (float) $line->snapshot_service_fee);
-        $this->assertSame($customerService->id, (int) $line->contract_service_id);
+        $this->assertSame($applicantService->id, (int) $line->contract_service_id);
     }
 
     public function test_one_customer_service_can_accrue_delivery_commissions_for_multiple_employees(): void
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
         $first = Employee::factory()->create(['employment_type' => 'commission']);
         $second = Employee::factory()->create(['employment_type' => 'commission']);
         $first->commissionServices()->attach($service->id, ['percentage' => 10]);
         $second->commissionServices()->attach($service->id, ['percentage' => 15]);
-        $customerService = $this->contractedService($customer, $service, ['currency_id' => $currency->id]);
-        $customerService->deliveryEmployees()->sync([
+        $applicantService = $this->contractedService($applicant, $service, ['currency_id' => $currency->id]);
+        $applicantService->deliveryEmployees()->sync([
             $first->id => ['percentage' => 10],
             $second->id => ['percentage' => 15],
         ]);
 
         $invoiceId = $this->postJson('/api/invoices', [
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'currency_id' => $currency->id,
-            'services' => [['contract_service_id' => $customerService->id]],
+            'services' => [['contract_service_id' => $applicantService->id]],
             'tax_percent' => 0,
         ])->assertCreated()->json('data.id');
 
@@ -276,16 +276,16 @@ class CommissionLifecycleTest extends TestCase
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
         $company = Company::create(['legal_name' => 'External Delivery Ltd', 'is_active' => true]);
-        $assignment = $this->contractedService($customer, $service, [
+        $assignment = $this->contractedService($applicant, $service, [
             'currency_id' => $currency->id, 'fee' => 100,
             'outsourcing_company_id' => $company->id, 'outsourcing_percentage' => 25,
         ]);
 
         $invoiceId = $this->postJson('/api/invoices', [
-            'customer_id' => $customer->id, 'currency_id' => $currency->id,
+            'applicant_id' => $applicant->id, 'currency_id' => $currency->id,
             'services' => [['contract_service_id' => $assignment->id]], 'tax_percent' => 0,
         ])->assertCreated()->json('data.id');
         $line = DB::table('invoice_service')->where('invoice_id', $invoiceId)->sole();
@@ -327,12 +327,12 @@ class CommissionLifecycleTest extends TestCase
     {
         $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1, 'code' => 'USD']);
         $service = Service::factory()->create(['currency_id' => $currency->id]);
-        $customer = Customer::factory()->create();
-        $customerService = $this->contractedService($customer, $service, ['currency_id' => $currency->id]);
+        $applicant = Applicant::factory()->create();
+        $applicantService = $this->contractedService($applicant, $service, ['currency_id' => $currency->id]);
         $employee = Employee::factory()->create(['employment_type' => 'commission', 'salary' => null]);
-        $invoice = Invoice::factory()->create(['customer_id' => $customer->id, 'currency_id' => $currency->id, 'base_currency_id' => $currency->id, 'amount' => 100, 'subtotal' => 100]);
+        $invoice = Invoice::factory()->create(['applicant_id' => $applicant->id, 'currency_id' => $currency->id, 'base_currency_id' => $currency->id, 'amount' => 100, 'subtotal' => 100]);
         $invoice->services()->attach($service->id, [
-            'contract_service_id' => $customerService->id,
+            'contract_service_id' => $applicantService->id,
             'employee_id' => $employee->id, 'snapshot_commission_percentage' => 10,
             'snapshot_name' => $service->type, 'snapshot_service_fee' => 100,
             'snapshot_service_currency_code' => 'USD', 'snapshot_service_currency_symbol' => '$',
@@ -348,13 +348,13 @@ class CommissionLifecycleTest extends TestCase
         return [$currency, $employee, CommissionAccrual::sole()];
     }
 
-    private function contractedService(Customer $customer, Service $service, array $line = []): ContractService
+    private function contractedService(Applicant $applicant, Service $service, array $line = []): ContractService
     {
         $contract = Contract::create([
             'contract_type_id' => ContractType::query()->where('slug', 'customer')->value('id'),
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'name' => $service->type, 'type' => 'Customer', 'status' => 'active',
-            'start_date' => '2026-09-01', 'counterparty' => $customer->name,
+            'start_date' => '2026-09-01', 'counterparty' => $applicant->name,
             'content' => '', 'is_custom' => true,
         ]);
 

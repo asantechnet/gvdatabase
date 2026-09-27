@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Currency;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\ContractType;
 use App\Models\Role;
@@ -21,16 +21,16 @@ class ProjectServiceAssignmentTest extends TestCase
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create();
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
         $design = Service::factory()->create(['type' => 'Brand design', 'currency_id' => $currency->id]);
         $hosting = Service::factory()->create(['type' => 'Website hosting', 'currency_id' => $currency->id]);
 
-        $this->contractedService($customer, $design->id);
-        $this->contractedService($customer, $hosting->id);
+        $this->contractedService($applicant, $design->id);
+        $this->contractedService($applicant, $hosting->id);
 
         $projectId = $this->postJson('/api/projects', [
             'name' => 'Website relaunch',
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'service_ids' => [$hosting->id, $design->id],
         ])->assertCreated()
             ->assertJsonPath('data.service_ids', [$design->id, $hosting->id])
@@ -49,18 +49,18 @@ class ProjectServiceAssignmentTest extends TestCase
         $this->assertDatabaseHas('project_service', ['project_id' => $projectId, 'service_id' => $hosting->id]);
     }
 
-    public function test_a_project_cannot_be_linked_to_a_service_the_customer_has_not_selected(): void
+    public function test_a_project_cannot_be_linked_to_a_service_the_applicant_has_not_selected(): void
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create();
-        $customer = Customer::factory()->create();
-        $otherCustomer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
+        $otherApplicant = Applicant::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id]);
-        $this->contractedService($otherCustomer, $service->id);
+        $this->contractedService($otherApplicant, $service->id);
 
         $this->postJson('/api/projects', [
             'name' => 'Invalid delivery scope',
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'service_ids' => [$service->id],
         ])->assertUnprocessable()
             ->assertJsonValidationErrors('service_ids');
@@ -69,13 +69,13 @@ class ProjectServiceAssignmentTest extends TestCase
         $this->assertDatabaseCount('project_service', 0);
     }
 
-    private function contractedService(Customer $customer, int $serviceId): void
+    private function contractedService(Applicant $applicant, int $serviceId): void
     {
         $contract = Contract::create([
             'contract_type_id' => ContractType::query()->where('slug', 'customer')->value('id'),
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'name' => 'Agreement', 'type' => 'Customer', 'status' => 'active',
-            'start_date' => '2026-09-01', 'counterparty' => $customer->name,
+            'start_date' => '2026-09-01', 'counterparty' => $applicant->name,
             'content' => '', 'is_custom' => true,
         ]);
         $contract->contractServices()->create(['service_id' => $serviceId]);

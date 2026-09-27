@@ -8,7 +8,6 @@ use App\Models\Board;
 use App\Models\BonusRuleSet;
 use App\Models\CaseWin;
 use App\Models\Currency;
-use App\Models\Customer;
 use App\Models\DailyAnalytics;
 use App\Models\Employee;
 use App\Models\MonthlyAnalytics;
@@ -52,7 +51,7 @@ class PhaseNineBonusAutomationTest extends TestCase
         $reviewer = $this->superAdmin();
         $worker = User::factory()->create();
         $employee = Employee::factory()->create(['user_id' => $worker->id, 'department' => 'Engineering']);
-        $applicant = Applicant::create(['customer_id' => Customer::factory()->create()->id, 'responsible_employee_id' => $employee->id]);
+        $applicant = Applicant::factory()->create(['responsible_employee_id' => $employee->id]);
         $currency = Currency::factory()->create(['code' => 'AFN', 'name' => 'Afghani', 'symbol' => '؋', 'is_base' => true, 'rate' => 1]);
         $task = Task::factory()->create([
             'board_id' => Board::factory(), 'progress' => 99, 'priority' => 'high',
@@ -115,7 +114,7 @@ class PhaseNineBonusAutomationTest extends TestCase
         $task->users()->attach($taskUser->id, ['contribution_percent' => 100]);
 
         $winner = Employee::factory()->create();
-        $applicant = Applicant::create(['customer_id' => Customer::factory()->create()->id, 'responsible_employee_id' => $winner->id]);
+        $applicant = Applicant::factory()->create(['responsible_employee_id' => $winner->id]);
         CaseWin::create(['applicant_id' => $applicant->id, 'employee_id' => $winner->id, 'won_at' => '2026-07-11 06:00:00', 'stage_key' => 'visa_approved']);
 
         $this->artisan('bonuses:calculate', ['--month' => '2026-07'])->assertSuccessful();

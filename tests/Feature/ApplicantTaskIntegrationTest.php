@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\Board;
-use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\Task;
@@ -38,8 +37,7 @@ class ApplicantTaskIntegrationTest extends TestCase
     {
         Board::factory()->create();
         $employee = Employee::factory()->create();
-        $customer = Customer::factory()->create();
-        $a = $this->postJson('/api/applicants', ['customer_id' => $customer->id, 'responsible_employee_id' => $employee->id])->assertCreated()->json('data');
+        $a = $this->postJson('/api/applicants', ['name' => 'Task Case', 'responsible_employee_id' => $employee->id])->assertCreated()->json('data');
 
         $this->moveTo($a['id'], 'consultation');
         $this->assertDatabaseMissing('tasks', ['applicant_id' => $a['id']]);
@@ -48,7 +46,7 @@ class ApplicantTaskIntegrationTest extends TestCase
 
         $task = Task::query()->where('applicant_id', $a['id'])->firstOrFail();
         $this->assertSame('Collect required applicant documents', $task->title);
-        $this->assertSame($customer->id, $task->customer_id);
+        $this->assertSame($applicant->id, $task->applicant_id);
         $this->assertSame('high', $task->priority);
         $this->assertNotNull($task->due_date);
         $this->assertTrue($task->users()->whereKey($employee->user_id)->exists());
@@ -57,15 +55,13 @@ class ApplicantTaskIntegrationTest extends TestCase
     public function test_stage_tasks_are_idempotent(): void
     {
         Board::factory()->create();
-        $customer = Customer::factory()->create();
-        $a = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+        $a = $this->postJson('/api/applicants', ['name' => 'Idempotent Case'])->assertCreated()->json('data');
 
         $this->moveTo($a['id'], 'consultation');
 
         // Staff already recorded the work manually before the transition.
         Task::create([
             'board_id' => Board::query()->first()->id,
-            'customer_id' => $customer->id,
             'applicant_id' => $a['id'],
             'title' => 'Collect required applicant documents',
             'priority' => 'high',
@@ -80,15 +76,15 @@ class ApplicantTaskIntegrationTest extends TestCase
     public function test_service_covers_every_mapped_stage_without_duplicates(): void
     {
         Board::factory()->create();
-        $applicant = Applicant::create(['customer_id' => Customer::factory()->create()->id]);
+        $applicant = Applicant::factory()->create();
         $service = app(ApplicantTaskService::class);
 
         foreach (['documents_required', 'university_application', 'visa_preparation'] as $key) {
             $stage = ApplicantStage::query()->where('key', $key)->firstOrFail();
-            $created = $service->ensureForStage($applicant->fresh()->load(['customer', 'responsibleEmployee']), $stage, null);
+            $created = $service->ensureForStage($applicant->fresh()->load(['applicant', 'responsibleEmployee']), $stage, null);
             $this->assertNotEmpty($created);
             // Second call for the same stage must not duplicate open work.
-            $this->assertSame([], $service->ensureForStage($applicant->fresh()->load(['customer', 'responsibleEmployee']), $stage, null));
+            $this->assertSame([], $service->ensureForStage($applicant->fresh()->load(['applicant', 'responsibleEmployee']), $stage, null));
         }
 
         $this->assertSame(3, Task::query()->where('applicant_id', $applicant->id)->count());
@@ -97,7 +93,7 @@ class ApplicantTaskIntegrationTest extends TestCase
     public function test_reading_a_case_never_creates_tasks(): void
     {
         Board::factory()->create();
-        $a = $this->postJson('/api/applicants', ['customer_id' => Customer::factory()->create()->id])->assertCreated()->json('data');
+        $a = $this->postJson('/api/applicants', ['name' => 'Case 1'])->assertCreated()->json('data');
 
         $this->getJson("/api/applicants/{$a['id']}")->assertOk();
         $this->getJson('/api/applicants')->assertOk();
@@ -106,25 +102,25 @@ class ApplicantTaskIntegrationTest extends TestCase
         $this->assertSame(0, Task::query()->where('applicant_id', $a['id'])->count());
     }
 
-    public function test_task_api_links_applicants_and_guards_customer_mismatch(): void
+    public function test_task_api_links_the_applicant_and_guards_project_mismatch(): void
     {
+        $other = Applicant::factory()->create();
+        $a = $this->postJson('/api/applicants', ['name' => 'Task Case'])->assertCreated()->json('data');
         $board = Board::factory()->create();
-        $customer = Customer::factory()->create();
-        $other = Customer::factory()->create();
-        $a = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+        $board->project()->create(['name' => 'Case board project', 'applicant_id' => $a['id']]);
 
-        // Explicit linkage is accepted.
-        $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Call the student', 'applicant_id' => $a['id'], 'customer_id' => $customer->id])
+        // Explicit linkage matching the board's project is accepted.
+        $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Call the student', 'applicant_id' => $a['id']])
             ->assertCreated();
-        $this->assertDatabaseHas('tasks', ['applicant_id' => $a['id'], 'customer_id' => $customer->id]);
+        $this->assertDatabaseHas('tasks', ['applicant_id' => $a['id'], 'title' => 'Call the student']);
 
-        // Customer defaults from the applicant when omitted.
-        $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Verify documents', 'applicant_id' => $a['id']])
+        // The applicant is inherited from the board's project when omitted.
+        $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Verify documents'])
             ->assertCreated();
-        $this->assertDatabaseHas('tasks', ['applicant_id' => $a['id'], 'title' => 'Verify documents', 'customer_id' => $customer->id]);
+        $this->assertDatabaseHas('tasks', ['applicant_id' => $a['id'], 'title' => 'Verify documents']);
 
-        // Cross-customer attribution is rejected.
-        $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Wrong ledger', 'applicant_id' => $a['id'], 'customer_id' => $other->id])
-            ->assertUnprocessable();
+        // A task attributed to a different applicant than its board's project is rejected.
+        $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Wrong ledger', 'applicant_id' => $other->id])
+            ->assertUnprocessable()->assertJsonValidationErrors('applicant_id');
     }
 }

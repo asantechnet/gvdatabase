@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Applicant;
 use App\Models\AuditLog;
-use App\Models\Customer;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,10 +27,10 @@ class ApplicantPortalTest extends TestCase
     public function test_staff_can_invite_an_applicant_and_the_portal_only_exposes_their_case(): void
     {
         $case = $this->postJson('/api/applicants', [
-            'customer_id' => Customer::factory()->create()->id,
+            'name' => 'Case 1',
             'notes' => 'Internal: waiting for the agency finance approval.',
         ])->assertCreated()->json('data');
-        $otherCase = Applicant::create(['customer_id' => Customer::factory()->create()->id]);
+        $otherCase = Applicant::factory()->create();
 
         $invitation = $this->postJson("/api/applicants/{$case['id']}/portal-invitation", [
             'name' => 'Amina Student',
@@ -57,7 +56,7 @@ class ApplicantPortalTest extends TestCase
 
     public function test_applicant_can_update_only_their_portal_profile_and_role_permissions_remain_editable(): void
     {
-        $case = Applicant::create(['customer_id' => Customer::factory()->create()->id]);
+        $case = Applicant::factory()->create();
         $user = User::factory()->create(['email_verified_at' => now()]);
         $user->roles()->attach(Role::query()->where('name', 'applicant')->firstOrFail());
         $case->update(['user_id' => $user->id]);

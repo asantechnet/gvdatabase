@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\VisitorController;
 use App\Models\CrmInteraction;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Lead;
 use App\Models\User;
 use App\Models\Visitor;
@@ -17,7 +17,7 @@ class CrmRelationshipTransferTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_notes_and_conversations_follow_visitor_through_lead_to_customer(): void
+    public function test_notes_and_conversations_follow_visitor_through_lead_to_applicant(): void
     {
         $user = User::factory()->create();
         $visitor = $this->visitor();
@@ -34,13 +34,13 @@ class CrmRelationshipTransferTest extends TestCase
         $this->assertSame($lead->id, $interaction->fresh()->contactable_id);
 
         app(LeadController::class)->convert($lead);
-        $customer = Customer::where('contact', '+93700000000')->firstOrFail();
+        $applicant = Applicant::where('contact', '+93700000000')->firstOrFail();
 
-        $this->assertSame('Prefers morning calls.', $customer->notes);
-        $this->assertSame('crm@example.test', $customer->email);
-        $this->assertSame($customer->getMorphClass(), $interaction->fresh()->contactable_type);
-        $this->assertSame($customer->id, $interaction->fresh()->contactable_id);
-        $this->assertSame('Discovery call', $customer->interactions()->firstOrFail()->title);
+        $this->assertSame('Prefers morning calls.', $applicant->notes);
+        $this->assertSame('crm@example.test', $applicant->email);
+        $this->assertSame($applicant->getMorphClass(), $interaction->fresh()->contactable_type);
+        $this->assertSame($applicant->id, $interaction->fresh()->contactable_id);
+        $this->assertSame('Discovery call', $applicant->interactions()->firstOrFail()->title);
     }
 
     public function test_direct_visitor_conversion_also_preserves_relationship_data(): void
@@ -49,13 +49,13 @@ class CrmRelationshipTransferTest extends TestCase
         $visitor = $this->visitor();
         $interaction = $this->interaction($visitor, $user);
 
-        app(VisitorController::class)->convertToCustomer($visitor);
-        $customer = Customer::where('contact', '+93700000000')->firstOrFail();
+        app(VisitorController::class)->convertToApplicant($visitor);
+        $applicant = Applicant::where('contact', '+93700000000')->firstOrFail();
 
-        $this->assertSame('Prefers morning calls.', $customer->notes);
-        $this->assertSame('crm@example.test', $customer->email);
-        $this->assertSame($customer->getMorphClass(), $interaction->fresh()->contactable_type);
-        $this->assertSame($customer->id, $interaction->fresh()->contactable_id);
+        $this->assertSame('Prefers morning calls.', $applicant->notes);
+        $this->assertSame('crm@example.test', $applicant->email);
+        $this->assertSame($applicant->getMorphClass(), $interaction->fresh()->contactable_type);
+        $this->assertSame($applicant->id, $interaction->fresh()->contactable_id);
     }
 
     private function visitor(): Visitor

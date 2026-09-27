@@ -46,7 +46,7 @@ class DashboardTest extends TestCase
         $board = Board::factory()->create(['title' => 'Delivery']);
         Task::factory()->create([
             'board_id' => $board->id,
-            'title' => 'Release customer portal',
+            'title' => 'Release applicant portal',
             'progress' => 80,
             'due_date' => '2026-08-20',
         ]);
@@ -89,7 +89,7 @@ class DashboardTest extends TestCase
             ->assertJsonPath('data.summary.completed_tasks_this_month', 1)
             ->assertJsonPath('data.summary.attendance_rate', 50)
             ->assertJsonPath('data.tertiary_chart.current_value', 1000)
-            ->assertJsonPath('data.active_tasks.0.title', 'Release customer portal')
+            ->assertJsonPath('data.active_tasks.0.title', 'Release applicant portal')
             ->assertJsonPath('data.active_tasks.0.board', 'Delivery')
             ->assertJsonCount(7, 'data.weekly_activity.labels')
             ->assertJsonCount(7, 'data.secondary_chart.rates');

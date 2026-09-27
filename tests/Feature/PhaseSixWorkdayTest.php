@@ -71,9 +71,9 @@ class PhaseSixWorkdayTest extends TestCase
 
         Carbon::setTestNow(Carbon::parse('2026-08-13 12:00:00', 'UTC'));
         $ended = $this->postJson('/api/workday/end', [
-            'summary' => 'Finished the customer onboarding workflow.',
+            'summary' => 'Finished the applicant onboarding workflow.',
             'achievements' => 'Released the final review.',
-            'challenges' => 'Waiting for customer data.',
+            'challenges' => 'Waiting for applicant data.',
             'nextDayPlan' => 'Monitor adoption.',
             'supportNeeded' => 'None',
         ])->assertOk()
@@ -88,7 +88,7 @@ class PhaseSixWorkdayTest extends TestCase
             'user_id' => $user->id,
             'attendance_id' => $attendanceId,
             'report_date' => '2026-08-13',
-            'summary' => 'Finished the customer onboarding workflow.',
+            'summary' => 'Finished the applicant onboarding workflow.',
         ]);
         $this->assertSame($user->id, DailyReport::firstOrFail()->user->id);
         $this->assertSame($employee->id, DailyReport::firstOrFail()->attendance->employee_id);

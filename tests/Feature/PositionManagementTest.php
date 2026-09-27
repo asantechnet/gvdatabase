@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Applicant;
 use App\Models\Currency;
 use App\Models\Position;
 use App\Models\User;
@@ -24,7 +25,7 @@ class PositionManagementTest extends TestCase
     {
         $created = $this->postJson('/api/positions', [
             'title' => 'Support Specialist',
-            'description' => 'Helps customers resolve technical issues.',
+            'description' => 'Helps applicants resolve technical issues.',
             'salary' => 42000,
             'status' => 'active',
         ])->assertCreated()
@@ -37,14 +38,14 @@ class PositionManagementTest extends TestCase
         $position = Position::findOrFail($created->json('data.id'));
 
         $this->putJson("/api/positions/{$position->id}", [
-            'title' => 'Customer Support Specialist',
+            'title' => 'Applicant Support Specialist',
             'status' => 'inactive',
         ])->assertOk()
-            ->assertJsonPath('data.title', 'Customer Support Specialist')
+            ->assertJsonPath('data.title', 'Applicant Support Specialist')
             ->assertJsonPath('data.status', 'inactive');
 
         $this->getJson('/api/positions')->assertOk()
-            ->assertJsonPath('data.0.title', 'Customer Support Specialist');
+            ->assertJsonPath('data.0.title', 'Applicant Support Specialist');
 
         $this->deleteJson("/api/positions/{$position->id}")->assertOk();
         $this->assertSoftDeleted('positions', ['id' => $position->id]);

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,10 +18,10 @@ class LeadConversionEmailTest extends TestCase
         $lead = $this->lead(null);
         Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
 
-        $this->postJson("/api/leads/{$lead->id}/convert-to-customer")
+        $this->postJson("/api/leads/{$lead->id}/convert-to-applicant")
             ->assertUnprocessable();
 
-        $this->assertDatabaseMissing('customers', ['contact' => $lead->contact]);
+        $this->assertDatabaseMissing('applicants', ['contact' => $lead->contact]);
         $this->assertNull($lead->fresh()->converted_at);
     }
 
@@ -30,11 +30,11 @@ class LeadConversionEmailTest extends TestCase
         $lead = $this->lead('not-an-email');
         Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
 
-        $this->postJson("/api/leads/{$lead->id}/convert-to-customer", ['email' => 'owner@example.test'])
+        $this->postJson("/api/leads/{$lead->id}/convert-to-applicant", ['email' => 'owner@example.test'])
             ->assertCreated();
 
         $this->assertSame('owner@example.test', $lead->fresh()->email);
-        $this->assertSame('owner@example.test', Customer::query()->where('contact', $lead->contact)->sole()->email);
+        $this->assertSame('owner@example.test', Applicant::query()->where('contact', $lead->contact)->sole()->email);
     }
 
     private function lead(?string $email): Lead

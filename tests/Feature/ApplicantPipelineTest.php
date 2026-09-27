@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\Country;
-use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\User;
@@ -30,13 +29,10 @@ class ApplicantPipelineTest extends TestCase
         $iran = Country::create(['name' => 'Iran', 'code' => 'IRN', 'is_active' => true]);
         $turkey = Country::create(['name' => 'Turkey', 'code' => 'TUR', 'is_active' => true]);
         $employee = Employee::factory()->create();
-        $ahmad = Customer::factory()->create(['name' => 'Ahmad Ahmadi']);
-        $sara = Customer::factory()->create(['name' => 'Sara Mohammadi']);
+        $a = $this->postJson('/api/applicants', ['name' => 'Ahmad Ahmadi', 'country_id' => $iran->id, 'responsible_employee_id' => $employee->id])->assertCreated()->json('data');
+        $b = $this->postJson('/api/applicants', ['name' => 'Sara Mohammadi', 'country_id' => $turkey->id])->assertCreated()->json('data');
 
-        $a = $this->postJson('/api/applicants', ['customer_id' => $ahmad->id, 'country_id' => $iran->id, 'responsible_employee_id' => $employee->id])->assertCreated()->json('data');
-        $b = $this->postJson('/api/applicants', ['customer_id' => $sara->id, 'country_id' => $turkey->id])->assertCreated()->json('data');
-
-        // Search by customer name.
+        // Search by applicant name.
         $this->getJson('/api/applicants?search=Ahmad')->assertOk()->assertJsonPath('data.total', 1)->assertJsonFragment(['id' => $a['id']]);
 
         // Filter by country and employee.
@@ -61,8 +57,8 @@ class ApplicantPipelineTest extends TestCase
         $iran = Country::create(['name' => 'Iran', 'code' => 'IRN', 'is_active' => true]);
         $turkey = Country::create(['name' => 'Turkey', 'code' => 'TUR', 'is_active' => true]);
 
-        $this->postJson('/api/applicants', ['customer_id' => Customer::factory()->create()->id, 'country_id' => $iran->id])->assertCreated();
-        $this->postJson('/api/applicants', ['customer_id' => Customer::factory()->create()->id, 'country_id' => $turkey->id])->assertCreated();
+        $this->postJson('/api/applicants', ['name' => 'Case 1', 'country_id' => $iran->id])->assertCreated();
+        $this->postJson('/api/applicants', ['name' => 'Case 2', 'country_id' => $turkey->id])->assertCreated();
 
         $all = $this->getJson('/api/applicants-pipeline')->assertOk()->json('data');
         $this->assertSame(2, $all['totals']['all']);
@@ -86,8 +82,7 @@ class ApplicantPipelineTest extends TestCase
 
     public function test_illegal_stage_jump_is_rejected(): void
     {
-        $customer = Customer::factory()->create();
-        $a = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+        $a = $this->postJson('/api/applicants', ['name' => 'Stage Case'])->assertCreated()->json('data');
         $completed = ApplicantStage::query()->where('key', 'completed')->firstOrFail();
 
         $this->postJson("/api/applicants/{$a['id']}/change-stage", ['stage_id' => $completed->id])->assertUnprocessable();
@@ -95,24 +90,23 @@ class ApplicantPipelineTest extends TestCase
 
     public function test_cancel_withdraw_reject_and_appeal_paths_are_reachable(): void
     {
-        $customer = Customer::factory()->create();
         $stageId = fn (string $key) => ApplicantStage::query()->where('key', $key)->firstOrFail()->id;
         $move = fn (int $id, string $key) => $this->postJson("/api/applicants/{$id}/change-stage", ['stage_id' => $stageId($key)])->assertOk();
 
         // Cancel from an early active stage; withdrawn case re-engages.
-        $a = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+        $a = $this->postJson('/api/applicants', ['name' => 'Cancel Case'])->assertCreated()->json('data');
         $move($a['id'], 'consultation');
         $move($a['id'], 'cancelled');
         $this->getJson('/api/applicants?board=cancelled')->assertOk()->assertJsonFragment(['id' => $a['id']]);
 
-        $b = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+        $b = $this->postJson('/api/applicants', ['name' => 'Withdraw Case'])->assertCreated()->json('data');
         $move($b['id'], 'consultation');
         $move($b['id'], 'withdrawn');
         $moved = $move($b['id'], 'consultation');
         $this->assertSame('active', $moved->json('data.status'));
 
         // Walk to a decision stage, record a refusal, then appeal.
-        $c = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+        $c = $this->postJson('/api/applicants', ['name' => 'Appeal Case'])->assertCreated()->json('data');
         foreach (['consultation', 'documents_required', 'documents_complete', 'university_selection', 'university_application', 'admission_pending'] as $key) {
             $move($c['id'], $key);
         }

@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Contract;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,17 +22,15 @@ class SearchTest extends TestCase
         Sanctum::actingAs($user, ['access']);
     }
 
-    public function test_search_finds_applicants_customers_and_contracts(): void
+    public function test_search_finds_applicants_and_contracts(): void
     {
-        $customer = Customer::factory()->create(['name' => 'Zahra Noorzai', 'contact' => '+93700123456', 'email' => 'zahra@example.com']);
-        $a = $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
-        $contract = Contract::factory()->create(['customer_id' => $customer->id, 'contract_number' => 'CTR-99881']);
+        $a = $this->postJson('/api/applicants', ['name' => 'Zahra Noorzai', 'contact' => '+93700123456', 'email' => 'zahra@example.com'])->assertCreated()->json('data');
+        $contract = Contract::factory()->create(['applicant_id' => $a['id'], 'contract_number' => 'CTR-99881']);
 
         $result = $this->getJson('/api/search?q=Noorzai')->assertOk()->json('data');
 
         $this->assertSame('Noorzai', $result['query']);
         $this->assertNotEmpty($result['groups']['applicants']);
-        $this->assertNotEmpty($result['groups']['customers']);
         $this->assertSame($a['id'], $result['groups']['applicants'][0]['id']);
         $this->assertSame('applicant-case', $result['groups']['applicants'][0]['route']['name']);
 
@@ -53,7 +51,7 @@ class SearchTest extends TestCase
 
     public function test_search_only_returns_groups_the_user_may_open(): void
     {
-        Customer::factory()->create(['name' => 'Hidden Customer']);
+        Applicant::factory()->create(['name' => 'Hidden Applicant']);
         Sanctum::actingAs(User::factory()->create(), ['access']);
 
         $result = $this->getJson('/api/search?q=Hidden')->assertOk()->json('data');

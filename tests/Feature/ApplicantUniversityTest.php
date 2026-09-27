@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Country;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Role;
 use App\Models\University;
 use App\Models\User;
@@ -25,9 +25,7 @@ class ApplicantUniversityTest extends TestCase
 
     private function makeCase(): array
     {
-        $customer = Customer::factory()->create();
-
-        return $this->postJson('/api/applicants', ['customer_id' => $customer->id])->assertCreated()->json('data');
+        return $this->postJson('/api/applicants', ['name' => 'University Case'])->assertCreated()->json('data');
     }
 
     private function makeUniversity(string $name = 'Istanbul University'): array

@@ -7,7 +7,6 @@ use App\Models\ApplicantStage;
 use App\Models\Board;
 use App\Models\Country;
 use App\Models\Currency;
-use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\Scholarship;
@@ -34,14 +33,13 @@ class EducationalDashboardTest extends TestCase
     {
         $iran = Country::create(['name' => 'Iran', 'code' => 'IRN', 'is_active' => true]);
         $employee = Employee::factory()->create();
-        $customer = Customer::factory()->create();
-        $a = $this->postJson('/api/applicants', ['customer_id' => $customer->id, 'country_id' => $iran->id, 'responsible_employee_id' => $employee->id])->assertCreated()->json('data');
+        $a = $this->postJson('/api/applicants', ['name' => 'Overview Case', 'country_id' => $iran->id, 'responsible_employee_id' => $employee->id])->assertCreated()->json('data');
 
         $currency = Currency::factory()->create();
-        Scholarship::create(['customer_id' => $customer->id, 'applicant_id' => $a['id'], 'employee_id' => $employee->id, 'currency_id' => $currency->id, 'date' => now()->toDateString(), 'fee' => 500, 'status' => 'active']);
+        Scholarship::create(['applicant_id' => $a['id'], 'employee_id' => $employee->id, 'currency_id' => $currency->id, 'date' => now()->toDateString(), 'fee' => 500, 'status' => 'active']);
 
         $board = Board::factory()->create();
-        Task::create(['board_id' => $board->id, 'customer_id' => $customer->id, 'applicant_id' => $a['id'], 'title' => 'Overdue case work', 'priority' => 'high', 'progress' => 0, 'due_date' => now()->subDay()->toDateString(), 'order' => 0]);
+        Task::create(['board_id' => $board->id, 'applicant_id' => $a['id'], 'title' => 'Overdue case work', 'priority' => 'high', 'progress' => 0, 'due_date' => now()->subDay()->toDateString(), 'order' => 0]);
 
         // The case has sat untouched for 20 days, so it counts as stuck.
         DB::table('applicant_stage_histories')->where('applicant_id', $a['id'])->update(['changed_at' => now()->subDays(20)]);
@@ -67,8 +65,8 @@ class EducationalDashboardTest extends TestCase
     {
         $iran = Country::create(['name' => 'Iran', 'code' => 'IRN', 'is_active' => true]);
         $turkey = Country::create(['name' => 'Turkey', 'code' => 'TUR', 'is_active' => true]);
-        $this->postJson('/api/applicants', ['customer_id' => Customer::factory()->create()->id, 'country_id' => $iran->id])->assertCreated();
-        $this->postJson('/api/applicants', ['customer_id' => Customer::factory()->create()->id, 'country_id' => $turkey->id])->assertCreated();
+        $this->postJson('/api/applicants', ['name' => 'Case 1', 'country_id' => $iran->id])->assertCreated();
+        $this->postJson('/api/applicants', ['name' => 'Case 2', 'country_id' => $turkey->id])->assertCreated();
 
         $filtered = $this->getJson("/api/educational-dashboard?country_id={$iran->id}")->assertOk()->json('data');
         $this->assertSame(1, $filtered['pipeline']['totals']['all']);

@@ -28,7 +28,7 @@ class SupportTicketTest extends TestCase
             'severity' => 'critical',
             'subject' => 'Invoice form cannot be saved',
             'description' => 'Saving an invoice returns me to the form without creating the invoice record.',
-            'page_url' => '/innvoice?customer=14',
+            'page_url' => '/innvoice?applicant=14',
         ])->assertCreated();
 
         $ticketId = $response->json('data.id');
@@ -73,7 +73,7 @@ class SupportTicketTest extends TestCase
             'category' => 'technical',
             'severity' => 'high',
             'subject' => 'A screenshot shows the save failure',
-            'description' => 'Saving an invoice fails after choosing a customer and entering the required details.',
+            'description' => 'Saving an invoice fails after choosing a applicant and entering the required details.',
             'attachments' => [UploadedFile::fake()->create('save-error.txt', 12, 'text/plain')],
         ], ['Accept' => 'application/json'])->assertCreated();
 

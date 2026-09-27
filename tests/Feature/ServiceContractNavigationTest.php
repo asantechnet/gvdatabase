@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\Contract;
 use App\Models\ContractType;
 use App\Models\Currency;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Role;
 use App\Models\Service;
 use App\Models\User;
@@ -25,11 +25,11 @@ class ServiceContractNavigationTest extends TestCase
         $currency = Currency::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id]);
         $customerTypeId = ContractType::query()->where('slug', 'customer')->value('id');
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
 
-        $matching = Contract::factory()->create(['contract_type_id' => $customerTypeId, 'customer_id' => $customer->id, 'counterparty' => $customer->name]);
+        $matching = Contract::factory()->create(['contract_type_id' => $customerTypeId, 'applicant_id' => $applicant->id, 'counterparty' => $applicant->name]);
         $matching->contractServices()->create(['service_id' => $service->id]);
-        $unassigned = Contract::factory()->create(['contract_type_id' => $customerTypeId, 'customer_id' => $customer->id, 'counterparty' => $customer->name]);
+        $unassigned = Contract::factory()->create(['contract_type_id' => $customerTypeId, 'applicant_id' => $applicant->id, 'counterparty' => $applicant->name]);
 
         $this->getJson("/api/contracts?audience=customers&service_ids[]={$service->id}")
             ->assertOk()->assertJsonPath('data.0.id', $matching->id);

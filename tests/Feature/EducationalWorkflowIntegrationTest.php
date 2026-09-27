@@ -7,7 +7,6 @@ use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
 use App\Models\Currency;
 use App\Models\Country;
-use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Notification;
 use App\Models\PendingTransaction;
@@ -32,7 +31,7 @@ class EducationalWorkflowIntegrationTest extends TestCase
         Sanctum::actingAs($manager, ['access']);
 
         $case = $this->postJson('/api/applicants', [
-            'customer_id' => Customer::factory()->create()->id,
+            'name' => 'Case 1',
             'responsible_employee_id' => $employee->id,
         ])->assertCreated()->json('data');
 
@@ -96,22 +95,20 @@ class EducationalWorkflowIntegrationTest extends TestCase
         $agent = $this->userWithRole('staff');
         $ownEmployee = Employee::factory()->create(['user_id' => $agent->id]);
         $otherEmployee = Employee::factory()->create();
-        $customer = Customer::factory()->create();
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         Sanctum::actingAs($agent, ['access']);
 
         $this->postJson('/api/applicants', [
-            'customer_id' => $customer->id,
+            'name' => 'Spoofed Case',
             'responsible_employee_id' => $otherEmployee->id,
         ])->assertForbidden();
 
-        $case = $this->postJson('/api/applicants', ['customer_id' => $customer->id])
+        $case = $this->postJson('/api/applicants', ['name' => 'Agent Case'])
             ->assertCreated()
             ->assertJsonPath('data.responsible_employee.id', $ownEmployee->id)
             ->json('data');
 
         $payload = [
-            'customer_id' => $customer->id,
             'applicant_id' => $case['id'],
             'employee_id' => $otherEmployee->id,
             'currency_id' => $currency->id,
@@ -134,11 +131,11 @@ class EducationalWorkflowIntegrationTest extends TestCase
 
         Sanctum::actingAs($manager, ['access']);
         $ownCase = $this->postJson('/api/applicants', [
-            'customer_id' => Customer::factory()->create()->id,
+            'name' => 'Case 2',
             'responsible_employee_id' => $ownEmployee->id,
         ])->assertCreated()->json('data.id');
         $otherCase = $this->postJson('/api/applicants', [
-            'customer_id' => Customer::factory()->create()->id,
+            'name' => 'Case 3',
             'responsible_employee_id' => $otherEmployee->id,
         ])->assertCreated()->json('data.id');
 

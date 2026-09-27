@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ContractTemplate;
 use App\Models\ContractType;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,17 +28,17 @@ class ContractTemplateUpdateTest extends TestCase
     {
         $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
         $template = ContractTemplate::query()->create([
-            'name' => 'Customer Agreement',
+            'name' => 'Applicant Agreement',
             'contract_type_id' => $type->id,
             'cover_text' => 'Cover',
             'content' => '<p>Original terms</p>',
         ]);
 
         $this->putJson("/api/contract-templates/{$template->id}", [
-            'name' => 'Updated Customer Agreement',
+            'name' => 'Updated Applicant Agreement',
             'content' => '<p>Updated terms</p>',
         ])->assertOk()
-            ->assertJsonPath('data.name', 'Updated Customer Agreement')
+            ->assertJsonPath('data.name', 'Updated Applicant Agreement')
             ->assertJsonPath('data.content', '<p>Updated terms</p>');
     }
 
@@ -47,7 +47,7 @@ class ContractTemplateUpdateTest extends TestCase
         $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
 
         $this->postJson('/api/contract-templates', [
-            'name' => 'Customer Agreement',
+            'name' => 'Applicant Agreement',
             'contract_type_id' => $type->id,
             'cover_text' => 'Cover',
             'content' => '<p>Terms</p>',

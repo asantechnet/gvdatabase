@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Applicant;
-use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Role;
 use App\Models\User;
@@ -15,7 +14,7 @@ class ApplicantPortalCrmSynchronizationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_first_applicant_portal_sign_in_creates_one_qualified_lead_for_the_case_customer(): void
+    public function test_first_applicant_portal_sign_in_creates_one_qualified_lead_for_the_applicant(): void
     {
         $user = User::factory()->create([
             'email' => 'applicant@example.test',
@@ -26,19 +25,17 @@ class ApplicantPortalCrmSynchronizationTest extends TestCase
             'must_set_password' => false,
         ]);
         $user->roles()->attach(Role::query()->where('name', 'applicant')->firstOrFail());
-        $customer = Customer::factory()->create(['email' => $user->email]);
-        $case = Applicant::create(['user_id' => $user->id, 'customer_id' => $customer->id]);
+        $case = Applicant::factory()->create(['email' => $user->email, 'user_id' => $user->id]);
 
         $this->postJson('/api/login', ['email' => $user->email, 'password' => 'password123'])
             ->assertOk();
         $this->postJson('/api/login', ['email' => $user->email, 'password' => 'password123'])
             ->assertOk();
 
-        $this->assertDatabaseCount('customers', 1);
+        $this->assertDatabaseCount('applicants', 1);
         $this->assertDatabaseCount('leads', 1);
         $this->assertDatabaseHas('leads', [
             'applicant_id' => $case->id,
-            'customer_id' => $customer->id,
             'stage' => 'qualified',
             'probability' => 50,
         ]);

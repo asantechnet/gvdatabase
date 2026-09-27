@@ -218,20 +218,20 @@ class ReportedIssueRegressionTest extends TestCase
         $customerType = ContractType::query()->where('slug', 'customer')->firstOrFail();
         $employmentType = ContractType::query()->where('slug', 'employment')->firstOrFail();
         $position = Position::factory()->create();
-        $customerTemplate = ContractTemplate::factory()->create([
+        $applicantTemplate = ContractTemplate::factory()->create([
             'contract_type_id' => $customerType->id, 'type' => $customerType->name,
         ]);
         $employeeTemplate = ContractTemplate::factory()->create([
             'contract_type_id' => $employmentType->id, 'type' => $employmentType->name,
             'position_id' => $position->id,
         ]);
-        $customerContract = Contract::factory()->create(['template_id' => $customerTemplate->id]);
+        $applicantContract = Contract::factory()->create(['template_id' => $applicantTemplate->id]);
         $employeeContract = Contract::factory()->create(['template_id' => $employeeTemplate->id]);
 
         $this->getJson('/api/contracts?audience=customers')
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $customerContract->id);
+            ->assertJsonPath('data.0.id', $applicantContract->id);
 
         $this->getJson('/api/contracts?audience=employees')
             ->assertOk()

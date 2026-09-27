@@ -6,7 +6,6 @@ use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\CaseWin;
 use App\Models\Currency;
-use App\Models\Customer;
 use App\Models\CustomerPackage;
 use App\Models\Employee;
 use App\Models\Package;
@@ -36,10 +35,9 @@ class UnifiedPackageServiceTest extends TestCase
             'service_ids' => [$scholarship->id, $testOffer->id], 'currency_id' => $currency->id, 'fee' => 900,
         ])->assertCreated()->assertJsonCount(2, 'data.services')->json('data');
 
-        $customer = Customer::factory()->create();
         $employee = Employee::factory()->create();
-        $applicant = Applicant::create(['customer_id' => $customer->id, 'responsible_employee_id' => $employee->id]);
-        $payload = ['customer_id' => $customer->id, 'applicant_id' => $applicant->id, 'sold_by_employee_id' => $employee->id,
+        $applicant = Applicant::factory()->create(['responsible_employee_id' => $employee->id]);
+        $payload = ['applicant_id' => $applicant->id, 'sold_by_employee_id' => $employee->id,
             'currency_id' => $currency->id, 'fee' => 900, 'purchased_at' => '2026-09-20'];
 
         $purchase = $this->postJson("/api/packages/{$package['id']}/issue", $payload)
@@ -70,7 +68,7 @@ class UnifiedPackageServiceTest extends TestCase
         $approved = ApplicantStage::where('key', 'visa_approved')->firstOrFail();
         $completed = ApplicantStage::where('key', 'completed')->firstOrFail();
         $applicant = Applicant::create([
-            'customer_id' => Customer::factory()->create()->id,
+            'applicant_id' => Applicant::factory()->create()->id,
             'responsible_employee_id' => $employee->id,
             'current_stage_id' => $processing->id,
             'status' => 'active',

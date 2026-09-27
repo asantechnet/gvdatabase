@@ -8,7 +8,7 @@ use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\Currency;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\ContractService;
 use App\Models\Employee;
 use App\Models\Income;
@@ -46,12 +46,12 @@ class BusinessLogicConsistencyTest extends TestCase
     {
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
         $employee = Employee::factory()->create(['employment_type' => 'commission']);
         $employee->commissionServices()->attach($service->id, ['percentage' => 10]);
-        $customerService = $this->contractedService($customer, $service, ['fee' => 100, 'currency_id' => $currency->id]);
+        $applicantService = $this->contractedService($applicant, $service, ['fee' => 100, 'currency_id' => $currency->id]);
         $invoice = Invoice::factory()->create([
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'currency_id' => $currency->id,
             'base_currency_id' => $currency->id,
             'amount' => 100,
@@ -59,7 +59,7 @@ class BusinessLogicConsistencyTest extends TestCase
             'base_amount' => 100,
         ]);
         $invoice->services()->attach($service->id, [
-            'contract_service_id' => $customerService->id,
+            'contract_service_id' => $applicantService->id,
             'employee_id' => $employee->id,
             'snapshot_commission_percentage' => 10,
             'snapshot_name' => $service->type,
@@ -110,9 +110,9 @@ class BusinessLogicConsistencyTest extends TestCase
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $base = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $currency = Currency::factory()->create(['is_base' => false, 'rate' => 2]);
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
         $invoice = Invoice::factory()->create([
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'currency_id' => $currency->id,
             'base_currency_id' => $base->id,
             'amount' => 200,
@@ -121,7 +121,7 @@ class BusinessLogicConsistencyTest extends TestCase
             'base_amount' => 100,
         ]);
         $income = Income::create([
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'invoice_id' => $invoice->id,
             'currency_id' => $currency->id,
             'base_currency_id' => $base->id,
@@ -186,14 +186,14 @@ class BusinessLogicConsistencyTest extends TestCase
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
-        $customerService = $this->contractedService($customer, $service);
+        $applicantService = $this->contractedService($applicant, $service);
 
         $this->postJson('/api/invoices', [
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'currency_id' => $currency->id,
-            'services' => [['contract_service_id' => $customerService->id, 'quantity' => 1]],
+            'services' => [['contract_service_id' => $applicantService->id, 'quantity' => 1]],
             'tax_percent' => 0,
             'discount' => 101,
         ])->assertUnprocessable()
@@ -248,12 +248,12 @@ class BusinessLogicConsistencyTest extends TestCase
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
-        $assignment = $this->contractedService($customer, $service, [], 'terminated');
+        $assignment = $this->contractedService($applicant, $service, [], 'terminated');
 
         $this->postJson('/api/invoices', [
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'currency_id' => $currency->id,
             'services' => [['contract_service_id' => $assignment->id, 'quantity' => 1]],
             'tax_percent' => 0,
@@ -375,22 +375,22 @@ class BusinessLogicConsistencyTest extends TestCase
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
         $template = ContractTemplate::query()->create([
-            'name' => 'Customer Agreement',
+            'name' => 'Applicant Agreement',
             'contract_type_id' => $type->id,
             'cover_text' => 'Cover',
             'content' => '<p>Current template text</p>',
         ]);
-        $customer = Customer::factory()->create();
+        $applicant = Applicant::factory()->create();
         $contract = Contract::query()->create([
             'template_id' => $template->id,
             'contract_type_id' => $type->id,
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'name' => 'Original name',
             'type' => $type->name,
             'content' => '<p>Signed snapshot text</p>',
             'status' => 'draft',
             'start_date' => '2026-01-01',
-            'counterparty' => $customer->name,
+            'counterparty' => $applicant->name,
         ]);
 
         $this->putJson("/api/contracts/{$contract->id}", ['name' => 'Corrected name'])
@@ -436,13 +436,13 @@ class BusinessLogicConsistencyTest extends TestCase
         $this->assertFalse($second->dependencies()->whereKey($first->id)->exists());
     }
 
-    private function contractedService(Customer $customer, Service $service, array $line = [], string $status = 'active'): ContractService
+    private function contractedService(Applicant $applicant, Service $service, array $line = [], string $status = 'active'): ContractService
     {
         $contract = Contract::create([
             'contract_type_id' => ContractType::query()->where('slug', 'customer')->value('id'),
-            'customer_id' => $customer->id,
+            'applicant_id' => $applicant->id,
             'name' => $service->type, 'type' => 'Customer', 'status' => $status,
-            'start_date' => '2026-09-01', 'counterparty' => $customer->name,
+            'start_date' => '2026-09-01', 'counterparty' => $applicant->name,
             'content' => '', 'is_custom' => true,
         ]);
 

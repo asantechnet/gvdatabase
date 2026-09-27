@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AuditLog;
-use App\Models\Customer;
+use App\Models\Applicant;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,8 +27,8 @@ class AuditManagementTest extends TestCase
     {
         $auditor = $this->auditor();
         Sanctum::actingAs($auditor, ['access']);
-        $customer = Customer::factory()->create(['name' => 'Rahimi Trading', 'contact' => '0700000000']);
-        $customer->update(['contact' => '0799999999']);
+        $applicant = Applicant::factory()->create(['name' => 'Rahimi Trading', 'contact' => '0700000000']);
+        $applicant->update(['contact' => '0799999999']);
         $audit = AuditLog::query()->where('event', 'updated')->latest('id')->firstOrFail();
 
         $this->patchJson("/api/audit-logs/{$audit->id}/review", ['decision' => 'approved'])
@@ -49,15 +49,15 @@ class AuditManagementTest extends TestCase
     {
         $auditor = $this->auditor();
         Sanctum::actingAs($auditor, ['access']);
-        $customer = Customer::factory()->create(['name' => 'Safi Company', 'contact' => '0700000000']);
-        $customer->update(['contact' => '0788888888']);
+        $applicant = Applicant::factory()->create(['name' => 'Safi Company', 'contact' => '0700000000']);
+        $applicant->update(['contact' => '0788888888']);
 
         $response = $this->getJson('/api/audit-logs?per_page=25')->assertOk();
         $created = collect($response->json('data'))->firstWhere('event', 'created');
         $updated = collect($response->json('data'))->firstWhere('event', 'updated');
 
         $this->assertSame([], $created['changes']);
-        $this->assertSame('customers', $created['resource_key']);
+        $this->assertSame('applicants', $created['resource_key']);
         $this->assertSame('Safi Company', $created['subject_label']);
         $this->assertArrayNotHasKey('table_name', $created);
         $this->assertArrayNotHasKey('auditable_id', $created);
@@ -68,18 +68,18 @@ class AuditManagementTest extends TestCase
     {
         $auditor = $this->auditor();
         Sanctum::actingAs($auditor, ['access']);
-        $customer = Customer::factory()->create(['name' => 'Ariana Store', 'contact' => '0700000000']);
-        $customer->update(['contact' => '0799999999']);
-        $audit = AuditLog::query()->where('subject_type', 'customers')->where('event', 'updated')->firstOrFail();
-        $countBeforeUndo = AuditLog::query()->where('subject_type', 'customers')->count();
+        $applicant = Applicant::factory()->create(['name' => 'Ariana Store', 'contact' => '0700000000']);
+        $applicant->update(['contact' => '0799999999']);
+        $audit = AuditLog::query()->where('subject_type', 'applicants')->where('event', 'updated')->firstOrFail();
+        $countBeforeUndo = AuditLog::query()->where('subject_type', 'applicants')->count();
 
         $this->patchJson("/api/audit-logs/{$audit->id}/review", ['decision' => 'discarded'])
             ->assertOk()
             ->assertJsonPath('data.resolution', 'discarded')
             ->assertJsonPath('data.audited_by.id', $auditor->id);
 
-        $this->assertSame('0700000000', $customer->fresh()->contact);
-        $this->assertSame($countBeforeUndo, AuditLog::query()->where('subject_type', 'customers')->count());
+        $this->assertSame('0700000000', $applicant->fresh()->contact);
+        $this->assertSame($countBeforeUndo, AuditLog::query()->where('subject_type', 'applicants')->count());
         $this->assertDatabaseHas('audit_logs', ['id' => $audit->id, 'review_status' => 'discarded']);
     }
 
@@ -107,22 +107,22 @@ class AuditManagementTest extends TestCase
     {
         $auditor = $this->auditor();
         Sanctum::actingAs($auditor, ['access']);
-        $customer = Customer::factory()->create(['name' => 'Noor Ltd', 'contact' => '0700000000']);
-        $existingCustomerAudits = AuditLog::query()->where('subject_type', 'customers')->count();
+        $applicant = Applicant::factory()->create(['name' => 'Noor Ltd', 'contact' => '0700000000']);
+        $existingApplicantAudits = AuditLog::query()->where('subject_type', 'applicants')->count();
 
         $resources = $this->getJson('/api/audit-resources?per_page=100')->assertOk();
-        $customerSetting = collect($resources->json('data'))->firstWhere('resource_key', 'customers');
-        $this->patchJson("/api/audit-resources/{$customerSetting['id']}", ['enabled' => false])
+        $applicantSetting = collect($resources->json('data'))->firstWhere('resource_key', 'applicants');
+        $this->patchJson("/api/audit-resources/{$applicantSetting['id']}", ['enabled' => false])
             ->assertOk()
             ->assertJsonPath('data.enabled', false);
 
-        $customer->update(['contact' => '0799999999']);
+        $applicant->update(['contact' => '0799999999']);
 
-        $this->assertSame($existingCustomerAudits, AuditLog::query()->where('subject_type', 'customers')->count());
+        $this->assertSame($existingApplicantAudits, AuditLog::query()->where('subject_type', 'applicants')->count());
         $this->assertDatabaseHas('audit_logs', [
             'event' => 'audit_scope_disabled',
             'subject_type' => 'audit_settings',
-            'subject_label' => 'customers',
+            'subject_label' => 'applicants',
         ]);
     }
 
@@ -130,17 +130,17 @@ class AuditManagementTest extends TestCase
     {
         $auditor = $this->auditor();
         Sanctum::actingAs($auditor, ['access']);
-        Customer::factory()->count(12)->create();
-        $first = AuditLog::query()->where('subject_type', 'customers')->whereNull('audited_at')->firstOrFail();
+        Applicant::factory()->count(12)->create();
+        $first = AuditLog::query()->where('subject_type', 'applicants')->whereNull('audited_at')->firstOrFail();
         $first->update(['audited_by' => $auditor->id, 'audited_at' => now(), 'review_status' => 'approved']);
 
-        $this->getJson('/api/audit-logs?resource=customers&audit_state=pending&page=1&per_page=5')
+        $this->getJson('/api/audit-logs?resource=applicants&audit_state=pending&page=1&per_page=5')
             ->assertOk()
             ->assertJsonCount(5, 'data')
             ->assertJsonPath('per_page', 5)
             ->assertJsonPath('total', 11);
 
-        $this->getJson('/api/audit-logs?resource=customers&audit_state=audited&page=1&per_page=5')
+        $this->getJson('/api/audit-logs?resource=applicants&audit_state=audited&page=1&per_page=5')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('total', 1)
@@ -151,9 +151,9 @@ class AuditManagementTest extends TestCase
     {
         $auditor = $this->auditor();
         Sanctum::actingAs($auditor, ['access']);
-        Customer::factory()->count(2)->create();
+        Applicant::factory()->count(2)->create();
         $auditIds = AuditLog::query()
-            ->where('subject_type', 'customers')
+            ->where('subject_type', 'applicants')
             ->whereNull('audited_at')
             ->pluck('id')
             ->all();
