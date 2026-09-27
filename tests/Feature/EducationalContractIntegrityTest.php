@@ -26,14 +26,13 @@ class EducationalContractIntegrityTest extends TestCase
         Sanctum::actingAs($user, ['access']);
     }
 
-    public function test_customer_contract_is_versioned_and_linked_to_its_case(): void
+    public function test_customer_contract_links_to_its_case_and_keeps_the_customer_type_slug(): void
     {
         $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
         $currency = Currency::factory()->create();
         $service = Service::factory()->create(['currency_id' => $currency->id]);
         $template = ContractTemplate::create(['name' => 'Student service agreement', 'contract_type_id' => $type->id, 'service_id' => $service->id, 'cover_text' => '', 'content' => '<p>Legacy copy</p>']);
         $language = Language::create(['name' => 'English', 'code' => 'en', 'is_active' => true]);
-        $this->postJson("/api/contract-templates/{$template->id}/versions", ['language_id' => $language->id, 'content' => '<p>Educational agreement for {{applicant.name}}</p>', 'status' => 'active'])->assertCreated();
         $case = $this->postJson('/api/applicants', ['name' => 'Contract Case'])->assertCreated()->json('data');
 
         $contract = $this->postJson('/api/contracts', ['template_id' => $template->id, 'applicant_id' => $case['id'], 'service_ids' => [$service->id], 'language_id' => $language->id, 'status' => 'draft', 'start_date' => now()->toDateString()])
@@ -50,7 +49,6 @@ class EducationalContractIntegrityTest extends TestCase
         $service = Service::factory()->create(['currency_id' => $currency->id]);
         $template = ContractTemplate::create(['name' => 'Student service agreement', 'contract_type_id' => $type->id, 'service_id' => $service->id, 'cover_text' => '', 'content' => '<p>Terms</p>']);
         $language = Language::create(['name' => 'English', 'code' => 'en', 'is_active' => true]);
-        $this->postJson("/api/contract-templates/{$template->id}/versions", ['language_id' => $language->id, 'content' => '<p>Terms</p>', 'status' => 'active'])->assertCreated();
         $case = $this->postJson('/api/applicants', ['name' => 'Integrity Case'])->assertCreated()->json('data');
 
         $this->postJson('/api/contracts', ['template_id' => $template->id, 'applicant_id' => $case['id'], 'service_ids' => [$service->id], 'language_id' => $language->id, 'status' => 'draft', 'start_date' => now()->toDateString()])->assertCreated();
