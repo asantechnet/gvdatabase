@@ -17,6 +17,12 @@ class OfficeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // The unique `is_singleton` marker is the final concurrency guard;
+        // this preflight gives ordinary API clients a useful business code.
+        if (Office::withTrashed()->exists()) {
+            return response()->json(['success' => false, 'code' => 'business.single_office_only'], 409);
+        }
+
         $office = Office::create($this->validated($request));
 
         return response()->json(['success' => true, 'data' => new OfficeResource($office->loadCount('assets'))], 201);
@@ -36,13 +42,7 @@ class OfficeController extends Controller
 
     public function destroy(Office $office): JsonResponse
     {
-        if ($office->assets()->exists() || $office->employees()->exists() || $office->attendances()->exists()) {
-            return response()->json(['success' => false, 'code' => 'business.office_in_use'], 409);
-        }
-
-        $office->delete();
-
-        return response()->json(['success' => true, 'message' => 'Office deleted.']);
+        return response()->json(['success' => false, 'code' => 'business.office_cannot_be_deleted'], 409);
     }
 
     private function validated(Request $request, ?Office $office = null): array

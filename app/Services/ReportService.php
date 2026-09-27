@@ -369,15 +369,15 @@ class ReportService
         if ($user->hasPermission('view_applicants')) {
             $rows = Applicant::query()->whereBetween('date', [$start->toDateString(), $end->toDateString()])
                 ->when($filters['applicant_id'] ?? null, fn (Builder $q, $id) => $q->whereKey($id))->latest('date')->get()
-                ->map(fn (Applicant $row) => ['date' => $row->date?->format('Y-m-d'), 'name' => $row->name, 'company' => $row->company, 'contact' => $row->contact, 'marketer' => $row->marketer]);
-            $sections[] = $this->section('applicants', ['date', 'name', 'company', 'contact', 'marketer'], $rows, ['count' => $rows->count()]);
+                ->map(fn (Applicant $row) => ['date' => $row->date?->format('Y-m-d'), 'name' => $row->name, 'contact' => $row->contact, 'marketer' => $row->marketer]);
+            $sections[] = $this->section('applicants', ['date', 'name', 'contact', 'marketer'], $rows, ['count' => $rows->count()]);
 
-            $services = ContractService::query()->with(['contract.applicant:id,name,company', 'service:id,type', 'currency:id,code'])
+            $services = ContractService::query()->with(['contract.applicant:id,name', 'service:id,type', 'currency:id,code'])
                 ->whereBetween('contract_service.created_at', [$start->copy()->utc(), $end->copy()->utc()])
                 ->when($filters['applicant_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('contract', fn ($contracts) => $contracts->where('applicant_id', $id)))
                 ->when($filters['status'] ?? null, fn (Builder $q, $status) => $q->whereHas('contract', fn ($contracts) => $contracts->where('status', $status)))
                 ->latest('contract_service.id')->get()->map(fn (ContractService $row) => [
-                    'applicant' => $row->contract?->applicant?->company ?: $row->contract?->applicant?->name,
+                'applicant' => $row->contract?->applicant?->name,
                     'service' => $row->service?->type, 'status' => $row->contract?->status,
                     'fee' => $row->fee === null ? null : (float) $row->fee,
                     'currency' => $row->currency?->code,

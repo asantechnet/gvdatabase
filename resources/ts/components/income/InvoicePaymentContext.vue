@@ -13,8 +13,8 @@ const amount = (value: number) => {
   return `${props.invoice.currency?.symbol ?? ''}${formatted} ${props.invoice.currency?.shortname ?? ''}`.trim()
 }
 
-const customerContact = computed(() => props.invoice.customer?.email || props.invoice.customer?.contact || '')
-const customerCompany = computed(() => props.invoice.customer?.company || '')
+const customerContact = computed(() => props.invoice.applicant?.email || props.invoice.applicant?.contact || '')
+const customerCompany = computed(() => '')
 const visibleServices = computed(() => props.invoice.services.slice(0, 3))
 const remainingServiceCount = computed(() => Math.max(props.invoice.services.length - visibleServices.value.length, 0))
 </script>
@@ -43,7 +43,7 @@ const remainingServiceCount = computed(() => Math.max(props.invoice.services.len
               {{ invoice.invoice_number }}
             </div>
             <div class="text-body-2 text-medium-emphasis">
-              {{ invoice.customer?.name || invoice.deptor || $t('common.messages.notAvailable') }}
+              {{ invoice.applicant?.name || invoice.deptor || $t('common.messages.notAvailable') }}
               <span v-if="customerCompany"> · {{ customerCompany }}</span>
             </div>
           </div>

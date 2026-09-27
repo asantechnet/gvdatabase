@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\User;
+use App\Support\ContractAccess;
+use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
 
 /**
@@ -39,7 +41,7 @@ class SearchController extends Controller
             $result['groups']['applicants'] = $this->searchApplicants($q, $limit, $user);
         }
         if ($user->hasPermission('view_contracts')) {
-            $result['groups']['contracts'] = $this->searchContracts($q, $limit);
+            $result['groups']['contracts'] = $this->searchContracts($q, $limit, $user);
         }
 
         return response()->json(['success' => true, 'data' => $result]);
@@ -49,7 +51,7 @@ class SearchController extends Controller
     {
         return Applicant::query()
             ->with(['currentStage'])
-            ->when(! $user->isSuperAdmin() && ! $user->hasPermission('view_all_applicants'), fn ($query) => $query->whereHas('responsibleEmployee', fn ($employee) => $employee->where('user_id', $user->id)))
+            ->when(! $user->isSuperAdmin() && ! $user->hasPermission('view_all_applicants'), fn ($query) => $query->whereIn('responsible_employee_id', app(EmployeeScope::class)->visibleEmployeeIds($user)))
             ->where(function ($query) use ($q) {
                 $query->where('notes', 'like', "%{$q}%");
                 if (ctype_digit($q)) {
@@ -74,9 +76,9 @@ class SearchController extends Controller
     }
 
 
-    private function searchContracts(string $q, int $limit): array
+    private function searchContracts(string $q, int $limit, User $user): array
     {
-        return Contract::query()
+        return ContractAccess::scopeVisibleTo(Contract::query(), $user)
             ->where(fn ($query) => $query
                 ->where('contract_number', 'like', "%{$q}%")
                 ->orWhere('name', 'like', "%{$q}%")

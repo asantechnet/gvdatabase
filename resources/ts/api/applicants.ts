@@ -14,7 +14,14 @@ export interface ApplicantStage {
 export interface Applicant {
   id: number
   user_id?: number | null
-  customer_id: number
+  name: string
+  contact?: string | null
+  email?: string | null
+  address?: string | null
+  tax_number?: string | null
+  attachments_count?: number
+  marketer_id?: number | null
+  marketer?: string | null
   responsible_employee_id?: number | null
   country_id?: number | null
   university_id?: number | null
@@ -25,7 +32,6 @@ export interface Applicant {
   application_date?: string | null
   status: string
   notes?: string | null
-  customer?: { id?: number; name: string; contact?: string | null; email?: string | null }
   responsible_employee?: { id: number; name: string } | null
   country?: { id: number; name: string } | null
   university?: { id: number; name: string } | null
@@ -49,7 +55,6 @@ export interface ApplicantListParams {
   stage?: string
   status?: 'active' | 'closed'
   board?: ApplicantBoard | ''
-  customer_id?: number | null
   responsible_employee_id?: number | null
   country_id?: number | null
   university_id?: number | null
@@ -135,6 +140,7 @@ export default {
   get: async (id: number) => (await api.get(`/applicants/${id}`)).data.data as Applicant,
   create: async (data: Partial<Applicant>) => (await api.post('/applicants', data)).data.data as Applicant,
   update: async (id: number, data: Partial<Applicant>) => (await api.put(`/applicants/${id}`, data)).data.data as Applicant,
+  delete: async (id: number) => api.delete(`/applicants/${id}`),
   stages: async (params?: Pick<ApplicantListParams, 'country_id' | 'university_id'>) => (await api.get('/applicant-stages', { params: clean(params) })).data.data as ApplicantStage[],
   // Laravel's boolean validation accepts 1/0 query values reliably; URL query
   // serialization of `true` can otherwise arrive as the invalid string "true".
@@ -143,6 +149,14 @@ export default {
   updateStageDefinition: async (id: number, data: Partial<ApplicantStage>) => (await api.put(`/applicant-stages/${id}`, data)).data.data as ApplicantStage,
   removeStageDefinition: async (id: number) => api.delete(`/applicant-stages/${id}`),
   changeStage: async (id: number, stage_id: number, note?: string) => (await api.post(`/applicants/${id}/change-stage`, { stage_id, note })).data.data as Applicant,
+}
+
+export interface ApplicantAttachment { id: number; label: string; category?: string | null; name: string; mime_type?: string | null; size: number; uploaded_at?: string; download_url: string }
+export const ApplicantAttachmentApi = {
+  list: async (id: number) => (await api.get(`/applicants/${id}/attachments`)).data.data as ApplicantAttachment[],
+  upload: async (id: number, file: File, label: string, category?: string) => { const form = new FormData(); form.append('file', file); form.append('label', label); if (category) form.append('category', category); return (await api.post(`/applicants/${id}/attachments`, form)).data.data as ApplicantAttachment },
+  update: async (applicantId: number, id: number, label: string, category?: string) => (await api.put(`/applicants/${applicantId}/attachments/${id}`, { label, category })).data.data as ApplicantAttachment,
+  remove: async (applicantId: number, id: number) => api.delete(`/applicants/${applicantId}/attachments/${id}`),
 }
 
 export interface ApplicantUniversity {

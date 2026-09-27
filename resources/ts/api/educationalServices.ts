@@ -5,7 +5,7 @@ export type BonusSourceType = 'contract' | 'service'
 export type BonusStatus = 'pending' | 'approved' | 'paid' | 'void'
 
 export interface NamedRecord { id: number; name: string }
-export interface ServiceApplicant { id: number; customer_id: number; customer?: NamedRecord }
+export interface ServiceApplicant extends NamedRecord {}
 export interface EducationalBonusSource {
   id: number
   source_type: string
@@ -15,14 +15,12 @@ export interface EducationalBonusSource {
   rule_source: string | null
   status: BonusStatus
   employee?: NamedRecord
-  customer?: NamedRecord
   applicant?: ServiceApplicant | null
 }
 export interface EducationalService {
   id: number
   service_id: number
-  customer_id: number
-  applicant_id?: number | null
+  applicant_id: number
   country_id?: number | null
   education_level_id?: number | null
   language_id?: number | null
@@ -32,7 +30,6 @@ export interface EducationalService {
   date: string
   fee: number | string
   status: 'active' | 'completed' | 'cancelled'
-  customer?: NamedRecord
   applicant?: ServiceApplicant | null
   employee?: NamedRecord
   currency?: NamedRecord & { code: string; symbol: string | null }
@@ -41,9 +38,14 @@ export interface EducationalService {
   education_level?: NamedRecord | null
   language?: NamedRecord | null
   bonus_source?: EducationalBonusSource | null
+  /** The contract created for this sale (1 service ↔ 1 contract). */
+  contract_id?: number | null
+  contract_number?: string | null
+  contract_role?: 'primary' | 'extension'
+  parent_contract_id?: number | null
+  parent_contract_number?: string | null
 }
 export interface EducationalServiceInput {
-  customer_id: number | null
   service_id: number | null
   applicant_id: number | null
   country_id: number | null
@@ -57,18 +59,19 @@ export interface EducationalServiceInput {
   status: EducationalService['status']
   bonus_amount?: number | null
   bonus_rule_source?: string | null
+  /** Allow a repeat sale to become an extension of the existing contract. */
+  extend?: boolean
 }
 export interface EducationalServiceOptions {
-  customers: NamedRecord[]
   employees: NamedRecord[]
   applicants: ServiceApplicant[]
   currencies: Array<NamedRecord & { code: string; symbol: string | null; is_base: boolean }>
   package_types: Array<NamedRecord & { services: Array<{ id: number; type: string; category: 'scholarship' | 'test_offer' | 'general' }> }>
-  services: Array<{ id: number; type: string; category: 'scholarship' | 'test_offer'; fee: number | string; currency_id: number }>
+  services: Array<{ id: number; type: string; category: 'scholarship' | 'test_offer'; fee: number | string; currency_id: number; contract_template?: NamedRecord | null }>
   countries: NamedRecord[]
   education_levels: NamedRecord[]
   languages: NamedRecord[]
-  contracts: Array<{ id: number; contract_number: string | null; name: string | null; employee_id: number; customer_id: number; applicant_id: number | null }>
+  contracts: Array<{ id: number; contract_number: string | null; name: string | null; employee_id: number; applicant_id: number | null }>
 }
 export interface EducationalServicePage {
   data: EducationalService[]

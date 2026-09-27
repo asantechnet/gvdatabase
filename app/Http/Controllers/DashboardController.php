@@ -411,7 +411,7 @@ class DashboardController extends Controller
     private function topApplicants(Carbon $now): array
     {
         return Income::query()
-            ->with(['applicant:id,name,company', 'incomeCurrency:id,rate'])
+            ->with(['applicant:id,name', 'incomeCurrency:id,rate'])
             ->whereNotNull('applicant_id')
             ->whereBetween('date', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
             ->get()
@@ -420,7 +420,7 @@ class DashboardController extends Controller
                 $income = $rows->first();
                 return [
                     'id' => (string) $income->applicant_id,
-                    'name' => $income->applicant?->company ?: ($income->applicant?->name ?? 'Unknown applicant'),
+                    'name' => $income->applicant?->name ?? 'Unknown applicant',
                     'value' => round($rows->sum(fn (Income $row) => $this->currentBaseAmount((float) $row->amount * $row->quantity, $row->incomeCurrency)), 2),
                 ];
             })->sortByDesc('value')->take(5)->values()->all();
@@ -429,7 +429,7 @@ class DashboardController extends Controller
     private function receivables(Carbon $now, bool $limited = true): array
     {
         $invoices = Invoice::query()
-            ->with(['applicant:id,name,company', 'currency:id,rate', 'incomes'])
+            ->with(['applicant:id,name', 'currency:id,rate', 'incomes'])
             ->whereNull('voided_at')
             ->orderBy('due_date')
             ->get();
@@ -440,7 +440,7 @@ class DashboardController extends Controller
             return [
                 'id' => (string) $invoice->id,
                 'number' => $invoice->invoice_number ?: 'Invoice #'.$invoice->id,
-                'applicant' => $invoice->applicant?->company ?: ($invoice->applicant?->name ?? $invoice->deptor),
+                'applicant' => $invoice->applicant?->name ?? $invoice->deptor,
                 'balance' => round($balance, 2),
                 'due_date' => $invoice->due_date?->toDateString(),
                 'is_overdue' => $balance > 0 && $invoice->due_date?->isBefore($now->copy()->startOfDay()),

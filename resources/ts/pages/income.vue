@@ -28,7 +28,7 @@ type IncomeForm = Omit<IncomeCreateData, 'invoice_id'> & {
 
 const emptyIncomeForm = (): IncomeForm => ({
   id: 0,
-  customer_id: null,
+  applicant_id: null,
   company_id: null,
   invoice_id: null,
   type: '',
@@ -175,7 +175,7 @@ const openEditIncomeDialog = (income: Income) => {
 
 const handleInvoiceChange = (invoiceId: number | null) => {
   if (!invoiceId) {
-    selectedIncome.value.customer_id = null
+    selectedIncome.value.applicant_id = null
 
     return
   }
@@ -184,9 +184,9 @@ const handleInvoiceChange = (invoiceId: number | null) => {
   if (!invoice)
     return
 
-  selectedIncome.value.customer_id = invoice.customer_id
+  selectedIncome.value.applicant_id = invoice.applicant_id
   selectedIncome.value.type = 'Service'
-  selectedIncome.value.description = `Payment for ${invoice.invoice_number} — ${invoice.customer.name}`
+  selectedIncome.value.description = `Payment for ${invoice.invoice_number} — ${invoice.applicant?.name ?? ''}`
   selectedIncome.value.currency_id = invoice.currency.id
   selectedIncome.value.rate = invoice.currency.rate
   selectedIncome.value.quantity = 1

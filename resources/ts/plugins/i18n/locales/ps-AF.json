@@ -477,6 +477,7 @@
       "currency": "پولي واحد (اسعار)",
       "date": "نېټه",
       "department": "څانګه",
+      "supervisor": "مسؤل مستقیم",
       "priority": "لومړیتوب",
       "email": "برېښنالیک",
       "password": "پټنوم (پاسورډ)",
@@ -766,6 +767,7 @@
       "previousValues": "پخواني ارزښتونه",
       "currentValues": "اوسني ارزښتونه",
       "staffList": "د کارمندانو نوملړ",
+      "departments": "څانګې",
       "timesheet": "د حاضریو جدول (ټایم شیټ)",
       "reset": "ریسیټ (بېرته اصلي حالت ته راوستل)",
       "fullName": "بشپړ نوم",
@@ -1678,6 +1680,7 @@
             "validation": {
               "contractTypeRequired": "د قرارداد ډول اړین دی",
               "nameRequired": "نوم اړین دی",
+              "versionNameRequired": "د نسخې نوم اړین دی",
               "maximumCharacters": "تر ټولو ډېر {count} توري",
               "positionRequired": "د استخدام ټیمپلیټ لپاره د بست ټاکل اړین دي",
               "initialVersionCountryRequired": "د لومړۍ نسخې هېواد وټاکئ",
@@ -1689,6 +1692,12 @@
               "title": "د هېواد او ژبې نسخې",
               "subtitle": "هره فعاله نسخه په اتومات ډول د غوښتونکي هېواد او د قرارداد ژبې لپاره ټاکل کېږي.",
               "createVersion": "نسخه جوړول",
+              "versionName": "د نسخې نوم",
+              "editDraft": "مسوده سمول",
+              "archive": "آرشیف",
+              "archived": "د قالب نسخه آرشیف شوه.",
+              "archiveError": "د قالب نسخه آرشیف نه شوه.",
+              "selectDraftToEdit": "د نوم او متن د سمولو لپاره یوه مسوده نسخه غوره کړئ. فعالې او آرشیف شوې نسخې تړل شوې دي.",
               "saveFirstHint": "د نسخې جوړولو مخکې د ټیمپلیټ بدلونونه وساتئ. نسخه تر کارولو وروسته نه بدلېدونکی سند دی.",
               "version": "نسخه",
               "active": "فعال",
@@ -2007,6 +2016,22 @@
           "bottom": "لاندې",
           "left": "کيڼ"
         },
+        "artworkScopeTitle": "د قرارداد د ډیزاین ساحه",
+        "artworkScopeHint": "وټاکئ چې لاندې ډیزاین پر څه تطبیق شي. هغه قراردادي ډولونه چې خپل ډیزاین نه لري، عمومي ډیفالټ کاروي.",
+        "generalArtworkScope": "عمومي ډیفالټ (ټول قراردادي ډولونه)",
+        "contractTypeScope": "د قرارداد ډول",
+        "serviceScopeOptional": "خدمت (اختیاري)",
+        "serviceScopeHint": "خدمت خالي پرېږدئ تر څو دا پوښ او لېټر هېډ د پیرودونکي قراردادونو ټولو خدماتو ته تطبیق شي.",
+        "singleTypeScopeHint": "د استخدام او نور قراردادونه یو ګډ پوښ او لېټر هېډ لري: دا ډیزاین دې ډول ټولو قراردادونو ته تطبیق کېږي.",
+        "artworkEditorScopeHint": "لاندې اپلوډ، لرې کول او اندازه کول دې ساحې لپاره دي: {scope}",
+        "saveArtworkForScope": "دې ساحې لپاره ډیزاین خوندي کړئ",
+        "resetArtworkScope": "بدلونونه لغوه کړئ",
+        "artworkScopeSaved": "ډیزاین د ټاکلې ساحې لپاره خوندي شو.",
+        "printSafeAreaSizing": "د چاپ د خوندي ساحې اندازه (ټولو چاپ شوو پاڼو ته تطبیق کېږي)",
+        "printSafeAreaOffsetX": "افقی واټن",
+        "printSafeAreaOffsetY": "عمودي واټن",
+        "printSafeAreaWidth": "سور",
+        "printSafeAreaHeight": "لوړوالی",
         "resetDefaults": "بېرته اصلي حالت (ډیفالټ) ته راوستل",
         "saveSettings": "تنظیمات خوندي کړئ",
         "themeColorsPreviewHint": "بدلونونه سمدستي په اپلېکېشن کې ښودل کېږي او یوازې د «بدلونونه خوندي کړئ» په ټاکلو سره خوندي کېږي.",
@@ -2064,8 +2089,15 @@
           "super_admin": "لوړ مدیر",
           "admin": "مدیر",
           "manager": "مسؤول",
+          "team_lead": "د ټیم مشر",
+          "senior_counselor": "لوړ سلاکار",
+          "finance_officer": "مالي مسؤول",
+          "counselor": "سلاکار",
+          "case_officer": "د دوسیې مسؤول",
           "staff": "کارکوونکی",
-          "viewer": "کتونکی"
+          "document_officer": "د اسنادو مسؤول",
+          "viewer": "کتونکی",
+          "applicant": "غوښتونکی"
         },
         "verification": {
           "invited": "بلل شوی",
@@ -2570,7 +2602,10 @@
           "serviceDefinition": "د خدمت تعریف",
           "serviceDefinitionHint": "داسې فیس او موده وټاکئ چې دا خدمت په قرارداد کې د بیا کارولو لپاره چمتو وي.",
           "eGWebsiteMaintenance": "لکه: د وېبسایټ مراقبت (ساتنه)",
-          "durationMonths": "موده (په میاشتو)"
+          "durationMonths": "موده (په میاشتو)",
+          "contractTemplate": "د قرارداد قالب",
+          "templateMissing": "ټاکل شوې نه ده",
+          "manageContractTemplate": "د دې خدمت د قرارداد قالب جوړ یا پرانیزئ"
         },
         "durationMonthsValue": "{count} میاشت | {count} میاشتې"
       },
@@ -2621,6 +2656,7 @@
           "language": "د تړون ژبه",
           "languageRequired": "د تړون ژبه وټاکئ",
           "languageVersionHint": "ټاکل شوې ژبه د سند فعاله نسخه ټاکي.",
+          "selectedVersion": "فعال سند: {name} · نسخه {version} · {country} · {language}",
           "noVersions": "دا نمونه تر اوسه د هېواد او ژبې نسخه نه لري. د تړون له صادرولو مخکې یې په تړون نمونو کې جوړه او فعاله کړئ.",
           "noActiveVersions": "دا نمونه نسخې لري، خو هېڅ یوه فعاله نه ده. د تړون له صادرولو مخکې د هېواد او ژبې یوه نسخه فعاله کړئ.",
           "employee": "کارکوونکی",
@@ -3158,6 +3194,10 @@
       "stalled": {
         "title": "د غوښتونکي قضیه پاملرنې ته اړتیا لري",
         "message": "د {applicant} قضیه له {days} ورځو راهیسې په {stage} پړاو کې پاتې ده."
+      },
+      "documentUploaded": {
+        "title": "د غوښتونکي سند زیات شو",
+        "message": "{label} د غوښتونکي فایل ته زیات شو."
       }
     },
     "finance": {
@@ -3170,10 +3210,32 @@
         "message": "ستاسو د {type} غوښتنه اوس {status} ده. {reason}"
       }
     },
+    "invoice": {
+      "issued": {
+        "title": "د غوښتونکي بل جوړ شو",
+        "message": "بل {invoice_number} د غوښتونکي قضیې لپاره جوړ شو."
+      }
+    },
     "bonus": {
       "review": {
         "title": "د انعام نوماند کتنې ته چمتو دی",
         "message": "د دندو پر بنسټ اتومات انعام نوماند کتنې ته چمتو دی."
+      }
+    },
+    "contract_template_version": {
+      "created": { "title": "د قالب مسوده جوړه شوه", "message": "{template}: {version} (نسخه {version_number}) د {country}، {language} لپاره جوړه شوه." },
+      "updated": { "title": "د قالب مسوده نوې شوه", "message": "{template}: {version} (نسخه {version_number}) نوې شوه." },
+      "activated": { "title": "د قالب نسخه فعاله شوه", "message": "{template}: {version} (نسخه {version_number}) اوس د {country}، {language} لپاره فعاله ده." },
+      "archived": { "title": "د قالب نسخه آرشیف شوه", "message": "{template}: {version} (نسخه {version_number}) آرشیف شوه." }
+    },
+    "contract": {
+      "generated": {
+        "title": "قرارداد جوړ شو",
+        "message": "{contract_number} د {service} لپاره جوړ شو."
+      },
+      "extensionGenerated": {
+        "title": "د تمدید قرارداد جوړ شو",
+        "message": "{contract_number} د {service} لپاره قرارداد {parent_contract_number} تمدیدوي."
       }
     },
     "types": {
@@ -3494,6 +3556,16 @@
       "postedSummary": "{amount} · {date} · {description}",
       "noFinance": "تر اوسه د دې دوسیې مالي فعالیت نشته.",
       "documents": "سندونه",
+      "applicantDocuments": "د غوښتونکي اسناد",
+      "file": "فایل",
+      "documentsNeeded": "اسناد اړین دي",
+      "documentCount": "{count} سند",
+      "applicantDocumentsReady": "{count} نښه شوي سندونه شته",
+      "applicantDocumentsNeeded": "د قضیې پرمخ بیولو، خدمت ټاکلو یا بل جوړولو مخکې یو نښه شوی سند زیات کړئ.",
+      "documentLabel": "د سند نښه",
+      "attach": "نښلول",
+      "documentAdded": "سند د غوښتونکي فایل ته زیات شو.",
+      "documentAddFailed": "دا سند زیات نه شو.",
       "fromTask": "له دندې: {task}",
       "download": "کښته کول",
       "noDocuments": "تر اوسه سند نشته. د دې دوسیې له دندو سره نښلول شوي فایلونه دلته ښکاري.",
@@ -3738,6 +3810,8 @@
     "caseOption": "قضیه #{id} — {customer}",
     "contractOption": "{number} — {name}",
     "customerContract": "د پېرودونکي قرارداد",
+    "extension": "تمدید",
+    "primaryContract": "اصلي",
     "contract": "قرارداد",
     "scholarshipService": "د سکالرشیپ خدمت",
     "testOffer": "د ازموینې وړاندیز",
@@ -3811,7 +3885,7 @@
     },
     "servicesUi": {
       "title": "تعلیمي خدمتونه",
-      "subtitle": "هر پلور له مسؤل کارکوونکي، پېرودونکي، قضیې او د انعام له سرچینې سره تړلی پاتې کېږي.",
+      "subtitle": "هره ټاکنه د غوښتونکي قضیې، مسؤل کارکوونکي او د انعام د سرچینې سره تړلې پاتې کېږي.",
       "recordSale": "پلور ثبت کړئ",
       "editSale": "د خدمت پلور سمول",
       "bonusSources": "د انعام سرچینې",
@@ -3823,7 +3897,7 @@
       "loadFailed": "تعلیمي خدمتونه پورته نه شول.",
       "updated": "د خدمت پلور تازه شو.",
       "created": "د خدمت پلور له انعام سرچینې سره ثبت شو.",
-      "saveFailed": "خوندي نه شو. د پېرودونکي، کارکوونکي، اسعارو او قضیې اړیکه وګورئ.",
+      "saveFailed": "خوندي نه شو. د غوښتونکي، کارکوونکي، اسعارو او قضیې اړیکه وګورئ.",
       "voidConfirm": "د {service} پلور باطل شي؟ د انعام سرچینه به یې هم باطله شي.",
       "voided": "د خدمت پلور باطل شو.",
       "voidFailed": "د خدمت پلور باطل نه شو.",
@@ -3831,7 +3905,13 @@
       "bonusCreated": "د قرارداد انعام سرچینه جوړه شوه.",
       "bonusSaveFailed": "د انعام سرچینه خوندي نه شوه. هره سرچینه یوازې یو ځل منسوبېدای شي.",
       "bonusMarked": "انعام {status} شو.",
-      "bonusStatusFailed": "د انعام دا حالت بدلون مجاز نه دی."
+      "bonusStatusFailed": "د انعام دا حالت بدلون مجاز نه دی.",
+      "contractTemplateNotice": "یو قرارداد به د «{template}» قالب څخه جوړ شي.",
+      "contractTemplateAuto": "دا خدمت لا تر اوسه د قرارداد قالب نه لري. د خوندي کولو پر مهال به اتومات جوړ شي.",
+      "editableFeeHint": "بنسټیز فیس مخکې ډک شوی دی؛ تاسو یې د دې غوښتونکي لپاره بدلولی شئ.",
+      "allowExtension": "تمدید ته اجازه ورکړه",
+      "allowExtensionHint": "که دې غوښتونکي لا دمخه د دې خدمت لپاره فعال قرارداد ولري، دا پلور به د تمدید په توګه ثبت شي.",
+      "applicantServiceHint": "د ویزې غوښتونکی وټاکئ، بیا یو خدمت یا بسته ور وټاکئ. د هر ټاکل شوي خدمت لپاره جلا قرارداد جوړیږي."
     },
     "pendingUi": {
       "customerEmployee": "پېرودونکی / کارکوونکی",

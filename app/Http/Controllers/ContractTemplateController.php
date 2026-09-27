@@ -72,6 +72,13 @@ class ContractTemplateController extends Controller
     {
         $data = $this->validated($request, partial: true, existing: $contractTemplate);
 
+        // Content belongs to a country/language version.  Keep accepting the
+        // legacy field for old clients, but never let it overwrite a template
+        // that has entered the versioned workflow.
+        if ($contractTemplate->versions()->exists()) {
+            unset($data['content']);
+        }
+
         $contractTemplate->update($this->payload($data, $contractTemplate));
 
         if (array_key_exists('policy_ids', $data)) {
@@ -114,7 +121,7 @@ class ContractTemplateController extends Controller
             'service_id' => ['nullable', 'integer', Rule::exists('services', 'id')->where('status', 'active')->whereNull('deleted_at')],
             'position_id' => ['nullable', 'integer', 'exists:positions,id'],
             'cover_text' => ['nullable', 'string'],
-            'content' => [...$presenceRules, 'string'],
+            'content' => [$partial ? 'sometimes' : 'nullable', 'string'],
             'policy_ids' => ['nullable', 'array'],
             'policy_ids.*' => ['integer', 'exists:contract_policies,id'],
         ]);
@@ -184,6 +191,11 @@ class ContractTemplateController extends Controller
 
         if (array_key_exists('content', $data)) {
             $data['content'] = $this->sanitizeContent((string) $data['content'], $type?->slug);
+        } elseif (! $existing) {
+            // The legacy column remains non-null for backwards compatibility;
+            // newly created templates receive their real document only through
+            // their initial country/language version.
+            $data['content'] = '';
         }
 
         // Keep the legacy display column populated for old consumers.

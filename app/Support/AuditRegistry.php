@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Applicant;
+use App\Models\ApplicantAttachment;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantUniversity;
 use App\Models\Asset;
@@ -65,6 +66,7 @@ final class AuditRegistry
     {
         return [
             'applicants' => Applicant::class,
+            'applicant_attachments' => ApplicantAttachment::class,
             'applicant_stages' => ApplicantStage::class,
             'applicant_universities' => ApplicantUniversity::class,
             'case_wins' => CaseWin::class,

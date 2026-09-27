@@ -43,7 +43,6 @@ const pageGuides: Record<string, PageGuideDefinition> = {
   'setup-positions': { title: 'Positions', description: 'Use positions to keep job titles separate from system-access roles.' },
   'setup-settings': { title: 'System settings', description: 'Manage company, operational, and communication configuration here. Save one deliberate change at a time when settings affect the whole company.' },
   'setup-marketers': { title: 'Marketers', description: 'Manage marketer records and their relationships here.' },
-  'setup-offices': { title: 'Offices', description: 'Maintain office details here, including information used by attendance and asset workflows.' },
   'options-services': { title: 'Services', description: 'Define the services your company offers here. These records are used when creating customer services, invoices, and contracts.' },
   'options-currencies': { title: 'Currencies', description: 'Manage supported currencies and exchange rates here. The base currency deserves special care because it affects reporting.' },
   'options-invoice': { title: 'Invoice options', description: 'Configure invoice-related options here before creating new financial documents.' },

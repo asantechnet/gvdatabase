@@ -53,7 +53,8 @@ export interface Contract {
   cancelled_at?: string | null
   template_id: number | null
   contract_template_version_id?: number | null
-  language_id?: number | null
+  contract_country_id?: number | null
+  contract_language_id?: number | null
   contract_type_id?: number | null
   service_id?: number | null
   employee_id?: number | null
@@ -71,7 +72,7 @@ export interface Contract {
   snapshot_data?: {
     parties?: Record<string, unknown>
     entity?: Record<string, unknown>
-    template_version?: { id: number; version_number: number; language_id?: number | null } | null
+    template_version?: { id: number; name?: string | null; version_number: number; country_id?: number | null; country_name?: string | null; language_id?: number | null; language_name?: string | null; language_code?: string | null } | null
     document_design?: { letterhead_url?: string | null; cover_design_url?: string | null; safe_x?: number; safe_y?: number; safe_width?: number; safe_height?: number } | null
     renewal?: { source_contract_id: number; source_contract_number?: string | null }
   } | null
@@ -93,6 +94,7 @@ export interface Contract {
 export interface ContractCreateData {
   template_id?: number | null
   contract_template_version_id?: number | null
+  country_id?: number | null
   language_id?: number | null
   contract_type_id?: number | null
   employee_id?: number | null

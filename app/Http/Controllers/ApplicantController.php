@@ -12,6 +12,8 @@ use App\Models\University;
 use App\Services\ApplicantTaskService;
 use App\Services\CaseWinService;
 use App\Services\EducationalWorkflowNotificationService;
+use App\Services\ApplicantDocumentReadiness;
+use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,7 +22,7 @@ class ApplicantController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Applicant::with($this->relations());
+        $query = Applicant::with($this->relations())->withCount('attachments');
         $this->scopeCasesToActor($query, $request);
         $this->applyFilters($query, $request);
         $sort = $request->input('sort', 'created_at');
@@ -83,7 +85,7 @@ class ApplicantController extends Controller
 
     public function update(Request $request, Applicant $applicant, EducationalWorkflowNotificationService $notifications)
     {
-        $this->assertCaseAccess($request, $applicant);
+        $this->assertCaseManageAccess($request, $applicant);
         $previousEmployeeId = $applicant->responsible_employee_id;
         $applicant = $this->save($request, $applicant, true);
         if ($previousEmployeeId !== $applicant->responsible_employee_id) {
@@ -95,7 +97,7 @@ class ApplicantController extends Controller
 
     public function destroy(Applicant $applicant)
     {
-        $this->assertCaseAccess(request(), $applicant);
+        $this->assertCaseManageAccess(request(), $applicant);
         $blocking = ['contracts' => $applicant->contracts()->count(), 'services' => $applicant->services()->count(), 'tasks' => $applicant->tasks()->count(), 'pending_transactions' => $applicant->pendingTransactions()->count(), 'official_finance' => $applicant->incomes()->count() + $applicant->expenses()->count()];
         if (array_sum($blocking) > 0) {
             return response()->json(['code' => 'business.applicant_has_activity', 'blocking' => $blocking], 409);
@@ -111,7 +113,8 @@ class ApplicantController extends Controller
 
     public function changeStage(Request $request, Applicant $applicant, EducationalWorkflowNotificationService $notifications)
     {
-        $this->assertCaseAccess($request, $applicant);
+        $this->assertCaseManageAccess($request, $applicant);
+        app(ApplicantDocumentReadiness::class)->require($applicant, 'stage_id');
         $data = $request->validate(['stage_id' => ['required', 'integer', 'exists:applicant_stages,id'], 'note' => ['nullable', 'string', 'max:5000']]);
         $next = ApplicantStage::findOrFail($data['stage_id']);
         $current = $applicant->currentStage;
@@ -139,7 +142,6 @@ class ApplicantController extends Controller
         $presence = $updating ? 'sometimes' : 'required';
         $data = $request->validate([
             'name' => [$presence, 'nullable', 'string', 'max:255'],
-            'company' => ['nullable', 'string', 'max:255'],
             'contact' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:1000'],
@@ -168,11 +170,18 @@ class ApplicantController extends Controller
         if (! $request->user()->hasPermission('assign_applicant_employee')) {
             $ownEmployeeId = Employee::query()->where('user_id', $request->user()->id)->value('id');
             abort_unless($ownEmployeeId, 422, 'business.employee_profile_missing');
+            $scope = app(EmployeeScope::class);
             if ($updating) {
-                abort_if(array_key_exists('responsible_employee_id', $data) && (int) $data['responsible_employee_id'] !== (int) $applicant->responsible_employee_id, 403, 'auth.forbidden');
-                unset($data['responsible_employee_id']);
+                // A supervisor with the manage scope may move a case to a team
+                // member; everyone else is pinned to their own employee row.
+                if (array_key_exists('responsible_employee_id', $data)
+                    && (int) $data['responsible_employee_id'] !== (int) $applicant->responsible_employee_id
+                    && ! $scope->canManageOwnedBy($request->user(), $data['responsible_employee_id'])) {
+                    abort(403, 'auth.forbidden');
+                }
+            } elseif (isset($data['responsible_employee_id']) && (int) $data['responsible_employee_id'] !== (int) $ownEmployeeId) {
+                abort_unless($scope->canManageOwnedBy($request->user(), $data['responsible_employee_id']), 403, 'auth.forbidden');
             } else {
-                abort_if(isset($data['responsible_employee_id']) && (int) $data['responsible_employee_id'] !== (int) $ownEmployeeId, 403, 'auth.forbidden');
                 $data['responsible_employee_id'] = $ownEmployeeId;
             }
         }
@@ -241,7 +250,6 @@ class ApplicantController extends Controller
                     $q->orWhere('id', (int) $search);
                 }
                 $q->orWhere('name', 'like', "%{$search}%")
-                    ->orWhere('company', 'like', "%{$search}%")
                     ->orWhere('contact', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             });
@@ -255,7 +263,18 @@ class ApplicantController extends Controller
         if ($user->isSuperAdmin() || $user->hasPermission('view_all_applicants')) {
             return;
         }
-        abort_unless($applicant->responsibleEmployee?->user_id === $user->id, 403, 'auth.forbidden');
+        abort_unless(app(EmployeeScope::class)->canViewOwnedBy($user, $applicant->responsible_employee_id), 403, 'auth.forbidden');
+    }
+
+    /** Change access: own cases, or a subordinate's case with the manage scope. */
+    private function assertCaseManageAccess(Request $request, Applicant $applicant): void
+    {
+        $user = $request->user();
+        abort_unless($user, 403, 'auth.forbidden');
+        if ($user->isSuperAdmin() || $user->hasPermission('view_all_applicants')) {
+            return;
+        }
+        abort_unless(app(EmployeeScope::class)->canManageOwnedBy($user, $applicant->responsible_employee_id), 403, 'auth.forbidden');
     }
 
     private function scopeCasesToActor($query, Request $request): void
@@ -265,7 +284,7 @@ class ApplicantController extends Controller
         if ($user->isSuperAdmin() || $user->hasPermission('view_all_applicants')) {
             return;
         }
-        $query->whereHas('responsibleEmployee', fn ($employee) => $employee->where('user_id', $user->id));
+        $query->whereIn('responsible_employee_id', app(EmployeeScope::class)->visibleEmployeeIds($user));
     }
 
     private function stagesForContext(?int $countryId, ?int $universityId)

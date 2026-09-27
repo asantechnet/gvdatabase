@@ -15,9 +15,20 @@ class Contract extends Model
 
     public const STATUSES = ['draft', 'active', 'completed', 'terminated', 'cancelled'];
 
+    /** The first contract of a (customer, service) pair. */
+    public const ROLE_PRIMARY = 'primary';
+
+    /** A later sale of the same service, linked back at the primary contract. */
+    public const ROLE_EXTENSION = 'extension';
+
     protected $fillable = [
         'template_id',
+        'source_service_id',
+        'contract_role',
+        'parent_contract_id',
         'contract_template_version_id',
+        'contract_country_id',
+        'contract_language_id',
         'contract_type_id',
         'employee_id',
         'sold_by_employee_id',
@@ -63,6 +74,29 @@ class Contract extends Model
     public function template()
     {
         return $this->belongsTo(ContractTemplate::class)->withTrashed();
+    }
+
+    /** The catalogue service this contract was generated for. */
+    public function sourceService()
+    {
+        return $this->belongsTo(Service::class, 'source_service_id')->withTrashed();
+    }
+
+    /** For an extension contract, the original agreement it extends. */
+    public function parentContract()
+    {
+        return $this->belongsTo(self::class, 'parent_contract_id')->withTrashed();
+    }
+
+    /** Extension contracts sold on top of this one. */
+    public function extensions()
+    {
+        return $this->hasMany(self::class, 'parent_contract_id');
+    }
+
+    public function isExtension(): bool
+    {
+        return $this->contract_role === self::ROLE_EXTENSION;
     }
 
     public function contractType()
@@ -113,6 +147,8 @@ class Contract extends Model
         return $this->belongsTo(Employee::class, 'marketer_id')->withTrashed();
     }
     public function templateVersion(){ return $this->belongsTo(ContractTemplateVersion::class, 'contract_template_version_id')->withTrashed(); }
+    public function contractCountry(){ return $this->belongsTo(Country::class, 'contract_country_id')->withTrashed(); }
+    public function contractLanguage(){ return $this->belongsTo(Language::class, 'contract_language_id')->withTrashed(); }
 
     public function company()
     {

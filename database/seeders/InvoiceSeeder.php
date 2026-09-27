@@ -63,7 +63,7 @@ class InvoiceSeeder extends Seeder
                     'currency_id' => $currency->id,
                     'base_currency_id' => $currency->id,
                     'deptor' => $applicant->name,
-                    'customer_company' => $applicant->company,
+                    'customer_company' => null,
                     'customer_contact' => $applicant->contact,
                     'customer_email' => $applicant->email,
                     'customer_address' => $applicant->address,

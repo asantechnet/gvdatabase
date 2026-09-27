@@ -8,11 +8,18 @@ use App\Models\ContractService;
 use App\Models\Currency;
 use App\Models\CustomerPackage;
 use App\Models\Package;
+use App\Services\ContractDocumentDesignService;
+use App\Services\Contracts\ServiceContractGenerator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class PackageIssuanceService
 {
+    public function __construct(
+        private readonly ContractDocumentDesignService $documentDesigns,
+        private readonly ServiceContractGenerator $serviceContracts,
+    ) {}
+
     /** @param array<string, mixed> $data */
     public function issue(Package $package, Applicant $applicant, array $data): CustomerPackage
     {
@@ -70,40 +77,23 @@ class PackageIssuanceService
                     $currencyId = $saleCurrencyId;
                 }
 
-                $contract = Contract::create([
-                    'contract_type_id' => $contractTypeId,
-                    'applicant_id' => $applicant->id,
-                    'sold_by_employee_id' => $purchase->sold_by_employee_id,
-                    'marketer_id' => $purchase->sold_by_employee_id ?? $applicant->marketer_id,
-                    'name' => $service->type,
-                    // `type` stays 'Customer': it is the legacy contract type
-                    // vocabulary shared with the contract-templates work.
-                    'type' => 'Customer',
-                    'status' => 'active',
-                    'start_date' => $purchase->purchased_at->toDateString(),
-                    'counterparty' => $applicant->name,
-                    'counterparty_company' => $applicant->company,
-                    'counterparty_email' => $applicant->email,
-                    'counterparty_contact' => $applicant->contact,
-                    'counterparty_address' => $applicant->address,
-                    'content' => '',
-                    'is_custom' => true,
-                    'snapshot_data' => ['entity' => ['package_id' => $package->id, 'customer_package_id' => $purchase->id, 'services' => [['service_id' => $service->id, 'fee' => $fee, 'currency_id' => $currencyId]]]],
-                ]);
-
-                ContractService::create([
-                    'contract_id' => $contract->id,
-                    'service_id' => $service->id,
-                    'customer_package_id' => $purchase->id,
-                    'applicant_id' => $applicant->id,
-                    'sold_by_employee_id' => $purchase->sold_by_employee_id,
-                    'marketer_id' => $purchase->sold_by_employee_id ?? $applicant->marketer_id,
+                // The service's own contract template generates the agreement
+                // (auto-creating one when the catalogue entry has none) so a
+                // package sale also produces a complete, printable contract.
+                $this->serviceContracts->createFor($service, $applicant, [
                     'fee' => $fee,
                     'currency_id' => $currencyId,
+                    'status' => 'active',
+                    'start_date' => $purchase->purchased_at->toDateString(),
+                    'sold_by_employee_id' => $purchase->sold_by_employee_id,
+                    'marketer_id' => $purchase->sold_by_employee_id ?? $applicant->marketer_id,
+                    'customer_package_id' => $purchase->id,
                     'country_id' => $applicant->country_id,
                     'education_level_id' => $applicant->education_level_id,
                     'language_id' => $applicant->language_id,
                     'notes' => "Issued once through package #{$purchase->id}: {$package->name}",
+                    'source' => 'package_issuance',
+                    'snapshot_extra' => ['package_id' => $package->id, 'customer_package_id' => $purchase->id],
                 ]);
             }
 

@@ -5,8 +5,8 @@ export type ProjectStatus = 'active' | 'on_hold' | 'completed' | 'archived'
 
 export interface Project {
   id: number
-  customer_id: number
-  customer?: { id: number; name: string; company: string }
+  applicant_id: number
+  applicant?: { id: number; name: string }
   name: string
   description: string | null
   status: ProjectStatus
@@ -21,7 +21,7 @@ export interface Project {
 
 export interface ProjectPayload {
   name: string
-  customer_id: number
+  applicant_id: number
   description?: string | null
   status?: ProjectStatus
   start_date?: string | null

@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import ApplicantApi, { type Applicant, type ApplicantStage, ApplicantUniversityApi } from '@/api/applicants'
+import ApplicantApi, { type Applicant, type ApplicantStage, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment } from '@/api/applicants'
 import ApplicantPortalApi from '@/api/applicantPortal'
 import ContractApi from '@/api/contracts'
 import ContractTemplateApi, { type ContractTemplate } from '@/api/contractTemplate'
@@ -99,12 +99,16 @@ const savingContract = ref(false)
 const contractTemplates = ref<ContractTemplate[]>([])
 const financeDialog = ref(false)
 const savingFinance = ref(false)
-const financeOptions = ref<PendingTransactionOptions>({ currencies: [], customers: [], employees: [], applicants: [] })
-const financeForm = ref<PendingTransactionInput>({ transaction_type: 'income', reason: '', amount: 0, currency_id: null, customer_id: null, applicant_id: null, employee_id: null })
+const financeOptions = ref<PendingTransactionOptions>({ currencies: [], employees: [], applicants: [] })
+const financeForm = ref<PendingTransactionInput>({ transaction_type: 'income', reason: '', amount: 0, currency_id: null, applicant_id: null, employee_id: null })
 const documentDialog = ref(false)
 const uploadingDocument = ref(false)
 const documentTaskId = ref<number | null>(null)
 const documentFile = ref<File | null>(null)
+const applicantAttachments = ref<ApplicantAttachment[]>([])
+const attachmentLabel = ref('')
+const attachmentFile = ref<File | File[] | null>(null)
+const uploadingApplicantAttachment = ref(false)
 const canAttachDocuments = computed(() => (applicant.value?.tasks?.length ?? 0) > 0)
 
 async function load() {
@@ -112,7 +116,11 @@ async function load() {
   stages.value = await ApplicantApi.stages({ country_id: applicant.value.country_id, university_id: applicant.value.university_id })
   selected.value = null
   notesDraft.value = applicant.value.notes ?? ''
+  applicantAttachments.value = await ApplicantAttachmentApi.list(applicant.value.id)
 }
+
+async function uploadApplicantAttachment() { const file = Array.isArray(attachmentFile.value) ? attachmentFile.value[0] : attachmentFile.value; if (!applicant.value || !file || !attachmentLabel.value.trim()) return; uploadingApplicantAttachment.value = true; try { applicantAttachments.value.unshift(await ApplicantAttachmentApi.upload(applicant.value.id, file, attachmentLabel.value.trim())); attachmentFile.value = null; attachmentLabel.value = ''; toast.success(t('educational.caseUi.documentAdded')) } catch { toast.error(t('educational.caseUi.documentAddFailed')) } finally { uploadingApplicantAttachment.value = false } }
+async function removeApplicantAttachment(id: number) { if (!applicant.value) return; await ApplicantAttachmentApi.remove(applicant.value.id, id); applicantAttachments.value = applicantAttachments.value.filter(item => item.id !== id) }
 
 async function loadBoards() {
   try {
@@ -182,7 +190,6 @@ async function createTask() {
       title: taskForm.value.title.trim(),
       priority: taskForm.value.priority,
       due_date: taskForm.value.due_date || undefined,
-      customer_id: applicant.value.customer_id,
       applicant_id: applicant.value.id,
     })
     taskDialog.value = false
@@ -277,9 +284,9 @@ function openPortalInvite() {
     return
 
   portalForm.value = {
-    name: applicant.value.customer?.name ?? '',
-    email: applicant.value.customer?.email ?? '',
-    phone: applicant.value.customer?.contact ?? '',
+    name: applicant.value.name,
+    email: applicant.value.email ?? '',
+    phone: applicant.value.contact ?? '',
     address: '',
   }
   portalDialog.value = true
@@ -427,7 +434,6 @@ async function createCaseContract(payload: ContractFormPayload) {
     await ContractApi.create({
       ...payload,
       applicant_id: applicant.value.id,
-      customer_id: applicant.value.customer_id,
     })
     contractDialog.value = false
     await load()
@@ -452,7 +458,6 @@ async function openFinanceDialog() {
       reason: '',
       amount: 0,
       currency_id: financeOptions.value.currencies.find(currency => currency.is_base)?.id ?? null,
-      customer_id: applicant.value.customer_id,
       applicant_id: applicant.value.id,
       employee_id: applicant.value.responsible_employee_id ?? null,
     }
@@ -538,7 +543,7 @@ onMounted(async () => {
 <template>
   <VCard v-if="applicant" class="visa-case-card">
     <VCardTitle class="d-flex flex-wrap align-center ga-2">
-      <span>{{ t('educational.caseUi.visaCase', { name: applicant.customer?.name }) }}</span>
+      <span>{{ t('educational.caseUi.visaCase', { name: applicant.name }) }}</span>
       <VSpacer />
       <VChip v-if="applicant.user_id" size="small" color="success">{{ t('educational.caseUi.portalActive') }}</VChip>
       <VBtn v-else-if="canInvitePortal" size="small" variant="tonal" color="primary" prepend-icon="tabler-send" @click="openPortalInvite">{{ t('educational.caseUi.invitePortal') }}</VBtn>
@@ -552,6 +557,7 @@ onMounted(async () => {
       <VTextarea v-model="note" :label="t('educational.caseUi.stageNote')" class="mb-4" />
       <VBtn color="primary" :loading="moving" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
       </div>
+      <VCard variant="tonal" color="primary" class="mt-6"><VCardItem :title="t('educational.caseUi.applicantDocuments')" :subtitle="applicantAttachments.length ? t('educational.caseUi.applicantDocumentsReady', { count: applicantAttachments.length }) : t('educational.caseUi.applicantDocumentsNeeded')" /><VCardText><VList density="compact"><VListItem v-for="file in applicantAttachments" :key="file.id" :title="file.label" :subtitle="file.name"><template #append><VBtn icon="tabler-download" size="x-small" variant="text" :href="file.download_url"/><VBtn v-if="canEditCase" icon="tabler-trash" size="x-small" variant="text" color="error" @click="removeApplicantAttachment(file.id)"/></template></VListItem></VList><div v-if="canEditCase" class="d-flex flex-wrap ga-2 mt-3"><VTextField v-model="attachmentLabel" :label="t('educational.caseUi.documentLabel')" density="compact" hide-details style="min-width:180px"/><VFileInput v-model="attachmentFile" density="compact" hide-details style="min-width:220px"/><VBtn color="primary" :loading="uploadingApplicantAttachment" :disabled="!attachmentFile || !attachmentLabel.trim()" @click="uploadApplicantAttachment">{{ t('educational.caseUi.attach') }}</VBtn></div></VCardText></VCard>
       <VDivider class="my-8" />
       <h3>{{ t('educational.caseUi.timeline') }}</h3>
       <VList><VListItem v-for="item in stageHistory" :key="item.id" :title="t('educational.caseUi.stageTransition', { from: item.old_stage?.name ?? t('educational.caseUi.started'), to: item.new_stage?.name })" :subtitle="stageSubtitle(item)" /></VList>
@@ -716,7 +722,6 @@ onMounted(async () => {
         <ContractForm
           :templates="contractTemplates"
           :applicant-country-id="applicant?.country_id ?? null"
-          :customer-id="applicant?.customer_id ?? null"
           :applicant-id="applicant?.id ?? null"
           @submit="createCaseContract"
           @cancel="contractDialog = false"

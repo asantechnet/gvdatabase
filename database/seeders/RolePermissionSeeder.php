@@ -16,11 +16,19 @@ class RolePermissionSeeder extends Seeder
 
         $roleIds = Role::query()->pluck('id', 'name')->all();
 
+        // Group-scope permissions shared by every supervisory role.
+        $supervisoryScope = [
+            'view_subordinate_records', 'manage_subordinate_records',
+            'view_departments', 'manage_departments', 'assign_employee_supervisor',
+            'view_team_audit_logs',
+        ];
+
         $grants = [
-            // Day-to-day operations, but never identity/role control or audit reversal.
+            // Day-to-day operations, but never identity/role control, hierarchy
+            // control, or audit reversal.
             'admin' => array_values(array_diff($all, [
                 'view_users', 'create_users', 'edit_users', 'delete_users', 'manage_user_status', 'assign_user_roles',
-                'view_roles', 'manage_role_permissions', 'view_permissions',
+                'view_roles', 'manage_role_permissions', 'manage_role_hierarchy', 'view_permissions',
                 'view_audit_logs', 'view_deleted_records', 'review_audit_logs', 'revert_audit_changes', 'manage_audit_scope',
             ])),
 
@@ -56,7 +64,7 @@ class RolePermissionSeeder extends Seeder
                 'create_subtasks_on_assigned_tasks', 'edit_all_subtasks', 'edit_own_subtasks', 'delete_all_subtasks', 'delete_own_subtasks',
                 'create_comments_on_assigned_tasks', 'edit_all_comments', 'edit_own_comments', 'delete_all_comments', 'delete_own_comments',
                 'view_visitors', 'create_visitors', 'edit_visitors',
-                'view_own_notifications', 'update_own_notifications', 'delete_own_notifications', 'send_notifications',
+                'view_own_notifications', 'update_own_notifications', 'delete_own_notifications', 'send_notifications', 'send_all_notifications',
                 'upload_files', 'view_files', 'download_files',
                 'view_country', 'create_country', 'edit_country', 'view_education_level', 'create_education_level', 'edit_education_level',
                 'view_language', 'create_language', 'edit_language', 'view_package_type', 'create_package_type', 'edit_package_type', 'view_packages', 'manage_packages', 'issue_packages',
@@ -98,6 +106,45 @@ class RolePermissionSeeder extends Seeder
                 'view_own_applicant_portal', 'edit_own_applicant_profile',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
             ],
+        ];
+
+        // Supervisors inherit the manager toolkit plus the group-scope switch.
+        $grants['manager'] = array_values(array_unique([...$grants['manager'], ...$supervisoryScope, 'view_all_contracts']));
+        // A team lead supervises the same surface as a manager.
+        $grants['team_lead'] = $grants['manager'];
+
+        // A senior counselor can see the team's records but must not change
+        // them: only the read scope is granted, never the manage scope.
+        $grants['senior_counselor'] = array_values(array_unique([
+            ...$grants['staff'], 'view_subordinate_records', 'view_departments',
+        ]));
+
+        // Visa counselors and case officers work their own assigned records.
+        $grants['counselor'] = $grants['staff'];
+        $grants['case_officer'] = $grants['staff'];
+
+        // Document officers only handle intake paperwork and files.
+        $grants['document_officer'] = [
+            'view_dashboard', 'manage_own_workday', 'submit_own_daily_report',
+            'request_own_paid_time_off', 'request_account_deactivation', 'cancel_own_deactivation_request',
+            'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
+            'view_applicants', 'view_applicant_stages', 'view_applicant_contracts', 'view_applicant_services',
+            'view_contracts', 'view_contract_templates', 'download_contracts',
+            'view_files', 'upload_files', 'download_files',
+        ];
+
+        // Finance officers own the money surfaces a branch runs on.
+        $grants['finance_officer'] = [
+            'view_dashboard', 'view_reports', 'view_analytics',
+            'manage_own_workday', 'submit_own_daily_report',
+            'request_own_paid_time_off', 'request_account_deactivation', 'cancel_own_deactivation_request',
+            'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
+            'view_invoices', 'create_invoices', 'edit_invoices',
+            'view_payment_details', 'create_payment_details', 'edit_payment_details', 'delete_payment_details',
+            'view_incomes', 'create_incomes', 'edit_incomes',
+            'view_expenses', 'create_expenses', 'edit_expenses',
+            'view_pending_transactions', 'create_pending_transactions', 'approve_pending_transactions', 'post_pending_transactions',
+            'view_currencies', 'view_financial_reports', 'view_contracts', 'view_services', 'download_files',
         ];
 
         $permissionIds = Permission::query()->whereIn('name', $all)->pluck('id', 'name');

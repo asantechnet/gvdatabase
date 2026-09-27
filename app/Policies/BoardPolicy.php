@@ -23,6 +23,9 @@ class BoardPolicy
         return $this->view($user, $board) && (
             $user->hasPermission('edit_all_boards')
             || ($user->hasPermission('edit_assigned_boards') && TaskAccess::isBoardMember($user, $board))
+            // A supervisor editing their team's board must hold the manage
+            // scope; a read-only senior counselor does not.
+            || ($user->hasPermission('edit_assigned_boards') && TaskAccess::isTeamBoardMember($user, $board))
         );
     }
 
@@ -31,6 +34,7 @@ class BoardPolicy
         return $this->view($user, $board) && (
             $user->hasPermission('delete_all_boards')
             || ($user->hasPermission('delete_assigned_boards') && TaskAccess::isBoardMember($user, $board))
+            || ($user->hasPermission('delete_assigned_boards') && TaskAccess::isTeamBoardMember($user, $board))
         );
     }
 

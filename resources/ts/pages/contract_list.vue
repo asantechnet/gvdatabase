@@ -171,9 +171,9 @@ const companySetting = ref<Setting | null>(null)
 const snapshotDesign = computed(() => contractToPrint.value?.snapshot_data?.document_design)
 const printedContractTitle = computed(() => {
   const name = contractToPrint.value?.contract || contractToPrint.value?.contract_template?.name || translate('pages.contracts.allContracts.allContracts.untitledContract')
-  const version = contractToPrint.value?.snapshot_data?.template_version?.version_number
+  const version = contractToPrint.value?.snapshot_data?.template_version
 
-  return version ? `${name} - v${version}` : name
+  return version?.version_number ? [name, version.name, `v${version.version_number}`, version.country_name, version.language_name].filter(Boolean).join(' - ') : name
 })
 
 const company = computed<CompanyDetails>(() => ({
@@ -195,7 +195,7 @@ const company = computed<CompanyDetails>(() => ({
 const getContractPagesHtml = (contract: Contract): string[] => {
   // Contracts retain their own content snapshot so later template edits never
   // rewrite a document that has already been issued.
-  const content = contract.content ?? contract.contract_template?.content
+  const content = contract.content
   const html = legacyContentToHtml(content)
   if (html)
     return [html]
@@ -239,16 +239,26 @@ const printTable = async () => {
 }
 
 const printContract = async (contract: Contract) => {
-  console.log('CONTRACT ', contract, contract.template_id)
-
   try {
     isPrintLoading.value = true
 
-    // If the contract template is not loaded, fetch it
-    if (!contract.contract_template && contract.template_id) {
-      const template = await ContractTemplateApi.getById(contract.template_id)
+    // The print body renders from the freshest contract: the server resolves
+    // the artwork scoped to this contract's type (and service) — including the
+    // print-safe area — for contracts that carry no design snapshot yet.
+    let printable = contract
 
-      contract.contract_template = {
+    try {
+      printable = await ContractApi.getById(contract.id)
+    }
+    catch (error) {
+      console.warn('Failed to refresh the contract before printing, using the listed row.', error)
+    }
+
+    // If the contract template is not loaded, fetch it
+    if (!printable.contract_template && printable.template_id) {
+      const template = await ContractTemplateApi.getById(printable.template_id)
+
+      printable.contract_template = {
         id: template.id,
         name: template.name,
         type: template.type,
@@ -257,7 +267,7 @@ const printContract = async (contract: Contract) => {
       }
     }
 
-    contractToPrint.value = contract
+    contractToPrint.value = printable
     includeEmptyLastPage.value = false
     includeSignatureSection.value = true
     includePartyDetails.value = false

@@ -12,6 +12,11 @@ class Role extends Model
 
     protected $fillable = [
         'name',
+        'level',
+    ];
+
+    protected $casts = [
+        'level' => 'integer',
     ];
 
     public function permissions(): BelongsToMany

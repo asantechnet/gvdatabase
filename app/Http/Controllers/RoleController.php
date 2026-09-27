@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\RoleResource;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Support\RoleHierarchy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -54,10 +55,13 @@ class RoleController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:roles,name',
+            'level' => 'sometimes|integer|min:0|max:100000',
         ]);
         $validator->validate();
+        $data = $validator->validated();
+        $this->guardLevelChange($request, (int) ($data['level'] ?? 0));
 
-        $role = Role::create($validator->validated());
+        $role = Role::create($data);
 
         return response()->json([
             'success' => true,
@@ -72,10 +76,18 @@ class RoleController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255|unique:roles,name,' . $role->id,
+            'level' => 'sometimes|integer|min:0|max:100000',
         ]);
         $validator->validate();
+        $data = $validator->validated();
 
-        $role->update($validator->validated());
+        if (array_key_exists('level', $data) && (int) $data['level'] !== (int) $role->level) {
+            abort_unless($request->user()->hasPermission('manage_role_hierarchy'), 403, 'auth.forbidden');
+            abort_if($role->name === 'super_admin', 422, 'business.request_rejected');
+            $this->guardLevelChange($request, (int) $data['level']);
+        }
+
+        $role->update($data);
 
         return response()->json([
             'success' => true,
@@ -116,5 +128,15 @@ class RoleController extends Controller
             'success' => true,
             'data' => new RoleResource($role),
         ]);
+    }
+
+    /**
+     * A user may only define roles below their own seniority. This keeps a
+     * senior counselor from minting an equal-or-higher role and escalating
+     * their own access.
+     */
+    private function guardLevelChange(Request $request, int $level): void
+    {
+        abort_unless(app(RoleHierarchy::class)->canAssignLevel($request->user(), $level), 403, 'auth.forbidden');
     }
 }

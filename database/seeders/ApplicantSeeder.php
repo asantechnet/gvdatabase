@@ -35,7 +35,6 @@ class ApplicantSeeder extends Seeder
 
         $john = Applicant::create([
             'name' => 'John Doe',
-            'company' => 'Acme Corp',
             'contact' => '555-1234',
             'marketer' => 'Sarah Johnson',
             'date' => '2023-10-15',
@@ -43,7 +42,6 @@ class ApplicantSeeder extends Seeder
 
         $jane = Applicant::create([
             'name' => 'Jane Smith',
-            'company' => 'Globex',
             'contact' => '555-5678',
             'marketer' => 'Michael Brown',
             'date' => '2023-10-16',
@@ -51,7 +49,6 @@ class ApplicantSeeder extends Seeder
 
         $bob = Applicant::create([
             'name' => 'Bob Wilson',
-            'company' => 'Initech',
             'contact' => '555-9012',
             'marketer' => 'Sarah Johnson',
             'date' => '2023-10-17',
@@ -67,7 +64,6 @@ class ApplicantSeeder extends Seeder
         // Add an applicant with multiple services.
         $alice = Applicant::create([
             'name' => 'Alice Cooper',
-            'company' => 'Wayne Enterprises',
             'contact' => '555-3456',
             'marketer' => 'Michael Brown',
             'date' => '2023-10-18',
@@ -88,7 +84,7 @@ class ApplicantSeeder extends Seeder
             'status' => 'active',
             'start_date' => now()->toDateString(),
             'counterparty' => $applicant->name,
-            'counterparty_company' => $applicant->company,
+            'counterparty_company' => null,
             'counterparty_contact' => $applicant->contact,
             'content' => '',
             'is_custom' => true,

@@ -6,8 +6,11 @@ use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\ServiceResource;
 use App\Http\Resources\UserResource;
 use App\Models\Employee;
+use App\Models\Department;
 use App\Models\Service;
 use App\Models\User;
+use App\Support\RoleHierarchy;
+use App\Support\EmployeeScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -20,10 +23,14 @@ use Illuminate\Validation\ValidationException;
 
 class EmployeeController extends Controller
 {
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
-        // Ordering by latest and paginating is standard practice for lists
-        return EmployeeResource::collection(Employee::selectable()->with(['position', 'office', 'user', 'commissionServices.currency'])->get());
+        $query = Employee::selectable();
+        if (! $request->user()->hasPermission('view_all_employees')) {
+            $query->whereIn('id', app(EmployeeScope::class)->visibleEmployeeIds($request->user()));
+        }
+
+        return EmployeeResource::collection($query->with(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'commissionServices.currency'])->get());
     }
 
     /** Active catalogue services available for commission capability setup. */
@@ -37,21 +44,27 @@ class EmployeeController extends Controller
     }
 
     /** Employees assigned to the built-in Marketer position for CRM ownership. */
-    public function marketerOptions(): AnonymousResourceCollection
+    public function marketerOptions(Request $request): AnonymousResourceCollection
     {
-        return EmployeeResource::collection(Employee::selectable()
+        $query = Employee::selectable()
             ->whereHas('position', fn ($query) => $query->where('system_key', 'marketer'))
-            ->with(['position', 'office', 'user'])
-            ->orderBy('name')
-            ->get());
+            ->with(['position', 'office', 'user']);
+        if (! $request->user()->hasPermission('view_all_employees')) {
+            $query->whereIn('id', app(EmployeeScope::class)->visibleEmployeeIds($request->user()));
+        }
+
+        return EmployeeResource::collection($query->orderBy('name')->get());
     }
 
     /** User accounts available for linking from the employee form. */
-    public function accountOptions(): AnonymousResourceCollection
+    public function accountOptions(Request $request): AnonymousResourceCollection
     {
-        return UserResource::collection(
-            User::query()->where('acc_status', 'active')->with(['employee:id,user_id,name', 'marketer:id,user_id,name'])->orderBy('name')->get(),
-        );
+        $query = User::query()->where('acc_status', 'active')->with(['employee:id,user_id,name', 'marketer:id,user_id,name']);
+        if (! $request->user()->hasPermission('view_all_employees')) {
+            $query->whereIn('id', app(EmployeeScope::class)->visibleUserIds($request->user()));
+        }
+
+        return UserResource::collection($query->orderBy('name')->get());
     }
 
     public function store(Request $request): EmployeeResource
@@ -73,6 +86,8 @@ class EmployeeController extends Controller
             'education_lvl' => 'required|string|max:255',
             'position_id' => ['required', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')->where('status', 'active')],
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
+            'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')->whereNull('deleted_at')],
+            'supervisor_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'employment_type' => ['required', Rule::in(['salaried', 'commission'])],
             'salary' => ['required', 'numeric', 'min:0'],
             'commissions' => [Rule::excludeIf($request->input('employment_type') !== 'commission'), 'required', 'array', 'min:1'],
@@ -85,6 +100,7 @@ class EmployeeController extends Controller
             // non-null database column while new profiles no longer expose it.
             'contract_duration' => 'nullable|string|max:255',
         ]);
+        $this->guardHierarchyFields($request, $validated);
 
         $createdUser = false;
         $Employee = DB::transaction(function () use ($validated, $request, &$createdUser) {
@@ -119,11 +135,14 @@ class EmployeeController extends Controller
 
     public function show(Employee $Employee): EmployeeResource
     {
-        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'commissionServices.currency']));
+        $this->authorizeEmployeeView(request(), $Employee);
+
+        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'commissionServices.currency']));
     }
 
     public function update(Request $request, Employee $Employee): EmployeeResource
     {
+        $this->authorizeEmployeeManage($request, $Employee);
         $Employee->loadMissing('user');
         $hadUser = $Employee->user !== null;
         $previousUserId = $Employee->user_id;
@@ -158,6 +177,8 @@ class EmployeeController extends Controller
             'education_lvl' => 'sometimes|required|string|max:255',
             'position_id' => ['sometimes', 'required', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')->where('status', 'active')],
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
+            'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')->whereNull('deleted_at')],
+            'supervisor_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'employment_type' => ['sometimes', Rule::in(['salaried', 'commission'])],
             'salary' => ['nullable', 'numeric', 'min:0'],
             'commissions' => [Rule::excludeIf($targetEmploymentType !== 'commission'), 'required', 'array', 'min:1'],
@@ -167,6 +188,7 @@ class EmployeeController extends Controller
             'join_date' => 'sometimes|required|date',
             'contract_duration' => 'sometimes|nullable|string|max:255',
         ]);
+        $this->guardHierarchyFields($request, $validated, $Employee);
 
         $createdUser = false;
         DB::transaction(function () use ($Employee, $validated, $request, $previousUserId, &$createdUser) {
@@ -203,7 +225,7 @@ class EmployeeController extends Controller
             }
         });
 
-        $Employee = $Employee->fresh(['position', 'office', 'user', 'commissionServices.currency']);
+        $Employee = $Employee->fresh(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'commissionServices.currency']);
 
         if ($Employee->user && $createdUser && ! $hadUser) {
             $Employee->user->sendEmailVerificationNotification();
@@ -216,6 +238,7 @@ class EmployeeController extends Controller
 
     public function destroy(Employee $Employee): JsonResponse
     {
+        $this->authorizeEmployeeManage(request(), $Employee);
         DB::transaction(function () use ($Employee) {
             $Employee = Employee::query()->lockForUpdate()->findOrFail($Employee->id);
             abort_if($Employee->assetAllocations()->exists(), 422, 'business.employee_has_asset_allocations');
@@ -240,6 +263,7 @@ class EmployeeController extends Controller
 
     public function uploadDocument(Request $request, Employee $employee): EmployeeResource
     {
+        $this->authorizeEmployeeManage($request, $employee);
         $request->validate(['document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx', 'max:5120']]);
         $file = $request->file('document');
         $path = $file->storeAs("employee-documents/{$employee->id}", Str::uuid().'.'.$file->extension(), 'local');
@@ -250,15 +274,72 @@ class EmployeeController extends Controller
 
     public function downloadDocument(Employee $employee)
     {
+        $this->authorizeEmployeeView(request(), $employee);
         abort_unless($employee->document_path && Storage::disk('local')->exists($employee->document_path), 404);
         return Storage::disk('local')->download($employee->document_path, $employee->document_name ?: 'employee-document');
     }
 
     public function removeDocument(Employee $employee): EmployeeResource
     {
+        $this->authorizeEmployeeManage(request(), $employee);
         if ($employee->document_path) Storage::disk('local')->delete($employee->document_path);
         $employee->update(['document_path' => null, 'document_name' => null, 'document_mime' => null, 'document_size' => null]);
         return new EmployeeResource($employee->fresh(['position', 'office', 'user', 'commissionServices.currency']));
+    }
+
+    /**
+     * Only a user with `assign_employee_supervisor` may place a person in a
+     * department or under a team senior. Everyone else can edit the rest of
+     * the profile without silently reshuffling the hierarchy.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function guardHierarchyFields(Request $request, array &$data, ?Employee $employee = null): void
+    {
+        if (! array_key_exists('supervisor_id', $data) && ! array_key_exists('department_id', $data)) {
+            return;
+        }
+
+        if (! $request->user()->hasPermission('assign_employee_supervisor')) {
+            unset($data['supervisor_id'], $data['department_id']);
+
+            return;
+        }
+
+        // During creation the account does not exist yet, so compare against
+        // a harmless staff-level employee. Existing employees keep their
+        // actual role rank.
+        $subordinate = $employee ?? new Employee;
+        $hierarchy = app(RoleHierarchy::class);
+
+        $supervisorId = $data['supervisor_id'] ?? null;
+        if ($supervisorId) {
+            abort_if($employee && (int) $employee->id === (int) $supervisorId, 422, 'business.employee_cannot_supervise_self');
+            $this->assertNoSupervisorCycle($employee?->id, (int) $supervisorId);
+
+            $supervisor = Employee::query()->with('user.roles.permissions')->findOrFail($supervisorId);
+            abort_unless($hierarchy->canSupervise($supervisor, $subordinate), 422, 'business.employee_supervisor_rank_invalid');
+        }
+
+        if (array_key_exists('department_id', $data) && $data['department_id']) {
+            $departmentId = $data['department_id'];
+            $manager = Department::query()->with('manager.user.roles.permissions')->find($departmentId)?->manager;
+            if ($manager) {
+                abort_unless($hierarchy->canSupervise($manager, $subordinate), 422, 'business.department_manager_rank_invalid');
+            }
+        }
+    }
+
+    private function assertNoSupervisorCycle(?int $employeeId, int $supervisorId): void
+    {
+        $visited = [];
+        $current = $supervisorId;
+
+        while ($current !== 0 && ! in_array($current, $visited, true)) {
+            abort_if($employeeId !== null && $current === $employeeId, 422, 'business.employee_supervisor_cycle');
+            $visited[] = $current;
+            $current = (int) (Employee::query()->whereKey($current)->value('supervisor_id') ?? 0);
+        }
     }
 
     private function syncCommissions(Employee $employee, array $commissions): void
@@ -272,5 +353,23 @@ class EmployeeController extends Controller
         $employee->commissionServices()->sync(collect($commissions)->mapWithKeys(
             fn (array $row) => [(int) $row['service_id'] => ['percentage' => $row['percentage']]],
         )->all());
+    }
+
+    private function authorizeEmployeeView(Request $request, Employee $employee): void
+    {
+        if ($request->user()->hasPermission('view_all_employees')) {
+            return;
+        }
+
+        abort_unless(app(EmployeeScope::class)->canViewOwnedBy($request->user(), $employee->id), 403, 'auth.forbidden');
+    }
+
+    private function authorizeEmployeeManage(Request $request, Employee $employee): void
+    {
+        if ($request->user()->hasPermission('manage_all_employees')) {
+            return;
+        }
+
+        abort_unless(app(EmployeeScope::class)->canManageOwnedBy($request->user(), $employee->id), 403, 'auth.forbidden');
     }
 }

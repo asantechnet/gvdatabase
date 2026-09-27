@@ -55,6 +55,7 @@
       "currency": "واحد پول / ارز",
       "date": "تاریخ",
       "department": "دیپارتمنت / بخش",
+      "supervisor": "گزارش‌دهی به",
       "priority": "اولویت",
       "email": "ایمیل",
       "password": "رمز عبور",
@@ -403,6 +404,7 @@
       "reports": "گزارش‌ها",
       "hr": "منابع بشری",
       "staffList": "لیست کارمندان",
+      "departments": "بخش‌ها",
       "timesheet": "جدول حاضری",
       "staffSalary": "معاش کارمندان",
       "commissions": "حق‌العمل‌ها",
@@ -1259,6 +1261,7 @@
             "validation": {
               "contractTypeRequired": "نوع قرارداد الزامی است",
               "nameRequired": "نام الزامی است",
+              "versionNameRequired": "نام نسخه الزامی است",
               "maximumCharacters": "حداکثر {count} نویسه",
               "positionRequired": "برای قالب استخدام، انتخاب وظیفه الزامی است",
               "initialVersionCountryRequired": "کشور نسخه نخست را انتخاب کنید",
@@ -1270,6 +1273,12 @@
               "title": "نسخه‌های کشور و زبان",
               "subtitle": "هر نسخه فعال به‌صورت خودکار برای کشور متقاضی و زبان قرارداد انتخاب می‌شود.",
               "createVersion": "ایجاد نسخه",
+              "versionName": "نام نسخه",
+              "editDraft": "ویرایش پیش‌نویس",
+              "archive": "بایگانی",
+              "archived": "نسخه قالب بایگانی شد.",
+              "archiveError": "بایگانی نسخه قالب ممکن نشد.",
+              "selectDraftToEdit": "برای ویرایش نام و متن، یک نسخه پیش‌نویس را انتخاب کنید. نسخه‌های فعال و بایگانی‌شده قفل هستند.",
               "saveFirstHint": "پیش از ایجاد نسخه، ویرایش‌های قالب را ذخیره کنید. نسخه پس از استفاده در قرارداد، سند تغییرناپذیر است.",
               "version": "نسخه",
               "active": "فعال",
@@ -1588,6 +1597,22 @@
           "bottom": "پایین",
           "left": "چپ"
         },
+        "artworkScopeTitle": "دامنهٔ طرح قرارداد",
+        "artworkScopeHint": "انتخاب کنید که طرح زیر برای چه چیزی اعمال شود. انواع قراردادی که طرح اختصاصی ندارند، از طرح پیش‌فرض عمومی استفاده می‌کنند.",
+        "generalArtworkScope": "پیش‌فرض عمومی (همه انواع قرارداد)",
+        "contractTypeScope": "نوع قرارداد",
+        "serviceScopeOptional": "خدمت (اختیاری)",
+        "serviceScopeHint": "اگر خدمت را خالی بگذارید، این روی جلد و سربرگ برای همه خدمات قراردادهای مشتری اعمال می‌شود.",
+        "singleTypeScopeHint": "قراردادهای استخدامی و سایر قراردادها یک روی جلد و سربرگ مشترک دارند: این طرح برای همه قراردادهای این نوع اعمال می‌شود.",
+        "artworkEditorScopeHint": "بارگذاری، حذف و اندازه‌بندی زیر برای این دامنه اعمال می‌شود: {scope}",
+        "saveArtworkForScope": "ذخیره طرح برای این دامنه",
+        "resetArtworkScope": "لغو تغییرات",
+        "artworkScopeSaved": "طرح برای دامنه انتخاب‌شده ذخیره شد.",
+        "printSafeAreaSizing": "اندازه ناحیه امن چاپ (برای همه صفحات چاپ‌شده اعمال می‌شود)",
+        "printSafeAreaOffsetX": "فاصله افقی",
+        "printSafeAreaOffsetY": "فاصله عمودی",
+        "printSafeAreaWidth": "عرض",
+        "printSafeAreaHeight": "ارتفاع",
         "resetDefaults": "بازنشانی به پیش‌فرض‌ها",
         "saveSettings": "ذخیره تنظیمات",
         "themeColorsPreviewHint": "تغییرات فوراً در برنامه پیش‌نمایش می‌شوند و فقط با انتخاب «ذخیره تغییرات» ذخیره خواهند شد.",
@@ -1645,8 +1670,15 @@
           "super_admin": "مدیر ارشد",
           "admin": "مدیر",
           "manager": "مدیر بخش",
+          "team_lead": "سرپرست تیم",
+          "senior_counselor": "مشاور ارشد",
+          "finance_officer": "مسؤول مالی",
+          "counselor": "مشاور",
+          "case_officer": "مسؤول پرونده",
           "staff": "کارمند",
-          "viewer": "بیننده"
+          "document_officer": "مسؤول اسناد",
+          "viewer": "بیننده",
+          "applicant": "متقاضی"
         },
         "verification": {
           "invited": "دعوت شده",
@@ -2151,7 +2183,10 @@
           "serviceDefinition": "تعریف خدمت",
           "serviceDefinitionHint": "فیس و مدتی تعیین کنید که این خدمت برای استفاده دوباره در قرارداد آماده باشد.",
           "eGWebsiteMaintenance": "به عنوان مثال نگهداری وب‌سایت",
-          "durationMonths": "مدت (ماه‌ها)"
+          "durationMonths": "مدت (ماه‌ها)",
+          "contractTemplate": "قالب قرارداد",
+          "templateMissing": "تعیین نشده",
+          "manageContractTemplate": "قالب قرارداد این خدمت را ایجاد یا باز کنید"
         },
         "durationMonthsValue": "{count} ماه | {count} ماه"
       },
@@ -2202,6 +2237,7 @@
           "language": "زبان قرارداد",
           "languageRequired": "زبان قرارداد را انتخاب کنید",
           "languageVersionHint": "زبان انتخاب‌شده نسخه فعال سند را تعیین می‌کند.",
+          "selectedVersion": "سند فعال: {name} · نسخه {version} · {country} · {language}",
           "noVersions": "این قالب هنوز نسخه کشور و زبان ندارد. پیش از صدور قرارداد، یک نسخه را در قالب‌های قرارداد ایجاد و فعال کنید.",
           "noActiveVersions": "این قالب نسخه دارد، اما هیچ نسخه‌ای فعال نیست. پیش از صدور قرارداد، یک نسخه کشور و زبان را در قالب‌های قرارداد فعال کنید.",
           "employee": "کارمند",
@@ -4285,6 +4321,12 @@
         "message": "یک نامزدی پاداش خودکار مبتنی بر وظیفه آماده بررسی است."
       }
     },
+    "contract_template_version": {
+      "created": { "title": "پیش‌نویس قالب ایجاد شد", "message": "{template}: {version} (نسخه {version_number}) برای {country}، {language} ایجاد شد." },
+      "updated": { "title": "پیش‌نویس قالب به‌روز شد", "message": "{template}: {version} (نسخه {version_number}) به‌روز شد." },
+      "activated": { "title": "نسخه قالب فعال شد", "message": "{template}: {version} (نسخه {version_number}) اکنون برای {country}، {language} فعال است." },
+      "archived": { "title": "نسخه قالب بایگانی شد", "message": "{template}: {version} (نسخه {version_number}) بایگانی شد." }
+    },
     "applicant": {
       "assigned": {
         "title": "پرونده متقاضی تعیین شد",
@@ -4301,6 +4343,10 @@
       "stalled": {
         "title": "پرونده متقاضی نیازمند توجه است",
         "message": "پرونده {applicant} برای {days} روز در مرحله {stage} باقی مانده است."
+      },
+      "documentUploaded": {
+        "title": "سند متقاضی اضافه شد",
+        "message": "{label} به فایل متقاضی اضافه شد."
       }
     },
     "finance": {
@@ -4311,6 +4357,22 @@
       "pendingStatus": {
         "title": "درخواست مالی به‌روز شد",
         "message": "درخواست {type} شما اکنون {status} است. {reason}"
+      }
+    },
+    "contract": {
+      "generated": {
+        "title": "قرارداد ایجاد شد",
+        "message": "{contract_number} برای {service} ایجاد شد."
+      },
+      "extensionGenerated": {
+        "title": "قرارداد تمدیدی ایجاد شد",
+        "message": "{contract_number} برای {service} قرارداد {parent_contract_number} را تمدید می‌کند."
+      }
+    },
+    "invoice": {
+      "issued": {
+        "title": "فاکتور متقاضی صادر شد",
+        "message": "فاکتور {invoice_number} برای پرونده متقاضی صادر شد."
       }
     },
     "types": {
@@ -4674,6 +4736,16 @@
       "postedSummary": "{amount} · {date} · {description}",
       "noFinance": "هنوز فعالیت مالی برای این پرونده وجود ندارد.",
       "documents": "اسناد",
+      "applicantDocuments": "اسناد متقاضی",
+      "file": "فایل",
+      "documentsNeeded": "اسناد لازم است",
+      "documentCount": "{count} سند",
+      "applicantDocumentsReady": "{count} سند برچسب‌دار موجود است",
+      "applicantDocumentsNeeded": "پیش از پیشبرد پرونده، اختصاص خدمت یا صدور فاکتور یک سند برچسب‌دار اضافه کنید.",
+      "documentLabel": "برچسب سند",
+      "attach": "پیوست کردن",
+      "documentAdded": "سند به پرونده متقاضی اضافه شد.",
+      "documentAddFailed": "افزودن این سند ممکن نشد.",
       "fromTask": "از وظیفه: {task}",
       "download": "دانلود",
       "noDocuments": "هنوز سندی وجود ندارد. فایل‌های پیوست وظایف این پرونده اینجا نمایش داده می‌شوند.",
@@ -4918,6 +4990,8 @@
     "caseOption": "پرونده شماره {id} — {customer}",
     "contractOption": "{number} — {name}",
     "customerContract": "قرارداد مشتری",
+    "extension": "تمدید",
+    "primaryContract": "اصلی",
     "contract": "قرارداد",
     "scholarshipService": "خدمت بورسیه",
     "testOffer": "پیشنهاد آزمون",
@@ -4991,7 +5065,7 @@
     },
     "servicesUi": {
       "title": "خدمات تحصیلی",
-      "subtitle": "هر فروش با کارمند مسئول، مشتری، پرونده و منبع پاداش قابل پیگیری مرتبط می‌ماند.",
+      "subtitle": "هر انتساب با پرونده متقاضی، کارمند مسئول و منبع پاداش قابل پیگیری مرتبط می‌ماند.",
       "recordSale": "ثبت فروش",
       "editSale": "ویرایش فروش خدمت",
       "bonusSources": "منابع پاداش",
@@ -5003,7 +5077,7 @@
       "loadFailed": "خدمات تحصیلی بارگیری نشد.",
       "updated": "فروش خدمت به‌روز شد.",
       "created": "فروش خدمت همراه منبع پاداش ثبت شد.",
-      "saveFailed": "ذخیره نشد. ارتباط مشتری، کارمند، ارز و پرونده را بررسی کنید.",
+      "saveFailed": "ذخیره نشد. ارتباط متقاضی، کارمند، ارز و پرونده را بررسی کنید.",
       "voidConfirm": "فروش {service} باطل شود؟ منبع پاداش آن نیز باطل می‌شود.",
       "voided": "فروش خدمت باطل شد.",
       "voidFailed": "فروش خدمت باطل نشد.",
@@ -5011,7 +5085,13 @@
       "bonusCreated": "منبع پاداش قرارداد ایجاد شد.",
       "bonusSaveFailed": "منبع پاداش ذخیره نشد. هر منبع فقط یک‌بار قابل انتساب است.",
       "bonusMarked": "پاداش {status} شد.",
-      "bonusStatusFailed": "این تغییر وضعیت پاداش مجاز نیست."
+      "bonusStatusFailed": "این تغییر وضعیت پاداش مجاز نیست.",
+      "contractTemplateNotice": "یک قرارداد از قالب «{template}» ایجاد می‌شود.",
+      "contractTemplateAuto": "این خدمت هنوز قالب قرارداد ندارد. هنگام ذخیره به‌صورت خودکار ایجاد می‌شود.",
+      "editableFeeHint": "فیش پایه پیش‌پرشده است؛ می‌توانید آن را برای این متقاضی تغییر دهید.",
+      "allowExtension": "اجازه تمدید",
+      "allowExtensionHint": "اگر این متقاضی برای این خدمت قرارداد فعال دارد، این فروش به‌عنوان تمدید ثبت می‌شود.",
+      "applicantServiceHint": "یک متقاضی ویزه را انتخاب کنید، سپس یک خدمت یا بسته را اختصاص دهید. برای هر خدمت اختصاص‌شده قرارداد جداگانه ساخته می‌شود."
     },
     "pendingUi": {
       "customerEmployee": "مشتری / کارمند",

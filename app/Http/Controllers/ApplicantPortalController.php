@@ -6,6 +6,7 @@ use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ApplicantDocumentReadiness;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -73,6 +74,7 @@ class ApplicantPortalController extends Controller
         abort_unless($request->user()?->hasPermission('invite_applicant_portal'), 403, 'auth.forbidden');
         $this->assertStaffCaseAccess($request, $applicant);
         abort_if($applicant->user_id, 422, 'business.request_rejected');
+        app(ApplicantDocumentReadiness::class)->require($applicant);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],

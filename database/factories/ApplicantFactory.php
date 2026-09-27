@@ -10,7 +10,6 @@ class ApplicantFactory extends Factory
     {
         return [
             'name' => fake()->name(),
-            'company' => fake()->company(),
             'contact' => fake()->phoneNumber(),
             'email' => fake()->unique()->safeEmail(),
             'address' => fake()->address(),

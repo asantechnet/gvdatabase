@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import EmployeeApi, { type CommissionServiceOption, type CreateEmployeeData, type Employee, type EmployeeAccount, type UpdateEmployeeData } from '@/api/employee'
 import PositionApi, { type Position } from '@/api/position'
 import OfficeApi, { type Office } from '@/api/office'
+import DepartmentApi, { type Department } from '@/api/department'
 import PaidTimeOffApi, { type PaidTimeOff } from '@/api/paidTimeOff'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
@@ -28,6 +29,10 @@ interface Staff {
   email: string
   office_id: number | null
   office: Employee['office']
+  department_id: number | null
+  department_name: string | null
+  supervisor_id: number | null
+  supervisor_name: string | null
   salary: number | null
   commissions: Array<{ service_id: number; service?: string; fee?: number; percentage: number }>
   total_worked_hours: number
@@ -52,6 +57,7 @@ const positionOptions = ref<string[]>([])
 const positionIdMap = ref<Record<string, number>>({})
 const positionSalaryMap = ref<Record<string, number>>({})
 const offices = ref<Office[]>([])
+const departments = ref<Department[]>([])
 const commissionServices = ref<CommissionServiceOption[]>([])
 const userAccounts = ref<EmployeeAccount[]>([])
 const isUserAccountsLoading = ref(false)
@@ -270,6 +276,10 @@ const openAddStaffDialog = () => {
     employment_type: 'salaried',
     office_id: null,
     office: null,
+    department_id: null,
+    department_name: null,
+    supervisor_id: null,
+    supervisor_name: null,
     salary: 0,
     commissions: [],
     total_worked_hours: 0,
@@ -521,6 +531,8 @@ const addStaff = async () => {
       position_id: positionId,
       employment_type: selectedStaff.value.employment_type,
       office_id: selectedStaff.value.office_id,
+      department_id: selectedStaff.value.department_id,
+      supervisor_id: selectedStaff.value.supervisor_id,
       salary: selectedStaff.value.salary,
       commissions: selectedStaff.value.commissions.map(row => ({ service_id: row.service_id, percentage: row.percentage })),
       addr: selectedStaff.value.addr,
@@ -576,6 +588,8 @@ const updateStaff = async () => {
       position_id: positionId,
       employment_type: selectedStaff.value.employment_type,
       office_id: selectedStaff.value.office_id,
+      department_id: selectedStaff.value.department_id,
+      supervisor_id: selectedStaff.value.supervisor_id,
       salary: selectedStaff.value.salary,
       commissions: selectedStaff.value.commissions.map(row => ({ service_id: row.service_id, percentage: row.percentage })),
       addr: selectedStaff.value.addr,
@@ -676,10 +690,11 @@ const printTable = () => {
 }
 
 onMounted(async () => {
-  const [, officeRows, commissionRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), EmployeeApi.getCommissionOptions(), fetchUserAccounts()])
+  const [, officeRows, commissionRows, departmentRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), EmployeeApi.getCommissionOptions(), DepartmentApi.getAll(), fetchUserAccounts()])
 
   offices.value = officeRows.filter(office => office.status === 'active')
   commissionServices.value = commissionRows
+  departments.value = departmentRows
   await fetchEmployees()
 })
 </script>
@@ -1074,6 +1089,58 @@ onMounted(async () => {
                   item-title="name"
                   item-value="id"
                   :label="$t('common.fields.office')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedStaff.department_id"
+                  :items="departments"
+                  item-title="name"
+                  item-value="id"
+                  :label="$t('common.fields.department')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedStaff.supervisor_id"
+                  :items="staffList.filter(staff => staff.id !== selectedStaff?.id)"
+                  item-title="name"
+                  item-value="id"
+                  :label="$t('common.fields.supervisor')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedStaff.department_id"
+                  :items="departments"
+                  item-title="name"
+                  item-value="id"
+                  :label="$t('common.fields.department')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedStaff.supervisor_id"
+                  :items="staffList.filter(staff => staff.id !== selectedStaff?.id)"
+                  item-title="name"
+                  item-value="id"
+                  :label="$t('common.fields.supervisor')"
                   clearable
                 />
               </VCol>

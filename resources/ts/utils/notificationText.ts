@@ -22,6 +22,16 @@ export function notificationText(notification: AppNotification, translate: Trans
     reason: String(notification.data?.reason ?? ''),
     package: String(notification.data?.package ?? ''),
     employee: String(notification.data?.employee ?? ''),
+    contract_number: String(notification.data?.contract_number ?? ''),
+    service: String(notification.data?.service ?? ''),
+    parent_contract_number: String(notification.data?.parent_contract_number ?? ''),
+    template: String(notification.data?.template ?? ''),
+    version: String(notification.data?.version ?? ''),
+    version_number: String(notification.data?.version_number ?? ''),
+    country: String(notification.data?.country ?? ''),
+    language: String(notification.data?.language ?? ''),
+    label: String(notification.data?.label ?? ''),
+    invoice_number: String(notification.data?.invoice_number ?? ''),
   }
 
   const normalizedKey = String(notification.data?.translation_key || (key?.startsWith('bonus.review.') ? 'bonus.review' : key))

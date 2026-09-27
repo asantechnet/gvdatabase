@@ -275,7 +275,7 @@ onMounted(async () => {
           <VCardText class="d-flex flex-column gap-2" style="min-block-size: 120px;">
             <VCard v-for="applicant in (cards[stage.key] || [])" :key="applicant.id" variant="tonal" :draggable="canMove && movingId !== applicant.id" @dragstart="onDragStart(applicant)" @dragend="onDragEnd">
               <VCardText class="py-2">
-                <div class="font-weight-medium">{{ applicant.customer?.name ?? $t('educational.applicantNumber', { id: applicant.id }) }}</div>
+                <div class="font-weight-medium">{{ applicant.name || $t('educational.applicantNumber', { id: applicant.id }) }}</div>
                 <div class="text-caption text-medium-emphasis">#{{ applicant.id }} · {{ translateBackendValue(applicant.status) }}</div>
                 <div class="text-caption">{{ applicant.country?.name ?? '—' }}{{ applicant.university?.name ? ` · ${applicant.university.name}` : '' }}</div>
                 <div class="text-caption text-medium-emphasis">{{ applicant.responsible_employee?.name ?? $t('educational.unassigned') }}</div>

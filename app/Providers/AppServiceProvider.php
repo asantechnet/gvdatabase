@@ -6,6 +6,7 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Notifications\Messages\MailMessage;
 use App\Support\CompanyProfile;
+use App\Support\EmployeeScope;
 use App\Models\Board;
 use App\Models\Comment;
 use App\Models\Subtask;
@@ -24,7 +25,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // One resolver per request so subtree lookups are cached across the
+        // many authorization checks a single request performs. `scoped` is
+        // essential for queue/Octane workers: a singleton could otherwise
+        // reuse one user's team map while serving another user's request.
+        $this->app->scoped(EmployeeScope::class);
     }
 
     /**

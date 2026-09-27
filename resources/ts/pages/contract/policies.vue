@@ -51,8 +51,9 @@ const versionDialog = ref(false)
 const activatingVersionId = ref<number | null>(null)
 const versionCountryFilter = ref<number | null>(null)
 const versionLanguageFilter = ref<number | null>(null)
-const versionForm = ref({ country_id: null as number | null, language_id: null as number | null, status: 'draft' as 'draft' | 'active' })
-const initialVersion = ref({ country_id: null as number | null, language_id: null as number | null })
+const versionForm = ref({ name: '', country_id: null as number | null, language_id: null as number | null })
+const initialVersion = ref({ name: '', country_id: null as number | null, language_id: null as number | null })
+const editingVersionId = ref<number | null>(null)
 const previewVersion = ref<ContractTemplateVersion | null>(null)
 const editorDialog = ref(false)
 const templateSearch = ref('')
@@ -97,12 +98,16 @@ const templateState = computed(() => JSON.stringify({
   policies: policyIds.value,
   cover: coverText.value,
   content: serializePlaceholders(contentHtml.value),
+  editingVersion: editingVersion.value ? { id: editingVersion.value.id, name: editingVersion.value.name } : null,
   initialVersion: templateId.value ? null : initialVersion.value,
 }))
 
 const hasTemplateChanges = computed(() => templateState.value !== pristineTemplateState.value)
 const canCreateVersions = computed(() => canAccess('create_contract_template_versions'))
+const canEditDraftVersions = computed(() => canAccess('edit_draft_contract_template_versions'))
 const canActivateVersions = computed(() => canAccess('activate_contract_template_versions'))
+const canArchiveVersions = computed(() => canAccess('archive_contract_template_versions'))
+const editingVersion = computed(() => versions.value.find(version => version.id === editingVersionId.value) ?? null)
 const visibleVersions = computed(() => versions.value.filter(version => (!versionCountryFilter.value || version.country_id === versionCountryFilter.value) && (!versionLanguageFilter.value || version.language_id === versionLanguageFilter.value)))
 const versionCountryName = (version: ContractTemplateVersion) => version.country?.name ?? countries.value.find(country => country.id === version.country_id)?.name ?? '—'
 const versionLanguageName = (version: ContractTemplateVersion) => version.language?.name ?? languages.value.find(language => language.id === version.language_id)?.name ?? '—'
@@ -183,24 +188,45 @@ const loadVersions = async (id = templateId.value) => {
 }
 
 const openVersionDialog = () => {
-  versionForm.value = { country_id: versionCountryFilter.value, language_id: versionLanguageFilter.value, status: 'draft' }
+  versionForm.value = { name: '', country_id: versionCountryFilter.value, language_id: versionLanguageFilter.value }
   versionDialog.value = true
 }
 
 const createVersion = async () => {
-  if (!templateId.value || !versionForm.value.country_id || !versionForm.value.language_id) {
+  if (!templateId.value || !versionForm.value.name.trim() || !versionForm.value.country_id || !versionForm.value.language_id) {
     toast.warning(tr('versions.countryLanguageRequired'))
     return
   }
   try {
     versionsLoading.value = true
-    await ContractTemplateApi.createVersion(templateId.value, { ...versionForm.value, content: serializePlaceholders(contentHtml.value) })
+    await ContractTemplateApi.createVersion(templateId.value, { ...versionForm.value, name: versionForm.value.name.trim(), content: serializePlaceholders(contentHtml.value) })
     versionDialog.value = false
     await loadVersions()
     toast.success(tr('versions.created'))
   }
   catch (error) { toast.error(tr('versions.createError')); console.error(error) }
   finally { versionsLoading.value = false }
+}
+
+const editVersion = async (version: ContractTemplateVersion) => {
+  if (version.status !== 'draft' || !canEditDraftVersions.value)
+    return
+  editingVersionId.value = version.id
+  versionCountryFilter.value = version.country_id
+  versionLanguageFilter.value = version.language_id
+  contentHtml.value = hydratePlaceholders(legacyContentToHtml(version.content), placeholderGroups.value, knownKeys.value)
+  await nextTick()
+  editorRef.value?.getEditor()?.commands.setContent(contentHtml.value, { emitUpdate: false })
+}
+
+const archiveVersion = async (version: ContractTemplateVersion) => {
+  if (!templateId.value || version.status !== 'draft') return
+  try {
+    await ContractTemplateApi.archiveVersion(templateId.value, version.id)
+    await loadVersions()
+    toast.success(tr('versions.archived'))
+  }
+  catch (error) { toast.error(tr('versions.archiveError')); console.error(error) }
 }
 
 const activateVersion = async (version: ContractTemplateVersion) => {
@@ -266,7 +292,8 @@ const resetForm = () => {
   contentHtml.value = ''
   rawPlaceholderGroups.value = []
   versions.value = []
-  initialVersion.value = { country_id: null, language_id: null }
+  initialVersion.value = { name: '', country_id: null, language_id: null }
+  editingVersionId.value = null
   nextTick(() => {
     formRef.value?.resetValidation()
     markTemplatePristine()
@@ -287,8 +314,10 @@ const loadTemplate = async (id: number) => {
     coverText.value = template.cover_text ?? ''
     templateId.value = template.id
     await loadPlaceholders()
-    contentHtml.value = hydratePlaceholders(legacyContentToHtml(template.content), placeholderGroups.value, knownKeys.value)
     await loadVersions(template.id)
+    const editable = versions.value.find(version => version.status === 'draft') ?? versions.value.find(version => version.is_current)
+    contentHtml.value = hydratePlaceholders(legacyContentToHtml(editable?.content ?? template.content), placeholderGroups.value, knownKeys.value)
+    editingVersionId.value = editable?.status === 'draft' ? editable.id : null
     markTemplatePristine()
   }
   catch (error) { toast.error(tr('messages.loadTemplateDetailsError')); console.error(error) }
@@ -339,7 +368,7 @@ const saveContract = async () => {
     return
   }
   const isNewTemplate = !templateId.value
-  if (isNewTemplate && (!initialVersion.value.country_id || !initialVersion.value.language_id)) {
+  if (isNewTemplate && (!initialVersion.value.name.trim() || !initialVersion.value.country_id || !initialVersion.value.language_id)) {
     toast.warning(tr('messages.selectInitialVersion'))
 
     return
@@ -352,9 +381,13 @@ const saveContract = async () => {
     if (isNewTemplate) {
       await ContractTemplateApi.createVersion(saved.id, {
         ...initialVersion.value,
-        status: 'active',
+        name: initialVersion.value.name.trim(),
         content: serialized,
       })
+    }
+    else if (editingVersionId.value) {
+      const version = versions.value.find(item => item.id === editingVersionId.value)
+      if (version) await ContractTemplateApi.updateVersion(saved.id, version.id, { name: version.name, content: serialized })
     }
     const index = templates.value.findIndex(item => item.id === saved.id)
     if (index < 0)
@@ -525,6 +558,9 @@ watch(locale, async () => {
               />
             </VCol>
             <template v-if="!templateId">
+              <VCol cols="12">
+                <VTextField v-model="initialVersion.name" :label="tr('versions.versionName')" :rules="[value => !!String(value || '').trim() || tr('validation.versionNameRequired')]" />
+              </VCol>
               <VCol
                 cols="12"
                 md="6"
@@ -594,6 +630,16 @@ watch(locale, async () => {
           </template><VCardTitle>{{ tr('documentContent') }}</VCardTitle><VCardSubtitle>{{ tr('documentContentSubtitle') }}</VCardSubtitle>
         </VCardItem>
         <VCardText class="pt-4">
+          <VAlert v-if="templateId && !editingVersion" color="info" variant="tonal" density="compact" class="mb-4">
+            {{ tr('versions.selectDraftToEdit') }}
+          </VAlert>
+          <VTextField
+            v-if="editingVersion"
+            v-model="editingVersion.name"
+            :label="tr('versions.versionName')"
+            class="mb-4"
+            :rules="[value => !!String(value || '').trim() || tr('validation.versionNameRequired')]"
+          />
           <VTextarea
             v-model="coverText"
             :label="t('pages.settings.policies.policies.coverIntroductionText')"
@@ -635,6 +681,7 @@ watch(locale, async () => {
             ref="editorRef"
             v-model="contentHtml"
             :placeholder-groups="placeholderGroups"
+            :disabled="!!templateId && !editingVersion"
             variant="policy"
             min-height="520px"
           />
@@ -675,11 +722,11 @@ watch(locale, async () => {
             <thead><tr><th>{{ tr('versions.version') }}</th><th>{{ t('common.fields.country') }}</th><th>{{ t('common.fields.language') }}</th><th>{{ t('common.fields.status') }}</th><th class="text-end">{{ t('pages.settings.policies.policies.policyLibrary.actions') }}</th></tr></thead>
             <tbody>
               <tr v-for="version in visibleVersions" :key="version.id">
-                <td class="font-weight-medium">v{{ version.version_number }}</td>
+                <td class="font-weight-medium">{{ version.name }} <span class="text-medium-emphasis">· v{{ version.version_number }}</span></td>
                 <td>{{ versionCountryName(version) }}</td>
                 <td>{{ versionLanguageName(version) }}</td>
                 <td><VChip size="small" :color="version.is_current ? 'success' : version.status === 'draft' ? 'warning' : 'secondary'" variant="tonal">{{ version.is_current ? tr('versions.active') : translateBackendValue(version.status) }}</VChip></td>
-                <td class="text-end text-no-wrap"><VBtn size="small" variant="text" @click="previewVersion = version">{{ tr('versions.preview') }}</VBtn><VBtn v-if="canActivateVersions && !version.is_current" size="small" color="success" variant="text" :loading="activatingVersionId === version.id" @click="activateVersion(version)">{{ tr('versions.activate') }}</VBtn></td>
+                <td class="text-end text-no-wrap"><VBtn size="small" variant="text" @click="previewVersion = version">{{ tr('versions.preview') }}</VBtn><VBtn v-if="canEditDraftVersions && version.status === 'draft'" size="small" variant="text" @click="editVersion(version)">{{ tr('versions.editDraft') }}</VBtn><VBtn v-if="canActivateVersions && version.status === 'draft'" size="small" color="success" variant="text" :loading="activatingVersionId === version.id" @click="activateVersion(version)">{{ tr('versions.activate') }}</VBtn><VBtn v-if="canArchiveVersions && version.status === 'draft'" size="small" color="error" variant="text" @click="archiveVersion(version)">{{ tr('versions.archive') }}</VBtn></td>
               </tr>
               <tr v-if="!versionsLoading && !visibleVersions.length"><td colspan="5" class="text-center text-medium-emphasis py-6">{{ tr('versions.empty') }}</td></tr>
             </tbody>
@@ -735,9 +782,9 @@ watch(locale, async () => {
           {{ tr('versions.unsavedHint') }}
         </VAlert>
         <VRow>
+          <VCol cols="12"><VTextField v-model="versionForm.name" :label="tr('versions.versionName')" :rules="[value => !!String(value || '').trim() || tr('validation.versionNameRequired')]" /></VCol>
           <VCol cols="12" sm="6"><VSelect v-model="versionForm.country_id" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="t('common.fields.country')" :rules="[value => !!value || tr('versions.countryRequired')]" /></VCol>
           <VCol cols="12" sm="6"><VSelect v-model="versionForm.language_id" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" :label="t('common.fields.language')" :rules="[value => !!value || tr('versions.languageRequired')]" /></VCol>
-          <VCol cols="12"><VSelect v-model="versionForm.status" :items="[{ title: tr('versions.draft'), value: 'draft' }, { title: tr('versions.activateNow'), value: 'active' }]" :label="t('common.fields.status')" /></VCol>
         </VRow>
       </VCardText>
       <VCardActions><VSpacer/><VBtn variant="text" :disabled="versionsLoading" @click="versionDialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="primary" :loading="versionsLoading" :disabled="hasTemplateChanges" @click="createVersion">{{ tr('versions.createVersion') }}</VBtn></VCardActions>
@@ -746,7 +793,7 @@ watch(locale, async () => {
 
   <VDialog :model-value="!!previewVersion" max-width="900" @update:model-value="value => { if (!value) previewVersion = null }">
     <VCard>
-      <VCardItem :title="previewVersion ? `Version ${previewVersion.version_number}` : ''" :subtitle="previewVersion ? `${versionCountryName(previewVersion)} · ${versionLanguageName(previewVersion)}` : ''" />
+      <VCardItem :title="previewVersion ? `${previewVersion.name} · v${previewVersion.version_number}` : ''" :subtitle="previewVersion ? `${versionCountryName(previewVersion)} · ${versionLanguageName(previewVersion)}` : ''" />
       <VDivider />
       <VCardText class="contract-version-preview" v-html="previewVersion?.content" />
       <VCardActions><VSpacer/><VBtn @click="previewVersion = null">{{ $t('common.actions.close') }}</VBtn></VCardActions>

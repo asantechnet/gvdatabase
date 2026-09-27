@@ -10,6 +10,8 @@ use App\Models\Invoice;
 use App\Models\InvoiceService;
 use App\Models\PaymentDetail;
 use App\Services\CurrencyConversionService;
+use App\Services\ApplicantDocumentReadiness;
+use App\Services\EducationalWorkflowNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -17,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 class InvoiceController extends Controller
 {
-    public function __construct(private readonly CurrencyConversionService $currencies) {}
+    public function __construct(private readonly CurrencyConversionService $currencies, private readonly ApplicantDocumentReadiness $documents, private readonly EducationalWorkflowNotificationService $notifications) {}
 
     public function index(Request $request)
     {
@@ -120,6 +122,7 @@ class InvoiceController extends Controller
         $recordedBy = $request->user()->id;
         $invoice = DB::transaction(function () use ($validated, $recordedBy) {
             $applicant = Applicant::query()->lockForUpdate()->findOrFail($validated['applicant_id']);
+            $this->documents->require($applicant);
             $invoiceCurrency = Currency::findOrFail($validated['currency_id']);
             $serviceRows = collect($validated['services']);
             $requestedIds = $serviceRows->pluck('contract_service_id');
@@ -259,7 +262,7 @@ class InvoiceController extends Controller
                 'applicant_id' => $applicant->id,
                 'currency_id' => $invoiceCurrency->id,
                 'deptor' => $applicant->name,
-                'customer_company' => $applicant->company,
+                'customer_company' => null,
                 'customer_email' => $applicant->email,
                 'customer_contact' => $applicant->contact,
                 'customer_address' => $applicant->address,
@@ -301,6 +304,8 @@ class InvoiceController extends Controller
 
             return $invoice;
         });
+
+        $this->notifications->invoiceIssued($invoice, $recordedBy);
 
         return (new InvoiceResource($invoice->load(['applicant', 'currency', 'baseCurrency', 'services', 'incomes', 'recorder'])))
             ->response()

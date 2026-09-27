@@ -38,11 +38,10 @@ export interface InvoiceService {
 export interface Invoice {
   id: number
   invoice_number: string
-  customer_id: number
-  customer: {
+  applicant_id: number
+  applicant: {
     id: number
     name: string
-    company?: string
     contact?: string
     email?: string
     address?: string
@@ -80,14 +79,14 @@ export interface Invoice {
 }
 
 export interface InvoiceParams {
-  customer_id?: number
+  applicant_id?: number
   status?: string
   search?: string
   unpaid?: boolean
 }
 
 export interface CreateInvoiceData {
-  customer_id: number
+  applicant_id: number
   currency_id: number
   rate: number
   issue_date?: string

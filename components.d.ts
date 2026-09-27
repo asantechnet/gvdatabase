@@ -81,6 +81,7 @@ declare module 'vue' {
     MyPaidTimeOffDialog: typeof import('./resources/ts/components/paid-time-off/MyPaidTimeOffDialog.vue')['default']
     Notifications: typeof import('./resources/ts/@core/components/Notifications.vue')['default']
     OfficeGeofenceMap: typeof import('./resources/ts/components/setup/OfficeGeofenceMap.vue')['default']
+    OfficeSettingsPanel: typeof import('./resources/ts/components/setup/OfficeSettingsPanel.vue')['default']
     PaymentProvidersDialog: typeof import('./resources/ts/components/dialogs/PaymentProvidersDialog.vue')['default']
     PositionForm: typeof import('./resources/ts/components/forms/PositionForm.vue')['default']
     PricingPlanDialog: typeof import('./resources/ts/components/dialogs/PricingPlanDialog.vue')['default']

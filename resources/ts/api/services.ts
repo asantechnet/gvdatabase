@@ -14,8 +14,26 @@ export interface Service {
     code: string
     symbol: string
   }
+  /** The contract template that represents this service when it is assigned. */
+  contract_template?: ServiceContractTemplate | null
+  has_contract_template?: boolean
   created_at: string
   updated_at: string
+}
+
+export interface ServiceContractTemplate {
+  id: number
+  name: string
+  is_active: boolean
+  contract_type_id: number
+  service_id: number | null
+}
+
+export interface BindServiceContractTemplateData {
+  contract_template_id?: number | null
+  name?: string | null
+  cover_text?: string | null
+  content?: string | null
 }
 
 export interface CreateServiceData {
@@ -92,6 +110,16 @@ const ServiceApi = {
       success: response.data.success,
       data: null,
       message: response.data.message,
+    }
+  },
+
+  // Bind (or auto-create) the service's contract template
+  bindContractTemplate: async (id: number, data: BindServiceContractTemplateData = {}): Promise<ApiResponse<Service>> => {
+    const response = await api.post<{ data: Service }>(`/services/${id}/contract-template`, data)
+
+    return {
+      success: true,
+      data: response.data.data,
     }
   },
 }

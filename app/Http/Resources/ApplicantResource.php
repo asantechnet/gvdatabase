@@ -24,7 +24,6 @@ class ApplicantResource extends JsonResource
             'id' => $this->id,
             // Party identity, absorbed from `customers`.
             'name' => $this->name,
-            'company' => $this->company,
             'contact' => $this->contact,
             'email' => $this->email,
             'address' => $this->address,
@@ -62,6 +61,8 @@ class ApplicantResource extends JsonResource
             'education_level' => $this->whenLoaded('educationLevel', fn () => $this->educationLevel ? $this->educationLevel->only(['id', 'name']) : null),
             'language' => $this->whenLoaded('language', fn () => $this->language ? $this->language->only(['id', 'name']) : null),
             'semester' => $this->whenLoaded('semester', fn () => $this->semester ? $this->semester->only(['id', 'name', 'code']) : null),
+            'attachment_count' => $this->whenCounted('attachments'),
+            'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($a) => ['id'=>$a->id,'label'=>$a->label,'category'=>$a->category,'name'=>$a->original_name,'mime_type'=>$a->mime_type,'size'=>$a->size,'uploaded_at'=>$a->created_at?->toISOString(),'download_url'=>"/api/applicants/{$this->id}/attachments/{$a->id}/download"])),
             // Contracted service lines. `compact` is the invoice picker shape.
             'services' => $request->boolean('compact')
                 ? $this->whenLoaded('contractServices', fn () => $this->contractServices->map(fn ($item) => [

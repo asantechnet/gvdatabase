@@ -38,7 +38,7 @@ class InvoiceResource extends JsonResource
             'applicant' => [
                 'id' => $this->applicant_id,
                 'name' => $this->deptor,
-                'company' => $this->customer_company ?: $this->applicant?->company,
+            'company' => $this->customer_company,
                 'contact' => $this->customer_contact ?: $this->applicant?->contact,
                 'email' => $this->customer_email ?: $this->applicant?->email,
                 'address' => $this->customer_address ?: $this->applicant?->address,

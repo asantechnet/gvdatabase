@@ -21,8 +21,8 @@ const formatAmount = (invoice: Invoice, value: number) => {
   return `${invoice.currency?.symbol ?? ''}${amount} ${invoice.currency?.shortname ?? ''}`.trim()
 }
 
-const customerName = (invoice: Invoice) => invoice.customer?.name || invoice.deptor || ''
-const companyName = (invoice: Invoice) => invoice.customer?.company || ''
+const customerName = (invoice: Invoice) => invoice.applicant?.name || invoice.deptor || ''
+const companyName = () => ''
 const update = (value: number | null) => {
   emit('update:modelValue', value)
   emit('change', value)

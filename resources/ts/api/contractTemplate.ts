@@ -23,7 +23,22 @@ export interface ContractTemplate {
   updated_at: string
   versions?: ContractTemplateVersion[]
 }
-export interface ContractTemplateVersion { id: number; country_id?: number | null; language_id: number; version_number: number; content?: string; status: 'draft' | 'active' | 'archived'; is_current: boolean; country?: { id: number; name: string } | null; language?: { id: number; name: string } | null; created_at?: string }
+export interface ContractTemplateVersion {
+  id: number
+  name: string
+  country_id: number
+  language_id: number
+  version_number: number
+  content?: string
+  status: 'draft' | 'active' | 'archived'
+  is_current: boolean
+  country?: { id: number; name: string } | null
+  language?: { id: number; name: string; code?: string } | null
+  created_at?: string
+  activated_at?: string | null
+  archived_at?: string | null
+  contracts_count?: number
+}
 
 export interface ContractTemplateCreateData {
   name: string
@@ -89,8 +104,10 @@ const ContractTemplateApi = {
     await api.delete(`/contract-templates/${id}`)
   },
   async versions(id: number): Promise<ContractTemplateVersion[]> { return (await api.get(`/contract-templates/${id}/versions`)).data.data },
-  async createVersion(id: number, data: Pick<ContractTemplateVersion, 'country_id' | 'language_id' | 'content'> & { status?: string }): Promise<ContractTemplateVersion> { return (await api.post(`/contract-templates/${id}/versions`, data)).data.data },
+  async createVersion(id: number, data: Pick<ContractTemplateVersion, 'name' | 'country_id' | 'language_id' | 'content'>): Promise<ContractTemplateVersion> { return (await api.post(`/contract-templates/${id}/versions`, data)).data.data },
+  async updateVersion(templateId: number, versionId: number, data: Pick<ContractTemplateVersion, 'name' | 'content'>): Promise<ContractTemplateVersion> { return (await api.put(`/contract-templates/${templateId}/versions/${versionId}`, data)).data.data },
   async activateVersion(templateId: number, versionId: number): Promise<ContractTemplateVersion> { return (await api.post(`/contract-templates/${templateId}/versions/${versionId}/activate`)).data.data },
+  async archiveVersion(templateId: number, versionId: number): Promise<ContractTemplateVersion> { return (await api.post(`/contract-templates/${templateId}/versions/${versionId}/archive`)).data.data },
 }
 
 export default ContractTemplateApi

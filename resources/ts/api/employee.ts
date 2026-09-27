@@ -30,6 +30,10 @@ export interface Employee {
   office_id: number | null
   office: { id: number; name: string; code: string } | null
   department: string | null
+  department_id: number | null
+  department_name: string | null
+  supervisor_id: number | null
+  supervisor_name: string | null
   position?: string
   salary: number | null
   commissions: Array<{ service_id: number; service: string; fee?: number; currency?: { id: number; code: string; symbol: string; decimalPlaces: number } | null; percentage: number }>
@@ -78,6 +82,8 @@ export interface CreateEmployeeData {
   position_id: number
   employment_type: 'salaried' | 'commission'
   office_id?: number | null
+  department_id?: number | null
+  supervisor_id?: number | null
   salary?: number | null
   commissions?: Array<{ service_id: number; percentage: number }>
   addr: string
@@ -102,6 +108,8 @@ export interface UpdateEmployeeData {
   position_id?: number
   employment_type?: 'salaried' | 'commission'
   office_id?: number | null
+  department_id?: number | null
+  supervisor_id?: number | null
   salary?: number | null
   commissions?: Array<{ service_id: number; percentage: number }>
   addr?: string

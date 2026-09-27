@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Applicant;
 use App\Models\ApplicantUniversity;
+use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -24,7 +25,7 @@ class ApplicantUniversityController extends Controller
 
     public function store(Request $request, Applicant $applicant)
     {
-        $this->assertCaseAccess($request, $applicant);
+        $this->assertCaseManageAccess($request, $applicant);
         $data = $request->validate([
             'university_id' => ['required', 'integer', 'exists:universities,id'],
             'semester_id' => ['nullable', 'integer', 'exists:semesters,id'],
@@ -44,7 +45,7 @@ class ApplicantUniversityController extends Controller
 
     public function update(Request $request, Applicant $applicant, ApplicantUniversity $application)
     {
-        $this->assertCaseAccess($request, $applicant);
+        $this->assertCaseManageAccess($request, $applicant);
         abort_unless($application->applicant_id === $applicant->id, 404);
         $data = $request->validate([
             'status' => ['sometimes', Rule::in(ApplicantUniversity::STATUSES)],
@@ -59,7 +60,7 @@ class ApplicantUniversityController extends Controller
 
     public function destroy(Request $request, Applicant $applicant, ApplicantUniversity $application)
     {
-        $this->assertCaseAccess($request, $applicant);
+        $this->assertCaseManageAccess($request, $applicant);
         abort_unless($application->applicant_id === $applicant->id, 404);
         $application->delete();
 
@@ -74,6 +75,17 @@ class ApplicantUniversityController extends Controller
             return;
         }
 
-        abort_unless($applicant->responsibleEmployee?->user_id === $user->id, 403, 'auth.forbidden');
+        abort_unless(app(EmployeeScope::class)->canViewOwnedBy($user, $applicant->responsible_employee_id), 403, 'auth.forbidden');
+    }
+
+    private function assertCaseManageAccess(Request $request, Applicant $applicant): void
+    {
+        $user = $request->user();
+        abort_unless($user, 403, 'auth.forbidden');
+        if ($user->isSuperAdmin() || $user->hasPermission('view_all_applicants')) {
+            return;
+        }
+
+        abort_unless(app(EmployeeScope::class)->canManageOwnedBy($user, $applicant->responsible_employee_id), 403, 'auth.forbidden');
     }
 }

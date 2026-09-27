@@ -58,7 +58,7 @@ const suggestionGroups: SuggestionGroup[] = [
       { icon: 'tabler-package', title: translate('components.navigation.navsearchbar.asset'), url: { name: 'asset' } },
       { icon: 'tabler-user-search', title: translate('components.navigation.navsearchbar.visitors'), url: { name: 'visitor' } },
       { icon: 'tabler-file-description', title: translate('components.navigation.navsearchbar.contracts'), url: { name: 'contracts' } },
-      { icon: 'tabler-users-group', title: translate('components.navigation.navsearchbar.customers'), url: { name: 'all-customers' } },
+      { icon: 'tabler-users-group', title: translate('common.navigation.applicants'), url: { name: 'all-customers' } },
       { icon: 'tabler-file-x', title: translate('components.navigation.navsearchbar.cancelledContracts'), url: { name: 'cancelled-contracts' } },
     ],
   },

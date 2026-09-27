@@ -9,7 +9,6 @@ export interface PendingTransaction {
   reason: string
   amount: string | number
   currency_id: number
-  customer_id: number | null
   applicant_id: number | null
   employee_id: number | null
   approval_status: PendingTransactionStatus
@@ -19,8 +18,7 @@ export interface PendingTransaction {
   rejected_at: string | null
   posted_at: string | null
   currency?: { id: number; code: string; symbol: string }
-  customer?: { id: number; name: string }
-  applicant?: { id: number }
+  applicant?: { id: number; name: string }
   employee?: { id: number; name: string }
   requester?: { id: number; name: string }
   approver?: { id: number; name: string }
@@ -31,16 +29,14 @@ export interface PendingTransactionInput {
   reason: string
   amount: number
   currency_id: number | null
-  customer_id: number | null
   applicant_id: number | null
   employee_id: number | null
 }
 
 export interface PendingTransactionOptions {
   currencies: Array<{ id: number; name: string; code: string; symbol: string; is_base: boolean }>
-  customers: Array<{ id: number; name: string }>
   employees: Array<{ id: number; name: string }>
-  applicants: Array<{ id: number; customer_id: number; customer?: { id: number; name: string } }>
+  applicants: Array<{ id: number; name: string }>
 }
 export interface PendingTransactionPage {
   data: PendingTransaction[]

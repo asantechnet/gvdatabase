@@ -55,6 +55,7 @@
       "currency": "Currency",
       "date": "Date",
       "department": "Department",
+      "supervisor": "Reports to",
       "priority": "Priority",
       "email": "Email",
       "password": "Password",
@@ -403,6 +404,7 @@
       "reports": "Reports",
       "hr": "HR",
       "staffList": "Staff list",
+      "departments": "Departments",
       "timesheet": "Timesheet",
       "staffSalary": "Staff salary",
       "commissions": "Commissions",
@@ -1217,6 +1219,7 @@
             "validation": {
               "contractTypeRequired": "Contract type is required",
               "nameRequired": "A name is required",
+              "versionNameRequired": "A version name is required",
               "maximumCharacters": "Maximum {count} characters",
               "positionRequired": "A position is required for an employment template",
               "initialVersionCountryRequired": "Choose the initial version country",
@@ -1228,6 +1231,12 @@
               "title": "Country & language versions",
               "subtitle": "Each active version is selected automatically for the applicant’s country and contract language.",
               "createVersion": "Create version",
+              "versionName": "Version name",
+              "editDraft": "Edit draft",
+              "archive": "Archive",
+              "archived": "Template version archived.",
+              "archiveError": "Unable to archive the template version.",
+              "selectDraftToEdit": "Choose a draft version from the version list to edit its name and content. Active and archived versions are locked.",
               "saveFirstHint": "Save edits to the template before creating a version. A version is an immutable document snapshot after it is used on a contract.",
               "version": "Version",
               "active": "Active",
@@ -1641,6 +1650,22 @@
           "bottom": "bottom",
           "left": "left"
         },
+        "artworkScopeTitle": "Contract artwork scope",
+        "artworkScopeHint": "Choose what the artwork below applies to. Contract types without their own artwork fall back to the general default.",
+        "generalArtworkScope": "General default (all contract types)",
+        "contractTypeScope": "Contract type",
+        "serviceScopeOptional": "Service (optional)",
+        "serviceScopeHint": "Leave the service empty to apply this cover and letterhead to every service of the customer contracts.",
+        "singleTypeScopeHint": "Employment and other contracts share one cover and letterhead: this design applies to every contract of this type.",
+        "artworkEditorScopeHint": "Upload, remove and size the artwork for: {scope}",
+        "saveArtworkForScope": "Save artwork for this scope",
+        "resetArtworkScope": "Discard changes",
+        "artworkScopeSaved": "Artwork saved for the selected scope.",
+        "printSafeAreaSizing": "Print-safe area size (applies to every printed page)",
+        "printSafeAreaOffsetX": "Offset X",
+        "printSafeAreaOffsetY": "Offset Y",
+        "printSafeAreaWidth": "Width",
+        "printSafeAreaHeight": "Height",
         "resetDefaults": "Reset Defaults",
         "saveSettings": "Save Settings",
         "noChangesToSave": "There are no changes to save on this page.",
@@ -1655,8 +1680,15 @@
           "super_admin": "Super admin",
           "admin": "Admin",
           "manager": "Manager",
+          "team_lead": "Team lead",
+          "senior_counselor": "Senior counselor",
+          "finance_officer": "Finance officer",
+          "counselor": "Counselor",
+          "case_officer": "Case officer",
           "staff": "Staff",
-          "viewer": "Viewer"
+          "document_officer": "Document officer",
+          "viewer": "Viewer",
+          "applicant": "Applicant"
         },
         "verification": {
           "invited": "Invited",
@@ -2161,7 +2193,10 @@
           "serviceDefinition": "Service definition",
           "serviceDefinitionHint": "Use a fee and duration that make this service ready to reuse in a contract.",
           "eGWebsiteMaintenance": "e.g. Website Maintenance",
-          "durationMonths": "Duration (months)"
+          "durationMonths": "Duration (months)",
+          "contractTemplate": "Contract template",
+          "templateMissing": "Not set",
+          "manageContractTemplate": "Create or open this service's contract template"
         },
         "durationMonthsValue": "{count} month | {count} months"
       },
@@ -2212,6 +2247,7 @@
           "language": "Contract language",
           "languageRequired": "Choose the contract language",
           "languageVersionHint": "The selected language determines the active document version.",
+          "selectedVersion": "Active document: {name} · v{version} · {country} · {language}",
           "noVersions": "This template does not have any country and language versions yet. Create and activate one in Contract Templates before issuing this contract.",
           "noActiveVersions": "This template has versions, but none is active. Activate a country and language version in Contract Templates before issuing this contract.",
           "employee": "Employee",
@@ -4288,6 +4324,12 @@
         "message": "An automatic task-and-case-win bonus nomination is ready for review."
       }
     },
+    "contract_template_version": {
+      "created": { "title": "Template draft created", "message": "{template}: {version} (v{version_number}) was created for {country}, {language}." },
+      "updated": { "title": "Template draft updated", "message": "{template}: {version} (v{version_number}) was updated." },
+      "activated": { "title": "Template version activated", "message": "{template}: {version} (v{version_number}) is now active for {country}, {language}." },
+      "archived": { "title": "Template version archived", "message": "{template}: {version} (v{version_number}) was archived." }
+    },
     "case": {
       "won": {
         "title": "Applicant case won",
@@ -4316,6 +4358,10 @@
       "stalled": {
         "title": "Applicant case needs attention",
         "message": "{applicant} has remained in {stage} for {days} days."
+      },
+      "documentUploaded": {
+        "title": "Applicant document uploaded",
+        "message": "{label} was added to the applicant file."
       }
     },
     "finance": {
@@ -4326,6 +4372,22 @@
       "pendingStatus": {
         "title": "Financial request updated",
         "message": "Your {type} request is now {status}. {reason}"
+      }
+    },
+    "contract": {
+      "generated": {
+        "title": "Contract created",
+        "message": "{contract_number} was created for {service}."
+      },
+      "extensionGenerated": {
+        "title": "Extension contract created",
+        "message": "{contract_number} extends {parent_contract_number} for {service}."
+      }
+    },
+    "invoice": {
+      "issued": {
+        "title": "Applicant invoice issued",
+        "message": "Invoice {invoice_number} was issued for this applicant case."
       }
     },
     "types": {
@@ -4689,6 +4751,16 @@
       "postedSummary": "{amount} · {date} · {description}",
       "noFinance": "No financial activity for this case yet.",
       "documents": "Documents",
+      "applicantDocuments": "Applicant documents",
+      "file": "File",
+      "documentsNeeded": "Documents needed",
+      "documentCount": "{count} document(s)",
+      "applicantDocumentsReady": "{count} labeled document(s) on file",
+      "applicantDocumentsNeeded": "Add a labeled document before progressing the case, assigning a service, or issuing an invoice.",
+      "documentLabel": "Document label",
+      "attach": "Attach",
+      "documentAdded": "Document added to the applicant file.",
+      "documentAddFailed": "Unable to add this document.",
       "fromTask": "From task: {task}",
       "download": "Download",
       "noDocuments": "No documents yet. Files attached to this case's tasks appear here.",
@@ -4889,6 +4961,8 @@
     "contractOption": "{number} — {name}",
     "customerContract": "Customer contract",
     "contract": "Contract",
+    "extension": "Extension",
+    "primaryContract": "Primary",
     "scholarshipService": "Scholarship service",
     "testOffer": "Test offer",
     "scholarshipServices": "Scholarship services",
@@ -4961,7 +5035,7 @@
     },
     "servicesUi": {
       "title": "Educational services",
-      "subtitle": "Sales stay linked to the responsible employee, customer, case, and reusable bonus source.",
+      "subtitle": "Every assignment stays linked to its applicant case, responsible employee, and reusable bonus source.",
       "recordSale": "Record sale",
       "editSale": "Edit service sale",
       "bonusSources": "Bonus sources",
@@ -4973,7 +5047,7 @@
       "loadFailed": "Unable to load educational services.",
       "updated": "Service sale updated.",
       "created": "Service sale recorded with its bonus source.",
-      "saveFailed": "Unable to save. Check the customer, employee, currency, and case relationship.",
+      "saveFailed": "Unable to save. Check the applicant, employee, currency, and case details.",
       "voidConfirm": "Void this {service} sale? Its bonus source will also be voided.",
       "voided": "Service sale voided.",
       "voidFailed": "Unable to void this sale.",
@@ -4981,7 +5055,13 @@
       "bonusCreated": "Contract bonus source created.",
       "bonusSaveFailed": "Unable to save the bonus source. Each source can only be attributed once.",
       "bonusMarked": "Bonus marked {status}.",
-      "bonusStatusFailed": "This bonus status change is not allowed."
+      "bonusStatusFailed": "This bonus status change is not allowed.",
+      "contractTemplateNotice": "A contract will be generated from the “{template}” template.",
+      "contractTemplateAuto": "This service has no contract template yet. One will be created automatically when you save.",
+      "editableFeeHint": "The base price is pre-filled; you can change it for this applicant.",
+      "allowExtension": "Allow extension",
+      "allowExtensionHint": "If this applicant already has a live contract for this service, record this sale as an extension instead.",
+      "applicantServiceHint": "Choose a visa applicant, then assign one service or a package. Each assigned service creates its own agreement."
     },
     "pendingUi": {
       "customerEmployee": "Customer / employee",

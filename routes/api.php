@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountDeactivationRequestController;
-use App\Http\Controllers\ApplicantController;
+use App\Http\Controllers\ApplicantController; use App\Http\Controllers\ApplicantAttachmentController;
 use App\Http\Controllers\ApplicantPortalController;
 use App\Http\Controllers\ApplicantStageController;
 use App\Http\Controllers\ApplicantUniversityController;
@@ -25,6 +25,7 @@ use App\Http\Controllers\ContractTypeController;
 use App\Http\Controllers\CrmInteractionController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EducationalBonusSourceController;
 use App\Http\Controllers\EducationalDashboardController;
 use App\Http\Controllers\EducationalMasterDataController;
@@ -215,6 +216,12 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::post('employees/{employee}/leaves', [PaidTimeOffController::class, 'store'])->middleware('permission:create_paid_time_off');
     Route::put('employees/{employee}/leaves/{paidTimeOff}', [PaidTimeOffController::class, 'update'])->middleware('permission:edit_paid_time_off');
     Route::delete('employees/{employee}/leaves/{paidTimeOff}', [PaidTimeOffController::class, 'destroy'])->middleware('permission:delete_paid_time_off');
+    // Departments are the firm's groups; the manager assignment is what makes
+    // a senior role see a team's data.
+    Route::get('departments', [DepartmentController::class, 'index'])->middleware('permission:view_departments');
+    Route::post('departments', [DepartmentController::class, 'store'])->middleware('permission:manage_departments');
+    Route::put('departments/{department}', [DepartmentController::class, 'update'])->middleware('permission:manage_departments');
+    Route::delete('departments/{department}', [DepartmentController::class, 'destroy'])->middleware('permission:manage_departments');
     Route::get('employees/account-options', [EmployeeController::class, 'accountOptions'])->middleware('permission:view_employees');
     Route::get('employees/commission-options', [EmployeeController::class, 'commissionOptions'])->middleware('permission:view_employees');
     Route::get('employees/marketer-options', [EmployeeController::class, 'marketerOptions'])->middleware('permission:view_employees');
@@ -366,6 +373,11 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::post('applicants/{applicant}/portal-invitation', [ApplicantPortalController::class, 'invite'])->middleware('permission:invite_applicant_portal');
     Route::get('applicants-pipeline', [ApplicantController::class, 'pipeline'])->middleware('permission:view_applicants');
     Route::apiResource('applicants', ApplicantController::class)->middlewareFor(['index', 'show'], 'permission:view_applicants')->middlewareFor('store', 'permission:create_applicants')->middlewareFor('update', 'permission:edit_applicants')->middlewareFor('destroy', 'permission:delete_applicants');
+    Route::get('applicants/{applicant}/attachments', [ApplicantAttachmentController::class, 'index'])->middleware('permission:view_applicants');
+    Route::post('applicants/{applicant}/attachments', [ApplicantAttachmentController::class, 'store'])->middleware('permission:edit_applicants');
+    Route::put('applicants/{applicant}/attachments/{attachment}', [ApplicantAttachmentController::class, 'update'])->middleware('permission:edit_applicants');
+    Route::get('applicants/{applicant}/attachments/{attachment}/download', [ApplicantAttachmentController::class, 'download'])->middleware('permission:view_applicants');
+    Route::delete('applicants/{applicant}/attachments/{attachment}', [ApplicantAttachmentController::class, 'destroy'])->middleware('permission:edit_applicants');
     Route::post('applicants/{applicant}/change-stage', [ApplicantController::class, 'changeStage'])->middleware('permission:change_applicant_stage');
     Route::get('applicants/{applicant}/universities', [ApplicantUniversityController::class, 'index'])->middleware('permission:view_applicants');
     Route::post('applicants/{applicant}/universities', [ApplicantUniversityController::class, 'store'])->middleware('permission:edit_applicants');
@@ -421,6 +433,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::apiResource('services', ServiceController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_services')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_services');
+    Route::post('services/{service}/contract-template', [ServiceController::class, 'bindContractTemplate'])
+        ->middleware('permission:manage_services');
 
     Route::apiResource('packages', PackageController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_packages')
@@ -445,7 +459,10 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_contract_templates');
     Route::get('contract-templates/{template}/versions', [ContractTemplateVersionController::class, 'index'])->middleware('permission:view_contract_templates');
     Route::post('contract-templates/{template}/versions', [ContractTemplateVersionController::class, 'store'])->middleware('permission:create_contract_template_versions');
+    Route::get('contract-templates/{template}/versions/{version}', [ContractTemplateVersionController::class, 'show'])->middleware('permission:view_contract_templates');
+    Route::put('contract-templates/{template}/versions/{version}', [ContractTemplateVersionController::class, 'update'])->middleware('permission:edit_draft_contract_template_versions');
     Route::post('contract-templates/{template}/versions/{version}/activate', [ContractTemplateVersionController::class, 'activate'])->middleware('permission:activate_contract_template_versions');
+    Route::post('contract-templates/{template}/versions/{version}/archive', [ContractTemplateVersionController::class, 'archive'])->middleware('permission:archive_contract_template_versions');
     Route::apiResource('contract-policies', ContractPolicyController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_contract_policies')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_contract_policies');
@@ -486,12 +503,14 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         ->middlewareFor('destroy', 'permission:delete_own_notifications');
 
     // Immutable audit history, deleted-row report, and supervised undo.
-    Route::get('audit-logs', [AuditLogController::class, 'index'])->middleware('permission:view_audit_logs');
-    Route::get('audit-logs/pending-count', [AuditLogController::class, 'pendingCount'])->middleware('permission:view_audit_logs');
+    // Team reviewers reach the same surface but the controller narrows the
+    // rows to their group; organisation-wide review needs view_all_audits.
+    Route::get('audit-logs', [AuditLogController::class, 'index'])->middleware('permission:view_audit_logs,view_team_audit_logs');
+    Route::get('audit-logs/pending-count', [AuditLogController::class, 'pendingCount'])->middleware('permission:view_audit_logs,view_team_audit_logs');
     Route::get('audit-logs/deleted', [AuditLogController::class, 'deleted'])->middleware('permission:view_deleted_records');
     Route::get('audit-resources', [AuditResourceController::class, 'index'])->middleware('permission:view_audit_logs');
     Route::patch('audit-resources/{auditResourceSetting}', [AuditResourceController::class, 'update'])->middleware('permission:manage_audit_scope');
-    Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show'])->middleware('permission:view_audit_logs');
+    Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show'])->middleware('permission:view_audit_logs,view_team_audit_logs');
     Route::patch('audit-logs/{auditLog}/review', [AuditLogController::class, 'review'])->middleware('permission:review_audit_logs');
     Route::post('audit-logs/bulk-review', [AuditLogController::class, 'bulkReview'])->middleware('permission:review_audit_logs');
     Route::post('audit-logs/{auditLog}/revert', [AuditLogController::class, 'revert'])->middleware('permission:revert_audit_changes');

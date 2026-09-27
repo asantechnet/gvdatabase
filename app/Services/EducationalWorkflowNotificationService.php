@@ -3,10 +3,14 @@
 namespace App\Services;
 
 use App\Models\Applicant;
+use App\Models\ApplicantAttachment;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
 use App\Models\CaseWin;
+use App\Models\Contract;
 use App\Models\CustomerPackage;
+use App\Models\Employee;
+use App\Models\Invoice;
 use App\Models\Notification;
 use App\Models\PendingTransaction;
 use App\Models\User;
@@ -47,12 +51,56 @@ class EducationalWorkflowNotificationService
         );
     }
 
+    /**
+     * A contract was generated automatically from a service assignment.
+     * The case owner and the selling employee are told which contract was
+     * produced (and whether it extended a previous agreement).
+     */
+    public function contractGenerated(Contract $contract, ?int $actorId = null): void
+    {
+        $contract->loadMissing(['applicant.responsibleEmployee', 'soldByEmployee', 'sourceService', 'parentContract']);
+        $recipientIds = collect([
+            $contract->applicant?->responsibleEmployee?->user_id,
+            $contract->soldByEmployee?->user_id,
+        ])->filter(fn ($id) => $id && (int) $id !== $actorId)->unique();
+
+        $serviceName = $contract->sourceService?->type ?? 'service';
+        $isExtension = $contract->contract_role === Contract::ROLE_EXTENSION;
+
+        $this->notifyOnce(
+            "contract.generated.{$contract->id}",
+            'task',
+            $isExtension ? 'Extension contract created' : 'Contract created for service',
+            $isExtension
+                ? "An extension contract ({$contract->contract_number}) was created for {$serviceName}."
+                : "Contract {$contract->contract_number} was created for {$serviceName}.",
+            [
+                'translation_key' => $isExtension ? 'contract.extensionGenerated' : 'contract.generated',
+                'contract_id' => $contract->id,
+                'contract_number' => $contract->contract_number,
+                'service' => $serviceName,
+                'applicant_id' => $contract->applicant_id,
+                'parent_contract_number' => $contract->parentContract?->contract_number,
+            ],
+            '/contracts',
+            $recipientIds,
+        );
+    }
+
     public function applicantAssigned(Applicant $applicant, ?int $actorId = null): void
     {
         $userId = $applicant->responsibleEmployee?->user_id;
         if (! $userId || $userId === $actorId) {
             return;
         }
+
+        // The assignee's team senior/manager follows the case too, so a
+        // read-only supervisor is aware of the workload without being able to
+        // change it.
+        $recipients = collect([$userId])
+            ->merge($this->supervisorUserIds($applicant->responsibleEmployee))
+            ->filter(fn ($id) => (int) $id !== (int) $actorId)
+            ->unique();
 
         $this->notifyOnce(
             "applicant.assigned.{$applicant->id}.{$userId}",
@@ -61,14 +109,31 @@ class EducationalWorkflowNotificationService
             "Applicant case #{$applicant->id} has been assigned to you.",
             ['translation_key' => 'applicant.assigned', 'applicant_id' => $applicant->id, 'applicant' => $this->applicantLabel($applicant)],
             "/applicants/{$applicant->id}",
-            collect([$userId]),
+            $recipients,
         );
+    }
+
+    public function applicantDocumentUploaded(Applicant $applicant, ApplicantAttachment $attachment, ?int $actorId = null): void
+    {
+        $applicant->loadMissing('responsibleEmployee');
+        $recipients = collect([$applicant->responsibleEmployee?->user_id])->filter(fn ($id) => $id && (int) $id !== $actorId);
+        $this->notifyOnce("applicant.document.{$attachment->id}", 'task', 'Applicant document uploaded', "{$attachment->label} was uploaded for applicant case #{$applicant->id}.", ['translation_key' => 'applicant.documentUploaded', 'applicant_id' => $applicant->id, 'attachment_id' => $attachment->id, 'label' => $attachment->label], "/applicants/{$applicant->id}", $recipients);
+    }
+
+    public function invoiceIssued(Invoice $invoice, ?int $actorId = null): void
+    {
+        $invoice->loadMissing('applicant.responsibleEmployee');
+        $recipients = collect([$invoice->applicant?->responsibleEmployee?->user_id])
+            ->filter(fn ($id) => $id && (int) $id !== $actorId);
+        $this->notifyOnce("invoice.issued.{$invoice->id}", 'finance', 'Applicant invoice issued', "Invoice {$invoice->invoice_number} was issued for {$this->applicantLabel($invoice->applicant)}.", ['translation_key' => 'invoice.issued', 'invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number, 'applicant_id' => $invoice->applicant_id], '/innvoice', $recipients);
     }
 
     public function applicantStageChanged(Applicant $applicant, ApplicantStage $stage, ApplicantStageHistory $history, ?int $actorId = null): void
     {
         $staffIds = collect([$applicant->responsibleEmployee?->user_id])
-            ->filter(fn ($id) => $id && (int) $id !== $actorId);
+            ->merge($this->supervisorUserIds($applicant->responsibleEmployee))
+            ->filter(fn ($id) => $id && (int) $id !== $actorId)
+            ->unique();
         $this->notifyOnce(
             "applicant.stage.{$history->id}.staff",
             'task',
@@ -156,7 +221,10 @@ class EducationalWorkflowNotificationService
                     return;
                 }
 
-                $recipientIds = collect([$applicant->responsibleEmployee?->user_id])->filter();
+                $recipientIds = collect([$applicant->responsibleEmployee?->user_id])
+                    ->merge($this->supervisorUserIds($applicant->responsibleEmployee))
+                    ->filter()
+                    ->unique();
                 if ($recipientIds->isEmpty()) {
                     $recipientIds = $this->usersWithPermission('view_applicants');
                 }
@@ -200,6 +268,43 @@ class EducationalWorkflowNotificationService
         $notification->deliverTo($recipientIds);
 
         return $notification->wasRecentlyCreated;
+    }
+
+    /**
+     * Team seniors and department managers who may read (but not necessarily
+     * manage) the employee's records. Only users actually holding the view
+     * scope are returned, so a notification never links to a forbidden page.
+     *
+     * @return Collection<int, int>
+     */
+    private function supervisorUserIds(?Employee $employee): Collection
+    {
+        if (! $employee) {
+            return collect();
+        }
+
+        $candidateIds = collect([$employee->supervisor?->user_id]);
+
+        $managerUserId = $employee->department_id
+            ? $employee->departmentRecord?->manager?->user_id
+            : null;
+        $candidateIds->push($managerUserId);
+
+        $candidateIds = $candidateIds->filter()->map(fn ($id) => (int) $id)->unique();
+        if ($candidateIds->isEmpty()) {
+            return $candidateIds->values();
+        }
+
+        return User::query()
+            ->whereIn('id', $candidateIds)
+            ->where('acc_status', 'active')
+            ->where(function ($query): void {
+                $query->whereHas('roles', fn ($roles) => $roles->where('name', 'super_admin'))
+                    ->orWhereHas('roles.permissions', fn ($permissions) => $permissions->where('name', 'view_subordinate_records'));
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values();
     }
 
     /** @return Collection<int, int> */

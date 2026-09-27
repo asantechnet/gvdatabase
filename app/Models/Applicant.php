@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * An applicant is the single customer-facing record: it carries both the
  * visa case (stage, country, university, ...) and the billing/CRM party
- * identity (name, company, contact, email, address, tax number, marketer).
+ * identity (name, contact, email, address, tax number, marketer).
  *
  * The former `Customer` entity was merged into this model, so every
  * `applicant_id` foreign key in the system points at one of these rows and
@@ -28,7 +28,6 @@ class Applicant extends Model
         'user_id',
         'parent_applicant_id',
         'name',
-        'company',
         'contact',
         'email',
         'address',
@@ -128,6 +127,7 @@ class Applicant extends Model
     {
         return $this->hasMany(Task::class);
     }
+    public function attachments(): HasMany { return $this->hasMany(ApplicantAttachment::class); }
 
     public function contracts(): HasMany
     {

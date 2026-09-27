@@ -12,7 +12,7 @@ const statusColor = (status: string) => ({ active: 'success', on_hold: 'warning'
 const statusLabel = (status: string) => t(`components.taskManager.projectPortfolio.statuses.${status}`)
 const headers = computed(() => [
   { title: t('components.taskManager.projectPortfolio.headers.project'), key: 'name' },
-  { title: t('components.taskManager.projectPortfolio.headers.customer'), key: 'customer.name' },
+  { title: t('components.taskManager.projectPortfolio.headers.customer'), key: 'applicant.name' },
   { title: t('components.taskManager.projectPortfolio.headers.services'), key: 'services' },
   { title: t('components.taskManager.projectPortfolio.headers.tasks'), key: 'tasks' },
   { title: t('components.taskManager.projectPortfolio.headers.due'), key: 'due_date' },
@@ -81,9 +81,9 @@ const headers = computed(() => [
             {{ item.description }}
           </div>
         </template>
-        <template #item.customer.name="{ item }">
-          <div>{{ item.customer?.name }}</div><div class="text-caption">
-            {{ item.customer?.company }}
+        <template #item.applicant.name="{ item }">
+          <div>{{ item.applicant?.name }}</div><div class="text-caption">
+            {{ item.applicant?.contact }}
           </div>
         </template>
         <template #item.services="{ item }">

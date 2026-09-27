@@ -20,6 +20,7 @@ const currentUserName = computed(() => String(userData.value?.name ?? '').trim()
 export interface ContractFormPayload {
   template_id: number | null
   contract_template_version_id: number | null
+  country_id: number | null
   language_id: number | null
   employee_id: number | null
   customer_id: number | null
@@ -47,7 +48,7 @@ interface TemplateOption {
   service_id?: number | null
   position_id?: number | null
   cover_text?: string | null
-  versions?: Array<{ id: number; country_id?: number | null; language_id: number; version_number?: number; content?: string; status: string; is_current: boolean; country?: { id: number; name: string } | null; language?: { id: number; name: string; code?: string } | null }>
+  versions?: Array<{ id: number; name: string; country_id: number; language_id: number; version_number?: number; content?: string; status: string; is_current: boolean; country?: { id: number; name: string } | null; language?: { id: number; name: string; code?: string } | null }>
 }
 
 const props = defineProps<{
@@ -59,6 +60,8 @@ const props = defineProps<{
     company_signatory_name?: string | null
     template_id: number | null
     contract_template_version_id?: number | null
+    contract_country_id?: number | null
+    contract_language_id?: number | null
     contract_type_id?: number | null
     employee_id?: number | null
     customer_id?: number | null
@@ -108,8 +111,8 @@ const initialServiceId = (): number | null => {
 const form = ref({
   template_id: (props.contract?.template_id ?? null) as number | null,
   contract_template_version_id: (props.contract?.contract_template_version_id ?? null) as number | null,
-  country_id: (props.applicantCountryId ?? null) as number | null,
-  language_id: null as number | null,
+  country_id: (props.applicantCountryId ?? props.contract?.contract_country_id ?? null) as number | null,
+  language_id: (props.contract?.contract_language_id ?? null) as number | null,
   position_id: null as number | null,
   employee_id: (props.contract?.employee_id ?? null) as number | null,
   customer_id: (props.contract?.customer_id ?? props.customerId ?? null) as number | null,
@@ -461,6 +464,14 @@ defineExpose({ submit })
           icon="tabler-language"
         >
           {{ hasTemplateVersions ? tr('noActiveVersions') : tr('noVersions') }}
+        </VAlert>
+      </VCol>
+      <VCol
+        v-if="selectedTemplateVersion"
+        cols="12"
+      >
+        <VAlert color="success" variant="tonal" density="compact" icon="tabler-versions">
+          {{ tr('selectedVersion', { name: selectedTemplateVersion.name, version: selectedTemplateVersion.version_number, country: selectedTemplateVersion.country?.name || tr('country'), language: selectedTemplateVersion.language?.name || tr('language') }) }}
         </VAlert>
       </VCol>
 

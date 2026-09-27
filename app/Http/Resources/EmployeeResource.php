@@ -30,6 +30,10 @@ class EmployeeResource extends JsonResource
             'office_id' => $this->office_id,
             'office' => $this->office ? ['id' => $this->office->id, 'name' => $this->office->name, 'code' => $this->office->code] : null,
             'department' => $this->department,
+            'department_id' => $this->department_id,
+            'department_name' => $this->departmentRecord?->name ?? $this->department,
+            'supervisor_id' => $this->supervisor_id,
+            'supervisor_name' => $this->supervisor?->name,
             'salary' => $this->salary !== null ? (float) $this->salary : null,
             'commissions' => $this->whenLoaded('commissionServices', fn () => $this->commissionServices->map(fn ($service) => [
                 'service_id' => $service->id,

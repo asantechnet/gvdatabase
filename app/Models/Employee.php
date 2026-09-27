@@ -16,6 +16,22 @@ class Employee extends Model
 {
     use Auditable, HasFactory, SoftDeletes;
 
+    protected static function booted(): void
+    {
+        // Keep the legacy free-text column in sync so contract placeholders
+        // and older readers continue to resolve a department name.
+        static::saving(function (Employee $employee): void {
+            if (! $employee->department_id || ! $employee->isDirty('department_id')) {
+                return;
+            }
+
+            $name = Department::query()->whereKey($employee->department_id)->value('name');
+            if ($name !== null) {
+                $employee->department = $name;
+            }
+        });
+    }
+
     protected $fillable = [
         'name',
         'father_name',
@@ -34,6 +50,8 @@ class Employee extends Model
         'bank_account_number',
         'total_worked_hours',
         'department',
+        'department_id',
+        'supervisor_id',
         'join_date',
         'contract_duration',
         'avatar',
@@ -120,6 +138,27 @@ class Employee extends Model
     public function position(): BelongsTo
     {
         return $this->belongsTo(Position::class);
+    }
+
+    /**
+     * The department record. Named `departmentRecord` because the legacy
+     * `department` column already occupies the obvious attribute name.
+     */
+    public function departmentRecord(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'department_id');
+    }
+
+    /** The team senior/manager this employee reports to. */
+    public function supervisor(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'supervisor_id');
+    }
+
+    /** Employees reporting directly to this employee. */
+    public function subordinates(): HasMany
+    {
+        return $this->hasMany(self::class, 'supervisor_id');
     }
 
     public function office(): BelongsTo

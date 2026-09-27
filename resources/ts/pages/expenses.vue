@@ -115,7 +115,7 @@ const openAddExpenseDialog = async () => {
   formError.value = ''
   fieldErrors.value = {}
   selectedExpense.value = {
-    customer_id: null,
+    applicant_id: null,
     company_id: null,
     project_id: null,
     currency_id: 0,
@@ -222,7 +222,7 @@ const saveExpense = async (isEditing = false, submittedExpense?: ExpenseFormData
     fieldErrors.value = {}
 
     const payload = {
-      customer_id: selectedExpense.value.customer_id,
+      applicant_id: selectedExpense.value.applicant_id,
       company_id: selectedExpense.value.company_id,
       project_id: selectedExpense.value.project_id,
       currency_id: selectedExpense.value.currency_id,

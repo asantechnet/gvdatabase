@@ -115,7 +115,7 @@ workstream.
 | 3 | Reports, tasks, audit, RBAC seeders | **Done** |
 | 4 | Seeders and factories | **Done** |
 | 5 | Test suite conversion | **Done** — no regressions vs. the baseline |
-| 6 | Frontend (API, pages, routes, menus, permissions) | **Not started** |
+| 6 | Frontend (API, pages, routes, menus, permissions) | **In progress** — the unified applicant directory, case creation, project creation, pipeline cards, task linkage, and pending-transaction picker now use `applicant_id`. Contract/invoice and educational-sales screens remain for a follow-up pass; contract-template files were intentionally left to the parallel workstream. |
 | 7 | Translations (`en`, `fa-AF`, `ps-AF`) | **Not started** |
 | 8 | `NOTICE.md` | **Not started** |
 

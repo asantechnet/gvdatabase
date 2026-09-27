@@ -18,13 +18,6 @@ export default [
         subject: 'view_roles',
       },
       {
-        title: 'common.navigation.offices',
-        icon: { icon: 'tabler-building' },
-        to: 'setup-offices',
-        action: 'read',
-        subject: 'view_offices',
-      },
-      {
         title: 'common.navigation.settings',
         icon: { icon: 'tabler-adjustments' },
         to: 'setup-settings',

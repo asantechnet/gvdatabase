@@ -31,6 +31,8 @@ class ContractResource extends JsonResource
             'cancelled_at' => $this->cancelled_at?->toISOString(),
             'template_id' => $this->template_id,
             'contract_template_version_id' => $this->contract_template_version_id,
+            'contract_country_id' => $this->contract_country_id,
+            'contract_language_id' => $this->contract_language_id,
             'employee_id' => $this->employee_id,
             'sold_by_employee_id' => $this->sold_by_employee_id,
             'marketer_id' => $this->marketer_id,
@@ -52,7 +54,7 @@ class ContractResource extends JsonResource
             'contract_template' => $this->whenLoaded('template', function () {
                 return new ContractTemplateResource($this->template);
             }),
-            'contract_template_version' => $this->whenLoaded('templateVersion', fn () => ['id'=>$this->templateVersion?->id,'language_id'=>$this->templateVersion?->language_id,'version_number'=>$this->templateVersion?->version_number,'status'=>$this->templateVersion?->status]),
+            'contract_template_version' => $this->whenLoaded('templateVersion', fn () => ['id'=>$this->templateVersion?->id,'name'=>$this->templateVersion?->name,'country_id'=>$this->templateVersion?->country_id,'language_id'=>$this->templateVersion?->language_id,'version_number'=>$this->templateVersion?->version_number,'status'=>$this->templateVersion?->status]),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

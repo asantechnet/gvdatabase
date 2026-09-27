@@ -7,13 +7,13 @@ import TodoMatrixView from './views/TodoMatrixView.vue'
 import TaskSettingsView from './views/TaskSettingsView.vue'
 import ProjectPortfolioView from './views/ProjectPortfolioView.vue'
 import { canAccess } from '@/utils/authorization'
-import CustomerApi, { type Customer, type CustomerService } from '@/api/customer'
+import ApplicantApi, { type Applicant } from '@/api/applicants'
 import ProjectApi, { type Project } from '@/api/project'
 import { useTaskStore } from '@/stores/useTaskStore'
 
 const store = useTaskStore()
 const projects = ref<Project[]>([])
-const customers = ref<Customer[]>([])
+const applicants = ref<Applicant[]>([])
 const isProjectDialogOpen = ref(false)
 const savingProject = ref(false)
 
@@ -21,7 +21,7 @@ const newProject = ref({
   name: '',
   description: '',
   due_date: null as string | null,
-  customer_id: null as number | null,
+  applicant_id: null as number | null,
   service_ids: [] as number[],
 })
 
@@ -33,18 +33,23 @@ const projectOptions = computed(() => [
   })),
 ])
 
-const customerOptions = computed(() => customers.value.map(customer => ({ title: `${customer.name} · ${customer.company}`, value: customer.id })))
+const customerOptions = computed(() => applicants.value.map(applicant => ({ title: `${applicant.name}${applicant.contact ? ` · ${applicant.contact}` : ''}`, value: applicant.id })))
 
-const selectedProjectCustomer = computed(() => customers.value.find(customer => customer.id === newProject.value.customer_id) ?? null)
+const selectedProjectCustomer = computed(() => applicants.value.find(applicant => applicant.id === newProject.value.applicant_id) ?? null)
 
 const projectServiceOptions = computed(() => selectedProjectCustomer.value?.services ?? [])
 
-const projectServiceLabel = (service: CustomerService) =>
-  `${service.service?.type ?? service.type ?? ''} · ${service.currency?.symbol ?? ''}${Number(service.fee ?? service.service?.fee ?? 0).toFixed(2)} ${service.currency?.code ?? ''}`.trim()
+const projectServiceLabel = (service: NonNullable<Applicant['services']>[number]) =>
+  `${service.type ?? ''} · ${Number(service.fee ?? 0).toFixed(2)} ${service.currency?.code ?? ''}`.trim()
 
-const selectProjectCustomer = (customerId: number | null) => {
-  newProject.value.customer_id = customerId === null ? null : Number(customerId)
+const selectProjectCustomer = async (applicantId: number | null) => {
+  newProject.value.applicant_id = applicantId === null ? null : Number(applicantId)
   newProject.value.service_ids = []
+  if (newProject.value.applicant_id) {
+    const detailed = await ApplicantApi.get(newProject.value.applicant_id)
+    const index = applicants.value.findIndex(item => item.id === detailed.id)
+    if (index >= 0) applicants.value[index] = detailed
+  }
 }
 
 const changeProject = async (projectId: number | null) => {
@@ -52,7 +57,7 @@ const changeProject = async (projectId: number | null) => {
 }
 
 const createProject = async () => {
-  if (!newProject.value.name.trim() || !newProject.value.customer_id)
+  if (!newProject.value.name.trim() || !newProject.value.applicant_id)
     return
   savingProject.value = true
   try {
@@ -60,7 +65,7 @@ const createProject = async () => {
       name: newProject.value.name.trim(),
       description: newProject.value.description || null,
       due_date: newProject.value.due_date,
-      customer_id: newProject.value.customer_id,
+      applicant_id: newProject.value.applicant_id,
       service_ids: newProject.value.service_ids,
     })
 
@@ -68,7 +73,7 @@ const createProject = async () => {
     // when an API response omits fields used by the select's item renderer.
     projects.value = await ProjectApi.getAll()
     isProjectDialogOpen.value = false
-    newProject.value = { name: '', description: '', due_date: null, customer_id: null, service_ids: [] }
+    newProject.value = { name: '', description: '', due_date: null, applicant_id: null, service_ids: [] }
     await changeProject(project.id)
   }
   finally {
@@ -77,11 +82,11 @@ const createProject = async () => {
 }
 
 onMounted(async () => {
-  const [projectResult, customerResult] = await Promise.allSettled([ProjectApi.getAll(), CustomerApi.getAll()])
+  const [projectResult, applicantResult] = await Promise.allSettled([ProjectApi.getAll(), ApplicantApi.list({ per_page: 100 })])
   if (projectResult.status === 'fulfilled')
     projects.value = projectResult.value
-  if (customerResult.status === 'fulfilled' && customerResult.value.success)
-    customers.value = customerResult.value.data
+  if (applicantResult.status === 'fulfilled')
+    applicants.value = applicantResult.value.data
 })
 
 // Bi-directional binding to the Pinia state
@@ -216,7 +221,7 @@ const currentComponent = computed(() => {
             class="mb-4"
           />
           <VAutocomplete
-            :model-value="newProject.customer_id"
+            :model-value="newProject.applicant_id"
             :items="customerOptions"
             :label="$t('components.taskManager.taskappshell.customer')"
             clearable

@@ -58,7 +58,7 @@ const pageComponents: Record<string, Component> = {
   setupRoles: () => import('@/pages/setup/roles.vue'),
   setupPositions: () => import('@/pages/setup/positions.vue'),
   setupMarketers: () => import('@/pages/setup/marketers.vue'),
-  setupOffices: () => import('@/pages/setup/offices.vue'),
+  setupDepartments: () => import('@/pages/setup/departments.vue'),
   setupSettings: () => import('@/pages/setup/settings.vue'),
   notifications: () => import('@/pages/notifications.vue'),
   support: () => import('@/pages/support.vue'),
@@ -107,7 +107,7 @@ const routeDefinitions: Array<{
     path: '/all-customers',
     component: 'allCustomers',
     name: 'all-customers',
-    meta: { requiresAuth: true, action: 'read', subject: 'view_customers' },
+    meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' },
   },
   {
     path: '/cancelled-contracts',
@@ -194,6 +194,12 @@ const routeDefinitions: Array<{
     meta: { requiresAuth: true, action: 'read', subject: 'view_positions' },
   },
   {
+    path: '/setup/departments',
+    component: 'setupDepartments',
+    name: 'setup-departments',
+    meta: { requiresAuth: true, action: 'read', subject: 'view_departments' },
+  },
+  {
     path: '/setup/settings/:section?',
     component: 'setupSettings',
     name: 'setup-settings',
@@ -205,12 +211,7 @@ const routeDefinitions: Array<{
     name: 'setup-marketers',
     meta: { requiresAuth: true, action: 'read', subject: 'view_marketers' },
   },
-  {
-    path: '/setup/offices',
-    component: 'setupOffices',
-    name: 'setup-offices',
-    meta: { requiresAuth: true, action: 'read', subject: 'view_offices' },
-  },
+  { path: '/setup/offices', redirect: { name: 'setup-settings', params: { section: 'office' } } },
   {
     path: '/forgot-password',
     component: 'forgotPassword',

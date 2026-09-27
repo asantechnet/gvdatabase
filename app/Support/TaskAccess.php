@@ -6,7 +6,14 @@ use App\Models\Board;
 use App\Models\Task;
 use App\Models\User;
 
-/** Centralizes the relationship checks behind task-management policies. */
+/**
+ * Centralizes the relationship checks behind task-management policies.
+ *
+ * Viewing a board/task follows the user's employee scope (`view_subordinate_records`
+ * reaches the team's work). Changing someone else's work additionally needs
+ * `manage_subordinate_records`, which is what keeps a senior counselor's
+ * supervision read-only.
+ */
 class TaskAccess
 {
     public static function canViewBoard(User $user, Board $board): bool
@@ -15,8 +22,15 @@ class TaskAccess
             return true;
         }
 
-        return $user->hasPermission('view_assigned_boards')
-            && $board->users()->whereKey($user->id)->exists();
+        if (! $user->hasPermission('view_assigned_boards')) {
+            return false;
+        }
+
+        // visibleUserIds always contains the actor, so this also matches the
+        // classic "member of the board" case for staff and viewers.
+        return $board->users()
+            ->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user))
+            ->exists();
     }
 
     public static function canViewTask(User $user, Task $task): bool
@@ -33,7 +47,9 @@ class TaskAccess
         }
 
         return $user->hasPermission('view_assigned_tasks')
-            && $task->users()->whereKey($user->id)->exists();
+            && $task->users()
+                ->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user))
+                ->exists();
     }
 
     public static function isBoardMember(User $user, Board $board): bool
@@ -44,5 +60,29 @@ class TaskAccess
     public static function isTaskAssignee(User $user, Task $task): bool
     {
         return $task->users()->whereKey($user->id)->exists();
+    }
+
+    /** A supervisor with the manage scope over someone assigned to the board. */
+    public static function isTeamBoardMember(User $user, Board $board): bool
+    {
+        if (! $user->hasPermission('manage_subordinate_records')) {
+            return false;
+        }
+
+        $teamUserIds = app(EmployeeScope::class)->teamUserIds($user);
+
+        return $teamUserIds !== [] && $board->users()->whereIn('users.id', $teamUserIds)->exists();
+    }
+
+    /** A supervisor with the manage scope over someone assigned to the task. */
+    public static function isTeamTaskAssignee(User $user, Task $task): bool
+    {
+        if (! $user->hasPermission('manage_subordinate_records')) {
+            return false;
+        }
+
+        $teamUserIds = app(EmployeeScope::class)->teamUserIds($user);
+
+        return $teamUserIds !== [] && $task->users()->whereIn('users.id', $teamUserIds)->exists();
     }
 }

@@ -12,6 +12,13 @@ export default [
         subject: 'view_employees',
       },
       {
+        title: 'common.navigation.departments',
+        icon: { icon: 'tabler-sitemap' },
+        to: 'setup-departments',
+        action: 'read',
+        subject: 'view_departments',
+      },
+      {
         title: 'common.navigation.employmentContracts',
         icon: { icon: 'tabler-file-text' },
         to: 'employee-contracts',

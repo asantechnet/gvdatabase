@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import ApplicantApi, { type Applicant, type ApplicantBoard, type ApplicantStage } from '@/api/applicants'
-import CustomerApi, { type Customer } from '@/api/customer'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
@@ -46,7 +45,6 @@ const languages = ref<MasterDataRecord[]>([])
 const semesters = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
 const stages = ref<ApplicantStage[]>([])
-const customers = ref<Customer[]>([])
 
 const canViewPipeline = computed(() => canAccess('view_applicants'))
 const canCreate = computed(() => canAccess('create_applicants'))
@@ -55,7 +53,7 @@ const activeFilterCount = computed(() => [search.value, stage.value, status.valu
 
 const createDialog = ref(false)
 const creating = ref(false)
-const createForm = ref({ customer_id: null as number | null, responsible_employee_id: null as number | null, country_id: null as number | null, university_id: null as number | null, education_level_id: null as number | null, language_id: null as number | null, semester_id: null as number | null, application_date: '', notes: '' })
+const createForm = ref({ name: '', contact: '', email: '', responsible_employee_id: null as number | null, country_id: null as number | null, university_id: null as number | null, education_level_id: null as number | null, language_id: null as number | null, semester_id: null as number | null, application_date: '', notes: '' })
 const createUniversityOptions = computed(() => universities.value
   .filter(university => university.is_active && university.country_id === createForm.value.country_id)
   .map(university => ({ title: university.name, value: university.id })))
@@ -102,7 +100,7 @@ async function load() {
 
 async function loadCatalogs() {
   try {
-    const [countryRows, universityRows, levelRows, languageRows, semesterRows, employeeRows, stageRows, customerResponse] = await Promise.all([
+    const [countryRows, universityRows, levelRows, languageRows, semesterRows, employeeRows, stageRows] = await Promise.all([
       MasterDataApi.list('countries'),
       MasterDataApi.list('universities'),
       MasterDataApi.list('education-levels'),
@@ -110,7 +108,6 @@ async function loadCatalogs() {
       MasterDataApi.list('semesters'),
       EmployeeApi.getOptions(),
       ApplicantApi.stages(),
-      CustomerApi.getAll({}),
     ])
 
     countries.value = countryRows
@@ -120,7 +117,6 @@ async function loadCatalogs() {
     semesters.value = semesterRows
     employees.value = employeeRows
     stages.value = stageRows
-    customers.value = customerResponse.data
   }
   catch {
     toast.error(t('educational.messages.loadFiltersFailed'))
@@ -133,17 +129,17 @@ function onTabChange() {
 }
 
 function openCreate() {
-  createForm.value = { customer_id: null, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, language_id: null, semester_id: null, application_date: '', notes: '' }
+  createForm.value = { name: '', contact: '', email: '', responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, language_id: null, semester_id: null, application_date: '', notes: '' }
   createDialog.value = true
 }
 
 async function create() {
-  if (!createForm.value.customer_id)
+  if (!createForm.value.name.trim())
     return
 
   creating.value = true
   try {
-    const payload: Record<string, unknown> = { customer_id: createForm.value.customer_id }
+    const payload: Record<string, unknown> = { name: createForm.value.name.trim(), contact: createForm.value.contact || null, email: createForm.value.email || null }
 
     for (const key of ['responsible_employee_id', 'country_id', 'university_id', 'education_level_id', 'language_id', 'semester_id'] as const) {
       if (createForm.value[key])
@@ -248,18 +244,19 @@ onMounted(async () => {
     <div class="d-flex align-center gap-2 px-4 py-3"><VIcon icon="tabler-users" color="primary" /><strong>{{ $t('educational.resultCount', { count: total }) }}</strong><VSpacer /><VBtn v-if="activeFilterCount" size="small" variant="text" prepend-icon="tabler-filter" @click="filtersOpen = true">{{ $t('educational.activeFilters', { count: activeFilterCount }) }}</VBtn></div>
     <VProgressLinear v-if="loading" indeterminate />
     <div class="education-table-scroll"><VTable density="compact" class="education-table">
-      <thead><tr><th>{{ $t('educational.id') }}</th><th>{{ $t('educational.customer') }}</th><th>{{ $t('educational.employee') }}</th><th>{{ $t('educational.destination') }}</th><th>{{ $t('educational.stage') }}</th><th>{{ $t('educational.status') }}</th><th /></tr></thead>
+      <thead><tr><th>{{ $t('educational.id') }}</th><th>{{ $t('educational.applicant') }}</th><th>{{ $t('educational.caseUi.file') }}</th><th>{{ $t('educational.employee') }}</th><th>{{ $t('educational.destination') }}</th><th>{{ $t('educational.stage') }}</th><th>{{ $t('educational.status') }}</th><th /></tr></thead>
       <tbody>
         <tr v-for="row in rows" :key="row.id" class="cursor-pointer" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">
           <td>#{{ row.id }}</td>
-          <td>{{ row.customer?.name ?? '—' }}</td>
+          <td>{{ row.name }}</td>
+          <td><VChip size="x-small" :color="row.attachments_count ? 'success' : 'warning'" variant="tonal">{{ row.attachments_count ? $t('educational.caseUi.documentCount', { count: row.attachments_count }) : $t('educational.caseUi.documentsNeeded') }}</VChip></td>
           <td>{{ row.responsible_employee?.name ?? $t('educational.unassigned') }}</td>
           <td>{{ row.country?.name ?? '—' }}{{ row.university?.name ? ` · ${row.university.name}` : '' }}</td>
           <td>{{ row.current_stage?.name ?? '—' }}</td>
           <td><VChip size="small" :color="row.status === 'active' ? 'success' : 'secondary'">{{ translateBackendValue(row.status) }}</VChip></td>
           <td class="text-end"><VBtn size="small" variant="text" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">{{ $t('educational.openCase') }}</VBtn></td>
         </tr>
-        <tr v-if="!loading && !rows.length"><td colspan="7" class="text-center text-medium-emphasis py-8">{{ $t('educational.noApplicants') }}</td></tr>
+        <tr v-if="!loading && !rows.length"><td colspan="8" class="text-center text-medium-emphasis py-8">{{ $t('educational.noApplicants') }}</td></tr>
       </tbody>
     </VTable></div>
     <VCardText class="d-flex align-center gap-4">
@@ -271,7 +268,9 @@ onMounted(async () => {
   <VDialog v-model="createDialog" max-width="600">
     <VCard :title="$t('educational.newApplicantCase')">
       <VCardText>
-        <VSelect v-model="createForm.customer_id" :items="customers.map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.customerPayer')" class="mb-3" />
+        <VTextField v-model="createForm.name" :label="$t('common.fields.name')" class="mb-3" />
+        <VTextField v-model="createForm.contact" :label="$t('common.messages.contact')" class="mb-3" />
+        <VTextField v-model="createForm.email" :label="$t('common.fields.email')" type="email" class="mb-3" />
         <VSelect v-if="canAssignEmployee" v-model="createForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.responsibleEmployee')" clearable class="mb-3" />
         <VRow dense>
           <VCol cols="6"><VSelect v-model="createForm.country_id" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.destinationCountry')" clearable class="mb-3" /></VCol>
@@ -286,7 +285,7 @@ onMounted(async () => {
       <VCardActions>
         <VSpacer />
         <VBtn @click="createDialog = false">{{ $t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="creating" :disabled="!createForm.customer_id" @click="create">{{ $t('educational.createCase') }}</VBtn>
+        <VBtn color="primary" :loading="creating" :disabled="!createForm.name.trim()" @click="create">{{ $t('educational.createCase') }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

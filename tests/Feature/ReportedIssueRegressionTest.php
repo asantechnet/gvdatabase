@@ -131,7 +131,7 @@ class ReportedIssueRegressionTest extends TestCase
         ]);
     }
 
-    public function test_marketers_and_offices_support_crud(): void
+    public function test_marketers_and_the_single_office_profile_support_their_allowed_operations(): void
     {
         $marketer = $this->postJson('/api/marketers', [
             'name' => 'North Region Team',
@@ -167,7 +167,12 @@ class ReportedIssueRegressionTest extends TestCase
             'address' => 'Kabul',
             'status' => 'active',
         ])->assertOk()->assertJsonPath('data.code', 'HQ');
-        $this->deleteJson("/api/offices/{$office}")->assertOk();
+        $this->deleteJson("/api/offices/{$office}")->assertConflict()
+            ->assertJsonPath('code', 'business.office_cannot_be_deleted');
+
+        $this->postJson('/api/offices', [
+            'name' => 'Second Office', 'code' => 'SECOND', 'status' => 'active',
+        ])->assertConflict();
     }
 
     public function test_contract_template_create_update_and_delete_stay_consistent(): void

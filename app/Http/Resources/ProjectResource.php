@@ -12,7 +12,7 @@ class ProjectResource extends JsonResource
         return [
             'id' => $this->id,
             'applicant_id' => $this->applicant_id,
-            'applicant' => $this->whenLoaded('applicant', fn () => $this->applicant ? ['id' => $this->applicant->id, 'name' => $this->applicant->name, 'company' => $this->applicant->company] : null),
+            'applicant' => $this->whenLoaded('applicant', fn () => $this->applicant ? ['id' => $this->applicant->id, 'name' => $this->applicant->name] : null),
             'name' => $this->name,
             'description' => $this->description,
             'status' => $this->status,

@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\Notification;
 use App\Models\NotificationUser;
 use App\Models\User;
+use App\Support\EmployeeScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Http\JsonResponse;
@@ -128,21 +129,29 @@ class NotificationController extends Controller
     /** @param array<string, mixed> $data */
     private function recipientIds(array $data): array
     {
+        $actor = request()->user();
         if (array_key_exists('user_ids', $data)) {
-            return User::query()->where('acc_status', 'active')->whereIn('id', $data['user_ids'])->pluck('id')->all();
-        }
-
-        if (! empty($data['employee_id'])) {
+            $recipientIds = User::query()->where('acc_status', 'active')->whereIn('id', $data['user_ids'])->pluck('id')->map(fn ($id) => (int) $id)->all();
+        } elseif (! empty($data['employee_id'])) {
             $userId = Employee::query()->whereKey($data['employee_id'])->value('user_id');
 
             if (! $userId) {
                 throw ValidationException::withMessages(['employee_id' => ['business.employee_has_no_account']]);
             }
 
-            return [$userId];
+            $recipientIds = [(int) $userId];
+        } else {
+            abort_unless($actor->hasPermission('send_all_notifications'), 403, 'auth.forbidden');
+
+            return User::query()->where('acc_status', 'active')->pluck('id')->all();
         }
 
-        return User::query()->where('acc_status', 'active')->pluck('id')->all();
+        if (! $actor->hasPermission('send_all_notifications')) {
+            $allowed = app(EmployeeScope::class)->visibleUserIds($actor);
+            abort_unless(collect($recipientIds)->every(fn (int $id) => in_array($id, $allowed, true)), 403, 'auth.forbidden');
+        }
+
+        return $recipientIds;
     }
 
     private function visibleTo(Request $request): Builder

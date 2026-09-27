@@ -6,6 +6,8 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Service extends Model
@@ -46,6 +48,30 @@ class Service extends Model
     public function contractServices()
     {
         return $this->hasMany(ContractService::class);
+    }
+
+    /** Every contract template bound to this service (one per version set). */
+    public function contractTemplates(): HasMany
+    {
+        return $this->hasMany(ContractTemplate::class, 'service_id');
+    }
+
+    /** The template the assignment fronts use when no explicit one is given. */
+    public function contractTemplate(): HasOne
+    {
+        return $this->hasOne(ContractTemplate::class, 'service_id')->latestOfMany('id');
+    }
+
+    /**
+     * The active template that represents this service's contract, if any.
+     * Prefers the newest active template so a re-bound template wins.
+     */
+    public function primaryContractTemplate(): ?ContractTemplate
+    {
+        return $this->contractTemplates()
+            ->where('is_active', true)
+            ->latest('id')
+            ->first();
     }
 
     public function contracts()

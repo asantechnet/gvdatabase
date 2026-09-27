@@ -1,0 +1,14 @@
+/vendor
+/node_modules
+/public
+/storage
+bootstrap/cache
+
+
+**/src/@core
+**/src/@fake-db
+**/src/assets/vendor
+**/src/layouts/components
+**/public/images
+**/public/locales
+**/src/assets/images

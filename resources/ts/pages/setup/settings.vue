@@ -11,12 +11,13 @@ import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
 import { canAccess } from '@/utils/authorization'
 import { contrastingTextColor } from '@/utils/themeContrast'
 import { type ThemeColorField, type ThemeColorPreferences, applyThemePalette, persistThemeColors, themeColorDefaults, themeColorFields } from '@/utils/themePersistence'
-import ContractDocumentDesignApi, { type ContractDocumentDesign } from '@/api/contractDocumentDesigns'
+import ContractDocumentDesignApi, { type ContractDocumentDesign, type ContractDocumentDesignSafeArea } from '@/api/contractDocumentDesigns'
 import ContractTypeApi, { type ContractType } from '@/api/contractType'
 import ServiceApi, { type Service } from '@/api/services'
+import OfficeSettingsPanel from '@/components/setup/OfficeSettingsPanel.vue'
 
 type UploadField = 'website_logo' | 'company_signature' | 'contract_letterhead' | 'contract_cover_design'
-type SettingsPage = 'company' | 'email' | 'operations' | 'appearance' | 'documents'
+type SettingsPage = 'company' | 'email' | 'operations' | 'appearance' | 'documents' | 'office'
 
 const toast = useToast()
 const { settings } = useAppApi()
@@ -26,8 +27,10 @@ const vuetifyTheme = useTheme()
 const route = useRoute()
 const router = useRouter()
 const canEditSettings = computed(() => canAccess('edit_settings'))
-const settingsPageNames: SettingsPage[] = ['company', 'email', 'operations', 'appearance', 'documents']
-const activeSettingsPage = ref<SettingsPage>(settingsPageNames.includes(route.params.section as SettingsPage) ? route.params.section as SettingsPage : 'company')
+const canViewOffices = computed(() => canAccess('view_offices'))
+const settingsPageNames: SettingsPage[] = ['company', 'email', 'operations', 'appearance', 'documents', 'office']
+const validSettingsPage = (section: unknown): section is SettingsPage => settingsPageNames.includes(section as SettingsPage) && (section !== 'office' || canViewOffices.value)
+const activeSettingsPage = ref<SettingsPage>(validSettingsPage(route.params.section) ? route.params.section : 'company')
 
 const { t: translate } = useI18n()
 
@@ -85,11 +88,57 @@ const selectedDesignTypeId = ref<number | null>(null)
 const selectedDesignServiceId = ref<number | null>(null)
 const designLetterhead = ref<File | null>(null)
 const designCover = ref<File | null>(null)
+const designRemoveLetterhead = ref(false)
+const designRemoveCover = ref(false)
+const designLetterheadPreview = ref<string | null>(null)
+const designCoverPreview = ref<string | null>(null)
+const designSafeArea = ref<ContractDocumentDesignSafeArea>({ x: 8.5, y: 15, width: 83, height: 70 })
 const designSaving = ref(false)
+const designDirty = ref(false)
 
-const selectedDocumentDesign = computed(() => documentDesigns.value.find(design => design.contract_type_id === selectedDesignTypeId.value && design.service_id === selectedDesignServiceId.value) ?? null)
-const typeOptions = computed(() => contractTypes.value.filter(type => type.is_active).map(type => ({ title: type.name, value: type.id })))
+// Service ids are positive; 0 stands in for "no service" so the comparison is
+// immune to the null/'' shapes the API can return.
+const designScopeMatches = (design: ContractDocumentDesign, typeId: number | null, serviceId: number | null) =>
+  Number(design.contract_type_id) === Number(typeId ?? 0) && Number(design.service_id ?? 0) === Number(serviceId ?? 0)
+
+// The artwork editor below edits either the general company artwork (settings)
+// or one contract-design row; this picks the row for the current scope.
+const selectedDocumentDesign = computed(() => documentDesigns.value.find(design => designScopeMatches(design, selectedDesignTypeId.value, selectedDesignServiceId.value)) ?? null)
+const typeOptions = computed(() => [
+  { title: translate('pages.settings.settings.generalArtworkScope'), value: null },
+  ...contractTypes.value.filter(type => type.is_active).map(type => ({ title: type.name, value: type.id })),
+])
+const selectedDesignType = computed(() => contractTypes.value.find(type => type.id === selectedDesignTypeId.value) ?? null)
+// Only customer contracts scope artwork per service; employment and other
+// contracts carry exactly one cover/letterhead for the whole type.
+const supportsServiceScope = computed(() => selectedDesignType.value?.slug === 'customer')
+const isDesignScope = computed(() => selectedDesignTypeId.value !== null)
 const serviceOptions = computed(() => services.value.filter(service => service.status === 'active').map(service => ({ title: service.name || service.type, value: service.id })))
+// Human-readable label of the scope the artwork editor is currently writing to.
+const designScopeLabel = computed(() => {
+  if (!isDesignScope.value)
+    return translate('pages.settings.settings.generalArtworkScope')
+
+  const typeName = selectedDesignType.value?.name ?? ''
+  const service = supportsServiceScope.value && selectedDesignServiceId.value
+    ? serviceOptions.value.find(option => option.value === selectedDesignServiceId.value)?.title
+    : null
+
+  return service ? `${typeName} · ${service}` : typeName
+})
+
+const activeLetterheadPreview = computed(() => isDesignScope.value ? designLetterheadPreview.value : letterheadPreview.value)
+const activeCoverPreview = computed(() => isDesignScope.value ? designCoverPreview.value : coverDesignPreview.value)
+const activeSafeArea = computed<ContractDocumentDesignSafeArea>(() => isDesignScope.value
+  ? designSafeArea.value
+  : {
+      x: form.value.contract_letterhead_safe_x ?? 8.5,
+      y: form.value.contract_letterhead_safe_y ?? 15,
+      width: form.value.contract_letterhead_safe_width ?? 83,
+      height: form.value.contract_letterhead_safe_height ?? 70,
+    })
+const activeArtworkPreview = (field: 'contract_letterhead' | 'contract_cover_design') =>
+  field === 'contract_letterhead' ? activeLetterheadPreview.value : activeCoverPreview.value
 
 const settingsPages = computed(() => [
   { value: 'company' as const, icon: 'tabler-building', title: translate('pages.settings.settings.companyPage'), description: translate('pages.settings.settings.companyPageDescription') },
@@ -97,6 +146,7 @@ const settingsPages = computed(() => [
   { value: 'operations' as const, icon: 'tabler-clock', title: translate('pages.settings.settings.operationsPage'), description: translate('pages.settings.settings.operationsPageDescription') },
   { value: 'appearance' as const, icon: 'tabler-palette', title: translate('pages.settings.settings.appearancePage'), description: translate('pages.settings.settings.appearancePageDescription') },
   { value: 'documents' as const, icon: 'tabler-file-description', title: translate('pages.settings.settings.documentsPage'), description: translate('pages.settings.settings.documentsPageDescription') },
+  ...(canViewOffices.value ? [{ value: 'office' as const, icon: 'tabler-building-community', title: 'Office', description: 'Company location, contact details, and attendance geofence.' }] : []),
 ])
 
 const activePage = computed(() => settingsPages.value.find(page => page.value === activeSettingsPage.value)!)
@@ -144,6 +194,7 @@ const pageFields: Record<SettingsPage, (keyof SettingForm)[]> = {
   operations: ['paid_leave_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes', 'automatic_attendance_enabled'],
   appearance: themeColorFields,
   documents: ['contract_letterhead', 'contract_cover_design', 'remove_contract_letterhead', 'remove_contract_cover_design', 'contract_letterhead_safe_x', 'contract_letterhead_safe_y', 'contract_letterhead_safe_width', 'contract_letterhead_safe_height'],
+  office: [],
 }
 
 const timezoneOptions = (Intl.supportedValuesOf?.('timeZone') ?? ['UTC']).map(timezone => ({
@@ -170,7 +221,7 @@ const applyTheme = () => {
 }
 
 function applyRouteSection(section: unknown) {
-  activeSettingsPage.value = settingsPageNames.includes(section as SettingsPage) ? section as SettingsPage : 'company'
+  activeSettingsPage.value = validSettingsPage(section) ? section : 'company'
 }
 
 watch(() => route.params.section, applyRouteSection)
@@ -265,25 +316,113 @@ async function loadDocumentDesigns() {
   contractTypes.value = types
   services.value = catalog.data
   documentDesigns.value = designs
-  selectedDesignTypeId.value ??= types.find(type => type.is_active)?.id ?? null
+}
+
+function releasePreview(url: string | null) {
+  if (url && objectUrls.has(url)) {
+    URL.revokeObjectURL(url)
+    objectUrls.delete(url)
+  }
+}
+
+/** Mirror the selected scope's saved design (or the settings fallback) into the artwork editor. */
+function syncDesignScopeFromSelection() {
+  const design = selectedDocumentDesign.value
+
+  releasePreview(designLetterheadPreview.value)
+  releasePreview(designCoverPreview.value)
+  designLetterhead.value = null
+  designCover.value = null
+  designRemoveLetterhead.value = false
+  designRemoveCover.value = false
+  designLetterheadPreview.value = design?.letterhead_url ?? null
+  designCoverPreview.value = design?.cover_design_url ?? null
+  designSafeArea.value = {
+    x: Number(design?.safe_x ?? 8.5),
+    y: Number(design?.safe_y ?? 15),
+    width: Number(design?.safe_width ?? 83),
+    height: Number(design?.safe_height ?? 70),
+  }
+  designDirty.value = false
+}
+
+// The service scope exists for customer contracts only.
+watch(selectedDesignTypeId, () => {
+  if (!supportsServiceScope.value)
+    selectedDesignServiceId.value = null
+})
+
+watch([selectedDesignTypeId, selectedDesignServiceId, documentDesigns], syncDesignScopeFromSelection)
+
+function resetDesignScopeChanges() {
+  syncDesignScopeFromSelection()
 }
 
 async function saveDocumentDesign() {
-  if (!canEditSettings.value || !selectedDesignTypeId.value) return
+  if (!canEditSettings.value || !selectedDesignTypeId.value)
+    return
   designSaving.value = true
   try {
-    const data = new FormData()
-    data.append('contract_type_id', String(selectedDesignTypeId.value))
-    if (selectedDesignServiceId.value) data.append('service_id', String(selectedDesignServiceId.value))
-    if (designLetterhead.value) data.append('letterhead', designLetterhead.value)
-    if (designCover.value) data.append('cover_design', designCover.value)
-    const saved = await ContractDocumentDesignApi.save(selectedDocumentDesign.value?.id ?? null, data)
-    documentDesigns.value = [...documentDesigns.value.filter(design => design.id !== saved.id), saved]
+    const saved = await ContractDocumentDesignApi.save(selectedDocumentDesign.value?.id ?? null, {
+      contractTypeId: selectedDesignTypeId.value,
+      serviceId: supportsServiceScope.value ? selectedDesignServiceId.value : null,
+      letterhead: designLetterhead.value,
+      coverDesign: designCover.value,
+      removeLetterhead: designRemoveLetterhead.value,
+      removeCoverDesign: designRemoveCover.value,
+      safeArea: { ...designSafeArea.value },
+    })
+
     designLetterhead.value = null
     designCover.value = null
-    toast.success('Document design saved.')
+    designRemoveLetterhead.value = false
+    designRemoveCover.value = false
+    designDirty.value = false
+    documentDesigns.value = [...documentDesigns.value.filter(design => design.id !== saved.id), saved]
+    toast.success(translate('pages.settings.settings.artworkScopeSaved'))
+  }
+  catch (error) {
+    // A 422 here means the scope is no longer valid (e.g. the contract type
+    // lost its customer slug). Refresh the catalogue so the scope picker
+    // reflects the current data, then surface the validation error.
+    await loadDocumentDesigns()
+    throw error
   }
   finally { designSaving.value = false }
+}
+
+/**
+ * The artwork cards upload into whichever scope is selected: a contract-design
+ * row (type, optionally narrowed to a service) or the general settings record.
+ */
+function handleArtworkUpload(event: Event, field: 'contract_letterhead' | 'contract_cover_design') {
+  if (!isDesignScope.value) {
+    handleImageUpload(event, field)
+
+    return
+  }
+
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file)
+    return
+
+  const preview = previewFile(file)
+
+  if (field === 'contract_letterhead') {
+    releasePreview(designLetterheadPreview.value)
+    designLetterhead.value = file
+    designLetterheadPreview.value = preview
+    designRemoveLetterhead.value = false
+  }
+  else {
+    releasePreview(designCoverPreview.value)
+    designCover.value = file
+    designCoverPreview.value = preview
+    designRemoveCover.value = false
+  }
+
+  designDirty.value = true
+  ;(event.target as HTMLInputElement).value = ''
 }
 
 function handleImageUpload(event: Event, field: UploadField) {
@@ -324,10 +463,28 @@ function handleImageUpload(event: Event, field: UploadField) {
 }
 
 function removeArtwork(field: 'contract_letterhead' | 'contract_cover_design') {
-  const currentPreview = field === 'contract_letterhead' ? letterheadPreview.value : coverDesignPreview.value
+  const currentPreview = activeArtworkPreview(field)
+
   if (currentPreview && currentPreview.startsWith('blob:')) {
     URL.revokeObjectURL(currentPreview)
     objectUrls.delete(currentPreview)
+  }
+
+  if (isDesignScope.value) {
+    if (field === 'contract_letterhead') {
+      designLetterhead.value = null
+      designLetterheadPreview.value = null
+      designRemoveLetterhead.value = true
+    }
+    else {
+      designCover.value = null
+      designCoverPreview.value = null
+      designRemoveCover.value = true
+    }
+
+    designDirty.value = true
+
+    return
   }
 
   form.value[field] = null
@@ -342,11 +499,37 @@ function removeArtwork(field: 'contract_letterhead' | 'contract_cover_design') {
 }
 
 const letterheadSafeAreaStyle = computed(() => ({
-  left: `${form.value.contract_letterhead_safe_x ?? 8.5}%`,
-  top: `${form.value.contract_letterhead_safe_y ?? 15}%`,
-  width: `${form.value.contract_letterhead_safe_width ?? 83}%`,
-  height: `${form.value.contract_letterhead_safe_height ?? 70}%`,
+  left: `${activeSafeArea.value.x}%`,
+  top: `${activeSafeArea.value.y}%`,
+  width: `${activeSafeArea.value.width}%`,
+  height: `${activeSafeArea.value.height}%`,
 }))
+
+/** Sizing writes go to the selected design row, or to the settings fallback. */
+function updateSafeArea(patch: Partial<ContractDocumentDesignSafeArea>) {
+  if (isDesignScope.value) {
+    designSafeArea.value = { ...designSafeArea.value, ...patch }
+    designDirty.value = true
+
+    return
+  }
+
+  if (patch.x !== undefined)
+    form.value.contract_letterhead_safe_x = patch.x
+  if (patch.y !== undefined)
+    form.value.contract_letterhead_safe_y = patch.y
+  if (patch.width !== undefined)
+    form.value.contract_letterhead_safe_width = patch.width
+  if (patch.height !== undefined)
+    form.value.contract_letterhead_safe_height = patch.height
+}
+
+/** Numeric size fields: empty/invalid input falls back to 0 instead of NaN. */
+function setSafeAreaFromInput(field: keyof ContractDocumentDesignSafeArea, value: unknown) {
+  const numeric = Number(value)
+
+  updateSafeArea({ [field]: Number.isFinite(numeric) ? numeric : 0 } as Partial<ContractDocumentDesignSafeArea>)
+}
 
 function resizeLetterheadSafeArea(event: PointerEvent, edge: 'top' | 'right' | 'bottom' | 'left') {
   const preview = (event.currentTarget as HTMLElement).closest('.letterhead-safe-preview') as HTMLElement | null
@@ -354,12 +537,7 @@ function resizeLetterheadSafeArea(event: PointerEvent, edge: 'top' | 'right' | '
     return
   event.preventDefault()
 
-  const initial = {
-    x: form.value.contract_letterhead_safe_x ?? 8.5,
-    y: form.value.contract_letterhead_safe_y ?? 15,
-    width: form.value.contract_letterhead_safe_width ?? 83,
-    height: form.value.contract_letterhead_safe_height ?? 70,
-  }
+  const initial = { ...activeSafeArea.value }
 
   const rect = preview.getBoundingClientRect()
 
@@ -373,11 +551,11 @@ function resizeLetterheadSafeArea(event: PointerEvent, edge: 'top' | 'right' | '
     if (edge === 'top') { y = Math.max(0, Math.min(initial.y + vertical, initial.y + initial.height - 5)); height = initial.height + initial.y - y }
     if (edge === 'bottom')
       height = Math.max(5, Math.min(100 - initial.y, initial.height + vertical))
-    Object.assign(form.value, {
-      contract_letterhead_safe_x: Number(x.toFixed(2)),
-      contract_letterhead_safe_y: Number(y.toFixed(2)),
-      contract_letterhead_safe_width: Number(width.toFixed(2)),
-      contract_letterhead_safe_height: Number(height.toFixed(2)),
+    updateSafeArea({
+      x: Number(x.toFixed(2)),
+      y: Number(y.toFixed(2)),
+      width: Number(width.toFixed(2)),
+      height: Number(height.toFixed(2)),
     })
   }
 
@@ -444,6 +622,9 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
     letterheadPreview.value = null
     coverDesignPreview.value = null
   }
+
+  if (page === null || page === 'documents')
+    resetDesignScopeChanges()
 
   if (apply)
     applyTheme()
@@ -645,7 +826,8 @@ onBeforeUnmount(revokeObjectUrls)
         </div>
 
         <VCardText class="pa-6 pt-4">
-          <VRow v-if="activeSettingsPage === 'company'">
+          <OfficeSettingsPanel v-if="activeSettingsPage === 'office'" :automatic-attendance-enabled="Boolean(form.automatic_attendance_enabled)" />
+          <VRow v-else-if="activeSettingsPage === 'company'">
             <VCol
               cols="12"
               md="4"
@@ -1076,35 +1258,89 @@ onBeforeUnmount(revokeObjectUrls)
             >
               {{ $t('pages.settings.settings.documentArtworkHint') }}
             </VAlert>
-            <VCard variant="outlined" class="mb-5">
-              <VCardItem title="Contract-specific artwork" subtitle="Choose a contract type and, optionally, a service. This design is saved with each newly issued contract." />
-              <VCardText>
-                <VRow>
+            <VRow>
+              <!--
+                Scope selection lives with the artwork it edits: the contract
+                type — and, for customer contracts, an optional service —
+                decides which row the cards below read and write. This is the
+                only artwork editor on the page; the file selects are below.
+              -->
+              <VCol cols="12">
+                <VRow density="compact">
                   <VCol cols="12" md="6">
-                    <VSelect v-model="selectedDesignTypeId" :items="typeOptions" label="Contract type" :disabled="!canEditSettings" />
+                    <VSelect
+                      v-model="selectedDesignTypeId"
+                      :items="typeOptions"
+                      :label="$t('pages.settings.settings.contractTypeScope')"
+                      :disabled="!canEditSettings"
+                    />
                   </VCol>
-                  <VCol cols="12" md="6">
-                    <VSelect v-model="selectedDesignServiceId" :items="serviceOptions" label="Service (optional)" clearable :disabled="!canEditSettings" />
-                  </VCol>
-                  <VCol cols="12" md="6">
-                    <VFileInput v-model="designLetterhead" label="Letterhead" accept="image/jpeg,image/png,image/webp" prepend-icon="tabler-file-upload" :disabled="!canEditSettings" />
-                    <VImg v-if="selectedDocumentDesign?.letterhead_url" :src="selectedDocumentDesign.letterhead_url" height="120" cover class="mt-2" />
-                  </VCol>
-                  <VCol cols="12" md="6">
-                    <VFileInput v-model="designCover" label="Cover" accept="image/jpeg,image/png,image/webp" prepend-icon="tabler-file-upload" :disabled="!canEditSettings" />
-                    <VImg v-if="selectedDocumentDesign?.cover_design_url" :src="selectedDocumentDesign.cover_design_url" height="120" cover class="mt-2" />
+                  <VCol
+                    v-if="supportsServiceScope"
+                    cols="12"
+                    md="6"
+                  >
+                    <VSelect
+                      v-model="selectedDesignServiceId"
+                      :items="serviceOptions"
+                      :label="$t('pages.settings.settings.serviceScopeOptional')"
+                      clearable
+                      :disabled="!canEditSettings"
+                    />
                   </VCol>
                 </VRow>
-                <VBtn color="primary" prepend-icon="tabler-device-floppy" :loading="designSaving" :disabled="!canEditSettings || !selectedDesignTypeId || (!designLetterhead && !designCover)" @click="saveDocumentDesign">
-                  Save contract design
-                </VBtn>
-              </VCardText>
-            </VCard>
-            <VRow>
+                <p
+                  v-if="supportsServiceScope"
+                  class="text-caption text-medium-emphasis mt-1"
+                >
+                  {{ $t('pages.settings.settings.serviceScopeHint') }}
+                </p>
+                <p
+                  v-else-if="isDesignScope"
+                  class="text-caption text-medium-emphasis mt-1"
+                >
+                  {{ $t('pages.settings.settings.singleTypeScopeHint') }}
+                </p>
+                <div class="d-flex flex-wrap align-center ga-2 mt-2">
+                  <VChip
+                    :color="isDesignScope && designDirty ? 'warning' : 'secondary'"
+                    size="small"
+                    variant="tonal"
+                    class="me-2"
+                  >
+                    {{ designScopeLabel }}
+                  </VChip>
+                  <VBtn
+                    v-if="isDesignScope"
+                    color="primary"
+                    size="small"
+                    prepend-icon="tabler-device-floppy"
+                    :loading="designSaving"
+                    :disabled="!canEditSettings || !designDirty"
+                    @click="saveDocumentDesign"
+                  >
+                    {{ $t('pages.settings.settings.saveArtworkForScope') }}
+                  </VBtn>
+                  <VBtn
+                    v-if="isDesignScope"
+                    color="secondary"
+                    variant="tonal"
+                    size="small"
+                    prepend-icon="tabler-restore"
+                    :disabled="!canEditSettings || !designDirty"
+                    @click="resetDesignScopeChanges"
+                  >
+                    {{ $t('pages.settings.settings.resetArtworkScope') }}
+                  </VBtn>
+                </div>
+                <p class="text-caption text-medium-emphasis mt-2 mb-0">
+                  {{ $t('pages.settings.settings.artworkEditorScopeHint', { scope: designScopeLabel }) }}
+                </p>
+              </VCol>
               <VCol
                 v-for="asset in [
-                  { field: 'contract_letterhead' as const, title: translate('pages.settings.settings.contractLetterhead'), preview: letterheadPreview, hint: translate('pages.settings.settings.documentImageHint') },
-                  { field: 'contract_cover_design' as const, title: translate('pages.settings.settings.contractCoverDesign'), preview: coverDesignPreview, hint: translate('pages.settings.settings.documentImageHint') },
+                  { field: 'contract_letterhead' as const, title: translate('pages.settings.settings.contractLetterhead'), hint: translate('pages.settings.settings.documentImageHint') },
+                  { field: 'contract_cover_design' as const, title: translate('pages.settings.settings.contractCoverDesign'), hint: translate('pages.settings.settings.documentImageHint') },
                 ]"
                 :key="asset.field"
                 cols="12"
@@ -1115,8 +1351,8 @@ onBeforeUnmount(revokeObjectUrls)
                 </div>
                 <div class="document-artwork-preview mb-3">
                   <VImg
-                    v-if="asset.preview"
-                    :src="asset.preview"
+                    v-if="activeArtworkPreview(asset.field)"
+                    :src="activeArtworkPreview(asset.field) ?? undefined"
                     :alt="$t('pages.settings.settings.documentPreviewAlt', { title: asset.title })"
                     cover
                   />
@@ -1148,11 +1384,11 @@ onBeforeUnmount(revokeObjectUrls)
                       accept="image/jpeg,image/png,image/webp"
                       class="file-overlay"
                       :disabled="!canEditSettings"
-                      @change="handleImageUpload($event, asset.field)"
+                      @change="handleArtworkUpload($event, asset.field)"
                     >
                   </VBtn>
                   <VBtn
-                    v-if="asset.preview"
+                    v-if="activeArtworkPreview(asset.field)"
                     color="error"
                     variant="tonal"
                     :disabled="!canEditSettings"
@@ -1179,8 +1415,8 @@ onBeforeUnmount(revokeObjectUrls)
                   </p>
                   <div class="letterhead-safe-preview">
                     <VImg
-                      v-if="letterheadPreview"
-                      :src="letterheadPreview"
+                      v-if="activeLetterheadPreview"
+                      :src="activeLetterheadPreview ?? undefined"
                       cover
                     />
                     <div
@@ -1215,13 +1451,40 @@ onBeforeUnmount(revokeObjectUrls)
                       />
                     </div>
                   </div>
+                  <p class="text-caption text-medium-emphasis mt-3 mb-2">
+                    {{ $t('pages.settings.settings.printSafeAreaSizing') }}
+                  </p>
+                  <VRow density="compact">
+                    <VCol
+                      v-for="size in [
+                        { field: 'x' as const, label: translate('pages.settings.settings.printSafeAreaOffsetX') },
+                        { field: 'y' as const, label: translate('pages.settings.settings.printSafeAreaOffsetY') },
+                        { field: 'width' as const, label: translate('pages.settings.settings.printSafeAreaWidth') },
+                        { field: 'height' as const, label: translate('pages.settings.settings.printSafeAreaHeight') },
+                      ]"
+                      :key="size.field"
+                      cols="6"
+                      sm="3"
+                    >
+                      <VTextField
+                        :model-value="activeSafeArea[size.field]"
+                        :label="size.label"
+                        type="number"
+                        suffix="%"
+                        density="compact"
+                        hide-details
+                        :disabled="!canEditSettings"
+                        @update:model-value="setSafeAreaFromInput(size.field, $event)"
+                      />
+                    </VCol>
+                  </VRow>
                 </div>
               </VCol>
             </VRow>
           </template>
         </VCardText>
-        <VDivider />
-        <VCardActions class="pa-5 px-6 justify-end ga-3">
+        <VDivider v-if="activeSettingsPage !== 'office'" />
+        <VCardActions v-if="activeSettingsPage !== 'office'" class="pa-5 px-6 justify-end ga-3">
           <VBtn
             color="secondary"
             variant="tonal"

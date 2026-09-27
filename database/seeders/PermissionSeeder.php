@@ -46,6 +46,15 @@ class PermissionSeeder extends Seeder
         ['name' => 'review_audit_logs', 'category' => 'core'],
         ['name' => 'revert_audit_changes', 'category' => 'core'],
         ['name' => 'manage_audit_scope', 'category' => 'core'],
+        // Org-hierarchy scope. "subordinate" covers the user's group: the
+        // employees beneath them in the supervisor chain plus the members of
+        // any department they manage. View is read-only; manage permits
+        // edits, mirroring how a senior counselor observes but cannot change
+        // a counselor's records.
+        ['name' => 'view_subordinate_records', 'category' => 'core'],
+        ['name' => 'manage_subordinate_records', 'category' => 'core'],
+        ['name' => 'view_team_audit_logs', 'category' => 'core'],
+        ['name' => 'view_all_audits', 'category' => 'core'],
 
         // Identity and access management. Roles and permissions are
         // system-owned catalog data; access assignments are managed separately.
@@ -65,13 +74,19 @@ class PermissionSeeder extends Seeder
         ['name' => 'edit_roles', 'category' => 'identity_access'],
         ['name' => 'delete_roles', 'category' => 'identity_access'],
         ['name' => 'manage_role_permissions', 'category' => 'identity_access'],
+        ['name' => 'manage_role_hierarchy', 'category' => 'identity_access'],
         ['name' => 'view_permissions', 'category' => 'identity_access'],
 
         // HR directory and leave ledger
         ['name' => 'view_employees', 'category' => 'human_resources'],
+        ['name' => 'view_all_employees', 'category' => 'human_resources'],
         ['name' => 'create_employees', 'category' => 'human_resources'],
         ['name' => 'edit_employees', 'category' => 'human_resources'],
+        ['name' => 'manage_all_employees', 'category' => 'human_resources'],
         ['name' => 'delete_employees', 'category' => 'human_resources'],
+        ['name' => 'view_departments', 'category' => 'human_resources'],
+        ['name' => 'manage_departments', 'category' => 'human_resources'],
+        ['name' => 'assign_employee_supervisor', 'category' => 'human_resources'],
         ['name' => 'view_paid_time_off', 'category' => 'human_resources'],
         ['name' => 'create_paid_time_off', 'category' => 'human_resources'],
         ['name' => 'edit_paid_time_off', 'category' => 'human_resources'],
@@ -112,6 +127,7 @@ class PermissionSeeder extends Seeder
 
         // Contracts and their service catalog
         ['name' => 'view_contracts', 'category' => 'customer_contracts'],
+        ['name' => 'view_all_contracts', 'category' => 'customer_contracts'],
         ['name' => 'create_contracts', 'category' => 'customer_contracts'],
         ['name' => 'edit_contracts', 'category' => 'customer_contracts'],
         ['name' => 'cancel_contracts', 'category' => 'customer_contracts'],
@@ -271,6 +287,10 @@ class PermissionSeeder extends Seeder
         ['name' => 'update_own_notifications', 'category' => 'operations'],
         ['name' => 'delete_own_notifications', 'category' => 'operations'],
         ['name' => 'send_notifications', 'category' => 'operations'],
+        // A normal notification sender can address themselves and their
+        // organisational scope only. This explicit grant is required for a
+        // company-wide announcement.
+        ['name' => 'send_all_notifications', 'category' => 'operations'],
         ['name' => 'upload_files', 'category' => 'operations'],
         ['name' => 'view_files', 'category' => 'operations'],
         ['name' => 'download_files', 'category' => 'operations'],

@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\UserResource;
+use App\Models\Role;
 use App\Models\User;
+use App\Support\RoleHierarchy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +31,7 @@ class UserController extends Controller
         if (in_array('super_admin', $data['roles'], true) && ! $request->user()->isSuperAdmin()) {
             abort(403, 'auth.forbidden');
         }
+        $this->guardRoleAssignment($request, $data['roles']);
         $roles = $data['roles'];
         unset($data['roles']);
         $data['password'] = Hash::make(Str::random(64));
@@ -50,6 +53,7 @@ class UserController extends Controller
     public function update(Request $request, User $user): JsonResponse
     {
         $this->authorizePermission($request, 'edit_users');
+        $this->guardTargetRank($request, $user);
         $data = $this->validated($request, $user);
         if (array_key_exists('acc_status', $data)
             && ($user->acc_status === 'deactivated' || $data['acc_status'] === 'deactivated')
@@ -59,6 +63,7 @@ class UserController extends Controller
         if ($request->has('roles')) {
             $this->authorizePermission($request, 'assign_user_roles');
             $this->guardSuperAdminAssignment($request, $user, $data);
+            $this->guardRoleAssignment($request, $data['roles'] ?? []);
         }
         $this->guardCurrentSuperAdmin($request, $user, $data);
         $emailChanged = isset($data['email']) && $data['email'] !== $user->email;
@@ -85,6 +90,7 @@ class UserController extends Controller
     {
         $this->authorizePermission($request, 'delete_users');
         $this->guardSuperAdminTarget($request, $user);
+        $this->guardTargetRank($request, $user);
         abort_if($user->is($request->user()), 422, 'business.cannot_delete_current_user');
         DB::transaction(function () use ($user): void {
             abort_if($this->isLastSuperAdmin($user, true), 422, 'business.last_super_admin_required');
@@ -100,6 +106,7 @@ class UserController extends Controller
     {
         $this->authorizePermission($request, 'manage_user_status');
         $this->guardSuperAdminTarget($request, $user);
+        $this->guardTargetRank($request, $user);
         abort_if($user->acc_status === 'deactivated', 422, 'business.use_account_reactivation_workflow');
         $data = $request->validate(['acc_status' => ['required', Rule::in(['active', 'inactive'])]]);
         $this->guardCurrentSuperAdmin($request, $user, $data);
@@ -175,5 +182,38 @@ class UserController extends Controller
         if (in_array('super_admin', $data['roles'] ?? [], true) && ! $request->user()->isSuperAdmin()) {
             abort(403, 'auth.forbidden');
         }
+    }
+
+    /**
+     * No one may grant a role at or above their own seniority. A senior
+     * counselor therefore cannot promote themselves or a peer into a
+     * supervisory role.
+     *
+     * @param array<int, string> $roleNames
+     */
+    private function guardRoleAssignment(Request $request, array $roleNames): void
+    {
+        $hierarchy = app(RoleHierarchy::class);
+        $levels = Role::query()->whereIn('name', $roleNames)->pluck('level', 'name')->all();
+
+        foreach ($roleNames as $name) {
+            $level = (int) ($levels[$name] ?? 0);
+            if ($level === 0) {
+                $level = $hierarchy->defaultLevel($name);
+            }
+            abort_unless($hierarchy->canAssignLevel($request->user(), $level), 403, 'auth.forbidden');
+        }
+    }
+
+    /** A user may not edit or deactivate someone who outranks them. */
+    private function guardTargetRank(Request $request, User $user): void
+    {
+        $actor = $request->user();
+        if ($actor->isSuperAdmin() || $actor->is($user)) {
+            return;
+        }
+
+        $hierarchy = app(RoleHierarchy::class);
+        abort_unless($hierarchy->rank($actor) > $hierarchy->rank($user), 403, 'auth.forbidden');
     }
 }

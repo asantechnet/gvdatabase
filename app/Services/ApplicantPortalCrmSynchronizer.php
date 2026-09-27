@@ -33,7 +33,7 @@ class ApplicantPortalCrmSynchronizer
             Lead::firstOrCreate(['applicant_id' => $applicant->id], [
                 'applicant_id' => $applicant->id,
                 'name' => $user->name,
-                'company' => $applicant->company ?: $user->name,
+                'company' => $user->name,
                 'contact' => $user->phone ?: $user->email,
                 'email' => $user->email,
                 'service_interest' => 'Educational application services',

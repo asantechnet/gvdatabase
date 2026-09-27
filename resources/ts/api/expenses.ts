@@ -5,7 +5,7 @@ import type { Project } from './project'
 
 export interface Expense {
   id: number
-  customer_id: number | null
+  applicant_id: number | null
   company_id: number | null
   company?: Pick<Company, 'id' | 'legal_name' | 'trade_name'> | { id: number; name: string } | null
   project_id: number | null
@@ -28,7 +28,7 @@ export interface Expense {
 }
 
 export interface ExpenseCreateData {
-  customer_id?: number | null
+  applicant_id?: number | null
   company_id?: number | null
   project_id?: number | null
   currency_id: number
@@ -41,7 +41,7 @@ export interface ExpenseCreateData {
 }
 
 export interface ExpenseUpdateData {
-  customer_id?: number | null
+  applicant_id?: number | null
   company_id?: number | null
   project_id?: number | null
   currency_id?: number

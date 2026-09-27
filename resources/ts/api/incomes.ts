@@ -5,7 +5,7 @@ import type { Company } from './company'
 export interface Income {
   id: number
   receipt_number: string
-  customer_id: number | null
+  applicant_id: number | null
   company_id: number | null
   company?: Pick<Company, 'id' | 'legal_name' | 'trade_name'> | { id: number; name: string } | null
   invoice_id: number | null
@@ -30,7 +30,7 @@ export interface Income {
 }
 
 export interface IncomeCreateData {
-  customer_id?: number | null
+  applicant_id?: number | null
   company_id?: number | null
   invoice_id?: number | null
   currency_id: number
@@ -43,7 +43,7 @@ export interface IncomeCreateData {
 }
 
 export interface IncomeUpdateData {
-  customer_id?: number | null
+  applicant_id?: number | null
   company_id?: number | null
   invoice_id?: number | null
   currency_id?: number

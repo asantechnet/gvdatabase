@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import ServiceForm from '@/components/forms/ServiceForm.vue'
-import ServiceApi, { type CreateServiceData, type UpdateServiceData } from '@/api/services'
+import ServiceApi, { type CreateServiceData, type ServiceContractTemplate, type UpdateServiceData } from '@/api/services'
 import CurrencyApi from '@/api/currency'
 import { apiErrorMessage } from '@/utils/apiErrors'
 
@@ -15,6 +16,7 @@ interface ServiceItem {
   currency: string
   currency_id: number
   status: 'active' | 'inactive'
+  contractTemplate?: ServiceContractTemplate | null
 }
 
 interface CurrencyOption {
@@ -28,6 +30,7 @@ const headers = [
   { title: translate('pages.contracts.services.services.fee'), key: 'fee', align: 'start' },
   { title: translate('common.fields.currency2'), key: 'currency', align: 'start' },
   { title: translate('common.fields.status2'), key: 'status', align: 'start' },
+  { title: translate('pages.contracts.services.services.contractTemplate'), key: 'contract_template', align: 'start' },
   { title: translate('pages.contracts.services.services.actions'), key: 'actions', align: 'end', sortable: false },
 ] as const
 
@@ -39,6 +42,7 @@ const editedItemId = ref<number | null>(null)
 const selectedItemForDelete = ref<number | null>(null)
 const isLoading = ref(false)
 const toast = useToast()
+const router = useRouter()
 
 // Default form state
 const defaultItem: Omit<ServiceItem, 'id'> = {
@@ -81,6 +85,7 @@ const fetchServices = async () => {
       status: service.status as 'active' | 'inactive',
       currency: service.currency.code,
       currency_id: service.currency.id,
+      contractTemplate: service.contract_template ?? null,
     }))
   }
   catch (error) {
@@ -259,6 +264,14 @@ const confirmDelete = (id: number) => {
   isDeleteDialogVisible.value = true
 }
 
+/**
+ * Open the contract-documents templates tab pre-scoped to this service. The
+ * templates tab owns creation/versioning; the catalogue only links to it.
+ */
+const manageContractTemplate = (item: ServiceItem) => {
+  router.push({ name: 'contract-documents', query: { tab: 'templates', serviceId: String(item.id) } })
+}
+
 // --- Helpers ---
 const resolveStatusColor = (status: ServiceItem['status']) => {
   switch (status) {
@@ -331,9 +344,39 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
         </VChip>
       </template>
 
+      <!-- CONTRACT TEMPLATE Slot -->
+      <template #item.contract_template="{ item }">
+        <VChip
+          v-if="item.contractTemplate"
+          color="success"
+          size="small"
+          variant="tonal"
+        >
+          {{ item.contractTemplate.name }}
+        </VChip>
+        <VChip
+          v-else
+          color="warning"
+          size="small"
+          variant="tonal"
+        >
+          {{ $t('pages.contracts.services.services.templateMissing') }}
+        </VChip>
+      </template>
+
       <!-- ACTIONS Slot -->
       <template #item.actions="{ item }">
         <div class="d-flex justify-end gap-2">
+          <VBtn
+            icon
+            variant="text"
+            size="small"
+            color="primary"
+            :title="$t('pages.contracts.services.services.manageContractTemplate')"
+            @click="manageContractTemplate(item)"
+          >
+            <VIcon :icon="item.contractTemplate ? 'tabler-file-text' : 'tabler-file-plus'" />
+          </VBtn>
           <FullDetailsButton
             :item="item"
             :title="item.type"

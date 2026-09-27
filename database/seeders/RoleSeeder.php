@@ -3,16 +3,23 @@
 namespace Database\Seeders;
 
 use App\Models\Role;
+use App\Support\RoleHierarchy;
 use Illuminate\Database\Seeder;
 
 class RoleSeeder extends Seeder
 {
+    /**
+     * System roles and their canonical seniority. Higher levels outrank lower
+     * ones. Levels already customised in the database are preserved, so an
+     * administrator's `manage_role_hierarchy` change survives a re-seed.
+     */
     public function run(): void
     {
-        $roles = ['super_admin', 'admin', 'manager', 'staff', 'viewer', 'applicant'];
-
-        foreach ($roles as $name) {
-            Role::query()->firstOrCreate(['name' => $name]);
+        foreach (RoleHierarchy::LEVELS as $name => $level) {
+            $role = Role::query()->firstOrCreate(['name' => $name]);
+            if ((int) $role->level === 0) {
+                $role->update(['level' => $level]);
+            }
         }
     }
 }

@@ -24,6 +24,9 @@ class TaskPolicy
         return $this->view($user, $task) && (
             $user->hasPermission('edit_all_tasks')
             || ($user->hasPermission('edit_assigned_tasks') && TaskAccess::isTaskAssignee($user, $task))
+            // Managing a subordinate's task needs the manage scope, so a
+            // view-only supervisor cannot change it.
+            || ($user->hasPermission('edit_assigned_tasks') && TaskAccess::isTeamTaskAssignee($user, $task))
         );
     }
 
@@ -32,13 +35,15 @@ class TaskPolicy
         return $this->view($user, $task) && (
             $user->hasPermission('delete_all_tasks')
             || ($user->hasPermission('delete_assigned_tasks') && TaskAccess::isTaskAssignee($user, $task))
+            || ($user->hasPermission('delete_assigned_tasks') && TaskAccess::isTeamTaskAssignee($user, $task))
         );
     }
 
     public function move(User $user, Task $task, Board $destination): bool
     {
         $canMove = $user->hasPermission('move_all_tasks')
-            || ($user->hasPermission('move_assigned_tasks') && TaskAccess::isTaskAssignee($user, $task));
+            || ($user->hasPermission('move_assigned_tasks') && TaskAccess::isTaskAssignee($user, $task))
+            || ($user->hasPermission('move_assigned_tasks') && TaskAccess::isTeamTaskAssignee($user, $task));
 
         return $canMove && $this->view($user, $task) && TaskAccess::canViewBoard($user, $destination);
     }

@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import InvoiceTemplate from './templates/invoice_template.vue'
-import CustomerApi, { type Customer, type CustomerService } from '@/api/customer'
+import ApplicantApi, { type Applicant } from '@/api/applicants'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import InvoiceApi, { type Invoice } from '@/api/invoice'
 import PaymentDetailApi, { type PaymentDetail } from '@/api/paymentDetails'
@@ -13,7 +13,7 @@ const route = useRoute()
 const toast = useToast()
 
 const invoices = ref<Invoice[]>([])
-const customers = ref<Customer[]>([])
+const customers = ref<Applicant[]>([])
 const currencies = ref<Currency[]>([])
 const paymentDetails = ref<PaymentDetail[]>([])
 const companySetting = ref<Setting | null>(null)
@@ -31,7 +31,7 @@ const invoiceTemplateRef = ref<InstanceType<typeof InvoiceTemplate> | null>(null
 const invoiceStatuses: Invoice['status'][] = ['Issued', 'Partially Paid', 'Paid', 'Overdue', 'Void']
 
 const defaultForm = () => ({
-  customer_id: 0,
+  applicant_id: 0,
   currency_id: 0,
   rate: 1,
   issue_date: new Date().toISOString().slice(0, 10),
@@ -76,7 +76,7 @@ const serviceHeaders = [
 ]
 
 const selectedCustomer = computed(() =>
-  customers.value.find(customer => customer.id === invoiceForm.value.customer_id) ?? null,
+  customers.value.find(customer => customer.id === invoiceForm.value.applicant_id) ?? null,
 )
 
 const invoiceCurrency = computed(() =>
@@ -95,7 +95,7 @@ const selectedServices = computed(() =>
   assignedServices.value.filter(service => invoiceForm.value.service_ids.includes(service.id)),
 )
 
-const convertServiceFee = (service: CustomerService) => {
+const convertServiceFee = (service: NonNullable<Applicant['services']>[number]) => {
   const sourceRate = Number(service.currency?.rate ?? 1)
   const targetRate = Number(invoiceForm.value.rate)
   const fee = Number(service.fee ?? (service as unknown as { service?: { fee?: number | string | null } }).service?.fee ?? 0)
@@ -145,22 +145,26 @@ const fetchInvoices = async () => {
 
 const fetchFormOptions = async () => {
   const [customerResponse, currencyResponse, paymentDetailResponse] = await Promise.all([
-    CustomerApi.getAll(),
+    ApplicantApi.list({ per_page: 100 }),
     CurrencyApi.getAll(),
     PaymentDetailApi.getAll(),
   ])
-
-  if (!customerResponse.success)
-    throw new Error(customerResponse.message || 'Failed to load customers')
 
   customers.value = customerResponse.data
   currencies.value = currencyResponse.data
   paymentDetails.value = paymentDetailResponse
 }
 
-const selectCustomer = (customerId: number) => {
-  invoiceForm.value.customer_id = Number(customerId)
+const selectCustomer = async (customerId: number | null) => {
+  invoiceForm.value.applicant_id = Number(customerId || 0)
   invoiceForm.value.service_ids = []
+  if (!customerId)
+    return
+
+  const applicant = await ApplicantApi.get(Number(customerId))
+  const index = customers.value.findIndex(item => item.id === applicant.id)
+  if (index >= 0)
+    customers.value[index] = applicant
 }
 
 const selectInvoiceCurrency = (currencyId: number) => {
@@ -175,7 +179,7 @@ const openCreateDialog = (customerId?: number) => {
 
   invoiceForm.value = {
     ...defaultForm(),
-    customer_id: Number(customerId || 0),
+    applicant_id: Number(customerId || 0),
     currency_id: Number(baseCurrency?.id || 0),
     rate: Number(baseCurrency?.rate || 1),
   }
@@ -196,7 +200,7 @@ const createInvoice = async () => {
   try {
     isLoading.value = true
     await InvoiceApi.create({
-      customer_id: invoiceForm.value.customer_id,
+      applicant_id: invoiceForm.value.applicant_id,
       currency_id: invoiceForm.value.currency_id,
       rate: Number(invoiceForm.value.rate),
       issue_date: invoiceForm.value.issue_date || undefined,
@@ -253,7 +257,7 @@ const formatInvoiceForTemplate = (invoice: Invoice) => ({
   dueDate: invoice.due_date ? formatLocalizedDate(invoice.due_date) : '',
   client: {
     name: invoice.deptor,
-    addressLines: [invoice.customer.company, invoice.customer.address, invoice.customer.contact, invoice.customer.email, invoice.customer.tax_number].filter(Boolean) as string[],
+    addressLines: [invoice.applicant.address, invoice.applicant.contact, invoice.applicant.email, invoice.applicant.tax_number].filter(Boolean) as string[],
   },
   sender: {
     brandName: companySetting.value?.original_company_name || companySetting.value?.short_company_name || companySetting.value?.website_title || 'Our Company',
@@ -512,7 +516,7 @@ onMounted(async () => {
                   md="6"
                 >
                   <VAutocomplete
-                    :model-value="invoiceForm.customer_id || null"
+                    :model-value="invoiceForm.applicant_id || null"
                     :items="customers"
                     item-title="name"
                     item-value="id"
@@ -825,7 +829,7 @@ onMounted(async () => {
                 type="submit"
                 prepend-icon="tabler-file-check"
                 :loading="isLoading"
-                :disabled="!invoiceForm.customer_id || !invoiceForm.currency_id || invoiceForm.service_ids.length === 0"
+                :disabled="!invoiceForm.applicant_id || !invoiceForm.currency_id || invoiceForm.service_ids.length === 0"
               >
                 {{ $t('common.messages.issueInvoice') }}
               </VBtn>

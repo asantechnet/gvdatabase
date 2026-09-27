@@ -20,11 +20,15 @@ const tr = (key: string) => t(`pages.contracts.shared.${key}`)
 const contractLabel = () => t('common.messages.contract')
 const documentDesign = computed(() => documentContract.value?.snapshot_data?.document_design)
 const company = computed<CompanyDetails>(() => ({ brandName: setting.value?.original_company_name || setting.value?.short_company_name || setting.value?.website_title || 'Educational Agency', logo: setting.value?.website_logo_url || undefined, address: setting.value?.physical_address || undefined, phone: setting.value?.phone || undefined, email: setting.value?.company_email || undefined, website: setting.value?.website_address || undefined, letterheadUrl: documentDesign.value?.letterhead_url || setting.value?.contract_letterhead_url || undefined, letterheadSafeX: documentDesign.value?.safe_x ?? setting.value?.contract_letterhead_safe_x, letterheadSafeY: documentDesign.value?.safe_y ?? setting.value?.contract_letterhead_safe_y, letterheadSafeWidth: documentDesign.value?.safe_width ?? setting.value?.contract_letterhead_safe_width, letterheadSafeHeight: documentDesign.value?.safe_height ?? setting.value?.contract_letterhead_safe_height, signatureUrl: setting.value?.company_signature_url || undefined }))
-const versionLabel = computed(() => documentContract.value?.snapshot_data?.template_version?.version_number ? `v${documentContract.value.snapshot_data.template_version.version_number}` : null)
+const versionLabel = computed(() => {
+  const version = documentContract.value?.snapshot_data?.template_version
+  if (!version?.version_number) return null
+  return [version.name, `v${version.version_number}`, version.country_name, version.language_name].filter(Boolean).join(' · ')
+})
 const printedTitle = computed(() => [documentContract.value?.contract || documentContract.value?.contract_template?.name || contractLabel(), versionLabel.value].filter(Boolean).join(' - '))
 
 const pages = computed(() => {
-  const content = legacyContentToHtml(documentContract.value?.content ?? documentContract.value?.contract_template?.content)
+  const content = legacyContentToHtml(documentContract.value?.content)
 
   return content ? [content] : [`<h1>${tr('contractAgreement')}</h1><p>${tr('defaultTerms')}</p>`]
 })

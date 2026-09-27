@@ -13,7 +13,7 @@ class AssetSeeder extends Seeder
      */
     public function run(): void
     {
-        $offices = Office::whereIn('code', ['HQ', 'BR-A', 'BR-B'])->pluck('id', 'code');
+        $officeId = Office::where('code', 'HQ')->value('id');
 
         $assets = [
             [
@@ -22,7 +22,7 @@ class AssetSeeder extends Seeder
                 'quantity' => 1,
                 'model' => 'XPS 15',
                 'condition' => 'good',
-                'office_id' => $offices['HQ'],
+                'office_id' => $officeId,
             ],
             [
                 'serial_number' => 'SN-1002',
@@ -30,7 +30,7 @@ class AssetSeeder extends Seeder
                 'quantity' => 2,
                 'model' => '27f',
                 'condition' => 'new',
-                'office_id' => $offices['BR-A'],
+                'office_id' => $officeId,
             ],
             [
                 'serial_number' => 'SN-1003',
@@ -38,7 +38,7 @@ class AssetSeeder extends Seeder
                 'quantity' => 5,
                 'model' => 'MX Master',
                 'condition' => 'fair',
-                'office_id' => $offices['BR-B'],
+                'office_id' => $officeId,
             ],
         ];
 

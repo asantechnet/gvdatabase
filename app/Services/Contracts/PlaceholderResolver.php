@@ -96,7 +96,7 @@ class PlaceholderResolver
         if ($applicant = $context['applicant'] ?? $context['customer'] ?? null) {
             $values += [
                 'customer.name' => $applicant->name,
-                'customer.company_name' => $applicant->company,
+                'customer.company_name' => null,
                 'customer.phone' => $applicant->contact,
                 'customer.email' => $applicant->email,
                 'customer.address' => $applicant->address,

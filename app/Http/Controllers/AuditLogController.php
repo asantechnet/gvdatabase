@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Concerns\Auditable;
+use App\Models\User;
 use App\Support\AuditPresenter;
+use App\Support\EmployeeScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -51,6 +53,8 @@ class AuditLogController extends Controller
                 });
             });
 
+        $this->scopeToActor($query, $request->user());
+
         $paginator = $query
             ->orderBy($data['sort'] ?? 'created_at', $data['direction'] ?? 'desc')
             ->orderByDesc('id')
@@ -77,6 +81,7 @@ class AuditLogController extends Controller
     public function show(Request $request, AuditLog $auditLog, AuditPresenter $presenter): JsonResponse
     {
         $this->authorizePermission($request, 'view_audit_logs');
+        $this->assertAuditAccess($request->user(), $auditLog);
 
         return response()->json(['success' => true, 'data' => $presenter->present($auditLog)]);
     }
@@ -211,5 +216,45 @@ class AuditLogController extends Controller
     private function authorizePermission(Request $request, string $permission): void
     {
         abort_unless($request->user()->hasPermission($permission), 403, 'auth.forbidden');
+    }
+
+    /**
+     * A team reviewer sees only the audit rows produced by their group (plus
+     * their own actions). Organisation-wide review needs `view_all_audits`.
+     */
+    private function scopeToActor($query, User $user): void
+    {
+        if ($user->isSuperAdmin() || $user->hasPermission('view_all_audits')) {
+            return;
+        }
+
+        if (! $user->hasPermission('view_team_audit_logs')) {
+            return;
+        }
+
+        $employeeIds = app(EmployeeScope::class)->visibleEmployeeIds($user);
+        $query->where(function ($query) use ($employeeIds, $user): void {
+            $query->whereIn('employee_id', $employeeIds)
+                ->orWhere('user_id', $user->id);
+        });
+    }
+
+    private function assertAuditAccess(User $user, AuditLog $auditLog): void
+    {
+        if ($user->isSuperAdmin() || $user->hasPermission('view_all_audits')) {
+            return;
+        }
+
+        if (! $user->hasPermission('view_team_audit_logs')) {
+            return;
+        }
+
+        $employeeIds = app(EmployeeScope::class)->visibleEmployeeIds($user);
+        abort_unless(
+            (int) $auditLog->user_id === (int) $user->id
+            || ($auditLog->employee_id !== null && in_array((int) $auditLog->employee_id, $employeeIds, true)),
+            403,
+            'auth.forbidden'
+        );
     }
 }
