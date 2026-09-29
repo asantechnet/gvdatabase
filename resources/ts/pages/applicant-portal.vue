@@ -11,7 +11,7 @@ const portal = ref<ApplicantPortalData | null>(null)
 const loading = ref(true)
 const saving = ref(false)
 const profileDialog = ref(false)
-const form = ref({ name: '', email: '', phone: '', address: '', date_of_birth: '', passport_number: '', nationality: '', education_background: '', intended_intake: '', english_test: '', preferred_contact_method: '' })
+const form = ref({ name: '', email: '', phone: '', address: '', father_name: '', father_phone: '', date_of_birth: '', passport_number: '', nationality: '', education_background: '', intended_intake: '', english_test: '', preferred_contact_method: '' })
 
 const progress = computed(() => {
   const value = portal.value?.case.progress
@@ -45,6 +45,7 @@ function populateForm() {
   if (!profile) return
   form.value = {
     name: profile.name ?? '', email: profile.email ?? '', phone: profile.phone ?? '', address: profile.address ?? '',
+    father_name: profile.father_name ?? '', father_phone: profile.father_phone ?? '',
     date_of_birth: profile.date_of_birth ?? '', passport_number: profile.passport_number ?? '', nationality: profile.nationality ?? '',
     education_background: profile.education_background ?? '', intended_intake: profile.intended_intake ?? '', english_test: profile.english_test ?? '', preferred_contact_method: profile.preferred_contact_method ?? '',
   }
@@ -65,6 +66,7 @@ async function saveProfile() {
   try {
     portal.value = await ApplicantPortalApi.updateProfile({
       name: form.value.name, email: form.value.email, phone: form.value.phone || null, address: form.value.address || null,
+      father_name: form.value.father_name || null, father_phone: form.value.father_phone || null,
       profile: {
         date_of_birth: form.value.date_of_birth || null, passport_number: form.value.passport_number || null,
         nationality: form.value.nationality || null, education_background: form.value.education_background || null,
@@ -150,6 +152,7 @@ onMounted(load)
               <VListItem :title="$t('applicantPortal.destination')" :subtitle="portal.case.destination_country || $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-map-pin" /></template></VListItem>
               <VListItem :title="$t('applicantPortal.primaryUniversity')" :subtitle="portal.case.primary_university || $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-building-community" /></template></VListItem>
               <VListItem :title="$t('applicantPortal.studyLevel')" :subtitle="portal.case.education_level || $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-school" /></template></VListItem>
+              <VListItem :title="$t('educational.gradePercentage')" :subtitle="portal.case.education_percentage !== null ? `${portal.case.education_percentage}%` : $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-percentage" /></template></VListItem>
               <VListItem :title="$t('applicantPortal.preferredLanguage')" :subtitle="portal.case.language || $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-language" /></template></VListItem>
               <VListItem :title="$t('applicantPortal.applicationDate')" :subtitle="formatDate(portal.case.application_date) || $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-calendar" /></template></VListItem>
             </VList>
@@ -166,7 +169,7 @@ onMounted(load)
         <VDivider />
         <VCardText>
           <div class="form-section-title"><VIcon icon="tabler-user" /><span>{{ $t('applicantPortal.personalContact') }}</span></div>
-          <VRow dense><VCol cols="12" md="6"><VTextField v-model="form.name" :label="$t('applicantPortal.fullName')" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.email" :label="$t('applicantPortal.email')" type="email" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.phone" :label="$t('applicantPortal.phone')" /></VCol><VCol cols="12" md="6"><VSelect v-model="form.preferred_contact_method" :items="[{ title: $t('applicantPortal.email'), value: 'email' }, { title: $t('applicantPortal.phone'), value: 'phone' }, { title: 'WhatsApp', value: 'whatsapp' }]" :label="$t('applicantPortal.contactMethod')" clearable /></VCol><VCol cols="12"><VTextarea v-model="form.address" :label="$t('applicantPortal.address')" rows="2" /></VCol></VRow>
+          <VRow dense><VCol cols="12" md="6"><VTextField v-model="form.name" :label="$t('applicantPortal.fullName')" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.email" :label="$t('applicantPortal.email')" type="email" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.phone" :label="$t('applicantPortal.phone')" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.father_name" :label="$t('educational.fatherName')" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.father_phone" :label="$t('educational.fatherPhone')" /></VCol><VCol cols="12" md="6"><VSelect v-model="form.preferred_contact_method" :items="[{ title: $t('applicantPortal.email'), value: 'email' }, { title: $t('applicantPortal.phone'), value: 'phone' }, { title: 'WhatsApp', value: 'whatsapp' }]" :label="$t('applicantPortal.contactMethod')" clearable /></VCol><VCol cols="12"><VTextarea v-model="form.address" :label="$t('applicantPortal.address')" rows="2" /></VCol></VRow>
           <div class="form-section-title mt-4"><VIcon icon="tabler-id" /><span>{{ $t('applicantPortal.identity') }}</span></div>
           <VRow dense><VCol cols="12" md="4"><VTextField v-model="form.date_of_birth" :label="$t('applicantPortal.dateOfBirth')" type="date" /></VCol><VCol cols="12" md="4"><VTextField v-model="form.nationality" :label="$t('applicantPortal.nationality')" /></VCol><VCol cols="12" md="4"><VTextField v-model="form.passport_number" :label="$t('applicantPortal.passportNumber')" /></VCol></VRow>
           <div class="form-section-title mt-4"><VIcon icon="tabler-school" /><span>{{ $t('applicantPortal.studyPlans') }}</span></div>

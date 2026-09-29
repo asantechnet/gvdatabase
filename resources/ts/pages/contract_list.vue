@@ -833,8 +833,6 @@ watch([selectedServiceId, isWithoutService], () => fetchContracts(contractReques
           :contract="selectedContract || undefined"
           :templates="templates"
           :audience="contractAudience"
-          :customer-id="customerIdQuery"
-          :default-service-id="selectedServiceId"
           @submit="handleFormSubmit"
           @cancel="isDialogVisible = false"
         />

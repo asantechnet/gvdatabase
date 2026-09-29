@@ -19,6 +19,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * The former `Customer` entity was merged into this model, so every
  * `applicant_id` foreign key in the system points at one of these rows and
  * `Customer` no longer exists.
+ *
+ * Guardian contact (`father_name`, `father_phone`) and the academic grade
+ * metric (`percentage`) belong to the applicant identity; `percentage` never
+ * replaces `education_level_id`, which names the qualification.
  */
 class Applicant extends Model
 {
@@ -28,6 +32,8 @@ class Applicant extends Model
         'user_id',
         'parent_applicant_id',
         'name',
+        'father_name',
+        'father_phone',
         'contact',
         'email',
         'address',
@@ -39,6 +45,7 @@ class Applicant extends Model
         'country_id',
         'university_id',
         'education_level_id',
+        'percentage',
         'language_id',
         'semester_id',
         'current_stage_id',
@@ -52,6 +59,7 @@ class Applicant extends Model
     protected $casts = [
         'application_date' => 'date:Y-m-d',
         'date' => 'date',
+        'percentage' => 'decimal:2',
         'profile_data' => 'array',
         'profile_completed_at' => 'datetime',
     ];

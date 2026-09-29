@@ -17,7 +17,7 @@ class TaskDependencySeeder extends Seeder
                 ->random(rand(0, 2))
                 ->pluck('id');
 
-            $task->dependencies()->attach($dependencies);
+            $task->dependencies()->syncWithoutDetaching($dependencies);
         }
     }
 }

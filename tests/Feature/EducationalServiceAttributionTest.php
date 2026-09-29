@@ -28,6 +28,7 @@ class EducationalServiceAttributionTest extends TestCase
     public function test_scholarship_sale_creates_and_keeps_a_traceable_bonus_source(): void
     {
         $applicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($applicant);
         $employee = Employee::factory()->create();
         $replacementEmployee = Employee::factory()->create();
         $currency = Currency::factory()->create();
@@ -78,6 +79,7 @@ class EducationalServiceAttributionTest extends TestCase
     public function test_service_is_attributed_to_the_single_applicant_it_is_issued_to(): void
     {
         $applicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($applicant);
         $employee = Employee::factory()->create();
         $currency = Currency::factory()->create();
 

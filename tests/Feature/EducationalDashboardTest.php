@@ -9,7 +9,6 @@ use App\Models\Country;
 use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Role;
-use App\Models\Scholarship;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -36,7 +35,14 @@ class EducationalDashboardTest extends TestCase
         $a = $this->postJson('/api/applicants', ['name' => 'Overview Case', 'country_id' => $iran->id, 'responsible_employee_id' => $employee->id])->assertCreated()->json('data');
 
         $currency = Currency::factory()->create();
-        Scholarship::create(['applicant_id' => $a['id'], 'employee_id' => $employee->id, 'currency_id' => $currency->id, 'date' => now()->toDateString(), 'fee' => 500, 'status' => 'active']);
+        // Sales are recorded as contract_service lines through the
+        // educational-services API; the legacy scholarships table is no
+        // longer part of the sales flow.
+        $this->seedApplicantDocuments($a['id']);
+        $this->postJson('/api/educational-services/scholarships', [
+            'applicant_id' => $a['id'], 'employee_id' => $employee->id, 'currency_id' => $currency->id,
+            'date' => now()->toDateString(), 'fee' => 500,
+        ])->assertCreated();
 
         $board = Board::factory()->create();
         Task::create(['board_id' => $board->id, 'applicant_id' => $a['id'], 'title' => 'Overdue case work', 'priority' => 'high', 'progress' => 0, 'due_date' => now()->subDay()->toDateString(), 'order' => 0]);

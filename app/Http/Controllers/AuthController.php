@@ -401,6 +401,7 @@ class AuthController extends Controller
             'avatar' => $employee?->avatar,
             'employee' => $employee ? [
                 'id' => $employee->id,
+                'name' => $employee->name,
                 'position_id' => $employee->position_id,
                 'is_marketer' => $isMarketer,
             ] : null,

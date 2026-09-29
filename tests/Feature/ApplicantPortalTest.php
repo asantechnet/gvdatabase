@@ -94,4 +94,32 @@ class ApplicantPortalTest extends TestCase
     {
         $this->getJson('/api/applicant-portal')->assertForbidden();
     }
+
+    public function test_portal_shows_the_guardian_contact_and_grade_metric_and_keeps_the_metric_staff_managed(): void
+    {
+        $case = Applicant::factory()->create([
+            'father_name' => 'Abdul Rahman',
+            'father_phone' => '+93700123456',
+            'percentage' => 82.5,
+        ]);
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $user->roles()->attach(Role::query()->where('name', 'applicant')->firstOrFail());
+        $case->update(['user_id' => $user->id]);
+
+        Sanctum::actingAs($user, ['access']);
+        $portal = $this->getJson('/api/applicant-portal')->assertOk()->json('data');
+        $this->assertSame('Abdul Rahman', $portal['profile']['father_name']);
+        $this->assertSame('+93700123456', $portal['profile']['father_phone']);
+        $this->assertSame(82.5, $portal['case']['education_percentage']);
+
+        // The student may correct the guardian contact on their own record ...
+        $this->putJson('/api/applicant-portal/profile', ['father_name' => 'Abdul Rahman Khan', 'father_phone' => '+93700999999'])
+            ->assertOk()
+            ->assertJsonPath('data.profile.father_name', 'Abdul Rahman Khan');
+        $this->assertSame('+93700999999', $case->fresh()->father_phone);
+
+        // ... but the grade metric recorded during intake is never writable here.
+        $this->putJson('/api/applicant-portal/profile', ['percentage' => 100])->assertOk();
+        $this->assertSame(82.5, (float) $case->fresh()->percentage);
+    }
 }

@@ -405,12 +405,13 @@ class ContractController extends Controller
             'service_id' => ['nullable', 'integer', 'exists:services,id'],
             // Multi-select successor of `service_id`: only active catalogue
             // services may be registered on a contract.
-            'service_ids' => ['nullable', 'array', 'max:1'],
+            'service_ids' => ['nullable', 'array'],
             'service_ids.*' => ['integer', Rule::exists('services', 'id')->where('status', 'active')->whereNull('deleted_at')],
             // Per-service line overrides (fee/currency/notes/attribution).
             // Keys align with the `contract_service` pivot columns.
-            'service_lines' => ['nullable', 'array', 'max:1'],
+            'service_lines' => ['nullable', 'array'],
             'service_lines.*.service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('status', 'active')->whereNull('deleted_at')],
+            'service_lines.*.service_variant_id' => ['nullable', 'integer', 'exists:service_variants,id'],
             'service_lines.*.fee' => ['nullable', 'numeric', 'min:0'],
             'service_lines.*.currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
             'service_lines.*.applicant_id' => ['nullable', 'integer', 'exists:applicants,id'],
@@ -455,6 +456,9 @@ class ContractController extends Controller
             if (! $partial && ! $request->filled('template_id') && ! $hasService) {
                 $validator->errors()->add('template_id', 'Select a supported contract template.');
             }
+            foreach ($request->input('service_lines', []) as $line) {
+                if (!empty($line['service_variant_id']) && (int) \App\Models\ServiceVariant::whereKey($line['service_variant_id'])->value('service_id') !== (int) ($line['service_id'] ?? 0)) $validator->errors()->add('service_lines', 'Every selected variant must belong to its service.');
+            }
         });
 
         $validator->validate();
@@ -466,16 +470,18 @@ class ContractController extends Controller
             $data['start_date'] = now()->toDateString();
         }
 
-        // Signatory is the editable account Full Name (users.name). Staff are
-        // hard-locked to their own account name; super-admin is auto-filled
-        // but remains editable.
+        // Signatory is the logged-in employee's name. Staff are hard-locked
+        // to their own employee name; super-admin is auto-filled but remains
+        // editable.
         $actor = $request->user();
         if ($actor) {
+            $actor->loadMissing('employee');
+            $signatoryDefault = $actor->employee?->name ?: $actor->name;
             if (! $actor->isSuperAdmin()) {
-                $data['company_signatory_name'] = $actor->name;
+                $data['company_signatory_name'] = $signatoryDefault;
             } elseif (! $partial || array_key_exists('company_signatory_name', $data)) {
                 if (empty(trim((string) ($data['company_signatory_name'] ?? '')))) {
-                    $data['company_signatory_name'] = $actor->name;
+                    $data['company_signatory_name'] = $signatoryDefault;
                 }
             }
         }
@@ -501,8 +507,24 @@ class ContractController extends Controller
         // Single-service shorthand: an explicit service_id behaves like a
         // one-item service_ids list; the template's own service is the
         // fallback so template-bound contracts stay linked automatically.
+        // The assignment UI never picks a service by hand — it follows the
+        // template — so backfill it here for the customer-type validation.
         $fallbackServiceId = $data['service_id'] ?? $template?->service_id;
         unset($data['service_id']);
+        if ($type?->slug === 'customer' && empty($data['service_lines']) && empty($data['service_ids']) && $fallbackServiceId) {
+            $data['service_ids'] = [(int) $fallbackServiceId];
+        }
+        if ($template && $type?->slug === 'customer') {
+            $selectedLines = $this->normalizeServiceLines($data, $fallbackServiceId);
+            $selectedIds = collect($selectedLines)->pluck('service_id')->map(fn ($id) => (int) $id)->unique()->sort()->values();
+            $scopes = $template->services()->get(['services.id', 'service_variant_id']);
+            $allowedIds = $scopes->pluck('id')->map(fn ($id) => (int) $id)->unique()->sort()->values();
+            abort_if($allowedIds->isNotEmpty() && $selectedIds->diff($allowedIds)->isNotEmpty(), 422, 'Selected services are not covered by this template.');
+            foreach ($selectedLines as $line) {
+                $scopedVariant = $scopes->firstWhere('id', (int) $line['service_id'])?->pivot?->service_variant_id;
+                abort_if($scopedVariant && (int) ($line['service_variant_id'] ?? 0) !== (int) $scopedVariant, 422, 'Selected variant is not covered by this template.');
+            }
+        }
         $contextEntity = $this->resolveContextEntity($type?->slug, $data);
         $caseCountryId = ! empty($data['applicant_id']) ? Applicant::query()->whereKey($data['applicant_id'])->value('country_id') : null;
         $contractCountryId = $caseCountryId ?: ($data['country_id'] ?? null);
@@ -664,6 +686,11 @@ class ContractController extends Controller
                 ->map(fn ($id) => (int) $id)->unique()->values()->all();
             unset($line['employee_ids']);
 
+            if (empty($line['fee']) && !empty($line['service_variant_id'])) {
+                $line['fee'] = \App\Models\ServiceVariant::whereKey($line['service_variant_id'])->value('fee')
+                    ?? Service::whereKey($line['service_id'])->value('fee');
+            }
+
             /** @var ContractService $row */
             $row = $contract->contractServices()->create($line);
 
@@ -748,10 +775,10 @@ class ContractController extends Controller
                     ->merge(collect($data['service_ids'] ?? [])->map(fn ($id) => (int) $id))
                     ->merge(! empty($data['service_id']) ? [(int) $data['service_id']] : [])
                     ->unique()->values()->all();
-                if (count($multiIds) !== 1) {
+                if (count($multiIds) < 1) {
                     abort(response()->json([
                         'success' => false,
-                        'message' => 'A customer contract must have exactly one service.',
+                        'message' => 'A customer contract must include at least one service.',
                     ], 422));
                 }
                 $services = \App\Models\Service::query()->where('status', 'active')->whereIn('id', $multiIds)->get();

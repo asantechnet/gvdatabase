@@ -34,9 +34,23 @@ class ApplicantUniversityController extends Controller
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        $universityCountry = \App\Models\University::query()->whereKey($data['university_id'])->value('country_id');
-        abort_unless($universityCountry && (int) $universityCountry === (int) $applicant->country_id, 422, 'business.university_country_mismatch');
-        abort_if($applicant->universities()->where('university_id', $data['university_id'])->where('semester_id', $data['semester_id'] ?? null)->exists(), 422, 'business.applicant_university_duplicate');
+        // The case's country scopes which universities apply. A case without
+        // a country yet has no context to match against, so any university is
+        // acceptable.
+        if ($applicant->country_id) {
+            $universityCountry = \App\Models\University::query()->whereKey($data['university_id'])->value('country_id');
+            abort_unless($universityCountry && (int) $universityCountry === (int) $applicant->country_id, 422, 'business.university_country_mismatch');
+        }
+        // Uniqueness follows the schema: one application per case, university
+        // and intake (NULL intake matches NULL intake at the application
+        // level, mirroring the app-level constraint).
+        $duplicateQuery = $applicant->universities()->where('university_id', $data['university_id']);
+        if (($data['intake'] ?? null) !== null) {
+            $duplicateQuery->where('intake', $data['intake']);
+        } else {
+            $duplicateQuery->whereNull('intake');
+        }
+        abort_if($duplicateQuery->exists(), 422, 'business.applicant_university_duplicate');
 
         $application = $applicant->universities()->create($data);
 

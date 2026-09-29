@@ -62,6 +62,9 @@ class EducationalMasterDataTest extends TestCase
         ]);
         $template = ContractTemplate::create(['name' => 'Admission agreement', 'contract_type_id' => ContractType::firstOrCreate(['slug' => 'educational-service'], ['name' => 'Educational service'])->id, 'cover_text' => '', 'content' => '<p>Legacy</p>']);
         ContractTemplateVersion::create(['contract_template_id' => $template->id, 'language_id' => $language['id'], 'version_number' => 1, 'content' => '<p>Version 1</p>']);
+        // Contracts (including package-issued ones) require at least one
+        // document on the case.
+        $this->seedApplicantDocuments($applicant);
         app(PackageIssuanceService::class)->issue(Package::findOrFail($package['id']), $applicant, ['sold_by_employee_id' => Employee::factory()->create()->id, 'purchased_at' => now()->toDateString()]);
 
         foreach ([['countries', $country['id']], ['education-levels', $level['id']], ['languages', $language['id']], ['package-types', $package['id']], ['universities', $university['id']]] as [$catalog, $id]) {

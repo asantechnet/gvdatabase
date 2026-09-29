@@ -37,6 +37,7 @@ class ServiceContractGenerationTest extends TestCase
         $service = $this->service();
         $template = $this->templateFor($service, '<p>{{customer.name}} bought {{service.name}}.</p>');
         $applicant = Applicant::factory()->create(['name' => 'Ali Rahimi']);
+        $this->seedApplicantDocuments($applicant);
         $employee = Employee::factory()->create();
         $currency = $service->currency;
 
@@ -64,6 +65,7 @@ class ServiceContractGenerationTest extends TestCase
     {
         $service = $this->service();
         $applicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($applicant);
         $employee = Employee::factory()->create();
 
         $this->postJson('/api/educational-services/scholarships', [
@@ -86,6 +88,7 @@ class ServiceContractGenerationTest extends TestCase
         $service = $this->service();
         $this->templateFor($service, '<p>{{customer.name}} — {{service.name}}</p>');
         $applicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($applicant);
         $employee = Employee::factory()->create();
 
         $first = $this->postJson('/api/educational-services/scholarships', $this->payload($service, $applicant, $employee))
@@ -104,6 +107,7 @@ class ServiceContractGenerationTest extends TestCase
         $service = $this->service();
         $this->templateFor($service, '<p>{{customer.name}}</p>');
         $applicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($applicant);
         $employee = Employee::factory()->create();
 
         $this->postJson('/api/educational-services/scholarships', $this->payload($service, $applicant, $employee))

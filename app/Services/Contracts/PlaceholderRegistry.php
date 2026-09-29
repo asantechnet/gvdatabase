@@ -29,7 +29,7 @@ class PlaceholderRegistry
             [
                 'key' => 'employee',
                 'label' => 'Employee',
-                'contexts' => ['employment'],
+                'contexts' => ['employment', 'other'],
                 'fields' => [
                     ['key' => 'employee.name', 'label' => 'Full Name'],
                     ['key' => 'employee.father_name', 'label' => 'Father Name'],
@@ -49,7 +49,7 @@ class PlaceholderRegistry
             [
                 'key' => 'position',
                 'label' => 'Position',
-                'contexts' => ['employment'],
+                'contexts' => ['employment', 'other'],
                 'fields' => [
                     ['key' => 'position.name', 'label' => 'Position Title'],
                     ['key' => 'position.description', 'label' => 'Description'],
@@ -59,7 +59,7 @@ class PlaceholderRegistry
             [
                 'key' => 'customer',
                 'label' => 'Customer',
-                'contexts' => ['customer', ...self::EDUCATIONAL_SLUGS],
+                'contexts' => ['customer', 'other', ...self::EDUCATIONAL_SLUGS],
                 'fields' => [
                     ['key' => 'customer.name', 'label' => 'Name'],
                     ['key' => 'customer.company_name', 'label' => 'Company'],
@@ -95,7 +95,7 @@ class PlaceholderRegistry
             [
                 'key' => 'company',
                 'label' => 'Counterparty Company',
-                'contexts' => ['company'],
+                'contexts' => ['other'],
                 'fields' => [
                     ['key' => 'company.legal_name', 'label' => 'Legal Name'],
                     ['key' => 'company.trade_name', 'label' => 'Trade Name'],

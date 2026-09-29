@@ -435,6 +435,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_services');
     Route::post('services/{service}/contract-template', [ServiceController::class, 'bindContractTemplate'])
         ->middleware('permission:manage_services');
+    Route::post('services/{service}/variants', [ServiceController::class, 'storeVariant'])->middleware('permission:manage_services');
+    Route::put('services/{service}/variants/{variant}', [ServiceController::class, 'updateVariant'])->middleware('permission:manage_services');
+    Route::delete('services/{service}/variants/{variant}', [ServiceController::class, 'destroyVariant'])->middleware('permission:manage_services');
 
     Route::apiResource('packages', PackageController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_packages')

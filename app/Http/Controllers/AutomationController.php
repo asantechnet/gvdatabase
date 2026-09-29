@@ -8,6 +8,7 @@ use App\Models\MonthlyAnalytics;
 use App\Services\BonusRuleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class AutomationController extends Controller
 {
@@ -18,7 +19,13 @@ class AutomationController extends Controller
 
     public function updateBonusRules(Request $request, BonusRuleService $rules): JsonResponse
     {
-        $validated = $request->validate([
+        // Older saved rule sets predate the current required keys, so the
+        // active rules are bridged through the normaliser before validating:
+        // an update touching one key must not be rejected because the stored
+        // row predates the newer keys.
+        $payload = [...$rules->canonicalRules($rules->active()->rules), ...$request->all()];
+
+        $validated = Validator::make($payload, [
             'minimum_completed_tasks' => ['required', 'integer', 'min:1'],
             'amount_per_completed_task' => ['required', 'numeric', 'min:0'],
             'minimum_cases_won' => ['required', 'integer', 'min:1'],
@@ -31,7 +38,7 @@ class AutomationController extends Controller
             'excluded_employee_ids.*' => ['integer', 'exists:employees,id'],
             'excluded_office_ids' => ['sometimes', 'array'],
             'excluded_office_ids.*' => ['integer', 'exists:offices,id'],
-        ]);
+        ])->validate();
         $validated = [...$rules->active()->rules, ...$validated];
 
         return response()->json(['success' => true, 'data' => $rules->update($validated, $request->user())]);

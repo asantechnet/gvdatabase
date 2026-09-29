@@ -124,11 +124,12 @@ const routeDefinitions: Array<{
   {
     // Templates and policies live on one page with in-page tab navigation.
     // The tab is kept in `?tab=` so each section stays deep-linkable.
-    path: '/contract-documents',
+    path: '/options/contracts/documents',
     component: 'contractDocuments',
     name: 'contract-documents',
     meta: { requiresAuth: true, anyPermissions: ['view_contract_templates', 'view_contract_policies'] },
   },
+  { path: '/contract-documents', redirect: to => ({ name: 'contract-documents', query: to.query }) },
   {
     path: '/contract-templates',
     name: 'contract-templates',

@@ -16,6 +16,12 @@ class ContractTemplateResource extends JsonResource
             'contract_type_id' => $this->contract_type_id,
             'service_id' => $this->service_id,
             'service' => new ServiceResource($this->whenLoaded('service')),
+            'services' => ServiceResource::collection($this->whenLoaded('services')),
+            'service_scopes' => $this->whenLoaded('services', fn () => $this->services->map(fn ($service) => [
+                'service_id' => $service->id, 'service_variant_id' => $service->pivot->service_variant_id,
+            ])->values()),
+            'package_id' => $this->package_id,
+            'package' => new PackageResource($this->whenLoaded('package')),
             'type_slug' => $this->getTypeSlugAttribute(),
             'position_id' => $this->position_id,
             'position' => new PositionResource($this->whenLoaded('position')),

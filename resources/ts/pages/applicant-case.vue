@@ -44,6 +44,20 @@ const canViewContracts = computed(() => canAccess('view_applicant_contracts'))
 const canCreateContracts = computed(() => canAccess('create_contracts'))
 const canViewServices = computed(() => canAccess('view_applicant_services'))
 const canManageServices = computed(() => canAccess('create_contracts'))
+// Family contact and the grade metric are shown next to the case title so
+// staff can confirm them without opening the edit dialog.
+const guardianSummary = computed(() => {
+  const current = applicant.value
+  if (!current) return []
+  const rows: Array<{ key: string; label: string; value: string }> = []
+  if (current.father_name)
+    rows.push({ key: 'father-name', label: t('educational.fatherName'), value: current.father_name })
+  if (current.father_phone)
+    rows.push({ key: 'father-phone', label: t('educational.fatherPhone'), value: current.father_phone })
+  if (current.percentage !== null && current.percentage !== undefined)
+    rows.push({ key: 'percentage', label: t('educational.gradePercentage'), value: `${n(Number(current.percentage))}%` })
+  return rows
+})
 const transitionOptions = computed(() => {
   const current = applicant.value?.current_stage?.key
   if (!current) return stages.value
@@ -90,7 +104,7 @@ const statusColor = (status: string) => ({ pending: 'secondary', applied: 'info'
 
 const editDialog = ref(false)
 const savingCase = ref(false)
-const editForm = ref({ responsible_employee_id: null as number | null, country_id: null as number | null, university_id: null as number | null, education_level_id: null as number | null, language_id: null as number | null, semester_id: null as number | null, application_date: '' })
+const editForm = ref({ father_name: '', father_phone: '', responsible_employee_id: null as number | null, country_id: null as number | null, university_id: null as number | null, education_level_id: null as number | null, percentage: '', language_id: null as number | null, semester_id: null as number | null, application_date: '' })
 const portalDialog = ref(false)
 const sendingPortalInvite = ref(false)
 const portalForm = ref({ name: '', email: '', phone: '', address: '' })
@@ -268,10 +282,13 @@ function openEditCase() {
     return
 
   editForm.value = {
+    father_name: applicant.value.father_name ?? '',
+    father_phone: applicant.value.father_phone ?? '',
     responsible_employee_id: applicant.value.responsible_employee_id ?? null,
     country_id: applicant.value.country_id ?? null,
     university_id: applicant.value.university_id ?? null,
     education_level_id: applicant.value.education_level_id ?? null,
+    percentage: applicant.value.percentage === null || applicant.value.percentage === undefined ? '' : String(applicant.value.percentage),
     language_id: applicant.value.language_id ?? null,
     semester_id: applicant.value.semester_id ?? null,
     application_date: applicant.value.application_date ?? '',
@@ -327,8 +344,11 @@ async function saveCase() {
     for (const [key, value] of Object.entries(editForm.value)) {
       if (key === 'responsible_employee_id' && !canAssignEmployee.value)
         continue
-      if (value !== null && value !== '')
-        payload[key] = value
+      if (value !== null && value !== '') {
+        // The grade metric is held as text so a cleared field is skipped
+        // instead of being posted as an empty number.
+        payload[key] = key === 'percentage' ? Number(value) : value
+      }
     }
 
     applicant.value = await ApplicantApi.update(applicant.value.id, payload)
@@ -549,6 +569,9 @@ onMounted(async () => {
       <VBtn v-else-if="canInvitePortal" size="small" variant="tonal" color="primary" prepend-icon="tabler-send" @click="openPortalInvite">{{ t('educational.caseUi.invitePortal') }}</VBtn>
       <VBtn v-if="canEditCase" size="small" variant="text" prepend-icon="tabler-pencil" @click="openEditCase">{{ t('educational.caseUi.editCase') }}</VBtn>
     </VCardTitle>
+    <VCardSubtitle v-if="guardianSummary.length" class="d-flex flex-wrap ga-4">
+      <span v-for="row in guardianSummary" :key="row.key">{{ row.label }}: <strong>{{ row.value }}</strong></span>
+    </VCardSubtitle>
     <VCardText class="visa-case-content">
       <div class="visa-case-stage-panel">
       <VChip color="primary">{{ applicant.current_stage?.name }}</VChip>
@@ -685,9 +708,14 @@ onMounted(async () => {
       <VCardText class="case-dialog-body">
         <VSelect v-if="canAssignEmployee" v-model="editForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="t('educational.responsibleEmployee')" clearable class="mb-3" />
         <VRow dense>
+          <VCol cols="12" sm="6"><VTextField v-model="editForm.father_name" :label="t('educational.fatherName')" clearable class="mb-3" /></VCol>
+          <VCol cols="12" sm="6"><VTextField v-model="editForm.father_phone" :label="t('educational.fatherPhone')" clearable class="mb-3" /></VCol>
+        </VRow>
+        <VRow dense>
           <VCol cols="12" sm="6"><VSelect v-model="editForm.country_id" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="t('educational.destinationCountry')" clearable class="mb-3" /></VCol>
           <VCol cols="12" sm="6"><VSelect v-model="editForm.university_id" :items="universities.filter(u => u.is_active && u.country_id === editForm.country_id).map(u => ({ title: u.name, value: u.id }))" :label="t('educational.caseUi.primaryUniversity')" clearable class="mb-3" /></VCol>
           <VCol cols="12" sm="6"><VSelect v-model="editForm.education_level_id" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="t('educational.educationLevel')" clearable class="mb-3" /></VCol>
+          <VCol cols="12" sm="6"><VTextField v-model="editForm.percentage" type="number" min="0" max="100" step="0.01" suffix="%" :label="t('educational.gradePercentage')" clearable class="mb-3" /></VCol>
           <VCol cols="12" sm="6"><VSelect v-model="editForm.language_id" :items="languages.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="t('educational.language')" clearable class="mb-3" /></VCol>
           <VCol cols="12" sm="6"><VSelect v-model="editForm.semester_id" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="t('educational.semester')" clearable class="mb-3" /></VCol>
         </VRow>

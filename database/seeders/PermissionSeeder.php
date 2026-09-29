@@ -186,6 +186,12 @@ class PermissionSeeder extends Seeder
         ['name' => 'view_financial_reports', 'category' => 'finance'],
         ['name' => 'export_financial_reports', 'category' => 'finance'],
 
+        // Outsourcing ledger (formerly created by the migrations themselves).
+        ['name' => 'view_outsourcing', 'category' => 'finance'],
+        ['name' => 'manage_outsourcing_settlements', 'category' => 'finance'],
+        ['name' => 'approve_outsourcing', 'category' => 'finance'],
+        ['name' => 'pay_outsourcing', 'category' => 'finance'],
+
         // Task management. Assigned scope is based on the task/board member
         // relationship; all scope is supervisory. These scopes are enforced
         // by backend policies, never by the frontend alone.

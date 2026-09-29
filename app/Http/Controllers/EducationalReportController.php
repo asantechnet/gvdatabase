@@ -76,7 +76,7 @@ class EducationalReportController extends Controller
             'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
             'language_id' => ['nullable', 'integer', 'exists:languages,id'],
             'contract_type_id' => ['nullable', 'integer', 'exists:contract_types,id'],
-            'package_type_id' => ['nullable', 'integer', 'exists:package_types,id'],
+            'package_type_id' => ['nullable', 'integer', 'exists:packages,id'],
             'stage' => ['nullable', 'string', 'max:60'],
             'status' => ['nullable', 'in:active,closed'],
             'date_from' => ['nullable', 'date'],

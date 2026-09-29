@@ -27,9 +27,9 @@ class ApplicantPortalCrmSynchronizationTest extends TestCase
         $user->roles()->attach(Role::query()->where('name', 'applicant')->firstOrFail());
         $case = Applicant::factory()->create(['email' => $user->email, 'user_id' => $user->id]);
 
-        $this->postJson('/api/login', ['email' => $user->email, 'password' => 'password123'])
+        $this->postJson('/api/auth/login', ['email' => $user->email, 'password' => 'password123'])
             ->assertOk();
-        $this->postJson('/api/login', ['email' => $user->email, 'password' => 'password123'])
+        $this->postJson('/api/auth/login', ['email' => $user->email, 'password' => 'password123'])
             ->assertOk();
 
         $this->assertDatabaseCount('applicants', 1);

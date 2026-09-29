@@ -53,7 +53,7 @@ const activeFilterCount = computed(() => [search.value, stage.value, status.valu
 
 const createDialog = ref(false)
 const creating = ref(false)
-const createForm = ref({ name: '', contact: '', email: '', responsible_employee_id: null as number | null, country_id: null as number | null, university_id: null as number | null, education_level_id: null as number | null, language_id: null as number | null, semester_id: null as number | null, application_date: '', notes: '' })
+const createForm = ref({ name: '', father_name: '', father_phone: '', contact: '', email: '', responsible_employee_id: null as number | null, country_id: null as number | null, university_id: null as number | null, education_level_id: null as number | null, percentage: '', language_id: null as number | null, semester_id: null as number | null, application_date: '', notes: '' })
 const createUniversityOptions = computed(() => universities.value
   .filter(university => university.is_active && university.country_id === createForm.value.country_id)
   .map(university => ({ title: university.name, value: university.id })))
@@ -129,7 +129,7 @@ function onTabChange() {
 }
 
 function openCreate() {
-  createForm.value = { name: '', contact: '', email: '', responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, language_id: null, semester_id: null, application_date: '', notes: '' }
+  createForm.value = { name: '', father_name: '', father_phone: '', contact: '', email: '', responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, percentage: '', language_id: null, semester_id: null, application_date: '', notes: '' }
   createDialog.value = true
 }
 
@@ -139,12 +139,23 @@ async function create() {
 
   creating.value = true
   try {
-    const payload: Record<string, unknown> = { name: createForm.value.name.trim(), contact: createForm.value.contact || null, email: createForm.value.email || null }
+    const payload: Record<string, unknown> = {
+      name: createForm.value.name.trim(),
+      father_name: createForm.value.father_name.trim() || null,
+      father_phone: createForm.value.father_phone.trim() || null,
+      contact: createForm.value.contact || null,
+      email: createForm.value.email || null,
+    }
 
     for (const key of ['responsible_employee_id', 'country_id', 'university_id', 'education_level_id', 'language_id', 'semester_id'] as const) {
       if (createForm.value[key])
         payload[key] = createForm.value[key]
     }
+
+    // The grade metric is kept as text in the form so a cleared field is not
+    // submitted as an empty number; the server validates the 0-100 range.
+    if (createForm.value.percentage.trim() !== '')
+      payload.percentage = Number(createForm.value.percentage)
 
     if (createForm.value.application_date)
       payload.application_date = createForm.value.application_date
@@ -269,6 +280,10 @@ onMounted(async () => {
     <VCard :title="$t('educational.newApplicantCase')">
       <VCardText>
         <VTextField v-model="createForm.name" :label="$t('common.fields.name')" class="mb-3" />
+        <VRow dense>
+          <VCol cols="12" sm="6"><VTextField v-model="createForm.father_name" :label="$t('educational.fatherName')" class="mb-3" /></VCol>
+          <VCol cols="12" sm="6"><VTextField v-model="createForm.father_phone" :label="$t('educational.fatherPhone')" class="mb-3" /></VCol>
+        </VRow>
         <VTextField v-model="createForm.contact" :label="$t('common.messages.contact')" class="mb-3" />
         <VTextField v-model="createForm.email" :label="$t('common.fields.email')" type="email" class="mb-3" />
         <VSelect v-if="canAssignEmployee" v-model="createForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.responsibleEmployee')" clearable class="mb-3" />
@@ -276,6 +291,7 @@ onMounted(async () => {
           <VCol cols="6"><VSelect v-model="createForm.country_id" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.destinationCountry')" clearable class="mb-3" /></VCol>
           <VCol cols="6"><VSelect v-model="createForm.university_id" :items="createUniversityOptions" :label="$t('educational.university')" :disabled="!createForm.country_id" clearable class="mb-3" /></VCol>
           <VCol cols="6"><VSelect v-model="createForm.education_level_id" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable class="mb-3" /></VCol>
+          <VCol cols="6"><VTextField v-model="createForm.percentage" type="number" min="0" max="100" step="0.01" suffix="%" :label="$t('educational.gradePercentage')" class="mb-3" /></VCol>
           <VCol cols="6"><VSelect v-model="createForm.language_id" :items="languages.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.language')" clearable class="mb-3" /></VCol>
           <VCol cols="6"><VSelect v-model="createForm.semester_id" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="$t('educational.semester')" clearable class="mb-3" /></VCol>
         </VRow>

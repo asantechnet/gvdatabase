@@ -12,7 +12,6 @@ use App\Models\University;
 use App\Services\ApplicantTaskService;
 use App\Services\CaseWinService;
 use App\Services\EducationalWorkflowNotificationService;
-use App\Services\ApplicantDocumentReadiness;
 use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -114,7 +113,6 @@ class ApplicantController extends Controller
     public function changeStage(Request $request, Applicant $applicant, EducationalWorkflowNotificationService $notifications)
     {
         $this->assertCaseManageAccess($request, $applicant);
-        app(ApplicantDocumentReadiness::class)->require($applicant, 'stage_id');
         $data = $request->validate(['stage_id' => ['required', 'integer', 'exists:applicant_stages,id'], 'note' => ['nullable', 'string', 'max:5000']]);
         $next = ApplicantStage::findOrFail($data['stage_id']);
         $current = $applicant->currentStage;
@@ -142,6 +140,8 @@ class ApplicantController extends Controller
         $presence = $updating ? 'sometimes' : 'required';
         $data = $request->validate([
             'name' => [$presence, 'nullable', 'string', 'max:255'],
+            'father_name' => ['nullable', 'string', 'max:255'],
+            'father_phone' => ['nullable', 'string', 'max:50'],
             'contact' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:1000'],
@@ -153,6 +153,9 @@ class ApplicantController extends Controller
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'university_id' => ['nullable', 'integer', 'exists:universities,id'],
             'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
+            // Educational grade metric, stored as a percentage of the maximum
+            // mark (0-100). The qualification itself lives in education_level_id.
+            'percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'language_id' => ['nullable', 'integer', 'exists:languages,id'],
             'semester_id' => ['nullable', 'integer', 'exists:semesters,id'],
             'application_date' => ['nullable', 'date'],

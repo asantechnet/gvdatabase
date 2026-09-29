@@ -51,6 +51,7 @@ class ApplicantCaseViewTest extends TestCase
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $employee = \App\Models\Employee::factory()->create();
         $a = $this->postJson('/api/applicants', ['name' => 'Case Two'])->assertCreated()->json('data');
+        $this->seedApplicantDocuments($a['id']);
         $this->postJson('/api/educational-services/scholarships', ['applicant_id' => $a['id'], 'employee_id' => $employee->id, 'currency_id' => $currency->id, 'date' => now()->toDateString(), 'fee' => 750, 'status' => 'active'])->assertCreated();
         $this->postJson('/api/educational-services/test-offers', ['applicant_id' => $a['id'], 'employee_id' => $employee->id, 'currency_id' => $currency->id, 'date' => now()->toDateString(), 'fee' => 120, 'status' => 'active'])->assertCreated();
 
@@ -70,5 +71,43 @@ class ApplicantCaseViewTest extends TestCase
         $this->assertSame($employee->id, $updated['responsible_employee_id']);
 
         $this->putJson("/api/applicants/{$a['id']}", ['university_id' => 999999])->assertUnprocessable();
+    }
+
+    public function test_case_family_contact_and_grade_metric_are_captured_edited_and_validated(): void
+    {
+        $a = $this->postJson('/api/applicants', [
+            'name' => 'Family Case',
+            'father_name' => 'Abdul Rahman',
+            'father_phone' => '+93700123456',
+            'percentage' => 78.5,
+        ])->assertCreated()->json('data');
+
+        $this->assertSame('Abdul Rahman', $a['father_name']);
+        $this->assertSame('+93700123456', $a['father_phone']);
+        // The applicant endpoints serialize the model, so the decimal cast
+        // arrives as a numeric string; the stored value is what matters.
+        $this->assertSame(78.5, (float) $a['percentage']);
+
+        $case = $this->getJson("/api/applicants/{$a['id']}")->assertOk()->json('data');
+        $this->assertSame(78.5, (float) $case['percentage']);
+
+        // Editing one field keeps the others, and the metric accepts decimals.
+        $updated = $this->putJson("/api/applicants/{$a['id']}", ['percentage' => 91.25, 'father_phone' => '+93700999999'])->assertOk()->json('data');
+        $this->assertSame(91.25, (float) $updated['percentage']);
+        $this->assertSame('+93700999999', $updated['father_phone']);
+        $this->assertSame('Abdul Rahman', $updated['father_name']);
+
+        // The grade metric is a 0-100 percentage and the guardian fields are bounded text.
+        $this->putJson("/api/applicants/{$a['id']}", ['percentage' => 120])->assertUnprocessable();
+        $this->putJson("/api/applicants/{$a['id']}", ['percentage' => -0.5])->assertUnprocessable();
+        $this->putJson("/api/applicants/{$a['id']}", ['percentage' => 'not-a-number'])->assertUnprocessable();
+        $this->putJson("/api/applicants/{$a['id']}", ['father_name' => str_repeat('a', 256)])->assertUnprocessable();
+        $this->putJson("/api/applicants/{$a['id']}", ['father_phone' => str_repeat('9', 51)])->assertUnprocessable();
+
+        // An intake record can still be cleared before the transcript arrives.
+        $cleared = $this->putJson("/api/applicants/{$a['id']}", ['percentage' => null, 'father_name' => null])->assertOk()->json('data');
+        $this->assertNull($cleared['percentage']);
+        $this->assertNull($cleared['father_name']);
+        $this->assertSame('+93700999999', $cleared['father_phone']);
     }
 }

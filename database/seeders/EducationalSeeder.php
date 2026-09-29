@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Applicant;
+use App\Models\ApplicantAttachment;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
 use App\Models\ApplicantUniversity;
@@ -95,6 +96,14 @@ class EducationalSeeder extends Seeder
             ['applicant_id' => $applicant->id, 'university_id' => $universities[0]->id, 'intake' => 'Fall 2027'],
             ['semester_id' => $semester->id, 'status' => 'pending', 'notes' => 'Primary university choice.'],
         );
+
+        // Business rule: service contracts require at least one document on
+        // the case, so the demo cases carry a placeholder attachment before
+        // any package issuance.
+        ApplicantAttachment::query()->firstOrCreate(
+            ['applicant_id' => $applicant->id, 'path' => "applicant-attachments/{$applicant->id}/demo-passport.pdf"],
+            ['label' => 'Passport', 'category' => 'identity', 'disk' => 'local', 'original_name' => 'demo-passport.pdf', 'mime_type' => 'application/pdf', 'size' => 1024],
+        );
         ApplicantUniversity::updateOrCreate(
             ['applicant_id' => $applicant->id, 'university_id' => $universities[1]->id, 'intake' => 'Fall 2027'],
             ['semester_id' => $semester->id, 'status' => 'applied', 'notes' => 'Alternative university application.'],
@@ -130,6 +139,11 @@ class EducationalSeeder extends Seeder
 
         $testPurchase = CustomerPackage::withTrashed()->where('issuance_key', "applicant:{$secondApplicant->id}:package:{$packages['Test Preparation Package']->id}")->first();
         if (! $testPurchase) {
+            ApplicantAttachment::query()->firstOrCreate(
+                ['applicant_id' => $secondApplicant->id, 'path' => "applicant-attachments/{$secondApplicant->id}/demo-test-certificate.pdf"],
+                ['label' => 'English Test Certificate', 'category' => 'academic', 'disk' => 'local', 'original_name' => 'demo-test-certificate.pdf', 'mime_type' => 'application/pdf', 'size' => 1024],
+            );
+
             $testPurchase = $issuer->issue($packages['Test Preparation Package'], $secondApplicant, ['sold_by_employee_id' => $employee->id, 'currency_id' => $currency->id, 'fee' => 5000, 'purchased_at' => now()->subDays(3)->toDateString()]);
         }
         $scholarship = $scholarshipPurchase->services()->whereHas('service', fn ($query) => $query->where('category', 'scholarship'))->firstOrFail();

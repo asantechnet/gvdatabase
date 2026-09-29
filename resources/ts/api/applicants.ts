@@ -15,6 +15,8 @@ export interface Applicant {
   id: number
   user_id?: number | null
   name: string
+  father_name?: string | null
+  father_phone?: string | null
   contact?: string | null
   email?: string | null
   address?: string | null
@@ -26,6 +28,12 @@ export interface Applicant {
   country_id?: number | null
   university_id?: number | null
   education_level_id?: number | null
+  /**
+   * Educational grade metric, a percentage of the maximum mark (0-100).
+   * The applicant endpoints serialize the model directly, so the DB decimal
+   * cast arrives as a numeric string (like `services[].fee`).
+   */
+  percentage?: number | string | null
   language_id?: number | null
   semester_id?: number | null
   current_stage_id?: number | null

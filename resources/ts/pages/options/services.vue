@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import ServiceForm from '@/components/forms/ServiceForm.vue'
-import ServiceApi, { type CreateServiceData, type ServiceContractTemplate, type UpdateServiceData } from '@/api/services'
+import ServiceApi, { type CreateServiceData, type ServiceContractTemplate, type ServiceVariant, type UpdateServiceData } from '@/api/services'
 import CurrencyApi from '@/api/currency'
 import { apiErrorMessage } from '@/utils/apiErrors'
 
@@ -11,12 +11,14 @@ import { apiErrorMessage } from '@/utils/apiErrors'
 interface ServiceItem {
   id: number
   type: string
+  code?: string | null
   description?: string | null
   fee: number
   currency: string
   currency_id: number
   status: 'active' | 'inactive'
   contractTemplate?: ServiceContractTemplate | null
+  variants?: ServiceVariant[]
 }
 
 interface CurrencyOption {
@@ -26,7 +28,7 @@ interface CurrencyOption {
 
 // --- Headers matching the table layout ---
 const headers = [
-  { title: 'Service', key: 'type', align: 'start' },
+  { title: 'Service', key: 'type', align: 'start' }, { title: translate('pages.contracts.services.services.serviceCode'), key: 'code', align: 'start' },
   { title: translate('pages.contracts.services.services.fee'), key: 'fee', align: 'start' },
   { title: translate('common.fields.currency2'), key: 'currency', align: 'start' },
   { title: translate('common.fields.status2'), key: 'status', align: 'start' },
@@ -47,6 +49,7 @@ const router = useRouter()
 // Default form state
 const defaultItem: Omit<ServiceItem, 'id'> = {
   type: '',
+  code: '',
   description: '',
   fee: 0,
   currency: 'USD',
@@ -57,6 +60,9 @@ const defaultItem: Omit<ServiceItem, 'id'> = {
 const editedItem = ref<Omit<ServiceItem, 'id'>>({ ...defaultItem })
 const services = ref<ServiceItem[]>([])
 const currencyOptions = ref<CurrencyOption[]>([])
+const variantDialog = ref(false)
+const variantService = ref<ServiceItem | null>(null)
+const variantForm = ref({ id: null as number | null, name: '', code: '', fee: null as number | null })
 
 // --- Computed ---
 const formTitle = computed(() => (editedItemId.value === null
@@ -80,12 +86,14 @@ const fetchServices = async () => {
     services.value = response.data.map(service => ({
       id: service.id,
       type: service.name || service.type,
+      code: service.code,
       description: service.description,
       fee: Number(service.fee),
       status: service.status as 'active' | 'inactive',
       currency: service.currency.code,
       currency_id: service.currency.id,
       contractTemplate: service.contract_template ?? null,
+      variants: service.variants ?? [],
     }))
   }
   catch (error) {
@@ -126,6 +134,7 @@ const createService = async () => {
 
     const payload: CreateServiceData = {
       type: editedItem.value.type,
+      code: editedItem.value.code,
       description: editedItem.value.description,
       fee: editedItem.value.fee,
       status: editedItem.value.status,
@@ -161,6 +170,7 @@ const updateService = async () => {
 
     const payload: UpdateServiceData = {
       type: editedItem.value.type,
+      code: editedItem.value.code,
       description: editedItem.value.description,
       fee: editedItem.value.fee,
       status: editedItem.value.status,
@@ -175,6 +185,7 @@ const updateService = async () => {
       services.value[index] = {
         id: response.data.id,
         type: response.data.type,
+        code: response.data.code,
         description: response.data.description,
         fee: Number(response.data.fee),
         status: response.data.status as 'active' | 'inactive',
@@ -233,6 +244,7 @@ const openEditModal = (item: ServiceItem) => {
   editedItemId.value = item.id
   editedItem.value = {
     type: item.type,
+    code: item.code,
     description: item.description,
     fee: item.fee,
     currency: item.currency,
@@ -271,6 +283,18 @@ const confirmDelete = (id: number) => {
 const manageContractTemplate = (item: ServiceItem) => {
   router.push({ name: 'contract-documents', query: { tab: 'templates', serviceId: String(item.id) } })
 }
+const flattenedVariants = computed(() => variantService.value?.variants ?? [])
+const openVariants = (item: ServiceItem) => { variantService.value = item; variantForm.value = { id: null, name: '', code: '', fee: null }; variantDialog.value = true }
+const editVariant = (variant: ServiceVariant) => { variantForm.value = { id: variant.id, name: variant.name, code: variant.code, fee: variant.fee ?? null } }
+const saveVariant = async () => {
+  if (!variantService.value || !variantForm.value.name.trim() || !variantForm.value.code.trim()) return
+  const { id, ...payload } = variantForm.value
+  if (id) await ServiceApi.updateVariant(variantService.value.id, id, payload)
+  else await ServiceApi.createVariant(variantService.value.id, payload)
+  await fetchServices(); variantService.value = services.value.find(item => item.id === variantService.value?.id) ?? null
+  variantForm.value = { id: null, name: '', code: '', fee: null }
+}
+const deleteVariant = async (variant: ServiceVariant) => { if (variantService.value && confirm(`Delete ${variant.name}?`)) { await ServiceApi.deleteVariant(variantService.value.id, variant.id); await fetchServices(); variantService.value = services.value.find(item => item.id === variantService.value?.id) ?? null } }
 
 // --- Helpers ---
 const resolveStatusColor = (status: ServiceItem['status']) => {
@@ -377,6 +401,7 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
           >
             <VIcon :icon="item.contractTemplate ? 'tabler-file-text' : 'tabler-file-plus'" />
           </VBtn>
+          <VBtn icon variant="text" size="small" color="secondary" :title="$t('pages.contracts.services.services.serviceVariants')" @click="openVariants(item)"><VIcon icon="tabler-category-2" /></VBtn>
           <FullDetailsButton
             :item="item"
             :title="item.type"
@@ -423,6 +448,11 @@ const resolveStatusColor = (status: ServiceItem['status']) => {
     :title="formTitle"
     @submit="saveService"
   />
+  <VDialog v-model="variantDialog" max-width="760"><VCard :title="`${variantService?.type ?? ''} — ${$t('pages.contracts.services.services.serviceVariants')}`"><VCardText>
+    <VAlert density="compact" variant="tonal" color="info" class="mb-4">{{ $t('pages.contracts.services.services.variantFeeHint') }}</VAlert>
+    <ResponsiveDataTable :headers="[{ title: $t('common.fields.name'), key: 'name' }, { title: $t('common.fields.code'), key: 'code' }, { title: $t('pages.contracts.services.services.fee'), key: 'fee' }, { title: $t('pages.contracts.services.services.actions'), key: 'actions', sortable: false }]" :items="flattenedVariants" item-value="id"><template #item.actions="{ item }"><IconBtn @click="editVariant(item)"><VIcon icon="tabler-pencil" /></IconBtn><IconBtn @click="deleteVariant(item)"><VIcon icon="tabler-trash" /></IconBtn></template></ResponsiveDataTable>
+    <VRow class="mt-3"><VCol cols="12" md="4"><VTextField v-model="variantForm.name" :label="$t('pages.contracts.services.services.variantName')" /></VCol><VCol cols="12" md="4"><VTextField v-model="variantForm.code" :label="$t('common.fields.code')" /></VCol><VCol cols="12" md="4"><VTextField v-model.number="variantForm.fee" :label="$t('pages.contracts.services.services.fee')" type="number" clearable /></VCol></VRow>
+  </VCardText><VCardActions><VSpacer /><VBtn @click="variantDialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="primary" @click="saveVariant">{{ variantForm.id ? $t('common.actions.save') : $t('common.actions.add') }}</VBtn></VCardActions></VCard></VDialog>
 
   <!-- Delete Confirmation Dialog -->
   <VDialog

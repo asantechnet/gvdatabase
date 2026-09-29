@@ -47,6 +47,7 @@ use App\Models\Salary;
 use App\Models\SalaryPayment;
 use App\Models\Semester;
 use App\Models\Service;
+use App\Models\ServiceVariant;
 use App\Models\Setting;
 use App\Models\Subtask;
 use App\Models\Tag;
@@ -107,6 +108,7 @@ final class AuditRegistry
             'salaries' => Salary::class,
             'salary_payments' => SalaryPayment::class,
             'services' => Service::class,
+            'service_variants' => ServiceVariant::class,
             'semesters' => Semester::class,
             'settings' => Setting::class,
             'assets' => Asset::class,
@@ -189,6 +191,7 @@ final class AuditRegistry
             'task_attachments' => ['original_name'],
             'contract_policies' => ['label', 'header'],
             'services' => ['type'],
+            'service_variants' => ['name', 'code'],
             'packages' => ['name'],
             'customer_packages' => ['purchased_at', 'status'],
             'case_wins' => ['won_at', 'stage_key'],

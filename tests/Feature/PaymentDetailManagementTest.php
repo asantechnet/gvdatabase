@@ -62,6 +62,7 @@ class PaymentDetailManagementTest extends TestCase
             'is_active' => true,
         ]);
         $applicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($applicant);
         $service = Service::factory()->create([
             'currency_id' => $currency->id,
             'fee' => 250,

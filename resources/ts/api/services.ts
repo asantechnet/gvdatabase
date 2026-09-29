@@ -4,6 +4,7 @@ export interface Service {
   id: number
   name: string
   type: string
+  code?: string | null
   category: 'general' | 'scholarship' | 'test_offer'
   description?: string | null
   fee: number
@@ -19,7 +20,9 @@ export interface Service {
   has_contract_template?: boolean
   created_at: string
   updated_at: string
+  variants?: ServiceVariant[]
 }
+export interface ServiceVariant { id: number; service_id: number; name: string; code: string; fee?: number | null }
 
 export interface ServiceContractTemplate {
   id: number
@@ -38,6 +41,7 @@ export interface BindServiceContractTemplateData {
 
 export interface CreateServiceData {
   type: string
+  code?: string | null
   category?: Service['category']
   description?: string | null
   fee: number
@@ -47,6 +51,7 @@ export interface CreateServiceData {
 
 export interface UpdateServiceData {
   type?: string
+  code?: string | null
   category?: Service['category']
   description?: string | null
   fee?: number
@@ -122,6 +127,9 @@ const ServiceApi = {
       data: response.data.data,
     }
   },
+  createVariant: async (serviceId: number, data: Omit<ServiceVariant, 'id' | 'service_id'>) => (await api.post(`/services/${serviceId}/variants`, data)).data.data as ServiceVariant,
+  updateVariant: async (serviceId: number, variantId: number, data: Partial<Omit<ServiceVariant, 'id' | 'service_id'>>) => (await api.put(`/services/${serviceId}/variants/${variantId}`, data)).data.data as ServiceVariant,
+  deleteVariant: async (serviceId: number, variantId: number) => api.delete(`/services/${serviceId}/variants/${variantId}`),
 }
 
 export default ServiceApi

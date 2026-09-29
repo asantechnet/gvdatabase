@@ -29,6 +29,7 @@ class ContractService extends Pivot
     protected $fillable = [
         'contract_id',
         'service_id',
+        'service_variant_id',
         'fee',
         'currency_id',
         'applicant_id',
@@ -56,6 +57,11 @@ class ContractService extends Pivot
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ServiceVariant::class, 'service_variant_id');
     }
 
     public function applicant(): BelongsTo

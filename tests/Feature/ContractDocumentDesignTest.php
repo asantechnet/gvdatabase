@@ -220,8 +220,11 @@ class ContractDocumentDesignTest extends TestCase
             'fee' => 600,
         ])->assertCreated()->json('data.id');
 
+        $packageApplicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($packageApplicant);
+
         $this->postJson("/api/packages/{$package}/issue", [
-            'applicant_id' => Applicant::factory()->create()->id,
+            'applicant_id' => $packageApplicant->id,
             'currency_id' => $currency->id,
             'fee' => 600,
             'purchased_at' => now()->toDateString(),

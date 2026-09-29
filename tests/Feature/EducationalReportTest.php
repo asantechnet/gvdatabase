@@ -48,6 +48,7 @@ class EducationalReportTest extends TestCase
         $employee = Employee::factory()->create();
         $a = $this->postJson('/api/applicants', ['name' => 'Sales Case', 'responsible_employee_id' => $employee->id])->assertCreated()->json('data');
         // Sell through the API so the attribution ledger records the sale.
+        $this->seedApplicantDocuments($a['id']);
         $this->postJson('/api/educational-services/scholarships', ['applicant_id' => $a['id'], 'employee_id' => $employee->id, 'currency_id' => Currency::factory()->create()->id, 'date' => now()->toDateString(), 'fee' => 750, 'status' => 'active'])->assertCreated();
 
         $performance = $this->getJson('/api/educational-reports/employee-performance')->assertOk()->json('data');

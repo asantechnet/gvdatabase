@@ -45,6 +45,12 @@ class BonusRuleService
         });
     }
 
+    /** Legacy rule sets bridged to the current canonical shape. */
+    public function canonicalRules(array $rules): array
+    {
+        return $this->normalise($rules);
+    }
+
     private function normalise(array $rules): array
     {
         return [

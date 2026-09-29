@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import type { ContractStatus } from '@/api/contracts'
-import CustomerApi, { type Customer } from '@/api/customer'
+import ApplicantApi, { type Applicant } from '@/api/applicants'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import PositionApi, { type Position } from '@/api/position'
@@ -11,11 +11,11 @@ import CounterpartyCard, { type CounterpartyDetails } from '@/components/contrac
 const { t } = useI18n()
 const tr = (key: string) => t(`pages.contracts.contractform.contractform.${key}`)
 
-// Signatory is the editable account Full Name (users.name). Staff are locked
-// to their own account name; super-admin is auto-filled but remains editable.
-const userData = useCookie<{ name?: string; roles?: string[] } | null>('userData')
+// Signatory is the logged-in employee's name. Staff are locked to their own
+// employee name; super-admin is auto-filled but remains editable.
+const userData = useCookie<{ id?: number; name?: string; roles?: string[]; employee?: { id: number; name?: string } | null } | null>('userData')
 const isSuperAdmin = computed(() => userData.value?.roles?.includes('super_admin') ?? false)
-const currentUserName = computed(() => String(userData.value?.name ?? '').trim() || null)
+const accountName = computed(() => String(userData.value?.name ?? '').trim() || null)
 
 export interface ContractFormPayload {
   template_id: number | null
@@ -23,9 +23,9 @@ export interface ContractFormPayload {
   country_id: number | null
   language_id: number | null
   employee_id: number | null
-  customer_id: number | null
   service_id: number | null
   service_ids?: number[] | null
+  service_lines?: Array<{ service_id: number; service_variant_id?: number | null }>
   applicant_id?: number | null
   company_id: number | null
   name: string
@@ -46,6 +46,7 @@ interface TemplateOption {
   name: string
   type_slug?: string | null
   service_id?: number | null
+  service_scopes?: Array<{ service_id: number; service_variant_id?: number | null }>
   position_id?: number | null
   cover_text?: string | null
   versions?: Array<{ id: number; name: string; country_id: number; language_id: number; version_number?: number; content?: string; status: string; is_current: boolean; country?: { id: number; name: string } | null; language?: { id: number; name: string; code?: string } | null }>
@@ -64,7 +65,7 @@ const props = defineProps<{
     contract_language_id?: number | null
     contract_type_id?: number | null
     employee_id?: number | null
-    customer_id?: number | null
+    applicant_id?: number | null
     service_ids?: number[] | null
     service_id?: number | null
     company_id?: number | null
@@ -82,8 +83,6 @@ const props = defineProps<{
   audience?: 'customers' | 'employees' | 'other'
   applicantId?: number | null
   applicantCountryId?: number | null
-  customerId?: number | null
-  defaultServiceId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -92,21 +91,22 @@ const emit = defineEmits<{
 }>()
 
 const formRef = ref()
-const customers = ref<Customer[]>([])
+const applicants = ref<Applicant[]>([])
 const employees = ref<Employee[]>([])
+const currentEmployeeName = computed(() => {
+  const employeeId = userData.value?.employee?.id
+  const userId = userData.value?.id
+  const match = employees.value.find(item => (employeeId != null && item.id === employeeId) || (userId != null && item.user_id === userId)) ?? null
+  const cookieName = String(userData.value?.employee?.name ?? '').trim() || null
+
+  return (match?.name?.trim() || cookieName || accountName.value || null) as string | null
+})
+const isApplicantLocked = computed(() => props.applicantId != null)
 const countries = ref<MasterDataRecord[]>([])
 const languages = ref<MasterDataRecord[]>([])
 const services = ref<Service[]>([])
 const positions = ref<Position[]>([])
 const loadingEntities = ref(true)
-
-const initialServiceId = (): number | null => {
-  if (props.contract?.service_ids?.length)
-    return props.contract.service_ids[0] ?? null
-  if (props.contract?.service_id)
-    return props.contract.service_id
-  return props.defaultServiceId ?? null
-}
 
 const form = ref({
   template_id: (props.contract?.template_id ?? null) as number | null,
@@ -115,8 +115,7 @@ const form = ref({
   language_id: (props.contract?.contract_language_id ?? null) as number | null,
   position_id: null as number | null,
   employee_id: (props.contract?.employee_id ?? null) as number | null,
-  customer_id: (props.contract?.customer_id ?? props.customerId ?? null) as number | null,
-  service_id: initialServiceId(),
+  applicant_id: (props.contract?.applicant_id ?? props.applicantId ?? null) as number | null,
   company_id: (props.contract?.company_id ?? null) as number | null,
   name: props.contract?.contract || '',
   cover_text: (props.contract?.cover_text || null) as string | null,
@@ -128,13 +127,27 @@ const form = ref({
   counterparty_email: (props.contract?.counterparty_email || null) as string | null,
   counterparty_contact: (props.contract?.counterparty_contact || null) as string | null,
   counterparty_address: (props.contract?.counterparty_address || null) as string | null,
-  company_signatory_name: (props.contract?.company_signatory_name ?? currentUserName.value ?? null) as string | null,
+  company_signatory_name: (props.contract?.company_signatory_name ?? null) as string | null,
 })
 
-// Non-super-admin staff always sign with their own account name.
-watch([isSuperAdmin, currentUserName], ([superAdmin, accountName]) => {
-  if (!superAdmin && accountName)
-    form.value.company_signatory_name = accountName
+// Signatory defaults to the logged-in employee's name. Non-super-admin
+// staff are always locked to it; super-admin is auto-filled but editable.
+const applySignatoryDefault = (employeeName: string | null) => {
+  if (!employeeName)
+    return
+  if (isSuperAdmin.value) {
+    if (!form.value.company_signatory_name)
+      form.value.company_signatory_name = employeeName
+  }
+  else {
+    form.value.company_signatory_name = employeeName
+  }
+}
+watch([isSuperAdmin, currentEmployeeName], ([superAdmin, employeeName]) => {
+  if (!superAdmin && employeeName)
+    form.value.company_signatory_name = employeeName
+  else if (superAdmin && employeeName && !form.value.company_signatory_name)
+    form.value.company_signatory_name = employeeName
 }, { immediate: true })
 
 // ---------------------------------------------------------------------
@@ -200,23 +213,19 @@ const audienceTemplates = computed(() => {
   return props.templates
 })
 
-// Print/create-page rule: when a service is selected, only templates related
-// to that service (plus generic templates with no linked service) show up.
-const visibleTemplates = computed(() => {
-  if ((context.value === 'customer' || context.value === 'other') && form.value.service_id) {
-    return audienceTemplates.value.filter(template =>
-      template.service_id === null || template.service_id === undefined
-      || template.service_id === form.value.service_id,
-    )
-  }
+// No service picker on this page: the service is derived from the selected
+// template's bound service at submit time, so every template stays visible.
+const visibleTemplates = computed(() => audienceTemplates.value)
 
-  return audienceTemplates.value
-})
-
-const customerOptions = computed(() => customers.value.map(customer => ({
-  title: customer.company ? `${customer.name} — ${customer.company}` : customer.name,
-  value: customer.id,
+const applicantOptions = computed(() => applicants.value.map(applicant => ({
+  title: applicant.name,
+  value: applicant.id,
 })))
+const boundServiceId = computed(() => selectedTemplate.value?.service_id ?? null)
+const templateServiceScopes = computed(() => selectedTemplate.value?.service_scopes?.length
+  ? selectedTemplate.value.service_scopes!
+  : (boundServiceId.value ? [{ service_id: boundServiceId.value, service_variant_id: null }] : []))
+const selectedVariants = ref<Record<number, number | null>>({})
 
 const positionOptions = computed(() => positions.value.map(position => ({
   title: position.title,
@@ -231,10 +240,8 @@ const employeeOptions = computed(() => employees.value
   })))
 
 const selectedEmployee = computed(() => employees.value.find(item => item.id === form.value.employee_id) ?? null)
-const selectedCustomer = computed(() => customers.value.find(item => item.id === form.value.customer_id) ?? null)
-const activeServices = computed(() => services.value.filter(service => service.status === 'active'))
-const serviceOptions = computed(() => activeServices.value.map(service => ({ title: service.name || service.type, value: service.id })))
-const selectedService = computed(() => activeServices.value.find(service => service.id === form.value.service_id) ?? null)
+const selectedApplicant = computed(() => applicants.value.find(item => item.id === form.value.applicant_id) ?? null)
+const boundService = computed(() => services.value.find(service => service.id === boundServiceId.value) ?? null)
 
 const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
   switch (context.value) {
@@ -250,27 +257,25 @@ const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
         }
         : null
     case 'customer':
-      return selectedCustomer.value
+      return selectedApplicant.value
         ? {
           kind: 'customer',
-          name: selectedCustomer.value.name,
-          subtitle: selectedCustomer.value.company || null,
-          taxNumber: selectedCustomer.value.tax_number,
-          phone: selectedCustomer.value.contact,
-          email: selectedCustomer.value.email,
-          address: selectedCustomer.value.address,
+          name: selectedApplicant.value.name,
+          subtitle: null,
+          phone: selectedApplicant.value.contact,
+          email: selectedApplicant.value.email,
+          address: selectedApplicant.value.address,
         }
         : null
     case 'other':
-      return selectedCustomer.value
+      return selectedApplicant.value
         ? {
           kind: 'customer',
-          name: selectedCustomer.value.name,
-          subtitle: selectedCustomer.value.company || null,
-          taxNumber: selectedCustomer.value.tax_number,
-          phone: selectedCustomer.value.contact,
-          email: selectedCustomer.value.email,
-          address: selectedCustomer.value.address,
+          name: selectedApplicant.value.name,
+          subtitle: null,
+          phone: selectedApplicant.value.contact,
+          email: selectedApplicant.value.email,
+          address: selectedApplicant.value.address,
         }
         : null
     default:
@@ -280,8 +285,8 @@ const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
 
 onMounted(async () => {
   try {
-    const [customerResult, employeeResult, countryResult, languageResult, serviceResult, positionResult] = await Promise.allSettled([
-      CustomerApi.getAll(),
+    const [applicantResult, employeeResult, countryResult, languageResult, serviceResult, positionResult] = await Promise.allSettled([
+      ApplicantApi.list({ per_page: 200 }),
       EmployeeApi.getOptions(),
       MasterDataApi.list('countries'),
       MasterDataApi.list('languages'),
@@ -289,8 +294,8 @@ onMounted(async () => {
       PositionApi.getAll(),
     ])
 
-    if (customerResult.status === 'fulfilled' && customerResult.value.success)
-      customers.value = customerResult.value.data
+    if (applicantResult.status === 'fulfilled')
+      applicants.value = applicantResult.value.data
     if (employeeResult.status === 'fulfilled')
       employees.value = employeeResult.value
     if (countryResult.status === 'fulfilled')
@@ -301,6 +306,20 @@ onMounted(async () => {
       services.value = serviceResult.value.data
     if (positionResult.status === 'fulfilled')
       positions.value = positionResult.value.data?.data ?? positionResult.value.data ?? []
+
+    // A visa-case dialog passes its applicant explicitly; make sure that
+    // record is selectable even when it falls outside the first page.
+    if (props.applicantId && !applicants.value.some(item => item.id === props.applicantId)) {
+      try {
+        const single = await ApplicantApi.get(props.applicantId)
+        if (single)
+          applicants.value = [single, ...applicants.value]
+      }
+      catch {
+        // The locked select still shows the id; creation stays possible.
+      }
+    }
+    applySignatoryDefault(currentEmployeeName.value)
   }
   finally {
     loadingEntities.value = false
@@ -316,20 +335,25 @@ watch(() => props.templates, () => {
 // data never silently rides along with another contract type.
 watch(context, currentContext => {
   // Preserve the appropriate counterparty for an existing contract or one
-  // opened from a company's action button; clear incompatible IDs.
+  // opened from a visa-case action button; clear incompatible IDs.
   form.value.employee_id = currentContext === 'employee' ? (props.contract?.employee_id ?? form.value.employee_id) : null
-  form.value.customer_id = currentContext === 'customer' || currentContext === 'other' ? (props.contract?.customer_id ?? form.value.customer_id) : null
-  if (currentContext !== 'customer' && currentContext !== 'other')
-    form.value.service_id = null
+  if (currentContext === 'customer' || currentContext === 'other') {
+    if (props.applicantId)
+      form.value.applicant_id = props.applicantId
+    else if (props.contract?.applicant_id)
+      form.value.applicant_id = props.contract.applicant_id
+  }
+  else {
+    form.value.applicant_id = null
+  }
   if (currentContext !== 'employee')
     form.value.position_id = null
 })
 
-// If the selected service narrows the template list so the current template
-// is no longer related, fall back to the first related template.
-watch(() => [form.value.service_id, visibleTemplates.value] as const, () => {
-  if (form.value.template_id && !visibleTemplates.value.some(template => template.id === form.value.template_id) && visibleTemplates.value[0])
-    form.value.template_id = visibleTemplates.value[0].id
+// Keep the visa-case applicant locked even if the dialog is reused.
+watch(() => props.applicantId, applicantId => {
+  if (applicantId)
+    form.value.applicant_id = applicantId
 })
 
 watch(() => form.value.template_id, () => {
@@ -338,6 +362,7 @@ watch(() => form.value.template_id, () => {
   form.value.country_id = props.applicantCountryId ?? existingVersion?.country_id ?? countryOptions.value[0]?.value ?? null
   form.value.language_id = existingVersion?.language_id ?? null
   form.value.contract_template_version_id = existingVersion?.id ?? null
+  selectedVariants.value = Object.fromEntries(templateServiceScopes.value.map(scope => [scope.service_id, scope.service_variant_id ?? null]))
 }, { immediate: true })
 
 watch(() => form.value.country_id, () => {
@@ -365,17 +390,24 @@ const submit = async () => {
   if (validation?.valid === false)
     return
 
+  const templateServiceIds = templateServiceScopes.value.map(scope => scope.service_id)
+  const applicantId = context.value === 'customer' || context.value === 'other'
+    ? (form.value.applicant_id ?? props.applicantId ?? null)
+    : null
+
+  const { customer_id: _omitted, service_id: _serviceOmitted, ...rest } = form.value as typeof form.value & { customer_id?: unknown; service_id?: unknown }
+
   emit('submit', {
-    ...form.value,
-    company_signatory_name: !isSuperAdmin.value && currentUserName.value
-      ? currentUserName.value
-      : (form.value.company_signatory_name?.trim() || currentUserName.value),
+    ...rest,
+    company_signatory_name: !isSuperAdmin.value && currentEmployeeName.value
+      ? currentEmployeeName.value
+      : (form.value.company_signatory_name?.trim() || currentEmployeeName.value),
     contract_template_version_id: selectedTemplateVersion.value?.id ?? null,
     employee_id: context.value === 'employee' ? form.value.employee_id : null,
-    customer_id: context.value === 'customer' || context.value === 'other' ? form.value.customer_id : null,
-    service_id: context.value === 'customer' || context.value === 'other' ? form.value.service_id : null,
-    service_ids: context.value === 'customer' || context.value === 'other' ? (form.value.service_id ? [form.value.service_id] : []) : [],
-    applicant_id: context.value === 'customer' ? props.applicantId ?? null : null,
+    service_id: templateServiceIds[0] ?? null,
+    service_ids: templateServiceIds,
+    service_lines: templateServiceIds.map(service_id => ({ service_id, service_variant_id: selectedVariants.value[service_id] ?? null })),
+    applicant_id: applicantId,
     company_id: null,
 
     // Template contracts inherit their display name from the template. Keep
@@ -514,42 +546,47 @@ defineExpose({ submit })
         cols="12"
       >
         <VAutocomplete
-          v-model="form.customer_id"
-          :items="customerOptions"
-          :label="tr('customer')"
-          :placeholder="tr('selectCustomer')"
+          v-model="form.applicant_id"
+          :items="applicantOptions"
+          :label="tr('applicant')"
+          :placeholder="tr('selectApplicant')"
           prepend-inner-icon="tabler-users"
           :loading="loadingEntities"
-          :rules="context === 'customer' ? [v => !!v || tr('customerRequired')] : []"
-          :no-data-text="tr('noCustomers')"
+          :rules="context === 'customer' ? [v => !!v || tr('applicantRequired')] : []"
+          :no-data-text="tr('noApplicants')"
           :required="context === 'customer'"
-          :clearable="context === 'other'"
+          :clearable="context === 'other' && !isApplicantLocked"
+          :disabled="isApplicantLocked"
+          :hint="isApplicantLocked ? tr('applicantFromCase') : undefined"
+          persistent-hint
         />
       </VCol>
 
       <VCol
-        v-if="context === 'customer' || context === 'other'"
+        v-if="(context === 'customer' || context === 'other') && selectedTemplate"
         cols="12"
       >
-        <VSelect
-          v-model="form.service_id"
-          :items="serviceOptions"
-          :label="tr('service')"
-          :placeholder="tr('selectService')"
-          prepend-inner-icon="tabler-briefcase"
-          :loading="loadingEntities"
-          :rules="context === 'customer' ? [v => !!v || tr('servicesRequired')] : []"
-          :no-data-text="tr('noServices')"
-          :required="context === 'customer'"
-          :clearable="context === 'other'"
-        />
         <p
-          v-if="selectedService"
+          v-if="boundService"
           class="text-caption text-medium-emphasis mt-1"
         >
-          {{ tr('selectedServicesHint') }}: {{ selectedService.name || selectedService.type }}
+          {{ tr('selectedServicesHint') }}: {{ templateServiceScopes.map(scope => services.find(service => service.id === scope.service_id)?.name || services.find(service => service.id === scope.service_id)?.type).filter(Boolean).join(', ') }}
         </p>
+        <VAlert
+          v-else-if="context === 'customer'"
+          color="warning"
+          variant="tonal"
+          density="compact"
+          icon="tabler-briefcase"
+        >
+          {{ tr('templateWithoutService') }}
+        </VAlert>
       </VCol>
+      <template v-if="context === 'customer' && selectedTemplate">
+        <VCol v-for="scope in templateServiceScopes.filter(scope => services.find(service => service.id === scope.service_id)?.variants?.length)" :key="scope.service_id" cols="12" md="6">
+          <VSelect v-model="selectedVariants[scope.service_id]" :items="(services.find(service => service.id === scope.service_id)?.variants ?? []).map(variant => ({ title: `${variant.name} (${variant.code})`, value: variant.id }))" :label="`${services.find(service => service.id === scope.service_id)?.name || 'Service'} — Variant`" :clearable="!scope.service_variant_id" :disabled="!!scope.service_variant_id" />
+        </VCol>
+      </template>
 
       <VCol
         v-if="context === 'other'"
@@ -560,7 +597,7 @@ defineExpose({ submit })
           :label="tr('counterparty')"
           :placeholder="tr('counterpartyPlaceholder')"
           prepend-inner-icon="tabler-id"
-          :rules="[v => !!form.customer_id || !!String(v || '').trim() || tr('counterpartyRequired')]"
+          :rules="[v => !!form.applicant_id || !!String(v || '').trim() || tr('counterpartyRequired')]"
         />
       </VCol>
       <VCol
@@ -625,9 +662,9 @@ defineExpose({ submit })
         <VTextField
           v-model="form.company_signatory_name"
           :label="tr('signatory')"
-          :hint="tr('signatoryHint')"
+          :hint="isSuperAdmin ? tr('signatoryHint') : tr('signatoryLockedHint')"
           persistent-hint
-          :readonly="!isSuperAdmin"
+          :disabled="!isSuperAdmin"
         />
       </VCol>
     </VRow>

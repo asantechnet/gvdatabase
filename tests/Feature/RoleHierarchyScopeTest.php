@@ -78,6 +78,7 @@ class RoleHierarchyScopeTest extends TestCase
             'supervisor_id' => $seniorEmployee->id,
         ]);
         $case = Applicant::factory()->create(['responsible_employee_id' => $counselorEmployee->id]);
+        $this->seedApplicantDocuments($case);
         $currency = Currency::factory()->create(['is_active' => true]);
 
         Sanctum::actingAs($counselor, ['access']);

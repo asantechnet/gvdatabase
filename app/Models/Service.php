@@ -20,6 +20,7 @@ class Service extends Model
 
     protected $fillable = [
         'type',
+        'code',
         'category',
         'description',
         'fee',
@@ -48,6 +49,11 @@ class Service extends Model
     public function contractServices()
     {
         return $this->hasMany(ContractService::class);
+    }
+
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ServiceVariant::class);
     }
 
     /** Every contract template bound to this service (one per version set). */

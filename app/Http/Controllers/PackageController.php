@@ -95,7 +95,7 @@ class PackageController extends Controller
         $required = $package ? 'sometimes' : 'required';
 
         return $request->validate([
-            'name' => [$required, 'string', 'max:255', Rule::unique('package_types')->ignore($package?->id)],
+            'name' => [$required, 'string', 'max:255', Rule::unique('packages')->ignore($package?->id)],
             'description' => ['nullable', 'string'],
             'currency_id' => ['nullable', 'integer', 'exists:currencies,id'],
             'fee' => ['nullable', 'numeric', 'gte:0', 'required_with:currency_id'],

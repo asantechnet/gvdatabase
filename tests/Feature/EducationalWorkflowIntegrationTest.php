@@ -107,6 +107,7 @@ class EducationalWorkflowIntegrationTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.responsible_employee.id', $ownEmployee->id)
             ->json('data');
+        $this->seedApplicantDocuments($case['id']);
 
         $payload = [
             'applicant_id' => $case['id'],

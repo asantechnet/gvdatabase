@@ -16,6 +16,7 @@ class ContractTemplate extends Model
         'description', 'is_active', 'created_by',
         'contract_type_id',
         'service_id',
+        'package_id',
         'position_id',
         'cover_text',
         'content',
@@ -49,6 +50,17 @@ class ContractTemplate extends Model
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+    /** The package this template generates the agreement for, if any. */
+    public function package()
+    {
+        return $this->belongsTo(Package::class);
+    }
+    public function services()
+    {
+        return $this->belongsToMany(Service::class, 'contract_template_services')
+            ->withPivot('service_variant_id')->withTimestamps();
     }
     public function versions(){ return $this->hasMany(ContractTemplateVersion::class); }
 

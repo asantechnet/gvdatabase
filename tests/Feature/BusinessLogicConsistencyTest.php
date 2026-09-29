@@ -187,6 +187,7 @@ class BusinessLogicConsistencyTest extends TestCase
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $applicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($applicant);
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
         $applicantService = $this->contractedService($applicant, $service);
 
@@ -249,6 +250,7 @@ class BusinessLogicConsistencyTest extends TestCase
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $applicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($applicant);
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
         $assignment = $this->contractedService($applicant, $service, [], 'terminated');
 

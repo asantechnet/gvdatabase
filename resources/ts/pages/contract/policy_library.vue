@@ -33,12 +33,13 @@ const policyTypes = computed(() => contractTypes.value.filter(type => type.is_ac
 
 const selectedType = computed(() => contractTypes.value.find(type => type.slug === form.value.type) ?? null)
 const knownKeys = computed(() => new Set(placeholderGroups.value.flatMap(group => group.fields.map(field => field.key))))
+const placeholderTranslation = (key: string, fallback: string) => { const translated = t(key); return translated === key ? fallback : translated }
 const localizedPlaceholderGroups = computed<PlaceholderGroup[]>(() => placeholderGroups.value.map(group => ({
   ...group,
-  label: t(`pages.settings.policies.policies.contractTemplate.placeholders.${group.key}.label`),
+  label: placeholderTranslation(`pages.settings.policies.policies.contractTemplate.placeholders.${group.key}.label`, group.label),
   fields: group.fields.map(field => ({
     ...field,
-    label: t(`pages.settings.policies.policies.contractTemplate.placeholders.${group.key}.fields.${field.key.slice(group.key.length + 1)}`),
+    label: placeholderTranslation(`pages.settings.policies.policies.contractTemplate.placeholders.${group.key}.fields.${field.key.slice(group.key.length + 1)}`, field.label),
   })),
 })))
 const policyTypeLabel = (type: string) => translateContractPolicyType(type, contractTypes.value.find(item => item.slug === type)?.name)

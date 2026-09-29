@@ -8,6 +8,7 @@ import ContractTemplateApi, { type ContractTemplateVersion } from '@/api/contrac
 import ContractTypeApi, { type ContractType, SYSTEM_TYPE_SLUGS } from '@/api/contractType'
 import PositionApi, { type Position } from '@/api/position'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
+import PackagesApi, { type ServicePackage } from '@/api/packages'
 import ServiceApi, { type Service } from '@/api/services'
 import ContractContentEditor from '@/components/contract/ContractContentEditor.vue'
 import ContractTypeSelector from '@/components/contract/ContractTypeSelector.vue'
@@ -27,7 +28,12 @@ const contractName = ref('')
 const contractTypeId = ref<number | null>(null)
 const coverText = ref('')
 const positionId = ref<number | null>(null)
+// A customer template binds to exactly one catalogue subject: one service
+// (single-select, never multi-selected here) or one package. Selecting one
+// disables the other; both stay visible while a customer type is selected.
 const serviceId = ref<number | null>(null)
+const serviceVariantId = ref<number | null>(null)
+const packageId = ref<number | null>(null)
 const policyIds = ref<number[]>([])
 const contentHtml = ref('')
 const selectedPolicyId = ref<number | null>(null)
@@ -35,6 +41,7 @@ const contractTypes = ref<ContractType[]>([])
 const allPolicies = ref<ContractPolicy[]>([])
 const positions = ref<Position[]>([])
 const services = ref<Service[]>([])
+const packages = ref<ServicePackage[]>([])
 const templates = ref<any[]>([])
 const templateId = ref<number | null>(null)
 const rawPlaceholderGroups = ref<PlaceholderGroup[]>([])
@@ -70,7 +77,15 @@ const policies = computed(() => allPolicies.value.filter(policy =>
   && !policyIds.value.includes(policy.id)))
 const selectedType = computed(() => contractTypes.value.find(type => type.id === contractTypeId.value) ?? null)
 const isEmployment = computed(() => selectedType.value?.slug === 'employment')
-const isServiceType = computed(() => selectedType.value?.slug === 'customer' || selectedType.value?.slug === 'other')
+const isServiceType = computed(() => selectedType.value?.slug === 'customer')
+// Only one catalogue subject may be bound at a time: a chosen package locks
+// the service selector, a chosen service locks the package selector.
+const serviceDisabled = computed(() => packageId.value !== null)
+const packageDisabled = computed(() => serviceId.value !== null)
+const activeServices = computed(() => services.value.filter(service => service.status === 'active'))
+const activePackages = computed(() => packages.value.filter(packageItem => packageItem.is_active))
+const selectedService = computed(() => services.value.find(service => service.id === serviceId.value) ?? null)
+const selectedPackage = computed(() => packages.value.find(packageItem => packageItem.id === packageId.value) ?? null)
 const isSystemSlug = (slug: string) => SYSTEM_TYPE_SLUGS.includes(slug as typeof SYSTEM_TYPE_SLUGS[number])
 const contractTypeName = (type: ContractType | null) => translateContractTypeRecord(type)
 const templateTypeName = (template: any) => template.type_slug ? translateContractPolicyType(template.type_slug, template.type) : template.type || tr('custom')
@@ -82,10 +97,11 @@ const typeLabel = computed(() => {
   return name && selectedType.value && isSystemSlug(selectedType.value.slug) ? `${name} — ${tr('systemType')}` : name
 })
 
+const placeholderTranslation = (key: string, fallback: string) => { const translated = tr(key); return translated === `pages.settings.policies.policies.contractTemplate.${key}` ? fallback : translated }
 const placeholderGroups = computed<PlaceholderGroup[]>(() => rawPlaceholderGroups.value.map(group => ({
   ...group,
-  label: tr(`placeholders.${group.key}.label`),
-  fields: group.fields.map(field => ({ ...field, label: tr(`placeholders.${group.key}.fields.${field.key.slice(group.key.length + 1)}`) })),
+  label: placeholderTranslation(`placeholders.${group.key}.label`, group.label),
+  fields: group.fields.map(field => ({ ...field, label: placeholderTranslation(`placeholders.${group.key}.fields.${field.key.slice(group.key.length + 1)}`, field.label) })),
 })))
 
 const knownKeys = computed(() => new Set(placeholderGroups.value.flatMap(group => group.fields.map(field => field.key))))
@@ -95,6 +111,8 @@ const templateState = computed(() => JSON.stringify({
   type: contractTypeId.value,
   position: positionId.value,
   service: serviceId.value,
+  serviceVariant: serviceVariantId.value,
+  package: packageId.value,
   policies: policyIds.value,
   cover: coverText.value,
   content: serializePlaceholders(contentHtml.value),
@@ -142,9 +160,26 @@ const loadPlaceholders = async () => {
 watch(contractTypeId, async () => {
   if (!isEmployment.value)
     positionId.value = null
-  if (!isServiceType.value)
+  if (!isServiceType.value) {
     serviceId.value = null
+    serviceVariantId.value = null
+    packageId.value = null
+  }
   await loadPlaceholders()
+})
+
+// Enforce the exclusive subject binding: picking a package clears the
+// service (and its variant); picking a service clears the package.
+watch(packageId, value => {
+  if (value !== null) {
+    serviceId.value = null
+    serviceVariantId.value = null
+  }
+})
+watch(serviceId, value => {
+  if (value !== null)
+    packageId.value = null
+  serviceVariantId.value = null
 })
 
 const insertPolicy = () => {
@@ -250,15 +285,31 @@ const loadContractTypes = async () => {
   catch (error) { console.error(error) }
 }
 
+// The packages catalogue behind Options → Educational data (the
+// `package-types` catalogue backed by /packages) is readable during
+// template editing; listing silently stays empty without access.
+const loadPackages = async () => {
+  try { packages.value = await PackagesApi.list() }
+  catch (error) { console.error('Failed to load packages:', error); packages.value = [] }
+}
+
 onMounted(async () => {
   isLoading.value = true
   await Promise.all([
-    loadTemplates(), loadPolicies(), loadPositions(), loadContractTypes(),
+    loadTemplates(), loadPolicies(), loadPositions(), loadContractTypes(), loadPackages(),
     ServiceApi.getAll().then(result => { services.value = result.data }),
     MasterDataApi.list('countries').then(rows => { countries.value = rows }),
     MasterDataApi.list('languages').then(rows => { languages.value = rows }),
   ])
   isLoading.value = false
+  // A deep link from the service catalogue may pre-scope the editor to one
+  // service (Options → Services → template). It only fills an empty form so
+  // an opened template or a manual pick is never overwritten.
+  const queryServiceId = Number(route.query.serviceId)
+  if (Number.isSafeInteger(queryServiceId) && queryServiceId > 0) {
+    if (!templateId.value && isServiceType.value && serviceId.value === null && packageId.value === null)
+      serviceId.value = queryServiceId
+  }
   if (route.query.positionId) {
     positionId.value = Number(route.query.positionId)
 
@@ -287,6 +338,8 @@ const resetForm = () => {
   coverText.value = ''
   positionId.value = route.query.positionId ? Number(route.query.positionId) : null
   serviceId.value = null
+  serviceVariantId.value = null
+  packageId.value = null
   policyIds.value = []
   templateId.value = null
   contentHtml.value = ''
@@ -309,7 +362,9 @@ const loadTemplate = async (id: number) => {
     contractName.value = template.name
     contractTypeId.value = template.contract_type_id ?? null
     positionId.value = template.position_id ?? null
-    serviceId.value = template.service_id ?? null
+    serviceId.value = template.service_id ?? template.service_scopes?.[0]?.service_id ?? null
+    serviceVariantId.value = template.service_scopes?.[0]?.service_variant_id ?? null
+    packageId.value = template.package_id ?? null
     policyIds.value = template.policies?.map(policy => policy.id) ?? []
     coverText.value = template.cover_text ?? ''
     templateId.value = template.id
@@ -358,8 +413,11 @@ const saveContract = async () => {
   }
   if (!isEmployment.value)
     positionId.value = null
-  if (!isServiceType.value)
+  if (!isServiceType.value) {
     serviceId.value = null
+    serviceVariantId.value = null
+    packageId.value = null
+  }
   const serialized = serializePlaceholders(contentHtml.value)
   const invalidKeys = extractPlaceholderKeys(serialized).filter(key => !knownKeys.value.has(key))
   if (invalidKeys.length) {
@@ -373,7 +431,13 @@ const saveContract = async () => {
 
     return
   }
-  const payload = { name: contractName.value.trim(), contract_type_id: contractTypeId.value, service_id: serviceId.value, position_id: positionId.value, policy_ids: policyIds.value, cover_text: coverText.value, content: serialized }
+  // A customer template binds to exactly one catalogue subject. The editor
+  // sends the pair explicitly so the backend can enforce the exclusivity:
+  // a package arrives with a nulled service (no scope rows), a service
+  // arrives with a nulled package (one single scope row, optional variant).
+  const payload: Record<string, unknown> = { name: contractName.value.trim(), contract_type_id: contractTypeId.value, service_id: serviceId.value, package_id: packageId.value, position_id: positionId.value, policy_ids: policyIds.value, cover_text: coverText.value, content: serialized }
+  if (serviceId.value !== null)
+    payload.service_scopes = [{ service_id: serviceId.value, service_variant_id: serviceVariantId.value }]
   try {
     isLoading.value = true
 
@@ -460,11 +524,16 @@ watch(locale, async () => {
         <VCol cols="6" md="3"><VSelect v-model="templateLanguageFilter" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" :label="t('common.fields.language')" clearable density="compact" /></VCol>
       </VRow></VCardText>
       <ResponsiveDataTable :items="filteredTemplates" :headers="[
-        { title: t('pages.settings.policies.policies.contractName'), key: 'name' }, { title: t('common.fields.type'), key: 'type_slug' }, { title: tr('position'), key: 'position.title' }, { title: tr('versions.title'), key: 'versions' }, { title: t('pages.settings.policies.policies.policyLibrary.actions'), key: 'actions', sortable: false, align: 'end' },
+        { title: t('pages.settings.policies.policies.contractName'), key: 'name' }, { title: t('common.fields.type'), key: 'type_slug' }, { title: tr('position'), key: 'position.title' }, { title: tr('scope'), key: 'scope' }, { title: tr('versions.title'), key: 'versions' }, { title: t('pages.settings.policies.policies.policyLibrary.actions'), key: 'actions', sortable: false, align: 'end' },
       ]" item-value="id">
         <template #item.type_slug="{ item }"><VChip size="small" color="secondary" variant="tonal">{{ templateTypeName(item) }}</VChip></template>
         <template #item.position.title="{ item }">{{ item.position?.title || '—' }}</template>
         <template #item.versions="{ item }">{{ item.versions?.length || 0 }}</template>
+        <template #item.scope="{ item }">
+          <VChip v-if="item.package_id || item.package" size="small" color="info" variant="tonal">{{ item.package?.name ?? `#${item.package_id}` }}</VChip>
+          <VChip v-else-if="item.service_id || item.service" size="small" color="secondary" variant="tonal">{{ item.service?.name ?? item.service?.type ?? `#${item.service_id}` }}</VChip>
+          <span v-else>—</span>
+        </template>
         <template #item.actions="{ item }"><IconBtn aria-label="Edit template" @click="openTemplateEditor(item.id)"><VIcon icon="tabler-pencil" /></IconBtn><IconBtn aria-label="Delete template" @click="confirmDelete(item.id)"><VIcon icon="tabler-trash" /></IconBtn></template>
         <template #no-data><div class="pa-8 text-center text-medium-emphasis">{{ tr('noMatchingTemplates') }}</div></template>
       </ResponsiveDataTable>
@@ -543,18 +612,51 @@ watch(locale, async () => {
             <VCol
               v-if="isServiceType"
               cols="12"
-              md="4"
+              md="6"
             >
               <VSelect
                 v-model="serviceId"
-                :items="services.filter(service => service.status === 'active')"
-                item-title="type"
-                item-value="id"
+                :items="activeServices.map(service => ({ title: service.code ? `${service.name || service.type} (${service.code})` : (service.name || service.type), value: service.id }))"
                 :label="t('common.navigation.services')"
                 prepend-inner-icon="tabler-briefcase-2"
                 variant="outlined"
                 clearable
-                :rules="[value => selectedType?.slug !== 'customer' || !!value || tr('validation.serviceRequired')]"
+                :disabled="serviceDisabled"
+                :hint="packageId ? tr('serviceDisabledHint') : undefined"
+                persistent-hint
+                :rules="[value => selectedType?.slug !== 'customer' || !!value || !!packageId || tr('validation.serviceOrPackageRequired')]"
+              />
+            </VCol>
+            <VCol
+              v-if="isServiceType"
+              cols="12"
+              md="6"
+            >
+              <VSelect
+                v-model="packageId"
+                :items="activePackages.map(packageItem => ({ title: packageItem.code ? `${packageItem.name} (${packageItem.code})` : packageItem.name, value: packageItem.id }))"
+                :label="tr('package')"
+                prepend-inner-icon="tabler-package"
+                variant="outlined"
+                clearable
+                :disabled="packageDisabled"
+                :hint="serviceId ? tr('packageDisabledHint') : undefined"
+                persistent-hint
+                :rules="[value => selectedType?.slug !== 'customer' || !!value || !!serviceId || tr('validation.serviceOrPackageRequired')]"
+              />
+            </VCol>
+            <VCol
+              v-if="isServiceType && selectedService?.variants?.length"
+              cols="12"
+              md="6"
+            >
+              <VSelect
+                v-model="serviceVariantId"
+                :items="(selectedService.variants ?? []).map(variant => ({ title: `${variant.name} (${variant.code})`, value: variant.id }))"
+                :label="`${selectedService.name || selectedService.type} — ${t('pages.contracts.services.services.serviceVariant')}`"
+                clearable
+                variant="outlined"
+                :disabled="serviceDisabled"
               />
             </VCol>
             <template v-if="!templateId">

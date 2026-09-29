@@ -6,7 +6,6 @@ use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\Role;
 use App\Models\User;
-use App\Services\ApplicantDocumentReadiness;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +30,8 @@ class ApplicantPortalController extends Controller
         $user = $request->user();
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'father_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'father_phone' => ['sometimes', 'nullable', 'string', 'max:50'],
             'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
             'address' => ['sometimes', 'nullable', 'string', 'max:2000'],
@@ -53,12 +54,19 @@ class ApplicantPortalController extends Controller
             }
             $user->save();
 
+            // Guardian contact lives on the applicant row (staff intake collects
+            // it), while the grade metric stays staff-managed so a student
+            // cannot inflate the percentage used for admission decisions.
+            $applicantUpdates = collect($data)->only(['father_name', 'father_phone'])->all();
+
             if (array_key_exists('profile', $data)) {
                 $profile = array_merge($applicant->profile_data ?? [], $data['profile'] ?? []);
-                $applicant->update([
-                    'profile_data' => $profile,
-                    'profile_completed_at' => collect($profile)->filter(fn ($value) => $value !== null && $value !== '')->isNotEmpty() ? now() : null,
-                ]);
+                $applicantUpdates['profile_data'] = $profile;
+                $applicantUpdates['profile_completed_at'] = collect($profile)->filter(fn ($value) => $value !== null && $value !== '')->isNotEmpty() ? now() : null;
+            }
+
+            if ($applicantUpdates !== []) {
+                $applicant->update($applicantUpdates);
             }
 
             if ($emailChanged) {
@@ -74,8 +82,6 @@ class ApplicantPortalController extends Controller
         abort_unless($request->user()?->hasPermission('invite_applicant_portal'), 403, 'auth.forbidden');
         $this->assertStaffCaseAccess($request, $applicant);
         abort_if($applicant->user_id, 422, 'business.request_rejected');
-        app(ApplicantDocumentReadiness::class)->require($applicant);
-
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
@@ -135,6 +141,8 @@ class ApplicantPortalController extends Controller
                 'email' => $applicant->user?->email,
                 'phone' => $applicant->user?->phone,
                 'address' => $applicant->user?->address,
+                'father_name' => $applicant->father_name,
+                'father_phone' => $applicant->father_phone,
                 ...($applicant->profile_data ?? []),
                 'completed_at' => $applicant->profile_completed_at?->toISOString(),
             ],
@@ -145,6 +153,7 @@ class ApplicantPortalController extends Controller
                 'destination_country' => $applicant->country?->name,
                 'primary_university' => $applicant->university?->name,
                 'education_level' => $applicant->educationLevel?->name,
+                'education_percentage' => $applicant->percentage !== null ? (float) $applicant->percentage : null,
                 'language' => $applicant->language?->name,
                 'current_stage' => $applicant->currentStage ? [
                     'key' => $applicant->currentStage->key,

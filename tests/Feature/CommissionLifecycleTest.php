@@ -167,6 +167,7 @@ class CommissionLifecycleTest extends TestCase
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
         $applicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($applicant);
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
         $employee = Employee::factory()->create(['employment_type' => 'commission', 'salary' => null]);
         $employee->commissionServices()->attach($service->id, ['percentage' => 12.5]);
@@ -196,6 +197,7 @@ class CommissionLifecycleTest extends TestCase
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
         $applicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($applicant);
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
         $first = Employee::factory()->create(['employment_type' => 'commission']);
         $second = Employee::factory()->create(['employment_type' => 'commission']);
@@ -277,6 +279,7 @@ class CommissionLifecycleTest extends TestCase
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
         $applicant = Applicant::factory()->create();
+        $this->seedApplicantDocuments($applicant);
         $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
         $company = Company::create(['legal_name' => 'External Delivery Ltd', 'is_active' => true]);
         $assignment = $this->contractedService($applicant, $service, [

@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 
 interface ServiceFormData {
   type: string
+  code?: string | null
   description?: string | null
   fee: number
   currency_id: number
@@ -74,6 +75,7 @@ function submit() {
                 required
               />
             </VCol>
+            <VCol cols="12" md="4"><VTextField v-model="form.code" :label="$t('common.fields.code')" placeholder="SERVICE-CODE" /></VCol>
             <VCol
               cols="12"
               md="4"

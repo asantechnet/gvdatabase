@@ -24,6 +24,8 @@ class ApplicantResource extends JsonResource
             'id' => $this->id,
             // Party identity, absorbed from `customers`.
             'name' => $this->name,
+            'father_name' => $this->father_name,
+            'father_phone' => $this->father_phone,
             'contact' => $this->contact,
             'email' => $this->email,
             'address' => $this->address,
@@ -44,6 +46,8 @@ class ApplicantResource extends JsonResource
             'country_id' => $this->country_id,
             'university_id' => $this->university_id,
             'education_level_id' => $this->education_level_id,
+            // Educational grade metric, as a percentage of the maximum mark.
+            'percentage' => $this->percentage !== null ? (float) $this->percentage : null,
             'language_id' => $this->language_id,
             'semester_id' => $this->semester_id,
             'current_stage_id' => $this->current_stage_id,

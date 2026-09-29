@@ -6,6 +6,7 @@ use App\Http\Resources\ContractPolicyResource;
 use App\Models\ContractPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ContractPolicyController extends Controller
 {
@@ -57,7 +58,7 @@ class ContractPolicyController extends Controller
             // A policy clause is reusable only within one of the contract
             // contexts the resolver understands. Keep API callers aligned
             // with the restricted select shown in the policy editor.
-            'type' => ($partial ? 'sometimes' : 'required').'|string|max:100',
+            'type' => [$partial ? 'sometimes' : 'required', 'string', Rule::in(['employment', 'customer', 'other'])],
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'language_id' => ['nullable', 'integer', 'exists:languages,id'],
             'is_active' => ['sometimes', 'boolean'],

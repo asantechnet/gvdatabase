@@ -5,6 +5,8 @@ export interface ApplicantPortalProfile {
   email: string | null
   phone: string | null
   address: string | null
+  father_name?: string | null
+  father_phone?: string | null
   date_of_birth?: string | null
   passport_number?: string | null
   nationality?: string | null
@@ -24,6 +26,7 @@ export interface ApplicantPortalData {
     destination_country: string | null
     primary_university: string | null
     education_level: string | null
+    education_percentage: number | null
     language: string | null
     current_stage: { key: string; name: string; is_terminal: boolean } | null
     progress: { current: number | null; total: number }
@@ -32,8 +35,8 @@ export interface ApplicantPortalData {
   }
 }
 
-export type ApplicantPortalProfileInput = Partial<Pick<ApplicantPortalProfile, 'name' | 'email' | 'phone' | 'address'>> & {
-  profile?: Partial<Omit<ApplicantPortalProfile, 'name' | 'email' | 'phone' | 'address' | 'completed_at'>>
+export type ApplicantPortalProfileInput = Partial<Pick<ApplicantPortalProfile, 'name' | 'email' | 'phone' | 'address' | 'father_name' | 'father_phone'>> & {
+  profile?: Partial<Omit<ApplicantPortalProfile, 'name' | 'email' | 'phone' | 'address' | 'father_name' | 'father_phone' | 'completed_at'>>
 }
 
 const get = async () => (await api.get('/applicant-portal')).data.data as ApplicantPortalData

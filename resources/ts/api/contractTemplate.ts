@@ -7,7 +7,12 @@ export interface ContractTemplate {
   contract_type_id: number | null
   type_slug: string | null
   service_id: number | null
+  service_ids?: number[]
+  service_scopes?: Array<{ service_id: number; service_variant_id?: number | null }>
   service?: { id: number; name?: string | null; type?: string | null } | null
+  /** The package this customer template generates the agreement for, if any. Mutually exclusive with the service binding. */
+  package_id?: number | null
+  package?: { id: number; name?: string | null; code?: string | null } | null
   position_id: number | null
   cover_text: string | null
   content: string | null
@@ -44,6 +49,9 @@ export interface ContractTemplateCreateData {
   name: string
   contract_type_id: number
   service_id?: number | null
+  service_ids?: number[]
+  service_scopes?: Array<{ service_id: number; service_variant_id?: number | null }>
+  package_id?: number | null
   position_id?: number | null
   policy_ids?: number[]
   cover_text?: string | null
