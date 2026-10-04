@@ -1,0 +1,1 @@
+import{af as e}from"./main-BpYC0Opx.js";const p={async getAll(){return(await e.get("/payment-details")).data.data},async create(a){return(await e.post("/payment-details",a)).data.data},async update(a,t){return(await e.put(`/payment-details/${a}`,t)).data.data},async delete(a){await e.delete(`/payment-details/${a}`)}};export{p as P};

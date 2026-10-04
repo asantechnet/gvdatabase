@@ -1,0 +1,1 @@
+import{af as a}from"./main-BpYC0Opx.js";const n={async getAll(){return(await a.get("/offices")).data.data},async create(e){return(await a.post("/offices",e)).data.data},async update(e,s){return(await a.put(`/offices/${e}`,s)).data.data},async delete(e){await a.delete(`/offices/${e}`)}};export{n as O};
