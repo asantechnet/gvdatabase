@@ -1,7 +1,7 @@
 import api from './axios'
 
 export interface PackageService { id: number; type: string; category: 'general' | 'scholarship' | 'test_offer'; fee: number; currency?: { id: number; code: string } }
-export interface ServicePackage { id: number; name: string; description?: string | null; fee?: number | null; currency_id?: number | null; is_active: boolean; services: PackageService[] }
+export interface ServicePackage { id: number; name: string; code?: string | null; description?: string | null; fee?: number | null; currency_id?: number | null; is_active: boolean; services: PackageService[] }
 export interface PackageInput { name: string; description?: string | null; fee?: number | null; currency_id?: number | null; is_active?: boolean; service_ids: number[] }
 const unwrap = <T>(response: { data: { data: T } }) => response.data.data
 

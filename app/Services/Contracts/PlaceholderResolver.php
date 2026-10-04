@@ -112,7 +112,11 @@ class PlaceholderResolver
             $values += [
                 'service.name' => $service->type,
                 'service.category' => $service->category,
-                'service.description' => $service->description,
+                // Service descriptions are optional catalogue metadata, but
+                // the default agreement always prints this placeholder. Use
+                // the category (or service name) as a useful contract-safe
+                // fallback rather than rejecting an otherwise valid service.
+                'service.description' => $service->description ?: $service->category ?: $service->type,
                 'service.fee' => $service->fee,
             ];
         }

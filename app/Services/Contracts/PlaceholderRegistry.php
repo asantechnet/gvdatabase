@@ -187,7 +187,18 @@ class PlaceholderRegistry
         $setting = Setting::query()->latest('id')->first();
 
         return [
-            'name' => $setting?->original_company_name ?: $setting?->website_title,
+            // Match the company-name fallback used throughout the document UI.
+            // A short company name is still a valid legal display name for a
+            // generated contract when the original name has not been set.
+            // A fresh installation may not have a settings record yet. Keep
+            // finalized contracts renderable until the company profile is
+            // completed, using the configured application name as a final
+            // non-empty fallback.
+            'name' => $setting?->original_company_name
+                ?: $setting?->short_company_name
+                ?: $setting?->website_title
+                ?: config('app.name')
+                ?: 'Company',
             'short_name' => $setting?->short_company_name,
             'email' => $setting?->company_email,
             'phone' => $setting?->phone,

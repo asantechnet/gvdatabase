@@ -6,6 +6,7 @@ use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\EducationalWorkflowNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,8 @@ use Illuminate\Validation\Rule;
  */
 class ApplicantPortalController extends Controller
 {
+    public function __construct(private readonly EducationalWorkflowNotificationService $notifications) {}
+
     public function show(Request $request): JsonResponse
     {
         return response()->json(['success' => true, 'data' => $this->portalData($this->applicantFor($request))]);
@@ -77,6 +80,41 @@ class ApplicantPortalController extends Controller
         return response()->json(['success' => true, 'data' => $this->portalData($this->applicantFor($request))]);
     }
 
+    public function attachments(Request $request): JsonResponse
+    {
+        $applicant = $this->applicantFor($request);
+
+        return response()->json(['success' => true, 'data' => $applicant->attachments()
+            ->latest()
+            ->get()
+            ->map(fn ($attachment) => $this->attachmentData($attachment))]);
+    }
+
+    public function uploadAttachment(Request $request): JsonResponse
+    {
+        $applicant = $this->applicantFor($request);
+        $data = $request->validate([
+            'file' => ['required', 'file', 'max:10240', 'mimes:pdf,txt,doc,docx,xls,xlsx,png,jpg,jpeg,webp'],
+            'label' => ['nullable', 'string', 'max:120'],
+        ]);
+        $file = $data['file'];
+        $path = $file->storeAs("applicant-attachments/{$applicant->id}", Str::uuid().'.'.$file->extension(), 'local');
+        $attachment = $applicant->attachments()->create([
+            'uploaded_by' => $request->user()->id,
+            'label' => filled($data['label'] ?? null) ? $data['label'] : $file->getClientOriginalName(),
+            'category' => 'applicant_portal',
+            'disk' => 'local',
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getMimeType(),
+            'size' => $file->getSize(),
+        ]);
+
+        $this->notifications->applicantDocumentUploaded($applicant, $attachment, $request->user()->id);
+
+        return response()->json(['success' => true, 'data' => $this->attachmentData($attachment)], 201);
+    }
+
     public function invite(Request $request, Applicant $applicant): JsonResponse
     {
         abort_unless($request->user()?->hasPermission('invite_applicant_portal'), 403, 'auth.forbidden');
@@ -122,6 +160,7 @@ class ApplicantPortalController extends Controller
             ->where('user_id', $request->user()->id)
             ->with([
                 'user:id,name,email,phone,address',
+                'responsibleEmployee.user:id,email,phone',
                 'country:id,name', 'university:id,name', 'educationLevel:id,name', 'language:id,name',
                 'currentStage:id,key,name,sort_order,is_terminal',
                 'stageHistory' => fn ($history) => $history->select('id', 'applicant_id', 'new_stage_id', 'changed_at')->with('newStage:id,key,name,sort_order'),
@@ -155,6 +194,13 @@ class ApplicantPortalController extends Controller
                 'education_level' => $applicant->educationLevel?->name,
                 'education_percentage' => $applicant->percentage !== null ? (float) $applicant->percentage : null,
                 'language' => $applicant->language?->name,
+                // Applicant-facing contact details for the case owner only.
+                // Internal employee fields remain outside the portal boundary.
+                'advisor' => $applicant->responsibleEmployee ? [
+                    'name' => $applicant->responsibleEmployee->name,
+                    'phone' => $applicant->responsibleEmployee->user?->phone ?: $applicant->responsibleEmployee->contact,
+                    'email' => $applicant->responsibleEmployee->user?->email,
+                ] : null,
                 'current_stage' => $applicant->currentStage ? [
                     'key' => $applicant->currentStage->key,
                     'name' => $applicant->currentStage->name,
@@ -172,6 +218,18 @@ class ApplicantPortalController extends Controller
                     'intake' => $application->intake,
                 ])->values(),
             ],
+        ];
+    }
+
+    private function attachmentData($attachment): array
+    {
+        return [
+            'id' => $attachment->id,
+            'label' => $attachment->label,
+            'name' => $attachment->original_name,
+            'mime_type' => $attachment->mime_type,
+            'size' => $attachment->size,
+            'uploaded_at' => $attachment->created_at?->toISOString(),
         ];
     }
 

@@ -127,6 +127,10 @@ export type Notification = {
   goToUrl?: string | null
   color?: string
   isSeen: boolean
+  // Announcement labels, rendered as tags under the notification body.
+  labels?: string[]
+  // Announcement sender, shown above the message so authorship stays visible.
+  sender?: string
 } & (
   | { img: string; text?: never; icon?: never }
   | { img?: never; text: string; icon?: never }

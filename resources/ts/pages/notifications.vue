@@ -20,6 +20,8 @@ const colorFor = (type: string) => ({ success: 'success', warning: 'warning', er
 const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 const titleFor = (notification: AppNotification) => notificationText(notification, t).title
 const messageFor = (notification: AppNotification) => notificationText(notification, t).message
+const labelsFor = (notification: AppNotification) => notificationText(notification, t).labels
+const senderFor = (notification: AppNotification) => notificationText(notification, t).sender
 
 async function load() {
   loading.value = true
@@ -91,6 +93,7 @@ onMounted(load)
         mandatory
         density="compact"
         color="primary"
+        class="notification-filter"
       >
         <VBtn value="all">
           {{ $t('pages.settings.notifications.notifications.all') }}
@@ -101,63 +104,157 @@ onMounted(load)
     </VCardText>
     <VDivider />
     <VList
-      lines="two"
-      class="py-0"
+      lines="false"
+      class="notification-list"
     >
-      <VListItem
-        v-for="notification in visibleNotifications"
+      <template
+        v-for="(notification, index) in visibleNotifications"
         :key="notification.id"
-        :class="{ 'notification-unread': notification.is_read !== true }"
-        @click="open(notification)"
       >
-        <template #prepend>
-          <VAvatar
-            :color="colorFor(notification.type)"
-            variant="tonal"
-          >
-            <VIcon :icon="iconFor(notification.type)" />
-          </VAvatar>
-        </template>
-        <VListItemTitle class="d-flex align-center flex-wrap gap-2">
-          {{ titleFor(notification) }}<VChip
-            v-if="notification.is_read !== true"
-            size="x-small"
-            color="primary"
-          >
-            {{ $t('pages.settings.notifications.notifications.new') }}
-          </VChip>
-        </VListItemTitle>
-        <VListItemSubtitle class="notification-message">
-          {{ messageFor(notification) }}
-        </VListItemSubtitle>
-        <template #append>
-          <div class="d-flex align-center ga-2">
-            <VBtn
-              v-if="notification.data?.action === 'execute_recurring_event'"
-              size="small"
-              @click.stop="reviewRecurring(notification)"
+        <VDivider v-if="index > 0" />
+        <VListItem
+          class="notification-row"
+          :class="{ 'notification-unread': notification.is_read !== true }"
+          @click="open(notification)"
+        >
+          <template #prepend>
+            <VAvatar
+              :color="colorFor(notification.type)"
+              variant="tonal"
             >
-              {{ $t('notificationInbox.review') }}
-            </VBtn><span class="text-caption text-disabled d-none d-sm-inline">{{ formatDate(notification.date_time) }}</span><IconBtn
-              :aria-label="$t('pages.settings.notifications.notifications.deleteNotification')"
-              @click.stop="remove(notification)"
+              <VIcon :icon="iconFor(notification.type)" />
+            </VAvatar>
+          </template>
+          <VListItemTitle class="notification-title">
+            {{ titleFor(notification) }}
+            <VChip
+              v-if="notification.is_read !== true"
+              size="x-small"
+              color="primary"
             >
-              <VIcon icon="tabler-x" />
-            </IconBtn>
-          </div>
-        </template>
-      </VListItem>
+              {{ $t('pages.settings.notifications.notifications.new') }}
+            </VChip>
+          </VListItemTitle>
+          <VListItemSubtitle class="notification-body">
+            <span
+              v-if="senderFor(notification)"
+              class="notification-sender"
+            >
+              {{ $t('notifications.announcement.fromSender', { sender: senderFor(notification) }) }}
+            </span>
+            <span class="notification-message">{{ messageFor(notification) }}</span>
+            <div
+              v-if="labelsFor(notification).length"
+              class="notification-labels"
+            >
+              <VChip
+                v-for="label in labelsFor(notification)"
+                :key="label"
+                size="x-small"
+                color="primary"
+                variant="tonal"
+                label
+              >
+                {{ label }}
+              </VChip>
+            </div>
+          </VListItemSubtitle>
+          <template #append>
+            <div class="d-flex align-center ga-2">
+              <VBtn
+                v-if="notification.data?.action === 'execute_recurring_event'"
+                size="small"
+                @click.stop="reviewRecurring(notification)"
+              >
+                {{ $t('notificationInbox.review') }}
+              </VBtn><span class="text-caption text-disabled d-none d-sm-inline">{{ formatDate(notification.date_time) }}</span><IconBtn
+                :aria-label="$t('pages.settings.notifications.notifications.deleteNotification')"
+                @click.stop="remove(notification)"
+              >
+                <VIcon icon="tabler-x" />
+              </IconBtn>
+            </div>
+          </template>
+        </VListItem>
+      </template>
       <VListItem
         v-if="!loading && !visibleNotifications.length"
         :title="$t('pages.settings.notifications.notifications.noNotificationsFound')"
         :subtitle="$t('notificationInbox.allCaughtUp')"
+        class="notification-row"
       />
     </VList>
   </VCard>
 </template>
 
 <style scoped>
-.notification-inbox { max-inline-size: 960px; margin-inline: auto; }
-.notification-unread { background: rgba(var(--v-theme-primary), 0.06); }
-.notification-message { white-space: normal; }
+.notification-inbox {
+  margin-inline: auto;
+  max-inline-size: 960px;
+}
+
+.notification-unread {
+  background: rgba(var(--v-theme-primary), 6%);
+}
+
+/* Vuetify's .v-btn sets `flex: 1 0 auto`, stretching every option to the width
+   of the widest label. "All" is much shorter than "Unread", so opting out of
+   the grow lets each button size to its own text and keeps padding even. */
+.notification-filter :deep(.v-btn) {
+  flex: 0 0 auto;
+  min-inline-size: max-content;
+  padding-inline: 1rem;
+  white-space: nowrap;
+}
+
+.notification-list {
+  padding-block: 0;
+}
+
+/* Rows carry a title, a wrapping body and a chip row, so the default
+   list-item padding is too tight and consecutive entries merge together. */
+.notification-row {
+  padding-block: 0.875rem;
+}
+
+.notification-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  font-weight: 500;
+  gap: 0.5rem;
+  line-height: 1.4;
+}
+
+.notification-body,
+.notification-message {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.notification-body {
+  margin-block-start: 0.25rem;
+  opacity: 1;
+}
+
+.notification-message {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  line-height: 1.5;
+}
+
+.notification-sender {
+  display: block;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-block-end: 0.125rem;
+}
+
+.notification-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-start: 0.625rem;
+}
 </style>

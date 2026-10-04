@@ -77,3 +77,5 @@ public/mockServiceWorker.js
 .env*
 !.env.example
 .aider*
+# Playwright CLI output (may contain credentials)
+.playwright-cli/

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ContractType;
 use App\Models\Currency;
 use App\Models\Applicant;
+use App\Models\Package;
 use App\Models\Role;
 use App\Models\Service;
 use App\Models\User;
@@ -72,13 +73,17 @@ class ContractServiceLinesTest extends TestCase
         $templateId = $this->applicantTemplate($type->id, $first->id);
         $applicant = Applicant::factory()->create();
 
+        // A customer template binds to exactly one catalogue subject, so a
+        // contract naming a service outside that binding is rejected. The rule
+        // is enforced as a normalized 422 rejection (not a field-level error).
         $this->postJson('/api/contracts', [
             'template_id' => $templateId,
             'applicant_id' => $applicant->id,
             'status' => 'draft',
             'start_date' => now()->toDateString(),
             'service_ids' => [$first->id, $second->id],
-        ])->assertUnprocessable()->assertJsonValidationErrors('service_ids');
+        ])->assertUnprocessable()
+            ->assertJsonPath('code', 'business.request_rejected');
 
         $this->postJson('/api/contracts', [
             'template_id' => $templateId,
@@ -86,15 +91,28 @@ class ContractServiceLinesTest extends TestCase
             'status' => 'draft',
             'start_date' => now()->toDateString(),
             'service_lines' => [['service_id' => $first->id], ['service_id' => $second->id]],
-        ])->assertUnprocessable()->assertJsonValidationErrors('service_lines');
+        ])->assertUnprocessable()
+            ->assertJsonPath('code', 'business.request_rejected');
     }
 
     public function test_customer_contract_requires_at_least_one_service(): void
     {
         $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
-        $currency = Currency::factory()->create();
-        $service = Service::factory()->create(['currency_id' => $currency->id]);
-        $templateId = $this->applicantTemplate($type->id, $service->id);
+        // A package-bound template carries no service fallback, so the contract
+        // must still name at least one service it covers.
+        $package = Package::query()->create([
+            'name' => 'Service-less bundle',
+            'code' => 'PKG-NOSVC',
+            'is_active' => true,
+        ]);
+        $templateId = $this->postJson('/api/contract-templates', [
+            'name' => 'Package agreement',
+            'contract_type_id' => $type->id,
+            'package_id' => $package->id,
+            'service_id' => null,
+            'cover_text' => 'Cover',
+            'content' => '<p>Services: {{services.names}} ({{services.count}})</p>',
+        ])->assertCreated()->json('data.id');
         $applicant = Applicant::factory()->create();
 
         $this->postJson('/api/contracts', [

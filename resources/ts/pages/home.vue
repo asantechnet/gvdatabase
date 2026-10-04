@@ -44,8 +44,8 @@ const emptyDashboard = (): DashboardData => ({
     attendance_marked: null,
     monthly_expenses: null,
     monthly_net_cash: null,
-    customer_count: null,
-    new_customers_this_month: null,
+    applicant_count: null,
+    new_applicants_this_month: null,
     open_invoice_count: null,
     open_invoice_value: null,
     employee_count: null,
@@ -64,8 +64,8 @@ const emptyDashboard = (): DashboardData => ({
   team_health: null,
   attention_items: [],
   commercial_overview: {
-    customers: null,
-    new_customers_this_month: null,
+    applicants: null,
+    new_applicants_this_month: null,
     invoice_total: null,
     collected_total: null,
     collection_rate: 0,
@@ -87,7 +87,7 @@ const emptyDashboard = (): DashboardData => ({
     latest_payroll_period: null,
     latest_payroll_total: null,
   },
-  kpi_trends: { labels: [], invoiceValue: [], customers: [], payroll: [], visitors: [], completedTasks: [] },
+  kpi_trends: { labels: [], invoiceValue: [], applicants: [], payroll: [], visitors: [], completedTasks: [] },
   business_trend: null,
   invoice_aging: null,
   service_portfolio: [],
@@ -160,12 +160,12 @@ const executiveMetrics = computed<ExecutiveMetric[]>(() => {
   const cards: ExecutiveMetric[] = [
     { key: 'exposure', label: t('metrics.receivableExposure'), value: formatCompactMoney(dashboard.value.summary.open_invoice_value), context: t('metrics.openInvoices', { count: formatNumber(dashboard.value.summary.open_invoice_count) }), icon: 'tabler-receipt-dollar', color: 'warning', trend: dashboard.value.kpi_trends.invoiceValue },
     { key: 'collection', label: t('metrics.cashCollection'), value: `${formatNumber(dashboard.value.commercial_overview.collection_rate, 1)}%`, context: t('metrics.collectedOf', { collected: formatCompactMoney(dashboard.value.commercial_overview.collected_total), total: formatCompactMoney(dashboard.value.commercial_overview.invoice_total) }), icon: 'tabler-cash-banknote', color: dashboard.value.commercial_overview.collection_rate >= 70 ? 'success' : 'error', trend: dashboard.value.business_trend?.collected ?? [] },
-    { key: 'customers', label: t('metrics.customerBase'), value: formatNumber(dashboard.value.commercial_overview.customers), context: t('metrics.activeCommitments', { count: formatNumber(dashboard.value.commercial_overview.active_services) }), icon: 'tabler-building-store', color: 'primary', trend: dashboard.value.kpi_trends.customers },
+    { key: 'customers', label: t('metrics.customerBase'), value: formatNumber(dashboard.value.commercial_overview.applicants), context: t('metrics.activeCommitments', { count: formatNumber(dashboard.value.commercial_overview.active_services) }), icon: 'tabler-building-store', color: 'primary', trend: dashboard.value.kpi_trends.applicants },
   ]
 
   cards.push(dashboard.value.capabilities.payroll
     ? { key: 'payroll', label: t('metrics.latestPayroll'), value: formatCompactMoney(dashboard.value.people_overview.latest_payroll_total), context: t('metrics.payrollContext', { period: formatPeriod(dashboard.value.people_overview.latest_payroll_period), count: formatNumber(dashboard.value.people_overview.employees) }), icon: 'tabler-cash-banknote', color: 'info', trend: dashboard.value.kpi_trends.payroll }
-    : { key: 'visitors', label: t('metrics.visitorsThisMonth'), value: formatNumber(dashboard.value.commercial_overview.visitors_this_month), context: t('metrics.newCustomers', { count: formatNumber(dashboard.value.commercial_overview.new_customers_this_month) }), icon: 'tabler-walk', color: 'info', trend: dashboard.value.kpi_trends.visitors })
+    : { key: 'visitors', label: t('metrics.visitorsThisMonth'), value: formatNumber(dashboard.value.commercial_overview.visitors_this_month), context: t('metrics.newCustomers', { count: formatNumber(dashboard.value.commercial_overview.new_applicants_this_month) }), icon: 'tabler-walk', color: 'info', trend: dashboard.value.kpi_trends.visitors })
 
   return cards
 })
@@ -242,7 +242,7 @@ const agingOptions = computed(() => ({
 
 const commercialActivitySeries = computed(() => [
   { name: t('charts.visitors'), data: dashboard.value.kpi_trends.visitors },
-  { name: t('charts.newCustomers'), data: dashboard.value.kpi_trends.customers },
+  { name: t('charts.newCustomers'), data: dashboard.value.kpi_trends.applicants },
 ])
 
 const commercialActivityOptions = computed(() => ({
@@ -553,7 +553,7 @@ onMounted(loadDashboard)
               </p><p class="font-weight-bold mb-1">
                 {{ t('answers.liveCommitments', { count: formatNumber(dashboard.commercial_overview.active_services) }) }}
               </p><p class="text-caption text-medium-emphasis mb-0">
-                {{ t('answers.customerContext', { customers: formatNumber(dashboard.commercial_overview.customers), due: formatNumber(dashboard.commercial_overview.service_deadlines_30_days) }) }}
+                {{ t('answers.customerContext', { customers: formatNumber(dashboard.commercial_overview.applicants), due: formatNumber(dashboard.commercial_overview.service_deadlines_30_days) }) }}
               </p>
             </div>
           </div>
@@ -935,7 +935,7 @@ onMounted(loadDashboard)
               <VIcon icon="tabler-walk" />
             </VAvatar>
           </div><VDivider class="my-4" /><div class="d-flex justify-space-between text-caption">
-            <span class="text-medium-emphasis">{{ t('domains.newCustomers') }}</span><strong>{{ formatNumber(dashboard.commercial_overview.new_customers_this_month) }}</strong>
+            <span class="text-medium-emphasis">{{ t('domains.newCustomers') }}</span><strong>{{ formatNumber(dashboard.commercial_overview.new_applicants_this_month) }}</strong>
           </div><div class="d-flex justify-space-between text-caption mt-2">
             <span class="text-medium-emphasis">{{ t('domains.activeServices') }}</span><strong>{{ formatNumber(dashboard.commercial_overview.active_services) }}</strong>
           </div>

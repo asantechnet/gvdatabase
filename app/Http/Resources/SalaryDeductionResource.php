@@ -14,6 +14,8 @@ class SalaryDeductionResource extends JsonResource
             'description' => $this->description,
             'amount' => $this->amount,
             'sortOrder' => $this->sort_order,
+            'isAutomatic' => (bool) $this->is_automatic,
+            'code' => $this->code,
         ];
     }
 }

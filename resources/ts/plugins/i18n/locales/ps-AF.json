@@ -422,6 +422,20 @@
     }
   },
   "common": {
+    "attachments": {
+      "title": "نښلول شوي فایلونه",
+      "add": "فایل اضافه کړئ",
+      "acceptedHint": "PDF، انځورونه، Office، CSV او متني فایلونه تر ۱۰ MB پورې.",
+      "empty": "تر اوسه کوم فایل نه دی نښلول شوی.",
+      "download": "ښکته کول",
+      "remove": "لرې کول",
+      "uploaded": "فایل پورته شو.",
+      "removed": "فایل لرې شو.",
+      "loadFailed": "د فایلونو لیست پورته نه شو.",
+      "uploadFailed": "فایل پورته نه شو.",
+      "downloadFailed": "فایل ښکته نه شو.",
+      "removeFailed": "فایل لرې نه شو."
+    },
     "actions": {
       "create": "جوړول",
       "void": "باطلول",
@@ -472,6 +486,7 @@
       "startDate": "د پیل نېټه",
       "status": "حالت",
       "name": "نوم",
+      "applicant": "غوښتونکی",
       "company": "شرکت",
       "type": "ډول",
       "currency": "پولي واحد (اسعار)",
@@ -723,6 +738,9 @@
       "addDeduction": "کسرات اضافه کړئ",
       "noDeductionsAdded": "هیڅ کسرات نه دي اضافه شوي.",
       "totalDeductions": "ټول کسرات",
+      "totalDays": "ټولې ورځې",
+      "automaticAttendanceDeduction": "بې معاش رخصتي / غیر حاضري ورځې",
+      "unpaidAndAbsentDays": "{days} ناکاره ورځې",
       "remarks": "ملاحظات",
       "serialNumber": "سریال نمبر",
       "itemName": "د توکي نوم",
@@ -875,7 +893,8 @@
       "serviceSales": "د خدمتونو پلور",
       "pendingTransactions": "انتظار معاملې",
       "loans": "پورونه",
-      "educationalData": "تحصیلي معلومات"
+      "educationalData": "تحصیلي معلومات",
+      "announcements": "اعلانیې"
     },
     "tables": {},
     "dateTime": {},
@@ -1306,7 +1325,7 @@
           "yourAccountIsReadySignInWithThePasswordYouCreated": "ستاسو اکاونټ چمتو دی. له هغه پټنوم سره ننوځئ کوم چې مو جوړ کړی.",
           "emailAndPasswordAreRequired": "برېښنالیک او پټنوم اړین دي.",
           "enterYourEmailAddressFirst": "لومړی خپل برېښنالیک ولیکئ",
-          "asantechMiniManagement": "د آسانتېک کوچنی مدیریت",
+          "asantechMiniManagement": "ښوونیز سیستم",
           "welcome": "ښه راغلاست!",
           "pleaseSignInToYourAccount": "مهرباني وکړئ خپل اکاونټ ته ننوځئ",
           "resendEmail": "برېښنالیک بیا ولېږئ",
@@ -2037,6 +2056,15 @@
         "printSafeAreaOffsetY": "عمودي واټن",
         "printSafeAreaWidth": "سور",
         "printSafeAreaHeight": "لوړوالی",
+        "receiptInvoiceDocuments": "د رسید او بل اسناد",
+        "receiptInvoiceDocumentsHint": "د رسیدونو او بلونو لپاره د پاڼې سرلیک ډیزاین. خوندي سیمه ښیي چې اتومات متنونه چېرته ځای پر ځای شي.",
+        "receiptLetterhead": "د رسید سرلیک",
+        "invoiceLetterhead": "د بل سرلیک",
+        "payslipLetterhead": "د معاش پاڼې سرلیک",
+        "letterheadSource": "د سرلیک سرچینه",
+        "letterheadSourceNone": "هیڅ (جوړ شوی ډیزاین)",
+        "letterheadSourceContract": "د شرکت د تړون سرلیک وکاروئ",
+        "letterheadSourceCustom": "ځانګړی پورته کول",
         "resetDefaults": "بېرته اصلي حالت (ډیفالټ) ته راوستل",
         "saveSettings": "تنظیمات خوندي کړئ",
         "themeColorsPreviewHint": "بدلونونه سمدستي په اپلېکېشن کې ښودل کېږي او یوازې د «بدلونونه خوندي کړئ» په ټاکلو سره خوندي کېږي.",
@@ -2746,6 +2774,11 @@
           "recordExpense2": "لګښت ثبت کړئ",
           "captureOutgoingCashWithItsLiveCurrencyRelationship": "وتونکې پیسې د اسعارو له اوسني نرخ سره ثبت کړئ.",
           "saveExpense": "لګښت خوندي کړئ",
+          "saveModeDirect": "مستقیم ثبت",
+          "saveModeLoan": "پورونو ته واستوئ",
+          "saveModeDirectHint": "لګښت سمدلاسه کتابچې ته لیکل کیږي.",
+          "saveModeLoanHint": "اندازه د پور غوښتنې په توګه واستول کیږي او یوازې له منلو وروسته کتابچې ته رسیږي.",
+          "loanSubmitted": "د لګښت غوښتنه د منلو لپاره پورونو ته واستول شوه.",
           "editExpense": "لګښت بدل کړئ",
           "updateTheRecordedSpendAndItsCurrency": "ثبت شوی لګښت او پولي واحد یې نوی کړئ.",
           "deleteExpense": "لګښت حذف کړئ؟",
@@ -2797,6 +2830,12 @@
           "selectAValidIncomeDate": "د عاید سمه نېټه وټاکئ.",
           "cashflowCOMMANDCENTER": "د نغدي جریان (کیش فلو) مرکز",
           "incomeLedger": "د عاید کتابچه",
+          "saveMode": "د خوندي کولو طریقه",
+          "saveModeDirect": "مستقیم ثبت",
+          "saveModeLoan": "پورونو ته واستوئ",
+          "saveModeDirectHint": "رسید سمدلاسه د عاید کتابچې ته لیکل کیږي.",
+          "saveModeLoanHint": "اندازه د پور غوښتنې په توګه واستول کیږي او یوازې له منلو وروسته کتابچې ته رسیږي.",
+          "loanSubmitted": "د عاید غوښتنه د منلو لپاره پورونو ته واستول شوه.",
           "liveReceiptActivityInvoiceCollectionsAndCurrencyTotalsInOneView": "د رسیدونو ژوندی فعالیت، د انوایس وصولي او د اسعارو مجموعې په یوه ځای کې",
           "printIncomeRecords": "د عاید ریکارډونه چاپ کړئ",
           "recordIncome": "عاید ثبت کړئ",
@@ -2887,7 +2926,7 @@
           },
           "operations": {
             "label": "سوداګریز عملیات",
-            "description": "پېرودونکي، خدمتونه، قراردادونه، لیدونکي، شرکتونه او سپارنه.",
+            "description": "غوښتونکي، خدمتونه، قراردادونه، لیدونکي، شرکتونه او سپارنه.",
             "question": "ایا غوښتنه په ژمن او بشپړ کار بدلېږي؟"
           }
         },
@@ -2903,7 +2942,7 @@
           "endDate": "د پای نېټه",
           "employee": "کارکوونکی",
           "office": "دفتر",
-          "customer": "پېرودونکی",
+          "applicant": "غوښتونکی",
           "currency": "اسعار",
           "taskBoard": "د دندو بورډ",
           "contractType": "د قرارداد ډول",
@@ -2946,7 +2985,7 @@
           "beyondSchedules": "له اړین مهالویش زیات",
           "incompleteRecords": "نیمګړي ریکارډونه",
           "missingPunch": "د ننوتلو یا وتلو ثبت نشته",
-          "newCustomers": "نوي پېرودونکي",
+          "newApplicants": "نوي غوښتونکي",
           "addedInPeriod": "په دې موده کې زیات شوي",
           "visitors": "لیدونکي",
           "commercialInterest": "سوداګریزه لېوالتیا ثبت شوې",
@@ -2964,7 +3003,7 @@
           "workedHours": "کاري ساعتونه",
           "requiredHours": "اړین ساعتونه",
           "visitors": "لیدونکي",
-          "customers": "پېرودونکي",
+          "applicants": "غوښتونکي",
           "contracts": "قراردادونه",
           "taskDeadlines": "د دندو نېټې",
           "noTrendData": "په دې موده کې د بهیر معلومات نشته",
@@ -2987,9 +3026,9 @@
           "incompleteSessionsBody": "د معاش له چمتو کولو مخکې نیمګړي ثبتونه سم کړئ.",
           "supportRequests": "{count} د مرستې غوښتنې",
           "supportRequestsBody": "په ورځنیو راپورونو کې خنډونه د مدیریت تعقیب غواړي.",
-          "conversionRatio": "له لیدونکي څخه پېرودونکي ته {rate}٪ کچه",
+          "conversionRatio": "له لیدونکي څخه غوښتونکي ته {rate}٪ کچه",
           "noVisitorActivity": "د لیدونکو فعالیت نشته",
-          "conversionBody": "په ټاکلې موده کې {visitors} لیدونکي او {customers} نوي پېرودونکي ثبت شوي.",
+          "conversionBody": "په ټاکلې موده کې {visitors} لیدونکي او {applicants} نوي غوښتونکي ثبت شوي.",
           "overdueRatio": "د راپور شویو دندو {rate}٪ ځنډېدلي",
           "noTaskCommitments": "د دندو ژمنې نشته",
           "overdueBody": "د دې راپور له {tasks} دندو {overdue} تعقیب ته اړتیا لري."
@@ -3143,9 +3182,108 @@
         "actionTitle": "یوه ګټوره غوښتنه واستوئ",
         "actionDescription": "شدت د عملیاتي اغېز له مخې وټاکئ، بیا تمه شوې پایله، واقعي پایله او د تکرار ګامونه تشریح کړئ. غوښتنه خوندي کېږي او د ملاتړ صندوق ته برېښنالیک کېږي."
       }
+    },
+    "audits": {
+      "events": {
+        "announcement_sent": "اعلانیه ولېږل شوه"
+      },
+      "resources": {
+        "announcements": "اعلانیې"
+      }
+    },
+    "announcements": {
+      "title": "اعلانیې",
+      "subtitle": "ډېری پیغامونه چې مستقیم د کارکوونکو د خبرتیا صندوق ته ځي.",
+      "compose": "نوې اعلانیه",
+      "couldNotLoad": "د اعلانیو بارول ناشوني شول.",
+      "sentToast": "اعلانیه وسپارل شوه.",
+      "filters": {
+        "mine": "زما اعلانیې",
+        "everyone": "ټول"
+      },
+      "composer": {
+        "title": "د اعلانیې لیکل",
+        "subtitle": "ترلاسه کوونکي وټاکئ، پیغام ولیکئ او ولېږئ.",
+        "immutableNotice": "اعلانیې له لېږلو وروسته نه سمول کېږي او نه ړنګېږي. له لېږلو مخکې هر څه پام سره وګورئ.",
+        "titleLabel": "سرلیک (اختیاري)",
+        "titlePlaceholder": "لکه: دفتر په پنجشنبه بند دی",
+        "messageLabel": "پیغام",
+        "messagePlaceholder": "هغه اعلانیه ولیکئ چې ستاسو مخاطبان یې ترلاسه کوي…",
+        "labelsLabel": "لیبلونه (په کاما جلا شوي)",
+        "labelsPlaceholder": "لکه: بشري منابع، پالیسي، بیړنی",
+        "labelsHint": "دا لیبلونه په خبرتیا کې د ترلاسه کوونکي لپاره ښکاري.",
+        "audienceLabel": "مخاطبان",
+        "addAudienceLabel": "مخاطب زیاتول",
+        "chooseTargetLabel": "یک هدف مشخص انتخاب کړئ…",
+        "audienceHint": "څو مخاطبان ترکیب کړئ چې ساحه پراخه شي.",
+        "scopeAllEmployees": "ټول کارکوونکي",
+        "scopePosition": "دنده",
+        "scopeRole": "رول",
+        "scopeDepartment": "څانګه",
+        "scopeApplicants": "غوښتونکي",
+        "send": "اعلانیه ولېږه"
+      },
+      "validation": {
+        "audienceRequired": "لږ تر لږه یو مخاطب وټاکئ.",
+        "audienceTargetRequired": "د هر ټاکل شوي مخاطب لپاره ځانګړې دنده، رول یا څانګه وټاکئ.",
+        "messageRequired": "د اعلانیې متن لازمي دی."
+      },
+      "list": {
+        "mine": "زما اعلانیې",
+        "everyones": "ټولې اعلانیې",
+        "untitled": "بې سرلیکه اعلانیه",
+        "empty": "لا تر اوسه اعلانیه نشته.",
+        "emptyHint": "اعلانیې چې لېږئ دلته ښکاري."
+      }
     }
   },
   "documents": {
+    "receipt": {
+      "title": "د تادیې رسید",
+      "serial": "د رسید شمېره",
+      "paymentDate": "د تادیې نېټه",
+      "receivedFrom": "ترلاسه شوی له",
+      "applicantId": "د غوښتونکي پېژند",
+      "fatherName": "د پلار نوم",
+      "phone": "تلیفون",
+      "email": "بریښنالیک",
+      "address": "پته",
+      "country": "د موخې هېواد",
+      "educationLevel": "د زده‌کړې کچه",
+      "caseStatus": "د قضیې حالت",
+      "paymentDetails": "د تادیې توضیحات",
+      "incomeName": "عاید",
+      "incomeId": "د عاید پېژند",
+      "paymentType": "د تادیې ډول",
+      "description": "تفصیل",
+      "invoice": "بل",
+      "invoiceOptional": "له بل سره تړاو نه لري",
+      "servicesProvided": "تړوني خدمتونه او بستې",
+      "item": "توکی",
+      "fee": "فيس",
+      "totalFee": "ټوله فیس",
+      "paidToDate": "ټوله تادیه شوې",
+      "balance": "پاتې",
+      "amountReceived": "ترلاسه شوې اندازه",
+      "receivedBy": "ترلاسه کوونکی",
+      "authorizedSignature": "مجاز لاسلیک او مهر",
+      "recordedBy": "ثبت کوونکی",
+      "thankYou": "د ویزې په سفر کې پر موږ د باور له امله مننه.",
+      "license": "جواز",
+      "noServices": "لا تر اوسه تړوني خدمتونه ثبت شوي نه دي.",
+      "paperSize": "د کاغذ اندازه",
+      "paperA3Landscape": "A3 اوږد (۲ کاپي)",
+      "paperA4Portrait": "A4 ولاړ (۲ کاپي)",
+      "paperA4Landscape": "A4 اوږد (۲ کاپي)",
+      "paperA4TwoA5": "A4 ولاړ (۲ A5 اوږد کاپي)",
+      "paperA5Two": "A5 ولاړ (۲ کاپي)",
+      "paperA5Portrait": "A5 ولاړ",
+      "paperLetterPortrait": "Letter ولاړ (۲ کاپي)",
+      "copies": "کاپي",
+      "printReceipt": "رسید چاپ کړئ",
+      "loadFailed": "دا رسید بار نه شو.",
+      "pleaseAllowPopups": "د رسید چاپ لپاره د پاپ‌آپ پنجرو اجازه ورکړئ."
+    },
     "contract": {
       "defaultFooter": "له موږ سره د سوداګرۍ له امله مننه!",
       "telephone": "ټیلیفون: {phone}",
@@ -3190,11 +3328,24 @@
       "business": {
         "support_recipient_not_configured": "د ملاتړ برېښنالیک لا نه دی تنظیم شوی. له مدیر څخه وغواړئ چې SUPPORT_TICKET_RECIPIENT تنظیم کړي.",
         "support_email_delivery_failed": "ستاسو د ملاتړ غوښتنه ونه لېږل شوه. هېڅ شی ثبت نه شو؛ لږ وروسته بیا هڅه وکړئ.",
-        "support_attachment_total_exceeded": "د ټولو ضمیمو اندازه باید له ۱۰ MB زیاته نه وي."
+        "support_attachment_total_exceeded": "د ټولو ضمیمو اندازه باید له ۱۰ MB زیاته نه وي.",
+        "edit_window_expired": "دا توکی یوازې د جوړېدو وروسته په لومړي ساعت کې سمول کېدای شي."
       }
     }
   },
   "notifications": {
+    "income": {
+      "recorded": {
+        "title": "د تادیې رسید ثبت شو",
+        "message": "رسید {receipt_number} د {applicant} لپاره په {amount} ثبت شو."
+      }
+    },
+    "task": {
+      "assigned": {
+        "title": "دنده وسپارل شوه",
+        "message": "دنده «{task}» تاسو ته وسپارل شوه."
+      }
+    },
     "applicant": {
       "assigned": {
         "title": "د غوښتونکي قضیه وسپارل شوه",
@@ -3300,6 +3451,10 @@
         "title": "سیسټمي خبرتیا",
         "message": ""
       }
+    },
+    "announcement": {
+      "fallbackTitle": "اعلانیه",
+      "fromSender": "له {sender}"
     }
   },
   "legacyPages": {
@@ -3493,6 +3648,14 @@
     "applicationDate": "د غوښتنلیک نېټه",
     "needHelp": "مرستې ته اړتیا لرئ؟",
     "helpText": "که معلومات ناسم وي یا په راتلونکي ګام کې مرسته غواړئ، له خپل سلاکار سره اړیکه ونیسئ.",
+    "documents": "اسناد",
+    "documentsHelp": "اسناد د خپلې قضیې له لارې په خوندي ډول خپل سلاکار ته واستوئ.",
+    "noDocuments": "تر اوسه هېڅ سند نه دی پورته شوی.",
+    "documentLabel": "د سند نوم (اختیاري)",
+    "selectDocument": "سند وټاکئ",
+    "uploadDocument": "سند پورته کړئ",
+    "documentUploaded": "سند پورته شو.",
+    "documentUploadFailed": "سند پورته نه شو.",
     "profileTitle": "خپل معلومات وګورئ",
     "profileSubtitle": "معلومات کره وساتئ څو سلاکار مو غوښتنلیکونه سم چمتو کړي.",
     "personalContact": "شخصي او اړیکه",
@@ -3565,6 +3728,7 @@
       "noTasks": "تر اوسه عملیاتي کار نشته. کاري پړاو ته د دوسیې انتقال دندې په اتومات ډول جوړوي.",
       "contracts": "قراردادونه",
       "noContracts": "تر اوسه له دې دوسیې سره قرارداد نه دی تړل شوی.",
+      "printContractFailed": "دا قرارداد د چاپ لپاره پورته نه شو.",
       "universityApplications": "د پوهنتون غوښتنلیکونه",
       "addApplication": "غوښتنلیک زیاتول",
       "primaryChoice": "اصلي انتخاب: {university}",

@@ -209,10 +209,18 @@ class ApplicantController extends Controller
     {
         return [
             'id' => $record->id, 'service_id' => $record->service_id, 'type' => $record->service->type, 'category' => $record->service->category, 'employee_id' => $record->sold_by_employee_id,
-            'currency_id' => $record->currency_id ?? $record->service->currency_id, 'package_type_id' => $record->customerPackage?->package_id,
+            'contract_id' => $record->contract_id,
+            'contract_number' => $record->contract?->contract_number,
+            'currency_id' => $record->currency_id ?? $record->service->currency_id,
+            'package_id' => $record->customerPackage?->package_id,
+            // @deprecated "package_type_id" is the old name for "package_id".
+            'package_type_id' => $record->customerPackage?->package_id,
             'country_id' => $record->country_id, 'education_level_id' => $record->education_level_id, 'language_id' => $record->language_id,
             'date' => $record->contract?->start_date?->toDateString(), 'fee' => $record->fee ?? $record->service->fee, 'status' => $record->contract?->status,
-            'currency' => $record->currency ?? $record->service->currency, 'package_type' => $record->customerPackage?->package,
+            'currency' => $record->currency ?? $record->service->currency,
+            'package' => $record->customerPackage?->package,
+            // @deprecated "package_type" is the old name for "package".
+            'package_type' => $record->customerPackage?->package,
             'bonus_source' => $record->bonusSource,
         ];
     }

@@ -19,7 +19,8 @@
       "Bash(mysql *)",
       "Bash(chmod *)",
       "Bash(mkdir *)",
-      "Bash(/tmp/mysql-edu/snapshot-schema.sh laravel_test /tmp/mysql-edu/golden-schema-snap.txt && /tmp/mysql-edu/snapshot-schema.sh laravel_test /tmp/mysql-edu/snap-b.txt && cmp /tmp/mysql-edu/golden-schema-snap.txt /tmp/mysql-edu/snap-b.txt && echo DETERMINISTIC; cp /tmp/mysql-edu/golden-schema.sql /tmp/mysql-edu/golden-schema.sql.bak; cp /tmp/mysql-edu/golden-data.sql /tmp/mysql-edu/golden-data.sql.bak)"
+      "Bash(/tmp/mysql-edu/snapshot-schema.sh laravel_test /tmp/mysql-edu/golden-schema-snap.txt && /tmp/mysql-edu/snapshot-schema.sh laravel_test /tmp/mysql-edu/snap-b.txt && cmp /tmp/mysql-edu/golden-schema-snap.txt /tmp/mysql-edu/snap-b.txt && echo DETERMINISTIC; cp /tmp/mysql-edu/golden-schema.sql /tmp/mysql-edu/golden-schema.sql.bak; cp /tmp/mysql-edu/golden-data.sql /tmp/mysql-edu/golden-data.sql.bak)",
+      "Skill(playwright-cli)"
     ]
   },
   "hooks": {

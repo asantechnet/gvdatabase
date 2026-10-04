@@ -147,11 +147,33 @@ const toggleReadUnread = (isSeen: boolean, Id: number) => {
                       {{ notification.title }}
                     </p>
                     <p
+                      v-if="notification.sender"
+                      class="notification-sender mb-1"
+                    >
+                      {{ notification.sender }}
+                    </p>
+                    <p
+                      v-if="notification.subtitle"
                       class="text-body-2 mb-2"
                       style=" letter-spacing: 0.4px !important; line-height: 18px;"
                     >
                       {{ notification.subtitle }}
                     </p>
+                    <div
+                      v-if="notification.labels?.length"
+                      class="d-flex flex-wrap ga-1 mb-2"
+                    >
+                      <VChip
+                        v-for="label in notification.labels"
+                        :key="label"
+                        size="x-small"
+                        color="primary"
+                        variant="tonal"
+                        label
+                      >
+                        {{ label }}
+                      </VChip>
+                    </div>
                     <p
                       class="text-sm text-disabled mb-0"
                       style=" letter-spacing: 0.4px !important; line-height: 18px;"
@@ -228,6 +250,14 @@ const toggleReadUnread = (isSeen: boolean, Id: number) => {
       display: block;
     }
   }
+}
+
+.notification-sender {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-block-end: 0.25rem;
+  opacity: var(--v-medium-emphasis-opacity);
 }
 
 .notification-list.v-list {

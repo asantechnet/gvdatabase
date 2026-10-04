@@ -38,6 +38,7 @@ export interface ContractPageProps {
   showSignature?: boolean
   contracteeName?: string
   contracteeCompanyName?: string // Added for flexibility (e.g., "John Doe" vs "Acme Corp")
+  companySignatoryName?: string | null
   partyDetails?: PartyDetails
   accentColor?: string
 }
@@ -53,6 +54,7 @@ const props = withDefaults(defineProps<ContractPageProps>(), {
   contracteeName: 'Client / Counterparty',
   contracteeCompanyName: '',
   partyDetails: undefined,
+  companySignatoryName: null,
   accentColor: '#1e293b',
 })
 
@@ -368,6 +370,18 @@ defineExpose({
               </p>
               <p class="sig-sub">
                 {{ $t('documents.contract_page_template.contractPageTemplate.companyName') }}
+              </p>
+              <p
+                v-if="companySignatoryName"
+                class="sig-name"
+              >
+                <strong>{{ companySignatoryName }}</strong>
+              </p>
+              <p
+                v-if="companySignatoryName"
+                class="sig-sub"
+              >
+                {{ $t('pages.contracts.contractform.contractform.signatory') }}
               </p>
               <p class="sig-sub">
                 {{ $t('common.messages.authorizedSignatureDate') }}

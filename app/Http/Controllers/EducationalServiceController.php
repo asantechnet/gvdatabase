@@ -58,7 +58,7 @@ class EducationalServiceController extends Controller
 
     public function options(Request $request)
     {
-        $employeeQuery = Employee::query()->orderBy('name');
+        $employeeQuery = Employee::query()->excludePrimaryRecord()->orderBy('name');
         $applicantQuery = Applicant::query()->latest();
         $contractQuery = Contract::query()->whereNotNull('employee_id')->whereNotNull('applicant_id')->latest();
         if (! $this->canViewAll($request)) {
@@ -67,11 +67,14 @@ class EducationalServiceController extends Controller
             $applicantQuery->whereIn('responsible_employee_id', $employeeIds);
             $contractQuery->whereIn('employee_id', $employeeIds);
         }
+        $packages = Package::query()->with('services:id,type,category')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'fee', 'currency_id']);
         return response()->json(['success' => true, 'data' => [
             'employees' => $employeeQuery->get(['id', 'name']),
             'applicants' => $applicantQuery->get(['id', 'name']),
             'currencies' => Currency::query()->where('is_active', true)->orderBy('code')->get(['id', 'name', 'code', 'symbol', 'is_base']),
-            'package_types' => Package::query()->with('services:id,type,category')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'fee', 'currency_id']),
+            'packages' => $packages,
+            // @deprecated "package_types" is the old name for the packages option.
+            'package_types' => $packages,
             'services' => Service::query()->where('status', 'active')->whereIn('category', ['scholarship', 'test_offer'])
                 ->with('contractTemplate:id,name,service_id')->orderBy('type')
                 ->get(['id', 'type', 'category', 'fee', 'currency_id']),
@@ -219,11 +222,16 @@ class EducationalServiceController extends Controller
             'id' => $record->id, 'applicant_id' => $record->applicant_id ?? $contract?->applicant_id,
             'service_id' => $record->service_id, 'service' => $record->service, 'employee_id' => $record->sold_by_employee_id,
             'currency_id' => $record->currency_id ?? $record->service->currency_id,
+            'package_id' => $record->customerPackage?->package_id,
+            // @deprecated "package_type_id" is the old name for "package_id".
             'package_type_id' => $record->customerPackage?->package_id,
             'date' => $contract?->start_date?->toDateString() ?? $record->created_at->toDateString(),
             'fee' => $record->fee ?? $record->service->fee, 'status' => $contract?->status ?? 'active',
             'applicant' => $applicant, 'employee' => $record->soldByEmployee,
-            'currency' => $record->currency ?? $record->service->currency, 'package_type' => $record->customerPackage?->package,
+            'currency' => $record->currency ?? $record->service->currency,
+            'package' => $record->customerPackage?->package,
+            // @deprecated "package_type" is the old name for "package".
+            'package_type' => $record->customerPackage?->package,
             'country' => $record->country, 'education_level' => $record->educationLevel, 'language' => $record->language,
             'country_id' => $record->country_id, 'education_level_id' => $record->education_level_id, 'language_id' => $record->language_id,
             'bonus_source' => $record->bonusSource,

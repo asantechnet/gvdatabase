@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\Board;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\EmployeeScope;
 use App\Support\TaskAccess;
 
 class TaskPolicy
@@ -27,6 +28,9 @@ class TaskPolicy
             // Managing a subordinate's task needs the manage scope, so a
             // view-only supervisor cannot change it.
             || ($user->hasPermission('edit_assigned_tasks') && TaskAccess::isTeamTaskAssignee($user, $task))
+            // A department manager coordinates the work of the members of the
+            // department they head, so they may update its tasks.
+            || TaskAccess::isDepartmentTask($user, $task)
         );
     }
 
@@ -50,7 +54,12 @@ class TaskPolicy
 
     public function assignMembers(User $user, Task $task): bool
     {
-        return $user->hasPermission('assign_task_members') && $this->update($user, $task);
+        // Department heads may assign within their department even when their
+        // role does not carry the global `assign_task_members` permission; the
+        // controller keeps their target list inside `managedDepartmentUserIds`.
+        return ($user->hasPermission('assign_task_members')
+            || app(EmployeeScope::class)->isDepartmentManager($user))
+            && $this->update($user, $task);
     }
 
     public function manageDependencies(User $user, Task $task): bool

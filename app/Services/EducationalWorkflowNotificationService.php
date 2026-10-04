@@ -10,9 +10,11 @@ use App\Models\CaseWin;
 use App\Models\Contract;
 use App\Models\CustomerPackage;
 use App\Models\Employee;
+use App\Models\Income;
 use App\Models\Invoice;
 use App\Models\Notification;
 use App\Models\PendingTransaction;
+use App\Models\Task;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -126,6 +128,69 @@ class EducationalWorkflowNotificationService
         $recipients = collect([$invoice->applicant?->responsibleEmployee?->user_id])
             ->filter(fn ($id) => $id && (int) $id !== $actorId);
         $this->notifyOnce("invoice.issued.{$invoice->id}", 'finance', 'Applicant invoice issued', "Invoice {$invoice->invoice_number} was issued for {$this->applicantLabel($invoice->applicant)}.", ['translation_key' => 'invoice.issued', 'invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number, 'applicant_id' => $invoice->applicant_id], '/innvoice', $recipients);
+    }
+
+    /**
+     * A receipt was recorded for an applicant. The case owner is told which
+     * receipt was minted so they can print or follow up on the payment.
+     */
+    public function incomeRecorded(Income $income, ?int $actorId = null): void
+    {
+        $income->loadMissing(['applicant.responsibleEmployee', 'incomeCurrency']);
+        $recipients = collect([$income->applicant?->responsibleEmployee?->user_id])
+            ->filter(fn ($id) => $id && (int) $id !== $actorId);
+
+        $amount = number_format((float) $income->amount * (int) $income->quantity, 2)
+            .' '.($income->incomeCurrency?->code ?? '');
+
+        $this->notifyOnce(
+            "income.recorded.{$income->id}",
+            'finance',
+            'Payment receipt recorded',
+            "Receipt {$income->receipt_number} was recorded for {$this->applicantLabel($income->applicant)} ({$amount}).",
+            [
+                'translation_key' => 'income.recorded',
+                'income_id' => $income->id,
+                'receipt_number' => $income->receipt_number,
+                'applicant_id' => $income->applicant_id,
+                'applicant' => $income->applicant ? $this->applicantLabel($income->applicant) : null,
+                'amount' => $amount,
+            ],
+            '/income',
+            $recipients,
+        );
+    }
+
+    /**
+     * A task was assigned to one or more members. Each assignee gets their own
+     * notification; the key is per task and user so re-saving the assignee list
+     * never re-notifies the same person.
+     *
+     * @param  array<int|string>  $assigneeIds
+     */
+    public function taskAssigned(Task $task, array $assigneeIds, ?int $actorId = null): void
+    {
+        $recipients = collect($assigneeIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0 && $id !== (int) $actorId)
+            ->unique()
+            ->values();
+
+        foreach ($recipients as $userId) {
+            $this->notifyOnce(
+                "task.assigned.{$task->id}.{$userId}",
+                'task',
+                'Task assigned',
+                "Task \"{$task->title}\" was assigned to you.",
+                [
+                    'translation_key' => 'task.assigned',
+                    'task_id' => $task->id,
+                    'task' => $task->title,
+                ],
+                '/tasks',
+                collect([$userId]),
+            );
+        }
     }
 
     public function applicantStageChanged(Applicant $applicant, ApplicantStage $stage, ApplicantStageHistory $history, ?int $actorId = null): void

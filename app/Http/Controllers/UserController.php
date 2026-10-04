@@ -18,7 +18,7 @@ class UserController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizePermission($request, 'view_users');
-        $users = User::query()->orderBy('name')->get();
+        $users = User::query()->excludePrimaryRecord()->orderBy('name')->get();
 
         return response()->json(['success' => true, 'data' => UserResource::collection($users)]);
     }
@@ -46,6 +46,7 @@ class UserController extends Controller
     public function show(Request $request, User $user): JsonResponse
     {
         $this->authorizePermission($request, 'view_users');
+        abort_if((int) $user->id === User::primaryRecordId(), 404);
 
         return response()->json(['success' => true, 'data' => new UserResource($user)]);
     }

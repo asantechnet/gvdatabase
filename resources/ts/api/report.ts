@@ -7,7 +7,7 @@ export interface ReportFilters {
   end_date: string
   employee_id?: number | null
   office_id?: number | null
-  customer_id?: number | null
+  applicant_id?: number | null
   currency_id?: number | null
   board_id?: number | null
   status?: string | null
@@ -41,7 +41,7 @@ export interface ReportCatalog {
   types: Array<{ value: ReportType; category: string; title: string }>
   employees: Array<{ id: number; name: string; office_id: number | null }>
   offices: Array<{ id: number; name: string; code: string }>
-  customers: Array<{ id: number; name: string }>
+  applicants: Array<{ id: number; name: string }>
   currencies: Array<{ id: number; code: string; symbol: string; decimal_places: number; is_base: boolean }>
   boards: Array<{ id: number; title: string }>
   contract_types: string[]

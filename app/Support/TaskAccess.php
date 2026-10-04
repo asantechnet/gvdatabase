@@ -85,4 +85,16 @@ class TaskAccess
 
         return $teamUserIds !== [] && $task->users()->whereIn('users.id', $teamUserIds)->exists();
     }
+
+    /**
+     * A task that already involves a member of a department the user heads.
+     * This is how a department manager reaches the work they are expected to
+     * coordinate, without a supervisor-chain relationship.
+     */
+    public static function isDepartmentTask(User $user, Task $task): bool
+    {
+        $departmentUserIds = app(EmployeeScope::class)->managedDepartmentUserIds($user);
+
+        return $departmentUserIds !== [] && $task->users()->whereIn('users.id', $departmentUserIds)->exists();
+    }
 }

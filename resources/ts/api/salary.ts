@@ -7,6 +7,16 @@ export interface SalaryDeduction {
   description: string
   amount: number
   sortOrder?: number
+  isAutomatic?: boolean
+  code?: string | null
+}
+
+export interface AttendanceBreakdown {
+  workedDays: number
+  totalDays: number
+  paidLeaveDays: number
+  unpaidLeaveDays: number
+  absentDays: number
 }
 
 // Types matching the frontend requirements
@@ -115,6 +125,15 @@ const SalaryApi = {
   // Get only the granted bonus records applicable to an employee's salary month.
   getGrantedBonuses: async (employeeId: number, salaryMonth: string) => {
     const response = await api.get<{ data: WorthyEmployee[] }>('/salaries/granted-bonuses', {
+      params: { employee_id: employeeId, salaryMonth },
+    })
+
+    return response.data
+  },
+
+  // Attendance-derived working days used to prefill the editable day inputs.
+  getAttendanceBreakdown: async (employeeId: number, salaryMonth: string) => {
+    const response = await api.get<{ data: AttendanceBreakdown }>('/salaries/attendance-breakdown', {
       params: { employee_id: employeeId, salaryMonth },
     })
 

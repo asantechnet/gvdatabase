@@ -76,6 +76,8 @@ class EducationalReportController extends Controller
             'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
             'language_id' => ['nullable', 'integer', 'exists:languages,id'],
             'contract_type_id' => ['nullable', 'integer', 'exists:contract_types,id'],
+            'package_id' => ['nullable', 'integer', 'exists:packages,id'],
+            // @deprecated "package_type_id" is the old name for "package_id".
             'package_type_id' => ['nullable', 'integer', 'exists:packages,id'],
             'stage' => ['nullable', 'string', 'max:60'],
             'status' => ['nullable', 'in:active,closed'],
@@ -155,6 +157,7 @@ class EducationalReportController extends Controller
     {
         $columns = ['employee', 'active_cases', 'closed_cases', 'services_sold', 'contracts_sold', 'revenue_attributed', 'bonus_amount'];
         $employees = Employee::query()
+            ->excludePrimaryRecord()
             ->when(! empty($filters['employee_id']) || ! empty($filters['responsible_employee_id']), fn ($q) => $q->whereKey($filters['employee_id'] ?? $filters['responsible_employee_id']))
             ->orderBy('name')
             ->limit(200)
@@ -198,8 +201,9 @@ class EducationalReportController extends Controller
                 });
             }
         }
-        if (! empty($filters['package_type_id'])) {
-            $query->whereHas('customerPackage', fn ($q) => $q->where('package_id', $filters['package_type_id']));
+        $packageFilter = $filters['package_id'] ?? $filters['package_type_id'] ?? null;
+        if (! empty($packageFilter)) {
+            $query->whereHas('customerPackage', fn ($q) => $q->where('package_id', $packageFilter));
         }
         if (! empty($filters['date_from'])) {
             $query->whereHas('contract', fn ($contracts) => $contracts->whereDate('start_date', '>=', $filters['date_from']));
@@ -213,7 +217,7 @@ class EducationalReportController extends Controller
 
     private function salesReport(array $filters, bool $paginate, Request $request): array
     {
-        $columns = ['id', 'service', 'applicant', 'employee', 'country', 'education_level', 'package_type', 'fee', 'currency', 'date', 'status'];
+        $columns = ['id', 'service', 'applicant', 'employee', 'country', 'education_level', 'package', 'fee', 'currency', 'date', 'status'];
         $codes = DB::table('currencies')->pluck('code', 'id');
         $collect = function ($items, string $service) use ($codes) {
             return $items->map(fn ($s) => [
@@ -222,6 +226,8 @@ class EducationalReportController extends Controller
                 'applicant' => $s->contract?->applicant?->name ?? $s->applicant?->name ?? "Applicant #{$s->applicant_id}",
                 'country' => $s->country?->name ?? $s->applicant?->country?->name ?? '—',
                 'education_level' => $s->educationLevel?->name ?? $s->applicant?->educationLevel?->name ?? '—',
+                'package' => $s->customerPackage?->package?->name ?? '—',
+                // @deprecated "package_type" is the old name for "package".
                 'package_type' => $s->customerPackage?->package?->name ?? '—',
                 'employee' => $s->soldByEmployee?->name ?? '—',
                 'fee' => (float) ($s->fee ?? $s->service->fee),

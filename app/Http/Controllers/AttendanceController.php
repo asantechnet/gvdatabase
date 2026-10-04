@@ -201,7 +201,7 @@ class AttendanceController extends Controller
             return EmployeeResource::collection(collect());
         }
 
-        $unmarkedStaff = Employee::selectable()->whereDoesntHave('attendances', function ($query) use ($date) {
+        $unmarkedStaff = Employee::selectable()->excludePrimaryRecord()->whereDoesntHave('attendances', function ($query) use ($date) {
             $query->where('date', $date)->where(function ($marked) {
                 $marked->whereIn('status', ['present', 'absent'])
                     ->orWhere('leave_duration_days', '>=', 1);

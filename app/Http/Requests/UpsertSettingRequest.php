@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\DocumentLetterheads;
 use App\Support\ThemePalette;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -42,6 +43,36 @@ class UpsertSettingRequest extends FormRequest
             'contract_letterhead_safe_height' => ['sometimes', 'numeric', 'min:5', 'max:100'],
             'remove_contract_letterhead' => ['sometimes', 'boolean'],
             'remove_contract_cover_design' => ['sometimes', 'boolean'],
+            'receipt_letterhead' => [
+                'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192',
+                Rule::prohibitedIf(fn () => $this->boolean('remove_receipt_letterhead')),
+            ],
+            'receipt_letterhead_source' => ['sometimes', 'nullable', Rule::in(DocumentLetterheads::SOURCES)],
+            'receipt_letterhead_safe_x' => ['sometimes', 'numeric', 'min:0', 'max:95'],
+            'receipt_letterhead_safe_y' => ['sometimes', 'numeric', 'min:0', 'max:95'],
+            'receipt_letterhead_safe_width' => ['sometimes', 'numeric', 'min:5', 'max:100'],
+            'receipt_letterhead_safe_height' => ['sometimes', 'numeric', 'min:5', 'max:100'],
+            'remove_receipt_letterhead' => ['sometimes', 'boolean'],
+            'invoice_letterhead' => [
+                'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192',
+                Rule::prohibitedIf(fn () => $this->boolean('remove_invoice_letterhead')),
+            ],
+            'invoice_letterhead_source' => ['sometimes', 'nullable', Rule::in(DocumentLetterheads::SOURCES)],
+            'invoice_letterhead_safe_x' => ['sometimes', 'numeric', 'min:0', 'max:95'],
+            'invoice_letterhead_safe_y' => ['sometimes', 'numeric', 'min:0', 'max:95'],
+            'invoice_letterhead_safe_width' => ['sometimes', 'numeric', 'min:5', 'max:100'],
+            'invoice_letterhead_safe_height' => ['sometimes', 'numeric', 'min:5', 'max:100'],
+            'remove_invoice_letterhead' => ['sometimes', 'boolean'],
+            'payslip_letterhead' => [
+                'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192',
+                Rule::prohibitedIf(fn () => $this->boolean('remove_payslip_letterhead')),
+            ],
+            'payslip_letterhead_source' => ['sometimes', 'nullable', Rule::in(DocumentLetterheads::SOURCES)],
+            'payslip_letterhead_safe_x' => ['sometimes', 'numeric', 'min:0', 'max:95'],
+            'payslip_letterhead_safe_y' => ['sometimes', 'numeric', 'min:0', 'max:95'],
+            'payslip_letterhead_safe_width' => ['sometimes', 'numeric', 'min:5', 'max:100'],
+            'payslip_letterhead_safe_height' => ['sometimes', 'numeric', 'min:5', 'max:100'],
+            'remove_payslip_letterhead' => ['sometimes', 'boolean'],
             'website_address' => [$required, 'string', 'max:255'],
             'company_email' => [$required, 'email:rfc', 'max:255'],
             'mail_host' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -76,6 +107,18 @@ class UpsertSettingRequest extends FormRequest
             'contract_cover_design.mimes' => 'validation.mimes',
             'contract_cover_design.max' => 'validation.max',
             'contract_cover_design.uploaded' => 'validation.uploaded',
+            'receipt_letterhead.image' => 'validation.image',
+            'receipt_letterhead.mimes' => 'validation.mimes',
+            'receipt_letterhead.max' => 'validation.max',
+            'receipt_letterhead.uploaded' => 'validation.uploaded',
+            'invoice_letterhead.image' => 'validation.image',
+            'invoice_letterhead.mimes' => 'validation.mimes',
+            'invoice_letterhead.max' => 'validation.max',
+            'invoice_letterhead.uploaded' => 'validation.uploaded',
+            'payslip_letterhead.image' => 'validation.image',
+            'payslip_letterhead.mimes' => 'validation.mimes',
+            'payslip_letterhead.max' => 'validation.max',
+            'payslip_letterhead.uploaded' => 'validation.uploaded',
         ];
     }
 }

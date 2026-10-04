@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\ExcludesPrimaryRecord;
+use App\Support\EmployeeScope;
 use Illuminate\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,7 +19,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmailContract
 {
-    use Auditable, HasApiTokens, HasFactory, MustVerifyEmail, Notifiable, SoftDeletes;
+    use Auditable, ExcludesPrimaryRecord, HasApiTokens, HasFactory, MustVerifyEmail, Notifiable, SoftDeletes;
 
     /** @var array<int, string> */
     private array $pendingRoleNames = [];
@@ -166,8 +168,15 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return in_array('super_admin', $this->roleNames(), true);
     }
 
-    /** @return array<int, string> */
-    public function permissionNames(): array
+    /**
+     * Permissions granted directly by the user's roles, before any capability
+     * derived from their organisational position (for example heading a
+     * department). Used where the difference between a role grant and a derived
+     * grant changes the scope of an action.
+     *
+     * @return array<int, string>
+     */
+    public function rolePermissionNames(): array
     {
         if ($this->isSuperAdmin()) {
             return Permission::query()->orderBy('name')->pluck('name')->all();
@@ -187,8 +196,41 @@ class User extends Authenticatable implements MustVerifyEmailContract
             ->all();
     }
 
+    /**
+     * The effective permission set: the role grants plus capabilities a user
+     * holds by heading a department. A department manager may assign tasks to
+     * their department members, so the assignment permission is surfaced here
+     * to keep the API and UI gates consistent.
+     *
+     * @return array<int, string>
+     */
+    public function permissionNames(): array
+    {
+        $names = $this->rolePermissionNames();
+
+        // A department head coordinates the work of the department they manage.
+        // These "assigned"-scoped task permissions let them reach that work
+        // (the task policy still restricts them to tasks that involve their
+        // department) and to hand tasks to department members. The assignment
+        // controller keeps their target list inside the department.
+        if (! $this->isSuperAdmin() && app(EmployeeScope::class)->isDepartmentManager($this)) {
+            $names = [...$names, 'view_assigned_boards', 'view_assigned_tasks', 'edit_assigned_tasks', 'assign_task_members'];
+        }
+
+        return array_values(array_unique($names));
+    }
+
     public function hasPermission(string $permission): bool
     {
         return $this->isSuperAdmin() || in_array($permission, $this->permissionNames(), true);
+    }
+
+    /**
+     * Whether a permission comes from a role grant (unrestricted) rather than a
+     * position-derived capability (which callers must scope themselves).
+     */
+    public function hasDirectPermission(string $permission): bool
+    {
+        return $this->isSuperAdmin() || in_array($permission, $this->rolePermissionNames(), true);
     }
 }

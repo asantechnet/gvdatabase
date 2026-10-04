@@ -2,11 +2,13 @@
 
 namespace App\Support;
 
+use App\Models\Announcement;
 use App\Models\Applicant;
 use App\Models\ApplicantAttachment;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantUniversity;
 use App\Models\Asset;
+use App\Models\Attachment;
 use App\Models\Attendance;
 use App\Models\AuditResourceSetting;
 use App\Models\Board;
@@ -112,11 +114,13 @@ final class AuditRegistry
             'semesters' => Semester::class,
             'settings' => Setting::class,
             'assets' => Asset::class,
+            'attachments' => Attachment::class,
             'subtasks' => Subtask::class,
             'tags' => Tag::class,
             'task_attachments' => TaskAttachment::class,
             'tasks' => Task::class,
             'users' => User::class,
+            'announcements' => Announcement::class,
             'universities' => University::class,
             'visitors' => Visitor::class,
             'worthy_employees' => WorthyEmployee::class,
@@ -189,6 +193,7 @@ final class AuditRegistry
             'tasks' => ['title'],
             'subtasks' => ['title'],
             'task_attachments' => ['original_name'],
+            'attachments' => ['original_name'],
             'contract_policies' => ['label', 'header'],
             'services' => ['type'],
             'service_variants' => ['name', 'code'],
@@ -202,6 +207,8 @@ final class AuditRegistry
             'contract_services' => ['notes'],
             'worthy_employees' => ['bonus_month', 'selected_type'],
             'settings' => ['short_company_name', 'website_title'],
+            'announcements' => ['title', 'message'],
+            'pending_transactions' => ['reason', 'transaction_type'],
         ][$key] ?? ['name', 'title', 'code', 'serial_number', 'email', 'date', 'type'];
 
         foreach ($candidates as $attribute) {

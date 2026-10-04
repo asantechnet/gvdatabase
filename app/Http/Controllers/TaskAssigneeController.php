@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\EmployeeScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -11,19 +12,31 @@ class TaskAssigneeController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasPermission('assign_task_members'), 403, 'auth.forbidden');
+        $user = $request->user();
+        $scope = app(EmployeeScope::class);
 
-        $users = User::query()
+        // A role grant may assign anyone; a department head may only choose the
+        // members of the department they manage.
+        $unrestricted = $user->hasDirectPermission('assign_task_members');
+        abort_unless($unrestricted || $scope->isDepartmentManager($user), 403, 'auth.forbidden');
+
+        $query = User::query()
+            ->excludePrimaryRecord()
             ->where('acc_status', 'active')
             ->with('employee:id,user_id,avatar')
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+            ->orderBy('name');
 
-        return response()->json(['success' => true, 'data' => $users->map(fn (User $user) => [
-            'id' => (string) $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'avatar' => $user->employee?->avatar,
+        if (! $unrestricted) {
+            $query->whereIn('id', $scope->managedDepartmentUserIds($user));
+        }
+
+        $users = $query->get(['id', 'name', 'email']);
+
+        return response()->json(['success' => true, 'data' => $users->map(fn (User $assignee) => [
+            'id' => (string) $assignee->id,
+            'name' => $assignee->name,
+            'email' => $assignee->email,
+            'avatar' => $assignee->employee?->avatar,
         ])->values()]);
     }
 }

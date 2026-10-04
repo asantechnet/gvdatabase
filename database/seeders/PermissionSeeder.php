@@ -297,6 +297,15 @@ class PermissionSeeder extends Seeder
         // organisational scope only. This explicit grant is required for a
         // company-wide announcement.
         ['name' => 'send_all_notifications', 'category' => 'operations'],
+        // Global announcements: composing requires send_announcements; the
+        // company-wide audience additionally requires announce_to_all_employees
+        // (plus send_all_notifications), the applicant audience requires
+        // announce_to_applicants, and view_all_announcements widens the
+        // announcements page beyond the author's own rows.
+        ['name' => 'send_announcements', 'category' => 'operations'],
+        ['name' => 'announce_to_all_employees', 'category' => 'operations'],
+        ['name' => 'announce_to_applicants', 'category' => 'operations'],
+        ['name' => 'view_all_announcements', 'category' => 'operations'],
         ['name' => 'upload_files', 'category' => 'operations'],
         ['name' => 'view_files', 'category' => 'operations'],
         ['name' => 'download_files', 'category' => 'operations'],

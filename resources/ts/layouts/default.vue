@@ -1,13 +1,18 @@
 <script lang="ts" setup>
 import { onMounted } from 'vue'
+import { useCookie } from '@core/composable/useCookie'
 import { useLayoutConfigStore } from '@layouts/stores/config'
 import AutomaticAttendanceTracker from '@/components/attendance/AutomaticAttendanceTracker.vue'
 import { useBranding } from '@/composables/useBranding'
 import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
 
+const ApplicantPortalLayout = defineAsyncComponent(() => import('./components/ApplicantPortalLayout.vue'))
 const DefaultLayoutWithVerticalNav = defineAsyncComponent(() => import('./components/DefaultLayoutWithVerticalNav.vue'))
 const DefaultLayoutWithHorizontalNav = defineAsyncComponent(() => import('./components/DefaultLayoutWithHorizontalNav.vue'))
 const layoutConfigStore = useLayoutConfigStore()
+const userData = useCookie<{ roles?: Array<string | { name?: string }> } | null>('userData')
+const isApplicantPortalUser = computed(() => userData.value?.roles?.some(role =>
+  (typeof role === 'string' ? role : role.name) === 'applicant') ?? false)
 const { loadBranding } = useBranding()
 const { enabled: automaticAttendanceEnabled, load: loadAutomaticAttendance } = useAutomaticAttendance()
 
@@ -37,7 +42,11 @@ watch([isFallbackStateActive, refLoadingIndicator], () => {
 <template>
   <Component
     v-bind="layoutAttrs"
-    :is="layoutConfigStore.appContentLayoutNav === 'horizontal' ? DefaultLayoutWithHorizontalNav : DefaultLayoutWithVerticalNav"
+    :is="isApplicantPortalUser
+      ? ApplicantPortalLayout
+      : layoutConfigStore.appContentLayoutNav === 'horizontal'
+        ? DefaultLayoutWithHorizontalNav
+        : DefaultLayoutWithVerticalNav"
   >
     <AppLoadingIndicator ref="refLoadingIndicator" />
     <AutomaticAttendanceTracker v-if="automaticAttendanceEnabled" />

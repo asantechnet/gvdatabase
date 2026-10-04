@@ -2,13 +2,14 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\PresentsAttachments;
 use App\Http\Resources\Concerns\PresentsCurrentBaseMoney;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ExpenseResource extends JsonResource
 {
-    use PresentsCurrentBaseMoney;
+    use PresentsAttachments, PresentsCurrentBaseMoney;
 
     public function toArray(Request $request): array
     {
@@ -17,10 +18,6 @@ class ExpenseResource extends JsonResource
         return [
             'id' => $this->id,
             'applicant_id' => $this->applicant_id,
-            'company_id' => $this->company_id,
-            'company' => $this->whenLoaded('company', fn () => $this->company ? [
-                'id' => $this->company->id, 'name' => $this->company->trade_name ?: $this->company->legal_name,
-            ] : null),
             'project_id' => $this->project_id,
             'project' => $this->whenLoaded('project', fn () => $this->project ? [
                 'id' => $this->project->id, 'name' => $this->project->name,
@@ -30,6 +27,7 @@ class ExpenseResource extends JsonResource
             'type' => $this->type,
             'description' => $this->description,
             'document' => $this->document_path ? ['name' => $this->document_name, 'mimeType' => $this->document_mime, 'size' => $this->document_size, 'downloadUrl' => "/api/expenses/{$this->id}/document"] : null,
+            'attachments' => $this->attachmentsPayload('expenses', $this->id),
             'amount' => $this->amount,
             'quantity' => $this->quantity,
             'currency' => $currency ? [

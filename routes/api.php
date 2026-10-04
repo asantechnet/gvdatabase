@@ -5,7 +5,9 @@ use App\Http\Controllers\ApplicantController; use App\Http\Controllers\Applicant
 use App\Http\Controllers\ApplicantPortalController;
 use App\Http\Controllers\ApplicantStageController;
 use App\Http\Controllers\ApplicantUniversityController;
+use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceGeofenceController;
 use App\Http\Controllers\AuditLogController;
@@ -94,7 +96,7 @@ Route::prefix('auth')->group(function () {
 });
 
 // Protected routes (require authentication)
-Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(function () {
+Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])->group(function () {
     Route::prefix('workday')->group(function () {
         Route::get('/status', [WorkdayController::class, 'status'])->middleware('permission:manage_own_workday');
         Route::post('/start', [WorkdayController::class, 'start'])->middleware(['permission:manage_own_workday', 'throttle:10,1']);
@@ -255,6 +257,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
 
     // Employee Salary routes
     Route::get('salaries/granted-bonuses', [SalaryController::class, 'grantedBonuses'])->middleware('permission:view_bonuses');
+    Route::get('salaries/attendance-breakdown', [SalaryController::class, 'attendanceBreakdown'])->middleware('permission:view_salaries');
     Route::post('salaries/{salary}/payments', [SalaryPaymentController::class, 'store'])->middleware('permission:create_salaries');
     Route::delete('salaries/{salary}/payments/{payment}', [SalaryPaymentController::class, 'destroy'])->middleware('permission:delete_salaries');
     Route::get('salaries/{salary}/deductions', [SalaryDeductionController::class, 'index'])->middleware('permission:view_salary_deductions');
@@ -316,6 +319,14 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         ->middlewareFor('store', 'permission:create_incomes')
         ->middlewareFor('update', 'permission:edit_incomes')
         ->middlewareFor('destroy', 'permission:delete_incomes');
+    Route::get('incomes/{income}/receipt', [IncomeController::class, 'receipt'])->middleware('permission:view_incomes');
+
+    // Shared attachment sections. One implementation serves expenses, incomes
+    // and staff; the controller enforces each resource's view/edit permission.
+    Route::get('attachments/{type}/{id}', [AttachmentController::class, 'index']);
+    Route::post('attachments/{type}/{id}', [AttachmentController::class, 'store']);
+    Route::get('attachments/{type}/{id}/{attachment}/download', [AttachmentController::class, 'download']);
+    Route::delete('attachments/{type}/{id}/{attachment}', [AttachmentController::class, 'destroy']);
 
     Route::get('recurring-events', [RecurringEventController::class, 'index'])->middleware('permission:view_recurring_events');
     Route::post('recurring-events', [RecurringEventController::class, 'store'])->middleware('permission:create_recurring_events');
@@ -357,7 +368,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     // Educational visa agency master data and case management. These routes
     // intentionally reuse configurable RBAC; the dedicated permission catalog
     // is added in the authorization phase before production role rollout.
-    Route::prefix('educational-master-data/{catalog}')->whereIn('catalog', ['countries', 'education-levels', 'languages', 'package-types', 'universities', 'semesters'])->group(function () {
+    Route::prefix('educational-master-data/{catalog}')->whereIn('catalog', ['countries', 'education-levels', 'languages', 'universities', 'semesters'])->group(function () {
         Route::get('/', [EducationalMasterDataController::class, 'index']);
         Route::post('/', [EducationalMasterDataController::class, 'store']);
         Route::get('/{id}', [EducationalMasterDataController::class, 'show']);
@@ -370,6 +381,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::delete('applicant-stages/{applicantStage}', [ApplicantStageController::class, 'destroy'])->middleware('permission:manage_applicant_stages');
     Route::get('applicant-portal', [ApplicantPortalController::class, 'show'])->middleware('permission:view_own_applicant_portal');
     Route::put('applicant-portal/profile', [ApplicantPortalController::class, 'updateProfile'])->middleware('permission:edit_own_applicant_profile');
+    Route::get('applicant-portal/attachments', [ApplicantPortalController::class, 'attachments'])->middleware('permission:view_own_applicant_portal');
+    Route::post('applicant-portal/attachments', [ApplicantPortalController::class, 'uploadAttachment'])->middleware('permission:edit_own_applicant_profile');
     Route::post('applicants/{applicant}/portal-invitation', [ApplicantPortalController::class, 'invite'])->middleware('permission:invite_applicant_portal');
     Route::get('applicants-pipeline', [ApplicantController::class, 'pipeline'])->middleware('permission:view_applicants');
     Route::apiResource('applicants', ApplicantController::class)->middlewareFor(['index', 'show'], 'permission:view_applicants')->middlewareFor('store', 'permission:create_applicants')->middlewareFor('update', 'permission:edit_applicants')->middlewareFor('destroy', 'permission:delete_applicants');
@@ -439,9 +452,13 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
     Route::put('services/{service}/variants/{variant}', [ServiceController::class, 'updateVariant'])->middleware('permission:manage_services');
     Route::delete('services/{service}/variants/{variant}', [ServiceController::class, 'destroyVariant'])->middleware('permission:manage_services');
 
+    // Package listing is also needed by the contract-template editor, which
+    // binds a template to either a service or a package.
     Route::apiResource('packages', PackageController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_packages')
+        ->middlewareFor(['index', 'show'], 'permission:view_packages,view_contract_templates')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_packages');
+    Route::post('packages/{package}/contract-template', [PackageController::class, 'bindContractTemplate'])
+        ->middleware('permission:manage_packages');
     Route::post('packages/{package}/issue', [PackageController::class, 'issue'])
         ->middleware('permission:issue_packages');
 
@@ -551,6 +568,12 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(functio
         Route::get('/runs', [AutomationController::class, 'runs'])->middleware('permission:view_automation_runs');
         Route::get('/analytics', [AutomationController::class, 'analytics'])->middleware('permission:view_analytics');
     });
+
+    // Announcements are immutable: no update/destroy routes exist by design.
+    Route::get('announcements', [AnnouncementController::class, 'index'])->middleware('permission:send_announcements');
+    Route::post('announcements', [AnnouncementController::class, 'store'])->middleware('permission:send_announcements');
+    Route::get('announcements/audience-options', [AnnouncementController::class, 'audienceOptions'])->middleware('permission:send_announcements');
+    Route::get('announcements/{announcement}', [AnnouncementController::class, 'show'])->middleware('permission:send_announcements');
 
     // File management routes
     Route::prefix('files')->group(function () {

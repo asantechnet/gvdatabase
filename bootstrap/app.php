@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnforceEditWindow;
 use App\Http\Middleware\EnsureActiveAccount;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\LocalizeApiSuccessResponse;
@@ -50,6 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'abilities' => CheckAbilities::class,
             'permission' => EnsurePermission::class,
             'active' => EnsureActiveAccount::class,
+            'edit-window' => EnforceEditWindow::class,
         ]);
     })
     ->withMiddleware(function (Middleware $middleware): void {

@@ -25,7 +25,7 @@ class EmployeeController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Employee::selectable();
+        $query = Employee::selectable()->excludePrimaryRecord();
         if (! $request->user()->hasPermission('view_all_employees')) {
             $query->whereIn('id', app(EmployeeScope::class)->visibleEmployeeIds($request->user()));
         }
@@ -47,6 +47,7 @@ class EmployeeController extends Controller
     public function marketerOptions(Request $request): AnonymousResourceCollection
     {
         $query = Employee::selectable()
+            ->excludePrimaryRecord()
             ->whereHas('position', fn ($query) => $query->where('system_key', 'marketer'))
             ->with(['position', 'office', 'user']);
         if (! $request->user()->hasPermission('view_all_employees')) {
@@ -59,7 +60,7 @@ class EmployeeController extends Controller
     /** User accounts available for linking from the employee form. */
     public function accountOptions(Request $request): AnonymousResourceCollection
     {
-        $query = User::query()->where('acc_status', 'active')->with(['employee:id,user_id,name', 'marketer:id,user_id,name']);
+        $query = User::query()->excludePrimaryRecord()->where('acc_status', 'active')->with(['employee:id,user_id,name', 'marketer:id,user_id,name']);
         if (! $request->user()->hasPermission('view_all_employees')) {
             $query->whereIn('id', app(EmployeeScope::class)->visibleUserIds($request->user()));
         }
@@ -136,6 +137,7 @@ class EmployeeController extends Controller
     public function show(Employee $Employee): EmployeeResource
     {
         $this->authorizeEmployeeView(request(), $Employee);
+        abort_if((int) $Employee->id === Employee::primaryRecordId(), 404);
 
         return new EmployeeResource($Employee->load(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'commissionServices.currency']));
     }

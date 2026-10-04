@@ -59,6 +59,17 @@ const includeCustomCover = ref(true)
 const includeCustomLetterhead = ref(true)
 const includePartyDetails = ref(false)
 const contractToPrint = ref<Contract | null>(null)
+
+// Our-company signatory: prefilled with the stored contract value, falling
+// back to the logged-in employee's name so the popup is never empty.
+const userData = useCookie<{ id?: number; name?: string; roles?: string[]; employee?: { id: number; name?: string } | null } | null>('userData')
+const isSuperAdmin = computed(() => userData.value?.roles?.includes('super_admin') ?? false)
+const currentEmployeeName = computed(() =>
+  String(userData.value?.employee?.name ?? '').trim()
+  || String(userData.value?.name ?? '').trim()
+  || null,
+)
+const printSignatoryName = ref('')
 const combinedPrintRef = ref<HTMLElement | null>(null)
 const isPrintLoading = ref(false)
 const isCancelling = ref(false)
@@ -268,6 +279,7 @@ const printContract = async (contract: Contract) => {
     }
 
     contractToPrint.value = printable
+    printSignatoryName.value = String(printable.company_signatory_name ?? '').trim() || currentEmployeeName.value || ''
     includeEmptyLastPage.value = false
     includeSignatureSection.value = true
     includePartyDetails.value = false
@@ -277,6 +289,7 @@ const printContract = async (contract: Contract) => {
     console.error('Failed to load contract template:', err)
     toast.warning(translate('pages.contracts.allContracts.allContracts.failedToLoadContractTemplateUsingDefaultContent'))
     contractToPrint.value = contract
+    printSignatoryName.value = String(contract.company_signatory_name ?? '').trim() || currentEmployeeName.value || ''
     includeEmptyLastPage.value = false
     includeSignatureSection.value = true
     includePartyDetails.value = false
@@ -594,6 +607,13 @@ onMounted(async () => {
 })
 
 watch([selectedServiceId, isWithoutService], () => fetchContracts(contractRequest.value))
+
+// Fill the signatory once the employee name resolves if the popup opened
+// before it was available.
+watch(currentEmployeeName, name => {
+  if (isPrintDialogVisible.value && !printSignatoryName.value && name)
+    printSignatoryName.value = name
+})
 </script>
 
 <template>
@@ -886,6 +906,13 @@ watch([selectedServiceId, isWithoutService], () => fetchContracts(contractReques
             || $t('pages.contracts.allContracts.allContracts.untitledContract') }}</strong> {{ $t('pages.contracts.allContracts.allContracts.forA4PrintingTheDocumentWillIncludeTheCoverPageAndAllContractTerms') }}
         </p>
         <div class="d-flex flex-column gap-2">
+          <VTextField
+            v-model="printSignatoryName"
+            :label="$t('pages.contracts.contractform.contractform.signatory')"
+            :hint="$t(isSuperAdmin ? 'pages.contracts.contractform.contractform.signatoryHint' : 'pages.contracts.contractform.contractform.signatoryLockedHint')"
+            persistent-hint
+            density="compact"
+          />
           <VCheckbox
             v-model="includeSignatureSection"
             :label="$t('pages.contracts.allContracts.allContracts.includeFormalSignatureStampSectionAtTheEnd')"
@@ -988,6 +1015,7 @@ watch([selectedServiceId, isWithoutService], () => fetchContracts(contractReques
         :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: idx + (includePartyDetails && canShowPartyDetails ? 2 : 1), total: getContractPagesHtml(contractToPrint).length + (includePartyDetails && canShowPartyDetails ? 1 : 0) })"
         :show-signature="includeSignatureSection && idx === getContractPagesHtml(contractToPrint).length - 1"
         :contractee-name="contractToPrint.counterparty || ''"
+        :company-signatory-name="printSignatoryName || contractToPrint.company_signatory_name || null"
         :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"
         class="contract-content"
       />

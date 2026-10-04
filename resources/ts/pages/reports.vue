@@ -65,7 +65,7 @@ const hasUnappliedChanges = computed(() => lastAppliedFilters.value !== JSON.str
 const baseCurrency = computed(() => catalog.value?.currencies.find(currency => currency.is_base)?.code ?? 'USD')
 
 const resetContextFilters = () => {
-  filters.employee_id = null; filters.office_id = null; filters.customer_id = null; filters.currency_id = null
+  filters.employee_id = null; filters.office_id = null; filters.applicant_id = null; filters.currency_id = null
   filters.board_id = null; filters.status = null; filters.contract_type = null; filters.attendance_state = null
 }
 
@@ -221,14 +221,14 @@ const metrics = computed<Metric[]>(() => {
   }
 
   return [
-    { label: rt('metrics.newCustomers'), value: number(numericTotal(section('customers'), 'count')), detail: rt('metrics.addedInPeriod'), icon: 'tabler-user-plus', color: 'primary' },
+    { label: rt('metrics.newApplicants'), value: number(numericTotal(section('applicants'), 'count')), detail: rt('metrics.addedInPeriod'), icon: 'tabler-user-plus', color: 'primary' },
     { label: rt('metrics.visitors'), value: number(numericTotal(section('visitors'), 'count')), detail: rt('metrics.commercialInterest'), icon: 'tabler-walk', color: 'info' },
     { label: rt('metrics.serviceCommitments'), value: number(numericTotal(section('contract_services'), 'commitments')), detail: rt('metrics.activeCount', { count: number(numericTotal(section('contract_services'), 'active')) }), icon: 'tabler-heart-handshake', color: 'success' },
     { label: rt('metrics.deliveryRisk'), value: number(numericTotal(section('tasks'), 'overdue')), detail: rt('metrics.tasksInReport', { count: number(numericTotal(section('tasks'), 'count')) }), icon: 'tabler-calendar-exclamation', color: numericTotal(section('tasks'), 'overdue') ? 'error' : 'success' },
   ]
 })
 
-const dateFieldFor = (key: string) => ({ invoices: 'date', income: 'date', expenses: 'date', salary_payments: 'payment_date', bonuses: 'month', commission_settlements: 'payment_date', commission_liabilities: 'earned_at', attendance: 'date', contracts: 'date', customers: 'date', visitors: 'date', tasks: 'due_date' }[key] ?? 'date')
+const dateFieldFor = (key: string) => ({ invoices: 'date', income: 'date', expenses: 'date', salary_payments: 'payment_date', bonuses: 'month', commission_settlements: 'payment_date', commission_liabilities: 'earned_at', attendance: 'date', contracts: 'date', applicants: 'date', visitors: 'date', tasks: 'due_date' }[key] ?? 'date')
 
 const groupRowsByDate = (reportSection: ReportSection | undefined, valueField?: string, transform: (value: number) => number = value => value) => {
   const groups: Record<string, number> = {}
@@ -270,7 +270,7 @@ const chartModel = computed(() => {
   if (type.value === 'operations') {
     seriesMaps.push(
       { name: rt('charts.visitors'), color: '#00bad1', values: groupRowsByDate(section('visitors')) },
-      { name: rt('charts.customers'), color: '#7367f0', values: groupRowsByDate(section('customers')) },
+      { name: rt('charts.applicants'), color: '#7367f0', values: groupRowsByDate(section('applicants')) },
       { name: rt('charts.contracts'), color: '#28c76f', values: groupRowsByDate(section('contracts')) },
       { name: rt('charts.taskDeadlines'), color: '#ff9f43', values: groupRowsByDate(section('tasks')) },
     )
@@ -355,10 +355,10 @@ const insights = computed(() => {
       { title: rt('insights.supportRequests', { count: number(numericTotal(section('daily_reports'), 'support_requested')) }), body: rt('insights.supportRequestsBody'), icon: 'tabler-help-hexagon', color: numericTotal(section('daily_reports'), 'support_requested') ? 'info' : 'success' },
     ]
   }
-  const visitors = numericTotal(section('visitors'), 'count'); const customers = numericTotal(section('customers'), 'count'); const tasks = numericTotal(section('tasks'), 'count'); const overdue = numericTotal(section('tasks'), 'overdue')
+  const visitors = numericTotal(section('visitors'), 'count'); const applicants = numericTotal(section('applicants'), 'count'); const tasks = numericTotal(section('tasks'), 'count'); const overdue = numericTotal(section('tasks'), 'overdue')
 
   return [
-    { title: visitors ? rt('insights.conversionRatio', { rate: number((customers / visitors) * 100, 1) }) : rt('insights.noVisitorActivity'), body: rt('insights.conversionBody', { visitors: number(visitors), customers: number(customers) }), icon: 'tabler-funnel', color: 'info' },
+    { title: visitors ? rt('insights.conversionRatio', { rate: number((applicants / visitors) * 100, 1) }) : rt('insights.noVisitorActivity'), body: rt('insights.conversionBody', { visitors: number(visitors), applicants: number(applicants) }), icon: 'tabler-funnel', color: 'info' },
     { title: tasks ? rt('insights.overdueRatio', { rate: number((overdue / tasks) * 100, 1) }) : rt('insights.noTaskCommitments'), body: rt('insights.overdueBody', { overdue: number(overdue), tasks: number(tasks) }), icon: 'tabler-target-arrow', color: overdue ? 'warning' : 'success' },
   ]
 })
@@ -632,11 +632,11 @@ onMounted(async () => {
                 md="3"
               >
                 <VSelect
-                  v-model="filters.customer_id"
-                  :items="catalog?.customers ?? []"
+                  v-model="filters.applicant_id"
+                  :items="catalog?.applicants ?? []"
                   item-title="name"
                   item-value="id"
-                  :label="rt('filters.customer')"
+                  :label="rt('filters.applicant')"
                   clearable
                 />
               </VCol>

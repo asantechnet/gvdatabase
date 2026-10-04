@@ -2,7 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import ApplicantPortalApi, { type ApplicantPortalData } from '@/api/applicantPortal'
+import ApplicantPortalApi, { type ApplicantPortalAttachment, type ApplicantPortalData } from '@/api/applicantPortal'
+import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate } from '@/utils/localization'
 
 const toast = useToast()
@@ -11,6 +12,11 @@ const portal = ref<ApplicantPortalData | null>(null)
 const loading = ref(true)
 const saving = ref(false)
 const profileDialog = ref(false)
+const canEditProfile = computed(() => canAccess('edit_own_applicant_profile'))
+const attachments = ref<ApplicantPortalAttachment[]>([])
+const attachmentFile = ref<File | File[] | null>(null)
+const attachmentLabel = ref('')
+const uploadingAttachment = ref(false)
 const form = ref({ name: '', email: '', phone: '', address: '', father_name: '', father_phone: '', date_of_birth: '', passport_number: '', nationality: '', education_background: '', intended_intake: '', english_test: '', preferred_contact_method: '' })
 
 const progress = computed(() => {
@@ -30,7 +36,7 @@ const profileCompletion = computed(() => {
 const firstName = computed(() => portal.value?.profile.name?.trim().split(/\s+/)[0] || t('applicantPortal.applicant'))
 const nextAction = computed(() => {
   if (profileCompletion.value < 100)
-    return { icon: 'tabler-user-check', title: t('applicantPortal.completeProfile'), body: t('applicantPortal.completeProfileHelp'), action: t('applicantPortal.reviewDetails') }
+    return { icon: 'tabler-user-check', title: t('applicantPortal.completeProfile'), body: t('applicantPortal.completeProfileHelp'), action: canEditProfile.value ? t('applicantPortal.reviewDetails') : '' }
   if (!portal.value?.case.university_applications.length)
     return { icon: 'tabler-building-community', title: t('applicantPortal.universityPlanning'), body: t('applicantPortal.universityPlanningHelp'), action: '' }
   return { icon: 'tabler-bell-check', title: t('applicantPortal.stayReady'), body: t('applicantPortal.stayReadyHelp'), action: '' }
@@ -39,6 +45,7 @@ const nextAction = computed(() => {
 const statusColor = (status: string) => ({ active: 'primary', closed: 'secondary', admitted: 'success', rejected: 'error', withdrawn: 'warning', applied: 'info', pending: 'warning' }[status] ?? 'primary')
 const statusLabel = (status: string) => t(`applicantPortal.statuses.${status}`)
 const formatDate = (value: string | null) => value ? formatLocalizedDate(value, 'short') : ''
+const whatsappHref = (phone: string) => `https://wa.me/${phone.replace(/\D/g, '')}`
 
 function populateForm() {
   const profile = portal.value?.profile
@@ -54,11 +61,36 @@ function populateForm() {
 async function load() {
   loading.value = true
   try {
-    portal.value = await ApplicantPortalApi.get()
+    const [portalData, portalAttachments] = await Promise.all([
+      ApplicantPortalApi.get(),
+      ApplicantPortalApi.listAttachments(),
+    ])
+    portal.value = portalData
+    attachments.value = portalAttachments
     populateForm()
   }
   catch { toast.error(t('applicantPortal.loadFailed')) }
   finally { loading.value = false }
+}
+
+async function uploadAttachment() {
+  const file = Array.isArray(attachmentFile.value) ? attachmentFile.value[0] : attachmentFile.value
+  if (!file)
+    return
+
+  uploadingAttachment.value = true
+  try {
+    attachments.value.unshift(await ApplicantPortalApi.uploadAttachment(file, attachmentLabel.value))
+    attachmentFile.value = null
+    attachmentLabel.value = ''
+    toast.success(t('applicantPortal.documentUploaded'))
+  }
+  catch {
+    toast.error(t('applicantPortal.documentUploadFailed'))
+  }
+  finally {
+    uploadingAttachment.value = false
+  }
 }
 
 async function saveProfile() {
@@ -141,9 +173,9 @@ onMounted(load)
         <VCol cols="12" lg="4">
           <VCard class="education-panel">
             <VCardItem :title="$t('applicantPortal.yourDetails')" :subtitle="$t('applicantPortal.profileComplete', { value: profileCompletion })">
-              <template #append><VBtn icon="tabler-pencil" size="small" variant="text" :aria-label="$t('applicantPortal.editProfile')" @click="profileDialog = true" /></template>
+              <template v-if="canEditProfile" #append><VBtn icon="tabler-pencil" size="small" variant="text" :aria-label="$t('applicantPortal.editProfile')" @click="profileDialog = true" /></template>
             </VCardItem>
-            <VCardText><VProgressLinear :model-value="profileCompletion" :color="profileCompletion === 100 ? 'success' : 'primary'" height="7" rounded class="mb-4" /><div v-for="item in profileFields" :key="item.key" class="profile-check"><VIcon :color="item.complete ? 'success' : 'medium-emphasis'" :icon="item.complete ? 'tabler-circle-check-filled' : 'tabler-circle-dashed'" /><span>{{ item.label }}</span><small>{{ item.complete ? $t('applicantPortal.complete') : $t('applicantPortal.missing') }}</small></div><VBtn block variant="tonal" color="primary" class="mt-4" prepend-icon="tabler-user-edit" @click="profileDialog = true">{{ $t('applicantPortal.reviewDetails') }}</VBtn></VCardText>
+            <VCardText><VProgressLinear :model-value="profileCompletion" :color="profileCompletion === 100 ? 'success' : 'primary'" height="7" rounded class="mb-4" /><div v-for="item in profileFields" :key="item.key" class="profile-check"><VIcon :color="item.complete ? 'success' : 'medium-emphasis'" :icon="item.complete ? 'tabler-circle-check-filled' : 'tabler-circle-dashed'" /><span>{{ item.label }}</span><small>{{ item.complete ? $t('applicantPortal.complete') : $t('applicantPortal.missing') }}</small></div><VBtn v-if="canEditProfile" block variant="tonal" color="primary" class="mt-4" prepend-icon="tabler-user-edit" @click="profileDialog = true">{{ $t('applicantPortal.reviewDetails') }}</VBtn></VCardText>
           </VCard>
 
           <VCard class="education-panel mt-4">
@@ -158,22 +190,50 @@ onMounted(load)
             </VList>
           </VCard>
 
-          <VAlert type="info" variant="tonal" class="mt-4" :title="$t('applicantPortal.needHelp')" :text="$t('applicantPortal.helpText')" />
+          <VCard v-if="portal.case.advisor" class="education-panel mt-4">
+            <VCardItem :title="$t('applicantPortal.needHelp')" :subtitle="portal.case.advisor.name">
+              <template #prepend><VAvatar color="primary" variant="tonal"><VIcon icon="tabler-user-heart" /></VAvatar></template>
+            </VCardItem>
+            <VCardText>
+              <p class="text-body-2 text-medium-emphasis mb-3">{{ $t('applicantPortal.helpText') }}</p>
+              <div class="d-flex flex-wrap gap-2">
+                <VBtn v-if="portal.case.advisor.phone" :href="`tel:${portal.case.advisor.phone}`" size="small" color="primary" prepend-icon="tabler-phone">{{ $t('applicantPortal.phone') }}</VBtn>
+                <VBtn v-if="portal.case.advisor.email" :href="`mailto:${portal.case.advisor.email}`" size="small" variant="tonal" prepend-icon="tabler-mail">{{ $t('applicantPortal.email') }}</VBtn>
+                <VBtn v-if="portal.case.advisor.phone" :href="whatsappHref(portal.case.advisor.phone)" target="_blank" rel="noopener noreferrer" size="small" variant="tonal" color="success" prepend-icon="tabler-brand-whatsapp">WhatsApp</VBtn>
+              </div>
+            </VCardText>
+          </VCard>
+          <VAlert v-else type="info" variant="tonal" class="mt-4" :title="$t('applicantPortal.needHelp')" :text="$t('applicantPortal.helpText')" />
+
+          <VCard class="education-panel mt-4">
+            <VCardItem :title="$t('applicantPortal.documents')" :subtitle="$t('applicantPortal.documentsHelp')" />
+            <VList v-if="attachments.length" density="compact">
+              <VListItem v-for="attachment in attachments" :key="attachment.id" :title="attachment.label" :subtitle="attachment.name">
+                <template #prepend><VIcon icon="tabler-paperclip" /></template>
+              </VListItem>
+            </VList>
+            <VCardText v-else class="text-body-2 text-medium-emphasis">{{ $t('applicantPortal.noDocuments') }}</VCardText>
+            <VCardText v-if="canEditProfile" class="pt-0">
+              <VTextField v-model="attachmentLabel" :label="$t('applicantPortal.documentLabel')" density="compact" class="mb-2" />
+              <VFileInput v-model="attachmentFile" :label="$t('applicantPortal.selectDocument')" density="compact" accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" show-size />
+              <VBtn color="primary" block class="mt-2" :loading="uploadingAttachment" :disabled="!attachmentFile" prepend-icon="tabler-upload" @click="uploadAttachment">{{ $t('applicantPortal.uploadDocument') }}</VBtn>
+            </VCardText>
+          </VCard>
         </VCol>
       </VRow>
     </template>
 
-    <VDialog v-model="profileDialog" max-width="820" scrollable>
+    <VDialog v-if="canEditProfile" v-model="profileDialog" max-width="820" scrollable>
       <VCard class="app-form-dialog">
         <VCardItem :title="$t('applicantPortal.profileTitle')" :subtitle="$t('applicantPortal.profileSubtitle')"><template #append><VBtn icon="tabler-x" variant="text" @click="profileDialog = false" /></template></VCardItem>
         <VDivider />
         <VCardText>
           <div class="form-section-title"><VIcon icon="tabler-user" /><span>{{ $t('applicantPortal.personalContact') }}</span></div>
-          <VRow dense><VCol cols="12" md="6"><VTextField v-model="form.name" :label="$t('applicantPortal.fullName')" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.email" :label="$t('applicantPortal.email')" type="email" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.phone" :label="$t('applicantPortal.phone')" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.father_name" :label="$t('educational.fatherName')" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.father_phone" :label="$t('educational.fatherPhone')" /></VCol><VCol cols="12" md="6"><VSelect v-model="form.preferred_contact_method" :items="[{ title: $t('applicantPortal.email'), value: 'email' }, { title: $t('applicantPortal.phone'), value: 'phone' }, { title: 'WhatsApp', value: 'whatsapp' }]" :label="$t('applicantPortal.contactMethod')" clearable /></VCol><VCol cols="12"><VTextarea v-model="form.address" :label="$t('applicantPortal.address')" rows="2" /></VCol></VRow>
+          <VRow dense><VCol cols="12" md="6"><VTextField v-model="form.name" :label="$t('applicantPortal.fullName')" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.email" :label="$t('applicantPortal.email')" type="email" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.phone" :label="$t('applicantPortal.phone')" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.father_name" :label="$t('educational.fatherName')" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.father_phone" :label="$t('educational.fatherPhone')" /></VCol><VCol cols="12" md="6"><VSelect v-model="form.preferred_contact_method" :items="[{ title: $t('applicantPortal.email'), value: 'email' }, { title: $t('applicantPortal.phone'), value: 'phone' }, { title: 'WhatsApp', value: 'whatsapp' }]" :label="$t('applicantPortal.contactMethod')" clearable /></VCol><VCol cols="12" md="6"><VTextField v-model="form.english_test" :label="$t('applicantPortal.englishTest')" :placeholder="$t('applicantPortal.testExample')" /></VCol><VCol cols="12"><VTextarea v-model="form.address" :label="$t('applicantPortal.address')" rows="2" /></VCol></VRow>
           <div class="form-section-title mt-4"><VIcon icon="tabler-id" /><span>{{ $t('applicantPortal.identity') }}</span></div>
           <VRow dense><VCol cols="12" md="4"><VTextField v-model="form.date_of_birth" :label="$t('applicantPortal.dateOfBirth')" type="date" /></VCol><VCol cols="12" md="4"><VTextField v-model="form.nationality" :label="$t('applicantPortal.nationality')" /></VCol><VCol cols="12" md="4"><VTextField v-model="form.passport_number" :label="$t('applicantPortal.passportNumber')" /></VCol></VRow>
           <div class="form-section-title mt-4"><VIcon icon="tabler-school" /><span>{{ $t('applicantPortal.studyPlans') }}</span></div>
-          <VRow dense><VCol cols="12" md="6"><VTextField v-model="form.intended_intake" :label="$t('applicantPortal.preferredIntake')" :placeholder="$t('applicantPortal.intakeExample')" /></VCol><VCol cols="12" md="6"><VTextField v-model="form.english_test" :label="$t('applicantPortal.englishTest')" :placeholder="$t('applicantPortal.testExample')" /></VCol><VCol cols="12"><VTextarea v-model="form.education_background" :label="$t('applicantPortal.educationBackground')" rows="3" :placeholder="$t('applicantPortal.educationHelp')" /></VCol></VRow>
+          <VRow dense><VCol cols="12" md="6"><VTextField v-model="form.intended_intake" :label="$t('applicantPortal.preferredIntake')" :placeholder="$t('applicantPortal.intakeExample')" /></VCol><VCol cols="12"><VTextarea v-model="form.education_background" :label="$t('applicantPortal.educationBackground')" rows="3" :placeholder="$t('applicantPortal.educationHelp')" /></VCol></VRow>
         </VCardText>
         <VDivider /><VCardActions class="pa-4"><VBtn variant="text" @click="profileDialog = false">{{ $t('applicantPortal.cancel') }}</VBtn><VSpacer /><VBtn color="primary" :loading="saving" :disabled="!form.name || !form.email" prepend-icon="tabler-device-floppy" @click="saveProfile">{{ $t('applicantPortal.save') }}</VBtn></VCardActions>
       </VCard>

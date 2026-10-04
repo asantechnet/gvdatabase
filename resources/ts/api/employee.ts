@@ -1,4 +1,5 @@
 import api from './axios'
+import type { Attachment } from './attachments'
 
 export interface CommissionServiceOption {
   id: number
@@ -48,6 +49,7 @@ export interface Employee {
   updated_at: string | null
   avatar?: string | null
   document?: { name: string; mimeType: string; size: number; downloadUrl: string } | null
+  attachments?: Attachment[]
 }
 
 export interface EmployeeAccount {

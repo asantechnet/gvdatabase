@@ -54,35 +54,39 @@ class PackageIssuanceService
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            $weights = $package->services->mapWithKeys(fn ($service) => [$service->id => max((float) $service->fee, 1.0)]);
-            $weightTotal = (float) $weights->sum();
-            $remaining = $saleFee === null ? null : (float) $saleFee;
-            $currencyPrecision = $saleCurrencyId ? (int) (Currency::query()->whereKey($saleCurrencyId)->value('decimal_places') ?? 2) : 2;
-            $lastId = $package->services->last()->id;
+            $lines = $this->splitFee($package, $saleFee === null ? null : (float) $saleFee, $saleCurrencyId);
 
-            // A package sale is one contract PER packaged service:
-            // each contract holds exactly one service line.
-            $contractTypeId = \App\Models\ContractType::query()->where('slug', 'customer')->value('id');
-            abort_unless($contractTypeId, 500, 'Customer contract type is missing.');
+            // A package with its own contract template is sold as ONE agreement
+            // covering every member service — exactly like assigning a service,
+            // but with many lines. Without a template the historical behaviour
+            // is kept: one contract per member service.
+            if ($package->primaryContractTemplate()) {
+                $this->serviceContracts->createForPackage($package, $applicant, [
+                    'package_lines' => $lines,
+                    'customer_package_id' => $purchase->id,
+                    'status' => 'active',
+                    'start_date' => $purchase->purchased_at->toDateString(),
+                    'sold_by_employee_id' => $purchase->sold_by_employee_id,
+                    'marketer_id' => $purchase->sold_by_employee_id ?? $applicant->marketer_id,
+                    'country_id' => $applicant->country_id,
+                    'education_level_id' => $applicant->education_level_id,
+                    'language_id' => $applicant->language_id,
+                    'notes' => "Issued once through package #{$purchase->id}: {$package->name}",
+                    'source' => 'package_issuance',
+                ]);
 
+                return $purchase->load(['package.services.currency', 'applicant', 'soldByEmployee', 'currency', 'services.service.currency', 'services.contract']);
+            }
+
+            // Legacy path: one contract PER packaged service, each holding
+            // exactly one service line.
             foreach ($package->services as $service) {
-                if ($saleFee === null) {
-                    $fee = $service->pivot->allocated_fee ?? $service->fee;
-                    $currencyId = $service->currency_id;
-                } else {
-                    $fee = $service->id === $lastId
-                        ? round($remaining, $currencyPrecision)
-                        : round((float) $saleFee * ((float) $weights[$service->id] / $weightTotal), $currencyPrecision);
-                    $remaining = round($remaining - $fee, $currencyPrecision);
-                    $currencyId = $saleCurrencyId;
-                }
-
                 // The service's own contract template generates the agreement
                 // (auto-creating one when the catalogue entry has none) so a
                 // package sale also produces a complete, printable contract.
                 $this->serviceContracts->createFor($service, $applicant, [
-                    'fee' => $fee,
-                    'currency_id' => $currencyId,
+                    'fee' => $lines[$service->id]['fee'],
+                    'currency_id' => $lines[$service->id]['currency_id'],
                     'status' => 'active',
                     'start_date' => $purchase->purchased_at->toDateString(),
                     'sold_by_employee_id' => $purchase->sold_by_employee_id,
@@ -99,5 +103,42 @@ class PackageIssuanceService
 
             return $purchase->load(['package.services.currency', 'applicant', 'soldByEmployee', 'currency', 'services.service.currency']);
         });
+    }
+
+    /**
+     * Split the sale price across the member services, keyed by service id.
+     *
+     * Without an overriding sale price every member keeps its allocated share
+     * of the package price (or its own fee). With one, the shares scale
+     * proportionally to the member fees and the rounding remainder lands on
+     * the last service.
+     *
+     * @return array<int, array{fee: mixed, currency_id: mixed}>
+     */
+    private function splitFee(Package $package, ?float $saleFee, mixed $saleCurrencyId): array
+    {
+        $weights = $package->services->mapWithKeys(fn ($service) => [$service->id => max((float) $service->fee, 1.0)]);
+        $weightTotal = (float) $weights->sum();
+        $remaining = $saleFee;
+        $currencyPrecision = $saleCurrencyId ? (int) (Currency::query()->whereKey($saleCurrencyId)->value('decimal_places') ?? 2) : 2;
+        $lastId = $package->services->last()->id;
+
+        $lines = [];
+        foreach ($package->services as $service) {
+            if ($saleFee === null) {
+                $lines[$service->id] = [
+                    'fee' => $service->pivot->allocated_fee ?? $service->fee,
+                    'currency_id' => $service->currency_id,
+                ];
+            } else {
+                $fee = $service->id === $lastId
+                    ? round($remaining, $currencyPrecision)
+                    : round($saleFee * ((float) $weights[$service->id] / $weightTotal), $currencyPrecision);
+                $remaining = round($remaining - $fee, $currencyPrecision);
+                $lines[$service->id] = ['fee' => $fee, 'currency_id' => $saleCurrencyId];
+            }
+        }
+
+        return $lines;
     }
 }

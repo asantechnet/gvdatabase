@@ -61,6 +61,7 @@ const pageComponents: Record<string, Component> = {
   setupDepartments: () => import('@/pages/setup/departments.vue'),
   setupSettings: () => import('@/pages/setup/settings.vue'),
   notifications: () => import('@/pages/notifications.vue'),
+  announcements: () => import('@/pages/announcements.vue'),
   support: () => import('@/pages/support.vue'),
   accountSettings: () => import('@/pages/account-settings.vue'),
   recurringEvents: () => import('@/pages/recurring-events.vue'),
@@ -238,6 +239,7 @@ const routeDefinitions: Array<{
     meta: { unauthenticatedOnly: true, layout: 'blank' },
   },
   { path: '/notifications', component: 'notifications', name: 'notifications', meta: { requiresAuth: true, action: 'read', subject: 'view_own_notifications' } },
+  { path: '/announcements', component: 'announcements', name: 'announcements', meta: { requiresAuth: true, action: 'read', subject: 'send_announcements' } },
   { path: '/support', component: 'support', name: 'support', meta: { requiresAuth: true } },
   { path: '/account-settings/:tab?', component: 'accountSettings', name: 'account-settings', meta: { requiresAuth: true } },
 ]

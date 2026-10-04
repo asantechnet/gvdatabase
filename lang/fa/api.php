@@ -45,6 +45,7 @@ return [
             'task_contributions_must_total_100' => 'مجموع درصد مشارکت‌ها باید ۱۰۰٪ باشد.',
             'task_contributions_assignees_mismatch' => 'برای هر کاربر تعیین‌شده یک درصد مشارکت وارد کنید.',
             'task_contribution_user_not_assigned' => 'هر کاربر مشارکت‌کننده باید به وظیفه تعیین شده باشد.',
+            'task_assignee_outside_department' => 'مدیر بخش فقط می‌تواند وظایف را به اعضای بخش خود واگذار کند.',
             'employee_profile_missing' => 'هیچ پروفایل کارمندی با این حساب مرتبط نیست.',
             'two_factor_code_invalid' => 'کد تأیید نامعتبر است یا منقضی شده است.',
             'customer_has_invoice_history' => 'مشتریانی که سابقه فاکتور دارند قابل حذف نیستند.',

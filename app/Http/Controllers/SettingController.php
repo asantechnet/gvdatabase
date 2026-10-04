@@ -19,6 +19,17 @@ class SettingController extends Controller
         'company_signature' => 'signatures',
         'contract_letterhead' => 'contract-letterheads',
         'contract_cover_design' => 'contract-cover-designs',
+        'receipt_letterhead' => 'receipt-letterheads',
+        'invoice_letterhead' => 'invoice-letterheads',
+        'payslip_letterhead' => 'payslip-letterheads',
+    ];
+
+    private const REMOVABLE_FILES = [
+        'contract_letterhead',
+        'contract_cover_design',
+        'receipt_letterhead',
+        'invoice_letterhead',
+        'payslip_letterhead',
     ];
 
     public function index(): JsonResponse
@@ -45,6 +56,9 @@ class SettingController extends Controller
         $data = Arr::except($request->validated(), [
             'remove_contract_letterhead',
             'remove_contract_cover_design',
+            'remove_receipt_letterhead',
+            'remove_invoice_letterhead',
+            'remove_payslip_letterhead',
             'clear_mail_password',
         ]);
         $data = $this->withThemeDefaults($data);
@@ -83,6 +97,9 @@ class SettingController extends Controller
         $data = Arr::except($request->validated(), [
             'remove_contract_letterhead',
             'remove_contract_cover_design',
+            'remove_receipt_letterhead',
+            'remove_invoice_letterhead',
+            'remove_payslip_letterhead',
             'clear_mail_password',
         ]);
         $data = $this->withThemeDefaults($data);
@@ -107,7 +124,7 @@ class SettingController extends Controller
                 }
             }
 
-            foreach (['contract_letterhead', 'contract_cover_design'] as $field) {
+            foreach (self::REMOVABLE_FILES as $field) {
                 $removeField = 'remove_'.$field;
                 if ($request->boolean($removeField) && ! $request->hasFile($field)) {
                     if ($setting->{$field}) {

@@ -2,13 +2,14 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\PresentsAttachments;
 use App\Http\Resources\Concerns\PresentsCurrentBaseMoney;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class IncomeResource extends JsonResource
 {
-    use PresentsCurrentBaseMoney;
+    use PresentsAttachments, PresentsCurrentBaseMoney;
 
     public function toArray(Request $request): array
     {
@@ -17,11 +18,8 @@ class IncomeResource extends JsonResource
         return [
             'id' => $this->id,
             'receipt_number' => $this->receipt_number,
+            'attachments' => $this->attachmentsPayload('incomes', $this->id),
             'applicant_id' => $this->applicant_id,
-            'company_id' => $this->company_id,
-            'company' => $this->whenLoaded('company', fn () => $this->company ? [
-                'id' => $this->company->id, 'name' => $this->company->trade_name ?: $this->company->legal_name,
-            ] : null),
             'invoice_id' => $this->invoice_id,
             'currency_id' => $this->currency_id,
             'base_currency_id' => $this->base_currency_id,

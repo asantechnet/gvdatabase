@@ -1,5 +1,19 @@
 {
   "common": {
+    "attachments": {
+      "title": "Attachments",
+      "add": "Add file",
+      "acceptedHint": "PDF, images, Office, CSV and text files up to 10 MB.",
+      "empty": "No files attached yet.",
+      "download": "Download",
+      "remove": "Remove",
+      "uploaded": "File uploaded.",
+      "removed": "File removed.",
+      "loadFailed": "Unable to load attachments.",
+      "uploadFailed": "Unable to upload the file.",
+      "downloadFailed": "Unable to download the file.",
+      "removeFailed": "Unable to remove the file."
+    },
     "actions": {
       "create": "Create",
       "void": "Void",
@@ -303,6 +317,9 @@
       "addDeduction": "Add deduction",
       "noDeductionsAdded": "No deductions added.",
       "totalDeductions": "Total deductions",
+      "totalDays": "Total days",
+      "automaticAttendanceDeduction": "Unpaid leave / absent days",
+      "unpaidAndAbsentDays": "{days} unworked day(s)",
       "remarks": "Remarks",
       "serialNumber": "Serial Number",
       "itemName": "Item Name",
@@ -456,7 +473,8 @@
       "serviceSales": "Service sales",
       "pendingTransactions": "Pending transactions",
       "loans": "Loans",
-      "educationalData": "Educational data"
+      "educationalData": "Educational data",
+      "announcements": "Announcements"
     },
     "tables": {},
     "dateTime": {},
@@ -892,7 +910,7 @@
           "yourAccountIsReadySignInWithThePasswordYouCreated": "Your account is ready. Sign in with the password you created.",
           "emailAndPasswordAreRequired": "Email and password are required.",
           "enterYourEmailAddressFirst": "Enter Your Email Address First",
-          "asantechMiniManagement": "Asantech Mini Management",
+          "asantechMiniManagement": "Educational System",
           "welcome": "Welcome!",
           "pleaseSignInToYourAccount": "Please sign in to your account",
           "resendEmail": "Resend email",
@@ -1671,6 +1689,15 @@
         "printSafeAreaOffsetY": "Offset Y",
         "printSafeAreaWidth": "Width",
         "printSafeAreaHeight": "Height",
+        "receiptInvoiceDocuments": "Receipt & Invoice Documents",
+        "receiptInvoiceDocumentsHint": "Letterhead artwork for receipts and invoices. The safe-zone marks where auto-filled receipt and invoice text is allowed to land.",
+        "receiptLetterhead": "Receipt Letterhead",
+        "invoiceLetterhead": "Invoice Letterhead",
+        "payslipLetterhead": "Payslip Letterhead",
+        "letterheadSource": "Letterhead source",
+        "letterheadSourceNone": "None (built-in design)",
+        "letterheadSourceContract": "Use company contract letterhead",
+        "letterheadSourceCustom": "Custom upload",
         "resetDefaults": "Reset Defaults",
         "saveSettings": "Save Settings",
         "noChangesToSave": "There are no changes to save on this page.",
@@ -2337,6 +2364,11 @@
           "recordExpense2": "Record expense",
           "captureOutgoingCashWithItsLiveCurrencyRelationship": "Capture outgoing cash with its live currency relationship.",
           "saveExpense": "Save expense",
+          "saveModeDirect": "Record directly",
+          "saveModeLoan": "Send to loans",
+          "saveModeDirectHint": "The expense is written to the ledger immediately.",
+          "saveModeLoanHint": "The amount is submitted as a loan request and only reaches the ledger after approval.",
+          "loanSubmitted": "Expense request submitted to loans for approval.",
           "editExpense": "Edit expense",
           "updateTheRecordedSpendAndItsCurrency": "Update the recorded spend and its currency.",
           "deleteExpense": "Delete expense?",
@@ -2388,6 +2420,12 @@
           "selectAValidIncomeDate": "Select a valid income date.",
           "cashflowCOMMANDCENTER": "Cash-flow command center",
           "incomeLedger": "Income Ledger",
+          "saveMode": "Save as",
+          "saveModeDirect": "Record directly",
+          "saveModeLoan": "Send to loans",
+          "saveModeDirectHint": "The receipt is written to the income ledger immediately.",
+          "saveModeLoanHint": "The amount is submitted as a loan request and only reaches the ledger after approval.",
+          "loanSubmitted": "Income request submitted to loans for approval.",
           "liveReceiptActivityInvoiceCollectionsAndCurrencyTotalsInOneView": "Live Receipt Activity Invoice Collections And Currency Totals In One View",
           "printIncomeRecords": "Print Income Records",
           "recordIncome": "Record Income",
@@ -2547,7 +2585,7 @@
           },
           "operations": {
             "label": "Commercial operations",
-            "description": "Customers, services, contracts, visitors, companies, and delivery.",
+            "description": "Applicants, services, contracts, visitors, companies, and delivery.",
             "question": "Is demand turning into committed, completed work?"
           }
         },
@@ -2563,7 +2601,7 @@
           "endDate": "End date",
           "employee": "Employee",
           "office": "Office",
-          "customer": "Customer",
+          "applicant": "Applicant",
           "currency": "Currency",
           "taskBoard": "Task board",
           "contractType": "Contract type",
@@ -2606,7 +2644,7 @@
           "beyondSchedules": "Beyond required schedules",
           "incompleteRecords": "Incomplete records",
           "missingPunch": "Missing check-in or check-out",
-          "newCustomers": "New customers",
+          "newApplicants": "New applicants",
           "addedInPeriod": "Added during this period",
           "visitors": "Visitors",
           "commercialInterest": "Commercial interest recorded",
@@ -2624,7 +2662,7 @@
           "workedHours": "Worked hours",
           "requiredHours": "Required hours",
           "visitors": "Visitors",
-          "customers": "Customers",
+          "applicants": "Applicants",
           "contracts": "Contracts",
           "taskDeadlines": "Task deadlines",
           "noTrendData": "No trend data in this period",
@@ -2647,9 +2685,9 @@
           "incompleteSessionsBody": "Missing punches should be corrected before payroll is prepared.",
           "supportRequests": "{count} support requests",
           "supportRequestsBody": "Daily reports identifying blockers deserve management follow-up.",
-          "conversionRatio": "{rate}% visitor-to-customer ratio",
+          "conversionRatio": "{rate}% visitor-to-applicant ratio",
           "noVisitorActivity": "No visitor activity",
-          "conversionBody": "{visitors} visitors and {customers} new customers were recorded in the selected period.",
+          "conversionBody": "{visitors} visitors and {applicants} new applicants were recorded in the selected period.",
           "overdueRatio": "{rate}% of reported tasks overdue",
           "noTaskCommitments": "No task commitments",
           "overdueBody": "{overdue} of {tasks} tasks in this report require overdue follow-up."
@@ -2956,7 +2994,8 @@
         "account_deactivation_rejected": "Deactivation rejected",
         "account_deactivated": "Account deactivated",
         "account_reactivated": "Account reactivated",
-        "other": "Changed"
+        "other": "Changed",
+        "announcement_sent": "Announcement sent"
       },
       "states": {
         "pending": "Needs audit",
@@ -3030,12 +3069,14 @@
         "worthy_employees": "Bonus nominations",
         "account_deactivations": "Account deactivations",
         "audit_settings": "Audit settings",
-        "other": "Business record"
+        "other": "Business record",
+        "announcements": "Announcements"
       },
       "fields": {
         "employee": "Employee",
         "user": "User",
         "customer": "Customer",
+        "applicant": "Applicant",
         "invoice": "Invoice",
         "currency": "Currency",
         "office": "Office",
@@ -3150,6 +3191,51 @@
         "description": "Use this page to send a clear support request. The category, severity, description, and attachments let the support inbox assess the issue without guesswork.",
         "actionTitle": "Send a useful support request",
         "actionDescription": "Choose severity by operational impact, then describe the expected result, actual result, and repeatable steps. The request is saved and emailed to the configured support inbox."
+      }
+    },
+    "announcements": {
+      "title": "Announcements",
+      "subtitle": "Company-wide messages delivered straight into notification inboxes.",
+      "compose": "New announcement",
+      "couldNotLoad": "Could not load announcements.",
+      "sentToast": "Announcement delivered.",
+      "filters": {
+        "mine": "Mine",
+        "everyone": "Everyone"
+      },
+      "composer": {
+        "title": "Compose announcement",
+        "subtitle": "Pick who receives it, write the message, and send.",
+        "immutableNotice": "Announcements cannot be edited or deleted after sending. Review everything carefully before you send.",
+        "titleLabel": "Title (optional)",
+        "titlePlaceholder": "e.g. Office closed on Thursday",
+        "messageLabel": "Message",
+        "messagePlaceholder": "Write the announcement your audience will receive…",
+        "labelsLabel": "Labels (comma-separated)",
+        "labelsPlaceholder": "e.g. HR, Policy, Urgent",
+        "labelsHint": "Recipients see these labels on the notification.",
+        "audienceLabel": "Audience",
+        "addAudienceLabel": "Add audience",
+        "chooseTargetLabel": "Choose a specific target…",
+        "audienceHint": "Combine several audiences to widen the reach.",
+        "scopeAllEmployees": "All employees",
+        "scopePosition": "Position",
+        "scopeRole": "Role",
+        "scopeDepartment": "Department",
+        "scopeApplicants": "Applicants",
+        "send": "Send announcement"
+      },
+      "validation": {
+        "audienceRequired": "Select at least one audience.",
+        "audienceTargetRequired": "Pick a specific position, role, or department for every selected audience.",
+        "messageRequired": "The announcement message is required."
+      },
+      "list": {
+        "mine": "My announcements",
+        "everyones": "All announcements",
+        "untitled": "Untitled announcement",
+        "empty": "No announcements yet.",
+        "emptyHint": "Announcements you send will appear here."
       }
     }
   },
@@ -4045,6 +4131,52 @@
     "invoice": {
       "defaultPaymentTerms": "Unless otherwise agreed in writing, invoices are payable within thirty (30) days of the invoice date."
     },
+    "receipt": {
+      "title": "Payment Receipt",
+      "serial": "Receipt No.",
+      "paymentDate": "Payment Date",
+      "receivedFrom": "Received From",
+      "applicantId": "Applicant ID",
+      "fatherName": "Father Name",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "country": "Destination Country",
+      "educationLevel": "Education Level",
+      "caseStatus": "Case Status",
+      "paymentDetails": "Payment Details",
+      "incomeName": "Income",
+      "incomeId": "Income ID",
+      "paymentType": "Payment Type",
+      "description": "Description",
+      "invoice": "Invoice",
+      "invoiceOptional": "Not linked to an invoice",
+      "servicesProvided": "Contracted Services & Packages",
+      "item": "Item",
+      "fee": "Fee",
+      "totalFee": "Total Fee",
+      "paidToDate": "Total Paid",
+      "balance": "Balance",
+      "amountReceived": "Amount Received",
+      "receivedBy": "Received By",
+      "authorizedSignature": "Authorized Signature & Stamp",
+      "recordedBy": "Recorded By",
+      "thankYou": "Thank you for trusting us with your visa journey.",
+      "license": "Licence",
+      "noServices": "No contracted services recorded yet.",
+      "paperSize": "Paper size",
+      "paperA3Landscape": "A3 landscape (2 up)",
+      "paperA4Portrait": "A4 portrait (2 up)",
+      "paperA4Landscape": "A4 landscape (2 up)",
+      "paperA4TwoA5": "A4 portrait (2× A5 landscape)",
+      "paperA5Two": "A5 portrait (2 up)",
+      "paperA5Portrait": "A5 portrait",
+      "paperLetterPortrait": "Letter portrait (2 up)",
+      "copies": "Copies",
+      "printReceipt": "Print receipt",
+      "loadFailed": "Unable to load this receipt.",
+      "pleaseAllowPopups": "Please allow pop-ups to print the receipt."
+    },
     "contract": {
       "defaultFooter": "Thank you for doing business with us!",
       "licence": "Licence: {licence}",
@@ -4295,6 +4427,18 @@
     }
   },
   "notifications": {
+    "income": {
+      "recorded": {
+        "title": "Payment receipt recorded",
+        "message": "Receipt {receipt_number} was recorded for {applicant} ({amount})."
+      }
+    },
+    "task": {
+      "assigned": {
+        "title": "Task assigned",
+        "message": "Task \"{task}\" was assigned to you."
+      }
+    },
     "audit": {
       "created": {
         "title": "Record created",
@@ -4452,6 +4596,10 @@
         "title": "System notification",
         "message": ""
       }
+    },
+    "announcement": {
+      "fallbackTitle": "Announcement",
+      "fromSender": "From {sender}"
     }
   },
   "$vuetify": {
@@ -4688,6 +4836,14 @@
     "applicationDate": "Application date",
     "needHelp": "Need help?",
     "helpText": "Contact your adviser if information looks incorrect or you need help with your next step.",
+    "documents": "Documents",
+    "documentsHelp": "Send documents to your adviser securely through your case.",
+    "noDocuments": "No documents uploaded yet.",
+    "documentLabel": "Document label (optional)",
+    "selectDocument": "Select document",
+    "uploadDocument": "Upload document",
+    "documentUploaded": "Document uploaded.",
+    "documentUploadFailed": "Unable to upload the document.",
     "profileTitle": "Review your information",
     "profileSubtitle": "Keep these details accurate so your adviser can prepare your applications.",
     "personalContact": "Personal and contact",
@@ -4760,6 +4916,7 @@
       "noTasks": "No operational work yet. Moving this case into a work stage generates it automatically.",
       "contracts": "Contracts",
       "noContracts": "No contracts are linked to this case yet.",
+      "printContractFailed": "Unable to load this contract for printing.",
       "universityApplications": "University applications",
       "addApplication": "Add application",
       "primaryChoice": "Primary choice: {university}",

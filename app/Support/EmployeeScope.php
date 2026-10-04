@@ -135,6 +135,74 @@ class EmployeeScope
             ->all();
     }
 
+    /**
+     * Active departments the user heads. A department is headed by the employee
+     * named in `departments.manager_employee_id`.
+     *
+     * @return array<int, int>
+     */
+    public function managedDepartmentIds(User $user): array
+    {
+        $root = $this->ownEmployeeId($user);
+        if ($root === null) {
+            return [];
+        }
+
+        return Department::query()
+            ->where('manager_employee_id', $root)
+            ->where('is_active', true)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * Employees who belong to a department the user heads. This is the set a
+     * department manager may hand tasks to, independent of the supervisor chain.
+     *
+     * @return array<int, int>
+     */
+    public function managedDepartmentMemberIds(User $user): array
+    {
+        $departmentIds = $this->managedDepartmentIds($user);
+        if ($departmentIds === []) {
+            return [];
+        }
+
+        return Employee::query()
+            ->whereIn('department_id', $departmentIds)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * User ids linked to the employees of a department the user heads. Used to
+     * scope assignment and to populate the department's assignee list.
+     *
+     * @return array<int, int>
+     */
+    public function managedDepartmentUserIds(User $user): array
+    {
+        $memberIds = $this->managedDepartmentMemberIds($user);
+        if ($memberIds === []) {
+            return [];
+        }
+
+        return Employee::query()
+            ->whereIn('id', $memberIds)
+            ->whereNotNull('user_id')
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /** Whether the user is the named manager of at least one active department. */
+    public function isDepartmentManager(User $user): bool
+    {
+        return $this->managedDepartmentIds($user) !== [];
+    }
+
     public function canViewOwnedBy(User $user, ?int $ownerEmployeeId): bool
     {
         if (! $ownerEmployeeId) {

@@ -26,6 +26,13 @@ export interface SenderDetails {
   signature?: string
 }
 
+export interface LetterheadSafeArea {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface InvoiceProps {
   invoiceNumber: string
   dateOfIssue: string
@@ -38,6 +45,10 @@ export interface InvoiceProps {
   notes?: string
   paymentMethod?: string
   paymentInstructions?: string[]
+  /** Optional letterhead artwork from Settings → Documents. */
+  letterheadUrl?: string
+  /** Safe-zone (percent of the page) where the invoice content is allowed to land. */
+  letterheadSafe?: LetterheadSafeArea
 }
 
 const props = withDefaults(defineProps<InvoiceProps>(), {
@@ -52,10 +63,25 @@ const props = withDefaults(defineProps<InvoiceProps>(), {
   notes: translate('documents.invoice.defaultPaymentTerms'),
   paymentMethod: '',
   paymentInstructions: () => [],
+  letterheadUrl: '',
+  letterheadSafe: () => ({ x: 8.5, y: 15, width: 83, height: 70 }),
 })
 
 // 2. Template Reference
 const invoiceRef = ref<HTMLElement | null>(null)
+
+const hasLetterhead = computed(() => Boolean(props.letterheadUrl))
+
+const letterheadBackground = computed(() => (props.letterheadUrl
+  ? { backgroundImage: `url(${props.letterheadUrl})` }
+  : undefined))
+
+const letterheadSafeStyle = computed(() => ({
+  insetInlineStart: `${props.letterheadSafe?.x ?? 8.5}%`,
+  insetBlockStart: `${props.letterheadSafe?.y ?? 15}%`,
+  width: `${props.letterheadSafe?.width ?? 83}%`,
+  height: `${props.letterheadSafe?.height ?? 70}%`,
+}))
 
 // 3. Computed Calculations
 const subtotal = computed(() => {
@@ -308,9 +334,15 @@ defineExpose({
   <div
     ref="invoiceRef"
     class="invoice-container a5-layout print-document"
-    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale) }"
+    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale), 'invoice-container--letterhead': hasLetterhead }"
+    :style="letterheadBackground"
     :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
   >
+    <div
+      class="invoice-content"
+      :class="{ 'invoice-content--safe': hasLetterhead }"
+      :style="hasLetterhead ? letterheadSafeStyle : undefined"
+    >
     <!-- Top Header -->
     <header class="invoice-header">
       <div class="title-section">
@@ -546,6 +578,7 @@ defineExpose({
         <strong class="thank-you-message">{{ $t('documents.invoice_template.invoiceTemplate.thankYOUFORYOURBUSINESS') }}</strong>
       </div>
     </footer>
+    </div>
   </div>
 </template>
 
@@ -562,6 +595,27 @@ defineExpose({
   box-sizing: border-box;
   font-size: 13px;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* With a letterhead the safe-zone owns all spacing, so the built-in padding is dropped. */
+.invoice-container--letterhead {
+  padding: 0;
+}
+
+.invoice-content {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+}
+
+.invoice-content--safe {
+  position: absolute;
+  padding: 5mm;
+  overflow: hidden;
 }
 
 .invoice-container.persian-document {

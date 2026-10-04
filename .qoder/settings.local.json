@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -rn \"Schema::create\\('services'\" database/migrations | head -3)",
+      "Bash(php artisan test tests/Feature/IncomeReceiptTest.php 2>&1 | tail -20)",
+      "Bash(php artisan test tests/Feature/IncomeReceiptTest.php 2>&1 | grep -B5 -A8 \"SQL\\\\|FAILED\\\\|Failed\" | head -60)",
+      "Bash(\\(service mysql start 2>&1 || sudo service mysql start 2>&1 || mysqld_safe --skip-syslog 2>&1 &\\) ; sleep 3; mysqladmin ping 2>&1 | tail -1)",
+      "Bash(DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test tests/Feature/IncomeReceiptTest.php 2>&1 | tail -15)",
+      "Bash(for f in en fa-AF ps-AF; do node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('resources/ts/plugins/i18n/locales/$f.json','utf8'\\)\\); console.log\\('$f ok'\\)\"; done)",
+      "Bash(for f in en fa-AF ps-AF; do node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('resources/ts/plugins/i18n/locales/$f.json','utf8'\\)\\); console.log\\('$f ok'\\)\"; done; grep -n \"TWO_UP_HEIGHT_MM\\\\|148.3mm\" resources/ts/pages/templates/receipt_template.vue)",
+      "Bash(grep -n \"twoUpContentScale\\\\|contentStyle\\\\|two-up-compact\\\\|receipt-card__content\" resources/ts/pages/templates/receipt_template.vue | head -20)"
+    ]
+  }
+}

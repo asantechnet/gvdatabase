@@ -10,13 +10,14 @@ class SalaryDeduction extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['description', 'amount', 'sort_order'];
+    protected $fillable = ['description', 'amount', 'sort_order', 'is_automatic', 'code'];
 
     protected function casts(): array
     {
         return [
             'amount' => 'float',
             'sort_order' => 'integer',
+            'is_automatic' => 'boolean',
         ];
     }
 

@@ -6,6 +6,7 @@ use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\ContractType;
+use App\Models\Package;
 use App\Models\Service;
 use App\Services\ContractDocumentDesignService;
 use App\Services\ApplicantDocumentReadiness;
@@ -62,6 +63,181 @@ class ServiceContractGenerator
             'content' => $this->defaultContent(),
             'created_by' => $createdBy,
         ]);
+    }
+
+    /**
+     * The package's contract template, creating a draft one from the package
+     * metadata when the catalogue entry has none yet. Mirrors templateFor().
+     */
+    public function templateForPackage(Package $package, ?int $createdBy = null): ContractTemplate
+    {
+        if ($template = $package->primaryContractTemplate()) {
+            return $template;
+        }
+
+        $type = ContractType::query()->where('slug', self::CONTRACT_TYPE_SLUG)->first();
+        abort_unless($type, 500, 'The customer contract type is missing.');
+
+        return ContractTemplate::create([
+            'name' => "{$package->name} Agreement",
+            'description' => "Contract template for the {$package->name} package.",
+            'is_active' => true,
+            'contract_type_id' => $type->id,
+            'package_id' => $package->id,
+            'cover_text' => $package->name,
+            'content' => $this->defaultContent(),
+            'created_by' => $createdBy,
+        ]);
+    }
+
+    /**
+     * Create the single agreement for a package sale.
+     *
+     * Unlike createFor(), this mints ONE contract from the package's bound
+     * template with one `contract_service` line per member service, so the
+     * bundle is sold (and printed) as a unit — exactly like assigning a
+     * service, but with many lines.
+     *
+     * @param  array<string, mixed>  $options  package_lines ([service_id =>
+     *   ['fee', 'currency_id']]), customer_package_id, status, start_date,
+     *   sold_by_employee_id, marketer_id, country_id, education_level_id,
+     *   language_id, notes, template, source, user_id
+     */
+    public function createForPackage(Package $package, Applicant $applicant, array $options = []): Contract
+    {
+        return DB::transaction(function () use ($package, $applicant, $options): Contract {
+            $package->loadMissing('services.currency');
+            if (! $package->is_active || $package->services->isEmpty()) {
+                throw ValidationException::withMessages(['package_id' => ['Choose an active package that contains at least one service.']]);
+            }
+
+            $this->documents->require($applicant);
+            $template = $options['template'] ?? $package->primaryContractTemplate();
+            if (! $template) {
+                throw ValidationException::withMessages(['package_id' => ['This package has no contract template yet. Create one before selling it as a single agreement.']]);
+            }
+            $type = $template->contractType ?? ContractType::query()->where('slug', self::CONTRACT_TYPE_SLUG)->first();
+
+            $countryId = $options['country_id'] ?? $applicant->country_id;
+            $languageId = $options['language_id'] ?? $applicant->language_id;
+            $version = $this->resolveVersion($template, $countryId ? (int) $countryId : null, $languageId ? (int) $languageId : null);
+            $content = $version?->content ?? ($template->content ?? '');
+
+            $startDate = $options['start_date'] ?? now()->toDateString();
+            $status = $this->normalizeStatus($options['status'] ?? 'active');
+            $signatory = $options['company_signatory_name'] ?? null;
+
+            $lines = $this->packageLines($package, $options['package_lines'] ?? []);
+
+            $rendered = $this->resolver->resolve(
+                (string) $content,
+                [
+                    'applicant' => $applicant,
+                    'customer' => $applicant,
+                    'services' => $package->services,
+                    'contract_number' => null,
+                    'start_date' => $startDate,
+                    'status' => $status,
+                    'company_signatory_name' => $signatory,
+                ],
+                self::CONTRACT_TYPE_SLUG,
+            );
+
+            $counterparty = $this->counterpartyFor($applicant);
+            $design = $this->documentDesigns->resolve($type?->id, $package->services->map(fn ($service) => (int) $service->id)->all());
+
+            $contract = Contract::create([
+                'template_id' => $template->id,
+                'contract_template_version_id' => $version?->id,
+                'contract_type_id' => $type?->id,
+                'source_service_id' => null,
+                'contract_role' => Contract::ROLE_PRIMARY,
+                'parent_contract_id' => null,
+                'applicant_id' => $applicant->id,
+                'sold_by_employee_id' => $options['sold_by_employee_id'] ?? null,
+                'marketer_id' => $options['marketer_id'] ?? ($options['sold_by_employee_id'] ?? null),
+                'contract_country_id' => $countryId,
+                'contract_language_id' => $languageId,
+                'name' => $package->name,
+                'type' => $type?->name,
+                'cover_text' => $template->cover_text ?? $package->name,
+                'content' => $this->sanitizer->clean($rendered['content']),
+                'status' => $status,
+                'start_date' => $startDate,
+                'company_signatory_name' => $signatory,
+                'is_custom' => false,
+                'counterparty' => $counterparty['counterparty'],
+                'counterparty_company' => $counterparty['counterparty_company'],
+                'counterparty_email' => $counterparty['counterparty_email'],
+                'counterparty_contact' => $counterparty['counterparty_contact'],
+                'counterparty_address' => $counterparty['counterparty_address'],
+                'snapshot_data' => [
+                    'parties' => [
+                        'our_company' => PlaceholderRegistry::ourCompanyValues($signatory),
+                        'counterparty' => $counterparty,
+                    ],
+                    'entity' => [
+                        'applicant_id' => $applicant->id,
+                        'package_id' => $package->id,
+                        'customer_package_id' => $options['customer_package_id'] ?? null,
+                        'services' => collect($lines)->map(fn ($line, $serviceId) => [
+                            'service_id' => (int) $serviceId,
+                            'fee' => $line['fee'],
+                            'currency_id' => $line['currency_id'],
+                        ])->values()->all(),
+                        'source' => $options['source'] ?? 'package_issuance',
+                        ...($options['snapshot_extra'] ?? []),
+                    ],
+                    'template_version' => $this->versionSnapshot($version),
+                    'document_design' => $this->documentDesigns->snapshot($design),
+                ],
+            ]);
+
+            foreach ($package->services as $service) {
+                $line = $lines[$service->id];
+                $contract->contractServices()->create([
+                    'service_id' => $service->id,
+                    'applicant_id' => $applicant->id,
+                    'sold_by_employee_id' => $options['sold_by_employee_id'] ?? null,
+                    'marketer_id' => $options['marketer_id'] ?? ($options['sold_by_employee_id'] ?? null),
+                    'customer_package_id' => $options['customer_package_id'] ?? null,
+                    'currency_id' => $line['currency_id'],
+                    'fee' => $line['fee'],
+                    'country_id' => $countryId,
+                    'education_level_id' => $options['education_level_id'] ?? $applicant->education_level_id,
+                    'language_id' => $languageId,
+                    'notes' => $options['notes'] ?? null,
+                ]);
+            }
+
+            return $contract->load(['contractServices.service.currency', 'contractServices.currency']);
+        });
+    }
+
+    /**
+     * Per-member-service fee split for a package sale, keyed by service id.
+     *
+     * Explicit overrides win; otherwise each member keeps its allocated share
+     * of the package price (or its own fee when the package has no price).
+     *
+     * @param  array<int, array{fee: mixed, currency_id: mixed}>  $overrides
+     * @return array<int, array{fee: mixed, currency_id: mixed}>
+     */
+    private function packageLines(Package $package, array $overrides = []): array
+    {
+        $lines = [];
+        foreach ($package->services as $service) {
+            if (array_key_exists($service->id, $overrides)) {
+                $lines[$service->id] = $overrides[$service->id];
+            } else {
+                $lines[$service->id] = [
+                    'fee' => $service->pivot->allocated_fee ?? $service->fee,
+                    'currency_id' => $service->currency_id,
+                ];
+            }
+        }
+
+        return $lines;
     }
 
     /**

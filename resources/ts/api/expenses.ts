@@ -1,19 +1,18 @@
 import api from './axios'
+import type { Attachment } from './attachments'
 import type { Currency } from './currency'
-import type { Company } from './company'
 import type { Project } from './project'
 
 export interface Expense {
   id: number
   applicant_id: number | null
-  company_id: number | null
-  company?: Pick<Company, 'id' | 'legal_name' | 'trade_name'> | { id: number; name: string } | null
   project_id: number | null
   project?: Pick<Project, 'id' | 'name'> | null
   currency_id: number
   type: string
   description: string
   document?: { name: string; mimeType: string; size: number; downloadUrl: string } | null
+  attachments?: Attachment[]
   amount: number
   quantity: number
   currency: Pick<Currency, 'id' | 'code' | 'symbol' | 'rate' | 'decimalPlaces'> | null
@@ -29,7 +28,6 @@ export interface Expense {
 
 export interface ExpenseCreateData {
   applicant_id?: number | null
-  company_id?: number | null
   project_id?: number | null
   currency_id: number
   type: string
@@ -42,7 +40,6 @@ export interface ExpenseCreateData {
 
 export interface ExpenseUpdateData {
   applicant_id?: number | null
-  company_id?: number | null
   project_id?: number | null
   currency_id?: number
   type?: string
@@ -59,7 +56,6 @@ export interface ExpenseParams {
   search?: string
   type?: string
   currency_id?: number
-  company_id?: number
   project_id?: number
 }
 

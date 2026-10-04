@@ -35,7 +35,7 @@ class PendingTransactionController extends Controller
 
         return response()->json(['success' => true, 'data' => [
             'currencies' => Currency::query()->where('is_active', true)->orderBy('code')->get(['id', 'name', 'code', 'symbol', 'is_base']),
-            'employees' => Employee::query()->when(! $isManager, fn ($query) => $query->whereKey($ownEmployeeId))->orderBy('name')->get(['id', 'name']),
+            'employees' => Employee::query()->excludePrimaryRecord()->when(! $isManager, fn ($query) => $query->whereKey($ownEmployeeId))->orderBy('name')->get(['id', 'name']),
             'applicants' => Applicant::query()->when(! $isManager, fn ($query) => $query->where('responsible_employee_id', $ownEmployeeId))->latest()->get(['id', 'name']),
         ]]);
     }

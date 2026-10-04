@@ -7,6 +7,8 @@ use App\Models\Currency;
 use App\Models\Income;
 use App\Models\Invoice;
 use App\Services\CommissionAccrualService;
+use App\Services\EducationalWorkflowNotificationService;
+use App\Services\IncomeReceiptService;
 use App\Services\OutsourcingAccrualService;
 use App\Services\CurrencyConversionService;
 use Illuminate\Http\Request;
@@ -21,11 +23,12 @@ class IncomeController extends Controller
         private readonly CurrencyConversionService $currencies,
         private readonly CommissionAccrualService $commissions,
         private readonly OutsourcingAccrualService $outsourcing,
+        private readonly EducationalWorkflowNotificationService $notifications,
     ) {}
 
     public function index(Request $request)
     {
-        $query = Income::with(['invoice', 'incomeCurrency', 'company', 'recorder']);
+        $query = Income::with(['invoice', 'incomeCurrency', 'recorder']);
 
         if ($request->has('type') && $request->type) {
             $query->where('type', $request->type);
@@ -33,10 +36,6 @@ class IncomeController extends Controller
 
         if ($request->filled('currency_id')) {
             $query->where('currency_id', $request->integer('currency_id'));
-        }
-
-        if ($request->filled('company_id')) {
-            $query->where('company_id', $request->integer('company_id'));
         }
 
         if ($request->has('search') && $request->search) {
@@ -55,7 +54,6 @@ class IncomeController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'applicant_id' => 'nullable|exists:applicants,id',
-            'company_id' => 'nullable|exists:companies,id',
             'invoice_id' => 'nullable|exists:invoices,id',
             'type' => ['required', Rule::in(['Service', 'Product', 'Investment', 'Other'])],
             'description' => 'nullable|string|max:65535',
@@ -91,7 +89,6 @@ class IncomeController extends Controller
                 ]);
             }
             $data['applicant_id'] = $invoice->applicant_id;
-            $data['company_id'] = null;
             $data['currency_id'] = $invoice->currency_id;
             $this->applyCurrencySnapshot($data);
             $data['invoice_amount'] = $this->paymentAmountInInvoiceCurrency($data, $invoice);
@@ -103,19 +100,32 @@ class IncomeController extends Controller
             return $income;
         });
 
-        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'company', 'recorder']));
+        $this->notifications->incomeRecorded($income, (int) $request->user()->id);
+
+        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'recorder']));
     }
 
     public function show(Income $income)
     {
-        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'company', 'recorder']));
+        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'recorder']));
+    }
+
+    /**
+     * The printable receipt payload: party identity, case services/packages,
+     * serial number, total fee, running paid amount and letterhead artwork.
+     */
+    public function receipt(Income $income, IncomeReceiptService $receipts)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $receipts->forIncome($income),
+        ]);
     }
 
     public function update(Request $request, Income $income)
     {
         $validator = Validator::make($request->all(), [
             'applicant_id' => 'nullable|exists:applicants,id',
-            'company_id' => 'nullable|exists:companies,id',
             'invoice_id' => 'nullable|exists:invoices,id',
             'type' => ['sometimes', Rule::in(['Service', 'Product', 'Investment', 'Other'])],
             'description' => 'sometimes|nullable|string|max:65535',
@@ -154,7 +164,6 @@ class IncomeController extends Controller
                     ]);
                 }
                 $data['applicant_id'] = $invoice->applicant_id;
-                $data['company_id'] = null;
                 $data['currency_id'] = $invoice->currency_id;
                 if ((int) $invoiceId !== (int) $income->invoice_id || array_key_exists('rate', $data)) {
                     $this->applyCurrencySnapshot($data);
@@ -180,7 +189,7 @@ class IncomeController extends Controller
             return $income;
         });
 
-        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'company', 'recorder']));
+        return new IncomeResource($income->load(['invoice', 'incomeCurrency', 'recorder']));
     }
 
     public function destroy(Income $income)

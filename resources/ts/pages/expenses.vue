@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { VDialog } from 'vuetify/components'
+import { useToast } from 'vue-toastification'
+import PendingTransactionApi from '@/api/pendingTransactions'
 import CurrencyApi, { type Currency } from '@/api/currency'
-import CompanyApi, { type Company } from '@/api/company'
 import ProjectApi, { type Project } from '@/api/project'
-import { type Expense, type ExpenseCreateData, type ExpenseFormData, type ExpenseUpdateData, createExpense, deleteExpense, getExpenses, removeExpenseDocument, updateExpense, uploadExpenseDocument } from '@/api/expenses'
+import { type Expense, type ExpenseCreateData, type ExpenseFormData, type ExpenseUpdateData, createExpense, deleteExpense, getExpenses, updateExpense } from '@/api/expenses'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ExpenseFormDialog from '@/components/forms/ExpenseFormDialog.vue'
+import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
 
 const expenses = ref<Expense[]>([])
 const currencies = ref<Currency[]>([])
-const companies = ref<Company[]>([])
 const projects = ref<Project[]>([])
 const selectedExpense = ref<ExpenseFormData | null>(null)
 const isAddExpenseDialogVisible = ref(false)
@@ -24,7 +25,9 @@ const filterCurrency = ref<number | null>(null)
 const isLoading = ref(false)
 const formError = ref('')
 const fieldErrors = ref<Record<string, string>>({})
-const expenseDocumentInput = ref<HTMLInputElement | null>(null)
+const attachmentTarget = ref<Expense | null>(null)
+const isAttachmentsOpen = ref(false)
+const toast = useToast()
 
 const typeOptions = ['Utilities', 'Software/SaaS', 'Marketing', 'Office Supplies', 'Travel & Dining', 'Salaries']
 
@@ -40,10 +43,6 @@ const currencyOptions = computed(() => currencies.value.map(currency => ({
 })))
 
 const currentBaseCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? null)
-
-const companyOptions = computed(() => companies.value
-  .filter(company => company.is_active)
-  .map(company => ({ title: company.trade_name || company.legal_name, value: company.id })))
 
 const projectOptions = computed(() => projects.value
   .filter(project => project.status !== 'archived')
@@ -73,10 +72,7 @@ const fetchCurrencies = async () => {
 }
 
 const fetchLinkOptions = async () => {
-  const [companyRecords, projectRecords] = await Promise.all([CompanyApi.getAll(), ProjectApi.getAll()])
-
-  companies.value = companyRecords
-  projects.value = projectRecords
+  projects.value = await ProjectApi.getAll()
 }
 
 const fetchExpenses = async () => {
@@ -116,7 +112,6 @@ const openAddExpenseDialog = async () => {
   fieldErrors.value = {}
   selectedExpense.value = {
     applicant_id: null,
-    company_id: null,
     project_id: null,
     currency_id: 0,
     type: '',
@@ -144,25 +139,9 @@ const openDeleteExpenseDialog = (expense: Expense) => {
   isDeleteExpenseDialogVisible.value = true
 }
 
-async function selectExpenseDocument(expense: Expense, event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  try {
-    const saved = await uploadExpenseDocument(expense.id, file)
-    const index = expenses.value.findIndex(item => item.id === saved.id)
-    if (index >= 0) expenses.value[index] = saved
-  }
-  catch (error: any) { formError.value = apiErrorMessage(error, 'Unable to upload the expense document.') }
-  finally { (event.target as HTMLInputElement).value = '' }
-}
-
-async function deleteExpenseDocument(expense: Expense) {
-  try {
-    const saved = await removeExpenseDocument(expense.id)
-    const index = expenses.value.findIndex(item => item.id === saved.id)
-    if (index >= 0) expenses.value[index] = saved
-  }
-  catch (error: any) { formError.value = apiErrorMessage(error, 'Unable to remove the expense document.') }
+function openAttachments(expense: Expense) {
+  attachmentTarget.value = expense
+  isAttachmentsOpen.value = true
 }
 
 const handleCurrencyChange = (currencyId: number) => {
@@ -205,7 +184,7 @@ const validateExpense = () => {
   return Object.keys(fieldErrors.value).length === 0
 }
 
-const saveExpense = async (isEditing = false, submittedExpense?: ExpenseFormData) => {
+const saveExpense = async (isEditing = false, submittedExpense?: ExpenseFormData, mode: 'direct' | 'loan' = 'direct') => {
   if (submittedExpense)
     selectedExpense.value = submittedExpense
 
@@ -221,9 +200,25 @@ const saveExpense = async (isEditing = false, submittedExpense?: ExpenseFormData
     formError.value = ''
     fieldErrors.value = {}
 
+    // Loans route the expense through the approval workflow instead of
+    // writing the ledger row immediately.
+    if (!isEditing && mode === 'loan') {
+      await PendingTransactionApi.create({
+        transaction_type: 'expense',
+        reason: selectedExpense.value.description?.trim() || selectedExpense.value.type || 'Expense',
+        amount: Number(selectedExpense.value.amount) * Number(selectedExpense.value.quantity || 1),
+        currency_id: selectedExpense.value.currency_id,
+        applicant_id: selectedExpense.value.applicant_id ?? null,
+        employee_id: null,
+      })
+      isAddExpenseDialogVisible.value = false
+      toast.success(translate('pages.finance.expenses.expenses.loanSubmitted'))
+
+      return
+    }
+
     const payload = {
       applicant_id: selectedExpense.value.applicant_id,
-      company_id: selectedExpense.value.company_id,
       project_id: selectedExpense.value.project_id,
       currency_id: selectedExpense.value.currency_id,
       type: selectedExpense.value.type,
@@ -551,10 +546,14 @@ onMounted(() => {
           </template>
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
-              <input :ref="el => { if (el) expenseDocumentInput = el as HTMLInputElement }" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx" hidden @change="selectExpenseDocument(item, $event)">
-              <VBtn v-if="item.document" :href="item.document.downloadUrl" icon="tabler-paperclip" variant="text" size="small" />
-              <VBtn icon="tabler-file-upload" variant="text" size="small" @click="expenseDocumentInput?.click()" />
-              <VBtn v-if="item.document" icon="tabler-paperclip-off" variant="text" size="small" color="error" @click="deleteExpenseDocument(item)" />
+              <VBtn
+                icon="tabler-paperclip"
+                variant="text"
+                size="small"
+                :aria-label="$t('common.attachments.title')"
+                :title="$t('common.attachments.title')"
+                @click="openAttachments(item)"
+              />
               <FullDetailsButton :item="item" /><VBtn
                 icon="tabler-edit"
                 variant="text"
@@ -585,16 +584,14 @@ onMounted(() => {
       v-model="isAddExpenseDialogVisible"
       :initial-expense="selectedExpense"
       :currency-options="currencyOptions"
-      :company-options="companyOptions"
       :project-options="projectOptions"
       mode="create"
-      @submit="saveExpense(false, $event)"
+      @submit="(value, mode) => saveExpense(false, value, mode)"
     />
     <ExpenseFormDialog
       v-model="isEditExpenseDialogVisible"
       :initial-expense="selectedExpense"
       :currency-options="currencyOptions"
-      :company-options="companyOptions"
       :project-options="projectOptions"
       mode="edit"
       @submit="saveExpense(true, $event)"
@@ -623,6 +620,13 @@ onMounted(() => {
         </VCardActions>
       </VCard>
     </VDialog>
+
+    <AttachmentsDialog
+      v-model="isAttachmentsOpen"
+      type="expenses"
+      :record-id="attachmentTarget?.id ?? null"
+      :title="attachmentTarget?.description || $t('common.attachments.title')"
+    />
   </div>
 </template>
 

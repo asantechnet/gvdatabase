@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\DocumentLetterheads;
 use App\Support\ThemePalette;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -32,6 +33,34 @@ class SettingResource extends JsonResource
             'contract_letterhead_safe_y' => (float) ($this->contract_letterhead_safe_y ?? 15),
             'contract_letterhead_safe_width' => (float) ($this->contract_letterhead_safe_width ?? 83),
             'contract_letterhead_safe_height' => (float) ($this->contract_letterhead_safe_height ?? 70),
+            'receipt_letterhead' => $this->receipt_letterhead,
+            'receipt_letterhead_url' => $this->receipt_letterhead ? Storage::url($this->receipt_letterhead) : null,
+            'receipt_letterhead_source' => DocumentLetterheads::normalizeSource($this->receipt_letterhead_source),
+            'receipt_letterhead_safe_x' => (float) ($this->receipt_letterhead_safe_x ?? 6),
+            'receipt_letterhead_safe_y' => (float) ($this->receipt_letterhead_safe_y ?? 18),
+            'receipt_letterhead_safe_width' => (float) ($this->receipt_letterhead_safe_width ?? 88),
+            'receipt_letterhead_safe_height' => (float) ($this->receipt_letterhead_safe_height ?? 64),
+            'invoice_letterhead' => $this->invoice_letterhead,
+            'invoice_letterhead_url' => $this->invoice_letterhead ? Storage::url($this->invoice_letterhead) : null,
+            'invoice_letterhead_source' => DocumentLetterheads::normalizeSource($this->invoice_letterhead_source),
+            'invoice_letterhead_safe_x' => (float) ($this->invoice_letterhead_safe_x ?? 8.5),
+            'invoice_letterhead_safe_y' => (float) ($this->invoice_letterhead_safe_y ?? 15),
+            'invoice_letterhead_safe_width' => (float) ($this->invoice_letterhead_safe_width ?? 83),
+            'invoice_letterhead_safe_height' => (float) ($this->invoice_letterhead_safe_height ?? 70),
+            'payslip_letterhead' => $this->payslip_letterhead,
+            'payslip_letterhead_url' => $this->payslip_letterhead ? Storage::url($this->payslip_letterhead) : null,
+            'payslip_letterhead_source' => DocumentLetterheads::normalizeSource($this->payslip_letterhead_source),
+            'payslip_letterhead_safe_x' => (float) ($this->payslip_letterhead_safe_x ?? 8),
+            'payslip_letterhead_safe_y' => (float) ($this->payslip_letterhead_safe_y ?? 14),
+            'payslip_letterhead_safe_width' => (float) ($this->payslip_letterhead_safe_width ?? 84),
+            'payslip_letterhead_safe_height' => (float) ($this->payslip_letterhead_safe_height ?? 72),
+            // Resolved artwork for printable documents (receipt / invoice /
+            // payslip): the selected source plus the safe-zone where text lands.
+            'letterheads' => [
+                'receipt' => DocumentLetterheads::resolve($this->resource, 'receipt'),
+                'invoice' => DocumentLetterheads::resolve($this->resource, 'invoice'),
+                'payslip' => DocumentLetterheads::resolve($this->resource, 'payslip'),
+            ],
             'website_address' => $this->website_address,
             'company_email' => $this->company_email,
             'mail_host' => $this->mail_host,

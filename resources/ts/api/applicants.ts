@@ -53,7 +53,7 @@ export interface Applicant {
   pending_transactions?: Array<{ id: number; transaction_type: string; reason: string; amount: number | string; approval_status: string; rejection_reason?: string | null }>
   incomes?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
   expenses?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
-  services?: Array<{ id: number; service_id: number; type: string; category?: string; employee_id?: number | null; currency_id: number; package_type_id?: number | null; country_id?: number | null; education_level_id?: number | null; language_id?: number | null; fee: number | string; date?: string | null; status?: 'active' | 'paused' | 'completed' | 'cancelled'; currency?: { id: number; code: string } | null; bonus_source?: { bonus_amount: number | string; rule_source?: string | null } | null }>
+  services?: Array<{ id: number; service_id: number; type: string; category?: string; employee_id?: number | null; contract_id?: number | null; contract_number?: string | null; currency_id: number; package_type_id?: number | null; country_id?: number | null; education_level_id?: number | null; language_id?: number | null; fee: number | string; date?: string | null; status?: 'active' | 'paused' | 'completed' | 'cancelled'; currency?: { id: number; code: string } | null; bonus_source?: { bonus_amount: number | string; rule_source?: string | null } | null }>
   universities?: Array<{ id: number; university_id: number; semester_id?: number | null; status: string; intake?: string | null; notes?: string | null; university?: { id: number; name: string } | null; semester?: { id: number; name: string; code?: string } | null }>
 }
 
@@ -162,7 +162,7 @@ export default {
 export interface ApplicantAttachment { id: number; label: string; category?: string | null; name: string; mime_type?: string | null; size: number; uploaded_at?: string; download_url: string }
 export const ApplicantAttachmentApi = {
   list: async (id: number) => (await api.get(`/applicants/${id}/attachments`)).data.data as ApplicantAttachment[],
-  upload: async (id: number, file: File, label: string, category?: string) => { const form = new FormData(); form.append('file', file); form.append('label', label); if (category) form.append('category', category); return (await api.post(`/applicants/${id}/attachments`, form)).data.data as ApplicantAttachment },
+  upload: async (id: number, file: File, label: string, category?: string) => { const form = new FormData(); form.append('file', file); form.append('label', label); if (category) form.append('category', category); return (await api.post(`/applicants/${id}/attachments`, form, { headers: { 'Content-Type': 'multipart/form-data' } })).data.data as ApplicantAttachment },
   update: async (applicantId: number, id: number, label: string, category?: string) => (await api.put(`/applicants/${applicantId}/attachments/${id}`, { label, category })).data.data as ApplicantAttachment,
   remove: async (applicantId: number, id: number) => api.delete(`/applicants/${applicantId}/attachments/${id}`),
 }

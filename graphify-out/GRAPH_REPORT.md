@@ -1,66 +1,66 @@
-# Graph Report - educational  (2026-09-28)
+# Graph Report - educational  (2026-10-04)
 
 ## Corpus Check
-- 1067 files · ~1,239,093 words
+- 1055 files · ~1,274,072 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 123 file(s) not represented in the graph (top: .scss 92, (none) 7, .code-snippets 4)
 
 ## Summary
-- 12503 nodes · 27846 edges · 462 communities (384 shown, 78 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 713 edges (avg confidence: 0.89)
+- 12821 nodes · 28595 edges · 460 communities (401 shown, 59 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 875 edges (avg confidence: 0.9)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a0681ac4`
+- Built from commit: `bd4736de`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - Illuminate\Database\Eloquent\Relations\BelongsTo
-- User
+- TestCase
 - checks.mjs
-- Illuminate\Database\Schema\Blueprint
+- Applicant
 - live-browser.js
-- Income
-- Illuminate\Validation\ValidationException
-- applicant-case.vue
-- Illuminate\Database\Migrations\Migration
+- Currency
+- ContractDocumentDesignService
+- t
+- Illuminate\Support\Facades\Schema
 - axios.ts
 - context.mjs
 - DirectoryCrudPage.vue
 - Illuminate\Http\Request
 - Task
 - settings.vue
-- Employee
-- Illuminate\Support\Facades\DB
-- CurrencyConversionService
+- Illuminate\Database\Seeder
+- Income
+- Illuminate\Validation\ValidationException
 - connectSSE
 - ReportService.php
 - policies.vue
 - Illuminate\Http\JsonResponse
-- t
-- routes.ts
+- announcements.vue
+- auth.ts
 - expenses.vue
 - live-server.mjs
-- ref_node_path
+- critique-storage.mjs
 - design-system.mjs
 - doctor.mjs
 - injected/index.mjs
 - audits.vue
-- EducationalWorkflowNotificationService
-- Illuminate\Http\Resources\Json\JsonResource
-- vue-router
+- EducationalWorkflowNotificationService.php
+- BoardController.php
+- @layouts/types.ts
 - package.json
-- Expense
+- canAccess
 - concept-seed.mjs
-- EmployeeController.php
+- SupportTicket
 - educational-dashboard.vue
 - Lead
 - detect-antipatterns-browser.js
 - ContractForm.vue
 - staff_list.vue
-- AuditRegistry
-- Contract
+- AccountDeactivationRequest
+- ContractTemplate
 - components.d.ts
 - staff_salary.vue
 - css-cascade.mjs
@@ -69,32 +69,32 @@
 - contract_list.vue
 - svelte-component.mjs
 - roles.vue
-- ContractController
+- ContractTemplateController.php
 - leads.vue
-- Illuminate\Validation\Rule
-- Illuminate\Database\Eloquent\Relations\BelongsToMany
+- SettingController
+- receipt_template.vue
 - detect-text.mjs
 - parseAnyColor
 - hook-lib.mjs
 - EducationalReportController.php
-- Setting
+- AccountSettingsSecurity.vue
 - auto-imports.d.ts
 - policy_library.vue
 - modern-screenshot.umd.js
 - commissions.vue
 - visitor.vue
 - syncPageChatFocus
-- KanbanBoard.vue
+- KanbanItems.vue
 - TheCustomizer.vue
 - bonuslist.vue
 - EducationalDashboardController.php
 - el
-- Notification
-- apiErrorMessage
-- LeadController
+- User
+- home.vue
+- Illuminate\Http\Resources\Json\JsonResource
 - detect-antipatterns.mjs
 - manual-apply.mjs
-- impeccable-paths.mjs
+- Department
 - setLiveState
 - Illuminate\Database\Eloquent\Factories\Factory
 - ContractController.php
@@ -104,193 +104,194 @@
 - recurring-events.vue
 - innvoice.vue
 - routes/api.php
-- SKILL.md
+- new-work.md
 - impeccable-config.mjs
 - dependencies
 - users.vue
 - FullDetailsButton.vue
-- educational-master-data.vue
+- applicant-pipeline.vue
 - ContractDocumentPrinter.vue
 - hook-admin.mjs
-- hook-before-edit.mjs
+- session-store.mjs
 - live-copy-edit-agent.mjs
 - roots.mjs
 - vue-i18n
-- applicants.vue
-- RecurringEvent
+- positions.vue
+- RecurringEventController
 - live-accept.mjs
 - asset.vue
-- useTaskStore.ts
+- api
 - currencies.vue
 - reports.vue
 - initGlobalBar
 - timesheet.vue
-- DefaultLayoutWithVerticalNav.vue
-- paid_time_offs.vue
+- default.vue
+- apiErrorMessage
 - CommissionController.php
 - applyEditing
 - pending-transactions.vue
 - Implementation Plan — Educational Visa.md
 - educational-reports.vue
 - services.vue
-- Attendance
+- runHook
 - Illuminate\Support\Carbon
-- detect-html.mjs
+- inline-ignores.mjs
 - design-parser.mjs
 - vuetify/index.ts
-- vue
-- vuetify
+- useBranding.ts
+- MarketerController
 - formErrors.ts
 - CompanyProfile
-- live-wrap.mjs
-- applicant-pipeline.vue
+- ref_node_path
+- vue
 - scanCssTextForPulsingDot
 - ContractContentEditor.vue
-- api
-- PaidTimeOffController.php
+- api/index.ts
+- PaidTimeOffController
 - Contract Template & Document Artwork Sanifier
 - CrmRelationshipDetails.vue
 - ApplicantController
 - KanbanView.vue
-- .request
+- EmployeeController.php
 - live-manual-edit-evidence.mjs
-- 2026_09_01_000004_support_fractional_leave_accounting.php
+- ContractController
 - 50. Recommended Implementation Sequence
 - NavSearchBar.vue
-- SubtaskController.php
+- AttachmentsPanel.vue
 - parseRgb
-- useBranding.ts
+- Illuminate\Database\Eloquent\Relations\BelongsToMany
 - KanbanBoardEditDrawer.vue
 - ProjectFormWarningGuard.vue
 - generate-image.mjs
 - live-poll.mjs
 - TodoMatrixView.vue
-- validators.ts
+- Browser Session Management
 - migrate-ui.mjs
 - live.md
 - resolveLengthPx
 - AddPaymentMethodDialog.vue
 - compilerOptions
-- SalaryController.php
-- live.mjs
+- applicants.vue
+- localization.ts
 - showToast
 - API Modules Reference
 - support.vue
 - GridColumn
-- runHook
-- event-validation.mjs
-- TaskController.php
+- impeccable-paths.mjs
 - insert-ui.mjs
+- TaskController.php
+- SalaryController.php
 - DataTablePageKpis.vue
-- Responsive Design
+- adapt.md
 - api/contracts.ts
 - TaskDetailDrawer.vue
 - apexCharConfig.ts
-- BonusRuleSet
+- BonusRuleService
 - ContractTemplateVersion
 - DashboardController.php
 - parseAnyColor
 - mountSvelteComponentVariant
-- manual-edits-buffer.mjs
-- GanttView.vue
+- AuditLogController.php
+- FrappeGanttWrapper.vue
 - applicant-portal.vue
 - invoice.ts
 - WorkdayController.php
 - detect-url.mjs
-- accept-css.mjs
-- live-inject.mjs
+- RecurringEvent
+- nuxt.mjs
 - svelte-ast.mjs
-- printDocument
+- EndDayDialog.vue
 - EducationalServiceController
 - onboard.md
 - serve-question.mjs
 - sveltekit-adapter.mjs
 - Symfony\Component\HttpFoundation\Response
-- EmployeeScope
+- P2 / P3 — Workflow polish and hygiene
 - collectBrowserFindings
 - Customer → Applicant Merge
-- 2026_09_02_000004_align_commissions_finance_and_marketers.php
+- AssetController.php
 - CalendarView.vue
 - EducationalReportController
-- SupportTicketCreated
-- 2026_09_20_000001_unify_packages_services_and_case_wins.php
+- P1 — Logic incomplete vs plan / dangerous in production
+- PaidTimeOff
 - bootstrap/app.php
 - The Toolkit
 - HorizontalNavPopper.vue
-- OfficeSettingsPanel.vue
+- BonusRulesDialog.vue
 - TaskSettingsView.vue
+- AuditLog
 - Operate mode depth (and Read notes)
 - tanstack-adapter.mjs
-- 2026_09_26_000002_merge_customers_into_applicants_cutover.php
+- AutomaticAttendanceTracker.vue
 - TiptapEditor.vue
 - TaskAppShell.vue
-- Illuminate\Support\Collection
+- live.mjs
 - sampleCssBackground
 - tag-strategy.mjs
-- 0001_04_01_000004_create_hr_tables.php
+- Illuminate\Database\Schema\Blueprint
 - ContractTypeSelector.vue
-- horizontal/index.ts
+- KanbanBoard.vue
 - rt
 - check.mjs
-- AuditLog
-- NotificationController
-- filterFindings
+- Contract
+- 0001_09_01_000009_create_finance_tables.php
+- Storage Management
 - onAnnotDown
-- resolveLiveInjectionAnchor
+- 0001_11_01_000011_create_kanban_tables.php
 - createLiveBrowserSessionState
-- 2026_09_06_000000_harden_core_data_integrity.php
-- AppDateTimePicker.vue
-- BonusRulesDialog.vue
+- commission.ts
+- Running Custom Playwright Code
+- 3. Heal
 - Service → Contract linkage: one service, one contract, one template
-- AuditLogController
-- SalaryDeductionController.php
+- Backend
+- Settings → Documents: artwork scoping, per-page sizing & print precedence
 - animate.md
 - Handle `generate`
 - addVisualContrastFindings
 - checkHeadingRhythmDOM
 - TaskCommentsDrawer.vue
-- RoleController.php
+- Tracing
 - Impeccable Finish Reviewer
 - Generate Report
 - createLiveBrowserDomHelpers
-- journal.mjs
+- live-inject.mjs
 - 51. Definition of Done
 - ShareProjectDialog.vue
 - rules
-- AccountDeactivationRequestController
-- Department
-- EducationalMasterDataController
+- InvoiceController.php
+- Illuminate\Support\Collection
+- EducationalMasterDataController.php
 - PlaceholderRegistry
 - 4. Delivery plan
 - Impeccable Asset Producer
 - optimize.md
 - detect-utils.mjs
 - frameworks/index.mjs
-- 2026_09_23_000002_drop_customer_service_merge_into_contracts.php
+- hook-before-edit.mjs
 - RequestLocaleTest.php
 - invoice_template.vue
-- payslip_template.vue
-- ContractPolicyController
-- AuditPresenter
+- EducationalWorkflowNotificationService
+- ReportService
+- resolveLiveInjectionAnchor
 - Scan mode (approach C: auto-extract, then confirm descriptive language)
-- StaticElement
+- detect-csp.mjs
 - template-extensions.mjs
-- generation-preflight.mjs
-- pin.mjs
+- NotificationController
+- AppDateTimePicker.vue
 - vue3-perfect-scrollbar
 - RoleFormDialog.vue
 - timesheet_template.vue
-- CompanyController
-- OfficeGeofenceService
+- SalaryDeductionController.php
+- validators.ts
 - critique.md
 - Simplify the Design
 - Hardening Dimensions
-- 2026_09_13_000001_add_marketer_commission_accruals.php
+- Browser Automation with playwright-cli
 - OfficeGeofenceMap.vue
 - CreateAppDialog.vue
-- TaskEventModal.vue
-- CurrencyController
-- PaymentDetailController
+- 0001_14_01_000014_create_notification_and_audit_tables.php
+- Illuminate\Validation\Rule
+- 2026_09_28_000001_add_service_codes_variants_and_template_scopes.php
 - ApiMessage
 - clarify.md
 - Nielsen's 10 Heuristics
@@ -299,47 +300,47 @@
 - quieter.md
 - 0001_06_01_000006_create_reference_tables.php
 - 31. Phase 17 — Navigation Redesign
-- VerticalNavLayout.vue
+- RoleController.php
 - runtime-test.mjs
-- PositionController
+- 0001_10_01_000010_create_educational_commerce_tables.php
 - Generate Combined Critique Report
 - Init flow
 - require-dev
 - 0001_03_01_000003_create_core_tables.php
-- 2024_01_01_000003_create_hr_tables.php
+- Frontend
 - 10. Applicant Dashboard / Case View
 - scripts
 - AddEditAddressDialog.vue
-- accountDeactivation.ts
-- ProjectPortfolioView.vue
+- AccountSettingsAccount.vue
+- 2026_09_28_000003_promote_packages_to_first_class_catalogue.php
 - AppCardActions.vue
 - Common Cognitive Load Violations
-- iOS platform
+- context-signals.mjs
 - Shape
-- hook.mjs
+- filterFindings
 - composer.json
 - scripts
 - 0001_08_01_000008_create_contract_tables.php
-- 2023_01_01_000000_create_crm_tables.php
-- 2024_01_01_000005_create_contract_tables.php
-- 2024_01_01_000006_create_finance_tables.php
-- 2026_08_13_000000_create_reporting_tables.php
-- 2026_08_31_000000_expand_finance_money_precision.php
-- 2026_09_16_000001_create_outsourcing_ledger.php
-- 2026_09_26_000003_complete_contract_template_versioning.php
+- AuditLogController
+- ServiceForm.vue
+- contract_cover_template.vue
+- playwright-cli/SKILL.md
+- IncomeReceiptService.php
+- TaskEventModal.vue
+- educational-master-data.vue
 - ApiMessageTest.php
 - 23. Phase 10 — Permissions and Roles
-- AppCardCode.vue
+- Commands
 - AppLoadingIndicator.vue
 - AppStepper.vue
 - RouteServiceProvider.php
 - Impeccable Asset Producer
 - Android platform
 - Persona-Based Design Testing
-- Extract Flow
-- source-lock.mjs
-- 2024_01_01_000002_create_rbac_tables.php
-- 2026_09_15_000001_support_multiple_customer_service_commission_employees.php
+- impeccable/SKILL.md
+- Attachment
+- ContactActionMenu.vue
+- ApplicantPortalController
 - 29. Phase 15 — Dashboard Redesign
 - 5.1 Master Data Entities
 - vue
@@ -349,7 +350,7 @@
 - TwoFactorAuthDialog.vue
 - UserInfoEditDialog.vue
 - UserUpgradePlanDialog.vue
-- Agent working in parallel: CONTRACT TEMPLATES
+- CurrencyController
 - Impeccable Manual Edit Applier
 - Generate Report
 - Cognitive Load Assessment
@@ -357,75 +358,73 @@
 - checkElementGptBorderShadowDOM
 - checkElementHeroEyebrow
 - checkHeadingRhythmDOM
-- normalizeGitHubEvent
+- Attendance
 - config
 - 0001_05_01_000005_create_crm_tables.php
-- 2026_08_10_000001_create_bonus_tables.php
-- 2026_08_29_000000_make_audit_history_permanent.php
-- 2026_08_29_000003_add_currency_snapshots_to_positions_and_bonuses.php
-- 2026_09_02_000002_create_commission_ledger.php
-- 2026_09_21_000001_add_salary_payment_ledger.php
-- 2026_09_22_000000_make_service_duration_optional_and_link_portal_leads.php
-- 2026_09_26_000001_merge_customers_into_applicants_additive.php
+- Video Recording
+- Responsive Design
+- formatters.ts
+- legacyKanban.ts
+- ApplicantAttachmentController
+- Cookies
+- pin.mjs
 - Scheduled jobs deployment
 - 30. Phase 16 — Reporting
 - 32. Phase 18 — Data Relationships
 - AddAuthenticatorAppDialog.vue
 - CardAddEditDialog.vue
 - EnableOneTimePasswordDialog.vue
-- error
-- AccountDeactivationWorkflowTest
-- Diagnostic Scan
-- bolder.md
+- resetSettings
+- Advanced Mocking with run-code
+- api/services.ts
+- Local Storage
 - require
-- 0001_01_01_000000_create_users_table.php
 - 0001_02_01_000002_create_jobs_table.php
-- 2026_08_25_000000_add_results_and_attachments_to_tasks.php
-- 2026_08_29_000001_replace_tertiary_setting_with_vuexy_theme_palette.php
-- 2026_09_02_000003_add_commission_adjustments.php
-- 2026_09_03_000000_add_marketer_employee_attribution_to_crm_records.php
-- 2026_09_03_000001_add_customer_service_assignment_and_attribution.php
-- 2026_09_03_000100_restore_project_service_assignments.php
-- 2026_09_17_000001_add_versioned_contract_templates.php
-- 2026_09_18_000000_applicant_stage_exit_and_appeal_paths.php
-- 2026_09_27_000003_add_applicant_attachments_and_remove_company.php
-- Role hierarchy implementation plan
+- readConfig
+- generation-preflight.mjs
+- releasePreview
+- build-icons.mts
+- 0001_07_01_000007_create_applicant_tables.php
+- GanttView.vue
+- 0001_01_01_000000_create_users_table.php
+- 2026_10_03_000001_create_attachments_table.php
+- contractDocumentDesigns.ts
+- EmployeeScope
 - 39. Phase 25 — Test Strategy
 - 3. Core Business Model
 - 40. Phase 26 — Business Acceptance Tests
 - 46. Phase 32 — Role Examples
 - AddEditPermissionDialog.vue
+- Attaching Screenshots and Videos to Pull Requests
 - Impeccable Documenter
-- Adaptation Strategies
+- 2. Generate
 - Impeccable Documenter
 - psr-4
 - logging.php
-- 0001_01_01_000001_create_cache_table.php
-- 2026_08_24_000000_add_mail_delivery_fields_to_settings_table.php
-- 2026_08_26_000001_add_contract_letterhead_safe_area_to_settings_table.php
-- 2026_08_31_000000_add_automatic_attendance_setting.php
-- 2026_08_31_000002_add_unpaid_attendance_status.php
-- 2026_09_01_000000_add_soft_deletes_to_crm_interactions.php
-- 2026_09_01_000001_add_customer_relationship_notes.php
-- 2026_09_01_000003_add_email_to_visitors.php
-- 2026_09_12_000000_remove_class_type_from_invoices_table.php
-- 2026_09_13_000000_add_manual_probability_to_leads_table.php
-- 2026_09_13_000002_add_active_status_to_contract_policies.php
-- 2026_09_17_000005_link_official_finance_records_to_pending_transactions.php
-- 2026_09_18_000002_link_official_finance_to_case_dimensions.php
-- 2026_09_18_000006_add_applicant_portal_identity.php
-- 2026_09_27_000001_link_contracts_to_service_contracts.php
-- Phase 0 — existing application analysis
+- hook.mjs
+- 0001_13_01_000013_create_support_tables.php
+- 2026_10_03_000002_add_payslip_letterheads_to_settings.php
+- 2026_10_04_000001_add_automatic_flag_to_salary_deductions.php
+- DropZone.vue
+- contrastingTextColor
+- NormalizeApiErrorResponse.php
+- KanbanTaskEditForm.vue
+- ref_views_pages_account_settings_accountdeactivationrequests_vue
+- ref_views_pages_account_settings_accountsettingsaccount_vue
+- ref_views_pages_account_settings_accountsettingsnotification_vue
+- ref_views_pages_account_settings_accountsettingssecurity_vue
+- ref_views_pages_account_settings_accountsettingsworkhistory_vue
+- .post
+- iOS platform
+- AppCardCode.vue
 - overrides
 - Heuristics Scoring Guide
-- sanctum.php
+- env.d.ts
 - Office geofencing and automatic attendance
 - 18. Posting Approved Transactions
 - 6. Phase 2 — Contract Architecture
-- createUrl.ts
-- PricingPlanDialog.vue
+- graphify.js
 - blank.vue
-- .auditedModel
 - RoleCatalog
 - artisan
 - autoload-dev
@@ -443,26 +442,26 @@
 - iconify/package.json
 
 ## God Nodes (most connected - your core abstractions)
-1. `User` - 333 edges
-2. `Applicant` - 221 edges
-3. `Employee` - 220 edges
-4. `t()` - 182 edges
-5. `Currency` - 164 edges
-6. `Auditable` - 130 edges
-7. `Task` - 117 edges
-8. `vue` - 115 edges
-9. `TestCase` - 111 edges
-10. `canAccess()` - 104 edges
+1. `User` - 357 edges
+2. `Applicant` - 237 edges
+3. `Employee` - 236 edges
+4. `t()` - 189 edges
+5. `Currency` - 171 edges
+6. `Auditable` - 141 edges
+7. `Task` - 123 edges
+8. `vue` - 119 edges
+9. `TestCase` - 118 edges
+10. `canAccess()` - 114 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `2.3 Resolution & snapshot` --references--> `ContractController`  [INFERRED]
   contract-template-sanifier.md → app/Http/Controllers/ContractController.php
-- `5. Still to wire (next batches, all non-destructive until §3 executes)` --references--> `ContractController`  [INFERRED]
-  NOTICE.md → app/Http/Controllers/ContractController.php
 - `Backend` --references--> `SettingController`  [INFERRED]
   contract-template-sanifier.md → app/Http/Controllers/SettingController.php
 - `Intentional "customer" vocabulary — do **not** rename` --references--> `CustomerPackage`  [INFERRED]
   customer-applicant-merge.md → app/Models/CustomerPackage.php
+- `Test-side updates (stale tests, not app bugs)` --references--> `Scholarship`  [INFERRED]
+  docs/BASELINE_TEST_FIX_HANDOFF.md → app/Models/Scholarship.php
 - `2.1 What already holds` --references--> `ContractDocumentDesignService`  [INFERRED]
   service-contract-linkage-plan.md → app/Services/ContractDocumentDesignService.php
 
@@ -471,79 +470,79 @@
 - 3-file cycle: `resources/ts/@layouts/components.ts -> resources/ts/@layouts/components/VerticalNavSectionTitle.vue -> resources/ts/@layouts/index.ts -> resources/ts/@layouts/components.ts`
 - 3-file cycle: `resources/ts/@layouts/components.ts -> resources/ts/@layouts/components/HorizontalNavLink.vue -> resources/ts/@layouts/index.ts -> resources/ts/@layouts/components.ts`
 
-## Communities (462 total, 78 thin omitted)
+## Communities (460 total, 59 thin omitted)
 
 ### Community 0 - "Illuminate\Database\Eloquent\Relations\BelongsTo"
 Cohesion: 0.02
-Nodes (52): {closure#39}(), ApplicantUniversity, AssetAllocation, Comment, CommissionAccrual, CommissionSettlement, Auditable, {closure#1}() (+44 more)
+Nodes (52): {closure#4}(), {closure#5}(), {closure#7}(), {closure#8}(), {closure#9}(), {closure#2}(), {closure#3}(), Announcement (+44 more)
 
-### Community 1 - "User"
-Cohesion: 0.02
-Nodes (71): {closure#3}(), {closure#10}(), Applicant, ContractTemplate, ContractType, Country, Currency, Language (+63 more)
+### Community 1 - "TestCase"
+Cohesion: 0.03
+Nodes (53): ContractType, Language, {closure#1}(), {closure#2}(), Role, RolePermission, Service, 9. Progress log (+45 more)
 
 ### Community 2 - "checks.mjs"
 Cohesion: 0.03
-Nodes (132): ANIMATION_VALUE_KEYWORDS, borderColorsFromStyle(), borderWidthsFromStyle(), buildHtmlPatternCorpora(), checkBorders(), checkClippedOverflow(), checkEdgeFlushCardsDOM(), checkElementBlinkingCursorDOM() (+124 more)
+Nodes (135): ANIMATION_VALUE_KEYWORDS, borderColorsFromStyle(), borderWidthsFromStyle(), checkBorders(), checkClippedOverflow(), checkEdgeFlushCardsDOM(), checkElementBlinkingCursorDOM(), checkElementBorders() (+127 more)
 
-### Community 3 - "Illuminate\Database\Schema\Blueprint"
-Cohesion: 0.03
-Nodes (99): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}(), {closure#7}(), {closure#8}() (+91 more)
+### Community 3 - "Applicant"
+Cohesion: 0.02
+Nodes (46): {closure#2}(), {closure#3}(), ApplicantUniversityController, Applicant, ApplicantStage, self, ApplicantStageHistory, ApplicantUniversity (+38 more)
 
 ### Community 4 - "live-browser.js"
 Cohesion: 0.03
 Nodes (117): applyGlobalBarLabelState(), applyPlaceholderSizingStyles(), averageRgb01(), bindEditBadgeProxy(), bufferToBase64(), buildCollapsible(), buildColorModels(), buildListHtml() (+109 more)
 
-### Community 5 - "Income"
+### Community 5 - "Currency"
+Cohesion: 0.04
+Nodes (16): {closure#1}(), {closure#2}(), {closure#3}(), {closure#10}(), {closure#3}(), {closure#4}(), Currency, Invoice (+8 more)
+
+### Community 6 - "ContractDocumentDesignService"
+Cohesion: 0.13
+Nodes (7): {closure#3}(), ContractDocumentDesignController, ContractDocumentDesign, {closure#1}(), {closure#2}(), ContractDocumentDesignService, 2.1 Already implemented (working tree, from the prior iteration)
+
+### Community 7 - "t"
 Cohesion: 0.03
-Nodes (19): {closure#13}(), {closure#15}(), {closure#16}(), {closure#6}(), {closure#2}(), {closure#4}(), {closure#5}(), Income (+11 more)
+Nodes (94): applicant, applicantAttachments, attachmentFile, attachmentLabel, boards, canAttachDocuments, completeTask(), completingId (+86 more)
 
-### Community 6 - "Illuminate\Validation\ValidationException"
-Cohesion: 0.03
-Nodes (29): {closure#3}(), ContractDocumentDesignController, {closure#2}(), {closure#4}(), {closure#1}(), {closure#2}(), {closure#3}(), PackageController (+21 more)
-
-### Community 7 - "applicant-case.vue"
-Cohesion: 0.02
-Nodes (99): Applicant, ApplicantAttachment, ApplicantAttachmentApi, ApplicantBoard, ApplicantListParams, ApplicantStage, ApplicantUniversity, ApplicantUniversityApi (+91 more)
-
-### Community 8 - "Illuminate\Database\Migrations\Migration"
-Cohesion: 0.02
-Nodes (31): {closure#1}(), {closure#1}(), {closure#1}(), {closure#2}(), {closure#1}(), {closure#2}(), {closure#1}(), {closure#2}() (+23 more)
+### Community 8 - "Illuminate\Support\Facades\Schema"
+Cohesion: 0.06
+Nodes (17): {closure#1}(), {closure#1}(), {closure#2}(), {closure#1}(), {closure#2}(), {closure#1}(), {closure#2}(), {closure#1}() (+9 more)
 
 ### Community 9 - "axios.ts"
-Cohesion: 0.04
-Nodes (81): @casl/ability, @casl/vue, cookie-es, destr, renewSession(), DailyReport, EndWorkdayData, WorkdayApi (+73 more)
+Cohesion: 0.06
+Nodes (59): @casl/ability, @casl/vue, vue-router, renewSession(), useCookie(), loggingOut, { logoUrl, isLogoSquare, shortCompanyName, handleLogoLoad, loadBranding }, logout() (+51 more)
 
 ### Community 10 - "context.mjs"
 Cohesion: 0.04
-Nodes (100): appendAutonomyCounterDirective(), appendBuildPathDirective(), appendDetectorFallback(), appendImageGenDirective(), appendImageToolsDirective(), appendStalenessDirective(), appendSubagentAuthorizationDirective(), appendSurfaceBriefContext() (+92 more)
+Nodes (102): appendAutonomyCounterDirective(), appendBuildPathDirective(), appendDetectorFallback(), appendImageGenDirective(), appendImageToolsDirective(), appendStalenessDirective(), appendSubagentAuthorizationDirective(), appendSurfaceBriefContext() (+94 more)
 
 ### Community 11 - "DirectoryCrudPage.vue"
-Cohesion: 0.03
-Nodes (88): axios, driver.js, Marketer, MarketerAccountOption, MarketerApi, MarketerPayload, generatedAt, setGeneratedAt() (+80 more)
+Cohesion: 0.04
+Nodes (52): axios, Marketer, MarketerAccountOption, MarketerApi, MarketerPayload, accountOptions, accountsLoading, activeCount (+44 more)
 
 ### Community 12 - "Illuminate\Http\Request"
 Cohesion: 0.05
-Nodes (12): ApplicantStageController, AuthController, CrmInteractionController, FileController, {closure#4}(), PendingTransactionController, UserController, CrmInteractionResource (+4 more)
+Nodes (11): ApplicantStageController, AuthController, {closure#4}(), FileController, OutsourcingController, PendingTransactionController, UserController, CrmInteractionResource (+3 more)
 
 ### Community 13 - "Task"
-Cohesion: 0.04
-Nodes (24): TaskAttachmentController, ApplicantStage, self, Board, {closure#1}(), {closure#3}(), {closure#4}(), Task (+16 more)
+Cohesion: 0.03
+Nodes (39): CommentController, {closure#1}(), {closure#2}(), {closure#3}(), SubtaskController, TaskAttachmentController, CommentResource, SubtaskResource (+31 more)
 
 ### Community 14 - "settings.vue"
 Cohesion: 0.03
-Nodes (90): 2.1 Documents page — `resources/ts/pages/setup/settings.vue` (1318 lines), Frontend, ContractDocumentDesign, ContractDocumentDesignApi, ContractDocumentDesignPayload, ContractDocumentDesignSafeArea, activeArtworkPreview(), activeCoverPreview (+82 more)
+Nodes (68): activeCoverPreview, activeLetterheadPreview, activePage, activeSafeArea, activeSettingsPage, appearanceGroups, applyRouteSection(), canEditSettings (+60 more)
 
-### Community 15 - "Employee"
-Cohesion: 0.03
-Nodes (13): {closure#1}(), SyncAnalytics, DailyAnalytics, Employee, MonthlyAnalytics, Illuminate\Database\Eloquent\Casts\Attribute, Illuminate\Database\Eloquent\Relations\HasMany, EducationalWorkflowIntegrationTest (+5 more)
-
-### Community 16 - "Illuminate\Support\Facades\DB"
-Cohesion: 0.03
-Nodes (31): {closure#1}(), {closure#2}(), {closure#3}(), Position, Session 1 — migrations through seeders, ApplicantFactory, ApplicantSeeder, BoardSeeder (+23 more)
-
-### Community 17 - "CurrencyConversionService"
+### Community 15 - "Illuminate\Database\Seeder"
 Cohesion: 0.04
-Nodes (15): ExpenseController, {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), IncomeController, InvoiceController, WorthyEmployeeController (+7 more)
+Nodes (29): {closure#12}(), Asset, Office, OfficeGeofenceService, {closure#11}(), Session 1 — migrations through seeders, ApplicantFactory, AssetFactory (+21 more)
+
+### Community 16 - "Income"
+Cohesion: 0.04
+Nodes (16): {closure#13}(), {closure#2}(), {closure#4}(), {closure#5}(), Income, InvoiceService, PositionUser, RoleUser (+8 more)
+
+### Community 17 - "Illuminate\Validation\ValidationException"
+Cohesion: 0.05
+Nodes (17): ExpenseController, {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), IncomeController, WorthyEmployeeController, PresentsAttachments (+9 more)
 
 ### Community 18 - "connectSSE"
 Cohesion: 0.06
@@ -551,87 +550,83 @@ Nodes (88): abortSvelteComponentInjection(), applyParamDefaults(), applyParamVal
 
 ### Community 19 - "ReportService.php"
 Cohesion: 0.04
-Nodes (68): {closure#1}(), {closure#2}(), {closure#3}(), {closure#6}(), {closure#7}(), {closure#8}(), {closure#2}(), {closure#3}() (+60 more)
+Nodes (61): {closure#1}(), {closure#2}(), {closure#3}(), {closure#6}(), {closure#7}(), {closure#8}(), ExcludesPrimaryRecord, {closure#10}() (+53 more)
 
 ### Community 20 - "policies.vue"
 Cohesion: 0.03
-Nodes (79): activateVersion(), activatingVersionId, allPolicies, archiveVersion(), canActivateVersions, canArchiveVersions, canCreateVersions, canEditDraftVersions (+71 more)
+Nodes (88): activateVersion(), activatingVersionId, activePackages, activeServices, allPolicies, archiveVersion(), canActivateVersions, canArchiveVersions (+80 more)
 
 ### Community 21 - "Illuminate\Http\JsonResponse"
-Cohesion: 0.05
-Nodes (18): AttendanceGeofenceController, AutomationController, ContractTypeController, OfficeController, ProjectController, {closure#2}(), ReportController, ServiceController (+10 more)
-
-### Community 22 - "t"
 Cohesion: 0.04
-Nodes (75): DashboardApi, DashboardData, DashboardTask, downloadDoc(), loadBoards(), move(), saveCase(), saveNotes() (+67 more)
+Nodes (17): AttendanceGeofenceController, AutomationController, CompanyController, ContractTypeController, OfficeController, PaymentDetailController, ProjectController, ServiceController (+9 more)
 
-### Community 23 - "routes.ts"
-Cohesion: 0.03
-Nodes (62): ref_views_pages_account_settings_accountdeactivationrequests_vue, ref_views_pages_account_settings_accountsettingsaccount_vue, ref_views_pages_account_settings_accountsettingsnotification_vue, ref_views_pages_account_settings_accountsettingssecurity_vue, ref_views_pages_account_settings_accountsettingsworkhistory_vue, ref_virtual_meta_layouts, Account, AccountUpdatePayload (+54 more)
+### Community 22 - "announcements.vue"
+Cohesion: 0.07
+Nodes (36): Announcement, AnnouncementAudienceOptions, AnnouncementCreateData, AnnouncementScope, AnnouncementScopeType, createAnnouncement(), getAnnouncement(), getAnnouncementAudienceOptions() (+28 more)
+
+### Community 23 - "auth.ts"
+Cohesion: 0.04
+Nodes (43): Account, AccountUpdatePayload, AuthApi, NotificationPreferences, emit, emit, emit, email (+35 more)
 
 ### Community 24 - "expenses.vue"
 Cohesion: 0.04
-Nodes (69): Company, CompanyApi, CompanyCreateData, CompanyParams, CompanyUpdateData, Currency, createExpense(), deleteExpense() (+61 more)
+Nodes (62): Attachment, ApiResponse, Currency, CurrencyApi, CurrencyForm, createExpense(), deleteExpense(), Expense (+54 more)
 
 ### Community 25 - "live-server.mjs"
 Cohesion: 0.05
 Nodes (73): assembleLiveBrowserScript(), assertLiveBrowserScriptParts(), LIVE_BROWSER_SCRIPT_PARTS, readLiveBrowserScriptParts(), resolveLiveBrowserScriptParts(), eventPriority(), selectAvailablePendingEvent(), acknowledgePendingEvent() (+65 more)
 
-### Community 26 - "ref_node_path"
-Cohesion: 0.05
-Nodes (64): cli(), COMMON_DEV_PORTS, devServerSignals(), gatherSignals(), gitSignals(), hasCode(), isVendoredPath(), latestCritique() (+56 more)
+### Community 26 - "critique-storage.mjs"
+Cohesion: 0.16
+Nodes (24): coerceSlug(), listSnapshots(), main(), nowFilenameStamp(), parseFrontmatter(), readLatestSnapshot(), readLatestSnapshotMatching(), readTrend() (+16 more)
 
 ### Community 27 - "design-system.mjs"
 Cohesion: 0.06
-Nodes (73): addClampEndpoints(), addColorObject(), addDesignColor(), addFontSizeStep(), addRoundedScale(), addRoundedToken(), addSidecarColors(), addSidecarRadii() (+65 more)
+Nodes (72): addClampEndpoints(), addColorObject(), addDesignColor(), addFontSizeStep(), addRoundedScale(), addRoundedToken(), addSidecarColors(), addSidecarRadii() (+64 more)
 
 ### Community 28 - "doctor.mjs"
-Cohesion: 0.06
-Nodes (66): extractPlatform(), hasVisualImplementation(), loadContext(), applyFixes(), cli(), collect(), parseArgs(), readProjectRootPatterns() (+58 more)
+Cohesion: 0.07
+Nodes (62): extractPlatform(), loadContext(), applyFixes(), cli(), collect(), parseArgs(), readProjectRootPatterns(), rel() (+54 more)
 
 ### Community 29 - "injected/index.mjs"
 Cohesion: 0.06
 Nodes (69): addBrowserFindings(), addVisualContrastFindings(), addVisualContrastResult(), analyzeVisualContrast(), analyzeVisualContrastCandidate(), blendRgba(), browserColorsClose(), browserDesignSystemConfig() (+61 more)
 
 ### Community 30 - "audits.vue"
-Cohesion: 0.04
-Nodes (67): AuditChange, AuditEvent, AuditLog, AuditLogParams, AuditPerson, AuditResolution, AuditResource, AuditState (+59 more)
-
-### Community 31 - "EducationalWorkflowNotificationService"
-Cohesion: 0.05
-Nodes (10): ApplicantAttachmentController, {closure#1}(), {closure#2}(), {closure#3}(), ApplicantAttachment, ApplicantStageHistory, CaseWinService, {closure#10}() (+2 more)
-
-### Community 32 - "Illuminate\Http\Resources\Json\JsonResource"
 Cohesion: 0.03
-Nodes (12): BoardController, {closure#7}(), {closure#8}(), KanbanController, PermissionController, AttendanceResource, BoardResource, ContractServiceResource (+4 more)
+Nodes (74): AuditChange, AuditEvent, AuditLog, AuditLogParams, AuditPerson, AuditResolution, AuditResource, AuditState (+66 more)
 
-### Community 33 - "vue-router"
-Cohesion: 0.05
-Nodes (51): ImportMeta, ImportMetaEnv, RouteMeta, vue-router, vue-router, configStore, isGroupActive, Props (+43 more)
+### Community 32 - "BoardController.php"
+Cohesion: 0.07
+Nodes (6): BoardController, {closure#7}(), {closure#8}(), KanbanController, BoardResource, {closure#5}()
+
+### Community 33 - "@layouts/types.ts"
+Cohesion: 0.03
+Nodes (97): cookie-es, destr, ref_images_logo_svg_raw, type-fest, @vueuse/core, { locale }, Props, CookieDefaults (+89 more)
 
 ### Community 34 - "package.json"
 Cohesion: 0.03
 Nodes (69): stylelint-config-idiomatic-order, stylelint-config-standard-scss, @stylistic/stylelint-config, name, packageManager, private, type, version (+61 more)
 
-### Community 35 - "Expense"
-Cohesion: 0.04
-Nodes (16): {closure#4}(), {closure#5}(), {closure#7}(), {closure#8}(), {closure#9}(), OutsourcingController, {closure#3}(), SalaryPaymentController (+8 more)
+### Community 35 - "canAccess"
+Cohesion: 0.03
+Nodes (55): ref_virtual_meta_layouts, activeComponent, activeTab, route, router, tabs, applicants, canCreate (+47 more)
 
 ### Community 36 - "concept-seed.mjs"
 Cohesion: 0.05
 Nodes (62): API_BASE, API_TIMEOUT_MS, apiBudgetMs(), dealCompositions(), driveSelection(), fetchRoll(), here, loadLocal() (+54 more)
 
-### Community 37 - "EmployeeController.php"
-Cohesion: 0.03
-Nodes (29): {closure#6}(), {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#2}(), {closure#3}(), {closure#2}() (+21 more)
+### Community 37 - "SupportTicket"
+Cohesion: 0.15
+Nodes (11): {closure#2}(), {closure#1}(), SupportTicketCreated, SupportTicket, Illuminate\Bus\Queueable, Illuminate\Mail\Mailable, Illuminate\Mail\Mailables\Attachment, Illuminate\Mail\Mailables\Envelope (+3 more)
 
 ### Community 38 - "educational-dashboard.vue"
-Cohesion: 0.03
-Nodes (58): AttentionHit, CountryRow, CurrencySummary, DashboardStage, EducationalDashboard, EducationalDashboardParams, StaffRow, UniversityRow (+50 more)
+Cohesion: 0.05
+Nodes (39): S4 — Frontend: Options → Services tabs + package editor, AttentionHit, CountryRow, CurrencySummary, DashboardStage, EducationalDashboard, EducationalDashboardParams, StaffRow (+31 more)
 
 ### Community 39 - "Lead"
-Cohesion: 0.05
-Nodes (17): {closure#1}(), MarketerController, {closure#3}(), VisitorController, MarketerResource, CrmInteraction, Lead, Visitor (+9 more)
+Cohesion: 0.07
+Nodes (14): CrmInteractionController, {closure#3}(), VisitorController, VisitorResource, CrmInteraction, Lead, Visitor, {closure#61}() (+6 more)
 
 ### Community 40 - "detect-antipatterns-browser.js"
 Cohesion: 0.06
@@ -639,43 +634,43 @@ Nodes (58): browserColorsClose(), browserDesignSystemConfig(), browserHasDirectT
 
 ### Community 41 - "ContractForm.vue"
 Cohesion: 0.04
-Nodes (57): ContractServiceLine, ContractStatus, ApiResponse, CreateCustomerData, CustomerApi, CustomerParams, UpdateCustomerData, ApiResponse (+49 more)
+Nodes (50): ContractStatus, CounterpartyDetails, meta, rowsFor(), { t }, tr(), activeSlug, activeTemplateVersions (+42 more)
 
 ### Community 42 - "staff_list.vue"
-Cohesion: 0.04
-Nodes (49): addStaff(), applyStaffApiErrors(), canSavePaidTimeOff, changePaidTimeOffYear(), commissionServices, deletePaidTimeOff(), departments, educationOptions (+41 more)
+Cohesion: 0.03
+Nodes (78): Department, DepartmentApi, DepartmentPayload, CommissionServiceOption, CreateEmployeeData, Employee, EmployeeAccount, EmployeeApi (+70 more)
 
-### Community 43 - "AuditRegistry"
-Cohesion: 0.05
-Nodes (16): {closure#4}(), {closure#5}(), AccountDeactivationRequest, AuditResourceSetting, AccountDeactivationService, {closure#1}(), {closure#2}(), {closure#3}() (+8 more)
+### Community 43 - "AccountDeactivationRequest"
+Cohesion: 0.13
+Nodes (10): AccountDeactivationRequestController, AccountDeactivationRequestResource, AccountDeactivationRequest, AccountDeactivationService, {closure#1}(), {closure#2}(), {closure#3}(), {closure#5}() (+2 more)
 
-### Community 44 - "Contract"
-Cohesion: 0.05
-Nodes (8): {closure#3}(), {closure#5}(), Contract, ActiveContractService, Pitfalls, Backend, ContractDocumentDesignTest, ServiceContractGenerationTest
+### Community 44 - "ContractTemplate"
+Cohesion: 0.03
+Nodes (32): EducationalBonusSourceController, {closure#1}(), {closure#2}(), {closure#4}(), PackageController, PackageResource, ContractTemplate, CustomerPackage (+24 more)
 
 ### Community 45 - "components.d.ts"
-Cohesion: 0.03
-Nodes (35): GlobalComponents, vue, resources_images_pages_app_search_header_bg, Props, ./resources/ts/components/contract/ContractExpiryDate.vue, Props, emit, emit (+27 more)
+Cohesion: 0.04
+Nodes (31): GlobalComponents, vue, resources_images_pages_app_search_header_bg, Props, ./resources/ts/components/contract/ContractExpiryDate.vue, Emit, Props, Props (+23 more)
 
 ### Community 46 - "staff_salary.vue"
-Cohesion: 0.04
-Nodes (53): WorthyEmployee, CreateSalaryData, Salary, SalaryApi, SalaryDeduction, SalaryParams, UpdateSalaryData, activePayslipProps (+45 more)
+Cohesion: 0.03
+Nodes (72): WorthyEmployee, AttendanceBreakdown, CreateSalaryData, Salary, SalaryApi, SalaryDeduction, SalaryParams, UpdateSalaryData (+64 more)
 
 ### Community 47 - "css-cascade.mjs"
-Cohesion: 0.06
-Nodes (45): applyStaticDeclaration(), buildBorderOverrideMap(), parseShorthand(), resolveVar(), buildStaticStyleMap(), buildStaticWindow(), collectStaticCssRules(), compareStaticPriority() (+37 more)
+Cohesion: 0.04
+Nodes (52): Step 2b: Stage the frontmatter, applyStaticDeclaration(), buildBorderOverrideMap(), parseShorthand(), resolveVar(), buildStaticStyleMap(), buildStaticWindow(), collectStaticCssRules() (+44 more)
 
 ### Community 48 - "devDependencies"
 Cohesion: 0.03
 Nodes (62): devDependencies, @antfu/eslint-config-vue, @antfu/utils, eslint, eslint-config-airbnb-base, eslint-import-resolver-typescript, eslint-plugin-case-police, eslint-plugin-import (+54 more)
 
 ### Community 49 - "income.vue"
-Cohesion: 0.05
-Nodes (53): createIncome(), deleteIncome(), getIncomes(), IncomeCreateData, IncomeParams, IncomeUpdateData, updateIncome(), addIncome() (+45 more)
+Cohesion: 0.04
+Nodes (58): createIncome(), deleteIncome(), getIncomes(), IncomeCreateData, IncomeParams, IncomeUpdateData, updateIncome(), activeReceiptIncomeId (+50 more)
 
 ### Community 50 - "contract_list.vue"
-Cohesion: 0.03
-Nodes (51): audienceCopy, cancelContract(), combinedPrintRef, company, companySetting, contractRequest, {
+Cohesion: 0.04
+Nodes (49): audienceCopy, cancelContract(), combinedPrintRef, company, companySetting, contractRequest, {
   contracts,
   templates,
   isLoading,
@@ -685,83 +680,83 @@ Nodes (51): audienceCopy, cancelContract(), combinedPrintRef, company, companySe
   addContract,
   editContract,
   removeContract,
-}, contractToPrint (+43 more)
+}, contractToPrint (+41 more)
 
 ### Community 51 - "svelte-component.mjs"
-Cohesion: 0.07
-Nodes (58): collectUnusedSelectors(), verifyAcceptedSource(), applyLegacyDeferredAcceptsOnStartup(), buildPropsScriptV2(), loadSvelteCompiler(), appendCssToSvelteStyle(), appendSanitizedCssRule(), applyDeferredSvelteComponentAccepts() (+50 more)
+Cohesion: 0.06
+Nodes (81): bakeParamValues(), collectAllSelectors(), collectSelectorsFromNodes(), collectUnusedSelectors(), escapeRegExp(), formatBody(), isToggleOn(), normalizeSelector() (+73 more)
 
 ### Community 52 - "roles.vue"
 Cohesion: 0.04
 Nodes (45): Permission, PermissionApi, RolePermissions, Role, RoleApi, RoleCreateData, RoleUpdateData, allFilteredSelected (+37 more)
 
-### Community 53 - "ContractController"
-Cohesion: 0.06
-Nodes (10): ContractController, {closure#5}(), ContractTemplateController, {closure#2}(), ContractResource, ContractTemplateResource, ContentSanitizer, ContractAccess (+2 more)
+### Community 53 - "ContractTemplateController.php"
+Cohesion: 0.07
+Nodes (4): {closure#6}(), ContractTemplateController, {closure#2}(), ContractTemplateResource
 
 ### Community 54 - "leads.vue"
 Cohesion: 0.04
 Nodes (51): ConvertLeadData, CreateLeadData, CrmInteraction, CrmMarketer, Lead, LeadListParams, LeadStage, UpdateLeadData (+43 more)
 
-### Community 55 - "Illuminate\Validation\Rule"
-Cohesion: 0.05
-Nodes (13): AssetController, {closure#2}(), {closure#3}(), {closure#1}(), SettingController, UpsertSettingRequest, AssetResource, {closure#1}() (+5 more)
+### Community 55 - "SettingController"
+Cohesion: 0.11
+Nodes (13): {closure#1}(), SettingController, UpsertSettingRequest, {closure#1}(), SettingResource, DocumentLetterheads, ThemePalette, Illuminate\Support\Arr (+5 more)
 
-### Community 56 - "Illuminate\Database\Eloquent\Relations\BelongsToMany"
-Cohesion: 0.04
-Nodes (18): {closure#2}(), {closure#3}(), Project, 10. Progress log, 1. Goal, 2.1 Morph-map reality check, 2.2 Bug fix in the merge (documented deviation), 2. Verified end-state rules (later-wins + model confirmation) (+10 more)
+### Community 56 - "receipt_template.vue"
+Cohesion: 0.06
+Nodes (36): ReceiptApi, ReceiptApplicant, ReceiptCompany, ReceiptLetterhead, ReceiptLine, ReceiptMoney, ReceiptPayload, copies (+28 more)
 
 ### Community 57 - "detect-text.mjs"
-Cohesion: 0.06
-Nodes (52): blankAstroFrontmatterComments(), blankCommentsForMatchers(), blankCssComments(), blankCssLineComments(), blankCssLineCommentsInStyleBlocks(), blankHtmlAndCssCommentsOutsideScripts(), blankHtmlComments(), BLOCK_BRACE_PREFIX_KEYWORDS (+44 more)
+Cohesion: 0.07
+Nodes (51): blankAstroFrontmatterComments(), blankCommentsForMatchers(), blankCssComments(), blankCssLineComments(), blankCssLineCommentsInStyleBlocks(), blankHtmlAndCssCommentsOutsideScripts(), blankHtmlComments(), BLOCK_BRACE_PREFIX_KEYWORDS (+43 more)
 
 ### Community 58 - "parseAnyColor"
 Cohesion: 0.08
-Nodes (58): checkColors(), checkElementAIPaletteDOM(), checkElementColors(), checkElementColorsDOM(), checkElementGlow(), checkElementGlowDOM(), checkElementHoverContrast(), checkElementIconTile() (+50 more)
+Nodes (60): checkColors(), checkElementAIPaletteDOM(), checkElementColors(), checkElementColorsDOM(), checkElementGlowDOM(), checkElementHoverContrast(), checkElementIconTile(), checkElementIconTileDOM() (+52 more)
 
 ### Community 59 - "hook-lib.mjs"
-Cohesion: 0.05
-Nodes (57): ACK_EXTS, ADVISORY_RULES, ALLOWED_EXTS, applyConfigSource(), applyDetectorConfigSource(), canonicalPath(), canonicalPathCache, clampByte() (+49 more)
+Cohesion: 0.07
+Nodes (55): ACK_EXTS, ADVISORY_RULES, applyPatchText(), canonicalPathCache, clampByte(), clampGroupedToBudget(), clampLastLine(), clampToBudget() (+47 more)
 
 ### Community 60 - "EducationalReportController.php"
-Cohesion: 0.04
-Nodes (7): EducationalBonusSourceController, {closure#2}(), {closure#22}(), {closure#4}(), {closure#6}(), EducationalBonusSource, EducationalBonusSourceService
+Cohesion: 0.05
+Nodes (5): {closure#2}(), {closure#22}(), {closure#39}(), {closure#4}(), {closure#6}()
 
-### Community 61 - "Setting"
-Cohesion: 0.06
-Nodes (10): Asset, Office, Setting, AssetFactory, AssetSeeder, OfficeSeeder, CompanySettingsTest, OfficeGeofenceAttendanceTest (+2 more)
+### Community 61 - "AccountSettingsSecurity.vue"
+Cohesion: 0.12
+Nodes (23): accountFrom(), announce(), beginTwoFactor(), confirmLogoutOtherDevices(), confirmTwoFactor(), currentPassword, currentPasswordError, disableTwoFactor() (+15 more)
 
 ### Community 62 - "auto-imports.d.ts"
-Cohesion: 0.04
-Nodes (36): ComponentCustomProperties, GlobalComponents, vue, vue-toastification, resources_styles_core_template_index, resources_styles_styles, AttendanceGeofenceApi, GeofenceConfiguration (+28 more)
+Cohesion: 0.05
+Nodes (24): ComponentCustomProperties, GlobalComponents, vue, ufo, ./resources/ts/composables/useExpenceApi, Options, isApiRequestAllowed(), Method (+16 more)
 
 ### Community 63 - "policy_library.vue"
-Cohesion: 0.05
-Nodes (52): getPlaceholders(), PlaceholderField, PlaceholderGroup, ContractPolicy, ContractPolicyPayload, delete(), getContractPagesHtml(), editVersion() (+44 more)
+Cohesion: 0.04
+Nodes (54): getPlaceholders(), PlaceholderField, PlaceholderGroup, ContractPolicy, ContractPolicyPayload, delete(), getContractPagesHtml(), getContractPagesHtml() (+46 more)
 
 ### Community 64 - "modern-screenshot.umd.js"
 Cohesion: 0.09
 Nodes (55): ae(), be(), bt(), Ce(), s(), Ct(), de(), dt() (+47 more)
 
 ### Community 65 - "commissions.vue"
-Cohesion: 0.05
-Nodes (50): accruals(), approve(), cancel(), CommissionAccrual, CommissionCurrency, CommissionSettlement, CommissionSummary, createAdjustment() (+42 more)
+Cohesion: 0.06
+Nodes (37): accruals, activeTab, adjustmentDialog, adjustmentForm, approve(), cancel(), commissionEmployees, createAdjustment() (+29 more)
 
 ### Community 66 - "visitor.vue"
-Cohesion: 0.04
-Nodes (44): CreateVisitorData, CrmMarketer, UpdateVisitorData, Visitor, VisitorApi, VisitorParams, actions, ContactAction (+36 more)
+Cohesion: 0.06
+Nodes (34): CreateVisitorData, CrmMarketer, UpdateVisitorData, Visitor, VisitorApi, VisitorParams, addNewVisitor(), companies (+26 more)
 
 ### Community 67 - "syncPageChatFocus"
 Cohesion: 0.08
 Nodes (55): agentHasWorkInFlight(), applyConfigureBarChrome(), armPageChatForTyping(), attachSteerFocusDebug(), attachSteerFocusGuard(), buildSteerProcessingDots(), buildSteerQueueHint(), clearSteerAwaitTimer() (+47 more)
 
-### Community 68 - "KanbanBoard.vue"
-Cohesion: 0.06
-Nodes (46): @formkit/drag-and-drop, addNewBoard(), addNewItem(), boardTitle, deleteBoard(), deleteKanbanItemFn(), editKanbanItem, emit (+38 more)
+### Community 68 - "KanbanItems.vue"
+Cohesion: 0.13
+Nodes (18): @formkit/drag-and-drop, addNewItem(), boardActions, deleteItem(), editItem(), emit, handleEnterKeydown(), isAddNewFormVisible (+10 more)
 
 ### Community 69 - "TheCustomizer.vue"
-Cohesion: 0.07
-Nodes (46): ref_images_logo_svg_raw, @vueuse/core, resources_images_customizer_icons_border_light, resources_images_customizer_icons_collapsed_light, resources_images_customizer_icons_compact_light, resources_images_customizer_icons_default_light, resources_images_customizer_icons_horizontal_light, resources_images_customizer_icons_ltr_light (+38 more)
+Cohesion: 0.06
+Nodes (48): vuetify, resources_images_customizer_icons_border_light, resources_images_customizer_icons_collapsed_light, resources_images_customizer_icons_compact_light, resources_images_customizer_icons_default_light, resources_images_customizer_icons_horizontal_light, resources_images_customizer_icons_ltr_light, resources_images_customizer_icons_rtl_light (+40 more)
 
 ### Community 70 - "bonuslist.vue"
 Cohesion: 0.04
@@ -775,29 +770,29 @@ Nodes (8): {closure#1}(), {closure#21}(), {closure#25}(), {closure#28}(), {closu
 Cohesion: 0.07
 Nodes (54): actionLabel(), bindConfigureCountPillTooltip(), bindConfigureInlineControlHover(), bindConfigureModifierPillHover(), buildConfigureActionControl(), buildConfigureCountControl(), buildConfigureRow(), buildConfigureSubmitButton() (+46 more)
 
-### Community 73 - "Notification"
-Cohesion: 0.05
-Nodes (20): CaseWin, {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#7}(), {closure#2}() (+12 more)
+### Community 73 - "User"
+Cohesion: 0.02
+Nodes (54): {closure#3}(), {closure#4}(), {closure#7}(), {closure#1}(), {closure#2}(), {closure#3}(), {closure#1}(), {closure#2}() (+46 more)
 
-### Community 74 - "apiErrorMessage"
-Cohesion: 0.05
-Nodes (43): Department, DepartmentApi, DepartmentPayload, PaymentDetail, PaymentDetailApi, PaymentDetailPayload, toast, save() (+35 more)
+### Community 74 - "home.vue"
+Cohesion: 0.06
+Nodes (43): DashboardApi, DashboardData, DashboardTask, actionParams(), agingLabel(), agingOptions, agingSeries, attendanceRateToday (+35 more)
 
-### Community 75 - "LeadController"
-Cohesion: 0.05
-Nodes (9): {closure#5}(), {closure#6}(), LeadController, ApplicantResource, LeadResource, {closure#1}(), CrmMarketerAttribution, Closure (+1 more)
+### Community 75 - "Illuminate\Http\Resources\Json\JsonResource"
+Cohesion: 0.04
+Nodes (11): {closure#5}(), {closure#6}(), LeadController, PermissionController, ApplicantResource, ContractServiceResource, LeadResource, PermissionResource (+3 more)
 
 ### Community 76 - "detect-antipatterns.mjs"
-Cohesion: 0.08
-Nodes (44): confirm(), detectCli(), detectLocalFile(), dim(), fileUrlToLocalPath(), formatAdvisorySection(), formatFindings(), formatFindingsBody() (+36 more)
+Cohesion: 0.06
+Nodes (54): confirm(), detectCli(), detectLocalFile(), dim(), fileUrlToLocalPath(), formatAdvisorySection(), formatFindings(), formatFindingsBody() (+46 more)
 
 ### Community 77 - "manual-apply.mjs"
 Cohesion: 0.09
 Nodes (49): addOpToManualApplyChunk(), APPLY_EVENT_HARD_TIMEOUT_MS, APPLY_EVENT_SOFT_DEADLINE_MS, buildManualApplyAgentAction(), clearManualApplyTransaction(), collectManualApplyFiles(), compactManualApplyBatch(), compactManualApplyCandidates() (+41 more)
 
-### Community 78 - "impeccable-paths.mjs"
-Cohesion: 0.08
-Nodes (46): resolveProjectRoot(), CRITIQUE_DIR, firstExisting(), getDesignSidecarCandidates(), getDesignSidecarPath(), getImpeccableDir(), getLegacyLiveAnnotationsDir(), getLegacyLiveConfigPath() (+38 more)
+### Community 78 - "Department"
+Cohesion: 0.11
+Nodes (6): AnnouncementController, {closure#2}(), {closure#3}(), DepartmentController, AnnouncementResource, Department
 
 ### Community 79 - "setLiveState"
 Cohesion: 0.11
@@ -805,23 +800,23 @@ Nodes (51): cancelEditing(), cancelEditingToPicking(), cancelInsertConfigure(), 
 
 ### Community 80 - "Illuminate\Database\Eloquent\Factories\Factory"
 Cohesion: 0.05
-Nodes (19): BoardFactory, CommentFactory, {closure#1}(), ContractFactory, {closure#1}(), ContractTemplateFactory, CurrencyFactory, EmployeeFactory (+11 more)
+Nodes (19): BoardFactory, CommentFactory, {closure#1}(), ContractTemplateFactory, CurrencyFactory, InvoiceFactory, NotificationFactory, static (+11 more)
 
 ### Community 82 - "live-commit-manual-edits.mjs"
-Cohesion: 0.11
-Nodes (48): allEntryIds(), argVal(), buildRepairBatch(), candidatesForEntry(), changedFilesSinceSnapshot(), clearAppliedEntries(), collectApplyOwnedFiles(), collectRollbackFiles() (+40 more)
+Cohesion: 0.10
+Nodes (50): allEntryIds(), argVal(), buildRepairBatch(), candidatesForEntry(), changedFilesSinceSnapshot(), clearAppliedEntries(), collectApplyOwnedFiles(), collectRollbackFiles() (+42 more)
 
 ### Community 83 - "educational-services.vue"
 Cohesion: 0.05
-Nodes (42): BonusSourceType, BonusStatus, EducationalBonusSource, EducationalService, EducationalServiceInput, EducationalServiceOptions, EducationalServicePage, EducationalServiceType (+34 more)
+Nodes (43): BonusSourceType, BonusStatus, EducationalBonusSource, EducationalService, EducationalServiceInput, EducationalServiceOptions, EducationalServicePage, EducationalServiceType (+35 more)
 
 ### Community 84 - "notifications.vue"
 Cohesion: 0.08
-Nodes (39): AppNotification, createNotification(), CreateNotificationData, deleteNotification(), getNotification(), getNotifications(), markAllNotificationsRead(), NotificationApiError (+31 more)
+Nodes (41): AppNotification, createNotification(), CreateNotificationData, deleteNotification(), getNotification(), getNotifications(), markAllNotificationsRead(), NotificationApiError (+33 more)
 
 ### Community 85 - "recurring-events.vue"
 Cohesion: 0.05
-Nodes (45): RecurringEvent, RecurringEventInput, RecurringEventsApi, RecurringEventType, RecurringFrequency, RecurringOccurrence, availableTypes, boards (+37 more)
+Nodes (50): Company, CompanyApi, CompanyCreateData, CompanyParams, CompanyUpdateData, RecurringEvent, RecurringEventInput, RecurringEventsApi (+42 more)
 
 ### Community 86 - "innvoice.vue"
 Cohesion: 0.04
@@ -829,11 +824,11 @@ Nodes (38): activePrintInvoice, assignedServices, companySetting, convertService
 
 ### Community 87 - "routes/api.php"
 Cohesion: 0.06
-Nodes (9): ApplicantPortalController, ApplicantUniversityController, AuditResourceController, Controller, SearchController, SupportTicketController, {closure#1}(), TaskAssigneeController (+1 more)
+Nodes (9): AuditResourceController, Controller, SearchController, SupportTicketController, TagController, {closure#1}(), TaskAssigneeController, SupportTicketResource (+1 more)
 
-### Community 88 - "SKILL.md"
-Cohesion: 0.06
-Nodes (36): Assess Adaptation Challenge, Implement & Verify, Recommended Actions, Craft (deprecated alias), Monorepo notes, Opting out of the boot check, Step 1: Run the pass, Step 2: Act by severity (+28 more)
+### Community 88 - "new-work.md"
+Cohesion: 0.05
+Nodes (36): 1. Accessibility (VoiceOver / TalkBack), 2. Performance, 3. Appearance & Theming, 4. Platform Conformance (CRITICAL), 5. Adaptivity, Diagnostic Scan, Recommended Actions, Craft (deprecated alias) (+28 more)
 
 ### Community 89 - "impeccable-config.mjs"
 Cohesion: 0.10
@@ -851,57 +846,57 @@ Nodes (39): createUser(), deleteUser(), getUser(), getUsers(), ManagedUser, requ
 Cohesion: 0.09
 Nodes (42): activeTab, collections, currencyContext(), DetailField, DetailRecord, detailsText(), DisplayField, factFields (+34 more)
 
-### Community 93 - "educational-master-data.vue"
-Cohesion: 0.05
-Nodes (37): EducationalCatalog, MasterDataRecord, PackageInput, PackageService, ServicePackage, countries, dialog, editing (+29 more)
+### Community 93 - "applicant-pipeline.vue"
+Cohesion: 0.04
+Nodes (54): Applicant, ApplicantAttachment, ApplicantAttachmentApi, ApplicantBoard, ApplicantListParams, ApplicantStage, ApplicantUniversity, ApplicantUniversityApi (+46 more)
 
 ### Community 94 - "ContractDocumentPrinter.vue"
-Cohesion: 0.06
-Nodes (39): canShowPartyDetails, company, contractLabel(), documentContract, documentDesign, emit, footerText, includePartyDetails (+31 more)
+Cohesion: 0.05
+Nodes (46): canShowPartyDetails, company, companySignatoryName, coverDesignUrl, currentEmployeeName, documentContract, documentDesign, emit (+38 more)
 
 ### Community 95 - "hook-admin.mjs"
-Cohesion: 0.12
-Nodes (42): ACTIONS, addIgnoreFile(), addIgnoreRule(), addIgnoreValue(), DETECTOR_CONFIG_KEYS, detectorSection(), fileHasImpeccableHookMarker(), HOOK_MANIFEST_TARGETS (+34 more)
-
-### Community 96 - "hook-before-edit.mjs"
 Cohesion: 0.11
-Nodes (43): bumpCursorDenial(), cursorBlockMessage(), detectProposedHtml(), escapeRegExp(), findingSignature(), firstMatch(), firstString(), hasFragmentEditContent() (+35 more)
+Nodes (45): ACTIONS, addIgnoreFile(), addIgnoreRule(), addIgnoreValue(), DETECTOR_CONFIG_KEYS, detectorSection(), fileHasImpeccableHookMarker(), HOOK_MANIFEST_TARGETS (+37 more)
+
+### Community 96 - "session-store.mjs"
+Cohesion: 0.09
+Nodes (39): getLegacyLiveSessionsDir(), getLiveSessionsDir(), safeSessionId(), FORBIDDEN, verifyAcceptedFile(), completeCli(), completeThroughServer(), parseArgs() (+31 more)
 
 ### Community 97 - "live-copy-edit-agent.mjs"
 Cohesion: 0.12
-Nodes (42): applyMockWrites(), buildCopyEditBatchPrompt(), checkFrameworkSourceSyntax(), chooseCopyEditAgent(), COMMAND_AUTH_CACHE, commandAuthed(), commandExists(), compactBatchCandidates() (+34 more)
+Nodes (41): applyMockWrites(), buildCopyEditBatchPrompt(), checkFrameworkSourceSyntax(), chooseCopyEditAgent(), COMMAND_AUTH_CACHE, commandAuthed(), commandExists(), compactBatchCandidates() (+33 more)
 
 ### Community 98 - "roots.mjs"
-Cohesion: 0.10
-Nodes (40): collectManualApplyFiles(), manualApplyReplyCommand(), manualApplyResumeHint(), mountFailureAction(), parseArgs(), renderSummary(), resumeCli(), summarizeManualApplyEvent() (+32 more)
+Cohesion: 0.15
+Nodes (27): CANDIDATE_SCAN_IGNORED, consumeTargetArg(), CONTEXT_FALLBACK_DIRS, DESIGN_NAMES, DEV_CONFIG_MARKERS, discoverAppCandidates(), enterLiveRoot(), exists() (+19 more)
 
 ### Community 99 - "vue-i18n"
-Cohesion: 0.05
-Nodes (36): vue-i18n, SearchGroup, SearchHit, SearchResponse, SearchResultType, { t }, availableSections, canViewPolicies (+28 more)
+Cohesion: 0.08
+Nodes (24): vue-i18n, SearchGroup, SearchHit, SearchResponse, SearchResultType, { t }, debounced(), groupMeta (+16 more)
 
-### Community 100 - "applicants.vue"
-Cohesion: 0.05
-Nodes (41): activeFilterCount, clearFilters(), countries, countryId, create(), createDialog, createForm, createUniversityOptions (+33 more)
+### Community 100 - "positions.vue"
+Cohesion: 0.08
+Nodes (21): Position, PositionApi, PositionPayload, assignedLabel(), confirmDelete(), deleteDialogOpen, deletingPosition, dialogOpen (+13 more)
 
-### Community 101 - "RecurringEvent"
-Cohesion: 0.10
-Nodes (9): RecurringEventController, RecurringEventOccurrenceResource, RecurringEventResource, RecurringEvent, RecurringEventOccurrence, {closure#1}(), {closure#2}(), {closure#4}() (+1 more)
+### Community 101 - "RecurringEventController"
+Cohesion: 0.16
+Nodes (3): RecurringEventController, RecurringEventOccurrenceResource, RecurringEventResource
 
 ### Community 102 - "live-accept.mjs"
 Cohesion: 0.11
-Nodes (41): resolveLiveTemplateExtensions(), acceptCli(), acceptReceiptPath(), argVal(), buildAcceptedWrappedSource(), buildCarbonizeReplacement(), decodeHtmlAttr(), deindentContent() (+33 more)
+Nodes (40): resolveLiveTemplateExtensions(), acceptCli(), acceptReceiptPath(), argVal(), buildAcceptedWrappedSource(), buildCarbonizeReplacement(), decodeHtmlAttr(), deindentContent() (+32 more)
 
 ### Community 103 - "asset.vue"
-Cohesion: 0.05
-Nodes (27): AssetAllocation, AssetApi, AssetCondition, AssetItem, AssetParams, AssetPayload, activeOfficeOptions, assets (+19 more)
+Cohesion: 0.03
+Nodes (48): API Contracts, Architecture, Asset, Documents and Printing, Invoicing, Project Notes, Routing, UI Conventions (+40 more)
 
-### Community 104 - "useTaskStore.ts"
+### Community 104 - "api"
 Cohesion: 0.10
-Nodes (31): BoardApi, CommentApi, Board, Comment, CreateBoardData, CreateCommentData, CreateTaskData, KanbanApi (+23 more)
+Nodes (34): api, BoardApi, CommentApi, ContractServiceLine, Board, Comment, CreateBoardData, CreateCommentData (+26 more)
 
 ### Community 105 - "currencies.vue"
 Cohesion: 0.06
-Nodes (34): ApiResponse, CurrencyApi, CurrencyForm, close(), CurrencyFormData, emit, form, props (+26 more)
+Nodes (31): close(), CurrencyFormData, emit, form, props, submit(), activeCurrenciesCount, confirmSetAsBaseCurrency() (+23 more)
 
 ### Community 106 - "reports.vue"
 Cohesion: 0.05
@@ -912,16 +907,16 @@ Cohesion: 0.09
 Nodes (39): agentStatusText(), barPaletteForTheme(), brandMarkSvg(), buildDesignHeader(), cursorForInsertAxis(), designPanelCss(), detectPageTheme(), ensureAgentPollTooltip() (+31 more)
 
 ### Community 108 - "timesheet.vue"
-Cohesion: 0.05
-Nodes (32): Attendance, AttendanceApi, AttendanceParams, CreateAttendanceData, DailyReport, UnmarkedStaff, attendanceRecords, availableStaff (+24 more)
+Cohesion: 0.04
+Nodes (46): Attendance, AttendanceApi, AttendanceParams, CreateAttendanceData, DailyReport, UnmarkedStaff, attendanceRecords, availableStaff (+38 more)
 
-### Community 109 - "DefaultLayoutWithVerticalNav.vue"
-Cohesion: 0.06
-Nodes (30): getPendingAuditCount(), ServiceApi, isGroup(), useServiceContractNavigation(), loadServiceContracts(), { logoUrl, isLogoSquare, shortCompanyName, handleLogoLoad, loadBranding }, { navItems: serviceNavItems, loadServiceContracts }, layoutConfigStore (+22 more)
+### Community 109 - "default.vue"
+Cohesion: 0.07
+Nodes (20): ServiceApi, enabled, load(), useAutomaticAttendance(), isGroup(), useServiceContractNavigation(), loadServiceContracts(), { logoUrl, isLogoSquare, shortCompanyName, handleLogoLoad, loadBranding } (+12 more)
 
-### Community 110 - "paid_time_offs.vue"
-Cohesion: 0.06
-Nodes (37): PaidTimeOff, PaidTimeOffApi, PaidTimeOffLedger, PaidTimeOffPayload, allowance, emit, form, load() (+29 more)
+### Community 110 - "apiErrorMessage"
+Cohesion: 0.04
+Nodes (62): PaidTimeOff, PaidTimeOffApi, PaidTimeOffLedger, PaidTimeOffPayload, PaymentDetail, PaymentDetailApi, PaymentDetailPayload, showApiError() (+54 more)
 
 ### Community 111 - "CommissionController.php"
 Cohesion: 0.07
@@ -933,7 +928,7 @@ Nodes (40): addManualContextText(), applyEditing(), buildLocatorForLeaf(), canRe
 
 ### Community 113 - "pending-transactions.vue"
 Cohesion: 0.06
-Nodes (32): PendingTransaction, PendingTransactionInput, PendingTransactionOptions, PendingTransactionPage, PendingTransactionStatus, PendingTransactionType, applicantOptions, canApprove (+24 more)
+Nodes (28): PendingTransaction, PendingTransactionInput, PendingTransactionOptions, PendingTransactionPage, PendingTransactionStatus, PendingTransactionType, applicantOptions, canApprove (+20 more)
 
 ### Community 114 - "Implementation Plan — Educational Visa.md"
 Cohesion: 0.05
@@ -945,15 +940,15 @@ Nodes (37): EducationalReport, EducationalReportParams, EducationalReportType, a
 
 ### Community 116 - "services.vue"
 Cohesion: 0.06
-Nodes (32): CreateServiceData, ServiceContractTemplate, UpdateServiceData, close(), emit, form, props, ServiceFormData (+24 more)
+Nodes (31): ServiceContractTemplate, ServiceVariant, createService(), CurrencyOption, currencyOptions, defaultItem, deleteService(), deleteVariant() (+23 more)
 
-### Community 117 - "Attendance"
-Cohesion: 0.08
-Nodes (13): {closure#4}(), {closure#5}(), Attendance, MonthlyAttendanceSummary, AttendanceCalculationService, {closure#2}(), {closure#3}(), {closure#4}() (+5 more)
+### Community 117 - "runHook"
+Cohesion: 0.15
+Nodes (27): appendDesignSystemNote(), appendDesignSystemNoteOnce(), bumpEditCount(), commitFooterShown(), consumeSessionNoticeFlag(), dedupeAgainstCache(), depthIsSet(), designNoteReserve() (+19 more)
 
-### Community 119 - "detect-html.mjs"
-Cohesion: 0.08
-Nodes (28): collectStaticCssText(), checkStaticPageTypography(), detectHtml(), STATIC_ELEMENT_RULES, checkCreamPalette(), checkPageLayout(), checkPageQualityDOM(), checkPageQualityFromDoc() (+20 more)
+### Community 119 - "inline-ignores.mjs"
+Cohesion: 0.40
+Nodes (9): addRules(), applyInlineIgnores(), getSet(), hasDirectives(), isInlineIgnored(), normalizeRule(), parseInlineIgnores(), parseRuleList() (+1 more)
 
 ### Community 120 - "design-parser.mjs"
 Cohesion: 0.14
@@ -963,29 +958,29 @@ Nodes (37): assessCoverage(), buildColor(), CANONICAL_SECTIONS, collectBullets()
 Cohesion: 0.08
 Nodes (27): @antfu/utils, resources_images_svg_checkbox_checked, resources_images_svg_checkbox_indeterminate, resources_images_svg_checkbox_unchecked, resources_images_svg_radio_checked, resources_images_svg_radio_unchecked, resources_styles_core_template_libs_vuetify_index, collectActionNodes() (+19 more)
 
-### Community 122 - "vue"
-Cohesion: 0.07
-Nodes (18): chart.js, pinia, vue, vue-chartjs, VNodeRenderer, ContractOption, contractOptions, filter1 (+10 more)
+### Community 122 - "useBranding.ts"
+Cohesion: 0.14
+Nodes (22): resources_images_logo, BrandingSettings, detectLogoShape(), isLogoSquare, logoUrl, originalCompanyName, setLogoShape(), shortCompanyName (+14 more)
 
-### Community 123 - "vuetify"
-Cohesion: 0.12
-Nodes (28): type-fest, vuetify, configStore, { global }, { locale }, resetCustomizer(), setPrimaryColor, configStore (+20 more)
+### Community 123 - "MarketerController"
+Cohesion: 0.22
+Nodes (3): {closure#1}(), MarketerController, MarketerResource
 
 ### Community 124 - "formErrors.ts"
 Cohesion: 0.08
-Nodes (33): showApiError(), attrs, elementId, externalErrors, fieldName, label, externalErrors, attrs (+25 more)
+Nodes (32): attrs, elementId, externalErrors, fieldName, label, externalErrors, attrs, elementId (+24 more)
 
 ### Community 125 - "CompanyProfile"
+Cohesion: 0.06
+Nodes (20): CalculateOvertime, CalculateTaskBonuses, CheckSuperAdmin, FinalizeAttendance, ProcessRecurringEvents, SendApplicantReminders, {closure#1}(), SyncAnalytics (+12 more)
+
+### Community 126 - "ref_node_path"
 Cohesion: 0.09
-Nodes (11): CalculateOvertime, CheckSuperAdmin, FinalizeAttendance, ProcessRecurringEvents, SendApplicantReminders, MonthlyAttendanceProcessor, CompanyProfile, Illuminate\Console\Command (+3 more)
+Nodes (49): candidates, detectorPath, __dirname, IMPECCABLE_DIR, hasGeneratedHeader(), HEADER_MARKERS, isGeneratedFile(), isGitIgnored() (+41 more)
 
-### Community 126 - "live-wrap.mjs"
-Cohesion: 0.14
-Nodes (34): resolveSourceTraits(), argVal(), buildInsertWrapperLines(), computeInsertLine(), INSERT_POSITIONS, insertCli(), isInsertPosition(), resolveElementMatch() (+26 more)
-
-### Community 127 - "applicant-pipeline.vue"
-Cohesion: 0.07
-Nodes (31): activeCountries, activeFilterCount, activeLanguages, activeLevels, activeUniversities, allowedTargets(), canMove, cards (+23 more)
+### Community 127 - "vue"
+Cohesion: 0.05
+Nodes (34): chart.js, pinia, vue, vue-chartjs, VNodeRenderer, ContractOption, contractOptions, filter1 (+26 more)
 
 ### Community 128 - "scanCssTextForPulsingDot"
 Cohesion: 0.10
@@ -995,41 +990,41 @@ Nodes (36): buildHtmlPatternCorpora(), checkElementGlow(), checkElementRadialSpo
 Cohesion: 0.09
 Nodes (30): ref_tiptap_core, @tiptap/extension-link, @tiptap/extension-text-style, activeColor, activeFontFamily, activeFontSize, applyTextStyle(), ContractTextStyle (+22 more)
 
-### Community 130 - "api"
-Cohesion: 0.08
-Nodes (26): ref_vue_runtime_core, api, ComponentCustomProperties, @vue/runtime-core, FileApi, resources_ts_api_index_authapi, resources_ts_api_index_contracttemplateapi, resources_ts_api_index_currencyapi (+18 more)
+### Community 130 - "api/index.ts"
+Cohesion: 0.07
+Nodes (25): ref_vue_runtime_core, ComponentCustomProperties, @vue/runtime-core, FileApi, resources_ts_api_index_authapi, resources_ts_api_index_contracttemplateapi, resources_ts_api_index_currencyapi, resources_ts_api_index_dashboardapi (+17 more)
 
-### Community 131 - "PaidTimeOffController.php"
-Cohesion: 0.10
-Nodes (12): {closure#10}(), {closure#11}(), {closure#12}(), {closure#13}(), {closure#2}(), {closure#3}(), {closure#6}(), {closure#7}() (+4 more)
+### Community 131 - "PaidTimeOffController"
+Cohesion: 0.16
+Nodes (5): {closure#10}(), {closure#11}(), {closure#6}(), PaidTimeOffController, PaidTimeOffResource
 
 ### Community 132 - "Contract Template & Document Artwork Sanifier"
-Cohesion: 0.06
-Nodes (33): 1. What was asked (intent → acceptance criteria), 2.2 Design API, 2.3 Resolution & snapshot, 2.4 Print layer, 2.5 Tests, 2. Current state (evidence), 3.1 One artwork editor, several scopes, 3.2 Single resolution rule (backend, one implementation) (+25 more)
+Cohesion: 0.10
+Nodes (20): 1. What was asked (intent → acceptance criteria), 2.2 Design API, 2.3 Resolution & snapshot, 2.4 Print layer, 2.5 Tests, 2. Current state (evidence), 3.1 One artwork editor, several scopes, 3.2 Single resolution rule (backend, one implementation) (+12 more)
 
 ### Community 133 - "CrmRelationshipDetails.vue"
 Cohesion: 0.07
 Nodes (32): activeTab, Channel, channelFilter, channels, detailItems, editingInteractionId, endpoint, EntityType (+24 more)
 
 ### Community 134 - "ApplicantController"
-Cohesion: 0.09
-Nodes (17): ApplicantController, {closure#1}(), FLOW-02 — Sales API is create-only and unpaginated (P2), FLOW-03 — Stage-tasks land on the arbitrary first board (P2), I18N-01 — New pages are hard-coded English (P2), issues.md — Cross-Agent Issue Tracker (Educational Visa Restructure), LEGAL-01 — Educational contracts can never be generated, LEGAL-02 — Contracts can never be linked to an applicant (+9 more)
+Cohesion: 0.16
+Nodes (7): ApplicantController, {closure#1}(), 9. Progress log, Next, Session 1 — migration ordering collision, Session 2 — test conversion, Staging discipline for shared files
 
 ### Community 135 - "KanbanView.vue"
 Cohesion: 0.06
 Nodes (21): viewerjs, AddNewKanbanItem, attachmentImageContainer, attachmentTask, commitPendingCardMove(), EditKanbanItem, editorItemId, handleUpdateItemsState() (+13 more)
 
-### Community 136 - ".request"
-Cohesion: 0.11
-Nodes (4): AttendanceController, EmployeeController, EmployeeResource, Illuminate\Http\Resources\Json\AnonymousResourceCollection
+### Community 136 - "EmployeeController.php"
+Cohesion: 0.07
+Nodes (9): AttendanceController, {closure#4}(), {closure#5}(), {closure#2}(), {closure#3}(), EmployeeController, AttendanceResource, EmployeeResource (+1 more)
 
 ### Community 137 - "live-manual-edit-evidence.mjs"
-Cohesion: 0.12
-Nodes (31): hasGeneratedHeader(), HEADER_MARKERS, isGeneratedFile(), isGitIgnored(), scanRollbackDir(), analyzeSourceHint(), buildCandidatesForOp(), buildContextHintsByRef() (+23 more)
+Cohesion: 0.09
+Nodes (47): args, buffer, cwd, pageUrlFilter, remaining, compactManualLogText(), summarizeManualApplyFailures(), summarizeManualDiagnostics() (+39 more)
 
-### Community 138 - "2026_09_01_000004_support_fractional_leave_accounting.php"
-Cohesion: 0.05
-Nodes (19): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#1}(), {closure#2}(), {closure#3}(), {closure#5}() (+11 more)
+### Community 138 - "ContractController"
+Cohesion: 0.13
+Nodes (9): ContractController, ContractResource, ContractAccess, 0. Target workflow (the big picture), 4. Date/duration/deadline removal list (exact locations, still present), 5. Still to wire (next batches, all non-destructive until §3 executes), NOTICE — Services → Contracts merge (session 2026-09-23), CustomerService (+1 more)
 
 ### Community 139 - "50. Recommended Implementation Sequence"
 Cohesion: 0.06
@@ -1039,21 +1034,21 @@ Nodes (33): 50. Recommended Implementation Sequence, Step 1, Step 10, Step 11, S
 Cohesion: 0.07
 Nodes (26): shepherd.js, { ctrl_k, meta_k }, Emit, Props, refSearchInput, refSearchList, searchQueryLocal, closeSearchBar() (+18 more)
 
-### Community 141 - "SubtaskController.php"
-Cohesion: 0.09
-Nodes (10): CommentController, {closure#1}(), {closure#2}(), {closure#3}(), SubtaskController, TagController, CommentResource, SubtaskResource (+2 more)
+### Community 141 - "AttachmentsPanel.vue"
+Cohesion: 0.10
+Nodes (21): AttachmentsApi, AttachmentType, close(), emit, props, attachments, canUpload, download() (+13 more)
 
 ### Community 142 - "parseRgb"
 Cohesion: 0.13
 Nodes (32): checkColors(), checkElementAIPaletteDOM(), checkElementColors(), checkElementColorsDOM(), checkElementGlowDOM(), checkElementHoverContrast(), checkElementIconTile(), checkElementIconTileDOM() (+24 more)
 
-### Community 143 - "useBranding.ts"
-Cohesion: 0.10
-Nodes (28): resources_images_logo, BrandingSettings, detectLogoShape(), isLogoSquare, logoUrl, originalCompanyName, setLogoShape(), shortCompanyName (+20 more)
+### Community 143 - "Illuminate\Database\Eloquent\Relations\BelongsToMany"
+Cohesion: 0.05
+Nodes (17): WorthyEmployee, {closure#2}(), WorthyEmployeeSeeder, 1. Goal, 2.1 Morph-map reality check, 2.2 Bug fix in the merge (documented deviation), 2. Verified end-state rules (later-wins + model confirmation), 3.1 Why this order (hard FK edges) (+9 more)
 
 ### Community 144 - "KanbanBoardEditDrawer.vue"
-Cohesion: 0.08
-Nodes (25): TaskAssigneeApi, TaskAssigneeOption, config, draft, emit, formRef, props, submit() (+17 more)
+Cohesion: 0.12
+Nodes (17): TaskAssigneeApi, TaskAssigneeOption, canAssignMembers(), canDeleteTask(), canEditTask(), canManageTags(), config, currentTask (+9 more)
 
 ### Community 145 - "ProjectFormWarningGuard.vue"
 Cohesion: 0.11
@@ -1071,17 +1066,17 @@ Nodes (29): completionAckForAcceptResult(), completionTypeForAcceptResult(), PRE
 Cohesion: 0.06
 Nodes (21): attachmentError, canDeleteSubtask(), canEditSubtask(), canEditTask(), editingTodo, editTodoForm, isSavingResults, isUploadingResult (+13 more)
 
-### Community 149 - "validators.ts"
+### Community 149 - "Browser Session Management"
 Cohesion: 0.10
-Nodes (20): model, options, props, { t }, UserAccountOption, avatarText(), formatDateToMonthShort(), TODO: Try to implement this:… (+12 more)
+Nodes (20): 1. Name Browser Sessions Semantically, 2. Always Clean Up, 3. Delete Stale Browser Data, A/B Testing Sessions, Attach by channel name, Attach via browser extension, Attach via CDP endpoint, Attaching to a Running Browser (+12 more)
 
 ### Community 150 - "migrate-ui.mjs"
 Cohesion: 0.07
 Nodes (26): actions, apiErrorSource, base, candidates, englishBase, fields, files, frequencies (+18 more)
 
 ### Community 151 - "live.md"
-Cohesion: 0.07
-Nodes (27): Apply at system scale, Audit before choosing, Choose a strategy, Contrast and perception, Live-mode signature params, Verify, Visitor mode, Cleanup (+19 more)
+Cohesion: 0.06
+Nodes (29): Apply at system scale, Audit before choosing, Choose a strategy, Contrast and perception, Live-mode signature params, Verify, Visitor mode, Cleanup (+21 more)
 
 ### Community 152 - "resolveLengthPx"
 Cohesion: 0.09
@@ -1095,13 +1090,13 @@ Nodes (28): resources_images_icons_payments_img_ae_dark, resources_images_icons_
 Cohesion: 0.07
 Nodes (29): compilerOptions, allowImportingTsExtensions, baseUrl, esModuleInterop, isolatedModules, jsx, jsxFactory, jsxFragmentFactory (+21 more)
 
-### Community 155 - "SalaryController.php"
-Cohesion: 0.12
-Nodes (5): {closure#12}(), {closure#3}(), {closure#4}(), {closure#5}(), SalaryController
+### Community 155 - "applicants.vue"
+Cohesion: 0.05
+Nodes (41): activeFilterCount, clearFilters(), countries, countryId, create(), createDialog, createForm, createUniversityOptions (+33 more)
 
-### Community 156 - "live.mjs"
-Cohesion: 0.14
-Nodes (24): parseCliOptions(), resolveTargetSelection(), parseTargetOptions(), parseTargetPath(), TargetArgError, __dirname, ensureServerRunning(), globToRegex() (+16 more)
+### Community 156 - "localization.ts"
+Cohesion: 0.08
+Nodes (36): driver.js, generatedAt, setGeneratedAt(), { t }, AccountSettingsTab, driverProgressText(), GuideStep, guideSteps (+28 more)
 
 ### Community 157 - "showToast"
 Cohesion: 0.15
@@ -1119,29 +1114,29 @@ Nodes (24): createSupportTicket(), CreateSupportTicketData, getSupportTickets(),
 Cohesion: 0.11
 Nodes (23): emit, emitModelValue(), onClear(), Emit, Props, updateSelectedOption(), Emit, Props (+15 more)
 
-### Community 161 - "runHook"
-Cohesion: 0.13
-Nodes (28): appendDesignSystemNote(), appendDesignSystemNoteOnce(), bumpEditCount(), clampGroupedToBudget(), clampLastLine(), clampToBudget(), consumeSessionNoticeFlag(), dedupeAgainstCache() (+20 more)
+### Community 161 - "impeccable-paths.mjs"
+Cohesion: 0.11
+Nodes (31): resolveProjectRoot(), CRITIQUE_DIR, firstExisting(), getDesignSidecarCandidates(), getDesignSidecarPath(), getImpeccableDir(), getLegacyLiveAnnotationsDir(), getLegacyLiveConfigPath() (+23 more)
 
-### Community 162 - "event-validation.mjs"
-Cohesion: 0.12
-Nodes (26): AGENT_PHASE_SET, FORBIDDEN_MANUAL_EDIT_TEXT_CHARS, INSERT_POSITIONS, isValidId(), isValidMountVariant(), isValidVariantId(), MOUNT_ERROR_MAX_LENGTH, MOUNT_URL_MAX_LENGTH (+18 more)
+### Community 162 - "insert-ui.mjs"
+Cohesion: 0.05
+Nodes (39): AGENT_PHASE_SET, FORBIDDEN_MANUAL_EDIT_TEXT_CHARS, INSERT_POSITIONS, isValidId(), isValidMountVariant(), isValidVariantId(), MOUNT_ERROR_MAX_LENGTH, MOUNT_URL_MAX_LENGTH (+31 more)
 
 ### Community 163 - "TaskController.php"
-Cohesion: 0.11
-Nodes (9): {closure#10}(), {closure#11}(), {closure#2}(), {closure#5}(), {closure#6}(), {closure#8}(), {closure#9}(), TaskController (+1 more)
+Cohesion: 0.10
+Nodes (8): {closure#10}(), {closure#11}(), {closure#2}(), {closure#5}(), {closure#6}(), {closure#8}(), {closure#9}(), TaskController
 
-### Community 164 - "insert-ui.mjs"
+### Community 164 - "SalaryController.php"
 Cohesion: 0.09
-Nodes (13): canCreateInsert(), clampPlaceholderSize(), computeInsertPosition(), groupSiblingRows(), hitSiblingInsertGap(), horizontalOverlap(), insertCreateDisabledReason(), insertLineCoords() (+5 more)
+Nodes (7): {closure#13}(), {closure#3}(), {closure#4}(), {closure#5}(), SalaryController, SalaryPaymentController, SalaryResource
 
 ### Community 165 - "DataTablePageKpis.vue"
 Cohesion: 0.09
 Nodes (25): activeStatuses, amountKey, attentionStatuses, BaseCurrency, count(), displayDescription, displayTitle, formatAmount() (+17 more)
 
-### Community 166 - "Responsive Design"
+### Community 166 - "adapt.md"
 Cohesion: 0.08
-Nodes (25): Assess Adaptation Challenge, Breakpoints: Content-Driven, Content Adaptation, Desktop Adaptation (Mobile → Desktop), Detect Input Method, Not Just Screen Size, Email Adaptation (Web → Email), Implement Adaptations, Layout Adaptation Patterns (+17 more)
+Nodes (22): Assess Adaptation Challenge, Content Adaptation, Desktop Adaptation (Mobile → Desktop), Email Adaptation (Web → Email), Implement Adaptations, Layout Adaptation Techniques, Mobile Adaptation (Desktop → Mobile), Adaptation Strategies (+14 more)
 
 ### Community 167 - "api/contracts.ts"
 Cohesion: 0.10
@@ -1149,23 +1144,23 @@ Nodes (19): Contract, ContractApi, ContractCreateData, ContractParams, ContractP
 
 ### Community 168 - "TaskDetailDrawer.vue"
 Cohesion: 0.09
-Nodes (22): bonusQuality, bonusReviewError, canDeleteTask(), canEditTask(), canReviewBonus(), contributions, deleteTask(), dependencyOptions (+14 more)
+Nodes (21): bonusQuality, bonusReviewError, canDeleteTask(), canEditTask(), canReviewBonus(), contributions, deleteTask(), dependencyOptions (+13 more)
 
 ### Community 169 - "apexCharConfig.ts"
 Cohesion: 0.14
 Nodes (21): colorVariables(), getAreaChartSplineConfig(), getBarChartConfig(), getCandlestickChartConfig(), getColumnChartConfig(), getDonutChartConfig(), getHeatMapChartConfig(), getLineChartSimpleConfig() (+13 more)
 
-### Community 170 - "BonusRuleSet"
-Cohesion: 0.12
-Nodes (9): CalculateTaskBonuses, BonusRuleSet, AutomationRunService, {closure#1}(), BonusRuleService, {closure#1}(), TaskBonusCalculationService, Illuminate\Support\Facades\Cache (+1 more)
+### Community 170 - "BonusRuleService"
+Cohesion: 0.13
+Nodes (13): BonusRuleSet, BonusRuleService, {closure#1}(), 0. Environment runbook (critical), 1. Completed fixes (all verified green), 2. Gotchas learned (do not re-trip on these), 3. State at pause — remaining work, 4. Also pending (user-requested) (+5 more)
 
 ### Community 171 - "ContractTemplateVersion"
-Cohesion: 0.12
-Nodes (5): {closure#2}(), {closure#4}(), ContractTemplateVersionController, ContractTemplateVersion, ContractTemplateVersionNotificationService
+Cohesion: 0.10
+Nodes (6): {closure#2}(), {closure#4}(), ContractTemplateVersionController, ContractTemplateVersion, ContentSanitizer, ContractTemplateVersionNotificationService
 
 ### Community 172 - "DashboardController.php"
-Cohesion: 0.10
-Nodes (15): {closure#1}(), {closure#10}(), {closure#12}(), {closure#14}(), {closure#15}(), {closure#18}(), {closure#2}(), {closure#21}() (+7 more)
+Cohesion: 0.09
+Nodes (15): {closure#1}(), {closure#10}(), {closure#14}(), {closure#15}(), {closure#18}(), {closure#2}(), {closure#21}(), {closure#22}() (+7 more)
 
 ### Community 173 - "parseAnyColor"
 Cohesion: 0.11
@@ -1175,45 +1170,45 @@ Nodes (25): checkCreamPalette(), checkTextOcclusionDOM(), clamp01(), colorFuncti
 Cohesion: 0.12
 Nodes (24): abandonForeignSession(), acceptedDomAlreadyClean(), applyOriginalAttrsToSvelteAnchor(), commitAcceptedSvelteComponentToDom(), componentModuleCandidates(), describeMountFailure(), detectDevServerBase(), discardOrphanedSession() (+16 more)
 
-### Community 175 - "manual-edits-buffer.mjs"
-Cohesion: 0.19
-Nodes (21): args, buffer, cwd, pageUrlFilter, remaining, compactManualLogText(), summarizeManualApplyFailures(), summarizeManualDiagnostics() (+13 more)
+### Community 175 - "AuditLogController.php"
+Cohesion: 0.08
+Nodes (4): {closure#15}(), {closure#17}(), {closure#18}(), Model
 
-### Community 176 - "GanttView.vue"
-Cohesion: 0.10
-Nodes (19): frappe-gantt, chartTasks, emit, ganttContainer, handleGanttControlClick(), handlePointerDown(), horizontalViewport, initGantt() (+11 more)
+### Community 176 - "FrappeGanttWrapper.vue"
+Cohesion: 0.17
+Nodes (12): frappe-gantt, chartTasks, emit, ganttContainer, handleGanttControlClick(), handlePointerDown(), horizontalViewport, initGantt() (+4 more)
 
 ### Community 177 - "applicant-portal.vue"
-Cohesion: 0.09
-Nodes (20): ApplicantPortalData, ApplicantPortalProfile, ApplicantPortalProfileInput, get(), firstName, form, load(), loading (+12 more)
+Cohesion: 0.07
+Nodes (28): ApplicantPortalAttachment, ApplicantPortalData, ApplicantPortalProfile, ApplicantPortalProfileInput, get(), listAttachments(), attachmentFile, attachmentLabel (+20 more)
 
 ### Community 178 - "invoice.ts"
 Cohesion: 0.09
 Nodes (17): CreateInvoiceData, CurrentBaseCurrency, Invoice, InvoiceApi, InvoiceCurrency, InvoiceParams, InvoiceService, normalizeInvoice() (+9 more)
 
 ### Community 179 - "WorkdayController.php"
-Cohesion: 0.11
-Nodes (9): {closure#4}(), WorkdayController, DailyReportResource, Flow, Routing, 0. Target workflow (the big picture), 2. Column mapping — `customer_service` → contract system, 5. Still to wire (next batches, all non-destructive until §3 executes) (+1 more)
+Cohesion: 0.14
+Nodes (5): {closure#4}(), WorkdayController, DailyReportResource, Routing, 2. Column mapping — `customer_service` → contract system
 
 ### Community 180 - "detect-url.mjs"
-Cohesion: 0.19
-Nodes (20): createBrowserDetector(), detectUrl(), launchBrowser(), measureContentHiddenAfterReveal(), runVisualContrastFallback(), serializeDesignSystemForBrowser(), captureVisualContrastCandidate(), compareScreenshotContrast() (+12 more)
+Cohesion: 0.18
+Nodes (21): createBrowserDetector(), detectUrl(), launchBrowser(), measureContentHiddenAfterReveal(), runVisualContrastFallback(), serializeDesignSystemForBrowser(), captureVisualContrastCandidate(), compareScreenshotContrast() (+13 more)
 
-### Community 181 - "accept-css.mjs"
-Cohesion: 0.20
-Nodes (23): bakeParamValues(), collectAllSelectors(), collectSelectorsFromNodes(), escapeRegExp(), formatBody(), isToggleOn(), normalizeSelector(), normalizeToggleForVar() (+15 more)
+### Community 181 - "RecurringEvent"
+Cohesion: 0.16
+Nodes (6): RecurringEvent, RecurringEventOccurrence, {closure#1}(), {closure#2}(), {closure#4}(), RecurringEventService
 
-### Community 182 - "live-inject.mjs"
-Cohesion: 0.15
-Nodes (21): describeInjectArtifacts(), frameworkIgnorePatterns(), resolveFramework(), applyNuxtLiveAdapter(), buildNuxtPlugin(), detectNuxtProject(), NUXT_PLUGIN_MARKER, NUXT_PLUGIN_NAME (+13 more)
+### Community 182 - "nuxt.mjs"
+Cohesion: 0.27
+Nodes (8): applyNuxtLiveAdapter(), buildNuxtPlugin(), detectNuxtProject(), nuxt, NUXT_PLUGIN_MARKER, NUXT_PLUGIN_NAME, removeNuxtLiveAdapter(), buildLiveScriptSrc()
 
 ### Community 183 - "svelte-ast.mjs"
 Cohesion: 0.21
 Nodes (20): Analysis, analyzeAttributes(), analyzeFragment(), analyzeNode(), analyzeSvelteMarkup(), applyReplacements(), classifyEachKey(), classifyRoots() (+12 more)
 
-### Community 184 - "printDocument"
-Cohesion: 0.09
-Nodes (21): API Contracts, Architecture, Asset, Documents and Printing, Invoicing, Project Notes, Routing, UI Conventions (+13 more)
+### Community 184 - "EndDayDialog.vue"
+Cohesion: 0.11
+Nodes (18): DailyReport, EndWorkdayData, WorkdayApi, WorkdayState, WorkdayStatus, emit, Emits, errors (+10 more)
 
 ### Community 185 - "EducationalServiceController"
 Cohesion: 0.21
@@ -1233,11 +1228,11 @@ Nodes (21): firstExistingFile(), sveltekit, applySvelteKitLiveAdapter(), buildSv
 
 ### Community 189 - "Symfony\Component\HttpFoundation\Response"
 Cohesion: 0.17
-Nodes (8): EnsureActiveAccount, EnsurePermission, LocalizeApiSuccessResponse, NormalizeApiErrorResponse, SecurityHeaders, SetLocaleFromRequest, Closure, Symfony\Component\HttpFoundation\Response
+Nodes (8): EnforceEditWindow, EnsureActiveAccount, EnsurePermission, LocalizeApiSuccessResponse, SecurityHeaders, SetLocaleFromRequest, Closure, Symfony\Component\HttpFoundation\Response
 
-### Community 190 - "EmployeeScope"
-Cohesion: 0.16
-Nodes (5): EmployeeScope, Completed, Guardrails for future modules, ACCESS-01 — No seeded role can actually operate the visa workflow, TST-01 — Role-blind test suite
+### Community 190 - "P2 / P3 — Workflow polish and hygiene"
+Cohesion: 0.12
+Nodes (16): ACCESS-01 — No seeded role can actually operate the visa workflow, FLOW-02 — Sales API is create-only and unpaginated (P2), FLOW-03 — Stage-tasks land on the arbitrary first board (P2), I18N-01 — New pages are hard-coded English (P2), issues.md — Cross-Agent Issue Tracker (Educational Visa Restructure), LEGAL-01 — Educational contracts can never be generated, LEGAL-02 — Contracts can never be linked to an applicant, MINOR (backlog) (+8 more)
 
 ### Community 191 - "collectBrowserFindings"
 Cohesion: 0.14
@@ -1245,27 +1240,27 @@ Nodes (22): browserFindingsFromMap(), checkBorders(), checkEdgeFlushCardsDOM(), 
 
 ### Community 192 - "Customer → Applicant Merge"
 Cohesion: 0.10
-Nodes (21): 1. Goal, 2. Data model, 3. Migration plan, 4. Workstreams, 5. Test strategy, 6. Commits, 7. Parallel workstream boundaries, 8. Open issues (+13 more)
+Nodes (21): 1. Goal, 2. Data model, 3. Migration plan, 4. Workstreams, 5. Test strategy, 6. Commits, 7. Parallel workstream boundaries, `applicant_id` is the only link (+13 more)
 
-### Community 193 - "2026_09_02_000004_align_commissions_finance_and_marketers.php"
-Cohesion: 0.09
-Nodes (15): {closure#1}(), {closure#13}(), {closure#14}(), {closure#15}(), {closure#16}(), {closure#17}(), {closure#18}(), {closure#19}() (+7 more)
+### Community 193 - "AssetController.php"
+Cohesion: 0.13
+Nodes (4): AssetController, {closure#2}(), {closure#3}(), AssetResource
 
 ### Community 194 - "CalendarView.vue"
 Cohesion: 0.12
 Nodes (18): @fullcalendar/daygrid, @fullcalendar/interaction, @fullcalendar/list, @fullcalendar/timegrid, @fullcalendar/vue3, TaskAttachment, addDays(), calendarOptions (+10 more)
 
 ### Community 195 - "EducationalReportController"
-Cohesion: 0.18
-Nodes (6): EducationalReportController, 9. Progress log, Next, Session 1 — migration ordering collision, Session 2 — test conversion, Staging discipline for shared files
+Cohesion: 0.15
+Nodes (7): EducationalReportController, 2026-09-29 — one catalogue subject per customer template (service XOR package), Contract options and service variants, Plan, Progress, Verification performed, Verification still required
 
-### Community 196 - "SupportTicketCreated"
-Cohesion: 0.12
-Nodes (15): SupportTicketCreated, Illuminate\Bus\Queueable, Illuminate\Mail\Mailable, Illuminate\Mail\Mailables\Attachment, Illuminate\Mail\Mailables\Content, Illuminate\Mail\Mailables\Envelope, Illuminate\Queue\SerializesModels, ACCESS-02 — No object-aware authorization (Phase 33) (+7 more)
+### Community 196 - "P1 — Logic incomplete vs plan / dangerous in production"
+Cohesion: 0.13
+Nodes (14): Illuminate\Mail\Mailables\Content, ACCESS-02 — No object-aware authorization (Phase 33), FLOW-01 — A sale records no money (bonus hardcoded 0, no revenue link), LEGAL-03 — Editing a draft contract re-renders from legacy template content, LEGAL-04 — Version content bypasses sanitizer and placeholder validation, P1 — Logic incomplete vs plan / dangerous in production, PIPE-02 — Deleting an applicant silently erases sales/bonus attribution, UI-01 — A case cannot be created from the UI (+6 more)
 
-### Community 197 - "2026_09_20_000001_unify_packages_services_and_case_wins.php"
-Cohesion: 0.11
-Nodes (15): App\Models\CustomerService, backfillCaseWins(), {closure#1}(), {closure#12}(), {closure#13}(), {closure#14}(), {closure#2}(), {closure#3}() (+7 more)
+### Community 197 - "PaidTimeOff"
+Cohesion: 0.10
+Nodes (11): {closure#12}(), {closure#13}(), {closure#2}(), {closure#3}(), {closure#7}(), {closure#9}(), Closure, Leave (+3 more)
 
 ### Community 198 - "bootstrap/app.php"
 Cohesion: 0.12
@@ -1279,57 +1274,61 @@ Nodes (20): Animate complex properties, Assess What "Extraordinary" Means Here, 
 Cohesion: 0.10
 Nodes (17): @floating-ui/dom, resources_images_svg_keyboard, resources_images_svg_paper_send, resources_images_svg_rocket, Emit, Props, referAndEarnSteps, configStore (+9 more)
 
-### Community 201 - "OfficeSettingsPanel.vue"
-Cohesion: 0.12
-Nodes (19): Office, OfficeApi, OfficePayload, apply(), canManage, form, geofenceReady, load() (+11 more)
+### Community 201 - "BonusRulesDialog.vue"
+Cohesion: 0.07
+Nodes (34): AutomationApi, AutomationRun, BonusRules, BonusRuleSet, Office, OfficeApi, OfficePayload, dialog (+26 more)
 
 ### Community 202 - "TaskSettingsView.vue"
 Cohesion: 0.11
 Nodes (13): CreateTagData, Tag, TagApi, UpdateTagData, deleteDialogOpen, deleting, dialogOpen, editing (+5 more)
 
+### Community 203 - "AuditLog"
+Cohesion: 0.05
+Nodes (19): {closure#4}(), {closure#5}(), AuditLog, AuditResourceSetting, {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}() (+11 more)
+
 ### Community 204 - "Operate mode depth (and Read notes)"
-Cohesion: 0.11
-Nodes (16): Craft floor, Refuse, Verify, Constraints, Failure modes, /impeccable hooks, Triage findings, Color (+8 more)
+Cohesion: 0.22
+Nodes (9): Color, Components, Layout, Motion, Operate mode depth (and Read notes), Product constraints, Product permissions, The product slop test (+1 more)
 
 ### Community 205 - "tanstack-adapter.mjs"
-Cohesion: 0.18
-Nodes (17): applyTanStackLiveAdapter(), buildTanStackLiveRootComponent(), detectTanStackStartProject(), escapeRegExp(), insertAfterLastImport(), isManagedComponent(), patchTanStackRoot(), pruneEmptyDir() (+9 more)
-
-### Community 206 - "2026_09_26_000002_merge_customers_into_applicants_cutover.php"
 Cohesion: 0.17
-Nodes (14): {closure#1}(), {closure#2}(), {closure#4}(), {closure#5}(), {closure#8}(), {closure#9}(), dropCustomerColumns(), foldCustomersIntoApplicants() (+6 more)
+Nodes (18): tanstackStart, applyTanStackLiveAdapter(), buildTanStackLiveRootComponent(), detectTanStackStartProject(), escapeRegExp(), insertAfterLastImport(), isManagedComponent(), patchTanStackRoot() (+10 more)
+
+### Community 206 - "AutomaticAttendanceTracker.vue"
+Cohesion: 0.19
+Nodes (11): AttendanceGeofenceApi, GeofenceConfiguration, GeofenceObservation, GeofenceOffice, { enabled, load: loadAutomaticAttendance }, locate(), onVisibilityChange(), processPosition() (+3 more)
 
 ### Community 207 - "TiptapEditor.vue"
 Cohesion: 0.13
 Nodes (15): @tiptap/extension-image, @tiptap/extension-placeholder, @tiptap/extension-text-align, @tiptap/extension-underline, @tiptap/starter-kit, @tiptap/vue-3, editor, editorRef (+7 more)
 
 ### Community 208 - "TaskAppShell.vue"
-Cohesion: 0.11
-Nodes (15): activeTab, applicants, changeProject(), createProject(), currentComponent, customerOptions, isProjectDialogOpen, newProject (+7 more)
+Cohesion: 0.07
+Nodes (25): ProjectApi, ProjectPayload, ProjectStatus, activeTab, applicants, changeProject(), createProject(), currentComponent (+17 more)
 
-### Community 209 - "Illuminate\Support\Collection"
-Cohesion: 0.17
-Nodes (5): {closure#1}(), {closure#66}(), {closure#70}(), {closure#73}(), Illuminate\Support\Collection
+### Community 209 - "live.mjs"
+Cohesion: 0.20
+Nodes (19): resolveTargetSelection(), __dirname, ensureServerRunning(), globToRegex(), acceptInstructions(), bootInstructions(), deferredWrapperInstructions(), generateInstructions() (+11 more)
 
 ### Community 210 - "sampleCssBackground"
 Cohesion: 0.16
 Nodes (18): analyzeVisualContrastCandidate(), blendRgba(), clampByte(), firstCssUrl(), getLayerValue(), loadVisualContrastImage(), parseObjectPosition(), parsePositionPair() (+10 more)
 
 ### Community 211 - "tag-strategy.mjs"
-Cohesion: 0.20
-Nodes (17): appendOriginToDirective(), buildTagBlock(), commentClose(), commentOpen(), detectLineEnding(), findCspMetaTags(), getAttr(), insertTag() (+9 more)
+Cohesion: 0.21
+Nodes (16): appendOriginToDirective(), buildTagBlock(), commentClose(), commentOpen(), detectLineEnding(), findCspMetaTags(), getAttr(), insertTag() (+8 more)
 
-### Community 212 - "0001_04_01_000004_create_hr_tables.php"
-Cohesion: 0.11
-Nodes (15): {closure#1}(), {closure#10}(), {closure#11}(), {closure#12}(), {closure#13}(), {closure#14}(), {closure#15}(), {closure#2}() (+7 more)
+### Community 212 - "Illuminate\Database\Schema\Blueprint"
+Cohesion: 0.07
+Nodes (42): {closure#1}(), {closure#10}(), {closure#11}(), {closure#12}(), {closure#13}(), {closure#14}(), {closure#15}(), {closure#2}() (+34 more)
 
 ### Community 213 - "ContractTypeSelector.vue"
 Cohesion: 0.16
 Nodes (16): ContractTypeApi, SYSTEM_TYPE_SLUGS, customItems, emit, fetchTypes(), isSystemSlug(), loading, props (+8 more)
 
-### Community 214 - "horizontal/index.ts"
-Cohesion: 0.12
-Nodes (3): configStore, navScroller, HorizontalNavItems
+### Community 214 - "KanbanBoard.vue"
+Cohesion: 0.14
+Nodes (16): addNewBoard(), addNewItem(), boardTitle, deleteBoard(), deleteKanbanItemFn(), editKanbanItem, emit, emitUpdatedTaskFn() (+8 more)
 
 ### Community 215 - "rt"
 Cohesion: 0.20
@@ -1339,53 +1338,53 @@ Nodes (18): breakdown, breakdownOptions, compactNumber(), currency(), duration()
 Cohesion: 0.14
 Nodes (17): dateIssues, files, flatten(), hasPath(), lineOf(), localeKeys, locales, missing (+9 more)
 
-### Community 217 - "AuditLog"
-Cohesion: 0.22
-Nodes (4): {closure#15}(), {closure#17}(), AuditLog, AuditManagementTest
+### Community 217 - "Contract"
+Cohesion: 0.06
+Nodes (7): {closure#3}(), {closure#5}(), Contract, {closure#52}(), Pitfalls, Backend, ContractDocumentDesignTest
 
-### Community 218 - "NotificationController"
-Cohesion: 0.26
-Nodes (3): NotificationController, NotificationResource, NotificationUser
+### Community 218 - "0001_09_01_000009_create_finance_tables.php"
+Cohesion: 0.12
+Nodes (13): {closure#1}(), {closure#10}(), {closure#11}(), {closure#12}(), {closure#13}(), {closure#2}(), {closure#3}(), {closure#4}() (+5 more)
 
-### Community 219 - "filterFindings"
-Cohesion: 0.18
-Nodes (17): cleanIgnoreValueDisplay(), extractFindingIgnoreValue(), extractFindingIgnoreValueRaw(), extractMotionIgnoreValue(), filterFindings(), findingMatchesScopedIgnoreFile(), formatFindingIgnoreHint(), formatFindingLine() (+9 more)
+### Community 219 - "Storage Management"
+Cohesion: 0.11
+Nodes (18): Authentication State Reuse, Clear sessionStorage, Common Patterns, Delete Database, Delete Single Item, Get Single Value, IndexedDB, List All sessionStorage Items (+10 more)
 
 ### Community 220 - "onAnnotDown"
 Cohesion: 0.20
 Nodes (17): beginEditPin(), buildAnnotationsForCapture(), buildPinElement(), cancelEditingPin(), clampPlaceholderSize(), finalizeEditingPin(), initAnnotOverlay(), localCoords() (+9 more)
 
-### Community 221 - "resolveLiveInjectionAnchor"
-Cohesion: 0.18
-Nodes (17): buildSvelteExpressionTextMap(), buildSveltePropValuesFromLiveElement(), buildSveltePropValuesV2(), cloneWithoutElements(), collectTextNodes(), collectVisibleTexts(), cssEscapeIdent(), elementMatchesOriginalMarkup() (+9 more)
+### Community 221 - "0001_11_01_000011_create_kanban_tables.php"
+Cohesion: 0.13
+Nodes (12): {closure#1}(), {closure#10}(), {closure#11}(), {closure#12}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}() (+4 more)
 
 ### Community 222 - "createLiveBrowserSessionState"
 Cohesion: 0.20
 Nodes (14): createLiveBrowserSessionState(), clearHandled(), clearScrollY(), clearSession(), isHandled(), loadSession(), markHandled(), nextCheckpointRevision() (+6 more)
 
-### Community 223 - "2026_09_06_000000_harden_core_data_integrity.php"
-Cohesion: 0.15
-Nodes (11): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#8}(), down(), enforceOnePayrollPerEmployeeMonth(), hasIndex() (+3 more)
+### Community 223 - "commission.ts"
+Cohesion: 0.23
+Nodes (13): accruals(), approve(), cancel(), CommissionAccrual, CommissionCurrency, CommissionSettlement, CommissionSummary, createAdjustment() (+5 more)
 
-### Community 224 - "AppDateTimePicker.vue"
-Cohesion: 0.12
-Nodes (15): vue-flatpickr-component, attrs, configStore, elementId, fieldName, fieldProps, { focused }, inputProps (+7 more)
+### Community 224 - "Running Custom Playwright Code"
+Cohesion: 0.11
+Nodes (15): Clipboard, Complex Workflows, Error Handling, File Downloads, Frames and Iframes, Geolocation, JavaScript Execution, Media Emulation (+7 more)
 
-### Community 225 - "BonusRulesDialog.vue"
-Cohesion: 0.15
-Nodes (15): AutomationApi, AutomationRun, BonusRules, BonusRuleSet, dialog, emit, employees, errors (+7 more)
+### Community 225 - "3. Heal"
+Cohesion: 0.11
+Nodes (18): 0. How generation works, 1.1 Prerequisite: workspace, 1.2 Prerequisite: seed test, 1.3 Explore the app, 1.4 Write the spec file, 1. Planning, 3.1 Find failing tests, 3.2 Debug one failure (+10 more)
 
 ### Community 226 - "Service → Contract linkage: one service, one contract, one template"
-Cohesion: 0.12
-Nodes (16): 1. What was asked (intent → acceptance criteria), 2.1 What already holds, 2.2 The gap, 2. Current state audit (evidence), 3.1 Service → template (1:1), 3.3 Fronts wired to the generator, 3.4 Compliance, 3. Target behaviour (+8 more)
+Cohesion: 0.15
+Nodes (12): 1. What was asked (intent → acceptance criteria), 2.1 What already holds, 2.2 The gap, 2. Current state audit (evidence), 4. Data model changes, 5. Implementation steps, 6. Constraints & risks, 7. Progress log (+4 more)
 
-### Community 227 - "AuditLogController"
-Cohesion: 0.24
-Nodes (4): AuditLogController, {closure#16}(), Handle `discard`, The contract (read once)
+### Community 227 - "Backend"
+Cohesion: 0.16
+Nodes (11): 1. Task assignment — department-head scoped assignment, 4. Verification, 5. Progress, Backend, Follow-ups, Frontend, i18n, Still unverified in this environment (+3 more)
 
-### Community 228 - "SalaryDeductionController.php"
-Cohesion: 0.18
-Nodes (4): {closure#1}(), {closure#2}(), SalaryDeductionController, SalaryDeductionResource
+### Community 228 - "Settings → Documents: artwork scoping, per-page sizing & print precedence"
+Cohesion: 0.14
+Nodes (13): 1. What was asked (intent → acceptance criteria), 2.2 Gap this iteration closes (AC1), 2.3 Relevant files, 2. Current state audit (evidence), 3.1 One artwork editor (AC1), 3.2 Sizing & precedence (AC2, AC4, AC5, AC6), 3. Target behaviour, 4. Implementation steps (+5 more)
 
 ### Community 229 - "animate.md"
 Cohesion: 0.12
@@ -1407,9 +1406,9 @@ Nodes (16): checkHeadingRhythmDOM(), clusterTop(), edgeAbove(), edgeBelow(), has
 Cohesion: 0.14
 Nodes (12): cancelEditing(), canManageComment(), editingCommentId, editingContent, emit, handleClose(), newComment, props (+4 more)
 
-### Community 234 - "RoleController.php"
-Cohesion: 0.20
-Nodes (3): {closure#2}(), RoleController, RoleResource
+### Community 234 - "Tracing"
+Cohesion: 0.12
+Nodes (16): 1. Start Tracing Before the Problem, 2. Clean Up Old Traces, Analyzing Performance, Basic Usage, Best Practices, Capturing Evidence, Debugging Failed Actions, Limitations (+8 more)
 
 ### Community 235 - "Impeccable Finish Reviewer"
 Cohesion: 0.13
@@ -1423,9 +1422,9 @@ Nodes (14): 1. Accessibility (A11y), 2. Performance, 3. Theming, 4. Responsive D
 Cohesion: 0.19
 Nodes (10): createLiveBrowserDomHelpers(), cssId(), liveUiRoot(), makeFrozenAnchor(), own(), pickable(), rectIsUsableAnchor(), uiAppend() (+2 more)
 
-### Community 238 - "journal.mjs"
-Cohesion: 0.26
-Nodes (14): PATCH_UNDOERS, clearInjectJournal(), healArtifact(), healInjectJournal(), INJECT_JOURNAL_RELPATH, INJECT_JOURNAL_VERSION, injectJournalPath(), insideProject() (+6 more)
+### Community 238 - "live-inject.mjs"
+Cohesion: 0.12
+Nodes (30): describeInjectArtifacts(), frameworkIgnorePatterns(), PATCH_UNDOERS, resolveFramework(), clearInjectJournal(), healArtifact(), healInjectJournal(), INJECT_JOURNAL_RELPATH (+22 more)
 
 ### Community 239 - "51. Definition of Done"
 Cohesion: 0.13
@@ -1439,17 +1438,25 @@ Nodes (13): resources_images_avatars_avatar_1, resources_images_avatars_avatar_2
 Cohesion: 0.13
 Nodes (14): extends, stylelint-config-idiomatic-order, stylelint-config-standard-scss, @stylistic/stylelint-config, overrides, plugins, rules, annotation-no-unknown (+6 more)
 
-### Community 243 - "Department"
-Cohesion: 0.25
-Nodes (5): {closure#2}(), {closure#3}(), DepartmentController, Department, {closure#1}()
+### Community 242 - "InvoiceController.php"
+Cohesion: 0.06
+Nodes (12): {closure#15}(), {closure#16}(), {closure#6}(), InvoiceController, InvoiceResource, Design decisions, Follow-ups / deliberately left for a next pass, Progress log (+4 more)
+
+### Community 243 - "Illuminate\Support\Collection"
+Cohesion: 0.21
+Nodes (5): AnnouncementService, {closure#66}(), {closure#70}(), {closure#73}(), Illuminate\Support\Collection
+
+### Community 244 - "EducationalMasterDataController.php"
+Cohesion: 0.17
+Nodes (5): {closure#2}(), {closure#3}(), EducationalMasterDataController, DATA-01 — UNIQUE + soft-deletes: deleted codes can never be reused, S3 — Backend: kill `package-types`, rename to `package`
 
 ### Community 245 - "PlaceholderRegistry"
-Cohesion: 0.23
-Nodes (6): PlaceholderRegistry, PlaceholderResolver, Placeholder vocabulary — corrected, LEGAL-04 — Version content bypasses sanitizer and placeholder validation, 3.2 Service assignment → contract, Placeholder compatibility contract (important)
+Cohesion: 0.08
+Nodes (15): PlaceholderRegistry, PlaceholderResolver, 3.1 Service → template (1:1), 3.2 Service assignment → contract, 3.3 Fronts wired to the generator, 3.4 Compliance, 3. Target behaviour, Agent working in parallel: CONTRACT TEMPLATES (+7 more)
 
 ### Community 246 - "4. Delivery plan"
-Cohesion: 0.14
-Nodes (13): 1. Product rules, 2. Decision gate, 3. Workstreams and acceptance criteria, 4. Delivery plan, 5. Boundaries and migration safety, 6. Progress log, Applicant-first visa firm restructure, Phase 1 — data integrity and documents (+5 more)
+Cohesion: 0.15
+Nodes (12): 1. Product rules, 2. Decision gate, 3. Workstreams and acceptance criteria, 4. Delivery plan, 5. Boundaries and migration safety, 6. Progress log, Applicant-first visa firm restructure, Phase 2 — applicant experience (+4 more)
 
 ### Community 247 - "Impeccable Asset Producer"
 Cohesion: 0.14
@@ -1464,44 +1471,52 @@ Cohesion: 0.36
 Nodes (10): astro, detectAstroProject(), fileExists(), findConfigFile(), hasAnyDependency(), literalConfigFiles(), readPackageDeps(), detectNextProject() (+2 more)
 
 ### Community 250 - "frameworks/index.mjs"
-Cohesion: 0.15
-Nodes (12): COMMENT_SYNTAXES, FRAMEWORKS, INJECT_KINDS, PREVIEW_MODES, SOURCE_TRAIT_DEFAULTS, STYLE_MODES, TAG_PATCH_KIND, nextjs (+4 more)
+Cohesion: 0.18
+Nodes (10): COMMENT_SYNTAXES, FRAMEWORKS, INJECT_KINDS, PREVIEW_MODES, SOURCE_TRAIT_DEFAULTS, STYLE_MODES, TAG_PATCH_KIND, nextjs (+2 more)
 
-### Community 251 - "2026_09_23_000002_drop_customer_service_merge_into_contracts.php"
-Cohesion: 0.15
-Nodes (11): {closure#1}(), {closure#10}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}(), {closure#8}() (+3 more)
+### Community 251 - "hook-before-edit.mjs"
+Cohesion: 0.09
+Nodes (44): allow(), bumpCursorDenial(), cursorBlockMessage(), deny(), detectProposedHtml(), done(), escapeRegExp(), findingSignature() (+36 more)
 
 ### Community 252 - "RequestLocaleTest.php"
 Cohesion: 0.22
 Nodes (5): Illuminate\Config\Repository, Illuminate\Container\Container, {closure#1}(), LocaleTestApplication, RequestLocaleTest
 
 ### Community 253 - "invoice_template.vue"
-Cohesion: 0.14
-Nodes (10): ClientDetails, grandTotal, InvoiceProps, invoiceRef, InvoiceService, primaryCurrency, props, SenderDetails (+2 more)
+Cohesion: 0.11
+Nodes (14): ClientDetails, grandTotal, hasLetterhead, InvoiceProps, invoiceRef, InvoiceService, letterheadBackground, LetterheadSafeArea (+6 more)
 
-### Community 254 - "payslip_template.vue"
-Cohesion: 0.14
-Nodes (11): Company, EarningDeduction, Employee, grossSalary, netPay, payslipContainerRef, props, SalarySlipProps (+3 more)
+### Community 254 - "EducationalWorkflowNotificationService"
+Cohesion: 0.26
+Nodes (4): {closure#13}(), EducationalWorkflowNotificationService, Notifications, 2. Cross-cutting updates
 
-### Community 256 - "AuditPresenter"
-Cohesion: 0.27
-Nodes (3): AuditPresenter, {closure#2}(), Model
+### Community 255 - "ReportService"
+Cohesion: 0.12
+Nodes (7): {closure#2}(), ReportController, GenerateReportRequest, {closure#1}(), ReportService, Symfony\Component\HttpFoundation\StreamedResponse, View
+
+### Community 256 - "resolveLiveInjectionAnchor"
+Cohesion: 0.18
+Nodes (17): buildSvelteExpressionTextMap(), buildSveltePropValuesFromLiveElement(), buildSveltePropValuesV2(), cloneWithoutElements(), collectTextNodes(), collectVisibleTexts(), cssEscapeIdent(), elementMatchesOriginalMarkup() (+9 more)
 
 ### Community 257 - "Scan mode (approach C: auto-extract, then confirm descriptive language)"
-Cohesion: 0.15
-Nodes (13): Component translation rules, Narrative mapping, Scan mode (approach C: auto-extract, then confirm descriptive language), Schema, Step 1: Find the design assets, Step 2: Auto-extract what can be auto-extracted, Step 2b: Stage the frontmatter, Step 3: Ask the user for qualitative language (+5 more)
+Cohesion: 0.17
+Nodes (12): Component translation rules, Narrative mapping, Scan mode (approach C: auto-extract, then confirm descriptive language), Schema, Step 1: Find the design assets, Step 2: Auto-extract what can be auto-extracted, Step 3: Ask the user for qualitative language, Step 4: Write DESIGN.md (+4 more)
+
+### Community 258 - "detect-csp.mjs"
+Cohesion: 0.20
+Nodes (10): detectCsp(), INLINE_HEADER_SIGNALS, LAYOUT_EXTS, MONOREPO_HELPER_SIGNALS, NUXT_ROUTE_RULES_SIGNALS, NUXT_SECURITY_SIGNALS, SCAN_EXTS, SKIP_DIRS (+2 more)
 
 ### Community 259 - "template-extensions.mjs"
-Cohesion: 0.21
-Nodes (10): IMPECCABLE_DIR, extensionCache, LIVE_TEMPLATE_EXTENSIONS, matchesTemplateExtension(), normalizeExtensionEntries(), readLiveTemplateExtensions(), safeReadJson(), NEVER_SOURCE_DIRS (+2 more)
+Cohesion: 0.29
+Nodes (8): shouldEmitAckForFile(), extensionCache, LIVE_TEMPLATE_EXTENSIONS, matchConfiguredExtension(), mergeExtensions(), normalizeExtensionEntries(), readLiveTemplateExtensions(), safeReadJson()
 
-### Community 260 - "generation-preflight.mjs"
-Cohesion: 0.27
-Nodes (11): buildGenerationPreflight(), compactError(), execFileAsync, insertTarget(), normalizeTarget(), replaceTarget(), runGenerationPreflight(), sourceResolutionCache (+3 more)
+### Community 260 - "NotificationController"
+Cohesion: 0.24
+Nodes (3): NotificationController, NotificationResource, NotificationUser
 
-### Community 261 - "pin.mjs"
-Cohesion: 0.22
-Nodes (11): CODEX_HARNESSES, commandPrefixForSkillsDir(), __dirname, findHarnessDirs(), generatePinnedSkill(), HARNESS_DIRS, loadCommandMetadata(), pin() (+3 more)
+### Community 261 - "AppDateTimePicker.vue"
+Cohesion: 0.12
+Nodes (15): vue-flatpickr-component, attrs, configStore, elementId, fieldName, fieldProps, { focused }, inputProps (+7 more)
 
 ### Community 262 - "vue3-perfect-scrollbar"
 Cohesion: 0.17
@@ -1515,6 +1530,14 @@ Nodes (12): allSelected, categoryLabel(), emit, expanded, grouped, isExpanded(),
 Cohesion: 0.17
 Nodes (9): Attendance, attendancesByDate, attendanceStatuses, calendarPages, formatDateKey(), { locale, t }, props, statusLabel() (+1 more)
 
+### Community 265 - "SalaryDeductionController.php"
+Cohesion: 0.18
+Nodes (4): {closure#1}(), {closure#2}(), SalaryDeductionController, SalaryDeductionResource
+
+### Community 266 - "validators.ts"
+Cohesion: 0.21
+Nodes (11): isEmpty(), isEmptyArray(), isNullOrUndefined(), alphaDashValidator(), alphaValidator(), emailValidator(), integerValidator(), lengthValidator() (+3 more)
+
 ### Community 267 - "critique.md"
 Cohesion: 0.17
 Nodes (11): Action Summary, Ask the User, Assessment A: Design Review, Assessment B: Detector + Browser Evidence, Assessment Orchestration, Deliver the Report, Hard Invariants, Persist the Snapshot (+3 more)
@@ -1527,9 +1550,9 @@ Nodes (11): Assess Current State, Code Simplification, Content Simplification, D
 Cohesion: 0.17
 Nodes (11): Accessibility Resilience, Assess Hardening Needs, Edge Cases & Boundary Conditions, Error Handling, Hardening Dimensions, Input Validation & Sanitization, Internationalization (i18n), Performance Resilience (+3 more)
 
-### Community 270 - "2026_09_13_000001_add_marketer_commission_accruals.php"
-Cohesion: 0.17
-Nodes (9): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}(), {closure#7}(), {closure#8}() (+1 more)
+### Community 270 - "Browser Automation with playwright-cli"
+Cohesion: 0.13
+Nodes (15): Attaching screenshots and videos to pull requests, Browser Automation with playwright-cli, Browser Sessions, Example: Debugging with DevTools, Example: Form submission, Example: Interactive session, Example: Multi-tab workflow, Installation (+7 more)
 
 ### Community 271 - "OfficeGeofenceMap.vue"
 Cohesion: 0.23
@@ -1539,9 +1562,17 @@ Nodes (10): mapbox-gl, center(), circleFeature(), container, destination(), emit
 Cohesion: 0.20
 Nodes (11): resources_images_illustrations_laptop_girl, categories, createApp, createAppData, currentStep, databases, dialogVisibleUpdate(), emit (+3 more)
 
-### Community 273 - "TaskEventModal.vue"
+### Community 273 - "0001_14_01_000014_create_notification_and_audit_tables.php"
 Cohesion: 0.20
-Nodes (10): closeModal(), confirmAndDelete(), emit, isConfirmDeleteOpen, modalModel, priorityColor, props, store (+2 more)
+Nodes (8): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}(), {closure#7}(), up()
+
+### Community 274 - "Illuminate\Validation\Rule"
+Cohesion: 0.06
+Nodes (8): ContractPolicyController, PositionController, ContractPolicyResource, PositionResource, {closure#1}(), Closure, Illuminate\Foundation\Http\FormRequest, Illuminate\Validation\Rule
+
+### Community 275 - "2026_09_28_000001_add_service_codes_variants_and_template_scopes.php"
+Cohesion: 0.20
+Nodes (6): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#6}(), {closure#7}()
 
 ### Community 276 - "ApiMessage"
 Cohesion: 0.31
@@ -1575,13 +1606,17 @@ Nodes (9): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#
 Cohesion: 0.18
 Nodes (11): 31. Phase 17 — Navigation Redesign, Applicants, Contracts, CRM, Finance, Home, HR, Reports (+3 more)
 
-### Community 284 - "VerticalNavLayout.vue"
+### Community 284 - "RoleController.php"
 Cohesion: 0.20
-Nodes (9): Props, configStore, isLayoutOverlayVisible, isOverlayNavActive, Props, toggleIsOverlayNavActive, verticalNavAttrs, { width: windowWidth } (+1 more)
+Nodes (3): {closure#2}(), RoleController, RoleResource
 
 ### Community 285 - "runtime-test.mjs"
 Cohesion: 0.20
 Nodes (9): englishKeys, files, flatten(), flattened, i18n, localeDirectory, messages, root (+1 more)
+
+### Community 286 - "0001_10_01_000010_create_educational_commerce_tables.php"
+Cohesion: 0.22
+Nodes (6): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}()
 
 ### Community 287 - "Generate Combined Critique Report"
 Cohesion: 0.20
@@ -1599,9 +1634,9 @@ Nodes (10): require-dev, albertoarena/laravel-truss, brianium/paratest, fakerphp
 Cohesion: 0.20
 Nodes (7): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}(), {closure#7}()
 
-### Community 291 - "2024_01_01_000003_create_hr_tables.php"
-Cohesion: 0.20
-Nodes (7): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}(), {closure#7}()
+### Community 291 - "Frontend"
+Cohesion: 0.23
+Nodes (15): 2.1 Documents page — `resources/ts/pages/setup/settings.vue` (1318 lines), Frontend, activeArtworkPreview(), handleArtworkUpload(), handleImageUpload(), loadDocumentDesigns(), previewFile(), removeArtwork() (+7 more)
 
 ### Community 292 - "10. Applicant Dashboard / Case View"
 Cohesion: 0.20
@@ -1615,13 +1650,13 @@ Nodes (10): scripts, build, build:icons, dev, i18n:check, i18n:migrate, i18n:tes
 Cohesion: 0.20
 Nodes (7): resources_images_svg_home, resources_images_svg_office, addressTypes, BillingAddress, Emit, Props, selectedAddress
 
-### Community 295 - "accountDeactivation.ts"
-Cohesion: 0.31
-Nodes (8): AccountDeactivationRequest, cancelAccountDeactivation(), DeactivationStatus, getDeactivationRequests(), getMyDeactivationRequests(), requestAccountDeactivation(), reviewAccountDeactivation(), unwrap()
+### Community 295 - "AccountSettingsAccount.vue"
+Cohesion: 0.04
+Nodes (68): vue-toastification, resources_styles_core_template_index, resources_styles_styles, AccountDeactivationRequest, cancelAccountDeactivation(), DeactivationStatus, getDeactivationRequests(), getMyDeactivationRequests() (+60 more)
 
-### Community 296 - "ProjectPortfolioView.vue"
-Cohesion: 0.20
-Nodes (7): active, emit, headers, overdue, props, statusLabel(), { t }
+### Community 296 - "2026_09_28_000003_promote_packages_to_first_class_catalogue.php"
+Cohesion: 0.22
+Nodes (6): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}()
 
 ### Community 297 - "AppCardActions.vue"
 Cohesion: 0.22
@@ -1631,17 +1666,17 @@ Nodes (7): Emit, isCardRemoved, isContentCollapsed, _loading, Props, stopLoading
 Cohesion: 0.22
 Nodes (9): 1. The Wall of Options, 2. The Memory Bridge, 3. The Hidden Navigation, 4. The Jargon Barrier, 5. The Visual Noise Floor, 6. The Inconsistent Pattern, 7. The Multi-Task Demand, 8. The Context Switch (+1 more)
 
-### Community 299 - "iOS platform"
-Cohesion: 0.22
-Nodes (9): Color & materials, Components & controls, iOS platform, Layout & structure, Motion, The iOS slop test, Touch targets, Typography (+1 more)
+### Community 299 - "context-signals.mjs"
+Cohesion: 0.21
+Nodes (14): cli(), COMMON_DEV_PORTS, devServerSignals(), gatherSignals(), gitSignals(), hasCode(), isVendoredPath(), latestCritique() (+6 more)
 
 ### Community 300 - "Shape"
 Cohesion: 0.22
 Nodes (8): Cadence, Confirm and stop, Phase 1: Discovery interview, Phase 2: Resolve the design direction, Phase 3: Write the brief, Round 1: purpose, people, and outcome, Round 2: material, behavior, and boundaries, Shape
 
-### Community 301 - "hook.mjs"
-Cohesion: 0.36
-Nodes (8): allow(), deny(), done(), isStopEvent(), writeAuditLog(), main(), readStdin(), stdinIsStop()
+### Community 301 - "filterFindings"
+Cohesion: 0.19
+Nodes (16): cleanIgnoreValueDisplay(), extractFindingIgnoreValue(), extractFindingIgnoreValueRaw(), extractMotionIgnoreValue(), filterFindings(), findingMatchesScopedIgnoreFile(), formatFindingIgnoreHint(), globToRegex() (+8 more)
 
 ### Community 302 - "composer.json"
 Cohesion: 0.22
@@ -1652,36 +1687,32 @@ Cohesion: 0.22
 Nodes (9): scripts, dev, post-autoload-dump, post-create-project-cmd, post-root-package-install, post-update-cmd, pre-package-uninstall, setup (+1 more)
 
 ### Community 304 - "0001_08_01_000008_create_contract_tables.php"
-Cohesion: 0.22
-Nodes (6): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}()
+Cohesion: 0.14
+Nodes (11): {closure#1}(), {closure#10}(), {closure#11}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}() (+3 more)
 
-### Community 305 - "2023_01_01_000000_create_crm_tables.php"
-Cohesion: 0.22
-Nodes (6): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}()
+### Community 306 - "ServiceForm.vue"
+Cohesion: 0.38
+Nodes (6): close(), emit, form, props, ServiceFormData, submit()
 
-### Community 306 - "2024_01_01_000005_create_contract_tables.php"
-Cohesion: 0.22
-Nodes (6): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}()
+### Community 307 - "contract_cover_template.vue"
+Cohesion: 0.33
+Nodes (6): contractCoverRef, logoImage, logoLoaded, printContractCover(), props, waitForLogoLoad()
 
-### Community 307 - "2024_01_01_000006_create_finance_tables.php"
-Cohesion: 0.22
-Nodes (6): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}()
+### Community 308 - "playwright-cli/SKILL.md"
+Cohesion: 0.21
+Nodes (4): Examples, Inspecting Element Attributes, Debugging Playwright Tests, Running Playwright Tests
 
-### Community 308 - "2026_08_13_000000_create_reporting_tables.php"
-Cohesion: 0.22
-Nodes (6): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}()
+### Community 309 - "IncomeReceiptService.php"
+Cohesion: 0.27
+Nodes (4): {closure#1}(), {closure#2}(), {closure#3}(), IncomeReceiptService
 
-### Community 309 - "2026_08_31_000000_expand_finance_money_precision.php"
+### Community 310 - "TaskEventModal.vue"
 Cohesion: 0.22
-Nodes (6): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}()
+Nodes (9): closeModal(), confirmAndDelete(), emit, isConfirmDeleteOpen, modalModel, priorityColor, props, store (+1 more)
 
-### Community 310 - "2026_09_16_000001_create_outsourcing_ledger.php"
-Cohesion: 0.22
-Nodes (6): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}()
-
-### Community 311 - "2026_09_26_000003_complete_contract_template_versioning.php"
-Cohesion: 0.22
-Nodes (4): {closure#1}(), {closure#4}(), {closure#5}(), {closure#6}()
+### Community 311 - "educational-master-data.vue"
+Cohesion: 0.10
+Nodes (21): canManageCurrent, Catalog, CatalogRow, countries, dialog, editing, form, hasCode (+13 more)
 
 ### Community 312 - "ApiMessageTest.php"
 Cohesion: 0.25
@@ -1691,9 +1722,9 @@ Nodes (6): Illuminate\Filesystem\Filesystem, Illuminate\Support\Facades\Facade, 
 Cohesion: 0.22
 Nodes (9): 23. Phase 10 — Permissions and Roles, Applicants, Bonuses, Contracts, Finance, Master Data, Scholarships, Tests (+1 more)
 
-### Community 314 - "AppCardCode.vue"
-Cohesion: 0.22
-Nodes (8): shiki, CodeLanguages, CodeProp, codeSnippet, { copy, copied }, isCodeShown, preferredCodeLanguage, Props
+### Community 314 - "Commands"
+Cohesion: 0.17
+Nodes (12): Commands, Core, DevTools, Emulation, Keyboard, Mouse, Navigation, Network (+4 more)
 
 ### Community 315 - "AppLoadingIndicator.vue"
 Cohesion: 0.25
@@ -1719,21 +1750,17 @@ Nodes (8): Android platform, Color & theming, Components & motion, Layout & stru
 Cohesion: 0.25
 Nodes (8): 1. Impatient Power User: "Alex", 2. Confused First-Timer: "Jordan", 3. Accessibility-Dependent User: "Sam", 4. Deliberate Stress Tester: "Riley", 5. Distracted Mobile User: "Casey", Persona-Based Design Testing, Project-Specific Personas, Selecting Personas
 
-### Community 322 - "Extract Flow"
-Cohesion: 0.25
-Nodes (7): Extract Flow, Step 1: Discover the Design System, Step 2: Identify Patterns, Step 3: Plan Extraction, Step 4: Extract & Enrich, Step 5: Migrate, Step 6: Document
+### Community 322 - "impeccable/SKILL.md"
+Cohesion: 0.07
+Nodes (25): Before you finish, Scope is sovereign, The amplification, The skeleton test, Why it reads flat, Craft floor, Refuse, Verify (+17 more)
 
-### Community 323 - "source-lock.mjs"
-Cohesion: 0.50
-Nodes (7): isLiveServerPidReachable(), clearStaleLock(), readLock(), releaseOwnLock(), sleepSync(), sourceLockPath(), withSourceLockSync()
+### Community 323 - "Attachment"
+Cohesion: 0.20
+Nodes (7): AttachmentController, {closure#1}(), {closure#2}(), Attachment, 2. Attachments — shared multi-file system, Backend, Frontend
 
-### Community 324 - "2024_01_01_000002_create_rbac_tables.php"
-Cohesion: 0.25
-Nodes (5): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}()
-
-### Community 325 - "2026_09_15_000001_support_multiple_customer_service_commission_employees.php"
-Cohesion: 0.25
-Nodes (3): {closure#2}(), {closure#4}(), {closure#5}()
+### Community 324 - "ContactActionMenu.vue"
+Cohesion: 0.14
+Nodes (10): actions, ContactAction, contactValue, dialog, form, pendingAction, phoneDigits, phoneValue (+2 more)
 
 ### Community 326 - "29. Phase 15 — Dashboard Redesign"
 Cohesion: 0.25
@@ -1771,9 +1798,9 @@ Nodes (4): Emit, isUseAsBillingAddress, Props, UserData
 Cohesion: 0.25
 Nodes (6): Emit, isConfirmDialogVisible, plansList, Prop, props, selectedPlan
 
-### Community 335 - "Agent working in parallel: CONTRACT TEMPLATES"
-Cohesion: 0.25
-Nodes (7): Agent working in parallel: CONTRACT TEMPLATES, Change log for this file, Files I will edit that you may also be editing, If you need something from me, Tests we both touch, WARNING — parallel-agent scope notice, Who is writing this
+### Community 335 - "CurrencyController"
+Cohesion: 0.14
+Nodes (3): CurrencyController, CurrencyResource, {closure#2}()
 
 ### Community 336 - "Impeccable Manual Edit Applier"
 Cohesion: 0.29
@@ -1803,9 +1830,9 @@ Nodes (7): checkElementHeroEyebrow(), checkElementHeroEyebrowDOM(), checkHeroEye
 Cohesion: 0.62
 Nodes (7): checkHeadingRhythmDOM(), clusterTop(), edgeAbove(), edgeBelow(), hasOwnTopBoundary(), isVisibleFlow(), overlapsX()
 
-### Community 343 - "normalizeGitHubEvent"
-Cohesion: 0.43
-Nodes (7): applyPatchText(), envProjectDir(), looksLikeApplyPatch(), normalizeGitHubEvent(), normalizeGrokEvent(), normalizeHookEvent(), parseGitHubToolArgs()
+### Community 343 - "Attendance"
+Cohesion: 0.05
+Nodes (17): AssetAllocation, Attendance, MonthlyAttendanceSummary, Setting, AttendanceCalculationService, {closure#2}(), {closure#3}(), {closure#4}() (+9 more)
 
 ### Community 344 - "config"
 Cohesion: 0.29
@@ -1815,33 +1842,29 @@ Nodes (7): pestphp/pest-plugin, php-http/discovery, config, allow-plugins, optim
 Cohesion: 0.29
 Nodes (4): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}()
 
-### Community 346 - "2026_08_10_000001_create_bonus_tables.php"
-Cohesion: 0.29
-Nodes (4): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}()
+### Community 346 - "Video Recording"
+Cohesion: 0.20
+Nodes (10): 1. Use Descriptive Filenames, 2. Record entire hero scripts., 3. Attach the recording to the pull request, Basic Recording, Best Practices, Cursor, Target Highlight and Click Point, Limitations, Overlay API Summary (+2 more)
 
-### Community 347 - "2026_08_29_000000_make_audit_history_permanent.php"
-Cohesion: 0.29
-Nodes (5): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), up()
+### Community 347 - "Responsive Design"
+Cohesion: 0.20
+Nodes (10): Breakpoints: Content-Driven, Detect Input Method, Not Just Screen Size, Layout Adaptation Patterns, Mobile-First: Write It Right, Picture Element for Art Direction, Responsive Design, Responsive Images: Get It Right, Safe Areas: Handle the Notch (+2 more)
 
-### Community 348 - "2026_08_29_000003_add_currency_snapshots_to_positions_and_bonuses.php"
-Cohesion: 0.29
-Nodes (4): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}()
+### Community 348 - "formatters.ts"
+Cohesion: 0.16
+Nodes (9): model, options, props, { t }, UserAccountOption, avatarText(), formatDateToMonthShort(), TODO: Try to implement this:… (+1 more)
 
-### Community 349 - "2026_09_02_000002_create_commission_ledger.php"
-Cohesion: 0.29
-Nodes (4): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}()
+### Community 349 - "legacyKanban.ts"
+Cohesion: 0.18
+Nodes (12): emit, props, resolveLabelColor, AddNewKanbanItem, EditKanbanItem, KanbanBoard, KanbanData, KanbanId (+4 more)
 
-### Community 350 - "2026_09_21_000001_add_salary_payment_ledger.php"
-Cohesion: 0.29
-Nodes (3): {closure#1}(), {closure#2}(), {closure#4}()
+### Community 351 - "Cookies"
+Cohesion: 0.22
+Nodes (9): Advanced: Multiple Cookies or Custom Options, Clear All Cookies, Cookies, Delete a Cookie, Filter Cookies by Domain, Filter Cookies by Path, Get Specific Cookie, List All Cookies (+1 more)
 
-### Community 351 - "2026_09_22_000000_make_service_duration_optional_and_link_portal_leads.php"
-Cohesion: 0.29
-Nodes (4): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}()
-
-### Community 352 - "2026_09_26_000001_merge_customers_into_applicants_additive.php"
-Cohesion: 0.29
-Nodes (4): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}()
+### Community 352 - "pin.mjs"
+Cohesion: 0.22
+Nodes (11): CODEX_HARNESSES, commandPrefixForSkillsDir(), __dirname, findHarnessDirs(), generatePinnedSkill(), HARNESS_DIRS, loadCommandMetadata(), pin() (+3 more)
 
 ### Community 353 - "Scheduled jobs deployment"
 Cohesion: 0.29
@@ -1867,57 +1890,69 @@ Nodes (4): cardDetails, Details, Emit, Props
 Cohesion: 0.29
 Nodes (3): Emit, phoneNumber, Props
 
-### Community 359 - "error"
-Cohesion: 0.48
-Nodes (7): deleteRecord(), error, fetchAttendanceRecords(), fetchUnmarkedStaff(), isFriday(), logAttendance(), viewDailyReport()
+### Community 359 - "resetSettings"
+Cohesion: 0.22
+Nodes (11): activePagePayload(), applySavedSetting(), applyTheme(), defaultForm(), handleColorPickerUpdate(), loadSettings(), resetSettings(), restoreThemeColor() (+3 more)
 
-### Community 361 - "Diagnostic Scan"
-Cohesion: 0.33
-Nodes (6): 1. Accessibility (VoiceOver / TalkBack), 2. Performance, 3. Appearance & Theming, 4. Platform Conformance (CRITICAL), 5. Adaptivity, Diagnostic Scan
+### Community 360 - "Advanced Mocking with run-code"
+Cohesion: 0.25
+Nodes (8): Advanced Mocking with run-code, CLI Route Commands, Conditional Response Based on Request, Delayed Response, Modify Real Response, Request Mocking, Simulate Network Failures, URL Patterns
 
-### Community 362 - "bolder.md"
-Cohesion: 0.33
-Nodes (5): Before you finish, Scope is sovereign, The amplification, The skeleton test, Why it reads flat
+### Community 361 - "api/services.ts"
+Cohesion: 0.17
+Nodes (9): ApiResponse, CreateCustomerData, CustomerApi, CustomerParams, UpdateCustomerData, ApiResponse, BindServiceContractTemplateData, CreateServiceData (+1 more)
+
+### Community 362 - "Local Storage"
+Cohesion: 0.25
+Nodes (8): Advanced: Multiple Operations, Clear All localStorage, Delete Single Item, Get Single Value, List All localStorage Items, Local Storage, Set JSON Value, Set Value
 
 ### Community 363 - "require"
 Cohesion: 0.33
 Nodes (6): require, laravel/framework, laravel-lang/lang, laravel/sanctum, laravel/tinker, php
 
-### Community 364 - "0001_01_01_000000_create_users_table.php"
-Cohesion: 0.33
-Nodes (3): {closure#1}(), {closure#2}(), {closure#3}()
-
 ### Community 365 - "0001_02_01_000002_create_jobs_table.php"
 Cohesion: 0.33
 Nodes (3): {closure#1}(), {closure#2}(), {closure#3}()
 
-### Community 366 - "2026_08_25_000000_add_results_and_attachments_to_tasks.php"
+### Community 366 - "readConfig"
+Cohesion: 0.18
+Nodes (12): applyConfigSource(), applyDetectorConfigSource(), cloneDefaultConfig(), detectorSection(), hookSection(), ignoreValueFilesKey(), mergeIgnoreValues(), numberOr() (+4 more)
+
+### Community 367 - "generation-preflight.mjs"
+Cohesion: 0.30
+Nodes (10): buildGenerationPreflight(), compactError(), execFileAsync, insertTarget(), normalizeTarget(), replaceTarget(), runGenerationPreflight(), sourceResolutionCache (+2 more)
+
+### Community 368 - "releasePreview"
+Cohesion: 0.29
+Nodes (8): documentLetterheadPreview(), documentLetterheadPreviewRef(), documentLetterheadSource(), handleDocumentLetterheadUpload(), releasePreview(), removeDocumentLetterhead(), resetDesignScopeChanges(), syncDesignScopeFromSelection()
+
+### Community 369 - "build-icons.mts"
+Cohesion: 0.17
+Nodes (10): @iconify/tools, ref_iconify_types, @iconify/utils, ref_node_module, BundleScriptConfig, BundleScriptCustomJSONConfig, BundleScriptCustomSVGConfig, require (+2 more)
+
+### Community 370 - "0001_07_01_000007_create_applicant_tables.php"
+Cohesion: 0.29
+Nodes (4): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}()
+
+### Community 371 - "GanttView.vue"
+Cohesion: 0.18
+Nodes (9): activeViewMode, handleDateChange(), isDrawerOpen, localDateString(), snackbar, store, viewOptions, addCalendarDays() (+1 more)
+
+### Community 372 - "0001_01_01_000000_create_users_table.php"
 Cohesion: 0.33
 Nodes (3): {closure#1}(), {closure#2}(), {closure#3}()
 
-### Community 367 - "2026_08_29_000001_replace_tertiary_setting_with_vuexy_theme_palette.php"
-Cohesion: 0.33
-Nodes (3): {closure#1}(), {closure#2}(), {closure#3}()
+### Community 373 - "2026_10_03_000001_create_attachments_table.php"
+Cohesion: 0.40
+Nodes (3): backfillDocuments(), {closure#1}(), up()
 
-### Community 368 - "2026_09_02_000003_add_commission_adjustments.php"
+### Community 374 - "contractDocumentDesigns.ts"
 Cohesion: 0.33
-Nodes (3): {closure#1}(), {closure#2}(), {closure#3}()
+Nodes (4): ContractDocumentDesign, ContractDocumentDesignApi, ContractDocumentDesignPayload, ContractDocumentDesignSafeArea
 
-### Community 372 - "2026_09_17_000001_add_versioned_contract_templates.php"
-Cohesion: 0.33
-Nodes (3): {closure#1}(), {closure#2}(), {closure#3}()
-
-### Community 373 - "2026_09_18_000000_applicant_stage_exit_and_appeal_paths.php"
-Cohesion: 0.67
-Nodes (5): apply(), down(), linear(), up(), withExits()
-
-### Community 374 - "2026_09_27_000003_add_applicant_attachments_and_remove_company.php"
-Cohesion: 0.33
-Nodes (3): {closure#1}(), {closure#2}(), {closure#3}()
-
-### Community 375 - "Role hierarchy implementation plan"
-Cohesion: 0.33
-Nodes (5): Authority model, Delivery checklist, Operational setup, Required acceptance tests, Role hierarchy implementation plan
+### Community 375 - "EmployeeScope"
+Cohesion: 0.16
+Nodes (8): EmployeeScope, Authority model, Completed, Delivery checklist, Guardrails for future modules, Operational setup, Required acceptance tests, Role hierarchy implementation plan
 
 ### Community 376 - "39. Phase 25 — Test Strategy"
 Cohesion: 0.33
@@ -1939,13 +1974,17 @@ Nodes (6): 46. Phase 32 — Role Examples, Administrator, Employee / Agent, Fina
 Cohesion: 0.33
 Nodes (3): currentPermissionName, Emit, Props
 
+### Community 381 - "Attaching Screenshots and Videos to Pull Requests"
+Cohesion: 0.40
+Nodes (5): Attaching Screenshots and Videos to Pull Requests, From a local session, From CI, Limits, When to attach
+
 ### Community 382 - "Impeccable Documenter"
 Cohesion: 0.40
 Nodes (4): Impeccable Documenter, Input Contract, Output Contract, Workflow
 
-### Community 383 - "Adaptation Strategies"
+### Community 383 - "2. Generate"
 Cohesion: 0.40
-Nodes (5): Adaptation Strategies, Orientation & foldables, Phone → Tablet (iPad / large screens), Platform → platform (iOS ↔ Android), Web → native (porting a website or web app)
+Nodes (5): 2.1 Inputs, 2.2 Generate one scenario, 2.3 Generate multiple scenarios, 2.4 Run generated tests, 2. Generate
 
 ### Community 384 - "Impeccable Documenter"
 Cohesion: 0.40
@@ -1959,9 +1998,33 @@ Nodes (5): autoload, psr-4, App\\, Database\\Factories\\, Database\\Seeders\\
 Cohesion: 0.40
 Nodes (4): Monolog\Handler\NullHandler, Monolog\Handler\StreamHandler, Monolog\Handler\SyslogUdpHandler, Monolog\Processor\PsrLogMessageProcessor
 
-### Community 402 - "Phase 0 — existing application analysis"
+### Community 387 - "hook.mjs"
+Cohesion: 0.70
+Nodes (4): isStopEvent(), main(), readStdin(), stdinIsStop()
+
+### Community 391 - "DropZone.vue"
 Cohesion: 0.40
-Nodes (5): Applicant baseline finding, Existing domain inventory, Foreign-key and lifecycle map relevant to this work, Phase 0 — existing application analysis, Reusable implementation patterns
+Nodes (3): dropZoneRef, FileData, { open, onChange }
+
+### Community 392 - "contrastingTextColor"
+Cohesion: 0.60
+Nodes (4): colorPreviewStyle(), applyAccessibleThemeColors(), contrastingTextColor(), normalizeHex()
+
+### Community 394 - "KanbanTaskEditForm.vue"
+Cohesion: 0.20
+Nodes (8): config, draft, emit, formRef, props, submit(), deleteKanbanItem(), handleDrawerModelValueUpdate()
+
+### Community 400 - ".post"
+Cohesion: 0.22
+Nodes (8): Fixed log (verified during this review — do not re-report), 1. Requests → diagnosis → decisions, 3. Implementation steps, 4. Progress log, R1. Packages must be assignable to the applicant in the visa case, R2. Contracts section: remove "add contract", add "print" exactly like contracts page, R4. Finance "new transaction" form only allows the base currency, Visa Case Page Enhancements — Plan & Progress
+
+### Community 401 - "iOS platform"
+Cohesion: 0.22
+Nodes (9): Color & materials, Components & controls, iOS platform, Layout & structure, Motion, The iOS slop test, Touch targets, Typography (+1 more)
+
+### Community 402 - "AppCardCode.vue"
+Cohesion: 0.22
+Nodes (8): shiki, CodeLanguages, CodeProp, codeSnippet, { copy, copied }, isCodeShown, preferredCodeLanguage, Props
 
 ### Community 403 - "overrides"
 Cohesion: 0.40
@@ -1971,9 +2034,9 @@ Nodes (5): esbuild@>=0.27.3 <0.28.1, minimatch@<3.1.5, minimatch@>=9.0.0 <9.0.7,
 Cohesion: 0.50
 Nodes (4): Heuristics Scoring Guide, Issue Severity (P0–P3), Reference Material, Score Summary
 
-### Community 405 - "sanctum.php"
-Cohesion: 0.50
-Nodes (3): Illuminate\Cookie\Middleware\EncryptCookies, Illuminate\Foundation\Http\Middleware\ValidateCsrfToken, Laravel\Sanctum\Http\Middleware\AuthenticateSession
+### Community 405 - "env.d.ts"
+Cohesion: 0.40
+Nodes (4): ImportMeta, ImportMetaEnv, RouteMeta, vue-router
 
 ### Community 406 - "Office geofencing and automatic attendance"
 Cohesion: 0.50
@@ -1986,6 +2049,10 @@ Nodes (4): 18. Posting Approved Transactions, Expense, Income, Salary
 ### Community 408 - "6. Phase 2 — Contract Architecture"
 Cohesion: 0.50
 Nodes (4): 6.1 Contract Type, 6.2 Contract Template, 6.3 Contract Template Version, 6. Phase 2 — Contract Architecture
+
+### Community 409 - "graphify.js"
+Cohesion: 0.40
+Nodes (3): IMPORTANT: keep the reminder string free of backticks and $(...) constructs., ref_fs, ref_path
 
 ### Community 411 - "blank.vue"
 Cohesion: 0.50
@@ -2020,24 +2087,24 @@ Cohesion: 0.67
 Nodes (3): chartModel, dateFieldFor(), groupRowsByDate()
 
 ## Knowledge Gaps
-- **3156 isolated node(s):** `here`, `API_BASE`, `API_TIMEOUT_MS`, `localStates`, `PING_KINDS` (+3151 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 4789 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **78 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **3483 isolated node(s):** `here`, `API_BASE`, `API_TIMEOUT_MS`, `localStates`, `PING_KINDS` (+3478 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 5047 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **59 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `vue-i18n` connect `vue-i18n` to `CrmRelationshipDetails.vue`, `KanbanView.vue`, `applicant-case.vue`, `timesheet_template.vue`, `DirectoryCrudPage.vue`, `settings.vue`, `ProjectFormWarningGuard.vue`, `t`, `runtime-test.mjs`, `audits.vue`, `support.vue`, `package.json`, `educational-dashboard.vue`, `components.d.ts`, `applicant-portal.vue`, `policy_library.vue`, `educational-services.vue`, `notifications.vue`, `recurring-events.vue`, `FullDetailsButton.vue`, `educational-master-data.vue`, `ContractDocumentPrinter.vue`, `BonusRulesDialog.vue`, `applicants.vue`, `reports.vue`, `timesheet.vue`, `paid_time_offs.vue`, `pending-transactions.vue`, `educational-reports.vue`, `vuetify/index.ts`, `vuetify`, `applicant-pipeline.vue`?**
-  _High betweenness centrality (0.203) - this node is a cross-community bridge._
-- **Why does `vue` connect `vue` to `CrmRelationshipDetails.vue`, `RoleFormDialog.vue`, `KanbanView.vue`, `applicant-case.vue`, `axios.ts`, `DirectoryCrudPage.vue`, `timesheet_template.vue`, `settings.vue`, `useBranding.ts`, `KanbanBoardEditDrawer.vue`, `ProjectFormWarningGuard.vue`, `TaskEventModal.vue`, `TodoMatrixView.vue`, `policies.vue`, `t`, `routes.ts`, `expenses.vue`, `createUrl.ts`, `vue-router`, `package.json`, `DataTablePageKpis.vue`, `educational-dashboard.vue`, `api/contracts.ts`, `TaskDetailDrawer.vue`, `ContractForm.vue`, `staff_list.vue`, `components.d.ts`, `staff_salary.vue`, `GanttView.vue`, `applicant-portal.vue`, `contract_list.vue`, `income.vue`, `roles.vue`, `printDocument`, `auto-imports.d.ts`, `policy_library.vue`, `commissions.vue`, `visitor.vue`, `CalendarView.vue`, `bonuslist.vue`, `OfficeSettingsPanel.vue`, `apiErrorMessage`, `TaskAppShell.vue`, `educational-services.vue`, `ContractTypeSelector.vue`, `innvoice.vue`, `recurring-events.vue`, `FullDetailsButton.vue`, `educational-master-data.vue`, `ContractDocumentPrinter.vue`, `BonusRulesDialog.vue`, `vue-i18n`, `applicants.vue`, `asset.vue`, `useTaskStore.ts`, `currencies.vue`, `TaskCommentsDrawer.vue`, `reports.vue`, `timesheet.vue`, `DefaultLayoutWithVerticalNav.vue`, `paid_time_offs.vue`, `pending-transactions.vue`, `educational-reports.vue`, `services.vue`, `vuetify/index.ts`, `vuetify`, `formErrors.ts`, `invoice_template.vue`, `payslip_template.vue`, `applicant-pipeline.vue`?**
-  _High betweenness centrality (0.091) - this node is a cross-community bridge._
-- **Why does `Customer` connect `Customer → Applicant Merge` to `Illuminate\Support\Facades\DB`, `User`, `ContractForm.vue`?**
-  _High betweenness centrality (0.084) - this node is a cross-community bridge._
+- **Why does `vue-i18n` connect `vue-i18n` to `CrmRelationshipDetails.vue`, `KanbanView.vue`, `t`, `timesheet_template.vue`, `settings.vue`, `ProjectFormWarningGuard.vue`, `applicants.vue`, `localization.ts`, `runtime-test.mjs`, `audits.vue`, `support.vue`, `package.json`, `canAccess`, `educational-dashboard.vue`, `components.d.ts`, `applicant-portal.vue`, `educational-master-data.vue`, `policy_library.vue`, `TheCustomizer.vue`, `BonusRulesDialog.vue`, `home.vue`, `educational-services.vue`, `notifications.vue`, `recurring-events.vue`, `FullDetailsButton.vue`, `applicant-pipeline.vue`, `ContractDocumentPrinter.vue`, `reports.vue`, `timesheet.vue`, `apiErrorMessage`, `pending-transactions.vue`, `educational-reports.vue`, `vuetify/index.ts`?**
+  _High betweenness centrality (0.204) - this node is a cross-community bridge._
+- **Why does `9. Progress log` connect `TestCase` to `Frontend`, `Contract Template & Document Artwork Sanifier`, `ContractDocumentDesignService`, `ContractController`, `ContractTemplate`, `Task`, `ContractTemplateController.php`, `Attendance`?**
+  _High betweenness centrality (0.094) - this node is a cross-community bridge._
+- **Why does `saveDocumentDesign()` connect `Frontend` to `TestCase`, `settings.vue`?**
+  _High betweenness centrality (0.093) - this node is a cross-community bridge._
 - **What connects `here`, `API_BASE`, `API_TIMEOUT_MS` to the rest of the system?**
-  _3156 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _3483 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Illuminate\Database\Eloquent\Relations\BelongsTo` be split into smaller, more focused modules?**
-  _Cohesion score 0.01840757808499744 - nodes in this community are weakly interconnected._
-- **Should `User` be split into smaller, more focused modules?**
-  _Cohesion score 0.023930974603863685 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.018045943867743174 - nodes in this community are weakly interconnected._
+- **Should `TestCase` be split into smaller, more focused modules?**
+  _Cohesion score 0.02563965600128198 - nodes in this community are weakly interconnected._
 - **Should `checks.mjs` be split into smaller, more focused modules?**
-  _Cohesion score 0.02917742116485243 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.02844568484328038 - nodes in this community are weakly interconnected._

@@ -6,6 +6,7 @@ use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\Applicant;
 use App\Models\Currency;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Service;
 use App\Models\User;
@@ -54,6 +55,22 @@ class ContractTemplateUpdateTest extends TestCase
             'cover_text' => 'Cover',
             'content' => '<p>Terms</p>',
         ])->assertUnprocessable()->assertJsonValidationErrors('service_id');
+    }
+
+    public function test_a_template_viewer_without_the_package_permission_can_list_packages(): void
+    {
+        $viewer = User::factory()->create();
+        $role = Role::firstOrCreate(['name' => 'template_viewer']);
+        $role->permissions()->sync(Permission::query()->where('name', 'view_contract_templates')->pluck('id'));
+        $viewer->roles()->attach($role);
+
+        Sanctum::actingAs($viewer, ['access']);
+
+        // The template editor loads the package catalogue, so reading
+        // packages must be allowed to template viewers.
+        $this->getJson('/api/packages')->assertOk();
+
+        $this->getJson('/api/contract-templates')->assertOk();
     }
 
     public function test_customer_template_accepts_a_package_instead_of_a_service(): void

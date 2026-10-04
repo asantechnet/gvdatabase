@@ -65,6 +65,9 @@ class RolePermissionSeeder extends Seeder
                 'create_comments_on_assigned_tasks', 'edit_all_comments', 'edit_own_comments', 'delete_all_comments', 'delete_own_comments',
                 'view_visitors', 'create_visitors', 'edit_visitors',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications', 'send_notifications', 'send_all_notifications',
+                // Managers may announce to scoped audiences and applicants but
+                // not company-wide, and only see their own announcements.
+                'send_announcements', 'announce_to_applicants',
                 'upload_files', 'view_files', 'download_files',
                 'view_country', 'create_country', 'edit_country', 'view_education_level', 'create_education_level', 'edit_education_level',
                 'view_language', 'create_language', 'edit_language', 'view_package_type', 'create_package_type', 'edit_package_type', 'view_packages', 'manage_packages', 'issue_packages',

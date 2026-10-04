@@ -46,8 +46,8 @@ export interface DashboardData {
     attendance_marked: number | null
     monthly_expenses: number | null
     monthly_net_cash: number | null
-    customer_count: number | null
-    new_customers_this_month: number | null
+    applicant_count: number | null
+    new_applicants_this_month: number | null
     open_invoice_count: number | null
     open_invoice_value: number | null
     employee_count: number | null
@@ -79,7 +79,7 @@ export interface DashboardData {
     expenses: number[]
   } | null
   expense_breakdown: Array<{ label: string; value: number }>
-  top_customers: Array<{ id: string; name: string; value: number }>
+  top_applicants: Array<{ id: string; name: string; value: number }>
   receivables: Array<{
     id: string
     number: string
@@ -110,8 +110,8 @@ export interface DashboardData {
     title: string
   }>
   commercial_overview: {
-    customers: number | null
-    new_customers_this_month: number | null
+    applicants: number | null
+    new_applicants_this_month: number | null
     invoice_total: number | null
     collected_total: number | null
     collection_rate: number
@@ -136,7 +136,7 @@ export interface DashboardData {
   kpi_trends: {
     labels: string[]
     invoiceValue: number[]
-    customers: number[]
+    applicants: number[]
     payroll: number[]
     visitors: number[]
     completedTasks: number[]

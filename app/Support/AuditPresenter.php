@@ -15,6 +15,7 @@ use App\Models\Invoice;
 use App\Models\Office;
 use App\Models\Package;
 use App\Models\PaymentDetail;
+use App\Models\PendingTransaction;
 use App\Models\Position;
 use App\Models\Service;
 use App\Models\Task;
@@ -60,6 +61,9 @@ final class AuditPresenter
         'contract_id' => Contract::class,
         'company_id' => Company::class,
         'payment_detail_id' => PaymentDetail::class,
+        'base_currency_id' => Currency::class,
+        'recorded_by' => User::class,
+        'pending_transaction_id' => PendingTransaction::class,
     ];
 
     public function present(AuditLog $audit): array
@@ -154,6 +158,9 @@ final class AuditPresenter
             'contract_type_id' => 'contractType',
             'company_id' => 'company',
             'payment_detail_id' => 'paymentMethod',
+            'base_currency_id' => 'baseCurrency',
+            'recorded_by' => 'recordedBy',
+            'pending_transaction_id' => 'pendingTransaction',
             default => Str::camel($field),
         };
     }

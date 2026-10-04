@@ -54,6 +54,7 @@ return [
             'task_contributions_must_total_100' => 'Contribution percentages must total 100%.',
             'task_contributions_assignees_mismatch' => 'Provide one contribution percentage for every assigned user.',
             'task_contribution_user_not_assigned' => 'Every contribution user must be assigned to the task.',
+            'task_assignee_outside_department' => 'A department manager can only assign tasks to members of their own department.',
             'employee_profile_missing' => 'No employee profile is associated with this account.',
             'two_factor_code_invalid' => 'The authentication code is invalid or expired.',
             'customer_has_invoice_history' => 'Customers with invoice history cannot be deleted.',

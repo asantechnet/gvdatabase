@@ -35,6 +35,29 @@ export function notificationText(notification: AppNotification, translate: Trans
   }
 
   const normalizedKey = String(notification.data?.translation_key || (key?.startsWith('bonus.review.') ? 'bonus.review' : key))
+
+  // Announcements carry their own content; only the surrounding labels are
+  // localized so the author's words are never replaced by a template.
+  // Labels are returned as a list so the UI can render them as tags instead of
+  // flattening them into the message body.
+  if (normalizedKey.startsWith('announcement.')) {
+    // The sender is surfaced on its own so it stays visible when the
+    // announcement has a title, instead of only acting as a title fallback.
+    const sender = String(notification.data?.announcement_sender ?? '').trim()
+
+    return {
+      title: notification.title || sender || translate('notifications.announcement.fallbackTitle'),
+      message: notification.message ?? '',
+      sender,
+      labels: Array.isArray(notification.data?.announcement_labels)
+        ? (notification.data?.announcement_labels as unknown[])
+          .filter((label): label is string => typeof label === 'string')
+          .map(label => label.trim())
+          .filter(label => label !== '')
+        : [],
+    }
+  }
+
   const baseKey = normalizedKey ? `notifications.${normalizedKey}` : `notifications.types.${notification.type}`
   const title = translate(`${baseKey}.title`, values)
   const message = translate(`${baseKey}.message`, values)
@@ -42,5 +65,7 @@ export function notificationText(notification: AppNotification, translate: Trans
   return {
     title: title && !title.startsWith('[missing:') ? title : (notification.title ?? translateBackendValue(notification.type)),
     message: message && !message.startsWith('[missing:') ? message : (notification.message ?? ''),
+    sender: '',
+    labels: [],
   }
 }

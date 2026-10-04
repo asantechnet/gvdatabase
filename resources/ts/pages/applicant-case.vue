@@ -5,10 +5,11 @@ import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import ApplicantApi, { type Applicant, type ApplicantStage, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment } from '@/api/applicants'
 import ApplicantPortalApi from '@/api/applicantPortal'
-import ContractApi from '@/api/contracts'
+import ContractApi, { type Contract } from '@/api/contracts'
 import ContractTemplateApi, { type ContractTemplate } from '@/api/contractTemplate'
 import BoardApi from '@/api/board'
 import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
+import ContractDocumentPrinter from '@/components/contract/ContractDocumentPrinter.vue'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import PendingTransactionApi, { type PendingTransactionInput, type PendingTransactionOptions } from '@/api/pendingTransactions'
@@ -41,7 +42,6 @@ const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
 const canViewFinance = computed(() => canAccess('view_applicant_financials'))
 const canCreatePendingTransactions = computed(() => canAccess('create_pending_transactions'))
 const canViewContracts = computed(() => canAccess('view_applicant_contracts'))
-const canCreateContracts = computed(() => canAccess('create_contracts'))
 const canViewServices = computed(() => canAccess('view_applicant_services'))
 const canManageServices = computed(() => canAccess('create_contracts'))
 // Family contact and the grade metric are shown next to the case title so
@@ -111,6 +111,11 @@ const portalForm = ref({ name: '', email: '', phone: '', address: '' })
 const contractDialog = ref(false)
 const savingContract = ref(false)
 const contractTemplates = ref<ContractTemplate[]>([])
+// Individual contracts print through the same dialog the contracts workspace
+// uses, so the cover, letterhead, signature and party-detail options match.
+const contractPrintDialog = ref(false)
+const contractToPrint = ref<Contract | null>(null)
+const printingContractId = ref<number | null>(null)
 const financeDialog = ref(false)
 const savingFinance = ref(false)
 const financeOptions = ref<PendingTransactionOptions>({ currencies: [], employees: [], applicants: [] })
@@ -435,6 +440,20 @@ async function setPrimaryUniversity(universityId: number) {
   }
 }
 
+async function openContractPrint(contract: { id: number }) {
+  printingContractId.value = contract.id
+  try {
+    contractToPrint.value = await ContractApi.getById(contract.id)
+    contractPrintDialog.value = true
+  }
+  catch {
+    toast.error(t('educational.caseUi.printContractFailed'))
+  }
+  finally {
+    printingContractId.value = null
+  }
+}
+
 async function openContractDialog() {
   try {
     contractTemplates.value = (await ContractTemplateApi.getAll()).filter(template => template.type_slug === 'customer')
@@ -597,15 +616,6 @@ onMounted(async () => {
         <VListItem v-for="task in doneTasks" :key="`done-${task.id}`" :title="task.title" :subtitle="t('educational.caseUi.complete')"><template #prepend><VIcon icon="tabler-check" color="success" /></template></VListItem>
       </VList>
       <p v-if="!applicant.tasks?.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noTasks') }}</p>
-      <template v-if="canViewContracts">
-        <div class="d-flex align-center mt-4">
-          <h3>{{ t('educational.caseUi.contracts') }}</h3>
-          <VSpacer />
-          <VBtn v-if="canCreateContracts" size="small" prepend-icon="tabler-file-plus" @click="openContractDialog">{{ t('pages.contracts.allContracts.allContracts.createContract') }}</VBtn>
-        </div>
-        <VList><VListItem v-for="contract in applicant.contracts" :key="contract.id" :title="contract.contract_number" :subtitle="translateBackendValue(contract.status)" /></VList>
-        <p v-if="!applicant.contracts?.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noContracts') }}</p>
-      </template>
       <div class="d-flex align-center mt-4">
         <h3>{{ t('educational.caseUi.universityApplications') }}</h3>
         <VSpacer />
@@ -633,7 +643,27 @@ onMounted(async () => {
           <VBtn v-if="canManageServices" size="small" prepend-icon="tabler-plus" @click="openContractDialog()">New contract</VBtn>
         </div>
         <VList>
-          <VListItem v-for="row in applicant.services" :key="`service-${row.id}`" :title="row.type" :subtitle="t('educational.caseUi.serviceSummary', { fee: feeOf(row), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), status: row.status ? translateBackendValue(row.status) : t('common.messages.notAvailable') })">
+          <VListItem
+            v-for="row in applicant.services"
+            :key="`service-${row.id}`"
+            :title="row.type"
+            :subtitle="t('educational.caseUi.serviceSummary', { fee: feeOf(row), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), status: row.status ? translateBackendValue(row.status) : t('common.messages.notAvailable') })"
+          >
+            <template v-if="row.contract_id && canViewContracts" #append>
+              <VBtn
+                icon="tabler-printer"
+                size="small"
+                variant="text"
+                :loading="printingContractId === row.contract_id"
+                :aria-label="t('pages.contracts.allContracts.allContracts.printContract')"
+                @click="openContractPrint({ id: row.contract_id })"
+              >
+                <VIcon icon="tabler-printer" />
+                <VTooltip activator="parent" location="top">
+                  {{ row.contract_number || t('pages.contracts.allContracts.allContracts.printContract') }}
+                </VTooltip>
+              </VBtn>
+            </template>
           </VListItem>
         </VList>
         <p v-if="!applicant.services?.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noServices') }}</p>
@@ -720,7 +750,6 @@ onMounted(async () => {
           <VCol cols="12" sm="6"><VSelect v-model="editForm.semester_id" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="t('educational.semester')" clearable class="mb-3" /></VCol>
         </VRow>
         <VTextField v-model="editForm.application_date" type="date" :label="t('educational.applicationDate')" clearable />
-        <p class="text-caption text-medium-emphasis mt-2">{{ t('educational.caseUi.caseEditHint') }}</p>
       </VCardText>
       <VCardActions>
         <VSpacer />
@@ -744,6 +773,7 @@ onMounted(async () => {
       </VCardActions>
     </VCard>
   </VDialog>
+  <ContractDocumentPrinter v-model="contractPrintDialog" :contract="contractToPrint" />
   <VDialog v-model="contractDialog" max-width="760">
     <VCard title="Create visa case contract">
       <VCardText class="case-dialog-body">

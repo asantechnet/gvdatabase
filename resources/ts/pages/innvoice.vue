@@ -932,6 +932,8 @@ onMounted(async () => {
             v-if="activePrintInvoice"
             ref="invoiceTemplateRef"
             v-bind="formatInvoiceForTemplate(activePrintInvoice)"
+            :letterhead-url="companySetting?.letterheads?.invoice?.url || undefined"
+            :letterhead-safe="companySetting?.letterheads?.invoice?.safe"
           />
         </VCardText>
       </VCard>

@@ -6,13 +6,13 @@ const props = defineProps<{
   modelValue: boolean
   initialExpense: ExpenseFormData | null
   currencyOptions: Array<{ title: string; value: number; rate: number }>
-  companyOptions: Array<{ title: string; value: number }>
   projectOptions: Array<{ title: string; value: number }>
   mode: 'create' | 'edit'
 }>()
 
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; submit: [value: ExpenseFormData] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; submit: [value: ExpenseFormData, mode: 'direct' | 'loan'] }>()
 const form = ref<Partial<ExpenseFormData>>({})
+const saveMode = ref<'direct' | 'loan'>('direct')
 const formError = ref('')
 const errors = ref<Record<string, string>>({})
 
@@ -20,6 +20,7 @@ watch(() => props.modelValue, open => {
   if (!open)
     return
   form.value = { ...props.initialExpense }
+  saveMode.value = 'direct'
   errors.value = {}
   formError.value = ''
 })
@@ -60,7 +61,7 @@ function validate() {
 
 function submit() {
   if (validate())
-    emit('submit', { ...form.value } as ExpenseFormData)
+    emit('submit', { ...form.value } as ExpenseFormData, saveMode.value)
 }
 </script>
 
@@ -136,22 +137,37 @@ function submit() {
               md="6"
             >
               <VSelect
-                v-model="form.company_id"
-                :items="companyOptions"
-                label="Company (optional)"
-                clearable
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VSelect
                 v-model="form.project_id"
                 :items="projectOptions"
                 label="Project (optional)"
                 clearable
               />
+            </VCol>
+            <VCol
+              v-if="mode === 'create'"
+              cols="12"
+            >
+              <div class="d-flex flex-wrap gap-4 mb-1">
+                <VBtn
+                  :color="saveMode === 'direct' ? 'primary' : 'secondary'"
+                  :variant="saveMode === 'direct' ? 'flat' : 'outlined'"
+                  prepend-icon="tabler-device-floppy"
+                  @click="saveMode = 'direct'"
+                >
+                  {{ $t('pages.finance.expenses.expenses.saveModeDirect') }}
+                </VBtn>
+                <VBtn
+                  :color="saveMode === 'loan' ? 'primary' : 'secondary'"
+                  :variant="saveMode === 'loan' ? 'flat' : 'outlined'"
+                  prepend-icon="tabler-send"
+                  @click="saveMode = 'loan'"
+                >
+                  {{ $t('pages.finance.expenses.expenses.saveModeLoan') }}
+                </VBtn>
+              </div>
+              <p class="text-caption text-medium-emphasis mb-0">
+                {{ saveMode === 'loan' ? $t('pages.finance.expenses.expenses.saveModeLoanHint') : $t('pages.finance.expenses.expenses.saveModeDirectHint') }}
+              </p>
             </VCol>
             <VCol cols="12">
               <VTextarea

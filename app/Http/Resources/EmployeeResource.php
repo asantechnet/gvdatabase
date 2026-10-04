@@ -2,11 +2,14 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\PresentsAttachments;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class EmployeeResource extends JsonResource
 {
+    use PresentsAttachments;
+
     public function toArray(Request $request): array
     {
         return [
@@ -61,6 +64,7 @@ class EmployeeResource extends JsonResource
             'addr' => $this->addr,
             'avatar' => $this->avatar,
             'document' => $this->document_path ? ['name' => $this->document_name, 'mimeType' => $this->document_mime, 'size' => $this->document_size, 'downloadUrl' => "/api/employees/{$this->id}/document"] : null,
+            'attachments' => $this->attachmentsPayload('employees', $this->id),
             'join_date' => $this->join_date->format('Y-m-d'),
             'contract_duration' => $this->contract_duration,
         ];

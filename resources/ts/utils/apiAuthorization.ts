@@ -69,6 +69,18 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
 
   const special: Record<string, string[]> = {
     'GET /invoices/commission-candidates': ['view_invoices'],
+    // Printable receipt payload for a single income record.
+    'GET /incomes/:id/receipt': ['view_incomes'],
+    // The loans workspace is the pending-transaction workflow under a
+    // friendlier name; both paths must mirror the same server permissions.
+    'GET /loans': ['view_pending_transactions'],
+    'GET /loans/options': ['create_pending_transactions'],
+    'POST /loans': ['create_pending_transactions'],
+    'PUT /loans/:id': ['create_pending_transactions'],
+    'POST /loans/:id/review': ['approve_pending_transactions'],
+    'POST /loans/:id/approve': ['approve_pending_transactions'],
+    'POST /loans/:id/reject': ['approve_pending_transactions'],
+    'POST /loans/:id/post': ['post_pending_transactions'],
     'GET /commissions/accruals': ['view_commissions'],
     'GET /commissions/summary': ['view_commissions'],
     'POST /commissions/adjustments': ['manage_commission_settlements'],
@@ -97,6 +109,9 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'PUT /tasks/:id/comments/:id': ['edit_all_comments', 'edit_own_comments'],
     'DELETE /tasks/:id/comments/:id': ['delete_all_comments', 'delete_own_comments'],
     'GET /permissions': ['view_permissions'],
+    // The contract-template editor reads the package catalogue too, so a
+    // template viewer may list packages without the package permission.
+    'GET /packages': ['view_packages', 'view_contract_templates'],
     'POST /permissions': ['manage_role_permissions'],
     'PUT /permissions/:id': ['manage_role_permissions'],
     'DELETE /permissions/:id': ['manage_role_permissions'],
@@ -140,6 +155,8 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'POST /applicants/:id/change-stage': ['change_applicant_stage'],
     'GET /applicant-portal': ['view_own_applicant_portal'],
     'PUT /applicant-portal/profile': ['edit_own_applicant_profile'],
+    'GET /applicant-portal/attachments': ['view_own_applicant_portal'],
+    'POST /applicant-portal/attachments': ['edit_own_applicant_profile'],
     'POST /applicants/:id/portal-invitation': ['invite_applicant_portal'],
     'GET /applicants/:id/universities': ['view_applicants'],
     'POST /applicants/:id/universities': ['edit_applicants'],
@@ -210,6 +227,12 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'DELETE /files/delete': ['delete_files'],
   }
 
+  // Shared attachment endpoints (expenses, incomes, staff). The server enforces
+  // the exact resource permission; here we only need any of the matching ones.
+  if (path.startsWith('/attachments/')) {
+    return ['view_expenses', 'view_incomes', 'view_employees', 'edit_expenses', 'edit_incomes', 'edit_employees']
+  }
+
   if (path.startsWith('/employees/:id/paid-time-offs')) {
     if (requestMethod === 'GET')
       return ['view_paid_time_off']
@@ -235,6 +258,15 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
   }
   if (path === '/worthy-employees/:id' && requestMethod === 'DELETE')
     return ['delete_bonus_nominations']
+
+  if (path === '/announcements' && requestMethod === 'GET')
+    return ['send_announcements']
+  if (path === '/announcements' && requestMethod === 'POST')
+    return ['send_announcements']
+  if (path === '/announcements/audience-options' && requestMethod === 'GET')
+    return ['send_announcements']
+  if (path === '/announcements/:id' && requestMethod === 'GET')
+    return ['send_announcements']
 
   if (path === '/notifications' && requestMethod === 'GET')
     return ['view_own_notifications']

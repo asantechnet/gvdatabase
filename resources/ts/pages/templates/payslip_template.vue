@@ -34,6 +34,13 @@ export interface EarningDeduction {
   amount: number
 }
 
+export interface LetterheadSafeArea {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface SalarySlipProps {
   documentTitle?: string
   documentNumber?: string
@@ -45,6 +52,10 @@ export interface SalarySlipProps {
   deductions: EarningDeduction[]
   reimbursements?: EarningDeduction[]
   amountInWords: string
+  /** Optional letterhead artwork from Settings → Documents. */
+  letterheadUrl?: string
+  /** Safe-zone (percent of the page) where the payslip content is allowed to land. */
+  letterheadSafe?: LetterheadSafeArea
 }
 
 const props = withDefaults(defineProps<SalarySlipProps>(), {
@@ -52,9 +63,24 @@ const props = withDefaults(defineProps<SalarySlipProps>(), {
   currency: 'AFN',
   deductions: () => [],
   reimbursements: () => [],
+  letterheadUrl: '',
+  letterheadSafe: () => ({ x: 8, y: 14, width: 84, height: 72 }),
 })
 
 const payslipContainerRef = ref<HTMLElement | null>(null)
+
+const hasLetterhead = computed(() => Boolean(props.letterheadUrl))
+
+const letterheadBackground = computed(() => (props.letterheadUrl
+  ? { backgroundImage: `url(${props.letterheadUrl})` }
+  : undefined))
+
+const letterheadSafeStyle = computed(() => ({
+  insetInlineStart: `${props.letterheadSafe?.x ?? 8}%`,
+  insetBlockStart: `${props.letterheadSafe?.y ?? 14}%`,
+  width: `${props.letterheadSafe?.width ?? 84}%`,
+  height: `${props.letterheadSafe?.height ?? 72}%`,
+}))
 
 // Computed properties
 const grossSalary = computed(() => {
@@ -132,6 +158,12 @@ const printSalarySlip = () => {
             width: 100%;
             max-width: 100%;
             margin: 0 auto;
+            position: relative;
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .payslip-container.persian-document {
             font-family: Vazirmatn, 'Public Sans', sans-serif;
@@ -374,9 +406,15 @@ defineExpose({
   <div
     ref="payslipContainerRef"
     class="payslip-container print-document"
-    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale) }"
+    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale), 'payslip-container--letterhead': hasLetterhead }"
+    :style="letterheadBackground"
     :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
   >
+    <div
+      class="payslip-content"
+      :class="{ 'payslip-content--safe': hasLetterhead }"
+      :style="hasLetterhead ? letterheadSafeStyle : undefined"
+    >
     <!-- Corporate Header -->
     <header class="payslip-header">
       <div class="company-info">
@@ -608,6 +646,7 @@ defineExpose({
     <div class="compliance-footer">
       <p>{{ $t('documents.payslip_template.payslipTemplate.thisDocumentIsGeneratedInComplianceWithTheAfghanistanLaborLawAndMinist') }}</p>
     </div>
+    </div>
   </div>
 </template>
 
@@ -621,6 +660,27 @@ defineExpose({
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
+  position: relative;
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* With a letterhead the safe-zone owns all spacing, so the built-in padding is dropped. */
+.payslip-container--letterhead {
+  padding: 0;
+}
+
+.payslip-content {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+}
+
+.payslip-content--safe {
+  position: absolute;
+  padding: 5mm;
+  overflow: hidden;
 }
 
 .payslip-container.persian-document {

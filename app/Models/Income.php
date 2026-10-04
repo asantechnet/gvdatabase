@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Income extends Model
@@ -51,6 +52,11 @@ class Income extends Model
         'currency_id' => 'integer',
         'base_currency_id' => 'integer',
     ];
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
+    }
 
     public function applicant(): BelongsTo
     {
@@ -107,9 +113,10 @@ class Income extends Model
         return 'receipt_number';
     }
 
+    /** Receipts share the invoice numbering shape: RCPT-{year}-{000123}. */
     protected function documentNumberPrefix(): string
     {
-        return 'RCP';
+        return 'RCPT';
     }
 
     protected static function booted()

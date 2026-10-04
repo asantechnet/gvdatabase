@@ -224,7 +224,7 @@ const saveBonusReview = async () => {
       <PerfectScrollbar class="flex-grow-1">
         <VForm
           ref="refEditTaskForm"
-          class="pa-5"
+          class="pa-5 pt-7"
           @submit.prevent="updateTask"
         >
           <VRow>

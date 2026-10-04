@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { type PlaceholderGroup, getPlaceholders } from '@/api/contractPlaceholders'
 import ContractPolicyApi, { type ContractPolicy } from '@/api/contractPolicy'
-import ContractTemplateApi, { type ContractTemplateVersion } from '@/api/contractTemplate'
+import ContractTemplateApi, { type ContractTemplateCreateData, type ContractTemplateVersion } from '@/api/contractTemplate'
 import ContractTypeApi, { type ContractType, SYSTEM_TYPE_SLUGS } from '@/api/contractType'
 import PositionApi, { type Position } from '@/api/position'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
@@ -168,19 +168,22 @@ watch(contractTypeId, async () => {
   await loadPlaceholders()
 })
 
-// Enforce the exclusive subject binding: picking a package clears the
-// service (and its variant); picking a service clears the package.
-watch(packageId, value => {
-  if (value !== null) {
+// Enforce the exclusive subject binding from the pickers: choosing a package
+// clears the service (and its variant), choosing a service clears the package
+// and any variant of the previous service. The clearing lives on the select
+// events — not in a `watch` — so loading or resetting a template programmatically
+// never erases the stored variant.
+const onServicePick = (value: unknown) => {
+  if (value !== null && value !== undefined)
+    packageId.value = null
+  serviceVariantId.value = null
+}
+const onPackagePick = (value: unknown) => {
+  if (value !== null && value !== undefined) {
     serviceId.value = null
     serviceVariantId.value = null
   }
-})
-watch(serviceId, value => {
-  if (value !== null)
-    packageId.value = null
-  serviceVariantId.value = null
-})
+}
 
 const insertPolicy = () => {
   const policy = policies.value.find(item => item.id === selectedPolicyId.value)
@@ -435,7 +438,7 @@ const saveContract = async () => {
   // sends the pair explicitly so the backend can enforce the exclusivity:
   // a package arrives with a nulled service (no scope rows), a service
   // arrives with a nulled package (one single scope row, optional variant).
-  const payload: Record<string, unknown> = { name: contractName.value.trim(), contract_type_id: contractTypeId.value, service_id: serviceId.value, package_id: packageId.value, position_id: positionId.value, policy_ids: policyIds.value, cover_text: coverText.value, content: serialized }
+  const payload: ContractTemplateCreateData = { name: contractName.value.trim(), contract_type_id: contractTypeId.value, service_id: serviceId.value, package_id: packageId.value, position_id: positionId.value, policy_ids: policyIds.value, cover_text: coverText.value, content: serialized }
   if (serviceId.value !== null)
     payload.service_scopes = [{ service_id: serviceId.value, service_variant_id: serviceVariantId.value }]
   try {
@@ -625,6 +628,7 @@ watch(locale, async () => {
                 :hint="packageId ? tr('serviceDisabledHint') : undefined"
                 persistent-hint
                 :rules="[value => selectedType?.slug !== 'customer' || !!value || !!packageId || tr('validation.serviceOrPackageRequired')]"
+                @update:model-value="onServicePick"
               />
             </VCol>
             <VCol
@@ -643,6 +647,7 @@ watch(locale, async () => {
                 :hint="serviceId ? tr('packageDisabledHint') : undefined"
                 persistent-hint
                 :rules="[value => selectedType?.slug !== 'customer' || !!value || !!serviceId || tr('validation.serviceOrPackageRequired')]"
+                @update:model-value="onPackagePick"
               />
             </VCol>
             <VCol

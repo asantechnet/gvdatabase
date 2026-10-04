@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import type { ContractStatus } from '@/api/contracts'
 import ApplicantApi, { type Applicant } from '@/api/applicants'
+import AuthApi from '@/api/auth'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import PositionApi, { type Position } from '@/api/position'
@@ -11,11 +12,11 @@ import CounterpartyCard, { type CounterpartyDetails } from '@/components/contrac
 const { t } = useI18n()
 const tr = (key: string) => t(`pages.contracts.contractform.contractform.${key}`)
 
-// Signatory is the logged-in employee's name. Staff are locked to their own
-// employee name; super-admin is auto-filled but remains editable.
-const userData = useCookie<{ id?: number; name?: string; roles?: string[]; employee?: { id: number; name?: string } | null } | null>('userData')
-const isSuperAdmin = computed(() => userData.value?.roles?.includes('super_admin') ?? false)
-const accountName = computed(() => String(userData.value?.name ?? '').trim() || null)
+// Staff contracts must be signed with the logged-in employee's name.
+// Super-admins may choose another authorized signer.
+const userData = useCookie<{ id?: number; roles?: Array<string | { name?: string }>; employee?: { id: number; name?: string } | null } | null>('userData')
+const isSuperAdmin = computed(() => userData.value?.roles?.some(role =>
+  (typeof role === 'string' ? role : role.name) === 'super_admin') ?? false)
 
 export interface ContractFormPayload {
   template_id: number | null
@@ -46,6 +47,7 @@ interface TemplateOption {
   name: string
   type_slug?: string | null
   service_id?: number | null
+  package_id?: number | null
   service_scopes?: Array<{ service_id: number; service_variant_id?: number | null }>
   position_id?: number | null
   cover_text?: string | null
@@ -99,7 +101,7 @@ const currentEmployeeName = computed(() => {
   const match = employees.value.find(item => (employeeId != null && item.id === employeeId) || (userId != null && item.user_id === userId)) ?? null
   const cookieName = String(userData.value?.employee?.name ?? '').trim() || null
 
-  return (match?.name?.trim() || cookieName || accountName.value || null) as string | null
+  return (match?.name?.trim() || cookieName || null) as string | null
 })
 const isApplicantLocked = computed(() => props.applicantId != null)
 const countries = ref<MasterDataRecord[]>([])
@@ -130,25 +132,14 @@ const form = ref({
   company_signatory_name: (props.contract?.company_signatory_name ?? null) as string | null,
 })
 
-// Signatory defaults to the logged-in employee's name. Non-super-admin
-// staff are always locked to it; super-admin is auto-filled but editable.
 const applySignatoryDefault = (employeeName: string | null) => {
   if (!employeeName)
     return
-  if (isSuperAdmin.value) {
-    if (!form.value.company_signatory_name)
-      form.value.company_signatory_name = employeeName
-  }
-  else {
+
+  if (!isSuperAdmin.value || !form.value.company_signatory_name)
     form.value.company_signatory_name = employeeName
-  }
 }
-watch([isSuperAdmin, currentEmployeeName], ([superAdmin, employeeName]) => {
-  if (!superAdmin && employeeName)
-    form.value.company_signatory_name = employeeName
-  else if (superAdmin && employeeName && !form.value.company_signatory_name)
-    form.value.company_signatory_name = employeeName
-}, { immediate: true })
+watch([isSuperAdmin, currentEmployeeName], ([, employeeName]) => applySignatoryDefault(employeeName), { immediate: true })
 
 // ---------------------------------------------------------------------
 // Context metadata drives the whole form; no scattered if/else chains.
@@ -214,8 +205,11 @@ const audienceTemplates = computed(() => {
 })
 
 // No service picker on this page: the service is derived from the selected
-// template's bound service at submit time, so every template stays visible.
-const visibleTemplates = computed(() => audienceTemplates.value)
+// template's bound service at submit time. Package-bound templates are
+// excluded: a package is sold as a bundle (one agreement per package), never
+// assembled by hand on this form, and a customer contract always needs at
+// least one service line.
+const visibleTemplates = computed(() => audienceTemplates.value.filter(template => !template.package_id))
 
 const applicantOptions = computed(() => applicants.value.map(applicant => ({
   title: applicant.name,
@@ -285,13 +279,14 @@ const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
 
 onMounted(async () => {
   try {
-    const [applicantResult, employeeResult, countryResult, languageResult, serviceResult, positionResult] = await Promise.allSettled([
+    const [applicantResult, employeeResult, countryResult, languageResult, serviceResult, positionResult, authResult] = await Promise.allSettled([
       ApplicantApi.list({ per_page: 200 }),
       EmployeeApi.getOptions(),
       MasterDataApi.list('countries'),
       MasterDataApi.list('languages'),
       ServiceApi.getAll(),
       PositionApi.getAll(),
+      AuthApi.me(),
     ])
 
     if (applicantResult.status === 'fulfilled')
@@ -306,6 +301,8 @@ onMounted(async () => {
       services.value = serviceResult.value.data
     if (positionResult.status === 'fulfilled')
       positions.value = positionResult.value.data?.data ?? positionResult.value.data ?? []
+    if (authResult.status === 'fulfilled')
+      userData.value = authResult.value.data.data
 
     // A visa-case dialog passes its applicant explicitly; make sure that
     // record is selectable even when it falls outside the first page.

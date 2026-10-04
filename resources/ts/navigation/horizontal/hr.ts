@@ -67,6 +67,13 @@ export default [
         action: 'read',
         subject: 'view_positions',
       },
+      {
+        title: 'common.navigation.announcements',
+        icon: { icon: 'tabler-speakerphone' },
+        to: 'announcements',
+        action: 'read',
+        subject: 'send_announcements',
+      },
     ],
   },
 ]

@@ -1,5 +1,19 @@
 {
   "common": {
+    "attachments": {
+      "title": "ضمیمه‌ها",
+      "add": "افزودن فایل",
+      "acceptedHint": "PDF، تصویر، Office، CSV و فایل متنی تا ۱۰ مگابایت.",
+      "empty": "هنوز فایلی ضمیمه نشده است.",
+      "download": "دریافت",
+      "remove": "حذف",
+      "uploaded": "فایل بارگذاری شد.",
+      "removed": "فایل حذف شد.",
+      "loadFailed": "بارگذاری فهرست ضمیمه‌ها ممکن نشد.",
+      "uploadFailed": "بارگذاری فایل ممکن نشد.",
+      "downloadFailed": "دریافت فایل ممکن نشد.",
+      "removeFailed": "حذف فایل ممکن نشد."
+    },
     "actions": {
       "create": "ایجاد",
       "void": "باطل کردن",
@@ -303,6 +317,9 @@
       "addDeduction": "افزودن کسر",
       "noDeductionsAdded": "هیچ کسری اضافه نشده است.",
       "totalDeductions": "مجموع کسرات",
+      "totalDays": "مجموع روزها",
+      "automaticAttendanceDeduction": "روزهای مرخصی بدون معاش / غیبت",
+      "unpaidAndAbsentDays": "{days} روز کارنکرده",
       "remarks": "ملاحظات",
       "serialNumber": "شماره سریال",
       "itemName": "نام مورد",
@@ -456,7 +473,8 @@
       "serviceSales": "فروش خدمات",
       "pendingTransactions": "معاملات در انتظار",
       "loans": "قرضه‌ها / وام‌ها",
-      "educationalData": "داده‌های تحصیلی"
+      "educationalData": "داده‌های تحصیلی",
+      "announcements": "اعلامیه‌ها"
     },
     "tables": {},
     "dateTime": {},
@@ -887,7 +905,7 @@
           "yourAccountIsReadySignInWithThePasswordYouCreated": "حساب شما آماده است. با رمز عبوری که ایجاد کرده‌اید وارد شوید.",
           "emailAndPasswordAreRequired": "ایمیل و رمز عبور الزامی است.",
           "enterYourEmailAddressFirst": "ابتدا آدرس ایمیل خود را وارد کنید",
-          "asantechMiniManagement": "مدیریت کوچک آسان‌تک",
+          "asantechMiniManagement": "سیستم آموزشی",
           "welcome": "خوش آمدید!",
           "pleaseSignInToYourAccount": "لطفاً به حساب کاربری خود وارد شوید",
           "resendEmail": "ارسال مجدد ایمیل",
@@ -1618,6 +1636,15 @@
         "printSafeAreaOffsetY": "فاصله عمودی",
         "printSafeAreaWidth": "عرض",
         "printSafeAreaHeight": "ارتفاع",
+        "receiptInvoiceDocuments": "اسناد رسید و صورت‌حساب",
+        "receiptInvoiceDocumentsHint": "طرح سرصفحه برای رسیدها و صورت‌حساب‌ها. محدوده امن مشخص می‌کند متن‌های خودکار در کدام بخش قرار گیرند.",
+        "receiptLetterhead": "سرصفحه رسید",
+        "invoiceLetterhead": "سرصفحه صورت‌حساب",
+        "payslipLetterhead": "سرصفحه فیش معاش",
+        "letterheadSource": "منبع سرصفحه",
+        "letterheadSourceNone": "هیچ‌کدام (طرح پیش‌فرض)",
+        "letterheadSourceContract": "استفاده از سرصفحه قرارداد شرکت",
+        "letterheadSourceCustom": "بارگذاری اختصاصی",
         "resetDefaults": "بازنشانی به پیش‌فرض‌ها",
         "saveSettings": "ذخیره تنظیمات",
         "themeColorsPreviewHint": "تغییرات فوراً در برنامه پیش‌نمایش می‌شوند و فقط با انتخاب «ذخیره تغییرات» ذخیره خواهند شد.",
@@ -2327,6 +2354,11 @@
           "recordExpense2": "ثبت مصرف",
           "captureOutgoingCashWithItsLiveCurrencyRelationship": "ثبت پول نقد خروجی با رابطه زنده ارزی آن.",
           "saveExpense": "ذخیره مصرف",
+          "saveModeDirect": "ثبت مستقیم",
+          "saveModeLoan": "ارسال به قرضه‌ها",
+          "saveModeDirectHint": "مصرف بلافاصله در دفتر کل ثبت می‌شود.",
+          "saveModeLoanHint": "مبلغ به عنوان درخواست قرضه ارسال می‌شود و تنها پس از تأیید در دفتر کل ثبت می‌گردد.",
+          "loanSubmitted": "درخواست مصرف برای تأیید به قرضه‌ها ارسال شد.",
           "editExpense": "ویرایش مصرف",
           "updateTheRecordedSpendAndItsCurrency": "بروزرسانی مصرف ثبت‌شده و واحد پول آن.",
           "deleteExpense": "حذف مصرف؟",
@@ -2378,6 +2410,12 @@
           "selectAValidIncomeDate": "یک تاریخ معتبر درآمد را انتخاب کنید.",
           "cashflowCOMMANDCENTER": "مرکز فرماندهی جریان نقدی",
           "incomeLedger": "دفتر کل درآمد",
+          "saveMode": "روش ذخیره",
+          "saveModeDirect": "ثبت مستقیم",
+          "saveModeLoan": "ارسال به قرضه‌ها",
+          "saveModeDirectHint": "رسید بلافاصله در دفتر کل درآمد ثبت می‌شود.",
+          "saveModeLoanHint": "مبلغ به عنوان درخواست قرضه ارسال می‌شود و تنها پس از تأیید در دفتر کل ثبت می‌گردد.",
+          "loanSubmitted": "درخواست درآمد برای تأیید به قرضه‌ها ارسال شد.",
           "liveReceiptActivityInvoiceCollectionsAndCurrencyTotalsInOneView": "فعالیت زنده رسیدها، جمع‌آوری فاکتورها و مجموع ارزها در یک نما",
           "printIncomeRecords": "چاپ رکوردهای درآمد",
           "recordIncome": "ثبت درآمد",
@@ -2537,7 +2575,7 @@
           },
           "operations": {
             "label": "عملیات تجارتی",
-            "description": "مشتریان، خدمات، قراردادها، مراجعین، شرکت‌ها و تحویل.",
+            "description": "متقاضیان، خدمات، قراردادها، مراجعین، شرکت‌ها و تحویل.",
             "question": "آیا تقاضا به کار متعهد و تکمیل‌شده تبدیل می‌شود؟"
           }
         },
@@ -2553,7 +2591,7 @@
           "endDate": "تاریخ ختم",
           "employee": "کارمند",
           "office": "دفتر",
-          "customer": "مشتری",
+          "applicant": "متقاضی",
           "currency": "ارز",
           "taskBoard": "بورد وظایف",
           "contractType": "نوع قرارداد",
@@ -2596,7 +2634,7 @@
           "beyondSchedules": "بیشتر از برنامه لازم",
           "incompleteRecords": "ثبت‌های ناقص",
           "missingPunch": "ورود یا خروج ثبت نشده",
-          "newCustomers": "مشتریان جدید",
+          "newApplicants": "متقاضیان جدید",
           "addedInPeriod": "افزوده‌شده در این دوره",
           "visitors": "مراجعین",
           "commercialInterest": "علاقه تجارتی ثبت‌شده",
@@ -2614,7 +2652,7 @@
           "workedHours": "ساعات کاری",
           "requiredHours": "ساعات لازم",
           "visitors": "مراجعین",
-          "customers": "مشتریان",
+          "applicants": "متقاضیان",
           "contracts": "قراردادها",
           "taskDeadlines": "موعد وظایف",
           "noTrendData": "در این دوره داده روند وجود ندارد",
@@ -2637,9 +2675,9 @@
           "incompleteSessionsBody": "ثبت‌های ناقص باید پیش از آماده‌سازی معاش اصلاح شوند.",
           "supportRequests": "{count} درخواست کمک",
           "supportRequestsBody": "موانع ذکرشده در گزارش روزانه نیازمند پیگیری مدیریت است.",
-          "conversionRatio": "نرخ تبدیل مراجعه‌کننده به مشتری {rate}٪",
+          "conversionRatio": "نرخ تبدیل مراجعه‌کننده به متقاضی {rate}٪",
           "noVisitorActivity": "فعالیت مراجعه‌کننده وجود ندارد",
-          "conversionBody": "در دوره انتخابی {visitors} مراجعه‌کننده و {customers} مشتری جدید ثبت شده.",
+          "conversionBody": "در دوره انتخابی {visitors} مراجعه‌کننده و {applicants} متقاضی جدید ثبت شده.",
           "overdueRatio": "{rate}٪ وظایف گزارش‌شده تأخیری است",
           "noTaskCommitments": "تعهد وظیفه وجود ندارد",
           "overdueBody": "{overdue} از {tasks} وظیفه این گزارش نیازمند پیگیری است."
@@ -2946,7 +2984,8 @@
         "account_deactivation_rejected": "غیرفعال‌سازی رد شد",
         "account_deactivated": "حساب غیرفعال شد",
         "account_reactivated": "حساب دوباره فعال شد",
-        "other": "تغییر کرد"
+        "other": "تغییر کرد",
+        "announcement_sent": "اعلامیه ارسال شد"
       },
       "states": {
         "pending": "نیازمند تفتیش",
@@ -3020,12 +3059,14 @@
         "worthy_employees": "نامزدی‌های پاداش",
         "account_deactivations": "غیرفعال‌سازی حساب‌ها",
         "audit_settings": "تنظیمات تفتیش",
-        "other": "مورد کاری"
+        "other": "مورد کاری",
+        "announcements": "اعلامیه‌ها"
       },
       "fields": {
         "employee": "کارمند",
         "user": "کاربر",
         "customer": "مشتری",
+        "applicant": "متقاضی",
         "invoice": "فاکتور",
         "currency": "ارز",
         "office": "دفتر",
@@ -3140,6 +3181,51 @@
         "description": "از این صفحه برای فرستادن یک درخواست روشن استفاده کنید. دسته‌بندی، شدت، توضیحات و ضمیمه‌ها به پشتیبانی کمک می‌کند تا بدون حدس‌زدن مشکل را بررسی کند.",
         "actionTitle": "یک درخواست مفید بفرستید",
         "actionDescription": "شدت را براساس تأثیر عملیاتی انتخاب کنید، سپس نتیجه مورد انتظار، نتیجه واقعی و گام‌های تکرار را بنویسید. درخواست ذخیره و به صندوق پشتیبانی فرستاده می‌شود."
+      }
+    },
+    "announcements": {
+      "title": "اعلامیه‌ها",
+      "subtitle": "پیام‌های سراسری که مستقیماً به صندوق اطلاع‌رسانی کارمندان تحویل می‌شوند.",
+      "compose": "اعلامیه جدید",
+      "couldNotLoad": "بارگذاری اعلامیه‌ها ممکن نشد.",
+      "sentToast": "اعلامیه تحویل داده شد.",
+      "filters": {
+        "mine": "اعلامیه‌های من",
+        "everyone": "همه"
+      },
+      "composer": {
+        "title": "نوشتن اعلامیه",
+        "subtitle": "گیرندگان را انتخاب کنید، پیام را بنویسید و ارسال کنید.",
+        "immutableNotice": "اعلامیه‌ها پس از ارسال قابل ویرایش یا حذف نیستند. پیش از ارسال، همه چیز را با دقت بررسی کنید.",
+        "titleLabel": "عنوان (اختیاری)",
+        "titlePlaceholder": "مثلاً: تعطیلی دفتر در روز پنجشنبه",
+        "messageLabel": "پیام",
+        "messagePlaceholder": "اعلامیه‌ای که مخاطبان شما دریافت می‌کنند را بنویسید…",
+        "labelsLabel": "برچسب‌ها (با کاما جدا شوند)",
+        "labelsPlaceholder": "مثلاً: منابع بشری، پالیسی، فوری",
+        "labelsHint": "این برچسب‌ها روی اطلاع‌رسانی برای گیرنده نمایش داده می‌شوند.",
+        "audienceLabel": "مخاطبان",
+        "addAudienceLabel": "افزودن مخاطب",
+        "chooseTargetLabel": "یک هدف مشخص انتخاب کنید…",
+        "audienceHint": "چند مخاطب را ترکیب کنید تا دامنه گسترده‌تر شود.",
+        "scopeAllEmployees": "همه کارمندان",
+        "scopePosition": "پوزیشن",
+        "scopeRole": "نقش",
+        "scopeDepartment": "دیپارتمنت",
+        "scopeApplicants": "متقاضیان",
+        "send": "ارسال اعلامیه"
+      },
+      "validation": {
+        "audienceRequired": "حداقل یک مخاطب انتخاب کنید.",
+        "audienceTargetRequired": "برای هر مخاطب انتخاب‌شده یک پوزیشن، نقش یا دیپارتمنت مشخص کنید.",
+        "messageRequired": "متن اعلامیه الزامی است."
+      },
+      "list": {
+        "mine": "اعلامیه‌های من",
+        "everyones": "همه اعلامیه‌ها",
+        "untitled": "اعلامیه بدون عنوان",
+        "empty": "هنوز اعلامیه‌ای وجود ندارد.",
+        "emptyHint": "اعلامیه‌هایی که ارسال می‌کنید اینجا ظاهر می‌شوند."
       }
     }
   },
@@ -4042,6 +4128,52 @@
     "invoice": {
       "defaultPaymentTerms": "مگر اینکه به طور کتبی توافق دیگری شده باشد، فاکتورها ظرف سی (۳۰) روز از تاریخ صدور فاکتور قابل پرداخت هستند."
     },
+    "receipt": {
+      "title": "رسید پرداخت",
+      "serial": "شماره رسید",
+      "paymentDate": "تاریخ پرداخت",
+      "receivedFrom": "دریافت شده از",
+      "applicantId": "شناسه متقاضی",
+      "fatherName": "نام پدر",
+      "phone": "شماره تماس",
+      "email": "ایمیل",
+      "address": "آدرس",
+      "country": "کشور مقصد",
+      "educationLevel": "سطح تحصیلات",
+      "caseStatus": "وضعیت پرونده",
+      "paymentDetails": "جزئیات پرداخت",
+      "incomeName": "عنوان درآمد",
+      "incomeId": "شناسه درآمد",
+      "paymentType": "نوع پرداخت",
+      "description": "توضیحات",
+      "invoice": "صورت‌حساب",
+      "invoiceOptional": "به صورت‌حساب مرتبط نیست",
+      "servicesProvided": "خدمات و پکیج‌های قراردادی",
+      "item": "بند",
+      "fee": "فیس",
+      "totalFee": "مجموع فیس",
+      "paidToDate": "مجموع پرداخت‌شده",
+      "balance": "باقیمانده",
+      "amountReceived": "مبلغ دریافت‌شده",
+      "receivedBy": "دریافت‌کننده",
+      "authorizedSignature": "امضا و مهر مجاز",
+      "recordedBy": "ثبت‌کننده",
+      "thankYou": "از اعتماد شما به ما در مسیر ویزا سپاسگزاریم.",
+      "license": "جواز",
+      "noServices": "هنوز خدمت قراردادی ثبت نشده است.",
+      "paperSize": "اندازه کاغذ",
+      "paperA3Landscape": "A3 افقی (۲ نسخه)",
+      "paperA4Portrait": "A4 عمودی (۲ نسخه)",
+      "paperA4Landscape": "A4 افقی (۲ نسخه)",
+      "paperA4TwoA5": "A4 عمودی (۲ نسخه A5 افقی)",
+      "paperA5Two": "A5 عمودی (۲ نسخه)",
+      "paperA5Portrait": "A5 عمودی",
+      "paperLetterPortrait": "Letter عمودی (۲ نسخه)",
+      "copies": "تعداد نسخه",
+      "printReceipt": "چاپ رسید",
+      "loadFailed": "بارگذاری این رسید ممکن نشد.",
+      "pleaseAllowPopups": "لطفاً برای چاپ رسید اجازه پنجره‌های پاپ‌آپ را بدهید."
+    },
     "contract": {
       "defaultFooter": "از اینکه با ما تجارت می‌کنید سپاسگزاریم!",
       "licence": "جواز: {licence}",
@@ -4292,6 +4424,18 @@
     }
   },
   "notifications": {
+    "income": {
+      "recorded": {
+        "title": "رسید پرداخت ثبت شد",
+        "message": "رسید {receipt_number} برای {applicant} به مبلغ {amount} ثبت شد."
+      }
+    },
+    "task": {
+      "assigned": {
+        "title": "وظیفه واگذار شد",
+        "message": "وظیفه «{task}» به شما واگذار شد."
+      }
+    },
     "audit": {
       "created": {
         "title": "رکورد ایجاد شد",
@@ -4437,6 +4581,10 @@
         "title": "اعلان سیستم",
         "message": ""
       }
+    },
+    "announcement": {
+      "fallbackTitle": "اعلامیه",
+      "fromSender": "از {sender}"
     }
   },
   "$vuetify": {
@@ -4673,6 +4821,14 @@
     "applicationDate": "تاریخ درخواست",
     "needHelp": "کمک نیاز دارید؟",
     "helpText": "اگر معلومات نادرست است یا در گام بعدی کمک می‌خواهید، با مشاور خود تماس بگیرید.",
+    "documents": "اسناد",
+    "documentsHelp": "اسناد را از طریق پرونده خود به‌صورت امن برای مشاور ارسال کنید.",
+    "noDocuments": "هنوز هیچ سندی بارگذاری نشده است.",
+    "documentLabel": "عنوان سند (اختیاری)",
+    "selectDocument": "انتخاب سند",
+    "uploadDocument": "بارگذاری سند",
+    "documentUploaded": "سند بارگذاری شد.",
+    "documentUploadFailed": "بارگذاری سند ممکن نشد.",
     "profileTitle": "بررسی معلومات شما",
     "profileSubtitle": "معلومات را دقیق نگه دارید تا مشاور درخواست‌ها را درست آماده کند.",
     "personalContact": "شخصی و تماس",
@@ -4745,6 +4901,7 @@
       "noTasks": "هنوز کار عملیاتی وجود ندارد. انتقال پرونده به مرحله کاری، وظایف را خودکار ایجاد می‌کند.",
       "contracts": "قراردادها",
       "noContracts": "هنوز قراردادی به این پرونده وصل نشده است.",
+      "printContractFailed": "بارگیری این قرارداد برای چاپ ممکن نشد.",
       "universityApplications": "درخواست‌های دانشگاه",
       "addApplication": "افزودن درخواست",
       "primaryChoice": "انتخاب اصلی: {university}",

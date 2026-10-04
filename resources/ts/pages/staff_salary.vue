@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import PayslipTemplate, { type SalarySlipProps } from './templates/payslip_template.vue'
-import SalaryApi, { type CreateSalaryData, type Salary, type SalaryDeduction, type UpdateSalaryData } from '@/api/salary'
+import SalaryApi, { type AttendanceBreakdown, type CreateSalaryData, type Salary, type SalaryDeduction, type UpdateSalaryData } from '@/api/salary'
 import { type WorthyEmployee } from '@/api/bonuslist'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import CurrencyApi, { type Currency } from '@/api/currency'
@@ -108,7 +108,17 @@ const salaryMonths = computed(() => filteredSalaries.value
     outstanding: Number(salary.amountOutstanding ?? 0),
   })))
 
-const formDeductionTotal = computed(() => salaryForm.value.deductions.reduce((sum, deduction) => sum + Number(deduction.amount || 0), 0))
+// The absence/leave deduction is locked and derived from the editable
+// worked-days input: base salary is prorated by the share of unworked days.
+const formMissingDays = computed(() => Math.max(0, Number(salaryForm.value.totalDays || 0) - Number(salaryForm.value.workedDays || 0)))
+const automaticDeduction = computed(() => {
+  const total = Number(salaryForm.value.totalDays || 0)
+  if (total <= 0)
+    return 0
+
+  return Number(salaryForm.value.amountPaid || 0) * formMissingDays.value / total
+})
+const formDeductionTotal = computed(() => automaticDeduction.value + salaryForm.value.deductions.reduce((sum, deduction) => sum + Number(deduction.amount || 0), 0))
 const formNetAmount = computed(() => salaryForm.value.totalAmount - formDeductionTotal.value)
 
 const defaultCurrencyId = () => currencies.value.find(currency => currency.isBase)?.id ?? currencies.value[0]?.id ?? null
@@ -228,6 +238,28 @@ const fetchGrantedBonuses = async () => {
   }
 }
 
+// Prefill the editable worked/total day inputs from the attendance ledger.
+const fetchAttendanceBreakdown = async () => {
+  const { employee_id, salaryMonth } = salaryForm.value
+
+  if (!employee_id || !/^\d{4}-(0[1-9]|1[0-2])$/.test(salaryMonth))
+    return
+
+  try {
+    const response = await SalaryApi.getAttendanceBreakdown(employee_id, salaryMonth)
+
+    // Ignore a stale response if the selection changed while loading.
+    if (salaryForm.value.employee_id !== employee_id || salaryForm.value.salaryMonth !== salaryMonth)
+      return
+
+    salaryForm.value.workedDays = response.data.workedDays
+    salaryForm.value.totalDays = response.data.totalDays
+  }
+  catch (error) {
+    console.error('Error fetching attendance breakdown:', error)
+  }
+}
+
 // Trigger Individual Payslip Print
 const printEmployeePayslip = async (salary: Salary) => {
   const emp = employees.value.find(e => e.id === salary.employee_id)
@@ -240,7 +272,7 @@ const printEmployeePayslip = async (salary: Salary) => {
     earningsList.push({ label: translate('common.messages.grantedBonus'), amount: salary.bonus })
 
   const deductionsList = salary.deductions.map(deduction => ({
-    label: deduction.description,
+    label: deduction.isAutomatic ? translate('common.messages.automaticAttendanceDeduction') : deduction.description,
     amount: deduction.amount,
   }))
 
@@ -259,6 +291,8 @@ const printEmployeePayslip = async (salary: Salary) => {
       logo: companySetting.value?.website_logo_url || undefined,
       signature: companySetting.value?.company_signature_url || undefined,
     },
+    letterheadUrl: companySetting.value?.letterheads?.payslip?.url || undefined,
+    letterheadSafe: companySetting.value?.letterheads?.payslip?.safe,
     employee: {
       name: salary.employeeName,
       designation: getEmployeePosition(emp),
@@ -307,6 +341,7 @@ const openAddSalaryDialog = () => {
   grantedBonuses.value = []
   isAddSalaryDialogVisible.value = true
   fetchGrantedBonuses()
+  fetchAttendanceBreakdown()
 }
 
 const openEditSalaryDialog = (salary: Salary) => {
@@ -323,7 +358,9 @@ const openEditSalaryDialog = (salary: Salary) => {
     workedDays: salary.workedDays ?? 0,
     totalDays: salary.totalDays,
     totalAmount: salary.totalAmount,
-    deductions: salary.deductions.map(deduction => ({ ...deduction })),
+    // Automatic lines are owned by the payroll calculation and rendered
+    // separately; only manual deductions are editable here.
+    deductions: salary.deductions.filter(deduction => !deduction.isAutomatic).map(deduction => ({ ...deduction })),
     remarks: salary.remarks,
     date: salary.date,
   }
@@ -600,8 +637,10 @@ watch([searchQuery, salaryMonthFilter, selectedSalaryAmountRange], () => {
 })
 
 watch(() => [salaryForm.value.employee_id, salaryForm.value.salaryMonth, salaryForm.value.currency_id], () => {
-  if (isAddSalaryDialogVisible.value)
+  if (isAddSalaryDialogVisible.value) {
     fetchGrantedBonuses()
+    fetchAttendanceBreakdown()
+  }
 })
 
 watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
@@ -1002,7 +1041,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
               </VCol>
               <VCol
                 cols="12"
-                md="4"
+                md="3"
               >
                 <VTextField
                   v-model="salaryForm.salaryMonth"
@@ -1014,7 +1053,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
               </VCol>
               <VCol
                 cols="12"
-                md="4"
+                md="3"
               >
                 <VTextField
                   v-model.number="salaryForm.workedDays"
@@ -1027,7 +1066,19 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
               </VCol>
               <VCol
                 cols="12"
-                md="4"
+                md="3"
+              >
+                <VTextField
+                  v-model.number="salaryForm.totalDays"
+                  :label="$t('common.messages.totalDays')"
+                  type="number"
+                  :error-messages="getSalaryErrorMessage('totalDays')"
+                  required
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="3"
               >
                 <AppDateTimePicker
                   v-model="salaryForm.date"
@@ -1133,6 +1184,30 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
                     </VBtn>
                   </VCardTitle>
                   <VCardText>
+                    <VRow
+                      v-if="automaticDeduction > 0"
+                      align="center"
+                      class="mb-1"
+                    >
+                      <VCol
+                        cols="12"
+                        md="7"
+                      >
+                        <div class="text-body-2 font-weight-medium">
+                          {{ $t('common.messages.automaticAttendanceDeduction') }}
+                        </div>
+                        <div class="text-caption text-medium-emphasis">
+                          {{ $t('common.messages.unpaidAndAbsentDays', { days: formMissingDays }) }}
+                        </div>
+                      </VCol>
+                      <VCol
+                        cols="12"
+                        md="5"
+                        class="text-end font-weight-medium"
+                      >
+                        {{ formatSalaryAmount(automaticDeduction, selectedFormCurrency) }}
+                      </VCol>
+                    </VRow>
                     <div
                       v-if="!salaryForm.deductions.length"
                       class="text-body-2 text-medium-emphasis"
@@ -1278,7 +1353,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
               </VCol>
               <VCol
                 cols="12"
-                md="4"
+                md="3"
               >
                 <VTextField
                   v-model="salaryForm.salaryMonth"
@@ -1290,7 +1365,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
               </VCol>
               <VCol
                 cols="12"
-                md="4"
+                md="3"
               >
                 <VTextField
                   v-model.number="salaryForm.workedDays"
@@ -1303,7 +1378,19 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
               </VCol>
               <VCol
                 cols="12"
-                md="4"
+                md="3"
+              >
+                <VTextField
+                  v-model.number="salaryForm.totalDays"
+                  :label="$t('common.messages.totalDays')"
+                  type="number"
+                  :error-messages="getSalaryErrorMessage('totalDays')"
+                  required
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="3"
               >
                 <AppDateTimePicker
                   v-model="salaryForm.date"
@@ -1408,6 +1495,30 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
                     </VBtn>
                   </VCardTitle>
                   <VCardText>
+                    <VRow
+                      v-if="automaticDeduction > 0"
+                      align="center"
+                      class="mb-1"
+                    >
+                      <VCol
+                        cols="12"
+                        md="7"
+                      >
+                        <div class="text-body-2 font-weight-medium">
+                          {{ $t('common.messages.automaticAttendanceDeduction') }}
+                        </div>
+                        <div class="text-caption text-medium-emphasis">
+                          {{ $t('common.messages.unpaidAndAbsentDays', { days: formMissingDays }) }}
+                        </div>
+                      </VCol>
+                      <VCol
+                        cols="12"
+                        md="5"
+                        class="text-end font-weight-medium"
+                      >
+                        {{ formatSalaryAmount(automaticDeduction, selectedFormCurrency) }}
+                      </VCol>
+                    </VRow>
                     <div
                       v-if="!salaryForm.deductions.length"
                       class="text-body-2 text-medium-emphasis"

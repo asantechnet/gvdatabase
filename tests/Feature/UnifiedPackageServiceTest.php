@@ -37,6 +37,9 @@ class UnifiedPackageServiceTest extends TestCase
 
         $employee = Employee::factory()->create();
         $applicant = Applicant::factory()->create(['responsible_employee_id' => $employee->id]);
+        // Package issuance generates contracts, which require at least one
+        // document on the applicant case.
+        $this->seedApplicantDocuments($applicant);
         $payload = ['applicant_id' => $applicant->id, 'sold_by_employee_id' => $employee->id,
             'currency_id' => $currency->id, 'fee' => 900, 'purchased_at' => '2026-09-20'];
 

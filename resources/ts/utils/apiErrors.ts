@@ -56,6 +56,7 @@ const errorMessages: Record<string, string> = {
   'business.support_email_delivery_failed': 'Your support request could not be delivered. Nothing was submitted; please try again shortly.',
   'business.reset_token_invalid': 'The password reset link is invalid or has expired.',
   'business.board_order_invalid': 'The board order is no longer valid. Refresh and try again.',
+  'business.task_assignee_outside_department': 'As a department manager you can only assign tasks to members of your own department.',
   'business.cannot_delete_current_user': 'You cannot delete your own account.',
   'business.last_super_admin_required': 'At least one active super administrator must remain.',
   'business.cannot_remove_current_super_admin_role': 'You cannot remove your own super administrator role.',

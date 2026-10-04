@@ -115,6 +115,7 @@ const contracts: Record<string, Schema> = {
   'POST /tasks': { board_id: ['required'], title: ['required', 'string', 'max:255'], description: ['nullable', 'string'], results: ['nullable', 'string'], priority: ['in:low,medium,high,urgent'], start_date: ['nullable', 'date'], due_date: ['nullable', 'date'] },
   'PUT /tasks/:id': { title: ['string', 'max:255'], description: ['nullable', 'string'], results: ['nullable', 'string'], priority: ['in:low,medium,high,urgent'], progress: ['integer', 'between:0,100'], start_date: ['nullable', 'date'], due_date: ['nullable', 'date'], dependencies: ['array'] },
   'POST /tasks/:id/attachments': { file: ['required', 'file', 'max:10240'], section: ['in:input,results'] },
+  'POST /applicant-portal/attachments': { file: ['required', 'file', 'max:10240'], label: ['nullable', 'string', 'max:120'] },
   'PUT /tasks/:id/move': { board_id: ['required'], order: ['required', 'integer', 'min:0'] },
   'PATCH /tasks/:id/bonus-review': { quality_score: ['required', 'numeric', 'between:1,5'], rejected: ['boolean'], contributions: ['array'] },
   'POST /tasks/:id/comments': { content: ['required', 'string', 'max:2000'] },

@@ -1,5 +1,21 @@
 import api from './axios'
 
+export type LetterheadSource = 'none' | 'contract' | 'custom'
+
+export interface SafeArea {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface ResolvedLetterhead {
+  source: LetterheadSource
+  url: string | null
+  raw: string | null
+  safe: SafeArea
+}
+
 export interface Setting {
   id: number
   primary_color: string
@@ -26,6 +42,28 @@ export interface Setting {
   contract_letterhead_safe_y: number
   contract_letterhead_safe_width: number
   contract_letterhead_safe_height: number
+  receipt_letterhead: string | null
+  receipt_letterhead_url: string | null
+  receipt_letterhead_source: LetterheadSource
+  receipt_letterhead_safe_x: number
+  receipt_letterhead_safe_y: number
+  receipt_letterhead_safe_width: number
+  receipt_letterhead_safe_height: number
+  invoice_letterhead: string | null
+  invoice_letterhead_url: string | null
+  invoice_letterhead_source: LetterheadSource
+  invoice_letterhead_safe_x: number
+  invoice_letterhead_safe_y: number
+  invoice_letterhead_safe_width: number
+  invoice_letterhead_safe_height: number
+  payslip_letterhead: string | null
+  payslip_letterhead_url: string | null
+  payslip_letterhead_source: LetterheadSource
+  payslip_letterhead_safe_x: number
+  payslip_letterhead_safe_y: number
+  payslip_letterhead_safe_width: number
+  payslip_letterhead_safe_height: number
+  letterheads?: Record<'receipt' | 'invoice' | 'payslip', ResolvedLetterhead>
   website_address: string | null
   company_email: string | null
   mail_host: string | null
@@ -72,6 +110,27 @@ export interface SettingForm {
   contract_letterhead_safe_y?: number
   contract_letterhead_safe_width?: number
   contract_letterhead_safe_height?: number
+  receipt_letterhead?: File | null
+  remove_receipt_letterhead?: boolean
+  receipt_letterhead_source?: LetterheadSource
+  receipt_letterhead_safe_x?: number
+  receipt_letterhead_safe_y?: number
+  receipt_letterhead_safe_width?: number
+  receipt_letterhead_safe_height?: number
+  invoice_letterhead?: File | null
+  remove_invoice_letterhead?: boolean
+  invoice_letterhead_source?: LetterheadSource
+  invoice_letterhead_safe_x?: number
+  invoice_letterhead_safe_y?: number
+  invoice_letterhead_safe_width?: number
+  invoice_letterhead_safe_height?: number
+  payslip_letterhead?: File | null
+  remove_payslip_letterhead?: boolean
+  payslip_letterhead_source?: LetterheadSource
+  payslip_letterhead_safe_x?: number
+  payslip_letterhead_safe_y?: number
+  payslip_letterhead_safe_width?: number
+  payslip_letterhead_safe_height?: number
   website_address: string
   company_email: string
   mail_host: string
@@ -109,7 +168,7 @@ function toFormData(data: Partial<SettingForm>) {
     if (value === undefined)
       return
     if (value === null) {
-      if (!['website_logo', 'company_signature', 'contract_letterhead', 'contract_cover_design'].includes(key))
+      if (!['website_logo', 'company_signature', 'contract_letterhead', 'contract_cover_design', 'receipt_letterhead', 'invoice_letterhead', 'payslip_letterhead'].includes(key))
         formData.append(key, '')
 
       return

@@ -16,7 +16,8 @@ import ContractTypeApi, { type ContractType } from '@/api/contractType'
 import ServiceApi, { type Service } from '@/api/services'
 import OfficeSettingsPanel from '@/components/setup/OfficeSettingsPanel.vue'
 
-type UploadField = 'website_logo' | 'company_signature' | 'contract_letterhead' | 'contract_cover_design'
+type UploadField = 'website_logo' | 'company_signature' | 'contract_letterhead' | 'contract_cover_design' | 'receipt_letterhead' | 'invoice_letterhead' | 'payslip_letterhead'
+type DocumentLetterheadKind = 'receipt' | 'invoice' | 'payslip'
 type SettingsPage = 'company' | 'email' | 'operations' | 'appearance' | 'documents' | 'office'
 
 const toast = useToast()
@@ -48,6 +49,27 @@ const defaultForm = (): SettingForm => ({
   contract_letterhead_safe_y: 15,
   contract_letterhead_safe_width: 83,
   contract_letterhead_safe_height: 70,
+  receipt_letterhead: null,
+  remove_receipt_letterhead: false,
+  receipt_letterhead_source: 'custom',
+  receipt_letterhead_safe_x: 6,
+  receipt_letterhead_safe_y: 18,
+  receipt_letterhead_safe_width: 88,
+  receipt_letterhead_safe_height: 64,
+  invoice_letterhead: null,
+  remove_invoice_letterhead: false,
+  invoice_letterhead_source: 'custom',
+  invoice_letterhead_safe_x: 8.5,
+  invoice_letterhead_safe_y: 15,
+  invoice_letterhead_safe_width: 83,
+  invoice_letterhead_safe_height: 70,
+  payslip_letterhead: null,
+  remove_payslip_letterhead: false,
+  payslip_letterhead_source: 'custom',
+  payslip_letterhead_safe_x: 8,
+  payslip_letterhead_safe_y: 14,
+  payslip_letterhead_safe_width: 84,
+  payslip_letterhead_safe_height: 72,
   website_address: '',
   company_email: '',
   mail_host: '',
@@ -78,6 +100,9 @@ const logoPreview = ref('/images/logo.png')
 const signaturePreview = ref<string | null>(null)
 const letterheadPreview = ref<string | null>(null)
 const coverDesignPreview = ref<string | null>(null)
+const receiptLetterheadPreview = ref<string | null>(null)
+const invoiceLetterheadPreview = ref<string | null>(null)
+const payslipLetterheadPreview = ref<string | null>(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 const objectUrls = new Set<string>()
@@ -193,7 +218,7 @@ const pageFields: Record<SettingsPage, (keyof SettingForm)[]> = {
   email: ['company_email', 'mail_host', 'mail_port', 'mail_encryption', 'mail_username', 'mail_password', 'clear_mail_password', 'mail_from_name', 'mail_reply_to'],
   operations: ['paid_leave_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes', 'automatic_attendance_enabled'],
   appearance: themeColorFields,
-  documents: ['contract_letterhead', 'contract_cover_design', 'remove_contract_letterhead', 'remove_contract_cover_design', 'contract_letterhead_safe_x', 'contract_letterhead_safe_y', 'contract_letterhead_safe_width', 'contract_letterhead_safe_height'],
+  documents: ['contract_letterhead', 'contract_cover_design', 'remove_contract_letterhead', 'remove_contract_cover_design', 'contract_letterhead_safe_x', 'contract_letterhead_safe_y', 'contract_letterhead_safe_width', 'contract_letterhead_safe_height', 'receipt_letterhead', 'remove_receipt_letterhead', 'receipt_letterhead_source', 'receipt_letterhead_safe_x', 'receipt_letterhead_safe_y', 'receipt_letterhead_safe_width', 'receipt_letterhead_safe_height', 'invoice_letterhead', 'remove_invoice_letterhead', 'invoice_letterhead_source', 'invoice_letterhead_safe_x', 'invoice_letterhead_safe_y', 'invoice_letterhead_safe_width', 'invoice_letterhead_safe_height', 'payslip_letterhead', 'remove_payslip_letterhead', 'payslip_letterhead_source', 'payslip_letterhead_safe_x', 'payslip_letterhead_safe_y', 'payslip_letterhead_safe_width', 'payslip_letterhead_safe_height'],
   office: [],
 }
 
@@ -285,6 +310,21 @@ function applySavedSetting(setting: Setting) {
     contract_letterhead_safe_y: setting.contract_letterhead_safe_y ?? 15,
     contract_letterhead_safe_width: setting.contract_letterhead_safe_width ?? 83,
     contract_letterhead_safe_height: setting.contract_letterhead_safe_height ?? 70,
+    receipt_letterhead_source: setting.receipt_letterhead_source ?? 'custom',
+    receipt_letterhead_safe_x: setting.receipt_letterhead_safe_x ?? 6,
+    receipt_letterhead_safe_y: setting.receipt_letterhead_safe_y ?? 18,
+    receipt_letterhead_safe_width: setting.receipt_letterhead_safe_width ?? 88,
+    receipt_letterhead_safe_height: setting.receipt_letterhead_safe_height ?? 64,
+    invoice_letterhead_source: setting.invoice_letterhead_source ?? 'custom',
+    invoice_letterhead_safe_x: setting.invoice_letterhead_safe_x ?? 8.5,
+    invoice_letterhead_safe_y: setting.invoice_letterhead_safe_y ?? 15,
+    invoice_letterhead_safe_width: setting.invoice_letterhead_safe_width ?? 83,
+    invoice_letterhead_safe_height: setting.invoice_letterhead_safe_height ?? 70,
+    payslip_letterhead_source: setting.payslip_letterhead_source ?? 'custom',
+    payslip_letterhead_safe_x: setting.payslip_letterhead_safe_x ?? 8,
+    payslip_letterhead_safe_y: setting.payslip_letterhead_safe_y ?? 14,
+    payslip_letterhead_safe_width: setting.payslip_letterhead_safe_width ?? 84,
+    payslip_letterhead_safe_height: setting.payslip_letterhead_safe_height ?? 72,
   }
 
   form.value = savedForm
@@ -294,6 +334,9 @@ function applySavedSetting(setting: Setting) {
   signaturePreview.value = setting.company_signature_url
   letterheadPreview.value = setting.contract_letterhead_url
   coverDesignPreview.value = setting.contract_cover_design_url
+  receiptLetterheadPreview.value = setting.receipt_letterhead_url
+  invoiceLetterheadPreview.value = setting.invoice_letterhead_url
+  payslipLetterheadPreview.value = setting.payslip_letterhead_url
 }
 
 async function loadSettings() {
@@ -458,8 +501,173 @@ function handleImageUpload(event: Event, field: UploadField) {
     coverDesignPreview.value = preview
     form.value.remove_contract_cover_design = false
   }
+  if (field === 'receipt_letterhead') {
+    receiptLetterheadPreview.value = preview
+    form.value.remove_receipt_letterhead = false
+  }
+  if (field === 'invoice_letterhead') {
+    invoiceLetterheadPreview.value = preview
+    form.value.remove_invoice_letterhead = false
+  }
+  if (field === 'payslip_letterhead') {
+    payslipLetterheadPreview.value = preview
+    form.value.remove_payslip_letterhead = false
+  }
 
   ; (event.target as HTMLInputElement).value = ''
+}
+
+/**
+ * Per-document letterhead form keys. Receipt, invoice and payslip share one
+ * editor; only the field names and safe-zone defaults differ.
+ */
+const documentLetterheadConfig: Record<DocumentLetterheadKind, {
+  file: 'receipt_letterhead' | 'invoice_letterhead' | 'payslip_letterhead'
+  remove: 'remove_receipt_letterhead' | 'remove_invoice_letterhead' | 'remove_payslip_letterhead'
+  source: 'receipt_letterhead_source' | 'invoice_letterhead_source' | 'payslip_letterhead_source'
+  safeX: 'receipt_letterhead_safe_x' | 'invoice_letterhead_safe_x' | 'payslip_letterhead_safe_x'
+  safeY: 'receipt_letterhead_safe_y' | 'invoice_letterhead_safe_y' | 'payslip_letterhead_safe_y'
+  safeWidth: 'receipt_letterhead_safe_width' | 'invoice_letterhead_safe_width' | 'payslip_letterhead_safe_width'
+  safeHeight: 'receipt_letterhead_safe_height' | 'invoice_letterhead_safe_height' | 'payslip_letterhead_safe_height'
+  defaults: { x: number; y: number; width: number; height: number }
+}> = {
+  receipt: {
+    file: 'receipt_letterhead', remove: 'remove_receipt_letterhead', source: 'receipt_letterhead_source',
+    safeX: 'receipt_letterhead_safe_x', safeY: 'receipt_letterhead_safe_y', safeWidth: 'receipt_letterhead_safe_width', safeHeight: 'receipt_letterhead_safe_height',
+    defaults: { x: 6, y: 18, width: 88, height: 64 },
+  },
+  invoice: {
+    file: 'invoice_letterhead', remove: 'remove_invoice_letterhead', source: 'invoice_letterhead_source',
+    safeX: 'invoice_letterhead_safe_x', safeY: 'invoice_letterhead_safe_y', safeWidth: 'invoice_letterhead_safe_width', safeHeight: 'invoice_letterhead_safe_height',
+    defaults: { x: 8.5, y: 15, width: 83, height: 70 },
+  },
+  payslip: {
+    file: 'payslip_letterhead', remove: 'remove_payslip_letterhead', source: 'payslip_letterhead_source',
+    safeX: 'payslip_letterhead_safe_x', safeY: 'payslip_letterhead_safe_y', safeWidth: 'payslip_letterhead_safe_width', safeHeight: 'payslip_letterhead_safe_height',
+    defaults: { x: 8, y: 14, width: 84, height: 72 },
+  },
+}
+
+const documentLetterheadPreviewRef = (kind: DocumentLetterheadKind) => kind === 'receipt'
+  ? receiptLetterheadPreview
+  : kind === 'invoice' ? invoiceLetterheadPreview : payslipLetterheadPreview
+
+/** A document-letterhead card always writes its own file, never a design row. */
+function handleDocumentLetterheadUpload(event: Event, kind: DocumentLetterheadKind) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file)
+    return
+
+  const config = documentLetterheadConfig[kind]
+  const previewRef = documentLetterheadPreviewRef(kind)
+  const preview = previewFile(file)
+
+  releasePreview(previewRef.value)
+  form.value[config.file] = file
+  previewRef.value = preview
+  form.value[config.remove] = false
+
+  ;(event.target as HTMLInputElement).value = ''
+}
+
+function removeDocumentLetterhead(kind: DocumentLetterheadKind) {
+  const config = documentLetterheadConfig[kind]
+  const previewRef = documentLetterheadPreviewRef(kind)
+
+  releasePreview(previewRef.value)
+  form.value[config.file] = null
+  previewRef.value = null
+  form.value[config.remove] = true
+}
+
+const documentLetterheadSource = (kind: DocumentLetterheadKind) => form.value[documentLetterheadConfig[kind].source] ?? 'custom'
+
+function setDocumentLetterheadSource(kind: DocumentLetterheadKind, value: unknown) {
+  const source = (value === 'contract' || value === 'none') ? value : 'custom'
+
+  form.value[documentLetterheadConfig[kind].source] = source
+}
+
+/** The preview shown for a document letterhead, honouring the selected source. */
+const documentLetterheadPreview = (kind: DocumentLetterheadKind): string | null => {
+  const source = documentLetterheadSource(kind)
+
+  if (source === 'contract')
+    return letterheadPreview.value
+  if (source === 'none')
+    return null
+
+  return documentLetterheadPreviewRef(kind).value
+}
+
+const documentSafeArea = (kind: DocumentLetterheadKind) => {
+  const config = documentLetterheadConfig[kind]
+
+  return {
+    x: Number(form.value[config.safeX] ?? config.defaults.x),
+    y: Number(form.value[config.safeY] ?? config.defaults.y),
+    width: Number(form.value[config.safeWidth] ?? config.defaults.width),
+    height: Number(form.value[config.safeHeight] ?? config.defaults.height),
+  }
+}
+
+const documentSafeAreaStyle = (kind: DocumentLetterheadKind) => ({
+  left: `${documentSafeArea(kind).x}%`,
+  top: `${documentSafeArea(kind).y}%`,
+  width: `${documentSafeArea(kind).width}%`,
+  height: `${documentSafeArea(kind).height}%`,
+})
+
+function updateDocumentSafeArea(kind: DocumentLetterheadKind, patch: Partial<ContractDocumentDesignSafeArea>) {
+  const config = documentLetterheadConfig[kind]
+
+  if (patch.x !== undefined)
+    form.value[config.safeX] = patch.x
+  if (patch.y !== undefined)
+    form.value[config.safeY] = patch.y
+  if (patch.width !== undefined)
+    form.value[config.safeWidth] = patch.width
+  if (patch.height !== undefined)
+    form.value[config.safeHeight] = patch.height
+}
+
+function setDocumentSafeAreaFromInput(kind: DocumentLetterheadKind, field: keyof ContractDocumentDesignSafeArea, value: unknown) {
+  const numeric = Number(value)
+
+  updateDocumentSafeArea(kind, { [field]: Number.isFinite(numeric) ? numeric : 0 } as Partial<ContractDocumentDesignSafeArea>)
+}
+
+function resizeDocumentSafeArea(event: PointerEvent, edge: 'top' | 'right' | 'bottom' | 'left', kind: DocumentLetterheadKind) {
+  const preview = (event.currentTarget as HTMLElement).closest('.letterhead-safe-preview') as HTMLElement | null
+  if (!preview)
+    return
+  event.preventDefault()
+
+  const initial = { ...documentSafeArea(kind) }
+  const rect = preview.getBoundingClientRect()
+
+  const update = (move: PointerEvent) => {
+    const horizontal = ((move.clientX - event.clientX) / rect.width) * 100
+    const vertical = ((move.clientY - event.clientY) / rect.height) * 100
+    let { x, y, width, height } = initial
+    if (edge === 'left') { x = Math.max(0, Math.min(initial.x + horizontal, initial.x + initial.width - 5)); width = initial.width + initial.x - x }
+    if (edge === 'right')
+      width = Math.max(5, Math.min(100 - initial.x, initial.width + horizontal))
+    if (edge === 'top') { y = Math.max(0, Math.min(initial.y + vertical, initial.y + initial.height - 5)); height = initial.height + initial.y - y }
+    if (edge === 'bottom')
+      height = Math.max(5, Math.min(100 - initial.y, initial.height + vertical))
+    updateDocumentSafeArea(kind, {
+      x: Number(x.toFixed(2)),
+      y: Number(y.toFixed(2)),
+      width: Number(width.toFixed(2)),
+      height: Number(height.toFixed(2)),
+    })
+  }
+
+  const stop = () => window.removeEventListener('pointermove', update)
+
+  window.addEventListener('pointermove', update)
+  window.addEventListener('pointerup', stop, { once: true })
 }
 
 function removeArtwork(field: 'contract_letterhead' | 'contract_cover_design') {
@@ -594,7 +802,7 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
   }
   else if (savedSetting.value && page) {
     const draft = { ...form.value }
-    const previews = { logo: logoPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value }
+    const previews = { logo: logoPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value, receipt: receiptLetterheadPreview.value, invoice: invoiceLetterheadPreview.value }
 
     applySavedSetting(savedSetting.value)
 
@@ -612,6 +820,8 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
     if (page !== 'documents') {
       letterheadPreview.value = previews.letterhead
       coverDesignPreview.value = previews.cover
+      receiptLetterheadPreview.value = previews.receipt
+      invoiceLetterheadPreview.value = previews.invoice
     }
   }
   else {
@@ -621,6 +831,8 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
     signaturePreview.value = null
     letterheadPreview.value = null
     coverDesignPreview.value = null
+    receiptLetterheadPreview.value = null
+    invoiceLetterheadPreview.value = null
   }
 
   if (page === null || page === 'documents')
@@ -643,7 +855,7 @@ function activePagePayload(): Partial<SettingForm> {
 
       return
     }
-    if (field === 'remove_contract_letterhead' || field === 'remove_contract_cover_design') {
+    if (field === 'remove_contract_letterhead' || field === 'remove_contract_cover_design' || field === 'remove_receipt_letterhead' || field === 'remove_invoice_letterhead' || field === 'remove_payslip_letterhead') {
       if (value === true)
         payload[field] = true as never
 
@@ -705,7 +917,7 @@ async function saveSettings() {
 
     persistThemeColors(Object.fromEntries(colorsToPersist.map(field => [field, response.data[field]])))
 
-    const previews = { logo: logoPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value }
+    const previews = { logo: logoPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value, receipt: receiptLetterheadPreview.value, invoice: invoiceLetterheadPreview.value }
 
     // The API returns the complete record. Keep drafts from other pages intact.
     const otherPageDraft = { ...form.value }
@@ -725,6 +937,8 @@ async function saveSettings() {
     if (activeSettingsPage.value !== 'documents') {
       letterheadPreview.value = previews.letterhead
       coverDesignPreview.value = previews.cover
+      receiptLetterheadPreview.value = previews.receipt
+      invoiceLetterheadPreview.value = previews.invoice
     }
     updateBranding(response.data)
     toast.success(translate('pages.settings.settings.settingsSavedSuccessfully'))
@@ -1475,6 +1689,166 @@ onBeforeUnmount(revokeObjectUrls)
                         hide-details
                         :disabled="!canEditSettings"
                         @update:model-value="setSafeAreaFromInput(size.field, $event)"
+                      />
+                    </VCol>
+                  </VRow>
+                </div>
+              </VCol>
+
+              <!--
+                Receipt and invoice letterheads. Same editor style as the
+                contract cards above: pick the source, upload/preview artwork,
+                and drag the safe-zone where auto-filled text may land.
+              -->
+              <VCol cols="12">
+                <VDivider class="my-3" />
+                <h4 class="text-subtitle-1 font-weight-medium mb-1">
+                  {{ $t('pages.settings.settings.receiptInvoiceDocuments') }}
+                </h4>
+                <p class="text-body-2 text-medium-emphasis mb-4">
+                  {{ $t('pages.settings.settings.receiptInvoiceDocumentsHint') }}
+                </p>
+              </VCol>
+              <VCol
+                v-for="doc in ([{ kind: 'receipt' as const }, { kind: 'invoice' as const }, { kind: 'payslip' as const }])"
+                :key="doc.kind"
+                cols="12"
+                md="6"
+              >
+                <div class="text-subtitle-1 font-weight-medium mb-2">
+                  {{ doc.kind === 'receipt' ? $t('pages.settings.settings.receiptLetterhead') : doc.kind === 'invoice' ? $t('pages.settings.settings.invoiceLetterhead') : $t('pages.settings.settings.payslipLetterhead') }}
+                </div>
+                <VSelect
+                  :model-value="documentLetterheadSource(doc.kind)"
+                  :items="[
+                    { title: $t('pages.settings.settings.letterheadSourceNone'), value: 'none' },
+                    { title: $t('pages.settings.settings.letterheadSourceContract'), value: 'contract' },
+                    { title: $t('pages.settings.settings.letterheadSourceCustom'), value: 'custom' },
+                  ]"
+                  :label="$t('pages.settings.settings.letterheadSource')"
+                  density="compact"
+                  hide-details
+                  class="mb-3"
+                  :disabled="!canEditSettings"
+                  @update:model-value="setDocumentLetterheadSource(doc.kind, $event)"
+                />
+                <div class="document-artwork-preview mb-3">
+                  <VImg
+                    v-if="documentLetterheadPreview(doc.kind)"
+                    :src="documentLetterheadPreview(doc.kind) ?? undefined"
+                    :alt="$t('pages.settings.settings.documentPreviewAlt', { title: doc.kind })"
+                    cover
+                  />
+                  <div
+                    v-else
+                    class="h-100 d-flex flex-column align-center justify-center text-disabled"
+                  >
+                    <VIcon
+                      icon="tabler-photo"
+                      size="44"
+                      class="mb-2"
+                    />
+                    <span>{{ $t('pages.settings.settings.builtInDesignWillBeUsed') }}</span>
+                  </div>
+                </div>
+                <div class="d-flex flex-wrap ga-2">
+                  <VBtn
+                    color="primary"
+                    variant="tonal"
+                    class="position-relative"
+                    :disabled="!canEditSettings"
+                  >
+                    <VIcon
+                      icon="tabler-upload"
+                      class="me-2"
+                    />{{ $t('common.actions.upload') }}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      class="file-overlay"
+                      :disabled="!canEditSettings"
+                      @change="handleDocumentLetterheadUpload($event, doc.kind)"
+                    >
+                  </VBtn>
+                  <VBtn
+                    v-if="documentLetterheadSource(doc.kind) === 'custom' && documentLetterheadPreview(doc.kind)"
+                    color="error"
+                    variant="tonal"
+                    :disabled="!canEditSettings"
+                    @click="removeDocumentLetterhead(doc.kind)"
+                  >
+                    <VIcon
+                      icon="tabler-trash"
+                      class="me-2"
+                    />{{ $t('common.actions.remove') }}
+                  </VBtn>
+                </div>
+                <div class="mt-4">
+                  <p class="text-caption text-medium-emphasis mb-2">
+                    {{ $t('pages.settings.settings.printSafeAreaHint') }}
+                  </p>
+                  <div class="letterhead-safe-preview">
+                    <VImg
+                      v-if="documentLetterheadPreview(doc.kind)"
+                      :src="documentLetterheadPreview(doc.kind) ?? undefined"
+                      cover
+                    />
+                    <div
+                      v-else
+                      class="letterhead-preview-placeholder"
+                    >
+                      {{ $t('pages.settings.settings.uploadLetterheadHint') }}
+                    </div>
+                    <div
+                      class="letterhead-safe-box"
+                      :style="documentSafeAreaStyle(doc.kind)"
+                    >
+                      <div
+                        class="preview-copy"
+                        dir="rtl"
+                      >
+                        {{ $t('pages.settings.settings.printSafeAreaSampleRtl') }}
+                      </div>
+                      <div
+                        class="preview-copy"
+                        dir="ltr"
+                      >
+                        {{ $t('pages.settings.settings.printSafeAreaSampleLtr') }}
+                      </div>
+                      <button
+                        v-for="edge in ['top', 'right', 'bottom', 'left']"
+                        :key="edge"
+                        type="button"
+                        :class="`safe-area-handle safe-area-handle--${edge}`"
+                        :aria-label="$t('pages.settings.settings.resizePrintSafeArea', { edge: $t(`pages.settings.settings.edges.${edge}`) })"
+                        @pointerdown="resizeDocumentSafeArea($event, edge as 'top' | 'right' | 'bottom' | 'left', doc.kind)"
+                      />
+                    </div>
+                  </div>
+                  <p class="text-caption text-medium-emphasis mt-3 mb-2">
+                    {{ $t('pages.settings.settings.printSafeAreaSizing') }}
+                  </p>
+                  <VRow density="compact">
+                    <VCol
+                      v-for="size in [
+                        { field: 'x' as const, label: translate('pages.settings.settings.printSafeAreaOffsetX') },
+                        { field: 'y' as const, label: translate('pages.settings.settings.printSafeAreaOffsetY') },
+                        { field: 'width' as const, label: translate('pages.settings.settings.printSafeAreaWidth') },
+                        { field: 'height' as const, label: translate('pages.settings.settings.printSafeAreaHeight') },
+                      ]"
+                      :key="size.field"
+                      cols="6"
+                      sm="3"
+                    >
+                      <VTextField
+                        :model-value="documentSafeArea(doc.kind)[size.field]"
+                        :label="size.label"
+                        type="number"
+                        suffix="%"
+                        density="compact"
+                        hide-details
+                        :disabled="!canEditSettings"
+                        @update:model-value="setDocumentSafeAreaFromInput(doc.kind, size.field, $event)"
                       />
                     </VCol>
                   </VRow>

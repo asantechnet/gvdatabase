@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { VDialog } from 'vuetify/components'
+import { useToast } from 'vue-toastification'
+import PendingTransactionApi from '@/api/pendingTransactions'
 import { type Income, type IncomeCreateData, type IncomeUpdateData, createIncome, deleteIncome, getIncomes, updateIncome } from '@/api/incomes'
 import InvoiceApi, { type Invoice } from '@/api/invoice'
+import ApplicantApi, { type Applicant } from '@/api/applicants'
 import CurrencyApi, { type Currency } from '@/api/currency'
-import CompanyApi, { type Company } from '@/api/company'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import ApplicantSelect from '@/components/income/ApplicantSelect.vue'
 import InvoicePaymentContext from '@/components/income/InvoicePaymentContext.vue'
 import InvoiceSelect from '@/components/income/InvoiceSelect.vue'
+import ReceiptPrinter from '@/components/income/ReceiptPrinter.vue'
+import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
 
 const incomes = ref<Income[]>([])
 const isAddIncomeDialogVisible = ref(false)
@@ -29,7 +34,6 @@ type IncomeForm = Omit<IncomeCreateData, 'invoice_id'> & {
 const emptyIncomeForm = (): IncomeForm => ({
   id: 0,
   applicant_id: null,
-  company_id: null,
   invoice_id: null,
   type: '',
   description: '',
@@ -48,8 +52,19 @@ const filterCurrency = ref<number | null>(null)
 const isLoading = ref(false)
 const invoices = ref<Invoice[]>([])
 const currencies = ref<Currency[]>([])
-const companies = ref<Company[]>([])
+const applicants = ref<Applicant[]>([])
 const formError = ref('')
+const isReceiptPreviewOpen = ref(false)
+const activeReceiptIncomeId = ref<number | null>(null)
+const saveMode = ref<'direct' | 'loan'>('direct')
+const attachmentTarget = ref<Income | null>(null)
+const isAttachmentsOpen = ref(false)
+
+function openAttachments(income: Income) {
+  attachmentTarget.value = income
+  isAttachmentsOpen.value = true
+}
+const toast = useToast()
 
 const typeOptions = ['Service', 'Product', 'Investment', 'Other']
 
@@ -67,10 +82,6 @@ const selectedInvoice = computed(() => {
 
   return invoiceId ? invoices.value.find(invoice => invoice.id === invoiceId) : undefined
 })
-
-const companyOptions = computed(() => companies.value
-  .filter(company => company.is_active)
-  .map(company => ({ title: company.trade_name || company.legal_name, value: company.id })))
 
 const selectedInvoiceBalance = computed(() => selectedInvoice.value?.balance ?? 0)
 const selectedCurrency = computed(() => currencies.value.find(currency => currency.id === selectedIncome.value.currency_id) ?? null)
@@ -107,8 +118,15 @@ const fetchCurrencies = async () => {
   currencies.value = response.data.filter(currency => currency.isActive)
 }
 
-const fetchCompanies = async () => {
-  companies.value = await CompanyApi.getAll()
+const fetchApplicants = async () => {
+  const response = await ApplicantApi.list({ per_page: 100 })
+
+  applicants.value = response.data
+}
+
+const openReceiptPreview = (income: Income) => {
+  activeReceiptIncomeId.value = income.id
+  isReceiptPreviewOpen.value = true
 }
 
 const setDefaultCurrency = () => {
@@ -150,8 +168,9 @@ const fetchIncomes = async () => {
 
 const openAddIncomeDialog = () => {
   formError.value = ''
+  saveMode.value = 'direct'
   selectedIncome.value = emptyIncomeForm()
-  Promise.all([fetchUnpaidInvoices(), fetchCurrencies(), fetchCompanies()]).then(() => {
+  Promise.all([fetchUnpaidInvoices(), fetchCurrencies(), fetchApplicants()]).then(() => {
     setDefaultCurrency()
     isAddIncomeDialogVisible.value = true
   }).catch(error => {
@@ -164,7 +183,7 @@ const openAddIncomeDialog = () => {
 const openEditIncomeDialog = (income: Income) => {
   formError.value = ''
   selectedIncome.value = { ...income }
-  Promise.all([fetchUnpaidInvoices(income.invoice_id), fetchCurrencies(), fetchCompanies()]).then(() => {
+  Promise.all([fetchUnpaidInvoices(income.invoice_id), fetchCurrencies(), fetchApplicants()]).then(() => {
     isEditIncomeDialogVisible.value = true
   }).catch(error => {
     console.error('Error fetching unpaid invoices:', error)
@@ -238,6 +257,23 @@ const addIncome = async () => {
 
   try {
     formError.value = ''
+
+    // Loans route the receipt through the approval workflow (pending
+    // transactions) instead of writing the ledger row immediately.
+    if (saveMode.value === 'loan') {
+      await PendingTransactionApi.create({
+        transaction_type: 'income',
+        reason: selectedIncome.value.description?.trim() || selectedIncome.value.type || 'Income',
+        amount: Number(selectedIncome.value.amount) * Number(selectedIncome.value.quantity || 1),
+        currency_id: selectedIncome.value.currency_id,
+        applicant_id: selectedIncome.value.applicant_id ?? null,
+        employee_id: null,
+      })
+      isAddIncomeDialogVisible.value = false
+      toast.success(translate('pages.finance.income.income.loanSubmitted'))
+
+      return
+    }
 
     const incomeData = { ...selectedIncome.value } as IncomeCreateData
     const createdIncome = await createIncome(incomeData)
@@ -349,7 +385,7 @@ const printTable = () => void printDocument({ bodyClass: 'printing-table-income'
 onMounted(() => {
   fetchIncomes()
   fetchCurrencies()
-  fetchCompanies()
+  fetchApplicants()
 })
 </script>
 
@@ -580,7 +616,7 @@ onMounted(() => {
         >
           <template #item.receipt_number="{ item }">
             <div class="font-weight-bold">
-              {{ item.receipt_number || `RCP-${String(item.id).padStart(6, '0')}` }}
+              {{ item.receipt_number || `RCPT-${String(item.id).padStart(6, '0')}` }}
             </div>
             <div class="text-caption text-medium-emphasis">
               {{ $t('common.messages.currencyQuantity', { currency: item.currency?.code ?? '—', quantity: item.quantity }) }}
@@ -637,7 +673,35 @@ onMounted(() => {
 
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
+              <VBtn
+                icon="tabler-paperclip"
+                variant="text"
+                size="small"
+                :aria-label="$t('common.attachments.title')"
+                @click="openAttachments(item)"
+              >
+                <VIcon icon="tabler-paperclip" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  {{ $t('common.attachments.title') }}
+                </VTooltip>
+              </VBtn>
               <FullDetailsButton :item="item" />
+              <VBtn
+                icon="tabler-receipt"
+                variant="text"
+                size="small"
+                color="primary"
+                @click="openReceiptPreview(item)"
+              >
+                <VIcon icon="tabler-receipt" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  {{ $t('documents.receipt.printReceipt') }}
+                </VTooltip>
+              </VBtn>
               <VBtn
                 icon="tabler-edit"
                 variant="text"
@@ -672,6 +736,18 @@ onMounted(() => {
         </ResponsiveDataTable>
       </div>
     </VCard>
+
+    <ReceiptPrinter
+      v-model="isReceiptPreviewOpen"
+      :income-id="activeReceiptIncomeId"
+    />
+
+    <AttachmentsDialog
+      v-model="isAttachmentsOpen"
+      type="incomes"
+      :record-id="attachmentTarget?.id ?? null"
+      :title="attachmentTarget?.receipt_number || $t('common.attachments.title')"
+    />
 
     <PrintableListReport
       :title="$t('common.crmUi.printReports.income.title')"
@@ -754,6 +830,29 @@ onMounted(() => {
                   {{ $t('pages.finance.income.income.customerTypeQuantityCurrencyAndExchangeRateComeFromTheInvoiceEnterOnly') }}
                 </VAlert>
               </VCol>
+              <VCol cols="12">
+                <div class="d-flex flex-wrap gap-4 mb-1">
+                  <VBtn
+                    :color="saveMode === 'direct' ? 'primary' : 'secondary'"
+                    :variant="saveMode === 'direct' ? 'flat' : 'outlined'"
+                    prepend-icon="tabler-device-floppy"
+                    @click="saveMode = 'direct'"
+                  >
+                    {{ $t('pages.finance.income.income.saveModeDirect') }}
+                  </VBtn>
+                  <VBtn
+                    :color="saveMode === 'loan' ? 'primary' : 'secondary'"
+                    :variant="saveMode === 'loan' ? 'flat' : 'outlined'"
+                    prepend-icon="tabler-send"
+                    @click="saveMode = 'loan'"
+                  >
+                    {{ $t('pages.finance.income.income.saveModeLoan') }}
+                  </VBtn>
+                </div>
+                <p class="text-caption text-medium-emphasis mb-0">
+                  {{ saveMode === 'loan' ? $t('pages.finance.income.income.saveModeLoanHint') : $t('pages.finance.income.income.saveModeDirectHint') }}
+                </p>
+              </VCol>
               <VCol
                 cols="12"
                 md="6"
@@ -770,12 +869,10 @@ onMounted(() => {
                 cols="12"
                 md="6"
               >
-                <VSelect
-                  v-model="selectedIncome.company_id"
-                  :items="companyOptions"
-                  label="Company (optional)"
+                <ApplicantSelect
+                  v-model="selectedIncome.applicant_id"
+                  :applicants="applicants"
                   :disabled="Boolean(selectedInvoice)"
-                  clearable
                 />
               </VCol>
               <VCol cols="12">
@@ -974,12 +1071,10 @@ onMounted(() => {
                 cols="12"
                 md="6"
               >
-                <VSelect
-                  v-model="selectedIncome.company_id"
-                  :items="companyOptions"
-                  label="Company (optional)"
+                <ApplicantSelect
+                  v-model="selectedIncome.applicant_id"
+                  :applicants="applicants"
                   :disabled="Boolean(selectedInvoice)"
-                  clearable
                 />
               </VCol>
               <VCol cols="12">

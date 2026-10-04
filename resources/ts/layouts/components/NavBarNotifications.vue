@@ -29,7 +29,7 @@ const notifications = computed<Notification[]>(() => rawNotifications.value.map(
   const style = visual[item.type as keyof typeof visual] ?? visual.info
   const text = notificationText(item, t)
 
-  return { id: item.id, icon: style.icon, color: style.color, title: text.title, subtitle: text.message, time: new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.date_time)), isSeen: item.is_read === true, goToUrl: item.go_to_url }
+  return { id: item.id, icon: style.icon, color: style.color, title: text.title, subtitle: text.message, labels: text.labels, sender: text.sender, time: new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.date_time)), isSeen: item.is_read === true, goToUrl: item.go_to_url }
 }))
 
 async function loadNotifications() {

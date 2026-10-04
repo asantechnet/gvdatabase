@@ -20,7 +20,7 @@ class ExpenseController extends Controller
 
     public function index(Request $request)
     {
-        $query = Expense::with(['expenseCurrency', 'company', 'project', 'recorder']);
+        $query = Expense::with(['expenseCurrency', 'project', 'recorder']);
 
         if ($request->has('type') && $request->type) {
             $query->where('type', $request->type);
@@ -28,10 +28,6 @@ class ExpenseController extends Controller
 
         if ($request->filled('currency_id')) {
             $query->where('currency_id', $request->integer('currency_id'));
-        }
-
-        if ($request->filled('company_id')) {
-            $query->where('company_id', $request->integer('company_id'));
         }
 
         if ($request->filled('project_id')) {
@@ -55,7 +51,6 @@ class ExpenseController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'applicant_id' => 'nullable|exists:applicants,id',
-            'company_id' => 'nullable|exists:companies,id',
             'project_id' => 'nullable|exists:projects,id',
             'type' => 'required|string|max:255',
             'description' => 'required|string',
@@ -75,12 +70,12 @@ class ExpenseController extends Controller
         $expense = Expense::create($data);
 
         // Return the created expense with 201 status code
-        return (new ExpenseResource($expense->load(['expenseCurrency', 'company', 'project', 'recorder'])))->response()->setStatusCode(201);
+        return (new ExpenseResource($expense->load(['expenseCurrency', 'project', 'recorder'])))->response()->setStatusCode(201);
     }
 
     public function show(Expense $expense)
     {
-        return new ExpenseResource($expense->load(['expenseCurrency', 'company', 'project', 'recorder']));
+        return new ExpenseResource($expense->load(['expenseCurrency', 'project', 'recorder']));
     }
 
     public function update(Request $request, Expense $expense)
@@ -90,7 +85,6 @@ class ExpenseController extends Controller
         }
         $validator = Validator::make($request->all(), [
             'applicant_id' => 'nullable|exists:applicants,id',
-            'company_id' => 'nullable|exists:companies,id',
             'project_id' => 'nullable|exists:projects,id',
             'type' => 'sometimes|string|max:255',
             'description' => 'sometimes|string',
@@ -111,7 +105,7 @@ class ExpenseController extends Controller
 
         $expense->update($data);
 
-        return new ExpenseResource($expense->load(['expenseCurrency', 'company', 'project', 'recorder']));
+        return new ExpenseResource($expense->load(['expenseCurrency', 'project', 'recorder']));
     }
 
     public function destroy(Expense $expense)

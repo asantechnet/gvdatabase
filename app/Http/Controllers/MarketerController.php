@@ -24,7 +24,7 @@ class MarketerController extends Controller
     public function accountOptions(): AnonymousResourceCollection
     {
         return UserResource::collection(
-            User::query()->with(['employee:id,user_id,name', 'marketer:id,user_id,name'])->orderBy('name')->get(),
+            User::query()->excludePrimaryRecord()->with(['employee:id,user_id,name', 'marketer:id,user_id,name'])->orderBy('name')->get(),
         );
     }
 

@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Resources\TaskResource;
 use App\Models\Board;
 use App\Models\Task;
+use App\Models\User;
+use App\Services\EducationalWorkflowNotificationService;
+use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -13,6 +16,10 @@ use Illuminate\Validation\ValidationException;
 
 class TaskController extends Controller
 {
+    public function __construct(
+        private readonly EducationalWorkflowNotificationService $notifications,
+    ) {}
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -35,8 +42,8 @@ class TaskController extends Controller
         $board = Board::findOrFail($validated['board_id']);
         Gate::authorize('create', [Task::class, $board]);
 
-        if ($request->has('assignees') && ! $request->user()->hasPermission('assign_task_members')) {
-            abort(403, 'auth.forbidden');
+        if ($request->has('assignees')) {
+            $this->assertAssigneesAssignable($request->user(), $validated['assignees'] ?? []);
         }
         if ($request->has('tags') && ! $request->user()->hasPermission('manage_task_tags')) {
             abort(403, 'auth.forbidden');
@@ -68,6 +75,8 @@ class TaskController extends Controller
 
         // Load empty relations so the resource doesn't fail
         $task->load(['users.employee', 'tags', 'services.currency', 'applicant', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
+
+        $this->notifications->taskAssigned($task, $assignees, (int) $request->user()->id);
 
         return new TaskResource($task);
     }
@@ -109,6 +118,7 @@ class TaskController extends Controller
 
         if ($request->has('assignees')) {
             Gate::authorize('assignMembers', $task);
+            $this->assertAssigneesAssignable($request->user(), $validated['assignees'] ?? []);
         }
         if ($request->has('tags')) {
             Gate::authorize('manageTags', $task);
@@ -172,7 +182,13 @@ class TaskController extends Controller
             return $task;
         });
 
-        return new TaskResource($task->fresh()->load(['users.employee', 'tags', 'services.currency', 'applicant', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']));
+        $task = $task->fresh()->load(['users.employee', 'tags', 'services.currency', 'applicant', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
+
+        if ($syncAssignees) {
+            $this->notifications->taskAssigned($task, $assignees, (int) $request->user()->id);
+        }
+
+        return new TaskResource($task);
     }
 
     public function destroy(Task $task)
@@ -292,6 +308,35 @@ class TaskController extends Controller
         });
 
         return response()->json(['message' => 'Task repositioned', 'positions' => $positions]);
+    }
+
+    /**
+     * Authorises the requested assignees. A role grant is unrestricted; a
+     * department manager may only hand work to their own department members.
+     *
+     * @param  list<int|string>  $assigneeIds
+     */
+    private function assertAssigneesAssignable(User $user, array $assigneeIds): void
+    {
+        if ($user->hasDirectPermission('assign_task_members')) {
+            return;
+        }
+
+        $scope = app(EmployeeScope::class);
+        if (! $scope->isDepartmentManager($user)) {
+            abort(403, 'auth.forbidden');
+        }
+
+        $allowed = [...$scope->managedDepartmentUserIds($user), (int) $user->id];
+        $outside = collect($assigneeIds)
+            ->map(fn ($id) => (int) $id)
+            ->reject(fn (int $id) => in_array($id, $allowed, true));
+
+        if ($outside->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'assignees' => ['business.task_assignee_outside_department'],
+            ]);
+        }
     }
 
     /** @param list<int> $dependencyIds */

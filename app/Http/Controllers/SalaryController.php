@@ -76,7 +76,8 @@ class SalaryController extends Controller
             $validated['bonus'] = round($bonusBase, $currency->decimal_places);
             $validated['total_amount'] = $validated['amount_paid'] + $validated['bonus'];
             $this->ensureDeductionsWithinPayable($validated['deductions'], (float) $validated['total_amount']);
-            $validated = array_merge($validated, $this->attendanceBreakdown($validated['employee_id'], $validated['salary_month']));
+            $counts = $this->attendanceCounts($validated['employee_id'], $validated['salary_month']);
+            $validated = array_merge($validated, $counts, $this->resolveWorkedDays($validated, $counts));
             $validated += $this->salaryCurrencySnapshot($currency, $validated['amount_paid'], $bonusBase, $rate);
 
             $salary = Salary::create($validated);
@@ -84,6 +85,7 @@ class SalaryController extends Controller
                 $salary->bonuses()->attach($bonus->id, $this->conversionSnapshot($bonus, $currency));
             }
             $this->syncDeductions($salary, $validated['deductions']);
+            $this->syncAutomaticDeduction($salary);
             $this->expenses->sync($salary);
             $initialPayment = (float) ($validated['initial_payment'] ?? 0);
             $netDue = max(0, (float) $salary->amount_due);
@@ -118,13 +120,16 @@ class SalaryController extends Controller
             // keeps partial-payment edits from duplicating bonus amounts.
             $validated['bonus'] = $salary->bonus;
             $validated['total_amount'] = $validated['amount_paid'] + $validated['bonus'];
+            $validated['deductions'] = $this->stripAutomaticDeductions($salary, $validated['deductions']);
             $this->ensureDeductionsWithinPayable($validated['deductions'], (float) $validated['total_amount']);
             $rate = (float) $validated['rate'];
             $validated = array_merge($validated, $this->salaryCurrencySnapshot($salary->currency, (float) $validated['amount_paid'], (float) $salary->bonus, $rate));
-            $validated = array_merge($validated, $this->attendanceBreakdown($validated['employee_id'], $validated['salary_month']));
+            $counts = $this->attendanceCounts($validated['employee_id'], $validated['salary_month']);
+            $validated = array_merge($validated, $counts, $this->resolveWorkedDays($validated, $counts));
 
             $salary->update($validated);
             $this->syncDeductions($salary, $validated['deductions']);
+            $this->syncAutomaticDeduction($salary);
             $this->expenses->sync($salary);
         });
 
@@ -171,6 +176,29 @@ class SalaryController extends Controller
     }
 
     /**
+     * Attendance-derived working-day breakdown for an employee and pay month,
+     * used to prefill the editable worked/total day inputs in the payroll form.
+     */
+    public function attendanceBreakdown(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'salaryMonth' => ['required', 'string', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
+        ]);
+
+        $this->ensureSelectableEmployee($validated['employee_id']);
+        $counts = $this->attendanceCounts($validated['employee_id'], $validated['salaryMonth']);
+
+        return response()->json(['data' => [
+            'workedDays' => $counts['worked_days'],
+            'totalDays' => $counts['total_days'],
+            'paidLeaveDays' => $counts['paid_leave_days'],
+            'unpaidLeaveDays' => $counts['unpaid_leave_days'],
+            'absentDays' => $counts['absent_days'],
+        ]]);
+    }
+
+    /**
      * Reusable validation mirroring Vue constraints.
      */
     private function validateSalaryRequest(Request $request, $ignoreId = null): array
@@ -191,10 +219,11 @@ class SalaryController extends Controller
             'salaryMonth' => ['required', 'string', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
             'amountPaid' => 'required|numeric|gt:0',
             'initialPayment' => ['nullable', 'numeric', 'min:0'],
-            // Kept as optional compatibility inputs; attendance is the sole
-            // source of truth for worked and total working days.
-            'workedDays' => ['sometimes', 'numeric', 'between:0,31', 'multiple_of:0.5'],
-            'totalDays' => 'sometimes|integer|between:1,31',
+            // Worked days are editable and take precedence over the attendance
+            // ledger for pay calculation; when omitted they default to the
+            // attendance-derived values (legacy clients).
+            'workedDays' => ['sometimes', 'nullable', 'numeric', 'between:0,31', 'multiple_of:0.5'],
+            'totalDays' => ['sometimes', 'nullable', 'integer', 'between:1,31'],
             'remarks' => 'nullable|string|max:255',
             'date' => ['required', 'date', 'before_or_equal:today'],
             'deductions' => ['present', 'array'],
@@ -233,8 +262,10 @@ class SalaryController extends Controller
             'salary_month' => $validated['salaryMonth'],
             'amount_paid' => $validated['amountPaid'],
             'initial_payment' => $validated['initialPayment'] ?? 0,
-            'worked_days' => 0,
-            'total_days' => 1,
+            // Worked and total days are user-editable. When omitted (legacy
+            // clients) they fall back to the attendance-derived values.
+            'worked_days' => $validated['workedDays'] ?? null,
+            'total_days' => $validated['totalDays'] ?? null,
             'remarks' => $validated['remarks'] ?? null,
             'payment_date' => $validated['date'],
             'deductions' => $validated['deductions'],
@@ -253,7 +284,11 @@ class SalaryController extends Controller
 
     private function syncDeductions(Salary $salary, array $deductions): void
     {
-        $existingIds = $salary->deductions()->pluck('id')->all();
+        // Automatic rows are owned by the payroll calculation; drop any attempt
+        // to submit them as ordinary manual line items.
+        $deductions = $this->stripAutomaticDeductions($salary, $deductions);
+
+        $existingIds = $salary->deductions()->where('is_automatic', false)->pluck('id')->all();
         $submittedIds = collect($deductions)->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
 
         // Never allow an update payload to modify deductions belonging to a different salary.
@@ -263,13 +298,14 @@ class SalaryController extends Controller
             ]);
         }
 
-        $salary->deductions()->whereNotIn('id', $submittedIds)->delete();
+        $salary->deductions()->where('is_automatic', false)->whereNotIn('id', $submittedIds)->delete();
 
-        foreach (array_values($deductions) as $sortOrder => $deduction) {
+        foreach ($deductions as $sortOrder => $deduction) {
             $attributes = [
                 'description' => $deduction['description'],
                 'amount' => $deduction['amount'],
-                'sort_order' => $sortOrder,
+                // Reserve 0 for the automatic line so it always sorts first.
+                'sort_order' => $sortOrder + 1,
             ];
 
             if (! empty($deduction['id'])) {
@@ -277,6 +313,73 @@ class SalaryController extends Controller
             } else {
                 $salary->deductions()->create($attributes);
             }
+        }
+    }
+
+    /**
+     * Remove automatic deduction rows from a client-submitted list so they can
+     * never be edited, deleted or counted as manual line items.
+     */
+    private function stripAutomaticDeductions(Salary $salary, array $deductions): array
+    {
+        $automaticIds = $salary->deductions()->where('is_automatic', true)->pluck('id')->all();
+        if ($automaticIds === []) {
+            return array_values($deductions);
+        }
+
+        return array_values(array_filter($deductions, function (array $deduction) use ($automaticIds): bool {
+            return empty($deduction['id']) || ! in_array((int) $deduction['id'], $automaticIds, true);
+        }));
+    }
+
+    /**
+     * Resolve the worked and total days that drive pay. Explicit (editable)
+     * values from the payroll form take precedence; otherwise the
+     * attendance-derived counts are used so legacy clients keep working.
+     */
+    private function resolveWorkedDays(array $validated, array $counts): array
+    {
+        $total = (int) ($validated['total_days'] ?? $counts['total_days']);
+        $worked = (float) ($validated['worked_days'] ?? $counts['worked_days']);
+
+        return [
+            'worked_days' => max(0.0, min($worked, (float) $total)),
+            'total_days' => max(1, $total),
+        ];
+    }
+
+    /**
+     * Regenerate the locked absence/leave deduction from the worked-days
+     * input: base salary is prorated by the share of unworked days. The bonus
+     * is intentionally left untouched.
+     */
+    private function syncAutomaticDeduction(Salary $salary): void
+    {
+        $base = (float) $salary->amount_paid;
+        $total = (int) $salary->total_days;
+        $worked = (float) $salary->worked_days;
+        $missingDays = max(0.0, $total - $worked);
+        $amount = $total > 0 ? round($base * $missingDays / $total, (int) ($salary->currency_decimal_places ?? 2)) : 0.0;
+
+        $automatic = $salary->deductions()->where('is_automatic', true)->first();
+
+        if ($amount <= 0) {
+            $automatic?->delete();
+
+            return;
+        }
+
+        $attributes = [
+            'description' => sprintf('Unpaid leave / absent (%s days)', rtrim(rtrim(number_format($missingDays, 1, '.', ''), '0'), '.')),
+            'amount' => $amount,
+            'code' => 'attendance_proration',
+            'sort_order' => 0,
+        ];
+
+        if ($automatic) {
+            $automatic->update($attributes);
+        } else {
+            $salary->deductions()->create($attributes + ['is_automatic' => true]);
         }
     }
 
@@ -367,7 +470,12 @@ class SalaryController extends Controller
         );
     }
 
-    private function attendanceBreakdown(int $employeeId, string $month): array
+    /**
+     * Attendance-derived day counts for an employee and pay month. The worked
+     * and total day values are used as defaults when the payroll form does not
+     * supply an explicit (editable) override.
+     */
+    private function attendanceCounts(int $employeeId, string $month): array
     {
         $employee = Employee::query()->findOrFail($employeeId);
         [$year, $monthNumber] = array_map('intval', explode('-', $month));

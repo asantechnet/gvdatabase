@@ -10,6 +10,7 @@ import PaidTimeOffApi, { type PaidTimeOff } from '@/api/paidTimeOff'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
 
 interface Staff {
   id: number
@@ -71,6 +72,13 @@ const leaveRemaining = ref(0)
 const leaveForm = ref({ id: null as number | null, date: new Date().toISOString().slice(0, 10), duration_days: 1 as 0.5 | 1, reason: '' })
 const leaveError = ref('')
 const isLeaveLoading = ref(false)
+const attachmentTarget = ref<Staff | null>(null)
+const isAttachmentsOpen = ref(false)
+
+function openAttachments(staff: Staff) {
+  attachmentTarget.value = staff
+  isAttachmentsOpen.value = true
+}
 
 const isPaidTimeOffFormComplete = computed(() => Boolean(
   leaveForm.value.date
@@ -835,6 +843,20 @@ onMounted(async () => {
                 :item="item"
                 :title="item.name"
               />
+              <VBtn
+                icon="tabler-paperclip"
+                variant="text"
+                size="small"
+                :aria-label="$t('common.attachments.title')"
+                @click="openAttachments(item)"
+              >
+                <VIcon icon="tabler-paperclip" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  {{ $t('common.attachments.title') }}
+                </VTooltip>
+              </VBtn>
               <VBtn
                 icon="tabler-file-description"
                 variant="text"
@@ -1939,6 +1961,13 @@ onMounted(async () => {
         </VCardActions>
       </VCard>
     </VDialog>
+
+    <AttachmentsDialog
+      v-model="isAttachmentsOpen"
+      type="employees"
+      :record-id="attachmentTarget?.id ?? null"
+      :title="attachmentTarget?.name || $t('common.attachments.title')"
+    />
   </div>
 </template>
 

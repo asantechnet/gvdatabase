@@ -221,6 +221,7 @@ class EducationalDashboardController extends Controller
     private function staff(array $filters): array
     {
         $employees = Employee::query()
+            ->excludePrimaryRecord()
             ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereIn('id', $employeeIds))
             ->orderBy('name')
             ->limit(50)

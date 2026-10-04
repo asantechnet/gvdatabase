@@ -73,9 +73,9 @@ class EducationalMasterDataTest extends TestCase
 
         $unused = $this->postJson('/api/educational-master-data/package-types', ['name' => 'Unused package', 'service_ids' => [$service->id]])->assertCreated()->json('data');
         $this->deleteJson("/api/educational-master-data/package-types/{$unused['id']}")->assertNoContent();
-        $this->assertSoftDeleted('package_types', ['id' => $unused['id']]);
+        $this->assertSoftDeleted('packages', ['id' => $unused['id']]);
         $restored = $this->postJson('/api/educational-master-data/package-types', ['name' => 'Unused package', 'description' => 'Reactivated', 'service_ids' => [$service->id]])->assertCreated()->json('data');
         $this->assertSame($unused['id'], $restored['id']);
-        $this->assertDatabaseHas('package_types', ['id' => $unused['id'], 'deleted_at' => null, 'description' => 'Reactivated']);
+        $this->assertDatabaseHas('packages', ['id' => $unused['id'], 'deleted_at' => null, 'description' => 'Reactivated']);
     }
 }
