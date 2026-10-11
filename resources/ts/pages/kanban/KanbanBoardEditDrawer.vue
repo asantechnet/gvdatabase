@@ -191,26 +191,37 @@ onMounted(() => {
 </script>
 
 <template>
-  <VNavigationDrawer
-    data-allow-mismatch
-    location="end"
-    :width="370"
-    temporary
-    border="0"
+  <VDialog
     :model-value="props.isDrawerOpen"
-    class="kanban-task-edit-drawer"
+    max-width="900"
+    scrollable
+    class="kanban-task-edit-dialog"
     @update:model-value="handleDrawerModelValueUpdate"
   >
+    <VCard class="kanban-task-edit-dialog__card">
     <!-- 👉 Header -->
-    <AppDrawerHeaderSection
-      :title="$t('common.messages.editTask')"
-      @cancel="$emit('update:isDrawerOpen', false)"
-    />
+    <VCardItem class="px-6 py-4">
+      <template #prepend>
+        <VAvatar color="primary" variant="tonal" size="38">
+          <VIcon icon="tabler-edit" />
+        </VAvatar>
+      </template>
+      <VCardTitle>{{ $t('common.messages.editTask') }}</VCardTitle>
+      <VCardSubtitle>{{ props.kanbanItem?.boardName }}</VCardSubtitle>
+      <template #append>
+        <VBtn
+          icon="tabler-x"
+          variant="text"
+          size="small"
+          @click="$emit('update:isDrawerOpen', false)"
+        />
+      </template>
+    </VCardItem>
 
     <VDivider />
 
     <PerfectScrollbar
-      class="kanban-task-edit-drawer__body"
+      class="kanban-task-edit-dialog__body"
       :options="{ wheelPropagation: false }"
     >
       <KanbanTaskEditForm
@@ -391,20 +402,19 @@ onMounted(() => {
         </VCardText>
       </VForm>
     </PerfectScrollbar>
-  </VNavigationDrawer>
+    </VCard>
+  </VDialog>
 </template>
 
 <style lang="scss">
-.kanban-task-edit-drawer {
-  z-index: 99999 !important;
+.kanban-task-edit-dialog {
   max-inline-size: 100vw;
 
-  .v-navigation-drawer__content {
+  &__card {
     display: flex;
-    flex-direction: column;
-    block-size: 100%;
-    min-block-size: 0;
     overflow: hidden;
+    flex-direction: column;
+    max-block-size: calc(100vh - 48px);
   }
 
   &__body {

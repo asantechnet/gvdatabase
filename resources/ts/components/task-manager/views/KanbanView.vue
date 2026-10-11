@@ -59,6 +59,7 @@ const vuexyKanbanData = computed(() => {
       title: task.title,
       dueDate: task.dueDate,
       labels: task.tags.map(t => t.name),
+      labelColors: Object.fromEntries(task.tags.map(tag => [tag.name, tag.color])),
       members: task.assignees.map(assignee => ({
         id: assignee.id,
         name: assignee.name,
@@ -271,7 +272,7 @@ const handleUpdateBoardState = async (boardIds: KanbanId[]) => {
                   color="primary"
                   class="me-2"
                 />
-                <span class="text-h5 font-weight-bold">{{ $t('components.taskManager.kanbanview.projectBoard') }}</span>
+                <span class="text-h5 font-weight-bold">{{ $t('components.taskManager.kanbanview.taskBoard') }}</span>
               </div>
             </template>
           </VCardItem>

@@ -50,12 +50,11 @@ export const useTaskStore = defineStore('taskManager', () => {
   // State
   const boards = ref<Board[]>([])
   const tasks = ref<Task[]>([])
-  const activeView = ref<'portfolio' | 'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings'>('portfolio')
+  const activeView = ref<'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings'>('kanban')
   const selectedTaskId = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const tags = ref<Tag[]>([])
-  const selectedProjectId = ref<number | null>(null)
 
   // Getters
   const selectedTask = computed(() => {
@@ -159,7 +158,7 @@ export const useTaskStore = defineStore('taskManager', () => {
       isLoading.value = true
       error.value = null
 
-      const response = await KanbanApi.getBoard(selectedProjectId.value ? { project_id: selectedProjectId.value } : undefined)
+      const response = await KanbanApi.getBoard()
 
       boards.value = response.data.data
       tasks.value = response.data.data.flatMap(board => board.tasks).map(task => ({
@@ -197,7 +196,7 @@ export const useTaskStore = defineStore('taskManager', () => {
       isLoading.value = true
       error.value = null
 
-      const response = await BoardApi.getAll(selectedProjectId.value ? { project_id: selectedProjectId.value } : undefined)
+      const response = await BoardApi.getAll()
 
       boards.value = response.data.data
     }
@@ -424,7 +423,7 @@ export const useTaskStore = defineStore('taskManager', () => {
     try {
       isLoading.value = true
       error.value = null
-      await BoardApi.reorder(boardIds, selectedProjectId.value)
+      await BoardApi.reorder(boardIds)
 
       const orderById = new Map(boardIds.map((id, index) => [id, index]))
 
@@ -582,7 +581,7 @@ export const useTaskStore = defineStore('taskManager', () => {
       isLoading.value = true
       error.value = null
 
-      const response = await BoardApi.create({ title, project_id: selectedProjectId.value })
+      const response = await BoardApi.create({ title })
 
       boards.value.push(response.data.data)
     }
@@ -635,16 +634,8 @@ export const useTaskStore = defineStore('taskManager', () => {
     }
   }
 
-  const setView = (view: 'portfolio' | 'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings') => {
+  const setView = (view: 'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings') => {
     activeView.value = view
-  }
-
-  const selectProject = async (projectId: number | null) => {
-    if (selectedProjectId.value === projectId)
-      return
-    selectedProjectId.value = projectId
-    selectedTaskId.value = null
-    await fetchBoardData()
   }
 
   const selectTask = (id: string | null) => {
@@ -655,7 +646,6 @@ export const useTaskStore = defineStore('taskManager', () => {
     boards,
     tasks,
     tags,
-    selectedProjectId,
     activeView,
     selectedTaskId,
     selectedTask,
@@ -685,7 +675,6 @@ export const useTaskStore = defineStore('taskManager', () => {
     updateBoard,
     deleteBoard,
     setView,
-    selectProject,
     selectTask,
   }
 })

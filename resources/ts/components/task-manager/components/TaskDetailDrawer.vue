@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { VForm } from 'vuetify/components/VForm'
 import { useTaskStore } from '@/stores/useTaskStore'
 import { canAccess } from '@/utils/authorization'
-import type { Service } from '@/api/services'
 import TaskApi from '@/api/task'
-import ProjectApi from '@/api/project'
 import type { TaskPriority } from '@/types/taskManager'
 
 const props = defineProps<{
@@ -30,12 +28,12 @@ const bonusReviewError = ref('')
 const isSavingBonusReview = ref(false)
 
 // Priority options
-const priorityOptions = [
+const priorityOptions = computed(() => [
   { title: translate('components.taskManager.taskdetaildrawer.low'), value: 'low' },
   { title: translate('components.taskManager.taskdetaildrawer.medium'), value: 'medium' },
   { title: translate('components.taskManager.taskdetaildrawer.high'), value: 'high' },
   { title: translate('components.taskManager.taskdetaildrawer.urgent'), value: 'urgent' },
-]
+])
 
 // Local task data
 const localTask = ref({
@@ -45,11 +43,9 @@ const localTask = ref({
   startDate: '',
   dueDate: '',
   dependencies: [] as string[],
-  serviceIds: [] as number[],
   progress: 0,
 })
 
-const services = ref<Service[]>([])
 
 const dependencyOptions = computed(() => {
   return store.tasks
@@ -60,9 +56,7 @@ const dependencyOptions = computed(() => {
     }))
 })
 
-const serviceOptions = computed(() => services.value
-  .filter(service => service.status === 'active')
-  .map(service => ({ title: service.type, value: service.id })))
+
 
 // Watch for changes in selected task
 watch(() => store.selectedTask, async newTask => {
@@ -74,25 +68,9 @@ watch(() => store.selectedTask, async newTask => {
       startDate: newTask.startDate,
       dueDate: newTask.dueDate,
       dependencies: [...newTask.dependencies],
-      serviceIds: newTask.services?.map(service => service.id) ?? [],
       progress: newTask.progress,
     }
 
-    const board = store.boards.find(item => item.id === newTask.boardId)
-    if (board?.projectId) {
-      try {
-        const selectedId = newTask.id
-        const project = await ProjectApi.getById(board.projectId)
-        if (store.selectedTask?.id === selectedId)
-          services.value = project.services ?? []
-      }
-      catch {
-        services.value = []
-      }
-    }
-    else {
-      services.value = []
-    }
     bonusQuality.value = newTask.managerQualityScore ?? 3
     markRejected.value = false
 
@@ -122,7 +100,6 @@ const updateTask = async () => {
       start_date: localTask.value.startDate,
       due_date: localTask.value.dueDate,
       dependencies: localTask.value.dependencies,
-      service_ids: localTask.value.serviceIds,
       ...(store.selectedTask?.subtasks.length === 0 ? { progress: localTask.value.progress } : {}),
     })
     emit('update:isOpen', false)
@@ -184,17 +161,16 @@ const saveBonusReview = async () => {
 </script>
 
 <template>
-  <VNavigationDrawer
+  <VDialog
     v-model="props.isOpen"
-    location="end"
-    temporary
-    :width="500"
-    class="task-detail-drawer"
+    max-width="1000"
+    scrollable
+    class="task-detail-dialog"
     @update:model-value="handleClose"
   >
     <VCard
       elevation="0"
-      class="h-100 d-flex flex-column"
+      class="task-detail-card d-flex flex-column"
     >
       <VCardItem class="border-b">
         <template #title>
@@ -221,7 +197,7 @@ const saveBonusReview = async () => {
         </template>
       </VCardItem>
 
-      <PerfectScrollbar class="flex-grow-1">
+      <PerfectScrollbar class="task-detail-scroll flex-grow-1">
         <VForm
           ref="refEditTaskForm"
           class="pa-5 pt-7"
@@ -229,7 +205,7 @@ const saveBonusReview = async () => {
         >
           <VRow>
             <!-- Title -->
-            <VCol cols="12">
+            <VCol cols="12" md="6">
               <VTextField
                 v-model="localTask.title"
                 :label="$t('common.fields.title')"
@@ -242,6 +218,7 @@ const saveBonusReview = async () => {
             <VCol
               v-if="canReviewBonus() && store.selectedTask?.progress === 100"
               cols="12"
+              md="6"
             >
               <VDivider class="my-3" />
               <div class="text-subtitle-1 font-weight-bold mb-3">
@@ -308,7 +285,7 @@ const saveBonusReview = async () => {
               />
             </VCol>
 
-            <VCol cols="12">
+            <VCol cols="12" md="4">
               <VSelect
                 v-model="localTask.priority"
                 :items="priorityOptions"
@@ -322,7 +299,7 @@ const saveBonusReview = async () => {
             <!-- Dates -->
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
               <VTextField
                 v-model="localTask.startDate"
@@ -333,7 +310,7 @@ const saveBonusReview = async () => {
             </VCol>
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
               <VTextField
                 v-model="localTask.dueDate"
@@ -344,7 +321,7 @@ const saveBonusReview = async () => {
             </VCol>
 
             <!-- Gantt relationships -->
-            <VCol cols="12">
+            <VCol cols="12" md="6">
               <VSelect
                 v-model="localTask.dependencies"
                 :items="dependencyOptions"
@@ -360,21 +337,6 @@ const saveBonusReview = async () => {
               />
             </VCol>
 
-            <VCol cols="12">
-              <VAutocomplete
-                v-model="localTask.serviceIds"
-                :items="serviceOptions"
-                :label="$t('components.taskManager.taskdetaildrawer.linkedServices')"
-                multiple
-                chips
-                closable-chips
-                clearable
-                prepend-inner-icon="tabler-briefcase"
-                :hint="$t('components.taskManager.taskdetaildrawer.projectServiceHint')"
-                persistent-hint
-                :disabled="!canEditTask()"
-              />
-            </VCol>
 
             <VCol cols="12">
               <div class="mb-2 d-flex align-center gap-2">
@@ -458,18 +420,16 @@ const saveBonusReview = async () => {
         </VCardActions>
       </VCard>
     </VDialog>
-  </VNavigationDrawer>
+  </VDialog>
 </template>
 
 <style scoped>
-.task-detail-drawer {
-  z-index: 1001;
-  max-width: 100vw;
+.task-detail-card {
+  max-height: calc(100vh - 48px);
 }
 
-.task-detail-drawer :deep(.v-navigation-drawer__content) {
+.task-detail-scroll {
   min-height: 0;
-  overflow: hidden;
 }
 
 .task-detail-actions {

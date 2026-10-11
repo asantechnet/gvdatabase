@@ -3,16 +3,15 @@
 namespace App\Services;
 
 use App\Models\Applicant;
-use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Keeps a traceable CRM lead for an applicant portal account.
+ * Keeps the applicant record fresh for a portal account.
  *
- * This used to also create a separate `Customer` and attach it to the case.
- * The applicant now *is* the party, so the synchronizer only backfills the
- * absorbed identity fields on the case and links the lead directly to it.
+ * This used to create a separate `Customer`, then a CRM `Lead`; both entities
+ * are gone. The applicant *is* the party, so the synchronizer only backfills
+ * the absorbed identity fields on the applicant.
  */
 class ApplicantPortalCrmSynchronizer
 {
@@ -29,20 +28,6 @@ class ApplicantPortalCrmSynchronizer
             }
 
             $this->backfillIdentity($applicant, $user);
-
-            Lead::firstOrCreate(['applicant_id' => $applicant->id], [
-                'applicant_id' => $applicant->id,
-                'name' => $user->name,
-                'company' => $user->name,
-                'contact' => $user->phone ?: $user->email,
-                'email' => $user->email,
-                'service_interest' => 'Educational application services',
-                'stage' => 'qualified',
-                'probability' => 50,
-                'probability_is_manual' => false,
-                'notes' => 'Created automatically when the applicant signed in to the portal.',
-                'owner_id' => $user->id,
-            ]);
         });
     }
 
@@ -55,7 +40,6 @@ class ApplicantPortalCrmSynchronizer
     {
         $fill = array_filter([
             'name' => $user->name,
-            'company' => $user->name,
             'contact' => $user->phone ?: $user->email,
             'email' => $user->email,
             'address' => $user->address,

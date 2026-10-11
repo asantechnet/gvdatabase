@@ -26,6 +26,7 @@ const report = reactive<EndWorkdayData>({
 })
 
 async function handleSubmit() {
+  if (loading.value || !report.attendanceId) return
   errors.value = {}
   if (!report.summary.trim()) {
     errors.value.summary = t('components.account.workday.summaryRequired')
@@ -48,18 +49,32 @@ async function handleSubmit() {
   }
 }
 
-watch(() => props.modelValue, open => {
-  if (!open) {
-    Object.assign(report, { summary: '', achievements: '', challenges: '', nextDayPlan: '', supportNeeded: '' })
-    errors.value = {}
+const sessionDate = ref('')
+let loadVersion = 0
+watch(() => props.modelValue, async open => {
+  const version = ++loadVersion
+  if (!open) return // Keep the draft when someone closes the dialog accidentally.
+  loading.value = true
+  try {
+    const status = await WorkdayApi.status()
+    if (version !== loadVersion) return
+    if (status.attendance?.id !== report.attendanceId) {
+      Object.assign(report, { summary: '', achievements: '', challenges: '', nextDayPlan: '', supportNeeded: '' })
+      errors.value = {}
+    }
+    report.attendanceId = status.attendance?.id
+    sessionDate.value = status.attendance?.date ?? ''
   }
+  catch { if (version === loadVersion) report.attendanceId = undefined }
+  finally { if (version === loadVersion) loading.value = false }
 })
+onBeforeUnmount(() => { loadVersion++ })
 </script>
 
 <template>
   <VDialog
     :model-value="props.modelValue"
-    persistent
+    :persistent="loading"
     max-width="700"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -71,6 +86,7 @@ watch(() => props.modelValue, open => {
             color="primary"
           />
           {{ t('components.account.workday.reportTitle') }}
+          <VChip v-if="sessionDate" size="small">{{ sessionDate }}</VChip>
         </VCardTitle>
         <VDivider />
         <VCardText class="pa-5">
@@ -89,6 +105,7 @@ watch(() => props.modelValue, open => {
           />
           <VTextarea
             v-model="report.achievements"
+            :error-messages="errors.achievements"
             :label="t('components.account.workday.achievements')"
             rows="2"
             auto-grow
@@ -96,6 +113,7 @@ watch(() => props.modelValue, open => {
           />
           <VTextarea
             v-model="report.challenges"
+            :error-messages="errors.challenges"
             :label="t('components.account.workday.challenges')"
             rows="2"
             auto-grow
@@ -103,6 +121,7 @@ watch(() => props.modelValue, open => {
           />
           <VTextarea
             v-model="report.nextDayPlan"
+            :error-messages="errors.nextDayPlan"
             :label="t('components.account.workday.nextDayPlan')"
             rows="2"
             auto-grow
@@ -110,6 +129,7 @@ watch(() => props.modelValue, open => {
           />
           <VTextarea
             v-model="report.supportNeeded"
+            :error-messages="errors.supportNeeded"
             :label="t('components.account.workday.supportNeeded')"
             rows="2"
             auto-grow
@@ -129,6 +149,7 @@ watch(() => props.modelValue, open => {
             color="primary"
             prepend-icon="tabler-check"
             :loading="loading"
+            :disabled="!report.attendanceId"
             @click="handleSubmit"
           >
             {{ t('components.account.workday.submitAndEnd') }}

@@ -4,6 +4,9 @@ export interface ContractPolicy {
   id: number
   label: string
   type: string
+  service?: import('./applicants').BuiltInService | null
+  position_id?: number | null
+  position?: { id: number; title: string } | null
   country_id: number | null
   language_id: number | null
   country?: { id: number; name: string } | null
@@ -15,7 +18,7 @@ export interface ContractPolicy {
   updated_at: string
 }
 
-export type ContractPolicyPayload = Pick<ContractPolicy, 'label' | 'type' | 'country_id' | 'language_id' | 'is_active' | 'header' | 'content'>
+export type ContractPolicyPayload = Pick<ContractPolicy, 'label' | 'type' | 'service' | 'position_id' | 'country_id' | 'language_id' | 'is_active' | 'header' | 'content'>
 
 export default {
   async getAll(includeInactive = false): Promise<ContractPolicy[]> {

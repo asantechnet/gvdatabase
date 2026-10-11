@@ -6,7 +6,7 @@ interface NotificationEvent { key: string; title: string; description: string; i
 
 const notificationEvents = ref<NotificationEvent[]>([
   { key: 'audit_activity', title: translate('components.account.accountsettingsnotification.auditActivity'), description: translate('components.account.accountsettingsnotification.recordEditsDeletionsRestoresAndReviewActions'), in_app: true },
-  { key: 'finance_updates', title: translate('components.account.accountsettingsnotification.financeUpdates'), description: translate('components.account.accountsettingsnotification.invoicesIncomeExpensesAndPaymentActivity'), in_app: true },
+  { key: 'finance_updates', title: translate('components.account.accountsettingsnotification.financeUpdates'), description: translate('components.account.accountsettingsnotification.incomeExpensesAndPaymentActivity'), in_app: true },
   { key: 'work_updates', title: translate('components.account.accountsettingsnotification.workUpdates'), description: translate('components.account.accountsettingsnotification.tasksBoardsCommentsAndContractActivity'), in_app: true },
   { key: 'applicant_updates', title: translate('notificationPreferences.applicantUpdates'), description: translate('notificationPreferences.applicantCaseAssignmentsStagesAndReminders'), in_app: true },
   { key: 'staff_updates', title: translate('components.account.accountsettingsnotification.staffUpdates'), description: translate('components.account.accountsettingsnotification.employeeAttendanceSalaryAndBonusActivity'), in_app: true },

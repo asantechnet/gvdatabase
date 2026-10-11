@@ -6,15 +6,13 @@ export interface UserAccountOption {
   name: string
   email: string
   employee: { id: number; name: string } | null
-  marketer?: { id: number; name: string } | null
 }
 
 const props = withDefaults(defineProps<{
   items: UserAccountOption[]
   loading?: boolean
-  currentMarketerId?: number | null
   currentEmployeeId?: number | null
-}>(), { loading: false, currentMarketerId: null, currentEmployeeId: null })
+}>(), { loading: false, currentEmployeeId: null })
 
 const model = defineModel<number | null>()
 const { t } = useI18n()
@@ -24,8 +22,7 @@ const options = computed(() => props.items.map(account => ({
   title: account.name,
   value: account.id,
   disabled: Boolean(
-    (account.marketer && account.marketer.id !== props.currentMarketerId)
-    || (props.currentEmployeeId !== null && account.employee && account.employee.id !== props.currentEmployeeId),
+    (props.currentEmployeeId !== null && account.employee && account.employee.id !== props.currentEmployeeId),
   ),
 })))
 </script>
@@ -74,11 +71,8 @@ const options = computed(() => props.items.map(account => ({
               icon="tabler-id-badge-2"
               size="14"
             /> {{ t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span>
-            <span v-if="item.raw.marketer"><VIcon
-              icon="tabler-speakerphone"
-              size="14"
-            /> {{ t('common.accountPicker.linkedMarketer', { name: item.raw.marketer.name, id: item.raw.marketer.id }) }}</span>
-            <span v-if="!item.raw.employee && !item.raw.marketer">{{ t('common.accountPicker.available') }}</span>
+
+            <span v-if="!item.raw.employee">{{ t('common.accountPicker.available') }}</span>
           </div>
         </template>
         <template #append>

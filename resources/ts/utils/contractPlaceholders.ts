@@ -1,4 +1,18 @@
 import type { PlaceholderGroup } from '@/api/contractPlaceholders'
+import { translateOrFallback } from '@/utils/localization'
+
+export const localizePlaceholderGroups = (groups: PlaceholderGroup[]): PlaceholderGroup[] => {
+  const base = 'pages.settings.policies.policies.contractTemplate.placeholders'
+
+  return groups.map(group => ({
+    ...group,
+    label: translateOrFallback(`${base}.${group.key}.label`, group.label),
+    fields: group.fields.map(field => ({
+      ...field,
+      label: translateOrFallback(`${base}.${group.key}.fields.${field.key.slice(group.key.length + 1)}`, field.label),
+    })),
+  }))
+}
 
 /**
  * Placeholder serialization bridge.

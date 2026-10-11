@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" href="{{ asset('favicon.ico') }}" />
+  @php($faviconLogo = optional(\App\Models\Setting::latest('id')->first())->website_logo)
+  <link rel="icon" href="{{ $faviconLogo ? \Illuminate\Support\Facades\Storage::url($faviconLogo) : asset('favicon.svg') }}" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ optional(\App\Models\Setting::latest('id')->first())->website_title ?: 'Educational Agency Portal' }}</title>

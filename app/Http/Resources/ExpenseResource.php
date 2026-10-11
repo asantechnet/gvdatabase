@@ -18,9 +18,9 @@ class ExpenseResource extends JsonResource
         return [
             'id' => $this->id,
             'applicant_id' => $this->applicant_id,
-            'project_id' => $this->project_id,
-            'project' => $this->whenLoaded('project', fn () => $this->project ? [
-                'id' => $this->project->id, 'name' => $this->project->name,
+            'applicant' => $this->whenLoaded('applicant', fn () => $this->applicant ? [
+                'id' => $this->applicant->id,
+                'name' => $this->applicant->name,
             ] : null),
             'currency_id' => $this->currency_id,
             'base_currency_id' => $this->base_currency_id,

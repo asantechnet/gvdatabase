@@ -23,7 +23,7 @@ class AuditResourceController extends Controller
         ]);
         AuditRegistry::ensureSettings();
 
-        $paginator = AuditResourceSetting::query()->with('updatedBy:id,name,email')
+        $paginator = AuditResourceSetting::query()->whereIn('resource_key', array_keys(AuditRegistry::resources()))->with('updatedBy:id,name,email')
             ->when(($data['state'] ?? null) === 'enabled', fn ($query) => $query->where('enabled', true))
             ->when(($data['state'] ?? null) === 'disabled', fn ($query) => $query->where('enabled', false))
             ->when(isset($data['search']), fn ($query) => $query->where('resource_key', 'like', '%'.addcslashes($data['search'], '%_\\').'%'))
@@ -37,7 +37,9 @@ class AuditResourceController extends Controller
             'updated_at' => $setting->updated_at?->toISOString(),
         ]));
 
-        return response()->json($paginator);
+        return response()->json($paginator->toArray() + [
+            'resource_keys' => [...array_keys(AuditRegistry::resources()), 'account_deactivations', 'audit_settings'],
+        ]);
     }
 
     public function update(Request $request, AuditResourceSetting $auditResourceSetting): JsonResponse

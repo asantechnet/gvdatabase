@@ -9,6 +9,14 @@ export const currentLocale = (): SupportedLocale => {
 export const translate = (key: string, values?: Record<string, unknown>): string =>
   String(getI18n().global.t(key, values ?? {}))
 
+/** Resolve optional catalog entries without displaying a key or a missing marker. */
+export const translateOrFallback = (key: string, fallback: string): string => {
+  const i18n = getI18n().global
+  const locales = currentLocale() === 'ps-AF' ? ['ps-AF', 'fa-AF', 'en'] : [currentLocale(), 'en']
+
+  return locales.some(locale => i18n.te(key, locale)) ? translate(key) : fallback
+}
+
 const calendarDate = (value: string | number | Date): Date => {
   // Date-only API values represent a local calendar day. Parsing them as UTC
   // can display the previous day for users west of UTC.
@@ -69,9 +77,17 @@ export const translateBackendValue = (value: unknown, namespace = 'common.status
   if (value === null || value === undefined || value === '')
     return translate('common.messages.notAvailable')
   const key = `${namespace}.${normalizedKey(String(value))}`
-  const translated = translate(key)
+  return translateOrFallback(key, String(value))
+}
 
-  return translated.startsWith('[missing:') || translated === '' ? String(value) : translated
+/** Translate seeded pipeline stages while preserving administrator-defined names. */
+export const translateApplicantStage = (stage: { key?: string; name?: string } | null | undefined): string => {
+  if (!stage?.name) return translate('common.messages.notAvailable')
+  const key = stage.key ?? stage.name.toLowerCase().replace(/\s+/g, '_')
+  const defaultName = key.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())
+  if (stage.name !== defaultName) return stage.name
+
+  return translateOrFallback(`educational.stageNames.${key}`, stage.name)
 }
 
 const policyTypeBases = [
@@ -91,8 +107,8 @@ export const translateContractPolicyType = (slug: unknown, fallbackName?: string
   if (!raw)
     return translate('common.messages.notAvailable')
   for (const base of policyTypeBases) {
-    const translated = translate(`${base}.${raw}`)
-    if (translated !== '' && !translated.startsWith('[missing:'))
+    const translated = translateOrFallback(`${base}.${raw}`, '')
+    if (translated)
       return translated
   }
   if (fallbackName)

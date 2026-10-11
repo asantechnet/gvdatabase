@@ -20,7 +20,6 @@ class SettingController extends Controller
         'contract_letterhead' => 'contract-letterheads',
         'contract_cover_design' => 'contract-cover-designs',
         'receipt_letterhead' => 'receipt-letterheads',
-        'invoice_letterhead' => 'invoice-letterheads',
         'payslip_letterhead' => 'payslip-letterheads',
     ];
 
@@ -28,7 +27,6 @@ class SettingController extends Controller
         'contract_letterhead',
         'contract_cover_design',
         'receipt_letterhead',
-        'invoice_letterhead',
         'payslip_letterhead',
     ];
 
@@ -57,7 +55,6 @@ class SettingController extends Controller
             'remove_contract_letterhead',
             'remove_contract_cover_design',
             'remove_receipt_letterhead',
-            'remove_invoice_letterhead',
             'remove_payslip_letterhead',
             'clear_mail_password',
         ]);
@@ -98,7 +95,6 @@ class SettingController extends Controller
             'remove_contract_letterhead',
             'remove_contract_cover_design',
             'remove_receipt_letterhead',
-            'remove_invoice_letterhead',
             'remove_payslip_letterhead',
             'clear_mail_password',
         ]);

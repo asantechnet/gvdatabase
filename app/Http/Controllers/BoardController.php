@@ -18,7 +18,6 @@ class BoardController extends Controller
     {
         $user = $request->user();
         $boards = Board::query()
-            ->when($request->filled('project_id'), fn ($query) => $query->where('project_id', $request->integer('project_id')))
             ->when(! $user->hasPermission('view_all_boards'), fn ($query) => $query
                 ->whereHas('users', fn ($members) => $members->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user))))
             ->with(['tasks' => function ($query) use ($user) {
@@ -37,7 +36,6 @@ class BoardController extends Controller
         Gate::authorize('create', Board::class);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'project_id' => 'nullable|integer|exists:projects,id',
             'order' => 'nullable|integer',
             'user_ids' => 'sometimes|array',
             'user_ids.*' => 'integer|exists:users,id',
@@ -50,9 +48,9 @@ class BoardController extends Controller
         $memberIds = $validated['user_ids'] ?? [];
         unset($validated['user_ids']);
         $board = DB::transaction(function () use ($validated, $memberIds, $request): Board {
-            $scope = Board::query()->where('project_id', $validated['project_id'] ?? null)->orderBy('id')->lockForUpdate()->get();
+            $lastBoard = Board::query()->orderByDesc('order')->lockForUpdate()->first();
             if (! isset($validated['order'])) {
-                $validated['order'] = ((int) $scope->max('order')) + 1;
+                $validated['order'] = ((int) ($lastBoard?->order ?? -1)) + 1;
             }
             $board = Board::create($validated);
             $board->users()->syncWithoutDetaching(array_unique([...$memberIds, $request->user()->id]));
@@ -73,12 +71,10 @@ class BoardController extends Controller
         $validated = $request->validate([
             'board_ids' => 'required|array',
             'board_ids.*' => 'integer|distinct|exists:boards,id',
-            'project_id' => 'nullable|integer|exists:projects,id',
         ]);
 
         DB::transaction(function () use ($validated) {
             $boards = Board::query()
-                ->where('project_id', $validated['project_id'] ?? null)
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get();

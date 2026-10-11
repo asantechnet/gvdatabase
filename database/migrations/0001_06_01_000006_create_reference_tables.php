@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Reference section: country / education-level / language / package-type
+ * Reference section: country / education-level / language
  * catalogues, universities, semesters and the applicant stage machine.
  *
  * The stage rows are seeded with the FINAL edges: cancellations and
@@ -43,19 +43,6 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
-        });
-
-        Schema::create('package_types', function (Blueprint $table) {
-            $table->id();
-            $table->string('name')->unique();
-            $table->text('description')->nullable();
-            $table->string('service_type')->nullable()->index();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-            $table->softDeletes();
-            $table->foreignId('currency_id')->nullable()->constrained()->nullOnDelete();
-            $table->decimal('fee', 20, 6)->nullable();
-            $table->json('service_manifest')->nullable();
         });
 
         Schema::create('universities', function (Blueprint $table) {
@@ -106,19 +93,19 @@ return new class extends Migration
         $now = now();
         $exits = ['cancelled', 'withdrawn'];
         $happyPath = [
-            'new'                   => ['consultation'],
-            'consultation'          => ['documents_required'],
-            'documents_required'    => ['documents_complete'],
-            'documents_complete'    => ['university_selection'],
-            'university_selection'  => ['university_application'],
-            'university_application'=> ['admission_pending'],
-            'admission_pending'     => ['admission_received'],
-            'admission_received'    => ['contract_service_active'],
+            'new' => ['consultation'],
+            'consultation' => ['documents_required'],
+            'documents_required' => ['documents_complete'],
+            'documents_complete' => ['university_selection'],
+            'university_selection' => ['university_application'],
+            'university_application' => ['admission_pending'],
+            'admission_pending' => ['admission_received'],
+            'admission_received' => ['contract_service_active'],
             'contract_service_active' => ['visa_preparation'],
-            'visa_preparation'      => ['visa_submitted'],
-            'visa_submitted'        => ['visa_processing'],
-            'visa_processing'       => ['visa_approved'],
-            'visa_approved'         => ['completed'],
+            'visa_preparation' => ['visa_submitted'],
+            'visa_submitted' => ['visa_processing'],
+            'visa_processing' => ['visa_approved'],
+            'visa_approved' => ['completed'],
         ];
         $decisionStages = ['admission_pending', 'visa_submitted', 'visa_processing'];
 
@@ -169,7 +156,6 @@ return new class extends Migration
         Schema::dropIfExists('applicant_stages');
         Schema::dropIfExists('semesters');
         Schema::dropIfExists('universities');
-        Schema::dropIfExists('package_types');
         Schema::dropIfExists('languages');
         Schema::dropIfExists('education_levels');
         Schema::dropIfExists('countries');

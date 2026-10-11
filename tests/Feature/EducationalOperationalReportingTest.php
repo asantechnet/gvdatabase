@@ -8,7 +8,6 @@ use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\Country;
 use App\Models\Currency;
-use App\Models\Applicant;
 use App\Models\Employee;
 use App\Models\Income;
 use App\Models\Role;
@@ -16,11 +15,12 @@ use App\Models\University;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\CreatesBuiltInContracts;
 use Tests\TestCase;
 
 class EducationalOperationalReportingTest extends TestCase
 {
-    use RefreshDatabase;
+    use CreatesBuiltInContracts, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -48,13 +48,15 @@ class EducationalOperationalReportingTest extends TestCase
         $this->getJson('/api/educational-reports/universities')->assertOk()->assertJsonPath('data.rows.0.university', 'Ottawa University')->assertJsonPath('data.rows.0.admitted', 1);
     }
 
-    public function test_service_profile_must_match_its_linked_case_when_both_are_known(): void
+    public function test_scholarship_university_must_belong_to_the_selected_country(): void
     {
         $canada = Country::create(['name' => 'Canada', 'code' => 'CAN', 'is_active' => true]);
         $australia = Country::create(['name' => 'Australia', 'code' => 'AUS', 'is_active' => true]);
-        $case = $this->postJson('/api/applicants', ['name' => 'Profile Case', 'country_id' => $canada->id])->assertCreated()->json('data');
-
-        $this->postJson('/api/educational-services/scholarships', ['applicant_id' => $case['id'], 'country_id' => $australia->id, 'employee_id' => Employee::factory()->create()->id, 'currency_id' => Currency::factory()->create()->id, 'date' => now()->toDateString(), 'fee' => 100])
-            ->assertUnprocessable()->assertJsonValidationErrors('country_id');
+        $university = University::create(['name' => 'Canadian university', 'country_id' => $canada->id]);
+        $this->postJson('/api/contracts/scholarship', $this->builtInContractPayload('scholarship', [
+            'name' => 'Profile Case', 'country_id' => $australia->id, 'university_id' => $university->id,
+        ]))->assertUnprocessable();
+        $this->assertDatabaseCount('applicants', 0);
+        $this->assertDatabaseCount('applicant_contract', 0);
     }
 }

@@ -74,7 +74,6 @@ class Notification extends Model
         return match (true) {
             str_contains($classification, 'audit') => 'audit_activity',
             str_contains($classification, 'finance'),
-            str_contains($classification, 'invoice'),
             str_contains($classification, 'income'),
             str_contains($classification, 'expense'),
             str_contains($classification, 'payment') => 'finance_updates',

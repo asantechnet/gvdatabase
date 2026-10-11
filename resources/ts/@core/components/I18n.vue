@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { I18nLanguage } from '@layouts/types'
+import { loadLocale } from '@/plugins/i18n'
 
 interface Props {
   languages: I18nLanguage[]
@@ -11,6 +12,16 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const { locale } = useI18n({ useScope: 'global' })
+
+// Locales other than the default one live in their own chunk. Load the target
+// locale before switching so the UI never renders untranslated keys.
+const switchLocale = async (next: string) => {
+  if (next === locale.value)
+    return
+
+  if (await loadLocale(next).catch(() => false))
+    locale.value = next
+}
 </script>
 
 <template>
@@ -34,7 +45,7 @@ const { locale } = useI18n({ useScope: 'global' })
           v-for="lang in props.languages"
           :key="lang.i18nLang"
           :value="lang.i18nLang"
-          @click="locale = lang.i18nLang"
+          @click="switchLocale(lang.i18nLang)"
         >
           <!-- Language label -->
           <VListItemTitle>

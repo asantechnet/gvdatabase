@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import { translateApplicantStage, translate } from '@/utils/localization'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import ErpField from '@/components/erp/ErpField.vue'
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import ApplicantApi, { type Applicant, type ApplicantStage, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment } from '@/api/applicants'
+import ApplicantApi, { type Applicant, type ApplicantStage, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
+import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
 import ApplicantPortalApi from '@/api/applicantPortal'
 import ContractApi, { type Contract } from '@/api/contracts'
-import ContractTemplateApi, { type ContractTemplate } from '@/api/contractTemplate'
 import BoardApi from '@/api/board'
-import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
 import ContractDocumentPrinter from '@/components/contract/ContractDocumentPrinter.vue'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
@@ -19,6 +22,7 @@ import { formatLocalizedDate, translateBackendValue } from '@/utils/localization
 
 const toast = useToast()
 const route = useRoute()
+const router = useRouter()
 const { t, n } = useI18n()
 const applicant = ref<Applicant | null>(null)
 const stages = ref<ApplicantStage[]>([])
@@ -42,10 +46,9 @@ const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
 const canViewFinance = computed(() => canAccess('view_applicant_financials'))
 const canCreatePendingTransactions = computed(() => canAccess('create_pending_transactions'))
 const canViewContracts = computed(() => canAccess('view_applicant_contracts'))
-const canViewServices = computed(() => canAccess('view_applicant_services'))
-const canManageServices = computed(() => canAccess('create_contracts'))
-// Family contact and the grade metric are shown next to the case title so
-// staff can confirm them without opening the edit dialog.
+const canViewServices = computed(() => canAccess('view_applicant_contracts'))
+const canOpenContracts = computed(() => canAccess('view_contracts'))
+// Shared contact and service details remain visible beside the case title.
 const guardianSummary = computed(() => {
   const current = applicant.value
   if (!current) return []
@@ -54,8 +57,19 @@ const guardianSummary = computed(() => {
     rows.push({ key: 'father-name', label: t('educational.fatherName'), value: current.father_name })
   if (current.father_phone)
     rows.push({ key: 'father-phone', label: t('educational.fatherPhone'), value: current.father_phone })
-  if (current.percentage !== null && current.percentage !== undefined)
-    rows.push({ key: 'percentage', label: t('educational.gradePercentage'), value: `${n(Number(current.percentage))}%` })
+  if (current.details?.grade_score !== null && current.details?.grade_score !== undefined)
+    rows.push({ key: 'grade-score', label: t('educational.serviceFields.gradeScore'), value: `${n(Number(current.details?.grade_score))}` })
+  if (current.details?.passport_id)
+    rows.push({ key: 'passport', label: t('educational.serviceFields.passportId'), value: current.details.passport_id })
+  for (const [key, catalog] of [['scholarship', 'scholarships'], ['academy_class', 'classes'], ['test', 'tests'], ['program', 'programs'], ['time', 'times'], ['duration', 'durations']] as const) {
+    const name = current.details?.[key]?.name
+    if (name)
+      rows.push({ key, label: t(catalog === 'scholarships' ? 'erp.scholarship' : catalog === 'classes' ? 'erp.class' : `educational.masterData.${catalog}`), value: name })
+  }
+  for (const [key, label] of [['favorite_subjects', 'educational.serviceFields.favoriteSubjects'], ['skills', 'educational.masterData.skills'], ['teachers', 'educational.masterData.teachers']] as const) {
+    if (current[key]?.length)
+      rows.push({ key, label: t(label), value: current[key].map(row => row.name).join(', ') })
+  }
   return rows
 })
 const transitionOptions = computed(() => {
@@ -93,7 +107,6 @@ const downloadingId = ref<number | null>(null)
 const universities = ref<MasterDataRecord[]>([])
 const countries = ref<MasterDataRecord[]>([])
 const levels = ref<MasterDataRecord[]>([])
-const languages = ref<MasterDataRecord[]>([])
 const semesters = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
 const uniDialog = ref(false)
@@ -104,13 +117,11 @@ const statusColor = (status: string) => ({ pending: 'secondary', applied: 'info'
 
 const editDialog = ref(false)
 const savingCase = ref(false)
-const editForm = ref({ father_name: '', father_phone: '', responsible_employee_id: null as number | null, country_id: null as number | null, university_id: null as number | null, education_level_id: null as number | null, percentage: '', language_id: null as number | null, semester_id: null as number | null, application_date: '' })
+const editForm = ref({ father_name: '', father_phone: '', backup_phone: '', responsible_employee_id: null as number | null })
+const serviceForm = ref<ApplicantPayload>({ service: 'scholarship' })
 const portalDialog = ref(false)
 const sendingPortalInvite = ref(false)
 const portalForm = ref({ name: '', email: '', phone: '', address: '' })
-const contractDialog = ref(false)
-const savingContract = ref(false)
-const contractTemplates = ref<ContractTemplate[]>([])
 // Individual contracts print through the same dialog the contracts workspace
 // uses, so the cover, letterhead, signature and party-detail options match.
 const contractPrintDialog = ref(false)
@@ -132,7 +143,7 @@ const canAttachDocuments = computed(() => (applicant.value?.tasks?.length ?? 0) 
 
 async function load() {
   applicant.value = await ApplicantApi.get(Number(route.params.id))
-  stages.value = await ApplicantApi.stages({ country_id: applicant.value.country_id, university_id: applicant.value.university_id })
+  stages.value = await ApplicantApi.stages({ country_id: applicant.value.details?.country_id, university_id: applicant.value.details?.university_id })
   selected.value = null
   notesDraft.value = applicant.value.notes ?? ''
   applicantAttachments.value = await ApplicantAttachmentApi.list(applicant.value.id)
@@ -174,7 +185,7 @@ async function move() {
 
     return
   }
-  if (target?.is_terminal && !confirm(t('educational.caseUi.terminalConfirm', { stage: target.name })))
+  if (target?.is_terminal && !confirm(t('educational.caseUi.terminalConfirm', { stage: translateApplicantStage(target) })))
     return
 
   moving.value = true
@@ -289,15 +300,10 @@ function openEditCase() {
   editForm.value = {
     father_name: applicant.value.father_name ?? '',
     father_phone: applicant.value.father_phone ?? '',
+    backup_phone: applicant.value.backup_phone ?? '',
     responsible_employee_id: applicant.value.responsible_employee_id ?? null,
-    country_id: applicant.value.country_id ?? null,
-    university_id: applicant.value.university_id ?? null,
-    education_level_id: applicant.value.education_level_id ?? null,
-    percentage: applicant.value.percentage === null || applicant.value.percentage === undefined ? '' : String(applicant.value.percentage),
-    language_id: applicant.value.language_id ?? null,
-    semester_id: applicant.value.semester_id ?? null,
-    application_date: applicant.value.application_date ?? '',
   }
+  serviceForm.value = { service: applicant.value.service, ...applicant.value.details, favorite_subject_ids: [...(applicant.value.favorite_subject_ids ?? [])], skill_ids: [...(applicant.value.skill_ids ?? [])], teacher_ids: [...(applicant.value.teacher_ids ?? [])] }
   editDialog.value = true
 }
 
@@ -344,17 +350,9 @@ async function saveCase() {
 
   savingCase.value = true
   try {
-    const payload: Record<string, unknown> = {}
-
-    for (const [key, value] of Object.entries(editForm.value)) {
-      if (key === 'responsible_employee_id' && !canAssignEmployee.value)
-        continue
-      if (value !== null && value !== '') {
-        // The grade metric is held as text so a cleared field is skipped
-        // instead of being posted as an empty number.
-        payload[key] = key === 'percentage' ? Number(value) : value
-      }
-    }
+    const payload: ApplicantPayload = { ...applicantServicePayload(serviceForm.value), father_name: editForm.value.father_name || null, father_phone: editForm.value.father_phone || null, backup_phone: editForm.value.backup_phone || null }
+    if (canAssignEmployee.value)
+      payload.responsible_employee_id = editForm.value.responsible_employee_id
 
     applicant.value = await ApplicantApi.update(applicant.value.id, payload)
     editDialog.value = false
@@ -369,7 +367,7 @@ async function saveCase() {
 }
 
 function openUniDialog() {
-  uniForm.value = { university_id: null, semester_id: applicant.value?.semester_id ?? null, status: 'pending', intake: '', notes: '' }
+  uniForm.value = { university_id: null, semester_id: applicant.value?.details?.semester_id ?? null, status: 'pending', intake: '', notes: '' }
   uniDialog.value = true
 }
 
@@ -454,36 +452,10 @@ async function openContractPrint(contract: { id: number }) {
   }
 }
 
-async function openContractDialog() {
-  try {
-    contractTemplates.value = (await ContractTemplateApi.getAll()).filter(template => template.type_slug === 'customer')
-    contractDialog.value = true
-  }
-  catch {
-    toast.error('Unable to load contract templates.')
-  }
-}
-
-async function createCaseContract(payload: ContractFormPayload) {
-  if (!applicant.value)
-    return
-
-  savingContract.value = true
-  try {
-    await ContractApi.create({
-      ...payload,
-      applicant_id: applicant.value.id,
-    })
-    contractDialog.value = false
-    await load()
-    toast.success('Contract linked to this visa case.')
-  }
-  catch {
-    // The shared API notifier displays the server's specific validation error.
-  }
-  finally {
-    savingContract.value = false
-  }
+function openServiceContracts() {
+  if (!applicant.value) return
+  const name = applicant.value.service === 'test_offer' ? 'test-offer-contracts' : `${applicant.value.service}-contracts`
+  router.push({ name, query: { applicant: applicant.value.id } })
 }
 
 async function openFinanceDialog() {
@@ -503,7 +475,7 @@ async function openFinanceDialog() {
     financeDialog.value = true
   }
   catch {
-    toast.error('Unable to load financial request options.')
+    toast.error(translate('common.ui.unableToLoadFinancialRequestOptions'))
   }
 }
 
@@ -516,7 +488,7 @@ async function createFinanceRequest() {
     await PendingTransactionApi.create(financeForm.value)
     financeDialog.value = false
     await load()
-    toast.success('Financial request linked to this visa case.')
+    toast.success(translate('common.ui.financialRequestLinkedToThisVisaCase'))
   }
   catch {
     // The shared API notifier displays the server's specific validation error.
@@ -543,7 +515,7 @@ async function uploadDocument() {
     await TaskApi.uploadAttachment(String(documentTaskId.value), documentFile.value, 'input')
     documentDialog.value = false
     await load()
-    toast.success('Document attached to this visa case.')
+    toast.success(translate('common.ui.documentAttachedToThisVisaCase'))
   }
   catch {
     // The shared API notifier displays the exact upload or permission error.
@@ -558,11 +530,10 @@ onMounted(async () => {
   await loadBoards()
 
   try {
-    const [universityRows, countryRows, levelRows, languageRows, semesterRows, employeeRows] = await Promise.all([
+    const [universityRows, countryRows, levelRows, semesterRows, employeeRows] = await Promise.all([
       MasterDataApi.list('universities'),
       MasterDataApi.list('countries'),
       MasterDataApi.list('education-levels'),
-      MasterDataApi.list('languages'),
       MasterDataApi.list('semesters'),
       EmployeeApi.getOptions(),
     ])
@@ -570,7 +541,6 @@ onMounted(async () => {
     universities.value = universityRows
     countries.value = countryRows
     levels.value = levelRows
-    languages.value = languageRows
     semesters.value = semesterRows
     employees.value = employeeRows
   }
@@ -593,16 +563,16 @@ onMounted(async () => {
     </VCardSubtitle>
     <VCardText class="visa-case-content">
       <div class="visa-case-stage-panel">
-      <VChip color="primary">{{ applicant.current_stage?.name }}</VChip>
+      <VChip color="primary">{{ translateApplicantStage(applicant.current_stage) }}</VChip>
       <VChip v-if="openTasks.length" color="warning" size="small" class="ms-2">{{ t('educational.caseUi.openTasks', { count: n(openTasks.length) }) }}</VChip>
-      <VSelect v-model="selected" :items="transitionOptions" item-title="name" item-value="id" :label="t('educational.caseUi.moveStage')" class="mt-5 mb-4" />
+      <VSelect v-model="selected" :items="transitionOptions" :item-title="translateApplicantStage" item-value="id" :label="t('educational.caseUi.moveStage')" class="mt-5 mb-4" />
       <VTextarea v-model="note" :label="t('educational.caseUi.stageNote')" class="mb-4" />
       <VBtn color="primary" :loading="moving" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
       </div>
       <VCard variant="tonal" color="primary" class="mt-6"><VCardItem :title="t('educational.caseUi.applicantDocuments')" :subtitle="applicantAttachments.length ? t('educational.caseUi.applicantDocumentsReady', { count: applicantAttachments.length }) : t('educational.caseUi.applicantDocumentsNeeded')" /><VCardText><VList density="compact"><VListItem v-for="file in applicantAttachments" :key="file.id" :title="file.label" :subtitle="file.name"><template #append><VBtn icon="tabler-download" size="x-small" variant="text" :href="file.download_url"/><VBtn v-if="canEditCase" icon="tabler-trash" size="x-small" variant="text" color="error" @click="removeApplicantAttachment(file.id)"/></template></VListItem></VList><div v-if="canEditCase" class="d-flex flex-wrap ga-2 mt-3"><VTextField v-model="attachmentLabel" :label="t('educational.caseUi.documentLabel')" density="compact" hide-details style="min-width:180px"/><VFileInput v-model="attachmentFile" density="compact" hide-details style="min-width:220px"/><VBtn color="primary" :loading="uploadingApplicantAttachment" :disabled="!attachmentFile || !attachmentLabel.trim()" @click="uploadApplicantAttachment">{{ t('educational.caseUi.attach') }}</VBtn></div></VCardText></VCard>
       <VDivider class="my-8" />
       <h3>{{ t('educational.caseUi.timeline') }}</h3>
-      <VList><VListItem v-for="item in stageHistory" :key="item.id" :title="t('educational.caseUi.stageTransition', { from: item.old_stage?.name ?? t('educational.caseUi.started'), to: item.new_stage?.name })" :subtitle="stageSubtitle(item)" /></VList>
+      <VList><VListItem v-for="item in stageHistory" :key="item.id" :title="t('educational.caseUi.stageTransition', { from: item.old_stage ? translateApplicantStage(item.old_stage) : t('educational.caseUi.started'), to: translateApplicantStage(item.new_stage) })" :subtitle="stageSubtitle(item)" /></VList>
       <div class="d-flex align-center mt-4">
         <h3>{{ t('educational.caseUi.tasks') }}</h3>
         <VSpacer />
@@ -616,12 +586,13 @@ onMounted(async () => {
         <VListItem v-for="task in doneTasks" :key="`done-${task.id}`" :title="task.title" :subtitle="t('educational.caseUi.complete')"><template #prepend><VIcon icon="tabler-check" color="success" /></template></VListItem>
       </VList>
       <p v-if="!applicant.tasks?.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noTasks') }}</p>
+      <template v-if="['scholarship', 'private'].includes(applicant.service)">
       <div class="d-flex align-center mt-4">
         <h3>{{ t('educational.caseUi.universityApplications') }}</h3>
         <VSpacer />
         <VBtn v-if="canEditCase" size="small" prepend-icon="tabler-plus" @click="openUniDialog">{{ t('educational.caseUi.addApplication') }}</VBtn>
       </div>
-      <p v-if="applicant.university" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.primaryChoice', { university: applicant.university.name }) }}</p>
+      <p v-if="applicant.details?.university" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.primaryChoice', { university: applicant.details?.university.name }) }}</p>
       <VList>
         <VListItem v-for="app in applicant.universities" :key="app.id" class="university-application-item" :title="app.university?.name ?? t('educational.caseUi.universityNumber', { id: n(app.university_id) })" :subtitle="t('educational.caseUi.applicationSummary', { status: translateBackendValue(app.status), intake: app.intake || t('common.messages.notAvailable'), notes: app.notes || t('common.messages.notAvailable') })">
           <template #prepend><VChip size="small" :color="statusColor(app.status)">{{ translateBackendValue(app.status) }}</VChip></template>
@@ -630,17 +601,18 @@ onMounted(async () => {
               <template #activator="{ props }"><VBtn size="small" variant="text" v-bind="props">{{ t('common.fields.status') }}</VBtn></template>
               <VList density="compact"><VListItem v-for="s in uniStatuses" :key="s" :title="translateBackendValue(s)" @click="setUniStatus(app.id, s)" /></VList>
             </VMenu>
-            <VBtn v-if="app.university_id !== applicant.university_id" size="small" variant="text" @click="setPrimaryUniversity(app.university_id)">{{ t('educational.caseUi.primary') }}</VBtn>
+            <VBtn v-if="app.university_id !== applicant.details?.university_id" size="small" variant="text" @click="setPrimaryUniversity(app.university_id)">{{ t('educational.caseUi.primary') }}</VBtn>
             <VBtn size="small" variant="text" color="error" @click="removeUni(app.id)">{{ t('common.actions.remove') }}</VBtn>
           </template>
         </VListItem>
       </VList>
       <p v-if="!applicant.universities?.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noApplications') }}</p>
+      </template>
       <template v-if="canViewServices">
         <div class="d-flex align-center mt-4">
           <h3>{{ t('educational.caseUi.servicesSold') }}</h3>
           <VSpacer />
-          <VBtn v-if="canManageServices" size="small" prepend-icon="tabler-plus" @click="openContractDialog()">New contract</VBtn>
+          <VBtn v-if="canOpenContracts" size="small" prepend-icon="tabler-files" @click="openServiceContracts()">{{ t('serviceContracts.open') }}</VBtn>
         </div>
         <VList>
           <VListItem
@@ -672,7 +644,7 @@ onMounted(async () => {
         <div class="d-flex align-center mt-4">
           <h3>{{ t('educational.caseUi.finance') }}</h3>
           <VSpacer />
-          <VBtn v-if="canCreatePendingTransactions" size="small" prepend-icon="tabler-plus" @click="openFinanceDialog">New financial request</VBtn>
+          <VBtn v-if="canCreatePendingTransactions" size="small" prepend-icon="tabler-plus" @click="openFinanceDialog">{{ $t('common.ui.newFinancialRequest') }}</VBtn>
           <VBtn size="small" variant="text" :to="{ name: 'pending-transactions' }">{{ t('educational.caseUi.pendingWorkspace') }}</VBtn>
         </div>
         <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.financeSummary', { income: money(postedIncomeTotal), expenses: money(postedExpenseTotal) }) }}</p>
@@ -688,7 +660,7 @@ onMounted(async () => {
       <div class="d-flex align-center mt-4">
         <h3>{{ t('educational.caseUi.documents') }}</h3>
         <VSpacer />
-        <VBtn v-if="canAttachDocuments" size="small" prepend-icon="tabler-paperclip" @click="openDocumentDialog">Attach document</VBtn>
+        <VBtn v-if="canAttachDocuments" size="small" prepend-icon="tabler-paperclip" @click="openDocumentDialog">{{ $t('common.ui.attachDocument') }}</VBtn>
       </div>
       <VList>
         <VListItem v-for="doc in documents" :key="doc.id" :title="doc.original_name" :subtitle="t('educational.caseUi.fromTask', { task: doc.task_title })">
@@ -720,7 +692,7 @@ onMounted(async () => {
   <VDialog v-model="uniDialog" max-width="560">
     <VCard :title="t('educational.caseUi.addUniversityApplication')">
       <VCardText class="case-dialog-body">
-        <VSelect v-model="uniForm.university_id" :items="universities.filter(u => u.is_active && u.country_id === applicant?.country_id).map(u => ({ title: u.name, value: u.id }))" :label="t('educational.university')" class="mb-3" />
+        <VSelect v-model="uniForm.university_id" :items="universities.filter(u => u.is_active && u.country_id === applicant?.details?.country_id).map(u => ({ title: u.name, value: u.id }))" :label="t('educational.university')" class="mb-3" />
         <VSelect v-model="uniForm.semester_id" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="t('educational.semester')" clearable class="mb-3" />
         <VSelect v-model="uniForm.status" :items="uniStatuses.map(value => ({ value, title: translateBackendValue(value) }))" :label="t('educational.caseUi.outcome')" class="mb-3" />
         <VTextField v-model="uniForm.intake" :label="t('educational.caseUi.intakeExample')" clearable class="mb-3" />
@@ -733,28 +705,21 @@ onMounted(async () => {
       </VCardActions>
     </VCard>
   </VDialog>
-  <VDialog v-model="editDialog" max-width="600">
+  <VDialog v-model="editDialog" max-width="1100" class="erp-form">
     <VCard :title="t('educational.caseUi.editCase')">
       <VCardText class="case-dialog-body">
-        <VSelect v-if="canAssignEmployee" v-model="editForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="t('educational.responsibleEmployee')" clearable class="mb-3" />
+        <ErpField kind="select" v-if="canAssignEmployee" v-model="editForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="t('educational.responsibleEmployee')" clearable class="mb-3" />
         <VRow dense>
-          <VCol cols="12" sm="6"><VTextField v-model="editForm.father_name" :label="t('educational.fatherName')" clearable class="mb-3" /></VCol>
-          <VCol cols="12" sm="6"><VTextField v-model="editForm.father_phone" :label="t('educational.fatherPhone')" clearable class="mb-3" /></VCol>
+          <VCol cols="12" sm="6"><ErpField v-model="editForm.father_name" :label="t('educational.fatherName')" clearable class="mb-3" /></VCol>
+          <VCol cols="12" sm="6"><ErpField v-model="editForm.father_phone" :label="t('educational.fatherPhone')" clearable class="mb-3" /></VCol>
         </VRow>
-        <VRow dense>
-          <VCol cols="12" sm="6"><VSelect v-model="editForm.country_id" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="t('educational.destinationCountry')" clearable class="mb-3" /></VCol>
-          <VCol cols="12" sm="6"><VSelect v-model="editForm.university_id" :items="universities.filter(u => u.is_active && u.country_id === editForm.country_id).map(u => ({ title: u.name, value: u.id }))" :label="t('educational.caseUi.primaryUniversity')" clearable class="mb-3" /></VCol>
-          <VCol cols="12" sm="6"><VSelect v-model="editForm.education_level_id" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="t('educational.educationLevel')" clearable class="mb-3" /></VCol>
-          <VCol cols="12" sm="6"><VTextField v-model="editForm.percentage" type="number" min="0" max="100" step="0.01" suffix="%" :label="t('educational.gradePercentage')" clearable class="mb-3" /></VCol>
-          <VCol cols="12" sm="6"><VSelect v-model="editForm.language_id" :items="languages.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="t('educational.language')" clearable class="mb-3" /></VCol>
-          <VCol cols="12" sm="6"><VSelect v-model="editForm.semester_id" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="t('educational.semester')" clearable class="mb-3" /></VCol>
-        </VRow>
-        <VTextField v-model="editForm.application_date" type="date" :label="t('educational.applicationDate')" clearable />
+        <ErpField v-if="applicant?.service === 'test_offer'" v-model="editForm.backup_phone" :label="t('erp.backupPhone')" class="mb-3" />
+        <ApplicantServiceFields v-model="serviceForm" />
       </VCardText>
       <VCardActions>
         <VSpacer />
-        <VBtn @click="editDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="savingCase" @click="saveCase">{{ t('common.actions.save') }}</VBtn>
+        <VBtn color="secondary" variant="tonal" @click="editDialog = false">{{ t('common.actions.cancel') }}</VBtn>
+        <VBtn color="primary" variant="flat" :loading="savingCase" @click="saveCase">{{ t('common.actions.save') }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>
@@ -774,27 +739,14 @@ onMounted(async () => {
     </VCard>
   </VDialog>
   <ContractDocumentPrinter v-model="contractPrintDialog" :contract="contractToPrint" />
-  <VDialog v-model="contractDialog" max-width="760">
-    <VCard title="Create visa case contract">
-      <VCardText class="case-dialog-body">
-        <ContractForm
-          :templates="contractTemplates"
-          :applicant-country-id="applicant?.country_id ?? null"
-          :applicant-id="applicant?.id ?? null"
-          @submit="createCaseContract"
-          @cancel="contractDialog = false"
-        />
-      </VCardText>
-    </VCard>
-  </VDialog>
   <VDialog v-model="financeDialog" max-width="600">
-    <VCard title="New financial request">
+    <VCard :title="$t('common.ui.newFinancialRequest')">
       <VCardText class="case-dialog-body">
-        <VSelect v-model="financeForm.transaction_type" :items="['income', 'expense'].map(value => ({ title: translateBackendValue(value), value }))" label="Transaction type" class="mb-3" />
-        <VTextarea v-model="financeForm.reason" label="Reason" class="mb-3" />
-        <VTextField v-model.number="financeForm.amount" type="number" min="0.000001" label="Amount" class="mb-3" />
-        <VSelect v-model="financeForm.currency_id" :items="financeOptions.currencies.map(row => ({ title: `${row.code} — ${row.name}`, value: row.id }))" label="Currency" class="mb-3" />
-        <VSelect v-model="financeForm.employee_id" :items="financeOptions.employees.map(row => ({ title: row.name, value: row.id }))" label="Responsible employee" clearable />
+        <VSelect v-model="financeForm.transaction_type" :items="['income', 'expense'].map(value => ({ title: translateBackendValue(value), value }))" :label="$t('educational.transactionType')" class="mb-3" />
+        <VTextarea v-model="financeForm.reason" :label="$t('common.fields.reason')" class="mb-3" />
+        <VTextField v-model.number="financeForm.amount" type="number" min="0.000001" :label="$t('common.fields.amount')" class="mb-3" />
+        <VSelect v-model="financeForm.currency_id" :items="financeOptions.currencies.map(row => ({ title: `${row.code} — ${row.name}`, value: row.id }))" :label="$t('serviceContracts.currency')" class="mb-3" />
+        <VSelect v-model="financeForm.employee_id" :items="financeOptions.employees.map(row => ({ title: row.name, value: row.id }))" :label="$t('serviceContracts.responsibleEmployee')" clearable />
       </VCardText>
       <VCardActions>
         <VSpacer />
@@ -804,16 +756,16 @@ onMounted(async () => {
     </VCard>
   </VDialog>
   <VDialog v-model="documentDialog" max-width="560">
-    <VCard title="Attach case document">
+    <VCard :title="$t('common.ui.attachCaseDocument')">
       <VCardText class="case-dialog-body">
-        <p class="text-caption text-medium-emphasis mb-4">Documents are stored as input attachments on a case task, so they follow the same access controls and audit trail.</p>
-        <VSelect v-model="documentTaskId" :items="(applicant?.tasks ?? []).map(task => ({ title: task.title, value: task.id }))" label="Case task" class="mb-3" />
-        <VFileInput v-model="documentFile" label="Document" prepend-icon="tabler-paperclip" accept=".pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" show-size />
+        <p class="text-caption text-medium-emphasis mb-4">{{ $t('common.ui.documentsAreStoredAsInputAttachmentsOnACaseTaskSoTheyFollowTheSameAccessControlsAndAuditTrail') }}</p>
+        <VSelect v-model="documentTaskId" :items="(applicant?.tasks ?? []).map(task => ({ title: task.title, value: task.id }))" :label="$t('common.ui.caseTask')" class="mb-3" />
+        <VFileInput v-model="documentFile" :label="$t('common.ui.document')" prepend-icon="tabler-paperclip" accept=".pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" show-size />
       </VCardText>
       <VCardActions>
         <VSpacer />
         <VBtn @click="documentDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="uploadingDocument" :disabled="!documentTaskId || !documentFile" @click="uploadDocument">Attach</VBtn>
+        <VBtn color="primary" :loading="uploadingDocument" :disabled="!documentTaskId || !documentFile" @click="uploadDocument">{{ $t('components.taskManager.todomatrixview.attach') }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

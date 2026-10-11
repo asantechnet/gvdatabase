@@ -12,11 +12,11 @@ const editing = ref<Tag | null>(null)
 const deleting = ref<Tag | null>(null)
 const form = ref({ name: '', color: '#7367f0' })
 
-const headers = [
+const headers = computed(() => [
   { title: translate('components.taskManager.tasksettingsview.label'), key: 'name' },
   { title: translate('components.taskManager.tasksettingsview.color'), key: 'color', sortable: false },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
-]
+])
 
 const openCreate = () => {
   editing.value = null

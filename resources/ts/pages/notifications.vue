@@ -104,7 +104,7 @@ onMounted(load)
     </VCardText>
     <VDivider />
     <VList
-      lines="false"
+      :lines="false"
       class="notification-list"
     >
       <template

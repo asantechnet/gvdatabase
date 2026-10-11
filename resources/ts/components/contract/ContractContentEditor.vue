@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Link } from '@tiptap/extension-link'
+import { TableKit } from '@tiptap/extension-table'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Underline } from '@tiptap/extension-underline'
@@ -62,6 +63,7 @@ const toolbarState = ref({
   fontSize: defaultFontSize,
   color: '#000000',
   direction: null as 'rtl' | 'ltr' | null,
+  inTable: false,
 })
 
 const placeholderSearch = ref('')
@@ -69,9 +71,9 @@ const placeholderSearch = ref('')
 const filteredPlaceholderGroups = computed(() => {
   const query = placeholderSearch.value.trim().toLocaleLowerCase()
   if (!query)
-    return props.placeholderGroups
+    return props.placeholderGroups.filter(group => !group.deprecated)
 
-  return props.placeholderGroups
+  return props.placeholderGroups.filter(group => !group.deprecated)
     .map(group => ({
       ...group,
       fields: group.fields.filter(field =>
@@ -115,6 +117,7 @@ const syncToolbarState = (editorInstance: Editor) => {
     fontSize: normalizeFontSize(textStyle.fontSize),
     color: normalizeColor(textStyle.color),
     direction: paragraph.dir ?? null,
+    inTable: editorInstance.isActive('table'),
   }
 }
 
@@ -169,6 +172,10 @@ const editor = useEditor({
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
     Underline,
     Link.configure({ openOnClick: false }),
+    // Tables let legal documents (fee schedules, annexes, policies) carry
+    // structured rows. Resizing is disabled: printed documents use the full
+    // text column and a drag handle would be meaningless on paper.
+    TableKit.configure({ table: { resizable: false } }),
     Placeholder.configure({ placeholder: () => tr('editor.startWriting') }),
   ],
   onCreate: ({ editor: editorInstance }) => syncToolbarState(editorInstance),
@@ -264,6 +271,18 @@ const insertPlaceholder = ({ key, label }: InsertContractPlaceholderOptions) => 
     .run()
 }
 
+const insertTableRows = ref(3)
+const insertTableCols = ref(3)
+const inTable = computed(() => toolbarState.value.inTable)
+
+const insertTable = () => {
+  editor.value
+    ?.chain()
+    .focus()
+    .insertTable({ rows: insertTableRows.value, cols: insertTableCols.value, withHeaderRow: true })
+    .run()
+}
+
 const setLink = () => {
   const editorRef = editor.value
   if (!editorRef)
@@ -282,18 +301,6 @@ const setLink = () => {
   editorRef.chain().focus().extendMarkRange('link').setLink({ href: url, target: '_blank' }).run()
 }
 
-const handleToolbarWheel = (event: WheelEvent) => {
-  if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX))
-    return
-
-  const toolbar = event.currentTarget as HTMLElement
-  if (toolbar.scrollWidth <= toolbar.clientWidth)
-    return
-
-  toolbar.scrollLeft += event.deltaY
-  event.preventDefault()
-}
-
 defineExpose({
   getEditor: (): Editor | undefined => editor.value ?? undefined,
 })
@@ -306,8 +313,7 @@ defineExpose({
   >
     <div
       v-if="editor"
-      class="contract-editor__toolbar d-flex flex-nowrap align-center gap-1 pa-2"
-      @wheel="handleToolbarWheel"
+      class="contract-editor__toolbar d-flex flex-wrap align-center gap-1 pa-2"
     >
       <IconBtn
         size="small"
@@ -534,6 +540,169 @@ defineExpose({
           {{ tr('editor.insertLink') }}
         </VTooltip>
       </IconBtn>
+
+      <!-- Table tools: insert + row/column editing -->
+      <VMenu
+        :close-on-content-click="false"
+        :disabled="disabled"
+        max-width="330"
+        location="bottom"
+      >
+        <template #activator="{ props: menuProps }">
+          <VBtn
+            v-bind="menuProps"
+            icon
+            variant="text"
+            size="small"
+            :disabled="disabled"
+          >
+            <VIcon icon="tabler-table" />
+            <VTooltip
+              activator="parent"
+              location="top"
+            >
+              {{ tr('editor.table.title') }}
+            </VTooltip>
+          </VBtn>
+        </template>
+        <VCard elevation="8">
+          <VCardText class="pa-3">
+            <div class="text-caption font-weight-bold mb-2">
+              {{ tr('editor.table.insertTable') }}
+            </div>
+            <div class="d-flex gap-2 mb-3">
+              <VTextField
+                v-model.number="insertTableRows"
+                type="number"
+                min="1"
+                max="20"
+                density="compact"
+                variant="outlined"
+                hide-details
+                :label="tr('editor.table.rows')"
+              />
+              <VTextField
+                v-model.number="insertTableCols"
+                type="number"
+                min="1"
+                max="10"
+                density="compact"
+                variant="outlined"
+                hide-details
+                :label="tr('editor.table.columns')"
+              />
+            </div>
+            <VBtn
+              block
+              size="small"
+              color="primary"
+              prepend-icon="tabler-plus"
+              @click="insertTable"
+            >
+              {{ tr('editor.table.insertTable') }}
+            </VBtn>
+          </VCardText>
+          <VDivider />
+          <VCardText class="pa-3">
+            <div class="text-caption font-weight-bold mb-2">
+              {{ tr('editor.table.tableActions') }}
+            </div>
+            <div class="contract-editor__table-actions">
+              <VBtn
+                size="small"
+                variant="tonal"
+                :disabled="!inTable"
+                prepend-icon="tabler-arrow-narrow-up"
+                @click="editor.chain().focus().addRowBefore().run()"
+              >
+                {{ tr('editor.table.addRowBefore') }}
+              </VBtn>
+              <VBtn
+                size="small"
+                variant="tonal"
+                :disabled="!inTable"
+                prepend-icon="tabler-arrow-narrow-down"
+                @click="editor.chain().focus().addRowAfter().run()"
+              >
+                {{ tr('editor.table.addRowAfter') }}
+              </VBtn>
+              <VBtn
+                size="small"
+                variant="tonal"
+                :disabled="!inTable"
+                prepend-icon="tabler-arrow-narrow-left"
+                @click="editor.chain().focus().addColumnBefore().run()"
+              >
+                {{ tr('editor.table.addColumnBefore') }}
+              </VBtn>
+              <VBtn
+                size="small"
+                variant="tonal"
+                :disabled="!inTable"
+                prepend-icon="tabler-arrow-narrow-right"
+                @click="editor.chain().focus().addColumnAfter().run()"
+              >
+                {{ tr('editor.table.addColumnAfter') }}
+              </VBtn>
+              <VBtn
+                size="small"
+                variant="tonal"
+                :disabled="!inTable"
+                prepend-icon="tabler-row-remove"
+                @click="editor.chain().focus().deleteRow().run()"
+              >
+                {{ tr('editor.table.deleteRow') }}
+              </VBtn>
+              <VBtn
+                size="small"
+                variant="tonal"
+                :disabled="!inTable"
+                prepend-icon="tabler-column-remove"
+                @click="editor.chain().focus().deleteColumn().run()"
+              >
+                {{ tr('editor.table.deleteColumn') }}
+              </VBtn>
+              <VBtn
+                size="small"
+                variant="tonal"
+                :disabled="!inTable"
+                prepend-icon="tabler-layout-sidebar"
+                @click="editor.chain().focus().toggleHeaderRow().run()"
+              >
+                {{ tr('editor.table.toggleHeaderRow') }}
+              </VBtn>
+              <VBtn
+                size="small"
+                variant="tonal"
+                :disabled="!inTable"
+                prepend-icon="tabler-arrows-maximize"
+                @click="editor.chain().focus().mergeCells().run()"
+              >
+                {{ tr('editor.table.mergeCells') }}
+              </VBtn>
+              <VBtn
+                size="small"
+                variant="tonal"
+                :disabled="!inTable"
+                prepend-icon="tabler-arrows-split"
+                @click="editor.chain().focus().splitCell().run()"
+              >
+                {{ tr('editor.table.splitCell') }}
+              </VBtn>
+              <VBtn
+                size="small"
+                variant="tonal"
+                color="error"
+                :disabled="!inTable"
+                prepend-icon="tabler-trash"
+                @click="editor.chain().focus().deleteTable().run()"
+              >
+                {{ tr('editor.table.deleteTable') }}
+              </VBtn>
+            </div>
+          </VCardText>
+        </VCard>
+      </VMenu>
 
       <VDivider
         vertical
@@ -788,12 +957,18 @@ defineExpose({
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 6px;
   overflow: hidden;
+  isolation: isolate;
 
   &--disabled {
     opacity: 0.65;
   }
 
   &__toolbar {
+    position: relative;
+    inset-block-start: 0;
+    z-index: 10;
+    border-start-start-radius: 6px;
+    border-start-end-radius: 6px;
     background: rgba(var(--v-theme-surface), 1);
     flex-wrap: nowrap;
     max-inline-size: 100%;
@@ -807,17 +982,11 @@ defineExpose({
     &::-webkit-scrollbar { display: none; }
   }
 
-  @media (max-width: 760px) {
-    &__toolbar {
-      overflow-x: auto;
-    }
-  }
-
   &--policy {
     border-color: rgba(var(--v-theme-secondary), 0.35);
 
     .contract-editor__toolbar {
-      background: rgba(var(--v-theme-secondary), 0.055);
+      background: rgb(var(--v-theme-surface));
       border-block-start: 3px solid rgb(var(--v-theme-secondary));
     }
   }
@@ -1019,7 +1188,25 @@ defineExpose({
     cursor: pointer;
   }
 
+  &__table-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+
+    .v-btn {
+      justify-content: flex-start;
+      font-size: 0.72rem;
+      letter-spacing: normal;
+      text-transform: none;
+    }
+  }
+
   &__content {
+    position: relative;
+    z-index: 0;
+    max-block-size: 60vh;
+    overflow: auto;
+    overscroll-behavior-block: contain;
     /* The editor and printed contract share this font stack so documents
        render identically on screen and paper. */
     --contract-font-stack: 'Vazirmatn', 'Noto Sans Arabic', Tahoma, sans-serif;
@@ -1027,7 +1214,7 @@ defineExpose({
     font-family: var(--contract-font-stack);
 
     .ProseMirror {
-      padding: 1rem;
+      padding: 1.5rem;
       min-block-size: var(--editor-min-height);
       outline: none;
       line-height: 1.7;
@@ -1052,6 +1239,47 @@ defineExpose({
         color: #adb5bd;
         content: attr(data-placeholder);
         float: inline-start;
+        pointer-events: none;
+      }
+
+      p { margin-block: 0 0.75em; }
+      ul, ol { padding-inline-start: 2em; margin-block: 0.75em; }
+      ul { list-style-type: disc; }
+      ol { list-style-type: decimal; }
+      li { margin-block: 0.25em; }
+      blockquote {
+        border-inline-start: 3px solid rgb(var(--v-theme-primary));
+        padding-inline: 1em; margin-block: 1em;
+        background: rgba(var(--v-theme-primary), 0.06);
+        font-style: italic;
+      }
+      /* Tables stay visually identical to the printed contract. */
+      table {
+        width: 100%;
+        margin: 0.85rem 0;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      th,
+      td {
+        position: relative;
+        min-inline-size: 2rem;
+        padding: 6px 8px;
+        border: 1px solid #cbd5e1;
+        vertical-align: top;
+      }
+
+      th {
+        background: rgba(var(--v-theme-primary), 0.08);
+        font-weight: 700;
+      }
+
+      .selectedCell::after {
+        position: absolute;
+        inset: 0;
+        background: rgba(var(--v-theme-primary), 0.14);
+        content: '';
         pointer-events: none;
       }
     }

@@ -15,8 +15,7 @@ class ContractTemplate extends Model
         'name',
         'description', 'is_active', 'created_by',
         'contract_type_id',
-        'service_id',
-        'package_id',
+        'service',
         'position_id',
         'cover_text',
         'content',
@@ -47,22 +46,10 @@ class ContractTemplate extends Model
             ->withPivot('sort_order')->orderByPivot('sort_order');
     }
 
-    public function service()
+    public function versions()
     {
-        return $this->belongsTo(Service::class);
+        return $this->hasMany(ContractTemplateVersion::class);
     }
-
-    /** The package this template generates the agreement for, if any. */
-    public function package()
-    {
-        return $this->belongsTo(Package::class);
-    }
-    public function services()
-    {
-        return $this->belongsToMany(Service::class, 'contract_template_services')
-            ->withPivot('service_variant_id')->withTimestamps();
-    }
-    public function versions(){ return $this->hasMany(ContractTemplateVersion::class); }
 
     public function getTypeSlugAttribute(): ?string
     {

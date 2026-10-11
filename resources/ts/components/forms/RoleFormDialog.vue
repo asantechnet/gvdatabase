@@ -32,7 +32,7 @@ watch(() => props.modelValue, open => { if (open) { name.value = props.roleName;
     max-width="800"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <VCard :title="editing ? 'Edit Role' : 'Create Role'">
+    <VCard :title="editing ? $t('common.ui.editRole') : $t('common.ui.createRole')">
       <VForm @submit.prevent="emit('submit', { name, permissions: selectedPermissions })">
         <VCardText>
           <VRow>
@@ -42,24 +42,24 @@ watch(() => props.modelValue, open => { if (open) { name.value = props.roleName;
             >
               <VTextField
                 v-model="name"
-                label="Role Name"
-                placeholder="e.g. editor"
+                :label="$t('common.ui.roleName')"
+                :placeholder="$t('common.ui.eGEditor')"
                 required
                 :disabled="protectedRole"
                 hide-details
               />
             </VCol><VCol cols="12">
               <h6 class="text-h6 mb-3 mt-2">
-                Role Permissions
+                {{ $t('common.ui.rolePermissions') }}
               </h6><div class="border rounded bg-surface">
                 <div class="d-flex justify-space-between align-center px-4 py-3 border-b bg-var-theme-background">
                   <span class="text-subtitle-1 font-weight-medium d-flex align-center gap-2"><VIcon
                     icon="tabler-list-check"
                     size="20"
                     color="primary"
-                  />Access Privileges Checklist</span><VCheckbox
+                  />{{ $t('common.ui.accessPrivilegesChecklist') }}</span><VCheckbox
                     v-model="allSelected"
-                    label="Select All"
+                    :label="$t('common.ui.selectAll')"
                     density="compact"
                     hide-details
                     color="primary"
@@ -68,8 +68,8 @@ watch(() => props.modelValue, open => { if (open) { name.value = props.roleName;
                 </div><div class="px-4 py-3 border-b">
                   <VTextField
                     v-model="search"
-                    label="Search permissions"
-                    placeholder="Search by name or category"
+                    :label="$t('common.ui.searchPermissions')"
+                    :placeholder="$t('common.ui.searchByNameOrCategory')"
                     prepend-inner-icon="tabler-search"
                     density="compact"
                     clearable
@@ -126,13 +126,13 @@ watch(() => props.modelValue, open => { if (open) { name.value = props.roleName;
             variant="tonal"
             @click="emit('update:modelValue', false)"
           >
-            Cancel
+            {{ $t('common.actions.cancel') }}
           </VBtn><VBtn
             :loading="loading"
             type="submit"
             :disabled="protectedRole"
           >
-            {{ editing ? 'Save' : 'Create' }}
+            {{ editing ? $t('common.actions.save') : 'Create' }}
           </VBtn>
         </VCardActions>
       </VForm>

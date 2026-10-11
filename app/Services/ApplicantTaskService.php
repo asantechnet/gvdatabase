@@ -4,9 +4,9 @@ namespace App\Services;
 
 use App\Models\Applicant;
 use App\Models\ApplicantStage;
-use App\Models\Board;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\ServiceBoard;
 
 /**
  * Creates operational work when an applicant case enters a stage that
@@ -19,6 +19,10 @@ use App\Models\User;
  */
 class ApplicantTaskService
 {
+    public function __construct(
+        private readonly EducationalWorkflowNotificationService $notifications,
+    ) {}
+
     /**
      * @var array<string, list<array{title: string, priority: string, due_in_days: int}>>
      */
@@ -46,11 +50,8 @@ class ApplicantTaskService
 
         // Workflow tasks belong to a deterministic operational board. Creating
         // it on demand keeps stage automation functional in fresh installations
-        // and avoids silently placing visa work on an unrelated project board.
-        $board = Board::query()->firstOrCreate(
-            ['title' => 'Applicant Cases', 'project_id' => null],
-            ['order' => (Board::query()->max('order') ?? -1) + 1],
-        );
+        // and avoids silently placing visa work on an unrelated board.
+        $board = ServiceBoard::firstOrCreateFor(ServiceBoard::APPLICANT_CASES);
 
         $assigneeId = $applicant->responsibleEmployee?->user_id ?? $actor?->id;
         $created = [];
@@ -79,6 +80,7 @@ class ApplicantTaskService
             if ($assignees !== []) {
                 $task->users()->sync($assignees);
                 $board->users()->syncWithoutDetaching($assignees);
+                $this->notifications->taskAssigned($task, $assignees, $actor?->id);
             }
 
             $created[] = $task;

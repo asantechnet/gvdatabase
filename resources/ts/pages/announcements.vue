@@ -247,11 +247,15 @@ onMounted(loadAnnouncements)
       </VCardItem>
     </VCard>
 
-    <VCard
-      v-if="showComposer"
-      class="mb-6 composer-card"
-      :loading="audienceLoading"
+    <VDialog
+      v-model="showComposer"
+      max-width="900"
+      scrollable
     >
+      <VCard
+        class="composer-card"
+        :loading="audienceLoading"
+      >
       <VCardItem>
         <VCardTitle>{{ $t('pages.announcements.composer.title') }}</VCardTitle>
         <VCardSubtitle>{{ $t('pages.announcements.composer.subtitle') }}</VCardSubtitle>
@@ -279,7 +283,7 @@ onMounted(loadAnnouncements)
             {{ formError }}
           </VAlert>
           <VRow>
-            <VCol cols="12">
+            <VCol cols="12" md="6">
               <VTextField
                 v-model="form.title"
                 :label="$t('pages.announcements.composer.titleLabel')"
@@ -287,17 +291,7 @@ onMounted(loadAnnouncements)
                 maxlength="255"
               />
             </VCol>
-            <VCol cols="12">
-              <VTextarea
-                v-model="form.message"
-                :label="$t('pages.announcements.composer.messageLabel')"
-                :placeholder="$t('pages.announcements.composer.messagePlaceholder')"
-                rows="4"
-                auto-grow
-                required
-              />
-            </VCol>
-            <VCol cols="12">
+            <VCol cols="12" md="6">
               <VTextField
                 v-model="form.labelsText"
                 :label="$t('pages.announcements.composer.labelsLabel')"
@@ -373,6 +367,16 @@ onMounted(loadAnnouncements)
                 </div>
               </div>
             </VCol>
+            <VCol cols="12">
+              <VTextarea
+                v-model="form.message"
+                :label="$t('pages.announcements.composer.messageLabel')"
+                :placeholder="$t('pages.announcements.composer.messagePlaceholder')"
+                rows="4"
+                auto-grow
+                required
+              />
+            </VCol>
           </VRow>
         </VForm>
       </VCardText>
@@ -394,7 +398,8 @@ onMounted(loadAnnouncements)
           {{ $t('pages.announcements.composer.send') }}
         </VBtn>
       </VCardActions>
-    </VCard>
+      </VCard>
+    </VDialog>
 
     <VCard>
       <VCardItem class="announcement-list-header">
@@ -419,7 +424,7 @@ onMounted(loadAnnouncements)
       </VCardItem>
       <VDivider />
       <VList
-        lines="false"
+        :lines="false"
         class="announcement-list"
       >
         <template

@@ -7,12 +7,6 @@ const shortcuts = [
     to: { name: 'apps-calendar' },
   },
   {
-    icon: 'tabler-file-dollar',
-    title: translate('components.navigation.navbarshortcuts.invoiceApp'),
-    subtitle: translate('components.navigation.navbarshortcuts.manageAccounts'),
-    to: { name: 'apps-invoice-list' },
-  },
-  {
     icon: 'tabler-user',
     title: translate('common.messages.users'),
     subtitle: translate('components.navigation.navbarshortcuts.manageUsers'),

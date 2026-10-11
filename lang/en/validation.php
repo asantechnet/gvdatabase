@@ -110,7 +110,7 @@ return [
     'multiple_of'            => 'The :attribute field must be a multiple of :value.',
     'not_in'                 => 'The selected :attribute is invalid.',
     'not_regex'              => 'The :attribute field format is invalid.',
-    'nullable'               => 'validation.nullable',
+    'nullable'               => 'The :attribute field must be empty.',
     'numeric'                => 'The :attribute field must be a number.',
     'password'               => [
         'letters'       => 'The :attribute field must contain at least one letter.',

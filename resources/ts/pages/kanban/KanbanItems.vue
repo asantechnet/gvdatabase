@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
 import { animations, handleEnd, performTransfer } from '@formkit/drag-and-drop'
 import { dragAndDrop } from '@formkit/drag-and-drop/vue'
 import { VForm } from 'vuetify/components/VForm'
@@ -184,7 +185,7 @@ const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
                 size="small"
                 variant="tonal"
                 color="primary"
-                aria-label="Add new task"
+                :aria-label="$t('common.ui.addNewTask')"
                 @click="isAddNewFormVisible = !isAddNewFormVisible"
               >
                 <VIcon

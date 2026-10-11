@@ -16,7 +16,8 @@ use App\Models\Setting;
 class PlaceholderRegistry
 {
     public const EDUCATIONAL_SLUGS = ['educational-service', 'scholarship-service', 'test-service', 'visa-service'];
-    public const SYSTEM_SLUGS = ['employment', 'customer', 'company', ...self::EDUCATIONAL_SLUGS];
+
+    public const SYSTEM_SLUGS = ['employment', 'customer', ...self::EDUCATIONAL_SLUGS];
 
     /**
      * Placeholder groups. Each field key is globally unique and stable.
@@ -57,12 +58,43 @@ class PlaceholderRegistry
                 ],
             ],
             [
+                'key' => 'applicant',
+                'label' => 'Applicant',
+                'contexts' => ['customer', 'other'],
+                'fields' => [
+                    ['key' => 'applicant.name', 'label' => 'Full Name'],
+                    ['key' => 'applicant.father_name', 'label' => 'Father Name'],
+                    ['key' => 'applicant.father_phone', 'label' => 'Father Phone'],
+                    ['key' => 'applicant.backup_phone', 'label' => 'Backup Phone'],
+                    ['key' => 'applicant.phone', 'label' => 'Phone'],
+                    ['key' => 'applicant.email', 'label' => 'Email'],
+                    ['key' => 'applicant.address', 'label' => 'Address'],
+                    ['key' => 'applicant.passport_id', 'label' => 'Passport Number'],
+                    ['key' => 'applicant.grade_score', 'label' => 'Grade Percentage'],
+                    ['key' => 'applicant.country', 'label' => 'Destination Country'],
+                    ['key' => 'applicant.university', 'label' => 'University'],
+                    ['key' => 'applicant.education_level', 'label' => 'Education Level'],
+                    ['key' => 'applicant.semester', 'label' => 'Semester'],
+                    ['key' => 'applicant.university_fee', 'label' => 'University Fee'],
+                    ['key' => 'applicant.scholarship', 'label' => 'Scholarship'],
+                    ['key' => 'applicant.test', 'label' => 'Test'],
+                    ['key' => 'applicant.program', 'label' => 'Academy Program'],
+                    ['key' => 'applicant.class', 'label' => 'Academy Class'],
+                    ['key' => 'applicant.time', 'label' => 'Class Time'],
+                    ['key' => 'applicant.duration', 'label' => 'Course Duration'],
+                    ['key' => 'applicant.subjects', 'label' => 'Requested Subjects'],
+                    ['key' => 'applicant.skills', 'label' => 'Skills'],
+                    ['key' => 'applicant.teachers', 'label' => 'Teachers'],
+                    ['key' => 'applicant.admission_employee', 'label' => 'Admission Employee'],
+                ],
+            ],
+            [
                 'key' => 'customer',
-                'label' => 'Customer',
+                'label' => 'Legacy Applicant Fields',
+                'deprecated' => true,
                 'contexts' => ['customer', 'other', ...self::EDUCATIONAL_SLUGS],
                 'fields' => [
                     ['key' => 'customer.name', 'label' => 'Name'],
-                    ['key' => 'customer.company_name', 'label' => 'Company'],
                     ['key' => 'customer.phone', 'label' => 'Phone'],
                     ['key' => 'customer.email', 'label' => 'Email'],
                     ['key' => 'customer.address', 'label' => 'Address'],
@@ -77,8 +109,16 @@ class PlaceholderRegistry
                     ['key' => 'service.name', 'label' => 'Service Name'],
                     ['key' => 'service.category', 'label' => 'Category'],
                     ['key' => 'service.description', 'label' => 'Description'],
-                    ['key' => 'service.duration', 'label' => 'Duration'],
+                    ['key' => 'service.application_fee', 'label' => 'Application Fee'],
+                    ['key' => 'service.visa_fee', 'label' => 'Visa Fee'],
+                    ['key' => 'service.booking_fee', 'label' => 'Booking Fee'],
+                    ['key' => 'service.service_fee', 'label' => 'Service Fee'],
+                    ['key' => 'service.remote_fee', 'label' => 'Remote Fee'],
                     ['key' => 'service.fee', 'label' => 'Fee'],
+                    ['key' => 'service.discount', 'label' => 'Discount'],
+                    ['key' => 'service.currency', 'label' => 'Currency'],
+                    ['key' => 'service.currency_rate', 'label' => 'Currency Rate'],
+                    ['key' => 'service.payable_total', 'label' => 'Total After Discount'],
                 ],
             ],
             [
@@ -90,33 +130,6 @@ class PlaceholderRegistry
                     ['key' => 'services.count', 'label' => 'Service Count'],
                     ['key' => 'services.total_fee', 'label' => 'Total Fee'],
                     ['key' => 'services.table', 'label' => 'Services Table'],
-                ],
-            ],
-            [
-                'key' => 'company',
-                'label' => 'Counterparty Company',
-                'contexts' => ['other'],
-                'fields' => [
-                    ['key' => 'company.legal_name', 'label' => 'Legal Name'],
-                    ['key' => 'company.trade_name', 'label' => 'Trade Name'],
-                    ['key' => 'company.registration_number', 'label' => 'Registration Number'],
-                    ['key' => 'company.tax_number', 'label' => 'Tax Number'],
-                    ['key' => 'company.national_id', 'label' => 'National ID'],
-                    ['key' => 'company.legal_form', 'label' => 'Legal Form'],
-                    ['key' => 'company.email', 'label' => 'Email'],
-                    ['key' => 'company.phone', 'label' => 'Phone'],
-                    ['key' => 'company.website', 'label' => 'Website'],
-                    ['key' => 'company.address_line', 'label' => 'Address Line'],
-                    ['key' => 'company.city', 'label' => 'City'],
-                    ['key' => 'company.province', 'label' => 'Province'],
-                    ['key' => 'company.postal_code', 'label' => 'Postal Code'],
-                    ['key' => 'company.country', 'label' => 'Country'],
-                    ['key' => 'company.address', 'label' => 'Full Address'],
-                    ['key' => 'company.industry', 'label' => 'Industry'],
-                    ['key' => 'company.representative_name', 'label' => 'Representative Name'],
-                    ['key' => 'company.representative_title', 'label' => 'Representative Title'],
-                    ['key' => 'company.representative_phone', 'label' => 'Representative Phone'],
-                    ['key' => 'company.representative_email', 'label' => 'Representative Email'],
                 ],
             ],
             [
@@ -160,6 +173,7 @@ class PlaceholderRegistry
             ->map(fn ($group) => [
                 'key' => $group['key'],
                 'label' => $group['label'],
+                'deprecated' => $group['deprecated'] ?? false,
                 'fields' => collect($group['fields'])
                     ->map(fn ($field) => ['key' => $field['key'], 'label' => $field['label']])
                     ->values()

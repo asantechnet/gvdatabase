@@ -14,14 +14,6 @@ const emit = defineEmits<{
   (e: 'attachmentsClick', value: EditKanbanItem): void
 }>()
 
-const resolveLabelColor: any = {
-  'UX': 'success',
-  'Image': 'warning',
-  'Code Review': 'error',
-  'Dashboard': 'info',
-  'App': 'secondary',
-  'Charts & Maps': 'primary',
-}
 </script>
 
 <template>
@@ -41,7 +33,7 @@ const resolveLabelColor: any = {
             v-for="text in item.labels"
             :key="text"
             size="small"
-            :color="resolveLabelColor[text]"
+            :color="item.labelColors?.[text] ?? 'primary'"
           >
             {{ text }}
           </VChip>

@@ -1,8 +1,28 @@
 import api from './axios'
 import type { ContractType } from './contractType'
-import type { Service } from './services'
+import { applicantServicePayload, type Applicant, type ApplicantPayload, type BuiltInService } from './applicants'
 
 export type ContractStatus = 'draft' | 'active' | 'completed' | 'terminated' | 'cancelled'
+
+export interface ContractPreviewInput {
+  template_id: number
+  contract_template_version_id: number | null
+  country_id: number | null
+  language_id: number | null
+  employee_id: number | null
+  applicant_id: number | null
+  start_date: string
+  end_date: string | null
+  company_signatory_name: string | null
+}
+
+export async function previewContract(input: ContractPreviewInput): Promise<string> {
+  const response = await api.post<{ data: { content: string } }>('/contracts/preview', input, {
+    headers: { 'X-Suppress-Error-Notification': 'true' },
+  })
+
+  return response.data.data.content
+}
 
 export interface ContractPartySnapshot {
   our_company?: {
@@ -15,35 +35,44 @@ export interface ContractPartySnapshot {
   }
   counterparty: {
     name?: string | null
-    company?: string | null
     email?: string | null
     phone?: string | null
     address?: string | null
-    representative?: { name?: string | null; title?: string | null } | null
   }
   [key: string]: unknown
 }
 
-export interface ContractServiceLine {
+export interface ApplicantContractLine {
   id: number
   contract_id: number
-  service_id: number
-  service?: Service | null
+  built_in_service?: BuiltInService | null
+  service_label?: string
+  discount?: number | string | null
+  application_fee?: number | string | null
+  visa_fee?: number | string | null
+  booking_fee?: number | string | null
+  service_fee?: number | string | null
+  remote_fee?: number | string | null
+  currency_rate?: number | string | null
   fee?: number | string | null
   currency_id?: number | null
+  currency?: { id?: number; code?: string | null; symbol?: string | null } | null
   applicant_id?: number | null
   notes?: string | null
 }
 
 export interface Contract {
   id: number
+  service?: BuiltInService | null
+  contract_role?: 'primary' | 'extension'
+  parent_contract_id?: number | null
   contract_number: string | null
   contract: string
   status: ContractStatus
   start_date: string | null
+  end_date?: string | null
   company_signatory_name?: string | null
-  service_ids?: number[]
-  services?: ContractServiceLine[]
+  services?: ApplicantContractLine[]
   counterparty: string | null
   counterparty_company?: string | null
   counterparty_email?: string | null
@@ -56,13 +85,9 @@ export interface Contract {
   contract_country_id?: number | null
   contract_language_id?: number | null
   contract_type_id?: number | null
-  service_id?: number | null
   employee_id?: number | null
   sold_by_employee_id?: number | null
-  marketer_id?: number | null
-  customer_id?: number | null
   applicant_id?: number | null
-  company_id?: number | null
   type_slug?: string | null
   type?: string | null
   cover_text?: string | null
@@ -78,8 +103,7 @@ export interface Contract {
   } | null
   parties?: ContractPartySnapshot | null
   employee?: Record<string, unknown> | null
-  customer?: Record<string, unknown> | null
-  company?: Record<string, unknown> | null
+  applicant?: Applicant | null
   contract_type?: ContractType | null
   contract_template?: {
     id: number
@@ -96,19 +120,14 @@ export interface ContractCreateData {
   contract_template_version_id?: number | null
   country_id?: number | null
   language_id?: number | null
-  contract_type_id?: number | null
   employee_id?: number | null
-  customer_id?: number | null
   applicant_id?: number | null
-  company_id?: number | null
-  service_id?: number | null
-  service_ids?: number[] | null
-  is_custom?: boolean
   name?: string
   cover_text?: string | null
   content?: string
   status: ContractStatus
   start_date: string
+  end_date?: string | null
   company_signatory_name?: string | null
 }
 
@@ -117,12 +136,13 @@ export interface ContractUpdateData extends Partial<Omit<ContractCreateData, 'st
 }
 
 export interface ContractParams {
-  audience?: 'customers' | 'employees' | 'other' | 'educational'
+  applicant_id?: number
+  service?: BuiltInService
+  audience?: 'customers' | 'employees' | 'other'
   type_slug?: string
-  service_id?: number
-  service_ids?: number[]
-  without_service?: boolean | 0 | 1
   status?: ContractStatus
+  date_from?: string
+  date_to?: string
   search?: string
   only_cancelled?: boolean
 }
@@ -131,8 +151,18 @@ const normalizeList = (payload: unknown): Contract[] =>
   Array.isArray(payload) ? (payload as Contract[]) : []
 
 const ContractApi = {
+  async serviceOptions(service: BuiltInService): Promise<ServiceContractOptions> {
+    const response = await api.get<{ success: boolean; data: ServiceContractOptions }>(`/contracts/${service}/options`)
+
+    return response.data.data
+  },
+  async createService(service: BuiltInService, data: ServiceContractCreateData): Promise<Contract> {
+    const response = await api.post<{ success: boolean; data: Contract }>(`/contracts/${service}`, data)
+
+    return response.data.data
+  },
   async getAll(params?: ContractParams): Promise<Contract[]> {
-    const response = await api.get<{ success: boolean; data: Contract[] }>('/contracts', { params })
+    const response = await api.get<{ success: boolean; data: Contract[] }>('/contracts', { params: { ...params, only_cancelled: params?.only_cancelled === undefined ? undefined : Number(params.only_cancelled) } })
 
     return normalizeList(response.data.data)
   },
@@ -167,3 +197,70 @@ const ContractApi = {
 }
 
 export default ContractApi
+
+export interface ServiceContractOptions {
+  template: import('./contractTemplate').ContractTemplate | null
+  admission_employees: Array<{ id: number; name: string }>
+  counselor_employees: Array<{ id: number; name: string }>
+
+  currencies: Array<{ id: number; code: string; rate: number | string }>
+  languages: Array<{ id: number; name: string }>
+  employees: Array<{ id: number; name: string }>
+}
+
+export interface ServiceContractCreateData {
+  parent_contract_id?: number | null
+  name?: string
+  father_name?: string | null
+  father_phone?: string | null
+  backup_phone?: string | null
+  contact?: string | null
+  email?: string | null
+  address?: string | null
+  tax_number?: string | null
+  admission_employee_id?: number | null
+  responsible_employee_id?: number | null
+  application_fee?: number
+  visa_fee?: number
+  booking_fee?: number
+  service_fee?: number
+  remote_fee?: number
+  scholarship_id?: number | null
+  class_id?: number | null
+  fee: number
+  discount: number
+  currency_id: number
+  currency_rate: number
+  language_id: number
+  start_date: string
+  notes?: string | null
+  company_signatory_name?: string | null
+  passport_id?: string | null
+  grade_score?: number | string | null
+  country_id?: number | null
+  university_id?: number | null
+  education_level_id?: number | null
+  semester_id?: number | null
+  contract_type_id?: number | null
+  university_fee?: number | string | null
+  favorite_subject_ids?: number[]
+  test_id?: number | null
+  skill_ids?: number[]
+  program_id?: number | null
+  time_id?: number | null
+  duration_id?: number | null
+  teacher_ids?: number[]
+}
+
+export function serviceContractApplicantFields(service: BuiltInService, applicant: ApplicantPayload): Partial<ServiceContractCreateData> {
+  const { service: omitted, ...details } = applicantServicePayload({ ...applicant, service })
+  const identity: Partial<ServiceContractCreateData> = {}
+  const fields = ['name', 'father_name', 'father_phone', 'backup_phone', 'notes', 'contact', 'email', 'address', 'tax_number', 'admission_employee_id', 'responsible_employee_id'] as const
+  for (const field of fields) {
+    const value = applicant[field]
+    if (value !== undefined)
+      Object.assign(identity, { [field]: value === '' ? null : value })
+  }
+
+  return { ...identity, ...details }
+}

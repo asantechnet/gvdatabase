@@ -2,30 +2,33 @@
 import { computed, onMounted, ref } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useToast } from 'vue-toastification'
+import { type FinanceType, getFinanceTypes } from '@/api/financeTypes'
+import { financeTypeLabel } from '@/utils/financeTypes'
 import PendingTransactionApi from '@/api/pendingTransactions'
-import { type Income, type IncomeCreateData, type IncomeUpdateData, createIncome, deleteIncome, getIncomes, updateIncome } from '@/api/incomes'
-import InvoiceApi, { type Invoice } from '@/api/invoice'
+import { type Income, type IncomeCreateData, type ApplicantContractPaymentOption, createIncome, deleteIncome, getIncomes, getApplicantContractPayments, updateIncome } from '@/api/incomes'
 import ApplicantApi, { type Applicant } from '@/api/applicants'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ApplicantSelect from '@/components/income/ApplicantSelect.vue'
-import InvoicePaymentContext from '@/components/income/InvoicePaymentContext.vue'
-import InvoiceSelect from '@/components/income/InvoiceSelect.vue'
 import ReceiptPrinter from '@/components/income/ReceiptPrinter.vue'
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
+import PaymentOverridesDialog from '@/components/income/PaymentOverridesDialog.vue'
+import ServicePaymentsDialog from '@/components/income/ServicePaymentsDialog.vue'
+import { canAccess } from '@/utils/authorization'
+import { changedIncomeFields, paymentEntryLimit } from '@/utils/incomePaymentBalance'
 
 const incomes = ref<Income[]>([])
 const isAddIncomeDialogVisible = ref(false)
 const isEditIncomeDialogVisible = ref(false)
 const isDeleteIncomeDialogVisible = ref(false)
-type IncomeForm = Omit<IncomeCreateData, 'invoice_id'> & {
+type IncomeForm = Omit<IncomeCreateData, 'applicant_contract_id'> & {
   id: number
-  invoice_id: number | null
+  applicant_contract_id: number | null
   base_amount: number
   receipt_number?: string
-  invoice_number?: string | null
+  contract_service?: Income['contract_service']
   currency?: Income['currency']
   created_at?: string
   updated_at?: string
@@ -34,7 +37,7 @@ type IncomeForm = Omit<IncomeCreateData, 'invoice_id'> & {
 const emptyIncomeForm = (): IncomeForm => ({
   id: 0,
   applicant_id: null,
-  invoice_id: null,
+  applicant_contract_id: null,
   type: '',
   description: '',
   amount: 0,
@@ -50,7 +53,7 @@ const searchQuery = ref('')
 const filterType = ref<string | null>(null)
 const filterCurrency = ref<number | null>(null)
 const isLoading = ref(false)
-const invoices = ref<Invoice[]>([])
+const applicantContracts = ref<ApplicantContractPaymentOption[]>([])
 const currencies = ref<Currency[]>([])
 const applicants = ref<Applicant[]>([])
 const formError = ref('')
@@ -59,6 +62,8 @@ const activeReceiptIncomeId = ref<number | null>(null)
 const saveMode = ref<'direct' | 'loan'>('direct')
 const attachmentTarget = ref<Income | null>(null)
 const isAttachmentsOpen = ref(false)
+const isPaymentOverridesOpen = ref(false)
+const isServicePaymentsOpen = ref(false)
 
 function openAttachments(income: Income) {
   attachmentTarget.value = income
@@ -66,50 +71,58 @@ function openAttachments(income: Income) {
 }
 const toast = useToast()
 
-const typeOptions = ['Service', 'Product', 'Investment', 'Other']
+const financeTypes = ref<FinanceType[]>([])
+const typeOptions = computed(() => financeTypes.value.map(type => ({ title: financeTypeLabel(type), value: type.value })))
+const filterTypeOptions = typeOptions
+const typeLabel = (value: string) => {
+  const type = financeTypes.value.find(type => type.value === value)
+  return type ? financeTypeLabel(type) : translateBackendValue(value)
+}
 
-const filterTypeOptions = computed(() => typeOptions.map(value => ({
-  title: translateBackendValue(value),
-  value,
-})))
+async function fetchTypes() {
+  try { financeTypes.value = await getFinanceTypes('income') }
+  catch (error) { toast.error(apiErrorMessage(error, translate('pages.finance.types.loadFailed'))) }
+}
 
 const currencyOptions = computed(() => currencies.value
   .filter(currency => currency.isActive)
   .map(currency => ({ title: `${currency.code} — ${currency.name}`, value: currency.id })))
 
-const selectedInvoice = computed(() => {
-  const invoiceId = selectedIncome.value?.invoice_id
+const selectedServiceLine = computed(() => {
+  const lineId = selectedIncome.value?.applicant_contract_id
 
-  return invoiceId ? invoices.value.find(invoice => invoice.id === invoiceId) : undefined
+  return lineId ? applicantContracts.value.find(line => line.id === lineId) : undefined
 })
 
-const selectedInvoiceBalance = computed(() => selectedInvoice.value?.balance ?? 0)
+const selectedLineRemaining = computed(() => {
+  const line = selectedServiceLine.value
+  if (!line)
+    return 0
+
+  const original = incomes.value.find(income => income.id === selectedIncome.value.id)
+  return paymentEntryLimit(line, selectedIncome.value.rate, original)
+})
 const selectedCurrency = computed(() => currencies.value.find(currency => currency.id === selectedIncome.value.currency_id) ?? null)
-const selectedCurrencyDecimals = computed(() => selectedInvoice.value?.currency.decimalPlaces ?? selectedCurrency.value?.decimalPlaces ?? 2)
+const selectedCurrencyDecimals = computed(() => selectedServiceLine.value?.currency?.decimalPlaces ?? selectedCurrency.value?.decimalPlaces ?? 2)
 const selectedCurrencyStep = computed(() => 10 ** -selectedCurrencyDecimals.value)
+
+// The applicant's contracted services are the payment subjects: one receipt
+// covers one service.
+const serviceLineOptions = computed(() => applicantContracts.value.map(line => ({
+  title: [line.service_label, line.contract_number].filter(Boolean).join(' — '),
+  value: line.id,
+  props: { disabled: line.is_cancelled || (line.remaining_total <= 0 && !incomes.value.some(income => income.id === selectedIncome.value.id && income.applicant_contract_id === line.id)) },
+})))
 const currentBaseCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? null)
 
-const totalReceived = computed(() => incomes.value.reduce((total, income) => total + Number(income.currentBaseAmount ?? income.base_amount ?? 0), 0))
-const linkedIncomeCount = computed(() => incomes.value.filter(income => income.invoice_id).length)
-const averageIncome = computed(() => incomes.value.length ? totalReceived.value / incomes.value.length : 0)
+const fetchApplicantContracts = async (applicantId?: number | null) => {
+  if (!applicantId) {
+    applicantContracts.value = []
 
-const currentMonthIncome = computed(() => {
-  const now = new Date()
+    return
+  }
 
-  return incomes.value.reduce((total, income) => {
-    const date = new Date(income.date)
-
-    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-      ? total + Number(income.currentBaseAmount ?? income.base_amount ?? 0)
-      : total
-  }, 0)
-})
-
-const fetchUnpaidInvoices = async (includeInvoiceId?: number | null) => {
-  invoices.value = await InvoiceApi.getAll({ unpaid: true })
-
-  if (includeInvoiceId && !invoices.value.some(invoice => invoice.id === includeInvoiceId))
-    invoices.value.push(await InvoiceApi.getById(includeInvoiceId))
+  applicantContracts.value = await getApplicantContractPayments(applicantId)
 }
 
 const fetchCurrencies = async () => {
@@ -170,12 +183,13 @@ const openAddIncomeDialog = () => {
   formError.value = ''
   saveMode.value = 'direct'
   selectedIncome.value = emptyIncomeForm()
-  Promise.all([fetchUnpaidInvoices(), fetchCurrencies(), fetchApplicants()]).then(() => {
+  applicantContracts.value = []
+  Promise.all([fetchCurrencies(), fetchApplicants(), fetchTypes()]).then(() => {
     setDefaultCurrency()
     isAddIncomeDialogVisible.value = true
   }).catch(error => {
-    console.error('Error fetching unpaid invoices:', error)
-    formError.value = translate('common.messages.unableToLoadInvoices')
+    console.error('Error loading income form options:', error)
+    formError.value = translate('common.messages.unableToLoadOptions')
     isAddIncomeDialogVisible.value = true
   })
 }
@@ -183,33 +197,43 @@ const openAddIncomeDialog = () => {
 const openEditIncomeDialog = (income: Income) => {
   formError.value = ''
   selectedIncome.value = { ...income }
-  Promise.all([fetchUnpaidInvoices(income.invoice_id), fetchCurrencies(), fetchApplicants()]).then(() => {
+  Promise.all([
+    income.applicant_id ? fetchApplicantContracts(income.applicant_id) : Promise.resolve(),
+    fetchCurrencies(),
+    fetchTypes(),
+    fetchApplicants(),
+  ]).then(() => {
     isEditIncomeDialogVisible.value = true
   }).catch(error => {
-    console.error('Error fetching unpaid invoices:', error)
-    formError.value = translate('common.messages.unableToLoadInvoices')
+    console.error('Error loading income form options:', error)
+    formError.value = translate('common.messages.unableToLoadOptions')
     isEditIncomeDialogVisible.value = true
   })
 }
 
-const handleInvoiceChange = (invoiceId: number | null) => {
-  if (!invoiceId) {
-    selectedIncome.value.applicant_id = null
+const handleApplicantChange = async (applicantId: number | null) => {
+  selectedIncome.value.applicant_contract_id = null
+  await fetchApplicantContracts(applicantId)
+  setDefaultCurrency()
+  calculateTotal()
+}
 
+const handleServiceLineChange = (lineId: number | null) => {
+  if (!lineId)
     return
-  }
 
-  const invoice = invoices.value.find(item => item.id === invoiceId)
-  if (!invoice)
+  const line = applicantContracts.value.find(item => item.id === lineId)
+  if (!line)
     return
 
-  selectedIncome.value.applicant_id = invoice.applicant_id
   selectedIncome.value.type = 'Service'
-  selectedIncome.value.description = `Payment for ${invoice.invoice_number} — ${invoice.applicant?.name ?? ''}`
-  selectedIncome.value.currency_id = invoice.currency.id
-  selectedIncome.value.rate = invoice.currency.rate
+  selectedIncome.value.description = [line.service_label, line.contract_number].filter(Boolean).join(' — ')
+  if (line.currency) {
+    selectedIncome.value.currency_id = line.currency.id
+    selectedIncome.value.rate = line.currency_rate
+  }
   selectedIncome.value.quantity = 1
-  selectedIncome.value.amount = invoice.balance
+  selectedIncome.value.amount = selectedLineRemaining.value
   calculateTotal()
 }
 
@@ -221,7 +245,7 @@ const handleCurrencyChange = (currencyId: number) => {
   }
 }
 
-const formatSelectedInvoiceAmount = (amount: number) => amount.toFixed(selectedCurrencyDecimals.value)
+const formatSelectedLineAmount = (amount: number) => amount.toFixed(selectedCurrencyDecimals.value)
 
 const messageFromError = (error: unknown): string => apiErrorMessage(error, 'Unable to save the income record.')
 
@@ -239,8 +263,8 @@ const validateIncomeForm = () => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedIncome.value.date))
     return translate('pages.finance.income.income.selectAValidIncomeDate')
 
-  if (selectedInvoice.value && selectedIncome.value.amount * selectedIncome.value.quantity > selectedInvoiceBalance.value + selectedCurrencyStep.value / 2)
-    return `Payment cannot exceed the remaining invoice balance of ${formatSelectedInvoiceAmount(selectedInvoiceBalance.value)} ${selectedInvoice.value.currency.shortname}.`
+  if (selectedServiceLine.value && selectedIncome.value.amount * selectedIncome.value.quantity > selectedLineRemaining.value + selectedCurrencyStep.value / 2)
+    return `${translate('pages.finance.income.income.paymentExceedsRemainingBalance')} ${formatSelectedLineAmount(selectedLineRemaining.value)} ${selectedServiceLine.value.currency?.code ?? ''}`.trim()
 
   return ''
 }
@@ -296,7 +320,10 @@ const updateIncomeRecord = async () => {
     try {
       formError.value = ''
 
-      const incomeData = { ...selectedIncome.value } as IncomeUpdateData
+      const original = incomes.value.find(income => income.id === selectedIncome.value.id)
+      if (!original)
+        return
+      const incomeData = changedIncomeFields(original, selectedIncome.value)
       const updatedIncome = await updateIncome(selectedIncome.value.id, incomeData)
       const index = incomes.value.findIndex(i => i.id === updatedIncome.id)
       if (index !== -1)
@@ -330,29 +357,6 @@ const calculateTotal = () => {
   selectedIncome.value.base_amount = Number((selectedIncome.value.amount * selectedIncome.value.quantity / selectedIncome.value.rate).toFixed(decimals))
 }
 
-const markSelectedInvoicePaid = async () => {
-  if (!selectedInvoice.value?.can_mark_paid)
-    return
-
-  try {
-    const updated = await InvoiceApi.markPaid(selectedInvoice.value.id)
-
-    invoices.value = invoices.value.map(invoice => invoice.id === updated.id ? updated : invoice)
-  }
-  catch (error) {
-    formError.value = messageFromError(error)
-  }
-}
-
-const formatCurrency = (value: number | string | undefined | null): string => {
-  const numericValue = Number(value ?? 0)
-  const currency = currentBaseCurrency.value
-  const decimals = currency?.decimalPlaces ?? 2
-  const formatted = Number.isFinite(numericValue) ? numericValue.toFixed(decimals) : (0).toFixed(decimals)
-
-  return `${currency?.symbol ?? ''}${formatted}${currency?.code ? ` ${currency.code}` : ''}`.trim()
-}
-
 const formatIncomeCurrency = (value: number | string, currency: Income['currency']): string => {
   const amount = Number(value)
   const formatted = Number.isFinite(amount) ? amount.toFixed(currency?.decimalPlaces ?? 2) : '0.00'
@@ -383,6 +387,7 @@ const formatDate = (dateString: string | undefined | null): string => {
 const printTable = () => void printDocument({ bodyClass: 'printing-table-income', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 
 onMounted(() => {
+  fetchTypes()
   fetchIncomes()
   fetchCurrencies()
   fetchApplicants()
@@ -390,131 +395,57 @@ onMounted(() => {
 </script>
 
 <template>
+  <PaymentOverridesDialog v-model="isPaymentOverridesOpen" />
+  <ServicePaymentsDialog v-model="isServicePaymentsOpen" @created="incomes.unshift($event)" />
   <div class="income-page">
-    <VCard
-      class="income-command-deck mb-6"
-      elevation="0"
-    >
-      <VCardText class="pa-6 pa-md-8">
-        <div class="hero-topline d-flex flex-wrap align-center justify-space-between gap-5">
-          <div class="hero-copy">
-            <div class="eyebrow mb-2">
-              <VIcon
-                icon="tabler-sparkles"
-                size="15"
-              /> {{ $t('pages.finance.income.income.cashflowCOMMANDCENTER') }}
-            </div>
-            <h2 class="text-h4 font-weight-black mb-1">
-              {{ $t('pages.finance.income.income.incomeLedger') }}
-            </h2>
-            <p class="text-body-2 opacity-80 mb-0">
-              {{ $t('pages.finance.income.income.liveReceiptActivityInvoiceCollectionsAndCurrencyTotalsInOneView') }}
-            </p>
-          </div>
-          <div class="hero-actions d-flex align-center gap-2">
-            <VBtn
-              class="hero-print"
-              icon
-              variant="text"
-              color="white"
-              @click="printTable"
-            >
-              <VIcon icon="tabler-printer" />
-              <VTooltip
-                activator="parent"
-                location="top"
-              >
-                {{ $t('pages.finance.income.income.printIncomeRecords') }}
-              </VTooltip>
-            </VBtn>
-            <VBtn
-              color="white"
-              class="hero-primary-action income-primary-action font-weight-bold"
-              @click="openAddIncomeDialog"
-            >
-              <VIcon
-                icon="tabler-plus"
-                class="me-1"
-              /> {{ $t('pages.finance.income.income.recordIncome') }}
-            </VBtn>
-          </div>
+    <div class="income-page-head d-flex flex-wrap align-center justify-space-between gap-3 mb-6">
+      <div class="d-flex align-center ga-3">
+        <VAvatar
+          icon="tabler-receipt-2"
+          color="primary"
+          variant="tonal"
+          rounded="lg"
+        />
+        <div>
+          <h1 class="text-h5 font-weight-bold mb-0">
+            {{ $t('pages.finance.income.income.incomeLedger') }}
+          </h1>
+          <p class="text-body-2 text-medium-emphasis mb-0">
+            {{ $t('pages.finance.income.income.liveReceiptActivityAndCurrencyTotalsInOneView') }}
+          </p>
         </div>
-        <VRow class="mt-4">
-          <VCol
-            cols="12"
-            sm="6"
-            lg="3"
+      </div>
+      <div class="d-flex flex-wrap align-center gap-2">
+        <VBtn
+          icon="tabler-printer"
+          variant="text"
+          :aria-label="$t('pages.finance.income.income.printIncomeRecords')"
+          @click="printTable"
+        >
+          <VIcon icon="tabler-printer" />
+          <VTooltip
+            activator="parent"
+            location="top"
           >
-            <div class="metric-tile metric-tile--success">
-              <VIcon
-                icon="tabler-wallet"
-                color="success"
-              /><div>
-                <div class="metric-label">
-                  {{ $t('pages.finance.income.income.recordedValue') }}
-                </div><div class="metric-value">
-                  {{ formatCurrency(totalReceived) }}
-                </div>
-              </div>
-            </div>
-          </VCol>
-          <VCol
-            cols="12"
-            sm="6"
-            lg="3"
-          >
-            <div class="metric-tile metric-tile--info">
-              <VIcon
-                icon="tabler-calendar-month"
-                color="info"
-              /><div>
-                <div class="metric-label">
-                  {{ $t('common.messages.thisMonth') }}
-                </div><div class="metric-value">
-                  {{ formatCurrency(currentMonthIncome) }}
-                </div>
-              </div>
-            </div>
-          </VCol>
-          <VCol
-            cols="12"
-            sm="6"
-            lg="3"
-          >
-            <div class="metric-tile metric-tile--warning">
-              <VIcon
-                icon="tabler-link"
-                color="warning"
-              /><div>
-                <div class="metric-label">
-                  {{ $t('pages.finance.income.income.invoicePayments') }}
-                </div><div class="metric-value">
-                  {{ linkedIncomeCount }} <span>{{ $t('pages.finance.income.income.linked') }}</span>
-                </div>
-              </div>
-            </div>
-          </VCol>
-          <VCol
-            cols="12"
-            sm="6"
-            lg="3"
-          >
-            <div class="metric-tile metric-tile--secondary">
-              <VIcon
-                icon="tabler-chart-bar"
-                color="secondary"
-              /><div>
-                <div class="metric-label">
-                  {{ $t('pages.finance.income.income.averageReceipt') }}
-                </div><div class="metric-value">
-                  {{ formatCurrency(averageIncome) }}
-                </div>
-              </div>
-            </div>
-          </VCol>
-        </VRow>
-      </VCardText>
-    </VCard>
+            {{ $t('pages.finance.income.income.printIncomeRecords') }}
+          </VTooltip>
+        </VBtn>
+        <VBtn v-if="canAccess('override_contract_payments')" icon="tabler-settings" variant="text" @click="isPaymentOverridesOpen = true">
+          <VIcon icon="tabler-settings" />
+          <VTooltip activator="parent">{{ $t('finance.paymentOverrides.title') }}</VTooltip>
+        </VBtn>
+        <VBtn v-if="canAccess('create_incomes')" prepend-icon="tabler-receipt" variant="tonal" @click="isServicePaymentsOpen = true">
+          {{ $t('finance.servicePayments.title') }}
+        </VBtn>
+        <VBtn
+          color="primary"
+          prepend-icon="tabler-plus"
+          @click="openAddIncomeDialog"
+        >
+          {{ $t('pages.finance.income.income.recordIncome') }}
+        </VBtn>
+      </div>
+    </div>
 
     <VCard
       class="mb-6 filter-deck"
@@ -602,7 +533,7 @@ onMounted(() => {
             { title: translate('pages.finance.income.income.receipt'), key: 'receipt_number', align: 'start' },
             { title: translate('common.fields.type'), key: 'type', align: 'start' },
             { title: translate('common.messages.details'), key: 'description', align: 'start' },
-            { title: translate('pages.finance.income.income.invoice'), key: 'invoice_number', align: 'start' },
+            { title: translate('pages.finance.income.income.service'), key: 'contract_service', align: 'start' },
             { title: translate('common.fields.amount'), key: 'base_amount', align: 'end' },
             { title: translate('common.fields.date'), key: 'date', align: 'center' },
             { title: translate('common.messages.recordedBy'), key: 'recordedBy.name', align: 'start' },
@@ -629,7 +560,7 @@ onMounted(() => {
               :color="incomeTypeColor(item.type)"
               variant="tonal"
             >
-              {{ translateBackendValue(item.type) }}
+              {{ typeLabel(item.type) }}
             </VChip>
           </template>
 
@@ -639,16 +570,16 @@ onMounted(() => {
             </div>
           </template>
 
-          <template #item.invoice_number="{ item }">
-            <VChip
-              v-if="item.invoice_number"
-              size="small"
-              color="info"
-              variant="outlined"
-              prepend-icon="tabler-file-invoice"
-            >
-              {{ item.invoice_number }}
-            </VChip>
+          <template #item.contract_service="{ item }">
+            <div v-if="item.contract_service">
+              <div class="font-weight-medium">
+                {{ item.contract_service.service_label }}
+              </div>
+              <div class="text-caption text-medium-emphasis">
+                {{ $t(`finance.paymentStatus.${item.contract_service.payment_status}`) }}
+                <template v-if="item.contract_service.contract_number"> · {{ item.contract_service.contract_number }}</template>
+              </div>
+            </div>
             <span
               v-else
               class="text-caption text-medium-emphasis"
@@ -752,8 +683,8 @@ onMounted(() => {
     <PrintableListReport
       :title="$t('common.crmUi.printReports.income.title')"
       :subtitle="$t('common.crmUi.printReports.income.subtitle')"
-      :columns="[$t('common.crmUi.printReports.columns.receipt'), $t('common.crmUi.printReports.columns.type'), $t('common.crmUi.printReports.columns.details'), $t('common.crmUi.printReports.columns.invoice'), $t('common.crmUi.printReports.columns.amount'), $t('common.crmUi.printReports.columns.date')]"
-      :rows="incomes.map(income => [income.receipt_number, income.type, income.description, income.invoice_number, formatIncomeCurrency(income.amount * income.quantity, income.currency), formatDate(income.date)])"
+      :columns="[$t('common.crmUi.printReports.columns.receipt'), $t('common.crmUi.printReports.columns.type'), $t('common.crmUi.printReports.columns.details'), $t('common.crmUi.printReports.columns.service'), $t('common.crmUi.printReports.columns.amount'), $t('common.crmUi.printReports.columns.date')]"
+      :rows="incomes.map(income => [income.receipt_number, income.type, income.description, income.contract_service?.service_label ?? '', formatIncomeCurrency(income.amount * income.quantity, income.currency), formatDate(income.date)])"
     />
 
     <!-- Add Income Dialog -->
@@ -772,7 +703,7 @@ onMounted(() => {
               <div class="text-h5 font-weight-bold">
                 {{ $t('pages.finance.income.income.recordIncome2') }}
               </div><div class="text-caption text-medium-emphasis">
-                {{ $t('pages.finance.income.income.captureAStandaloneReceiptOrApplyPaymentToAnInvoice') }}
+                {{ $t('pages.finance.income.income.captureAStandaloneReceiptOrApplyPaymentToAContractLine') }}
               </div>
             </div>
           </div>
@@ -790,44 +721,77 @@ onMounted(() => {
             </VAlert>
             <VRow>
               <VCol cols="12">
-                <InvoiceSelect
-                  v-model="selectedIncome.invoice_id"
-                  :invoices="invoices"
-                  @change="handleInvoiceChange"
+                <ApplicantSelect
+                  v-model="selectedIncome.applicant_id"
+                  :applicants="applicants"
+                  :disabled="Boolean(selectedServiceLine)"
+                  class="mb-4"
+                  @update:model-value="handleApplicantChange"
                 />
-                <InvoicePaymentContext
-                  v-if="selectedInvoice"
-                  :invoice="selectedInvoice"
+                <VSelect
+                  v-model="selectedIncome.applicant_contract_id"
+                  :items="serviceLineOptions"
+                  :label="$t('pages.finance.income.income.service')"
+                  :disabled="!selectedIncome.applicant_id"
+                  clearable
+                  :hint="selectedIncome.applicant_id ? $t('pages.finance.income.income.selectTheContractedServiceThisReceiptPaysFor') : $t('pages.finance.income.income.selectAnApplicantToSeeTheirServices')"
+                  persistent-hint
+                  @update:model-value="handleServiceLineChange"
                 />
-                <VAlert
-                  v-if="selectedInvoice"
-                  :type="selectedInvoice.can_mark_paid ? 'success' : 'info'"
-                  variant="tonal"
-                  density="compact"
-                  class="mt-3"
+                <div
+                  v-if="selectedServiceLine"
+                  class="d-flex flex-wrap gap-x-6 gap-y-2 mt-4"
                 >
-                  <div class="d-flex align-center justify-space-between gap-3">
-                    <span v-if="selectedInvoice.can_mark_paid">{{ $t('pages.finance.income.income.smallBalanceCanMarkPaid') }}</span>
-                    <span v-else>{{ $t('pages.finance.income.income.markPaidThresholdHint') }}</span>
-                    <VBtn
-                      size="small"
-                      color="success"
-                      variant="flat"
-                      :disabled="!selectedInvoice.can_mark_paid"
-                      @click="markSelectedInvoicePaid"
-                    >
-                      {{ $t('pages.finance.income.income.markPaid') }}
-                    </VBtn>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('common.messages.fee') }}
+                    </div>
+                    <div class="font-weight-medium">
+                      {{ formatIncomeCurrency(selectedServiceLine.fee, selectedServiceLine.currency) }}
+                    </div>
                   </div>
-                </VAlert>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('pages.finance.income.income.discount') }}
+                    </div>
+                    <div class="font-weight-medium">
+                      {{ formatIncomeCurrency(selectedServiceLine.discount, selectedServiceLine.currency) }}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('pages.finance.income.income.paidToDate') }}
+                    </div>
+                    <div class="font-weight-medium">
+                      {{ formatIncomeCurrency(selectedServiceLine.amount_paid, selectedServiceLine.currency) }}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('pages.finance.income.income.remaining') }}
+                    </div>
+                    <div class="font-weight-medium">
+                      {{ formatIncomeCurrency(selectedServiceLine.remaining_total, selectedServiceLine.currency) }}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('pages.finance.income.income.paymentStatus') }}
+                    </div>
+                    <VChip
+                      size="small"
+                      variant="tonal"
+                    >{{ $t(`finance.paymentStatus.${selectedServiceLine.payment_status}`) }}</VChip>
+                  </div>
+                </div>
                 <VAlert
-                  v-if="selectedInvoice"
+                  v-if="selectedServiceLine"
                   type="info"
                   variant="tonal"
                   density="compact"
                   class="mt-3"
                 >
-                  {{ $t('pages.finance.income.income.customerTypeQuantityCurrencyAndExchangeRateComeFromTheInvoiceEnterOnly') }}
+                  {{ $t('pages.finance.income.income.customerTypeQuantityCurrencyAndExchangeRateComeFromTheSelectedService') }}
                 </VAlert>
               </VCol>
               <VCol cols="12">
@@ -861,18 +825,8 @@ onMounted(() => {
                   v-model="selectedIncome.type"
                   :items="typeOptions"
                   :label="$t('common.fields.type')"
-                  :disabled="Boolean(selectedInvoice)"
+                  :disabled="Boolean(selectedServiceLine)"
                   required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <ApplicantSelect
-                  v-model="selectedIncome.applicant_id"
-                  :applicants="applicants"
-                  :disabled="Boolean(selectedInvoice)"
                 />
               </VCol>
               <VCol cols="12">
@@ -893,7 +847,7 @@ onMounted(() => {
                   :label="$t('common.fields.amount')"
                   type="number"
                   :step="selectedCurrencyStep"
-                  :max="selectedInvoice ? selectedInvoiceBalance : undefined"
+                  :max="selectedServiceLine ? selectedLineRemaining : undefined"
                   required
                   @input="calculateTotal"
                 />
@@ -906,7 +860,7 @@ onMounted(() => {
                   v-model.number="selectedIncome.quantity"
                   :label="$t('common.messages.quantity')"
                   type="number"
-                  :disabled="Boolean(selectedInvoice)"
+                  :disabled="Boolean(selectedServiceLine)"
                   required
                   @input="calculateTotal"
                 />
@@ -919,7 +873,7 @@ onMounted(() => {
                   v-model="selectedIncome.currency_id"
                   :items="currencyOptions"
                   :label="$t('common.fields.currency')"
-                  :disabled="Boolean(selectedInvoice)"
+                  :disabled="Boolean(selectedServiceLine)"
                   required
                   @update:model-value="handleCurrencyChange"
                 />
@@ -997,7 +951,7 @@ onMounted(() => {
               <div class="text-h5 font-weight-bold">
                 {{ $t('pages.finance.income.income.editIncome') }}
               </div><div class="text-caption text-medium-emphasis">
-                {{ $t('pages.finance.income.income.updateReceiptDetailsOrItsInvoiceAllocation') }}
+                {{ $t('pages.finance.income.income.updateReceiptDetailsOrItsContractAllocation') }}
               </div>
             </div>
           </div>
@@ -1015,44 +969,77 @@ onMounted(() => {
             </VAlert>
             <VRow>
               <VCol cols="12">
-                <InvoiceSelect
-                  v-model="selectedIncome.invoice_id"
-                  :invoices="invoices"
-                  @change="handleInvoiceChange"
+                <ApplicantSelect
+                  v-model="selectedIncome.applicant_id"
+                  :applicants="applicants"
+                  :disabled="Boolean(selectedServiceLine)"
+                  class="mb-4"
+                  @update:model-value="handleApplicantChange"
                 />
-                <InvoicePaymentContext
-                  v-if="selectedInvoice"
-                  :invoice="selectedInvoice"
+                <VSelect
+                  v-model="selectedIncome.applicant_contract_id"
+                  :items="serviceLineOptions"
+                  :label="$t('pages.finance.income.income.service')"
+                  :disabled="!selectedIncome.applicant_id"
+                  clearable
+                  :hint="selectedIncome.applicant_id ? $t('pages.finance.income.income.selectTheContractedServiceThisReceiptPaysFor') : $t('pages.finance.income.income.selectAnApplicantToSeeTheirServices')"
+                  persistent-hint
+                  @update:model-value="handleServiceLineChange"
                 />
-                <VAlert
-                  v-if="selectedInvoice"
-                  :type="selectedInvoice.can_mark_paid ? 'success' : 'info'"
-                  variant="tonal"
-                  density="compact"
-                  class="mt-3"
+                <div
+                  v-if="selectedServiceLine"
+                  class="d-flex flex-wrap gap-x-6 gap-y-2 mt-4"
                 >
-                  <div class="d-flex align-center justify-space-between gap-3">
-                    <span v-if="selectedInvoice.can_mark_paid">{{ $t('pages.finance.income.income.smallBalanceCanMarkPaid') }}</span>
-                    <span v-else>{{ $t('pages.finance.income.income.markPaidThresholdHint') }}</span>
-                    <VBtn
-                      size="small"
-                      color="success"
-                      variant="flat"
-                      :disabled="!selectedInvoice.can_mark_paid"
-                      @click="markSelectedInvoicePaid"
-                    >
-                      {{ $t('pages.finance.income.income.markPaid') }}
-                    </VBtn>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('common.messages.fee') }}
+                    </div>
+                    <div class="font-weight-medium">
+                      {{ formatIncomeCurrency(selectedServiceLine.fee, selectedServiceLine.currency) }}
+                    </div>
                   </div>
-                </VAlert>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('pages.finance.income.income.discount') }}
+                    </div>
+                    <div class="font-weight-medium">
+                      {{ formatIncomeCurrency(selectedServiceLine.discount, selectedServiceLine.currency) }}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('pages.finance.income.income.paidToDate') }}
+                    </div>
+                    <div class="font-weight-medium">
+                      {{ formatIncomeCurrency(selectedServiceLine.amount_paid, selectedServiceLine.currency) }}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('pages.finance.income.income.remaining') }}
+                    </div>
+                    <div class="font-weight-medium">
+                      {{ formatIncomeCurrency(selectedServiceLine.remaining_total, selectedServiceLine.currency) }}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ $t('pages.finance.income.income.paymentStatus') }}
+                    </div>
+                    <VChip
+                      size="small"
+                      variant="tonal"
+                    >{{ $t(`finance.paymentStatus.${selectedServiceLine.payment_status}`) }}</VChip>
+                  </div>
+                </div>
                 <VAlert
-                  v-if="selectedInvoice"
+                  v-if="selectedServiceLine"
                   type="info"
                   variant="tonal"
                   density="compact"
                   class="mt-3"
                 >
-                  {{ $t('pages.finance.income.income.customerTypeQuantityCurrencyAndExchangeRateAreControlledByTheLinkedInv') }}
+                  {{ $t('pages.finance.income.income.customerTypeQuantityCurrencyAndExchangeRateComeFromTheSelectedService') }}
                 </VAlert>
               </VCol>
               <VCol
@@ -1063,18 +1050,8 @@ onMounted(() => {
                   v-model="selectedIncome.type"
                   :items="typeOptions"
                   :label="$t('common.fields.type')"
-                  :disabled="Boolean(selectedInvoice)"
+                  :disabled="Boolean(selectedServiceLine)"
                   required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <ApplicantSelect
-                  v-model="selectedIncome.applicant_id"
-                  :applicants="applicants"
-                  :disabled="Boolean(selectedInvoice)"
                 />
               </VCol>
               <VCol cols="12">
@@ -1095,7 +1072,7 @@ onMounted(() => {
                   :label="$t('common.fields.amount')"
                   type="number"
                   :step="selectedCurrencyStep"
-                  :max="selectedInvoice ? selectedInvoiceBalance : undefined"
+                  :max="selectedServiceLine ? selectedLineRemaining : undefined"
                   required
                   @input="calculateTotal"
                 />
@@ -1108,7 +1085,7 @@ onMounted(() => {
                   v-model.number="selectedIncome.quantity"
                   :label="$t('common.messages.quantity')"
                   type="number"
-                  :disabled="Boolean(selectedInvoice)"
+                  :disabled="Boolean(selectedServiceLine)"
                   required
                   @input="calculateTotal"
                 />
@@ -1121,7 +1098,7 @@ onMounted(() => {
                   v-model="selectedIncome.currency_id"
                   :items="currencyOptions"
                   :label="$t('common.fields.currency')"
-                  :disabled="Boolean(selectedInvoice)"
+                  :disabled="Boolean(selectedServiceLine)"
                   required
                   @update:model-value="handleCurrencyChange"
                 />
@@ -1222,34 +1199,6 @@ onMounted(() => {
 
 <style scoped>
 .income-page { padding-bottom: 32px; }
-.income-command-deck {
-  color: white;
-  border: 1px solid rgb(52 211 153 / .18);
-  border-radius: 20px;
-  box-shadow: 0 18px 45px rgb(23 43 77 / .2);
-  background: linear-gradient(115deg, #064e3b, #047857 55%, #14532d);
-}
-/* Do not use :global(.v-theme--light) here: Vue reduces that mixed scoped
-   selector to bare .v-theme--light and paints every Vuetify overlay. */
-.income-command-deck.v-theme--light { color: #16312a; border-color: #a7f3d0; box-shadow: 0 16px 34px rgb(15 118 110 / .12); background: #e9fbf3; }
-.income-command-deck.v-theme--light .metric-tile { border-color: #c9ecdc; background: #fffefa; box-shadow: inset 0 1px 0 #fff; }
-.income-command-deck.v-theme--light .hero-print { color: #166534 !important; border-color: #86d9b5; }
-.hero-copy { max-width: 660px; }
-.hero-copy h2 { letter-spacing: -.035em; }
-.hero-actions { flex-shrink: 0; }
-.hero-print { border: 1px solid rgb(255 255 255 / .22); }
-.hero-primary-action { min-height: 42px; padding-inline: 18px !important; border-radius: 10px; box-shadow: 0 8px 22px rgb(8 20 48 / .22); }
-.income-primary-action { color: #86efac !important; }
-.income-primary-action :deep(.v-icon) { color: #86efac !important; }
-.income-command-deck.v-theme--light .income-primary-action,
-.income-command-deck.v-theme--light .income-primary-action :deep(.v-icon) { color: #166534 !important; }
-.eyebrow { display: flex; align-items: center; gap: 6px; font-size: .68rem; font-weight: 800; letter-spacing: .12em; opacity: .78; }
-.metric-tile { min-height: 92px; display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px solid rgb(255 255 255 / .15); border-radius: 15px; background: linear-gradient(135deg, rgb(255 255 255 / .14), rgb(255 255 255 / .055)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .1); transition: transform .2s ease, background .2s ease; }
-.metric-tile:hover { transform: translateY(-3px); background: rgb(255 255 255 / .16); }
-.metric-tile :deep(.v-icon) { padding: 10px; border-radius: 11px; background: rgb(255 255 255 / .94); box-shadow: 0 5px 12px rgb(8 20 48 / .16); }
-.metric-label { font-size: .72rem; letter-spacing: .04em; opacity: .72; text-transform: uppercase; }
-.metric-value { font-size: 1.15rem; font-weight: 800; line-height: 1.4; }
-.metric-value span { font-size: .7rem; font-weight: 500; opacity: .75; }
 .filter-deck, .ledger-card { overflow: hidden; border: 0; border-radius: 16px; box-shadow: 0 10px 28px rgb(15 23 42 / .08); }
 .filter-deck { background: rgb(var(--v-theme-surface)); }
 .filter-deck__content { padding: 14px 18px !important; }
@@ -1257,7 +1206,6 @@ onMounted(() => {
 .ledger-card__header { min-height: 68px; padding-inline: 20px; }
 .ledger-card__title { display: flex; align-items: center; gap: 9px; }
 .detail-copy { max-width: 250px; overflow: hidden; color: rgb(var(--v-theme-on-surface) / .76); text-overflow: ellipsis; }
-.invoice-payment-panel { display: flex; align-items: center; gap: 18px; padding: 13px 16px; border: 1px solid rgb(var(--v-theme-primary) / .22); border-radius: 12px; background: rgb(var(--v-theme-primary) / .06); }
 .income-dialog :deep(.v-field__field),
 .income-dialog :deep(.v-field__input),
 .income-dialog :deep(.v-select__selection) { align-items: center; }
@@ -1270,6 +1218,5 @@ onMounted(() => {
 .ledger-card :deep(tbody tr:hover) { background: rgb(var(--v-theme-primary) / .035) !important; }
 .ledger-empty { display: flex; align-items: center; gap: 14px; min-height: 176px; padding: 28px 32px; text-align: start; background: linear-gradient(90deg, rgb(var(--v-theme-success) / .07), transparent 58%); }
 .ledger-empty :deep(.v-btn) { margin-inline-start: auto; }
-@media (max-width: 600px) { .invoice-payment-panel { align-items: flex-start; flex-direction: column; gap: 7px; } .invoice-payment-panel :deep(.v-divider) { display: none; } }
 @media (max-width: 600px) { .ledger-empty { align-items: flex-start; flex-direction: column; padding: 24px; } .ledger-empty :deep(.v-btn) { margin-inline-start: 0; } }
 </style>

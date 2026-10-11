@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import PayslipTemplate, { type SalarySlipProps } from './templates/payslip_template.vue'
@@ -296,8 +297,8 @@ const printEmployeePayslip = async (salary: Salary) => {
     employee: {
       name: salary.employeeName,
       designation: getEmployeePosition(emp),
-      department: 'Operations',
-      dateOfJoining: '1402-01-15 (2023-04-04)',
+      department: emp?.department || '—',
+      dateOfJoining: emp?.join_date || '—',
       payPeriod: salary.salaryMonth,
       payDate: salary.date,
       workedDays: salary.workedDays ?? 0,
@@ -549,79 +550,7 @@ const applySalaryApiErrors = (error: unknown) => {
     salaryFormErrors.value = [{ field: 'form', message: translate('pages.payroll.staffSalary.staffSalary.unableToSaveTheSalaryPaymentPleaseTryAgain') }]
 }
 
-const printTable = () => {
-  void printDocument({ bodyClass: 'printing-table-salaries', pageStyle: 'size: A4 landscape; margin: 12mm;' })
-
-  // Legacy inline-print markup remains unreachable while existing deployments
-  // transition to the shared, escaped printDocument implementation above.
-  if (false as boolean) {
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      const html = `
-      <html>
-        <head>
-          <title>Afghanistan Staff Salaries Report</title>
-          <style>
-            @page { size: A4 landscape; margin: 15mm; }
-            body { font-family: Arial, sans-serif; margin: 0; color: #1e293b; }
-            h1 { text-align: center; color: #1e3a8a; margin-bottom: 4px; }
-            p.sub { text-align: center; color: #64748b; margin-top: 0; font-size: 14px; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; }
-            th { background-color: #f1f5f9; color: #334155; font-weight: bold; }
-            tr:nth-child(even) { background-color: #f8fafc; }
-            .right { text-align: right; }
-          </style>
-        </head>
-        <body>
-          <h1>Staff Salaries Report</h1>
-          <p class="sub">Acme Technologies Afghanistan Ltd. — Ministry of Finance Compliant</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th>Pay Month</th>
-                <th>Worked Days</th>
-                <th>Currency</th>
-                <th class="right">Granted Bonus</th>
-                <th class="right">Total Paid</th>
-                <th>Remarks</th>
-                <th>Payment Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredSalaries.value.map(salary => `
-                <tr>
-                  <td><strong>${salary.employeeName}</strong></td>
-                  <td>${salary.salaryMonth}</td>
-                  <td>${salary.workedDays} / ${salary.totalDays} Days</td>
-                  <td>${salary.currency?.code ?? '—'}</td>
-                  <td class="right">${formatSalaryAmount(salary.bonus, salary.currency)}</td>
-                  <td class="right"><strong>${formatSalaryAmount(salary.totalAmount, salary.currency)}</strong></td>
-                  <td>${salary.remarks}</td>
-                  <td>${salary.date}</td>
-                </tr>
-              `).join('')}
-              ${Object.values(paymentTotalsByCurrency.value).map(total => `
-                <tr>
-                  <td colspan="5" class="right" style="font-weight: bold;">Total Paid (${total.currency?.code ?? 'Unknown currency'}):</td>
-                  <td class="right" style="font-weight: bold; color: #1e3a8a;">${formatSalaryAmount(total.amount, total.currency)}</td>
-                  <td colspan="2"></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `
-
-      printWindow.document.write(html)
-      printWindow.document.close()
-      printWindow.focus()
-      printWindow.print()
-    }
-  }
-}
+const printTable = () => void printDocument({ bodyClass: 'printing-table-salaries', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 
 // Fetch salaries when component mounts
 onMounted(async () => {
@@ -651,8 +580,8 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
     <DataTablePageKpis
       :items="filteredSalaries"
       :base-currency="currencies.find(currency => currency.isBase) ?? null"
-      title="Staff salaries"
-      description="Review payroll records and surface payments that require attention."
+      :title="$t('components.dataTablePageKpis.pages.staffSalaries.title')"
+      :description="$t('components.dataTablePageKpis.pages.staffSalaries.description')"
       icon="tabler-wallet"
     />
     <VCard>
@@ -945,7 +874,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
               variant="tonal"
               size="38"
             >
-              <VIcon icon="tabler-file-invoice" />
+              <VIcon icon="tabler-file-description" />
             </VAvatar>
             <div>
               <div class="text-h6 font-weight-bold">

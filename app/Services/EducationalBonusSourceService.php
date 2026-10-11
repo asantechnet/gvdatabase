@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Contract;
-use App\Models\ContractService;
+use App\Models\ApplicantContract;
 use App\Models\EducationalBonusSource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
@@ -15,7 +15,7 @@ class EducationalBonusSourceService
     {
         return [
             'contract' => Contract::class,
-            'service' => ContractService::class,
+            'service' => ApplicantContract::class,
         ];
     }
 
@@ -39,7 +39,7 @@ class EducationalBonusSourceService
         }
 
         $sourceAmount = $source->getAttribute('fee');
-        if ($source instanceof ContractService && $sourceAmount === null) {
+        if ($source instanceof ApplicantContract && $sourceAmount === null) {
             $sourceAmount = $source->service?->fee;
         }
         if ($sourceAmount === null) {

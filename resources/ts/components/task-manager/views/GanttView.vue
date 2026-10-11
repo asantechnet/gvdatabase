@@ -73,7 +73,7 @@ const handleProgressChange = (ganttTask: FrappeGanttTask, attemptedProgress: num
               color="primary"
               class="me-2"
             />
-            <span class="text-h5 font-weight-bold text-truncate">{{ $t('components.taskManager.ganttview.projectGanttTimeline') }}</span>
+            <span class="text-h5 font-weight-bold text-truncate">{{ $t('components.taskManager.ganttview.ganttTimeline') }}</span>
           </div>
         </template>
         <template #append>

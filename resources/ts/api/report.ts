@@ -64,13 +64,11 @@ const ReportApi = {
 
     return response.data
   },
-  generateInvoiceReport: (params: Partial<ReportFilters>) => api.get('/reports/invoices', { params }),
   generateExpenseReport: (params: Partial<ReportFilters>) => api.get('/reports/expenses', { params }),
   generateExpenceReport: (params: Partial<ReportFilters>) => api.get('/reports/expenses', { params }),
   generateSalaryReport: (params: Partial<ReportFilters>) => api.get('/reports/salaries', { params }),
   generateIncomeReport: (params: Partial<ReportFilters>) => api.get('/reports/incomes', { params }),
   generateVisitorReport: (params: Partial<ReportFilters>) => api.get('/reports/visitors', { params }),
-  exportInvoiceReport: (params: Partial<ReportFilters>) => api.get('/reports/invoices/export', { params, responseType: 'blob' }),
 }
 
 export default ReportApi

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -115,7 +116,7 @@ const isForeignKey = (key: string) => {
 
   return relationKeys.value.has(stem)
     || (aliases[stem] || []).some(alias => relationKeys.value.has(alias))
-    || /^(customer|employee|staff|office|position|service|invoice|company|currency|contract|template|user|role|permission|board|project|expense|paymentdetail)$/i.test(stem)
+    || /^(customer|employee|staff|office|position|service|currency|contract|template|user|role|permission|board|project|expense)$/i.test(stem)
 }
 
 const shouldHide = (key: string) => hiddenKeys.has(key)
@@ -155,14 +156,12 @@ const collections = computed(() => requestedFields.value.filter(field => Array.i
 const meaningfulFieldCount = computed(() => requestedFields.value.filter(field => !isEmpty(field.value)).length)
 
 const recordTitle = computed(() => props.title || String(
-  record.value.name || record.value.title || record.value.legal_name || record.value.invoice_number
+  record.value.name || record.value.title || record.value.legal_name
   || record.value.receipt_number || record.value.payslip_number || record.value.contract_number
   || record.value.item_name || record.value.item || detailsText('recordFallback', `Record ${record.value.id ? `#${record.value.id}` : ''}`, { id: record.value.id ? `#${record.value.id}` : '' }),
 ))
 
 const recordKind = computed(() => {
-  if (record.value.invoice_number)
-    return detailsText('recordKinds.invoice', 'Invoice')
   if (record.value.receipt_number)
     return detailsText('recordKinds.receipt', 'Receipt')
   if (record.value.payslip_number || record.value.salaryMonth)
@@ -171,7 +170,7 @@ const recordKind = computed(() => {
     return detailsText('recordKinds.contract', 'Contract')
   if (record.value.serial_number)
     return detailsText('recordKinds.asset', 'Asset item')
-  if (record.value.company && record.value.contact && record.value.service)
+  if (record.value.contact && record.value.service)
     return detailsText('recordKinds.visitor', 'Visitor')
   if (record.value.position || record.value.father_name)
     return detailsText('recordKinds.employee', 'Employee')
@@ -182,11 +181,11 @@ const recordKind = computed(() => {
 })
 
 const recordStatus = computed(() => {
-  const statusEntry = Object.entries(record.value).find(([key, value]) => /^(status|condition|state|employment_type|is_active)$/i.test(key) && !isEmpty(value))
+  const statusEntry = Object.entries(record.value).find(([key, value]) => /^(status|condition|state|is_active)$/i.test(key) && !isEmpty(value))
   if (!statusEntry)
     return null
   if (statusEntry[0] === 'is_active')
-    return record.value.is_active ? detailsText('values.active', 'Active') : detailsText('values.inactive', 'Inactive')
+    return record.value.is_active ? detailsText('values.active', translate('serviceContracts.active')) : detailsText('values.inactive', translate('common.statuses.inactive'))
 
   return String(statusEntry[1])
 })
@@ -226,7 +225,7 @@ const formatScalar = (value: unknown, key = '', source: DetailRecord = record.va
 
   const raw = String(value).replaceAll('_', ' ')
 
-  return /status|condition|state|employment_type|is_active/i.test(key)
+  return /status|condition|state|is_active/i.test(key)
     ? detailsText(`values.${normalizedKey(raw)}`, raw)
     : raw
 }
@@ -256,7 +255,7 @@ const statusColor = (status: unknown) => {
 }
 
 const iconFor = (key: string) => {
-  if (/name|title|employee|customer|client|staff|marketer|representative/i.test(key))
+  if (/name|title|employee|customer|client|staff|representative/i.test(key))
     return 'tabler-user'
   if (/mail/i.test(key))
     return 'tabler-mail'

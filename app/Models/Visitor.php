@@ -15,12 +15,10 @@ class Visitor extends Model
 
     protected $fillable = [
         'name',
-        'company',
+        'counselor_employee_id',
         'contact',
         'email',
         'service',
-        'marketer',
-        'marketer_id',
         'notes',
         'converted_at',
         'date',
@@ -35,8 +33,8 @@ class Visitor extends Model
         return $this->morphMany(CrmInteraction::class, 'contactable')->latest('contacted_at');
     }
 
-    public function marketerEmployee(): BelongsTo
+    public function counselor(): BelongsTo
     {
-        return $this->belongsTo(Employee::class, 'marketer_id');
+        return $this->belongsTo(Employee::class, 'counselor_employee_id');
     }
 }

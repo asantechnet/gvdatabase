@@ -13,11 +13,11 @@ import { contrastingTextColor } from '@/utils/themeContrast'
 import { type ThemeColorField, type ThemeColorPreferences, applyThemePalette, persistThemeColors, themeColorDefaults, themeColorFields } from '@/utils/themePersistence'
 import ContractDocumentDesignApi, { type ContractDocumentDesign, type ContractDocumentDesignSafeArea } from '@/api/contractDocumentDesigns'
 import ContractTypeApi, { type ContractType } from '@/api/contractType'
-import ServiceApi, { type Service } from '@/api/services'
+import type { BuiltInService } from '@/api/applicants'
 import OfficeSettingsPanel from '@/components/setup/OfficeSettingsPanel.vue'
 
-type UploadField = 'website_logo' | 'company_signature' | 'contract_letterhead' | 'contract_cover_design' | 'receipt_letterhead' | 'invoice_letterhead' | 'payslip_letterhead'
-type DocumentLetterheadKind = 'receipt' | 'invoice' | 'payslip'
+type UploadField = 'website_logo' | 'company_signature' | 'contract_letterhead' | 'contract_cover_design' | 'receipt_letterhead' | 'payslip_letterhead'
+type DocumentLetterheadKind = 'receipt' | 'payslip'
 type SettingsPage = 'company' | 'email' | 'operations' | 'appearance' | 'documents' | 'office'
 
 const toast = useToast()
@@ -56,13 +56,6 @@ const defaultForm = (): SettingForm => ({
   receipt_letterhead_safe_y: 18,
   receipt_letterhead_safe_width: 88,
   receipt_letterhead_safe_height: 64,
-  invoice_letterhead: null,
-  remove_invoice_letterhead: false,
-  invoice_letterhead_source: 'custom',
-  invoice_letterhead_safe_x: 8.5,
-  invoice_letterhead_safe_y: 15,
-  invoice_letterhead_safe_width: 83,
-  invoice_letterhead_safe_height: 70,
   payslip_letterhead: null,
   remove_payslip_letterhead: false,
   payslip_letterhead_source: 'custom',
@@ -101,16 +94,14 @@ const signaturePreview = ref<string | null>(null)
 const letterheadPreview = ref<string | null>(null)
 const coverDesignPreview = ref<string | null>(null)
 const receiptLetterheadPreview = ref<string | null>(null)
-const invoiceLetterheadPreview = ref<string | null>(null)
 const payslipLetterheadPreview = ref<string | null>(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 const objectUrls = new Set<string>()
 const documentDesigns = ref<ContractDocumentDesign[]>([])
 const contractTypes = ref<ContractType[]>([])
-const services = ref<Service[]>([])
 const selectedDesignTypeId = ref<number | null>(null)
-const selectedDesignServiceId = ref<number | null>(null)
+const selectedDesignService = ref<BuiltInService | null>(null)
 const designLetterhead = ref<File | null>(null)
 const designCover = ref<File | null>(null)
 const designRemoveLetterhead = ref(false)
@@ -121,14 +112,10 @@ const designSafeArea = ref<ContractDocumentDesignSafeArea>({ x: 8.5, y: 15, widt
 const designSaving = ref(false)
 const designDirty = ref(false)
 
-// Service ids are positive; 0 stands in for "no service" so the comparison is
-// immune to the null/'' shapes the API can return.
-const designScopeMatches = (design: ContractDocumentDesign, typeId: number | null, serviceId: number | null) =>
-  Number(design.contract_type_id) === Number(typeId ?? 0) && Number(design.service_id ?? 0) === Number(serviceId ?? 0)
+const designScopeMatches = (design: ContractDocumentDesign, typeId: number | null, service: BuiltInService | null) =>
+  Number(design.contract_type_id) === Number(typeId ?? 0) && design.service === service
 
-// The artwork editor below edits either the general company artwork (settings)
-// or one contract-design row; this picks the row for the current scope.
-const selectedDocumentDesign = computed(() => documentDesigns.value.find(design => designScopeMatches(design, selectedDesignTypeId.value, selectedDesignServiceId.value)) ?? null)
+const selectedDocumentDesign = computed(() => documentDesigns.value.find(design => designScopeMatches(design, selectedDesignTypeId.value, selectedDesignService.value)) ?? null)
 const typeOptions = computed(() => [
   { title: translate('pages.settings.settings.generalArtworkScope'), value: null },
   ...contractTypes.value.filter(type => type.is_active).map(type => ({ title: type.name, value: type.id })),
@@ -138,15 +125,15 @@ const selectedDesignType = computed(() => contractTypes.value.find(type => type.
 // contracts carry exactly one cover/letterhead for the whole type.
 const supportsServiceScope = computed(() => selectedDesignType.value?.slug === 'customer')
 const isDesignScope = computed(() => selectedDesignTypeId.value !== null)
-const serviceOptions = computed(() => services.value.filter(service => service.status === 'active').map(service => ({ title: service.name || service.type, value: service.id })))
+const serviceOptions = computed(() => (['scholarship', 'test_offer', 'academy', 'private'] as BuiltInService[]).map(service => ({ title: translate(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`), value: service })))
 // Human-readable label of the scope the artwork editor is currently writing to.
 const designScopeLabel = computed(() => {
   if (!isDesignScope.value)
     return translate('pages.settings.settings.generalArtworkScope')
 
   const typeName = selectedDesignType.value?.name ?? ''
-  const service = supportsServiceScope.value && selectedDesignServiceId.value
-    ? serviceOptions.value.find(option => option.value === selectedDesignServiceId.value)?.title
+  const service = supportsServiceScope.value && selectedDesignService.value
+    ? serviceOptions.value.find(option => option.value === selectedDesignService.value)?.title
     : null
 
   return service ? `${typeName} · ${service}` : typeName
@@ -171,7 +158,7 @@ const settingsPages = computed(() => [
   { value: 'operations' as const, icon: 'tabler-clock', title: translate('pages.settings.settings.operationsPage'), description: translate('pages.settings.settings.operationsPageDescription') },
   { value: 'appearance' as const, icon: 'tabler-palette', title: translate('pages.settings.settings.appearancePage'), description: translate('pages.settings.settings.appearancePageDescription') },
   { value: 'documents' as const, icon: 'tabler-file-description', title: translate('pages.settings.settings.documentsPage'), description: translate('pages.settings.settings.documentsPageDescription') },
-  ...(canViewOffices.value ? [{ value: 'office' as const, icon: 'tabler-building-community', title: 'Office', description: 'Company location, contact details, and attendance geofence.' }] : []),
+  ...(canViewOffices.value ? [{ value: 'office' as const, icon: 'tabler-building-community', title: translate('common.fields.office'), description: 'Company location, contact details, and attendance geofence.' }] : []),
 ])
 
 const activePage = computed(() => settingsPages.value.find(page => page.value === activeSettingsPage.value)!)
@@ -218,7 +205,7 @@ const pageFields: Record<SettingsPage, (keyof SettingForm)[]> = {
   email: ['company_email', 'mail_host', 'mail_port', 'mail_encryption', 'mail_username', 'mail_password', 'clear_mail_password', 'mail_from_name', 'mail_reply_to'],
   operations: ['paid_leave_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes', 'automatic_attendance_enabled'],
   appearance: themeColorFields,
-  documents: ['contract_letterhead', 'contract_cover_design', 'remove_contract_letterhead', 'remove_contract_cover_design', 'contract_letterhead_safe_x', 'contract_letterhead_safe_y', 'contract_letterhead_safe_width', 'contract_letterhead_safe_height', 'receipt_letterhead', 'remove_receipt_letterhead', 'receipt_letterhead_source', 'receipt_letterhead_safe_x', 'receipt_letterhead_safe_y', 'receipt_letterhead_safe_width', 'receipt_letterhead_safe_height', 'invoice_letterhead', 'remove_invoice_letterhead', 'invoice_letterhead_source', 'invoice_letterhead_safe_x', 'invoice_letterhead_safe_y', 'invoice_letterhead_safe_width', 'invoice_letterhead_safe_height', 'payslip_letterhead', 'remove_payslip_letterhead', 'payslip_letterhead_source', 'payslip_letterhead_safe_x', 'payslip_letterhead_safe_y', 'payslip_letterhead_safe_width', 'payslip_letterhead_safe_height'],
+  documents: ['contract_letterhead', 'contract_cover_design', 'remove_contract_letterhead', 'remove_contract_cover_design', 'contract_letterhead_safe_x', 'contract_letterhead_safe_y', 'contract_letterhead_safe_width', 'contract_letterhead_safe_height', 'receipt_letterhead', 'remove_receipt_letterhead', 'receipt_letterhead_source', 'receipt_letterhead_safe_x', 'receipt_letterhead_safe_y', 'receipt_letterhead_safe_width', 'receipt_letterhead_safe_height', 'payslip_letterhead', 'remove_payslip_letterhead', 'payslip_letterhead_source', 'payslip_letterhead_safe_x', 'payslip_letterhead_safe_y', 'payslip_letterhead_safe_width', 'payslip_letterhead_safe_height'],
   office: [],
 }
 
@@ -315,11 +302,6 @@ function applySavedSetting(setting: Setting) {
     receipt_letterhead_safe_y: setting.receipt_letterhead_safe_y ?? 18,
     receipt_letterhead_safe_width: setting.receipt_letterhead_safe_width ?? 88,
     receipt_letterhead_safe_height: setting.receipt_letterhead_safe_height ?? 64,
-    invoice_letterhead_source: setting.invoice_letterhead_source ?? 'custom',
-    invoice_letterhead_safe_x: setting.invoice_letterhead_safe_x ?? 8.5,
-    invoice_letterhead_safe_y: setting.invoice_letterhead_safe_y ?? 15,
-    invoice_letterhead_safe_width: setting.invoice_letterhead_safe_width ?? 83,
-    invoice_letterhead_safe_height: setting.invoice_letterhead_safe_height ?? 70,
     payslip_letterhead_source: setting.payslip_letterhead_source ?? 'custom',
     payslip_letterhead_safe_x: setting.payslip_letterhead_safe_x ?? 8,
     payslip_letterhead_safe_y: setting.payslip_letterhead_safe_y ?? 14,
@@ -335,7 +317,6 @@ function applySavedSetting(setting: Setting) {
   letterheadPreview.value = setting.contract_letterhead_url
   coverDesignPreview.value = setting.contract_cover_design_url
   receiptLetterheadPreview.value = setting.receipt_letterhead_url
-  invoiceLetterheadPreview.value = setting.invoice_letterhead_url
   payslipLetterheadPreview.value = setting.payslip_letterhead_url
 }
 
@@ -355,9 +336,8 @@ async function loadSettings() {
 }
 
 async function loadDocumentDesigns() {
-  const [types, catalog, designs] = await Promise.all([ContractTypeApi.getAll(), ServiceApi.getAll(), ContractDocumentDesignApi.getAll()])
+  const [types, designs] = await Promise.all([ContractTypeApi.getAll(), ContractDocumentDesignApi.getAll()])
   contractTypes.value = types
-  services.value = catalog.data
   documentDesigns.value = designs
 }
 
@@ -392,10 +372,10 @@ function syncDesignScopeFromSelection() {
 // The service scope exists for customer contracts only.
 watch(selectedDesignTypeId, () => {
   if (!supportsServiceScope.value)
-    selectedDesignServiceId.value = null
+    selectedDesignService.value = null
 })
 
-watch([selectedDesignTypeId, selectedDesignServiceId, documentDesigns], syncDesignScopeFromSelection)
+watch([selectedDesignTypeId, selectedDesignService, documentDesigns], syncDesignScopeFromSelection)
 
 function resetDesignScopeChanges() {
   syncDesignScopeFromSelection()
@@ -408,7 +388,7 @@ async function saveDocumentDesign() {
   try {
     const saved = await ContractDocumentDesignApi.save(selectedDocumentDesign.value?.id ?? null, {
       contractTypeId: selectedDesignTypeId.value,
-      serviceId: supportsServiceScope.value ? selectedDesignServiceId.value : null,
+      service: supportsServiceScope.value ? selectedDesignService.value : null,
       letterhead: designLetterhead.value,
       coverDesign: designCover.value,
       removeLetterhead: designRemoveLetterhead.value,
@@ -505,10 +485,6 @@ function handleImageUpload(event: Event, field: UploadField) {
     receiptLetterheadPreview.value = preview
     form.value.remove_receipt_letterhead = false
   }
-  if (field === 'invoice_letterhead') {
-    invoiceLetterheadPreview.value = preview
-    form.value.remove_invoice_letterhead = false
-  }
   if (field === 'payslip_letterhead') {
     payslipLetterheadPreview.value = preview
     form.value.remove_payslip_letterhead = false
@@ -518,28 +494,23 @@ function handleImageUpload(event: Event, field: UploadField) {
 }
 
 /**
- * Per-document letterhead form keys. Receipt, invoice and payslip share one
- * editor; only the field names and safe-zone defaults differ.
+ * Per-document letterhead form keys. Receipt and payslip share one editor;
+ * only the field names and safe-zone defaults differ.
  */
 const documentLetterheadConfig: Record<DocumentLetterheadKind, {
-  file: 'receipt_letterhead' | 'invoice_letterhead' | 'payslip_letterhead'
-  remove: 'remove_receipt_letterhead' | 'remove_invoice_letterhead' | 'remove_payslip_letterhead'
-  source: 'receipt_letterhead_source' | 'invoice_letterhead_source' | 'payslip_letterhead_source'
-  safeX: 'receipt_letterhead_safe_x' | 'invoice_letterhead_safe_x' | 'payslip_letterhead_safe_x'
-  safeY: 'receipt_letterhead_safe_y' | 'invoice_letterhead_safe_y' | 'payslip_letterhead_safe_y'
-  safeWidth: 'receipt_letterhead_safe_width' | 'invoice_letterhead_safe_width' | 'payslip_letterhead_safe_width'
-  safeHeight: 'receipt_letterhead_safe_height' | 'invoice_letterhead_safe_height' | 'payslip_letterhead_safe_height'
+  file: 'receipt_letterhead' | 'payslip_letterhead'
+  remove: 'remove_receipt_letterhead' | 'remove_payslip_letterhead'
+  source: 'receipt_letterhead_source' | 'payslip_letterhead_source'
+  safeX: 'receipt_letterhead_safe_x' | 'payslip_letterhead_safe_x'
+  safeY: 'receipt_letterhead_safe_y' | 'payslip_letterhead_safe_y'
+  safeWidth: 'receipt_letterhead_safe_width' | 'payslip_letterhead_safe_width'
+  safeHeight: 'receipt_letterhead_safe_height' | 'payslip_letterhead_safe_height'
   defaults: { x: number; y: number; width: number; height: number }
 }> = {
   receipt: {
     file: 'receipt_letterhead', remove: 'remove_receipt_letterhead', source: 'receipt_letterhead_source',
     safeX: 'receipt_letterhead_safe_x', safeY: 'receipt_letterhead_safe_y', safeWidth: 'receipt_letterhead_safe_width', safeHeight: 'receipt_letterhead_safe_height',
     defaults: { x: 6, y: 18, width: 88, height: 64 },
-  },
-  invoice: {
-    file: 'invoice_letterhead', remove: 'remove_invoice_letterhead', source: 'invoice_letterhead_source',
-    safeX: 'invoice_letterhead_safe_x', safeY: 'invoice_letterhead_safe_y', safeWidth: 'invoice_letterhead_safe_width', safeHeight: 'invoice_letterhead_safe_height',
-    defaults: { x: 8.5, y: 15, width: 83, height: 70 },
   },
   payslip: {
     file: 'payslip_letterhead', remove: 'remove_payslip_letterhead', source: 'payslip_letterhead_source',
@@ -550,7 +521,7 @@ const documentLetterheadConfig: Record<DocumentLetterheadKind, {
 
 const documentLetterheadPreviewRef = (kind: DocumentLetterheadKind) => kind === 'receipt'
   ? receiptLetterheadPreview
-  : kind === 'invoice' ? invoiceLetterheadPreview : payslipLetterheadPreview
+  : payslipLetterheadPreview
 
 /** A document-letterhead card always writes its own file, never a design row. */
 function handleDocumentLetterheadUpload(event: Event, kind: DocumentLetterheadKind) {
@@ -802,7 +773,7 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
   }
   else if (savedSetting.value && page) {
     const draft = { ...form.value }
-    const previews = { logo: logoPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value, receipt: receiptLetterheadPreview.value, invoice: invoiceLetterheadPreview.value }
+    const previews = { logo: logoPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value, receipt: receiptLetterheadPreview.value }
 
     applySavedSetting(savedSetting.value)
 
@@ -821,7 +792,6 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
       letterheadPreview.value = previews.letterhead
       coverDesignPreview.value = previews.cover
       receiptLetterheadPreview.value = previews.receipt
-      invoiceLetterheadPreview.value = previews.invoice
     }
   }
   else {
@@ -832,7 +802,6 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
     letterheadPreview.value = null
     coverDesignPreview.value = null
     receiptLetterheadPreview.value = null
-    invoiceLetterheadPreview.value = null
   }
 
   if (page === null || page === 'documents')
@@ -855,7 +824,7 @@ function activePagePayload(): Partial<SettingForm> {
 
       return
     }
-    if (field === 'remove_contract_letterhead' || field === 'remove_contract_cover_design' || field === 'remove_receipt_letterhead' || field === 'remove_invoice_letterhead' || field === 'remove_payslip_letterhead') {
+    if (field === 'remove_contract_letterhead' || field === 'remove_contract_cover_design' || field === 'remove_receipt_letterhead' || field === 'remove_payslip_letterhead') {
       if (value === true)
         payload[field] = true as never
 
@@ -917,7 +886,7 @@ async function saveSettings() {
 
     persistThemeColors(Object.fromEntries(colorsToPersist.map(field => [field, response.data[field]])))
 
-    const previews = { logo: logoPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value, receipt: receiptLetterheadPreview.value, invoice: invoiceLetterheadPreview.value }
+    const previews = { logo: logoPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value, receipt: receiptLetterheadPreview.value }
 
     // The API returns the complete record. Keep drafts from other pages intact.
     const otherPageDraft = { ...form.value }
@@ -938,7 +907,6 @@ async function saveSettings() {
       letterheadPreview.value = previews.letterhead
       coverDesignPreview.value = previews.cover
       receiptLetterheadPreview.value = previews.receipt
-      invoiceLetterheadPreview.value = previews.invoice
     }
     updateBranding(response.data)
     toast.success(translate('pages.settings.settings.settingsSavedSuccessfully'))
@@ -1495,7 +1463,7 @@ onBeforeUnmount(revokeObjectUrls)
                     md="6"
                   >
                     <VSelect
-                      v-model="selectedDesignServiceId"
+                      v-model="selectedDesignService"
                       :items="serviceOptions"
                       :label="$t('pages.settings.settings.serviceScopeOptional')"
                       clearable
@@ -1696,27 +1664,27 @@ onBeforeUnmount(revokeObjectUrls)
               </VCol>
 
               <!--
-                Receipt and invoice letterheads. Same editor style as the
+                Receipt and payslip letterheads. Same editor style as the
                 contract cards above: pick the source, upload/preview artwork,
                 and drag the safe-zone where auto-filled text may land.
               -->
               <VCol cols="12">
                 <VDivider class="my-3" />
                 <h4 class="text-subtitle-1 font-weight-medium mb-1">
-                  {{ $t('pages.settings.settings.receiptInvoiceDocuments') }}
+                  {{ $t('pages.settings.settings.receiptPayslipDocuments') }}
                 </h4>
                 <p class="text-body-2 text-medium-emphasis mb-4">
-                  {{ $t('pages.settings.settings.receiptInvoiceDocumentsHint') }}
+                  {{ $t('pages.settings.settings.receiptPayslipDocumentsHint') }}
                 </p>
               </VCol>
               <VCol
-                v-for="doc in ([{ kind: 'receipt' as const }, { kind: 'invoice' as const }, { kind: 'payslip' as const }])"
+                v-for="doc in ([{ kind: 'receipt' as const }, { kind: 'payslip' as const }])"
                 :key="doc.kind"
                 cols="12"
                 md="6"
               >
                 <div class="text-subtitle-1 font-weight-medium mb-2">
-                  {{ doc.kind === 'receipt' ? $t('pages.settings.settings.receiptLetterhead') : doc.kind === 'invoice' ? $t('pages.settings.settings.invoiceLetterhead') : $t('pages.settings.settings.payslipLetterhead') }}
+                  {{ doc.kind === 'receipt' ? $t('pages.settings.settings.receiptLetterhead') : $t('pages.settings.settings.payslipLetterhead') }}
                 </div>
                 <VSelect
                   :model-value="documentLetterheadSource(doc.kind)"

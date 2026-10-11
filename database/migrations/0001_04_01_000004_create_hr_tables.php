@@ -62,7 +62,6 @@ return new class extends Migration
             $table->string('guarantor_licence')->nullable();
             $table->string('education_lvl');
             $table->foreignId('position_id')->constrained()->cascadeOnDelete();
-            $table->string('employment_type')->default('salaried');
             $table->foreignId('office_id')->nullable()->constrained()->nullOnDelete();
             $table->decimal('salary', 10, 2)->nullable();
             $table->decimal('total_worked_hours', 14, 2)->default(0);

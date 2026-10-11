@@ -8,14 +8,13 @@ use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
 use App\Models\CaseWin;
 use App\Models\Contract;
-use App\Models\CustomerPackage;
 use App\Models\Employee;
 use App\Models\Income;
-use App\Models\Invoice;
 use App\Models\Notification;
 use App\Models\PendingTransaction;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\BuiltInService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
@@ -37,22 +36,6 @@ class EducationalWorkflowNotificationService
         );
     }
 
-    public function packageIssued(CustomerPackage $purchase, ?int $actorId = null): void
-    {
-        $purchase->loadMissing(['applicant.responsibleEmployee', 'package']);
-        $recipientIds = collect([$purchase->applicant?->responsibleEmployee?->user_id])
-            ->filter(fn ($id) => $id && (int) $id !== $actorId);
-        $this->notifyOnce(
-            "package.issued.{$purchase->id}",
-            'task',
-            'Package services issued',
-            "{$purchase->package->name} was issued with {$purchase->services()->count()} service(s).",
-            ['translation_key' => 'package.issued', 'customer_package_id' => $purchase->id, 'package' => $purchase->package->name, 'applicant_id' => $purchase->applicant_id],
-            "/applicants/{$purchase->applicant_id}",
-            $recipientIds,
-        );
-    }
-
     /**
      * A contract was generated automatically from a service assignment.
      * The case owner and the selling employee are told which contract was
@@ -60,13 +43,13 @@ class EducationalWorkflowNotificationService
      */
     public function contractGenerated(Contract $contract, ?int $actorId = null): void
     {
-        $contract->loadMissing(['applicant.responsibleEmployee', 'soldByEmployee', 'sourceService', 'parentContract']);
+        $contract->loadMissing(['applicant.responsibleEmployee', 'soldByEmployee', 'parentContract']);
         $recipientIds = collect([
             $contract->applicant?->responsibleEmployee?->user_id,
             $contract->soldByEmployee?->user_id,
         ])->filter(fn ($id) => $id && (int) $id !== $actorId)->unique();
 
-        $serviceName = $contract->sourceService?->type ?? 'service';
+        $serviceName = BuiltInService::label($contract->service);
         $isExtension = $contract->contract_role === Contract::ROLE_EXTENSION;
 
         $this->notifyOnce(
@@ -80,11 +63,11 @@ class EducationalWorkflowNotificationService
                 'translation_key' => $isExtension ? 'contract.extensionGenerated' : 'contract.generated',
                 'contract_id' => $contract->id,
                 'contract_number' => $contract->contract_number,
-                'service' => $serviceName,
+                'service' => $contract->service,
                 'applicant_id' => $contract->applicant_id,
                 'parent_contract_number' => $contract->parentContract?->contract_number,
             ],
-            '/contracts',
+            '/contracts/'.str_replace('_', '-', $contract->service).'?contractId='.$contract->id,
             $recipientIds,
         );
     }
@@ -122,14 +105,6 @@ class EducationalWorkflowNotificationService
         $this->notifyOnce("applicant.document.{$attachment->id}", 'task', 'Applicant document uploaded', "{$attachment->label} was uploaded for applicant case #{$applicant->id}.", ['translation_key' => 'applicant.documentUploaded', 'applicant_id' => $applicant->id, 'attachment_id' => $attachment->id, 'label' => $attachment->label], "/applicants/{$applicant->id}", $recipients);
     }
 
-    public function invoiceIssued(Invoice $invoice, ?int $actorId = null): void
-    {
-        $invoice->loadMissing('applicant.responsibleEmployee');
-        $recipients = collect([$invoice->applicant?->responsibleEmployee?->user_id])
-            ->filter(fn ($id) => $id && (int) $id !== $actorId);
-        $this->notifyOnce("invoice.issued.{$invoice->id}", 'finance', 'Applicant invoice issued', "Invoice {$invoice->invoice_number} was issued for {$this->applicantLabel($invoice->applicant)}.", ['translation_key' => 'invoice.issued', 'invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number, 'applicant_id' => $invoice->applicant_id], '/innvoice', $recipients);
-    }
-
     /**
      * A receipt was recorded for an applicant. The case owner is told which
      * receipt was minted so they can print or follow up on the payment.
@@ -142,12 +117,15 @@ class EducationalWorkflowNotificationService
 
         $amount = number_format((float) $income->amount * (int) $income->quantity, 2)
             .' '.($income->incomeCurrency?->code ?? '');
+        // An income may be recorded without an applicant (a walk-in payment),
+        // so the label must not assume one exists.
+        $payer = $income->applicant ? $this->applicantLabel($income->applicant) : 'the payer';
 
         $this->notifyOnce(
             "income.recorded.{$income->id}",
             'finance',
             'Payment receipt recorded',
-            "Receipt {$income->receipt_number} was recorded for {$this->applicantLabel($income->applicant)} ({$amount}).",
+            "Receipt {$income->receipt_number} was recorded for {$payer} ({$amount}).",
             [
                 'translation_key' => 'income.recorded',
                 'income_id' => $income->id,
@@ -330,7 +308,9 @@ class EducationalWorkflowNotificationService
             ['notification_key' => $key],
             compact('type', 'title', 'message', 'data') + ['date_time' => now(), 'go_to_url' => $url],
         );
-        $notification->deliverTo($recipientIds);
+        if ($notification->wasRecentlyCreated) {
+            $notification->deliverTo($recipientIds);
+        }
 
         return $notification->wasRecentlyCreated;
     }

@@ -20,6 +20,23 @@ const setLogoShape = (width: number, height: number) => {
   isLogoSquare.value = Math.abs(width - height) / Math.max(width, height) <= 0.02
 }
 
+const updateFavicon = (source: string | null) => {
+  if (typeof document === 'undefined')
+    return
+
+  const href = source || '/favicon.svg'
+  let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+
+  if (!link) {
+    link = document.createElement('link')
+    link.rel = 'icon'
+    document.head.appendChild(link)
+  }
+
+  if (link.getAttribute('href') !== href)
+    link.setAttribute('href', href)
+}
+
 const detectLogoShape = (source: string) => {
   if (typeof Image === 'undefined')
     return
@@ -66,6 +83,7 @@ export const useBranding = () => {
   const applyBranding = (branding: BrandingSettings, persistApiFallbacks = false) => {
     logoUrl.value = branding.website_logo_url || fallbackLogo
     detectLogoShape(logoUrl.value)
+    updateFavicon(branding.website_logo_url || null)
     shortCompanyName.value = branding.short_company_name || branding.website_title || shortCompanyName.value
     originalCompanyName.value = branding.original_company_name || branding.website_title || originalCompanyName.value
 

@@ -37,7 +37,7 @@ const suggestionGroups: SuggestionGroup[] = [
     content: [
       { icon: 'tabler-home', title: translate('components.navigation.navsearchbar.home'), url: { name: 'home' } },
       { icon: 'tabler-chart-bar', title: translate('components.navigation.navsearchbar.reports'), url: { name: 'reports' } },
-      { icon: 'tabler-notes', title: translate('components.navigation.navsearchbar.projects'), url: { name: 'projects' } },
+      { icon: 'tabler-notes', title: translate('common.navigation.tasks'), url: { name: 'tasks' } },
     ],
   },
   {
@@ -52,12 +52,13 @@ const suggestionGroups: SuggestionGroup[] = [
   {
     title: translate('components.navigation.navsearchbar.financeOperations'),
     content: [
-      { icon: 'tabler-file-invoice', title: translate('components.navigation.navsearchbar.invoices'), url: { name: 'innvoice' } },
       { icon: 'tabler-arrow-down-circle', title: translate('components.navigation.navsearchbar.income'), url: { name: 'income' } },
       { icon: 'tabler-arrow-up-circle', title: translate('components.navigation.navsearchbar.expenses'), url: { name: 'expenses' } },
       { icon: 'tabler-package', title: translate('components.navigation.navsearchbar.asset'), url: { name: 'asset' } },
       { icon: 'tabler-user-search', title: translate('components.navigation.navsearchbar.visitors'), url: { name: 'visitor' } },
-      { icon: 'tabler-file-description', title: translate('components.navigation.navsearchbar.contracts'), url: { name: 'contracts' } },
+      { icon: 'tabler-school', title: translate('educational.builtInServices.scholarship'), url: { name: 'scholarship-contracts' } },
+      { icon: 'tabler-certificate', title: translate('educational.builtInServices.testOffer'), url: { name: 'test-offer-contracts' } },
+      { icon: 'tabler-book', title: translate('educational.builtInServices.academy'), url: { name: 'academy-contracts' } },
       { icon: 'tabler-users-group', title: translate('common.navigation.applicants'), url: { name: 'all-customers' } },
       { icon: 'tabler-file-x', title: translate('components.navigation.navsearchbar.cancelledContracts'), url: { name: 'cancelled-contracts' } },
     ],
@@ -72,7 +73,6 @@ const suggestionGroups: SuggestionGroup[] = [
       { icon: 'tabler-bell', title: translate('common.messages.notifications'), url: { name: 'notifications' } },
       { icon: 'tabler-files', title: translate('common.navigation.contractTemplates'), url: { name: 'contract-documents', query: { tab: 'templates' } } },
       { icon: 'tabler-list-details', title: translate('components.navigation.navsearchbar.contractPolicies'), url: { name: 'contract-documents', query: { tab: 'policies' } } },
-      { icon: 'tabler-tool', title: translate('common.messages.services'), url: { name: 'options-services' } },
       { icon: 'tabler-currency-dollar', title: translate('components.navigation.navsearchbar.currencies'), url: { name: 'options-currencies' } },
       { icon: 'tabler-adjustments', title: translate('components.navigation.navsearchbar.financeOptions'), url: { name: 'options-finance' } },
     ],

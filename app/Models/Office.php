@@ -32,7 +32,11 @@ class Office extends Model
         return $this->status === 'active'
             && $this->geofence_enabled
             && $this->latitude !== null
-            && $this->longitude !== null;
+            && $this->longitude !== null
+            && abs((float) $this->latitude) <= 90
+            && abs((float) $this->longitude) <= 180
+            && $this->geofence_radius_meters >= 10
+            && $this->geofence_radius_meters <= 5000;
     }
 
     public function employees(): HasMany

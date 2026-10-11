@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -17,6 +16,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Employee extends Model
 {
     use Auditable, ExcludesPrimaryRecord, HasFactory, SoftDeletes;
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_INACTIVE = 'inactive';
 
     protected static function booted(): void
     {
@@ -38,6 +41,8 @@ class Employee extends Model
         'name',
         'father_name',
         'contact',
+        'emergency_contact_name',
+        'emergency_contact_phone',
         'id_number',
         'guarantor_id_number',
         'guarantor_phone',
@@ -46,7 +51,7 @@ class Employee extends Model
         'addr',
         'education_lvl',
         'position_id',
-        'employment_type',
+        'status',
         'office_id',
         'salary',
         'bank_account_number',
@@ -56,6 +61,7 @@ class Employee extends Model
         'supervisor_id',
         'join_date',
         'contract_duration',
+        'paid_leave_days',
         'avatar',
         'document_path', 'document_name', 'document_mime', 'document_size',
         'user_id',
@@ -91,55 +97,10 @@ class Employee extends Model
         return $this->hasMany(PaidTimeOff::class);
     }
 
-    /**
-     * Catalogue services this commission-based employee can deliver, together
-     * with the rate agreed for each service. Contract-specific responsibility
-     * lives on contract_service; this relation deliberately stays reusable.
-     */
-    public function commissionServices(): BelongsToMany
-    {
-        return $this->belongsToMany(Service::class, 'employee_service_commissions')
-            ->withPivot('percentage')
-            ->withTimestamps();
-    }
-
     /** Contracted services sold by this employee. */
-    public function soldContractServices(): HasMany
+    public function soldApplicantContracts(): HasMany
     {
-        return $this->hasMany(ContractService::class, 'sold_by_employee_id');
-    }
-
-    /** Contracted services this employee is one of the delivery recipients for. */
-    public function deliveryContractServices(): BelongsToMany
-    {
-        return $this->belongsToMany(ContractService::class, 'contract_service_employee', 'employee_id', 'contract_service_id')
-            ->withPivot('percentage')
-            ->withTimestamps();
-    }
-
-    /** Commission earned from recorded invoice income, in base currency. */
-    public function commissionEarnedBase(): float
-    {
-        if ($this->employment_type !== 'commission') {
-            return 0.0;
-        }
-
-        $currentBaseCurrencyId = Currency::query()->where('is_base', true)->value('id');
-
-        return (float) $this->commissionAccruals()
-            ->whereIn('status', ['pending', 'approved', 'paid'])
-            ->when($currentBaseCurrencyId, fn (Builder $query, int $id) => $query->where('base_currency_id', $id))
-            ->sum('commission_base_amount');
-    }
-
-    public function commissionAccruals(): HasMany
-    {
-        return $this->hasMany(CommissionAccrual::class);
-    }
-
-    public function commissionSettlements(): HasMany
-    {
-        return $this->hasMany(CommissionSettlement::class);
+        return $this->hasMany(ApplicantContract::class, 'sold_by_employee_id');
     }
 
     public function position(): BelongsTo
@@ -178,6 +139,17 @@ class Employee extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Employees that are currently part of the workforce. Every GET endpoint
+     * that returns an employee directory or picker applies this scope so
+     * inactive employees are never sent to clients by default; management
+     * surfaces opt in explicitly (`GET /employees?status=inactive|all`).
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_ACTIVE);
+    }
+
     /** Employees who can be selected for staff-related records. */
     public function scopeSelectable(Builder $query): Builder
     {
@@ -206,6 +178,7 @@ class Employee extends Model
         return [
             'salary' => 'decimal:2',
             'total_worked_hours' => 'decimal:2',
+            'paid_leave_days' => 'decimal:1',
             'join_date' => 'date',
         ];
     }

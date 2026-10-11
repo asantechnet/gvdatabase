@@ -100,8 +100,8 @@ class ApplicantPortalTest extends TestCase
         $case = Applicant::factory()->create([
             'father_name' => 'Abdul Rahman',
             'father_phone' => '+93700123456',
-            'percentage' => 82.5,
         ]);
+        $case->scholarshipDetail()->create(['grade_score' => 82.5]);
         $user = User::factory()->create(['email_verified_at' => now()]);
         $user->roles()->attach(Role::query()->where('name', 'applicant')->firstOrFail());
         $case->update(['user_id' => $user->id]);
@@ -110,7 +110,7 @@ class ApplicantPortalTest extends TestCase
         $portal = $this->getJson('/api/applicant-portal')->assertOk()->json('data');
         $this->assertSame('Abdul Rahman', $portal['profile']['father_name']);
         $this->assertSame('+93700123456', $portal['profile']['father_phone']);
-        $this->assertSame(82.5, $portal['case']['education_percentage']);
+        $this->assertSame(82.5, $portal['case']['grade_score']);
 
         // The student may correct the guardian contact on their own record ...
         $this->putJson('/api/applicant-portal/profile', ['father_name' => 'Abdul Rahman Khan', 'father_phone' => '+93700999999'])
@@ -119,7 +119,7 @@ class ApplicantPortalTest extends TestCase
         $this->assertSame('+93700999999', $case->fresh()->father_phone);
 
         // ... but the grade metric recorded during intake is never writable here.
-        $this->putJson('/api/applicant-portal/profile', ['percentage' => 100])->assertOk();
-        $this->assertSame(82.5, (float) $case->fresh()->percentage);
+        $this->putJson('/api/applicant-portal/profile', ['grade_score' => 100])->assertOk();
+        $this->assertSame(82.5, (float) $case->fresh()->scholarshipDetail->grade_score);
     }
 }

@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Receipt and invoice documents get the same artwork treatment contracts
+ * Receipt documents get the same artwork treatment contracts
  * already have: an optional letterhead image plus a relative safe-zone where
  * auto-filled text is allowed to land (see RECEIPTS_AND_DOCUMENT_LETTERHEADS_PLAN.md).
  *
@@ -26,12 +26,6 @@ return new class extends Migration
             $table->decimal('receipt_letterhead_safe_width', 5, 2)->default(88.00);
             $table->decimal('receipt_letterhead_safe_height', 5, 2)->default(64.00);
 
-            $table->string('invoice_letterhead')->nullable();
-            $table->string('invoice_letterhead_source', 20)->default('custom');
-            $table->decimal('invoice_letterhead_safe_x', 5, 2)->default(8.50);
-            $table->decimal('invoice_letterhead_safe_y', 5, 2)->default(15.00);
-            $table->decimal('invoice_letterhead_safe_width', 5, 2)->default(83.00);
-            $table->decimal('invoice_letterhead_safe_height', 5, 2)->default(70.00);
         });
     }
 
@@ -45,12 +39,6 @@ return new class extends Migration
                 'receipt_letterhead_safe_y',
                 'receipt_letterhead_safe_width',
                 'receipt_letterhead_safe_height',
-                'invoice_letterhead',
-                'invoice_letterhead_source',
-                'invoice_letterhead_safe_x',
-                'invoice_letterhead_safe_y',
-                'invoice_letterhead_safe_width',
-                'invoice_letterhead_safe_height',
             ]);
         });
     }

@@ -98,8 +98,6 @@ class RecurringEventController extends Controller
             'payload.assignees' => ['sometimes', 'array'],
             'payload.assignees.*' => ['integer', 'distinct', Rule::exists('users', 'id')->whereNull('deleted_at')->where('acc_status', 'active')],
             'payload.applicant_id' => ['nullable', 'exists:applicants,id'],
-            'payload.company_id' => ['nullable', 'exists:companies,id'],
-            'payload.project_id' => ['nullable', 'exists:projects,id'],
         ];
 
         return $request->validate($rules);

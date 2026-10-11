@@ -19,7 +19,6 @@ class KanbanController extends Controller
         $user = $request->user();
 
         $boards = Board::query()
-            ->when($request->filled('project_id'), fn ($query) => $query->where('project_id', $request->integer('project_id')))
             ->when(! $user->hasPermission('view_all_boards'), fn ($query) => $query
                 ->whereHas('users', fn ($members) => $members->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user))))
             ->with([
@@ -31,7 +30,6 @@ class KanbanController extends Controller
                 // Eager load all relations required by TaskResource
                 'tasks.users.employee',
                 'tasks.tags',
-                'tasks.services.currency',
                 'tasks.subtasks',
                 'tasks.comments.user.employee', // Names and avatars for comments
                 'tasks.dependencies',

@@ -12,12 +12,8 @@ class Language extends Model
     use Auditable, SoftDeletes;
 
     protected $fillable = ['name', 'code', 'is_active'];
-    protected $casts = ['is_active' => 'boolean'];
 
-    public function applicants(): HasMany
-    {
-        return $this->hasMany(Applicant::class);
-    }
+    protected $casts = ['is_active' => 'boolean'];
 
     public function contractTemplateVersions(): HasMany
     {

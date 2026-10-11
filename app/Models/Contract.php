@@ -23,7 +23,7 @@ class Contract extends Model
 
     protected $fillable = [
         'template_id',
-        'source_service_id',
+        'service',
         'contract_role',
         'parent_contract_id',
         'contract_template_version_id',
@@ -32,9 +32,7 @@ class Contract extends Model
         'contract_type_id',
         'employee_id',
         'sold_by_employee_id',
-        'marketer_id',
         'applicant_id',
-        'company_id',
         'name',
         'type',
         'cover_text',
@@ -43,6 +41,7 @@ class Contract extends Model
         'is_custom',
         'status',
         'start_date',
+        'end_date',
         'counterparty',
         'counterparty_company',
         'counterparty_email',
@@ -55,6 +54,7 @@ class Contract extends Model
 
     protected $casts = [
         'start_date' => 'date',
+        'end_date' => 'date',
         'is_cancelled' => 'boolean',
         'cancelled_at' => 'immutable_datetime',
         'is_custom' => 'boolean',
@@ -74,12 +74,6 @@ class Contract extends Model
     public function template()
     {
         return $this->belongsTo(ContractTemplate::class)->withTrashed();
-    }
-
-    /** The catalogue service this contract was generated for. */
-    public function sourceService()
-    {
-        return $this->belongsTo(Service::class, 'source_service_id')->withTrashed();
     }
 
     /** For an extension contract, the original agreement it extends. */
@@ -116,25 +110,11 @@ class Contract extends Model
 
     /**
      * Contracted services (multi-select). Each line carries its own
-     * per-customer fee, currency, attribution, outsourcing and case
-     * dimensions.
+     * per-customer fee, currency, attribution and case dimensions.
      */
-    public function contractServices()
+    public function applicantContracts()
     {
-        return $this->hasMany(ContractService::class);
-    }
-
-    public function services()
-    {
-        return $this->belongsToMany(Service::class, 'contract_service')
-            ->using(ContractService::class)
-            ->withPivot([
-                'id', 'fee', 'currency_id', 'applicant_id', 'customer_package_id',
-                'sold_by_employee_id', 'marketer_id', 'outsourcing_company_id',
-                'outsourcing_percentage', 'country_id', 'education_level_id',
-                'language_id', 'notes',
-            ])
-            ->withTimestamps();
+        return $this->hasMany(ApplicantContract::class);
     }
 
     public function soldByEmployee()
@@ -142,20 +122,22 @@ class Contract extends Model
         return $this->belongsTo(Employee::class, 'sold_by_employee_id')->withTrashed();
     }
 
-    public function marketerEmployee()
+    public function templateVersion()
     {
-        return $this->belongsTo(Employee::class, 'marketer_id')->withTrashed();
-    }
-    public function templateVersion(){ return $this->belongsTo(ContractTemplateVersion::class, 'contract_template_version_id')->withTrashed(); }
-    public function contractCountry(){ return $this->belongsTo(Country::class, 'contract_country_id')->withTrashed(); }
-    public function contractLanguage(){ return $this->belongsTo(Language::class, 'contract_language_id')->withTrashed(); }
-
-    public function company()
-    {
-        return $this->belongsTo(Company::class)->withTrashed();
+        return $this->belongsTo(ContractTemplateVersion::class, 'contract_template_version_id')->withTrashed();
     }
 
-    /** Optional commission/bonus record for a customer-service contract. */
+    public function contractCountry()
+    {
+        return $this->belongsTo(Country::class, 'contract_country_id')->withTrashed();
+    }
+
+    public function contractLanguage()
+    {
+        return $this->belongsTo(Language::class, 'contract_language_id')->withTrashed();
+    }
+
+    /** Optional bonus record for a customer-service contract. */
     public function bonusSource(): MorphOne
     {
         return $this->morphOne(EducationalBonusSource::class, 'source');
@@ -174,7 +156,7 @@ class Contract extends Model
         return match (strtolower((string) ($this->attributes['type'] ?? ''))) {
             'employment' => 'employment',
             'customer' => 'customer',
-            'company', 'other' => 'other',
+            'other' => 'other',
             default => null,
         };
     }

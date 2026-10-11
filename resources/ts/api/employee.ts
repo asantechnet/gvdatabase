@@ -1,15 +1,6 @@
 import api from './axios'
 import type { Attachment } from './attachments'
 
-export interface CommissionServiceOption {
-  id: number
-  type: string
-  duration: number
-  fee: number
-  status: 'active' | 'inactive'
-  currency: { id: number; code: string; symbol: string; decimalPlaces: number } | null
-}
-
 // Types matching the frontend requirements
 export interface Employee {
   id: number
@@ -17,6 +8,8 @@ export interface Employee {
   name: string
   father_name: string
   contact: string
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
   id_number: string | null
   bank_account_number: string | null
   guarantor_id_number: string | null
@@ -27,7 +20,7 @@ export interface Employee {
   email: string | null
   addr: string
   position_id: number
-  employment_type: 'salaried' | 'commission'
+  status: 'active' | 'inactive'
   office_id: number | null
   office: { id: number; name: string; code: string } | null
   department: string | null
@@ -37,12 +30,10 @@ export interface Employee {
   supervisor_name: string | null
   position?: string
   salary: number | null
-  commissions: Array<{ service_id: number; service: string; fee?: number; currency?: { id: number; code: string; symbol: string; decimalPlaces: number } | null; percentage: number }>
-  commission_earned_base: number
-  commission_balances: Array<{ base_currency_id: number; status: 'pending' | 'approved' | 'paid'; amount: number }>
   total_worked_hours: number
   join_date: string | null
   contract_duration?: string
+  paid_leave_days: number | null
   work_start_time: string | null
   work_end_time: string | null
   created_at: string | null
@@ -57,7 +48,6 @@ export interface EmployeeAccount {
   name: string
   email: string
   employee: { id: number; name: string } | null
-  marketer: { id: number; name: string } | null
 }
 
 export interface EmployeeParams {
@@ -65,6 +55,9 @@ export interface EmployeeParams {
   perPage?: number
   search?: string
   position?: string
+
+  /** Defaults to `active` on the backend; `inactive`/`all` are management opt-ins. */
+  status?: 'active' | 'inactive' | 'all'
 }
 
 export interface CreateEmployeeData {
@@ -72,6 +65,8 @@ export interface CreateEmployeeData {
   name: string
   father_name: string
   contact: string
+  emergency_contact_name?: string | null
+  emergency_contact_phone?: string | null
   id_number: string
   bank_account_number?: string | null
   guarantor_id_number?: string | null
@@ -82,15 +77,15 @@ export interface CreateEmployeeData {
   email?: string | null
   education_lvl: string
   position_id: number
-  employment_type: 'salaried' | 'commission'
+  status?: 'active' | 'inactive'
   office_id?: number | null
   department_id?: number | null
   supervisor_id?: number | null
   salary?: number | null
-  commissions?: Array<{ service_id: number; percentage: number }>
   addr: string
   join_date: string
   contract_duration?: string
+  paid_leave_days?: number | null
 }
 
 export interface UpdateEmployeeData {
@@ -98,6 +93,8 @@ export interface UpdateEmployeeData {
   name?: string
   father_name?: string
   contact?: string
+  emergency_contact_name?: string | null
+  emergency_contact_phone?: string | null
   id_number?: string
   bank_account_number?: string | null
   guarantor_id_number?: string | null
@@ -108,15 +105,15 @@ export interface UpdateEmployeeData {
   email?: string | null
   education_lvl?: string
   position_id?: number
-  employment_type?: 'salaried' | 'commission'
+  status?: 'active' | 'inactive'
   office_id?: number | null
   department_id?: number | null
   supervisor_id?: number | null
   salary?: number | null
-  commissions?: Array<{ service_id: number; percentage: number }>
   addr?: string
   join_date?: string
   contract_duration?: string
+  paid_leave_days?: number | null
 }
 
 // Employee API endpoints
@@ -133,16 +130,8 @@ const EmployeeApi = {
     return Array.isArray(response.data.data) ? response.data.data : []
   },
 
-  getCommissionOptions: async (): Promise<CommissionServiceOption[]> => {
-    const response = await api.get<{ data: CommissionServiceOption[] }>('/employees/commission-options')
-
-    return Array.isArray(response.data.data) ? response.data.data : []
-  },
-
-  getMarketerOptions: async (): Promise<Employee[]> => {
-    const response = await api.get<{ data: Employee[] }>('/employees/marketer-options')
-
-    return Array.isArray(response.data.data) ? response.data.data : []
+  getAssignmentOptions: async (specialty: 'counselor' | 'admission'): Promise<Employee[]> => {
+    return (await api.get<{ data: Employee[] }>('/employees/assignment-options', { params: { specialty } })).data.data
   },
 
   // Normalized list for selectors; keep legacy getAll response until its consumers are migrated.

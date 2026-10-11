@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -7,7 +9,7 @@ import ApplicantApi, { type Applicant, type ApplicantListParams, type PipelineCo
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
-import { translateBackendValue } from '@/utils/localization'
+import { translateApplicantStage, translateBackendValue } from '@/utils/localization'
 
 const toast = useToast()
 const router = useRouter()
@@ -24,10 +26,15 @@ const totals = ref({ active: 0, closed: 0, all: 0 })
 const countries = ref<MasterDataRecord[]>([])
 const universities = ref<MasterDataRecord[]>([])
 const levels = ref<MasterDataRecord[]>([])
-const languages = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
 
-const filters = ref<ApplicantListParams>({ search: '', status: undefined, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, language_id: null, date_from: '', date_to: '' })
+const filters = ref<ApplicantListParams>({ search: '', status: undefined, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, date_from: '', date_to: '' })
+const serviceOptions = computed(() => [
+  { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
+  { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
+  { title: t('educational.builtInServices.academy'), value: 'academy' },
+  { title: t('educational.builtInServices.private'), value: 'private' },
+])
 
 const canMove = computed(() => canAccess('change_applicant_stage'))
 const activeFilterCount = computed(() => Object.values(filters.value).filter(v => v !== '' && v !== null && v !== undefined).length)
@@ -36,7 +43,6 @@ const perColumnCap = 30
 const activeCountries = computed(() => countries.value.filter(c => c.is_active))
 const activeUniversities = computed(() => universities.value.filter(u => u.is_active && (!filters.value.country_id || u.country_id === filters.value.country_id)))
 const activeLevels = computed(() => levels.value.filter(l => l.is_active))
-const activeLanguages = computed(() => languages.value.filter(l => l.is_active))
 
 // A university selected for one country must not silently filter everything
 // out after the country changes.
@@ -105,18 +111,16 @@ async function load() {
 
 async function loadCatalogs() {
   try {
-    const [countryRows, universityRows, levelRows, languageRows, employeeRows] = await Promise.all([
+    const [countryRows, universityRows, levelRows, employeeRows] = await Promise.all([
       MasterDataApi.list('countries'),
       MasterDataApi.list('universities'),
       MasterDataApi.list('education-levels'),
-      MasterDataApi.list('languages'),
       EmployeeApi.getOptions(),
     ])
 
     countries.value = countryRows
     universities.value = universityRows
     levels.value = levelRows
-    languages.value = languageRows
     employees.value = employeeRows
   }
   catch {
@@ -153,16 +157,6 @@ function onPipelineDragOver(event: DragEvent) {
   }
 }
 
-function onPipelineWheel(event: WheelEvent) {
-  const scroller = pipelineScroller.value
-
-  if (!scroller)
-    return
-
-  const horizontalDelta = event.deltaX || event.deltaY
-
-  scroller.scrollLeft += horizontalDelta
-}
 
 function isAllowedDropStage(stage: PipelineColumn) {
   const applicant = dragId.value
@@ -201,15 +195,15 @@ async function moveApplicant(id: number, target: PipelineColumn) {
   if (!dropAllowed(applicant, target.key)) {
     const from = stageOf(applicant)?.name ?? t('educational.currentStage')
 
-    toast.error(t('educational.messages.stageMoveNotAllowed', { from, to: target.name }))
+    toast.error(t('educational.messages.stageMoveNotAllowed', { from, to: translateApplicantStage(target) }))
 
     return
   }
 
   movingId.value = id
   try {
-    await ApplicantApi.changeStage(id, target.id, t('educational.pipelineMoveNote', { stage: target.name }))
-    toast.success(t('educational.messages.stageMoved', { stage: target.name }))
+    await ApplicantApi.changeStage(id, target.id, t('educational.pipelineMoveNote', { stage: translateApplicantStage(target) }))
+    toast.success(t('educational.messages.stageMoved', { stage: translateApplicantStage(target) }))
     await load()
   }
   catch {
@@ -221,7 +215,7 @@ async function moveApplicant(id: number, target: PipelineColumn) {
 }
 
 function clearFilters() {
-  filters.value = { search: '', status: undefined, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, language_id: null, date_from: '', date_to: '' }
+  filters.value = { search: '', status: undefined, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, date_from: '', date_to: '' }
   load()
 }
 
@@ -236,8 +230,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="education-workspace"><VCard class="education-panel">
-    <VCardItem :title="$t('educational.applicantPipeline')" :subtitle="$t('educational.pipelineInstructions')">
+  <div class="education-workspace erp-workspace">
+    <ErpPageHeader :title="$t('educational.applicantPipeline')" section="applicants" />
+    <VCard class="education-panel">
+    <VCardItem :subtitle="$t('educational.pipelineInstructions')">
       <template #append>
 <VBtn v-if="canAccess('manage_applicant_stages')" size="small" variant="text" :to="{ name: 'educational-master-data', query: { catalog: 'applicant-stages' } }">{{ $t('educational.stage') }}</VBtn>
         <VChip color="success" size="small" class="me-2">{{ $t('educational.activeCount', { count: totals.active }) }}</VChip>
@@ -247,15 +243,14 @@ onMounted(async () => {
     </VCardItem>
     <VCardText>
       <VRow dense>
+        <VCol cols="12" md="3"><VSelect v-model="filters.service" :items="serviceOptions" :label="$t('educational.service')" clearable /></VCol>
         <VCol cols="12" md="3"><VTextField v-model="filters.search" :label="$t('educational.searchApplicant')" clearable @keyup.enter="load" /></VCol>
         <VCol cols="12" md="3"><VSelect v-model="filters.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable /></VCol>
         <VCol cols="12" md="3"><VSelect v-model="filters.country_id" :items="activeCountries.map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable /></VCol>
         <VCol cols="12" md="3"><VSelect v-model="filters.university_id" :items="activeUniversities.map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable /></VCol>
         <VCol cols="12" md="3"><VSelect v-model="filters.education_level_id" :items="activeLevels.map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable /></VCol>
-        <VCol cols="12" md="3"><VSelect v-model="filters.language_id" :items="activeLanguages.map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.language')" clearable /></VCol>
         <VCol cols="12" md="2"><VSelect v-model="filters.status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable /></VCol>
-        <VCol cols="6" md="2"><VTextField v-model="filters.date_from" type="date" :label="$t('educational.from')" clearable /></VCol>
-        <VCol cols="6" md="2"><VTextField v-model="filters.date_to" type="date" :label="$t('educational.to')" clearable /></VCol>
+        <VCol cols="12" md="6"><ErpDateRange v-model:from="filters.date_from" v-model:to="filters.date_to" @apply="load" /></VCol>
       </VRow>
       <div class="d-flex gap-2 mt-2">
         <VBtn color="primary" :loading="loading" @click="load">{{ $t('educational.applyFilters', { count: activeFilterCount }) }}</VBtn>
@@ -266,10 +261,10 @@ onMounted(async () => {
     <VProgressLinear v-if="loading" indeterminate />
     <VCardText>
       <div v-if="!loading && !stages.length" class="text-center text-medium-emphasis py-8">{{ $t('educational.noActiveStages') }}</div>
-      <div v-else ref="pipelineScroller" class="d-flex gap-3 overflow-x-auto pb-2 pipeline-scroller" @dragover.prevent="onPipelineDragOver" @wheel.prevent="onPipelineWheel">
+      <div v-else ref="pipelineScroller" class="d-flex gap-3 overflow-x-auto pb-2 pipeline-scroller" @dragover.prevent="onPipelineDragOver">
         <VCard v-for="stage in stages" :key="stage.key" variant="outlined" min-width="260" class="flex-shrink-0 pipeline-column" :class="{ 'pipeline-column--allowed': isAllowedDropStage(stage), 'pipeline-column--blocked': dragId && !isAllowedDropStage(stage) }" style="inline-size: 260px;" @dragover.prevent @drop="onDrop(stage)">
           <VCardItem :subtitle="$t('educational.caseCount', { count: stage.count })">
-            <template #title><VTooltip location="top"><template #activator="{ props }"><span v-bind="props" class="d-inline-block text-truncate" style="max-inline-size: 185px">{{ stage.name }}</span></template>{{ stage.name }}</VTooltip></template>
+            <template #title><VTooltip location="top"><template #activator="{ props }"><span v-bind="props" class="d-inline-block text-truncate" style="max-inline-size: 185px">{{ translateApplicantStage(stage) }}</span></template>{{ translateApplicantStage(stage) }}</VTooltip></template>
             <template #append><VChip size="small" :color="stage.is_terminal ? 'secondary' : 'primary'">{{ stage.count }}</VChip></template>
           </VCardItem>
           <VCardText class="d-flex flex-column gap-2" style="min-block-size: 120px;">
@@ -277,14 +272,14 @@ onMounted(async () => {
               <VCardText class="py-2">
                 <div class="font-weight-medium">{{ applicant.name || $t('educational.applicantNumber', { id: applicant.id }) }}</div>
                 <div class="text-caption text-medium-emphasis">#{{ applicant.id }} · {{ translateBackendValue(applicant.status) }}</div>
-                <div class="text-caption">{{ applicant.country?.name ?? '—' }}{{ applicant.university?.name ? ` · ${applicant.university.name}` : '' }}</div>
+                <div class="text-caption">{{ serviceOptions.find(option => option.value === applicant.service)?.title }}<span v-if="['scholarship', 'private'].includes(applicant.service)"> · {{ applicant.details?.country?.name ?? '—' }}{{ applicant.details?.university?.name ? ` · ${applicant.details.university.name}` : '' }}</span></div>
                 <div class="text-caption text-medium-emphasis">{{ applicant.responsible_employee?.name ?? $t('educational.unassigned') }}</div>
                 <div class="d-flex gap-1 mt-2">
                   <VBtn size="x-small" variant="text" @click="openCase(applicant.id)">{{ $t('educational.openCase') }}</VBtn>
                   <VMenu v-if="canMove && allowedTargets(applicant).length">
                     <template #activator="{ props }"><VBtn size="x-small" variant="text" color="primary" v-bind="props">{{ $t('educational.move') }}</VBtn></template>
                     <VList density="compact">
-                      <VListItem v-for="target in allowedTargets(applicant)" :key="target.id" :title="$t('educational.moveTo', { stage: target.name })" @click="moveApplicant(applicant.id, target)" />
+                      <VListItem v-for="target in allowedTargets(applicant)" :key="target.id" :title="$t('educational.moveTo', { stage: translateApplicantStage(target) })" @click="moveApplicant(applicant.id, target)" />
                     </VList>
                   </VMenu>
                   <VChip v-if="movingId === applicant.id" size="x-small" color="primary">{{ $t('educational.moving') }}</VChip>

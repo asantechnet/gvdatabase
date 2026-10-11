@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import SettingApi from '@/api/setting'
+import { calendarDate } from '@/utils/calendarDate'
 import AttendanceApi, { type Attendance, type DailyReport } from '@/api/attendance'
 
 const loading = ref(false)
@@ -8,14 +10,18 @@ const report = ref<DailyReport | null>(null)
 const reportDialog = ref(false)
 const month = ref(new Date().toISOString().slice(0, 7))
 const headers = [{ title: 'Date', key: 'date' }, { title: 'Status', key: 'status' }, { title: 'Check in', key: 'check_in_time' }, { title: 'Check out', key: 'check_out_time' }, { title: 'Worked', key: 'worked' }, { title: 'Report', key: 'report', sortable: false }]
-const range = computed(() => ({ start_date: `${month.value}-01`, end_date: new Date(Number(month.value.slice(0, 4)), Number(month.value.slice(5)), 0).toISOString().slice(0, 10) }))
+const range = computed(() => ({ start_date: `${month.value}-01`, end_date: new Date(Date.UTC(Number(month.value.slice(0, 4)), Number(month.value.slice(5)), 0)).toISOString().slice(0, 10) }))
 const duration = (minutes: number | null) => minutes === null ? '—' : `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 async function load() {
   loading.value = true; try { records.value = await AttendanceApi.getMine(range.value) }
   finally { loading.value = false }
 }
-async function viewReport(item: Attendance) { report.value = await AttendanceApi.getDailyReport(item.id); reportDialog.value = true }
-onMounted(load)
+async function viewReport(item: Attendance) { report.value = await AttendanceApi.getOwnDailyReport(item.id); reportDialog.value = true }
+onMounted(async () => {
+  const setting = (await SettingApi.getCompanyProfile()).data
+  month.value = calendarDate(setting?.timezone || 'UTC').slice(0, 7)
+  await load()
+})
 </script>
 
 <template>

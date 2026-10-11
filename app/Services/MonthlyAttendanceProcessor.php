@@ -58,7 +58,12 @@ class MonthlyAttendanceProcessor
     private function materializeMissingDays(Carbon $start, Carbon $end): int
     {
         $created = 0;
-        $employees = Employee::selectable()->whereDate('join_date', '<=', $end)->get(['id', 'office_id', 'join_date']);
+        // Never mark a still-running local day, or a future day, absent.
+        $end = $end->copy()->min(now($this->company->timezone())->subDay()->endOfDay());
+        if ($start->toDateString() > $end->toDateString()) {
+            return 0;
+        }
+        $employees = Employee::selectable()->active()->whereDate('join_date', '<=', $end)->get(['id', 'office_id', 'join_date']);
         foreach ($employees as $employee) {
             $employeeStart = $start->copy()->max(Carbon::parse($employee->join_date));
             for ($day = $employeeStart->copy()->startOfDay(); $day->lte($end); $day->addDay()) {
@@ -75,7 +80,7 @@ class MonthlyAttendanceProcessor
                     ->where('is_granted', true)->first();
                 $paidDays = (float) ($leave?->paid_days ?? 0);
                 $isPaidLeave = $leave && ((bool) $leave->is_paid || $paidDays > 0);
-                Attendance::create([
+                $row = Attendance::withTrashed()->createOrFirst(['employee_id' => $employee->id, 'date' => $date], [
                     'employee_id' => $employee->id,
                     'office_id' => $employee->office_id,
                     'date' => $date,
@@ -85,7 +90,7 @@ class MonthlyAttendanceProcessor
                     'unpaid_leave_days' => $leave ? max(0, (float) $leave->duration_days - $paidDays) : 0,
                     'logged_at' => '00:00:00',
                 ]);
-                $created++;
+                $created += (int) $row->wasRecentlyCreated;
             }
         }
 
@@ -112,7 +117,7 @@ class MonthlyAttendanceProcessor
                     'unpaid_leave_days' => round($unpaid, 1),
                     'incomplete_days' => $rows->where('status', 'present')->where('missing_punch_state', '!=', 'none')->count(),
                     'gross_minutes' => (int) $rows->sum('gross_minutes'),
-                    'break_minutes' => (int) $rows->sum('break_minutes'),
+                    'break_minutes' => (int) $rows->sum(fn (Attendance $row) => max(0, (int) $row->gross_minutes - (int) $row->net_worked_minutes)),
                     'net_worked_minutes' => (int) $rows->sum('net_worked_minutes'),
                     'required_minutes' => (int) $rows->sum('required_minutes'),
                     'late_arrival_minutes' => (int) $rows->sum('late_arrival_minutes'),

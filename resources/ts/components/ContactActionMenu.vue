@@ -1,14 +1,19 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
 import { computed } from 'vue'
-import api from '@/api/axios'
+import CrmApi from '@/api/crmRelationships'
+import { useToast } from 'vue-toastification'
+import { apiErrorMessage } from '@/utils/apiErrors'
 
 const props = defineProps<{
   kind: 'phone' | 'email'
   value: string | null | undefined
-  contactableType?: 'visitor' | 'lead' | 'customer'
+  contactableType?: 'visitor' | 'applicant'
   contactableId?: number
 }>()
 
+const toast = useToast()
+const { t } = useI18n()
 const dialog = ref(false)
 const pendingAction = ref<ContactAction | null>(null)
 const saving = ref(false)
@@ -42,8 +47,8 @@ const saveConversation = async () => {
     return
   saving.value = true
   try {
-    await api.post(`/crm/${props.contactableType}/${props.contactableId}/interactions`, {
-      channel: props.kind === 'email' ? 'email' : pendingAction.value.label === 'Call' ? 'call' : 'message',
+    await CrmApi.createInteraction(props.contactableType, props.contactableId, {
+      channel: props.kind === 'email' ? 'email' : pendingAction.value.label === translate('common.ui.call') ? 'call' : 'message',
       title: form.value.title.trim(),
       notes: form.value.notes.trim(),
       follow_up_at: form.value.follow_up_at,
@@ -51,6 +56,7 @@ const saveConversation = async () => {
     dialog.value = false
     pendingAction.value = null
   }
+  catch (error) { toast.error(apiErrorMessage(error, t('common.crmDetails.conversationSaveFailed'))) }
   finally { saving.value = false }
 }
 
@@ -68,7 +74,7 @@ const phoneDigits = computed(() => phoneValue.value.replace(/\D/g, ''))
 const actions = computed<ContactAction[]>(() => {
   if (props.kind === 'email') {
     return contactValue.value
-      ? [{ label: 'Email', icon: 'tabler-mail', href: `mailto:${encodeURIComponent(contactValue.value)}` }]
+      ? [{ label: translate('serviceContracts.email'), icon: 'tabler-mail', href: `mailto:${encodeURIComponent(contactValue.value)}` }]
       : []
   }
 
@@ -78,7 +84,7 @@ const actions = computed<ContactAction[]>(() => {
   return [
     { label: 'WhatsApp', icon: 'tabler-brand-whatsapp', href: `https://wa.me/${phoneDigits.value}`, external: true },
     { label: 'Telegram', icon: 'tabler-brand-telegram', href: `https://t.me/+${phoneDigits.value}`, external: true },
-    { label: 'Call', icon: 'tabler-phone', href: `tel:${encodeURIComponent(phoneValue.value)}` },
+    { label: translate('common.ui.call'), icon: 'tabler-phone', href: `tel:${encodeURIComponent(phoneValue.value)}` },
   ]
 })
 </script>

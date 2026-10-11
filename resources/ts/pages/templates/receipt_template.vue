@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ReceiptLine, ReceiptMoney, ReceiptPayload } from '@/api/receipts'
+import { formatLocalizedDate } from '@/utils/localization'
+import { printReceipt, receiptCopies, type ReceiptPaperSize } from '@/utils/printReceipt'
 
-export type ReceiptPaperSize = 'A3 landscape' | 'A4' | 'A4 landscape' | 'A5' | 'letter' | 'A4 2x A5' | 'A5 2x'
+export type { ReceiptPaperSize } from '@/utils/printReceipt'
 
 const twoUpModes: Record<string, { page: string; height: number }> = {
   'A4 2x A5': { page: 'A4', height: 148.3 },
@@ -14,15 +17,15 @@ const props = withDefaults(defineProps<{
   copies?: number
   paperSize?: ReceiptPaperSize
 }>(), {
-  copies: 2,
-  paperSize: 'A3 landscape',
+  copies: 1,
+  paperSize: 'A5',
 })
 
 const rootRef = ref<HTMLElement | null>(null)
 const { t, locale } = useI18n()
 
 const direction = computed(() => (locale.value === 'en' ? 'ltr' : 'rtl'))
-const copies = computed(() => Math.max(1, Math.min(4, props.copies || 1)))
+const copies = computed(() => receiptCopies(props.copies))
 
 const letterhead = computed(() => props.receipt.letterhead)
 const hasLetterhead = computed(() => Boolean(letterhead.value?.url))
@@ -47,9 +50,9 @@ const formatDate = (value: string | null | undefined) => value
   ? formatLocalizedDate(`${value}T00:00:00`, { day: '2-digit', month: 'short', year: 'numeric' })
   : '—'
 
-const lines = computed<ReceiptLine[]>(() => [...(props.receipt.services ?? []), ...(props.receipt.packages ?? [])])
+const lines = computed<ReceiptLine[]>(() => props.receipt.services ?? [])
 
-const paperSizeCss = computed(() => props.paperSize ?? 'A3 landscape')
+const paperSizeCss = computed(() => props.paperSize ?? 'A5')
 const twoUp = computed(() => twoUpModes[paperSizeCss.value] ?? null)
 const isTwoUp = computed(() => twoUp.value !== null)
 
@@ -76,42 +79,10 @@ const contentStyle = computed(() => {
   return style
 })
 
-function print() {
+async function print() {
   if (!rootRef.value)
     return
-
-  const popup = window.open('', '_blank', 'width=1200,height=900')
-  if (!popup) {
-    alert(t('documents.receipt.pleaseAllowPopups'))
-
-    return
-  }
-
-  const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-    .map(node => node.outerHTML)
-    .join('\n')
-
-  const up = twoUp.value
-
-  const breakRules = up
-    ? [
-        `.receipt-sheet .receipt-card { height: ${up.height}mm; break-after: auto; page-break-after: auto; }`,
-        '.receipt-sheet .receipt-card:nth-child(even):not(:last-child) { break-after: page; page-break-after: always; }',
-        '.receipt-sheet .receipt-card:nth-child(odd):not(:last-child) { border-block-end: 1px dashed #444 !important; }',
-      ]
-    : [
-        '.receipt-card:not(:last-child) { break-after: page; page-break-after: always; }',
-      ]
-
-  const pageStyle = [
-    `@page { size: ${up ? up.page : paperSizeCss.value}; margin: 0; }`,
-    'body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }',
-    '.receipt-card { box-shadow: none !important; }',
-    ...breakRules,
-  ].join('\n')
-
-  popup.document.write(`<!doctype html><html dir="${direction.value}"><head><title>${props.receipt.serial_number ?? 'receipt'}</title>${styles}<style>@media print { ${pageStyle} }</style></head><body>${rootRef.value.outerHTML}<script>onload=()=>{print();close()}<\/script></body></html>`)
-  popup.document.close()
+  await printReceipt(rootRef.value, paperSizeCss.value)
 }
 
 defineExpose({ print })
@@ -197,13 +168,15 @@ defineExpose({ print })
             v-if="!isCustomerCopy(copy)"
             class="receipt-block"
           >
-            <h4>{{ t('documents.receipt.paymentDetails') }}</h4>
+            <h4>{{ t('documents.receipt.paymentSummary') }}</h4>
             <dl>
               <div><dt>{{ t('documents.receipt.incomeName') }}</dt><dd>{{ receipt.income.name || '—' }}</dd></div>
               <div><dt>{{ t('documents.receipt.incomeId') }}</dt><dd>#{{ receipt.income.id }}</dd></div>
               <div><dt>{{ t('common.fields.type') }}</dt><dd>{{ translateBackendValue(receipt.income.type) }}</dd></div>
               <div><dt>{{ t('common.fields.amount') }}</dt><dd>{{ formatAmount(receipt.income.line_total, receipt.income.currency) }}</dd></div>
-              <div><dt>{{ t('documents.receipt.invoice') }}</dt><dd>{{ receipt.invoice?.invoice_number || t('documents.receipt.invoiceOptional') }}</dd></div>
+              <div><dt>{{ t('documents.receipt.contract') }}</dt><dd>{{ receipt.contract?.contract_number || t('documents.receipt.contractOptional') }}</dd></div>
+              <div v-if="receipt.service"><dt>{{ t('documents.receipt.service') }}</dt><dd>{{ receipt.service.service_label || receipt.service.name }}</dd></div>
+              <div v-if="receipt.service"><dt>{{ t('documents.receipt.paymentStatus') }}</dt><dd>{{ receipt.service.payment_status_label || '—' }}</dd></div>
             </dl>
           </section>
         </div>
@@ -293,6 +266,7 @@ defineExpose({ print })
   background: #ffffff;
   border: 1px solid #d7dde5;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
+  overflow-wrap: anywhere;
 }
 
 .receipt-card__art {
@@ -310,6 +284,8 @@ defineExpose({ print })
   height: 100%;
   padding: 8mm;
 }
+
+.receipt-card__content > * { flex-shrink: 0; }
 
 .receipt-card__content--safe {
   position: absolute;
@@ -331,6 +307,7 @@ defineExpose({ print })
   align-items: flex-start;
   gap: 3mm;
   min-inline-size: 0;
+  flex: 1;
 }
 
 .receipt-head__logo {
@@ -356,14 +333,16 @@ defineExpose({ print })
 
 .receipt-head__title {
   text-align: end;
-  white-space: nowrap;
+  min-inline-size: 0;
+  max-inline-size: 45%;
+  flex-shrink: 0;
 }
 
 .receipt-head__eyebrow {
   color: #16a1d7;
   font-size: 12pt;
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -398,7 +377,7 @@ defineExpose({ print })
   color: #16a1d7;
   font-size: 8pt;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -451,7 +430,7 @@ defineExpose({ print })
 
 .receipt-totals {
   display: grid;
-  grid-template-columns: repeat(3, 1fr) 1.3fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.3fr);
   gap: 2mm;
   margin-block-start: auto;
 }
@@ -490,6 +469,7 @@ defineExpose({ print })
   justify-content: space-between;
   gap: 6mm;
   padding-block-start: 2mm;
+  flex-wrap: wrap;
 }
 
 .receipt-foot__note {
@@ -504,6 +484,8 @@ defineExpose({ print })
 .receipt-foot__stamps {
   display: flex;
   gap: 6mm;
+  flex-wrap: wrap;
+  max-inline-size: 100%;
 }
 
 .receipt-stamp {
@@ -552,24 +534,21 @@ defineExpose({ print })
   border-block-end: 1px dashed #444;
 }
 
+</style>
+
+<style>
+.income-receipt-print-host { display: none; }
+.income-receipt-print-host[data-measuring] { display: block; position: fixed; inset-inline-start: -10000px; inset-block-start: 0; }
+.income-receipt-print-host .income-receipt-print-page { gap: 0; margin: 0; padding: 0; box-sizing: border-box; }
+.income-receipt-print-host .receipt-card { min-height: 0; border: 0; box-shadow: none; box-sizing: border-box; }
+.income-receipt-print-host .receipt-card:not(:last-child) { border-block-end: 1px dashed #444; }
+.income-receipt-print-host .receipt-card__content { box-sizing: border-box; }
+
 @media print {
-  .receipt-sheet {
-    gap: 0;
-  }
-
-  .receipt-card {
-    min-height: 0;
-    height: 100%;
-    border: 0;
-    box-shadow: none;
-  }
-
-  .receipt-card__content {
-    height: 100%;
-  }
-
-  .receipt-sheet--two-up .receipt-card {
-    height: var(--receipt-card-height, 148.3mm);
-  }
+  body.income-receipt-print-mode { margin: 0 !important; padding: 0 !important; min-height: 0 !important; height: auto !important; display: block !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.income-receipt-print-mode > :not(.income-receipt-print-host) { display: none !important; }
+  body.income-receipt-print-mode > .income-receipt-print-host { display: block !important; position: static !important; margin: 0 !important; padding: 0 !important; min-height: 0 !important; }
+  body.income-receipt-print-mode .income-receipt-print-page { break-inside: avoid; page-break-inside: avoid; }
+  body.income-receipt-print-mode .income-receipt-print-page:not(:last-child) { break-after: page; page-break-after: always; }
 }
 </style>

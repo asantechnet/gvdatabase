@@ -8,7 +8,6 @@ return [
         'operations' => 'Operations report',
     ],
     'sections' => [
-        'invoices' => 'Invoices and outstanding balances',
         'income' => 'Income',
         'expenses' => 'Expenses',
         'net_cash_flow' => 'Net cash flow',
@@ -23,8 +22,7 @@ return [
         'employee_roster' => 'Employee roster',
         'paid_time_off' => 'Leave',
         'daily_reports' => 'Daily work reports',
-        'customer_services' => 'Customer services',
-        'companies' => 'Companies',
+        'applicant_contracts' => 'Contract service lines',
     ],
     'columns' => [
         'number' => 'Number', 'date' => 'Date', 'applicant' => 'Applicant', 'status' => 'Status',
@@ -45,7 +43,7 @@ return [
         'base_currency' => 'Base currency', 'rate' => 'Rate', 'item' => 'Item', 'model' => 'Model',
         'serial_number' => 'Serial number', 'assigned_to' => 'Assigned to', 'condition' => 'Condition',
         'unit_price' => 'Unit price', 'asset_value' => 'Asset value', 'position' => 'Position',
-        'department' => 'Department', 'employment_type' => 'Employment type', 'join_date' => 'Join date',
+        'department' => 'Department', 'join_date' => 'Join date',
         'classification' => 'Classification', 'summary' => 'Summary', 'achievements' => 'Achievements',
         'challenges' => 'Challenges', 'support_needed' => 'Support needed', 'deadline' => 'Deadline',
         'fee' => 'Fee', 'industry' => 'Industry', 'city' => 'City', 'representative' => 'Representative',
@@ -56,7 +54,6 @@ return [
         'base_amount_by_base' => 'Base amount by currency', 'outstanding_by_base' => 'Outstanding by currency',
         'deductions_by_base' => 'Deductions by currency', 'by_currency' => 'By currency',
         'average_progress' => 'Average progress', 'count' => 'Count', 'records' => 'Records',
-        'invoiced_base' => 'Invoiced (base)',
     ],
     'print' => [
         'print_pdf' => 'Print / Save PDF', 'business_report' => 'Business report',

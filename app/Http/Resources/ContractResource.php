@@ -13,14 +13,17 @@ class ContractResource extends JsonResource
         return [
             'id' => $this->id,
             'contract_number' => $this->contract_number,
+            'service' => $this->service,
+            'contract_role' => $this->contract_role,
+            'parent_contract_id' => $this->parent_contract_id,
             'contract' => $this->name ?? $this->template?->name ?? 'Untitled Contract',
             'type' => $this->type,
             'contract_type_id' => $this->contract_type_id,
-            'service_ids' => $this->whenLoaded('contractServices', fn () => $this->contractServices->pluck('service_id')->values()),
-            'services' => ContractServiceResource::collection($this->whenLoaded('contractServices')),
+            'services' => ApplicantContractResource::collection($this->whenLoaded('applicantContracts')),
             'type_slug' => $this->type_slug,
             'status' => strtolower((string) $this->status),
             'start_date' => $this->start_date?->toDateString(),
+            'end_date' => $this->end_date?->toDateString(),
             'company_signatory_name' => $this->company_signatory_name,
             'counterparty' => $this->counterparty,
             'counterparty_company' => $this->counterparty_company,
@@ -35,9 +38,7 @@ class ContractResource extends JsonResource
             'contract_language_id' => $this->contract_language_id,
             'employee_id' => $this->employee_id,
             'sold_by_employee_id' => $this->sold_by_employee_id,
-            'marketer_id' => $this->marketer_id,
             'applicant_id' => $this->applicant_id,
-            'company_id' => $this->company_id,
             'cover_text' => $this->cover_text,
             'content' => $this->content,
             'snapshot_data' => $this->snapshotWithDocumentUrls(),
@@ -49,12 +50,11 @@ class ContractResource extends JsonResource
 
             'employee' => new EmployeeResource($this->whenLoaded('employee')),
             'applicant' => new ApplicantResource($this->whenLoaded('applicant')),
-            'company' => new CompanyResource($this->whenLoaded('company')),
             'contract_type' => new ContractTypeResource($this->whenLoaded('contractType')),
             'contract_template' => $this->whenLoaded('template', function () {
                 return new ContractTemplateResource($this->template);
             }),
-            'contract_template_version' => $this->whenLoaded('templateVersion', fn () => ['id'=>$this->templateVersion?->id,'name'=>$this->templateVersion?->name,'country_id'=>$this->templateVersion?->country_id,'language_id'=>$this->templateVersion?->language_id,'version_number'=>$this->templateVersion?->version_number,'status'=>$this->templateVersion?->status]),
+            'contract_template_version' => $this->whenLoaded('templateVersion', fn () => ['id' => $this->templateVersion?->id, 'name' => $this->templateVersion?->name, 'country_id' => $this->templateVersion?->country_id, 'language_id' => $this->templateVersion?->language_id, 'version_number' => $this->templateVersion?->version_number, 'status' => $this->templateVersion?->status]),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

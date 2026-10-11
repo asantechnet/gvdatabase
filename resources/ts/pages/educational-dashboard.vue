@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import ErpField from '@/components/erp/ErpField.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -27,18 +30,18 @@ const maxStage = computed(() => Math.max(1, ...(data.value?.pipeline.stages.map(
 const attentionCount = computed(() => data.value
   ? data.value.attention.stuck_applicants.length + data.value.attention.overdue_tasks.length + data.value.attention.missing_documents.length + data.value.attention.contracts_requiring_attention.length + data.value.attention.pending_approvals
   : 0)
-const totalSales = computed(() => data.value ? Object.values(data.value.sales).reduce((sum, row) => sum + row.sold, 0) : 0)
+const totalSales = computed(() => data.value ? [data.value.sales.scholarships, data.value.sales.test_offers, data.value.sales.academy, data.value.sales.private].reduce((sum, row) => sum + row.sold, 0) : 0)
 const visibleStages = computed(() => data.value?.pipeline.stages.filter(stage => stage.count > 0) ?? [])
 const topCountries = computed(() => [...(data.value?.countries ?? [])].sort((a, b) => b.total - a.total).slice(0, 6))
 const attentionGroups = computed(() => data.value ? [
   { icon: 'tabler-clock-exclamation', color: 'warning', title: t('educational.stuckCases'), rows: data.value.attention.stuck_applicants },
   { icon: 'tabler-calendar-due', color: 'error', title: t('educational.overdueCaseTasks'), rows: data.value.attention.overdue_tasks },
   { icon: 'tabler-file-alert', color: 'info', title: t('educational.missingDocuments'), rows: data.value.attention.missing_documents },
-  { icon: 'tabler-file-invoice', color: 'secondary', title: t('educational.contractAttention'), rows: data.value.attention.contracts_requiring_attention },
+  { icon: 'tabler-file-description', color: 'secondary', title: t('educational.contractAttention'), rows: data.value.attention.contracts_requiring_attention },
 ] : [])
 
 const money = (rows: Array<{ amount: number; currency: string | null }>) => rows.map(row => `${n(row.amount, 'decimal')} ${row.currency ?? ''}`.trim()).join(' · ') || '—'
-const salesName = (name: string) => t(`educational.salesTypes.${name}`)
+const salesName = (name: string) => name === 'private' ? t('educational.builtInServices.private') : t(`educational.salesTypes.${name}`)
 
 async function load() {
   loading.value = true
@@ -78,21 +81,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="education-workspace">
-    <header class="education-page-header">
-      <div>
-        <div class="education-eyebrow">{{ $t('educational.operationsCenter') }}</div>
-        <h1>{{ $t('educational.agencyOverview') }}</h1>
-        <p>{{ $t('educational.agencyOverviewSubtitle') }}</p>
-      </div>
-      <div class="d-flex flex-wrap gap-2">
-        <VBtn variant="tonal" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">
-          {{ $t('educational.filters') }}
-          <VBadge v-if="activeFilterCount" :content="activeFilterCount" color="primary" inline />
-        </VBtn>
-        <VBtn color="primary" prepend-icon="tabler-user-plus" :to="{ name: 'applicants' }">{{ $t('educational.manageApplicants') }}</VBtn>
-      </div>
-    </header>
+  <div class="education-workspace erp-workspace">
+    <ErpPageHeader :title="$t('educational.agencyOverview')" section="dashboard" />
+    <VCard class="mb-4"><VCardText><VRow dense align="center">
+      <VCol cols="12" md="8"><ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="load" /></VCol>
+      <VCol cols="12" md="4"><VBtn variant="tonal" color="secondary" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">{{ $t('educational.filters') }}</VBtn></VCol>
+    </VRow></VCardText></VCard>
 
     <VExpandTransition>
       <VCard v-if="filtersOpen" class="education-filter-card mb-4" variant="outlined">
@@ -101,8 +95,6 @@ onMounted(async () => {
             <VCol cols="12" sm="6" lg="3"><VSelect v-model="employeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.responsibleEmployee')" clearable hide-details /></VCol>
             <VCol cols="12" sm="6" lg="3"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.destinationCountry')" clearable hide-details /></VCol>
             <VCol cols="12" sm="6" lg="3"><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable hide-details /></VCol>
-            <VCol cols="6" sm="3" lg="1"><VTextField v-model="dateFrom" type="date" :label="$t('educational.from')" clearable hide-details /></VCol>
-            <VCol cols="6" sm="3" lg="2"><VTextField v-model="dateTo" type="date" :label="$t('educational.to')" clearable hide-details /></VCol>
           </VRow>
           <div class="d-flex justify-end gap-2 mt-3"><VBtn variant="text" @click="clearFilters">{{ $t('educational.clear') }}</VBtn><VBtn color="primary" :loading="loading" @click="applyFilters">{{ $t('educational.apply') }}</VBtn></div>
         </VCardText>
@@ -122,7 +114,7 @@ onMounted(async () => {
         <button class="education-metric education-metric--success" type="button" @click="router.push({ name: 'educational-reports' })">
           <VIcon icon="tabler-cash-banknote" /><span><small>{{ $t('educational.postedIncome') }}</small><strong class="education-money">{{ money(data.financial.income) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
         </button>
-        <button class="education-metric" type="button" @click="router.push({ name: 'options-services' })">
+        <button class="education-metric" type="button" @click="router.push({ name: 'scholarship-contracts' })">
           <VIcon icon="tabler-shopping-bag" /><span><small>{{ $t('educational.salesRecorded') }}</small><strong>{{ n(totalSales) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
         </button>
       </section>

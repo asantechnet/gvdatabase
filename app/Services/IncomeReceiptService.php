@@ -3,31 +3,32 @@
 namespace App\Services;
 
 use App\Models\Applicant;
-use App\Models\ContractService;
-use App\Models\CustomerPackage;
+use App\Models\ApplicantContract;
 use App\Models\Income;
 use App\Models\Setting;
+use App\Support\BuiltInService;
 use App\Support\DocumentLetterheads;
-use Illuminate\Support\Collection;
+use App\Support\PaymentStatus;
 use Illuminate\Support\Facades\Storage;
 
 /**
  * Builds the printable receipt payload for a single income record.
  *
- * Receipts are the customer-facing proof of payment for an educational visa
- * firm, so they carry the party identity, the case services/packages, a
- * serial number, the total fee, and the running paid amount for the applicant
- * — see RECEIPTS_AND_DOCUMENT_LETTERHEADS_PLAN.md.
+ * A receipt is the customer-facing proof of payment for **one** service of an
+ * educational visa firm, so it carries the party identity, that contracted
+ * service line (name, fee, discount, paid, remaining), a serial number and the
+ * letterhead artwork — see RECEIPTS_AND_DOCUMENT_LETTERHEADS_PLAN.md.
  */
 class IncomeReceiptService
 {
     public function forIncome(Income $income): array
     {
         $income->loadMissing([
-            'applicant.country',
-            'applicant.educationLevel',
+            'applicant.scholarshipDetail.country',
+            'applicant.scholarshipDetail.educationLevel',
+            'applicantContract.currency',
+            'applicantContract.contract',
             'incomeCurrency',
-            'invoice.currency',
             'recorder',
         ]);
 
@@ -35,28 +36,19 @@ class IncomeReceiptService
         $currency = $income->incomeCurrency;
         $receiptRate = (float) ($income->rate ?: ($currency?->rate ?? 1)) ?: 1.0;
         $applicant = $income->applicant;
+        $line = $income->applicantContract;
 
-        $services = $applicant ? $this->serviceLines($applicant, $receiptRate) : collect();
-        $packages = $applicant ? $this->packageLines($applicant, $receiptRate) : collect();
-
-        $paidAmount = $applicant ? $this->paidAmount($applicant, $receiptRate) : $this->lineTotal($income, $receiptRate);
-        // A package-issued contract carries one service line per member service
-        // (tagged `package_service`) *and* the package purchase record. They
-        // describe the same fee, so count the package once — otherwise a
-        // package sale would be billed twice on its receipt.
-        $totalFee = $services->where('kind', '!=', 'package_service')->sum('converted_fee')
-            + $packages->sum('converted_fee');
-
-        if ($totalFee <= 0 && $income->invoice) {
-            $totalFee = $this->convert(
-                (float) $income->invoice->amount,
-                (float) ($income->invoice->rate ?: 1),
-                $receiptRate,
-            );
-        }
+        $services = $line ? [$this->linePayload($line, $receiptRate)] : [];
+        $totalFee = collect($services)->sum('converted_fee');
+        $paidAmount = $line
+            ? $this->convert((float) ($line->amount_paid ?? 0), $this->lineRate($line), $receiptRate)
+            : $this->lineTotal($income, $receiptRate);
 
         if ($totalFee <= 0) {
+            // A receipt without a contract line (e.g. a misc. payment) still
+            // totals its own amount so the document is never blank.
             $totalFee = $this->lineTotal($income, $receiptRate);
+            $paidAmount = $totalFee;
         }
 
         $precision = max(0, min(8, (int) ($currency?->decimal_places ?? 2)));
@@ -79,21 +71,12 @@ class IncomeReceiptService
             ],
             'company' => $this->companyPayload($setting),
             'applicant' => $applicant ? $this->applicantPayload($applicant) : null,
-            'invoice' => $income->invoice ? [
-                'id' => $income->invoice->id,
-                'invoice_number' => $income->invoice->invoice_number,
-                'status' => $income->invoice->status,
-                'issue_date' => $income->invoice->issue_date?->toDateString(),
-                'due_date' => $income->invoice->due_date?->toDateString(),
-                'amount' => (float) $income->invoice->amount,
-                'currency' => [
-                    'code' => $income->invoice->currency_shortname,
-                    'symbol' => $income->invoice->currency_symbol,
-                    'decimalPlaces' => max(0, min(8, (int) ($income->invoice->currency?->decimal_places ?? 2))),
-                ],
+            'contract' => $line ? [
+                'id' => $line->contract_id,
+                'contract_number' => $line->contract?->contract_number,
             ] : null,
-            'services' => $services->values()->all(),
-            'packages' => $packages->values()->all(),
+            'service' => $services[0] ?? null,
+            'services' => $services,
             'totals' => [
                 'total_fee' => round($totalFee, $precision),
                 'paid_amount' => round($paidAmount, $precision),
@@ -109,75 +92,46 @@ class IncomeReceiptService
         ];
     }
 
-    /** @return Collection<int, array<string, mixed>> */
-    private function serviceLines(Applicant $applicant, float $receiptRate): Collection
+    /** @return array<string, mixed> */
+    private function linePayload(ApplicantContract $line, float $receiptRate): array
     {
-        return ContractService::query()
-            ->with(['service:id,type,code', 'variant:id,name', 'currency:id,code,symbol,rate,decimal_places'])
-            ->where('applicant_id', $applicant->id)
-            ->get()
-            ->map(function (ContractService $line) use ($receiptRate): array {
-                $fee = (float) ($line->fee ?? 0);
-                $sourceRate = (float) ($line->currency?->rate ?: 1);
+        $fee = (float) ($line->fee ?? 0) - (float) ($line->discount ?? 0);
+        $sourceRate = $this->lineRate($line);
+        $service = $line->serviceKey();
 
-                return [
-                    'kind' => $line->customer_package_id ? 'package_service' : 'service',
-                    'id' => $line->id,
-                    'service_id' => $line->service_id,
-                    'name' => $line->variant?->name ?? $line->service?->type ?? 'Service',
-                    'fee' => $fee,
-                    'rate' => $sourceRate,
-                    'converted_fee' => round($this->convert($fee, $sourceRate, $receiptRate), 2),
-                    'currency' => [
-                        'code' => $line->currency?->code,
-                        'symbol' => $line->currency?->symbol,
-                        'decimalPlaces' => (int) ($line->currency?->decimal_places ?? 2),
-                    ],
-                ];
-            });
+        return [
+            'kind' => 'service',
+            'id' => $line->id,
+            'contract_id' => $line->contract_id,
+            'service' => $service,
+            'service_label' => BuiltInService::label($service),
+            'service_label_key' => BuiltInService::labelKey($service),
+            'name' => $line->serviceLabel(),
+            'fee' => $fee,
+            'discount' => (float) ($line->discount ?? 0),
+            'rate' => $sourceRate,
+            'converted_fee' => round($this->convert($fee, $sourceRate, $receiptRate), 2),
+            'payment_status' => $line->payment_status,
+            'payment_status_label' => PaymentStatus::label($line->payment_status),
+            'currency' => [
+                'code' => $line->currency?->code,
+                'symbol' => $line->currency?->symbol,
+                'decimalPlaces' => (int) ($line->currency?->decimal_places ?? 2),
+            ],
+        ];
     }
 
-    /** @return Collection<int, array<string, mixed>> */
-    private function packageLines(Applicant $applicant, float $receiptRate): Collection
+    /** The rate a line is priced in, preferring its stored contract rate. */
+    private function lineRate(ApplicantContract $line): float
     {
-        return CustomerPackage::query()
-            ->with(['package:id,name,code', 'currency:id,code,symbol,rate,decimal_places'])
-            ->where('applicant_id', $applicant->id)
-            ->get()
-            ->map(function (CustomerPackage $record) use ($receiptRate): array {
-                $fee = (float) ($record->fee ?? 0);
-                $sourceRate = (float) ($record->currency?->rate ?: 1);
+        $stored = (float) ($line->currency_rate ?? 0);
+        if ($stored > 0) {
+            return $stored;
+        }
 
-                return [
-                    'id' => $record->id,
-                    'package_id' => $record->package_id,
-                    'name' => $record->package?->name ?? 'Package',
-                    'code' => $record->package?->code,
-                    'fee' => $fee,
-                    'status' => $record->status,
-                    'purchased_at' => $record->purchased_at?->toDateString(),
-                    'converted_fee' => round($this->convert($fee, $sourceRate, $receiptRate), 2),
-                    'currency' => [
-                        'code' => $record->currency?->code,
-                        'symbol' => $record->currency?->symbol,
-                        'decimalPlaces' => (int) ($record->currency?->decimal_places ?? 2),
-                    ],
-                ];
-            });
-    }
+        $rate = (float) ($line->currency?->rate ?? 0);
 
-    /** Every payment recorded for the applicant, expressed in the receipt currency. */
-    private function paidAmount(Applicant $applicant, float $receiptRate): float
-    {
-        return (float) Income::query()
-            ->with('incomeCurrency:id,rate')
-            ->where('applicant_id', $applicant->id)
-            ->get()
-            ->sum(function (Income $income) use ($receiptRate): float {
-                $rate = (float) ($income->rate ?: ($income->incomeCurrency?->rate ?: 1));
-
-                return $this->convert((float) $income->amount * (int) $income->quantity, $rate, $receiptRate);
-            });
+        return $rate > 0 ? $rate : 1.0;
     }
 
     private function lineTotal(Income $income, float $receiptRate): float
@@ -227,9 +181,9 @@ class IncomeReceiptService
             'email' => $applicant->email,
             'address' => $applicant->address,
             'tax_number' => $applicant->tax_number,
-            'country' => $applicant->country?->name,
-            'education_level' => $applicant->educationLevel?->name,
-            'application_date' => $applicant->application_date?->toDateString(),
+            'country' => $applicant->scholarshipDetail?->country?->name,
+            'education_level' => $applicant->scholarshipDetail?->educationLevel?->name,
+            'created_at' => $applicant->created_at?->toDateString(),
             'status' => $applicant->status,
         ];
     }

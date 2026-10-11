@@ -160,10 +160,13 @@ api.interceptors.response.use(
 
       apiError.message = apiErrorMessage(apiError)
 
-      if (apiError.status === 422 && apiError.errors)
+      const quietPreview = ['/contracts/preview', '/workday/status'].includes(originalRequest?.url ?? '')
+        && originalRequest?.headers?.['X-Suppress-Error-Notification'] === 'true'
+
+      if (!quietPreview && apiError.status === 422 && apiError.errors)
         replaceFormErrors(apiFieldErrors(apiError))
 
-      if (typeof window !== 'undefined')
+      if (!quietPreview && typeof window !== 'undefined')
         window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))
 
       return Promise.reject(apiError)
@@ -175,7 +178,9 @@ api.interceptors.response.use(
       success: false,
     } as ApiError
 
-    if (typeof window !== 'undefined')
+    const quietStatus = originalRequest?.url === '/workday/status'
+      && originalRequest?.headers?.['X-Suppress-Error-Notification'] === 'true'
+    if (!quietStatus && typeof window !== 'undefined')
       window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))
 
     return Promise.reject(apiError)

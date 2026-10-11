@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTheme } from 'vuetify'
 import ReportApi, { type GeneratedReport, type ReportCatalog, type ReportFilters, type ReportSection, type ReportType } from '@/api/report'
 import { canAccess } from '@/utils/authorization'
 import { apiErrorMessage } from '@/utils/apiErrors'
+import { printDocument } from '@/utils/printDocument'
 
 interface ReportProfile {
   key: ReportType
@@ -139,6 +140,20 @@ const openPrintReport = async () => {
   finally { exporting.value = false }
 }
 
+// Prints the on-screen report view. The body class namespaces the print CSS
+// below so the application shell (navbar, navigation, footer) and the
+// screen-only controls stay out of the final print.
+const pagePrintClass = 'printing-reports-studio'
+
+const printPage = () => {
+  void printDocument({ bodyClass: pagePrintClass, pageStyle: 'size: A4 landscape; margin: 12mm;' })
+}
+
+// Native browser printing (Ctrl+P / menu) bypasses printDocument, so mirror
+// the same print-mode class for any print originating from this page.
+const enablePagePrintMode = () => document.body.classList.add(pagePrintClass)
+const disablePagePrintMode = () => document.body.classList.remove(pagePrintClass)
+
 const humanize = (value: string) => {
   const isResolved = (translated: string, key: string) => translated !== key && !translated.toLowerCase().startsWith('[missing:')
   const sectionLabel = translate(`pages.reports.sections.${value}`)
@@ -180,15 +195,12 @@ const metrics = computed<Metric[]>(() => {
   if (!report.value)
     return []
   if (type.value === 'financial') {
-    const billed = numericTotal(section('invoices'), 'base_amount_by_base')
-    const outstanding = numericTotal(section('invoices'), 'outstanding_by_base')
     const income = numericTotal(section('income'), 'base_amount_by_base')
     const expenses = numericTotal(section('expenses'), 'base_amount_by_base')
 
     return [
-      { label: rt('metrics.billedValue'), value: currency(billed, baseCurrency.value, true), detail: rt('metrics.invoicesInPeriod', { count: number(numericTotal(section('invoices'), 'count')) }), icon: 'tabler-file-invoice', color: 'primary' },
-      { label: rt('metrics.cashCollected'), value: currency(income, baseCurrency.value, true), detail: billed > 0 ? rt('metrics.ofBilledValue', { rate: number((income / billed) * 100, 1) }) : rt('metrics.noBilledValue'), icon: 'tabler-cash', color: 'success' },
-      { label: rt('metrics.outstanding'), value: currency(outstanding, baseCurrency.value, true), detail: outstanding > 0 ? rt('metrics.collectionFollowup') : rt('metrics.noOpenBalance'), icon: 'tabler-hourglass', color: outstanding > 0 ? 'warning' : 'success' },
+      { label: rt('metrics.cashCollected'), value: currency(income, baseCurrency.value, true), detail: rt('metrics.recordsInPeriod', { count: number(numericTotal(section('income'), 'count')) }), icon: 'tabler-cash', color: 'success' },
+      { label: rt('metrics.expenses'), value: currency(expenses, baseCurrency.value, true), detail: rt('metrics.recordsInPeriod', { count: number(numericTotal(section('expenses'), 'count')) }), icon: 'tabler-receipt-2', color: 'warning' },
       { label: rt('metrics.netCashFlow'), value: currency(income - expenses, baseCurrency.value, true), detail: rt('metrics.spent', { amount: currency(expenses, baseCurrency.value, true) }), icon: 'tabler-chart-arrows-vertical', color: income - expenses >= 0 ? 'success' : 'error' },
     ]
   }
@@ -196,13 +208,9 @@ const metrics = computed<Metric[]>(() => {
     const payroll = numericTotal(section('salary_payments'), 'base_amount_by_base')
     const deductions = numericTotal(section('salary_payments'), 'deductions_by_base')
     const bonuses = numericTotal(section('bonuses'), 'base_amount_by_base')
-    const paidCommissions = numericTotal(section('commission_settlements'), 'base_amount_by_base')
-    const pendingCommissions = numericTotal(section('commission_liabilities'), 'base_amount_by_base')
 
     return [
       { label: rt('metrics.payrollCost'), value: currency(payroll, baseCurrency.value, true), detail: rt('metrics.payments', { count: number(numericTotal(section('salary_payments'), 'count')) }), icon: 'tabler-cash-banknote', color: 'primary' },
-      { label: 'Commission payouts', value: currency(paidCommissions, baseCurrency.value, true), detail: `Settled records: ${number(numericTotal(section('commission_settlements'), 'count'))}`, icon: 'tabler-percentage', color: 'info' },
-      { label: 'Pending commissions', value: currency(pendingCommissions, baseCurrency.value, true), detail: `Awaiting settlement: ${number(numericTotal(section('commission_liabilities'), 'count'))}`, icon: 'tabler-hourglass', color: pendingCommissions > 0 ? 'warning' : 'success' },
       { label: rt('metrics.bonuses'), value: currency(bonuses, baseCurrency.value, true), detail: rt('metrics.nominations', { count: number(numericTotal(section('bonuses'), 'count')) }), icon: 'tabler-award', color: 'success' },
       { label: rt('metrics.deductions'), value: currency(deductions, baseCurrency.value, true), detail: rt('metrics.acrossSalaryPayments'), icon: 'tabler-receipt-tax', color: 'warning' },
       { label: rt('metrics.headcount'), value: number(numericTotal(section('employee_roster'), 'company_headcount')), detail: rt('metrics.joinedInPeriod', { count: number(numericTotal(section('employee_roster'), 'joined_in_period')) }), icon: 'tabler-users-group', color: 'info' },
@@ -223,12 +231,12 @@ const metrics = computed<Metric[]>(() => {
   return [
     { label: rt('metrics.newApplicants'), value: number(numericTotal(section('applicants'), 'count')), detail: rt('metrics.addedInPeriod'), icon: 'tabler-user-plus', color: 'primary' },
     { label: rt('metrics.visitors'), value: number(numericTotal(section('visitors'), 'count')), detail: rt('metrics.commercialInterest'), icon: 'tabler-walk', color: 'info' },
-    { label: rt('metrics.serviceCommitments'), value: number(numericTotal(section('contract_services'), 'commitments')), detail: rt('metrics.activeCount', { count: number(numericTotal(section('contract_services'), 'active')) }), icon: 'tabler-heart-handshake', color: 'success' },
+    { label: rt('metrics.serviceCommitments'), value: number(numericTotal(section('applicant_contracts'), 'commitments')), detail: rt('metrics.activeCount', { count: number(numericTotal(section('applicant_contracts'), 'active')) }), icon: 'tabler-heart-handshake', color: 'success' },
     { label: rt('metrics.deliveryRisk'), value: number(numericTotal(section('tasks'), 'overdue')), detail: rt('metrics.tasksInReport', { count: number(numericTotal(section('tasks'), 'count')) }), icon: 'tabler-calendar-exclamation', color: numericTotal(section('tasks'), 'overdue') ? 'error' : 'success' },
   ]
 })
 
-const dateFieldFor = (key: string) => ({ invoices: 'date', income: 'date', expenses: 'date', salary_payments: 'payment_date', bonuses: 'month', commission_settlements: 'payment_date', commission_liabilities: 'earned_at', attendance: 'date', contracts: 'date', applicants: 'date', visitors: 'date', tasks: 'due_date' }[key] ?? 'date')
+const dateFieldFor = (key: string) => ({ income: 'date', expenses: 'date', salary_payments: 'payment_date', bonuses: 'month', attendance: 'date', contracts: 'date', applicants: 'date', visitors: 'date', tasks: 'due_date' }[key] ?? 'date')
 
 const groupRowsByDate = (reportSection: ReportSection | undefined, valueField?: string, transform: (value: number) => number = value => value) => {
   const groups: Record<string, number> = {}
@@ -248,7 +256,6 @@ const chartModel = computed(() => {
   const seriesMaps: Array<{ name: string; color: string; values: Record<string, number> }> = []
   if (type.value === 'financial') {
     seriesMaps.push(
-      { name: rt('charts.billed'), color: '#7367f0', values: groupRowsByDate(section('invoices'), 'base_amount') },
       { name: rt('charts.collected'), color: '#28c76f', values: groupRowsByDate(section('income'), 'base_amount') },
       { name: rt('charts.spent'), color: '#ff9f43', values: groupRowsByDate(section('expenses'), 'base_amount') },
     )
@@ -256,8 +263,6 @@ const chartModel = computed(() => {
   if (type.value === 'payroll') {
     seriesMaps.push(
       { name: rt('charts.payroll'), color: '#7367f0', values: groupRowsByDate(section('salary_payments'), 'base_amount') },
-      { name: 'Commission payouts', color: '#00bad1', values: groupRowsByDate(section('commission_settlements'), 'base_amount') },
-      { name: 'Pending commissions', color: '#ff9f43', values: groupRowsByDate(section('commission_liabilities'), 'base_amount') },
       { name: rt('charts.bonuses'), color: '#28c76f', values: groupRowsByDate(section('bonuses'), 'base_amount') },
     )
   }
@@ -302,7 +307,7 @@ const breakdown = computed(() => {
   let rows: Array<Record<string, unknown>> = []
   let field = 'status'
   if (type.value === 'financial')
-    rows = section('invoices')?.rows ?? []
+    rows = section('income')?.rows ?? []
   if (type.value === 'payroll') { rows = section('salary_payments')?.rows ?? []; field = 'office' }
   if (type.value === 'attendance')
     rows = section('attendance')?.rows ?? []
@@ -336,10 +341,9 @@ const insights = computed(() => {
   if (!report.value)
     return []
   if (type.value === 'financial') {
-    const billed = numericTotal(section('invoices'), 'base_amount_by_base'); const collected = numericTotal(section('income'), 'base_amount_by_base'); const spent = numericTotal(section('expenses'), 'base_amount_by_base'); const outstanding = numericTotal(section('invoices'), 'outstanding_by_base')
+    const collected = numericTotal(section('income'), 'base_amount_by_base'); const spent = numericTotal(section('expenses'), 'base_amount_by_base')
 
     return [
-      { title: billed ? rt('insights.collectionCoverage', { rate: number((collected / billed) * 100, 1) }) : rt('insights.noBilledValue'), body: billed ? rt('insights.outstandingBody', { amount: currency(outstanding) }) : rt('insights.createInvoices'), icon: 'tabler-percentage', color: collected / (billed || 1) >= 0.7 ? 'success' : 'warning' },
       { title: collected - spent >= 0 ? rt('insights.positiveCash') : rt('insights.negativeCash'), body: rt('insights.cashPositionBody', { amount: currency(collected - spent) }), icon: 'tabler-chart-line', color: collected - spent >= 0 ? 'success' : 'error' },
     ]
   }
@@ -358,7 +362,7 @@ const insights = computed(() => {
   const visitors = numericTotal(section('visitors'), 'count'); const applicants = numericTotal(section('applicants'), 'count'); const tasks = numericTotal(section('tasks'), 'count'); const overdue = numericTotal(section('tasks'), 'overdue')
 
   return [
-    { title: visitors ? rt('insights.conversionRatio', { rate: number((applicants / visitors) * 100, 1) }) : rt('insights.noVisitorActivity'), body: rt('insights.conversionBody', { visitors: number(visitors), applicants: number(applicants) }), icon: 'tabler-funnel', color: 'info' },
+    { title: visitors ? rt('insights.conversionRatio', { rate: number((applicants / visitors) * 100, 1) }) : rt('insights.noVisitorActivity'), body: rt('insights.conversionBody', { visitors: number(visitors), applicants: number(applicants) }), icon: 'tabler-chart-funnel', color: 'info' },
     { title: tasks ? rt('insights.overdueRatio', { rate: number((overdue / tasks) * 100, 1) }) : rt('insights.noTaskCommitments'), body: rt('insights.overdueBody', { overdue: number(overdue), tasks: number(tasks) }), icon: 'tabler-target-arrow', color: overdue ? 'warning' : 'success' },
   ]
 })
@@ -418,6 +422,8 @@ const totalEntries = computed(() => Object.entries(activeSection.value?.totals ?
 const filteredChipCount = computed(() => Object.entries(filters).filter(([key, value]) => !['start_date', 'end_date'].includes(key) && value !== null && value !== undefined && value !== '').length)
 
 onMounted(async () => {
+  window.addEventListener('beforeprint', enablePagePrintMode)
+  window.addEventListener('afterprint', disablePagePrintMode)
   loading.value = true
   try {
     catalog.value = await ReportApi.catalog()
@@ -427,6 +433,12 @@ onMounted(async () => {
   }
   catch (caught) { error.value = apiErrorMessage(caught, rt('errors.catalog')) }
   finally { loading.value = false }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeprint', enablePagePrintMode)
+  window.removeEventListener('afterprint', disablePagePrintMode)
+  disablePagePrintMode()
 })
 </script>
 
@@ -772,7 +784,15 @@ onMounted(async () => {
           /> {{ rt('result.detailedRows', { count: number(report.sections.reduce((sum, item) => sum + item.rows.length, 0)) }) }}</span><span><VIcon
             icon="tabler-clock"
             size="16"
-          /> {{ generatedAt }}</span>
+          /> {{ generatedAt }}</span><VBtn
+            class="report-print-btn"
+            icon="tabler-printer"
+            variant="text"
+            size="small"
+            :title="rt('header.printView')"
+            :aria-label="rt('header.printView')"
+            @click="printPage"
+          />
         </div>
       </section>
 
@@ -1019,12 +1039,69 @@ onMounted(async () => {
 <style scoped>
 .reporting-studio { max-width: 1680px; margin-inline: auto; }.tracking-tight { letter-spacing: -.035em !important; }.eyebrow,.metric-label { color: rgba(var(--v-theme-on-surface),.56); font-size:.69rem; font-weight:700; letter-spacing:.105em; text-transform:uppercase; }.report-library { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }.report-type-card { display:flex; align-items:center; gap:12px; min-width:0; padding:14px; color:inherit; text-align:start; border:1px solid rgba(var(--v-theme-on-surface),.08); border-radius:12px; background:rgb(var(--v-theme-surface)); transition:.18s ease; }.report-type-card:hover { border-color:rgba(var(--v-theme-primary),.35); transform:translateY(-1px); }.report-type-card.active { border-color:rgba(var(--v-theme-primary),.65); box-shadow:0 0 0 2px rgba(var(--v-theme-primary),.08); }.report-type-card span { display:flex; flex:1; flex-direction:column; }.report-type-card strong { font-size:.86rem; }.report-type-card small { overflow:hidden; margin-top:2px; color:rgba(var(--v-theme-on-surface),.55); font-size:.7rem; text-overflow:ellipsis; white-space:nowrap; }.filter-workbench,.metric-card,.detail-workspace { border:1px solid rgba(var(--v-theme-on-surface),.065); box-shadow:0 3px 16px rgba(20,24,40,.035)!important; }.date-preset-toggle { display:inline-flex; flex:0 0 auto; max-width:100%; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; }.date-preset-toggle::-webkit-scrollbar { display:none; }.date-preset-toggle :deep(.v-btn) { flex:0 0 auto!important; min-width:max-content!important; padding-inline:14px!important; white-space:nowrap; }.date-preset-toggle :deep(.v-btn__content) { display:block; overflow:visible; line-height:1.2; white-space:nowrap; }.report-context span { display:inline-flex; align-items:center; gap:5px; }.insight-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }.insight-card { display:flex; align-items:flex-start; gap:12px; padding:16px; border:1px solid rgba(var(--v-theme-on-surface),.075); border-radius:12px; background:rgba(var(--v-theme-on-surface),.022); }.insight-card strong { font-size:.84rem; }.insight-card p { margin:3px 0 0; color:rgba(var(--v-theme-on-surface),.58); font-size:.75rem; line-height:1.45; }.table-search { max-width:280px; }.section-nav { display:flex; overflow-x:auto; gap:7px; scrollbar-width:none; }.section-nav button { display:flex; align-items:center; gap:8px; flex:0 0 auto; padding:7px 11px; color:rgba(var(--v-theme-on-surface),.67); border:1px solid rgba(var(--v-theme-on-surface),.09); border-radius:8px; background:transparent; font-size:.76rem; font-weight:600; }.section-nav button.active { color:rgb(var(--v-theme-primary)); border-color:rgba(var(--v-theme-primary),.34); background:rgba(var(--v-theme-primary),.08); }.section-nav small { display:grid; place-items:center; min-width:19px; height:19px; padding-inline:4px; border-radius:10px; background:rgba(var(--v-theme-on-surface),.08); font-size:.65rem; }.section-summary { display:flex; overflow-x:auto; gap:28px; border-block:1px solid rgba(var(--v-theme-on-surface),.07); background:rgba(var(--v-theme-on-surface),.018); }.section-summary span { display:flex; flex:0 0 auto; flex-direction:column; }.section-summary small { color:rgba(var(--v-theme-on-surface),.52); font-size:.65rem; text-transform:uppercase; }.section-summary strong { margin-top:2px; font-size:.78rem; }.table-scroll { overflow-x:auto; }.report-table { min-width:780px; }.report-table :deep(th) { height:46px!important; cursor:pointer; color:rgba(var(--v-theme-on-surface),.55)!important; background:rgba(var(--v-theme-on-surface),.025)!important; font-size:.67rem!important; font-weight:700!important; letter-spacing:.07em; text-transform:uppercase; white-space:nowrap; }.report-table :deep(th span) { vertical-align:middle; }.report-table :deep(td) { height:56px!important; font-size:.78rem; }.report-table :deep(tr:hover td) { background:rgba(var(--v-theme-primary),.022); }.cell-value { display:block; overflow:hidden; max-width:260px; text-overflow:ellipsis; white-space:nowrap; }.progress-cell { min-width:130px; }.rows-select { width:72px; }.table-footer { border-top:1px solid rgba(var(--v-theme-on-surface),.07); }.report-footnote { color:rgba(var(--v-theme-on-surface),.5); font-size:.7rem; }.min-w-0 { min-width:0; }
 @media(max-width:1199px){.report-library{grid-template-columns:repeat(2,minmax(0,1fr));}.insight-grid{grid-template-columns:1fr 1fr}.insight-card:last-child{grid-column:1/-1}}@media(max-width:599px){.report-library,.insight-grid{grid-template-columns:1fr}.insight-card:last-child{grid-column:auto}.report-type-card small{white-space:normal}.table-search{max-width:none;width:100%}.table-footer{align-items:center!important;flex-direction:column}.date-preset-toggle{display:flex;width:100%;padding-block-end:2px}.date-preset-toggle :deep(.v-btn){min-height:38px;padding-inline:12px!important}}
+</style>
+
+<style>
+/* Page-print overrides. Every selector is namespaced with the print-mode body
+   class applied by printDocument (and mirrored on native beforeprint) so these
+   rules only affect this report view while it is being printed. */
 @media print {
-  @page { size: A4 landscape; margin: 12mm; }
-  :global(body) { background:#fff!important; }
-  .reporting-studio { max-width:none; margin:0; padding:4mm!important; }
-  .no-print { display:none!important; }
-  .report-result { break-inside:auto; }
-  .metric-card,.detail-workspace { box-shadow:none!important; }
+  body.printing-reports-studio .layout-navbar,
+  body.printing-reports-studio .layout-menu,
+  body.printing-reports-studio .menu-vertical,
+  body.printing-reports-studio .layout-horizontal-nav,
+  body.printing-reports-studio .layout-vertical-nav,
+  body.printing-reports-studio .vertical-nav-wrapper,
+  body.printing-reports-studio .layout-overlay,
+  body.printing-reports-studio .v-app-bar,
+  body.printing-reports-studio .v-navigation-drawer,
+  body.printing-reports-studio .v-bottom-navigation,
+  body.printing-reports-studio .v-footer,
+  body.printing-reports-studio .layout-footer,
+  body.printing-reports-studio #app > header,
+  body.printing-reports-studio #app > nav,
+  body.printing-reports-studio .no-print,
+  body.printing-reports-studio .section-nav,
+  body.printing-reports-studio .table-search,
+  body.printing-reports-studio .table-footer,
+  body.printing-reports-studio .report-print-btn { display: none !important; }
+
+  body.printing-reports-studio,
+  body.printing-reports-studio .v-application,
+  body.printing-reports-studio .layout-wrapper { background: #fff !important; }
+
+  body.printing-reports-studio .v-application,
+  body.printing-reports-studio .v-layout,
+  body.printing-reports-studio .v-main {
+    --v-layout-left: 0px !important;
+    --v-layout-right: 0px !important;
+    --v-layout-top: 0px !important;
+    --v-layout-bottom: 0px !important;
+  }
+
+  body.printing-reports-studio .v-main,
+  body.printing-reports-studio .layout-page,
+  body.printing-reports-studio .layout-page-content,
+  body.printing-reports-studio .layout-content-wrapper,
+  body.printing-reports-studio .v-application__wrap,
+  body.printing-reports-studio .reporting-studio {
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    min-block-size: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body.printing-reports-studio .reporting-studio { overflow: visible !important; }
+
+  body.printing-reports-studio .metric-card,
+  body.printing-reports-studio .detail-workspace { box-shadow: none !important; }
+
+  body.printing-reports-studio .report-result {
+    break-inside: auto;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
 </style>

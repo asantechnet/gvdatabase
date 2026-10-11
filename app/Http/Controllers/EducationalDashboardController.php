@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Applicant;
+use App\Models\ApplicantContract;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantUniversity;
 use App\Models\Contract;
 use App\Models\Country;
-use App\Models\ContractService;
 use App\Models\EducationalBonusSource;
 use App\Models\Employee;
 use App\Models\Expense;
@@ -15,6 +15,7 @@ use App\Models\Income;
 use App\Models\PendingTransaction;
 use App\Models\Salary;
 use App\Models\Task;
+use App\Support\BuiltInService;
 use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +37,7 @@ class EducationalDashboardController extends Controller
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'university_id' => ['nullable', 'integer', 'exists:universities,id'],
             'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable'],
             'stale_days' => ['sometimes', 'integer', 'min:1', 'max:120'],
         ]);
 
@@ -74,14 +75,14 @@ class EducationalDashboardController extends Controller
         }
         foreach (['country_id', 'university_id'] as $field) {
             if (! empty($filters[$field])) {
-                $query->where($field, $filters[$field]);
+                $query->whereScholarshipField($field, $filters[$field]);
             }
         }
         if (! empty($filters['date_from'])) {
-            $query->whereDate('application_date', '>=', $filters['date_from']);
+            $query->whereDate('applicants.created_at', '>=', $filters['date_from']);
         }
         if (! empty($filters['date_to'])) {
-            $query->whereDate('application_date', '<=', $filters['date_to']);
+            $query->whereDate('applicants.created_at', '<=', $filters['date_to']);
         }
 
         return $query;
@@ -123,7 +124,7 @@ class EducationalDashboardController extends Controller
         $out = ['contracts' => ['sold' => 0, 'by_currency' => []]];
         $contractQuery = Contract::query()->whereNotIn('status', ['cancelled']);
         if (($employeeIds = $this->employeeIds($filters)) !== []) {
-            $contractQuery->whereIn('employee_id', $employeeIds);
+            $contractQuery->where(fn ($query) => $query->whereIn('employee_id', $employeeIds)->orWhereIn('sold_by_employee_id', $employeeIds));
         }
         if (! empty($filters['date_from'])) {
             $contractQuery->whereDate('created_at', '>=', $filters['date_from']);
@@ -132,19 +133,18 @@ class EducationalDashboardController extends Controller
             $contractQuery->whereDate('created_at', '<=', $filters['date_to']);
         }
         $out['contracts']['sold'] = $contractQuery->count();
-        foreach (['scholarships' => 'scholarship', 'test_offers' => 'test_offer'] as $key => $category) {
-            $query = ContractService::query()->whereHas('service', fn ($service) => $service->where('category', $category));
+        foreach (['scholarships' => 'scholarship', 'test_offers' => 'test_offer', 'academy' => 'academy', 'private' => 'private'] as $key => $category) {
+            $query = ApplicantContract::query()->where('service', $category);
             if (($employeeIds = $this->employeeIds($filters)) !== []) {
                 $query->whereIn('sold_by_employee_id', $employeeIds);
             }
             if (! empty($filters['country_id'])) {
                 $query->where(function ($q) use ($filters) {
-                    $q->where('country_id', $filters['country_id'])
-                        ->orWhereHas('applicant', fn ($aq) => $aq->where('country_id', $filters['country_id']));
+                    $q->whereHas('applicant', fn ($aq) => $aq->whereScholarshipField('country_id', $filters['country_id']));
                 });
             }
             if (! empty($filters['university_id'])) {
-                $query->whereHas('applicant', fn ($aq) => $aq->where('university_id', $filters['university_id']));
+                $query->whereHas('applicant', fn ($aq) => $aq->whereScholarshipField('university_id', $filters['university_id']));
             }
             if (! empty($filters['date_from'])) {
                 $query->whereHas('contract', fn ($contracts) => $contracts->whereDate('start_date', '>=', $filters['date_from']));
@@ -180,8 +180,8 @@ class EducationalDashboardController extends Controller
                 }
                 if (! empty($filters['country_id']) || ! empty($filters['university_id'])) {
                     $query->whereHas('applicant', function ($q) use ($filters) {
-                        $q->when(! empty($filters['country_id']), fn ($aq) => $aq->where('country_id', $filters['country_id']))
-                            ->when(! empty($filters['university_id']), fn ($aq) => $aq->where('university_id', $filters['university_id']));
+                        $q->when(! empty($filters['country_id']), fn ($aq) => $aq->whereScholarshipField('country_id', $filters['country_id']))
+                            ->when(! empty($filters['university_id']), fn ($aq) => $aq->whereScholarshipField('university_id', $filters['university_id']));
                     });
                 }
             } elseif ($model === Salary::class && ($employeeIds = $this->employeeIds($filters)) !== []) {
@@ -205,8 +205,8 @@ class EducationalDashboardController extends Controller
         $pending = PendingTransaction::query()
             ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereIn('employee_id', $employeeIds))
             ->when(! empty($filters['country_id']) || ! empty($filters['university_id']), fn ($q) => $q->whereHas('applicant', function ($aq) use ($filters) {
-                $aq->when(! empty($filters['country_id']), fn ($q) => $q->where('country_id', $filters['country_id']))
-                    ->when(! empty($filters['university_id']), fn ($q) => $q->where('university_id', $filters['university_id']));
+                $aq->when(! empty($filters['country_id']), fn ($q) => $q->whereScholarshipField('country_id', $filters['country_id']))
+                    ->when(! empty($filters['university_id']), fn ($q) => $q->whereScholarshipField('university_id', $filters['university_id']));
             }))
             ->selectRaw('approval_status, COUNT(*) as count')->groupBy('approval_status')->pluck('count', 'approval_status');
 
@@ -221,6 +221,7 @@ class EducationalDashboardController extends Controller
     private function staff(array $filters): array
     {
         $employees = Employee::query()
+            ->active()
             ->excludePrimaryRecord()
             ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereIn('id', $employeeIds))
             ->orderBy('name')
@@ -229,9 +230,12 @@ class EducationalDashboardController extends Controller
 
         return $employees->map(function (Employee $employee) use ($filters) {
             $cases = $this->applicantScope($filters)->where('responsible_employee_id', $employee->id);
-            $sales = EducationalBonusSource::query()->where('employee_id', $employee->id);
+            $sales = ApplicantContract::query()->whereIn('service', BuiltInService::ALL)->where('sold_by_employee_id', $employee->id);
+            $bonuses = EducationalBonusSource::query()->where('employee_id', $employee->id);
             if (! empty($filters['date_from']) || ! empty($filters['date_to'])) {
                 $sales->when(! empty($filters['date_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['date_from']))
+                    ->when(! empty($filters['date_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['date_to']));
+                $bonuses->when(! empty($filters['date_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['date_from']))
                     ->when(! empty($filters['date_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['date_to']));
             }
 
@@ -240,9 +244,8 @@ class EducationalDashboardController extends Controller
                 'name' => $employee->name,
                 'active_applicants' => (clone $cases)->where('status', 'active')->count(),
                 'sales_recorded' => (clone $sales)->count(),
-                'sales_source_total' => (float) (clone $sales)->sum('source_amount'),
-                'contracts_sold' => Contract::query()->where('employee_id', $employee->id)->whereNotIn('status', ['cancelled'])->count(),
-                'bonuses_generated' => (float) (clone $sales)->whereNotIn('status', ['void'])->sum('bonus_amount'),
+                'contracts_sold' => Contract::query()->where(fn ($q) => $q->where('employee_id', $employee->id)->orWhere('sold_by_employee_id', $employee->id))->whereNotIn('status', ['cancelled'])->count(),
+                'bonuses_generated' => (float) (clone $bonuses)->whereNotIn('status', ['void'])->sum('bonus_amount'),
             ];
         })->all();
     }
@@ -295,9 +298,10 @@ class EducationalDashboardController extends Controller
     private function countries(array $filters): array
     {
         $rows = $this->applicantScope($filters)
-            ->selectRaw('country_id, COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active', ['active'])
-            ->whereNotNull('country_id')
-            ->groupBy('country_id')
+            ->joinAdmissionDetails()
+            ->selectRaw('detail.country_id, COUNT(*) as total, SUM(CASE WHEN applicants.status = ? THEN 1 ELSE 0 END) as active', ['active'])
+            ->whereNotNull('detail.country_id')
+            ->groupBy('detail.country_id')
             ->orderByDesc('total')
             ->limit(10)
             ->get();
@@ -311,7 +315,7 @@ class EducationalDashboardController extends Controller
     {
         $query = ApplicantUniversity::query()->with('university:id,name')
             ->when(! empty($filters['university_id']), fn ($q) => $q->where('university_id', $filters['university_id']))
-            ->when(! empty($filters['country_id']), fn ($q) => $q->whereHas('applicant', fn ($aq) => $aq->where('country_id', $filters['country_id'])))
+            ->when(! empty($filters['country_id']), fn ($q) => $q->whereHas('applicant', fn ($aq) => $aq->whereScholarshipField('country_id', $filters['country_id'])))
             ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereHas('applicant', fn ($aq) => $aq->whereIn('responsible_employee_id', $employeeIds)))
             ->when(! empty($filters['date_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['date_from']))
             ->when(! empty($filters['date_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['date_to']))

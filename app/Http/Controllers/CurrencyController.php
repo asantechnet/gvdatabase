@@ -6,10 +6,7 @@ use App\Http\Resources\CurrencyResource;
 use App\Models\Currency;
 use App\Models\CurrencyRateHistory;
 use App\Models\Position;
-use App\Models\CommissionAccrual;
-use App\Models\CommissionSettlement;
-use App\Models\OutsourcingAccrual;
-use App\Models\OutsourcingSettlement;
+use App\Services\CurrencyRateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -17,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class CurrencyController extends Controller
 {
+    public function __construct(private CurrencyRateService $rates) {}
+
     public function index()
     {
         return response()->json([
@@ -39,7 +38,9 @@ class CurrencyController extends Controller
 
             // Create first so the base-switch path is identical for a newly added
             // currency and an existing one.
-            $currency = Currency::create([...$data, 'is_base' => false]);
+            $currency = Currency::create([...$data, 'rate' => 1, 'is_base' => false]);
+            $this->rates->remember($currency->id, $data['rate']);
+            $currency->refresh();
 
             if ($data['is_base']) {
                 $this->switchBase($currency, $request->user()?->id);
@@ -91,9 +92,13 @@ class CurrencyController extends Controller
                 // Save editable fields, including the rate that determines the
                 // rebase factor, before it becomes the new base at rate 1.
                 $baseData = $data;
-                unset($baseData['is_base']);
+                unset($baseData['is_base'], $baseData['rate']);
                 $currency->fill($baseData);
                 $currency->save();
+                if (isset($data['rate'])) {
+                    $this->rates->remember($currency->id, $data['rate']);
+                    $currency->refresh();
+                }
                 $this->switchBase($currency, $request->user()?->id);
             } else {
                 if ($currency->is_base) {
@@ -101,11 +106,17 @@ class CurrencyController extends Controller
                     $data['is_active'] = true;
                 }
 
-                $currency->fill($data);
-                $rateChanged = $currency->isDirty('rate');
+                $oldRate = (float) $currency->rate;
+                $fields = $data;
+                unset($fields['rate']);
+                $currency->fill($fields);
                 $currency->save();
+                if (isset($data['rate'])) {
+                    $this->rates->remember($currency->id, $data['rate']);
+                    $currency->refresh();
+                }
 
-                if ($rateChanged) {
+                if ((float) $currency->rate !== $oldRate) {
                     $this->recordRate($currency, 'rate_updated', $request->user()?->id);
                 }
             }
@@ -128,11 +139,7 @@ class CurrencyController extends Controller
             ], 400);
         }
 
-        if ($currency->invoices()->exists() || $currency->services()->exists() || $currency->salaries()->exists() || $currency->incomes()->exists() || $currency->expenses()->exists()
-            || CommissionAccrual::where('base_currency_id', $currency->id)->exists()
-            || CommissionSettlement::where('base_currency_id', $currency->id)->exists()
-            || OutsourcingAccrual::where('base_currency_id', $currency->id)->exists()
-            || OutsourcingSettlement::where('base_currency_id', $currency->id)->exists()) {
+        if ($currency->applicantContracts()->exists() || $currency->salaries()->exists() || $currency->incomes()->exists() || $currency->expenses()->exists()) {
             return response()->json([
                 'success' => false,
                 'code' => 'business.currency_in_use',
@@ -164,7 +171,7 @@ class CurrencyController extends Controller
                 Rule::unique('currencies', 'code')->ignore($currency?->id),
             ],
             'symbol' => ['nullable', 'string', 'max:5'],
-            'rate' => [$currency ? 'sometimes' : 'required', 'numeric', 'gt:0'],
+            'rate' => [$currency ? 'sometimes' : 'required', 'numeric', 'min:0.00000001'],
             'is_base' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
             'decimal_places' => ['sometimes', 'integer', 'between:0,6'],

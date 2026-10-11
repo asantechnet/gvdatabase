@@ -4,6 +4,7 @@ import { themeConfig } from '@themeConfig'
 import { useCookie } from '@core/composable/useCookie'
 import NavBarI18n from '@core/components/I18n.vue'
 import Footer from '@/layouts/components/Footer.vue'
+import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import { useBranding } from '@/composables/useBranding'
 import AuthApi from '@/api/auth'
@@ -56,6 +57,7 @@ onMounted(loadBranding)
         :languages="themeConfig.app.i18n.langConfig"
       />
       <NavbarThemeSwitcher />
+      <NavBarNotifications />
       <VMenu location="bottom end" offset="10">
         <template #activator="{ props }">
           <VAvatar

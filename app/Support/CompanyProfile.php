@@ -72,9 +72,9 @@ class CompanyProfile
     }
 
     /**
-     * Feature gate for self-service workday/location automation and automatic
+     * Feature gate for starting self-service workdays and automatic
      * creation of missing attendance rows. Manual entries are still calculated
-     * and summarized. A missing profile must not start background tracking.
+     * and summarized. Existing workdays may still be ended when this is off.
      */
     public function automaticAttendanceEnabled(): bool
     {

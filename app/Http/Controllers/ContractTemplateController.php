@@ -3,15 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\ContractTemplateResource;
-use App\Http\Resources\PackageResource;
+use App\Models\ContractPolicy;
 use App\Models\ContractTemplate;
 use App\Models\ContractType;
+use App\Services\Contracts\BuiltInContractTemplateService;
 use App\Services\Contracts\ContentSanitizer;
 use App\Services\Contracts\PlaceholderRegistry;
+use App\Support\BuiltInService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class ContractTemplateController extends Controller
 {
@@ -20,26 +23,15 @@ class ContractTemplateController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'service_ids' => ['sometimes', 'array'],
-            'service_ids.*' => ['integer', 'exists:services,id'],
+            'service' => ['sometimes', Rule::in(BuiltInService::ALL)],
+            'service_ids' => ['prohibited'],
             'contract_type_id' => ['sometimes', 'integer', 'exists:contract_types,id'],
             'include_generic' => ['sometimes', 'boolean'],
         ]);
 
-        $templates = ContractTemplate::with(['policies', 'contractType', 'position', 'service', 'services.variants', 'package', 'versions.language', 'versions.country'])
+        $templates = ContractTemplate::with(['policies', 'contractType', 'position', 'versions.language', 'versions.country'])
+            ->when($request->filled('service'), fn ($query) => $query->where('service', $request->input('service')))
             ->when($request->filled('contract_type_id'), fn ($query) => $query->where('contract_type_id', $request->integer('contract_type_id')))
-            // Print/create-page picker: when services are selected, show only
-            // templates linked to those services (plus generic templates with
-            // no linked service unless explicitly excluded).
-            ->when($request->filled('service_ids'), function ($query) use ($request) {
-                $ids = collect($request->input('service_ids'))->map(fn ($id) => (int) $id)->all();
-                $query->where(function ($q) use ($ids, $request) {
-                    $q->whereHas('services', fn ($services) => $services->whereIn('services.id', $ids))->orWhereIn('service_id', $ids);
-                    if ($request->boolean('include_generic', true)) {
-                        $q->orWhereNull('service_id');
-                    }
-                });
-            })
             ->latest('id')->get();
 
         return response()->json([
@@ -52,13 +44,16 @@ class ContractTemplateController extends Controller
     {
         $data = $this->validated($request);
 
-        $template = ContractTemplate::create($this->payload($data));
-        $template->policies()->sync($this->policySyncData($data['policy_ids'] ?? []));
-        $this->syncBinding($template, $data);
+        $template = DB::transaction(function () use ($data) {
+            $template = ContractTemplate::create($this->payload($data));
+            $template->policies()->sync($this->policySyncData($data['policy_ids'] ?? []));
+
+            return $template;
+        });
 
         return response()->json([
             'success' => true,
-            'data' => new ContractTemplateResource($template->load(['policies', 'contractType', 'position', 'services.variants', 'package'])),
+            'data' => new ContractTemplateResource($template->load(['policies', 'contractType', 'position'])),
         ], 201);
     }
 
@@ -66,7 +61,7 @@ class ContractTemplateController extends Controller
     {
         return response()->json([
             'success' => true,
-            'data' => new ContractTemplateResource($contractTemplate->load(['policies', 'contractType', 'position', 'services.variants', 'package'])),
+            'data' => new ContractTemplateResource($contractTemplate->load(['policies', 'contractType', 'position'])),
         ]);
     }
 
@@ -74,28 +69,28 @@ class ContractTemplateController extends Controller
     {
         $data = $this->validated($request, partial: true, existing: $contractTemplate);
 
-        // Content belongs to a country/language version.  Keep accepting the
-        // legacy field for old clients, but never let it overwrite a template
-        // that has entered the versioned workflow.
+        // Versioned terms cannot be overwritten through template metadata edits.
         if ($contractTemplate->versions()->exists()) {
             unset($data['content']);
         }
 
-        $contractTemplate->update($this->payload($data, $contractTemplate));
+        DB::transaction(function () use ($contractTemplate, $data) {
+            $contractTemplate->update($this->payload($data, $contractTemplate));
 
-        if (array_key_exists('policy_ids', $data)) {
-            $contractTemplate->policies()->sync($this->policySyncData($data['policy_ids'] ?? []));
-        }
-        if ($request->hasAny(['service_id', 'service_ids', 'service_scopes', 'package_id', 'contract_type_id'])) $this->syncBinding($contractTemplate, $data);
+            if (array_key_exists('policy_ids', $data)) {
+                $contractTemplate->policies()->sync($this->policySyncData($data['policy_ids'] ?? []));
+            }
+        });
 
         return response()->json([
             'success' => true,
-            'data' => new ContractTemplateResource($contractTemplate->fresh(['policies', 'contractType', 'position', 'services.variants', 'package'])),
+            'data' => new ContractTemplateResource($contractTemplate->fresh(['policies', 'contractType', 'position'])),
         ]);
     }
 
     public function destroy(ContractTemplate $contractTemplate): JsonResponse
     {
+        abort_if($contractTemplate->service !== null, 409, 'business.builtin_contract_template_protected');
         if ($contractTemplate->contracts()->exists()) {
             return response()->json([
                 'success' => false,
@@ -114,6 +109,16 @@ class ContractTemplateController extends Controller
 
     // ------------------------------------------------------------------
 
+    public function ensureBuiltIn(Request $request, string $service, BuiltInContractTemplateService $templates): JsonResponse
+    {
+        $template = $templates->ensure($service, $request->user()->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => new ContractTemplateResource($template->load(['contractType', 'policies', 'versions.country', 'versions.language'])),
+        ], $template->wasRecentlyCreated ? 201 : 200);
+    }
+
     private function validated(Request $request, bool $partial = false, ?ContractTemplate $existing = null): array
     {
         $presenceRules = $partial ? ['sometimes', 'required'] : ['required'];
@@ -121,16 +126,11 @@ class ContractTemplateController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => [...$presenceRules, 'string', 'max:255'],
             'contract_type_id' => [...$presenceRules, 'integer', 'exists:contract_types,id'],
-            'service_id' => ['nullable', 'integer', Rule::exists('services', 'id')->where('status', 'active')->whereNull('deleted_at')],
-            'service_ids' => ['nullable', 'array', 'min:1'],
-            'service_ids.*' => ['integer', Rule::exists('services', 'id')->where('status', 'active')->whereNull('deleted_at')],
-            'service_scopes' => ['nullable', 'array', 'min:1'],
-            'service_scopes.*.service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('status', 'active')->whereNull('deleted_at')],
-            'service_scopes.*.service_variant_id' => ['nullable', 'integer', 'exists:service_variants,id'],
-            // A customer template binds to exactly one catalogue subject: a
-            // single service (single-select, never multi-selected here) or a
-            // single package from the educational packages catalogue.
-            'package_id' => ['nullable', 'integer', Rule::exists('packages', 'id')->where('is_active', true)->whereNull('deleted_at')],
+            'service' => ['nullable', Rule::in(BuiltInService::ALL), Rule::unique('contract_templates', 'service')->ignore($existing?->id)],
+            'service_id' => ['prohibited'],
+            'service_ids' => ['prohibited'],
+            'service_scopes' => ['prohibited'],
+            'package_id' => ['prohibited'],
             'position_id' => ['nullable', 'integer', 'exists:positions,id'],
             'cover_text' => ['nullable', 'string'],
             'content' => [$partial ? 'sometimes' : 'nullable', 'string'],
@@ -146,38 +146,20 @@ class ContractTemplateController extends Controller
                 return;
             }
 
-            // Customer templates are always bound to exactly one catalogue
-            // subject: a single service or a single package. Employment
-            // templates bind to exactly one position. The invariant is
-            // enforced when creating a template or when a partial update
-            // actually touches the binding fields — never for unrelated
-            // edits on legacy templates.
-            $touchesBinding = ! $partial || $request->hasAny(['contract_type_id', 'service_id', 'service_ids', 'service_scopes', 'package_id', 'position_id']);
-            // The editor sends the subject pair explicitly: when a package is
-            // selected, `service_id` arrives null (and the service scope
-            // lists are omitted); when a service is selected, `package_id`
-            // arrives null. A request that keeps the binding untouched
-            // falls back to the template's stored binding.
-            $packageProvided = $request->has('package_id');
-            $serviceProvided = $request->hasAny(['service_id', 'service_ids', 'service_scopes']);
-            $packageId = $packageProvided ? $request->input('package_id') : $existing?->package_id;
-            if ($serviceProvided) {
-                $scopes = $request->input('service_scopes') ?? collect($request->input('service_ids', []))->map(fn ($id) => ['service_id' => $id])->all();
-                if ($scopes === [] && $request->filled('service_id')) $scopes = [['service_id' => $request->input('service_id')]];
-            } elseif ($packageProvided) {
-                $scopes = [];
-            } else {
-                $scopes = $existing ? $existing->services()->get()->map(fn ($service) => ['service_id' => $service->id, 'service_variant_id' => $service->pivot->service_variant_id])->all() : [];
-                if ($scopes === [] && $existing?->service_id) $scopes = [['service_id' => $existing->service_id]];
+            $builtIn = $request->input('service', $existing?->service);
+            if ($existing && $existing->service !== null && $builtIn !== $existing->service) {
+                $validator->errors()->add('service', 'The built-in service binding cannot be changed.');
             }
-            if ($touchesBinding && $type->slug === 'customer') {
-                if ($scopes !== [] && $packageId) {
-                    $validator->errors()->add('service_id', 'A customer template can be for a service or a package, not both.');
-                } elseif ($scopes === [] && ! $packageId) {
-                    $validator->errors()->add('service_id', 'Choose a service or a package for a customer template.');
+            if ($builtIn !== null) {
+                if ($type->slug !== 'customer') {
+                    $validator->errors()->add('contract_type_id', 'Built-in services require the customer contract type.');
                 }
             }
-            foreach ($scopes as $scope) if (!empty($scope['service_variant_id']) && (int) \App\Models\ServiceVariant::whereKey($scope['service_variant_id'])->value('service_id') !== (int) $scope['service_id']) $validator->errors()->add('service_scopes', 'Every selected variant must belong to its selected service.');
+
+            $touchesBinding = ! $partial || $request->hasAny(['service', 'contract_type_id', 'position_id']);
+            if ($touchesBinding && $type->slug === 'customer' && $builtIn === null) {
+                $validator->errors()->add('service', 'Choose a built-in service for a customer template.');
+            }
 
             $positionId = $request->input('position_id', $existing?->position_id);
             if ($touchesBinding && $type->slug === 'employment' && ! $positionId) {
@@ -186,7 +168,7 @@ class ContractTemplateController extends Controller
 
             if ($request->has('policy_ids')) {
                 $existingPolicyIds = $existing?->policies()->pluck('contract_policies.id')->all() ?? [];
-                $invalidIds = \App\Models\ContractPolicy::query()
+                $invalidIds = ContractPolicy::query()
                     ->whereIn('id', $request->input('policy_ids', []))
                     ->where(function ($query) use ($type, $existingPolicyIds) {
                         $query->where('type', '!=', $type->slug)
@@ -221,6 +203,10 @@ class ContractTemplateController extends Controller
         $type = ContractType::find($data['contract_type_id'] ?? null)
             ?? $existing?->contractType;
 
+        if (! $existing || array_key_exists('cover_text', $data)) {
+            $data['cover_text'] = (string) ($data['cover_text'] ?? '');
+        }
+
         // Position only makes sense for employment templates; never leave
         // employment-only data silently attached to other template types.
         if ($type?->slug !== 'employment') {
@@ -230,49 +216,18 @@ class ContractTemplateController extends Controller
         if (array_key_exists('content', $data)) {
             $data['content'] = $this->sanitizeContent((string) $data['content'], $type?->slug);
         } elseif (! $existing) {
-            // The legacy column remains non-null for backwards compatibility;
-            // newly created templates receive their real document only through
-            // their initial country/language version.
+            // New templates receive their document through the initial scoped version.
             $data['content'] = '';
         }
 
-        // Keep the legacy display column populated for old consumers.
+        // Keep the stored display label consistent with the selected type.
         if ($type && array_key_exists('contract_type_id', $data)) {
             $data['type'] = $type->name;
         }
 
-        // The catalogue subject is exclusive: a package-bound template never
-        // keeps a service binding, and vice versa.
-        if (array_key_exists('package_id', $data) && $data['package_id'] !== null) {
-            $data['service_id'] = null;
-        }
-
-        unset($data['policy_ids'], $data['service_ids'], $data['service_scopes']);
+        unset($data['policy_ids']);
 
         return $data;
-    }
-
-    /**
-     * Sync the template's catalogue binding after create/update. A customer
-     * template owns exactly one binding: either one package (no service
-     * scope) or one service (single scope row, optional variant).
-     */
-    private function syncBinding(ContractTemplate $template, array $data): void
-    {
-        if ($template->contractType?->slug !== 'customer') { $template->services()->detach(); $template->updateQuietly(['service_id' => null, 'package_id' => null]); return; }
-        // A package-bound template owns no service scope.
-        if ($template->package_id) { $template->services()->detach(); $template->updateQuietly(['service_id' => null]); return; }
-        $scopes = $data['service_scopes'] ?? collect($data['service_ids'] ?? [])->map(fn ($id) => ['service_id' => $id])->all();
-        if ($scopes === [] && !empty($data['service_id'])) $scopes = [['service_id' => $data['service_id']]];
-        if ($scopes === []) {
-            // A partial request that does not mention service scope must leave
-            // it untouched; an explicit empty value is already rejected by
-            // validation for customer templates.
-            return;
-        }
-        $template->services()->detach();
-        foreach (collect($scopes)->unique(fn ($scope) => ($scope['service_id'] ?? '').':'.($scope['service_variant_id'] ?? '')) as $scope) $template->services()->attach((int) $scope['service_id'], ['service_variant_id' => $scope['service_variant_id'] ?? null]);
-        $template->updateQuietly(['service_id' => $scopes[0]['service_id']]);
     }
 
     /**

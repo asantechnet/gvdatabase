@@ -1,6 +1,7 @@
 import api from './axios'
+import type { Applicant } from './applicants'
 
-export interface CrmMarketer {
+export interface Counselor {
   id: number
   name: string
 }
@@ -8,16 +9,12 @@ export interface CrmMarketer {
 export interface Visitor {
   id: number
   name: string
-  company: string
   contact: string
   email: string | null
   service: string
 
-  // `marketer` remains a display label for legacy records. New requests use
-  // the relational marketer_id instead of trying to match a name.
-  marketer: string | null
-  marketer_id: number | null
-  marketer_employee: CrmMarketer | null
+  counselor_employee_id: number | null
+  counselor: Counselor | null
   notes: string | null
   date: string
   created_at?: string
@@ -28,35 +25,40 @@ export interface VisitorParams {
   page?: number
   perPage?: number
   search?: string
-  company?: string
-  marketer_id?: number | null
+  counselor_employee_id?: number | null
+  date_from?: string
+  date_to?: string
 }
 
 export interface CreateVisitorData {
   name: string
-  company: string
   contact: string
   email?: string | null
   service: string
-  marketer_id?: number | null
+  counselor_employee_id?: number | null
   date: string
   notes?: string | null
 }
 
 export interface UpdateVisitorData {
   name?: string
-  company?: string
   contact?: string
   email?: string | null
   service?: string
-  marketer_id?: number | null
+  counselor_employee_id?: number | null
   date?: string
   notes?: string | null
 }
 
+export const visitorApplicantFields = (visitor: Pick<Visitor, 'name' | 'contact' | 'email'>) => ({
+  name: visitor.name,
+  contact: visitor.contact,
+  email: visitor.email,
+})
+
 // Visitor API endpoints
 const VisitorApi = {
-  convertToCustomer: async (id: number) => (await api.post(`/visitors/${id}/convert-to-customer`)).data.data,
+  convertToApplicant: async (id: number): Promise<Applicant> => (await api.post<{ data: Applicant }>(`/visitors/${id}/convert-to-applicant`)).data.data,
 
   // Get all visitors
   getAll: async (params?: VisitorParams) => {

@@ -28,9 +28,13 @@ declare global {
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
   const avatarText: typeof import('./resources/ts/@core/utils/formatters')['avatarText']
   const betweenValidator: typeof import('./resources/ts/@core/utils/validators')['betweenValidator']
+  const buildContractPrintHeader: typeof import('./resources/ts/composables/useContractPrintHeader')['buildContractPrintHeader']
+  const calendarDate: typeof import('./resources/ts/utils/calendarDate')['calendarDate']
   const calendarDurationUntil: typeof import('./resources/ts/utils/contractExpiry')['calendarDurationUntil']
   const canAccess: typeof import('./resources/ts/utils/authorization')['canAccess']
+  const canPrintContractHeader: typeof import('./resources/ts/composables/useContractPrintHeader')['canPrintContractHeader']
   const canPrintPartyDetails: typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']
+  const changedIncomeFields: typeof import('./resources/ts/utils/incomePaymentBalance')['changedIncomeFields']
   const clearAuthTokens: typeof import('./resources/ts/utils/authStorage')['clearAuthTokens']
   const clearFieldError: typeof import('./resources/ts/utils/formErrors')['clearFieldError']
   const clearFormErrors: typeof import('./resources/ts/utils/formErrors')['clearFormErrors']
@@ -44,6 +48,7 @@ declare global {
   const confirmActionWarning: typeof import('./resources/ts/composables/useActionWarning')['confirmActionWarning']
   const confirmedValidator: typeof import('./resources/ts/@core/utils/validators')['confirmedValidator']
   const contractExpiryPresentation: typeof import('./resources/ts/utils/contractExpiry')['contractExpiryPresentation']
+  const contractPrintTitle: typeof import('./resources/ts/composables/useContractPrintHeader')['contractPrintTitle']
   const contractTypeSlug: typeof import('./resources/ts/utils/contractPartyDetails')['contractTypeSlug']
   const contrastingTextColor: typeof import('./resources/ts/utils/themeContrast')['contrastingTextColor']
   const controlledComputed: typeof import('@vueuse/core')['controlledComputed']
@@ -56,6 +61,7 @@ declare global {
   const createPinia: typeof import('pinia')['createPinia']
   const createProjection: typeof import('@vueuse/math')['createProjection']
   const createReactiveFn: typeof import('@vueuse/core')['createReactiveFn']
+  const createReceiptPrintHost: typeof import('./resources/ts/utils/printReceipt')['createReceiptPrintHost']
   const createReusableTemplate: typeof import('@vueuse/core')['createReusableTemplate']
   const createSharedComposable: typeof import('@vueuse/core')['createSharedComposable']
   const createTemplatePromise: typeof import('@vueuse/core')['createTemplatePromise']
@@ -79,6 +85,7 @@ declare global {
   const extractPlaceholderKeys: typeof import('./resources/ts/utils/contractPlaceholders')['extractPlaceholderKeys']
   const fieldErrorMessages: typeof import('./resources/ts/utils/formErrors')['fieldErrorMessages']
   const fieldLabel: typeof import('./resources/ts/utils/apiValidation')['fieldLabel']
+  const financeTypeLabel: typeof import('./resources/ts/utils/financeTypes')['financeTypeLabel']
   const formErrors: typeof import('./resources/ts/utils/formErrors')['formErrors']
   const formatCalendarDuration: typeof import('./resources/ts/utils/contractExpiry')['formatCalendarDuration']
   const formatDate: typeof import('./resources/ts/@core/utils/formatters')['formatDate']
@@ -117,6 +124,7 @@ declare global {
   const kFormatter: typeof import('./resources/ts/@core/utils/formatters')['kFormatter']
   const legacyContentToHtml: typeof import('./resources/ts/utils/contractPlaceholders')['legacyContentToHtml']
   const lengthValidator: typeof import('./resources/ts/@core/utils/validators')['lengthValidator']
+  const localizePlaceholderGroups: typeof import('./resources/ts/utils/contractPlaceholders')['localizePlaceholderGroups']
   const logicAnd: typeof import('@vueuse/math')['logicAnd']
   const logicNot: typeof import('@vueuse/math')['logicNot']
   const logicOr: typeof import('@vueuse/math')['logicOr']
@@ -155,12 +163,14 @@ declare global {
   const partyDetailsFor: typeof import('./resources/ts/utils/contractPartyDetails')['partyDetailsFor']
   const passwordValidator: typeof import('./resources/ts/@core/utils/validators')['passwordValidator']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
+  const paymentEntryLimit: typeof import('./resources/ts/utils/incomePaymentBalance')['paymentEntryLimit']
   const permissionRules: typeof import('./resources/ts/utils/authorization')['permissionRules']
   const permissionsForApiRequest: typeof import('./resources/ts/utils/apiAuthorization')['permissionsForApiRequest']
   const persistThemeColors: typeof import('./resources/ts/utils/themePersistence')['persistThemeColors']
   const placeholderLabels: typeof import('./resources/ts/utils/contractPlaceholders')['placeholderLabels']
   const prefixWithPlus: typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']
   const printDocument: typeof import('./resources/ts/utils/printDocument')['printDocument']
+  const printReceipt: typeof import('./resources/ts/utils/printReceipt')['printReceipt']
   const provide: typeof import('vue')['provide']
   const provideLocal: typeof import('@vueuse/core')['provideLocal']
   const reactify: typeof import('@vueuse/core')['reactify']
@@ -171,6 +181,8 @@ declare global {
   const reactivePick: typeof import('@vueuse/core')['reactivePick']
   const readStoredThemeColors: typeof import('./resources/ts/utils/themePersistence')['readStoredThemeColors']
   const readonly: typeof import('vue')['readonly']
+  const receiptCopies: typeof import('./resources/ts/utils/printReceipt')['receiptCopies']
+  const receiptPrintLayout: typeof import('./resources/ts/utils/printReceipt')['receiptPrintLayout']
   const ref: typeof import('vue')['ref']
   const refAutoReset: typeof import('@vueuse/core')['refAutoReset']
   const refDebounced: typeof import('@vueuse/core')['refDebounced']
@@ -190,6 +202,7 @@ declare global {
   const restoreUiScale: typeof import('./resources/ts/utils/uiScale')['restoreUiScale']
   const rgbaToHex: typeof import('./resources/ts/@core/utils/colorConverter')['rgbaToHex']
   const serializePlaceholders: typeof import('./resources/ts/utils/contractPlaceholders')['serializePlaceholders']
+  const servicePaymentIssue: typeof import('./resources/ts/utils/incomePaymentBalance')['servicePaymentIssue']
   const setActivePinia: typeof import('pinia')['setActivePinia']
   const setMapStoreSuffix: typeof import('pinia')['setMapStoreSuffix']
   const shallowReactive: typeof import('vue')['shallowReactive']
@@ -200,6 +213,7 @@ declare global {
   const storeAuthTokens: typeof import('./resources/ts/utils/authStorage')['storeAuthTokens']
   const storePermissions: typeof import('./resources/ts/utils/authStorage')['storePermissions']
   const storeToRefs: typeof import('pinia')['storeToRefs']
+  const submitServicePayments: typeof import('./resources/ts/utils/incomePaymentBalance')['submitServicePayments']
   const syncRef: typeof import('@vueuse/core')['syncRef']
   const syncRefs: typeof import('@vueuse/core')['syncRefs']
   const templateRef: typeof import('@vueuse/core')['templateRef']
@@ -217,9 +231,11 @@ declare global {
   const toRefs: typeof import('vue')['toRefs']
   const toValue: typeof import('vue')['toValue']
   const translate: typeof import('./resources/ts/utils/localization')['translate']
+  const translateApplicantStage: typeof import('./resources/ts/utils/localization')['translateApplicantStage']
   const translateBackendValue: typeof import('./resources/ts/utils/localization')['translateBackendValue']
   const translateContractPolicyType: typeof import('./resources/ts/utils/localization')['translateContractPolicyType']
   const translateContractTypeRecord: typeof import('./resources/ts/utils/localization')['translateContractTypeRecord']
+  const translateOrFallback: typeof import('./resources/ts/utils/localization')['translateOrFallback']
   const triggerRef: typeof import('vue')['triggerRef']
   const tryOnBeforeMount: typeof import('@vueuse/core')['tryOnBeforeMount']
   const tryOnBeforeUnmount: typeof import('@vueuse/core')['tryOnBeforeUnmount']
@@ -472,8 +488,12 @@ declare module 'vue' {
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly avatarText: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['avatarText']>
     readonly betweenValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['betweenValidator']>
+    readonly buildContractPrintHeader: UnwrapRef<typeof import('./resources/ts/composables/useContractPrintHeader')['buildContractPrintHeader']>
+    readonly calendarDate: UnwrapRef<typeof import('./resources/ts/utils/calendarDate')['calendarDate']>
     readonly canAccess: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canAccess']>
+    readonly canPrintContractHeader: UnwrapRef<typeof import('./resources/ts/composables/useContractPrintHeader')['canPrintContractHeader']>
     readonly canPrintPartyDetails: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']>
+    readonly changedIncomeFields: UnwrapRef<typeof import('./resources/ts/utils/incomePaymentBalance')['changedIncomeFields']>
     readonly clearAuthTokens: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['clearAuthTokens']>
     readonly clearFieldError: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['clearFieldError']>
     readonly clearFormErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['clearFormErrors']>
@@ -486,6 +506,7 @@ declare module 'vue' {
     readonly computedWithControl: UnwrapRef<typeof import('@vueuse/core')['computedWithControl']>
     readonly confirmActionWarning: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['confirmActionWarning']>
     readonly confirmedValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['confirmedValidator']>
+    readonly contractPrintTitle: UnwrapRef<typeof import('./resources/ts/composables/useContractPrintHeader')['contractPrintTitle']>
     readonly contractTypeSlug: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['contractTypeSlug']>
     readonly contrastingTextColor: UnwrapRef<typeof import('./resources/ts/utils/themeContrast')['contrastingTextColor']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
@@ -498,6 +519,7 @@ declare module 'vue' {
     readonly createPinia: UnwrapRef<typeof import('pinia')['createPinia']>
     readonly createProjection: UnwrapRef<typeof import('@vueuse/math')['createProjection']>
     readonly createReactiveFn: UnwrapRef<typeof import('@vueuse/core')['createReactiveFn']>
+    readonly createReceiptPrintHost: UnwrapRef<typeof import('./resources/ts/utils/printReceipt')['createReceiptPrintHost']>
     readonly createReusableTemplate: UnwrapRef<typeof import('@vueuse/core')['createReusableTemplate']>
     readonly createSharedComposable: UnwrapRef<typeof import('@vueuse/core')['createSharedComposable']>
     readonly createTemplatePromise: UnwrapRef<typeof import('@vueuse/core')['createTemplatePromise']>
@@ -518,6 +540,7 @@ declare module 'vue' {
     readonly extractPlaceholderKeys: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['extractPlaceholderKeys']>
     readonly fieldErrorMessages: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['fieldErrorMessages']>
     readonly fieldLabel: UnwrapRef<typeof import('./resources/ts/utils/apiValidation')['fieldLabel']>
+    readonly financeTypeLabel: UnwrapRef<typeof import('./resources/ts/utils/financeTypes')['financeTypeLabel']>
     readonly formErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['formErrors']>
     readonly formatDate: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['formatDate']>
     readonly formatDateToMonthShort: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['formatDateToMonthShort']>
@@ -554,6 +577,7 @@ declare module 'vue' {
     readonly kFormatter: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['kFormatter']>
     readonly legacyContentToHtml: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['legacyContentToHtml']>
     readonly lengthValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['lengthValidator']>
+    readonly localizePlaceholderGroups: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['localizePlaceholderGroups']>
     readonly logicAnd: UnwrapRef<typeof import('@vueuse/math')['logicAnd']>
     readonly logicNot: UnwrapRef<typeof import('@vueuse/math')['logicNot']>
     readonly logicOr: UnwrapRef<typeof import('@vueuse/math')['logicOr']>
@@ -590,12 +614,14 @@ declare module 'vue' {
     readonly partyDetailsFor: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['partyDetailsFor']>
     readonly passwordValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['passwordValidator']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
+    readonly paymentEntryLimit: UnwrapRef<typeof import('./resources/ts/utils/incomePaymentBalance')['paymentEntryLimit']>
     readonly permissionRules: UnwrapRef<typeof import('./resources/ts/utils/authorization')['permissionRules']>
     readonly permissionsForApiRequest: UnwrapRef<typeof import('./resources/ts/utils/apiAuthorization')['permissionsForApiRequest']>
     readonly persistThemeColors: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['persistThemeColors']>
     readonly placeholderLabels: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['placeholderLabels']>
     readonly prefixWithPlus: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']>
     readonly printDocument: UnwrapRef<typeof import('./resources/ts/utils/printDocument')['printDocument']>
+    readonly printReceipt: UnwrapRef<typeof import('./resources/ts/utils/printReceipt')['printReceipt']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
@@ -606,6 +632,8 @@ declare module 'vue' {
     readonly reactivePick: UnwrapRef<typeof import('@vueuse/core')['reactivePick']>
     readonly readStoredThemeColors: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['readStoredThemeColors']>
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>
+    readonly receiptCopies: UnwrapRef<typeof import('./resources/ts/utils/printReceipt')['receiptCopies']>
+    readonly receiptPrintLayout: UnwrapRef<typeof import('./resources/ts/utils/printReceipt')['receiptPrintLayout']>
     readonly ref: UnwrapRef<typeof import('vue')['ref']>
     readonly refAutoReset: UnwrapRef<typeof import('@vueuse/core')['refAutoReset']>
     readonly refDebounced: UnwrapRef<typeof import('@vueuse/core')['refDebounced']>
@@ -624,6 +652,7 @@ declare module 'vue' {
     readonly restoreUiScale: UnwrapRef<typeof import('./resources/ts/utils/uiScale')['restoreUiScale']>
     readonly rgbaToHex: UnwrapRef<typeof import('./resources/ts/@core/utils/colorConverter')['rgbaToHex']>
     readonly serializePlaceholders: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['serializePlaceholders']>
+    readonly servicePaymentIssue: UnwrapRef<typeof import('./resources/ts/utils/incomePaymentBalance')['servicePaymentIssue']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
@@ -634,6 +663,7 @@ declare module 'vue' {
     readonly storeAuthTokens: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['storeAuthTokens']>
     readonly storePermissions: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['storePermissions']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
+    readonly submitServicePayments: UnwrapRef<typeof import('./resources/ts/utils/incomePaymentBalance')['submitServicePayments']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
     readonly templateRef: UnwrapRef<typeof import('@vueuse/core')['templateRef']>
@@ -651,9 +681,11 @@ declare module 'vue' {
     readonly toRefs: UnwrapRef<typeof import('vue')['toRefs']>
     readonly toValue: UnwrapRef<typeof import('vue')['toValue']>
     readonly translate: UnwrapRef<typeof import('./resources/ts/utils/localization')['translate']>
+    readonly translateApplicantStage: UnwrapRef<typeof import('./resources/ts/utils/localization')['translateApplicantStage']>
     readonly translateBackendValue: UnwrapRef<typeof import('./resources/ts/utils/localization')['translateBackendValue']>
     readonly translateContractPolicyType: UnwrapRef<typeof import('./resources/ts/utils/localization')['translateContractPolicyType']>
     readonly translateContractTypeRecord: UnwrapRef<typeof import('./resources/ts/utils/localization')['translateContractTypeRecord']>
+    readonly translateOrFallback: UnwrapRef<typeof import('./resources/ts/utils/localization')['translateOrFallback']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
     readonly tryOnBeforeMount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeMount']>
     readonly tryOnBeforeUnmount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeUnmount']>
@@ -803,7 +835,6 @@ declare module 'vue' {
     readonly useScriptTag: UnwrapRef<typeof import('@vueuse/core')['useScriptTag']>
     readonly useScroll: UnwrapRef<typeof import('@vueuse/core')['useScroll']>
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
-    readonly useServiceContractNavigation: UnwrapRef<typeof import('./resources/ts/composables/useServiceContractNavigation')['useServiceContractNavigation']>
     readonly useSessionStorage: UnwrapRef<typeof import('@vueuse/core')['useSessionStorage']>
     readonly useShare: UnwrapRef<typeof import('@vueuse/core')['useShare']>
     readonly useSkins: UnwrapRef<typeof import('./resources/ts/@core/composable/useSkins')['useSkins']>

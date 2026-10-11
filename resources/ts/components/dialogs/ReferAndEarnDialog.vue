@@ -20,7 +20,7 @@ const dialogVisibleUpdate = (val: boolean) => {
   emit('update:isDialogVisible', val)
 }
 
-const referAndEarnSteps = [
+const referAndEarnSteps = computed(() => [
   {
     icon: paper,
     title: translate('components.dialogs.referandearndialog.sendInvitation'),
@@ -36,7 +36,7 @@ const referAndEarnSteps = [
     title: translate('components.dialogs.referandearndialog.freeTrial'),
     subtitle: translate('components.dialogs.referandearndialog.yourFriendWillGet30DaysFreeTrial'),
   },
-]
+])
 </script>
 
 <template>

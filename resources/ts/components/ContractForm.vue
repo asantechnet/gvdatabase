@@ -1,16 +1,16 @@
 <script setup lang="ts">
+import ErpField from '@/components/erp/ErpField.vue'
 import { computed, onMounted, ref, watch } from 'vue'
-import type { ContractStatus } from '@/api/contracts'
+import { previewContract, type ContractStatus } from '@/api/contracts'
 import ApplicantApi, { type Applicant } from '@/api/applicants'
 import AuthApi from '@/api/auth'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import PositionApi, { type Position } from '@/api/position'
-import ServiceApi, { type Service } from '@/api/services'
 import CounterpartyCard, { type CounterpartyDetails } from '@/components/contract/CounterpartyCard.vue'
 
 const { t } = useI18n()
-const tr = (key: string) => t(`pages.contracts.contractform.contractform.${key}`)
+const tr = (key: string, values: Record<string, unknown> = {}) => t(`pages.contracts.contractform.contractform.${key}`, values)
 
 // Staff contracts must be signed with the logged-in employee's name.
 // Super-admins may choose another authorized signer.
@@ -24,16 +24,13 @@ export interface ContractFormPayload {
   country_id: number | null
   language_id: number | null
   employee_id: number | null
-  service_id: number | null
-  service_ids?: number[] | null
-  service_lines?: Array<{ service_id: number; service_variant_id?: number | null }>
   applicant_id?: number | null
-  company_id: number | null
   name: string
   cover_text: string | null
   content?: string
   status: ContractStatus
   start_date: string
+  end_date?: string | null
   counterparty?: string | null
   counterparty_company?: string | null
   counterparty_email?: string | null
@@ -46,12 +43,9 @@ interface TemplateOption {
   id: number
   name: string
   type_slug?: string | null
-  service_id?: number | null
-  package_id?: number | null
-  service_scopes?: Array<{ service_id: number; service_variant_id?: number | null }>
   position_id?: number | null
   cover_text?: string | null
-  versions?: Array<{ id: number; name: string; country_id: number; language_id: number; version_number?: number; content?: string; status: string; is_current: boolean; country?: { id: number; name: string } | null; language?: { id: number; name: string; code?: string } | null }>
+  versions?: Array<{ id: number; name: string; country_id: number | null; language_id: number | null; version_number?: number; content?: string; status: string; is_current: boolean; country?: { id: number; name: string } | null; language?: { id: number; name: string; code?: string } | null }>
 }
 
 const props = defineProps<{
@@ -60,6 +54,7 @@ const props = defineProps<{
     contract: string
     status: ContractStatus
     start_date: string | null
+    end_date?: string | null
     company_signatory_name?: string | null
     template_id: number | null
     contract_template_version_id?: number | null
@@ -68,9 +63,6 @@ const props = defineProps<{
     contract_type_id?: number | null
     employee_id?: number | null
     applicant_id?: number | null
-    service_ids?: number[] | null
-    service_id?: number | null
-    company_id?: number | null
     counterparty?: string | null
     counterparty_company?: string | null
     counterparty_email?: string | null
@@ -82,7 +74,7 @@ const props = defineProps<{
     content?: string | null
   }
   templates: TemplateOption[]
-  audience?: 'customers' | 'employees' | 'other'
+  audience?: 'employees' | 'other'
   applicantId?: number | null
   applicantCountryId?: number | null
 }>()
@@ -106,7 +98,6 @@ const currentEmployeeName = computed(() => {
 const isApplicantLocked = computed(() => props.applicantId != null)
 const countries = ref<MasterDataRecord[]>([])
 const languages = ref<MasterDataRecord[]>([])
-const services = ref<Service[]>([])
 const positions = ref<Position[]>([])
 const loadingEntities = ref(true)
 
@@ -118,12 +109,12 @@ const form = ref({
   position_id: null as number | null,
   employee_id: (props.contract?.employee_id ?? null) as number | null,
   applicant_id: (props.contract?.applicant_id ?? props.applicantId ?? null) as number | null,
-  company_id: (props.contract?.company_id ?? null) as number | null,
   name: props.contract?.contract || '',
   cover_text: (props.contract?.cover_text || null) as string | null,
   content: props.contract?.content || '',
   status: (props.contract?.status || 'active') as ContractStatus,
   start_date: props.contract?.start_date || new Date().toISOString().slice(0, 10),
+  end_date: (props.contract?.end_date ?? '') as string,
   counterparty: (props.contract?.counterparty || '') as string,
   counterparty_company: (props.contract?.counterparty_company || null) as string | null,
   counterparty_email: (props.contract?.counterparty_email || null) as string | null,
@@ -144,9 +135,8 @@ watch([isSuperAdmin, currentEmployeeName], ([, employeeName]) => applySignatoryD
 // ---------------------------------------------------------------------
 // Context metadata drives the whole form; no scattered if/else chains.
 // ---------------------------------------------------------------------
-const CONTEXT_BY_SLUG: Record<string, 'employee' | 'customer' | 'other' | null> = {
+const CONTEXT_BY_SLUG: Record<string, 'employee' | 'other' | null> = {
   employment: 'employee',
-  customer: 'customer',
   other: 'other',
 }
 
@@ -178,49 +168,35 @@ const languageOptions = computed(() => languages.value
   .map(language => ({ title: `${language.name}${language.code ? ` (${language.code})` : ''}`, value: language.id })))
 const selectedTemplateVersion = computed(() => countryScopedVersions.value.find(version => version.language_id === form.value.language_id) ?? null)
 
-const context = computed<'employee' | 'customer' | 'other' | null>(() => {
+const context = computed<'employee' | 'other' | null>(() => {
   const slug = activeSlug.value
 
-  return slug ? CONTEXT_BY_SLUG[slug] ?? null : null
+  return slug ? CONTEXT_BY_SLUG[slug] ?? 'other' : null
 })
 
-const statusOptions = [
+const statusOptions = computed(() => [
   { title: t('common.statuses.draft'), value: 'draft' },
   { title: t('common.statuses.active'), value: 'active' },
   { title: t('common.statuses.completed'), value: 'completed' },
   { title: t('common.statuses.terminated'), value: 'terminated' },
-]
+])
 
 const audienceTemplates = computed(() => {
   if (props.audience === 'employees')
     return props.templates.filter(template => template.type_slug === 'employment')
 
-  if (props.audience === 'customers')
-    return props.templates.filter(template => template.type_slug === 'customer')
-
   if (props.audience === 'other')
-    return props.templates.filter(template => template.type_slug === 'other')
+    return props.templates.filter(template => template.type_slug !== 'employment' && template.type_slug !== 'customer')
 
   return props.templates
 })
 
-// No service picker on this page: the service is derived from the selected
-// template's bound service at submit time. Package-bound templates are
-// excluded: a package is sold as a bundle (one agreement per package), never
-// assembled by hand on this form, and a customer contract always needs at
-// least one service line.
-const visibleTemplates = computed(() => audienceTemplates.value.filter(template => !template.package_id))
+const visibleTemplates = computed(() => audienceTemplates.value.filter(template => template.type_slug !== 'customer'))
 
 const applicantOptions = computed(() => applicants.value.map(applicant => ({
   title: applicant.name,
   value: applicant.id,
 })))
-const boundServiceId = computed(() => selectedTemplate.value?.service_id ?? null)
-const templateServiceScopes = computed(() => selectedTemplate.value?.service_scopes?.length
-  ? selectedTemplate.value.service_scopes!
-  : (boundServiceId.value ? [{ service_id: boundServiceId.value, service_variant_id: null }] : []))
-const selectedVariants = ref<Record<number, number | null>>({})
-
 const positionOptions = computed(() => positions.value.map(position => ({
   title: position.title,
   value: position.id,
@@ -235,7 +211,53 @@ const employeeOptions = computed(() => employees.value
 
 const selectedEmployee = computed(() => employees.value.find(item => item.id === form.value.employee_id) ?? null)
 const selectedApplicant = computed(() => applicants.value.find(item => item.id === form.value.applicant_id) ?? null)
-const boundService = computed(() => services.value.find(service => service.id === boundServiceId.value) ?? null)
+
+watch(selectedApplicant, applicant => {
+  form.value.counterparty = applicant?.name ?? ''
+  form.value.counterparty_company = null
+  form.value.counterparty_email = applicant?.email ?? null
+  form.value.counterparty_contact = applicant?.contact ?? null
+  form.value.counterparty_address = applicant?.address ?? null
+})
+
+const previewHtml = ref('')
+const previewLoading = ref(false)
+const previewError = ref(false)
+let previewRequest = 0
+watch(() => [form.value.template_id, form.value.contract_template_version_id, form.value.country_id,
+  form.value.language_id, form.value.employee_id, form.value.applicant_id, form.value.start_date,
+  form.value.end_date, form.value.company_signatory_name], async () => {
+  const request = ++previewRequest
+  previewHtml.value = ''
+  previewError.value = false
+  previewLoading.value = false
+  if (!form.value.template_id || !(form.value.employee_id || form.value.applicant_id)
+    || (requiresVersionSelection.value && !selectedTemplateVersion.value))
+    return
+
+  previewLoading.value = true
+  try {
+    const html = await previewContract({
+      template_id: form.value.template_id,
+      contract_template_version_id: selectedTemplateVersion.value?.id ?? null,
+      country_id: form.value.country_id, language_id: form.value.language_id,
+      employee_id: context.value === 'employee' ? form.value.employee_id : null,
+      applicant_id: context.value === 'employee' ? null : form.value.applicant_id,
+      start_date: form.value.start_date, end_date: form.value.end_date || null,
+      company_signatory_name: form.value.company_signatory_name,
+    })
+    if (request === previewRequest)
+      previewHtml.value = html
+  }
+  catch {
+    if (request === previewRequest)
+      previewError.value = true
+  }
+  finally {
+    if (request === previewRequest)
+      previewLoading.value = false
+  }
+}, { immediate: true })
 
 const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
   switch (context.value) {
@@ -248,17 +270,6 @@ const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
           phone: selectedEmployee.value.contact,
           email: selectedEmployee.value.email,
           address: selectedEmployee.value.addr,
-        }
-        : null
-    case 'customer':
-      return selectedApplicant.value
-        ? {
-          kind: 'customer',
-          name: selectedApplicant.value.name,
-          subtitle: null,
-          phone: selectedApplicant.value.contact,
-          email: selectedApplicant.value.email,
-          address: selectedApplicant.value.address,
         }
         : null
     case 'other':
@@ -279,12 +290,11 @@ const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
 
 onMounted(async () => {
   try {
-    const [applicantResult, employeeResult, countryResult, languageResult, serviceResult, positionResult, authResult] = await Promise.allSettled([
+    const [applicantResult, employeeResult, countryResult, languageResult, positionResult, authResult] = await Promise.allSettled([
       ApplicantApi.list({ per_page: 200 }),
       EmployeeApi.getOptions(),
       MasterDataApi.list('countries'),
       MasterDataApi.list('languages'),
-      ServiceApi.getAll(),
       PositionApi.getAll(),
       AuthApi.me(),
     ])
@@ -297,8 +307,6 @@ onMounted(async () => {
       countries.value = countryResult.value.filter(country => country.is_active)
     if (languageResult.status === 'fulfilled')
       languages.value = languageResult.value.filter(language => language.is_active)
-    if (serviceResult.status === 'fulfilled')
-      services.value = serviceResult.value.data
     if (positionResult.status === 'fulfilled')
       positions.value = positionResult.value.data?.data ?? positionResult.value.data ?? []
     if (authResult.status === 'fulfilled')
@@ -334,7 +342,7 @@ watch(context, currentContext => {
   // Preserve the appropriate counterparty for an existing contract or one
   // opened from a visa-case action button; clear incompatible IDs.
   form.value.employee_id = currentContext === 'employee' ? (props.contract?.employee_id ?? form.value.employee_id) : null
-  if (currentContext === 'customer' || currentContext === 'other') {
+  if (currentContext === 'other') {
     if (props.applicantId)
       form.value.applicant_id = props.applicantId
     else if (props.contract?.applicant_id)
@@ -359,7 +367,6 @@ watch(() => form.value.template_id, () => {
   form.value.country_id = props.applicantCountryId ?? existingVersion?.country_id ?? countryOptions.value[0]?.value ?? null
   form.value.language_id = existingVersion?.language_id ?? null
   form.value.contract_template_version_id = existingVersion?.id ?? null
-  selectedVariants.value = Object.fromEntries(templateServiceScopes.value.map(scope => [scope.service_id, scope.service_variant_id ?? null]))
 }, { immediate: true })
 
 watch(() => form.value.country_id, () => {
@@ -387,29 +394,19 @@ const submit = async () => {
   if (validation?.valid === false)
     return
 
-  const templateServiceIds = templateServiceScopes.value.map(scope => scope.service_id)
-  const applicantId = context.value === 'customer' || context.value === 'other'
+  const applicantId = context.value === 'other'
     ? (form.value.applicant_id ?? props.applicantId ?? null)
     : null
 
-  const { customer_id: _omitted, service_id: _serviceOmitted, ...rest } = form.value as typeof form.value & { customer_id?: unknown; service_id?: unknown }
-
   emit('submit', {
-    ...rest,
+    ...form.value,
     company_signatory_name: !isSuperAdmin.value && currentEmployeeName.value
       ? currentEmployeeName.value
       : (form.value.company_signatory_name?.trim() || currentEmployeeName.value),
     contract_template_version_id: selectedTemplateVersion.value?.id ?? null,
     employee_id: context.value === 'employee' ? form.value.employee_id : null,
-    service_id: templateServiceIds[0] ?? null,
-    service_ids: templateServiceIds,
-    service_lines: templateServiceIds.map(service_id => ({ service_id, service_variant_id: selectedVariants.value[service_id] ?? null })),
     applicant_id: applicantId,
-    company_id: null,
 
-    // Template contracts inherit their display name from the template. Keep
-    // it in the payload as well so older client validators cannot reject an
-    // otherwise valid template-based contract because name is blank.
     name: selectedTemplate.value?.name || form.value.name,
 
     // Template contracts take their content from the selected template.
@@ -427,20 +424,8 @@ defineExpose({ submit })
     @submit.prevent="submit"
   >
     <VRow>
-      <VCol
-        cols="12"
-        :md="selectedTemplate ? 6 : 12"
-      >
-        <p class="app-form__section">
-          {{ tr('setup') }}
-        </p>
-        <p class="app-form__section-help">
-          {{ tr('setupHint') }}
-        </p>
-      </VCol>
-
       <VCol cols="12">
-        <VSelect
+        <ErpField kind="select"
           v-model="form.template_id"
           :items="visibleTemplates"
           item-title="name"
@@ -457,7 +442,7 @@ defineExpose({ submit })
         cols="12"
         md="3"
       >
-        <VSelect
+        <ErpField kind="select"
           v-model="form.country_id"
           :items="countryOptions"
           :label="tr('country')"
@@ -471,7 +456,7 @@ defineExpose({ submit })
         cols="12"
         md="3"
       >
-        <VSelect
+        <ErpField kind="select"
           v-model="form.language_id"
           :items="languageOptions"
           :label="tr('language')"
@@ -479,7 +464,7 @@ defineExpose({ submit })
           :rules="[value => !requiresVersionSelection || !!value || tr('languageRequired')]"
           :hint="tr('languageVersionHint')"
           persistent-hint
-          required
+          :required="requiresVersionSelection"
         />
       </VCol>
       <VCol
@@ -509,7 +494,7 @@ defineExpose({ submit })
         v-if="context === 'employee'"
         cols="12"
       >
-        <VSelect
+        <ErpField kind="select"
           v-model="form.position_id"
           :items="positionOptions"
           :label="tr('position')"
@@ -539,7 +524,7 @@ defineExpose({ submit })
       </VCol>
 
       <VCol
-        v-else-if="context === 'customer' || context === 'other'"
+        v-else-if="context === 'other'"
         cols="12"
       >
         <VAutocomplete
@@ -549,9 +534,7 @@ defineExpose({ submit })
           :placeholder="tr('selectApplicant')"
           prepend-inner-icon="tabler-users"
           :loading="loadingEntities"
-          :rules="context === 'customer' ? [v => !!v || tr('applicantRequired')] : []"
           :no-data-text="tr('noApplicants')"
-          :required="context === 'customer'"
           :clearable="context === 'other' && !isApplicantLocked"
           :disabled="isApplicantLocked"
           :hint="isApplicantLocked ? tr('applicantFromCase') : undefined"
@@ -560,36 +543,10 @@ defineExpose({ submit })
       </VCol>
 
       <VCol
-        v-if="(context === 'customer' || context === 'other') && selectedTemplate"
-        cols="12"
-      >
-        <p
-          v-if="boundService"
-          class="text-caption text-medium-emphasis mt-1"
-        >
-          {{ tr('selectedServicesHint') }}: {{ templateServiceScopes.map(scope => services.find(service => service.id === scope.service_id)?.name || services.find(service => service.id === scope.service_id)?.type).filter(Boolean).join(', ') }}
-        </p>
-        <VAlert
-          v-else-if="context === 'customer'"
-          color="warning"
-          variant="tonal"
-          density="compact"
-          icon="tabler-briefcase"
-        >
-          {{ tr('templateWithoutService') }}
-        </VAlert>
-      </VCol>
-      <template v-if="context === 'customer' && selectedTemplate">
-        <VCol v-for="scope in templateServiceScopes.filter(scope => services.find(service => service.id === scope.service_id)?.variants?.length)" :key="scope.service_id" cols="12" md="6">
-          <VSelect v-model="selectedVariants[scope.service_id]" :items="(services.find(service => service.id === scope.service_id)?.variants ?? []).map(variant => ({ title: `${variant.name} (${variant.code})`, value: variant.id }))" :label="`${services.find(service => service.id === scope.service_id)?.name || 'Service'} — Variant`" :clearable="!scope.service_variant_id" :disabled="!!scope.service_variant_id" />
-        </VCol>
-      </template>
-
-      <VCol
         v-if="context === 'other'"
         cols="12"
       >
-        <VTextField
+        <ErpField
           v-model="form.counterparty"
           :label="tr('counterparty')"
           :placeholder="tr('counterpartyPlaceholder')"
@@ -602,7 +559,7 @@ defineExpose({ submit })
         cols="12"
         md="6"
       >
-        <VTextField
+        <ErpField
           v-model="form.counterparty_email"
           :label="tr('counterpartyEmail')"
           type="email"
@@ -614,24 +571,31 @@ defineExpose({ submit })
         cols="12"
         md="6"
       >
-        <VTextField
+        <ErpField
           v-model="form.counterparty_contact"
           :label="tr('counterpartyContact')"
           prepend-inner-icon="tabler-phone"
         />
       </VCol>
 
-      <!-- Read-only identity summary of the selected record -->
+      <!-- Identity summary of the selected record, plus the contract dates -->
       <VCol cols="12">
-        <CounterpartyCard :details="counterpartyDetails" />
+        <CounterpartyCard
+          :details="counterpartyDetails"
+          editable
+          start-required
+          :start-date="form.start_date"
+          :end-date="form.end_date"
+          @update:start-date="form.start_date = $event ?? ''"
+          @update:end-date="form.end_date = $event ?? ''"
+        />
       </VCol>
 
       <VCol
         cols="12"
         sm="6"
-        md="4"
       >
-        <VSelect
+        <ErpField kind="select"
           v-model="form.status"
           :items="statusOptions"
           :label="tr('status')"
@@ -642,27 +606,19 @@ defineExpose({ submit })
       <VCol
         cols="12"
         sm="6"
-        md="4"
       >
-        <VTextField
-          v-model="form.start_date"
-          :label="tr('startDate')"
-          type="date"
-          :rules="[v => !!v || tr('startRequired')]"
-          required
-        />
-      </VCol>
-      <VCol
-        cols="12"
-        md="4"
-      >
-        <VTextField
+        <ErpField
           v-model="form.company_signatory_name"
           :label="tr('signatory')"
           :hint="isSuperAdmin ? tr('signatoryHint') : tr('signatoryLockedHint')"
           persistent-hint
           :disabled="!isSuperAdmin"
         />
+      </VCol>
+      <VCol v-if="previewLoading || previewHtml || previewError" cols="12">
+        <VProgressLinear v-if="previewLoading" indeterminate />
+        <VAlert v-else-if="previewError" type="warning" variant="tonal">{{ tr('previewFailed') }}</VAlert>
+        <div v-else class="contract-form-preview" v-html="previewHtml" />
       </VCol>
     </VRow>
 
@@ -683,3 +639,19 @@ defineExpose({ submit })
     </VCardActions>
   </VForm>
 </template>
+
+<style scoped>
+.contract-form-preview {
+  max-block-size: 360px;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.contract-form-preview :deep(table) { inline-size: 100%; border-collapse: collapse; }
+.contract-form-preview :deep(td), .contract-form-preview :deep(th) {
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  padding: 6px 8px;
+}
+</style>

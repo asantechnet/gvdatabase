@@ -58,11 +58,6 @@ class ReportController extends Controller
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    public function generateInvoiceReport(GenerateReportRequest $request, ReportService $reports): JsonResponse
-    {
-        return $this->legacy($request, $reports, 'financial', 'invoices');
-    }
-
     public function generateExpenseReport(GenerateReportRequest $request, ReportService $reports): JsonResponse
     {
         return $this->legacy($request, $reports, 'financial', 'expenses');
@@ -87,11 +82,6 @@ class ReportController extends Controller
     public function generateVisitorReport(GenerateReportRequest $request, ReportService $reports): JsonResponse
     {
         return $this->legacy($request, $reports, 'operations', 'visitors');
-    }
-
-    public function exportInvoiceReport(GenerateReportRequest $request, ReportService $reports): StreamedResponse|\Illuminate\Contracts\View\View
-    {
-        return $this->export($request, 'financial', $reports);
     }
 
     private function legacy(GenerateReportRequest $request, ReportService $reports, string $type, string $section): JsonResponse

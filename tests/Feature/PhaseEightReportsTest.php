@@ -10,7 +10,6 @@ use App\Models\Applicant;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
-use App\Models\Invoice;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
@@ -37,17 +36,9 @@ class PhaseEightReportsTest extends TestCase
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         [$currency, $applicant] = $this->financialReferences();
-        $invoice = Invoice::create([
-            'applicant_id' => $applicant->id, 'currency_id' => $currency->id,
-            'deptor' => $applicant->name, 'status' => 'Issued', 'currency_name' => $currency->name,
-            'currency_rate' => 1, 'currency_symbol' => $currency->symbol, 'currency_shortname' => $currency->code,
-            'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $currency->code, 'rate' => 1, 'base_amount' => 100,
-            'subtotal' => 100, 'amount' => 100, 'discount' => 0,
-        ]);
-        $invoice->forceFill(['created_at' => '2026-08-05 10:00:00'])->saveQuietly();
         Income::create([
-            'applicant_id' => $applicant->id, 'invoice_id' => $invoice->id, 'currency_id' => $currency->id,
-            'type' => 'Invoice payment', 'description' => 'Partial payment', 'amount' => 25, 'quantity' => 2,
+            'applicant_id' => $applicant->id, 'currency_id' => $currency->id,
+            'type' => 'Service payment', 'description' => 'Partial payment', 'amount' => 25, 'quantity' => 2,
             'rate' => 1, 'cnv_curr_shrt' => $currency->code, 'base_curr_shrt' => $currency->code, 'date' => '2026-08-06',
         ]);
         Expense::create([
@@ -57,11 +48,9 @@ class PhaseEightReportsTest extends TestCase
 
         $response = $this->getJson('/api/reports/generate/financial?start_date=2026-08-01&end_date=2026-08-31')
             ->assertOk()->assertJsonPath('success', true)->assertJsonPath('data.type', 'financial')
-            ->assertJsonPath('data.meta.timezone', 'Asia/Kabul')->assertJsonCount(5, 'data.sections');
+            ->assertJsonPath('data.meta.timezone', 'Asia/Kabul');
 
         $sections = collect($response->json('data.sections'))->keyBy('key');
-        $this->assertSame(100.0, (float) $sections['invoices']['rows'][0]['base_amount']);
-        $this->assertSame(50.0, (float) $sections['invoices']['rows'][0]['outstanding_base']);
         $this->assertSame(50.0, (float) $sections['income']['totals']['base_amount_by_base']['TST']);
         $this->assertSame(20.0, (float) $sections['expenses']['totals']['base_amount_by_base']['TST']);
         $this->assertSame(30.0, (float) $sections['net_cash_flow']['totals']['net_base']['TST']);
@@ -127,7 +116,7 @@ class PhaseEightReportsTest extends TestCase
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $this->financialReferences();
-        foreach (['invoices', 'expenses', 'expences', 'incomes', 'salaries', 'visitors'] as $endpoint) {
+        foreach (['expenses', 'expences', 'incomes', 'salaries', 'visitors'] as $endpoint) {
             $this->getJson("/api/reports/{$endpoint}?start_date=2026-08-01&end_date=2026-08-31")
                 ->assertOk()->assertJsonPath('success', true)->assertJsonStructure(['data' => ['type', 'filters', 'sections', 'meta']]);
         }
@@ -140,7 +129,7 @@ class PhaseEightReportsTest extends TestCase
             'is_base' => true, 'is_active' => true, 'decimal_places' => 2,
         ]);
         $applicant = Applicant::firstOrCreate(['name' => 'Acme'], [
-            'company' => 'Acme Ltd', 'contact' => '123', 'marketer' => 'Direct', 'date' => '2026-08-01',
+            'contact' => '123', 'marketer' => 'Direct', 'date' => '2026-08-01',
         ]);
 
         return [$currency, $applicant];

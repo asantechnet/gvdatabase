@@ -23,8 +23,8 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Satisfy the business rule that contracts and invoices require at least
-     * one document on the applicant case.
+     * Satisfy the business rule that contracts require at least one document
+     * on the applicant case.
      */
     protected function seedApplicantDocuments(Applicant|int $applicant, int $count = 1): void
     {

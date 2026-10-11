@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import PrintableListReport from '@/components/PrintableListReport.vue'
+import { printDocument } from '@/utils/printDocument'
 import { computed, onMounted, ref } from 'vue'
 import { VAlert } from 'vuetify/components'
 import { useContracts } from '@/composables/useContracts'
@@ -10,6 +14,8 @@ const {
   fetchContracts,
 } = useContracts()
 
+const dateFrom = ref('')
+const dateTo = ref('')
 const search = ref('')
 const filterClient = ref<string | null>(null)
 
@@ -30,21 +36,21 @@ const filtered = computed(() => {
   })
 })
 
-const headers = [
+const headers = computed(() => [
   { title: translate('common.messages.contractNumber'), key: 'contract_number', sortable: true },
   { title: translate('common.messages.contract'), key: 'contract', sortable: true },
   { title: translate('common.messages.client'), key: 'counterparty', sortable: true },
   { title: translate('common.fields.startDate'), key: 'start_date', sortable: true },
   { title: translate('common.fields.status'), key: 'status', sortable: true },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
-]
+])
 
 const printTable = () => {
-  window.print()
+  printDocument({ bodyClass: 'printing-table-cancelled-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 }
 
 onMounted(() => {
-  fetchContracts(true)
+  fetchContracts({ only_cancelled: true })
 })
 </script>
 
@@ -68,20 +74,22 @@ export default {
 </script>
 
 <template>
-  <DataTablePageKpis
-    :items="filtered"
-    :title="$t('navigation.cancelledContracts')"
-    :description="$t('pages.contracts.cancelledContracts.cancelledContracts.reviewClosedAgreements')"
-    icon="tabler-file-off"
-  />
+  <div class="erp-workspace">
+  <ErpPageHeader :title="$t('common.navigation.cancelledContracts')" section="contracts" />
   <VCard>
     <VCardText>
       <VRow align="center">
+
         <VCol
           cols="12"
-          md="9"
+          md="3"
+          class="text-end d-flex justify-end ga-2"
         >
-          <VTextField
+          <DataTableFilterMenu
+            :active="Boolean(search || filterClient || dateFrom || dateTo)"
+            @reset="search = ''; filterClient = null; dateFrom = ''; dateTo = ''; fetchContracts({ only_cancelled: true })"
+          >
+            <VTextField
             v-model="search"
             class="data-table-search"
             prepend-inner-icon="tabler-search"
@@ -90,16 +98,7 @@ export default {
             clearable
             hide-details
           />
-        </VCol>
-        <VCol
-          cols="12"
-          md="3"
-          class="text-end d-flex justify-end ga-2"
-        >
-          <DataTableFilterMenu
-            :active="Boolean(filterClient)"
-            @reset="filterClient = null"
-          >
+            <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" class="mb-4" @apply="fetchContracts({ only_cancelled: true, date_from: dateFrom || undefined, date_to: dateTo || undefined })" />
             <VSelect
               v-model="filterClient"
               :items="clients"
@@ -134,6 +133,7 @@ export default {
       mobile-breakpoint="sm"
       :loading="isLoading"
       :loading-text="$t('pages.contracts.cancelledContracts.cancelledContracts.loadingCancelledContracts')"
+      :no-data-text="$t('pages.contracts.cancelledContracts.cancelledContracts.noContracts')"
       style="overflow-x: auto;"
     >
       <template #item.contract="{ item }">
@@ -162,4 +162,6 @@ export default {
       </template>
     </ResponsiveDataTable>
   </VCard>
+  <PrintableListReport :title="$t('common.navigation.cancelledContracts')" :columns="headers.slice(0, -1).map(header => header.title)" :rows="filtered.map(row => [row.contract_number, row.contract, row.counterparty, row.start_date, row.status])" />
+  </div>
 </template>

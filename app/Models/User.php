@@ -95,11 +95,6 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasOne(Applicant::class);
     }
 
-    public function marketer(): HasOne
-    {
-        return $this->hasOne(Marketer::class);
-    }
-
     public function accountDeactivationRequests(): HasMany
     {
         return $this->hasMany(AccountDeactivationRequest::class);

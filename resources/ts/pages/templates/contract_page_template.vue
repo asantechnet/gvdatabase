@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { printDocument } from '@/utils/printDocument'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PartyDetails } from '@/utils/contractPartyDetails'
+import type { ContractPrintHeader } from '@/composables/useContractPrintHeader'
+import ContractPrintHeaderBlock from '@/components/contract/ContractPrintHeader.vue'
 
 // 1. Interfaces & Props
 export interface CompanyDetails {
@@ -40,6 +43,7 @@ export interface ContractPageProps {
   contracteeCompanyName?: string // Added for flexibility (e.g., "John Doe" vs "Acme Corp")
   companySignatoryName?: string | null
   partyDetails?: PartyDetails
+  headerDetails?: ContractPrintHeader | null
   accentColor?: string
 }
 
@@ -54,6 +58,7 @@ const props = withDefaults(defineProps<ContractPageProps>(), {
   contracteeName: 'Client / Counterparty',
   contracteeCompanyName: '',
   partyDetails: undefined,
+  headerDetails: null,
   companySignatoryName: null,
   accentColor: '#1e293b',
 })
@@ -78,130 +83,9 @@ const formatParagraphs = (content: string | string[]) => {
 }
 
 // 4. Print Controller
-const printContractPage = () => {
-  if (!contractRef.value)
-    return
-
-  const printWindow = window.open('', '_blank', 'width=900,height=1100')
-  if (!printWindow) {
-    alert(translate('documents.contract_page_template.contractPageTemplate.pleaseAllowPopupsToPrintTheContractPage'))
-
-    return
-  }
-
-  // Extract raw CSS rules directly from loaded stylesheets to prevent network load delays in popup
-  let inlineCss = ''
-  try {
-    Array.from(document.styleSheets).forEach(sheet => {
-      try {
-        if (sheet.cssRules) {
-          Array.from(sheet.cssRules).forEach(rule => {
-            inlineCss += `${rule.cssText}\n`
-          })
-        }
-      }
-      catch (e) {
-        if (sheet.href)
-          inlineCss += `@import url("${sheet.href}");\n`
-      }
-    })
-  }
-  catch (e) {
-    console.warn('Could not parse styleSheets inline:', e)
-  }
-
-  const fallbackStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-    .map(el => el.outerHTML)
-    .join('\n')
-
-  const contentHtml = contractRef.value.innerHTML
-
-  printWindow.document.open()
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html lang="${document.documentElement.lang}" dir="${document.documentElement.dir}">
-      <head>
-        <title>${resolvedDocumentTitle.value}</title>
-        ${fallbackStyles}
-        <style>
-          ${inlineCss}
-
-          @media print {
-            @page {
-              size: A4 portrait;
-              margin: 0 !important;
-            }
-            body {
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #fff !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-          }
-          html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background: #ffffff;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="contract-page-container" style="--brand-accent: ${props.accentColor}">
-          ${contentHtml}
-        </div>
-        <script>
-          window.onload = async () => {
-            const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
-            await Promise.all(links.map(link => {
-              if (link.sheet) return Promise.resolve();
-              return new Promise(resolve => {
-                link.onload = resolve;
-                link.onerror = resolve;
-                setTimeout(resolve, 300);
-              });
-            }));
-
-            if (document.fonts) {
-              await document.fonts.ready;
-            }
-
-            const pages = document.querySelectorAll('.contract-page-container');
-            pages.forEach(page => {
-              let zoom = 1.0;
-              while (page.scrollHeight > page.clientHeight && zoom > 0.80) {
-                zoom -= 0.02;
-                page.style.zoom = zoom;
-              }
-            });
-
-            const images = Array.from(document.images);
-            await Promise.all(images.map(img => {
-              if (img.complete) return Promise.resolve();
-              return new Promise(resolve => {
-                img.onload = resolve;
-                img.onerror = resolve;
-                setTimeout(resolve, 300);
-              });
-            }));
-
-            await new Promise(resolve =>
-              requestAnimationFrame(() => requestAnimationFrame(resolve))
-            );
-
-            setTimeout(() => {
-              window.focus();
-              window.print();
-              window.close();
-            }, 300);
-          };
-        <\/script>
-      </body>
-    </html>
-  `)
-  printWindow.document.close()
+const printContractPage = async () => {
+  if (!contractRef.value) return
+  await printDocument({ bodyClass: 'printing-contract-document', pageStyle: 'size: A4; margin: 0;', element: contractRef.value })
 }
 
 defineExpose({
@@ -267,6 +151,11 @@ defineExpose({
 
       <!-- Main Contract Body Area -->
       <main class="contract-body">
+        <ContractPrintHeaderBlock
+          v-if="headerDetails"
+          :header="headerDetails"
+        />
+
         <section
           v-if="partyDetails && (partyDetails.ourCompany.length || partyDetails.counterparty.length)"
           class="party-details"
@@ -419,7 +308,7 @@ defineExpose({
         <div class="footer-divider" />
         <div class="contract-footer">
           <div class="footer-col footer-message">
-            <span>{{ resolvedFooterText }}</span>
+            <strong>{{ company.brandName }}</strong><br><span>{{ resolvedFooterText }}</span>
           </div>
 
           <div class="footer-col footer-contact">
@@ -561,8 +450,9 @@ defineExpose({
 
 .header-right {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
 }
 
 .company-logo {
@@ -820,17 +710,13 @@ defineExpose({
 
 /* 5. Print Optimization */
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 0 !important;
-  }
 
-  * {
+  :global(body.printing-contract-document) * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  .contract-page-container {
+  :global(body.printing-contract-document) .contract-page-container {
     width: 210mm !important;
     max-width: 210mm !important;
     height: 297mm !important;
@@ -845,11 +731,11 @@ defineExpose({
     justify-content: space-between !important;
     box-sizing: border-box !important;
     overflow: visible !important;
-    page-break-after: always !important;
-    break-after: page !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 
-  .content-wrapper {
+  :global(body.printing-contract-document) .content-wrapper {
     display: flex !important;
     flex-direction: column !important;
     height: 100% !important;
@@ -857,14 +743,14 @@ defineExpose({
     overflow: visible !important;
   }
 
-  .has-letterhead .content-wrapper {
+  :global(body.printing-contract-document) .has-letterhead .content-wrapper {
     position: absolute !important;
     inset: var(--letterhead-safe-y) auto auto var(--letterhead-safe-x) !important;
     width: var(--letterhead-safe-width) !important;
     height: var(--letterhead-safe-height) !important;
   }
 
-  .contract-header {
+  :global(body.printing-contract-document) .contract-header {
     flex: 0 0 auto !important;
     flex-shrink: 0 !important;
     width: 100% !important;
@@ -878,22 +764,22 @@ defineExpose({
     padding-top: 10px !important;
   }
 
-  .header-left,
-  .header-right {
+  :global(body.printing-contract-document) .header-left,
+  :global(body.printing-contract-document) .header-right {
     display: flex !important;
     opacity: 1 !important;
     visibility: visible !important;
   }
 
-  .document-title,
-  .brand-name,
-  .company-slogan {
+  :global(body.printing-contract-document) .document-title,
+  :global(body.printing-contract-document) .brand-name,
+  :global(body.printing-contract-document) .company-slogan {
     display: block !important;
     opacity: 1 !important;
     visibility: visible !important;
   }
 
-  .header-divider {
+  :global(body.printing-contract-document) .header-divider {
     flex: 0 0 auto !important;
     flex-shrink: 0 !important;
     width: 100% !important;
@@ -903,13 +789,13 @@ defineExpose({
     visibility: visible !important;
   }
 
-  .contract-body {
+  :global(body.printing-contract-document) .contract-body {
     flex: 1 1 auto !important;
     width: 100% !important;
     overflow: hidden !important;
   }
 
-  .contract-footer-wrapper {
+  :global(body.printing-contract-document) .contract-footer-wrapper {
     flex: 0 0 auto !important;
     flex-shrink: 0 !important;
     width: 100% !important;
@@ -920,7 +806,7 @@ defineExpose({
     visibility: visible !important;
   }
 
-  .contract-footer {
+  :global(body.printing-contract-document) .contract-footer {
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;

@@ -1,12 +1,10 @@
 import api from './axios'
-import type { Service } from './services'
 
 // Types matching the frontend requirements
 export interface Board {
   id: string
   title: string
   order: number
-  projectId?: number | null
   tasks: Task[]
 }
 
@@ -24,7 +22,6 @@ export interface Task {
   order: number
   assignees: User[]
   tags: Tag[]
-  services: Service[]
   subtasks: Subtask[]
   comments: Comment[]
   dependencies: string[]
@@ -90,7 +87,6 @@ export interface Comment {
 export interface CreateBoardData {
   title: string
   order?: number
-  project_id?: number | null
 }
 
 export interface UpdateBoardData {
@@ -106,7 +102,6 @@ export interface CreateTaskData {
   priority?: 'low' | 'medium' | 'high' | 'urgent'
   start_date?: string
   due_date?: string
-  service_ids?: number[]
   customer_id?: number | null
   applicant_id?: number | null
   assignees?: number[]
@@ -124,7 +119,6 @@ export interface UpdateTaskData {
   assignees?: string[]
   tags?: string[]
   dependencies?: string[]
-  service_ids?: number[]
   customer_id?: number | null
   applicant_id?: number | null
 }
@@ -141,9 +135,9 @@ export interface CreateCommentData {
 // Kanban API endpoints
 const KanbanApi = {
   // Get entire kanban board state
-  getBoard: async (params?: { project_id?: number }) => {
+  getBoard: async () => {
     try {
-      return await api.get<{ data: Board[] }>('/kanban', { params })
+      return await api.get<{ data: Board[] }>('/kanban')
     }
     catch (error) {
       console.error('API getBoard error:', error)

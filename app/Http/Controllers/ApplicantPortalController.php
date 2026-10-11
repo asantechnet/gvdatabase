@@ -59,7 +59,7 @@ class ApplicantPortalController extends Controller
 
             // Guardian contact lives on the applicant row (staff intake collects
             // it), while the grade metric stays staff-managed so a student
-            // cannot inflate the percentage used for admission decisions.
+            // cannot alter the staff-managed grade used for admission decisions.
             $applicantUpdates = collect($data)->only(['father_name', 'father_phone'])->all();
 
             if (array_key_exists('profile', $data)) {
@@ -161,7 +161,9 @@ class ApplicantPortalController extends Controller
             ->with([
                 'user:id,name,email,phone,address',
                 'responsibleEmployee.user:id,email,phone',
-                'country:id,name', 'university:id,name', 'educationLevel:id,name', 'language:id,name',
+                'privateDetail.country:id,name', 'privateDetail.university:id,name', 'privateDetail.educationLevel:id,name',
+                'scholarshipDetail.country:id,name', 'scholarshipDetail.university:id,name', 'scholarshipDetail.educationLevel:id,name',
+                'testDetail.test:id,name', 'academyDetail.program:id,name', 'academyDetail.time:id,name', 'academyDetail.duration:id,name',
                 'currentStage:id,key,name,sort_order,is_terminal',
                 'stageHistory' => fn ($history) => $history->select('id', 'applicant_id', 'new_stage_id', 'changed_at')->with('newStage:id,key,name,sort_order'),
                 'universities' => fn ($applications) => $applications->select('id', 'applicant_id', 'university_id', 'status', 'intake')->with('university:id,name'),
@@ -188,12 +190,21 @@ class ApplicantPortalController extends Controller
             'case' => [
                 'id' => $applicant->id,
                 'status' => $applicant->status,
-                'application_date' => $applicant->application_date?->toDateString(),
-                'destination_country' => $applicant->country?->name,
-                'primary_university' => $applicant->university?->name,
-                'education_level' => $applicant->educationLevel?->name,
-                'education_percentage' => $applicant->percentage !== null ? (float) $applicant->percentage : null,
-                'language' => $applicant->language?->name,
+                'created_at' => $applicant->created_at?->toDateString(),
+                'service' => $applicant->service,
+                'service_details' => match ($applicant->service) {
+                    'test_offer' => ['test' => $applicant->testDetail?->test?->name],
+                    'academy' => [
+                        'program' => $applicant->academyDetail?->program?->name,
+                        'time' => $applicant->academyDetail?->time?->name,
+                        'duration' => $applicant->academyDetail?->duration?->name,
+                    ],
+                    default => [],
+                },
+                'destination_country' => $applicant->detail()?->country?->name,
+                'primary_university' => $applicant->detail()?->university?->name,
+                'education_level' => $applicant->detail()?->educationLevel?->name,
+                'grade_score' => $applicant->detail()?->grade_score !== null ? (float) $applicant->detail()->grade_score : null,
                 // Applicant-facing contact details for the case owner only.
                 // Internal employee fields remain outside the portal boundary.
                 'advisor' => $applicant->responsibleEmployee ? [

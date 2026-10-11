@@ -110,6 +110,7 @@ return [
     'multiple_of'            => ':Attribute باید د :value ضرب وي.',
     'not_in'                 => ':Attribute موجود.',
     'not_regex'              => 'فورمول :attribute غلط.',
+    'nullable'               => ':Attribute باید تش وي.',
     'numeric'                => 'باید:attribute یو شمېره.',
     'password'               => [
         'letters'       => ':Attribute باید لږترلږه یو لیک ولري.',

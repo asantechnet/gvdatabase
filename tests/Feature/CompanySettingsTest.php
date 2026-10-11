@@ -173,6 +173,17 @@ class CompanySettingsTest extends TestCase
         $this->assertSame('Asantech', $mail->from[1]);
     }
 
+    public function test_website_link_can_be_omitted_or_cleared(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $data = $this->validSettings();
+        unset($data['website_address']);
+        $id = $this->postJson('/api/settings', $data)->assertCreated()->assertJsonPath('data.website_address', null)->json('data.id');
+        $this->putJson("/api/settings/{$id}", ['website_address' => 'https://example.com'])->assertOk();
+        $this->putJson("/api/settings/{$id}", ['website_address' => ''])->assertOk()->assertJsonPath('data.website_address', null);
+        $this->assertDatabaseHas('settings', ['id' => $id, 'website_address' => null]);
+    }
+
     private function validSettings(): array
     {
         return [

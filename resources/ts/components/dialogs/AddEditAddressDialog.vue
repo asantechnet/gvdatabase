@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
 import home from '@images/svg/home.svg'
 import office from '@images/svg/office.svg'
 
@@ -56,7 +57,7 @@ const onFormSubmit = () => {
 
 const selectedAddress = ref('Home')
 
-const addressTypes = [
+const addressTypes = computed(() => [
   {
     icon: { icon: home, size: '28' },
     title: translate('components.dialogs.addeditaddressdialog.home'),
@@ -67,9 +68,9 @@ const addressTypes = [
     icon: { icon: office, size: '28' },
     title: translate('common.fields.office'),
     desc: 'Delivery Time (9am - 5pm)',
-    value: 'Office',
+    value: translate('common.fields.office'),
   },
-]
+])
 </script>
 
 <template>

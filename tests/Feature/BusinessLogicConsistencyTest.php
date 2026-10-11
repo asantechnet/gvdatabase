@@ -2,23 +2,20 @@
 
 namespace Tests\Feature;
 
+use App\Models\Applicant;
+use App\Models\ApplicantContract;
 use App\Models\Attendance;
 use App\Models\Board;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\Currency;
-use App\Models\Applicant;
-use App\Models\ContractService;
 use App\Models\Employee;
 use App\Models\Income;
-use App\Models\Invoice;
 use App\Models\PaidTimeOff;
-use App\Models\Project;
 use App\Models\RecurringEvent;
 use App\Models\Role;
 use App\Models\Salary;
-use App\Models\Service;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\RecurringEvents\RecurringEventService;
@@ -42,57 +39,6 @@ class BusinessLogicConsistencyTest extends TestCase
         $this->assertSame('unpaid-leave', $attendance->fresh()->status);
     }
 
-    public function test_commission_uses_the_recorded_base_amount(): void
-    {
-        $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
-        $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
-        $applicant = Applicant::factory()->create();
-        $employee = Employee::factory()->create(['employment_type' => 'commission']);
-        $employee->commissionServices()->attach($service->id, ['percentage' => 10]);
-        $applicantService = $this->contractedService($applicant, $service, ['fee' => 100, 'currency_id' => $currency->id]);
-        $invoice = Invoice::factory()->create([
-            'applicant_id' => $applicant->id,
-            'currency_id' => $currency->id,
-            'base_currency_id' => $currency->id,
-            'amount' => 100,
-            'subtotal' => 100,
-            'base_amount' => 100,
-        ]);
-        $invoice->services()->attach($service->id, [
-            'contract_service_id' => $applicantService->id,
-            'employee_id' => $employee->id,
-            'snapshot_commission_percentage' => 10,
-            'snapshot_name' => $service->type,
-            'snapshot_service_fee' => 100,
-            'snapshot_service_currency_code' => $currency->code,
-            'snapshot_service_currency_symbol' => $currency->symbol,
-            'snapshot_service_rate' => 1,
-            'snapshot_cnv_curr_shrt' => $currency->code,
-            'snapshot_base_curr_shrt' => $currency->code,
-            'snapshot_rate' => 1,
-            'snapshot_invoice_rate' => 1,
-            'snapshot_converted_fee' => 100,
-            'quantity' => 1,
-            'line_total' => 100,
-        ]);
-        Income::create([
-            'invoice_id' => $invoice->id,
-            'currency_id' => $currency->id,
-            'base_currency_id' => $currency->id,
-            'type' => 'Service',
-            'description' => 'Partial payment',
-            'amount' => 50,
-            'quantity' => 1,
-            'cnv_curr_shrt' => $currency->code,
-            'base_curr_shrt' => $currency->code,
-            'rate' => 1,
-            'invoice_amount' => 50,
-            'date' => '2026-08-31',
-        ]);
-
-        $this->assertSame(5.0, $employee->commissionEarnedBase());
-    }
-
     public function test_inactivating_a_user_revokes_existing_tokens(): void
     {
         $admin = $this->superAdmin();
@@ -105,24 +51,16 @@ class BusinessLogicConsistencyTest extends TestCase
         $this->assertSame(0, $user->tokens()->count());
     }
 
-    public function test_editing_a_linked_payment_preserves_its_rate_and_recalculates_its_invoice_amount(): void
+    public function test_editing_a_linked_payment_preserves_its_rate_and_recalculates_its_base_amount(): void
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $base = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $currency = Currency::factory()->create(['is_base' => false, 'rate' => 2]);
         $applicant = Applicant::factory()->create();
-        $invoice = Invoice::factory()->create([
-            'applicant_id' => $applicant->id,
-            'currency_id' => $currency->id,
-            'base_currency_id' => $base->id,
-            'amount' => 200,
-            'subtotal' => 200,
-            'rate' => 2,
-            'base_amount' => 100,
-        ]);
+        $line = $this->contractedService($applicant, ['fee' => 200, 'currency_id' => $currency->id, 'currency_rate' => 2]);
         $income = Income::create([
             'applicant_id' => $applicant->id,
-            'invoice_id' => $invoice->id,
+            'applicant_contract_id' => $line->id,
             'currency_id' => $currency->id,
             'base_currency_id' => $base->id,
             'type' => 'Service',
@@ -132,7 +70,6 @@ class BusinessLogicConsistencyTest extends TestCase
             'cnv_curr_shrt' => $currency->code,
             'base_curr_shrt' => $base->code,
             'rate' => 2,
-            'invoice_amount' => 100,
             'date' => '2026-08-31',
         ]);
         $currency->update(['rate' => 4]);
@@ -145,7 +82,6 @@ class BusinessLogicConsistencyTest extends TestCase
         $income->refresh();
         $this->assertSame('2.00000000', $income->rate);
         $this->assertSame('60.000000', $income->base_amount);
-        $this->assertSame('120.000000', $income->invoice_amount);
     }
 
     public function test_the_final_generated_recurring_occurrence_remains_executable(): void
@@ -182,117 +118,23 @@ class BusinessLogicConsistencyTest extends TestCase
         $this->assertNotNull($executed->result_id);
     }
 
-    public function test_an_invoice_discount_cannot_exceed_its_total(): void
+    public function test_a_contract_payment_cannot_exceed_the_line_balance(): void
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $applicant = Applicant::factory()->create();
-        $this->seedApplicantDocuments($applicant);
-        $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
-        $applicantService = $this->contractedService($applicant, $service);
+        $line = $this->contractedService($applicant, ['fee' => 100, 'currency_id' => $currency->id, 'currency_rate' => 1]);
 
-        $this->postJson('/api/invoices', [
-            'applicant_id' => $applicant->id,
-            'currency_id' => $currency->id,
-            'services' => [['contract_service_id' => $applicantService->id, 'quantity' => 1]],
-            'tax_percent' => 0,
-            'discount' => 101,
-        ])->assertUnprocessable()
-            ->assertJsonPath('errors.discount.0', 'business.invoice_discount_exceeds_total');
-
-        $this->assertDatabaseCount('invoices', 0);
-    }
-
-    public function test_an_invoice_with_a_payment_cannot_be_voided(): void
-    {
-        Sanctum::actingAs($this->superAdmin(), ['access']);
-        $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
-        $invoice = Invoice::factory()->create([
-            'currency_id' => $currency->id,
-            'base_currency_id' => $currency->id,
-        ]);
-        Income::create([
-            'invoice_id' => $invoice->id,
-            'currency_id' => $currency->id,
-            'base_currency_id' => $currency->id,
+        $this->postJson('/api/incomes', [
+            'applicant_contract_id' => $line->id,
             'type' => 'Service',
             'description' => 'Deposit',
-            'amount' => 10,
+            'amount' => 250,
             'quantity' => 1,
-            'cnv_curr_shrt' => $currency->code,
-            'base_curr_shrt' => $currency->code,
-            'rate' => 1,
-            'invoice_amount' => 10,
-            'date' => '2026-08-31',
-        ]);
-
-        $this->putJson("/api/invoices/{$invoice->id}/void", ['reason' => 'Entered twice'])
-            ->assertUnprocessable()
-            ->assertJsonPath('errors.invoice.0', 'business.invoice_with_payments_cannot_be_voided');
-
-        $this->assertSame('Issued', $invoice->fresh()->status);
-        $this->assertNull($invoice->fresh()->voided_at);
-    }
-
-    public function test_reading_a_legacy_invoice_does_not_mutate_its_document_number(): void
-    {
-        Sanctum::actingAs($this->superAdmin(), ['access']);
-        $invoice = Invoice::factory()->create();
-        Invoice::withoutEvents(fn () => $invoice->forceFill(['invoice_number' => null])->saveQuietly());
-
-        $this->getJson("/api/invoices/{$invoice->id}")->assertOk();
-
-        $this->assertNull($invoice->fresh()->invoice_number);
-    }
-
-    public function test_a_service_line_on_a_non_active_contract_cannot_be_added_to_a_new_invoice(): void
-    {
-        Sanctum::actingAs($this->superAdmin(), ['access']);
-        $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
-        $applicant = Applicant::factory()->create();
-        $this->seedApplicantDocuments($applicant);
-        $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 100]);
-        $assignment = $this->contractedService($applicant, $service, [], 'terminated');
-
-        $this->postJson('/api/invoices', [
-            'applicant_id' => $applicant->id,
             'currency_id' => $currency->id,
-            'services' => [['contract_service_id' => $assignment->id, 'quantity' => 1]],
-            'tax_percent' => 0,
+            'date' => now()->toDateString(),
         ])->assertUnprocessable()
-            ->assertJsonPath('errors.services.0', 'business.invoice_service_not_assigned');
-
-        $this->assertDatabaseCount('invoices', 0);
-    }
-
-    public function test_invoice_payments_must_match_currency_and_cannot_predate_issue(): void
-    {
-        Sanctum::actingAs($this->superAdmin(), ['access']);
-        $base = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
-        $other = Currency::factory()->create(['is_base' => false, 'rate' => 2]);
-        $invoice = Invoice::factory()->create([
-            'currency_id' => $base->id,
-            'base_currency_id' => $base->id,
-            'issue_date' => '2026-08-10',
-            'due_date' => '2026-09-10',
-        ]);
-        $payload = [
-            'invoice_id' => $invoice->id,
-            'type' => 'Service',
-            'description' => 'Deposit',
-            'amount' => 10,
-            'quantity' => 1,
-            'currency_id' => $other->id,
-            'date' => '2026-08-10',
-        ];
-
-        $this->postJson('/api/incomes', $payload)->assertUnprocessable()
-            ->assertJsonPath('errors.currency_id.0', 'business.invoice_payment_currency_mismatch');
-
-        $payload['currency_id'] = $base->id;
-        $payload['date'] = '2026-08-09';
-        $this->postJson('/api/incomes', $payload)->assertUnprocessable()
-            ->assertJsonPath('errors.date.0', 'business.invoice_payment_before_issue');
+            ->assertJsonPath('errors.amount.0', 'business.contract_payment_exceeds_balance');
 
         $this->assertDatabaseCount('incomes', 0);
     }
@@ -375,7 +217,7 @@ class BusinessLogicConsistencyTest extends TestCase
     public function test_a_contract_can_be_partially_updated_without_requiring_or_rerendering_its_template(): void
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
-        $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
+        $type = ContractType::query()->where('slug', 'other')->firstOrFail();
         $template = ContractTemplate::query()->create([
             'name' => 'Applicant Agreement',
             'contract_type_id' => $type->id,
@@ -404,20 +246,14 @@ class BusinessLogicConsistencyTest extends TestCase
 
     public function test_task_creation_rolls_back_when_a_related_service_is_invalid(): void
     {
-        $admin = $this->superAdmin();
-        Sanctum::actingAs($admin, ['access']);
-        $project = Project::query()->create([
-            'name' => 'ERP rollout',
-            'status' => 'active',
-            'created_by' => $admin->id,
-        ]);
-        $board = Board::factory()->create(['project_id' => $project->id]);
-        $service = Service::factory()->create();
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $board = Board::factory()->create();
+        $missingServiceId = 1000;
 
         $this->postJson('/api/tasks', [
             'board_id' => $board->id,
             'title' => 'Invalid service task',
-            'service_ids' => [$service->id],
+            'service_ids' => [$missingServiceId],
         ])->assertUnprocessable();
 
         $this->assertDatabaseMissing('tasks', ['title' => 'Invalid service task']);
@@ -438,17 +274,17 @@ class BusinessLogicConsistencyTest extends TestCase
         $this->assertFalse($second->dependencies()->whereKey($first->id)->exists());
     }
 
-    private function contractedService(Applicant $applicant, Service $service, array $line = [], string $status = 'active'): ContractService
+    private function contractedService(Applicant $applicant, array $line = [], string $status = 'active'): ApplicantContract
     {
         $contract = Contract::create([
             'contract_type_id' => ContractType::query()->where('slug', 'customer')->value('id'),
             'applicant_id' => $applicant->id,
-            'name' => $service->type, 'type' => 'Customer', 'status' => $status,
+            'name' => 'Scholarship agreement', 'type' => 'Customer', 'status' => $status,
             'start_date' => '2026-09-01', 'counterparty' => $applicant->name,
             'content' => '', 'is_custom' => true,
         ]);
 
-        return $contract->contractServices()->create(['service_id' => $service->id] + $line);
+        return $contract->applicantContracts()->create(['service' => 'scholarship', 'applicant_id' => $applicant->id] + $line);
     }
 
     private function superAdmin(): User

@@ -26,8 +26,8 @@ class SupportTicketTest extends TestCase
         $response = $this->postJson('/api/support-tickets', [
             'category' => 'technical',
             'severity' => 'critical',
-            'subject' => 'Invoice form cannot be saved',
-            'description' => 'Saving an invoice returns me to the form without creating the invoice record.',
+            'subject' => 'Income form cannot be saved',
+            'description' => 'Saving an income returns me to the form without creating the income record.',
             'page_url' => '/innvoice?applicant=14',
         ])->assertCreated();
 
@@ -73,7 +73,7 @@ class SupportTicketTest extends TestCase
             'category' => 'technical',
             'severity' => 'high',
             'subject' => 'A screenshot shows the save failure',
-            'description' => 'Saving an invoice fails after choosing a applicant and entering the required details.',
+            'description' => 'Saving an income fails after choosing a applicant and entering the required details.',
             'attachments' => [UploadedFile::fake()->create('save-error.txt', 12, 'text/plain')],
         ], ['Accept' => 'application/json'])->assertCreated();
 

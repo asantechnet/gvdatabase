@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Resolves the letterhead artwork used by the printable documents that are not
- * contracts: receipts, invoices and payslips.
+ * contracts: receipts and payslips.
  *
  * Keeping the resolution here means the settings API (preview) and every print
  * read path agree on which image is shown and where the auto-filled text is
@@ -19,13 +19,12 @@ class DocumentLetterheads
     public const CUSTOM = 'custom';
     public const NONE = 'none';
 
-    /** letterhead sources offered for receipts and invoices. */
+    /** letterhead sources offered for receipts and payslips. */
     public const SOURCES = [self::NONE, self::CONTRACT, self::CUSTOM];
 
     /** @var array<string, array{0: float, 1: float, 2: float, 3: float}> */
     public const SAFE_DEFAULTS = [
         'receipt' => [6.00, 18.00, 88.00, 64.00],
-        'invoice' => [8.50, 15.00, 83.00, 70.00],
         'payslip' => [8.00, 14.00, 84.00, 72.00],
     ];
 

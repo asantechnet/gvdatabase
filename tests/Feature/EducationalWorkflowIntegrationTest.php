@@ -5,23 +5,24 @@ namespace Tests\Feature;
 use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
-use App\Models\Currency;
 use App\Models\Country;
+use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Notification;
 use App\Models\PendingTransaction;
 use App\Models\Role;
-use App\Models\User;
 use App\Models\University;
+use App\Models\User;
 use App\Services\EducationalWorkflowNotificationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\CreatesBuiltInContracts;
 use Tests\TestCase;
 
 class EducationalWorkflowIntegrationTest extends TestCase
 {
-    use RefreshDatabase;
+    use CreatesBuiltInContracts, RefreshDatabase;
 
     public function test_assignment_stage_and_stalled_case_notifications_are_delivered_once(): void
     {
@@ -109,19 +110,17 @@ class EducationalWorkflowIntegrationTest extends TestCase
             ->json('data');
         $this->seedApplicantDocuments($case['id']);
 
-        $payload = [
-            'applicant_id' => $case['id'],
-            'employee_id' => $otherEmployee->id,
-            'currency_id' => $currency->id,
-            'date' => now()->toDateString(),
-            'fee' => 100,
-        ];
-        $this->postJson('/api/educational-services/test-offers', $payload)->assertForbidden();
-        $this->postJson('/api/educational-services/test-offers', [...$payload, 'employee_id' => $ownEmployee->id])->assertCreated();
+        $payload = $this->builtInContractPayload('test_offer', [
+            'name' => 'New contract case', 'responsible_employee_id' => $otherEmployee->id,
+            'currency_id' => $currency->id, 'fee' => 100,
+        ]);
+        $this->postJson('/api/contracts/test_offer', $payload)->assertForbidden();
+        $this->postJson('/api/contracts/test_offer', [...$payload, 'responsible_employee_id' => $ownEmployee->id])->assertCreated();
     }
 
     public function test_staff_dashboard_and_university_actions_are_limited_to_assigned_cases(): void
     {
+        Employee::factory()->create(); // The primary system record is excluded from staff metrics.
         $manager = $this->userWithRole('manager');
         $agent = $this->userWithRole('staff');
         $otherAgent = $this->userWithRole('staff');
@@ -142,6 +141,8 @@ class EducationalWorkflowIntegrationTest extends TestCase
 
         Sanctum::actingAs($agent, ['access']);
         $this->getJson('/api/educational-dashboard?responsible_employee_id='.$otherEmployee->id)
+            ->assertForbidden();
+        $this->getJson('/api/educational-dashboard')
             ->assertOk()
             ->assertJsonPath('data.pipeline.totals.all', 1)
             ->assertJsonCount(1, 'data.staff')

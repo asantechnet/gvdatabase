@@ -194,7 +194,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       const columns = chooseColumns(body.columns)
 
       const titleColumn = columns.find(column => column.key === props.mobileTitleKey)
-        || columns.find(column => ['name', 'title', 'number', 'invoice_number', 'order_number', 'code', 'email'].includes(column.key))
+        || columns.find(column => ['name', 'title', 'number', 'order_number', 'code', 'email'].includes(column.key))
         || columns[0]
 
       const actionColumn = body.columns.find(column => column.key === props.mobileActionKey)

@@ -2,19 +2,20 @@
 
 namespace Tests\Feature;
 
-use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\ContractDocumentDesign;
 use App\Models\ContractType;
 use App\Models\Currency;
+use App\Models\Language;
 use App\Models\Role;
-use App\Models\Service;
 use App\Models\User;
 use App\Services\ContractDocumentDesignService;
+use App\Services\Contracts\BuiltInContractTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\CreatesBuiltInContracts;
 use Tests\TestCase;
 
 /**
@@ -25,7 +26,7 @@ use Tests\TestCase;
  */
 class ContractDocumentDesignTest extends TestCase
 {
-    use RefreshDatabase;
+    use CreatesBuiltInContracts, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -41,11 +42,11 @@ class ContractDocumentDesignTest extends TestCase
     {
         $customer = $this->type('customer');
         $employment = $this->type('employment');
-        $service = $this->service();
+        $service = 'academy';
 
         $this->post('/api/contract-document-designs', [
             'contract_type_id' => $customer->id,
-            'service_id' => $service->id,
+            'service' => $service,
             'letterhead' => $this->fakePng('letterhead.png'),
             'safe_x' => 12.5,
             'safe_y' => 20,
@@ -53,71 +54,59 @@ class ContractDocumentDesignTest extends TestCase
             'safe_height' => 61,
         ], ['Accept' => 'application/json'])
             ->assertCreated()
-            ->assertJsonPath('data.service_id', $service->id)
+            ->assertJsonPath('data.service', $service)
             ->assertJsonPath('data.safe_width', 70);
 
         // Employment and other contracts carry exactly one design per type.
         $this->postJson('/api/contract-document-designs', [
             'contract_type_id' => $employment->id,
-            'service_id' => $service->id,
-        ])->assertStatus(422)->assertJsonValidationErrors('service_id');
+            'service' => $service,
+        ])->assertStatus(422)->assertJsonValidationErrors('service');
 
         $this->postJson('/api/contract-document-designs', ['contract_type_id' => $employment->id])
             ->assertCreated()
-            ->assertJsonPath('data.service_id', null);
+            ->assertJsonPath('data.service', null);
     }
 
-    public function test_customer_contract_snapshot_prefers_the_service_design(): void
+    public function test_builtin_contract_snapshots_type_artwork_without_a_catalogue_binding(): void
     {
         $customer = $this->type('customer');
-        $service = $this->service();
-
-        $this->design(['contract_type_id' => $customer->id, 'letterhead' => 'contract-designs/type-wide.png', 'safe_x' => 8.5]);
-        $serviceDesign = $this->design([
-            'contract_type_id' => $customer->id,
-            'service_id' => $service->id,
-            'letterhead' => 'contract-designs/service.png',
-            'cover_design' => 'contract-designs/service-cover.png',
-            'safe_x' => 11.25,
-            'safe_y' => 22.5,
-            'safe_width' => 66,
-            'safe_height' => 55,
+        $currency = Currency::factory()->create(['rate' => 1]);
+        $language = Language::create(['name' => 'English', 'code' => 'en']);
+        $template = app(BuiltInContractTemplateService::class)->ensure('academy');
+        $template->versions()->create([
+            'language_id' => $language->id, 'version_number' => 1, 'name' => 'Terms',
+            'status' => 'active', 'is_current' => true,
+            'current_scope_key' => "{$template->id}:0:{$language->id}", 'content' => '<p>Terms</p>',
         ]);
-
-        $contract = $this->postJson('/api/contracts', [
-            'template_id' => $this->template($customer->id, $service->id),
-            'applicant_id' => Applicant::factory()->create()->id,
-            'status' => 'draft',
-            'start_date' => now()->toDateString(),
-            'service_lines' => [['service_id' => $service->id, 'fee' => 450]],
-        ])->assertCreated()->json('data.snapshot_data.document_design');
-
-        $this->assertSame($serviceDesign->id, $contract['id']);
-        $this->assertSame('contract-designs/service.png', $contract['letterhead']);
-        $this->assertSame('contract-designs/service-cover.png', $contract['cover_design']);
-        $this->assertEqualsWithDelta(11.25, (float) $contract['safe_x'], 0.001);
-        $this->assertEqualsWithDelta(55.0, (float) $contract['safe_height'], 0.001);
+        $typeDesign = $this->design([
+            'contract_type_id' => $customer->id, 'letterhead' => 'contract-designs/customer.png',
+            'cover_design' => 'contract-designs/customer-cover.png', 'safe_x' => 11.25, 'safe_height' => 55,
+        ]);
+        $this->design(['contract_type_id' => $customer->id, 'service' => 'scholarship', 'letterhead' => 'contract-designs/unrelated.png']);
+        $id = $this->postJson('/api/contracts/academy', [
+            'name' => 'Artwork applicant', 'fee' => 100, 'discount' => 0, 'currency_id' => $currency->id,
+            'currency_rate' => 1, 'language_id' => $language->id, 'start_date' => now()->toDateString(),
+        ])->assertCreated()->assertJsonPath('data.snapshot_data.document_design.id', $typeDesign->id)->json('data.id');
+        $typeDesign->update(['safe_x' => 50, 'letterhead' => 'contract-designs/revised.png']);
+        $this->getJson('/api/contracts/'.$id)->assertOk()
+            ->assertJsonPath('data.snapshot_data.document_design.letterhead', 'contract-designs/customer.png')
+            ->assertJsonPath('data.snapshot_data.document_design.cover_design', 'contract-designs/customer-cover.png')
+            ->assertJsonPath('data.snapshot_data.document_design.safe_x', 11.25)
+            ->assertJsonPath('data.snapshot_data.document_design.safe_height', 55);
     }
 
-    public function test_customer_contract_without_a_service_snapshot_uses_the_customer_wide_design(): void
+    public function test_builtin_service_artwork_overrides_type_artwork_and_stays_frozen(): void
     {
         $customer = $this->type('customer');
-        $catalogue = $this->service();
-        $typeDesign = $this->design(['contract_type_id' => $customer->id, 'letterhead' => 'contract-designs/customer.png', 'safe_y' => 18]);
-        $this->design(['contract_type_id' => $customer->id, 'service_id' => $catalogue->id, 'letterhead' => 'contract-designs/service.png']);
-        $otherService = $this->service();
-
-        $contract = $this->postJson('/api/contracts', [
-            'template_id' => $this->template($customer->id, $otherService->id),
-            'applicant_id' => Applicant::factory()->create()->id,
-            'status' => 'draft',
-            'start_date' => now()->toDateString(),
-            'service_lines' => [['service_id' => $otherService->id]],
-        ])->assertCreated()->json('data.snapshot_data.document_design');
-
-        $this->assertSame($typeDesign->id, $contract['id']);
-        $this->assertSame('contract-designs/customer.png', $contract['letterhead']);
-        $this->assertEqualsWithDelta(18.0, (float) $contract['safe_y'], 0.001);
+        $this->design(['contract_type_id' => $customer->id, 'letterhead' => 'contract-designs/default.png']);
+        $design = $this->design(['contract_type_id' => $customer->id, 'service' => 'academy', 'letterhead' => 'contract-designs/academy.png', 'safe_x' => 12.5]);
+        $created = $this->createBuiltInContract('academy');
+        $this->assertSame($design->id, $created['snapshot_data']['document_design']['id']);
+        $design->update(['letterhead' => 'contract-designs/revised.png', 'safe_x' => 20]);
+        $this->getJson('/api/contracts/'.$created['id'])->assertOk()
+            ->assertJsonPath('data.snapshot_data.document_design.letterhead', 'contract-designs/academy.png')
+            ->assertJsonPath('data.snapshot_data.document_design.safe_x', 12.5);
     }
 
     public function test_employment_and_other_contracts_share_the_single_type_design(): void
@@ -150,10 +139,10 @@ class ContractDocumentDesignTest extends TestCase
     public function test_a_contract_without_a_design_snapshot_resolves_the_current_design_when_read(): void
     {
         $customer = $this->type('customer');
-        $service = $this->service();
+        $service = 'academy';
         $serviceDesign = $this->design([
             'contract_type_id' => $customer->id,
-            'service_id' => $service->id,
+            'service' => $service,
             'letterhead' => 'contract-designs/service.png',
             'safe_x' => 14.75,
         ]);
@@ -161,9 +150,9 @@ class ContractDocumentDesignTest extends TestCase
         $contract = Contract::factory()->create([
             'template_id' => null,
             'contract_type_id' => $customer->id,
+            'service' => $service,
             'snapshot_data' => ['entity' => []],
         ]);
-        $contract->contractServices()->create(['service_id' => $service->id, 'fee' => 100]);
 
         $this->getJson("/api/contracts/{$contract->id}")
             ->assertOk()
@@ -200,66 +189,15 @@ class ContractDocumentDesignTest extends TestCase
         $this->assertNull($design->fresh()->letterhead);
     }
 
-    public function test_package_issued_contracts_snapshot_the_service_design(): void
-    {
-        $customer = $this->type('customer');
-        $currency = Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
-        $service = Service::factory()->create(['currency_id' => $currency->id, 'fee' => 600]);
-        $design = $this->design([
-            'contract_type_id' => $customer->id,
-            'service_id' => $service->id,
-            'letterhead' => 'contract-designs/package.png',
-            'safe_x' => 12,
-        ]);
-        $this->design(['contract_type_id' => $customer->id, 'letterhead' => 'contract-designs/customer.png']);
-
-        $package = $this->postJson('/api/packages', [
-            'name' => 'Student Success Bundle',
-            'service_ids' => [$service->id],
-            'currency_id' => $currency->id,
-            'fee' => 600,
-        ])->assertCreated()->json('data.id');
-
-        $packageApplicant = Applicant::factory()->create();
-        $this->seedApplicantDocuments($packageApplicant);
-
-        $this->postJson("/api/packages/{$package}/issue", [
-            'applicant_id' => $packageApplicant->id,
-            'currency_id' => $currency->id,
-            'fee' => 600,
-            'purchased_at' => now()->toDateString(),
-        ])->assertCreated();
-
-        $contract = Contract::query()->where('contract_type_id', $customer->id)->latest('id')->firstOrFail();
-        $this->assertSame($design->id, $contract->snapshot_data['document_design']['id']);
-        $this->assertEqualsWithDelta(12.0, (float) $contract->snapshot_data['document_design']['safe_x'], 0.001);
-    }
-
     private function type(string $slug): ContractType
     {
         return ContractType::query()->where('slug', $slug)->firstOrFail();
-    }
-
-    private function service(): Service
-    {
-        return Service::factory()->create(['currency_id' => Currency::factory()->create()->id]);
     }
 
     /** @param array<string, mixed> $attributes */
     private function design(array $attributes): ContractDocumentDesign
     {
         return ContractDocumentDesign::create($attributes);
-    }
-
-    private function template(int $typeId, ?int $serviceId): int
-    {
-        return $this->postJson('/api/contract-templates', [
-            'name' => 'Service agreement',
-            'contract_type_id' => $typeId,
-            'service_id' => $serviceId ?? Service::factory()->create()->id,
-            'cover_text' => 'Cover',
-            'content' => '<p>Agreement</p>',
-        ])->assertCreated()->json('data.id');
     }
 
     private function fakePng(string $name): UploadedFile

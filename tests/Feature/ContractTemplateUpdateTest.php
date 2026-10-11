@@ -4,11 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\ContractTemplate;
 use App\Models\ContractType;
-use App\Models\Applicant;
-use App\Models\Currency;
 use App\Models\Permission;
 use App\Models\Role;
-use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -54,10 +51,10 @@ class ContractTemplateUpdateTest extends TestCase
             'contract_type_id' => $type->id,
             'cover_text' => 'Cover',
             'content' => '<p>Terms</p>',
-        ])->assertUnprocessable()->assertJsonValidationErrors('service_id');
+        ])->assertUnprocessable()->assertJsonValidationErrors('service');
     }
 
-    public function test_a_template_viewer_without_the_package_permission_can_list_packages(): void
+    public function test_template_viewers_cannot_access_the_removed_package_catalogue(): void
     {
         $viewer = User::factory()->create();
         $role = Role::firstOrCreate(['name' => 'template_viewer']);
@@ -66,74 +63,18 @@ class ContractTemplateUpdateTest extends TestCase
 
         Sanctum::actingAs($viewer, ['access']);
 
-        // The template editor loads the package catalogue, so reading
-        // packages must be allowed to template viewers.
-        $this->getJson('/api/packages')->assertOk();
+        $this->getJson('/api/packages')->assertNotFound();
 
         $this->getJson('/api/contract-templates')->assertOk();
     }
 
-    public function test_customer_template_accepts_a_package_instead_of_a_service(): void
+    public function test_removed_catalogue_bindings_are_rejected_without_changing_the_template(): void
     {
-        $type = ContractType::query()->where('slug', 'customer')->firstOrFail();
-        $currency = Currency::factory()->create();
-        $service = Service::factory()->create(['currency_id' => $currency->id]);
-        $package = $this->postJson('/api/packages', [
-            'name' => 'Template Test Bundle',
-            'service_ids' => [$service->id],
-            'currency_id' => $currency->id,
-            'fee' => 600,
-        ])->assertCreated()->json('data');
-
-        // A template can be for a package: no service scope is required and
-        // the service binding stays empty.
-        $templateId = $this->postJson('/api/contract-templates', [
-            'name' => 'Package Agreement',
-            'contract_type_id' => $type->id,
-            'package_id' => $package['id'],
-            'service_id' => null,
-            'cover_text' => 'Cover',
-            'content' => '<p>Terms</p>',
-        ])->assertCreated()
-            ->assertJsonPath('data.package_id', $package['id'])
-            ->assertJsonPath('data.service_id', null)
-            ->json('data.id');
-
-        $this->assertDatabaseHas('contract_templates', ['id' => $templateId, 'package_id' => $package['id'], 'service_id' => null]);
-        $this->assertDatabaseCount('contract_template_services', 0);
-
-        // A template can never bind both subjects at once.
-        $this->postJson('/api/contract-templates', [
-            'name' => 'Confused Agreement',
-            'contract_type_id' => $type->id,
-            'package_id' => $package['id'],
-            'service_id' => $service->id,
-            'service_scopes' => [['service_id' => $service->id]],
-            'cover_text' => 'Cover',
-            'content' => '<p>Terms</p>',
-        ])->assertUnprocessable()->assertJsonValidationErrors('service_id');
-
-        // Switching the template from package to service clears the package.
-        $this->putJson("/api/contract-templates/{$templateId}", [
-            'service_id' => $service->id,
-            'service_scopes' => [['service_id' => $service->id]],
-            'package_id' => null,
-        ])->assertOk()
-            ->assertJsonPath('data.package_id', null)
-            ->assertJsonPath('data.service_id', $service->id);
-
-        $this->assertDatabaseHas('contract_templates', ['id' => $templateId, 'package_id' => null, 'service_id' => $service->id]);
-        $this->assertDatabaseHas('contract_template_services', ['contract_template_id' => $templateId, 'service_id' => $service->id]);
-
-        // Switching the template from service back to package clears the service.
-        $this->putJson("/api/contract-templates/{$templateId}", [
-            'package_id' => $package['id'],
-            'service_id' => null,
-        ])->assertOk()
-            ->assertJsonPath('data.package_id', $package['id'])
-            ->assertJsonPath('data.service_id', null);
-
-        $this->assertDatabaseHas('contract_templates', ['id' => $templateId, 'package_id' => $package['id'], 'service_id' => null]);
-        $this->assertDatabaseCount('contract_template_services', 0);
+        $type = ContractType::where('slug', 'customer')->firstOrFail();
+        $template = ContractTemplate::create(['name' => 'Academy terms', 'contract_type_id' => $type->id, 'service' => 'academy', 'content' => '', 'cover_text' => '']);
+        foreach (['service_id' => 1, 'package_id' => 1, 'service_ids' => [1], 'service_scopes' => [['service_id' => 1]]] as $field => $value) {
+            $this->putJson('/api/contract-templates/'.$template->id, [$field => $value])->assertUnprocessable()->assertJsonValidationErrors($field);
+        }
+        $this->assertSame('academy', $template->fresh()->service);
     }
 }

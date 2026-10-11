@@ -38,8 +38,8 @@ class ApiMessageTest extends TestCase
         $this->configureTranslator('en');
 
         $this->assertSame(
-            'Commission employees are paid through service income and cannot receive salary records.',
-            ApiMessage::forCode('business.commission_employee_salary_forbidden'),
+            'The payment exceeds the remaining balance of this service.',
+            ApiMessage::forCode('business.contract_payment_exceeds_balance'),
         );
     }
 

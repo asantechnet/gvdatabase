@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
 import { useToast } from 'vue-toastification'
 import { useRouter } from 'vue-router'
 import PositionApi, { type Position, type PositionPayload } from '@/api/position'
@@ -136,7 +137,7 @@ onMounted(loadPositions)
   <DataTablePageKpis
     :items="filteredPositions"
     :base-currency="filteredPositions[0]?.currency ?? null"
-    title="Positions"
+    :title="$t('common.navigation.positions')"
     description="Review team roles, staffing levels, and position availability."
     icon="tabler-briefcase"
   />

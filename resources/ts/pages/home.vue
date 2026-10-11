@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import ErpField from '@/components/erp/ErpField.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTheme } from 'vuetify'
@@ -20,7 +23,6 @@ const emptyDashboard = (): DashboardData => ({
     finance: false,
     attendance: false,
     customers: false,
-    invoices: false,
     asset: false,
     employees: false,
     contracts: false,
@@ -46,8 +48,6 @@ const emptyDashboard = (): DashboardData => ({
     monthly_net_cash: null,
     applicant_count: null,
     new_applicants_this_month: null,
-    open_invoice_count: null,
-    open_invoice_value: null,
     employee_count: null,
     asset_asset_value: null,
   },
@@ -58,17 +58,13 @@ const emptyDashboard = (): DashboardData => ({
   active_tasks: [],
   financial_chart: null,
   expense_breakdown: [],
-  top_customers: [],
-  receivables: [],
+  top_applicants: [],
   asset_health: null,
   team_health: null,
   attention_items: [],
   commercial_overview: {
     applicants: null,
     new_applicants_this_month: null,
-    invoice_total: null,
-    collected_total: null,
-    collection_rate: 0,
     active_services: null,
     service_deadlines_30_days: null,
     active_contracts: null,
@@ -87,9 +83,8 @@ const emptyDashboard = (): DashboardData => ({
     latest_payroll_period: null,
     latest_payroll_total: null,
   },
-  kpi_trends: { labels: [], invoiceValue: [], applicants: [], payroll: [], visitors: [], completedTasks: [] },
+  kpi_trends: { labels: [], applicants: [], payroll: [], visitors: [], completedTasks: [] },
   business_trend: null,
-  invoice_aging: null,
   service_portfolio: [],
   task_mix: [],
   executive_actions: [],
@@ -148,7 +143,7 @@ const formatMinutes = (value: number | null) => {
 }
 
 const executiveMetrics = computed<ExecutiveMetric[]>(() => {
-  if (!dashboard.value.capabilities.invoices) {
+  if (!dashboard.value.capabilities.finance) {
     return [
       { key: 'active', label: t('metrics.activeWork'), value: formatNumber(dashboard.value.summary.active_tasks), context: t('metrics.nearingCompletion', { count: formatNumber(dashboard.value.summary.nearing_completion_tasks) }), icon: 'tabler-list-check', color: 'primary', trend: dashboard.value.sparklines.active_tasks },
       { key: 'completed', label: t('metrics.completedThisMonth'), value: formatNumber(dashboard.value.summary.completed_tasks_this_month), context: t('metrics.completionRate', { rate: formatNumber(dashboard.value.summary.task_completion_rate, 1) }), icon: 'tabler-circle-check', color: 'success', trend: dashboard.value.kpi_trends.completedTasks },
@@ -158,8 +153,6 @@ const executiveMetrics = computed<ExecutiveMetric[]>(() => {
   }
 
   const cards: ExecutiveMetric[] = [
-    { key: 'exposure', label: t('metrics.receivableExposure'), value: formatCompactMoney(dashboard.value.summary.open_invoice_value), context: t('metrics.openInvoices', { count: formatNumber(dashboard.value.summary.open_invoice_count) }), icon: 'tabler-receipt-dollar', color: 'warning', trend: dashboard.value.kpi_trends.invoiceValue },
-    { key: 'collection', label: t('metrics.cashCollection'), value: `${formatNumber(dashboard.value.commercial_overview.collection_rate, 1)}%`, context: t('metrics.collectedOf', { collected: formatCompactMoney(dashboard.value.commercial_overview.collected_total), total: formatCompactMoney(dashboard.value.commercial_overview.invoice_total) }), icon: 'tabler-cash-banknote', color: dashboard.value.commercial_overview.collection_rate >= 70 ? 'success' : 'error', trend: dashboard.value.business_trend?.collected ?? [] },
     { key: 'customers', label: t('metrics.customerBase'), value: formatNumber(dashboard.value.commercial_overview.applicants), context: t('metrics.activeCommitments', { count: formatNumber(dashboard.value.commercial_overview.active_services) }), icon: 'tabler-building-store', color: 'primary', trend: dashboard.value.kpi_trends.applicants },
   ]
 
@@ -174,9 +167,9 @@ const colorHex: Record<string, string> = { primary: '#7367f0', success: '#28c76f
 const chartTextColor = computed(() => global.current.value.dark ? '#d4d2dc' : '#6d6b77')
 
 const sparkValue = (metric: ExecutiveMetric, value: number) => {
-  if (metric.key === 'exposure' || metric.key === 'payroll')
+  if (metric.key === 'payroll')
     return formatCompactMoney(value)
-  if (metric.key === 'collection' || metric.key === 'progress')
+  if (metric.key === 'progress')
     return `${formatNumber(value, 1)}%`
 
   return formatNumber(value, 1)
@@ -200,7 +193,6 @@ const monthLabels = computed(() => dashboard.value.kpi_trends.labels.map(label =
 
 const businessSeries = computed(() => dashboard.value.business_trend
   ? [
-    { name: t('charts.billed'), type: 'column', data: dashboard.value.business_trend.billed },
     { name: t('charts.collected'), type: 'line', data: dashboard.value.business_trend.collected },
     { name: t('charts.spent'), type: 'line', data: dashboard.value.business_trend.spent },
   ]
@@ -208,36 +200,16 @@ const businessSeries = computed(() => dashboard.value.business_trend
 
 const businessChartOptions = computed(() => ({
   chart: { type: 'line', toolbar: { show: false }, parentHeightOffset: 0, zoom: { enabled: false } },
-  colors: [colorHex.primary, colorHex.success, colorHex.warning],
-  stroke: { width: [0, 3, 3], curve: 'smooth' },
-  plotOptions: { bar: { borderRadius: 5, columnWidth: '42%' } },
+  colors: [colorHex.success, colorHex.warning],
+  stroke: { width: [3, 3], curve: 'smooth' },
   dataLabels: { enabled: false },
-  fill: { opacity: [0.84, 1, 1] },
+  fill: { opacity: [1, 1] },
   grid: { borderColor: 'rgba(var(--v-theme-on-surface), .10)', strokeDashArray: 5 },
   xaxis: { categories: monthLabels.value, axisBorder: { show: false }, axisTicks: { show: false }, crosshairs: { show: false }, tooltip: { enabled: false }, labels: { style: { colors: chartTextColor.value } } },
   yaxis: { labels: { style: { colors: chartTextColor.value }, formatter: (value: number) => formatCompactMoney(value) } },
   legend: { position: 'top', horizontalAlign: 'right', markers: { radius: 12 }, labels: { colors: chartTextColor.value } },
   tooltip: { shared: true, theme: global.current.value.dark ? 'dark' : 'light', y: { formatter: (value: number) => formatMoney(value) } },
   noData: { text: t('charts.noBillingActivity'), style: { color: chartTextColor.value } },
-}))
-
-const agingSeries = computed(() => dashboard.value.invoice_aging?.values ?? [])
-
-const agingLabel = (label: string) => {
-  const keys: Record<string, string> = { 'Not due': 'notDue', '1–30 days': 'days1To30', '31–60 days': 'days31To60', '61+ days': 'days61Plus', 'No due date': 'noDueDate' }
-
-  return keys[label] ? t(`aging.${keys[label]}`) : translateBackendValue(label)
-}
-
-const agingOptions = computed(() => ({
-  chart: { type: 'donut' },
-  labels: (dashboard.value.invoice_aging?.labels ?? []).map(agingLabel),
-  colors: ['#28c76f', '#ff9f43', '#ff6f61', '#ea5455', '#82868b'],
-  stroke: { width: 0 },
-  dataLabels: { enabled: false },
-  legend: { position: 'bottom', fontSize: '12px', markers: { radius: 12 }, labels: { colors: chartTextColor.value } },
-  plotOptions: { pie: { donut: { size: '72%', labels: { show: true, name: { color: chartTextColor.value }, value: { color: chartTextColor.value }, total: { show: true, color: chartTextColor.value, label: t('charts.openBalance'), formatter: () => formatCompactMoney(dashboard.value.summary.open_invoice_value) } } } } },
-  tooltip: { theme: global.current.value.dark ? 'dark' : 'light', y: { formatter: (value: number) => formatMoney(value) } },
 }))
 
 const commercialActivitySeries = computed(() => [
@@ -286,18 +258,6 @@ const taskOptions = computed(() => ({
   tooltip: { theme: global.current.value.dark ? 'dark' : 'light' },
 }))
 
-const collectionMessage = computed(() => {
-  const rate = dashboard.value.commercial_overview.collection_rate
-  if (!dashboard.value.commercial_overview.invoice_total)
-    return t('collection.noIssuedValue')
-  if (rate === 0)
-    return t('collection.noLinkedIncome')
-  if (rate < 70)
-    return t('collection.trailing')
-
-  return t('collection.healthy')
-})
-
 const attendanceRateToday = computed(() => {
   const marked = dashboard.value.people_overview.attendance_marked_today ?? 0
   const employees = dashboard.value.people_overview.employees ?? 0
@@ -340,19 +300,9 @@ onMounted(loadDashboard)
 </script>
 
 <template>
-  <main class="executive-dashboard pa-4 pa-md-6">
-    <header class="d-flex flex-wrap align-end justify-space-between ga-4 mb-6">
-      <div>
-        <div class="section-eyebrow mb-2">
-          {{ t('header.eyebrow') }}
-        </div>
-        <h1 class="text-h3 font-weight-bold tracking-tight mb-1">
-          {{ t('header.title') }}
-        </h1>
-        <p class="text-body-1 text-medium-emphasis mb-0">
-          {{ t('header.subtitle') }}
-        </p>
-      </div>
+  <main class="executive-dashboard erp-workspace">
+    <ErpPageHeader :title="t('header.title')" section="dashboard" />
+    <div class="d-flex flex-wrap align-center justify-space-between gap-3 mb-4">
       <div class="dashboard-controls d-flex flex-wrap align-center justify-end ga-2">
         <div
           class="period-segments"
@@ -370,50 +320,7 @@ onMounted(loadDashboard)
             {{ t(option.titleKey) }}
           </button>
         </div>
-        <VMenu
-          :close-on-content-click="false"
-          location="bottom end"
-          origin="auto"
-        >
-          <template #activator="{ props }">
-            <VBtn
-              v-bind="props"
-              :color="selectedPeriod === 'custom' ? 'primary' : 'secondary'"
-              variant="tonal"
-              height="40"
-              prepend-icon="tabler-calendar"
-            >
-              {{ t('filters.custom') }}
-            </VBtn>
-          </template>
-          <VCard
-            min-width="300"
-            class="pa-4 dashboard-range-card"
-          >
-            <div class="text-subtitle-2 font-weight-bold mb-3">
-              {{ t('filters.customTitle') }}
-            </div><AppDateTimePicker
-              v-model="customStartDate"
-              :label="t('filters.from')"
-              density="compact"
-              class="mb-2"
-              :config="{ dateFormat: 'Y-m-d' }"
-            /><AppDateTimePicker
-              v-model="customEndDate"
-              :label="t('filters.to')"
-              density="compact"
-              class="mb-3"
-              :config="{ dateFormat: 'Y-m-d', minDate: customStartDate || undefined }"
-            /><VBtn
-              block
-              color="primary"
-              :disabled="!customStartDate || !customEndDate"
-              @click="selectedPeriod = 'custom'; loadDashboard()"
-            >
-              {{ t('filters.apply') }}
-            </VBtn>
-          </VCard>
-        </VMenu>
+        <ErpDateRange v-model:from="customStartDate" v-model:to="customEndDate" @apply="selectedPeriod = 'custom'; loadDashboard()" />
         <span
           v-if="refreshedAt"
           class="text-caption text-medium-emphasis d-none d-sm-inline"
@@ -428,7 +335,7 @@ onMounted(loadDashboard)
           {{ t('header.refresh') }}
         </VBtn>
       </div>
-    </header>
+    </div>
 
     <VProgressLinear
       v-if="isLoading"
@@ -496,7 +403,7 @@ onMounted(loadDashboard)
     </VRow>
 
     <section
-      v-if="dashboard.capabilities.invoices"
+      v-if="dashboard.capabilities.finance"
       class="answer-strip mt-5 mb-5 pa-5 rounded-lg"
     >
       <div class="d-flex align-center justify-space-between flex-wrap ga-3 mb-4">
@@ -516,27 +423,6 @@ onMounted(loadDashboard)
         </VChip>
       </div>
       <VRow g="0">
-        <VCol
-          cols="12"
-          sm="6"
-          lg="3"
-          class="answer-cell pa-3"
-        >
-          <div class="d-flex ga-3">
-            <VIcon
-              icon="tabler-wallet"
-              color="warning"
-            /><div>
-              <p class="text-caption text-medium-emphasis mb-1">
-                {{ t('answers.collectingQuestion') }}
-              </p><p class="font-weight-bold mb-1">
-                {{ t('answers.issuedValue', { rate: formatNumber(dashboard.commercial_overview.collection_rate, 1) }) }}
-              </p><p class="text-caption text-medium-emphasis mb-0">
-                {{ collectionMessage }}
-              </p>
-            </div>
-          </div>
-        </VCol>
         <VCol
           cols="12"
           sm="6"
@@ -610,7 +496,7 @@ onMounted(loadDashboard)
     >
       <VCol
         cols="12"
-        lg="8"
+        lg="12"
       >
         <VCard class="h-100">
           <VCardItem class="px-5 pt-5 pb-0">
@@ -636,34 +522,6 @@ onMounted(loadDashboard)
               :series="businessSeries"
             />
           </VCardText>
-        </VCard>
-      </VCol>
-      <VCol
-        cols="12"
-        lg="4"
-      >
-        <VCard class="h-100">
-          <VCardItem class="px-5 pt-5 pb-0">
-            <VCardTitle class="font-weight-bold">
-              {{ t('sections.receivablesAging') }}
-            </VCardTitle><VCardSubtitle>{{ t('sections.receivablesAgingSubtitle') }}</VCardSubtitle>
-          </VCardItem>
-          <VCardText class="pt-2">
-            <VueApexCharts
-              type="donut"
-              height="300"
-              :options="agingOptions"
-              :series="agingSeries"
-            />
-          </VCardText>
-          <div class="mx-5 mb-5 pa-3 insight-note rounded">
-            <VIcon
-              icon="tabler-bulb"
-              color="warning"
-              size="18"
-              class="me-2"
-            /><span class="text-caption">{{ t('sections.agingInsight') }}</span>
-          </div>
         </VCard>
       </VCol>
     </VRow>
@@ -948,60 +806,8 @@ onMounted(loadDashboard)
       class="mt-1"
     >
       <VCol
-        v-if="dashboard.capabilities.invoices"
         cols="12"
-        lg="7"
-      >
-        <VCard class="h-100">
-          <VCardItem class="px-5 pt-5">
-            <VCardTitle class="font-weight-bold">
-              {{ t('receivables.title') }}
-            </VCardTitle><VCardSubtitle>{{ t('receivables.subtitle') }}</VCardSubtitle>
-          </VCardItem>
-          <VTable class="executive-table">
-            <thead>
-              <tr>
-                <th>{{ t('receivables.customerInvoice') }}</th><th>{{ t('receivables.due') }}</th><th class="text-end">
-                  {{ t('receivables.openBalance') }}
-                </th>
-              </tr>
-            </thead><tbody>
-              <tr
-                v-for="invoice in dashboard.receivables"
-                :key="invoice.id"
-              >
-                <td>
-                  <p class="text-body-2 font-weight-bold mb-0">
-                    {{ invoice.customer }}
-                  </p><p class="text-caption text-medium-emphasis mb-0">
-                    {{ invoice.number }}
-                  </p>
-                </td><td>
-                  <VChip
-                    :color="!invoice.due_date || invoice.is_overdue ? 'error' : 'warning'"
-                    size="small"
-                    variant="tonal"
-                  >
-                    {{ invoice.due_date ? (invoice.is_overdue ? t('receivables.overdueDate', { date: formatDate(invoice.due_date) }) : formatDate(invoice.due_date)) : t('receivables.dueMissing') }}
-                  </VChip>
-                </td><td class="text-end font-weight-bold">
-                  {{ formatMoney(invoice.balance) }}
-                </td>
-              </tr><tr v-if="!dashboard.receivables.length">
-                <td
-                  colspan="3"
-                  class="text-center text-medium-emphasis py-8"
-                >
-                  {{ t('receivables.empty') }}
-                </td>
-              </tr>
-            </tbody>
-          </VTable>
-        </VCard>
-      </VCol>
-      <VCol
-        cols="12"
-        :lg="dashboard.capabilities.invoices ? 5 : 12"
+        lg="12"
       >
         <VCard class="h-100">
           <VCardItem class="px-5 pt-5">
@@ -1013,7 +819,7 @@ onMounted(loadDashboard)
                   {{ t('delivery.subtitle') }}
                 </VCardSubtitle>
               </div><VBtn
-                to="/projects"
+                to="/tasks"
                 variant="text"
                 size="small"
                 append-icon="tabler-arrow-right"

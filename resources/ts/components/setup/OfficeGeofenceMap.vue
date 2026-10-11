@@ -3,6 +3,7 @@ import mapboxgl, { type GeoJSONSource, type Map as MapboxMap, type Marker } from
 import 'mapbox-gl/dist/mapbox-gl.css'
 
 const props = defineProps<{
+  readonly?: boolean
   latitude: number | null
   longitude: number | null
   radiusMeters: number
@@ -63,9 +64,10 @@ function distanceMeters(latitudeA: number, longitudeA: number, latitudeB: number
   const latitudeDelta = (latitudeB - latitudeA) * Math.PI / 180
   const longitudeDelta = (longitudeB - longitudeA) * Math.PI / 180
 
-  const a = Math.sin(latitudeDelta / 2) ** 2
+  const raw = Math.sin(latitudeDelta / 2) ** 2
     + Math.cos(latitudeA * Math.PI / 180) * Math.cos(latitudeB * Math.PI / 180) * Math.sin(longitudeDelta / 2) ** 2
 
+  const a = Math.min(1, Math.max(0, raw))
   return Math.round(earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
 }
 
@@ -123,24 +125,27 @@ onMounted(() => {
   })
   map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
 
-  officeMarker = new mapboxgl.Marker({ color: '#7367f0', draggable: true }).setLngLat([location.longitude, location.latitude]).addTo(map)
-  radiusMarker = new mapboxgl.Marker({ color: '#ff9f43', draggable: true, scale: 0.7 }).setLngLat([location.longitude, location.latitude]).addTo(map)
+  officeMarker = new mapboxgl.Marker({ color: '#7367f0', draggable: !props.readonly }).setLngLat([location.longitude, location.latitude]).addTo(map)
+  radiusMarker = new mapboxgl.Marker({ color: '#ff9f43', draggable: !props.readonly, scale: 0.7 }).setLngLat([location.longitude, location.latitude]).addTo(map)
 
   officeMarker.on('drag', () => {
-    const point = officeMarker!.getLngLat()
+    if (props.readonly) return
+    const point = officeMarker!.getLngLat().wrap()
 
     emit('update:latitude', Number(point.lat.toFixed(7)))
     emit('update:longitude', Number(point.lng.toFixed(7)))
   })
   radiusMarker.on('drag', () => {
-    const point = radiusMarker!.getLngLat()
+    if (props.readonly) return
+    const point = radiusMarker!.getLngLat().wrap()
     const location = center()
 
     emit('update:radiusMeters', Math.min(5000, Math.max(10, distanceMeters(location.latitude, location.longitude, point.lat, point.lng))))
   })
   map.on('click', event => {
+    if (props.readonly) return
     emit('update:latitude', Number(event.lngLat.lat.toFixed(7)))
-    emit('update:longitude', Number(event.lngLat.lng.toFixed(7)))
+    emit('update:longitude', Number(event.lngLat.wrap().lng.toFixed(7)))
   })
   map.on('load', () => {
     map!.addSource('office-radius', { type: 'geojson', data: circleFeature(location.latitude, location.longitude, props.radiusMeters) as any })
@@ -150,6 +155,10 @@ onMounted(() => {
   })
 })
 
+watch(() => props.readonly, value => {
+  officeMarker?.setDraggable(!value)
+  radiusMarker?.setDraggable(!value)
+})
 watch(() => [props.latitude, props.longitude, props.radiusMeters, props.currentLatitude, props.currentLongitude], () => syncMap(true))
 onBeforeUnmount(() => {
   currentMarker?.remove()

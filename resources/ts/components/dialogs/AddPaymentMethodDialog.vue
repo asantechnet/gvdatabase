@@ -31,7 +31,7 @@ const dialogVisibleUpdate = (val: boolean) => {
   emit('update:isDialogVisible', val)
 }
 
-const paymentMethodsData = [
+const paymentMethodsData = computed(() => [
   {
     title: translate('components.dialogs.addpaymentmethoddialog.visa'),
     type: 'Credit Card',
@@ -58,7 +58,7 @@ const paymentMethodsData = [
     img: dc,
   },
 
-]
+])
 </script>
 
 <template>

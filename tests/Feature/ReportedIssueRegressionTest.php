@@ -74,10 +74,11 @@ class ReportedIssueRegressionTest extends TestCase
 
     public function test_expense_exchange_rate_can_be_overridden_and_updated(): void
     {
+        Currency::factory()->create(['code' => 'USD', 'is_base' => true]);
         $currency = Currency::factory()->create([
             'code' => 'AFN',
             'rate' => 70,
-            'is_base' => true,
+            'is_base' => false,
         ]);
 
         $expenseId = $this->postJson('/api/expenses', [
@@ -109,7 +110,7 @@ class ReportedIssueRegressionTest extends TestCase
 
         $financeNotification = Notification::create([
             'type' => 'finance',
-            'notification_key' => 'invoice.paid',
+            'notification_key' => 'income.recorded',
             'date_time' => now(),
         ]);
         $financeNotification->deliverTo([$this->user->id]);
@@ -177,10 +178,10 @@ class ReportedIssueRegressionTest extends TestCase
 
     public function test_contract_template_create_update_and_delete_stay_consistent(): void
     {
-        $customerTypeId = ContractType::query()->where('slug', 'customer')->value('id');
+        $otherTypeId = ContractType::query()->where('slug', 'other')->value('id');
         $template = $this->postJson('/api/contract-templates', [
             'name' => 'Standard Service Agreement',
-            'contract_type_id' => $customerTypeId,
+            'contract_type_id' => $otherTypeId,
             'cover_text' => 'Cover',
             'content' => '<p>Terms</p>',
         ])->assertCreated()
@@ -230,8 +231,8 @@ class ReportedIssueRegressionTest extends TestCase
             'contract_type_id' => $employmentType->id, 'type' => $employmentType->name,
             'position_id' => $position->id,
         ]);
-        $applicantContract = Contract::factory()->create(['template_id' => $applicantTemplate->id]);
-        $employeeContract = Contract::factory()->create(['template_id' => $employeeTemplate->id]);
+        $applicantContract = Contract::factory()->create(['template_id' => $applicantTemplate->id, 'contract_type_id' => $customerType->id, 'service' => 'scholarship']);
+        $employeeContract = Contract::factory()->create(['template_id' => $employeeTemplate->id, 'contract_type_id' => $employmentType->id]);
 
         $this->getJson('/api/contracts?audience=customers')
             ->assertOk()

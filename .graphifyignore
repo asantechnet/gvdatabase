@@ -12,3 +12,15 @@ bootstrap/cache
 **/public/images
 **/public/locales
 **/src/assets/images
+
+/demo-configs
+
+/src/configs
+
+/src/views/apps
+
+/graphify-out
+
+/resources/images
+
+/docs

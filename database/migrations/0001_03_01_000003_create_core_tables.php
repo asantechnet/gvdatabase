@@ -32,7 +32,7 @@ return new class extends Migration
             $table->string('mail_from_name')->nullable();
             $table->string('mail_reply_to')->nullable();
             $table->string('timezone', 64)->default('Asia/Kabul');
-            $table->string('website_address');
+            $table->string('website_address')->nullable();
             $table->string('phone', 50);
             $table->text('physical_address');
             $table->string('short_company_name');

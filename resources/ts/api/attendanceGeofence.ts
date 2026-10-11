@@ -3,21 +3,21 @@ import api from './axios'
 export interface GeofenceOffice {
   id: number
   name: string
-  latitude: number
-  longitude: number
+  latitude: number | null
+  longitude: number | null
   radius_meters: number
   enabled: boolean
 }
 
 export interface GeofenceConfiguration {
   eligible: boolean
-  reason: 'no_employee' | 'no_office' | 'geofence_not_configured' | null
+  reason: 'no_employee' | 'no_office' | 'geofence_not_configured' | 'inactive_employee' | 'automatic_attendance_disabled' | null
   timezone: string
   office: GeofenceOffice | null
 }
 
 export interface GeofenceObservation {
-  action: 'checked_in' | 'inside' | 'outside' | 'boundary' | 'inaccurate' | 'exit_pending' | 'checked_out' | 'already_completed' | 'blocked'
+  action: 'inside' | 'outside' | 'boundary' | 'inaccurate'
   inside: boolean
   distance_meters: number
   accuracy_meters: number

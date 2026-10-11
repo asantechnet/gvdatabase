@@ -37,7 +37,7 @@ const firstName = computed(() => portal.value?.profile.name?.trim().split(/\s+/)
 const nextAction = computed(() => {
   if (profileCompletion.value < 100)
     return { icon: 'tabler-user-check', title: t('applicantPortal.completeProfile'), body: t('applicantPortal.completeProfileHelp'), action: canEditProfile.value ? t('applicantPortal.reviewDetails') : '' }
-  if (!portal.value?.case.university_applications.length)
+  if (portal.value && ['scholarship', 'private'].includes(portal.value.case.service) && !portal.value.case.university_applications.length)
     return { icon: 'tabler-building-community', title: t('applicantPortal.universityPlanning'), body: t('applicantPortal.universityPlanningHelp'), action: '' }
   return { icon: 'tabler-bell-check', title: t('applicantPortal.stayReady'), body: t('applicantPortal.stayReadyHelp'), action: '' }
 })
@@ -163,7 +163,7 @@ onMounted(load)
             </VCardText>
           </VCard>
 
-          <VCard class="education-panel mt-4">
+          <VCard v-if="['scholarship', 'private'].includes(portal.case.service)" class="education-panel mt-4">
             <VCardItem :title="$t('applicantPortal.universityApplications')" :subtitle="$t('applicantPortal.universityHelp')" />
             <div v-if="portal.case.university_applications.length" class="education-table-scroll"><VTable density="compact" class="education-table"><thead><tr><th>{{ $t('applicantPortal.university') }}</th><th>{{ $t('applicantPortal.intake') }}</th><th>{{ $t('applicantPortal.status') }}</th></tr></thead><tbody><tr v-for="application in portal.case.university_applications" :key="`${application.university}-${application.intake}`"><td class="font-weight-medium">{{ application.university || $t('applicantPortal.universityApplication') }}</td><td>{{ application.intake || $t('applicantPortal.toBeConfirmed') }}</td><td><VChip size="small" :color="statusColor(application.status)" variant="tonal">{{ statusLabel(application.status) }}</VChip></td></tr></tbody></VTable></div>
             <VCardText v-else class="education-empty"><VIcon icon="tabler-building-community" size="34" /><strong>{{ $t('applicantPortal.noUniversityYet') }}</strong><span>{{ $t('applicantPortal.noUniversityHelp') }}</span></VCardText>
@@ -181,12 +181,20 @@ onMounted(load)
           <VCard class="education-panel mt-4">
             <VCardItem :title="$t('applicantPortal.caseSummary')" />
             <VList density="compact" lines="two">
+              <VListItem :title="$t('educational.service')" :subtitle="$t(`educational.builtInServices.${portal.case.service === 'test_offer' ? 'testOffer' : portal.case.service}`)" />
+              <template v-if="['scholarship', 'private'].includes(portal.case.service)">
               <VListItem :title="$t('applicantPortal.destination')" :subtitle="portal.case.destination_country || $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-map-pin" /></template></VListItem>
               <VListItem :title="$t('applicantPortal.primaryUniversity')" :subtitle="portal.case.primary_university || $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-building-community" /></template></VListItem>
               <VListItem :title="$t('applicantPortal.studyLevel')" :subtitle="portal.case.education_level || $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-school" /></template></VListItem>
-              <VListItem :title="$t('educational.gradePercentage')" :subtitle="portal.case.education_percentage !== null ? `${portal.case.education_percentage}%` : $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-percentage" /></template></VListItem>
-              <VListItem :title="$t('applicantPortal.preferredLanguage')" :subtitle="portal.case.language || $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-language" /></template></VListItem>
-              <VListItem :title="$t('applicantPortal.applicationDate')" :subtitle="formatDate(portal.case.application_date) || $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-calendar" /></template></VListItem>
+              <VListItem :title="$t('educational.serviceFields.gradeScore')" :subtitle="portal.case.grade_score !== null ? `${portal.case.grade_score}` : $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-percentage" /></template></VListItem>
+              </template>
+              <VListItem v-if="portal.case.service === 'test_offer'" :title="$t('educational.masterData.tests')" :subtitle="portal.case.service_details.test || $t('applicantPortal.toBeConfirmed')" />
+              <template v-if="portal.case.service === 'academy'">
+                <VListItem :title="$t('educational.masterData.programs')" :subtitle="portal.case.service_details.program || $t('applicantPortal.toBeConfirmed')" />
+                <VListItem :title="$t('educational.masterData.times')" :subtitle="portal.case.service_details.time || $t('applicantPortal.toBeConfirmed')" />
+                <VListItem :title="$t('educational.masterData.durations')" :subtitle="portal.case.service_details.duration || $t('applicantPortal.toBeConfirmed')" />
+              </template>
+              <VListItem :title="$t('educational.serviceFields.createdAt')" :subtitle="formatDate(portal.case.created_at) || $t('applicantPortal.toBeConfirmed')"><template #prepend><VIcon icon="tabler-calendar" /></template></VListItem>
             </VList>
           </VCard>
 

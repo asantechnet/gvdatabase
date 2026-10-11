@@ -7,6 +7,7 @@ use App\Models\ApplicantStage;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\BuiltInService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -39,14 +40,16 @@ class ApplicantPortalDemoSeeder extends Seeder
 
         $applicant = Applicant::withTrashed()->firstOrNew(['user_id' => $user->id]);
         $applicant->fill([
+            'service' => BuiltInService::SCHOLARSHIP,
             'name' => $user->name,
             'contact' => $user->phone,
             'email' => $user->email,
             'address' => $user->address,
             'father_name' => 'Demo Guardian',
             'father_phone' => '+93 700 000 002',
-            'application_date' => now()->subDays(7)->toDateString(),
-            'responsible_employee_id' => Employee::query()->orderBy('id')->value('id'),
+            'responsible_employee_id' => Employee::query()->whereHas('position', fn ($query) => $query->where('system_key', 'counselor'))->value('id')
+                ?? Employee::query()->orderBy('id')->value('id'),
+            'admission_employee_id' => Employee::query()->whereHas('position', fn ($query) => $query->where('system_key', 'admission'))->value('id'),
             'current_stage_id' => ApplicantStage::query()->where('key', 'consultation')->value('id'),
             'status' => 'active',
             'notes' => 'Demo applicant portal case.',
@@ -59,5 +62,10 @@ class ApplicantPortalDemoSeeder extends Seeder
         ]);
         $applicant->deleted_at = null;
         $applicant->save();
+
+        $detail = $applicant->scholarshipDetail()->withTrashed()->firstOrCreate([]);
+        if ($detail->trashed()) {
+            $detail->restore();
+        }
     }
 }

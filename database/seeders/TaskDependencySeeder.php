@@ -2,22 +2,26 @@
 
 namespace Database\Seeders;
 
+use App\Models\Board;
 use Illuminate\Database\Seeder;
-use App\Models\Task;
 
 class TaskDependencySeeder extends Seeder
 {
+    /**
+     * Dependencies only make sense between tasks on the same board, so each
+     * task depends on the task that precedes it in board order.
+     */
     public function run(): void
     {
-        $tasks = Task::all();
-
-        foreach ($tasks as $task) {
-            // Create 0-2 dependencies per task
-            $dependencies = $tasks->where('id', '!=', $task->id)
-                ->random(rand(0, 2))
-                ->pluck('id');
-
-            $task->dependencies()->syncWithoutDetaching($dependencies);
-        }
+        Board::query()->with(['tasks' => fn ($query) => $query->orderBy('order')->orderBy('id')])->get()
+            ->each(function (Board $board): void {
+                $previous = null;
+                foreach ($board->tasks as $task) {
+                    if ($previous !== null) {
+                        $task->dependencies()->syncWithoutDetaching([$previous->id]);
+                    }
+                    $previous = $task;
+                }
+            });
     }
 }

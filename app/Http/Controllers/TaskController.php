@@ -34,8 +34,7 @@ class TaskController extends Controller
             'assignees.*' => ['integer', 'distinct', Rule::exists('users', 'id')->whereNull('deleted_at')->where('acc_status', 'active')],
             'tags' => 'sometimes|array',
             'tags.*' => 'integer|distinct|exists:tags,id',
-            'service_ids' => 'sometimes|array',
-            'service_ids.*' => 'integer|distinct|exists:services,id',
+            'service_ids' => ['prohibited'],
             'applicant_id' => 'nullable|integer|exists:applicants,id',
         ]);
 
@@ -51,13 +50,9 @@ class TaskController extends Controller
 
         $assignees = $validated['assignees'] ?? [$request->user()->id];
         $tags = $validated['tags'] ?? [];
-        $services = $validated['service_ids'] ?? [];
-        $validated['applicant_id'] ??= $board->project?->applicant_id;
-        $this->assertApplicantMatchesProject($board, $validated['applicant_id'] ?? null);
-        $this->assertServicesMatchProject($board, $services);
         unset($validated['assignees'], $validated['tags'], $validated['service_ids']);
 
-        $task = DB::transaction(function () use ($validated, $assignees, $tags, $services) {
+        $task = DB::transaction(function () use ($validated, $assignees, $tags) {
             $board = Board::whereKey($validated['board_id'])->lockForUpdate()->firstOrFail();
 
             // Serializing creation per board prevents duplicate ordering when
@@ -67,14 +62,13 @@ class TaskController extends Controller
             $task = Task::create($validated);
             $task->users()->sync($assignees);
             $task->tags()->sync($tags);
-            $task->services()->sync($services);
             $board->users()->syncWithoutDetaching($assignees);
 
             return $task;
         });
 
         // Load empty relations so the resource doesn't fail
-        $task->load(['users.employee', 'tags', 'services.currency', 'applicant', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
+        $task->load(['users.employee', 'tags', 'applicant', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
 
         $this->notifications->taskAssigned($task, $assignees, (int) $request->user()->id);
 
@@ -102,8 +96,7 @@ class TaskController extends Controller
             'assignees.*' => ['integer', 'distinct', Rule::exists('users', 'id')->whereNull('deleted_at')->where('acc_status', 'active')],
             'tags' => 'sometimes|array',
             'tags.*' => 'integer|distinct|exists:tags,id',
-            'service_ids' => 'sometimes|array',
-            'service_ids.*' => 'integer|distinct|exists:services,id',
+            'service_ids' => ['prohibited'],
             'applicant_id' => 'nullable|integer|exists:applicants,id',
         ]);
 
@@ -130,14 +123,9 @@ class TaskController extends Controller
         $syncAssignees = $request->has('assignees');
         $syncTags = $request->has('tags');
         $syncDependencies = $request->has('dependencies');
-        $syncServices = $request->has('service_ids');
         $dependencies = $validated['dependencies'] ?? [];
         $assignees = $validated['assignees'] ?? [];
         $tags = $validated['tags'] ?? [];
-        $services = $validated['service_ids'] ?? [];
-        if ($syncServices) {
-            $this->assertServicesMatchProject($task->board, $services);
-        }
         unset($validated['dependencies'], $validated['assignees'], $validated['tags'], $validated['service_ids']);
 
         $task = DB::transaction(function () use (
@@ -146,11 +134,9 @@ class TaskController extends Controller
             $syncAssignees,
             $syncTags,
             $syncDependencies,
-            $syncServices,
             $dependencies,
             $assignees,
             $tags,
-            $services,
         ) {
             if ($syncDependencies) {
                 // Every dependency edit follows this lock order, making the
@@ -163,7 +149,6 @@ class TaskController extends Controller
             }
 
             $task->update($validated);
-            $this->assertApplicantMatchesProject($task->board, $task->applicant_id);
 
             if ($syncAssignees) {
                 $task->users()->sync($assignees);
@@ -175,14 +160,11 @@ class TaskController extends Controller
             if ($syncDependencies) {
                 $task->dependencies()->sync($dependencies);
             }
-            if ($syncServices) {
-                $task->services()->sync($services);
-            }
 
             return $task;
         });
 
-        $task = $task->fresh()->load(['users.employee', 'tags', 'services.currency', 'applicant', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
+        $task = $task->fresh()->load(['users.employee', 'tags', 'applicant', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
 
         if ($syncAssignees) {
             $this->notifications->taskAssigned($task, $assignees, (int) $request->user()->id);
@@ -250,7 +232,6 @@ class TaskController extends Controller
         ]);
         $destination = Board::findOrFail($validated['board_id']);
         Gate::authorize('move', [$task, $destination]);
-        abort_unless($task->board->project_id === $destination->project_id, 422, 'business.task_cross_project_move');
 
         $positions = DB::transaction(function () use ($task, $validated) {
             // Lock both affected columns. This prevents overlapping drag
@@ -342,16 +323,6 @@ class TaskController extends Controller
     /** @param list<int> $dependencyIds */
     private function assertNoDependencyCycle(Task $task, array $dependencyIds): void
     {
-        $projectId = $task->board?->project_id;
-        $crossProject = Task::query()->whereIn('id', $dependencyIds)
-            ->whereHas('board', fn ($query) => $projectId === null
-                ? $query->whereNotNull('project_id')
-                : $query->where('project_id', '!=', $projectId)->orWhereNull('project_id'))
-            ->exists();
-        if ($crossProject) {
-            throw ValidationException::withMessages(['dependencies' => ['business.task_dependency_cross_project']]);
-        }
-
         $frontier = array_values($dependencyIds);
         $visited = [];
 
@@ -371,28 +342,6 @@ class TaskController extends Controller
                 ->unique()
                 ->values()
                 ->all();
-        }
-    }
-
-    private function assertApplicantMatchesProject(Board $board, ?int $applicantId): void
-    {
-        $projectApplicantId = $board->project?->applicant_id;
-        if ($projectApplicantId !== null && (int) $applicantId !== (int) $projectApplicantId) {
-            throw ValidationException::withMessages(['applicant_id' => ['business.task_applicant_must_match_project']]);
-        }
-    }
-
-    /** @param list<int> $serviceIds */
-    private function assertServicesMatchProject(Board $board, array $serviceIds): void
-    {
-        if ($serviceIds === []) {
-            return;
-        }
-
-        $project = $board->project;
-        $validIds = $project?->services()->whereKey($serviceIds)->pluck('services.id')->map(fn ($id) => (int) $id)->all() ?? [];
-        if (count(array_unique($serviceIds)) !== count($validIds)) {
-            throw ValidationException::withMessages(['service_ids' => ['business.task_service_not_in_project']]);
         }
     }
 }

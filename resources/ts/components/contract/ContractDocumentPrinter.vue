@@ -1,12 +1,13 @@
 <script setup lang="ts">
+import { printDocument } from '@/utils/printDocument'
 import { computed, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
-import AuthApi from '@/api/auth'
 import ContractApi, { type Contract } from '@/api/contracts'
 import ContractTemplateApi from '@/api/contractTemplate'
 import SettingApi, { type Setting } from '@/api/setting'
 import { legacyContentToHtml } from '@/utils/contractPlaceholders'
 import { canPrintPartyDetails, partyDetailsFor } from '@/utils/contractPartyDetails'
+import { buildContractPrintHeader, canPrintContractHeader } from '@/composables/useContractPrintHeader'
 import ContractCover from '@/pages/templates/contract_cover_template.vue'
 import ContractPageTemplate, { type CompanyDetails } from '@/pages/templates/contract_page_template.vue'
 
@@ -24,33 +25,18 @@ const documentContract = ref<Contract | null>(null)
 const setting = ref<Setting | null>(null)
 const printRef = ref<HTMLElement | null>(null)
 
-// Read the live authenticated profile whenever printing so role changes and
-// employee links are reflected even when the persisted cookie is stale.
-const userData = useCookie<{ roles?: Array<string | { name?: string }>; employee?: { id: number; name?: string } | null } | null>('userData')
-const isSuperAdmin = computed(() => userData.value?.roles?.some(role =>
-  (typeof role === 'string' ? role : role.name) === 'super_admin') ?? false)
-const currentEmployeeName = computed(() =>
-  String(userData.value?.employee?.name ?? '').trim()
-  || null,
-)
-const companySignatoryName = ref('')
-const signatoryNameFor = (savedName: string | null | undefined) => {
-  const storedName = String(savedName ?? '').trim()
-
-  return isSuperAdmin.value
-    ? storedName || currentEmployeeName.value || ''
-    : currentEmployeeName.value || storedName
-}
-
 // Print options — mirror the contracts workspace defaults.
 const includeEmptyLastPage = ref(false)
 const includeSignatureSection = ref(true)
 const includeCustomCover = ref(true)
 const includeCustomLetterhead = ref(true)
 const includePartyDetails = ref(false)
+const includeContractHeader = ref(false)
 
 const documentDesign = computed(() => documentContract.value?.snapshot_data?.document_design)
 const canShowPartyDetails = computed(() => documentContract.value !== null && canPrintPartyDetails(documentContract.value))
+const canShowContractHeader = computed(() => documentContract.value !== null && canPrintContractHeader(documentContract.value))
+const contractHeader = computed(() => (documentContract.value ? buildContractPrintHeader(documentContract.value) : null))
 
 const company = computed<CompanyDetails>(() => ({
   brandName: setting.value?.original_company_name || setting.value?.short_company_name || setting.value?.website_title || 'Company',
@@ -126,13 +112,6 @@ watch(() => [props.modelValue, props.contract] as const, async ([open, contract]
 
   loading.value = true
   try {
-    try {
-      userData.value = (await AuthApi.me()).data.data
-    }
-    catch {
-      // The cookie remains a usable fallback if the profile refresh fails.
-    }
-
     // The print body renders from the freshest contract: the server resolves
     // the artwork scoped to this contract's type (and service) — including the
     // print-safe area — for contracts that carry no design snapshot yet.
@@ -157,19 +136,19 @@ watch(() => [props.modelValue, props.contract] as const, async ([open, contract]
     }
 
     documentContract.value = printable
-    companySignatoryName.value = signatoryNameFor(printable.company_signatory_name)
     includeEmptyLastPage.value = false
     includeSignatureSection.value = true
     includePartyDetails.value = false
+    includeContractHeader.value = false
   }
   catch (error) {
     console.error('Failed to load contract template:', error)
     toast.warning(translate('pages.contracts.allContracts.allContracts.failedToLoadContractTemplateUsingDefaultContent'))
     documentContract.value = contract
-    companySignatoryName.value = signatoryNameFor(contract.company_signatory_name)
     includeEmptyLastPage.value = false
     includeSignatureSection.value = true
     includePartyDetails.value = false
+    includeContractHeader.value = false
   }
   finally {
     loading.value = false
@@ -183,180 +162,12 @@ watch(() => [props.modelValue, props.contract] as const, async ([open, contract]
   }
 }, { immediate: true })
 
-// Fill the signatory once the employee name resolves if the popup opened
-// before it was available.
-watch(currentEmployeeName, name => {
-  if (props.modelValue && name && (!isSuperAdmin.value || !companySignatoryName.value))
-    companySignatoryName.value = name
-})
-
-function executePrint() {
-  if (!printRef.value || !documentContract.value)
-    return
-
-  const printWindow = window.open('', '_blank', 'width=900,height=1100')
-  if (!printWindow) {
-    toast.warning(translate('common.messages.couldNotOpenPrintWindowPleaseAllowPopUpsForThisSite'))
-
-    return
-  }
-
-  const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-    .map(el => el.outerHTML)
-    .join('\n')
-
-  const printContent = printRef.value.innerHTML
-
-  printWindow.document.open()
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>${documentContract.value.contract_number} - ${documentContract.value.contract || documentContract.value.contract_template?.name || translate('pages.contracts.allContracts.allContracts.untitledContract')}</title>
-        ${styles}
-        <style>
-          @media print {
-            @page {
-              size: A4;
-              margin: 0 !important;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              background: #fff;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            .contract-cover {
-              position: relative !important;
-              width: 210mm !important;
-              height: 297mm !important;
-              max-width: none !important;
-              margin: 0 !important;
-              box-shadow: none !important;
-              page-break-after: always !important;
-              break-after: page !important;
-              display: flex !important;
-            }
-            .custom-cover-page {
-              position: relative !important;
-              width: 210mm !important;
-              height: 297mm !important;
-              margin: 0 !important;
-              page-break-after: always !important;
-              break-after: page !important;
-              overflow: hidden !important;
-            }
-            .custom-cover-page img { width: 100% !important; height: 100% !important; object-fit: cover !important; display: block !important; }
-            .contract-page-container {
-              position: relative !important;
-              width: 210mm !important;
-              height: 296mm !important;
-              max-height: 296mm !important;
-              margin: 0 !important;
-              padding: 16mm 18mm 12mm 18mm !important;
-              box-shadow: none !important;
-              page-break-after: always !important;
-              break-after: page !important;
-              box-sizing: border-box !important;
-              display: flex !important;
-              flex-direction: column !important;
-              justify-content: space-between !important;
-              overflow: hidden !important;
-            }
-            .empty-print-page {
-              width: 210mm !important;
-              height: 297mm !important;
-              page-break-after: always !important;
-              break-after: page !important;
-              background: #ffffff !important;
-              display: block !important;
-            }
-            .contract-content {
-              font-family: 'Vazirmatn', 'Noto Sans Arabic', Tahoma, sans-serif;
-              line-height: 1.6;
-              color: #333;
-            }
-            .contract-content h1,
-            .contract-content h2,
-            .contract-content h3 {
-              color: #222;
-              margin-top: 1.5em;
-              margin-bottom: 0.5em;
-            }
-            .contract-content p {
-              margin-bottom: 1em;
-            }
-            .contract-content ul,
-            .contract-content ol {
-              margin-bottom: 1em;
-              padding-inline-start: 2em;
-            }
-            .contract-content table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 1em 0;
-            }
-            .contract-content th,
-            .contract-content td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              text-align: left;
-            }
-            .contract-content th {
-              background-color: #f2f2f2;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="multi-page-print-wrapper">
-          ${printContent}
-        </div>
-        <script>
-          window.onload = () => {
-            const pages = document.querySelectorAll('.contract-page-container');
-            pages.forEach(page => {
-              let zoom = 1.0;
-              while (page.scrollHeight > page.clientHeight && zoom > 0.80) {
-                zoom -= 0.02;
-                page.style.zoom = zoom;
-              }
-            });
-
-            const images = document.images;
-            let loaded = 0;
-            if (images.length === 0) {
-              triggerPrint();
-              return;
-            }
-            const checkDone = () => {
-              loaded++;
-              if (loaded === images.length) triggerPrint();
-            };
-            for (let i = 0; i < images.length; i++) {
-              if (images[i].complete) {
-                checkDone();
-              } else {
-                images[i].addEventListener('load', checkDone);
-                images[i].addEventListener('error', checkDone);
-              }
-            }
-          };
-          function triggerPrint() {
-            setTimeout(() => {
-              window.focus();
-              window.print();
-              window.close();
-            }, 300);
-          }
-        <\/script>
-      </body>
-    </html>
-  `)
-  printWindow.document.close()
+const executePrint = async () => {
+  if (!printRef.value) return
+  await printDocument({ bodyClass: 'printing-contract-document', pageStyle: 'size: A4; margin: 0;', element: printRef.value })
   emit('update:modelValue', false)
 }
+
 </script>
 
 <template>
@@ -376,14 +187,6 @@ function executePrint() {
             || $t('pages.contracts.allContracts.allContracts.untitledContract') }}</strong> {{ $t('pages.contracts.allContracts.allContracts.forA4PrintingTheDocumentWillIncludeTheCoverPageAndAllContractTerms') }}
         </p>
         <div class="d-flex flex-column gap-2">
-          <VTextField
-            v-model="companySignatoryName"
-            :label="$t('pages.contracts.contractform.contractform.signatory')"
-            :hint="$t(isSuperAdmin ? 'pages.contracts.contractform.contractform.signatoryHint' : 'pages.contracts.contractform.contractform.signatoryLockedHint')"
-            persistent-hint
-            density="compact"
-            :disabled="!isSuperAdmin"
-          />
           <VCheckbox
             v-model="includeSignatureSection"
             :label="$t('pages.contracts.allContracts.allContracts.includeFormalSignatureStampSectionAtTheEnd')"
@@ -408,6 +211,15 @@ function executePrint() {
             :label="tr('includePartyDetails')"
             density="compact"
             hide-details
+          />
+          <VCheckbox
+            v-if="canShowContractHeader"
+            v-model="includeContractHeader"
+            :label="tr('header.includeContractHeader')"
+            :hint="tr('header.includeContractHeaderHint')"
+            density="compact"
+            hide-details
+            persistent-hint
           />
           <VCheckbox
             v-model="includeEmptyLastPage"
@@ -483,11 +295,12 @@ function executePrint() {
         :document-number="documentContract.contract_number || ''"
         :document-title="printedTitle"
         :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }"
+        :header-details="includeContractHeader && idx === 0 ? contractHeader : null"
         :html-content="pageHtml"
         :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: idx + (includePartyDetails && canShowPartyDetails ? 2 : 1), total: getContractPagesHtml(documentContract).length + (includePartyDetails && canShowPartyDetails ? 1 : 0) })"
         :show-signature="includeSignatureSection && idx === getContractPagesHtml(documentContract).length - 1"
         :contractee-name="documentContract.counterparty || ''"
-        :company-signatory-name="companySignatoryName || documentContract.company_signatory_name || null"
+        :company-signatory-name="documentContract.company_signatory_name || null"
         :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"
         class="contract-content"
       />

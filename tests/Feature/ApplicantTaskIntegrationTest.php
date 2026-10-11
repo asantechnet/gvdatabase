@@ -6,7 +6,6 @@ use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\Board;
 use App\Models\Employee;
-use App\Models\Project;
 use App\Models\Role;
 use App\Models\Task;
 use App\Models\User;
@@ -103,26 +102,19 @@ class ApplicantTaskIntegrationTest extends TestCase
         $this->assertSame(0, Task::query()->where('applicant_id', $a['id'])->count());
     }
 
-    public function test_task_api_links_the_applicant_and_guards_project_mismatch(): void
+    public function test_task_api_links_the_applicant(): void
     {
-        $other = Applicant::factory()->create();
         $a = $this->postJson('/api/applicants', ['name' => 'Task Case'])->assertCreated()->json('data');
         $board = Board::factory()->create();
-        // `boards.project_id` is the link, so the project has to be attached to the board.
-        $board->update(['project_id' => Project::create(['name' => 'Case board project', 'applicant_id' => $a['id']])->id]);
 
-        // Explicit linkage matching the board's project is accepted.
         $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Call the student', 'applicant_id' => $a['id']])
             ->assertCreated();
         $this->assertDatabaseHas('tasks', ['applicant_id' => $a['id'], 'title' => 'Call the student']);
 
-        // The applicant is inherited from the board's project when omitted.
-        $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Verify documents'])
+        // Without an applicant the task is simply unlinked; there is no board
+        // or project relationship to inherit from any more.
+        $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Internal task'])
             ->assertCreated();
-        $this->assertDatabaseHas('tasks', ['applicant_id' => $a['id'], 'title' => 'Verify documents']);
-
-        // A task attributed to a different applicant than its board's project is rejected.
-        $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Wrong ledger', 'applicant_id' => $other->id])
-            ->assertUnprocessable()->assertJsonValidationErrors('applicant_id');
+        $this->assertDatabaseHas('tasks', ['applicant_id' => null, 'title' => 'Internal task']);
     }
 }

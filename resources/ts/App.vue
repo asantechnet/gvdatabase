@@ -8,7 +8,7 @@ import { hexToRgb } from '@core/utils/colorConverter'
 
 import ApiErrorNotifier from '@/components/ApiErrorNotifier.vue'
 import ActionWarningDialog from '@/components/ActionWarningDialog.vue'
-import ProjectFormWarningGuard from '@/components/ProjectFormWarningGuard.vue'
+import FormWarningGuard from '@/components/FormWarningGuard.vue'
 
 const { global } = useTheme()
 const { locale } = useI18n({ useScope: 'global' })
@@ -28,7 +28,7 @@ const configStore = useConfigStore()
       :style="`--v-global-theme-primary: ${hexToRgb(global.current.value.colors.primary)}`"
     >
       <RouterView />
-      <ProjectFormWarningGuard />
+      <FormWarningGuard />
       <ActionWarningDialog />
       <ApiErrorNotifier />
       <ScrollToTop />

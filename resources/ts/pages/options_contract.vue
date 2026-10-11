@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
 import { ref } from 'vue'
 
 // Placeholder types and data
@@ -24,15 +25,15 @@ const isLoading = ref(false)
 
 // Placeholder filter options
 const typeOptions = ['NDA', 'SLA', 'Employment', 'Partnership']
-const statusOptions = ['Active', 'Inactive']
+const statusOptions = computed(() => [{ title: translate('serviceContracts.active'), value: 'Active' }, { title: translate('common.statuses.inactive'), value: 'Inactive' }])
 </script>
 
 <template>
   <div>
     <DataTablePageKpis
       :items="contractOptions"
-      title="Contract options"
-      description="Maintain the reusable templates and defaults that support your contracts."
+      :title="$t('components.dataTablePageKpis.pages.contractOptions.title')"
+      :description="$t('components.dataTablePageKpis.pages.contractOptions.description')"
       icon="tabler-file-settings"
       status-key="active"
     />

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
 import { computed, onMounted, ref } from 'vue'
 import BonusListApi, { type BonusType, type WorthyEmployee } from '@/api/bonuslist'
 import EmployeeApi, { type Employee } from '@/api/employee'
@@ -478,7 +479,7 @@ const getStatusColor = (isGranted: boolean) => {
           <div class="d-flex align-center justify-space-between">
             <div>
               <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">
-                Granted payout pool (current base)
+                {{ $t('common.ui.grantedPayoutPoolCurrentBase') }}
               </span>
               <h3 class="text-h4 font-weight-bold mt-1 text-success">
                 {{ formatCurrentBaseAmount(grantedCurrentBaseTotal) }}
@@ -548,7 +549,7 @@ const getStatusColor = (isGranted: boolean) => {
               v-model="reasonFilter"
               :items="['All', ...bonusTypes]"
               :item-title="translateBackendValue"
-              label="Bonus category"
+              :label="$t('common.ui.bonusCategory')"
               hide-details
               density="compact"
               variant="outlined"
@@ -694,7 +695,7 @@ const getStatusColor = (isGranted: boolean) => {
               />
               <div class="text-caption text-medium-emphasis mt-1">
                 {{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: formatBonusAmount(employee, employee.suggestedAmount) }) }}
-                <span class="d-block">Payment currency: {{ employee.currencySymbol || '' }} {{ employee.currencyCode || 'legacy record' }} · booked rate {{ employee.rate ?? '—' }}</span>
+                <span class="d-block">{{ $t('common.ui.paymentCurrency') }}: {{ employee.currencySymbol || '' }} {{ employee.currencyCode || $t('common.ui.legacyRecord') }} · {{ $t('common.ui.bookedRate') }} {{ employee.rate ?? '—' }}</span>
               </div>
             </td>
 
@@ -867,7 +868,7 @@ const getStatusColor = (isGranted: boolean) => {
             {{ selectedCalculation?.achievementDetails }}
           </VAlert>
           <VTable density="compact">
-            <thead><tr><th>{{ $t('pages.bonuses.bonuslist.bonuslist.task') }}</th><th>Completed on</th><th>{{ $t('common.messages.actions') }}</th></tr></thead>
+            <thead><tr><th>{{ $t('pages.bonuses.bonuslist.bonuslist.task') }}</th><th>{{ $t('common.ui.completedOn') }}</th><th>{{ $t('common.messages.actions') }}</th></tr></thead>
             <tbody>
               <tr
                 v-for="task in selectedCalculation?.calculationInputs?.tasks ?? []"
@@ -970,7 +971,7 @@ const getStatusColor = (isGranted: boolean) => {
                   v-model="nominationForm.selectedType"
                   :items="bonusTypes"
                   :item-title="translateBackendValue"
-                  label="Bonus category"
+                  :label="$t('common.ui.bonusCategory')"
                   variant="outlined"
                 />
               </VCol>
@@ -981,7 +982,7 @@ const getStatusColor = (isGranted: boolean) => {
               >
                 <VTextField
                   v-model.number="nominationForm.selectedAmount"
-                  label="Bonus amount"
+                  :label="$t('common.fields.bonusAmount')"
                   type="number"
                   step="100"
                   variant="outlined"

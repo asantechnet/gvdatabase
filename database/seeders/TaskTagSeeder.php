@@ -2,21 +2,37 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\Task;
 use App\Models\Tag;
+use App\Models\Task;
+use Illuminate\Database\Seeder;
 
 class TaskTagSeeder extends Seeder
 {
     public function run(): void
     {
-        $tasks = Task::all();
-        $tags = Tag::all();
+        $byBoard = [
+            'Private Contracts' => 'Visa',
+            'Scholarship' => 'Counseling',
+            'Test Offer' => 'Follow-up',
+            'Academy' => 'Academy',
+            'Personal' => 'Operations',
+        ];
 
-        foreach ($tasks as $task) {
-            $task->tags()->syncWithoutDetaching(
-                $tags->random(rand(0, 3))->pluck('id')->toArray()
-            );
-        }
+        $tags = Tag::query()->pluck('id', 'name');
+
+        Task::query()->with('board')->get()->each(function (Task $task) use ($byBoard, $tags): void {
+            $names = [];
+            $boardTag = $byBoard[$task->board?->title] ?? null;
+            if ($boardTag && isset($tags[$boardTag])) {
+                $names[] = $tags[$boardTag];
+            }
+            if ($task->priority === 'high' && isset($tags['Urgent'])) {
+                $names[] = $tags['Urgent'];
+            }
+
+            if ($names !== []) {
+                $task->tags()->syncWithoutDetaching($names);
+            }
+        });
     }
 }

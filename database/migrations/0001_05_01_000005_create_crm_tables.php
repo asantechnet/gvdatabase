@@ -5,10 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * CRM section: tags, visitors, leads and interactions.
- *
- * `leads.applicant_id` targets the applicants table (created in a later
- * section), so its constraint is added by the completion pass.
+ * CRM section: tags, visitors and interactions. A visitor converts straight to
+ * an applicant; there is no lead entity.
  */
 return new class extends Migration
 {
@@ -40,33 +38,6 @@ return new class extends Migration
             $table->index('marketer_id', 'visitors_marketer_id_idx');
         });
 
-        Schema::create('leads', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('visitor_id')->nullable()->constrained()->nullOnDelete();
-            // FK added in the completion pass (applicants live in a later section).
-            $table->unsignedBigInteger('applicant_id')->nullable()->unique('leads_applicant_id_unique');
-            $table->string('name');
-            $table->string('company')->nullable();
-            $table->string('contact');
-            $table->string('email')->nullable();
-            $table->string('service_interest')->nullable();
-            $table->string('marketer')->nullable();
-            $table->foreignId('marketer_id')->nullable()->constrained('employees')->nullOnDelete();
-            $table->enum('stage', ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'])->default('new');
-            $table->unsignedTinyInteger('probability')->default(10);
-            $table->boolean('probability_is_manual')->default(false);
-            $table->decimal('estimated_value', 20, 4)->nullable();
-            $table->date('next_follow_up_at')->nullable();
-            $table->text('notes')->nullable();
-            $table->timestamp('converted_at')->nullable();
-            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamps();
-            $table->softDeletes();
-
-            $table->index(['stage', 'next_follow_up_at'], 'leads_stage_next_follow_up_at_index');
-            $table->index('marketer_id', 'leads_marketer_id_idx');
-        });
-
         Schema::create('crm_interactions', function (Blueprint $table) {
             $table->id();
             $table->string('contactable_type')->nullable();
@@ -88,7 +59,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('crm_interactions');
-        Schema::dropIfExists('leads');
         Schema::dropIfExists('visitors');
         Schema::dropIfExists('tags');
     }

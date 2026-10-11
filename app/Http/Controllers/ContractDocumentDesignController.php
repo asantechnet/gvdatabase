@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\ContractDocumentDesign;
 use App\Services\ContractDocumentDesignService;
+use App\Support\BuiltInService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -20,13 +22,13 @@ class ContractDocumentDesignController extends Controller
 
     public function index(Request $request)
     {
-        $request->validate(['contract_type_id' => ['nullable', 'exists:contract_types,id'], 'service_id' => ['nullable', 'exists:services,id']]);
+        $request->validate(['contract_type_id' => ['nullable', 'exists:contract_types,id'], 'service' => ['nullable', Rule::in(BuiltInService::ALL)], 'service_id' => ['prohibited']]);
 
-        $designs = ContractDocumentDesign::query()->with(['contractType', 'service'])
+        $designs = ContractDocumentDesign::query()->with(['contractType'])
             ->when($request->filled('contract_type_id'), fn ($q) => $q->where('contract_type_id', $request->integer('contract_type_id')))
-            ->when($request->filled('service_id'), fn ($q) => $q->where('service_id', $request->integer('service_id')))
+            ->when($request->filled('service'), fn ($q) => $q->where('service', $request->input('service')))
             ->orderBy('contract_type_id')
-            ->orderByRaw('service_id IS NOT NULL')
+            ->orderByRaw('service IS NOT NULL')
             ->get();
 
         return response()->json(['success' => true, 'data' => $designs->map(fn (ContractDocumentDesign $design) => $this->present($design))]);
@@ -39,7 +41,7 @@ class ContractDocumentDesignController extends Controller
         // explicit lookup is required for the type-wide (no service) design.
         $design = ContractDocumentDesign::query()->firstOrNew([
             'contract_type_id' => $data['contract_type_id'],
-            'service_id' => $data['service_id'] ?? null,
+            'service' => $data['service'] ?? null,
         ]);
         $superseded = $this->supersededArtwork($design, $data);
 
@@ -65,7 +67,8 @@ class ContractDocumentDesignController extends Controller
     {
         $data = $request->validate([
             'contract_type_id' => [($design ? 'sometimes' : 'required'), 'integer', 'exists:contract_types,id'],
-            'service_id' => ['nullable', 'integer', 'exists:services,id'],
+            'service' => ['nullable', Rule::in(BuiltInService::ALL)],
+            'service_id' => ['prohibited'],
             'letterhead' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
             'cover_design' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
             'remove_letterhead' => ['sometimes', 'boolean'],
@@ -77,19 +80,19 @@ class ContractDocumentDesignController extends Controller
         ]);
 
         $typeId = (int) ($data['contract_type_id'] ?? $design?->contract_type_id);
-        $serviceId = array_key_exists('service_id', $data) ? $data['service_id'] : $design?->service_id;
+        $service = array_key_exists('service', $data) ? $data['service'] : $design?->service;
         $serviceScoped = $this->documentDesigns->supportsServiceScope($typeId);
 
         // Service scoping exists for customer contracts only: employment and
         // other contracts share one cover and letterhead for the whole type.
-        if ($serviceId && ! $serviceScoped) {
+        if ($service && ! $serviceScoped) {
             throw ValidationException::withMessages([
-                'service_id' => ['Only customer contracts can scope their artwork to a single service.'],
+                'service' => ['Only customer contracts can scope their artwork to a single service.'],
             ]);
         }
 
         if (! $serviceScoped) {
-            $data['service_id'] = null;
+            $data['service'] = null;
         }
 
         foreach (['letterhead', 'cover_design'] as $field) {

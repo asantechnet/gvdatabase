@@ -13,12 +13,12 @@ const emit = defineEmits<Emit>()
 
 const selectedPlan = ref('standard')
 
-const plansList = [
+const plansList = computed(() => [
   { desc: 'Standard - $99/month', title: translate('components.dialogs.userupgradeplandialog.standard'), value: 'standard' },
   { desc: 'Basic - $0/month', title: translate('common.messages.basic'), value: 'basic' },
   { desc: 'Enterprise - $499/month', title: translate('components.dialogs.userupgradeplandialog.enterprise'), value: 'enterprice' },
   { desc: 'Company - $999/month', title: translate('common.fields.company'), value: 'company' },
-]
+])
 
 const isConfirmDialogVisible = ref(false)
 

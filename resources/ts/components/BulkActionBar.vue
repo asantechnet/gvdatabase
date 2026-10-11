@@ -1,10 +1,10 @@
 <script setup lang="ts">
-withDefaults(defineProps<{
+const props = defineProps<{
   selectedCount: number
   label?: string
-}>(), {
-  label: 'selected',
-})
+}>()
+const { t } = useI18n()
+const selectionLabel = computed(() => props.label ?? t('common.ui.selected'))
 
 defineEmits<{
   clear: []
@@ -19,14 +19,14 @@ defineEmits<{
       border
       elevation="4"
       role="region"
-      :aria-label="`${selectedCount} ${label}`"
+      :aria-label="`${selectedCount} ${selectionLabel}`"
     >
       <div
         class="bulk-action-bar__count"
         aria-live="polite"
       >
         <strong>{{ selectedCount }}</strong>
-        <span>{{ label }}</span>
+        <span>{{ selectionLabel }}</span>
       </div>
 
       <VDivider
@@ -41,12 +41,12 @@ defineEmits<{
       <VSpacer />
 
       <IconBtn
-        aria-label="Clear selection"
+        :aria-label="$t('pages.audits.bulk.clear')"
         @click="$emit('clear')"
       >
         <VIcon icon="tabler-x" />
         <VTooltip activator="parent">
-          Clear selection
+          {{ $t('pages.audits.bulk.clear') }}
         </VTooltip>
       </IconBtn>
     </VSheet>

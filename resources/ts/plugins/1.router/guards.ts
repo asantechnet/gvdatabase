@@ -13,10 +13,10 @@ const isApplicantPortalUser = () => useCookie<{ roles?: string[] } | null>('user
 const authorizedLandingRoute = () => {
   if (isApplicantPortalUser() && canAccess('view_own_applicant_portal'))
     return { name: 'applicant-portal' }
-  if (canAccess('view_dashboard'))
+  if (canAccess('view_agency_overview'))
     return { name: 'home' }
   if (canAccess('view_all_boards') || canAccess('view_assigned_boards'))
-    return { name: 'projects' }
+    return { name: 'tasks' }
 
   // Every authenticated user can still manage their own account, even when
   // their operational role has no application-area permissions yet.

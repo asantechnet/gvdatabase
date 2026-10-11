@@ -14,24 +14,16 @@ const resources: Record<string, ResourcePermissions> = {
   'employees': { view: 'view_employees', create: 'create_employees', update: 'edit_employees', delete: 'delete_employees' },
   'departments': { view: 'view_departments', create: 'manage_departments', update: 'manage_departments', delete: 'manage_departments' },
   'positions': { view: 'view_positions', create: 'manage_positions', update: 'manage_positions', delete: 'manage_positions' },
-  'marketers': { view: 'view_marketers', create: 'manage_marketers', update: 'manage_marketers', delete: 'manage_marketers' },
   'offices': { view: 'view_offices', create: 'manage_offices', update: 'manage_offices', delete: 'manage_offices' },
   'salaries': { view: 'view_salaries', create: 'create_salaries', update: 'edit_salaries', delete: 'delete_salaries' },
-  'invoices': { view: 'view_invoices', create: 'create_invoices', update: 'edit_invoices', delete: 'delete_invoices' },
-  'payment-details': { view: 'view_payment_details', create: 'create_payment_details', update: 'edit_payment_details', delete: 'delete_payment_details' },
   'expenses': { view: 'view_expenses', create: 'create_expenses', update: 'edit_expenses', delete: 'delete_expenses' },
   'incomes': { view: 'view_incomes', create: 'create_incomes', update: 'edit_incomes', delete: 'delete_incomes' },
   'visitors': { view: 'view_visitors', create: 'create_visitors', update: 'edit_visitors', delete: 'delete_visitors' },
-  'customers': { view: 'view_customers', create: 'create_customers', update: 'edit_customers', delete: 'delete_customers' },
-  'services': { view: 'view_services', create: 'manage_services', update: 'manage_services', delete: 'manage_services' },
-  'packages': { view: 'view_packages', create: 'manage_packages', update: 'manage_packages', delete: 'manage_packages' },
   'currencies': { view: 'view_currencies', create: 'manage_currencies', update: 'manage_currencies', delete: 'manage_currencies' },
   'settings': { view: 'view_settings', create: 'edit_settings', update: 'edit_settings', delete: 'edit_settings' },
   'contract-templates': { view: 'view_contract_templates', create: 'manage_contract_templates', update: 'manage_contract_templates', delete: 'manage_contract_templates' },
   'contracts': { view: 'view_contracts', create: 'create_contracts', update: 'edit_contracts', delete: 'delete_contracts' },
-  'companies': { view: 'view_companies', create: 'create_companies', update: 'edit_companies', delete: 'delete_companies' },
   'assets': { view: 'view_assets', create: 'create_assets', update: 'edit_assets', delete: 'delete_assets' },
-  'projects': { view: 'view_projects', create: 'create_projects', update: 'edit_projects', delete: 'delete_projects' },
   'applicants': { view: 'view_applicants', create: 'create_applicants', update: 'edit_applicants', delete: 'delete_applicants' },
   'applicant-stages': { view: 'view_applicant_stages', create: 'manage_applicant_stages', update: 'manage_applicant_stages', delete: 'manage_applicant_stages' },
   'applicants-pipeline': { view: 'view_applicants', create: 'view_applicants', update: 'view_applicants', delete: 'view_applicants' },
@@ -68,9 +60,10 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
   const path = normalizedPath(url)
 
   const special: Record<string, string[]> = {
-    'GET /invoices/commission-candidates': ['view_invoices'],
     // Printable receipt payload for a single income record.
     'GET /incomes/:id/receipt': ['view_incomes'],
+    'GET /incomes/applicants': ['view_incomes'],
+    'PUT /incomes/applicant-contracts/:id/payment-override': ['override_contract_payments'],
     // The loans workspace is the pending-transaction workflow under a
     // friendlier name; both paths must mirror the same server permissions.
     'GET /loans': ['view_pending_transactions'],
@@ -81,15 +74,6 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'POST /loans/:id/approve': ['approve_pending_transactions'],
     'POST /loans/:id/reject': ['approve_pending_transactions'],
     'POST /loans/:id/post': ['post_pending_transactions'],
-    'GET /commissions/accruals': ['view_commissions'],
-    'GET /commissions/summary': ['view_commissions'],
-    'POST /commissions/adjustments': ['manage_commission_settlements'],
-    'GET /commission-settlements': ['view_commissions'],
-    'GET /commission-settlements/:id': ['view_commissions'],
-    'POST /commission-settlements': ['manage_commission_settlements'],
-    'POST /commission-settlements/:id/approve': ['approve_commissions'],
-    'POST /commission-settlements/:id/pay': ['pay_commissions'],
-    'POST /commission-settlements/:id/cancel': ['manage_commission_settlements'],
     'GET /kanban': ['view_all_boards', 'view_assigned_boards'],
     'GET /boards': ['view_all_boards', 'view_assigned_boards'],
     'POST /boards': ['create_boards'],
@@ -109,9 +93,6 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'PUT /tasks/:id/comments/:id': ['edit_all_comments', 'edit_own_comments'],
     'DELETE /tasks/:id/comments/:id': ['delete_all_comments', 'delete_own_comments'],
     'GET /permissions': ['view_permissions'],
-    // The contract-template editor reads the package catalogue too, so a
-    // template viewer may list packages without the package permission.
-    'GET /packages': ['view_packages', 'view_contract_templates'],
     'POST /permissions': ['manage_role_permissions'],
     'PUT /permissions/:id': ['manage_role_permissions'],
     'DELETE /permissions/:id': ['manage_role_permissions'],
@@ -136,11 +117,7 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'POST /salaries/:id/deductions': ['create_salary_deductions'],
     'PATCH /salaries/:id/deductions/:id': ['edit_salary_deductions'],
     'DELETE /salaries/:id/deductions/:id': ['delete_salary_deductions'],
-    'PUT /invoices/:id/void': ['void_invoices'],
-    'POST /packages/:id/issue': ['issue_packages'],
-    'PATCH /crm/customer/:id/notes': ['view_customers'],
     'PATCH /crm/visitor/:id/notes': ['view_visitors'],
-    'PATCH /crm/lead/:id/notes': ['view_visitors'],
     'GET /attendances': ['view_attendance'],
     'GET /attendances/:id/daily-report': ['view_attendance'],
     'GET /workday/status': ['manage_own_workday'],
@@ -149,9 +126,22 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'GET /workday/geofence': ['manage_own_workday'],
     'POST /workday/geofence': ['manage_own_workday'],
     'POST /attendances': ['record_attendance'],
+    'POST /attendances/:id/checkout-correction': ['record_attendance'],
     'GET /attendances/unmarked-staff': ['view_unmarked_attendance_staff'],
     'DELETE /attendances/:id': ['delete_attendance'],
     'PUT /contracts/:id/cancel': ['cancel_contracts'],
+    'POST /contracts/preview': ['create_contracts', 'edit_contracts'],
+    'POST /contracts/scholarship': ['create_contracts'],
+    'POST /contracts/test_offer': ['create_contracts'],
+    'POST /contracts/academy': ['create_contracts'],
+    'POST /contracts/private': ['create_contracts'],
+    'GET /contracts/private/options': ['create_contracts'],
+    'POST /contract-templates/built-in/private': ['manage_contract_templates'],
+    'GET /contracts/scholarship/options': ['create_contracts'],
+    'GET /contracts/test_offer/options': ['create_contracts'],
+    'GET /contracts/academy/options': ['create_contracts'],
+    'POST /visitors/:id/convert-to-applicant': ['create_applicants'],
+    'PATCH /crm/applicant/:id/notes': ['view_applicants'],
     'POST /applicants/:id/change-stage': ['change_applicant_stage'],
     'GET /applicant-portal': ['view_own_applicant_portal'],
     'PUT /applicant-portal/profile': ['edit_own_applicant_profile'],
@@ -163,6 +153,9 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'PUT /applicants/:id/universities/:id': ['edit_applicants'],
     'DELETE /applicants/:id/universities/:id': ['edit_applicants'],
     'GET /contract-placeholders': ['view_contract_templates', 'view_contracts'],
+    'POST /contract-templates/built-in/scholarship': ['manage_contract_templates'],
+    'POST /contract-templates/built-in/test_offer': ['manage_contract_templates'],
+    'POST /contract-templates/built-in/academy': ['manage_contract_templates'],
     'GET /contract-templates/:id/versions': ['view_contract_templates'],
     'GET /contract-templates/:id/versions/:id': ['view_contract_templates'],
     'POST /contract-templates/:id/versions': ['create_contract_template_versions'],
@@ -183,8 +176,8 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'PATCH /audit-resources/:id': ['manage_audit_scope'],
     'GET /dashboard/stats': ['view_dashboard'],
     'GET /dashboard/chart-data': ['view_dashboard'],
-    'GET /educational-dashboard': ['view_dashboard'],
-    'GET /educational-services/options': ['view_educational_services'],
+    'GET /employees/assignment-options': ['view_applicants', 'view_visitors', 'create_contracts'],
+    'GET /educational-dashboard': ['view_agency_overview'],
     'GET /educational-bonus-sources': ['view_bonuses'],
     'POST /educational-bonus-sources': ['manage_educational_bonuses'],
     'PUT /educational-bonus-sources/:id': ['manage_educational_bonuses'],
@@ -196,19 +189,18 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'POST /pending-transactions/:id/approve': ['approve_pending_transactions'],
     'POST /pending-transactions/:id/reject': ['approve_pending_transactions'],
     'POST /pending-transactions/:id/post': ['post_pending_transactions'],
-    'GET /reports/invoices': ['view_financial_reports'],
     'GET /reports/expences': ['view_financial_reports'],
     'GET /reports/expenses': ['view_financial_reports'],
     'GET /reports/salaries': ['view_salaries'],
     'GET /reports/catalog': ['view_reports'],
-    'GET /educational-reports/applicants': ['view_reports'],
-    'GET /educational-reports/employee-performance': ['view_reports'],
-    'GET /educational-reports/sales': ['view_reports'],
-    'GET /educational-reports/visa-outcomes': ['view_reports'],
-    'GET /educational-reports/applicants/export': ['export_reports'],
-    'GET /educational-reports/employee-performance/export': ['export_reports'],
-    'GET /educational-reports/sales/export': ['export_reports'],
-    'GET /educational-reports/visa-outcomes/export': ['export_reports'],
+    'GET /educational-reports/applicants': ['view_visa_reports'],
+    'GET /educational-reports/employee-performance': ['view_visa_reports'],
+    'GET /educational-reports/sales': ['view_visa_reports'],
+    'GET /educational-reports/visa-outcomes': ['view_visa_reports'],
+    'GET /educational-reports/applicants/export': ['view_visa_reports'],
+    'GET /educational-reports/employee-performance/export': ['view_visa_reports'],
+    'GET /educational-reports/sales/export': ['view_visa_reports'],
+    'GET /educational-reports/visa-outcomes/export': ['view_visa_reports'],
     'GET /automation/bonus-rules': ['view_bonuses'],
     'PUT /automation/bonus-rules': ['manage_bonus_rules'],
     'GET /automation/runs': ['view_automation_runs'],
@@ -219,7 +211,6 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'GET /tasks/:id/attachments/:id/download': ['view_all_tasks', 'view_assigned_tasks'],
     'GET /reports/incomes': ['view_financial_reports'],
     'GET /reports/visitors': ['view_visitors'],
-    'GET /reports/invoices/export': ['export_financial_reports'],
     'POST /files/upload': ['upload_files'],
     'GET /files/list': ['view_files'],
     'GET /files/view/:id': ['view_files'],
@@ -288,30 +279,26 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
   if (path.startsWith('/files/download/'))
     return ['download_files']
 
-  const educational = path.match(/^\/educational-master-data\/(countries|education-levels|languages|package-types|universities)(?:\/:id)?$/)
+  const educational = path.match(/^\/educational-master-data\/(countries|education-levels|languages|universities|semesters|subjects|tests|skills|programs|times|durations|teachers|scholarships|classes)(?:\/:id)?$/)
   if (educational) {
-    const key = ({ countries: 'country', 'education-levels': 'education_level', languages: 'language', 'package-types': 'package_type', universities: 'university' } as Record<string, string>)[educational[1]]
+    const key = ({ countries: 'country', 'education-levels': 'education_level', languages: 'language', universities: 'university', semesters: 'semester', subjects: 'subject', tests: 'test', skills: 'skill', programs: 'program', times: 'time', durations: 'duration', teachers: 'teacher', scholarships: 'subject', classes: 'program' } as Record<string, string>)[educational[1]]
     const action = requestMethod === 'GET' ? 'view' : requestMethod === 'POST' ? 'create' : requestMethod === 'DELETE' ? 'delete' : 'edit'
     return [`${action}_${key}`]
   }
 
-  const educationalService = path.match(/^\/educational-services\/(scholarships|test-offers)(?:\/:id)?$/)
-  if (educationalService) {
-    return requestMethod === 'GET'
-      ? ['view_educational_services']
-      : ['manage_educational_services']
-  }
-
   if (/^\/educational-reports\/[^/]+\/export$/.test(path) && requestMethod === 'GET')
-    return ['export_reports']
+    return ['view_visa_reports']
   if (/^\/educational-reports\/[^/]+$/.test(path) && requestMethod === 'GET')
-    return ['view_reports']
+    return ['view_visa_reports']
 
   return special[`${requestMethod} ${path}`] ?? restPermission(requestMethod, path)
 }
 
 export const isApiRequestAllowed = (method: string | undefined, url: string | undefined, payload?: unknown) => {
   const required = permissionsForApiRequest(method, url, payload)
+
+  if (normalizedPath(url) === '/incomes/applicant-contracts/:id/payment-override')
+    return canAccess('view_incomes') && canAccess('override_contract_payments')
 
   return required === null || required.some(canAccess)
 }

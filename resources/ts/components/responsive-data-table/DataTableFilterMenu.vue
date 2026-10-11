@@ -10,10 +10,12 @@ withDefaults(defineProps<{
 defineEmits<{ reset: [] }>()
 
 const { t } = useI18n()
+const open = defineModel<boolean>({ default: false })
 </script>
 
 <template>
   <VMenu
+    v-model="open"
     :close-on-content-click="false"
     location="bottom end"
   >
@@ -36,7 +38,7 @@ const { t } = useI18n()
       </VBtn>
     </template>
 
-    <VCard min-width="280">
+    <VCard min-width="280" style="inline-size: min(440px, calc(100vw - 24px)); max-block-size: 75vh; overflow-y: auto;">
       <VCardItem>
         <VCardTitle class="text-body-1 font-weight-medium">
           {{ t('common.messages.filters') }}

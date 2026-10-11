@@ -484,13 +484,6 @@ html[dir='rtl'] .driver-popover-close-btn {
   z-index: 3;
 }
 
-.data-table-kpis {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 1rem 1rem 0;
-}
-
 .data-table-page-summary__heading {
   align-items: flex-start;
   display: flex;
@@ -506,77 +499,6 @@ html[dir='rtl'] .driver-popover-close-btn {
   font-size: 0.75rem;
   gap: 0.3rem;
   padding-block-start: 0.5rem;
-}
-
-.data-table-kpi {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 0.875rem;
-  box-shadow: 0 4px 12px rgba(var(--v-theme-on-surface), 0.06);
-  min-block-size: 124px;
-  min-inline-size: 0;
-  overflow: hidden;
-  position: relative;
-}
-
-.data-table-kpi .v-card-text {
-  block-size: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-block-size: inherit;
-  padding: 0.875rem 1rem;
-  position: relative;
-}
-
-.data-table-kpi__background-icon {
-  bottom: -1.1rem;
-  color: currentColor;
-  font-size: 6.75rem;
-  opacity: 0.065;
-  position: absolute;
-  right: -0.85rem;
-}
-
-.data-table-kpi--primary { background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.09), rgb(var(--v-theme-surface)) 65%); border-block-start: 3px solid rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-primary)); }
-.data-table-kpi--status { background: linear-gradient(135deg, rgba(var(--v-theme-success), 0.09), rgb(var(--v-theme-surface)) 65%); border-block-start: 3px solid rgb(var(--v-theme-success)); color: rgb(var(--v-theme-success)); }
-.data-table-kpi--attention { background: linear-gradient(135deg, rgba(var(--v-theme-warning), 0.1), rgb(var(--v-theme-surface)) 65%); border-block-start: 3px solid rgb(var(--v-theme-warning)); color: rgb(var(--v-theme-warning)); }
-.data-table-kpi--insight { background: linear-gradient(135deg, rgba(var(--v-theme-info), 0.09), rgb(var(--v-theme-surface)) 65%); border-block-start: 3px solid rgb(var(--v-theme-info)); color: rgb(var(--v-theme-info)); }
-
-.data-table-kpi__content {
-  margin-block: auto;
-  padding-inline-end: 2.75rem;
-  position: relative;
-  z-index: 1;
-}
-
-.data-table-kpi__value {
-  color: rgb(var(--v-theme-on-surface));
-  font-size: clamp(1.85rem, 2.7vw, 2.35rem);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.045em;
-  line-height: 1;
-  white-space: nowrap;
-  text-shadow: 0 1px 0 rgba(var(--v-theme-surface), 0.5);
-}
-
-.data-table-kpi__value--money {
-  font-size: clamp(0.9rem, 2vw, 1.55rem);
-  letter-spacing: -0.055em;
-}
-
-.data-table-kpi__content--money {
-  padding-inline-end: 0;
-}
-
-.data-table-kpi__label {
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.35;
-  margin-block-start: 0.35rem;
-  white-space: nowrap;
 }
 
 // The Services page already uses this width for compact table searches. Reuse
@@ -608,19 +530,6 @@ html[dir='rtl'] .driver-popover-close-btn {
   .responsive-data-table .v-table__wrapper > table th,
   .responsive-data-table .v-table__wrapper > table td {
     white-space: nowrap;
-  }
-
-  .data-table-kpis {
-    grid-template-columns: 1fr;
-    padding: 0.75rem 0.75rem 0;
-  }
-
-  .data-table-kpi {
-    min-block-size: 116px;
-  }
-
-  .data-table-kpi .v-card-text {
-    padding: 0.75rem;
   }
 
   .data-table-page-summary__heading {
@@ -715,74 +624,7 @@ html[dir='rtl'] .driver-popover-close-btn {
     text-align: start;
   }
 
-  // List reports use the same managed print lifecycle as paid-off days.
-  // Keep the current table while removing interactive application chrome.
-  body[class*='printing-table-'] {
-    // The printable report is rendered as a dedicated sibling of the live
-    // table. Visibility, rather than a list of layout class names, prevents
-    // navigation/header chrome from leaking into the browser print preview.
-    .v-application {
-      visibility: hidden !important;
-    }
 
-    .list-print-report,
-    .list-print-report * {
-      visibility: visible !important;
-    }
-
-    .list-print-report {
-      display: block !important;
-      inset: 0 !important;
-      // Keep a small inset inside the printable page so report tables do not
-      // run against the page edge. The page rule supplies the outer margin.
-      margin: 8mm !important;
-      position: fixed !important;
-      width: auto !important;
-    }
-
-    .v-card {
-      display: none !important;
-    }
-
-    .layout-navbar,
-    .layout-menu,
-    .layout-footer,
-    .v-navigation-drawer,
-    .v-app-bar,
-    .v-dialog,
-    .v-overlay-container,
-    .v-card > .v-card-text,
-    .v-data-table__td:last-child,
-    .v-data-table__th:last-child,
-    .v-data-table-footer {
-      display: none !important;
-    }
-
-    .v-main,
-    .layout-page-content,
-    .layout-content-wrapper {
-      padding: 0 !important;
-      margin: 0 !important;
-      min-height: 0 !important;
-    }
-
-    .v-card,
-    .v-table,
-    .v-table__wrapper {
-      overflow: visible !important;
-      box-shadow: none !important;
-    }
-
-    table {
-      width: 100% !important;
-      font-size: 9px;
-    }
-
-    th,
-    td {
-      white-space: normal !important;
-    }
-  }
 }
 
 // Educational operations workspace
@@ -988,4 +830,67 @@ html[dir='rtl'] .driver-popover-close-btn {
 
   .applicant-portal .portal-hero { gap: 1rem; grid-template-columns: 1fr; }
   .next-action-card .v-card-text { flex-wrap: wrap; }
+}
+
+@media print {
+  body.printing-contract-document #app-print-host .contract-page-container {
+    block-size: auto !important;
+    min-block-size: 296mm !important;
+    max-block-size: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+  body.printing-contract-document #app-print-host .contract-cover,
+  body.printing-contract-document #app-print-host .custom-cover-page,
+  body.printing-contract-document #app-print-host .empty-print-page {
+    inline-size: 210mm !important;
+    block-size: 296mm !important;
+    margin: 0 !important;
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+  body.printing-contract-document #app-print-host .print-page:not(:last-child) {
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+  body.printing-contract-document #app-print-host .custom-cover-page img {
+    inline-size: 100%; block-size: 100%; object-fit: cover;
+  }
+  body.printing-contract-document #app-print-host .content-wrapper {
+    min-block-size: 0 !important; block-size: auto !important;
+  }
+  body.printing-contract-document #app-print-host .contract-body {
+    overflow: visible !important;
+  }
+}
+
+@media print {
+  body.printing-payslip-document #app-print-host .payslip-container {
+    inline-size: 148mm !important;
+    max-inline-size: none !important;
+    min-block-size: 209mm;
+    padding: 7mm !important;
+    color: #222; background-color: #fff;
+    font-size: 9px;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  body.printing-payslip-document #app-print-host .payslip-container--letterhead { padding: 0 !important; }
+  body.printing-payslip-document #app-print-host .payslip-content--safe { padding: 3mm; overflow: visible; }
+  body.printing-payslip-document #app-print-host .payslip-header { margin-block-end: 8px; padding-block-end: 8px; }
+  body.printing-payslip-document #app-print-host .company-name,
+  body.printing-payslip-document #app-print-host .document-title h2 { font-size: 15px; }
+  body.printing-payslip-document #app-print-host .employee-card { padding: 8px; gap: 8px; margin-block-end: 8px; }
+  body.printing-payslip-document #app-print-host .label { font-size: 8px; }
+  body.printing-payslip-document #app-print-host .value,
+  body.printing-payslip-document #app-print-host .doc-meta p,
+  body.printing-payslip-document #app-print-host .company-address p,
+  body.printing-payslip-document #app-print-host .company-contact { font-size: 10px; }
+  body.printing-payslip-document #app-print-host table { font-size: 10px; }
+  body.printing-payslip-document #app-print-host th,
+  body.printing-payslip-document #app-print-host td { padding: 5px; }
+  body.printing-payslip-document #app-print-host tr { break-inside: avoid; }
+  body.printing-timesheet-template #app-print-host .no-print { display: none !important; }
 }

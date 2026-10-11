@@ -8,6 +8,7 @@ use App\Http\Middleware\NormalizeApiErrorResponse;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocaleFromRequest;
 use App\Support\ApiMessage;
+use App\Support\ValidationErrorCode;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -61,14 +62,27 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (ValidationException $exception, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 $originalErrors = $exception->errors();
-                $errors = collect($originalErrors)->map(fn (array $messages) => array_map(
-                    fn (string $message) => str_starts_with($message, 'validation.') || str_starts_with($message, 'business.') ? $message : 'validation.invalid',
-                    $messages,
-                ));
-                $messages = collect($originalErrors)->map(fn (array $fieldMessages) => array_map(
-                    fn (string $message) => str_starts_with($message, 'validation.') || str_starts_with($message, 'business.') ? ApiMessage::forCode($message) : $message,
-                    $fieldMessages,
-                ));
+                // Validator::failed() reports the concrete rule behind each
+                // message; we use it to return the real failure (e.g.
+                // validation.max, validation.regex) instead of one generic
+                // validation.invalid for every rule.
+                $failedRules = $exception->validator?->failed() ?? [];
+
+                $errors = [];
+                $messages = [];
+
+                foreach ($originalErrors as $field => $fieldMessages) {
+                    $rules = array_keys($failedRules[$field] ?? []);
+
+                    foreach (array_values($fieldMessages) as $index => $message) {
+                        // Form requests may supply a stable code (validation.* /
+                        // business.*) as an explicit message override.
+                        $isCode = str_starts_with($message, 'validation.') || str_starts_with($message, 'business.');
+
+                        $errors[$field][] = $isCode ? $message : ValidationErrorCode::forRule($rules[$index] ?? null);
+                        $messages[$field][] = $isCode ? ApiMessage::forCode($message) : $message;
+                    }
+                }
 
                 return response()->json([
                     'success' => false,

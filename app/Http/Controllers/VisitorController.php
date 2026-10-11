@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\ApplicantResource;
 use App\Http\Resources\VisitorResource;
-use App\Models\CrmInteraction;
 use App\Models\Applicant;
 use App\Models\ApplicantStage;
+use App\Models\CrmInteraction;
 use App\Models\Visitor;
-use App\Support\CrmMarketerAttribution;
+use App\Support\AgencyStaffAssignment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -21,31 +21,26 @@ class VisitorController extends Controller
      */
     public function index(Request $request): AnonymousResourceCollection
     {
+        $dates = $request->validate(['date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable']]);
         $search = $request->input('search');
-        $company = $request->input('company');
-        $marketer = $request->input('marketer');
 
-        $query = Visitor::query()->with('marketerEmployee')
+        $query = Visitor::query()->with('counselor')
             ->when(! $request->boolean('include_converted'), fn ($query) => $query->whereNull('converted_at'));
 
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%$search%")
-                    ->orWhere('company', 'like', "%$search%")
                     ->orWhere('contact', 'like', "%$search%")
                     ->orWhere('email', 'like', "%$search%");
             });
         }
 
-        if ($company) {
-            $query->where('company', $company);
+        if ($request->integer('counselor_employee_id')) {
+            $query->where('counselor_employee_id', $request->integer('counselor_employee_id'));
         }
 
-        if ($request->integer('marketer_id')) {
-            $query->where('marketer_id', $request->integer('marketer_id'));
-        } elseif ($marketer) {
-            $query->where('marketer', $marketer);
-        }
+        $query->when(! empty($dates['date_from']), fn ($q) => $q->whereDate('date', '>=', $dates['date_from']))
+            ->when(! empty($dates['date_to']), fn ($q) => $q->whereDate('date', '<=', $dates['date_to']));
 
         return VisitorResource::collection($query->get());
     }
@@ -56,20 +51,21 @@ class VisitorController extends Controller
     public function store(Request $request): VisitorResource
     {
         $validated = $request->validate([
+            'company' => ['prohibited'],
+            'marketer' => ['prohibited'],
+            'marketer_id' => ['prohibited'],
             'name' => 'required|string|max:255',
-            'company' => 'required|string|max:255',
             'contact' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
             'service' => 'required|string|max:255',
-            'marketer' => 'nullable|string|max:255',
-            'marketer_id' => CrmMarketerAttribution::marketerIdRules(),
+            'counselor_employee_id' => AgencyStaffAssignment::rules('counselor'),
             'date' => 'required|date',
             'notes' => 'nullable|string|max:10000',
         ]);
 
-        $visitor = Visitor::create(CrmMarketerAttribution::apply($request, $validated, creating: true));
+        $visitor = Visitor::create($validated);
 
-        return new VisitorResource($visitor->load(['marketerEmployee', 'interactions.creator']));
+        return new VisitorResource($visitor->load(['counselor', 'interactions.creator']));
     }
 
     /**
@@ -77,7 +73,7 @@ class VisitorController extends Controller
      */
     public function show(Visitor $visitor): VisitorResource
     {
-        return new VisitorResource($visitor->load(['marketerEmployee', 'interactions.creator']));
+        return new VisitorResource($visitor->load(['counselor', 'interactions.creator']));
     }
 
     /**
@@ -86,20 +82,19 @@ class VisitorController extends Controller
     public function update(Request $request, Visitor $visitor): VisitorResource
     {
         $validated = $request->validate([
+            'company' => ['prohibited'],
             'name' => 'sometimes|required|string|max:255',
-            'company' => 'sometimes|required|string|max:255',
             'contact' => 'sometimes|required|string|max:255',
             'email' => 'nullable|email|max:255',
             'service' => 'sometimes|required|string|max:255',
-            'marketer' => 'sometimes|nullable|string|max:255',
-            'marketer_id' => CrmMarketerAttribution::marketerIdRules(),
+            'counselor_employee_id' => AgencyStaffAssignment::rules('counselor'),
             'date' => 'sometimes|required|date',
             'notes' => 'nullable|string|max:10000',
         ]);
 
-        $visitor->update(CrmMarketerAttribution::apply($request, $validated, creating: false));
+        $visitor->update($validated);
 
-        return new VisitorResource($visitor->load(['marketerEmployee', 'interactions.creator']));
+        return new VisitorResource($visitor->load(['counselor', 'interactions.creator']));
     }
 
     /**
@@ -119,13 +114,9 @@ class VisitorController extends Controller
             abort_if($visitor->converted_at, 422, 'business.visitor_already_converted');
             $applicant = Applicant::create([
                 'name' => $visitor->name,
-                'company' => $visitor->company,
                 'contact' => $visitor->contact,
                 'email' => $visitor->email,
-                'marketer' => $visitor->marketer,
-                'marketer_id' => $visitor->marketer_id,
                 'notes' => $visitor->notes,
-                'date' => now()->toDateString(),
                 'status' => 'active',
                 'current_stage_id' => ApplicantStage::query()->where('key', 'new')->value('id'),
             ]);
@@ -144,8 +135,8 @@ class VisitorController extends Controller
         });
 
         return new ApplicantResource($applicant->load([
-            'contractServices.service.currency',
-            'marketerEmployee',
+            'applicantContracts.currency',
+            'admissionEmployee',
             'interactions.creator',
         ]));
     }

@@ -12,7 +12,7 @@ const emit = defineEmits<{
 
 const currentStep = ref(0)
 
-const createApp = [
+const createApp = computed(() => [
   {
     icon: 'tabler-file-text',
     title: translate('components.dialogs.createappdialog.details'),
@@ -31,16 +31,16 @@ const createApp = [
   {
     icon: 'tabler-credit-card',
     title: translate('components.dialogs.createappdialog.billing'),
-    subtitle: translate('components.dialogs.createappdialog.paymentDetails'),
+    subtitle: translate('components.dialogs.createappdialog.paymentSummary'),
   },
   {
     icon: 'tabler-check',
     title: translate('common.actions.submit3'),
     subtitle: translate('common.actions.submit2'),
   },
-]
+])
 
-const categories = [
+const categories = computed(() => [
   {
     icon: 'tabler-file-text',
     color: 'info',
@@ -62,9 +62,9 @@ const categories = [
     subtitle: translate('components.dialogs.createappdialog.startLearningToday'),
     slug: 'online-learning-application',
   },
-]
+])
 
-const frameworks = [
+const frameworks = computed(() => [
   {
     icon: 'tabler-brand-react-native',
     color: 'info',
@@ -93,9 +93,9 @@ const frameworks = [
     subtitle: translate('components.dialogs.createappdialog.progressiveFramework'),
     slug: 'html-framework',
   },
-]
+])
 
-const databases = [
+const databases = computed(() => [
   {
     icon: 'tabler-brand-firebase',
     color: 'error',
@@ -117,7 +117,7 @@ const databases = [
     subtitle: translate('components.dialogs.createappdialog.basicMySQLDatabase'),
     slug: 'mysql-database',
   },
-]
+])
 
 const createAppData = ref({
   category: 'crm-application',
@@ -336,7 +336,7 @@ const onSubmit = () => {
               <!-- 👉 Billing form -->
               <VWindowItem>
                 <h6 class="text-h6 mb-6">
-                  {{ $t('components.dialogs.createappdialog.paymentDetails') }}
+                  {{ $t('components.dialogs.createappdialog.paymentSummary') }}
                 </h6>
 
                 <VForm>

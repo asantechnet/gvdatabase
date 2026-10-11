@@ -22,6 +22,7 @@ export interface PositionPayload {
 }
 
 const PositionApi = {
+  getOptions: async (): Promise<Position[]> => (await api.get<{ data: Position[] }>('/positions')).data.data,
   // Get all positions
   getAll: () => api.get('/positions'),
 

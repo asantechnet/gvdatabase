@@ -29,8 +29,8 @@ const labels = computed<Record<ContractDocsSection, string>>(() => ({
 // The active tab stays in `?tab=` so each section remains deep-linkable and
 // old bookmarks keep working through the legacy route redirects.
 const section = ref<ContractDocsSection>('templates')
-const templatesView = ref<{ openEditor: () => void } | null>(null)
-const policiesView = ref<{ openEditor: () => void } | null>(null)
+const templatesView = ref<InstanceType<typeof ContractTemplatesView> | null>(null)
+const policiesView = ref<InstanceType<typeof PolicyLibraryView> | null>(null)
 
 const openEditor = () => {
   if (section.value === 'templates') templatesView.value?.openEditor()

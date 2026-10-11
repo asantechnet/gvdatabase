@@ -3,42 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import { apiErrorMessage } from '@/utils/apiErrors'
-import api from '@/api/axios'
-
-type EntityType = 'visitor' | 'lead' | 'customer'
-type Channel = 'call' | 'message' | 'email' | 'meeting' | 'note'
-
-interface Interaction {
-  id: number
-  channel: Channel
-  title: string
-  notes: string
-  contacted_at: string
-  follow_up_at: string | null
-  creator?: { id: number; name: string } | null
-}
-
-interface Relationship {
-  id: number
-  name: string
-  company?: string | null
-  contact?: string | null
-  email?: string | null
-  marketer?: string | null
-  address?: string | null
-  tax_number?: string | null
-  service?: string | null
-  service_interest?: string | null
-  stage?: string
-  probability?: number | null
-  estimated_value?: number | string | null
-  next_follow_up_at?: string | null
-  date?: string | null
-  owner?: { id: number; name: string } | null
-  services?: Array<{ id: number; type?: string | null; status?: string | null }>
-  notes?: string | null
-  interactions?: Interaction[]
-}
+import CrmApi, { type EntityType, type Channel, type Interaction, type Relationship } from '@/api/crmRelationships'
 
 const props = defineProps<{ type: EntityType; id: number; title?: string }>()
 const { t, locale } = useI18n()
@@ -57,7 +22,6 @@ const form = ref<{ channel: Channel; title: string; notes: string; contacted_at:
   channel: 'note', title: '', notes: '', contacted_at: '', follow_up_at: null,
 })
 
-const endpoint = computed(() => `${props.type === 'customer' ? 'customers' : props.type === 'visitor' ? 'visitors' : 'leads'}/${props.id}`)
 
 const channels = computed<Array<{ value: Channel; label: string; icon: string; color: string }>>(() => [
   { value: 'call', label: t('common.crmDetails.channels.calls'), icon: 'tabler-phone', color: 'success' },
@@ -94,13 +58,11 @@ const detailItems = computed(() => {
     return []
 
   return [
-    { key: 'company', icon: 'tabler-building', label: t('common.crmDetails.fields.company'), value: item.company },
     { key: 'contact', icon: 'tabler-phone', label: t('common.crmDetails.fields.contact'), value: item.contact },
     { key: 'email', icon: 'tabler-mail', label: t('common.crmDetails.fields.email'), value: item.email },
-    { key: 'marketer', icon: 'tabler-user-star', label: t('common.crmDetails.fields.marketer'), value: item.marketer },
     { key: 'service', icon: 'tabler-briefcase', label: t('common.crmDetails.fields.service'), value: item.service || item.service_interest },
-    { key: 'owner', icon: 'tabler-user-check', label: t('common.crmDetails.fields.owner'), value: item.owner?.name },
-    { key: 'stage', icon: 'tabler-progress-check', label: t('common.crmDetails.fields.stage'), value: item.stage },
+    { key: 'owner', icon: 'tabler-user-check', label: t('common.crmDetails.fields.owner'), value: item.responsible_employee?.name ?? item.owner?.name },
+    { key: 'stage', icon: 'tabler-progress-check', label: t('common.crmDetails.fields.stage'), value: item.current_stage?.name ?? item.stage },
     { key: 'probability', icon: 'tabler-percentage', label: t('common.crmDetails.fields.probability'), value: item.probability == null ? null : `${item.probability}%` },
     { key: 'estimated_value', icon: 'tabler-cash', label: t('common.crmDetails.fields.estimatedValue'), value: item.estimated_value },
     { key: 'next_follow_up_at', icon: 'tabler-calendar-event', label: t('common.crmDetails.fields.nextFollowUp'), value: item.next_follow_up_at ? formatDateTime(item.next_follow_up_at) : null },
@@ -116,7 +78,7 @@ const pickerDate = (value: string) => value.slice(0, 16).replace('T', ' ')
 // visual offset away from the field that opened it.
 const compactCalendar = (_selectedDates: Date[], _dateString: string, instance: { calendarContainer: HTMLElement }) => {
   requestAnimationFrame(() => {
-    instance.calendarContainer.style.setProperty('transform', 'translateY(-100px) scale(0.86)', 'important')
+    instance.calendarContainer.style.setProperty('transform', 'translateY(0) scale(0.86)', 'important')
     instance.calendarContainer.style.setProperty('transform-origin', 'top left', 'important')
   })
 }
@@ -124,7 +86,7 @@ const compactCalendar = (_selectedDates: Date[], _dateString: string, instance: 
 const load = async () => {
   loading.value = true
   try {
-    record.value = (await api.get(`/${endpoint.value}`)).data.data
+    record.value = await CrmApi.get(props.type, props.id)
     notesDraft.value = record.value?.notes ?? ''
   }
   catch (error) {
@@ -143,7 +105,7 @@ const show = () => {
 const saveProfileNotes = async () => {
   saving.value = true
   try {
-    const savedNotes = (await api.patch(`/crm/${props.type}/${props.id}/notes`, { notes: notesDraft.value.trim() || null })).data.data.notes as string | null
+    const savedNotes = await CrmApi.saveNotes(props.type, props.id, notesDraft.value.trim() || null)
     if (record.value)
       record.value.notes = savedNotes
     notesDraft.value = savedNotes ?? ''
@@ -185,9 +147,9 @@ const saveInteraction = async () => {
   try {
     const payload = { ...form.value, title: form.value.title.trim(), notes: form.value.notes.trim() }
     if (editingInteractionId.value)
-      await api.put(`/crm/interactions/${editingInteractionId.value}`, payload)
+      await CrmApi.updateInteraction(editingInteractionId.value, payload)
     else
-      await api.post(`/crm/${props.type}/${props.id}/interactions`, payload)
+      await CrmApi.createInteraction(props.type, props.id, payload)
 
     interactionDialog.value = false
     await load()
@@ -207,7 +169,7 @@ const removeInteraction = async (interaction: Interaction) => {
     return
 
   try {
-    await api.delete(`/crm/interactions/${interaction.id}`)
+    await CrmApi.removeInteraction(interaction.id)
     await load()
     toast.success(t('common.crmDetails.conversationRemoved'))
   }
@@ -259,9 +221,6 @@ const removeInteraction = async (interaction: Interaction) => {
             <h2 class="text-h5 font-weight-bold text-truncate">
               {{ record?.name || title }}
             </h2>
-            <div class="text-body-2 text-medium-emphasis">
-              {{ record?.company }}
-            </div>
           </div>
           <VSpacer />
           <VChip
@@ -356,7 +315,7 @@ const removeInteraction = async (interaction: Interaction) => {
                 </div>
               </div>
               <VChip
-                :prepend-icon="type === 'customer' ? 'tabler-user-check' : type === 'lead' ? 'tabler-target-arrow' : 'tabler-walk'"
+                :prepend-icon="type === 'applicant' ? 'tabler-user-check' : 'tabler-walk'"
                 color="primary"
                 variant="tonal"
               >
@@ -440,7 +399,7 @@ const removeInteraction = async (interaction: Interaction) => {
                   <VIcon
                     icon="tabler-packages"
                     color="primary"
-                  /><span class="font-weight-bold">{{ $t('common.crmDetails.customerServices') }}</span>
+                  /><span class="font-weight-bold">{{ $t('common.crmDetails.contractedServices') }}</span>
                 </div>
                 <div class="d-flex flex-wrap ga-2">
                   <VChip

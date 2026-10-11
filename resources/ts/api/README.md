@@ -13,7 +13,6 @@ api/
 ├── employee.ts       # Employee management API
 ├── position.ts       # Position management API
 ├── employeeSalary.ts # Employee salary API
-├── invoice.ts        # Invoice management API
 ├── expence.ts        # Expense management API
 ├── currency.ts       # Currency management API
 ├── setting.ts        # Setting management API
@@ -45,7 +44,7 @@ import { useAppApi } from '@/composables/useAppApi'
 
 export default {
   setup() {
-    const { auth, employees, invoices } = useAppApi()
+    const { auth, employees } = useAppApi()
     
     // Example: Login
     const login = async () => {
@@ -165,13 +164,6 @@ export default {
 - `update(id, data)` - Update employee salary
 - `delete(id)` - Delete employee salary
 
-### InvoiceApi
-- `getAll(params?)` - Get all invoices
-- `getById(id)` - Get single invoice
-- `create(data)` - Create invoice
-- `update(id, data)` - Update invoice
-- `delete(id)` - Delete invoice
-
 ### ExpenceApi
 - `getAll(params?)` - Get all expenses
 - `getById(id)` - Get single expense
@@ -231,10 +223,8 @@ export default {
 - `getChartData()` - Get chart data
 
 ### ReportApi
-- `generateInvoiceReport(params?)` - Generate invoice report
 - `generateExpenceReport(params?)` - Generate expense report
 - `generateSalaryReport(params?)` - Generate salary report
-- `exportInvoiceReport(params?)` - Export invoice report
 
 ### FileApi
 - `upload(file, data?)` - Upload file

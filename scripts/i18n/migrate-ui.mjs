@@ -77,7 +77,7 @@ const sourceFor = file => {
               ? 'bonuses'
               : /contract|customer|service|visitor/.test(name)
                 ? 'contracts'
-                : /invoice|income|expense|stock|currenc|finance/.test(name)
+                : /income|expense|stock|currenc|finance/.test(name)
                   ? 'finance'
                   : /report/.test(name)
                     ? 'reports'
@@ -136,9 +136,9 @@ const base = {
   },
   pages: { auth: {}, dashboard: {}, settings: {}, users: {}, attendance: {}, payroll: {}, bonuses: {}, contracts: {}, finance: {}, reports: {}, tasks: {} },
   components: { taskManager: {}, account: {}, setup: {}, navigation: {}, dialogs: {} },
-  documents: { invoice: {}, contract: {}, payslip: {}, timesheet: {} },
   backend: { values: {}, errors: {}, validation: {} },
   notifications: {},
+  documents: { contract: {}, payslip: {}, timesheet: {} },
   $vuetify: {
     badge: 'Badge',
     noDataText: 'No data available',
@@ -232,7 +232,6 @@ base.common.navigation = {
   timesheet: 'Timesheet',
   staffSalary: 'Staff salary',
   bonusList: 'Bonus list',
-  invoice: 'Invoice',
   options: 'Options',
   contract: 'Contracts',
   policies: 'Policies',
@@ -421,7 +420,6 @@ Object.assign(base.common.messages, {
 base.pages.contracts.allCustomers = { ...(base.pages.contracts.allCustomers ?? {}), attachServicesTo: 'Attach services to {customer}' }
 base.pages.bonuses.bonuslist = { ...(base.pages.bonuses.bonuslist ?? {}), calculationSummary: 'Rule version {version} · score {score}' }
 base.pages.finance.currencies = { ...(base.pages.finance.currencies ?? {}), symbolExample: 'For example, A$' }
-base.pages.contracts.services = { ...(base.pages.contracts.services ?? {}), durationMonthsValue: '{count} month | {count} months' }
 base.pages.settings.positions = { ...(base.pages.settings.positions ?? {}), deleteConfirmation: 'Delete {position}? Positions assigned to staff or users cannot be deleted.' }
 base.pages.settings.users = { ...(base.pages.settings.users ?? {}), deleteConfirmation: 'Delete {user}? This action can be restored only through the database.' }
 base.pages.users.staffList = { ...(base.pages.users.staffList ?? {}), leaveAllowance: 'Allowance: {value}', leaveUsed: 'Used: {value}', leaveRemaining: 'Remaining: {value}' }
@@ -458,7 +456,6 @@ base.components.dialogs.twofactorauthdialog = {
   authenticatorDescription: 'Get a code from an authenticator app.',
   smsDescription: 'We will send a code by SMS when you use the backup sign-in method.',
 }
-base.documents.invoice.defaultPaymentTerms = 'Unless otherwise agreed in writing, invoices are payable within thirty (30) days of the invoice date.'
 base.documents.contract.defaultFooter = 'Thank you for doing business with us!'
 base.components.taskManager.event = {
   ...(base.components.taskManager.event ?? {}), priority: '{priority} priority', dateRange: '{start} → {end}', dependencyCount: '{count} dependencies',
@@ -495,7 +492,6 @@ Object.assign(base.common.fields, {
   performanceScore: 'Performance score',
   bonusType: 'Bonus type',
   bonusAmount: 'Bonus amount',
-  invoiceType: 'Invoice type',
   customer: 'Customer',
   contractTemplate: 'Contract template',
   paymentInstructions: 'Payment instructions',
@@ -568,7 +564,6 @@ base.notifications = {
 const reportTypes = { financial: 'Financial', payroll: 'HR and payroll', attendance: 'Attendance', operations: 'Operations' }
 
 const reportSections = {
-  invoices: 'Invoices',
   income: 'Income',
   expenses: 'Expenses',
   net_cash_flow: 'Net cash flow',
@@ -647,7 +642,6 @@ const reportColumns = [
   'completed',
   'overdue',
   'average_progress',
-  'invoiced_base',
 ]
 
 base.pages.reports.types ??= {}

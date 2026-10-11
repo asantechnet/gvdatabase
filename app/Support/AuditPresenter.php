@@ -4,20 +4,14 @@ namespace App\Support;
 
 use App\Models\Applicant;
 use App\Models\AuditLog;
-use App\Models\Company;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\Currency;
-use App\Models\CustomerPackage;
 use App\Models\Employee;
-use App\Models\Invoice;
 use App\Models\Office;
-use App\Models\Package;
-use App\Models\PaymentDetail;
 use App\Models\PendingTransaction;
 use App\Models\Position;
-use App\Models\Service;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -46,21 +40,15 @@ final class AuditPresenter
         'requested_by' => User::class,
         'granted_by' => User::class,
         'quality_reviewed_by' => User::class,
-        'invoice_id' => Invoice::class,
         'currency_id' => Currency::class,
         'office_id' => Office::class,
         'position_id' => Position::class,
-        'service_id' => Service::class,
         'applicant_id' => Applicant::class,
-        'package_id' => Package::class,
-        'customer_package_id' => CustomerPackage::class,
         'task_id' => Task::class,
         'source_task_id' => Task::class,
         'template_id' => ContractTemplate::class,
         'contract_type_id' => ContractType::class,
         'contract_id' => Contract::class,
-        'company_id' => Company::class,
-        'payment_detail_id' => PaymentDetail::class,
         'base_currency_id' => Currency::class,
         'recorded_by' => User::class,
         'pending_transaction_id' => PendingTransaction::class,
@@ -145,19 +133,13 @@ final class AuditPresenter
         return match ($field) {
             'staff_id', 'employee_id' => 'employee',
             'user_id', 'requested_by', 'granted_by', 'quality_reviewed_by' => 'user',
-            'invoice_id' => 'invoice',
             'currency_id' => 'currency',
             'office_id' => 'office',
             'position_id' => 'position',
-            'service_id' => 'service',
             'applicant_id' => 'applicant',
-            'package_id' => 'package',
-            'customer_package_id' => 'customerPackage',
             'task_id', 'source_task_id' => 'task',
             'template_id' => 'contractTemplate',
             'contract_type_id' => 'contractType',
-            'company_id' => 'company',
-            'payment_detail_id' => 'paymentMethod',
             'base_currency_id' => 'baseCurrency',
             'recorded_by' => 'recordedBy',
             'pending_transaction_id' => 'pendingTransaction',
@@ -242,7 +224,7 @@ final class AuditPresenter
         }
 
         $values = [...($audit->new_values ?? []), ...($audit->old_values ?? [])];
-        foreach (['invoice_number', 'contract_number', 'receipt_number', 'payslip_number', 'serial_number', 'name', 'title', 'label', 'code', 'original_name', 'date'] as $field) {
+        foreach (['contract_number', 'receipt_number', 'payslip_number', 'serial_number', 'name', 'title', 'label', 'code', 'original_name', 'date'] as $field) {
             if (isset($values[$field]) && is_scalar($values[$field]) && trim((string) $values[$field]) !== '') {
                 return mb_substr(trim((string) $values[$field]), 0, 255);
             }

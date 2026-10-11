@@ -40,23 +40,23 @@ class ContractDocumentDesignService
     /**
      * Resolve the design that applies to a contract of the given type.
      *
-     * @param  array<int, int|string|null>  $serviceIds  contract service lines, in contract order
+     * @param  array<int, string|null>  $services  contract service lines, in contract order
      */
-    public function resolve(?int $contractTypeId, array $serviceIds = []): ?ContractDocumentDesign
+    public function resolve(?int $contractTypeId, array $services = []): ?ContractDocumentDesign
     {
         if ($contractTypeId === null) {
             return null;
         }
 
         if ($this->supportsServiceScope($contractTypeId)) {
-            foreach ($serviceIds as $serviceId) {
-                if ($serviceId === null) {
+            foreach ($services as $service) {
+                if ($service === null) {
                     continue;
                 }
 
                 $design = $this->designs()->first(fn (ContractDocumentDesign $design) => (int) $design->contract_type_id === $contractTypeId
-                    && $design->service_id !== null
-                    && (int) $design->service_id === (int) $serviceId);
+                    && $design->service !== null
+                    && $design->service === $service);
 
                 if ($design) {
                     return $design;
@@ -65,17 +65,15 @@ class ContractDocumentDesignService
         }
 
         return $this->designs()->first(fn (ContractDocumentDesign $design) => (int) $design->contract_type_id === $contractTypeId
-            && $design->service_id === null);
+            && $design->service === null);
     }
 
     /** Resolve the design for a contract, using its own service lines. */
     public function resolveForContract(Contract $contract): ?ContractDocumentDesign
     {
-        $serviceIds = $contract->relationLoaded('contractServices')
-            ? $contract->contractServices->pluck('service_id')->all()
-            : $contract->contractServices()->orderBy('id')->pluck('service_id')->all();
+        $services = $contract->service ? [$contract->service] : [];
 
-        return $this->resolve($contract->contract_type_id, $serviceIds);
+        return $this->resolve($contract->contract_type_id, $services);
     }
 
     /** The snapshot payload frozen onto a contract when it is issued. */
@@ -129,7 +127,7 @@ class ContractDocumentDesignService
     private function designs(): Collection
     {
         return $this->designs ??= ContractDocumentDesign::query()
-            ->select(['id', 'contract_type_id', 'service_id', 'letterhead', 'cover_design', 'safe_x', 'safe_y', 'safe_width', 'safe_height'])
+            ->select(['id', 'contract_type_id', 'service', 'letterhead', 'cover_design', 'safe_x', 'safe_y', 'safe_width', 'safe_height'])
             ->get();
     }
 

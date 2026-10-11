@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Applicant;
 use App\Models\ApplicantUniversity;
+use App\Models\University;
 use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -12,7 +13,7 @@ use Illuminate\Validation\Rule;
  * University applications belonging to a visa case. A case routinely
  * spans several universities (often in different countries), so each
  * application tracks its own intake and outcome while
- * applicants.university_id keeps naming the primary choice.
+ * scholarship_applicant_details.university_id names the primary choice.
  */
 class ApplicantUniversityController extends Controller
 {
@@ -37,9 +38,9 @@ class ApplicantUniversityController extends Controller
         // The case's country scopes which universities apply. A case without
         // a country yet has no context to match against, so any university is
         // acceptable.
-        if ($applicant->country_id) {
-            $universityCountry = \App\Models\University::query()->whereKey($data['university_id'])->value('country_id');
-            abort_unless($universityCountry && (int) $universityCountry === (int) $applicant->country_id, 422, 'business.university_country_mismatch');
+        if ($applicant->detail()?->country_id) {
+            $universityCountry = University::query()->whereKey($data['university_id'])->value('country_id');
+            abort_unless($universityCountry && (int) $universityCountry === (int) $applicant->detail()?->country_id, 422, 'business.university_country_mismatch');
         }
         // Uniqueness follows the schema: one application per case, university
         // and intake (NULL intake matches NULL intake at the application

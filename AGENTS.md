@@ -29,6 +29,23 @@
 - All UI must work correctly with both light and dark themes.
 - Interfaces must be responsive across mobile, tablet, and desktop sizes.
 
+## Icons
+
+Two icon mechanisms coexist. Pick the right one and do not mix them up:
+
+- **Class-based (bundled).** `VIcon :icon="'tabler-home'"`, `prepend-icon`, `icon: 'tabler-*'` in data, and navigation `icon: { icon: 'tabler-*' }`. Vuetify's `iconify` icon set renders `<i class="tabler-home">` and the glyph comes from a generated CSS rule. An icon with no matching rule **renders as nothing**.
+- **Remote (runtime).** `import { Icon } from '@iconify/vue'`, used as `() => h(Icon, { icon: 'streamline-cyber:person' })`. Fetched from the Iconify API at runtime; not bundled. Use this for one-off icons, icons outside the bundled sets, or names that are only known at runtime.
+
+Rules:
+
+- `resources/ts/plugins/iconify/icons.css` is **generated**. Never hand-edit it. It is produced by `npm run build:icons`, which also runs on `postinstall`.
+- The generator scans `.ts`, `.tsx`, `.js`, `.vue`, `.php`, `.blade.php`, `.json`, and `.scss` files under `resources/ts`, `resources/views`, `app`, `lang`, `routes`, `database`, and `config` (plus `themeConfig.ts`) for `tabler-` / `mdi-` / `fa-` / `ph-` / `lucide-` icon tokens, and only bundles the icons the repository actually references.
+- **Adding a static class-based icon needs no extra step** — reference it with its full `prefix-name` and it is picked up on the next `build:icons` run.
+- **Dynamic or externally-sourced class-based names cannot be scanned** (template literals, names from the API/database, computed values). Either add the exact name to `resources/ts/plugins/iconify/icon-allowlist.json`, or switch that usage to the remote `@iconify/vue` `<Icon>` component.
+- Iconify aliases are resolved by the generator, so alias names like `tabler-discount-2` render correctly. Do not assume a name is invalid just because it is absent from an icon set's `icons` map.
+- The 5 checkbox/radio names mapped in `plugins/vuetify/icons.ts` (`mdi-checkbox-blank-outline`, `mdi-checkbox-marked`, `mdi-minus-box`, `mdi-radiobox-blank`, `mdi-radiobox-marked`) render from imported SVGs rather than `icons.css`, so they are listed under `ignore` in the allowlist — excluded from the bundle with their warning suppressed.
+- The generator warns about tokens that are used but unavailable in any configured set. Treat that warning as a real bug — it means the icon renders blank.
+
 ## Vuexy Quirks
 
 - `AppDateTimePicker` (Flatpickr) inside a Vuetify dialog must stay in its normal body-level popup mode (`static: false`). Static mode can be clipped or hidden by the dialog structure.
@@ -39,7 +56,7 @@
 
 - Document rendering and printing are core requirements and must be treated as high-importance functionality.
 - Printed documents must be accurate, clean, responsive, and suitable for standard paper sizes.
-- Invoices and payslips use A5 sizing.
+- Income receipts and payslips use A5 sizing.
 - Contracts and similar larger documents use A4 sizing.
 - Any document-related change should preserve print quality and validate the relevant paper layout.
 - Treat print CSS in this SPA as global and persistent even when it originates in a route component. Never use broad print selectors such as `header`, `footer`, `.v-card`, or layout-shell selectors without a print-mode namespace; a previously visited route can otherwise alter later print jobs through CSS injection order.
@@ -49,15 +66,14 @@
 - Reset the real layout ancestors around a print host, including their padding, flex growth, and viewport minimum heights. A full-paper element with `break-inside: avoid` will be pushed to a blank first page if any ancestor leaves even a small amount of space before it.
 - Apply forced page breaks only with `.print-page:not(:last-child)`. Do not set `page-break-after: always` on every page and rely on a last-child override, because print engines can still paginate a trailing blank sheet.
 
-## Invoicing
+## Payments
 
-- Customers have no currency. Services own their fee and currency; invoices independently select their output currency.
-- Invoices belong to one customer and one currency, and contain selected customer-assigned services through `invoice_service`.
-- Invoice totals are calculated on the backend by converting each service fee with `service fee / service currency rate * invoice currency rate` and then applying tax and discount.
-- Snapshot service names, source fees/currencies/rates, invoice currency rates, converted fees, quantities, and line totals when issuing an invoice. Later service or currency changes must not alter issued documents.
-- Users cannot edit issued invoices. Laravel may update system-managed fields; do not enforce invoice immutability at the database/model level.
-- Never delete an issued invoice. Void it with a reason while retaining its number, totals, service snapshots, and audit history.
-- `incomes.invoice_id` is nullable. An invoice can have multiple income records for partial payments, while unrelated incomes remain valid.
+- Invoices, counterparty companies, commission ledgers and outsourcing ledgers are removed. Do not restore their APIs, models, schema, permissions, UI, or compatibility aliases.
+- The firm's own branding, settings, letterheads and document signatures remain.
+- Built-in services are scholarship, test_offer and academy. Contracts assign them through applicant_contract, which owns fee, currency, rate, discount and payment state.
+- An income can optionally target one applicant_contract line. One receipt per selected service; standalone incomes remain valid.
+- ApplicantContractPaymentService owns calculated balances and sticky payment overrides. CurrencyRateService persists supplied rates atomically.
+- Preserve issued contract snapshots and receipt numbers. Receipt printing uses the namespaced A5 print workflow.
 
 ## Asset
 

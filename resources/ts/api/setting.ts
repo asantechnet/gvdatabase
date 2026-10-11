@@ -49,13 +49,6 @@ export interface Setting {
   receipt_letterhead_safe_y: number
   receipt_letterhead_safe_width: number
   receipt_letterhead_safe_height: number
-  invoice_letterhead: string | null
-  invoice_letterhead_url: string | null
-  invoice_letterhead_source: LetterheadSource
-  invoice_letterhead_safe_x: number
-  invoice_letterhead_safe_y: number
-  invoice_letterhead_safe_width: number
-  invoice_letterhead_safe_height: number
   payslip_letterhead: string | null
   payslip_letterhead_url: string | null
   payslip_letterhead_source: LetterheadSource
@@ -63,7 +56,7 @@ export interface Setting {
   payslip_letterhead_safe_y: number
   payslip_letterhead_safe_width: number
   payslip_letterhead_safe_height: number
-  letterheads?: Record<'receipt' | 'invoice' | 'payslip', ResolvedLetterhead>
+  letterheads?: Record<'receipt' | 'payslip', ResolvedLetterhead>
   website_address: string | null
   company_email: string | null
   mail_host: string | null
@@ -117,13 +110,6 @@ export interface SettingForm {
   receipt_letterhead_safe_y?: number
   receipt_letterhead_safe_width?: number
   receipt_letterhead_safe_height?: number
-  invoice_letterhead?: File | null
-  remove_invoice_letterhead?: boolean
-  invoice_letterhead_source?: LetterheadSource
-  invoice_letterhead_safe_x?: number
-  invoice_letterhead_safe_y?: number
-  invoice_letterhead_safe_width?: number
-  invoice_letterhead_safe_height?: number
   payslip_letterhead?: File | null
   remove_payslip_letterhead?: boolean
   payslip_letterhead_source?: LetterheadSource
@@ -168,7 +154,7 @@ function toFormData(data: Partial<SettingForm>) {
     if (value === undefined)
       return
     if (value === null) {
-      if (!['website_logo', 'company_signature', 'contract_letterhead', 'contract_cover_design', 'receipt_letterhead', 'invoice_letterhead', 'payslip_letterhead'].includes(key))
+      if (!['website_logo', 'company_signature', 'contract_letterhead', 'contract_cover_design', 'receipt_letterhead', 'payslip_letterhead'].includes(key))
         formData.append(key, '')
 
       return

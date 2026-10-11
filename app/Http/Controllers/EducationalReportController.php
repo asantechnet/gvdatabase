@@ -3,17 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Applicant;
+use App\Models\ApplicantContract;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantUniversity;
 use App\Models\Contract;
 use App\Models\Country;
-use App\Models\ContractService;
 use App\Models\EducationalBonusSource;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
 use App\Models\PendingTransaction;
 use App\Models\Salary;
+use App\Support\BuiltInService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -76,9 +77,8 @@ class EducationalReportController extends Controller
             'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
             'language_id' => ['nullable', 'integer', 'exists:languages,id'],
             'contract_type_id' => ['nullable', 'integer', 'exists:contract_types,id'],
-            'package_id' => ['nullable', 'integer', 'exists:packages,id'],
-            // @deprecated "package_type_id" is the old name for "package_id".
-            'package_type_id' => ['nullable', 'integer', 'exists:packages,id'],
+            'package_id' => ['prohibited'],
+            'package_type_id' => ['prohibited'],
             'stage' => ['nullable', 'string', 'max:60'],
             'status' => ['nullable', 'in:active,closed'],
             'date_from' => ['nullable', 'date'],
@@ -103,10 +103,10 @@ class EducationalReportController extends Controller
 
     private function applicantScope(array $filters)
     {
-        $query = Applicant::query()->with(['responsibleEmployee:id,name', 'country:id,name', 'university:id,name', 'educationLevel:id,name', 'language:id,name', 'currentStage:id,name,key']);
-        foreach (['responsible_employee_id', 'country_id', 'university_id', 'education_level_id', 'language_id'] as $field) {
+        $query = Applicant::query()->with(['responsibleEmployee:id,name', 'privateDetail.country:id,name', 'privateDetail.university:id,name', 'privateDetail.educationLevel:id,name', 'scholarshipDetail.country:id,name', 'scholarshipDetail.university:id,name', 'scholarshipDetail.educationLevel:id,name', 'currentStage:id,name,key']);
+        foreach (['country_id', 'university_id', 'education_level_id'] as $field) {
             if (! empty($filters[$field])) {
-                $query->where($field, $filters[$field]);
+                $query->whereScholarshipField($field, $filters[$field]);
             }
         }
         if (! empty($filters['employee_id'])) {
@@ -119,10 +119,10 @@ class EducationalReportController extends Controller
             $query->where('status', $filters['status']);
         }
         if (! empty($filters['date_from'])) {
-            $query->whereDate('application_date', '>=', $filters['date_from']);
+            $query->whereDate('applicants.created_at', '>=', $filters['date_from']);
         }
         if (! empty($filters['date_to'])) {
-            $query->whereDate('application_date', '<=', $filters['date_to']);
+            $query->whereDate('applicants.created_at', '<=', $filters['date_to']);
         }
 
         return $query->latest('applicants.created_at');
@@ -130,18 +130,18 @@ class EducationalReportController extends Controller
 
     private function applicantReport(array $filters, bool $paginate, Request $request): array
     {
-        $columns = ['id', 'applicant', 'employee', 'country', 'university', 'education_level', 'language', 'stage', 'status', 'application_date'];
+        $columns = ['id', 'applicant', 'employee', 'country', 'university', 'education_level', 'service', 'stage', 'status', 'created_at'];
         $map = fn (Applicant $a) => [
             'id' => $a->id,
             'applicant' => $a->name ?: "Applicant #{$a->id}",
             'employee' => $a->responsibleEmployee?->name ?? 'Unassigned',
-            'country' => $a->country?->name ?? '—',
-            'university' => $a->university?->name ?? '—',
-            'education_level' => $a->educationLevel?->name ?? '—',
-            'language' => $a->language?->name ?? '—',
+            'country' => $a->detail()?->country?->name ?? '—',
+            'university' => $a->detail()?->university?->name ?? '—',
+            'education_level' => $a->detail()?->educationLevel?->name ?? '—',
+            'service' => $a->service,
             'stage' => $a->currentStage?->name ?? '—',
             'status' => $a->status,
-            'application_date' => $a->application_date?->format('Y-m-d') ?? '',
+            'created_at' => $a->created_at?->format('Y-m-d') ?? '',
         ];
 
         if (! $paginate) {
@@ -155,7 +155,7 @@ class EducationalReportController extends Controller
 
     private function performanceReport(array $filters): array
     {
-        $columns = ['employee', 'active_cases', 'closed_cases', 'services_sold', 'contracts_sold', 'revenue_attributed', 'bonus_amount'];
+        $columns = ['employee', 'active_cases', 'closed_cases', 'services_sold', 'contracts_sold', 'bonus_amount'];
         $employees = Employee::query()
             ->excludePrimaryRecord()
             ->when(! empty($filters['employee_id']) || ! empty($filters['responsible_employee_id']), fn ($q) => $q->whereKey($filters['employee_id'] ?? $filters['responsible_employee_id']))
@@ -165,20 +165,17 @@ class EducationalReportController extends Controller
 
         $rows = $employees->map(function (Employee $employee) {
             $cases = Applicant::query()->where('responsible_employee_id', $employee->id);
-            $sales = EducationalBonusSource::query()->where('employee_id', $employee->id);
-            $contracts = Contract::query()->where('employee_id', $employee->id)->whereNotIn('status', ['cancelled']);
+            $bonuses = EducationalBonusSource::query()->where('employee_id', $employee->id);
+            $sales = ApplicantContract::query()->whereIn('service', BuiltInService::ALL)->where('sold_by_employee_id', $employee->id);
+            $contracts = Contract::query()->where(fn ($q) => $q->where('employee_id', $employee->id)->orWhere('sold_by_employee_id', $employee->id))->whereNotIn('status', ['cancelled']);
 
             return [
                 'employee' => $employee->name,
                 'active_cases' => (clone $cases)->where('status', 'active')->count(),
                 'closed_cases' => (clone $cases)->where('status', 'closed')->count(),
-                'services_sold' => (clone $sales)->where('source_type', ContractService::class)->count(),
+                'services_sold' => (clone $sales)->count(),
                 'contracts_sold' => $contracts->count(),
-                'revenue_attributed' => (float) (clone $sales)->sum('source_amount'),
-                'bonus_amount' => (float) (clone $sales)->whereNotIn('status', ['void'])->sum('bonus_amount'),
-                // Stable legacy fields for existing API consumers.
-                'sales_recorded' => (clone $sales)->count(),
-                'sales_value' => (float) (clone $sales)->sum('source_amount'),
+                'bonus_amount' => (float) (clone $bonuses)->whereNotIn('status', ['void'])->sum('bonus_amount'),
             ];
         })->all();
 
@@ -187,23 +184,16 @@ class EducationalReportController extends Controller
 
     private function serviceQuery(string $category, array $filters)
     {
-        $query = ContractService::query()->whereHas('service', fn ($service) => $service->where('category', $category))
-            ->with(['service:id,type,category,fee,currency_id', 'contract.applicant:id,name', 'soldByEmployee:id,name', 'country:id,name', 'educationLevel:id,name', 'customerPackage.package:id,name', 'applicant.country:id,name', 'applicant.educationLevel:id,name', 'contract:id,applicant_id,status,start_date']);
+        $query = ApplicantContract::query()->where('service', $category)
+            ->with(['contract.applicant:id,name', 'soldByEmployee:id,name', 'applicant.privateDetail.country:id,name', 'applicant.privateDetail.educationLevel:id,name', 'applicant.scholarshipDetail.country:id,name', 'applicant.scholarshipDetail.educationLevel:id,name', 'contract:id,applicant_id,status,start_date']);
         $employee = $filters['employee_id'] ?? $filters['responsible_employee_id'] ?? null;
         if ($employee) {
             $query->where('sold_by_employee_id', $employee);
         }
         foreach (['country_id', 'education_level_id'] as $field) {
             if (! empty($filters[$field])) {
-                $query->where(function ($q) use ($field, $filters) {
-                    $q->where($field, $filters[$field])
-                        ->orWhereHas('applicant', fn ($aq) => $aq->where($field, $filters[$field]));
-                });
+                $query->whereHas('applicant', fn ($applicant) => $applicant->whereScholarshipField($field, $filters[$field]));
             }
-        }
-        $packageFilter = $filters['package_id'] ?? $filters['package_type_id'] ?? null;
-        if (! empty($packageFilter)) {
-            $query->whereHas('customerPackage', fn ($q) => $q->where('package_id', $packageFilter));
         }
         if (! empty($filters['date_from'])) {
             $query->whereHas('contract', fn ($contracts) => $contracts->whereDate('start_date', '>=', $filters['date_from']));
@@ -212,26 +202,23 @@ class EducationalReportController extends Controller
             $query->whereHas('contract', fn ($contracts) => $contracts->whereDate('start_date', '<=', $filters['date_to']));
         }
 
-        return $query->latest('contract_service.id');
+        return $query->latest('applicant_contract.id');
     }
 
     private function salesReport(array $filters, bool $paginate, Request $request): array
     {
-        $columns = ['id', 'service', 'applicant', 'employee', 'country', 'education_level', 'package', 'fee', 'currency', 'date', 'status'];
+        $columns = ['id', 'service', 'applicant', 'employee', 'country', 'education_level', 'fee', 'currency', 'date', 'status'];
         $codes = DB::table('currencies')->pluck('code', 'id');
         $collect = function ($items, string $service) use ($codes) {
-            return $items->map(fn ($s) => [
+            return $items->toBase()->map(fn ($s) => [
                 'id' => $s->id,
                 'service' => $service,
                 'applicant' => $s->contract?->applicant?->name ?? $s->applicant?->name ?? "Applicant #{$s->applicant_id}",
-                'country' => $s->country?->name ?? $s->applicant?->country?->name ?? '—',
-                'education_level' => $s->educationLevel?->name ?? $s->applicant?->educationLevel?->name ?? '—',
-                'package' => $s->customerPackage?->package?->name ?? '—',
-                // @deprecated "package_type" is the old name for "package".
-                'package_type' => $s->customerPackage?->package?->name ?? '—',
+                'country' => $s->applicant?->detail()?->country?->name ?? '—',
+                'education_level' => $s->applicant?->detail()?->educationLevel?->name ?? '—',
                 'employee' => $s->soldByEmployee?->name ?? '—',
-                'fee' => (float) ($s->fee ?? $s->service->fee),
-                'currency' => $codes[$s->currency_id ?? $s->service->currency_id] ?? '',
+                'fee' => (float) $s->fee,
+                'currency' => $codes[$s->currency_id] ?? '',
                 'date' => $s->contract?->start_date?->toDateString(),
                 'status' => $s->contract?->status,
             ]);
@@ -239,7 +226,9 @@ class EducationalReportController extends Controller
 
         if (! $paginate) {
             $rows = $collect($this->serviceQuery('scholarship', $filters)->limit(2500)->get(), 'scholarship')
-                ->merge($collect($this->serviceQuery('test_offer', $filters)->limit(2500)->get(), 'test offer'))
+                ->merge($collect($this->serviceQuery('test_offer', $filters)->limit(2500)->get(), 'test_offer'))
+                ->merge($collect($this->serviceQuery('academy', $filters)->limit(2500)->get(), 'academy'))
+                ->merge($collect($this->serviceQuery('private', $filters)->limit(2500)->get(), 'private'))
                 ->sortByDesc('date')->values()->all();
 
             return ['columns' => $columns, 'rows' => $rows, 'total' => count($rows)];
@@ -247,7 +236,9 @@ class EducationalReportController extends Controller
 
         $perPage = $request->integer('per_page', 100);
         $merged = $collect($this->serviceQuery('scholarship', $filters)->limit(2500)->get(), 'scholarship')
-            ->merge($collect($this->serviceQuery('test_offer', $filters)->limit(2500)->get(), 'test offer'))
+            ->merge($collect($this->serviceQuery('test_offer', $filters)->limit(2500)->get(), 'test_offer'))
+            ->merge($collect($this->serviceQuery('academy', $filters)->limit(2500)->get(), 'academy'))
+            ->merge($collect($this->serviceQuery('private', $filters)->limit(2500)->get(), 'private'))
             ->sortByDesc('date')->values();
         $page = max(1, $request->integer('page', 1));
 
@@ -279,7 +270,7 @@ class EducationalReportController extends Controller
         $columns = ['university', 'country', 'applications', 'in_progress', 'admitted', 'rejected', 'withdrawn', 'admission_rate_pct'];
         $query = ApplicantUniversity::query()->with(['university.country:id,name'])
             ->when(! empty($filters['university_id']), fn ($q) => $q->where('university_id', $filters['university_id']))
-            ->when(! empty($filters['country_id']), fn ($q) => $q->whereHas('applicant', fn ($aq) => $aq->where('country_id', $filters['country_id'])))
+            ->when(! empty($filters['country_id']), fn ($q) => $q->whereHas('applicant', fn ($aq) => $aq->whereScholarshipField('country_id', $filters['country_id'])))
             ->when(! empty($filters['employee_id']), fn ($q) => $q->whereHas('applicant', fn ($aq) => $aq->where('responsible_employee_id', $filters['employee_id'])))
             ->when(! empty($filters['date_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['date_from']))
             ->when(! empty($filters['date_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['date_to']))
@@ -311,10 +302,10 @@ class EducationalReportController extends Controller
                 if (! empty($filters['country_id']) || ! empty($filters['university_id'])) {
                     $query->whereHas('applicant', function ($aq) use ($filters) {
                         if (! empty($filters['country_id'])) {
-                            $aq->where('country_id', $filters['country_id']);
+                            $aq->whereScholarshipField('country_id', $filters['country_id']);
                         }
                         if (! empty($filters['university_id'])) {
-                            $aq->where('university_id', $filters['university_id']);
+                            $aq->whereScholarshipField('university_id', $filters['university_id']);
                         }
                     });
                 }
@@ -352,7 +343,7 @@ class EducationalReportController extends Controller
     private function outcomesReport(array $filters): array
     {
         $columns = ['country', 'in_progress', 'visa_approved', 'rejected', 'closed_other', 'completed', 'total', 'success_rate_pct'];
-        $query = $this->applicantScope($filters)->selectRaw('country_id, current_stage_id, COUNT(*) as total')->groupBy('country_id', 'current_stage_id')->whereNotNull('country_id');
+        $query = $this->applicantScope($filters)->reorder()->setEagerLoads([])->joinAdmissionDetails()->selectRaw('detail.country_id, applicants.current_stage_id, COUNT(*) as total')->groupBy('detail.country_id', 'applicants.current_stage_id')->whereNotNull('detail.country_id');
         $stageKeys = ApplicantStage::query()->pluck('key', 'id');
         $countryNames = Country::query()->pluck('name', 'id');
         $buckets = [];
@@ -401,7 +392,7 @@ class EducationalReportController extends Controller
             $query->where('applicant_universities.university_id', $filters['university_id']);
         }
         if (! empty($filters['country_id'])) {
-            $query->where('applicants.country_id', $filters['country_id']);
+            $query->whereHas('applicant', fn ($aq) => $aq->whereScholarshipField('country_id', $filters['country_id']));
         }
 
         $buckets = [];

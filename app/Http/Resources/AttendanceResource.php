@@ -2,11 +2,11 @@
 
 namespace App\Http\Resources;
 
-use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
-use Carbon\Carbon;
 use App\Models\Setting;
 use App\Support\CompanyProfile;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 class AttendanceResource extends JsonResource
 {
@@ -31,7 +31,9 @@ class AttendanceResource extends JsonResource
             'checked_out_at' => $this->checked_out_at?->utc()->toISOString(),
             'check_in_state' => $this->checkInState($this->check_in_time),
             'check_out_state' => $this->checkOutState($this->check_out_time),
-            'break_minutes' => (int) ($this->break_minutes ?? 0),
+            'break_minutes' => $this->gross_minutes !== null && $this->net_worked_minutes !== null
+                ? max(0, (int) $this->gross_minutes - (int) $this->net_worked_minutes)
+                : (int) ($this->break_minutes ?? 0),
             'gross_minutes' => $this->gross_minutes,
             'net_worked_minutes' => $this->net_worked_minutes,
             'required_minutes' => $this->required_minutes,
@@ -70,17 +72,14 @@ class AttendanceResource extends JsonResource
             return null;
         }
 
-        return match (substr($time, 0, 5) <=> substr($close, 0, 5)) {
-            -1 => 'early_departure',
-            0 => 'on_time',
-            default => 'overtime',
-        };
+        // Derived metrics know the actual date of an overnight checkout.
+        // Comparing HH:mm strings alone can label an early exit as overtime.
+        return $this->early_departure_minutes > 0 ? 'early_departure'
+            : ($this->overtime_minutes > 0 ? 'overtime' : 'on_time');
     }
 
     private function officeHours(): ?Setting
     {
-        static $officeHours;
-
-        return $officeHours ??= Setting::latest('id')->first(['office_open_time', 'office_close_time']);
+        return Setting::latest('id')->first(['office_open_time', 'office_close_time']);
     }
 }

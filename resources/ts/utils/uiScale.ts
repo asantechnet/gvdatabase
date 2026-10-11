@@ -1,7 +1,10 @@
+import { computed } from 'vue'
+import { translate } from '@/utils/localization'
+
 const KEY = 'educational-ui-scale'
-export const uiScaleOptions = [
-  { title: 'Small', value: 0.9 }, { title: 'Normal', value: 1 }, { title: 'Large', value: 1.1 }, { title: 'Extra large', value: 1.2 },
-]
+export const uiScaleOptions = computed(() => [
+  { title: translate('common.ui.small'), value: 0.9 }, { title: translate('pages.support.severities.normal'), value: 1 }, { title: translate('common.ui.large'), value: 1.1 }, { title: translate('common.ui.extraLarge'), value: 1.2 },
+])
 
 export function applyUiScale(value: number | null | undefined) {
   const scale = Math.min(1.25, Math.max(0.85, Number(value) || 1))

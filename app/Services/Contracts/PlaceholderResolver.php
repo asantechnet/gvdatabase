@@ -3,9 +3,8 @@
 namespace App\Services\Contracts;
 
 use App\Models\Applicant;
-use App\Models\Company;
 use App\Models\Employee;
-use App\Models\Service;
+use Illuminate\Support\Collection;
 
 /**
  * Resolves whitelisted placeholders against explicit value maps.
@@ -17,11 +16,14 @@ use App\Models\Service;
 class PlaceholderResolver
 {
     /**
-     * @param  array{employee?: ?Employee, applicant?: ?Applicant, customer?: ?Applicant, company?: ?Company, contract_number?: ?string, start_date?: ?string, status?: ?string}  $context
+     * @param  array{employee?: ?Employee, applicant?: ?Applicant, customer?: ?Applicant, contract_number?: ?string, start_date?: ?string, status?: ?string}  $context
      * @return array{content: string, unresolved: list<string>, missing: list<string>}
      */
-    public function resolve(string $content, array $context, ?string $typeSlug = null): array
+    public function resolve(string $content, array $context, ?string $typeSlug = null, bool $preserveMissing = false): array
     {
+        // Older editor saves may contain labelled marks instead of machine tokens.
+        $content = preg_replace_callback('/<span\b[^>]*data-placeholder-key=["\']([a-zA-Z0-9_.]+)["\'][^>]*>.*?<\/span>/is',
+            fn (array $match) => '{{ '.$match[1].' }}', $content) ?? $content;
         $values = $this->buildValueMap($context);
 
         $unresolved = [];
@@ -31,7 +33,7 @@ class PlaceholderResolver
         // exempt from escaping like other values.
         $raw = ['employee.identity', 'services.table'];
 
-        $resolved = preg_replace_callback('/{{\s*([a-zA-Z0-9_.]+)\s*}}/', function (array $matches) use ($values, $allowed, &$unresolved, &$missing, $raw) {
+        $resolved = preg_replace_callback('/{{\s*([a-zA-Z0-9_.]+)\s*}}/', function (array $matches) use ($values, $allowed, &$unresolved, &$missing, $raw, $preserveMissing) {
             $key = strtolower($matches[1]);
 
             if (! in_array($key, $allowed, true)) {
@@ -43,7 +45,7 @@ class PlaceholderResolver
             if (! array_key_exists($key, $values) || ($values[$key] === null || $values[$key] === '')) {
                 $missing[] = $key;
 
-                return '';
+                return $preserveMissing ? $matches[0] : '';
             }
 
             return in_array($key, $raw, true) ? (string) $values[$key] : e((string) $values[$key]);
@@ -94,75 +96,62 @@ class PlaceholderResolver
         // `applicant` is the primary key; `customer` is the frozen placeholder
         // alias that ContractController still supplies (see warning.md).
         if ($applicant = $context['applicant'] ?? $context['customer'] ?? null) {
+            $detail = $applicant->detail();
+            $values += [
+                'applicant.name' => $applicant->name,
+                'applicant.father_name' => $applicant->father_name,
+                'applicant.father_phone' => $applicant->father_phone,
+                'applicant.backup_phone' => $applicant->backup_phone,
+                'applicant.phone' => $applicant->contact,
+                'applicant.email' => $applicant->email,
+                'applicant.address' => $applicant->address,
+                'applicant.passport_id' => $detail?->passport_id,
+                'applicant.grade_score' => $detail?->grade_score,
+                'applicant.country' => in_array($applicant->service, ['scholarship', 'private'], true) ? $detail?->country?->name : null,
+                'applicant.university' => in_array($applicant->service, ['scholarship', 'private'], true) ? $detail?->university?->name : null,
+                'applicant.education_level' => in_array($applicant->service, ['scholarship', 'private'], true) ? $detail?->educationLevel?->name : null,
+                'applicant.semester' => in_array($applicant->service, ['scholarship', 'private'], true) ? $detail?->semester?->name : null,
+                'applicant.university_fee' => $detail?->university_fee,
+                'applicant.scholarship' => $applicant->service === 'scholarship' ? $detail?->scholarship?->name : null,
+                'applicant.test' => $applicant->service === 'test_offer' ? $detail?->test?->name : null,
+                'applicant.program' => $applicant->service === 'academy' ? $detail?->program?->name : null,
+                'applicant.class' => $applicant->service === 'academy' ? $detail?->academyClass?->name : null,
+                'applicant.time' => $applicant->service === 'academy' ? $detail?->time?->name : null,
+                'applicant.duration' => $applicant->service === 'academy' ? $detail?->duration?->name : null,
+                'applicant.subjects' => $applicant->favoriteSubjects->pluck('name')->join(', '),
+                'applicant.skills' => $applicant->skills->pluck('name')->join(', '),
+                'applicant.teachers' => $applicant->teachers->pluck('name')->join(', '),
+                'applicant.admission_employee' => $applicant->admissionEmployee?->name,
+            ];
             $values += [
                 'customer.name' => $applicant->name,
-                'customer.company_name' => null,
                 'customer.phone' => $applicant->contact,
                 'customer.email' => $applicant->email,
                 'customer.address' => $applicant->address,
                 'customer.tax_number' => $applicant->tax_number,
             ];
         }
-        $services = collect($context['services'] ?? []);
-        if (($service = $context['service'] ?? null) === null && $services->isNotEmpty()) {
-            // Contract lines: singular keys fall back to the first service.
-            $service = $services->first()->service ?? $services->first();
-        }
-        if ($service = $service instanceof \App\Models\ContractService ? $service->service : $service) {
+        if ($line = $context['built_in_line'] ?? null) {
             $values += [
-                'service.name' => $service->type,
-                'service.category' => $service->category,
-                // Service descriptions are optional catalogue metadata, but
-                // the default agreement always prints this placeholder. Use
-                // the category (or service name) as a useful contract-safe
-                // fallback rather than rejecting an otherwise valid service.
-                'service.description' => $service->description ?: $service->category ?: $service->type,
-                'service.fee' => $service->fee,
+                'service.name' => $line->serviceLabel(),
+                'service.category' => $line->service,
+                'service.description' => $line->serviceLabel(),
+                'service.application_fee' => $line->application_fee,
+                'service.visa_fee' => $line->visa_fee,
+                'service.booking_fee' => $line->booking_fee,
+                'service.service_fee' => $line->service_fee,
+                'service.remote_fee' => $line->remote_fee,
+                'service.fee' => $line->fee,
+                'service.discount' => $line->discount,
+                'service.currency' => $line->currency?->code,
+                'service.currency_rate' => $line->currency_rate,
+                'service.payable_total' => $line->payableTotal(),
+                'services.names' => $line->serviceLabel(),
+                'services.count' => 1,
+                'services.total_fee' => $line->fee,
+                'services.table' => $this->servicesTableHtml(collect([['name' => $line->serviceLabel(), 'fee' => $line->fee]])),
             ];
         }
-        if ($services->isNotEmpty()) {
-            $rows = $services->map(function ($line) {
-                $service = $line instanceof \App\Models\ContractService ? $line->service : $line;
-                $fee = $line instanceof \App\Models\ContractService ? ($line->fee ?? $service?->fee) : $service?->fee;
-
-                return ['name' => $service?->type, 'fee' => $fee];
-            })->filter(fn ($row) => $row['name'] !== null);
-            $values += [
-                'services.names' => $rows->pluck('name')->implode(', '),
-                'services.count' => $rows->count(),
-                'services.total_fee' => $rows->sum(fn ($row) => (float) ($row['fee'] ?? 0)),
-                'services.table' => $this->servicesTableHtml($rows),
-            ];
-        }
-
-        if ($company = $context['company'] ?? null) {
-            $values += [
-                'company.legal_name' => $company->legal_name,
-                'company.trade_name' => $company->trade_name,
-                'company.registration_number' => $company->registration_number,
-                'company.tax_number' => $company->tax_number,
-                'company.national_id' => $company->national_id,
-                'company.legal_form' => $company->legal_form,
-                'company.email' => $company->email,
-                'company.phone' => $company->phone,
-                'company.website' => $company->website,
-                'company.address_line' => $company->address_line,
-                'company.city' => $company->city,
-                'company.province' => $company->province,
-                'company.postal_code' => $company->postal_code,
-                'company.country' => $company->country,
-                'company.address' => collect([
-                    $company->address_line, $company->city, $company->province,
-                    $company->postal_code, $company->country,
-                ])->filter()->implode(', '),
-                'company.industry' => $company->industry,
-                'company.representative_name' => $company->representative_name,
-                'company.representative_title' => $company->representative_title,
-                'company.representative_phone' => $company->representative_phone,
-                'company.representative_email' => $company->representative_email,
-            ];
-        }
-
         $values += [
             'contract.number' => $context['contract_number'] ?? null,
             'contract.start_date' => $context['start_date'] ?? null,
@@ -172,7 +161,7 @@ class PlaceholderResolver
         return $values;
     }
 
-    /** @param \Illuminate\Support\Collection<int, array{name: ?string, fee: mixed}> $rows */
+    /** @param Collection<int, array{name: ?string, fee: mixed}> $rows */
     private function servicesTableHtml($rows): string
     {
         $body = $rows->map(fn ($row) => '<tr><td>'.e((string) $row['name']).'</td><td>'

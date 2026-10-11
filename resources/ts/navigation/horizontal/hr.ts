@@ -47,13 +47,6 @@ export default [
         subject: 'view_salaries',
       },
       {
-        title: 'common.navigation.commissions',
-        icon: { icon: 'tabler-percentage' },
-        to: 'commissions',
-        action: 'read',
-        subject: 'view_commissions',
-      },
-      {
         title: 'common.navigation.bonusList',
         icon: { icon: 'tabler-gift' },
         to: 'bonuslist',

@@ -1,0 +1,11 @@
+{
+  "include": [],
+  "ignore": [
+    "tabler-align",
+    "mdi-checkbox-blank-outline",
+    "mdi-checkbox-marked",
+    "mdi-minus-box",
+    "mdi-radiobox-blank",
+    "mdi-radiobox-marked"
+  ]
+}

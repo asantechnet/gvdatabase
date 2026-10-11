@@ -75,7 +75,7 @@ const handleLogin = async () => {
         : session.user.permissions?.includes('view_dashboard')
         ? '/home'
         : session.user.permissions?.some((permission: string) => ['view_all_boards', 'view_assigned_boards'].includes(permission))
-          ? '/projects'
+          ? '/tasks'
           : '/account-settings',
     )
   }

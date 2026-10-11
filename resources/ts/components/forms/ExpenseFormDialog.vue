@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
+import { useToast } from 'vue-toastification'
+import ApplicantApi from '@/api/applicants'
 import type { ExpenseFormData } from '@/api/expenses'
 
 const props = defineProps<{
   modelValue: boolean
   initialExpense: ExpenseFormData | null
   currencyOptions: Array<{ title: string; value: number; rate: number }>
-  projectOptions: Array<{ title: string; value: number }>
+  typeOptions: Array<{ title: string; value: string }>
   mode: 'create' | 'edit'
 }>()
 
@@ -15,14 +18,57 @@ const form = ref<Partial<ExpenseFormData>>({})
 const saveMode = ref<'direct' | 'loan'>('direct')
 const formError = ref('')
 const errors = ref<Record<string, string>>({})
+const applicants = ref<Array<{ id: number; name: string }>>([])
+const applicantSearch = ref('')
+const loadingApplicants = ref(false)
+const toast = useToast()
+let applicantRequest = 0
+onBeforeUnmount(() => { ++applicantRequest })
+
+async function loadApplicants() {
+  if (!props.modelValue)
+    return
+  const request = ++applicantRequest
+  loadingApplicants.value = true
+  try {
+    const response = await ApplicantApi.list({ search: applicantSearch.value, per_page: 50 })
+    if (request !== applicantRequest)
+      return
+    const selected = applicants.value.find(item => item.id === form.value.applicant_id)
+    applicants.value = selected && !response.data.some(item => item.id === selected.id)
+      ? [selected, ...response.data]
+      : response.data
+  }
+  catch {
+    if (request === applicantRequest)
+      toast.error(translate('educational.messages.loadApplicantsFailed'))
+  }
+  finally {
+    if (request === applicantRequest)
+      loadingApplicants.value = false
+  }
+}
+
+const searchApplicants = useDebounceFn(loadApplicants, 250)
+watch(applicantSearch, () => {
+  ++applicantRequest
+  void searchApplicants()
+})
 
 watch(() => props.modelValue, open => {
-  if (!open)
+  if (!open) {
+    ++applicantRequest
+    loadingApplicants.value = false
     return
+  }
   form.value = { ...props.initialExpense }
   saveMode.value = 'direct'
   errors.value = {}
   formError.value = ''
+  applicantSearch.value = ''
+  const selected = props.initialExpense && 'applicant' in props.initialExpense ? props.initialExpense.applicant : null
+  applicants.value = selected ? [selected] : []
+  void loadApplicants()
 })
 
 function calculateTotal() {
@@ -101,11 +147,18 @@ function submit() {
             {{ formError }}
           </VAlert><VRow>
             <VCol cols="12">
-              <p class="app-form__section">
-                Expense details
-              </p><p class="app-form__section-help">
-                Enter the original amount and quantity. The exchange rate starts from the selected currency and can be adjusted for this expense.
-              </p>
+              <VAutocomplete
+                v-model="form.applicant_id"
+                v-model:search="applicantSearch"
+                :items="applicants"
+                item-title="name"
+                item-value="id"
+                :label="$t('common.fields.applicant')"
+                prepend-inner-icon="tabler-user"
+                :loading="loadingApplicants"
+                clearable
+                no-filter
+              />
             </VCol>
             <VCol
               cols="12"
@@ -113,7 +166,7 @@ function submit() {
             >
               <VSelect
                 v-model="form.type"
-                :items="['Utilities', 'Software/SaaS', 'Marketing', 'Office Supplies', 'Travel & Dining', 'Salaries']"
+                :items="typeOptions"
                 :label="$t('common.messages.expenseType')"
                 :error-messages="errors.type"
                 required
@@ -130,17 +183,6 @@ function submit() {
                 :error-messages="errors.currency_id"
                 required
                 @update:model-value="updateCurrency"
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VSelect
-                v-model="form.project_id"
-                :items="projectOptions"
-                label="Project (optional)"
-                clearable
               />
             </VCol>
             <VCol

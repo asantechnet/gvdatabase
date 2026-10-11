@@ -1,11 +1,12 @@
 <?php
 
 use App\Http\Controllers\AccountDeactivationRequestController;
-use App\Http\Controllers\ApplicantController; use App\Http\Controllers\ApplicantAttachmentController;
+use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\ApplicantAttachmentController;
+use App\Http\Controllers\ApplicantController;
 use App\Http\Controllers\ApplicantPortalController;
 use App\Http\Controllers\ApplicantStageController;
 use App\Http\Controllers\ApplicantUniversityController;
-use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AttendanceController;
@@ -16,8 +17,6 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AutomationController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\CommentController;
-use App\Http\Controllers\CommissionController;
-use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\ContractDocumentDesignController;
 use App\Http\Controllers\ContractPolicyController;
@@ -32,25 +31,18 @@ use App\Http\Controllers\EducationalBonusSourceController;
 use App\Http\Controllers\EducationalDashboardController;
 use App\Http\Controllers\EducationalMasterDataController;
 use App\Http\Controllers\EducationalReportController;
-use App\Http\Controllers\EducationalServiceController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FileController;
+use App\Http\Controllers\FinanceTypeController;
 use App\Http\Controllers\IncomeController;
-use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KanbanController;
-use App\Http\Controllers\LeadController;
-use App\Http\Controllers\MarketerController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficeController;
-use App\Http\Controllers\OutsourcingController;
-use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PaidTimeOffController;
-use App\Http\Controllers\PaymentDetailController;
 use App\Http\Controllers\PendingTransactionController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PositionController;
-use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RecurringEventController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
@@ -58,7 +50,6 @@ use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\SalaryDeductionController;
 use App\Http\Controllers\SalaryPaymentController;
 use App\Http\Controllers\SearchController;
-use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SubtaskController;
 use App\Http\Controllers\SupportTicketController;
@@ -70,6 +61,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VisitorController;
 use App\Http\Controllers\WorkdayController;
 use App\Http\Controllers\WorthyEmployeeController;
+use App\Http\Middleware\AttendanceBrowser;
+use App\Support\BuiltInService;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -97,7 +90,7 @@ Route::prefix('auth')->group(function () {
 
 // Protected routes (require authentication)
 Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])->group(function () {
-    Route::prefix('workday')->group(function () {
+    Route::prefix('workday')->middleware(AttendanceBrowser::class)->group(function () {
         Route::get('/status', [WorkdayController::class, 'status'])->middleware('permission:manage_own_workday');
         Route::post('/start', [WorkdayController::class, 'start'])->middleware(['permission:manage_own_workday', 'throttle:10,1']);
         Route::post('/end', [WorkdayController::class, 'end'])->middleware(['permission:submit_own_daily_report', 'throttle:10,1']);
@@ -105,6 +98,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         Route::post('/geofence', [AttendanceGeofenceController::class, 'observe'])->middleware(['permission:manage_own_workday', 'throttle:30,1']);
     });
     Route::get('my-work-history', [AttendanceController::class, 'mine']);
+    Route::get('my-work-history/{attendance}/daily-report', [AttendanceController::class, 'ownDailyReport']);
 
     // Any signed-in user can request help; delivery is rate-limited separately
     // because every ticket also creates an outbound email.
@@ -138,11 +132,6 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
 
     // 2. Board Management (Columns)
     Route::get('/boards', [BoardController::class, 'index'])->middleware('permission:view_all_boards,view_assigned_boards');
-    Route::apiResource('projects', ProjectController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_projects')
-        ->middlewareFor('store', 'permission:create_projects')
-        ->middlewareFor('update', 'permission:edit_projects')
-        ->middlewareFor('destroy', 'permission:delete_projects');
     Route::post('/boards', [BoardController::class, 'store']);
     Route::put('/boards/reorder', [BoardController::class, 'reorder']);
     Route::put('/boards/{board}/members', [BoardController::class, 'syncMembers']);
@@ -224,9 +213,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::post('departments', [DepartmentController::class, 'store'])->middleware('permission:manage_departments');
     Route::put('departments/{department}', [DepartmentController::class, 'update'])->middleware('permission:manage_departments');
     Route::delete('departments/{department}', [DepartmentController::class, 'destroy'])->middleware('permission:manage_departments');
+    Route::get('employees/assignment-options', [EmployeeController::class, 'assignmentOptions'])->middleware('permission:view_applicants,view_visitors,create_contracts');
     Route::get('employees/account-options', [EmployeeController::class, 'accountOptions'])->middleware('permission:view_employees');
-    Route::get('employees/commission-options', [EmployeeController::class, 'commissionOptions'])->middleware('permission:view_employees');
-    Route::get('employees/marketer-options', [EmployeeController::class, 'marketerOptions'])->middleware('permission:view_employees');
     Route::apiResource('employees', EmployeeController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_employees')
         ->middlewareFor('store', 'permission:create_employees')
@@ -240,10 +228,6 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::apiResource('positions', PositionController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_positions')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_positions');
-    Route::get('marketers/account-options', [MarketerController::class, 'accountOptions'])->middleware('permission:view_marketers');
-    Route::apiResource('marketers', MarketerController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_marketers')
-        ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_marketers');
     Route::apiResource('offices', OfficeController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_offices')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_offices');
@@ -270,39 +254,6 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middlewareFor('update', 'permission:edit_salaries')
         ->middlewareFor('destroy', 'permission:delete_salaries');
 
-    Route::get('commissions/accruals', [CommissionController::class, 'accruals'])->middleware('permission:view_commissions');
-    Route::get('commissions/summary', [CommissionController::class, 'summary'])->middleware('permission:view_commissions');
-    Route::post('commissions/adjustments', [CommissionController::class, 'storeAdjustment'])->middleware('permission:manage_commission_settlements');
-    Route::get('commission-settlements', [CommissionController::class, 'settlements'])->middleware('permission:view_commissions');
-    Route::post('commission-settlements', [CommissionController::class, 'storeSettlement'])->middleware('permission:manage_commission_settlements');
-    Route::get('commission-settlements/{commissionSettlement}', [CommissionController::class, 'show'])->middleware('permission:view_commissions');
-    Route::post('commission-settlements/{commissionSettlement}/approve', [CommissionController::class, 'approve'])->middleware('permission:approve_commissions');
-    Route::post('commission-settlements/{commissionSettlement}/pay', [CommissionController::class, 'pay'])->middleware('permission:pay_commissions');
-    Route::post('commission-settlements/{commissionSettlement}/cancel', [CommissionController::class, 'cancel'])->middleware('permission:manage_commission_settlements');
-
-    Route::get('outsourcing/accruals', [OutsourcingController::class, 'accruals'])->middleware('permission:view_outsourcing');
-    Route::get('outsourcing/settlements', [OutsourcingController::class, 'settlements'])->middleware('permission:view_outsourcing');
-    Route::post('outsourcing/adjustments', [OutsourcingController::class, 'storeAdjustment'])->middleware('permission:manage_outsourcing_settlements');
-    Route::post('outsourcing/settlements', [OutsourcingController::class, 'storeSettlement'])->middleware('permission:manage_outsourcing_settlements');
-    Route::post('outsourcing/settlements/{outsourcingSettlement}/approve', [OutsourcingController::class, 'approve'])->middleware('permission:approve_outsourcing');
-    Route::post('outsourcing/settlements/{outsourcingSettlement}/pay', [OutsourcingController::class, 'pay'])->middleware('permission:pay_outsourcing');
-    Route::post('outsourcing/settlements/{outsourcingSettlement}/cancel', [OutsourcingController::class, 'cancel'])->middleware('permission:manage_outsourcing_settlements');
-
-    // Invoice routes
-    Route::apiResource('payment-details', PaymentDetailController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_payment_details')
-        ->middlewareFor('store', 'permission:create_payment_details')
-        ->middlewareFor('update', 'permission:edit_payment_details')
-        ->middlewareFor('destroy', 'permission:delete_payment_details');
-    Route::get('invoices/commission-candidates', [InvoiceController::class, 'commissionCandidates'])->middleware('permission:view_invoices');
-    Route::apiResource('invoices', InvoiceController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_invoices')
-        ->middlewareFor('store', 'permission:create_invoices')
-        ->middlewareFor('update', 'permission:edit_invoices')
-        ->middlewareFor('destroy', 'permission:delete_invoices');
-    Route::put('/invoices/{invoice}/void', [InvoiceController::class, 'void'])->middleware('permission:void_invoices');
-    Route::put('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markPaid'])->middleware('permission:edit_invoices');
-
     // Expense routes (new correct spelling)
     Route::apiResource('expenses', ExpenseController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_expenses')
@@ -314,6 +265,21 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::delete('expenses/{expense}/document', [ExpenseController::class, 'removeDocument'])->middleware('permission:edit_expenses');
 
     // Income routes
+    // Payments attach to a contracted service line, so the picker needs the
+    // applicant's own lines (declared before the resource route below).
+    Route::get('incomes/applicants', [IncomeController::class, 'applicants'])
+        ->middleware('permission:view_incomes');
+    Route::get('incomes/applicant-contracts', [IncomeController::class, 'applicantContracts'])
+        ->middleware('permission:view_incomes');
+    Route::put('incomes/applicant-contracts/{line}/payment-override', [IncomeController::class, 'paymentOverride'])
+        ->middleware(['permission:view_incomes', 'permission:override_contract_payments']);
+    Route::prefix('finance-types/{kind}')->whereIn('kind', ['income', 'expense'])->group(function () {
+        Route::get('/', [FinanceTypeController::class, 'index'])->middleware('permission:view_incomes,view_expenses,view_settings,create_incomes,edit_incomes,create_expenses,edit_expenses');
+        Route::get('/{id}', [FinanceTypeController::class, 'show'])->middleware('permission:view_settings');
+        Route::post('/', [FinanceTypeController::class, 'store'])->middleware('permission:edit_settings');
+        Route::put('/{id}', [FinanceTypeController::class, 'update'])->middleware('permission:edit_settings');
+        Route::delete('/{id}', [FinanceTypeController::class, 'destroy'])->middleware('permission:edit_settings');
+    });
     Route::apiResource('incomes', IncomeController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_incomes')
         ->middlewareFor('store', 'permission:create_incomes')
@@ -344,19 +310,13 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middlewareFor('store', 'permission:create_visitors')
         ->middlewareFor('update', 'permission:edit_visitors')
         ->middlewareFor('destroy', 'permission:delete_visitors');
+    // Visitors reach the pipeline by becoming applicants; there is no lead stage.
     Route::post('visitors/{visitor}/convert-to-applicant', [VisitorController::class, 'convertToApplicant'])
         ->middleware('permission:create_applicants');
-    Route::post('visitors/{visitor}/convert-to-lead', [LeadController::class, 'fromVisitor'])->middleware('permission:create_visitors');
-    Route::apiResource('leads', LeadController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_visitors')
-        ->middlewareFor('store', 'permission:create_visitors')
-        ->middlewareFor('update', 'permission:edit_visitors')
-        ->middlewareFor('destroy', 'permission:delete_visitors');
-    Route::post('leads/{lead}/convert-to-applicant', [LeadController::class, 'convert'])->middleware('permission:create_applicants');
     Route::post('crm/{type}/{id}/interactions', [CrmInteractionController::class, 'store'])
-        ->whereIn('type', ['visitor', 'lead', 'applicant']);
+        ->whereIn('type', ['visitor', 'applicant']);
     Route::patch('crm/{type}/{id}/notes', [CrmInteractionController::class, 'updateNotes'])
-        ->whereIn('type', ['visitor', 'lead', 'applicant']);
+        ->whereIn('type', ['visitor', 'applicant']);
     Route::put('crm/interactions/{interaction}', [CrmInteractionController::class, 'update']);
     Route::delete('crm/interactions/{interaction}', [CrmInteractionController::class, 'destroy']);
 
@@ -368,7 +328,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     // Educational visa agency master data and case management. These routes
     // intentionally reuse configurable RBAC; the dedicated permission catalog
     // is added in the authorization phase before production role rollout.
-    Route::prefix('educational-master-data/{catalog}')->whereIn('catalog', ['countries', 'education-levels', 'languages', 'universities', 'semesters'])->group(function () {
+    Route::prefix('educational-master-data/{catalog}')->whereIn('catalog', ['countries', 'education-levels', 'languages', 'universities', 'semesters', 'subjects', 'tests', 'skills', 'programs', 'times', 'durations', 'teachers', 'scholarships', 'classes'])->group(function () {
         Route::get('/', [EducationalMasterDataController::class, 'index']);
         Route::post('/', [EducationalMasterDataController::class, 'store']);
         Route::get('/{id}', [EducationalMasterDataController::class, 'show']);
@@ -401,17 +361,11 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('search', [SearchController::class, 'index']);
     // Agency operations overview. Read-only aggregates over applicant,
     // sales, task and approval rows; any dashboard viewer may open it.
-    Route::get('educational-dashboard', [EducationalDashboardController::class, 'index'])->middleware('permission:view_dashboard');
+    Route::get('educational-dashboard', [EducationalDashboardController::class, 'index'])->middleware('permission:view_agency_overview');
     // Visa-agency tabular reports plus CSV export. New controller on purpose:
     // the finance report surface stays untouched by agency reporting.
     Route::get('educational-reports/{type}', [EducationalReportController::class, 'show'])->middleware('permission:view_visa_reports');
     Route::get('educational-reports/{type}/export', [EducationalReportController::class, 'export'])->middleware('permission:view_visa_reports');
-    Route::get('educational-services/options', [EducationalServiceController::class, 'options'])->middleware('permission:view_educational_services');
-    Route::get('educational-services/{type}', [EducationalServiceController::class, 'index'])->whereIn('type', ['scholarships', 'test-offers'])->middleware('permission:view_educational_services');
-    Route::get('educational-services/{type}/{id}', [EducationalServiceController::class, 'show'])->whereIn('type', ['scholarships', 'test-offers'])->middleware('permission:view_educational_services');
-    Route::post('educational-services/{type}', [EducationalServiceController::class, 'store'])->whereIn('type', ['scholarships', 'test-offers'])->middleware('permission:manage_educational_services');
-    Route::put('educational-services/{type}/{id}', [EducationalServiceController::class, 'update'])->whereIn('type', ['scholarships', 'test-offers'])->middleware('permission:manage_educational_services');
-    Route::delete('educational-services/{type}/{id}', [EducationalServiceController::class, 'destroy'])->whereIn('type', ['scholarships', 'test-offers'])->middleware('permission:manage_educational_services');
     Route::get('educational-bonus-sources', [EducationalBonusSourceController::class, 'index'])->middleware('permission:view_bonuses');
     Route::post('educational-bonus-sources', [EducationalBonusSourceController::class, 'store'])->middleware('permission:manage_educational_bonuses');
     Route::put('educational-bonus-sources/{educationalBonusSource}', [EducationalBonusSourceController::class, 'update'])->middleware('permission:manage_educational_bonuses');
@@ -437,30 +391,11 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::prefix('attendances')->group(function () {
         Route::get('/', [AttendanceController::class, 'index'])->middleware('permission:view_attendance');
         Route::post('/', [AttendanceController::class, 'store'])->middleware('permission:record_attendance');
+        Route::post('/{attendance}/checkout-correction', [AttendanceController::class, 'correctCheckout'])->middleware(['permission:record_attendance', 'throttle:10,1']);
         Route::get('/unmarked-staff', [AttendanceController::class, 'unmarkedStaff'])->middleware('permission:view_unmarked_attendance_staff');
         Route::get('/{attendance}/daily-report', [AttendanceController::class, 'dailyReport'])->middleware('permission:view_attendance');
         Route::delete('/{attendance}', [AttendanceController::class, 'destroy'])->middleware('permission:delete_attendance');
     });
-
-    // Service routes
-    Route::apiResource('services', ServiceController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_services')
-        ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_services');
-    Route::post('services/{service}/contract-template', [ServiceController::class, 'bindContractTemplate'])
-        ->middleware('permission:manage_services');
-    Route::post('services/{service}/variants', [ServiceController::class, 'storeVariant'])->middleware('permission:manage_services');
-    Route::put('services/{service}/variants/{variant}', [ServiceController::class, 'updateVariant'])->middleware('permission:manage_services');
-    Route::delete('services/{service}/variants/{variant}', [ServiceController::class, 'destroyVariant'])->middleware('permission:manage_services');
-
-    // Package listing is also needed by the contract-template editor, which
-    // binds a template to either a service or a package.
-    Route::apiResource('packages', PackageController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_packages,view_contract_templates')
-        ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_packages');
-    Route::post('packages/{package}/contract-template', [PackageController::class, 'bindContractTemplate'])
-        ->middleware('permission:manage_packages');
-    Route::post('packages/{package}/issue', [PackageController::class, 'issue'])
-        ->middleware('permission:issue_packages');
 
     // Currency routes
     Route::apiResource('currencies', CurrencyController::class)
@@ -474,6 +409,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:edit_settings');
 
     // Contract Template routes (replaces old policies)
+    Route::post('contract-templates/built-in/{service}', [ContractTemplateController::class, 'ensureBuiltIn'])
+        ->whereIn('service', BuiltInService::ALL)
+        ->middleware('permission:manage_contract_templates');
     Route::apiResource('contract-templates', ContractTemplateController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_contract_templates')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_contract_templates');
@@ -499,14 +437,18 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('contract-placeholders', [ContractController::class, 'placeholders'])
         ->middleware('permission:view_contract_templates,view_contracts');
 
-    // Counterparty companies
-    Route::apiResource('companies', CompanyController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_companies')
-        ->middlewareFor('store', 'permission:create_companies')
-        ->middlewareFor('update', 'permission:edit_companies')
-        ->middlewareFor('destroy', 'permission:delete_companies');
-
     // Contract routes
+    Route::post('contracts/preview', [ContractController::class, 'preview'])
+        ->middleware('permission:create_contracts,edit_contracts');
+    Route::get('contracts/{service}/options', [ContractController::class, 'serviceOptions'])
+        ->whereIn('service', BuiltInService::ALL)
+        ->middleware('permission:create_contracts');
+    Route::post('contracts/{service}', [ContractController::class, 'storeService'])
+        ->whereIn('service', BuiltInService::ALL)
+        ->middleware('permission:create_contracts');
+    // Receipt-like A5 enrolment slip for an individual academy contract.
+    Route::get('contracts/{id}/academy-slip', [ContractController::class, 'academySlip'])
+        ->middleware('permission:view_contracts');
     Route::apiResource('contracts', ContractController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_contracts')
         ->middlewareFor('store', 'permission:create_contracts')
@@ -553,13 +495,11 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         Route::get('/catalog', [ReportController::class, 'catalog']);
         Route::get('/{type}/export', [ReportController::class, 'export'])->whereIn('type', ['financial', 'payroll', 'attendance', 'operations']);
         Route::get('/generate/{type}', [ReportController::class, 'generate'])->whereIn('type', ['financial', 'payroll', 'attendance', 'operations']);
-        Route::get('/invoices', [ReportController::class, 'generateInvoiceReport'])->middleware('permission:view_financial_reports');
         Route::get('/expences', [ReportController::class, 'generateExpenceReport'])->middleware('permission:view_financial_reports');
         Route::get('/expenses', [ReportController::class, 'generateExpenseReport'])->middleware('permission:view_financial_reports');
         Route::get('/salaries', [ReportController::class, 'generateSalaryReport'])->middleware('permission:view_salaries');
         Route::get('/incomes', [ReportController::class, 'generateIncomeReport'])->middleware('permission:view_financial_reports');
         Route::get('/visitors', [ReportController::class, 'generateVisitorReport'])->middleware('permission:view_visitors');
-        Route::get('/invoices/export', [ReportController::class, 'exportInvoiceReport'])->middleware('permission:export_financial_reports');
     });
 
     Route::prefix('automation')->group(function () {

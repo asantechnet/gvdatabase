@@ -38,7 +38,7 @@ export interface ReceiptApplicant {
   tax_number: string | null
   country: string | null
   education_level: string | null
-  application_date: string | null
+  created_at: string | null
   status: string | null
 }
 
@@ -52,6 +52,14 @@ export interface ReceiptLine {
   code?: string | null
   status?: string | null
   purchased_at?: string | null
+  contract_id?: number | null
+  service?: string | null
+  service_label?: string
+  service_label_key?: string
+  discount?: number
+  rate?: number
+  payment_status?: string
+  payment_status_label?: string
 }
 
 export interface ReceiptPayload {
@@ -72,17 +80,13 @@ export interface ReceiptPayload {
   }
   company: ReceiptCompany
   applicant: ReceiptApplicant | null
-  invoice: {
-    id: number
-    invoice_number: string
-    status: string
-    issue_date: string | null
-    due_date: string | null
-    amount: number
-    currency: ReceiptMoney | null
+  /** The contract the paid service belongs to (receipts are per service). */
+  contract: {
+    id: number | null
+    contract_number: string | null
   } | null
+  service: ReceiptLine | null
   services: ReceiptLine[]
-  packages: ReceiptLine[]
   totals: {
     total_fee: number
     paid_amount: number

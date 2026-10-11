@@ -33,61 +33,10 @@ return new class extends Migration
             $table->foreign('source_task_id')->references('id')->on('tasks')->nullOnDelete();
         });
 
-        // CRM section -> applicant section
-        Schema::table('leads', function (Blueprint $table) {
-            $table->foreign('applicant_id')->references('id')->on('applicants')->nullOnDelete();
-        });
-
-        // Contract section -> finance/commerce sections
-        Schema::table('contract_templates', function (Blueprint $table) {
-            $table->foreign('service_id')->references('id')->on('services')->nullOnDelete();
-        });
-
-        Schema::table('contract_document_designs', function (Blueprint $table) {
-            $table->foreign('service_id')->references('id')->on('services')->cascadeOnDelete();
-        });
-
-        Schema::table('contract_service', function (Blueprint $table) {
-            $table->foreign('customer_package_id')->references('id')->on('customer_packages')->nullOnDelete();
-            $table->foreign('service_id')->references('id')->on('services')->restrictOnDelete();
-        });
-
-        Schema::table('contracts', function (Blueprint $table) {
-            $table->foreign('source_service_id')->references('id')->on('services')->nullOnDelete();
-        });
-
-        // Finance section -> task management section
-        Schema::table('expenses', function (Blueprint $table) {
-            $table->foreign('project_id')->references('id')->on('projects')->nullOnDelete();
-        });
     }
 
     public function down(): void
     {
-        Schema::table('expenses', function (Blueprint $table) {
-            $table->dropForeign('expenses_project_id_foreign');
-        });
-
-        Schema::table('contracts', function (Blueprint $table) {
-            $table->dropForeign('contracts_source_service_id_foreign');
-        });
-
-        Schema::table('contract_service', function (Blueprint $table) {
-            $table->dropForeign('contract_service_service_id_foreign');
-            $table->dropForeign('contract_service_customer_package_id_foreign');
-        });
-
-        Schema::table('contract_document_designs', function (Blueprint $table) {
-            $table->dropForeign('contract_document_designs_service_id_foreign');
-        });
-
-        Schema::table('contract_templates', function (Blueprint $table) {
-            $table->dropForeign('contract_templates_service_id_foreign');
-        });
-
-        Schema::table('leads', function (Blueprint $table) {
-            $table->dropForeign('leads_applicant_id_foreign');
-        });
 
         Schema::table('worthy_employees', function (Blueprint $table) {
             $table->dropForeign('worthy_employees_source_task_id_foreign');

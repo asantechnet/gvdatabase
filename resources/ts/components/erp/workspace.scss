@@ -1,0 +1,28 @@
+@media screen {
+  .erp-page-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-block-end: 20px; }
+  .erp-page-heading { flex: 1 0 220px; }
+  .erp-subnav { display: flex; flex-wrap: wrap; gap: 6px; }
+  .erp-header-actions { display: flex; gap: 8px; }
+  .erp-date-range { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) auto; gap: 8px; align-items: start; }
+  .erp-workspace .v-table tbody > tr:nth-child(odd) > td { background: rgb(var(--v-theme-surface)); }
+  .erp-workspace .v-table tbody > tr:nth-child(even) > td { background: rgba(var(--v-theme-on-surface), .045); }
+  .erp-workspace .v-table tbody > tr:hover > td { background: rgba(var(--v-theme-primary), .07); }
+  .erp-workspace .v-table thead > tr > th { background: rgba(var(--v-theme-on-surface), .07); font-weight: 700; }
+  .erp-workspace .v-table td, .erp-workspace .v-table th { padding-inline: 12px; }
+  .erp-workspace .v-card { box-shadow: none; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+  .erp-form .v-card-text { padding: 20px 24px; }
+  .erp-form .v-card-title { padding: 20px 24px 12px; font-weight: 700; }
+  .erp-form .v-card-actions, .erp-form-actions { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-block-start: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); background: rgba(var(--v-theme-on-surface), .025); }
+  .erp-form .v-card-actions .v-btn, .erp-form-actions .v-btn { min-inline-size: 104px; }
+  .erp-field-label { display: block; color: rgb(var(--v-theme-on-surface)); font-size: 13px; font-weight: 600; }
+  .erp-field .v-field { font-weight: 400; }
+  .erp-form .v-row { row-gap: 10px; }
+  .erp-form .v-input { inline-size: 100%; min-inline-size: 0; }
+  .erp-workspace .education-page-header { margin-block-end: 16px; }
+  @media (max-width: 599px) {
+    .erp-subnav { inline-size: 100%; }
+    .erp-date-range { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .erp-date-range .v-btn { grid-column: 1 / -1; }
+    .erp-form .v-card-text { padding: 16px; }
+  }
+}

@@ -1,1 +1,0 @@
-import{aJ as t,r as l}from"./main-BpYC0Opx.js";const e=l(null);let a=null;async function u(){return e.value!==null?e.value:(a||(a=t.getCompanyProfile().then(n=>e.value=n.data?.automatic_attendance_enabled??!1).catch(()=>e.value=!1).finally(()=>a=null)),a)}function r(){return{enabled:e,load:u,setEnabled:n=>e.value=n}}export{r as u};

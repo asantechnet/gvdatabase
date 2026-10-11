@@ -26,7 +26,7 @@ export interface Attendance {
   late_arrival_minutes: number
   early_departure_minutes: number
   overtime_minutes: number
-  missing_punch_state: 'none' | 'check_in' | 'check_out' | 'both'
+  missing_punch_state: 'none' | 'check_in' | 'check_out' | 'both' | 'invalid'
   is_overnight_shift: boolean
   daily_report_exists: boolean
   timezone: string
@@ -66,6 +66,11 @@ const AttendanceApi = {
 
     return response.data.data
   },
+  async getOwnDailyReport(attendanceId: number): Promise<DailyReport> {
+    const response = await api.get<{ data: DailyReport }>(`/my-work-history/${attendanceId}/daily-report`)
+
+    return response.data.data
+  },
   async getUnmarkedStaff(date: string): Promise<UnmarkedStaff[]> {
     const response = await api.get<{ data: UnmarkedStaff[] }>('/attendances/unmarked-staff', { params: { date } })
 
@@ -78,6 +83,11 @@ const AttendanceApi = {
   },
   async create(data: CreateAttendanceData): Promise<Attendance> {
     const response = await api.post<{ data: Attendance }>('/attendances', data)
+
+    return response.data.data
+  },
+  async correctCheckout(id: number, data: { date: string; time: string }): Promise<Attendance> {
+    const response = await api.post<{ data: Attendance }>(`/attendances/${id}/checkout-correction`, data)
 
     return response.data.data
   },

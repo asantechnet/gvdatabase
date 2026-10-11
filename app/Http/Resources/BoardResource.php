@@ -11,7 +11,6 @@ class BoardResource extends JsonResource
     {
         return [
             'id' => (string) $this->id,
-            'projectId' => $this->project_id ? (string) $this->project_id : null,
             'title' => $this->title,
             'order' => (int) $this->order,
             'members' => UserResource::collection($this->whenLoaded('users')),

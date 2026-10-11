@@ -5,8 +5,6 @@ import { useRoute } from 'vue-router'
 import { canAccess } from '@/utils/authorization'
 import RecurringEventsApi, { type RecurringEvent, type RecurringEventInput, type RecurringEventType } from '@/api/recurringEvents'
 import CurrencyApi, { type Currency } from '@/api/currency'
-import CompanyApi, { type Company } from '@/api/company'
-import ProjectApi, { type Project } from '@/api/project'
 import BoardApi from '@/api/board'
 import type { Board } from '@/api/kanban'
 
@@ -17,33 +15,21 @@ const saving = ref(false)
 const catalogLoading = ref(false)
 const events = ref<RecurringEvent[]>([])
 const currencies = ref<Currency[]>([])
-const companies = ref<Company[]>([])
-const projects = ref<Project[]>([])
 const boards = ref<Board[]>([])
 const dialog = ref(false)
 const detailDialog = ref(false)
 const selected = ref<RecurringEvent | null>(null)
 const today = new Date().toISOString().slice(0, 10)
-const form = ref<RecurringEventInput>({ name: '', description: '', event_type: 'income', frequency: 'monthly', interval: 1, start_date: today, next_occurrence_date: today, end_date: null, payload: { type: 'Other', amount: 0, quantity: 1, company_id: null, project_id: null } })
+const form = ref<RecurringEventInput>({ name: '', description: '', event_type: 'income', frequency: 'monthly', interval: 1, start_date: today, next_occurrence_date: today, end_date: null, payload: { type: 'Other', amount: 0, quantity: 1 } })
 const types: RecurringEventType[] = ['income', 'expense', 'task']
 
 const visible = computed(() => events.value)
 const headers = computed(() => [{ title: t('pages.recurringEvents.name'), key: 'name' }, { title: t('pages.recurringEvents.type'), key: 'event_type' }, { title: t('pages.recurringEvents.schedule'), key: 'schedule' }, { title: t('pages.recurringEvents.nextOccurrence'), key: 'next_occurrence_date' }, { title: t('pages.recurringEvents.timeRemaining'), key: 'remaining' }, { title: t('common.fields.status'), key: 'status' }, { title: '', key: 'actions', sortable: false }])
 const availableTypes = computed(() => types.filter(type => canAccess(`create_recurring_${type}s`)))
 const canViewBoards = computed(() => canAccess('view_all_boards') || canAccess('view_assigned_boards'))
-const canViewCompanies = computed(() => canAccess('view_companies'))
-const canViewProjects = computed(() => canAccess('view_projects'))
 const incomeExpenseTypes = computed(() => ['Service', 'Product', 'Investment', 'Other'].map(value => ({ title: t(`pages.recurringEvents.recordTypes.${value.toLowerCase()}`), value })))
 const frequencyOptions = computed(() => ['daily', 'weekly', 'monthly', 'yearly'].map(value => ({ title: t(`pages.recurringEvents.frequencies.${value}`), value })))
 const currencyOptions = computed(() => currencies.value.filter(currency => currency.isActive))
-
-const companyOptions = computed(() => companies.value
-  .filter(company => company.is_active)
-  .map(company => ({ title: company.trade_name || company.legal_name, value: company.id })))
-
-const projectOptions = computed(() => projects.value
-  .filter(project => project.status !== 'archived')
-  .map(project => ({ title: project.customer ? `${project.name} - ${project.customer.name}` : project.name, value: project.id })))
 
 function remaining(date: string) {
   const days = Math.ceil((new Date(`${date}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000)
@@ -51,7 +37,7 @@ function remaining(date: string) {
   return days < 0 ? t('pages.recurringEvents.overdueBy', { count: Math.abs(days) }) : days === 0 ? t('pages.recurringEvents.dueToday') : days === 1 ? t('pages.recurringEvents.dueTomorrow') : t('pages.recurringEvents.inDays', { count: days })
 }
 function schedule(interval: number, frequency: string) { return interval === 1 ? t(`pages.recurringEvents.frequencyLabels.${frequency}`) : t('pages.recurringEvents.everyFrequency', { count: interval, frequency: t(`pages.recurringEvents.frequencies.${frequency}`) }) }
-function reset() { form.value = { name: '', description: '', event_type: availableTypes.value[0] ?? 'income', frequency: 'monthly', interval: 1, start_date: today, next_occurrence_date: today, end_date: null, payload: { type: 'Other', amount: null, quantity: 1, currency_id: null, company_id: null, project_id: null } }; selected.value = null }
+function reset() { form.value = { name: '', description: '', event_type: availableTypes.value[0] ?? 'income', frequency: 'monthly', interval: 1, start_date: today, next_occurrence_date: today, end_date: null, payload: { type: 'Other', amount: null, quantity: 1, currency_id: null } }; selected.value = null }
 async function load() {
   loading.value = true; try { events.value = await RecurringEventsApi.all() }
   finally { loading.value = false }
@@ -62,14 +48,12 @@ async function loadCatalogs() {
     return; catalogLoading.value = true; try {
     const requests: Promise<void>[] = []; if (canAccess('view_currencies'))
       requests.push(CurrencyApi.getAll().then(response => { currencies.value = response.data })); if (canViewBoards.value)
-      requests.push(BoardApi.getAll().then(response => { boards.value = response.data.data })); if (canViewCompanies.value)
-      requests.push(CompanyApi.getAll().then(records => { companies.value = records })); if (canViewProjects.value)
-      requests.push(ProjectApi.getAll().then(records => { projects.value = records })); await Promise.all(requests)
+      requests.push(BoardApi.getAll().then(response => { boards.value = response.data.data })); await Promise.all(requests)
   }
   finally { catalogLoading.value = false }
 }
 async function openCreate() { reset(); dialog.value = true; await loadCatalogs() }
-function setType(type: RecurringEventType) { form.value.event_type = type; form.value.payload = type === 'task' ? { title: '', board_id: null, priority: 'medium' } : { type: 'Other', amount: 0, quantity: 1, currency_id: null, company_id: null, project_id: null } }
+function setType(type: RecurringEventType) { form.value.event_type = type; form.value.payload = type === 'task' ? { title: '', board_id: null, priority: 'medium' } : { type: 'Other', amount: 0, quantity: 1, currency_id: null } }
 const canSave = computed(() => form.value.name.trim() && (form.value.event_type === 'task' ? Boolean(form.value.payload.title && form.value.payload.board_id) : Boolean(form.value.payload.type && Number(form.value.payload.amount) > 0 && form.value.payload.currency_id)))
 async function save() {
   if (!canSave.value)
@@ -275,31 +259,6 @@ onMounted(async () => {
                   min="0.01"
                   step="0.01"
                   :label="$t('common.fields.amount')"
-                />
-              </VCol><VCol
-                cols="12"
-                md="6"
-              >
-                <VSelect
-                  v-model="form.payload.company_id"
-                  :items="companyOptions"
-                  label="Company (optional)"
-                  :loading="catalogLoading"
-                  :disabled="!canViewCompanies"
-                  clearable
-                />
-              </VCol><VCol
-                v-if="form.event_type === 'expense'"
-                cols="12"
-                md="6"
-              >
-                <VSelect
-                  v-model="form.payload.project_id"
-                  :items="projectOptions"
-                  label="Project (optional)"
-                  :loading="catalogLoading"
-                  :disabled="!canViewProjects"
-                  clearable
                 />
               </VCol><VCol cols="12">
                 <VSelect

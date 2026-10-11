@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { printDocument } from '@/utils/printDocument'
 import { defineExpose, defineProps, onMounted, ref } from 'vue'
 
 const props = defineProps({
@@ -89,84 +90,8 @@ const waitForLogoLoad = () => {
 }
 
 const printContractCover = async () => {
-  if (!contractCoverRef.value)
-    return
-
-  await waitForLogoLoad()
-
-  const printWindow = window.open('', '_blank', 'width=900,height=1100')
-  if (!printWindow) {
-    alert(translate('common.messages.couldNotOpenPrintWindowPleaseAllowPopUpsForThisSite'))
-
-    return
-  }
-
-  const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-    .map(el => el.outerHTML)
-    .join('\n')
-
-  const printContent = contractCoverRef.value.innerHTML
-
-  printWindow.document.open()
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html lang="${document.documentElement.lang}" dir="${document.documentElement.dir}">
-      <head>
-        <title>${props.contractTitle}</title>
-        ${styles}
-        <style>
-          @media print {
-            @page { 
-              size: A4 portrait; 
-              margin: 0 !important;
-            }
-            body { 
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #ffffff !important;
-              -webkit-print-color-adjust: exact !important; 
-              print-color-adjust: exact !important;
-            }
-          }
-          html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background: #ffffff;
-          }
-          *, *::before, *::after { box-sizing: border-box; }
-        </style>
-      </head>
-      <body>
-        <div class="contract-cover">${printContent}</div>
-        <script>
-          window.onload = async () => {
-            if (document.fonts) {
-              await document.fonts.ready;
-            }
-            const images = Array.from(document.images);
-            await Promise.all(images.map(img => {
-              if (img.complete) return Promise.resolve();
-              return new Promise(resolve => {
-                img.onload = resolve;
-                img.onerror = resolve;
-              });
-            }));
-            await new Promise(resolve =>
-              requestAnimationFrame(() => requestAnimationFrame(resolve))
-            );
-            setTimeout(() => {
-              window.focus();
-              window.print();
-              window.close();
-            }, 300);
-          };
-        <\/script>
-      </body>
-    </html>
-  `)
-  printWindow.document.close()
+  if (!contractCoverRef.value) return
+  await printDocument({ bodyClass: 'printing-contract-document', pageStyle: 'size: A4; margin: 0;', element: contractCoverRef.value })
 }
 
 defineExpose({
@@ -449,17 +374,13 @@ onMounted(() => {
 }
 
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 0 !important;
-  }
 
-  body {
+  :global(body.printing-contract-document) body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  .contract-cover {
+  :global(body.printing-contract-document) .contract-cover {
     box-shadow: none !important;
     margin: 0 auto !important;
     width: 210mm !important;
@@ -473,20 +394,20 @@ onMounted(() => {
     flex-direction: column !important;
     visibility: visible !important;
     overflow: hidden !important;
-    page-break-after: always !important;
-    break-after: page !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     background: #ffffff !important;
   }
 
-  .top-section {
+  :global(body.printing-contract-document) .top-section {
     clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 82% 76%, 64% 71%, 50% 80%, 30% 73%, 14% 78%, 0% 72%) !important;
     width: 100% !important;
     flex: 3 !important;
   }
 
-  .bottom-section {
+  :global(body.printing-contract-document) .bottom-section {
     width: 100% !important;
     flex: 2 !important;
   }

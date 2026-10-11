@@ -17,8 +17,6 @@ class Expense extends Model
         'applicant_id',
         'visitor_id',
         'employee_id',
-        'company_id',
-        'project_id',
         'salary_id',
         'pending_transaction_id',
         'currency_id',
@@ -41,11 +39,8 @@ class Expense extends Model
         'base_amount' => 'decimal:4',
         'date' => 'date',
         'applicant_id' => 'integer',
-        'applicant_id' => 'integer',
         'visitor_id' => 'integer',
         'employee_id' => 'integer',
-        'company_id' => 'integer',
-        'project_id' => 'integer',
         'currency_id' => 'integer',
         'base_currency_id' => 'integer',
     ];
@@ -68,16 +63,6 @@ class Expense extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
-    }
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Company::class);
-    }
-
-    public function project(): BelongsTo
-    {
-        return $this->belongsTo(Project::class);
     }
 
     public function expenseCurrency()

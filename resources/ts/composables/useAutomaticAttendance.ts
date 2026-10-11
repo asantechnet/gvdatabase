@@ -11,7 +11,7 @@ async function load() {
   if (!pending) {
     pending = SettingApi.getCompanyProfile()
       .then(response => enabled.value = response.data?.automatic_attendance_enabled ?? false)
-      .catch(() => enabled.value = false)
+      .catch(() => false)
       .finally(() => pending = null)
   }
 

@@ -1,1 +1,0 @@
-import{d as s,e2 as t,L as a,b as l,v as r,w as i,i as _,z as m,p as e}from"./main-BpYC0Opx.js";const b=s({__name:"NavbarFullscreenToggle",setup(p){const{isFullscreen:n,toggle:o}=t();return(u,f)=>{const c=a("IconBtn");return l(),r(c,{onClick:e(o)},{default:i(()=>[_(m,{icon:e(n)?"tabler-minimize":"tabler-maximize"},null,8,["icon"])]),_:1},8,["onClick"])}}});export{b as _};

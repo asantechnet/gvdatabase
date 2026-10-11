@@ -110,6 +110,7 @@ return [
     'multiple_of'            => 'مقدار :attribute باید مضربی از :value باشد.',
     'not_in'                 => ':Attribute انتخاب شده، معتبر نیست.',
     'not_regex'              => 'فرمت :attribute معتبر نیست.',
+    'nullable'               => ':attribute باید خالی باشد.',
     'numeric'                => ':Attribute باید عدد یا رشته‌ای از اعداد باشد.',
     'password'               => [
         'letters'       => ':Attribute باید حداقل شامل یک حرف باشد.',

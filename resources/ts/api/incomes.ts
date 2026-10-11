@@ -2,19 +2,88 @@ import api from './axios'
 import type { Attachment } from './attachments'
 import type { Currency } from './currency'
 
+type MoneyCurrency = Pick<Currency, 'id' | 'code' | 'symbol' | 'rate' | 'decimalPlaces'>
+
+export interface IncomeApplicantOption {
+  id: number
+  name: string
+  contact: string | null
+}
+
+export const getIncomeApplicants = async (search = ''): Promise<IncomeApplicantOption[]> => {
+  const response = await api.get('/incomes/applicants', { params: { search } })
+
+  return Array.isArray(response.data.data) ? response.data.data : []
+}
+
+/** The contracted service line a receipt pays for. */
+export interface IncomeContractService {
+  id: number
+  contract_id: number | null
+  contract_number: string | null
+  service: string | null
+  service_label: string
+  service_label_key: string
+  fee: number
+  discount: number
+  payable_total: number
+  amount_paid: number
+  remaining_total: number
+  payment_status: string
+  payment_status_label: string
+  currency: MoneyCurrency | null
+}
+
+/** A payable service line of one applicant, for the payment picker. */
+export interface ApplicantContractPaymentOption {
+  id: number
+  contract_id: number | null
+  contract_number: string | null
+  contract_status?: string | null
+  is_cancelled: boolean
+  currency_rate: number
+  service: string | null
+  service_label: string
+  service_label_key: string
+  catalogue_service?: string | null
+  fee: number
+  discount: number
+  payable_total: number
+  amount_paid: number
+  recorded_amount_paid: number
+  amount_paid_overridden: boolean
+  payment_status_overridden: boolean
+  remaining_total: number
+  payment_status: string
+  payment_status_label: string
+  currency: MoneyCurrency | null
+  created_at?: string
+}
+
+export interface ContractPaymentOverrideData {
+  amount_paid: number | null
+  payment_status: 'paid' | 'unpaid' | 'partially_paid' | null
+}
+
+export const setContractPaymentOverride = async (lineId: number, data: ContractPaymentOverrideData): Promise<ApplicantContractPaymentOption> => {
+  const response = await api.put(`/incomes/applicant-contracts/${lineId}/payment-override`, data)
+
+  return response.data.data
+}
+
 export interface Income {
   id: number
   receipt_number: string
   attachments?: Attachment[]
   applicant_id: number | null
-  invoice_id: number | null
+  applicant_contract_id: number | null
+  contract_service?: IncomeContractService | null
   currency_id: number
-  invoice_number?: string | null
   type: string
   description?: string
   amount: number
   quantity: number
-  currency: Pick<Currency, 'id' | 'code' | 'symbol' | 'rate' | 'decimalPlaces'> | null
+  currency: MoneyCurrency | null
   cnv_curr_shrt: string
   base_curr_shrt: string
   rate: number
@@ -30,7 +99,7 @@ export interface Income {
 
 export interface IncomeCreateData {
   applicant_id?: number | null
-  invoice_id?: number | null
+  applicant_contract_id?: number | null
   currency_id: number
   type: string
   description?: string
@@ -42,7 +111,7 @@ export interface IncomeCreateData {
 
 export interface IncomeUpdateData {
   applicant_id?: number | null
-  invoice_id?: number | null
+  applicant_contract_id?: number | null
   currency_id?: number
   type?: string
   description?: string | null
@@ -56,6 +125,8 @@ export interface IncomeParams {
   search?: string
   type?: string
   currency_id?: number
+  applicant_id?: number
+  applicant_contract_id?: number
 }
 
 export const getIncomes = async (params?: IncomeParams): Promise<Income[]> => {
@@ -80,6 +151,19 @@ export const getIncome = async (id: number): Promise<Income> => {
   }
   catch (error) {
     console.error(`Error fetching income ${id}:`, error)
+    throw error
+  }
+}
+
+/** The service lines of one applicant that a payment can be recorded against. */
+export const getApplicantContractPayments = async (applicantId: number): Promise<ApplicantContractPaymentOption[]> => {
+  try {
+    const response = await api.get('/incomes/applicant-contracts', { params: { applicant_id: applicantId } })
+
+    return Array.isArray(response.data.data) ? response.data.data : []
+  }
+  catch (error) {
+    console.error(`Error fetching contract services for applicant ${applicantId}:`, error)
     throw error
   }
 }

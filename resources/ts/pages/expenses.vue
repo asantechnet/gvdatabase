@@ -2,9 +2,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useToast } from 'vue-toastification'
+import { type FinanceType, getFinanceTypes } from '@/api/financeTypes'
+import { financeTypeLabel } from '@/utils/financeTypes'
 import PendingTransactionApi from '@/api/pendingTransactions'
 import CurrencyApi, { type Currency } from '@/api/currency'
-import ProjectApi, { type Project } from '@/api/project'
 import { type Expense, type ExpenseCreateData, type ExpenseFormData, type ExpenseUpdateData, createExpense, deleteExpense, getExpenses, updateExpense } from '@/api/expenses'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
@@ -14,7 +15,6 @@ import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
 
 const expenses = ref<Expense[]>([])
 const currencies = ref<Currency[]>([])
-const projects = ref<Project[]>([])
 const selectedExpense = ref<ExpenseFormData | null>(null)
 const isAddExpenseDialogVisible = ref(false)
 const isEditExpenseDialogVisible = ref(false)
@@ -29,12 +29,18 @@ const attachmentTarget = ref<Expense | null>(null)
 const isAttachmentsOpen = ref(false)
 const toast = useToast()
 
-const typeOptions = ['Utilities', 'Software/SaaS', 'Marketing', 'Office Supplies', 'Travel & Dining', 'Salaries']
+const financeTypes = ref<FinanceType[]>([])
+const typeOptions = computed(() => financeTypes.value.map(type => ({ title: financeTypeLabel(type), value: type.value })))
+const filterTypeOptions = typeOptions
+const typeLabel = (value: string) => {
+  const type = financeTypes.value.find(type => type.value === value)
+  return type ? financeTypeLabel(type) : translateBackendValue(value)
+}
 
-const filterTypeOptions = computed(() => typeOptions.map(value => ({
-  title: translateBackendValue(value),
-  value,
-})))
+async function fetchTypes() {
+  try { financeTypes.value = await getFinanceTypes('expense') }
+  catch (error) { toast.error(apiErrorMessage(error, translate('pages.finance.types.loadFailed'))) }
+}
 
 const currencyOptions = computed(() => currencies.value.map(currency => ({
   title: `${currency.code} — ${currency.name}`,
@@ -42,37 +48,10 @@ const currencyOptions = computed(() => currencies.value.map(currency => ({
   rate: currency.rate,
 })))
 
-const currentBaseCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? null)
-
-const projectOptions = computed(() => projects.value
-  .filter(project => project.status !== 'archived')
-  .map(project => ({ title: project.customer ? `${project.name} - ${project.customer.name}` : project.name, value: project.id })))
-
-const totalSpent = computed(() => expenses.value.reduce((total, expense) => total + Number(expense.currentBaseAmount ?? expense.base_amount ?? 0), 0))
-const averageExpense = computed(() => expenses.value.length ? totalSpent.value / expenses.value.length : 0)
-
-const currentMonthSpent = computed(() => {
-  const now = new Date()
-
-  return expenses.value.reduce((total, expense) => {
-    const date = new Date(`${expense.date}T00:00:00`)
-
-    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-      ? total + Number(expense.currentBaseAmount ?? expense.base_amount ?? 0)
-      : total
-  }, 0)
-})
-
-const largestExpense = computed(() => Math.max(0, ...expenses.value.map(expense => Number(expense.currentBaseAmount ?? expense.base_amount ?? 0))))
-
 const fetchCurrencies = async () => {
   const response = await CurrencyApi.getAll()
 
   currencies.value = response.data.filter(currency => currency.isActive)
-}
-
-const fetchLinkOptions = async () => {
-  projects.value = await ProjectApi.getAll()
 }
 
 const fetchExpenses = async () => {
@@ -112,7 +91,6 @@ const openAddExpenseDialog = async () => {
   fieldErrors.value = {}
   selectedExpense.value = {
     applicant_id: null,
-    project_id: null,
     currency_id: 0,
     type: '',
     description: '',
@@ -121,7 +99,7 @@ const openAddExpenseDialog = async () => {
     rate: 1,
     date: new Date().toISOString().slice(0, 10),
   }
-  await Promise.all([fetchCurrencies(), fetchLinkOptions()])
+  await Promise.all([fetchCurrencies(), fetchTypes()])
   setDefaultCurrency()
   isAddExpenseDialogVisible.value = true
 }
@@ -130,7 +108,7 @@ const openEditExpenseDialog = async (expense: Expense) => {
   formError.value = ''
   fieldErrors.value = {}
   selectedExpense.value = { ...expense }
-  await Promise.all([fetchCurrencies(), fetchLinkOptions()])
+  await Promise.all([fetchCurrencies(), fetchTypes()])
   isEditExpenseDialogVisible.value = true
 }
 
@@ -219,7 +197,6 @@ const saveExpense = async (isEditing = false, submittedExpense?: ExpenseFormData
 
     const payload = {
       applicant_id: selectedExpense.value.applicant_id,
-      project_id: selectedExpense.value.project_id,
       currency_id: selectedExpense.value.currency_id,
       type: selectedExpense.value.type,
       description: selectedExpense.value.description,
@@ -262,14 +239,6 @@ const deleteExpenseRecord = async () => {
   }
 }
 
-const formatBaseCurrency = (value: number) => {
-  const currency = currentBaseCurrency.value
-  const decimals = currency?.decimalPlaces ?? 2
-  const formatted = Number(value || 0).toFixed(decimals)
-
-  return `${currency?.symbol ?? ''}${formatted}${currency?.code ? ` ${currency.code}` : ''}`.trim()
-}
-
 const formatExpenseCurrency = (value: number, currency: Expense['currency']) => {
   const amount = Number(value || 0).toFixed(currency?.decimalPlaces ?? 2)
 
@@ -281,138 +250,55 @@ const expenseTypeColor = (type: string) => ({ 'Utilities': 'info', 'Software/Saa
 const printTable = () => void printDocument({ bodyClass: 'printing-table-expenses', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 
 onMounted(() => {
+  fetchTypes()
   fetchExpenses()
   fetchCurrencies()
-  fetchLinkOptions()
 })
 </script>
 
 <template>
   <div class="expense-page">
-    <VCard
-      class="expense-command-deck mb-6"
-      elevation="0"
-    >
-      <VCardText class="pa-6 pa-md-8">
-        <div class="hero-topline d-flex flex-wrap align-center justify-space-between gap-5">
-          <div class="hero-copy">
-            <div class="eyebrow mb-2">
-              <VIcon
-                icon="tabler-activity-heartbeat"
-                size="15"
-              /> {{ $t('pages.finance.expenses.expenses.spendCONTROLCENTER') }}
-            </div>
-            <h2 class="text-h4 font-weight-black mb-1">
-              {{ $t('pages.finance.expenses.expenses.expenseLedger') }}
-            </h2>
-            <p class="text-body-2 opacity-80 mb-0">
-              {{ $t('pages.finance.expenses.expenses.trackOutgoingCashRecurringCostsAndSpendPatternsInOneFocusedView') }}
-            </p>
-          </div>
-          <div class="hero-actions d-flex align-center gap-2">
-            <VBtn
-              class="hero-print"
-              icon
-              variant="text"
-              color="white"
-              @click="printTable"
-            >
-              <VIcon icon="tabler-printer" />
-              <VTooltip
-                activator="parent"
-                location="top"
-              >
-                {{ $t('pages.finance.expenses.expenses.printExpenseRecords') }}
-              </VTooltip>
-            </VBtn>
-            <VBtn
-              color="white"
-              class="hero-primary-action text-error font-weight-bold"
-              @click="openAddExpenseDialog"
-            >
-              <VIcon
-                icon="tabler-plus"
-                class="me-1"
-              /> {{ $t('pages.finance.expenses.expenses.recordExpense') }}
-            </VBtn>
-          </div>
+    <div class="expense-page-head d-flex flex-wrap align-center justify-space-between gap-3 mb-6">
+      <div class="d-flex align-center ga-3">
+        <VAvatar
+          icon="tabler-receipt-2"
+          color="error"
+          variant="tonal"
+          rounded="lg"
+        />
+        <div>
+          <h1 class="text-h5 font-weight-bold mb-0">
+            {{ $t('pages.finance.expenses.expenses.expenseLedger') }}
+          </h1>
+          <p class="text-body-2 text-medium-emphasis mb-0">
+            {{ $t('pages.finance.expenses.expenses.trackOutgoingCashRecurringCostsAndSpendPatternsInOneFocusedView') }}
+          </p>
         </div>
-        <VRow class="mt-4">
-          <VCol
-            cols="12"
-            sm="6"
-            lg="3"
+      </div>
+      <div class="d-flex align-center gap-2">
+        <VBtn
+          icon="tabler-printer"
+          variant="text"
+          :aria-label="$t('pages.finance.expenses.expenses.printExpenseRecords')"
+          @click="printTable"
+        >
+          <VIcon icon="tabler-printer" />
+          <VTooltip
+            activator="parent"
+            location="top"
           >
-            <div class="metric-tile metric-tile--error">
-              <VIcon
-                icon="tabler-credit-card-pay"
-                color="error"
-              /><div>
-                <div class="metric-label">
-                  {{ $t('pages.finance.expenses.expenses.recordedBaseValue') }}
-                </div><div class="metric-value">
-                  {{ formatBaseCurrency(totalSpent) }}
-                </div>
-              </div>
-            </div>
-          </VCol>
-          <VCol
-            cols="12"
-            sm="6"
-            lg="3"
-          >
-            <div class="metric-tile metric-tile--warning">
-              <VIcon
-                icon="tabler-calendar-month"
-                color="warning"
-              /><div>
-                <div class="metric-label">
-                  {{ $t('common.messages.thisMonth') }}
-                </div><div class="metric-value">
-                  {{ formatBaseCurrency(currentMonthSpent) }}
-                </div>
-              </div>
-            </div>
-          </VCol>
-          <VCol
-            cols="12"
-            sm="6"
-            lg="3"
-          >
-            <div class="metric-tile metric-tile--info">
-              <VIcon
-                icon="tabler-chart-arrows-vertical"
-                color="info"
-              /><div>
-                <div class="metric-label">
-                  {{ $t('pages.finance.expenses.expenses.largestRecord') }}
-                </div><div class="metric-value">
-                  {{ formatBaseCurrency(largestExpense) }}
-                </div>
-              </div>
-            </div>
-          </VCol>
-          <VCol
-            cols="12"
-            sm="6"
-            lg="3"
-          >
-            <div class="metric-tile metric-tile--secondary">
-              <VIcon
-                icon="tabler-chart-bar"
-                color="secondary"
-              /><div>
-                <div class="metric-label">
-                  {{ $t('pages.finance.expenses.expenses.averageExpense') }}
-                </div><div class="metric-value">
-                  {{ formatBaseCurrency(averageExpense) }}
-                </div>
-              </div>
-            </div>
-          </VCol>
-        </VRow>
-      </VCardText>
-    </VCard>
+            {{ $t('pages.finance.expenses.expenses.printExpenseRecords') }}
+          </VTooltip>
+        </VBtn>
+        <VBtn
+          color="primary"
+          prepend-icon="tabler-plus"
+          @click="openAddExpenseDialog"
+        >
+          {{ $t('pages.finance.expenses.expenses.recordExpense') }}
+        </VBtn>
+      </div>
+    </div>
 
     <VCard
       class="mb-6 filter-deck"
@@ -514,7 +400,7 @@ onMounted(() => {
               :color="expenseTypeColor(item.type)"
               variant="tonal"
             >
-              {{ translateBackendValue(item.type) }}
+              {{ typeLabel(item.type) }}
             </VChip>
           </template>
           <template #item.description="{ item }">
@@ -535,7 +421,7 @@ onMounted(() => {
             <div class="font-weight-bold text-error">
               {{ formatExpenseCurrency(item.amount * item.quantity, item.currency) }}
             </div><div class="text-caption text-medium-emphasis">
-              {{ item.base_amount }} {{ item.base_curr_shrt }} · rate {{ item.rate }}
+              {{ item.base_amount }} {{ item.base_curr_shrt }} · {{ $t('serviceContracts.rate') }} {{ item.rate }}
             </div>
           </template>
           <template #item.date="{ item }">
@@ -584,7 +470,7 @@ onMounted(() => {
       v-model="isAddExpenseDialogVisible"
       :initial-expense="selectedExpense"
       :currency-options="currencyOptions"
-      :project-options="projectOptions"
+      :type-options="typeOptions"
       mode="create"
       @submit="(value, mode) => saveExpense(false, value, mode)"
     />
@@ -592,7 +478,7 @@ onMounted(() => {
       v-model="isEditExpenseDialogVisible"
       :initial-expense="selectedExpense"
       :currency-options="currencyOptions"
-      :project-options="projectOptions"
+      :type-options="typeOptions"
       mode="edit"
       @submit="saveExpense(true, $event)"
     />
@@ -632,16 +518,6 @@ onMounted(() => {
 
 <style scoped>
 .expense-page { padding-bottom: 32px; }
-.expense-command-deck { color: white; border: 1px solid rgb(239 68 68 / .18); border-radius: 20px; box-shadow: 0 18px 45px rgb(72 28 51 / .2); background: linear-gradient(115deg, #31202c, #522537 58%, #42213a); }
-/* Keep the theme class on this scoped card selector. A mixed :global()
-   selector leaks the light background onto full-screen Vuetify overlays. */
-.expense-command-deck.v-theme--light { color: #3d2421; border-color: #fed7aa; box-shadow: 0 16px 34px rgb(194 65 12 / .12); background: #fff3e8; }
-.expense-command-deck.v-theme--light .metric-tile { border-color: #f4d5bb; background: #fffefa; box-shadow: inset 0 1px 0 #fff; }
-.expense-command-deck.v-theme--light .hero-print { color: #9a3412 !important; border-color: #fdba74; }
-.hero-copy { max-width: 660px; }.hero-copy h2 { letter-spacing: -.035em; }.hero-actions { flex-shrink: 0; }.hero-print { border: 1px solid rgb(255 255 255 / .22); }.hero-primary-action { min-height: 42px; padding-inline: 18px !important; border-radius: 10px; box-shadow: 0 8px 22px rgb(52 13 28 / .22); }
-.eyebrow { display: flex; align-items: center; gap: 6px; font-size: .68rem; font-weight: 800; letter-spacing: .12em; opacity: .78; }
-.metric-tile { min-height: 92px; display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px solid rgb(255 255 255 / .15); border-radius: 15px; background: linear-gradient(135deg, rgb(255 255 255 / .14), rgb(255 255 255 / .055)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .1); transition: transform .2s ease, background .2s ease; }.metric-tile:hover { transform: translateY(-3px); background: rgb(255 255 255 / .16); }.metric-tile :deep(.v-icon) { padding: 10px; border-radius: 11px; background: rgb(255 255 255 / .94); box-shadow: 0 5px 12px rgb(52 13 28 / .16); }
-.metric-label { font-size: .72rem; letter-spacing: .04em; opacity: .72; text-transform: uppercase; }.metric-value { font-size: 1.15rem; font-weight: 800; line-height: 1.4; }
 .filter-deck, .ledger-card { overflow: hidden; border: 0; border-radius: 16px; box-shadow: 0 10px 28px rgb(36 20 31 / .08); }.filter-deck { background: rgb(var(--v-theme-surface)); }.filter-deck__content { padding: 14px 18px !important; }.filter-deck :deep(.v-field) { border-radius: 10px; background: rgb(var(--v-theme-on-surface) / .025); }.ledger-card__header { min-height: 68px; padding-inline: 20px; }.ledger-card__title { display: flex; align-items: center; gap: 9px; }.detail-copy { max-width: 290px; overflow: hidden; color: rgb(var(--v-theme-on-surface) / .76); text-overflow: ellipsis; }.expense-dialog { overflow: visible; }.table-container { overflow-x: auto; }
 .ledger-card :deep(thead th) { height: 48px !important; color: rgb(var(--v-theme-on-surface) / .58) !important; font-size: .68rem !important; font-weight: 800 !important; letter-spacing: .075em; text-transform: uppercase; background: rgb(var(--v-theme-on-surface) / .018); }.ledger-card :deep(tbody td) { height: 66px !important; border-bottom-color: rgb(var(--v-border-color) / .7) !important; }.ledger-card :deep(tbody tr) { transition: background .16s ease; }.ledger-card :deep(tbody tr:hover) { background: rgb(var(--v-theme-error) / .035) !important; }
 .ledger-empty { display: flex; align-items: center; gap: 14px; min-height: 176px; padding: 28px 32px; text-align: start; background: linear-gradient(90deg, rgb(var(--v-theme-error) / .07), transparent 58%); }.ledger-empty :deep(.v-btn) { margin-inline-start: auto; }

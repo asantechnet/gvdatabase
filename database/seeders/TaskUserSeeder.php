@@ -2,27 +2,42 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\Employee;
 use App\Models\Task;
-use App\Models\User;
+use Illuminate\Database\Seeder;
 
 class TaskUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $tasks = Task::all();
-        $users = User::all();
+        $operationsUserIds = Employee::query()
+            ->whereHas('position', fn ($query) => $query->whereIn('system_key', ['document_officer', 'manager']))
+            ->whereNotNull('user_id')
+            ->pluck('user_id')
+            ->all();
 
-        // Only proceed if we have both tasks and users
-        if ($tasks->isNotEmpty() && $users->isNotEmpty()) {
-            $maxUsersToAttach = min(3, $users->count());
+        Task::query()
+            ->with(['applicant.responsibleEmployee', 'applicant.admissionEmployee', 'board'])
+            ->get()
+            ->each(function (Task $task) use ($operationsUserIds): void {
+                $assignees = [];
+                if ($task->applicant) {
+                    $assignees = array_filter([
+                        $task->applicant->responsibleEmployee?->user_id,
+                        $task->applicant->admissionEmployee?->user_id,
+                    ]);
+                }
+                if ($assignees === []) {
+                    $assignees = $operationsUserIds;
+                }
 
-            foreach ($tasks as $task) {
-                $numUsers = rand(1, $maxUsersToAttach);
-                $selectedUsers = $users->random(min($numUsers, $users->count()))->pluck('id')->toArray();
-                $task->users()->syncWithoutDetaching($selectedUsers);
-                $task->board->users()->syncWithoutDetaching($selectedUsers);
-            }
-        }
+                $assignees = array_values(array_unique(array_filter($assignees)));
+                if ($assignees === []) {
+                    return;
+                }
+
+                $task->users()->syncWithoutDetaching($assignees);
+                $task->board?->users()->syncWithoutDetaching($assignees);
+            });
     }
 }

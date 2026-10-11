@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emit>()
 
-const authMethods = [
+const authMethods = computed(() => [
   {
     icon: 'tabler-settings',
     title: translate('common.messages.authenticatorApps'),
@@ -29,7 +29,7 @@ const authMethods = [
     desc: translate('components.dialogs.twofactorauthdialog.smsDescription'),
     value: 'sms',
   },
-]
+])
 
 const selectedMethod = ref('authApp')
 const isAuthAppDialogVisible = ref(false)

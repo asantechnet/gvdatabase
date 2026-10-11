@@ -14,7 +14,6 @@ export interface DashboardData {
     finance: boolean
     attendance: boolean
     customers: boolean
-    invoices: boolean
     asset: boolean
     employees: boolean
     contracts: boolean
@@ -48,8 +47,6 @@ export interface DashboardData {
     monthly_net_cash: number | null
     applicant_count: number | null
     new_applicants_this_month: number | null
-    open_invoice_count: number | null
-    open_invoice_value: number | null
     employee_count: number | null
     asset_asset_value: number | null
   }
@@ -80,14 +77,6 @@ export interface DashboardData {
   } | null
   expense_breakdown: Array<{ label: string; value: number }>
   top_applicants: Array<{ id: string; name: string; value: number }>
-  receivables: Array<{
-    id: string
-    number: string
-    customer: string
-    balance: number
-    due_date: string | null
-    is_overdue: boolean
-  }>
   asset_health: {
     total_items: number
     assigned_items: number
@@ -112,9 +101,6 @@ export interface DashboardData {
   commercial_overview: {
     applicants: number | null
     new_applicants_this_month: number | null
-    invoice_total: number | null
-    collected_total: number | null
-    collection_rate: number
     active_services: number | null
     service_deadlines_30_days: number | null
     active_contracts: number | null
@@ -135,7 +121,6 @@ export interface DashboardData {
   }
   kpi_trends: {
     labels: string[]
-    invoiceValue: number[]
     applicants: number[]
     payroll: number[]
     visitors: number[]
@@ -143,11 +128,9 @@ export interface DashboardData {
   }
   business_trend: {
     labels: string[]
-    billed: number[]
     collected: number[]
     spent: number[]
   } | null
-  invoice_aging: { labels: string[]; values: number[] } | null
   service_portfolio: Array<{ label: string; value: number }>
   task_mix: Array<{ label: string; value: number }>
   executive_actions: Array<{

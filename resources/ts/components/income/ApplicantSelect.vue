@@ -44,7 +44,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: number | null] }>()
           </div>
         </template>
         <template #subtitle>
-          <span>{{ item.raw.contact || item.raw.email || item.raw.country?.name || $t('common.messages.notAvailable') }}</span>
+          <span>{{ item.raw.contact || item.raw.email || item.raw.details?.country?.name || $t('common.messages.notAvailable') }}</span>
         </template>
       </VListItem>
     </template>

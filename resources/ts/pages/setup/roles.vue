@@ -95,7 +95,7 @@ const isCategoryExpanded = (category: string) => {
   if (permissionSearch.value.trim())
     return true
 
-  return expandedCategories.value[category] ?? true
+  return expandedCategories.value[category] ?? false
 }
 
 const toggleCategory = (category: string) => {

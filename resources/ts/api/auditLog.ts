@@ -95,10 +95,10 @@ export const bulkReviewAuditLogs = async (auditIds: number[], decision: 'approve
   return Number(response.data.data?.count ?? 0)
 }
 
-export const getAuditResources = async (params?: { page?: number; per_page?: number; state?: 'enabled' | 'disabled'; search?: string }): Promise<Paginated<AuditResource>> => {
+export const getAuditResources = async (params?: { page?: number; per_page?: number; state?: 'enabled' | 'disabled'; search?: string }): Promise<Paginated<AuditResource> & { resource_keys: string[] }> => {
   const response = await api.get('/audit-resources', { params })
 
-  return response.data as Paginated<AuditResource>
+  return response.data as Paginated<AuditResource> & { resource_keys: string[] }
 }
 
 export const updateAuditResource = async (id: number, enabled: boolean): Promise<AuditResource> => {

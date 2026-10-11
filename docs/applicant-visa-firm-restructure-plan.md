@@ -28,16 +28,16 @@
 
 ## 3. Workstreams and acceptance criteria
 
-| # | Workstream | Acceptance criteria | Status |
-| --- | --- | --- | --- |
-| A | Applicant model cleanup | No applicant `company` DB column, payload field, resource field, frontend column, or report field remains. | Implemented; migration pending execution |
-| B | Applicant documents | Labeled uploads/list/download/delete; authorization, validation, audit events, notification hook, and document-readiness guard exist. | Implemented; focused tests pending DB availability |
-| C | Applicant directory | Useful responsive table shows applicant, contact, case stage, document readiness, active services, unpaid invoice amount, owner, and concise actions. | Planned |
-| D | Applicant workspace | Case page shows documents, commercial summary, contracts/services, invoice actions, and operational actions as coherent panels. | Planned |
-| E | Service → contract linkage | Complete B1–B8/F1–F6/C1–C3/T1–V1 from `service-contract-linkage-plan.md`. | Implemented; validation pending DB availability |
-| F | Applicant invoicing | Invoice APIs, types, pickers, forms, snapshots, payment contexts, reports, and deep links use `applicant_id` only. | Implemented; validation pending DB availability |
-| G | Cross-system cutover | Tasks, projects, packages, financial transactions, searches, CRM conversions, dashboards, reports, and audit presenters have no operational `customer_id`/`customer` relation assumptions. | Planned |
-| H | Compliance | RBAC, policy checks, translations (`en`, `fa-AF`, `ps-AF`), notifications, audits, factories/seeders, and feature tests cover every new operation. | In progress |
+| #   | Workstream                 | Acceptance criteria                                                                                                                                                                        | Status                                             |
+| --- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| A   | Applicant model cleanup    | No applicant `company` DB column, payload field, resource field, frontend column, or report field remains.                                                                                 | Implemented; migration pending execution           |
+| B   | Applicant documents        | Labeled uploads/list/download/delete; authorization, validation, audit events, notification hook, and document-readiness guard exist.                                                      | Implemented; focused tests pending DB availability |
+| C   | Applicant directory        | Useful responsive table shows applicant, contact, case stage, document readiness, active services, unpaid invoice amount, owner, and concise actions.                                      | Planned                                            |
+| D   | Applicant workspace        | Case page shows documents, commercial summary, contracts/services, invoice actions, and operational actions as coherent panels.                                                            | Planned                                            |
+| E   | Service → contract linkage | Complete B1–B8/F1–F6/C1–C3/T1–V1 from `service-contract-linkage-plan.md`.                                                                                                                  | Implemented; validation pending DB availability    |
+| F   | Applicant invoicing        | Invoice APIs, types, pickers, forms, snapshots, payment contexts, reports, and deep links use `applicant_id` only.                                                                         | Implemented; validation pending DB availability    |
+| G   | Cross-system cutover       | Tasks, projects, packages, financial transactions, searches, CRM conversions, dashboards, reports, and audit presenters have no operational `customer_id`/`customer` relation assumptions. | Planned                                            |
+| H   | Compliance                 | RBAC, policy checks, translations (`en`, `fa-AF`, `ps-AF`), notifications, audits, factories/seeders, and feature tests cover every new operation.                                         | In progress                                        |
 
 ## 4. Delivery plan
 

@@ -5,42 +5,21 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Task management section: projects, boards, tasks and their collaborators,
+ * Task management section: boards, tasks and their collaborators,
  * dependencies, subtasks, comments, attachments and service assignments.
- *
- * `projects` is created first: boards and tasks reference it, and the
- * finance section defers `expenses.project_id` to the completion pass.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('projects', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('applicant_id')->nullable()->constrained('applicants')->nullOnDelete();
-            $table->string('name');
-            $table->text('description')->nullable();
-            $table->string('status', 30)->default('active');
-            $table->date('start_date')->nullable();
-            $table->date('due_date')->nullable();
-            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamps();
-            $table->softDeletes();
-
-            // Legacy index name preserved from the customers era.
-            $table->index('status', 'projects_customer_id_status_index');
-            $table->index('applicant_id', 'projects_applicant_id_idx');
-        });
-
         Schema::create('boards', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('project_id')->nullable()->constrained('projects')->nullOnDelete();
             $table->string('title');
             $table->integer('order')->default(0);
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['project_id', 'order'], 'boards_project_id_order_index');
+            $table->index('order', 'boards_order_index');
         });
 
         Schema::create('board_user', function (Blueprint $table) {
@@ -140,31 +119,10 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        Schema::create('project_service', function (Blueprint $table) {
-            $table->foreignId('project_id');
-            $table->foreignId('service_id');
-            $table->timestamps();
-
-            $table->primary(['project_id', 'service_id']);
-            $table->foreign('project_id')->references('id')->on('projects')->cascadeOnDelete();
-            $table->foreign('service_id')->references('id')->on('services');
-        });
-
-        Schema::create('task_service', function (Blueprint $table) {
-            $table->foreignId('task_id');
-            $table->foreignId('service_id');
-            $table->timestamps();
-
-            $table->primary(['task_id', 'service_id']);
-            $table->foreign('task_id')->references('id')->on('tasks')->cascadeOnDelete();
-            $table->foreign('service_id')->references('id')->on('services');
-        });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('task_service');
-        Schema::dropIfExists('project_service');
         Schema::dropIfExists('task_attachments');
         Schema::dropIfExists('comments');
         Schema::dropIfExists('subtasks');
@@ -174,6 +132,5 @@ return new class extends Migration
         Schema::dropIfExists('tasks');
         Schema::dropIfExists('board_user');
         Schema::dropIfExists('boards');
-        Schema::dropIfExists('projects');
     }
 };

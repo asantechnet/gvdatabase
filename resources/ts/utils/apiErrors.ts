@@ -3,11 +3,21 @@ import { fieldLabel } from './apiValidation'
 export interface ApiError {
   code?: string
   message?: string
+  /** Machine-readable codes keyed by field (the API error contract). */
   errors?: Record<string, string[] | string>
+  /** Human, backend-localized text keyed by the same fields. */
+  messages?: Record<string, string[] | string>
   status?: number
   handled?: boolean
   success?: boolean
 }
+
+/** The first entry of a field value that may be a string or a list of strings. */
+const firstFieldValue = (value: string[] | string | undefined): string | undefined =>
+  Array.isArray(value) ? value[0] : value
+
+/** Backend codes always live in a known namespace; anything else is already human. */
+const isErrorCode = (value: string) => value.startsWith('validation.') || value.startsWith('business.')
 
 const errorMessages: Record<string, string> = {
   'validation.required': 'This field is required.',
@@ -39,11 +49,7 @@ const errorMessages: Record<string, string> = {
   'validation.uploaded': 'The upload failed. Please try again.',
   'validation.invalid': 'Enter a valid value.',
   'validation_failed': 'Please correct the highlighted fields.',
-  'business.invoice_not_payable': 'This invoice cannot accept a payment.',
-  'business.invoice_not_found': 'The selected invoice is no longer available.',
-  'business.invoice_payment_exceeds_balance': 'The payment exceeds the invoice’s remaining balance.',
-  'business.invoice_already_void': 'This invoice has already been voided.',
-  'business.invoice_service_not_assigned': 'Every invoiced service must be assigned to the selected customer.',
+  'business.contract_version_scope_required': 'Choose the destination country or the test this contract version applies to.',
   'business.currency_rate_invalid': 'Select a currency with a positive exchange rate.',
   'business.service_currency_rate_invalid': 'One or more selected services have an invalid currency rate.',
   'business.employee_not_selectable': 'This employee is not eligible for this action.',
@@ -88,32 +94,13 @@ const errorMessages: Record<string, string> = {
   'business.daily_report_already_submitted': 'Your report for this workday has already been submitted.',
   'business.office_geofence_unavailable': 'Automatic attendance is unavailable because your office geofence is not configured.',
   'business.paid_time_off_date_exists': 'A time-off request already exists for one or more selected dates.',
-  'business.commission_employee_salary_forbidden': 'This employee’s compensation policy does not permit a salary record.',
-  'business.invoice_commission_employee_required': 'Select the commission employee responsible for every commissionable invoice service.',
-  'business.invoice_commission_employee_invalid': 'The selected employee is not configured for commission on this service.',
-  'business.commission_payment_reserved': 'This receipt is already reserved by a commission settlement.',
-  'business.employee_not_commission_based': 'The selected employee is not commission-based.',
-  'business.no_pending_commissions': 'No pending commissions match the selected employee, currency, and period.',
-  'business.commission_settlement_not_draft': 'Only a draft commission settlement can be approved.',
-  'business.commission_settlement_not_approved': 'Only an approved commission settlement can be paid.',
-  'business.paid_commission_settlement_immutable': 'Paid commission settlements are permanent accounting records.',
-  'business.commission_settlement_not_positive': 'The selected earnings and adjustments must result in a positive payout.',
-  'business.outsourcing_payment_reserved': 'This receipt is already reserved by an outsourcing settlement.',
-  'business.no_pending_outsourcing': 'No pending supplier accruals match the selected company, currency, and period.',
-  'business.outsourcing_approval_invalid': 'Only a draft supplier settlement can be approved by an independent approver.',
-  'business.outsourcing_payment_invalid': 'Only an approved supplier settlement can be paid after its settlement period ends.',
-  'business.outsourcing_settlement_immutable': 'Paid supplier settlements are permanent accounting records.',
   'business.task_label_exists': 'A task label with this name already exists.',
   'business.task_bonus_review_requires_completion': 'Only completed tasks can receive bonus review inputs.',
-  'business.package_in_use': 'A package that has already been sold cannot be deleted. Mark it inactive instead.',
-  'business.package_service_managed_as_bundle': 'This service was issued by a package and must be managed through that package purchase.',
   'business.task_contributions_must_total_100': 'Contribution percentages must total 100%.',
   'business.task_contributions_assignees_mismatch': 'Provide one contribution percentage for every assigned user.',
   'business.task_contribution_user_not_assigned': 'Every contribution user must be assigned to the task.',
   'business.employee_profile_missing': 'No employee profile is associated with this account.',
   'business.two_factor_code_invalid': 'The authentication code is invalid or expired.',
-  'business.customer_has_invoice_history': 'Customers with invoice history cannot be deleted.',
-  'business.marketer_in_use': 'This marketer is assigned to customers or visitors and cannot be deleted.',
   'business.position_in_use': 'This position is assigned to employees or users and cannot be deleted.',
   'business.office_has_asset': 'This office has asset assigned to it and cannot be deleted.',
   'business.contract_template_in_use': 'Templates used by contracts cannot be deleted.',
@@ -121,7 +108,7 @@ const errorMessages: Record<string, string> = {
   'business.contract_template_unavailable': 'The source contract template is no longer available. Create a new contract from an active template.',
   'business.contract_renewal_exists': 'This contract already has a current renewal. Review that renewal instead of creating a duplicate.',
   'business.base_currency_cannot_be_deleted': 'The base currency cannot be deleted.',
-  'business.currency_in_use': 'Currencies referenced by services, invoices, salaries, incomes, or expenses cannot be deleted.',
+  'business.currency_in_use': 'Currencies referenced by contract lines, salaries, incomes, or expenses cannot be deleted.',
   'auth.email_verification_required': 'Verify your email address before signing in.',
   'auth.two_factor_required': 'Enter your current authenticator code.',
   'auth.refresh_token_invalid': 'Your session renewal has expired. Please sign in again.',
@@ -142,31 +129,62 @@ export const humanizeApiError = (code?: string, fallback = translate('common.mes
 
   // Error codes are the API contract. Do not fall back to an English literal
   // here: a missing catalog entry should use the caller's localized fallback.
-  return translated && !translated.startsWith('[missing:') ? translated : fallback
+  if (translated && !translated.startsWith('[missing:'))
+    return translated
+
+  // An unmapped validation rule should still read as a validation problem
+  // instead of leaking the machine code (e.g. "validation.alpha_dash").
+  if (code.startsWith('validation.')) {
+    const generic = translate('backend.errors.validation.invalid')
+    if (generic && !generic.startsWith('[missing:'))
+      return generic
+  }
+
+  return fallback
 }
 
+/**
+ * Per-field error text for inline validation feedback. The backend already
+ * localizes the real validation message (including rule limits such as "must be
+ * between 1 and 65535"), so prefer it and only translate the machine code when
+ * no message was sent.
+ */
 export const apiFieldErrors = (error: unknown): Record<string, string> => {
   const errors = (error as ApiError | undefined)?.errors
   if (!errors)
     return {}
+  const messages = (error as ApiError | undefined)?.messages
 
-  return Object.fromEntries(Object.entries(errors).map(([field, messages]) => {
-    const message = Array.isArray(messages) ? messages[0] : messages
+  return Object.fromEntries(Object.entries(errors).map(([field, value]) => {
+    const message = firstFieldValue(value)
+    if (!message)
+      return [field, '']
 
     return [
       field,
-      message.startsWith('validation.') || message.startsWith('business.')
-        ? humanizeApiError(message)
+      isErrorCode(message)
+        ? firstFieldValue(messages?.[field]) || humanizeApiError(message)
         : message,
     ]
   }))
 }
 
+/**
+ * The single message shown in a toast: "Field name: human explanation". The
+ * label is dropped when it cannot be resolved so the user never sees a
+ * dangling ": message".
+ */
 export const apiErrorMessage = (error: unknown, fallback = translate('common.messages.unableToSaveChanges')): string => {
-  const fieldErrors = apiFieldErrors(error)
-  const [firstField, firstFieldError] = Object.entries(fieldErrors)[0] ?? []
+  const apiError = error as ApiError | undefined
+  const [field, value] = Object.entries(apiError?.errors ?? {})[0] ?? []
+  const code = firstFieldValue(value)
 
-  return firstFieldError
-    ? `${fieldLabel(firstField)}: ${firstFieldError}`
-    : humanizeApiError((error as ApiError | undefined)?.code, (error as ApiError | undefined)?.message || fallback)
+  if (field && code) {
+    const label = fieldLabel(field)
+    const text = isErrorCode(code) ? humanizeApiError(code) : code
+
+    return label ? `${label}: ${text}` : text
+  }
+
+  return humanizeApiError(apiError?.code, apiError?.message || fallback)
 }

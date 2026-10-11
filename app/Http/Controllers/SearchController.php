@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\User;
+use App\Support\BuiltInService;
 use App\Support\ContractAccess;
 use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Cross-module search for agency staff (Implementation Plan §30).
@@ -31,7 +33,7 @@ class SearchController extends Controller
         // Short numeric queries are record IDs; short text would scan
         // almost every row, so it still needs at least 2 characters.
         if ($q === '' || (! ctype_digit($q) && mb_strlen($q) < 2)) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['q' => ['Search for an ID, or type at least 2 characters.']]);
+            throw ValidationException::withMessages(['q' => ['Search for an ID, or type at least 2 characters.']]);
         }
         $limit = (int) ($data['limit'] ?? 8);
         $user = $request->user();
@@ -58,7 +60,6 @@ class SearchController extends Controller
                     $query->orWhere('id', (int) $q);
                 }
                 $query->orWhere('name', 'like', "%{$q}%")
-                    ->orWhere('company', 'like', "%{$q}%")
                     ->orWhere('contact', 'like', "%{$q}%")
                     ->orWhere('email', 'like', "%{$q}%");
             })
@@ -75,10 +76,11 @@ class SearchController extends Controller
             ->all();
     }
 
-
     private function searchContracts(string $q, int $limit, User $user): array
     {
-        return ContractAccess::scopeVisibleTo(Contract::query(), $user)
+        return ContractAccess::scopeVisibleTo(Contract::query()->with('contractType'), $user)
+            ->where(fn ($query) => $query->whereIn('service', BuiltInService::ALL)
+                ->orWhereHas('contractType', fn ($type) => $type->whereIn('slug', ['employment', 'other'])->orWhere('is_system', false)))
             ->where(fn ($query) => $query
                 ->where('contract_number', 'like', "%{$q}%")
                 ->orWhere('name', 'like', "%{$q}%")
@@ -92,7 +94,11 @@ class SearchController extends Controller
                 'id' => $c->id,
                 'title' => $c->contract_number ?? $c->name ?? "Contract #{$c->id}",
                 'subtitle' => trim(($c->status ?? 'draft').($c->counterparty ? ' · '.$c->counterparty : '')),
-                'route' => ['name' => 'contracts'],
+                'route' => [
+                    'name' => $c->service ? str_replace('_', '-', $c->service).'-contracts'
+                        : ($c->contractType?->slug === 'employment' ? 'employee-contracts' : 'other-contracts'),
+                    'query' => ['contractId' => $c->id],
+                ],
             ])
             ->all();
     }

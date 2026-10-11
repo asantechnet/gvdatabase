@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { translate } from '@/utils/localization'
+import { computed, onMounted, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useRouter } from 'vue-router'
-import EmployeeApi, { type CommissionServiceOption, type CreateEmployeeData, type Employee, type EmployeeAccount, type UpdateEmployeeData } from '@/api/employee'
+import { useToast } from 'vue-toastification'
+import EmployeeApi, { type CreateEmployeeData, type Employee, type EmployeeAccount, type UpdateEmployeeData } from '@/api/employee'
 import PositionApi, { type Position } from '@/api/position'
 import OfficeApi, { type Office } from '@/api/office'
 import DepartmentApi, { type Department } from '@/api/department'
@@ -18,6 +20,8 @@ interface Staff {
   name: string
   father_name: string
   contact: string
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
   id_number: string | null
   bank_account_number: string | null
   guarantor_id_number: string | null
@@ -26,7 +30,7 @@ interface Staff {
   guarantor_licence: string | null
   education_lvl: string
   position: string
-  employment_type: 'salaried' | 'commission'
+  status: 'active' | 'inactive'
   email: string
   office_id: number | null
   office: Employee['office']
@@ -35,16 +39,17 @@ interface Staff {
   supervisor_id: number | null
   supervisor_name: string | null
   salary: number | null
-  commissions: Array<{ service_id: number; service?: string; fee?: number; percentage: number }>
   total_worked_hours: number
   addr: string
   join_date: string
+  paid_leave_days: number | null
   document?: Employee['document']
   avatar?: string | null
 }
 
 const staffList = ref<Staff[]>([])
 const router = useRouter()
+const toast = useToast()
 const isAddStaffDialogVisible = ref(false)
 const isEditStaffDialogVisible = ref(false)
 const isDeleteStaffDialogVisible = ref(false)
@@ -52,6 +57,14 @@ const isPaidTimeOffDialogVisible = ref(false)
 const selectedStaff = ref<Staff | null>(null)
 const searchQuery = ref('')
 const filterPosition = ref<string | null>(null)
+// Server-side status filter. The backend returns active employees only unless
+// a management surface explicitly asks for inactive/all rows.
+const statusFilter = ref<'all' | 'active' | 'inactive'>('active')
+const statusFilterOptions = computed(() => [
+  { title: translate('common.statuses.all'), value: 'all' as const },
+  { title: translate('common.statuses.active'), value: 'active' as const },
+  { title: translate('common.statuses.inactive'), value: 'inactive' as const },
+])
 const isLoading = ref(false)
 const isPositionsLoading = ref(false)
 const positionOptions = ref<string[]>([])
@@ -59,7 +72,6 @@ const positionIdMap = ref<Record<string, number>>({})
 const positionSalaryMap = ref<Record<string, number>>({})
 const offices = ref<Office[]>([])
 const departments = ref<Department[]>([])
-const commissionServices = ref<CommissionServiceOption[]>([])
 const userAccounts = ref<EmployeeAccount[]>([])
 const isUserAccountsLoading = ref(false)
 const formSubmissionError = ref('')
@@ -116,7 +128,6 @@ const formErrors = ref({
   addr: '',
   position: '',
   salary: '',
-  commissions: '',
   education_lvl: '',
   join_date: '',
 })
@@ -131,7 +142,6 @@ const resetFormErrors = () => {
     addr: '',
     position: '',
     salary: '',
-    commissions: '',
     education_lvl: '',
     join_date: '',
   }
@@ -235,14 +245,6 @@ const validateStaffForm = () => {
     formErrors.value.salary = ''
   }
 
-  if (selectedStaff.value?.employment_type === 'commission' && selectedStaff.value.commissions.length === 0) {
-    formErrors.value.commissions = translate('pages.settings.staffList.staffList.assignCommissionService')
-    isValid = false
-  }
-  else {
-    formErrors.value.commissions = ''
-  }
-
   // Validate Education Level
   if (!selectedStaff.value?.education_lvl) {
     formErrors.value.education_lvl = translate('pages.settings.staffList.staffList.educationLevelIsRequired')
@@ -271,6 +273,8 @@ const openAddStaffDialog = () => {
     name: '',
     father_name: '',
     contact: '',
+    emergency_contact_name: null,
+    emergency_contact_phone: null,
     id_number: '',
     bank_account_number: '',
     guarantor_id_number: '',
@@ -281,7 +285,7 @@ const openAddStaffDialog = () => {
     email: '',
     addr: '',
     position: '',
-    employment_type: 'salaried',
+    status: 'active',
     office_id: null,
     office: null,
     department_id: null,
@@ -289,9 +293,9 @@ const openAddStaffDialog = () => {
     supervisor_id: null,
     supervisor_name: null,
     salary: 0,
-    commissions: [],
     total_worked_hours: 0,
     join_date: new Date().toISOString().split('T')[0],
+    paid_leave_days: null,
   }
   resetFormErrors()
   formSubmissionError.value = ''
@@ -299,9 +303,8 @@ const openAddStaffDialog = () => {
 }
 
 const openEditStaffDialog = (staff: Staff) => {
-  // Keep edits local until Save; nested commission rows otherwise mutate the
-  // table record even when the dialog is cancelled.
-  selectedStaff.value = { ...staff, commissions: staff.commissions.map(commission => ({ ...commission })) }
+  // Keep edits local until Save.
+  selectedStaff.value = { ...staff }
   resetFormErrors()
   formSubmissionError.value = ''
   isEditStaffDialogVisible.value = true
@@ -452,13 +455,14 @@ const fetchEmployees = async () => {
   try {
     isLoading.value = true
 
-    const response = await EmployeeApi.getAll()
+    const response = await EmployeeApi.getAll({ status: statusFilter.value })
     if (response.data && Array.isArray(response.data.data)) {
       staffList.value = response.data.data.map(emp => ({
         ...emp,
         email: emp.email ?? '',
         salary: emp.salary ?? 0,
         join_date: emp.join_date ?? '',
+        status: emp.status ?? 'active',
         position: emp.position || positionOptions.value[emp.position_id - 1] || emp.position_id.toString(),
       }))
     }
@@ -468,6 +472,7 @@ const fetchEmployees = async () => {
         email: emp.email ?? '',
         salary: emp.salary ?? 0,
         join_date: emp.join_date ?? '',
+        status: emp.status ?? 'active',
         position: emp.position || positionOptions.value[emp.position_id - 1] || emp.position_id.toString(),
       }))
     }
@@ -479,6 +484,12 @@ const fetchEmployees = async () => {
     isLoading.value = false
   }
 }
+
+// Re-query the backend whenever the management status filter changes so the
+// default (active) view never receives inactive employees in the first place.
+watch(statusFilter, () => {
+  void fetchEmployees()
+})
 
 const fetchUserAccounts = async () => {
   try {
@@ -527,6 +538,8 @@ const addStaff = async () => {
       name: selectedStaff.value.name,
       father_name: selectedStaff.value.father_name,
       contact: selectedStaff.value.contact,
+      emergency_contact_name: selectedStaff.value.emergency_contact_name,
+      emergency_contact_phone: selectedStaff.value.emergency_contact_phone,
       id_number: selectedStaff.value.id_number ?? '',
       bank_account_number: selectedStaff.value.bank_account_number,
       guarantor_id_number: selectedStaff.value.guarantor_id_number,
@@ -537,14 +550,14 @@ const addStaff = async () => {
       email: selectedStaff.value.email,
       education_lvl: selectedStaff.value.education_lvl,
       position_id: positionId,
-      employment_type: selectedStaff.value.employment_type,
       office_id: selectedStaff.value.office_id,
       department_id: selectedStaff.value.department_id,
       supervisor_id: selectedStaff.value.supervisor_id,
       salary: selectedStaff.value.salary,
-      commissions: selectedStaff.value.commissions.map(row => ({ service_id: row.service_id, percentage: row.percentage })),
       addr: selectedStaff.value.addr,
       join_date: selectedStaff.value.join_date,
+      paid_leave_days: selectedStaff.value.paid_leave_days,
+      status: selectedStaff.value.status,
     }
 
     const response = await EmployeeApi.create(data)
@@ -584,6 +597,8 @@ const updateStaff = async () => {
       name: selectedStaff.value.name,
       father_name: selectedStaff.value.father_name,
       contact: selectedStaff.value.contact,
+      emergency_contact_name: selectedStaff.value.emergency_contact_name,
+      emergency_contact_phone: selectedStaff.value.emergency_contact_phone,
       id_number: selectedStaff.value.id_number ?? '',
       bank_account_number: selectedStaff.value.bank_account_number,
       guarantor_id_number: selectedStaff.value.guarantor_id_number,
@@ -594,14 +609,14 @@ const updateStaff = async () => {
       email: selectedStaff.value.email,
       education_lvl: selectedStaff.value.education_lvl,
       position_id: positionId,
-      employment_type: selectedStaff.value.employment_type,
+      status: selectedStaff.value.status,
       office_id: selectedStaff.value.office_id,
       department_id: selectedStaff.value.department_id,
       supervisor_id: selectedStaff.value.supervisor_id,
       salary: selectedStaff.value.salary,
-      commissions: selectedStaff.value.commissions.map(row => ({ service_id: row.service_id, percentage: row.percentage })),
       addr: selectedStaff.value.addr,
       join_date: selectedStaff.value.join_date,
+      paid_leave_days: selectedStaff.value.paid_leave_days,
     }
 
     const response = await EmployeeApi.update(selectedStaff.value.id, data)
@@ -643,23 +658,6 @@ const applyStaffApiErrors = (error: unknown) => {
     : apiErrorMessage(error, 'Unable to save the staff record. Please try again.')
 }
 
-const addCommission = () => selectedStaff.value?.commissions.push({ service_id: 0, percentage: 1 })
-const removeCommission = (index: number) => selectedStaff.value?.commissions.splice(index, 1)
-
-const commissionLabel = (service: CommissionServiceOption) => {
-  const currency = service.currency
-  const fee = Number(service.fee)
-  const amount = Number.isFinite(fee) ? fee.toFixed(currency?.decimalPlaces ?? 2) : '—'
-  const type = service.type || translate('pages.settings.staffList.staffList.service')
-
-  return `${type} · ${currency?.symbol ?? ''}${amount} ${currency?.code ?? ''}`.trim()
-}
-
-const availableCommissionServices = (currentServiceId: number) => commissionServices.value.filter(service =>
-  service.id === currentServiceId
-  || !selectedStaff.value?.commissions.some(commission => commission.service_id === service.id),
-)
-
 const deleteStaff = async () => {
   if (!selectedStaff.value)
     return
@@ -678,6 +676,40 @@ const deleteStaff = async () => {
   }
 }
 
+/** Flip an employee between active and inactive through the regular update endpoint. */
+const toggleStaffStatus = async (staff: Staff) => {
+  const nextStatus: 'active' | 'inactive' = (staff.status ?? 'active') === 'active' ? 'inactive' : 'active'
+
+  try {
+    isLoading.value = true
+    const data: UpdateEmployeeData = { status: nextStatus }
+    const response = await EmployeeApi.update(staff.id, data)
+    if (response.data && response.data.data) {
+      const updated = response.data.data
+      const index = staffList.value.findIndex(s => s.id === staff.id)
+      if (index !== -1) {
+        staffList.value[index] = {
+          ...staff,
+          ...updated,
+          email: updated.email ?? '',
+          salary: updated.salary ?? 0,
+          join_date: updated.join_date ?? '',
+          status: updated.status,
+          position: updated.position || positionOptions.value[updated.position_id - 1] || updated.position_id.toString(),
+        }
+      }
+    }
+    toast.success(translate('pages.settings.staffList.staffList.staffStatusUpdated'))
+  }
+  catch (error) {
+    console.error('Error updating employee status:', error)
+    toast.error(apiErrorMessage(error, translate('pages.settings.staffList.staffList.statusUpdateFailed')))
+  }
+  finally {
+    isLoading.value = false
+  }
+}
+
 const filteredStaff = computed(() => {
   return staffList.value.filter(staff => {
     const matchesSearch = staff.name.toLowerCase().includes(searchQuery.value.toLowerCase())
@@ -688,20 +720,25 @@ const filteredStaff = computed(() => {
       || staff.position.toLowerCase().includes(searchQuery.value.toLowerCase())
 
     const matchesPosition = !filterPosition.value || staff.position === filterPosition.value
+    const matchesStatus = statusFilter.value === 'all' || (staff.status ?? 'active') === statusFilter.value
 
-    return matchesSearch && matchesPosition
+    return matchesSearch && matchesPosition && matchesStatus
   })
 })
+
+const resetStaffFilters = () => {
+  filterPosition.value = null
+  statusFilter.value = 'active'
+}
 
 const printTable = () => {
   void printDocument({ bodyClass: 'printing-table-staff', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 }
 
 onMounted(async () => {
-  const [, officeRows, commissionRows, departmentRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), EmployeeApi.getCommissionOptions(), DepartmentApi.getAll(), fetchUserAccounts()])
+  const [, officeRows, departmentRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), DepartmentApi.getAll(), fetchUserAccounts()])
 
   offices.value = officeRows.filter(office => office.status === 'active')
-  commissionServices.value = commissionRows
   departments.value = departmentRows
   await fetchEmployees()
 })
@@ -711,8 +748,8 @@ onMounted(async () => {
   <div>
     <DataTablePageKpis
       :items="filteredStaff"
-      title="Staff directory"
-      description="See your team, their assignments, and records that need follow-up."
+      :title="$t('components.dataTablePageKpis.pages.staffDirectory.title')"
+      :description="$t('components.dataTablePageKpis.pages.staffDirectory.description')"
       icon="tabler-users"
     />
     <VCard class="mb-6">
@@ -739,8 +776,8 @@ onMounted(async () => {
             class="d-flex gap-2 justify-end"
           >
             <DataTableFilterMenu
-              :active="Boolean(filterPosition)"
-              @reset="filterPosition = null"
+              :active="Boolean(filterPosition) || statusFilter !== 'active'"
+              @reset="resetStaffFilters"
             >
               <VSelect
                 v-model="filterPosition"
@@ -750,6 +787,13 @@ onMounted(async () => {
                 clearable
                 hide-details
                 :loading="isPositionsLoading"
+              />
+              <VSelect
+                v-model="statusFilter"
+                :items="statusFilterOptions"
+                :label="$t('common.fields.status')"
+                density="compact"
+                hide-details
               />
             </DataTableFilterMenu>
             <VBtn
@@ -794,6 +838,7 @@ onMounted(async () => {
             { title: translate('pages.settings.staffList.staffList.salary'), key: 'salary' },
             { title: translate('pages.settings.staffList.staffList.workedHours'), key: 'total_worked_hours' },
             { title: translate('pages.settings.staffList.staffList.joinDate'), key: 'join_date' },
+            { title: translate('common.fields.status'), key: 'status' },
             { title: translate('common.messages.actions'), key: 'actions', sortable: false },
           ]"
           item-value="id"
@@ -804,14 +849,6 @@ onMounted(async () => {
         >
           <template #item.salary="{ item }">
             <div>${{ Number(item.salary || 0).toFixed(2) }}</div>
-            <VChip
-              v-if="item.employment_type === 'commission'"
-              size="x-small"
-              color="primary"
-              variant="tonal"
-            >
-              Base + commission
-            </VChip>
           </template>
 
           <template #item.office="{ item }">
@@ -835,6 +872,16 @@ onMounted(async () => {
               </VAvatar>
               <span>{{ item.name }}</span>
             </div>
+          </template>
+
+          <template #item.status="{ item }">
+            <VChip
+              size="small"
+              variant="tonal"
+              :color="(item.status ?? 'active') === 'active' ? 'success' : 'warning'"
+            >
+              {{ $t((item.status ?? 'active') === 'active' ? 'common.statuses.active' : 'common.statuses.inactive') }}
+            </VChip>
           </template>
 
           <template #item.actions="{ item }">
@@ -868,7 +915,7 @@ onMounted(async () => {
                   activator="parent"
                   location="top"
                 >
-                  Print employment contract
+                  {{ $t('common.ui.printEmploymentContract') }}
                 </VTooltip>
               </VBtn>
               <VBtn
@@ -897,6 +944,21 @@ onMounted(async () => {
                   location="top"
                 >
                   {{ $t('pages.settings.staffList.staffList.editStaffRecord') }}
+                </VTooltip>
+              </VBtn>
+              <VBtn
+                icon
+                variant="text"
+                size="small"
+                :color="(item.status ?? 'active') === 'active' ? 'error' : 'success'"
+                :aria-label="(item.status ?? 'active') === 'active' ? $t('pages.settings.staffList.staffList.deactivateStaffRecord') : $t('pages.settings.staffList.staffList.activateStaffRecord')"
+                @click="toggleStaffStatus(item)"
+              >
+                <VIcon :icon="(item.status ?? 'active') === 'active' ? 'tabler-user-cancel' : 'tabler-user-check'" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  {{ (item.status ?? 'active') === 'active' ? $t('pages.settings.staffList.staffList.deactivateStaffRecord') : $t('pages.settings.staffList.staffList.activateStaffRecord') }}
                 </VTooltip>
               </VBtn>
               <VBtn
@@ -929,7 +991,8 @@ onMounted(async () => {
     <!-- Add Staff Dialog -->
     <VDialog
       v-model="isAddStaffDialogVisible"
-      max-width="800px"
+      max-width="1100px"
+      scrollable
     >
       <VCard v-if="selectedStaff">
         <VCardTitle class="pa-5">
@@ -989,6 +1052,26 @@ onMounted(async () => {
                 cols="12"
                 md="6"
               >
+                <VTextField
+                  v-model="selectedStaff.emergency_contact_name"
+                  :label="$t('pages.settings.staffList.staffList.emergencyContactName')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.emergency_contact_phone"
+                  :label="$t('pages.settings.staffList.staffList.emergencyContactPhone')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedStaff.user_id"
                   class="employee-account-select"
@@ -1023,10 +1106,7 @@ onMounted(async () => {
                           <span>#{{ item.raw.id }} · {{ item.raw.email }}</span><span v-if="item.raw.employee"><VIcon
                             icon="tabler-id-badge-2"
                             size="14"
-                          /> {{ $t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span><span v-if="item.raw.marketer"><VIcon
-                            icon="tabler-speakerphone"
-                            size="14"
-                          /> {{ $t('common.accountPicker.linkedMarketer', { name: item.raw.marketer.name, id: item.raw.marketer.id }) }}</span><span v-if="!item.raw.employee && !item.raw.marketer">{{ $t('common.accountPicker.available') }}</span>
+                          /> {{ $t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span><span v-if="!item.raw.employee">{{ $t('common.accountPicker.available') }}</span>
                         </div>
                       </template><template #append>
                         <span class="account-option__id">#{{ item.raw.id }}</span>
@@ -1105,6 +1185,20 @@ onMounted(async () => {
                 cols="12"
                 md="6"
               >
+                <VTextField
+                  v-model="selectedStaff.paid_leave_days"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  :label="$t('pages.settings.staffList.staffList.paidLeaveDays')"
+                  :hint="$t('pages.settings.staffList.staffList.paidLeaveDaysHint')"
+                  persistent-hint
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedStaff.office_id"
                   :items="offices"
@@ -1170,19 +1264,9 @@ onMounted(async () => {
                 cols="12"
                 md="6"
               >
-                <VSelect
-                  v-model="selectedStaff.employment_type"
-                  :items="[{ title: 'Salaried', value: 'salaried' }, { title: 'On commission', value: 'commission' }]"
-                  label="Employment type"
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
                 <VTextField
                   v-model.number="selectedStaff.salary"
-                  :label="selectedStaff.employment_type === 'commission' ? 'Base salary' : $t('common.messages.salary')"
+                  :label="$t('common.messages.salary')"
                   type="number"
                   min="0"
                   :error-messages="formErrors.salary"
@@ -1190,116 +1274,12 @@ onMounted(async () => {
                 />
               </VCol>
               <VCol
-                v-if="selectedStaff.employment_type === 'commission'"
-                cols="12"
-              >
-                <VCard
-                  variant="flat"
-                  class="commission-capabilities"
-                >
-                  <VCardText class="commission-capabilities__body">
-                    <div class="commission-capabilities__header">
-                      <div class="d-flex align-start ga-3">
-                        <VAvatar
-                          size="38"
-                          color="primary"
-                          variant="tonal"
-                          rounded="lg"
-                        >
-                          <VIcon
-                            icon="tabler-briefcase-2"
-                            size="21"
-                          />
-                        </VAvatar>
-                        <div>
-                          <div class="text-subtitle-1 font-weight-semibold">
-                            {{ $t('common.crmUi.commissionRateSetup.title') }}
-                          </div>
-                          <p class="commission-capabilities__description">
-                            {{ $t('common.crmUi.commissionRateSetup.description') }}
-                          </p>
-                        </div>
-                      </div>
-                      <VBtn
-                        size="small"
-                        color="primary"
-                        variant="flat"
-                        prepend-icon="tabler-plus"
-                        @click="addCommission"
-                      >
-                        Add service
-                      </VBtn>
-                    </div>
-                    <VAlert
-                      v-if="formErrors.commissions"
-                      type="error"
-                      variant="tonal"
-                      density="compact"
-                      class="commission-capabilities__alert"
-                    >
-                      {{ formErrors.commissions }}
-                    </VAlert>
-                    <VRow
-                      v-for="(commission, index) in selectedStaff.commissions"
-                      :key="index"
-                      align="center"
-                      class="commission-capabilities__row"
-                    >
-                      <VCol
-                        cols="12"
-                        sm="8"
-                      >
-                        <VSelect
-                          v-model="commission.service_id"
-                          :items="availableCommissionServices(commission.service_id)"
-                          :item-title="commissionLabel"
-                          item-value="id"
-                          :label="$t('common.crmUi.commissionRateSetup.service')"
-                          placeholder="Choose a service"
-                          density="comfortable"
-                        />
-                      </VCol>
-                      <VCol
-                        cols="10"
-                        sm="3"
-                      >
-                        <VTextField
-                          v-model.number="commission.percentage"
-                          type="number"
-                          min="0.01"
-                          max="100"
-                          label="Commission rate"
-                          suffix="%"
-                          density="comfortable"
-                        />
-                      </VCol>
-                      <VCol
-                        cols="2"
-                        sm="1"
-                        class="text-end"
-                      >
-                        <VBtn
-                          icon="tabler-x"
-                          variant="text"
-                          color="error"
-                          @click="removeCommission(index)"
-                        >
-                          <VTooltip activator="parent">
-                            Remove service
-                          </VTooltip>
-                        </VBtn>
-                      </VCol>
-                    </VRow>
-                  </VCardText>
-                </VCard>
-              </VCol>
-              <VCol
                 cols="12"
                 md="6"
               >
                 <VTextField
                   v-model="selectedStaff.bank_account_number"
-                  label="Bank account number"
+                  :label="$t('common.ui.bankAccountNumber')"
                 />
               </VCol>
               <FormSection
@@ -1353,6 +1333,13 @@ onMounted(async () => {
                   required
                 />
               </VCol>
+              <VCol cols="12" md="6">
+                <VSelect
+                  v-model="selectedStaff.status"
+                  :items="statusFilterOptions.filter(option => option.value !== 'all')"
+                  :label="$t('common.fields.status')"
+                />
+              </VCol>
             </VRow>
           </VForm>
         </VCardText>
@@ -1380,7 +1367,8 @@ onMounted(async () => {
     <!-- Edit Staff Dialog -->
     <VDialog
       v-model="isEditStaffDialogVisible"
-      max-width="800px"
+      max-width="1100px"
+      scrollable
     >
       <VCard v-if="selectedStaff">
         <VCardTitle class="pa-5">
@@ -1435,6 +1423,26 @@ onMounted(async () => {
                 cols="12"
                 md="6"
               >
+                <VTextField
+                  v-model="selectedStaff.emergency_contact_name"
+                  :label="$t('pages.settings.staffList.staffList.emergencyContactName')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.emergency_contact_phone"
+                  :label="$t('pages.settings.staffList.staffList.emergencyContactPhone')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedStaff.user_id"
                   class="employee-account-select"
@@ -1469,10 +1477,7 @@ onMounted(async () => {
                           <span>#{{ item.raw.id }} · {{ item.raw.email }}</span><span v-if="item.raw.employee"><VIcon
                             icon="tabler-id-badge-2"
                             size="14"
-                          /> {{ $t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span><span v-if="item.raw.marketer"><VIcon
-                            icon="tabler-speakerphone"
-                            size="14"
-                          /> {{ $t('common.accountPicker.linkedMarketer', { name: item.raw.marketer.name, id: item.raw.marketer.id }) }}</span><span v-if="!item.raw.employee && !item.raw.marketer">{{ $t('common.accountPicker.available') }}</span>
+                          /> {{ $t('common.accountPicker.linkedEmployee', { name: item.raw.employee.name, id: item.raw.employee.id }) }}</span><span v-if="!item.raw.employee">{{ $t('common.accountPicker.available') }}</span>
                         </div>
                       </template><template #append>
                         <span class="account-option__id">#{{ item.raw.id }}</span>
@@ -1546,6 +1551,20 @@ onMounted(async () => {
                 cols="12"
                 md="6"
               >
+                <VTextField
+                  v-model="selectedStaff.paid_leave_days"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  :label="$t('pages.settings.staffList.staffList.paidLeaveDays')"
+                  :hint="$t('pages.settings.staffList.staffList.paidLeaveDaysHint')"
+                  persistent-hint
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedStaff.office_id"
                   :items="offices"
@@ -1559,19 +1578,9 @@ onMounted(async () => {
                 cols="12"
                 md="6"
               >
-                <VSelect
-                  v-model="selectedStaff.employment_type"
-                  :items="[{ title: 'Salaried', value: 'salaried' }, { title: 'On commission', value: 'commission' }]"
-                  label="Employment type"
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
                 <VTextField
                   v-model.number="selectedStaff.salary"
-                  :label="selectedStaff.employment_type === 'commission' ? 'Base salary' : $t('common.messages.salary')"
+                  :label="$t('common.messages.salary')"
                   type="number"
                   min="0"
                   :error-messages="formErrors.salary"
@@ -1579,116 +1588,12 @@ onMounted(async () => {
                 />
               </VCol>
               <VCol
-                v-if="selectedStaff.employment_type === 'commission'"
-                cols="12"
-              >
-                <VCard
-                  variant="flat"
-                  class="commission-capabilities"
-                >
-                  <VCardText class="commission-capabilities__body">
-                    <div class="commission-capabilities__header">
-                      <div class="d-flex align-start ga-3">
-                        <VAvatar
-                          size="38"
-                          color="primary"
-                          variant="tonal"
-                          rounded="lg"
-                        >
-                          <VIcon
-                            icon="tabler-briefcase-2"
-                            size="21"
-                          />
-                        </VAvatar>
-                        <div>
-                          <div class="text-subtitle-1 font-weight-semibold">
-                            {{ $t('common.crmUi.commissionRateSetup.title') }}
-                          </div>
-                          <p class="commission-capabilities__description">
-                            {{ $t('common.crmUi.commissionRateSetup.description') }}
-                          </p>
-                        </div>
-                      </div>
-                      <VBtn
-                        size="small"
-                        color="primary"
-                        variant="flat"
-                        prepend-icon="tabler-plus"
-                        @click="addCommission"
-                      >
-                        Add service
-                      </VBtn>
-                    </div>
-                    <VAlert
-                      v-if="formErrors.commissions"
-                      type="error"
-                      variant="tonal"
-                      density="compact"
-                      class="commission-capabilities__alert"
-                    >
-                      {{ formErrors.commissions }}
-                    </VAlert>
-                    <VRow
-                      v-for="(commission, index) in selectedStaff.commissions"
-                      :key="index"
-                      align="center"
-                      class="commission-capabilities__row"
-                    >
-                      <VCol
-                        cols="12"
-                        sm="8"
-                      >
-                        <VSelect
-                          v-model="commission.service_id"
-                          :items="availableCommissionServices(commission.service_id)"
-                          :item-title="commissionLabel"
-                          item-value="id"
-                          :label="$t('common.crmUi.commissionRateSetup.service')"
-                          placeholder="Choose a service"
-                          density="comfortable"
-                        />
-                      </VCol>
-                      <VCol
-                        cols="10"
-                        sm="3"
-                      >
-                        <VTextField
-                          v-model.number="commission.percentage"
-                          type="number"
-                          min="0.01"
-                          max="100"
-                          label="Commission rate"
-                          suffix="%"
-                          density="comfortable"
-                        />
-                      </VCol>
-                      <VCol
-                        cols="2"
-                        sm="1"
-                        class="text-end"
-                      >
-                        <VBtn
-                          icon="tabler-x"
-                          variant="text"
-                          color="error"
-                          @click="removeCommission(index)"
-                        >
-                          <VTooltip activator="parent">
-                            Remove service
-                          </VTooltip>
-                        </VBtn>
-                      </VCol>
-                    </VRow>
-                  </VCardText>
-                </VCard>
-              </VCol>
-              <VCol
                 cols="12"
                 md="6"
               >
                 <VTextField
                   v-model="selectedStaff.bank_account_number"
-                  label="Bank account number"
+                  :label="$t('common.ui.bankAccountNumber')"
                 />
               </VCol>
               <VCol
@@ -1735,6 +1640,19 @@ onMounted(async () => {
                   :label="$t('common.fields.address')"
                   :error-messages="formErrors.addr"
                   required
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedStaff.status"
+                  :items="[
+                    { title: $t('common.statuses.active'), value: 'active' },
+                    { title: $t('common.statuses.inactive'), value: 'inactive' },
+                  ]"
+                  :label="$t('common.fields.status')"
                 />
               </VCol>
             </VRow>
@@ -1853,8 +1771,8 @@ onMounted(async () => {
             >
               <VSelect
                 v-model="leaveForm.duration_days"
-                :items="[{ title: 'Full day', value: 1 }, { title: 'Half day', value: 0.5 }]"
-                label="Duration"
+                :items="[{ title: $t('pages.paidTimeOff.fullDay'), value: 1 }, { title: $t('pages.paidTimeOff.halfDay'), value: 0.5 }]"
+                :label="$t('pages.paidTimeOff.duration')"
               />
             </VCol>
             <VCol
@@ -1972,54 +1890,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.commission-capabilities {
-  overflow: hidden;
-  border: 1px solid rgba(var(--v-theme-primary), .24);
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(var(--v-theme-primary), .12), rgba(var(--v-theme-surface), .98) 58%) !important;
-  box-shadow: inset 0 1px rgba(var(--v-theme-on-surface), .05);
-}
-
-.commission-capabilities__body {
-  padding: 1.25rem !important;
-}
-
-.commission-capabilities__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-block-end: 1rem;
-}
-
-.commission-capabilities__description {
-  max-inline-size: 620px;
-  margin: .2rem 0 0;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-  font-size: .8rem;
-  line-height: 1.45;
-}
-
-.commission-capabilities__alert {
-  margin-block-end: 1rem;
-}
-
-.commission-capabilities__row {
-  margin: 0 !important;
-  padding: .25rem 0;
-  border-block-start: 1px solid rgba(var(--v-theme-on-surface), .09);
-}
-
-.commission-capabilities__row :deep(.v-col) {
-  padding-block: .65rem;
-}
-
-@media (max-width: 599px) {
-  .commission-capabilities__body { padding: 1rem !important; }
-  .commission-capabilities__header > .v-btn { inline-size: 100%; }
-}
-
 .employee-account-select :deep(.v-field) { background: rgba(var(--v-theme-on-surface), .035); border: 1px solid rgba(var(--v-theme-on-surface), .16); border-radius: 12px; }
 .employee-account-select :deep(.v-field--focused) { border-color: rgb(var(--v-theme-primary)); box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), .12); }
 .account-selection { display: grid; line-height: 1.2; min-width: 0; }

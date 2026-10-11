@@ -32,8 +32,8 @@ class AttendanceController extends Controller
             'status' => ['sometimes', Rule::in(['present', 'absent', 'paid-leave', 'unpaid-leave', 'incomplete'])],
         ]);
 
-        $startDate = $request->input('start_date', now()->format('Y-m-d'));
-        $endDate = $request->input('end_date', now()->format('Y-m-d'));
+        $startDate = $request->input('start_date', now(app(CompanyProfile::class)->timezone())->format('Y-m-d'));
+        $endDate = $request->input('end_date', now(app(CompanyProfile::class)->timezone())->format('Y-m-d'));
 
         // Daily-report contents deliberately stay out of this list query. The
         // timesheet fetches an individual report only when it is opened.
@@ -81,12 +81,19 @@ class AttendanceController extends Controller
         $request->validate(['start_date' => ['sometimes', 'date'], 'end_date' => ['sometimes', 'date', 'after_or_equal:start_date']]);
         $employeeId = $request->user()->employee?->id;
         abort_unless($employeeId, 404, 'Employee profile not found.');
-        $records = Attendance::with(['staff.position', 'office', 'dailyReport'])
-            ->betweenDates($request->input('start_date', now()->startOfMonth()->toDateString()), $request->input('end_date', now()->toDateString()))
+        $records = Attendance::with(['staff.position', 'office'])->withExists('dailyReport')
+            ->betweenDates($request->input('start_date', now(app(CompanyProfile::class)->timezone())->startOfMonth()->toDateString()), $request->input('end_date', now(app(CompanyProfile::class)->timezone())->toDateString()))
             ->where('employee_id', $employeeId)->latest('date')->get();
         $records->each(fn (Attendance $attendance) => $calculator->calculate($attendance));
 
         return AttendanceResource::collection($records);
+    }
+
+    public function ownDailyReport(Request $request, Attendance $attendance): DailyReportResource
+    {
+        abort_unless($request->user()->employee?->id === $attendance->employee_id, 404, 'resource.not_found');
+
+        return $this->dailyReport($attendance);
     }
 
     /**
@@ -121,11 +128,12 @@ class AttendanceController extends Controller
             ? Carbon::parse($validated['date'].' '.$validated['check_in_time'], $timezone)->utc() : null;
         $checkedOutAt = $validated['status'] === 'present' && ! empty($validated['check_out_time'])
             ? Carbon::parse($validated['date'].' '.$validated['check_out_time'], $timezone)->utc() : null;
-        if ($checkedInAt && $checkedOutAt && $checkedOutAt->lte($checkedInAt)) {
+        if ($checkedInAt && $checkedOutAt && $checkedOutAt->lt($checkedInAt)) {
             $checkedOutAt->addDay();
         }
 
-        $attendance = DB::transaction(function () use ($validated, $employee, $checkedInAt, $checkedOutAt) {
+        $attendance = DB::transaction(function () use ($validated, $employee, $checkedInAt, $checkedOutAt, $calculator) {
+            Employee::query()->whereKey($employee->id)->lockForUpdate()->firstOrFail();
             // Attendance is soft-deleted for audit history, while the database
             // keeps a unique employee/date key. Reuse a deleted row instead of
             // colliding with that key when the user records it again.
@@ -148,7 +156,7 @@ class AttendanceController extends Controller
             if ($attendance) {
                 $attendance->fill([
                     'status' => $validated['status'],
-                    'logged_at' => now()->format('H:i:s'),
+                    'logged_at' => now(app(CompanyProfile::class)->timezone())->format('H:i:s'),
                     'check_in_time' => $validated['check_in_time'] ?? null,
                     'check_out_time' => $validated['check_out_time'] ?? null,
                     'checked_in_at' => $checkedInAt,
@@ -162,14 +170,16 @@ class AttendanceController extends Controller
                     $attendance->save();
                 }
 
+                $calculator->calculate($attendance);
+
                 return $attendance;
             }
 
-            return Attendance::create([
+            $attendance = Attendance::create([
                 'employee_id' => $validated['staff_id'],
                 'date' => $validated['date'],
                 'status' => $validated['status'],
-                'logged_at' => now()->format('H:i:s'),
+                'logged_at' => now(app(CompanyProfile::class)->timezone())->format('H:i:s'),
                 'check_in_time' => $validated['check_in_time'] ?? null,
                 'check_out_time' => $validated['check_out_time'] ?? null,
                 'checked_in_at' => $checkedInAt,
@@ -177,9 +187,10 @@ class AttendanceController extends Controller
                 'office_id' => $employee->office_id,
                 'break_minutes' => $validated['break_minutes'] ?? null,
             ]);
-        });
+            $calculator->calculate($attendance);
 
-        $calculator->calculate($attendance, true);
+            return $attendance;
+        });
 
         $attendance->load(['staff.position', 'office']);
 
@@ -196,12 +207,12 @@ class AttendanceController extends Controller
         ]);
 
         $date = $request->input('date');
-        abort_if(Carbon::parse($date)->isFuture(), 422, 'business.future_attendance_not_allowed');
+        abort_if($date > now(app(CompanyProfile::class)->timezone())->toDateString(), 422, 'business.future_attendance_not_allowed');
         if (Carbon::parse($date)->isFriday()) {
             return EmployeeResource::collection(collect());
         }
 
-        $unmarkedStaff = Employee::selectable()->excludePrimaryRecord()->whereDoesntHave('attendances', function ($query) use ($date) {
+        $unmarkedStaff = Employee::selectable()->active()->excludePrimaryRecord()->whereDate('join_date', '<=', $date)->whereDoesntHave('attendances', function ($query) use ($date) {
             $query->where('date', $date)->where(function ($marked) {
                 $marked->whereIn('status', ['present', 'absent'])
                     ->orWhere('leave_duration_days', '>=', 1);
@@ -209,6 +220,38 @@ class AttendanceController extends Controller
         })->get();
 
         return EmployeeResource::collection($unmarkedStaff);
+    }
+
+    /** HR can resolve a missed checkout without deleting the attendance or its leave metadata. */
+    public function correctCheckout(Request $request, Attendance $attendance, CompanyProfile $company, AttendanceCalculationService $calculator): AttendanceResource
+    {
+        $validated = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d'],
+            'time' => ['required', 'date_format:H:i'],
+        ]);
+        $checkout = Carbon::parse($validated['date'].' '.$validated['time'], $company->timezone())->utc();
+        abort_if($checkout->isAfter(now('UTC')), 422, 'business.future_attendance_not_allowed');
+        $attendance = DB::transaction(function () use ($attendance, $checkout, $company, $calculator) {
+            Employee::query()->whereKey($attendance->employee_id)->lockForUpdate()->firstOrFail();
+            $row = Attendance::query()->lockForUpdate()->findOrFail($attendance->id);
+            abort_if($row->status !== 'present' || $row->checked_out_at || $row->check_out_time,
+                409, 'business.workday_attendance_conflict');
+            $checkin = $row->checked_in_at ?: ($row->check_in_time
+                ? Carbon::parse($row->date->toDateString().' '.$row->check_in_time, $company->timezone())->utc() : null);
+            abort_unless($checkin, 422, 'business.workday_not_started');
+            abort_if($checkout->lessThan($checkin) || $checkin->diffInHours($checkout) > 24,
+                422, 'business.attendance_checkout_invalid');
+            $row->update([
+                'checked_out_at' => $checkout,
+                'check_out_time' => $checkout->copy()->timezone($company->timezone())->format('H:i:s'),
+                'check_out_source' => 'hr_correction', 'geofence_exit_detected_at' => null,
+            ]);
+            $calculator->calculate($row);
+
+            return $row;
+        });
+
+        return new AttendanceResource($attendance->load(['staff.position', 'office'])->loadExists('dailyReport'));
     }
 
     /**

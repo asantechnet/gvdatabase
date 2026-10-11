@@ -11,7 +11,7 @@ import { actionWarningState, resolveActionWarning } from '@/composables/useActio
   >
     <VCard
       v-if="actionWarningState.request"
-      data-project-warning-dialog
+      data-form-warning-dialog
       class="action-warning-dialog"
     >
       <VCardText class="pa-6 pb-4">

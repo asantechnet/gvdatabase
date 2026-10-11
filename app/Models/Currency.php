@@ -45,14 +45,9 @@ class Currency extends Model
         });
     }
 
-    public function services()
+    public function applicantContracts()
     {
-        return $this->hasMany(Service::class);
-    }
-
-    public function invoices()
-    {
-        return $this->hasMany(Invoice::class);
+        return $this->hasMany(ApplicantContract::class);
     }
 
     public function salaries()

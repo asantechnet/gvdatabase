@@ -1,20 +1,14 @@
 <?php
 
+use App\Support\BuiltInService;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Contract section. Order within the section: types -> companies -> policies
- * -> templates -> versions -> contracts -> contract_service -> commission
- * recipients -> document designs.
- *
- * FKs deferred to 0001_15_01_000015_add_cross_section_foreign_keys (targets
- * live in later sections):
- *   - contract_templates.service_id        -> services (nullOnDelete)
- *   - contract_document_designs.service_id -> services (cascadeOnDelete)
- *   - contract_service.customer_package_id -> customer_packages (nullOnDelete)
+ * Contract section: types, policies, templates, versions, contracts,
+ * service lines and document designs.
  *
  * The three system contract types (employment / customer / other) are seeded
  * here, exactly as the final historical state left them.
@@ -29,33 +23,6 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('slug')->unique();
             $table->boolean('is_system')->default(false);
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-            $table->softDeletes();
-        });
-
-        Schema::create('companies', function (Blueprint $table) {
-            $table->id();
-            $table->string('legal_name');
-            $table->string('trade_name')->nullable();
-            $table->string('registration_number')->nullable();
-            $table->string('tax_number')->nullable();
-            $table->string('national_id')->nullable();
-            $table->string('legal_form')->nullable();
-            $table->string('email')->nullable();
-            $table->string('phone')->nullable();
-            $table->string('website')->nullable();
-            $table->string('country')->nullable();
-            $table->string('province')->nullable();
-            $table->string('city')->nullable();
-            $table->string('postal_code')->nullable();
-            $table->text('address_line')->nullable();
-            $table->string('industry')->nullable();
-            $table->text('description')->nullable();
-            $table->string('representative_name')->nullable();
-            $table->string('representative_title')->nullable();
-            $table->string('representative_phone')->nullable();
-            $table->string('representative_email')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
@@ -92,8 +59,6 @@ return new class extends Migration
             // below so the index keeps its historical name.
             $table->unsignedBigInteger('position_id')->nullable();
             $table->foreignId('contract_type_id')->nullable()->constrained('contract_types')->nullOnDelete();
-            // FK added in the completion pass (services live in the finance section).
-            $table->unsignedBigInteger('service_id')->nullable()->index('contract_templates_service_id_index');
             $table->string('name');
             $table->text('description')->nullable();
             $table->boolean('is_active')->default(true);
@@ -158,9 +123,6 @@ return new class extends Migration
             $table->foreignId('sold_by_employee_id')->nullable()->constrained('employees')->nullOnDelete();
             $table->foreignId('marketer_id')->nullable()->constrained('employees')->nullOnDelete();
             $table->foreignId('applicant_id')->nullable()->constrained('applicants')->nullOnDelete();
-            // FK added in the completion pass (services live in the finance section).
-            $table->unsignedBigInteger('source_service_id')->nullable()->index('contracts_source_service_id_foreign');
-            $table->foreignId('company_id')->nullable()->constrained('companies')->nullOnDelete();
             $table->foreignId('contract_type_id')->nullable()->constrained('contract_types')->nullOnDelete();
             $table->string('name')->nullable();
             $table->string('type')->nullable();
@@ -184,49 +146,26 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->index('applicant_id', 'contracts_applicant_id_index');
-            $table->index(['applicant_id', 'source_service_id', 'contract_role'], 'contracts_service_primary_index');
         });
 
         Schema::create('contract_service', function (Blueprint $table) {
             $table->id();
             $table->foreignId('contract_id')->constrained('contracts')->cascadeOnDelete();
-            // FK added in the completion pass (services live in the finance section).
-            $table->unsignedBigInteger('service_id')->index('contract_service_service_idx');
             $table->decimal('fee', 15, 2)->nullable();
             $table->foreignId('currency_id')->nullable()->constrained('currencies')->nullOnDelete();
             $table->foreignId('applicant_id')->nullable()->constrained('applicants')->nullOnDelete();
-            // FK added in the completion pass (customer_packages live in the
-            // educational commerce section).
-            $table->unsignedBigInteger('customer_package_id')->nullable()->index('contract_service_customer_package_id_foreign');
             $table->foreignId('sold_by_employee_id')->nullable()->constrained('employees')->nullOnDelete();
             $table->foreignId('marketer_id')->nullable()->constrained('employees')->nullOnDelete();
-            $table->foreignId('outsourcing_company_id')->nullable()->constrained('companies')->nullOnDelete();
-            $table->decimal('outsourcing_percentage', 5, 2)->nullable();
-            $table->foreignId('country_id')->nullable()->constrained('countries')->nullOnDelete();
-            $table->foreignId('education_level_id')->nullable()->constrained('education_levels')->nullOnDelete();
-            $table->foreignId('language_id')->nullable()->constrained('languages')->nullOnDelete();
             $table->text('notes')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
-            $table->unique(['contract_id', 'service_id'], 'contract_service_unique');
-        });
-
-        Schema::create('contract_service_employee', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('contract_service_id')->constrained('contract_service')->cascadeOnDelete();
-            $table->foreignId('employee_id')->constrained('employees')->cascadeOnDelete();
-            $table->decimal('percentage', 5, 2)->nullable();
-            $table->timestamps();
-
-            $table->unique(['employee_id', 'contract_service_id'], 'contract_service_employee_unique');
         });
 
         Schema::create('contract_document_designs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('contract_type_id')->constrained('contract_types')->cascadeOnDelete();
-            // FK added in the completion pass (services live in the finance section).
-            $table->unsignedBigInteger('service_id')->nullable()->index('contract_document_designs_service_id_foreign');
+            $table->enum('service', BuiltInService::ALL)->nullable();
             $table->string('letterhead')->nullable();
             $table->string('cover_design')->nullable();
             $table->decimal('safe_x', 5, 2)->default(8.50);
@@ -235,22 +174,19 @@ return new class extends Migration
             $table->decimal('safe_height', 5, 2)->default(70.00);
             $table->timestamps();
             $table->softDeletes();
-
-            $table->unique(['contract_type_id', 'service_id'], 'contract_design_type_service_unique');
+            $table->unique(['contract_type_id', 'service'], 'contract_design_type_service_unique');
         });
     }
 
     public function down(): void
     {
         Schema::dropIfExists('contract_document_designs');
-        Schema::dropIfExists('contract_service_employee');
         Schema::dropIfExists('contract_service');
         Schema::dropIfExists('contracts');
         Schema::dropIfExists('contract_template_versions');
         Schema::dropIfExists('contract_policy_contract_template');
         Schema::dropIfExists('contract_templates');
         Schema::dropIfExists('contract_policies');
-        Schema::dropIfExists('companies');
         Schema::dropIfExists('contract_types');
     }
 };

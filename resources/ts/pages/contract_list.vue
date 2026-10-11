@@ -1,25 +1,28 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import ErpField from '@/components/erp/ErpField.vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import ContractCover from './templates/contract_cover_template.vue'
 import ContractPageTemplate, { type CompanyDetails } from './templates/contract_page_template.vue'
 import ContractApi from '@/api/contracts'
 import ContractTemplateApi from '@/api/contractTemplate'
-import type { Contract, ContractServiceLine } from '@/api/contracts'
+import type { Contract } from '@/api/contracts'
 import SettingApi, { type Setting } from '@/api/setting'
 import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
-import ServiceApi from '@/api/services'
 import { useContracts } from '@/composables/useContracts'
 import { legacyContentToHtml } from '@/utils/contractPlaceholders'
 import { printDocument } from '@/utils/printDocument'
 import { canPrintPartyDetails, partyDetailsFor } from '@/utils/contractPartyDetails'
+import { buildContractPrintHeader, canPrintContractHeader } from '@/composables/useContractPrintHeader'
 
 const props = withDefaults(defineProps<{
-  contractAudience?: 'customers' | 'employees' | 'other'
+  contractAudience?: 'employees' | 'other'
 }>(), {
-  contractAudience: 'customers',
+  contractAudience: 'other',
 })
 
 const route = useRoute()
@@ -27,7 +30,6 @@ const router = useRouter()
 const { t } = useI18n()
 
 const currentListRoute = () => ({
-  customers: 'contracts',
   employees: 'employee-contracts',
   other: 'other-contracts',
 }[props.contractAudience])
@@ -46,6 +48,8 @@ const {
 
 const search = ref('')
 const filterCounterparty = ref<string | null>(null)
+const dateFrom = ref('')
+const dateTo = ref('')
 const filterStatus = ref<string | null>(null)
 const isDialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit'>('add')
@@ -58,64 +62,25 @@ const includeSignatureSection = ref(true)
 const includeCustomCover = ref(true)
 const includeCustomLetterhead = ref(true)
 const includePartyDetails = ref(false)
+const includeContractHeader = ref(false)
 const contractToPrint = ref<Contract | null>(null)
 
-// Our-company signatory: prefilled with the stored contract value, falling
-// back to the logged-in employee's name so the popup is never empty.
-const userData = useCookie<{ id?: number; name?: string; roles?: string[]; employee?: { id: number; name?: string } | null } | null>('userData')
-const isSuperAdmin = computed(() => userData.value?.roles?.includes('super_admin') ?? false)
-const currentEmployeeName = computed(() =>
-  String(userData.value?.employee?.name ?? '').trim()
-  || String(userData.value?.name ?? '').trim()
-  || null,
-)
-const printSignatoryName = ref('')
 const combinedPrintRef = ref<HTMLElement | null>(null)
 const isPrintLoading = ref(false)
 const isCancelling = ref(false)
 const toast = useToast()
 const isContractActionDialogVisible = ref(false)
 const pendingContractAction = ref<{ type: 'delete' | 'cancel'; contract: Contract } | null>(null)
-const selectedServiceId = computed(() => {
-  const value = Number(route.query.serviceId)
-  return Number.isSafeInteger(value) && value > 0 ? value : null
-})
-const isWithoutService = computed(() => route.query.withoutService === '1')
-const customerIdQuery = computed(() => {
-  const value = Number(route.query.customerId)
-  return Number.isSafeInteger(value) && value > 0 ? value : null
-})
-const selectedServiceName = computed(() => typeof route.query.serviceName === 'string' ? route.query.serviceName : null)
-const serviceFilterId = computed({
-  get: () => selectedServiceId.value,
-  set: (value: number | null) => {
-    router.replace({ query: { ...route.query, ...(value ? { serviceId: String(value) } : { serviceId: undefined }) } })
-  },
-})
-const contractRequest = computed(() => ({
-  audience: props.contractAudience,
-  ...(selectedServiceId.value ? { service_id: selectedServiceId.value } : {}),
-  ...(isWithoutService.value ? { without_service: 1 as const } : {}),
-}))
-const pageTitle = computed(() => selectedServiceName.value
-  ? t('pages.contracts.allContracts.allContracts.serviceContracts', { service: selectedServiceName.value })
-  : isWithoutService.value
-    ? t('pages.contracts.allContracts.allContracts.unassignedContracts')
-    : t(audienceCopy.value.title))
-const pageDescription = computed(() => selectedServiceName.value
-  ? t('pages.contracts.allContracts.allContracts.serviceContractsDescription', { service: selectedServiceName.value })
-  : t(audienceCopy.value.description))
+const contractRequest = computed(() => ({ audience: props.contractAudience }))
+const pageTitle = computed(() => t(audienceCopy.value.title))
+const pageDescription = computed(() => t(audienceCopy.value.description))
 
 const counterparties = computed(() => [...new Set(contracts.value.map(c => c.counterparty).filter(c => c))])
 const statuses = ['draft', 'active', 'completed', 'terminated', 'cancelled']
 const canShowPartyDetails = computed(() => contractToPrint.value !== null && canPrintPartyDetails(contractToPrint.value))
-const serviceFilterOptions = ref<Array<{ title: string; value: number }>>([])
+const canShowContractHeader = computed(() => contractToPrint.value !== null && canPrintContractHeader(contractToPrint.value))
+const contractHeader = computed(() => (contractToPrint.value ? buildContractPrintHeader(contractToPrint.value) : null))
 const audienceCopy = computed(() => ({
-  customers: {
-    title: 'pages.contracts.allContracts.allContracts.customerContracts',
-    description: 'pages.contracts.allContracts.allContracts.customerContractsDescription',
-    report: 'pages.contracts.allContracts.allContracts.customerContractsReport',
-  },
   employees: {
     title: 'pages.contracts.allContracts.allContracts.employeeContracts',
     description: 'pages.contracts.allContracts.allContracts.employeeContractsDescription',
@@ -160,9 +125,8 @@ const filtered = computed(() => {
 const headers = computed(() => [
   { title: t('common.messages.contractNumber'), key: 'contract_number', sortable: true },
   { title: t('common.messages.contract'), key: 'contract', sortable: true },
-  { title: t('common.fields.type'), key: 'type', sortable: true },
+  { title: t('agencyStaff.contractVersion'), key: 'version', sortable: true },
   { title: t('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true },
-  { title: t('common.messages.services'), key: 'service', sortable: false },
   { title: t('common.fields.startDate'), key: 'start_date', sortable: true },
   { title: t('common.fields.status'), key: 'status', sortable: true },
   { title: t('common.messages.actions'), key: 'actions', sortable: false },
@@ -171,9 +135,8 @@ const headers = computed(() => [
 const contractReportRow = (contract: Contract) => [
   contract.contract_number,
   contract.contract || contract.contract_template?.name,
-  contract.type || contract.contract_template?.type,
+  contract.snapshot_data?.template_version?.name || '—',
   contract.counterparty,
-  contract.services?.map(line => line.service?.name || line.service?.type).filter(Boolean).join(', ') || '—',
   contract.start_date,
   contract.status,
 ]
@@ -279,20 +242,20 @@ const printContract = async (contract: Contract) => {
     }
 
     contractToPrint.value = printable
-    printSignatoryName.value = String(printable.company_signatory_name ?? '').trim() || currentEmployeeName.value || ''
     includeEmptyLastPage.value = false
     includeSignatureSection.value = true
     includePartyDetails.value = false
+    includeContractHeader.value = false
     isPrintDialogVisible.value = true
   }
   catch (err) {
     console.error('Failed to load contract template:', err)
     toast.warning(translate('pages.contracts.allContracts.allContracts.failedToLoadContractTemplateUsingDefaultContent'))
     contractToPrint.value = contract
-    printSignatoryName.value = String(contract.company_signatory_name ?? '').trim() || currentEmployeeName.value || ''
     includeEmptyLastPage.value = false
     includeSignatureSection.value = true
     includePartyDetails.value = false
+    includeContractHeader.value = false
     isPrintDialogVisible.value = true
   }
   finally {
@@ -300,172 +263,9 @@ const printContract = async (contract: Contract) => {
   }
 }
 
-const executePrint = () => {
-  if (!combinedPrintRef.value || !contractToPrint.value)
-    return
-
-  const printWindow = window.open('', '_blank', 'width=900,height=1100')
-  if (!printWindow) {
-    toast.warning(translate('common.messages.couldNotOpenPrintWindowPleaseAllowPopUpsForThisSite'))
-
-    return
-  }
-
-  const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-    .map(el => el.outerHTML)
-    .join('\n')
-
-  const printContent = combinedPrintRef.value.innerHTML
-
-  printWindow.document.open()
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>${contractToPrint.value.contract_number} - ${contractToPrint.value.contract || contractToPrint.value.contract_template?.name || translate('pages.contracts.allContracts.allContracts.untitledContract')}</title>
-        ${styles}
-        <style>
-          @media print {
-            @page {
-              size: A4;
-              margin: 0 !important;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              background: #fff;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            .contract-cover {
-              position: relative !important;
-              width: 210mm !important;
-              height: 297mm !important;
-              max-width: none !important;
-              margin: 0 !important;
-              box-shadow: none !important;
-              page-break-after: always !important;
-              break-after: page !important;
-              display: flex !important;
-            }
-            .custom-cover-page {
-              position: relative !important;
-              width: 210mm !important;
-              height: 297mm !important;
-              margin: 0 !important;
-              page-break-after: always !important;
-              break-after: page !important;
-              overflow: hidden !important;
-            }
-            .custom-cover-page img { width: 100% !important; height: 100% !important; object-fit: cover !important; display: block !important; }
-            .contract-page-container {
-              position: relative !important;
-              width: 210mm !important;
-              height: 296mm !important;
-              max-height: 296mm !important;
-              margin: 0 !important;
-              padding: 16mm 18mm 12mm 18mm !important;
-              box-shadow: none !important;
-              page-break-after: always !important;
-              break-after: page !important;
-              box-sizing: border-box !important;
-              display: flex !important;
-              flex-direction: column !important;
-              justify-content: space-between !important;
-              overflow: hidden !important;
-            }
-            .empty-print-page {
-              width: 210mm !important;
-              height: 297mm !important;
-              page-break-after: always !important;
-              break-after: page !important;
-              background: #ffffff !important;
-              display: block !important;
-            }
-            /* Additional print styles for contract content */
-            .contract-content {
-              font-family: 'Vazirmatn', 'Noto Sans Arabic', Tahoma, sans-serif;
-              line-height: 1.6;
-              color: #333;
-            }
-            .contract-content h1,
-            .contract-content h2,
-            .contract-content h3 {
-              color: #222;
-              margin-top: 1.5em;
-              margin-bottom: 0.5em;
-            }
-            .contract-content p {
-              margin-bottom: 1em;
-            }
-            .contract-content ul,
-            .contract-content ol {
-              margin-bottom: 1em;
-              padding-inline-start: 2em;
-            }
-            .contract-content table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 1em 0;
-            }
-            .contract-content th,
-            .contract-content td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              text-align: left;
-            }
-            .contract-content th {
-              background-color: #f2f2f2;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="multi-page-print-wrapper">
-          ${printContent}
-        </div>
-        <script>
-          window.onload = () => {
-            const pages = document.querySelectorAll('.contract-page-container');
-            pages.forEach(page => {
-              let zoom = 1.0;
-              while (page.scrollHeight > page.clientHeight && zoom > 0.80) {
-                zoom -= 0.02;
-                page.style.zoom = zoom;
-              }
-            });
-
-            const images = document.images;
-            let loaded = 0;
-            if (images.length === 0) {
-              triggerPrint();
-              return;
-            }
-            const checkDone = () => {
-              loaded++;
-              if (loaded === images.length) triggerPrint();
-            };
-            for (let i = 0; i < images.length; i++) {
-              if (images[i].complete) {
-                checkDone();
-              } else {
-                images[i].addEventListener('load', checkDone);
-                images[i].addEventListener('error', checkDone);
-              }
-            }
-          };
-          function triggerPrint() {
-            setTimeout(() => {
-              window.focus();
-              window.print();
-              window.close();
-            }, 300);
-          }
-        <\/script>
-      </body>
-    </html>
-  `)
-  printWindow.document.close()
+const executePrint = async () => {
+  if (!combinedPrintRef.value) return
+  await printDocument({ bodyClass: 'printing-contract-document', pageStyle: 'size: A4; margin: 0;', element: combinedPrintRef.value })
   isPrintDialogVisible.value = false
 }
 
@@ -481,7 +281,6 @@ const addNew = () => {
     counterparty: '',
     is_cancelled: false,
     template_id: templates.value[0]?.id || 0,
-    company_id: null,
   }
   isDialogVisible.value = true
 }
@@ -513,7 +312,7 @@ const confirmContractAction = async () => {
     else {
       isCancelling.value = true
       await ContractApi.cancel(action.contract.id)
-      await fetchContracts(contractRequest.value)
+      await fetchContracts({ ...contractRequest.value, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined })
       toast.success(translate('pages.contracts.allContracts.allContracts.contractCancelled'))
     }
   }
@@ -555,15 +354,13 @@ const handleFormSubmit = async (contractData: ContractFormPayload) => {
 
 onMounted(async () => {
   await Promise.all([
-    fetchContracts(contractRequest.value),
+    fetchContracts({ ...contractRequest.value, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined }),
     fetchTemplates(),
   ])
   templates.value = templates.value.filter(template =>
     props.contractAudience === 'employees'
       ? template.type_slug === 'employment'
-      : props.contractAudience === 'customers'
-        ? template.type_slug === 'customer'
-        : template.type_slug !== 'employment' && template.type_slug !== 'customer',
+      : template.type_slug !== 'employment' && template.type_slug !== 'customer',
   )
 
   const employeeId = Number(route.query.employeeId)
@@ -573,7 +370,7 @@ onMounted(async () => {
       await printContract(contract)
     else toast.warning(translate('pages.contracts.allContracts.allContracts.noActiveEmploymentContractFound'))
   }
-  if (route.query.action === 'create' && (Number(route.query.companyId) || customerIdQuery.value)) {
+  if (route.query.action === 'create') {
     addNew()
     await router.replace({ name: currentListRoute() })
   }
@@ -590,15 +387,6 @@ onMounted(async () => {
       search.value = contract.contract_number || contract.counterparty || contract.contract
   }
   try {
-    const serviceResult = await ServiceApi.getAll()
-    serviceFilterOptions.value = serviceResult.data
-      .filter(service => service.status === 'active')
-      .map(service => ({ title: service.name || service.type, value: service.id }))
-  }
-  catch {
-    // Service filter stays empty; the table still renders.
-  }
-  try {
     companySetting.value = (await SettingApi.getCompanyProfile()).data
   }
   catch {
@@ -606,35 +394,29 @@ onMounted(async () => {
   }
 })
 
-watch([selectedServiceId, isWithoutService], () => fetchContracts(contractRequest.value))
-
-// Fill the signatory once the employee name resolves if the popup opened
-// before it was available.
-watch(currentEmployeeName, name => {
-  if (isPrintDialogVisible.value && !printSignatoryName.value && name)
-    printSignatoryName.value = name
-})
 </script>
 
 <template>
-  <DataTablePageKpis
-    :items="filtered"
-    :title="pageTitle"
-    :description="pageDescription"
-    icon="tabler-file-description"
-  />
+  <div class="erp-workspace">
+  <ErpPageHeader :title="pageTitle" section="contracts" />
   <VCard>
     <VCardText>
       <VRow
         align="center"
         class="table-toolbar"
       >
+
         <VCol
           cols="12"
-          md="4"
+          md="8"
           lg="6"
+          class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2 ms-auto"
         >
-          <VTextField
+          <DataTableFilterMenu
+            :active="Boolean(search || filterCounterparty || filterStatus || dateFrom || dateTo)"
+            @reset="search = ''; filterCounterparty = null; filterStatus = null; dateFrom = ''; dateTo = ''; fetchContracts(contractRequest)"
+          >
+            <VTextField
             v-model="search"
             class="data-table-search"
             prepend-inner-icon="tabler-search"
@@ -643,31 +425,7 @@ watch(currentEmployeeName, name => {
             clearable
             hide-details
           />
-        </VCol>
-        <VCol
-          v-if="contractAudience === 'customers'"
-          cols="12"
-          md="3"
-        >
-          <VSelect
-            v-model="serviceFilterId"
-            :items="serviceFilterOptions"
-            :label="$t('common.navigation.services')"
-            density="compact"
-            clearable
-            hide-details
-          />
-        </VCol>
-        <VCol
-          cols="12"
-          md="5"
-          lg="3"
-          class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2"
-        >
-          <DataTableFilterMenu
-            :active="Boolean(filterCounterparty || filterStatus)"
-            @reset="filterCounterparty = null; filterStatus = null"
-          >
+            <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" class="mb-4" @apply="fetchContracts({ ...contractRequest, date_from: dateFrom || undefined, date_to: dateTo || undefined })" />
             <VSelect
               v-model="filterCounterparty"
               :items="counterparties"
@@ -730,8 +488,10 @@ watch(currentEmployeeName, name => {
       mobile-breakpoint="sm"
       :loading="isLoading"
       :loading-text="$t('pages.contracts.allContracts.allContracts.loadingContracts')"
+      :no-data-text="$t('pages.contracts.allContracts.allContracts.noContracts')"
       style="overflow-x: auto;"
     >
+      <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
       <template #item.contract="{ item }">
         {{ item.contract || item.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract') }}
         <VChip
@@ -745,9 +505,6 @@ watch(currentEmployeeName, name => {
       </template>
       <template #item.counterparty="{ item }">
         {{ item.counterparty || $t('pages.contracts.allContracts.allContracts.unknownCounterparty') }}
-      </template>
-      <template #item.service="{ item }">
-        {{ item.services?.map((line: ContractServiceLine) => line.service?.name || line.service?.type).filter(Boolean).join(', ') || '—' }}
       </template>
       <template #item.start_date="{ item }">
         {{ formatLocalizedDate(item.start_date) }}
@@ -839,9 +596,8 @@ watch(currentEmployeeName, name => {
 
   <!-- Contract Form Dialog -->
   <VDialog
-    v-model="isDialogVisible"
+    v-model="isDialogVisible" class="erp-form"
     max-width="600px"
-    persistent
   >
     <VCard>
       <VCardTitle>
@@ -906,13 +662,6 @@ watch(currentEmployeeName, name => {
             || $t('pages.contracts.allContracts.allContracts.untitledContract') }}</strong> {{ $t('pages.contracts.allContracts.allContracts.forA4PrintingTheDocumentWillIncludeTheCoverPageAndAllContractTerms') }}
         </p>
         <div class="d-flex flex-column gap-2">
-          <VTextField
-            v-model="printSignatoryName"
-            :label="$t('pages.contracts.contractform.contractform.signatory')"
-            :hint="$t(isSuperAdmin ? 'pages.contracts.contractform.contractform.signatoryHint' : 'pages.contracts.contractform.contractform.signatoryLockedHint')"
-            persistent-hint
-            density="compact"
-          />
           <VCheckbox
             v-model="includeSignatureSection"
             :label="$t('pages.contracts.allContracts.allContracts.includeFormalSignatureStampSectionAtTheEnd')"
@@ -937,6 +686,15 @@ watch(currentEmployeeName, name => {
             :label="$t('pages.contracts.shared.includePartyDetails')"
             density="compact"
             hide-details
+          />
+          <VCheckbox
+            v-if="canShowContractHeader"
+            v-model="includeContractHeader"
+            :label="$t('pages.contracts.shared.header.includeContractHeader')"
+            :hint="$t('pages.contracts.shared.header.includeContractHeaderHint')"
+            density="compact"
+            hide-details
+            persistent-hint
           />
           <VCheckbox
             v-model="includeEmptyLastPage"
@@ -1009,13 +767,13 @@ watch(currentEmployeeName, name => {
         v-for="(pageHtml, idx) in getContractPagesHtml(contractToPrint)"
         :key="idx"
         :document-number="contractToPrint.contract_number || ''"
-            :document-title="printedContractTitle"
-        :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }"
+            :document-title="printedContractTitle"            :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }"
+        :header-details="includeContractHeader && idx === 0 ? contractHeader : null"
         :html-content="pageHtml"
         :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: idx + (includePartyDetails && canShowPartyDetails ? 2 : 1), total: getContractPagesHtml(contractToPrint).length + (includePartyDetails && canShowPartyDetails ? 1 : 0) })"
         :show-signature="includeSignatureSection && idx === getContractPagesHtml(contractToPrint).length - 1"
         :contractee-name="contractToPrint.counterparty || ''"
-        :company-signatory-name="printSignatoryName || contractToPrint.company_signatory_name || null"
+        :company-signatory-name="contractToPrint.company_signatory_name || null"
         :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"
         class="contract-content"
       />
@@ -1026,5 +784,6 @@ watch(currentEmployeeName, name => {
         style="width: 210mm; height: 297mm; background: white;"
       />
     </template>
+  </div>
   </div>
 </template>

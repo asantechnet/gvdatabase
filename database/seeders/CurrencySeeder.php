@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Currency;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Seeder;
 
 class CurrencySeeder extends Seeder
 {
@@ -13,15 +12,6 @@ class CurrencySeeder extends Seeder
      */
     public function run(): void
     {
-        // Disable foreign key checks temporarily
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-
-        // Clear existing currencies
-        Currency::query()->delete();
-
-        // Reset auto-increment
-        DB::statement('ALTER TABLE currencies AUTO_INCREMENT = 1');
-
         // AFN is the safe operational default for an Afghanistan-based firm.
         // Foreign currencies start inactive because their rates must be reviewed
         // by finance before they can be used for immutable transaction snapshots.
@@ -127,12 +117,14 @@ class CurrencySeeder extends Seeder
             ],
         ];
 
-        // Create currencies
+        $hasBase = Currency::query()->where('is_base', true)->exists();
         foreach ($currencies as $currency) {
-            Currency::create($currency);
+            if ($currency['is_base'] && $hasBase) {
+                $currency['is_base'] = false;
+                $currency['is_active'] = false;
+            }
+            $record = Currency::withTrashed()->firstOrCreate(['code' => $currency['code']], $currency);
+            $hasBase = $hasBase || ($record->is_base && ! $record->trashed());
         }
-
-        // Re-enable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     }
 }

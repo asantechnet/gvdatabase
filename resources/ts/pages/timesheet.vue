@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { VAlert, VAvatar, VBtn, VCard, VCardText, VChip, VCol, VDialog, VIcon, VRow, VSelect } from 'vuetify/components'
@@ -8,6 +9,9 @@ import AttendanceApi, { type Attendance, type DailyReport, type UnmarkedStaff } 
 import EmployeeApi, { type Employee } from '@/api/employee'
 import OfficeApi, { type Office } from '@/api/office'
 import SettingApi from '@/api/setting'
+import { calendarDate } from '@/utils/calendarDate'
+import { canAccess } from '@/utils/authorization'
+import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 
 // Operational Date Range States (For Filter & Printing)
 const startDate = ref<string>(new Date().toISOString().substring(0, 10))
@@ -42,6 +46,35 @@ const selectedReport = ref<DailyReport | null>(null)
 const reportError = ref<string | null>(null)
 const { locale } = useI18n()
 
+const correctionTarget = ref<Attendance | null>(null)
+const correctionOpen = ref(false)
+const correcting = ref(false)
+const correctionDate = ref('')
+const correctionTime = ref('')
+const correctionError = ref('')
+function openCorrection(record: Attendance) {
+  correctionTarget.value = record
+  correctionDate.value = record.date
+  correctionTime.value = ''
+  correctionError.value = ''
+  correctionOpen.value = true
+}
+async function correctCheckout() {
+  if (!correctionTarget.value || correcting.value) return
+  correcting.value = true
+  correctionError.value = ''
+  try {
+    await AttendanceApi.correctCheckout(correctionTarget.value.id, { date: correctionDate.value, time: correctionTime.value })
+    correctionOpen.value = false
+    await fetchAttendanceRecords()
+    window.dispatchEvent(new Event('workday-status-changed'))
+  }
+  catch (error) {
+    correctionError.value = Object.values(apiFieldErrors(error))[0] || apiErrorMessage(error as Parameters<typeof apiErrorMessage>[0])
+  }
+  finally { correcting.value = false }
+}
+
 // Fetch attendance records within the date range
 const fetchAttendanceRecords = async () => {
   try {
@@ -73,7 +106,7 @@ const fetchUnmarkedStaff = async () => {
     unmarkedStaff.value = response.map(staff => ({
       id: staff.id,
       name: staff.name,
-      position: staff.position || staff.role || 'Unassigned',
+      position: staff.position || staff.role || translate('common.crmUi.unassigned'),
     }))
   }
   catch (err) {
@@ -168,6 +201,7 @@ const viewDailyReport = async (attendance: Attendance) => {
 const printTimesheet = () => {
   void printDocument({
     bodyClass: 'printing-timesheet',
+    element: document.querySelector<HTMLElement>('.timesheet-print-host'),
     pageStyle: 'size: A4 portrait; margin: 0;',
   })
 }
@@ -252,6 +286,10 @@ onMounted(async () => {
 
   employees.value = employeeResponse.data.data
   offices.value = officeResponse
+  const today = calendarDate(settingResponse.data?.timezone || 'UTC')
+  startDate.value = today
+  endDate.value = today
+  logDate.value = today
   checkInTime.value = settingResponse.data?.office_open_time || ''
   checkOutTime.value = settingResponse.data?.office_close_time || ''
   breakMinutes.value = settingResponse.data?.default_break_minutes || 0
@@ -489,7 +527,7 @@ watch(logDate, async () => {
               variant="tonal"
               class="mb-4"
             >
-              Friday is the Afghanistan weekend. Attendance is not required or recorded today.
+              {{ $t('common.ui.fridayIsTheAfghanistanWeekendAttendanceIsNotRequiredOrRecordedToday') }}
             </VAlert>
 
             <!-- Dropdown Staff Selection -->
@@ -676,7 +714,7 @@ watch(logDate, async () => {
             />
             <VSelect
               v-model="statusFilter"
-              :items="[{ title: translate('common.statuses.present'), value: 'present' }, { title: translate('pages.attendance.timesheet.timesheet.absent'), value: 'absent' }, { title: translate('pages.attendance.timesheet.timesheet.paidLeave'), value: 'paid-leave' }, { title: 'Unpaid leave', value: 'unpaid-leave' }, { title: translate('pages.attendance.timesheet.timesheet.incomplete'), value: 'incomplete' }]"
+              :items="[{ title: translate('common.statuses.present'), value: 'present' }, { title: translate('pages.attendance.timesheet.timesheet.absent'), value: 'absent' }, { title: translate('pages.attendance.timesheet.timesheet.paidLeave'), value: 'paid-leave' }, { title: $t('documents.timesheet.statuses.unpaid-leave'), value: 'unpaid-leave' }, { title: translate('pages.attendance.timesheet.timesheet.incomplete'), value: 'incomplete' }]"
               :label="$t('common.fields.status')"
               clearable
               class="mb-2"
@@ -794,7 +832,7 @@ watch(logDate, async () => {
                         variant="tonal"
                         class="ml-2"
                       >
-                        Weekend
+                        {{ $t('common.ui.weekend') }}
                       </VChip>
                     </td>
 
@@ -936,6 +974,15 @@ watch(logDate, async () => {
                         </VTooltip>
                       </VBtn>
                       <VBtn
+                        v-if="record.status === 'present' && !record.checked_out_at && !record.check_out_time && (record.checked_in_at || record.check_in_time) && canAccess('record_attendance')"
+                        icon="tabler-clock-edit"
+                        variant="text"
+                        color="warning"
+                        size="small"
+                        :aria-label="$t('components.account.workday.correctCheckout')"
+                        @click="openCorrection(record)"
+                      />
+                      <VBtn
                         icon="tabler-trash"
                         variant="text"
                         color="error"
@@ -960,6 +1007,24 @@ watch(logDate, async () => {
         </VCol>
       </VRow>
     </div>
+
+    <VDialog v-model="correctionOpen" :persistent="correcting" max-width="560">
+      <VCard>
+        <VCardTitle>{{ $t('components.account.workday.correctCheckout') }}</VCardTitle>
+        <VCardText>
+          <p>{{ correctionTarget?.name }} — {{ correctionTarget?.date }}</p>
+          <p class="text-body-2">{{ $t('components.account.workday.correctionDescription', { timezone: correctionTarget?.timezone }) }}</p>
+          <VAlert v-if="correctionError" type="error" variant="tonal" class="mb-4">{{ correctionError }}</VAlert>
+          <VTextField v-model="correctionDate" type="date" :label="$t('components.account.workday.checkoutDate')" class="mb-3" />
+          <VTextField v-model="correctionTime" type="time" :label="$t('components.account.workday.checkoutTime')" />
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn :disabled="correcting" @click="correctionOpen = false">{{ $t('common.actions.cancel') }}</VBtn>
+          <VBtn color="primary" :loading="correcting" :disabled="!correctionDate || !correctionTime" @click="correctCheckout">{{ $t('common.actions.save') }}</VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
 
     <VDialog
       v-model="reportDialogOpen"

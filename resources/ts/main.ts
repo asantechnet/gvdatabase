@@ -3,9 +3,8 @@ import { createApp } from 'vue'
 import Toast from 'vue-toastification'
 import App from '@/App.vue'
 
-// import ckeditor from "@ckeditor/ckeditor5-vue";
-import * as Api from '@/api'
 import { registerPlugins } from '@core/utils/plugins'
+import { getInitialLocale, loadLocale } from '@/plugins/i18n'
 
 // Styles
 import '@core-scss/template/index.scss'
@@ -36,14 +35,13 @@ window.addEventListener('blur', () => document.documentElement.classList.remove(
 // Create vue app
 const app = createApp(App)
 
-// app.use(ckeditor);
-
 // Register plugins
 registerPlugins(app)
 app.use(Toast, { timeout: 5000, closeOnClick: true })
 
-// Register API modules globally
-app.config.globalProperties.$api = Api
-
-// Mount vue app
-app.mount('#app')
+// Every locale except `en` is loaded on demand, so make sure the persisted
+// locale and its fallback chain are present before the first paint. If a chunk
+// fails we still mount; the eager `en` messages carry the view.
+loadLocale(getInitialLocale())
+  .catch(() => false)
+  .finally(() => app.mount('#app'))

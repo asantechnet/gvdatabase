@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\PresentsAttachments;
 use App\Http\Resources\Concerns\PresentsCurrentBaseMoney;
+use App\Support\BuiltInService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,16 +15,38 @@ class IncomeResource extends JsonResource
     public function toArray(Request $request): array
     {
         $currency = $this->resource->incomeCurrency;
+        $line = $this->resource->relationLoaded('applicantContract') ? $this->applicantContract : null;
 
         return [
             'id' => $this->id,
             'receipt_number' => $this->receipt_number,
             'attachments' => $this->attachmentsPayload('incomes', $this->id),
             'applicant_id' => $this->applicant_id,
-            'invoice_id' => $this->invoice_id,
+            'applicant_contract_id' => $this->applicant_contract_id,
+            'contract_service' => $line ? [
+                'id' => $line->id,
+                'contract_id' => $line->contract_id,
+                'contract_number' => $line->contract?->contract_number,
+                'service' => $line->serviceKey(),
+                'service_label' => $line->serviceLabel(),
+                'service_label_key' => BuiltInService::labelKey($line->serviceKey()),
+                'fee' => (float) ($line->fee ?? 0),
+                'discount' => (float) ($line->discount ?? 0),
+                'payable_total' => $line->payableTotal(),
+                'amount_paid' => (float) ($line->amount_paid ?? 0),
+                'remaining_total' => $line->remainingTotal(),
+                'payment_status' => $line->payment_status,
+                'payment_status_label' => $line->paymentStatusLabel(),
+                'currency' => $line->currency ? [
+                    'id' => $line->currency->id,
+                    'code' => $line->currency->code,
+                    'symbol' => $line->currency->symbol,
+                    'rate' => (float) $line->currency->rate,
+                    'decimalPlaces' => (int) $line->currency->decimal_places,
+                ] : null,
+            ] : null,
             'currency_id' => $this->currency_id,
             'base_currency_id' => $this->base_currency_id,
-            'invoice_number' => $this->invoice?->invoice_number,
             'type' => $this->type,
             'description' => $this->description,
             'amount' => (float) $this->amount,
@@ -41,7 +64,6 @@ class IncomeResource extends JsonResource
             'base_amount' => (float) $this->base_amount,
             'currentBaseAmount' => $this->currentBaseAmount((float) $this->amount * (int) $this->quantity, $currency),
             'currentBaseCurrency' => $this->currentBaseCurrencyData(),
-            'invoice_amount' => $this->invoice_amount === null ? null : (float) $this->invoice_amount,
             'recorded_by' => $this->recorded_by,
             'recordedBy' => $this->whenLoaded('recorder', fn () => $this->recorder ? ['id' => $this->recorder->id, 'name' => $this->recorder->name] : null),
             'date' => $this->date->toDateString(),

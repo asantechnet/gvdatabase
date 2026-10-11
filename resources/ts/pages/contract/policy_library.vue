@@ -1,13 +1,16 @@
 <script setup lang="ts">
+import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import { type PlaceholderGroup, getPlaceholders } from '@/api/contractPlaceholders'
 import ContractPolicyApi, { type ContractPolicy, type ContractPolicyPayload } from '@/api/contractPolicy'
 import ContractTypeApi, { type ContractType } from '@/api/contractType'
+import { canAccess } from '@/utils/authorization'
+import PositionApi, { type Position } from '@/api/position'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import ContractContentEditor from '@/components/contract/ContractContentEditor.vue'
-import { extractPlaceholderKeys, hydratePlaceholders, legacyContentToHtml, serializePlaceholders } from '@/utils/contractPlaceholders'
+import { extractPlaceholderKeys, hydratePlaceholders, legacyContentToHtml, localizePlaceholderGroups, serializePlaceholders } from '@/utils/contractPlaceholders'
 import { translateContractPolicyType } from '@/utils/localization'
 
 const { t } = useI18n()
@@ -20,10 +23,18 @@ const loading = ref(false)
 const dialog = ref(false)
 const editing = ref<ContractPolicy | null>(null)
 const editorRef = ref<InstanceType<typeof ContractContentEditor> | null>(null)
-const form = ref<ContractPolicyPayload>({ label: '', type: 'employment', country_id: null, language_id: null, is_active: true, header: '', content: '' })
+const form = ref<ContractPolicyPayload>({ label: '', type: 'employment', service: null, position_id: null, country_id: null, language_id: null, is_active: true, header: '', content: '' })
 const countries = ref<MasterDataRecord[]>([])
 const languages = ref<MasterDataRecord[]>([])
+const positions = ref<Position[]>([])
+const serviceFilter = ref<string | null>(null)
+const positionFilter = ref<number | null>(null)
+// Academy is not offered in Templates & Policies; it is ensured by a hidden seeded template.
+const serviceItems = computed(() => ['private', 'scholarship', 'test_offer'].map(value => ({ value, title: t(`educational.builtInServices.${value === 'test_offer' ? 'testOffer' : value}`) })))
 const search = ref('')
+const dateFrom = ref('')
+const dateTo = ref('')
+const resetFilters = () => { search.value = ''; dateFrom.value = ''; dateTo.value = ''; serviceFilter.value = null; positionFilter.value = null; typeFilter.value = null; countryFilter.value = null; languageFilter.value = null; statusFilter.value = null }
 const typeFilter = ref<string | null>(null)
 const statusFilter = ref<'active' | 'inactive' | null>(null)
 const countryFilter = ref<number | null>(null)
@@ -33,21 +44,17 @@ const policyTypes = computed(() => contractTypes.value.filter(type => type.is_ac
 
 const selectedType = computed(() => contractTypes.value.find(type => type.slug === form.value.type) ?? null)
 const knownKeys = computed(() => new Set(placeholderGroups.value.flatMap(group => group.fields.map(field => field.key))))
-const placeholderTranslation = (key: string, fallback: string) => { const translated = t(key); return translated === key ? fallback : translated }
-const localizedPlaceholderGroups = computed<PlaceholderGroup[]>(() => placeholderGroups.value.map(group => ({
-  ...group,
-  label: placeholderTranslation(`pages.settings.policies.policies.contractTemplate.placeholders.${group.key}.label`, group.label),
-  fields: group.fields.map(field => ({
-    ...field,
-    label: placeholderTranslation(`pages.settings.policies.policies.contractTemplate.placeholders.${group.key}.fields.${field.key.slice(group.key.length + 1)}`, field.label),
-  })),
-})))
+const localizedPlaceholderGroups = computed(() => localizePlaceholderGroups(placeholderGroups.value))
 const policyTypeLabel = (type: string) => translateContractPolicyType(type, contractTypes.value.find(item => item.slug === type)?.name)
 const policyTypeItems = computed(() => policyTypes.value.map(item => ({ ...item, title: translateContractPolicyType(item.value, contractTypes.value.find(type => type.slug === item.value)?.name) })))
 const filteredPolicies = computed(() => policies.value.filter(policy => {
   const query = search.value.trim().toLocaleLowerCase()
 
-  return (!typeFilter.value || policy.type === typeFilter.value)
+  return (!dateFrom.value || policy.created_at.slice(0, 10) >= dateFrom.value)
+    && (!dateTo.value || policy.created_at.slice(0, 10) <= dateTo.value)
+    && (!serviceFilter.value || policy.service === serviceFilter.value)
+    && (!positionFilter.value || policy.position_id === positionFilter.value)
+    && (!typeFilter.value || policy.type === typeFilter.value)
     && (!statusFilter.value || (statusFilter.value === 'active' ? policy.is_active : !policy.is_active))
     && (!countryFilter.value || policy.country_id === countryFilter.value)
     && (!languageFilter.value || policy.language_id === languageFilter.value)
@@ -58,12 +65,13 @@ const hasPolicyContent = computed(() => form.value.content.replace(/<[^>]+>/g, '
 async function load() {
   loading.value = true
   try {
-  const [items, types, countryRows, languageRows] = await Promise.all([ContractPolicyApi.getAll(true), ContractTypeApi.getAll({ include_inactive: true }), MasterDataApi.list('countries'), MasterDataApi.list('languages')])
+  const [items, types, countryRows, languageRows, positionRows] = await Promise.all([ContractPolicyApi.getAll(true), ContractTypeApi.getAll({ include_inactive: true }), MasterDataApi.list('countries'), MasterDataApi.list('languages'), canAccess('view_positions') ? PositionApi.getOptions() : Promise.resolve([])])
 
     policies.value = items
     contractTypes.value = types
     countries.value = countryRows
     languages.value = languageRows
+    positions.value = positionRows
   }
   catch { toast.error(t('pages.settings.policies.policies.policyLibrary.loadError')) }
   finally { loading.value = false }
@@ -84,8 +92,8 @@ async function open(policy?: ContractPolicy) {
 
   editing.value = existingPolicy
   form.value = existingPolicy
-    ? { label: existingPolicy.label, type: existingPolicy.type, country_id: existingPolicy.country_id, language_id: existingPolicy.language_id, is_active: existingPolicy.is_active, header: existingPolicy.header ?? '', content: legacyContentToHtml(existingPolicy.content) }
-    : { label: '', type: 'employment', country_id: null, language_id: null, is_active: true, header: '', content: '' }
+    ? { label: existingPolicy.label, type: existingPolicy.type, service: existingPolicy.service ?? null, position_id: existingPolicy.position_id ?? null, country_id: existingPolicy.country_id, language_id: existingPolicy.language_id, is_active: existingPolicy.is_active, header: existingPolicy.header ?? '', content: legacyContentToHtml(existingPolicy.content) }
+    : { label: '', type: 'employment', service: null, position_id: null, country_id: null, language_id: null, is_active: true, header: '', content: '' }
   dialog.value = true
   await loadPlaceholders()
   form.value.content = hydratePlaceholders(serializePlaceholders(form.value.content), localizedPlaceholderGroups.value, knownKeys.value)
@@ -110,6 +118,8 @@ async function save() {
   try {
     const payload = {
       ...form.value,
+      service: form.value.type === 'customer' ? form.value.service : null,
+      position_id: form.value.type === 'employment' ? form.value.position_id : null,
       label: form.value.label.trim(),
       header: form.value.header?.trim() || null,
       content: serializedContent,
@@ -172,13 +182,18 @@ onMounted(load)
       </template>
     </VCardItem>
     <VCardText class="pb-0">
-      <VRow dense>
-        <VCol cols="12" md="4"><VTextField v-model="search" :label="t('common.actions.search')" prepend-inner-icon="tabler-search" density="compact" /></VCol>
-        <VCol cols="6" md="2"><VSelect v-model="typeFilter" :items="policyTypeItems" item-title="title" item-value="value" clearable :label="t('pages.settings.policies.policies.policyLibrary.type')" density="compact" /></VCol>
-        <VCol cols="6" md="2"><VSelect v-model="countryFilter" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" clearable :label="t('common.fields.country')" density="compact" /></VCol>
-        <VCol cols="6" md="2"><VSelect v-model="languageFilter" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" clearable :label="t('common.fields.language')" density="compact" /></VCol>
-        <VCol cols="6" md="2"><VSelect v-model="statusFilter" :items="[{ title: t('common.statuses.active'), value: 'active' }, { title: t('common.statuses.inactive'), value: 'inactive' }]" clearable :label="t('pages.settings.policies.policies.policyLibrary.status')" density="compact" /></VCol>
-      </VRow>
+      <div class="d-flex align-center ga-3 mb-4">
+        <VTextField v-model="search" :label="t('common.actions.search')" prepend-inner-icon="tabler-search" density="compact" hide-details />
+        <DataTableFilterMenu :active="Boolean(serviceFilter || positionFilter || typeFilter || countryFilter || languageFilter || statusFilter || dateFrom || dateTo)" @reset="resetFilters">
+          <VSelect v-model="typeFilter" :items="policyTypeItems" clearable :label="t('common.fields.type')" />
+          <VSelect v-model="serviceFilter" :items="serviceItems" clearable :label="t('educational.service')" />
+          <VSelect v-model="positionFilter" :items="positions.map(position => ({ title: position.title, value: position.id }))" clearable :label="t('common.fields.position')" />
+          <VSelect v-model="countryFilter" :items="countries.map(country => ({ title: country.name, value: country.id }))" clearable :label="t('common.fields.country')" />
+          <VSelect v-model="languageFilter" :items="languages.map(language => ({ title: language.name, value: language.id }))" clearable :label="t('common.fields.language')" />
+          <VSelect v-model="statusFilter" :items="[{ title: t('common.statuses.active'), value: 'active' }, { title: t('common.statuses.inactive'), value: 'inactive' }]" clearable :label="t('common.fields.status')" />
+          <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" />
+        </DataTableFilterMenu>
+      </div>
     </VCardText>
     <ResponsiveDataTable
       :items="filteredPolicies"
@@ -236,7 +251,7 @@ onMounted(load)
 
   <VDialog
     v-model="dialog"
-    max-width="1120"
+    max-width="1480"
     scrollable
     content-class="policy-studio-dialog"
   >
@@ -301,6 +316,8 @@ onMounted(load)
                 </template>
               </VSelect>
             </VCol>
+            <VCol v-if="form.type === 'customer'" cols="12" md="6"><VSelect v-model="form.service" :items="serviceItems" :label="t('educational.service')" clearable /></VCol>
+            <VCol v-if="form.type === 'employment'" cols="12" md="6"><VSelect v-model="form.position_id" :items="positions.map(position => ({ title: position.title, value: position.id }))" :label="t('common.fields.position')" clearable /></VCol>
             <VCol cols="12" md="6">
               <VSelect v-model="form.country_id" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="t('common.fields.country')" clearable variant="outlined" />
             </VCol>

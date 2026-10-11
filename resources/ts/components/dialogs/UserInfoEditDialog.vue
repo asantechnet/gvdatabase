@@ -151,7 +151,7 @@ const dialogModelValueUpdate = (val: boolean) => {
                 v-model="userData.status"
                 :label="$t('common.fields.status')"
                 :placeholder="$t('common.statuses.active')"
-                :items="['Active', 'Inactive', 'Pending']"
+                :items="[$t('serviceContracts.active'), $t('common.statuses.inactive'), $t('common.statuses.pending')]"
               />
             </VCol>
 

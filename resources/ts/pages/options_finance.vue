@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
 import { ref } from 'vue'
 
 // Placeholder types and data
@@ -13,7 +14,7 @@ interface FinanceOption {
 const financeOptions = ref<FinanceOption[]>([
   { id: 1, name: 'Default Tax Rate', category: 'Tax', description: translate('pages.finance.optionsFinance.optionsFinance.standardTaxRate'), default: true },
   { id: 2, name: 'Payment Terms', category: 'Payment', description: translate('pages.finance.optionsFinance.optionsFinance.standardPaymentTerms'), default: true },
-  { id: 3, name: 'Currency', category: 'General', description: translate('pages.finance.optionsFinance.optionsFinance.defaultCurrency'), default: true },
+  { id: 3, name: translate('serviceContracts.currency'), category: 'General', description: translate('pages.finance.optionsFinance.optionsFinance.defaultCurrency'), default: true },
 ])
 
 // Placeholder reactive states
@@ -31,8 +32,8 @@ const statusOptions = ['Default', 'Custom']
   <div>
     <DataTablePageKpis
       :items="financeOptions"
-      title="Finance options"
-      description="Keep financial defaults organized and ready for everyday operations."
+      :title="$t('components.dataTablePageKpis.pages.financeOptions.title')"
+      :description="$t('components.dataTablePageKpis.pages.financeOptions.description')"
       icon="tabler-settings-dollar"
       status-key="active"
     />

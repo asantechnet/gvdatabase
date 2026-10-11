@@ -1,1 +1,0 @@
-import{af as s}from"./main-BpYC0Opx.js";const e=a=>a.data.data,p={list:async()=>e(await s.get("/packages")),create:async a=>e(await s.post("/packages",a)),update:async(a,t)=>e(await s.put(`/packages/${a}`,t)),remove:async a=>s.delete(`/packages/${a}`),issue:async(a,t)=>e(await s.post(`/packages/${a}/issue`,t))};export{p as P};

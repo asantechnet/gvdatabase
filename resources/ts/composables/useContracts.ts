@@ -1,3 +1,4 @@
+import { translate } from '@/utils/localization'
 import { ref } from 'vue'
 import ContractApi from '@/api/contracts'
 import ContractTemplateApi, { type ContractTemplate } from '@/api/contractTemplate'
@@ -26,7 +27,7 @@ export function useContracts() {
     }
     catch (err) {
       console.error('Failed to fetch contracts:', err)
-      error.value = err instanceof Error ? err.message : 'Failed to fetch contracts'
+      error.value = err instanceof Error ? err.message : translate('common.ui.failedToFetchContracts')
     }
     finally {
       isLoading.value = false
@@ -37,11 +38,11 @@ export function useContracts() {
     try {
       isLoading.value = true
       error.value = null
-      templates.value = await ContractTemplateApi.getAll()
+      templates.value = (await ContractTemplateApi.getAll()).filter(template => !template.service && template.type_slug !== 'customer')
     }
     catch (err) {
       console.error('Failed to fetch templates:', err)
-      error.value = err instanceof Error ? err.message : 'Failed to fetch templates'
+      error.value = err instanceof Error ? err.message : translate('common.ui.failedToFetchTemplates')
     }
     finally {
       isLoading.value = false
@@ -61,7 +62,7 @@ export function useContracts() {
     }
     catch (err) {
       console.error('Failed to create contract:', err)
-      error.value = err instanceof Error ? err.message : 'Failed to create contract'
+      error.value = err instanceof Error ? err.message : translate('common.ui.failedToCreateContract')
       throw err
     }
     finally {
@@ -83,7 +84,7 @@ export function useContracts() {
     }
     catch (err) {
       console.error('Failed to update contract:', err)
-      error.value = err instanceof Error ? err.message : 'Failed to update contract'
+      error.value = err instanceof Error ? err.message : translate('common.ui.failedToUpdateContract')
       throw err
     }
     finally {
@@ -102,7 +103,7 @@ export function useContracts() {
     }
     catch (err) {
       console.error('Failed to delete contract:', err)
-      error.value = err instanceof Error ? err.message : 'Failed to delete contract'
+      error.value = err instanceof Error ? err.message : translate('common.ui.failedToDeleteContract')
       throw err
     }
     finally {

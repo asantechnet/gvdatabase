@@ -10,8 +10,7 @@ export interface Account {
   acc_status: string
   roles: string[]
   permissions: string[]
-  employee: { id: number; name?: string | null; position_id: number; is_marketer: boolean } | null
-  is_marketer: boolean
+  employee: { id: number; name?: string | null; position_id: number } | null
   notifications?: NotificationPreferences
   ui_scale?: number
   two_factor_enabled: boolean

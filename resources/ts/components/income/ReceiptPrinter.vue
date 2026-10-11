@@ -10,10 +10,12 @@ const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 const toast = useToast()
 const receipt = ref<ReceiptPayload | null>(null)
 const loading = ref(false)
+const printing = ref(false)
 const templateRef = ref<InstanceType<typeof ReceiptTemplate> | null>(null)
 
-const paperSize = ref<ReceiptPaperSize>('A4 2x A5')
-const copies = ref(2)
+const paperSize = ref<ReceiptPaperSize>('A5')
+const copies = ref(1)
+let requestGeneration = 0
 
 const paperSizes = computed<Array<{ title: string; value: ReceiptPaperSize }>>(() => [
   { title: translate('documents.receipt.paperA3Landscape'), value: 'A3 landscape' },
@@ -28,23 +30,43 @@ const paperSizes = computed<Array<{ title: string; value: ReceiptPaperSize }>>((
 const previewScale = computed(() => (paperSize.value === 'A5' || paperSize.value === 'A5 2x' ? 0.85 : paperSize.value === 'A4 2x A5' ? 0.9 : 1))
 
 watch(() => [props.modelValue, props.incomeId] as const, async ([open, incomeId]) => {
+  const generation = ++requestGeneration
+  receipt.value = null
+  loading.value = false
   if (!open || !incomeId)
     return
 
   loading.value = true
   try {
-    receipt.value = await ReceiptApi.getForIncome(Number(incomeId))
+    const result = await ReceiptApi.getForIncome(Number(incomeId))
+    if (generation === requestGeneration)
+      receipt.value = result
   }
   catch (error: any) {
-    receipt.value = null
-    toast.error(error?.response?.data?.message || translate('documents.receipt.loadFailed'))
+    if (generation === requestGeneration)
+      toast.error(error?.response?.data?.message || translate('documents.receipt.loadFailed'))
   }
   finally {
-    loading.value = false
+    if (generation === requestGeneration)
+      loading.value = false
   }
 }, { immediate: true })
 
-const print = () => templateRef.value?.print()
+const print = async () => {
+  if (!templateRef.value || printing.value || loading.value)
+    return
+  printing.value = true
+  try {
+    await templateRef.value.print()
+  }
+  catch (error) {
+    const key = error instanceof Error && error.message.startsWith('documents.receipt.') ? error.message : 'documents.receipt.printFailed'
+    toast.error(translate(key))
+  }
+  finally {
+    printing.value = false
+  }
+}
 </script>
 
 <template>
@@ -53,6 +75,7 @@ const print = () => templateRef.value?.print()
     width="92vw"
     max-width="1200"
     content-class="receipt-preview-modal"
+    :persistent="printing"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <VCard
@@ -84,6 +107,7 @@ const print = () => templateRef.value?.print()
             :label="$t('documents.receipt.paperSize')"
             density="compact"
             hide-details
+            :disabled="printing"
             style="min-width: 200px;"
           />
           <VTextField
@@ -94,11 +118,13 @@ const print = () => templateRef.value?.print()
             :label="$t('documents.receipt.copies')"
             density="compact"
             hide-details
+            :disabled="printing"
             style="max-width: 110px;"
           />
           <VBtn
             variant="tonal"
             color="secondary"
+            :disabled="printing"
             @click="emit('update:modelValue', false)"
           >
             {{ $t('common.actions.close') }}
@@ -106,7 +132,8 @@ const print = () => templateRef.value?.print()
           <VBtn
             color="primary"
             prepend-icon="tabler-printer"
-            :disabled="!receipt"
+            :disabled="!receipt || loading || printing"
+            :loading="printing"
             @click="print"
           >
             {{ $t('documents.receipt.printReceipt') }}

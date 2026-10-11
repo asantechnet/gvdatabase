@@ -1,53 +1,45 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import ErpField from '@/components/erp/ErpField.vue'
 import { computed, onMounted, ref } from 'vue'
+import { useAbility } from '@casl/vue'
 import { useToast } from 'vue-toastification'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import VisitorApi, { type CreateVisitorData, type UpdateVisitorData, type Visitor } from '@/api/visitor'
 import EmployeeApi, { type Employee } from '@/api/employee'
-import type { Account } from '@/api/auth'
-import { useCookie } from '@core/composable/useCookie'
 import { printDocument } from '@/utils/printDocument'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
-import LeadApi from '@/api/lead'
 
 interface VisitorForm {
   name: string
-  company: string
   contact: string
   email: string
   service: string
-  marketer_id: number | null
+  counselor_employee_id: number | null
   notes: string
 }
 
 const visitors = ref<Visitor[]>([])
 const search = ref('')
-const filterCompany = ref<string | null>(null)
-const filterMarketerId = ref<number | null>(null)
+const dateFrom = ref('')
+const dateTo = ref('')
+const filterCounselorId = ref<number | null>(null)
 const isAddNewVisitorDialogVisible = ref(false)
 const isEditVisitorDialogVisible = ref(false)
 const isDeleteVisitorDialogVisible = ref(false)
 const selectedVisitor = ref<Visitor | null>(null)
 const isLoading = ref(false)
-const convertingVisitorId = ref<number | null>(null)
-const marketerDirectory = ref<Employee[]>([])
+const counselorDirectory = ref<Employee[]>([])
 const toast = useToast()
-const userData = useCookie<Account | null>('userData')
-const isCurrentUserMarketer = computed(() => Boolean(userData.value?.is_marketer || userData.value?.employee?.is_marketer))
-
-const currentMarketerName = computed(() => {
-  const employeeId = userData.value?.employee?.id
-
-  return marketerDirectory.value.find(marketer => marketer.id === employeeId)?.name ?? userData.value?.name ?? 'your marketer profile'
-})
-
+const ability = useAbility()
 const emptyVisitorForm = (): VisitorForm => ({
   name: '',
-  company: '',
   contact: '',
   email: '',
   service: '',
-  marketer_id: null,
+  counselor_employee_id: null,
   notes: '',
 })
 
@@ -55,7 +47,6 @@ const visitorData = ref<VisitorForm>(emptyVisitorForm())
 
 const formErrors = ref({
   name: '',
-  company: '',
   contact: '',
   service: '',
 })
@@ -64,7 +55,6 @@ const resetForm = () => {
   visitorData.value = emptyVisitorForm()
   formErrors.value = {
     name: '',
-    company: '',
     contact: '',
     service: '',
   }
@@ -84,19 +74,6 @@ const validateForm = () => {
   }
   else {
     formErrors.value.name = ''
-  }
-
-  // Validate Company
-  if (!visitorData.value.company.trim()) {
-    formErrors.value.company = translate('pages.contracts.visitor.visitor.companyNameIsRequired')
-    isValid = false
-  }
-  else if (visitorData.value.company.length < 2) {
-    formErrors.value.company = translate('pages.contracts.visitor.visitor.companyNameMustBeAtLeast2Characters')
-    isValid = false
-  }
-  else {
-    formErrors.value.company = ''
   }
 
   // Validate Contact/Phone
@@ -128,17 +105,18 @@ const validateForm = () => {
   return isValid
 }
 
-const marketerLabel = (record: Pick<Visitor, 'marketer' | 'marketer_employee'>) => record.marketer_employee?.name || record.marketer || 'Unassigned'
-const marketerPayload = () => isCurrentUserMarketer.value ? {} : { marketer_id: visitorData.value.marketer_id }
+const counselorLabel = (record: Pick<Visitor, 'counselor'>) => record.counselor?.name || translate('educational.unassigned')
+const counselorPayload = () => ({ counselor_employee_id: visitorData.value.counselor_employee_id })
 
 const fetchVisitors = async () => {
   try {
     isLoading.value = true
 
     const response = await VisitorApi.getAll({
+      date_from: dateFrom.value || undefined,
+      date_to: dateTo.value || undefined,
       search: search.value,
-      company: filterCompany.value || undefined,
-      marketer_id: filterMarketerId.value || undefined,
+      counselor_employee_id: filterCounselorId.value || undefined,
     })
 
     visitors.value = response
@@ -155,27 +133,24 @@ const fetchVisitors = async () => {
 const filtered = computed(() => {
   return visitors.value.filter(v => {
     const matchesSearch = v.name.toLowerCase().includes(search.value.toLowerCase())
-      || v.company.toLowerCase().includes(search.value.toLowerCase())
       || v.contact.includes(search.value)
       || (v.email?.toLowerCase().includes(search.value.toLowerCase()) ?? false)
 
-    const matchesCompany = !filterCompany.value || v.company === filterCompany.value
-    const matchesMarketer = !filterMarketerId.value || v.marketer_id === filterMarketerId.value
+    const matchesCounselor = !filterCounselorId.value || v.counselor_employee_id === filterCounselorId.value
 
-    return matchesSearch && matchesCompany && matchesMarketer
+    return matchesSearch && matchesCounselor
   })
 })
 
-const headers = [
+const headers = computed(() => [
   { title: translate('common.fields.name'), key: 'name', sortable: true },
-  { title: translate('common.fields.company'), key: 'company', sortable: true },
   { title: translate('common.messages.contact'), key: 'contact', sortable: true },
   { title: translate('common.fields.email'), key: 'email', sortable: true },
   { title: translate('common.messages.service'), key: 'service', sortable: true },
-  { title: translate('common.messages.marketer'), key: 'marketer', sortable: true },
+  { title: translate('agencyStaff.counselor'), key: 'counselor', sortable: true },
   { title: translate('common.fields.date'), key: 'date', sortable: true },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false },
-]
+])
 
 const printTable = () => {
   void printDocument({ bodyClass: 'printing-visitor-list', pageStyle: 'size: A4 landscape; margin: 12mm;' })
@@ -190,13 +165,12 @@ const addNewVisitor = async () => {
 
     const data: CreateVisitorData = {
       name: visitorData.value.name,
-      company: visitorData.value.company,
       contact: visitorData.value.contact,
       email: visitorData.value.email || null,
       service: visitorData.value.service,
       notes: visitorData.value.notes,
       date: new Date().toISOString().split('T')[0],
-      ...marketerPayload(),
+      ...counselorPayload(),
     }
 
     const response = await VisitorApi.create(data)
@@ -225,12 +199,11 @@ const editVisitor = async () => {
 
     const data: UpdateVisitorData = {
       name: visitorData.value.name,
-      company: visitorData.value.company,
       contact: visitorData.value.contact,
       email: visitorData.value.email || null,
       service: visitorData.value.service,
       notes: visitorData.value.notes,
-      ...marketerPayload(),
+      ...counselorPayload(),
     }
 
     const response = await VisitorApi.update(selectedVisitor.value.id, data)
@@ -254,11 +227,10 @@ const openEditDialog = (visitor: Visitor) => {
   selectedVisitor.value = visitor
   visitorData.value = {
     name: visitor.name,
-    company: visitor.company,
     contact: visitor.contact,
     email: visitor.email ?? '',
     service: visitor.service,
-    marketer_id: visitor.marketer_id,
+    counselor_employee_id: visitor.counselor_employee_id,
     notes: visitor.notes || '',
   }
   isEditVisitorDialogVisible.value = true
@@ -267,21 +239,6 @@ const openEditDialog = (visitor: Visitor) => {
 const openDeleteDialog = (visitor: Visitor) => {
   selectedVisitor.value = visitor
   isDeleteVisitorDialogVisible.value = true
-}
-
-const convertToLead = async (visitor: Visitor) => {
-  try {
-    convertingVisitorId.value = visitor.id
-    await LeadApi.fromVisitor(visitor.id)
-    visitors.value = visitors.value.filter(item => item.id !== visitor.id)
-    toast.success('Visitor qualified as a lead')
-  }
-  catch {
-    toast.error('Unable to convert visitor to lead')
-  }
-  finally {
-    convertingVisitorId.value = null
-  }
 }
 
 const deleteVisitor = async () => {
@@ -303,27 +260,19 @@ const deleteVisitor = async () => {
 }
 
 // Extract unique values for filters
-const companies = computed(() => {
-  return [...new Set(visitors.value.map(v => v.company))].filter(Boolean)
-})
-
 const services = computed(() => {
   return [...new Set(visitors.value.map(v => v.service))].filter(Boolean)
 })
 
 onMounted(() => {
   fetchVisitors()
-  EmployeeApi.getMarketerOptions().then(data => { marketerDirectory.value = data }).catch(console.error)
+  EmployeeApi.getAssignmentOptions('counselor').then(data => { counselorDirectory.value = data }).catch(console.error)
 })
 </script>
 
 <template>
-  <DataTablePageKpis
-    :items="filtered"
-    title="Visitors"
-    description="Review visitor activity and maintain a clear record of every entry."
-    icon="tabler-door-enter"
-  />
+  <div class="erp-workspace">
+  <ErpPageHeader :title="$t('common.navigation.visitor')" section="crm" />
   <VCard>
     <VCardText>
       <VRow
@@ -351,24 +300,16 @@ onMounted(() => {
           class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2"
         >
           <DataTableFilterMenu
-            :active="Boolean(filterCompany || filterMarketerId)"
-            @reset="filterCompany = null; filterMarketerId = null; fetchVisitors()"
+            :active="Boolean(filterCounselorId || dateFrom || dateTo)"
+            @reset="filterCounselorId = null; dateFrom = ''; dateTo = ''; fetchVisitors()"
           >
+            <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="fetchVisitors" />
             <VSelect
-              v-model="filterCompany"
-              :items="companies"
-              :label="$t('pages.contracts.visitor.visitor.filterByCompany')"
-              density="compact"
-              clearable
-              hide-details
-              @update:model-value="fetchVisitors"
-            />
-            <VSelect
-              v-model="filterMarketerId"
-              :items="marketerDirectory"
+              v-model="filterCounselorId"
+              :items="counselorDirectory"
               item-title="name"
               item-value="id"
-              :label="$t('pages.contracts.visitor.visitor.filterByMarketer')"
+              :label="$t('agencyStaff.counselor')"
               density="compact"
               clearable
               hide-details
@@ -427,7 +368,7 @@ onMounted(() => {
         >—</span>
       </template>
 
-      <template #item.marketer="{ item }">
+      <template #item.counselor="{ item }">
         <div class="d-flex align-center ga-2">
           <VAvatar
             size="28"
@@ -439,33 +380,28 @@ onMounted(() => {
               size="16"
             />
           </VAvatar>
-          <span>{{ marketerLabel(item) }}</span>
+          <span>{{ counselorLabel(item) }}</span>
         </div>
       </template>
 
       <template #item.actions="{ item }">
         <div class="d-flex gap-1">
+          <VMenu v-if="ability.can('read', 'create_contracts') && ability.can('read', 'view_contracts')">
+            <template #activator="{ props: menuProps }">
+              <VBtn v-bind="menuProps" icon="tabler-file-plus" variant="text" size="small"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent">{{ $t('serviceContracts.create') }}</VTooltip></VBtn>
+            </template>
+            <VList>
+              <VListItem :title="$t('educational.builtInServices.scholarship')" :to="{ name: 'scholarship-contracts', query: { visitor: item.id } }" />
+              <VListItem :title="$t('educational.builtInServices.testOffer')" :to="{ name: 'test-offer-contracts', query: { visitor: item.id } }" />
+              <VListItem :title="$t('educational.builtInServices.private')" :to="{ name: 'private-contracts', query: { visitor: item.id } }" />
+              <VListItem :title="$t('educational.builtInServices.academy')" :to="{ name: 'academy-contracts', query: { visitor: item.id } }" />
+            </VList>
+          </VMenu>
           <CrmRelationshipDetails
             :id="item.id"
             type="visitor"
             :title="item.name"
           />
-          <VBtn
-            icon="tabler-filter-plus"
-            variant="text"
-            size="small"
-            color="success"
-            :loading="convertingVisitorId === item.id"
-            :disabled="convertingVisitorId !== null"
-            @click="convertToLead(item)"
-          >
-            <VIcon icon="tabler-filter-plus" /><VTooltip
-              activator="parent"
-              location="top"
-            >
-              Qualify as lead
-            </VTooltip>
-          </VBtn>
           <VBtn
             icon="tabler-edit"
             variant="text"
@@ -504,13 +440,15 @@ onMounted(() => {
     :title="$t('common.crmUi.printReports.visitors.title')"
     :subtitle="$t('common.crmUi.printReports.visitors.subtitle')"
     :columns="headers.slice(0, -1).map(header => header.title)"
-    :rows="filtered.map(visitor => [visitor.name, visitor.company, visitor.contact, visitor.email || '—', visitor.service, marketerLabel(visitor), visitor.date])"
+    :rows="filtered.map(visitor => [visitor.name, visitor.contact, visitor.email || '—', visitor.service, counselorLabel(visitor), visitor.date])"
   />
 
   <!-- Add New Visitor Dialog -->
   <VDialog
     v-model="isAddNewVisitorDialogVisible"
-    max-width="600"
+    max-width="1000"
+    class="erp-form"
+    scrollable
   >
     <VCard>
       <VCardTitle class="pa-4">
@@ -525,9 +463,9 @@ onMounted(() => {
           <VRow>
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
-              <VTextField
+              <ErpField
                 v-model="visitorData.name"
                 :label="$t('common.messages.visitorName')"
                 :placeholder="$t('common.messages.enterVisitorName')"
@@ -539,23 +477,9 @@ onMounted(() => {
             </VCol>
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
-              <VTextField
-                v-model="visitorData.company"
-                :label="$t('common.fields.company')"
-                :placeholder="$t('common.messages.enterCompanyName')"
-                :hint="$t('common.messages.enterTheCompanyTheVisitorRepresents')"
-                persistent-hint
-                :error-messages="formErrors.company"
-                required
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VTextField
+              <ErpField
                 v-model="visitorData.contact"
                 :label="$t('common.messages.contactPhone')"
                 :placeholder="$t('common.messages.enterPhoneNumber')"
@@ -567,9 +491,9 @@ onMounted(() => {
             </VCol>
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
-              <VTextField
+              <ErpField
                 v-model="visitorData.email"
                 :label="$t('common.fields.email')"
                 type="email"
@@ -578,9 +502,9 @@ onMounted(() => {
             </VCol>
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
-              <VTextField
+              <ErpField
                 v-model="visitorData.service"
                 :label="$t('common.messages.service')"
                 :placeholder="$t('common.messages.enterService')"
@@ -590,34 +514,25 @@ onMounted(() => {
                 required
               />
             </VCol>
-            <VCol cols="12">
-              <VAlert
-                v-if="isCurrentUserMarketer"
-                color="primary"
-                variant="tonal"
-                icon="tabler-lock"
-              >
-                Marketer attribution is assigned automatically to {{ currentMarketerName }} when this visitor is created.
-              </VAlert>
+            <VCol cols="12" md="4">
               <VAutocomplete
-                v-else
-                v-model="visitorData.marketer_id"
-                :items="marketerDirectory"
+                v-model="visitorData.counselor_employee_id"
+                :items="counselorDirectory"
                 item-title="name"
                 item-value="id"
-                :label="$t('common.messages.marketer')"
-                :placeholder="$t('common.messages.selectAMarketer')"
-                hint="Optional. Select the employee who brought this visitor to the business."
+                :label="$t('agencyStaff.counselor')"
+                :placeholder="$t('agencyStaff.counselor')"
+                :hint="$t('agencyStaff.optionalCounselor')"
                 persistent-hint
                 clearable
               />
             </VCol>
             <VCol cols="12">
-              <VTextarea
+              <ErpField kind="textarea"
                 v-model="visitorData.notes"
-                label="Visitor notes"
+                :label="$t('common.crmUi.visitorNotes')"
                 rows="3"
-                hint="Capture interests, context, and anything useful before qualification."
+                :hint="$t('common.crmUi.visitorNotesHint')"
                 persistent-hint
               />
             </VCol>
@@ -649,7 +564,9 @@ onMounted(() => {
   <!-- Edit Visitor Dialog -->
   <VDialog
     v-model="isEditVisitorDialogVisible"
-    max-width="600"
+    max-width="1000"
+    class="erp-form"
+    scrollable
   >
     <VCard>
       <VCardTitle class="pa-4">
@@ -664,9 +581,9 @@ onMounted(() => {
           <VRow>
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
-              <VTextField
+              <ErpField
                 v-model="visitorData.name"
                 :label="$t('common.messages.visitorName')"
                 :placeholder="$t('common.messages.enterVisitorName')"
@@ -678,23 +595,9 @@ onMounted(() => {
             </VCol>
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
-              <VTextField
-                v-model="visitorData.company"
-                :label="$t('common.fields.company')"
-                :placeholder="$t('common.messages.enterCompanyName')"
-                :hint="$t('common.messages.enterTheCompanyTheVisitorRepresents')"
-                persistent-hint
-                :error-messages="formErrors.company"
-                required
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VTextField
+              <ErpField
                 v-model="visitorData.contact"
                 :label="$t('common.messages.contactPhone')"
                 :placeholder="$t('common.messages.enterPhoneNumber')"
@@ -706,9 +609,9 @@ onMounted(() => {
             </VCol>
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
-              <VTextField
+              <ErpField
                 v-model="visitorData.email"
                 :label="$t('common.fields.email')"
                 type="email"
@@ -717,9 +620,9 @@ onMounted(() => {
             </VCol>
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
-              <VTextField
+              <ErpField
                 v-model="visitorData.service"
                 :label="$t('common.messages.service')"
                 :placeholder="$t('common.messages.enterService')"
@@ -729,34 +632,25 @@ onMounted(() => {
                 required
               />
             </VCol>
-            <VCol cols="12">
-              <VAlert
-                v-if="isCurrentUserMarketer"
-                color="primary"
-                variant="tonal"
-                icon="tabler-lock"
-              >
-                Marketer attribution is locked to {{ currentMarketerName }}. Existing ownership is preserved unless an administrator changes it.
-              </VAlert>
+            <VCol cols="12" md="4">
               <VAutocomplete
-                v-else
-                v-model="visitorData.marketer_id"
-                :items="marketerDirectory"
+                v-model="visitorData.counselor_employee_id"
+                :items="counselorDirectory"
                 item-title="name"
                 item-value="id"
-                :label="$t('common.messages.marketer')"
-                :placeholder="$t('common.messages.selectAMarketer')"
-                hint="Optional. Select the employee who brought this visitor to the business."
+                :label="$t('agencyStaff.counselor')"
+                :placeholder="$t('agencyStaff.counselor')"
+                :hint="$t('agencyStaff.optionalCounselor')"
                 persistent-hint
                 clearable
               />
             </VCol>
             <VCol cols="12">
-              <VTextarea
+              <ErpField kind="textarea"
                 v-model="visitorData.notes"
-                label="Visitor notes"
+                :label="$t('common.crmUi.visitorNotes')"
                 rows="3"
-                hint="Capture interests, context, and anything useful before qualification."
+                :hint="$t('common.crmUi.visitorNotesHint')"
                 persistent-hint
               />
             </VCol>
@@ -819,6 +713,7 @@ onMounted(() => {
       </VCardActions>
     </VCard>
   </VDialog>
+  </div>
 </template>
 
 <style>

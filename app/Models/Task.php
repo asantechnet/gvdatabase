@@ -20,6 +20,7 @@ class Task extends Model
     protected $fillable = [
         'board_id',
         'applicant_id',
+        'applicant_contract_id',
         'title',
         'description',
         'results',
@@ -85,10 +86,18 @@ class Task extends Model
         return $this->belongsTo(Board::class);
     }
 
-
     public function applicant(): BelongsTo
     {
         return $this->belongsTo(Applicant::class);
+    }
+
+    /**
+     * The applicant↔contract record this task delivers, when the task was
+     * created by a contract assignment.
+     */
+    public function applicantContract(): BelongsTo
+    {
+        return $this->belongsTo(ApplicantContract::class, 'applicant_contract_id');
     }
 
     public function users(): BelongsToMany
@@ -99,11 +108,6 @@ class Task extends Model
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class, 'task_tag');
-    }
-
-    public function services(): BelongsToMany
-    {
-        return $this->belongsToMany(Service::class, 'task_service')->withTimestamps();
     }
 
     public function comments(): HasMany

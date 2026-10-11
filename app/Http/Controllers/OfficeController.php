@@ -7,6 +7,7 @@ use App\Models\Office;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OfficeController extends Controller
 {
@@ -47,17 +48,28 @@ class OfficeController extends Controller
 
     private function validated(Request $request, ?Office $office = null): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('offices', 'name')->whereNull('deleted_at')->ignore($office?->id)],
             'code' => ['required', 'string', 'max:30', Rule::unique('offices', 'code')->whereNull('deleted_at')->ignore($office?->id)],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:2000'],
             'status' => ['required', 'in:active,inactive'],
-            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_if:geofence_enabled,true'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_if:geofence_enabled,true'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'geofence_radius_meters' => ['sometimes', 'integer', 'between:10,5000'],
             'geofence_enabled' => ['sometimes', 'boolean'],
         ]);
+        $enabled = $validated['geofence_enabled'] ?? $office?->geofence_enabled ?? false;
+        if ($enabled) {
+            foreach (['latitude', 'longitude'] as $coordinate) {
+                $value = array_key_exists($coordinate, $validated) ? $validated[$coordinate] : $office?->{$coordinate};
+                if ($value === null) {
+                    throw ValidationException::withMessages([$coordinate => ['validation.required']]);
+                }
+            }
+        }
+
+        return $validated;
     }
 }

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useToast } from 'vue-toastification'
-import MarketerApi, { type MarketerAccountOption } from '@/api/marketer'
-import UserAccountSelect from '@/components/UserAccountSelect.vue'
+import { apiErrorMessage } from '@/utils/apiErrors'
 import OfficeApi from '@/api/office'
 import OfficeGeofenceMap from '@/components/setup/OfficeGeofenceMap.vue'
 import { translateBackendValue } from '@/utils/localization'
@@ -41,7 +40,7 @@ interface DirectoryForm {
   geofenceEnabled: boolean
 }
 
-const props = defineProps<{ kind: 'marketers' | 'offices' }>()
+const props = defineProps<{ kind: 'offices' }>()
 const { t: $t } = useI18n()
 const toast = useToast()
 const records = ref<DirectoryRecord[]>([])
@@ -53,21 +52,14 @@ const deleteDialogOpen = ref(false)
 const editing = ref<DirectoryRecord | null>(null)
 const deleting = ref<DirectoryRecord | null>(null)
 const form = ref<DirectoryForm>({ user_id: null, name: '', code: '', email: '', phone: '', status: 'active', notes: '', address: '', latitude: null, longitude: null, geofenceRadiusMeters: 100, geofenceEnabled: false })
-const accountOptions = ref<MarketerAccountOption[]>([])
-const accountsLoading = ref(false)
 const locating = ref(false)
 const currentLocation = reactive<{ latitude: number | null; longitude: number | null }>({ latitude: null, longitude: null })
 const { enabled: automaticAttendanceEnabled, load: loadAutomaticAttendance } = useAutomaticAttendance()
 
-const isMarketer = computed(() => props.kind === 'marketers')
-const singular = computed(() => translate(isMarketer.value ? 'common.fields.marketer' : 'common.fields.office'))
-const title = computed(() => translate(isMarketer.value ? 'pages.settings.directory.marketers' : 'pages.settings.directory.offices'))
-
-const subtitle = computed(() => isMarketer.value
-  ? translate('pages.settings.directory.marketersDescription')
-  : translate('pages.settings.directory.officesDescription'))
-
-const icon = computed(() => isMarketer.value ? 'tabler-speakerphone' : 'tabler-building-community')
+const singular = computed(() => translate('common.fields.office'))
+const title = computed(() => translate('pages.settings.directory.offices'))
+const subtitle = computed(() => translate('pages.settings.directory.officesDescription'))
+const icon = computed(() => 'tabler-building-community')
 const activeCount = computed(() => records.value.filter(record => record.status === 'active').length)
 
 const assignmentCount = computed(() => records.value.reduce((sum, record) => sum
@@ -83,45 +75,33 @@ const filteredRecords = computed(() => {
   })
 })
 
-const headers = [
+const headers = computed(() => [
   { title: translate('common.fields.name'), key: 'name' },
   { title: translate('common.messages.contact'), key: 'contact', sortable: false },
   { title: translate('common.messages.details'), key: 'details', sortable: false },
   { title: translate('common.fields.status'), key: 'status' },
   { title: translate('pages.settings.directorycrudpage.assignedRecords'), key: 'assigned', sortable: false },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
-]
+])
 
 async function load() {
   loading.value = true
   try {
-    records.value = isMarketer.value
-      ? await MarketerApi.getAll() as DirectoryRecord[]
-      : await OfficeApi.getAll() as DirectoryRecord[]
+    records.value = await OfficeApi.getAll() as DirectoryRecord[]
   }
   catch (error: any) {
-    toast.error(error.message || `Could not load ${props.kind}.`)
+    toast.error(apiErrorMessage(error, translate('pages.settings.directory.loadFailed')))
   }
   finally {
     loading.value = false
   }
 }
 
-async function loadAccountOptions() {
-  if (!isMarketer.value)
-    return
-  accountsLoading.value = true
-  try { accountOptions.value = await MarketerApi.getAccountOptions() }
-  catch (error: any) { toast.error(error.message || translate('common.accountPicker.noResults')) }
-  finally { accountsLoading.value = false }
-}
-
 function openCreate() {
   editing.value = null
   form.value = { user_id: null, name: '', code: '', email: '', phone: '', status: 'active', notes: '', address: '', latitude: null, longitude: null, geofenceRadiusMeters: 100, geofenceEnabled: false }
   dialogOpen.value = true
-  if (!isMarketer.value)
-    locateCurrentLocation(false)
+  locateCurrentLocation(false)
 }
 
 function openEdit(record: DirectoryRecord) {
@@ -143,23 +123,12 @@ function openEdit(record: DirectoryRecord) {
   dialogOpen.value = true
 }
 
-function accountSelected(userId: number | null | undefined) {
-  if (!userId)
-    return
-  const account = accountOptions.value.find(item => item.id === userId)
-  if (!account)
-    return
-  form.value.email = account.email
-  if (!form.value.phone && account.phone)
-    form.value.phone = account.phone
-}
-
 async function save() {
   if (!form.value.name.trim())
-    return toast.error(`${singular.value} name is required.`)
-  if (!isMarketer.value && !form.value.code.trim())
+    return toast.error(translate('pages.settings.directory.nameRequired'))
+  if (!form.value.code.trim())
     return toast.error(translate('pages.settings.directorycrudpage.officeCodeIsRequired'))
-  if (!isMarketer.value && form.value.geofenceEnabled && (form.value.latitude == null || form.value.longitude == null))
+  if (form.value.geofenceEnabled && (form.value.latitude == null || form.value.longitude == null))
     return toast.error(translate('pages.settings.geofence.coordinatesRequired'))
 
   loading.value = true
@@ -171,11 +140,7 @@ async function save() {
       status: form.value.status,
     }
 
-    const saved = isMarketer.value
-      ? await (editing.value
-        ? MarketerApi.update(editing.value.id, { ...common, user_id: form.value.user_id, notes: form.value.notes.trim() || null })
-        : MarketerApi.create({ ...common, user_id: form.value.user_id, notes: form.value.notes.trim() || null }))
-      : await (editing.value
+    const saved = await (editing.value
         ? OfficeApi.update(editing.value.id, { ...common, code: form.value.code.trim().toUpperCase(), address: form.value.address.trim() || null, latitude: form.value.latitude, longitude: form.value.longitude, geofence_radius_meters: form.value.geofenceRadiusMeters, geofence_enabled: form.value.geofenceEnabled })
         : OfficeApi.create({ ...common, code: form.value.code.trim().toUpperCase(), address: form.value.address.trim() || null, latitude: form.value.latitude, longitude: form.value.longitude, geofence_radius_meters: form.value.geofenceRadiusMeters, geofence_enabled: form.value.geofenceEnabled }))
 
@@ -184,10 +149,10 @@ async function save() {
       records.value.unshift(saved as DirectoryRecord)
     else records.value[index] = saved as DirectoryRecord
     dialogOpen.value = false
-    toast.success(`${singular.value[0].toUpperCase()}${singular.value.slice(1)} saved.`)
+    toast.success(translate('pages.settings.directory.saved'))
   }
   catch (error: any) {
-    toast.error(error.errors?.name?.[0] || error.errors?.code?.[0] || error.message || `Could not save ${singular.value}.`)
+    toast.error(apiErrorMessage(error, translate('pages.settings.directory.saveFailed')))
   }
   finally {
     loading.value = false
@@ -202,6 +167,11 @@ function locateCurrentLocation(overwriteCoordinates: boolean) {
   }
   locating.value = true
   navigator.geolocation.getCurrentPosition(position => {
+    if (position.coords.accuracy > 100) {
+      locating.value = false
+      toast.warning(translate('components.account.geofence.inaccurate', { accuracy: Math.ceil(position.coords.accuracy) }))
+      return
+    }
     const latitude = Number(position.coords.latitude.toFixed(7))
     const longitude = Number(position.coords.longitude.toFixed(7))
 
@@ -227,15 +197,13 @@ async function confirmDelete() {
     return
   loading.value = true
   try {
-    if (isMarketer.value)
-      await MarketerApi.delete(deleting.value.id)
-    else await OfficeApi.delete(deleting.value.id)
+    await OfficeApi.delete(deleting.value.id)
     records.value = records.value.filter(record => record.id !== deleting.value?.id)
     deleteDialogOpen.value = false
-    toast.success(`${singular.value[0].toUpperCase()}${singular.value.slice(1)} deleted.`)
+    toast.success(translate('pages.settings.directory.deleted'))
   }
   catch (error: any) {
-    toast.error(error.message || `Could not delete ${singular.value}.`)
+    toast.error(apiErrorMessage(error, translate('pages.settings.directory.deleteFailed')))
   }
   finally {
     loading.value = false
@@ -243,15 +211,11 @@ async function confirmDelete() {
 }
 
 function assignedLabel(record: DirectoryRecord) {
-  if (isMarketer.value)
-    return `${record.customer_count ?? 0} customers · ${record.visitor_count ?? 0} visitors`
-
-  return `${record.asset_count ?? 0} asset records`
+  return translate('pages.settings.directory.assetCount', { count: record.asset_count ?? 0 })
 }
 
 onMounted(() => {
   load()
-  loadAccountOptions()
   loadAutomaticAttendance()
 })
 </script>
@@ -370,26 +334,17 @@ onMounted(() => {
                 class="text-caption text-medium-emphasis"
               >
                 {{ item.code }}
-              </div><VChip
-                v-if="isMarketer && item.user"
-                size="x-small"
-                color="success"
-                variant="tonal"
-                prepend-icon="tabler-login"
-                class="mt-1"
-              >
-                {{ item.user.email }}
-              </VChip>
+              </div>
             </div>
           </div>
         </template>
         <template #item.contact="{ item }">
-          <div>{{ item.email || 'No email' }}</div><div class="text-caption text-medium-emphasis">
-            {{ item.phone || 'No phone' }}
+          <div>{{ item.email || $t('pages.settings.directory.noEmail') }}</div><div class="text-caption text-medium-emphasis">
+            {{ item.phone || $t('pages.settings.directory.noPhone') }}
           </div>
         </template>
         <template #item.details="{ item }">
-          <span class="text-medium-emphasis">{{ isMarketer ? (item.notes || $t('common.messages.noNotes')) : (item.address || $t('common.messages.noAddress')) }}</span>
+          <span class="text-medium-emphasis">{{ item.address || $t('common.messages.noAddress') }}</span>
         </template>
         <template #item.status="{ item }">
           <VChip
@@ -442,7 +397,7 @@ onMounted(() => {
             <VRow>
               <VCol
                 cols="12"
-                :md="isMarketer ? 6 : 6"
+                md="6"
               >
                 <VTextField
                   v-model="form.name"
@@ -451,21 +406,8 @@ onMounted(() => {
                   required
                 />
               </VCol>
+
               <VCol
-                v-if="isMarketer"
-                cols="12"
-                md="6"
-              >
-                <UserAccountSelect
-                  v-model="form.user_id"
-                  :items="accountOptions"
-                  :loading="accountsLoading"
-                  :current-marketer-id="editing?.id ?? null"
-                  @update:model-value="accountSelected"
-                />
-              </VCol>
-              <VCol
-                v-if="!isMarketer"
                 cols="12"
                 md="3"
               >
@@ -477,7 +419,7 @@ onMounted(() => {
               </VCol>
               <VCol
                 cols="12"
-                :md="isMarketer ? 4 : 3"
+                md="3"
               >
                 <VSelect
                   v-model="form.status"
@@ -507,18 +449,12 @@ onMounted(() => {
               </VCol>
               <VCol cols="12">
                 <VTextarea
-                  v-if="isMarketer"
-                  v-model="form.notes"
-                  :label="$t('common.fields.notes')"
-                  rows="3"
-                /><VTextarea
-                  v-else
                   v-model="form.address"
                   :label="$t('common.fields.address')"
                   rows="3"
                 />
               </VCol>
-              <template v-if="!isMarketer && automaticAttendanceEnabled">
+              <template v-if="automaticAttendanceEnabled">
                 <VCol cols="12">
                   <VDivider class="mb-4" /><div class="d-flex flex-wrap align-center justify-space-between ga-3">
                     <div>

@@ -2,11 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Applicant;
-use App\Models\ApplicantStage;
 use App\Models\Board;
 use App\Models\Country;
-use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\Task;
@@ -14,15 +11,17 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\CreatesBuiltInContracts;
 use Tests\TestCase;
 
 class EducationalDashboardTest extends TestCase
 {
-    use RefreshDatabase;
+    use CreatesBuiltInContracts, RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
+        Employee::factory()->create(); // The primary system employee is excluded from staff reports.
         $user = User::factory()->create();
         $user->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
         Sanctum::actingAs($user, ['access']);
@@ -32,17 +31,8 @@ class EducationalDashboardTest extends TestCase
     {
         $iran = Country::create(['name' => 'Iran', 'code' => 'IRN', 'is_active' => true]);
         $employee = Employee::factory()->create();
-        $a = $this->postJson('/api/applicants', ['name' => 'Overview Case', 'country_id' => $iran->id, 'responsible_employee_id' => $employee->id])->assertCreated()->json('data');
-
-        $currency = Currency::factory()->create();
-        // Sales are recorded as contract_service lines through the
-        // educational-services API; the legacy scholarships table is no
-        // longer part of the sales flow.
-        $this->seedApplicantDocuments($a['id']);
-        $this->postJson('/api/educational-services/scholarships', [
-            'applicant_id' => $a['id'], 'employee_id' => $employee->id, 'currency_id' => $currency->id,
-            'date' => now()->toDateString(), 'fee' => 500,
-        ])->assertCreated();
+        $contract = $this->createBuiltInContract('scholarship', ['name' => 'Overview Case', 'country_id' => $iran->id, 'responsible_employee_id' => $employee->id, 'fee' => 500]);
+        $a = ['id' => $contract['applicant_id']];
 
         $board = Board::factory()->create();
         Task::create(['board_id' => $board->id, 'applicant_id' => $a['id'], 'title' => 'Overdue case work', 'priority' => 'high', 'progress' => 0, 'due_date' => now()->subDay()->toDateString(), 'order' => 0]);

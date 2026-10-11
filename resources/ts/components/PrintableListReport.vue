@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useBranding } from '@/composables/useBranding'
 import { formatLocalizedDate } from '@/utils/localization'
 
 const { t } = useI18n()
+const { logoUrl, originalCompanyName } = useBranding()
 
 defineProps<{
   title: string
@@ -21,6 +23,8 @@ onBeforeUnmount(() => document.removeEventListener('app:before-print', setGenera
 <template>
   <section class="list-print-report">
     <header>
+      <img :src="logoUrl" :alt="originalCompanyName" class="list-print-logo">
+      <p class="list-print-company">{{ originalCompanyName }}</p>
       <h1>{{ title }}</h1>
       <p v-if="subtitle">
         {{ subtitle }}
@@ -47,7 +51,7 @@ onBeforeUnmount(() => document.removeEventListener('app:before-print', setGenera
             v-for="(value, cellIndex) in row"
             :key="cellIndex"
           >
-            {{ value || '—' }}
+            {{ value ?? '—' }}
           </td>
         </tr>
         <tr v-if="!rows.length">
@@ -61,7 +65,7 @@ onBeforeUnmount(() => document.removeEventListener('app:before-print', setGenera
       </tbody>
     </table>
 
-    <footer>{{ t('common.crmUi.printGenerated', { date: generatedAt }) }}</footer>
+    <footer>{{ originalCompanyName }} · {{ t('common.crmUi.printGenerated', { date: generatedAt }) }} · {{ rows.length }}</footer>
   </section>
 </template>
 
@@ -69,17 +73,21 @@ onBeforeUnmount(() => document.removeEventListener('app:before-print', setGenera
 .list-print-report { display: none; }
 
 @media print {
-  .list-print-report { display: block !important; color: #333; font-family: Arial, sans-serif; margin: 8mm; }
-  html.locale-persian-script .list-print-report,
-  html.locale-persian-script .list-print-report * { font-family: Vazirmatn, Estedad, Tahoma, sans-serif !important; }
-  html.locale-persian-script .list-print-report { direction: rtl; text-align: start; }
-  .list-print-report header { border-bottom: 3px solid #7367f0; margin-bottom: 18px; padding-bottom: 10px; }
-  .list-print-report h1 { color: #666; font-size: 20px; line-height: 1.2; margin: 0 0 7px; }
-  .list-print-report header p { color: #777; font-size: 11px; margin: 0; }
-  .list-print-report table { border-collapse: collapse; font-size: 11px; width: 100%; }
-  .list-print-report th { color: #777; font-size: 10px; font-weight: 600; text-align: start; }
-  .list-print-report th, .list-print-report td { border-bottom: 1px solid #d9d9d9; padding: 9px 7px; vertical-align: top; }
-  .list-print-report td.empty { color: #999; text-align: center; }
-  .list-print-report footer { color: #666; font-size: 10px; margin-top: 22px; text-align: end; }
+  body.printing-isolated-document .list-print-logo { max-width: 45mm; max-height: 18mm; object-fit: contain; float: inline-end; }
+  body.printing-isolated-document .list-print-company { font-weight: 700; }
+  body.printing-isolated-document .list-print-report thead { display: table-header-group; }
+  body.printing-isolated-document .list-print-report tr { break-inside: avoid; }
+  body.printing-isolated-document .list-print-report { display: block !important; color: #333; font-family: Arial, sans-serif; margin: 8mm; }
+  html.locale-persian-script body.printing-isolated-document .list-print-report,
+  html.locale-persian-script body.printing-isolated-document .list-print-report * { font-family: Vazirmatn, Estedad, Tahoma, sans-serif !important; }
+  html.locale-persian-script body.printing-isolated-document .list-print-report { direction: rtl; text-align: start; }
+  body.printing-isolated-document .list-print-report header { border-bottom: 2px solid #555; margin-bottom: 18px; padding-bottom: 10px; }
+  body.printing-isolated-document .list-print-report h1 { color: #666; font-size: 20px; line-height: 1.2; margin: 0 0 7px; }
+  body.printing-isolated-document .list-print-report header p { color: #777; font-size: 11px; margin: 0; }
+  body.printing-isolated-document .list-print-report table { border-collapse: collapse; font-size: 11px; width: 100%; }
+  body.printing-isolated-document .list-print-report th { color: #777; font-size: 10px; font-weight: 600; text-align: start; }
+  body.printing-isolated-document .list-print-report th, body.printing-isolated-document .list-print-report td { border-bottom: 1px solid #d9d9d9; padding: 9px 7px; vertical-align: top; }
+  body.printing-isolated-document .list-print-report td.empty { color: #999; text-align: center; }
+  body.printing-isolated-document .list-print-report footer { color: #666; font-size: 10px; margin-top: 22px; text-align: end; }
 }
 </style>

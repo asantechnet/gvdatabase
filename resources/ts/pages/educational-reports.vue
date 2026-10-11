@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import ReportApi, { type EducationalReport, type EducationalReportType } from '@/api/educationalReports'
@@ -8,6 +8,7 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import ApplicantApi, { type ApplicantStage } from '@/api/applicants'
 import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate } from '@/utils/localization'
+import { printDocument } from '@/utils/printDocument'
 
 const toast = useToast()
 const { t } = useI18n()
@@ -125,6 +126,25 @@ function clearFilters() {
   load()
 }
 
+// Prints the on-screen report view. The body class namespaces the print CSS
+// below so the application shell (navbar, navigation, footer) and the
+// screen-only controls stay out of the final print.
+const pagePrintClass = 'printing-education-reports'
+
+function printPage() {
+  void printDocument({ bodyClass: pagePrintClass, pageStyle: 'size: A4 landscape; margin: 12mm;' })
+}
+
+// Native browser printing (Ctrl+P / menu) bypasses printDocument, so mirror
+// the same print-mode class for any print originating from this page.
+function enablePagePrintMode() {
+  document.body.classList.add(pagePrintClass)
+}
+
+function disablePagePrintMode() {
+  document.body.classList.remove(pagePrintClass)
+}
+
 async function loadCatalogs() {
   try {
     const [countryRows, universityRows, levelRows, employeeRows, stageRows] = await Promise.all([
@@ -147,8 +167,16 @@ async function loadCatalogs() {
 }
 
 onMounted(async () => {
+  window.addEventListener('beforeprint', enablePagePrintMode)
+  window.addEventListener('afterprint', disablePagePrintMode)
   await loadCatalogs()
   await load()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeprint', enablePagePrintMode)
+  window.removeEventListener('afterprint', disablePagePrintMode)
+  disablePagePrintMode()
 })
 </script>
 
@@ -156,7 +184,7 @@ onMounted(async () => {
   <div class="education-workspace">
     <header class="education-page-header">
       <div><div class="education-eyebrow">{{ $t('educational.decisionReports') }}</div><h1>{{ $t('educational.visaReports') }}</h1><p>{{ $t('educational.reportsSubtitle') }}</p></div>
-      <div class="d-flex gap-2"><VBtn variant="tonal" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">{{ $t('educational.filters') }}<VBadge v-if="activeFilterCount" :content="activeFilterCount" color="primary" inline /></VBtn><VBtn v-if="canExport" color="primary" :loading="exporting" prepend-icon="tabler-download" @click="download">{{ $t('educational.exportCsv') }}</VBtn></div>
+      <div class="d-flex gap-2 education-header-actions"><VBtn variant="tonal" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">{{ $t('educational.filters') }}<VBadge v-if="activeFilterCount" :content="activeFilterCount" color="primary" inline /></VBtn><VBtn variant="outlined" :disabled="!report" prepend-icon="tabler-printer" @click="printPage">{{ $t('educational.printView') }}</VBtn><VBtn v-if="canExport" color="primary" :loading="exporting" prepend-icon="tabler-download" @click="download">{{ $t('educational.exportCsv') }}</VBtn></div>
     </header>
 
     <VCard class="education-panel">
@@ -176,7 +204,7 @@ onMounted(async () => {
         <div class="d-flex justify-end gap-2 mt-3"><VBtn variant="text" @click="clearFilters">{{ $t('educational.clear') }}</VBtn><VBtn color="primary" :loading="loading" @click="page = 1; load()">{{ $t('educational.apply') }}</VBtn></div>
       </VCardText></VExpandTransition>
 
-      <div class="d-flex align-center flex-wrap gap-2 px-4 py-3">
+      <div class="d-flex align-center flex-wrap gap-2 px-4 py-3 education-result-bar">
         <VAvatar color="primary" variant="tonal" size="36"><VIcon icon="tabler-chart-bar" size="20" /></VAvatar>
         <div><strong>{{ activeTab?.title }}</strong><div class="text-caption text-medium-emphasis">{{ $t('educational.resultCount', { count: report?.total ?? 0 }) }}</div></div>
         <VSpacer /><VBtn v-if="activeFilterCount" size="small" variant="text" prepend-icon="tabler-filter" @click="filtersOpen = true">{{ $t('educational.activeFilters', { count: activeFilterCount }) }}</VBtn><span v-if="!canExport" class="text-caption text-medium-emphasis">{{ $t('educational.exportRequired') }}</span>
@@ -187,7 +215,75 @@ onMounted(async () => {
         <tbody><tr v-for="(row, index) in report.rows" :key="index"><td v-for="column in report.columns" :key="column">{{ displayValue(column, row[column]) }}</td></tr><tr v-if="!report.rows.length"><td :colspan="report.columns.length || 1"><div class="education-empty"><VIcon icon="tabler-report-off" size="34" /><strong>{{ $t('educational.noRows') }}</strong><span>{{ $t('educational.adjustFilters') }}</span></div></td></tr></tbody>
       </VTable></div>
       <VDivider v-if="report?.last_page && report.last_page > 1" />
-      <VCardText v-if="report?.last_page && report.last_page > 1" class="d-flex justify-center py-2"><VPagination v-model="page" :length="report.last_page" size="small" :total-visible="7" @update:model-value="load" /></VCardText>
+      <VCardText v-if="report?.last_page && report.last_page > 1" class="d-flex justify-center py-2 education-pagination"><VPagination v-model="page" :length="report.last_page" size="small" :total-visible="7" @update:model-value="load" /></VCardText>
     </VCard>
   </div>
 </template>
+
+<style>
+/* Page-print overrides. Every selector is namespaced with the print-mode body
+   class applied by printDocument (and mirrored on native beforeprint) so these
+   rules only affect this report view while it is being printed. */
+@media print {
+  body.printing-education-reports .layout-navbar,
+  body.printing-education-reports .layout-menu,
+  body.printing-education-reports .menu-vertical,
+  body.printing-education-reports .layout-horizontal-nav,
+  body.printing-education-reports .layout-vertical-nav,
+  body.printing-education-reports .vertical-nav-wrapper,
+  body.printing-education-reports .layout-overlay,
+  body.printing-education-reports .v-app-bar,
+  body.printing-education-reports .v-navigation-drawer,
+  body.printing-education-reports .v-bottom-navigation,
+  body.printing-education-reports .v-footer,
+  body.printing-education-reports .layout-footer,
+  body.printing-education-reports #app > header,
+  body.printing-education-reports #app > nav,
+  body.printing-education-reports .education-header-actions,
+  body.printing-education-reports .report-tabs,
+  body.printing-education-reports .education-filter-card,
+  body.printing-education-reports .education-result-bar > .v-btn,
+  body.printing-education-reports .education-result-bar > span.text-caption,
+  body.printing-education-reports .education-pagination,
+  body.printing-education-reports .v-progress-linear { display: none !important; }
+
+  body.printing-education-reports,
+  body.printing-education-reports .v-application,
+  body.printing-education-reports .layout-wrapper { background: #fff !important; }
+
+  body.printing-education-reports .v-application,
+  body.printing-education-reports .v-layout,
+  body.printing-education-reports .v-main {
+    --v-layout-left: 0px !important;
+    --v-layout-right: 0px !important;
+    --v-layout-top: 0px !important;
+    --v-layout-bottom: 0px !important;
+  }
+
+  body.printing-education-reports .v-main,
+  body.printing-education-reports .layout-page,
+  body.printing-education-reports .layout-page-content,
+  body.printing-education-reports .layout-content-wrapper,
+  body.printing-education-reports .v-application__wrap,
+  body.printing-education-reports .education-workspace {
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    min-block-size: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body.printing-education-reports .education-workspace { overflow: visible !important; }
+
+  body.printing-education-reports .education-panel { box-shadow: none !important; }
+
+  body.printing-education-reports .education-table-scroll { overflow: visible !important; }
+
+  body.printing-education-reports .education-panel,
+  body.printing-education-reports .education-table {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+</style>

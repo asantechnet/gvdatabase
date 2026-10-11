@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Resources\CrmInteractionResource;
 use App\Models\Applicant;
 use App\Models\CrmInteraction;
-use App\Models\Lead;
 use App\Models\Visitor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,7 +17,6 @@ class CrmInteractionController extends Controller
         $this->authorizeMutation($request, $type);
         $model = match ($type) {
             'visitor' => Visitor::findOrFail($id),
-            'lead' => Lead::findOrFail($id),
             'applicant' => Applicant::findOrFail($id),
             default => abort(404),
         };
@@ -32,7 +30,7 @@ class CrmInteractionController extends Controller
     {
         $this->authorizeMutation($request, $type);
         $model = match ($type) {
-            'visitor' => Visitor::findOrFail($id), 'lead' => Lead::findOrFail($id), 'applicant' => Applicant::findOrFail($id), default => abort(404)
+            'visitor' => Visitor::findOrFail($id), 'applicant' => Applicant::findOrFail($id), default => abort(404)
         };
         $data = $request->validate(['channel' => ['required', Rule::in(['call', 'message', 'email', 'meeting', 'note'])], 'title' => ['required', 'string', 'max:255'],
             'notes' => ['required', 'string', 'max:10000'], 'contacted_at' => ['nullable', 'date'], 'follow_up_at' => ['nullable', 'date', 'after_or_equal:contacted_at']]);
@@ -65,7 +63,6 @@ class CrmInteractionController extends Controller
         $type = match ($interaction->contactable_type) {
             (new Applicant)->getMorphClass(), Applicant::class => 'applicant',
             (new Visitor)->getMorphClass(), Visitor::class => 'visitor',
-            (new Lead)->getMorphClass(), Lead::class => 'lead',
             default => abort(404),
         };
 

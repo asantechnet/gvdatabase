@@ -7,6 +7,7 @@ export interface PlaceholderField {
 
 /** A context-aware group of placeholders served by GET /contract-placeholders. */
 export interface PlaceholderGroup {
+  deprecated?: boolean
   key: string
   label: string
   fields: PlaceholderField[]

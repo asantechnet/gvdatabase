@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 
-export type ActionWarningKey = 'discard-form-changes' | 'move-kanban-card'
+export type ActionWarningKey = 'discard-form-changes' | 'move-kanban-card' | `activate-template-version-${number}`
 
 export interface ActionWarningRequest {
   key: ActionWarningKey

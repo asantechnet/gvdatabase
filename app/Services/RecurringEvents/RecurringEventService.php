@@ -2,7 +2,6 @@
 
 namespace App\Services\RecurringEvents;
 
-use App\Models\Board;
 use App\Models\Currency;
 use App\Models\Expense;
 use App\Models\Income;
@@ -12,6 +11,7 @@ use App\Models\RecurringEventOccurrence;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\CurrencyConversionService;
+use App\Services\EducationalWorkflowNotificationService;
 use App\Support\CompanyProfile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +22,7 @@ class RecurringEventService
     public function __construct(
         private readonly CurrencyConversionService $currencies,
         private readonly CompanyProfile $company,
+        private readonly EducationalWorkflowNotificationService $notifications,
     ) {}
 
     public function processDueEvents(): int
@@ -161,10 +162,14 @@ class RecurringEventService
     private function createTask(RecurringEvent $event, RecurringEventOccurrence $occurrence, User $user): Task
     {
         $data = $event->payload;
-        $board = Board::query()->with('project')->lockForUpdate()->findOrFail($data['board_id']);
-        $data['applicant_id'] ??= $board->project?->applicant_id;
         $task = Task::create([...$data, 'start_date' => $occurrence->occurrence_date, 'due_date' => $data['due_date'] ?? $occurrence->occurrence_date, 'order' => (Task::where('board_id', $data['board_id'])->max('order') ?? -1) + 1]);
-        $task->users()->sync($data['assignees'] ?? [$user->id]);
+        $assignees = $data['assignees'] ?? [$user->id];
+        $task->users()->sync($assignees);
+
+        if ($assignees !== []) {
+            $task->board->users()->syncWithoutDetaching($assignees);
+            $this->notifications->taskAssigned($task, $assignees, $user->id);
+        }
 
         return $task;
     }

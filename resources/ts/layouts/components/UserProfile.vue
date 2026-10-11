@@ -7,16 +7,17 @@ import { applyPermissions, canAccess, clearPermissions } from '@/utils/authoriza
 import WorkdayControl from '@/components/workday/WorkdayControl.vue'
 import EndDayDialog from '@/components/workday/EndDayDialog.vue'
 import MyPaidTimeOffDialog from '@/components/paid-time-off/MyPaidTimeOffDialog.vue'
-import WorkdayApi from '@/api/workday'
-import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
+import WorkdayApi, { WorkdayLocationError } from '@/api/workday'
+import { useToast } from 'vue-toastification'
 
 const router = useRouter()
+const { t } = useI18n()
+const toast = useToast()
 const userData = useCookie<any>('userData')
 const paidTimeOffDialog = ref(false)
 const startDayDialog = ref(false)
 const endDayDialog = ref(false)
 const startLoading = ref(false)
-const { enabled: automaticAttendanceEnabled, load: loadAutomaticAttendance } = useAutomaticAttendance()
 
 const userProfileList = [
   { type: 'navItem', icon: 'tabler-user', title: translate('components.navigation.userprofile.myAccount'), to: { name: 'account-settings', params: { tab: 'account' } } },
@@ -50,13 +51,18 @@ async function logout() {
 }
 
 async function handleStartDay() {
+  if (startLoading.value) return
   startLoading.value = true
   try {
     await WorkdayApi.start()
     startDayDialog.value = false
     window.dispatchEvent(new CustomEvent('workday-status-changed'))
   }
-  catch { /* Global API error handler presents the failure. */ }
+  catch (error) {
+    if (error instanceof WorkdayLocationError)
+      toast.warning(t(error.reason === 'session_changed' ? 'backend.errors.business.workday_session_changed' : error.reason === 'unsupported' ? 'pages.settings.geofence.notSupported' : 'components.account.geofence.permissionRequired'))
+    // Server validation and business messages come from the shared API notifier.
+  }
   finally {
     startLoading.value = false
   }
@@ -64,7 +70,6 @@ async function handleStartDay() {
 
 onMounted(() => {
   refreshUser()
-  loadAutomaticAttendance()
 })
 </script>
 
@@ -149,7 +154,7 @@ onMounted(() => {
               <VListItemTitle>{{ $t('pages.paidTimeOff.myTitle') }}</VListItemTitle>
             </VListItem>
             <WorkdayControl
-              v-if="automaticAttendanceEnabled"
+              :key="userData?.id"
               @open-start-dialog="startDayDialog = true"
               @open-end-dialog="endDayDialog = true"
             />
@@ -171,13 +176,12 @@ onMounted(() => {
   </VBadge>
   <MyPaidTimeOffDialog v-model="paidTimeOffDialog" />
   <EndDayDialog
-    v-if="automaticAttendanceEnabled"
+    :key="userData?.id"
     v-model="endDayDialog"
   />
   <VDialog
-    v-if="automaticAttendanceEnabled"
     v-model="startDayDialog"
-    persistent
+    :persistent="startLoading"
     max-width="560"
   >
     <VCard>

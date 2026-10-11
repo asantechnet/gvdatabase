@@ -13,6 +13,7 @@ export interface KanbanItem {
   title: string
   dueDate: string
   labels: string[]
+  labelColors?: Record<string, string>
   members: KanbanMember[]
   attachments?: number
   attachmentsCount?: number

@@ -30,7 +30,7 @@ const dialogVisibleUpdate = (val: boolean) => {
   emit('update:isDialogVisible', val)
 }
 
-const paymentProvidersData = [
+const paymentProvidersData = computed(() => [
   {
     title: translate('components.dialogs.paymentprovidersdialog.adyen'),
     providers: [visa, masterCard, americanEx, jcb, dc],
@@ -63,7 +63,7 @@ const paymentProvidersData = [
     title: translate('components.dialogs.paymentprovidersdialog.checkoutCom'),
     providers: [visa, masterCard],
   },
-]
+])
 </script>
 
 <template>

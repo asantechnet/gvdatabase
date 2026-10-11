@@ -13,7 +13,7 @@ export interface PartyDetails {
 
 type RecordValue = Record<string, unknown>
 
-const systemContractTypes = new Set(['employment', 'customer', 'company'])
+const systemContractTypes = new Set(['employment', 'customer', 'other'])
 
 const asRecord = (value: unknown): RecordValue =>
   value && typeof value === 'object' && !Array.isArray(value) ? value as RecordValue : {}
@@ -37,13 +37,13 @@ const fields = (items: Array<[string, unknown]>): PartyDetail[] =>
 export const contractTypeSlug = (contract: Contract): string =>
   (contract.type_slug ?? contract.contract_template?.type_slug ?? contract.type ?? '').toLowerCase()
 
-/** Party details are a print-only feature for the three built-in contract types. */
+/** Party details are a print-only feature for supported system agreements. */
 export const canPrintPartyDetails = (contract: Contract): boolean =>
   !contract.is_custom && systemContractTypes.has(contractTypeSlug(contract))
 
 /**
  * Prefer contract snapshots so a reprint reflects the parties' data when the
- * agreement was issued. Older contracts gracefully fall back to current data.
+ * agreement was issued; document fields supply any values outside the snapshot.
  */
 export const partyDetailsFor = (contract: Contract, company: CompanyDetails): PartyDetails => {
   const snapshot = asRecord(contract.snapshot_data)
@@ -80,36 +80,30 @@ export const partyDetailsFor = (contract: Contract, company: CompanyDetails): Pa
   }
 
   if (type === 'customer') {
-    const customer = asRecord(entity.customer ?? contract.customer)
+    const applicant = asRecord(entity.applicant)
+    const party = asRecord(parties.counterparty)
 
     return {
       ourCompany: ourCompanyDetails,
       counterparty: fields([
-        ['Customer', customer.name ?? contract.counterparty],
-        ['Company', customer.company ?? contract.counterparty_company],
-        ['Tax number', customer.tax_number],
-        ['Phone', customer.phone ?? customer.contact ?? contract.counterparty_contact],
-        ['Email', customer.email ?? contract.counterparty_email],
-        ['Address', customer.address ?? contract.counterparty_address],
+        ['Applicant', applicant.name ?? party.name ?? contract.counterparty],
+        ['Father name', applicant.father_name],
+        ['Phone', applicant.contact ?? party.phone ?? contract.counterparty_contact],
+        ['Email', applicant.email ?? party.email ?? contract.counterparty_email],
+        ['Address', applicant.address ?? party.address ?? contract.counterparty_address],
       ]),
     }
   }
 
-  const counterpartyCompany = asRecord(entity.company ?? contract.company)
+  const counterparty = asRecord(asRecord(parties.counterparty).fields)
 
   return {
     ourCompany: ourCompanyDetails,
     counterparty: fields([
-      ['Legal name', counterpartyCompany.legal_name ?? contract.counterparty_company ?? contract.counterparty],
-      ['Trade name', counterpartyCompany.trade_name],
-      ['Registration number', counterpartyCompany.registration_number],
-      ['Tax number', counterpartyCompany.tax_number],
-      ['Legal form', counterpartyCompany.legal_form],
-      ['Representative', counterpartyCompany.representative_name ?? contract.counterparty],
-      ['Representative title', counterpartyCompany.representative_title],
-      ['Phone', counterpartyCompany.representative_phone ?? counterpartyCompany.phone ?? contract.counterparty_contact],
-      ['Email', counterpartyCompany.representative_email ?? counterpartyCompany.email ?? contract.counterparty_email],
-      ['Address', counterpartyCompany.address ?? counterpartyCompany.address_line ?? contract.counterparty_address],
+      ['Counterparty', counterparty.counterparty ?? contract.counterparty],
+      ['Phone', counterparty.counterparty_contact ?? contract.counterparty_contact],
+      ['Email', counterparty.counterparty_email ?? contract.counterparty_email],
+      ['Address', counterparty.counterparty_address ?? contract.counterparty_address],
     ]),
   }
 }

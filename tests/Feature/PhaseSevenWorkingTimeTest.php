@@ -169,4 +169,55 @@ class PhaseSevenWorkingTimeTest extends TestCase
         $this->assertSame(420, $row->worked_minutes);
         $this->assertSame(30, $row->overtime_minutes);
     }
+
+    public function test_identical_punches_are_zero_hours_and_reversed_instants_are_invalid(): void
+    {
+        $employee = Employee::factory()->create(['join_date' => '2026-07-01']);
+        $row = Attendance::create([
+            'employee_id' => $employee->id, 'date' => '2026-07-11', 'status' => 'present', 'logged_at' => '22:00',
+            'checked_in_at' => Carbon::parse('2026-07-11 17:30', 'UTC'),
+            'checked_out_at' => Carbon::parse('2026-07-11 17:30', 'UTC'),
+        ]);
+        $calculator = app(AttendanceCalculationService::class);
+        $calculator->calculate($row);
+        $this->assertSame(0, $row->net_worked_minutes);
+        $this->assertSame(0, $row->gross_minutes);
+        $row->update(['checked_out_at' => Carbon::parse('2026-07-11 17:00', 'UTC')]);
+        $calculator->calculate($row);
+        $this->assertSame('invalid', $row->missing_punch_state);
+        $this->assertNull($row->net_worked_minutes);
+    }
+
+    public function test_short_workday_preserves_default_break_and_schedule_requirement(): void
+    {
+        $employee = Employee::factory()->create(['join_date' => '2026-07-01']);
+        $row = Attendance::create([
+            'employee_id' => $employee->id, 'date' => '2026-07-11', 'status' => 'present', 'logged_at' => '22:00',
+            'checked_in_at' => Carbon::parse('2026-07-11 17:30', 'UTC'),
+            'checked_out_at' => Carbon::parse('2026-07-11 17:40', 'UTC'),
+        ]);
+        $calculator = app(AttendanceCalculationService::class);
+        $calculator->calculate($row);
+        $this->assertNull($row->break_minutes);
+        $this->assertSame(0, $row->net_worked_minutes);
+        $this->assertSame(450, $row->required_minutes);
+        $this->assertFalse($calculator->calculate($row));
+        $row->update(['checked_out_at' => Carbon::parse('2026-07-12 01:30', 'UTC')]);
+        $calculator->calculate($row);
+        $this->assertSame(450, $row->net_worked_minutes);
+        Setting::query()->update(['default_break_minutes' => 45]);
+        $this->assertTrue($calculator->calculate($row));
+        $this->assertSame(435, $row->net_worked_minutes);
+    }
+
+    public function test_finalization_never_marks_today_future_days_or_inactive_employees_absent(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-13 03:30', 'UTC'));
+        $active = Employee::factory()->create(['join_date' => '2026-08-12']);
+        $inactive = Employee::factory()->create(['join_date' => '2026-08-12', 'status' => 'inactive']);
+        $this->artisan('attendance:finalize --from=2026-08-12 --to=2026-08-15')->assertSuccessful();
+        $this->assertDatabaseHas('attendances', ['employee_id' => $active->id, 'date' => '2026-08-12', 'status' => 'absent']);
+        $this->assertDatabaseMissing('attendances', ['employee_id' => $inactive->id]);
+        $this->assertDatabaseCount('attendances', 1);
+    }
 }

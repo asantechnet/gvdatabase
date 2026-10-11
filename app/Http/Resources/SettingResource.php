@@ -40,13 +40,6 @@ class SettingResource extends JsonResource
             'receipt_letterhead_safe_y' => (float) ($this->receipt_letterhead_safe_y ?? 18),
             'receipt_letterhead_safe_width' => (float) ($this->receipt_letterhead_safe_width ?? 88),
             'receipt_letterhead_safe_height' => (float) ($this->receipt_letterhead_safe_height ?? 64),
-            'invoice_letterhead' => $this->invoice_letterhead,
-            'invoice_letterhead_url' => $this->invoice_letterhead ? Storage::url($this->invoice_letterhead) : null,
-            'invoice_letterhead_source' => DocumentLetterheads::normalizeSource($this->invoice_letterhead_source),
-            'invoice_letterhead_safe_x' => (float) ($this->invoice_letterhead_safe_x ?? 8.5),
-            'invoice_letterhead_safe_y' => (float) ($this->invoice_letterhead_safe_y ?? 15),
-            'invoice_letterhead_safe_width' => (float) ($this->invoice_letterhead_safe_width ?? 83),
-            'invoice_letterhead_safe_height' => (float) ($this->invoice_letterhead_safe_height ?? 70),
             'payslip_letterhead' => $this->payslip_letterhead,
             'payslip_letterhead_url' => $this->payslip_letterhead ? Storage::url($this->payslip_letterhead) : null,
             'payslip_letterhead_source' => DocumentLetterheads::normalizeSource($this->payslip_letterhead_source),
@@ -54,11 +47,10 @@ class SettingResource extends JsonResource
             'payslip_letterhead_safe_y' => (float) ($this->payslip_letterhead_safe_y ?? 14),
             'payslip_letterhead_safe_width' => (float) ($this->payslip_letterhead_safe_width ?? 84),
             'payslip_letterhead_safe_height' => (float) ($this->payslip_letterhead_safe_height ?? 72),
-            // Resolved artwork for printable documents (receipt / invoice /
-            // payslip): the selected source plus the safe-zone where text lands.
+            // Resolved artwork for printable documents (receipt / payslip):
+            // the selected source plus the safe-zone where text lands.
             'letterheads' => [
                 'receipt' => DocumentLetterheads::resolve($this->resource, 'receipt'),
-                'invoice' => DocumentLetterheads::resolve($this->resource, 'invoice'),
                 'payslip' => DocumentLetterheads::resolve($this->resource, 'payslip'),
             ],
             'website_address' => $this->website_address,

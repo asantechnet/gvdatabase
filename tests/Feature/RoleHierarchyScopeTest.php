@@ -3,19 +3,21 @@
 namespace Tests\Feature;
 
 use App\Models\Applicant;
-use App\Models\Currency;
 use App\Models\Employee;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\CreatesBuiltInContracts;
 use Tests\TestCase;
 
 class RoleHierarchyScopeTest extends TestCase
 {
-    use RefreshDatabase;
+    use CreatesBuiltInContracts, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -47,6 +49,8 @@ class RoleHierarchyScopeTest extends TestCase
 
     public function test_notification_senders_are_limited_to_their_team_unless_they_have_the_broadcast_grant(): void
     {
+        Role::where('name', 'manager')->firstOrFail()->permissions()
+            ->detach(Permission::where('name', 'send_all_notifications')->value('id'));
         $manager = $this->user('manager');
         $staff = $this->user('staff');
         $outsider = $this->user('staff');
@@ -77,22 +81,12 @@ class RoleHierarchyScopeTest extends TestCase
             'user_id' => $counselor->id,
             'supervisor_id' => $seniorEmployee->id,
         ]);
-        $case = Applicant::factory()->create(['responsible_employee_id' => $counselorEmployee->id]);
-        $this->seedApplicantDocuments($case);
-        $currency = Currency::factory()->create(['is_active' => true]);
-
         Sanctum::actingAs($counselor, ['access']);
-        $sale = $this->postJson('/api/educational-services/test-offers', [
-            'applicant_id' => $case->id,
-            'employee_id' => $counselorEmployee->id,
-            'currency_id' => $currency->id,
-            'date' => '2026-09-26',
-            'fee' => 500,
-        ])->assertCreated()->json('data');
+        $sale = $this->createBuiltInContract('test_offer', ['fee' => 500]);
 
         Sanctum::actingAs($senior, ['access']);
-        $this->getJson("/api/educational-services/test-offers/{$sale['id']}")->assertOk();
-        $this->putJson("/api/educational-services/test-offers/{$sale['id']}", ['fee' => 750])
+        $this->getJson("/api/contracts/{$sale['id']}")->assertOk();
+        $this->putJson("/api/contracts/{$sale['id']}", ['name' => 'Unauthorized change'])
             ->assertForbidden()
             ->assertJsonPath('code', 'auth.forbidden');
     }

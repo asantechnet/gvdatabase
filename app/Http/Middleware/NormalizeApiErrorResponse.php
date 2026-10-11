@@ -31,7 +31,10 @@ class NormalizeApiErrorResponse
         $payload['code'] ??= $this->codeFor($response->getStatusCode(), $payload, $messageCode);
         $payload['message'] = ApiMessage::forCode($payload['code']);
 
-        return response()->json($payload, $response->getStatusCode());
+        // Preserve cookies and throttling/CORS headers added by other middleware.
+        $response->setData($payload);
+
+        return $response;
     }
 
     /** @param array<string, mixed> $payload */

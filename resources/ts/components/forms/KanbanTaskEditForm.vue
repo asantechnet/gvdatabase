@@ -28,14 +28,14 @@ async function submit() {
   >
     <VCardText class="kanban-editor-drawer">
       <VRow>
-        <VCol cols="12">
+        <VCol cols="12" md="6">
           <p class="app-form__section">
             {{ $t('common.messages.details') }}
           </p><p class="app-form__section-help">
             {{ $t('common.messages.taskFormHint') }}
           </p>
         </VCol>
-        <VCol cols="12">
+        <VCol cols="12" md="6">
           <AppTextField
             v-model="draft.title"
             :label="$t('common.fields.title')"
@@ -55,6 +55,7 @@ async function submit() {
         <VCol
           v-if="canManageTags"
           cols="12"
+          md="6"
         >
           <AppSelect
             v-model="draft.labels"
@@ -75,6 +76,7 @@ async function submit() {
         <VCol
           v-if="canAssign"
           cols="12"
+          md="6"
         >
           <p class="mb-1 text-body-2 text-high-emphasis assigned-label">
             {{ $t('pages.tasks.kanbanboardeditdrawer.kanbanboardeditdrawer.assigned') }}

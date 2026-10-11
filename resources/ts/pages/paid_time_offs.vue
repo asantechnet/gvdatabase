@@ -5,6 +5,7 @@ import { useToast } from 'vue-toastification'
 import PaidTimeOffApi, { type PaidTimeOff } from '@/api/paidTimeOff'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { formatLocalizedDate } from '@/utils/localization'
+import PrintableListReport from '@/components/PrintableListReport.vue'
 import { printDocument } from '@/utils/printDocument'
 
 const toast = useToast()
@@ -96,7 +97,7 @@ async function grantSelected(forcePaid = false) {
   finally { loading.value = false }
 }
 
-function printReport() { void printDocument({ bodyClass: 'printing-paid-time-off', pageStyle: 'size: A4 landscape; margin: 12mm;' }) }
+function printReport() { void printDocument({ bodyClass: 'printing-table-paid-time-off', pageStyle: 'size: A4 landscape; margin: 12mm;' }) }
 watch(year, load)
 watch(rows, currentRows => {
   const pendingIds = new Set(currentRows.filter(isSelectable).map(row => row.id))
@@ -110,7 +111,7 @@ onMounted(load)
   <div class="pto-page pa-4">
     <DataTablePageKpis
       :items="filteredRows"
-      title="Leave"
+      :title="$t('pages.settings.staffList.staffList.paidOffDays')"
       description="Review full and half-day requests, allowance usage, and authorized paid exceptions."
       icon="tabler-beach"
     />
@@ -165,7 +166,7 @@ onMounted(load)
         :item-selectable="isSelectable"
         :items="filteredRows"
         :loading="loading"
-        :headers="[{ title: $t('common.fields.employee'), key: 'employee.name' }, { title: $t('common.fields.date'), key: 'date' }, { title: 'Days', key: 'duration_days' }, { title: $t('common.fields.reason'), key: 'reason' }, { title: $t('common.fields.status'), key: 'status' }, { title: 'Approved by', key: 'approvedBy.name' }, { title: $t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' }]"
+        :headers="[{ title: $t('common.fields.employee'), key: 'employee.name' }, { title: $t('common.fields.date'), key: 'date' }, { title: $t('components.account.accountsettingsbillingandplans.days'), key: 'duration_days' }, { title: $t('common.fields.reason'), key: 'reason' }, { title: $t('common.fields.status'), key: 'status' }, { title: $t('common.ui.approvedBy'), key: 'approvedBy.name' }, { title: $t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' }]"
       >
         <template #item.status="{ item }">
           <VChip
@@ -179,7 +180,7 @@ onMounted(load)
           <span v-if="item.approvedBy">{{ item.approvedBy.name }}</span><span
             v-else
             class="text-medium-emphasis"
-          >Pending</span>
+          >{{ $t('common.statuses.pending') }}</span>
         </template>
         <template #item.actions="{ item }">
           <FullDetailsButton
@@ -189,18 +190,12 @@ onMounted(load)
         </template>
       </ResponsiveDataTable>
     </VCard>
-    <section class="pto-print">
-      <header><h1>Paid-off Days Report</h1><p>Calendar year {{ year }}</p></header><table>
-        <thead><tr><th>Employee</th><th>Position</th><th>Date</th><th>Reason</th><th>Classification</th></tr></thead><tbody>
-          <tr
-            v-for="row in rows"
-            :key="row.id"
-          >
-            <td>{{ row.employee?.name }}</td><td>{{ row.employee?.position || '—' }}</td><td>{{ row.date }}</td><td>{{ row.reason }}</td><td>{{ !row.is_granted ? 'Pending' : row.is_paid ? 'Paid' : 'Unpaid' }}</td>
-          </tr>
-        </tbody>
-      </table><footer>Generated {{ formatLocalizedDate(new Date(), 'long') }}</footer>
-    </section>
+    <PrintableListReport
+      :title="$t('pages.paidTimeOff.reportTitle')"
+      :subtitle="String(year)"
+      :columns="[$t('common.fields.employee'), $t('common.messages.position'), $t('common.fields.date'), $t('pages.paidTimeOff.duration'), $t('common.fields.reason'), $t('common.fields.status')]"
+      :rows="filteredRows.map(row => [row.employee?.name, row.employee?.position, row.date, row.duration_days, row.reason, !row.is_granted ? $t('common.statuses.pending') : row.is_paid ? $t('common.statuses.paid') : $t('common.statuses.unpaid')])"
+    />
     <VDialog
       v-model="overrideDialog"
       max-width="620"
@@ -264,11 +259,3 @@ onMounted(load)
     </VDialog>
   </div>
 </template>
-
-<style scoped>
-.pto-print{display:none}.pto-print header{border-bottom:3px solid #7367f0;margin-bottom:18px}.pto-print table{width:100%;border-collapse:collapse}.pto-print th{background:#29245c;color:#fff;text-align:start}.pto-print th,.pto-print td{padding:10px;border-bottom:1px solid #ddd}.pto-print tbody tr:nth-child(even){background:#f6f5ff}.pto-print footer{margin-top:24px;color:#666;text-align:end}
-</style>
-
-<style>
-@media print{body.printing-paid-time-off .pto-screen{display:none!important}body.printing-paid-time-off .pto-print{display:block!important}body.printing-paid-time-off .layout-navbar,body.printing-paid-time-off .layout-menu,body.printing-paid-time-off .layout-footer{display:none!important}body.printing-paid-time-off .v-main,body.printing-paid-time-off .layout-page-content{padding:0!important;margin:0!important;min-height:0!important}}
-</style>

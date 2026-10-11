@@ -2,97 +2,131 @@
 
 namespace Database\Seeders;
 
+use App\Models\AcademyClass;
 use App\Models\Applicant;
-use App\Models\Contract;
-use App\Models\ContractType;
-use App\Models\Service;
+use App\Models\ApplicantStage;
+use App\Models\Country;
+use App\Models\Duration;
+use App\Models\EducationalScholarship;
+use App\Models\EducationLevel;
+use App\Models\Employee;
+use App\Models\Program;
+use App\Models\Semester;
+use App\Models\Skill;
+use App\Models\Subject;
+use App\Models\Teacher;
+use App\Models\Test;
+use App\Models\TimeSlot;
+use App\Models\University;
+use App\Support\BuiltInService;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class ApplicantSeeder extends Seeder
 {
     /**
-     * Seeds the party records that used to live in `customers`. They are now
-     * plain applicants: a case is layered onto one of them by
-     * EducationalSeeder, which is the same shape the cutover migration produced
-     * when it folded each case-less customer into its own applicant row.
+     * One representative case per built-in service.
+     *
+     * Each applicant carries the shared identity plus the detail row for its
+     * service, is owned by the seeded counselor, was acquired by the seeded
+     * admission officer, and sits at a realistic pipeline stage. This is what
+     * the contract, task and stage-automation seeders build on.
      */
     public function run(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        $counselor = Employee::query()->whereHas('position', fn ($query) => $query->where('system_key', 'counselor'))->value('id');
+        $admission = Employee::query()->whereHas('position', fn ($query) => $query->where('system_key', 'admission'))->value('id');
 
-        // Clear contracted service lines before the contracts that own them.
-        DB::table('contract_service')->truncate();
+        $stage = fn (string $key) => ApplicantStage::query()->where('key', $key)->value('id');
 
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        $countries = Country::query()->pluck('id', 'code');
+        $levels = EducationLevel::query()->pluck('id', 'name');
+        $universities = University::query()->pluck('id', 'name');
+        $scholarships = EducationalScholarship::query()->pluck('id', 'name');
+        $semesters = Semester::query()->pluck('id', 'code');
+        $tests = Test::query()->pluck('id', 'name');
+        $subjects = Subject::query()->pluck('id', 'name');
+        $skills = Skill::query()->pluck('id', 'name');
+        $teachers = Teacher::query()->pluck('id', 'name');
+        $programs = Program::query()->pluck('id', 'name');
+        $times = TimeSlot::query()->pluck('id', 'name');
+        $durations = Duration::query()->pluck('id', 'name');
+        $classes = AcademyClass::query()->pluck('id', 'name');
 
-        // Keep the demo party data coupled to the current service catalog.
-        $services = Service::query()->orderBy('id')->take(3)->get();
-        if ($services->count() < 3) {
-            throw new \RuntimeException('Seed at least three services before applicants.');
-        }
-        [$consultingService, $trainingService, $developmentService] = $services->all();
-
-        $john = Applicant::create([
-            'name' => 'John Doe',
-            'contact' => '555-1234',
-            'marketer' => 'Sarah Johnson',
-            'date' => '2023-10-15',
+        // --- Scholarship case -------------------------------------------------
+        $scholarship = $this->applicant([
+            'name' => 'Ahmad Wali', 'email' => 'ahmad.wali@example.test', 'contact' => '+93 700 200 001',
+            'father_name' => 'Rahim Wali', 'father_phone' => '+93 700 200 002',
+            'service' => BuiltInService::SCHOLARSHIP, 'responsible_employee_id' => $counselor,
+            'admission_employee_id' => $admission, 'current_stage_id' => $stage('university_selection'),
         ]);
-
-        $jane = Applicant::create([
-            'name' => 'Jane Smith',
-            'contact' => '555-5678',
-            'marketer' => 'Michael Brown',
-            'date' => '2023-10-16',
+        $scholarship->scholarshipDetail()->updateOrCreate([], [
+            'country_id' => $countries['CA'] ?? null,
+            'university_id' => $universities['University of Toronto'] ?? null,
+            'education_level_id' => $levels['Master'] ?? null,
+            'semester_id' => $semesters['FALL-2027'] ?? null,
+            'scholarship_id' => $scholarships['Merit scholarship'] ?? null,
+            'passport_id' => 'P-AW-1001', 'grade_score' => 88.50, 'university_fee' => 42000,
         ]);
+        $scholarship->favoriteSubjects()->sync(array_filter([
+            $subjects['Computer Science'] ?? null, $subjects['Mathematics'] ?? null,
+        ]));
 
-        $bob = Applicant::create([
-            'name' => 'Bob Wilson',
-            'contact' => '555-9012',
-            'marketer' => 'Sarah Johnson',
-            'date' => '2023-10-17',
+        // --- Private admission case ------------------------------------------
+        $private = $this->applicant([
+            'name' => 'Nadia Habibi', 'email' => 'nadia.habibi@example.test', 'contact' => '+93 700 200 003',
+            'father_name' => 'Karim Habibi', 'father_phone' => '+93 700 200 004',
+            'service' => BuiltInService::PRIVATE, 'responsible_employee_id' => $counselor,
+            'admission_employee_id' => $admission, 'current_stage_id' => $stage('university_selection'),
         ]);
-
-        // Each sold service is a line on a customer contract.
-        $this->contractFor($john, [$consultingService->id]);
-
-        $this->contractFor($jane, [$trainingService->id]);
-
-        $this->contractFor($bob, [$developmentService->id]);
-
-        // Add an applicant with multiple services.
-        $alice = Applicant::create([
-            'name' => 'Alice Cooper',
-            'contact' => '555-3456',
-            'marketer' => 'Michael Brown',
-            'date' => '2023-10-18',
+        $private->privateDetail()->updateOrCreate([], [
+            'country_id' => $countries['DE'] ?? null,
+            'university_id' => $universities['Technical University of Munich'] ?? null,
+            'education_level_id' => $levels['Bachelor'] ?? null,
+            'semester_id' => $semesters['FALL-2027'] ?? null,
+            'passport_id' => 'P-NH-1002', 'grade_score' => 79.00, 'university_fee' => 30000,
         ]);
+        $private->favoriteSubjects()->sync(array_filter([$subjects['Business Administration'] ?? null]));
 
-        $this->contractFor($alice, [$consultingService->id, $developmentService->id]);
+        // --- Test-offer case --------------------------------------------------
+        $testOffer = $this->applicant([
+            'name' => 'Yusuf Rahmani', 'email' => 'yusuf.rahmani@example.test', 'contact' => '+93 700 200 005',
+            'father_name' => 'Saleh Rahmani', 'father_phone' => '+93 700 200 006',
+            'service' => BuiltInService::TEST_OFFER, 'responsible_employee_id' => $counselor,
+            'admission_employee_id' => $admission, 'current_stage_id' => $stage('consultation'),
+        ]);
+        $testOffer->testDetail()->updateOrCreate([], [
+            'test_id' => $tests['IELTS Academic'] ?? null, 'passport_id' => 'P-YR-1003',
+        ]);
+        $testOffer->skills()->sync(array_filter([
+            $skills['English Writing'] ?? null, $skills['Speaking'] ?? null,
+        ]));
+
+        // --- Academy case -----------------------------------------------------
+        $academy = $this->applicant([
+            'name' => 'Sara Ahmadi', 'email' => 'sara.ahmadi@example.test', 'contact' => '+93 700 200 007',
+            'father_name' => 'Jamal Ahmadi', 'father_phone' => '+93 700 200 008',
+            'service' => BuiltInService::ACADEMY, 'responsible_employee_id' => $counselor,
+            'admission_employee_id' => $admission, 'current_stage_id' => $stage('consultation'),
+        ]);
+        $academy->academyDetail()->updateOrCreate([], [
+            'program_id' => $programs['English Language'] ?? null,
+            'time_id' => $times['Morning'] ?? null,
+            'duration_id' => $durations['3 Months'] ?? null,
+            'class_id' => $classes['General English'] ?? null,
+        ]);
+        $academy->teachers()->sync(array_filter([$teachers['Layla Hashimi'] ?? null, $teachers['Omar Nazari'] ?? null]));
     }
 
-    /** @param list<int> $serviceIds */
-    private function contractFor(Applicant $applicant, array $serviceIds): Contract
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function applicant(array $attributes): Applicant
     {
-        $contract = Contract::create([
-            'contract_type_id' => ContractType::query()->where('slug', 'customer')->value('id'),
-            'applicant_id' => $applicant->id,
-            'name' => 'Seeded service agreement',
-            // `type` and the contract_types slug stay "Customer" — see warning.md.
-            'type' => 'Customer',
-            'status' => 'active',
-            'start_date' => now()->toDateString(),
-            'counterparty' => $applicant->name,
-            'counterparty_company' => null,
-            'counterparty_contact' => $applicant->contact,
-            'content' => '',
-            'is_custom' => true,
-        ]);
-        foreach ($serviceIds as $serviceId) {
-            $contract->contractServices()->create(['service_id' => $serviceId]);
-        }
+        $applicant = Applicant::withTrashed()->firstOrNew(['email' => $attributes['email']]);
+        $applicant->fill([...$attributes, 'address' => 'Kabul, Afghanistan', 'status' => 'active']);
+        $applicant->deleted_at = null;
+        $applicant->save();
 
-        return $contract;
+        return $applicant;
     }
 }

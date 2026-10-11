@@ -334,7 +334,7 @@ const handleAddTodo = () => {
         <VCardText class="pa-5 todo-matrix-section">
           <div class="todo-matrix-section__header mb-4">
             <h6 class="text-h6 font-weight-medium ma-0">
-              Checklist
+              {{ $t('common.ui.checklist') }}
             </h6>
             <VChip
               color="primary"

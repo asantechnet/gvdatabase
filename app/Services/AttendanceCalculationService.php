@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 
 class AttendanceCalculationService
 {
-    private const CALCULATION_VERSION = 3;
+    private const CALCULATION_VERSION = 4;
 
     public function __construct(private readonly CompanyProfile $companyProfile) {}
 
@@ -60,15 +60,19 @@ class AttendanceCalculationService
             return $this->emptySummary($missing, $breakMinutes);
         }
 
-        $overnight = ! $start->isSameDay($end) || $end->lessThanOrEqualTo($start);
-        if ($end->lessThanOrEqualTo($start)) {
+        if ($end->lessThan($start)) {
+            if ($attendance->checked_in_at || $attendance->checked_out_at) {
+                return $this->emptySummary('invalid', $breakMinutes);
+            }
+            // Only undated legacy clock punches require inferred overnight dates.
             $end = $end->addDay();
         }
+        $overnight = ! $start->isSameDay($end);
         $gross = max(0, (int) $start->diffInMinutes($end));
         $break = min(max(0, $breakMinutes), $gross);
         $net = max(0, $gross - $break);
 
-        [$required, $late, $early] = $this->scheduleMetrics($attendance, $start, $end, $scheduleStart, $scheduleEnd, $break);
+        [$required, $late, $early] = $this->scheduleMetrics($attendance, $start, $end, $scheduleStart, $scheduleEnd, max(0, $breakMinutes));
         $leaveFraction = min(1, max(0, (float) $attendance->leave_duration_days));
         if ($required !== null && $leaveFraction > 0) {
             $required = (int) round($required * (1 - $leaveFraction));
@@ -79,7 +83,6 @@ class AttendanceCalculationService
         }
 
         return [
-            'break_minutes' => $break,
             'gross_minutes' => $gross,
             'net_worked_minutes' => $net,
             'required_minutes' => $required,
@@ -128,7 +131,7 @@ class AttendanceCalculationService
     private function emptySummary(string $missing, int $breakMinutes): array
     {
         return [
-            'break_minutes' => max(0, $breakMinutes), 'gross_minutes' => null, 'net_worked_minutes' => null, 'required_minutes' => null,
+            'gross_minutes' => null, 'net_worked_minutes' => null, 'required_minutes' => null,
             'late_arrival_minutes' => 0, 'early_departure_minutes' => 0, 'overtime_minutes' => 0,
             'missing_punch_state' => $missing, 'is_overnight_shift' => false,
         ];

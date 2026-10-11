@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translate } from '@/utils/localization'
 import { computed, onMounted, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useToast } from 'vue-toastification'
@@ -77,17 +78,17 @@ const filtered = computed(() => {
   })
 })
 
-const headers = [
+const headers = computed(() => [
   { title: translate('pages.finance.asset.asset.serialNumber'), key: 'serial_number', sortable: true },
   { title: translate('pages.finance.asset.asset.item'), key: 'item', sortable: true },
   { title: translate('pages.finance.asset.asset.quantity'), key: 'quantity', sortable: true },
-  { title: 'Price', key: 'price', sortable: true },
+  { title: translate('common.crmUi.printReports.columns.price'), key: 'price', sortable: true },
   { title: translate('pages.finance.asset.asset.model'), key: 'model', sortable: true },
   { title: translate('pages.finance.asset.asset.condition'), key: 'condition', sortable: true },
   { title: translate('common.fields.office'), key: 'office.name', sortable: true },
-  { title: 'Allocated to', key: 'allocations', sortable: false },
+  { title: translate('common.ui.allocatedTo'), key: 'allocations', sortable: false },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false },
-]
+])
 
 const fetchAssets = async () => {
   isLoading.value = true
@@ -227,8 +228,8 @@ onMounted(() => {
   <div>
     <DataTablePageKpis
       :items="filtered"
-      title="Asset inventory"
-      description="Keep inventory levels, condition, and assignments visible in one place."
+      :title="$t('components.dataTablePageKpis.pages.assetInventory.title')"
+      :description="$t('components.dataTablePageKpis.pages.assetInventory.description')"
       icon="tabler-packages"
     />
     <VCard class="mb-6">
@@ -336,7 +337,7 @@ onMounted(() => {
               <span
                 v-if="!item.allocations.length"
                 class="text-medium-emphasis"
-              >Unassigned</span>
+              >{{ $t('common.crmUi.unassigned') }}</span>
             </div>
           </template>
 
@@ -407,7 +408,8 @@ onMounted(() => {
     <!-- Add Asset Dialog -->
     <VDialog
       v-model="isAddAssetDialogVisible"
-      max-width="800px"
+      max-width="1000px"
+      scrollable
     >
       <VCard v-if="selectedAsset">
         <VCardTitle class="pa-5">
@@ -454,7 +456,7 @@ onMounted(() => {
               >
                 <VTextField
                   v-model.number="selectedAsset.price"
-                  label="Price"
+                  :label="$t('common.crmUi.printReports.columns.price')"
                   type="number"
                   min="0"
                   required
@@ -494,13 +496,13 @@ onMounted(() => {
               </VCol>
               <VCol cols="12">
                 <div class="d-flex justify-space-between align-center mb-2">
-                  <span class="text-subtitle-2">{{ $t('pages.asset.asset.employeeAllocations') }}</span><VBtn
+                  <span class="text-subtitle-2">{{ $t('pages.finance.asset.asset.employeeAllocations') }}</span><VBtn
                     size="small"
                     variant="tonal"
                     prepend-icon="tabler-plus"
                     @click="addAllocation"
                   >
-                    {{ $t('pages.asset.asset.addEmployee') }}
+                    {{ $t('pages.finance.asset.asset.addEmployee') }}
                   </VBtn>
                 </div>
                 <VAlert
@@ -509,7 +511,7 @@ onMounted(() => {
                   density="compact"
                   class="mb-3"
                 >
-                  {{ $t('pages.asset.asset.allocationTotalCannotExceed', { allocated: allocationTotal(selectedAsset), quantity: selectedAsset.quantity }) }}
+                  {{ $t('pages.finance.asset.asset.allocationTotalCannotExceed', { allocated: allocationTotal(selectedAsset), quantity: selectedAsset.quantity }) }}
                 </VAlert>
                 <VRow
                   v-for="(allocation, index) in selectedAsset.allocations"
@@ -521,7 +523,7 @@ onMounted(() => {
                   >
                     <VAutocomplete
                       v-model="allocation.employee_id"
-                      :label="$t('pages.asset.asset.employee')"
+                      :label="$t('pages.finance.asset.asset.employee')"
                       :items="employees"
                       item-title="name"
                       item-value="id"
@@ -534,7 +536,7 @@ onMounted(() => {
                   >
                     <VTextField
                       v-model.number="allocation.quantity"
-                      :label="$t('pages.asset.asset.quantity')"
+                      :label="$t('pages.finance.asset.asset.quantity')"
                       type="number"
                       min="1"
                       :max="selectedAsset.quantity"
@@ -580,7 +582,8 @@ onMounted(() => {
     <!-- Edit Asset Dialog -->
     <VDialog
       v-model="isEditAssetDialogVisible"
-      max-width="800px"
+      max-width="1000px"
+      scrollable
     >
       <VCard v-if="selectedAsset">
         <VCardTitle class="pa-5">
@@ -627,7 +630,7 @@ onMounted(() => {
               >
                 <VTextField
                   v-model.number="selectedAsset.price"
-                  label="Price"
+                  :label="$t('common.crmUi.printReports.columns.price')"
                   type="number"
                   min="0"
                   required
@@ -667,13 +670,13 @@ onMounted(() => {
               </VCol>
               <VCol cols="12">
                 <div class="d-flex justify-space-between align-center mb-2">
-                  <span class="text-subtitle-2">{{ $t('pages.asset.asset.employeeAllocations') }}</span><VBtn
+                  <span class="text-subtitle-2">{{ $t('pages.finance.asset.asset.employeeAllocations') }}</span><VBtn
                     size="small"
                     variant="tonal"
                     prepend-icon="tabler-plus"
                     @click="addAllocation"
                   >
-                    {{ $t('pages.asset.asset.addEmployee') }}
+                    {{ $t('pages.finance.asset.asset.addEmployee') }}
                   </VBtn>
                 </div>
                 <VAlert
@@ -682,7 +685,7 @@ onMounted(() => {
                   density="compact"
                   class="mb-3"
                 >
-                  {{ $t('pages.asset.asset.allocationReduceBeforeLowering', { allocated: allocationTotal(selectedAsset), quantity: selectedAsset.quantity }) }}
+                  {{ $t('pages.finance.asset.asset.allocationReduceBeforeLowering', { allocated: allocationTotal(selectedAsset), quantity: selectedAsset.quantity }) }}
                 </VAlert>
                 <VRow
                   v-for="(allocation, index) in selectedAsset.allocations"
@@ -694,7 +697,7 @@ onMounted(() => {
                   >
                     <VAutocomplete
                       v-model="allocation.employee_id"
-                      :label="$t('pages.asset.asset.employee')"
+                      :label="$t('pages.finance.asset.asset.employee')"
                       :items="employees"
                       item-title="name"
                       item-value="id"
@@ -707,7 +710,7 @@ onMounted(() => {
                   >
                     <VTextField
                       v-model.number="allocation.quantity"
-                      :label="$t('pages.asset.asset.quantity')"
+                      :label="$t('pages.finance.asset.asset.quantity')"
                       type="number"
                       min="1"
                       :max="selectedAsset.quantity"

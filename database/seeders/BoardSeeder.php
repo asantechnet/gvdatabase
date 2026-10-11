@@ -2,22 +2,22 @@
 
 namespace Database\Seeders;
 
+use App\Support\ServiceBoard;
 use Illuminate\Database\Seeder;
-use App\Models\Board;
 
 class BoardSeeder extends Seeder
 {
+    /**
+     * Seed the working boards the agency actually uses.
+     *
+     * One board per built-in service plus the Personal board for manually
+     * created work. Titles and order come from {@see ServiceBoard} so the
+     * contract-delivery automation and the seeders agree on every name.
+     */
     public function run(): void
     {
-        Board::factory()
-            ->count(5)
-            ->sequence(
-                ['title' => 'Backlog', 'order' => 0],
-                ['title' => 'To Do', 'order' => 1],
-                ['title' => 'In Progress', 'order' => 2],
-                ['title' => 'Review', 'order' => 3],
-                ['title' => 'Done', 'order' => 4]
-            )
-            ->create();
+        foreach (ServiceBoard::ORDER as $order => $title) {
+            ServiceBoard::ensure($title, $order);
+        }
     }
 }

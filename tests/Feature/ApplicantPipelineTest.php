@@ -24,6 +24,23 @@ class ApplicantPipelineTest extends TestCase
         Sanctum::actingAs($user, ['access']);
     }
 
+    public function test_legacy_unstaged_applicants_are_assigned_to_a_real_new_stage_and_can_move(): void
+    {
+        $applicant = Applicant::factory()->create(['current_stage_id' => null]);
+        $migration = require database_path('migrations/2026_10_08_000003_repair_new_applicant_stage.php');
+        $migration->up();
+        $migration->up();
+        $new = ApplicantStage::where('key', 'new')->whereNull('country_id')->whereNull('university_id')->firstOrFail();
+        $this->assertSame($new->id, $applicant->fresh()->current_stage_id);
+        $this->getJson('/api/applicants-pipeline')->assertOk()->assertJsonFragment(['key' => 'new', 'count' => 1]);
+        $consultation = ApplicantStage::where('key', 'consultation')->firstOrFail();
+        $this->postJson('/api/applicants/'.$applicant->id.'/change-stage', ['stage_id' => $consultation->id])
+            ->assertOk()->assertJsonPath('data.current_stage_id', $consultation->id);
+        $this->assertDatabaseHas('applicant_stage_histories', [
+            'applicant_id' => $applicant->id, 'old_stage_id' => $new->id, 'new_stage_id' => $consultation->id,
+        ]);
+    }
+
     public function test_list_supports_search_filters_and_boards(): void
     {
         $iran = Country::create(['name' => 'Iran', 'code' => 'IRN', 'is_active' => true]);

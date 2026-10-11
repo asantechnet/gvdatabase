@@ -2,116 +2,58 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\CrmInteraction;
+use App\Models\Employee;
 use App\Models\Visitor;
 use Carbon\Carbon;
-use App\Models\CrmInteraction;
-use App\Models\Lead;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 class VisitorSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // TRUNCATE is illegal once leads reference visitors, even when the
-        // referencing table is empty. Delete dependants first and force-delete
-        // visitors so this seeder remains safe and repeatable on its own.
+        // Delete dependants first and force-delete visitors so this seeder
+        // remains safe and repeatable on its own.
         DB::transaction(function (): void {
             CrmInteraction::query()
                 ->where('contactable_type', Visitor::class)
                 ->forceDelete();
-            Lead::withTrashed()->whereNotNull('visitor_id')->forceDelete();
             Visitor::withTrashed()->forceDelete();
         });
 
-        // Sample visitor data
+        $counselors = Employee::query()
+            ->whereHas('position', fn ($query) => $query->whereIn('system_key', ['counselor', 'senior_counselor']))
+            ->pluck('id')
+            ->values();
+        if ($counselors->isEmpty()) {
+            return;
+        }
+
+        // Each visitor is enquiring about one of the firm's real services and
+        // is handled by a counselor.
         $visitors = [
-            [
-                'name' => 'John Smith',
-                'company' => 'Tech Solutions Inc.',
-                'contact' => '+1 (555) 123-4567',
-                'service' => 'Web Development',
-                'marketer' => 'Sarah Johnson',
-                'date' => Carbon::now()->subDays(5)->format('Y-m-d'),
-                'created_at' => Carbon::now()->subDays(5),
-                'updated_at' => Carbon::now()->subDays(5),
-            ],
-            [
-                'name' => 'Emily Davis',
-                'company' => 'Global Marketing Ltd.',
-                'contact' => '+1 (555) 234-5678',
-                'service' => 'Digital Marketing',
-                'marketer' => 'Michael Brown',
-                'date' => Carbon::now()->subDays(3)->format('Y-m-d'),
-                'created_at' => Carbon::now()->subDays(3),
-                'updated_at' => Carbon::now()->subDays(3),
-            ],
-            [
-                'name' => 'Robert Wilson',
-                'company' => 'Data Analytics Co.',
-                'contact' => '+1 (555) 345-6789',
-                'service' => 'Data Analysis',
-                'marketer' => 'Sarah Johnson',
-                'date' => Carbon::now()->subDays(1)->format('Y-m-d'),
-                'created_at' => Carbon::now()->subDays(1),
-                'updated_at' => Carbon::now()->subDays(1),
-            ],
-            [
-                'name' => 'Lisa Taylor',
-                'company' => 'Creative Designs LLC',
-                'contact' => '+1 (555) 456-7890',
-                'service' => 'Graphic Design',
-                'marketer' => 'David Wilson',
-                'date' => Carbon::now()->format('Y-m-d'),
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ],
-            [
-                'name' => 'James Anderson',
-                'company' => 'Software Innovations',
-                'contact' => '+1 (555) 567-8901',
-                'service' => 'Mobile App Development',
-                'marketer' => 'Michael Brown',
-                'date' => Carbon::now()->subDays(7)->format('Y-m-d'),
-                'created_at' => Carbon::now()->subDays(7),
-                'updated_at' => Carbon::now()->subDays(7),
-            ],
-            [
-                'name' => 'Patricia Martinez',
-                'company' => 'E-commerce Solutions',
-                'contact' => '+1 (555) 678-9012',
-                'service' => 'E-commerce Platform',
-                'marketer' => 'Sarah Johnson',
-                'date' => Carbon::now()->subDays(2)->format('Y-m-d'),
-                'created_at' => Carbon::now()->subDays(2),
-                'updated_at' => Carbon::now()->subDays(2),
-            ],
-            [
-                'name' => 'Thomas Robinson',
-                'company' => 'Cloud Services Ltd.',
-                'contact' => '+1 (555) 789-0123',
-                'service' => 'Cloud Hosting',
-                'marketer' => 'David Wilson',
-                'date' => Carbon::now()->subDays(4)->format('Y-m-d'),
-                'created_at' => Carbon::now()->subDays(4),
-                'updated_at' => Carbon::now()->subDays(4),
-            ],
-            [
-                'name' => 'Jennifer Clark',
-                'company' => 'Social Media Experts',
-                'contact' => '+1 (555) 890-1234',
-                'service' => 'Social Media Management',
-                'marketer' => 'Michael Brown',
-                'date' => Carbon::now()->subDays(6)->format('Y-m-d'),
-                'created_at' => Carbon::now()->subDays(6),
-                'updated_at' => Carbon::now()->subDays(6),
-            ],
+            ['name' => 'Hamid Noorzai', 'contact' => '+93 700 300 001', 'service' => 'Scholarship', 'days_ago' => 7],
+            ['name' => 'Laila Sultani', 'contact' => '+93 700 300 002', 'service' => 'Private', 'days_ago' => 6],
+            ['name' => 'Karim Zadran', 'contact' => '+93 700 300 003', 'service' => 'Test Offer', 'days_ago' => 4],
+            ['name' => 'Mariam Yousufi', 'contact' => '+93 700 300 004', 'service' => 'Academy', 'days_ago' => 3],
+            ['name' => 'Samiullah Baqi', 'contact' => '+93 700 300 005', 'service' => 'Scholarship', 'days_ago' => 2],
+            ['name' => 'Rana Alizai', 'contact' => '+93 700 300 006', 'service' => 'Private', 'days_ago' => 1],
         ];
 
-        // Insert the data
-        Visitor::insert($visitors);
+        foreach ($visitors as $index => $data) {
+            $at = Carbon::now()->subDays($data['days_ago']);
+            Visitor::create([
+                'name' => $data['name'],
+                'contact' => $data['contact'],
+                'service' => $data['service'],
+                'counselor_employee_id' => $counselors[$index % $counselors->count()],
+                'date' => $at->format('Y-m-d'),
+                'notes' => 'Walk-in enquiry about '.$data['service'].'.',
+                'converted_at' => $index === 0 ? Carbon::now()->subDays($data['days_ago'] - 1) : null,
+                'created_at' => $at,
+                'updated_at' => $at,
+            ]);
+        }
     }
 }

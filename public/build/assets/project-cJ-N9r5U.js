@@ -1,1 +1,0 @@
-import{af as t}from"./main-BpYC0Opx.js";const s={async getAll(){return(await t.get("/projects")).data.data},async getById(a){return(await t.get(`/projects/${a}`)).data.data},async create(a){return(await t.post("/projects",a)).data.data},async update(a,e){return(await t.put(`/projects/${a}`,e)).data.data},async delete(a){await t.delete(`/projects/${a}`)}};export{s as P};

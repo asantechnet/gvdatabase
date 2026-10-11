@@ -1,3 +1,4 @@
+import type { BuiltInService } from './applicants'
 import api from './axios'
 
 export interface ApplicantPortalProfile {
@@ -22,12 +23,13 @@ export interface ApplicantPortalData {
   case: {
     id: number
     status: string
-    application_date: string | null
+    created_at: string | null
+    service: BuiltInService
+    service_details: { test?: string | null; program?: string | null; time?: string | null; duration?: string | null }
     destination_country: string | null
     primary_university: string | null
     education_level: string | null
-    education_percentage: number | null
-    language: string | null
+    grade_score: number | null
     advisor: { name: string; phone: string | null; email: string | null } | null
     current_stage: { key: string; name: string; is_terminal: boolean } | null
     progress: { current: number | null; total: number }

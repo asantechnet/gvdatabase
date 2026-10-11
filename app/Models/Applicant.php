@@ -3,53 +3,53 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Support\BuiltInService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 /**
- * An applicant is the single customer-facing record: it carries both the
- * visa case (stage, country, university, ...) and the billing/CRM party
- * identity (name, contact, email, address, tax number, marketer).
+ * An applicant is the single customer-facing record: it carries the shared
+ * billing/CRM party identity while service-specific visa data lives in one of
+ * the per-service detail tables.
  *
  * The former `Customer` entity was merged into this model, so every
  * `applicant_id` foreign key in the system points at one of these rows and
  * `Customer` no longer exists.
  *
- * Guardian contact (`father_name`, `father_phone`) and the academic grade
- * metric (`percentage`) belong to the applicant identity; `percentage` never
- * replaces `education_level_id`, which names the qualification.
+ * Guardian contact (`father_name`, `father_phone`) belongs to the shared
+ * identity. Academic fields such as destination, grade and qualification are
+ * stored with the service that asks for them.
  */
 class Applicant extends Model
 {
     use Auditable, HasFactory, SoftDeletes;
 
+    protected $attributes = ['service' => BuiltInService::SCHOLARSHIP];
+
     protected $fillable = [
+        'service',
         'user_id',
         'parent_applicant_id',
         'name',
+        'admission_employee_id',
         'father_name',
         'father_phone',
+        'backup_phone',
         'contact',
         'email',
         'address',
         'tax_number',
-        'marketer',
-        'marketer_id',
-        'date',
         'responsible_employee_id',
-        'country_id',
-        'university_id',
-        'education_level_id',
-        'percentage',
-        'language_id',
-        'semester_id',
         'current_stage_id',
-        'application_date',
         'status',
         'notes',
         'profile_data',
@@ -57,9 +57,7 @@ class Applicant extends Model
     ];
 
     protected $casts = [
-        'application_date' => 'date:Y-m-d',
-        'date' => 'date',
-        'percentage' => 'decimal:2',
+        'service' => 'string',
         'profile_data' => 'array',
         'profile_completed_at' => 'datetime',
     ];
@@ -91,34 +89,9 @@ class Applicant extends Model
     }
 
     /** The employee who acquired this record. Absorbed from `customers`. */
-    public function marketerEmployee(): BelongsTo
+    public function admissionEmployee(): BelongsTo
     {
-        return $this->belongsTo(Employee::class, 'marketer_id');
-    }
-
-    public function country(): BelongsTo
-    {
-        return $this->belongsTo(Country::class);
-    }
-
-    public function university(): BelongsTo
-    {
-        return $this->belongsTo(University::class);
-    }
-
-    public function educationLevel(): BelongsTo
-    {
-        return $this->belongsTo(EducationLevel::class);
-    }
-
-    public function language(): BelongsTo
-    {
-        return $this->belongsTo(Language::class);
-    }
-
-    public function semester(): BelongsTo
-    {
-        return $this->belongsTo(Semester::class);
+        return $this->belongsTo(Employee::class, 'admission_employee_id');
     }
 
     public function currentStage(): BelongsTo
@@ -135,7 +108,11 @@ class Applicant extends Model
     {
         return $this->hasMany(Task::class);
     }
-    public function attachments(): HasMany { return $this->hasMany(ApplicantAttachment::class); }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(ApplicantAttachment::class);
+    }
 
     public function contracts(): HasMany
     {
@@ -157,31 +134,16 @@ class Applicant extends Model
         return $this->hasMany(Expense::class);
     }
 
-    public function invoices(): HasMany
-    {
-        return $this->hasMany(Invoice::class);
-    }
-
-    public function projects(): HasMany
-    {
-        return $this->hasMany(Project::class);
-    }
-
     /** Contracted services sold as part of this visa case. */
     public function services(): HasMany
     {
-        return $this->hasMany(ContractService::class);
+        return $this->hasMany(ApplicantContract::class);
     }
 
     /** Contracted service lines reached through this applicant's contracts. */
-    public function contractServices(): HasManyThrough
+    public function applicantContracts(): HasManyThrough
     {
-        return $this->hasManyThrough(ContractService::class, Contract::class);
-    }
-
-    public function customerPackages(): HasMany
-    {
-        return $this->hasMany(CustomerPackage::class);
+        return $this->hasManyThrough(ApplicantContract::class, Contract::class);
     }
 
     public function caseWin()
@@ -192,6 +154,99 @@ class Applicant extends Model
     public function universities(): HasMany
     {
         return $this->hasMany(ApplicantUniversity::class);
+    }
+
+    /**
+     * The relation name that holds this applicant's per-service detail row.
+     *
+     * Kept as a name rather than a single `details()` relation on purpose:
+     * eager loading resolves a relation on a fresh, empty model instance, where
+     * `service` is not available yet, so an attribute-driven relation would
+     * always fall back to one branch and silently load the wrong table.
+     */
+    public function detailRelationName(): string
+    {
+        return match ($this->service) {
+            BuiltInService::TEST_OFFER => 'testDetail',
+            BuiltInService::ACADEMY => 'academyDetail',
+            BuiltInService::PRIVATE => 'privateDetail',
+            default => 'scholarshipDetail',
+        };
+    }
+
+    /** The detail row for this applicant's service (loads it if needed). */
+    public function detail(): ?Model
+    {
+        return $this->getRelationValue($this->detailRelationName());
+    }
+
+    public function scholarshipDetail(): HasOne
+    {
+        return $this->hasOne(ScholarshipApplicantDetail::class);
+    }
+
+    public function scopeWhereScholarshipField(Builder $query, string $field, mixed $value): void
+    {
+        $query->where(fn ($admissions) => $admissions
+            ->where(fn ($scholarship) => $scholarship->where('applicants.service', BuiltInService::SCHOLARSHIP)->whereHas('scholarshipDetail', fn ($detail) => $detail->where($field, $value)))
+            ->orWhere(fn ($private) => $private->where('applicants.service', BuiltInService::PRIVATE)->whereHas('privateDetail', fn ($detail) => $detail->where($field, $value))));
+    }
+
+    /** Include both admissions services in country and visa outcome aggregates. */
+    public function scopeJoinAdmissionDetails(Builder $query): void
+    {
+        $details = DB::table('scholarship_applicant_details')
+            ->select('applicant_id', 'country_id')->selectRaw("'scholarship' as service")
+            ->whereNull('deleted_at')
+            ->unionAll(DB::table('private_applicant_details')
+                ->select('applicant_id', 'country_id')->selectRaw("'private' as service")
+                ->whereNull('deleted_at'));
+
+        $query->joinSub($details, 'detail', fn ($join) => $join
+            ->on('detail.applicant_id', '=', 'applicants.id')
+            ->on('detail.service', '=', 'applicants.service'));
+    }
+
+    public function privateDetail(): HasOne
+    {
+        return $this->hasOne(PrivateApplicantDetail::class);
+    }
+
+    public function testDetail(): HasOne
+    {
+        return $this->hasOne(TestApplicantDetail::class);
+    }
+
+    public function academyDetail(): HasOne
+    {
+        return $this->hasOne(AcademyApplicantDetail::class);
+    }
+
+    /** A scholarship applicant's favourite subjects. */
+    public function favoriteSubjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Subject::class, 'scholarship_applicant_subject')
+            ->withTimestamps();
+    }
+
+    /** A test-offer applicant's target skills. */
+    public function skills(): BelongsToMany
+    {
+        return $this->belongsToMany(Skill::class, 'test_applicant_skill')
+            ->withTimestamps();
+    }
+
+    /** An academy applicant's assigned teachers. */
+    public function teachers(): BelongsToMany
+    {
+        return $this->belongsToMany(Teacher::class, 'academy_applicant_teacher')
+            ->withTimestamps();
+    }
+
+    /** @return list<string> */
+    public static function serviceValues(): array
+    {
+        return BuiltInService::ALL;
     }
 
     /** CRM conversation history. Absorbed from `customers`. */

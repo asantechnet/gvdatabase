@@ -235,7 +235,19 @@ const executeDeleteTask = () => {
 
       <!-- Reduced padding to give more room for the calendar -->
       <VCardText class="pa-4 pa-sm-6">
-        <FullCalendar :options="calendarOptions" />
+        <FullCalendar :options="calendarOptions">
+          <template #eventContent="{ event, timeText }">
+            <div class="task-calendar-content">
+              <span v-if="timeText" class="me-1">{{ timeText }}</span>
+              <span>{{ event.title }}</span>
+              <div v-if="event.extendedProps.tags?.length" class="d-flex flex-wrap gap-1 mt-1">
+                <VChip v-for="tag in event.extendedProps.tags" :key="tag.id" :color="tag.color" variant="flat" size="x-small">
+                  {{ tag.name }}
+                </VChip>
+              </div>
+            </div>
+          </template>
+        </FullCalendar>
       </VCardText>
     </VCard>
 
@@ -462,6 +474,12 @@ const executeDeleteTask = () => {
 </template>
 
 <style scoped>
+.task-calendar-content {
+  min-inline-size: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 :deep(.fc) {
   font-family: inherit;
 }

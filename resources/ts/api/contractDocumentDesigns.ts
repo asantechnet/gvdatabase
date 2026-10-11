@@ -1,9 +1,10 @@
 import api from './axios'
+import type { BuiltInService } from './applicants'
 
 export interface ContractDocumentDesign {
   id: number
   contract_type_id: number
-  service_id: number | null
+  service: BuiltInService | null
   letterhead: string | null
   cover_design: string | null
   letterhead_url: string | null
@@ -13,7 +14,6 @@ export interface ContractDocumentDesign {
   safe_width: number
   safe_height: number
   contract_type?: { id: number; name: string; slug: string } | null
-  service?: { id: number; name: string | null; type: string | null } | null
 }
 
 export interface ContractDocumentDesignSafeArea {
@@ -26,7 +26,7 @@ export interface ContractDocumentDesignSafeArea {
 export interface ContractDocumentDesignPayload {
   contractTypeId: number
   /** Only customer contracts can scope artwork to a service. */
-  serviceId?: number | null
+  service?: BuiltInService | null
   letterhead?: File | null
   coverDesign?: File | null
   removeLetterhead?: boolean
@@ -39,8 +39,8 @@ const toFormData = (payload: ContractDocumentDesignPayload): FormData => {
 
   data.append('contract_type_id', String(payload.contractTypeId))
 
-  if (payload.serviceId)
-    data.append('service_id', String(payload.serviceId))
+  if (payload.service)
+    data.append('service', payload.service)
 
   if (payload.letterhead)
     data.append('letterhead', payload.letterhead)
@@ -65,7 +65,7 @@ const toFormData = (payload: ContractDocumentDesignPayload): FormData => {
 }
 
 const ContractDocumentDesignApi = {
-  async getAll(params?: { contract_type_id?: number; service_id?: number }): Promise<ContractDocumentDesign[]> {
+  async getAll(params?: { contract_type_id?: number; service?: BuiltInService }): Promise<ContractDocumentDesign[]> {
     const response = await api.get<{ data: ContractDocumentDesign[] }>('/contract-document-designs', { params })
 
     return Array.isArray(response.data.data) ? response.data.data : []
@@ -90,4 +90,3 @@ const ContractDocumentDesignApi = {
 }
 
 export default ContractDocumentDesignApi
-

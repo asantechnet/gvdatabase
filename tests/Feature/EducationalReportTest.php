@@ -5,22 +5,22 @@ namespace Tests\Feature;
 use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\Country;
-use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Role;
-use App\Models\Scholarship;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\CreatesBuiltInContracts;
 use Tests\TestCase;
 
 class EducationalReportTest extends TestCase
 {
-    use RefreshDatabase;
+    use CreatesBuiltInContracts, RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
+        Employee::factory()->create(); // The primary system employee is excluded from staff reports.
         $user = User::factory()->create();
         $user->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
         Sanctum::actingAs($user, ['access']);
@@ -46,18 +46,17 @@ class EducationalReportTest extends TestCase
     public function test_performance_and_sales_reports_attribute_work(): void
     {
         $employee = Employee::factory()->create();
-        $a = $this->postJson('/api/applicants', ['name' => 'Sales Case', 'responsible_employee_id' => $employee->id])->assertCreated()->json('data');
-        // Sell through the API so the attribution ledger records the sale.
-        $this->seedApplicantDocuments($a['id']);
-        $this->postJson('/api/educational-services/scholarships', ['applicant_id' => $a['id'], 'employee_id' => $employee->id, 'currency_id' => Currency::factory()->create()->id, 'date' => now()->toDateString(), 'fee' => 750, 'status' => 'active'])->assertCreated();
+        $employee->update(['user_id' => auth()->id()]);
+        $contract = $this->createBuiltInContract('scholarship', ['name' => 'Sales Case', 'responsible_employee_id' => $employee->id, 'fee' => 750]);
 
         $performance = $this->getJson('/api/educational-reports/employee-performance')->assertOk()->json('data');
         $row = collect($performance['rows'])->firstWhere('employee', $employee->name);
         $this->assertSame(1, $row['active_cases']);
-        $this->assertSame(1, $row['sales_recorded']);
-        $this->assertSame(750.0, (float) $row['sales_value']);
+        $this->assertSame(1, $row['services_sold']);
+        $this->assertSame(1, $row['contracts_sold']);
+        $this->assertSame(0.0, (float) $row['bonus_amount']);
 
-        $sales = $this->getJson('/api/educational-reports/sales')->assertOk()->json('data');
+        $sales = $this->getJson('/api/educational-reports/services')->assertOk()->json('data');
         $this->assertSame(1, $sales['total']);
         $this->assertSame('scholarship', $sales['rows'][0]['service']);
     }

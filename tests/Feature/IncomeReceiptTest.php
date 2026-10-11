@@ -3,16 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Applicant;
+use App\Models\ApplicantContract;
 use App\Models\AuditLog;
 use App\Models\Contract;
-use App\Models\ContractService;
 use App\Models\Currency;
-use App\Models\CustomerPackage;
 use App\Models\Employee;
 use App\Models\Income;
-use App\Models\Package;
 use App\Models\Role;
-use App\Models\Service;
 use App\Models\Setting;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -46,7 +43,7 @@ class IncomeReceiptTest extends TestCase
 
         $payload = $response->json('data');
 
-        // Formal receipt identity: a serial in the invoice shape, the party,
+        // Formal receipt identity: a serial in the receipt shape, the party,
         // the payment date and the receiving company.
         $this->assertSame($income->receipt_number, $payload['serial_number']);
         $this->assertStringStartsWith('RCPT-', $payload['serial_number']);
@@ -63,11 +60,11 @@ class IncomeReceiptTest extends TestCase
         $this->assertSame($income->id, $payload['income']['id']);
         $this->assertEqualsWithDelta(125.0, $payload['totals']['paid_amount'], 0.001);
 
-        // Services are listed for the case.
-        $this->assertCount(2, $payload['services']);
-        $this->assertSame('Student visa processing', $payload['services'][0]['name']);
-        $this->assertEqualsWithDelta(250.0, $payload['totals']['total_fee'], 0.001);
-        $this->assertEqualsWithDelta(125.0, $payload['totals']['balance'], 0.001);
+        // A receipt covers exactly one service: the line it was paid against.
+        $this->assertCount(1, $payload['services']);
+        $this->assertSame('scholarship', $payload['services'][0]['service']);
+        $this->assertEqualsWithDelta(150.0, $payload['totals']['total_fee'], 0.001);
+        $this->assertEqualsWithDelta(25.0, $payload['totals']['balance'], 0.001);
 
         // Signature/stamp section: the company signature is exposed.
         $this->assertSame('Asantech Ltd', $payload['signature']['name']);
@@ -176,7 +173,7 @@ class IncomeReceiptTest extends TestCase
         $this->assertNotNull($incomeAudit, 'The income update must be audited.');
         $this->assertSame($income->receipt_number, $incomeAudit->subject_label);
 
-        $this->patch("/api/settings/".Setting::query()->firstOrFail()->id, [
+        $this->patch('/api/settings/'.Setting::query()->firstOrFail()->id, [
             'receipt_letterhead_safe_x' => 9.5,
         ], ['Accept' => 'application/json'])->assertOk();
 
@@ -202,50 +199,23 @@ class IncomeReceiptTest extends TestCase
         ]);
         $applicant = Applicant::factory()->create(['name' => 'Zahra Ahmadi', 'status' => 'active']);
 
-        $service = Service::factory()->create(['type' => 'Student visa processing']);
-        $packageService = Service::factory()->create(['type' => 'Package service']);
-        $package = Package::query()->create([
-            'name' => 'Language course bundle',
-            'code' => 'PKG-LANG',
-            'is_active' => true,
-        ]);
-        $customerPackage = CustomerPackage::query()->create([
-            'applicant_id' => $applicant->id,
-            'package_id' => $package->id,
-            'currency_id' => $currency->id,
-            'fee' => 100,
-            'purchased_at' => now(),
-            'status' => 'issued',
-            // Required idempotency key for a package issued to a case.
-            'issuance_key' => "applicant:{$applicant->id}:package:{$package->id}",
-        ]);
         $contract = Contract::factory()->create([
             'applicant_id' => $applicant->id,
             'status' => 'active',
             'is_cancelled' => false,
         ]);
-        ContractService::query()->create([
+        $line = ApplicantContract::query()->create([
             'contract_id' => $contract->id,
-            'service_id' => $service->id,
+            'service' => 'scholarship',
             'fee' => 150,
             'currency_id' => $currency->id,
+            'currency_rate' => 1,
             'applicant_id' => $applicant->id,
         ]);
-        // A second line pointing at the package row gives the receipt its
-        // package service line; `customer_package_id` links it to the package.
-        // It needs its own service because (contract, service) is unique.
-        ContractService::query()->create([
-            'contract_id' => $contract->id,
-            'service_id' => $packageService->id,
-            'customer_package_id' => $customerPackage->id,
-            'fee' => 100,
-            'currency_id' => $currency->id,
-            'applicant_id' => $applicant->id,
-        ]);
-
         Sanctum::actingAs($actor, ['access']);
         $income = Income::create([
             'applicant_id' => $applicant->id,
+            'applicant_contract_id' => $line->id,
             'type' => 'Service',
             'description' => 'First instalment',
             'amount' => 125,

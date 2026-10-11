@@ -5,8 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Payslips get the same letterhead treatment as contracts, receipts and
- * invoices: an optional artwork image plus a relative safe-zone where the
+ * Payslips get the same letterhead treatment as contracts and receipts: an optional artwork image plus a relative safe-zone where the
  * generated payslip content is allowed to land (see
  * TASKS_ATTACHMENTS_PAYSLIP_PLAN.md).
  *

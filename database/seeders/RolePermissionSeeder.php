@@ -20,7 +20,7 @@ class RolePermissionSeeder extends Seeder
         $supervisoryScope = [
             'view_subordinate_records', 'manage_subordinate_records',
             'view_departments', 'manage_departments', 'assign_employee_supervisor',
-            'view_team_audit_logs',
+            'view_team_audit_logs', 'view_agency_overview',
         ];
 
         $grants = [
@@ -44,13 +44,10 @@ class RolePermissionSeeder extends Seeder
                 'grant_paid_time_off', 'print_paid_time_off',
                 'view_attendance', 'record_attendance', 'view_unmarked_attendance_staff',
                 'view_bonuses', 'nominate_bonus_candidates', 'edit_bonus_nominations',
-                'view_commissions', 'manage_commission_settlements', 'approve_commissions',
-                'view_positions', 'view_marketers', 'view_offices',
+                'view_positions', 'view_offices',
                 'view_contracts', 'create_contracts', 'edit_contracts', 'cancel_contracts', 'download_contracts',
-                'view_contract_templates', 'manage_contract_templates', 'create_contract_template_versions', 'edit_draft_contract_template_versions', 'activate_contract_template_versions', 'archive_contract_template_versions', 'view_contract_policies', 'view_services',
-                'view_contract_types', 'view_companies',
-                'view_invoices', 'create_invoices', 'edit_invoices',
-                'view_payment_details', 'create_payment_details', 'edit_payment_details', 'delete_payment_details',
+                'view_contract_templates', 'manage_contract_templates', 'create_contract_template_versions', 'edit_draft_contract_template_versions', 'activate_contract_template_versions', 'archive_contract_template_versions', 'view_contract_policies',
+                'view_contract_types',
                 'view_incomes', 'create_incomes', 'edit_incomes',
                 'view_expenses', 'create_expenses', 'edit_expenses',
                 'view_pending_transactions', 'create_pending_transactions', 'approve_pending_transactions', 'post_pending_transactions',
@@ -58,7 +55,6 @@ class RolePermissionSeeder extends Seeder
                 'view_assets', 'create_assets', 'edit_assets',
                 'view_currencies', 'view_financial_reports',
                 'view_all_boards', 'view_assigned_boards', 'create_boards', 'edit_all_boards', 'edit_assigned_boards', 'reorder_boards', 'assign_board_members',
-                'view_projects', 'create_projects', 'edit_projects', 'delete_projects',
                 'view_all_tasks', 'view_assigned_tasks', 'create_tasks', 'edit_all_tasks', 'edit_assigned_tasks', 'move_all_tasks', 'move_assigned_tasks',
                 'assign_task_members', 'manage_task_dependencies', 'manage_task_tags', 'view_task_tags',
                 'create_subtasks_on_assigned_tasks', 'edit_all_subtasks', 'edit_own_subtasks', 'delete_all_subtasks', 'delete_own_subtasks',
@@ -70,11 +66,15 @@ class RolePermissionSeeder extends Seeder
                 'send_announcements', 'announce_to_applicants',
                 'upload_files', 'view_files', 'download_files',
                 'view_country', 'create_country', 'edit_country', 'view_education_level', 'create_education_level', 'edit_education_level',
-                'view_language', 'create_language', 'edit_language', 'view_package_type', 'create_package_type', 'edit_package_type', 'view_packages', 'manage_packages', 'issue_packages',
+                'view_language', 'create_language', 'edit_language',
                 'view_university', 'create_university', 'edit_university', 'view_semester', 'create_semester', 'edit_semester',
+                'view_subject', 'create_subject', 'edit_subject', 'view_test', 'create_test', 'edit_test',
+                'view_skill', 'create_skill', 'edit_skill', 'view_program', 'create_program', 'edit_program',
+                'view_time', 'create_time', 'edit_time', 'view_duration', 'create_duration', 'edit_duration',
+                'view_teacher', 'create_teacher', 'edit_teacher',
                 'view_applicants', 'view_all_applicants', 'create_applicants', 'edit_applicants', 'delete_applicants', 'change_applicant_stage', 'view_applicant_stages', 'manage_applicant_stages', 'assign_applicant_employee',
-                'view_applicant_financials', 'view_applicant_contracts', 'view_applicant_services', 'invite_applicant_portal',
-                'view_educational_services', 'manage_educational_services', 'manage_educational_bonuses', 'view_visa_reports',
+                'view_applicant_financials', 'view_applicant_contracts', 'invite_applicant_portal',
+                'manage_educational_bonuses', 'view_visa_reports',
             ],
 
             // Assigned work only. A staff member cannot change a parent task,
@@ -87,11 +87,11 @@ class RolePermissionSeeder extends Seeder
                 'create_subtasks_on_assigned_tasks', 'edit_own_subtasks', 'delete_own_subtasks',
                 'create_comments_on_assigned_tasks', 'edit_own_comments', 'delete_own_comments',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
-                'view_contracts', 'create_contracts', 'view_contract_templates', 'view_services',
-                'view_country', 'view_education_level', 'view_language', 'view_package_type', 'view_packages', 'issue_packages', 'view_university', 'view_semester',
+                'view_contracts', 'create_contracts', 'view_contract_templates',
+                'view_country', 'view_education_level', 'view_language', 'view_university', 'view_semester',
+                'view_subject', 'view_test', 'view_skill', 'view_program', 'view_time', 'view_duration', 'view_teacher',
                 'view_applicants', 'create_applicants', 'edit_applicants', 'change_applicant_stage', 'view_applicant_stages',
-                'view_applicant_financials', 'view_applicant_contracts', 'view_applicant_services', 'invite_applicant_portal',
-                'view_educational_services', 'manage_educational_services',
+                'view_applicant_financials', 'view_applicant_contracts', 'invite_applicant_portal',
                 'view_pending_transactions', 'create_pending_transactions',
             ],
 
@@ -119,7 +119,7 @@ class RolePermissionSeeder extends Seeder
         // A senior counselor can see the team's records but must not change
         // them: only the read scope is granted, never the manage scope.
         $grants['senior_counselor'] = array_values(array_unique([
-            ...$grants['staff'], 'view_subordinate_records', 'view_departments',
+            ...$grants['staff'], 'view_subordinate_records', 'view_departments', 'view_agency_overview', 'view_visa_reports',
         ]));
 
         // Visa counselors and case officers work their own assigned records.
@@ -131,23 +131,22 @@ class RolePermissionSeeder extends Seeder
             'view_dashboard', 'manage_own_workday', 'submit_own_daily_report',
             'request_own_paid_time_off', 'request_account_deactivation', 'cancel_own_deactivation_request',
             'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
-            'view_applicants', 'view_applicant_stages', 'view_applicant_contracts', 'view_applicant_services',
+            'view_applicants', 'view_applicant_stages', 'view_applicant_contracts',
             'view_contracts', 'view_contract_templates', 'download_contracts',
             'view_files', 'upload_files', 'download_files',
         ];
 
         // Finance officers own the money surfaces a branch runs on.
         $grants['finance_officer'] = [
+            'override_contract_payments',
             'view_dashboard', 'view_reports', 'view_analytics',
             'manage_own_workday', 'submit_own_daily_report',
             'request_own_paid_time_off', 'request_account_deactivation', 'cancel_own_deactivation_request',
             'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
-            'view_invoices', 'create_invoices', 'edit_invoices',
-            'view_payment_details', 'create_payment_details', 'edit_payment_details', 'delete_payment_details',
             'view_incomes', 'create_incomes', 'edit_incomes',
             'view_expenses', 'create_expenses', 'edit_expenses',
             'view_pending_transactions', 'create_pending_transactions', 'approve_pending_transactions', 'post_pending_transactions',
-            'view_currencies', 'view_financial_reports', 'view_contracts', 'view_services', 'download_files',
+            'view_currencies', 'view_financial_reports', 'view_contracts', 'download_files',
         ];
 
         $permissionIds = Permission::query()->whereIn('name', $all)->pluck('id', 'name');

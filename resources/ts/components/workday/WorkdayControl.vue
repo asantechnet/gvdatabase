@@ -9,31 +9,52 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const status = ref<WorkdayStatus | null>(null)
-const loading = ref(false)
 
+let disposed = false
+let requestPending = false
 const canUseWorkday = computed(() => canAccess('manage_own_workday'))
 
 const loadStatus = async () => {
-  if (!canUseWorkday.value)
+  if (disposed || requestPending || !canUseWorkday.value)
     return
+  requestPending = true
   try {
-    status.value = await WorkdayApi.status()
+    const result = await WorkdayApi.status(true)
+    if (!disposed) status.value = result
   }
-  catch { /* Global API error handling presents the failure. */ }
+  catch { /* Retry on visibility/online changes without repetitive background toasts. */ }
+  finally { requestPending = false }
 }
 
+function refreshWhenVisible() {
+  if (document.visibilityState === 'visible') loadStatus()
+}
+let refreshTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   loadStatus()
   window.addEventListener('workday-status-changed', loadStatus)
+  window.addEventListener('online', loadStatus)
+  document.addEventListener('visibilitychange', refreshWhenVisible)
+  refreshTimer = setInterval(refreshWhenVisible, 60_000)
 })
-onBeforeUnmount(() => window.removeEventListener('workday-status-changed', loadStatus))
+onBeforeUnmount(() => {
+  disposed = true
+  window.removeEventListener('workday-status-changed', loadStatus)
+  window.removeEventListener('online', loadStatus)
+  document.removeEventListener('visibilitychange', refreshWhenVisible)
+  clearInterval(refreshTimer)
+})
 </script>
 
 <template>
   <template v-if="status?.eligible">
     <VDivider class="my-2" />
+    <VListItem v-if="status.needsCheckoutCorrection" prepend-icon="tabler-alert-circle" disabled>
+      <VListItemTitle>{{ t('components.account.workday.attendanceUnavailable') }}</VListItemTitle>
+      <VListItemSubtitle class="text-wrap">{{ t('backend.errors.business.workday_checkout_needs_correction') }}</VListItemSubtitle>
+    </VListItem>
     <VListItem
-      v-if="status.state === 'active' || status.state === 'awaiting_report'"
+      v-else-if="(status.state === 'active' || status.state === 'awaiting_report') && canAccess('submit_own_daily_report')"
       prepend-icon="tabler-clock-stop"
       @click="emit('openEndDialog')"
     >

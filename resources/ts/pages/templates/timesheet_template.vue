@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { printDocument } from '@/utils/printDocument'
+import { useBranding } from '@/composables/useBranding'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -12,7 +14,7 @@ export interface Attendance {
   timestamp: string
   net_worked_minutes: number | null
   overtime_minutes: number
-  missing_punch_state: 'none' | 'check_in' | 'check_out' | 'both'
+  missing_punch_state: 'none' | 'check_in' | 'check_out' | 'both' | 'invalid'
 }
 
 const props = defineProps<{
@@ -24,6 +26,7 @@ const props = defineProps<{
 }>()
 
 const { locale, t } = useI18n()
+const { logoUrl, originalCompanyName } = useBranding()
 
 const formatDuration = (minutes: number | null) => minutes === null
   ? '—'
@@ -152,7 +155,7 @@ const calendarPages = computed(() => {
 })
 
 const printReport = () => {
-  window.print()
+  void printDocument({ bodyClass: 'printing-timesheet-template', pageStyle: 'size: A4 landscape; margin: 10mm;', element: document.querySelector<HTMLElement>('.timesheet-wrapper') })
 }
 </script>
 
@@ -191,6 +194,7 @@ const printReport = () => {
     </div>
 
     <div class="print-container">
+      <div class="timesheet-company"><img :src="logoUrl" :alt="originalCompanyName"><strong>{{ originalCompanyName }}</strong></div>
       <div
         v-for="(page, index) in calendarPages"
         :key="index"
@@ -268,6 +272,8 @@ const printReport = () => {
 </template>
 
 <style scoped>
+.timesheet-company { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-block-end: 12px; }
+.timesheet-company img { max-inline-size: 45mm; max-block-size: 16mm; object-fit: contain; }
 /* ==========================================
    CSS Variables & Screen Layout
 ========================================== */
@@ -554,11 +560,11 @@ const printReport = () => {
    Print CSS Configuration
 ========================================== */
 @media print {
-  .no-print {
+  :global(body:is(.printing-timesheet, .printing-timesheet-template)) .no-print {
     display: none !important;
   }
 
-  .timesheet-wrapper {
+  :global(body:is(.printing-timesheet, .printing-timesheet-template)) .timesheet-wrapper {
     background: none;
     padding: 0;
     margin: 0;
@@ -566,12 +572,12 @@ const printReport = () => {
     display: block;
   }
 
-  .print-container {
+  :global(body:is(.printing-timesheet, .printing-timesheet-template)) .print-container {
     gap: 0;
     width: 100%;
   }
 
-  .a4-page {
+  :global(body:is(.printing-timesheet, .printing-timesheet-template)) .a4-page {
     box-shadow: none;
     border-radius: 0;
     margin: 0 auto;
@@ -587,7 +593,7 @@ const printReport = () => {
   }
 
   /* A forced break belongs only between pages, never after the final page. */
-  .a4-page:not(:last-child) {
+  :global(body:is(.printing-timesheet, .printing-timesheet-template)) .a4-page:not(:last-child) {
     break-after: page;
     page-break-after: always;
   }

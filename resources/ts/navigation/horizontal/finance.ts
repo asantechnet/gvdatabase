@@ -19,20 +19,6 @@ export default [
         subject: 'view_expenses',
       },
       {
-        title: 'common.navigation.invoice',
-        icon: { icon: 'tabler-invoice' },
-        to: 'innvoice',
-        action: 'read',
-        subject: 'view_invoices',
-      },
-      {
-        title: 'common.navigation.paymentDetails',
-        icon: { icon: 'tabler-credit-card' },
-        to: 'payment-details',
-        action: 'read',
-        subject: 'view_payment_details',
-      },
-      {
         title: 'common.navigation.loans',
         icon: { icon: 'tabler-clock-dollar' },
         to: 'pending-transactions',

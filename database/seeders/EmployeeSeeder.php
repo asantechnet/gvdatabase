@@ -3,72 +3,125 @@
 namespace Database\Seeders;
 
 use App\Models\Employee;
+use App\Models\Office;
+use App\Models\Position;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class EmployeeSeeder extends Seeder
 {
+    /**
+     * The demo workforce.
+     *
+     * Every person maps to a real position (with its `system_key`) and an
+     * access role, so the specialist pickers (`AgencyStaffAssignment`), the
+     * counselor auto-select, and the task assignment rules all work on seeded
+     * data instead of depending on factory randomness. `supervisor` is the
+     * email of the person they report to.
+     *
+     * @var list<array<string, mixed>>
+     */
+    private const STAFF = [
+        [
+            'name' => 'Zahra Aziz', 'email' => 'zahra.aziz@example.test', 'contact' => '+93 700 100 001',
+            'position' => 'manager', 'role' => 'manager', 'department' => 'Operations',
+            'education_lvl' => 'Master', 'salary' => 120000, 'join_date' => '2021-03-01',
+            'contract_duration' => 'Permanent', 'supervisor' => null,
+        ],
+        [
+            'name' => 'Fatima Noori', 'email' => 'fatima.noori@example.test', 'contact' => '+93 700 100 002',
+            'position' => 'senior_counselor', 'role' => 'senior_counselor', 'department' => 'Counseling',
+            'education_lvl' => 'Master', 'salary' => 80000, 'join_date' => '2022-01-10',
+            'contract_duration' => 'Permanent', 'supervisor' => 'zahra.aziz@example.test',
+        ],
+        [
+            'name' => 'Ahmad Karimi', 'email' => 'ahmad.karimi@example.test', 'contact' => '+93 700 100 003',
+            'position' => 'counselor', 'role' => 'counselor', 'department' => 'Counseling',
+            'education_lvl' => 'Bachelor', 'salary' => 60000, 'join_date' => '2023-02-20',
+            'contract_duration' => '2 years', 'supervisor' => 'fatima.noori@example.test',
+        ],
+        [
+            'name' => 'Bilal Ahmadi', 'email' => 'bilal.ahmadi@example.test', 'contact' => '+93 700 100 004',
+            'position' => 'admission', 'role' => 'staff', 'department' => 'Admissions',
+            'education_lvl' => 'Bachelor', 'salary' => 55000, 'join_date' => '2023-05-02',
+            'contract_duration' => '2 years', 'supervisor' => 'fatima.noori@example.test',
+        ],
+        [
+            'name' => 'Sana Rahimi', 'email' => 'sana.rahimi@example.test', 'contact' => '+93 700 100 005',
+            'position' => 'finance_officer', 'role' => 'finance_officer', 'department' => 'Finance',
+            'education_lvl' => 'Bachelor', 'salary' => 70000, 'join_date' => '2022-09-15',
+            'contract_duration' => 'Permanent', 'supervisor' => 'zahra.aziz@example.test',
+        ],
+        [
+            'name' => 'Omid Safi', 'email' => 'omid.safi@example.test', 'contact' => '+93 700 100 006',
+            'position' => 'document_officer', 'role' => 'document_officer', 'department' => 'Operations',
+            'education_lvl' => 'Bachelor', 'salary' => 45000, 'join_date' => '2024-01-08',
+            'contract_duration' => '1 year', 'supervisor' => 'zahra.aziz@example.test',
+        ],
+    ];
+
     public function run(): void
     {
-        $mockData = [
-            [
-                'name' => 'John Doe',
-                'father_name' => 'Michael Doe',
-                'contact' => '555-1234',
-                'education_lvl' => 'Bachelor',
-                'email' => 'john.doe@example.com',
-                'addr' => '123 Main St, Cityville',
-                'position_id' => 1,
-                'salary' => 5000,
-                'join_date' => '2022-01-15',
-                'contract_duration' => '2 years',
-            ],
-            [
-                'name' => 'Jane Smith',
-                'father_name' => 'Robert Smith',
-                'contact' => '555-5678',
-                'education_lvl' => 'Master',
-                'email' => 'jane.smith@example.com',
-                'addr' => '456 Oak Ave, Townsville',
-                'position_id' => 1,
-                'salary' => 6500,
-                'join_date' => '2021-11-01',
-                'contract_duration' => '3 years',
-            ],
-            [
-                'name' => 'David Johnson',
-                'father_name' => 'William Johnson',
-                'contact' => '555-9012',
-                'education_lvl' => 'High School',
-                'email' => 'david.johnson@example.com',
-                'addr' => '789 Pine Rd, Villagetown',
-                'position_id' => 1,
-                'salary' => 3500,
-                'join_date' => '2023-02-20',
-                'contract_duration' => '1 year',
-            ],
-        ];
+        $officeId = Office::query()->where('code', 'HQ')->value('id');
+        $positionIds = Position::query()->pluck('id', 'system_key');
+        $roleIds = Role::query()->pluck('id', 'name');
 
-        foreach ($mockData as $staffMember) {
-            $user = User::firstOrCreate(
-                ['email' => $staffMember['email']],
-                [
-                    'name' => $staffMember['name'],
-                    'password' => Hash::make(Str::random(64)),
-                    'phone' => $staffMember['contact'],
-                    'address' => $staffMember['addr'],
-                    'acc_status' => 'active',
-                ],
-            );
-            Employee::updateOrCreate(
+        $employeesByEmail = [];
+
+        foreach (self::STAFF as $member) {
+            $user = User::firstOrNew(['email' => $member['email']]);
+            $user->fill([
+                'name' => $member['name'],
+                'phone' => $member['contact'],
+                'address' => 'Kabul, Afghanistan',
+                'acc_status' => 'active',
+                'email_verified_at' => $user->email_verified_at ?? now(),
+                'must_set_password' => false,
+            ]);
+            if (! $user->exists) {
+                // Documented demo credential for local environments.
+                $user->password = Hash::make('password');
+            }
+            $user->save();
+
+            $roleId = $roleIds[$member['role']] ?? null;
+            if ($roleId) {
+                $user->roles()->syncWithoutDetaching([$roleId]);
+            }
+
+            $employee = Employee::updateOrCreate(
                 ['user_id' => $user->id],
                 [
-                    ...collect($staffMember)->except('email')->all(),
-                    'user_id' => $user->id,
+                    'name' => $member['name'],
+                    'father_name' => 'N/A',
+                    'contact' => $member['contact'],
+                    'addr' => 'Kabul, Afghanistan',
+                    'education_lvl' => $member['education_lvl'],
+                    'position_id' => $positionIds[$member['position']] ?? null,
+                    'status' => Employee::STATUS_ACTIVE,
+                    'office_id' => $officeId,
+                    'salary' => $member['salary'],
+                    'department' => $member['department'],
+                    'join_date' => $member['join_date'],
+                    'contract_duration' => $member['contract_duration'],
                 ],
             );
+
+            $employeesByEmail[$member['email']] = $employee;
+        }
+
+        // Second pass: wire the reporting line once every employee exists.
+        foreach (self::STAFF as $member) {
+            if (! $member['supervisor']) {
+                continue;
+            }
+            $employee = $employeesByEmail[$member['email']] ?? null;
+            $supervisor = $employeesByEmail[$member['supervisor']] ?? null;
+            if ($employee && $supervisor && $employee->supervisor_id !== $supervisor->id) {
+                $employee->update(['supervisor_id' => $supervisor->id]);
+            }
         }
     }
 }
