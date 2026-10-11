@@ -78,4 +78,49 @@ class PendingTransactionTest extends TestCase
         Contract::query()->where('applicant_id', $applicant->id)->update(['is_cancelled' => true]);
         $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertUnprocessable();
     }
+
+    public function test_loan_receipt_returns_printable_payload(): void
+    {
+        $this->actingAsAdmin();
+        $currency = Currency::factory()->create(['code' => 'USD', 'symbol' => '$', 'is_base' => true, 'rate' => 1]);
+        $pending = $this->postJson('/api/pending-transactions', [
+            'transaction_type' => 'income',
+            'reason' => 'Tuition deposit',
+            'amount' => 250,
+            'currency_id' => $currency->id,
+        ])->assertCreated()->json('data');
+
+        $payload = $this->getJson("/api/loans/{$pending['id']}/receipt")->assertOk()->json('data');
+
+        // The loan prints through the receipt template: a stable serial, the
+        // request data in the income slot and the loan status block.
+        $this->assertSame('loan', $payload['document']);
+        $this->assertStringStartsWith('LN-', $payload['serial_number']);
+        $this->assertSame($pending['id'], $payload['income']['id']);
+        $this->assertSame('Tuition deposit', $payload['income']['name']);
+        $this->assertEqualsWithDelta(250.0, $payload['income']['line_total'], 0.001);
+        $this->assertEqualsWithDelta(250.0, $payload['totals']['total_fee'], 0.001);
+        // A submitted request is not an approved amount yet.
+        $this->assertEqualsWithDelta(0.0, $payload['totals']['paid_amount'], 0.001);
+        $this->assertSame('submitted', $payload['loan']['status']);
+        // Loans are not tied to a contract line.
+        $this->assertNull($payload['contract']);
+        $this->assertArrayHasKey('safe', $payload['letterhead']);
+    }
+
+    public function test_loan_receipt_requires_view_permission(): void
+    {
+        $this->actingAsAdmin();
+        $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
+        $pending = $this->postJson('/api/pending-transactions', [
+            'transaction_type' => 'income',
+            'reason' => 'Deposit',
+            'amount' => 10,
+            'currency_id' => $currency->id,
+        ])->assertCreated()->json('data');
+
+        $restricted = User::factory()->create();
+        Sanctum::actingAs($restricted, ['access']);
+        $this->getJson("/api/loans/{$pending['id']}/receipt")->assertForbidden();
+    }
 }

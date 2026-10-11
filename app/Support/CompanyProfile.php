@@ -17,11 +17,17 @@ class CompanyProfile
         return Setting::query()->latest('id')->first();
     }
 
+    /** Whether the company's own SMTP/from settings should be used at all. */
+    public function emailDeliveryEnabled(): bool
+    {
+        return (bool) ($this->current()?->email_delivery_enabled ?? true);
+    }
+
     /** @return array{address: string, name: string}|null */
     public function mailFrom(): ?array
     {
         $setting = $this->current();
-        if (! $setting?->company_email) {
+        if (! $this->emailDeliveryEnabled() || ! $setting?->company_email) {
             return null;
         }
 
@@ -35,6 +41,10 @@ class CompanyProfile
     public function configureMailer(): ?string
     {
         $setting = $this->current();
+
+        if (! $this->emailDeliveryEnabled()) {
+            return null;
+        }
 
         if (! $setting?->mail_host || ! $setting->mail_port || ! $setting->mail_username || ! $setting->mail_password) {
             return null;

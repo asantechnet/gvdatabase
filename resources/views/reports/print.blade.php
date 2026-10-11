@@ -1,3 +1,4 @@
+@use('App\Support\ReportDateFormatter')
 <!doctype html>
 <html lang="{{ app()->getLocale() }}" dir="{{ $direction }}">
 <head>
@@ -45,6 +46,10 @@
     $company = $report['meta']['company'];
     $companyName = $company['name'] ?: $company['short_name'];
     $rowCount = collect($report['sections'])->sum(fn ($section) => count($section['rows']));
+    // Report payloads carry ISO/`Y-m-d` machine values. Printing them raw made
+    // the sheet unreadable, so every date is normalized and localized here.
+    $period = ReportDateFormatter::day($report['filters']['start_date']).' — '.ReportDateFormatter::day($report['filters']['end_date']);
+    $generatedAt = ReportDateFormatter::human($report['meta']['generated_at'], $report['meta']['timezone']);
     $displayValue = function ($value) {
         if (is_null($value) || $value === '') return '—';
         if (is_bool($value)) return $value ? __('reports.print.yes') : __('reports.print.no');
@@ -63,12 +68,12 @@
         <div class="report-identity">
             <p class="eyebrow">{{ __('reports.print.business_report') }}</p>
             <h2>{{ __($report['title']) }}</h2>
-            <div class="meta-line"><span>{{ $report['filters']['start_date'] }} — {{ $report['filters']['end_date'] }}</span><span>{{ $report['meta']['timezone'] }}</span></div>
+            <div class="meta-line"><span>{{ $period }}</span><span>{{ $report['meta']['timezone'] }}</span></div>
         </div>
     </header>
 
     <div class="summary">
-        <div class="summary-card"><small>{{ __('reports.print.reporting_period') }}</small><strong>{{ $report['filters']['start_date'] }} — {{ $report['filters']['end_date'] }}</strong></div>
+        <div class="summary-card"><small>{{ __('reports.print.reporting_period') }}</small><strong>{{ $period }}</strong></div>
         <div class="summary-card"><small>{{ __('reports.print.coverage') }}</small><strong>{{ trans_choice('reports.print.section_count', count($report['sections']), ['count' => count($report['sections'])]) }}</strong></div>
         <div class="summary-card"><small>{{ __('reports.print.evidence') }}</small><strong>{{ trans_choice('reports.print.row_count', $rowCount, ['count' => $rowCount]) }}</strong></div>
     </div>
@@ -92,7 +97,7 @@
         </section>
     @endforeach
 
-    <footer><span>{{ __('reports.print.currency_basis') }}</span><span>{{ __('reports.print.generated_at', ['date' => $report['meta']['generated_at']]) }}</span></footer>
+    <footer><span>{{ __('reports.print.currency_basis') }}</span><span>{{ __('reports.print.generated_at', ['date' => $generatedAt]) }}</span></footer>
 </main>
 </body>
 </html>

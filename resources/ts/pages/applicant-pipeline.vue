@@ -78,7 +78,7 @@ function dropAllowed(applicant: Applicant, targetKey: string) {
 async function load() {
   loading.value = true
   try {
-    const params = { ...filters.value, per_page: 200 } as ApplicantListParams
+    const params = { ...filters.value, per_page: 100 } as ApplicantListParams
     const [pipeline, list] = await Promise.all([ApplicantApi.pipeline(params), ApplicantApi.list(params)])
 
     stages.value = [...pipeline.stages].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))

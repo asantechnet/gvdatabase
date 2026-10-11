@@ -64,12 +64,34 @@ export const printDocument = async ({
     pageStyleElement.textContent += `
       @media screen { #app-print-host { position: fixed; inset: 0; visibility: hidden; pointer-events: none; } }
       @media print {
-        body.printing-isolated-document { margin: 0 !important; padding: 0 !important; background: white !important; }
+        body.printing-isolated-document { margin: 0 !important; padding: 0 !important; block-size: auto !important; overflow: visible !important; background: white !important; }
         body.printing-isolated-document > :not(#app-print-host) { display: none !important; }
-        body.printing-isolated-document #app-print-host { display: block !important; position: static !important; color: #222; background: white; }
+        body.printing-isolated-document #app-print-host { display: block !important; position: static !important; color: #222; background: white; --v-scrollbar-offset: 0px; }
         body.printing-isolated-document #app-print-host > * { display: block !important; margin: 0 !important; }
         body.printing-isolated-document #app-print-host > :not(.print-page):not(.payslip-container) { position: static !important; }
         ${tableMargin ? `body.printing-isolated-document #app-print-host { padding: ${tableMargin} !important; box-sizing: border-box; }` : ''}
+      }
+      /*
+       * Vuetify's overlay scroll strategy pins <html> to the viewport
+       * (position: fixed; width/height: 100%) and clips <body> (overflow
+       * hidden) for as long as a dialog is open. Every print path opens a
+       * dialog, so without overriding that lock the print engine can only lay
+       * out a single viewport-height page and the document is truncated to its
+       * first screen. These selectors are global by necessity (html cannot be
+       * namespaced by a body class) but live only in this temporary sheet,
+       * which is removed once the print job finishes.
+       */
+      @media print {
+        html.v-overlay-scroll-blocked {
+          position: static !important;
+          inset: auto !important;
+          inline-size: auto !important;
+          block-size: auto !important;
+          overflow: visible !important;
+        }
+        .v-overlay-scroll-blocked:not(html) { overflow-y: visible !important; }
+        .v-overlay-scroll-blocked { padding-inline-end: 0 !important; }
+        html:has(body.printing-isolated-document) { overflow: visible !important; }
       }`
   }
 

@@ -11,6 +11,8 @@ declare global {
   const CreateUrl: typeof import('./src/@core/composable/CreateUrl')['CreateUrl']
   const EffectScope: typeof import('vue')['EffectScope']
   const PLACEHOLDER_SPAN_PATTERN: typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']
+  const academySlipCopies: typeof import('./resources/ts/utils/printAcademySlip')['academySlipCopies']
+  const academySlipPrintLayout: typeof import('./resources/ts/utils/printAcademySlip')['academySlipPrintLayout']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
   const actionWarningState: typeof import('./resources/ts/composables/useActionWarning')['actionWarningState']
   const addContractMonths: typeof import('./resources/ts/utils/contractExpiry')['addContractMonths']
@@ -32,6 +34,7 @@ declare global {
   const calendarDate: typeof import('./resources/ts/utils/calendarDate')['calendarDate']
   const calendarDurationUntil: typeof import('./resources/ts/utils/contractExpiry')['calendarDurationUntil']
   const canAccess: typeof import('./resources/ts/utils/authorization')['canAccess']
+  const canLoadImage: typeof import('./resources/ts/utils/printArtwork')['canLoadImage']
   const canPrintContractHeader: typeof import('./resources/ts/composables/useContractPrintHeader')['canPrintContractHeader']
   const canPrintPartyDetails: typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']
   const changedIncomeFields: typeof import('./resources/ts/utils/incomePaymentBalance')['changedIncomeFields']
@@ -53,6 +56,7 @@ declare global {
   const contrastingTextColor: typeof import('./resources/ts/utils/themeContrast')['contrastingTextColor']
   const controlledComputed: typeof import('@vueuse/core')['controlledComputed']
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
+  const createAcademySlipPrintHost: typeof import('./resources/ts/utils/printAcademySlip')['createAcademySlipPrintHost']
   const createApp: typeof import('vue')['createApp']
   const createEventHook: typeof import('@vueuse/core')['createEventHook']
   const createGenericProjection: typeof import('@vueuse/math')['createGenericProjection']
@@ -169,6 +173,7 @@ declare global {
   const persistThemeColors: typeof import('./resources/ts/utils/themePersistence')['persistThemeColors']
   const placeholderLabels: typeof import('./resources/ts/utils/contractPlaceholders')['placeholderLabels']
   const prefixWithPlus: typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']
+  const printAcademySlip: typeof import('./resources/ts/utils/printAcademySlip')['printAcademySlip']
   const printDocument: typeof import('./resources/ts/utils/printDocument')['printDocument']
   const printReceipt: typeof import('./resources/ts/utils/printReceipt')['printReceipt']
   const provide: typeof import('vue')['provide']
@@ -196,6 +201,7 @@ declare global {
   const requiredValidator: typeof import('./resources/ts/@core/utils/validators')['requiredValidator']
   const resolveActionWarning: typeof import('./resources/ts/composables/useActionWarning')['resolveActionWarning']
   const resolveComponent: typeof import('vue')['resolveComponent']
+  const resolveContractArtwork: typeof import('./resources/ts/utils/printArtwork')['resolveContractArtwork']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
   const resolveVuetifyTheme: typeof import('./resources/ts/@core/utils/vuetify')['resolveVuetifyTheme']
@@ -473,6 +479,8 @@ declare module 'vue' {
     readonly COOKIE_MAX_AGE_1_YEAR: UnwrapRef<typeof import('./resources/ts/utils/constants')['COOKIE_MAX_AGE_1_YEAR']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly PLACEHOLDER_SPAN_PATTERN: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']>
+    readonly academySlipCopies: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['academySlipCopies']>
+    readonly academySlipPrintLayout: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['academySlipPrintLayout']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly actionWarningState: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['actionWarningState']>
     readonly alphaDashValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['alphaDashValidator']>
@@ -491,6 +499,7 @@ declare module 'vue' {
     readonly buildContractPrintHeader: UnwrapRef<typeof import('./resources/ts/composables/useContractPrintHeader')['buildContractPrintHeader']>
     readonly calendarDate: UnwrapRef<typeof import('./resources/ts/utils/calendarDate')['calendarDate']>
     readonly canAccess: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canAccess']>
+    readonly canLoadImage: UnwrapRef<typeof import('./resources/ts/utils/printArtwork')['canLoadImage']>
     readonly canPrintContractHeader: UnwrapRef<typeof import('./resources/ts/composables/useContractPrintHeader')['canPrintContractHeader']>
     readonly canPrintPartyDetails: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']>
     readonly changedIncomeFields: UnwrapRef<typeof import('./resources/ts/utils/incomePaymentBalance')['changedIncomeFields']>
@@ -511,6 +520,7 @@ declare module 'vue' {
     readonly contrastingTextColor: UnwrapRef<typeof import('./resources/ts/utils/themeContrast')['contrastingTextColor']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
+    readonly createAcademySlipPrintHost: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['createAcademySlipPrintHost']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
     readonly createEventHook: UnwrapRef<typeof import('@vueuse/core')['createEventHook']>
     readonly createGenericProjection: UnwrapRef<typeof import('@vueuse/math')['createGenericProjection']>
@@ -620,6 +630,7 @@ declare module 'vue' {
     readonly persistThemeColors: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['persistThemeColors']>
     readonly placeholderLabels: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['placeholderLabels']>
     readonly prefixWithPlus: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']>
+    readonly printAcademySlip: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['printAcademySlip']>
     readonly printDocument: UnwrapRef<typeof import('./resources/ts/utils/printDocument')['printDocument']>
     readonly printReceipt: UnwrapRef<typeof import('./resources/ts/utils/printReceipt')['printReceipt']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
@@ -646,6 +657,7 @@ declare module 'vue' {
     readonly requiredValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['requiredValidator']>
     readonly resolveActionWarning: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['resolveActionWarning']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
+    readonly resolveContractArtwork: UnwrapRef<typeof import('./resources/ts/utils/printArtwork')['resolveContractArtwork']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
     readonly resolveVuetifyTheme: UnwrapRef<typeof import('./resources/ts/@core/utils/vuetify')['resolveVuetifyTheme']>

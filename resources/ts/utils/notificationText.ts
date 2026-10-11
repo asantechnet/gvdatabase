@@ -33,6 +33,9 @@ export function notificationText(notification: AppNotification, translate: Trans
     country: String(notification.data?.country ?? ''),
     language: String(notification.data?.language ?? ''),
     label: String(notification.data?.label ?? ''),
+    counterparty: String(notification.data?.counterparty ?? ''),
+    end_date: String(notification.data?.end_date ?? ''),
+    days_remaining: String(notification.data?.days_remaining ?? ''),
   }
 
   const normalizedKey = String(notification.data?.translation_key || (key?.startsWith('bonus.review.') ? 'bonus.review' : key))

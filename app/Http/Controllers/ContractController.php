@@ -105,22 +105,62 @@ class ContractController extends Controller
         $data = $this->validatedData($request);
         $contract = DB::transaction(function () use ($data, $request): Contract {
             $template = $this->genericTemplate($data['template_id']);
+            // Employment and other agreements extend the same way built-in
+            // service contracts do: a new record linked to a live primary
+            // parent. Extensions are always issued as drafts so the terms can
+            // be reviewed before the agreement becomes active.
+            $parent = $this->extensionParent($request, $template, $data['parent_contract_id'] ?? null);
             $contract = Contract::create([
                 'template_id' => $template->id, 'contract_type_id' => $template->contract_type_id,
                 'name' => $template->name, 'content' => '', 'counterparty' => '',
-                'status' => $data['status'] ?? 'active',
+                'status' => $parent ? 'draft' : ($data['status'] ?? 'active'),
                 'start_date' => $data['start_date'] ?? now()->toDateString(),
                 'employee_id' => $data['employee_id'] ?? null, 'applicant_id' => $data['applicant_id'] ?? null,
+                'contract_role' => $parent ? Contract::ROLE_EXTENSION : Contract::ROLE_PRIMARY,
+                'parent_contract_id' => $parent?->id,
                 'is_cancelled' => false,
             ]);
             abort_unless(ContractAccess::canManage($request->user(), $contract), 403, 'auth.forbidden');
-            $contract->update($this->documentAttributes($contract, $data));
+            $attributes = $this->documentAttributes($contract, $data);
+            if ($parent) {
+                // Keep the origin of the extension in the immutable snapshot so
+                // the printed document can always name the agreement it extends.
+                $attributes['snapshot_data'] = [...($attributes['snapshot_data'] ?? []), 'extension_of' => $parent->contract_number];
+            }
+            $contract->update($attributes);
             abort_unless(ContractAccess::canManage($request->user(), $contract->fresh()), 403, 'auth.forbidden');
 
             return $contract;
         });
 
         return $this->contractResponse($contract, 201);
+    }
+
+    /**
+     * Resolve the agreement an extension is issued from.
+     *
+     * Only a live primary contract of the same contract type can be extended,
+     * so a cancelled agreement, a finished one, or another extension is never
+     * extended in place.
+     */
+    private function extensionParent(Request $request, ContractTemplate $template, ?int $parentId): ?Contract
+    {
+        if (! $parentId) {
+            return null;
+        }
+
+        $parent = Contract::query()->lockForUpdate()->findOrFail($parentId);
+        abort_unless(ContractAccess::canManage($request->user(), $parent), 403, 'auth.forbidden');
+        abort_unless(
+            $parent->contract_role === Contract::ROLE_PRIMARY
+            && ! $parent->is_cancelled
+            && in_array($parent->status, ['active', 'completed'], true)
+            && (int) $parent->contract_type_id === (int) $template->contract_type_id,
+            422,
+            'business.contract_extension_invalid',
+        );
+
+        return $parent;
     }
 
     public function storeService(StoreServiceContractRequest $request, string $service, ContractGenerationService $generator): JsonResponse
@@ -248,6 +288,7 @@ class ContractController extends Controller
         $data = $request->validate([
             'template_id' => [$partial ? 'sometimes' : 'required', 'integer', $exists('contract_templates')],
             'contract_template_version_id' => ['nullable', 'integer', $exists('contract_template_versions')],
+            'parent_contract_id' => ['nullable', 'integer', $exists('contracts')],
             'country_id' => ['nullable', 'integer', $exists('countries')],
             'language_id' => ['nullable', 'integer', $exists('languages')],
             'employee_id' => ['nullable', 'integer', $exists('employees')],
@@ -322,20 +363,30 @@ class ContractController extends Controller
         abort_if($type->slug === 'employment' && ! $employee, 422, 'business.contract_employee_required');
         $applicant = $type->slug !== 'employment' && $applicantId ? Applicant::findOrFail($applicantId) : null;
         $context = $employee ? ['employee' => $employee] : ($applicant ? ['applicant' => $applicant] : []);
+        // Employment templates are not versioned per country/language, so they
+        // resolve their single current version and carry no scope columns.
+        $isEmployment = $type->slug === 'employment';
         $countryId = array_key_exists('country_id', $data) ? $data['country_id'] : $contract->contract_country_id;
         $languageId = array_key_exists('language_id', $data) ? $data['language_id'] : $contract->contract_language_id;
+        if ($isEmployment) {
+            $countryId = null;
+            $languageId = null;
+        }
         $versionId = array_key_exists('contract_template_version_id', $data)
             ? $data['contract_template_version_id']
             : ($template->id === $contract->template_id ? $contract->contract_template_version_id : null);
         $version = $versionId ? ContractTemplateVersion::findOrFail($versionId) : null;
-        if (! $version && $languageId) {
+        if (! $version && $isEmployment) {
+            $version = $template->versions()->where('is_current', true)->where('status', 'active')->first();
+        }
+        if (! $version && $languageId && ! $isEmployment) {
             $version = $template->versions()->where('country_id', $countryId)->where('language_id', $languageId)
                 ->where('is_current', true)->where('status', 'active')->first();
         }
-        abort_if($template->versions()->exists() && (! $languageId || ! $version), 422, 'business.contract_template_version_unavailable');
+        abort_if($template->versions()->exists() && (! $version || (! $isEmployment && ! $languageId)), 422, 'business.contract_template_version_unavailable');
         abort_if($version && ($version->contract_template_id !== $template->id
-            || (int) $version->country_id !== (int) $countryId || (int) $version->language_id !== (int) $languageId
-            || ! $version->is_current || $version->status !== 'active'), 422, 'business.contract_template_version_unavailable');
+            || ! $version->is_current || $version->status !== 'active'
+            || (! $isEmployment && ((int) $version->country_id !== (int) $countryId || (int) $version->language_id !== (int) $languageId))), 422, 'business.contract_template_version_unavailable');
         $start = $data['start_date'] ?? $contract->start_date?->toDateString() ?? now()->toDateString();
         $end = array_key_exists('end_date', $data) ? $data['end_date'] : $contract->end_date?->toDateString();
         abort_if($end && $end < $start, 422, 'business.contract_end_date_invalid');

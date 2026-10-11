@@ -5,12 +5,16 @@ namespace Database\Seeders;
 use App\Models\Applicant;
 use App\Models\ApplicantContract;
 use App\Models\Contract;
+use App\Models\ContractTemplate;
+use App\Models\ContractTemplateVersion;
 use App\Models\ContractType;
 use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Language;
 use App\Services\Contracts\BuiltInContractTemplateService;
-use App\Services\Contracts\ContractGenerationService;
+use App\Services\Contracts\ContentSanitizer;
+use App\Services\Contracts\PlaceholderRegistry;
+use App\Services\Contracts\PlaceholderResolver;
 use App\Support\BuiltInService;
 use Illuminate\Database\Seeder;
 
@@ -19,11 +23,16 @@ class ContractSeeder extends Seeder
     /**
      * One issued contract per seeded applicant, each with its service line.
      *
-     * This mirrors what {@see ContractGenerationService}
-     * produces: a primary patient contract bound to the built-in template and
-     * a single `applicant_contract` line that carries the fee, currency and
-     * payment state. Payment overrides are used deliberately so the demo set
-     * shows paid, partially-paid and unpaid lines.
+     * This mirrors what {@see \App\Services\Contracts\ContractGenerationService}
+     * produces: a primary patient contract bound to the built-in template,
+     * its active template version rendered against the applicant, a snapshot of
+     * the parties/version, and a single `applicant_contract` line that carries
+     * the fee, currency and payment state. Payment overrides are used
+     * deliberately so the demo set shows paid, partially-paid and unpaid lines.
+     *
+     * A contract without rendered content or a version snapshot prints a
+     * generic fallback document, so the seeded contracts must carry the same
+     * data a generated one does.
      */
     public function run(): void
     {
@@ -35,6 +44,9 @@ class ContractSeeder extends Seeder
         }
 
         $soldBy = Employee::query()->whereHas('position', fn ($query) => $query->where('system_key', 'counselor'))->value('id');
+        $signatory = PlaceholderRegistry::ourCompanyValues()['name'];
+        $resolver = app(PlaceholderResolver::class);
+        $sanitizer = app(ContentSanitizer::class);
         $templates = app(BuiltInContractTemplateService::class);
 
         $plans = [
@@ -51,6 +63,11 @@ class ContractSeeder extends Seeder
             }
 
             $template = $templates->ensure($service);
+            $version = $this->activeVersion($template, $language);
+            if (! $version) {
+                continue;
+            }
+
             $contract = Contract::withTrashed()->firstOrNew([
                 'applicant_id' => $applicant->id,
                 'service' => $service,
@@ -58,15 +75,16 @@ class ContractSeeder extends Seeder
             ]);
             $contract->fill([
                 'template_id' => $template->id,
+                'contract_template_version_id' => $version->id,
                 'contract_type_id' => $customerType->id,
                 'contract_language_id' => $language->id,
                 'sold_by_employee_id' => $soldBy,
                 'name' => $template->name,
                 'type' => $customerType->name,
                 'cover_text' => $template->cover_text,
-                'content' => $template->content,
                 'status' => 'active',
                 'start_date' => now()->subDays(30)->toDateString(),
+                'company_signatory_name' => $signatory,
                 'counterparty' => $applicant->name,
                 'counterparty_email' => $applicant->email,
                 'counterparty_contact' => $applicant->contact,
@@ -97,6 +115,8 @@ class ContractSeeder extends Seeder
             $line->deleted_at = null;
             $line->save();
 
+            $this->issueContent($contract, $version, $applicant, $line, $signatory, $resolver, $sanitizer);
+
             // Create an extension contract for each primary contract
             $extContract = Contract::withTrashed()->firstOrNew([
                 'applicant_id' => $applicant->id,
@@ -106,15 +126,16 @@ class ContractSeeder extends Seeder
             ]);
             $extContract->fill([
                 'template_id' => $template->id,
+                'contract_template_version_id' => $version->id,
                 'contract_type_id' => $customerType->id,
                 'contract_language_id' => $language->id,
                 'sold_by_employee_id' => $soldBy,
                 'name' => $template->name . ' (Extension)',
                 'type' => $customerType->name,
                 'cover_text' => $template->cover_text,
-                'content' => $template->content,
                 'status' => 'active',
                 'start_date' => now()->addDays(30)->toDateString(),
+                'company_signatory_name' => $signatory,
                 'counterparty' => $applicant->name,
                 'counterparty_email' => $applicant->email,
                 'counterparty_contact' => $applicant->contact,
@@ -140,6 +161,70 @@ class ContractSeeder extends Seeder
             ]);
             $extLine->deleted_at = null;
             $extLine->save();
+
+            $this->issueContent($extContract, $version, $applicant, $extLine, $signatory, $resolver, $sanitizer, $contract);
         }
+    }
+
+    /** The active, current version of a built-in template for the seeded language. */
+    private function activeVersion(ContractTemplate $template, Language $language): ?ContractTemplateVersion
+    {
+        return $template->versions()
+            ->where('status', 'active')
+            ->where('is_current', true)
+            ->where('language_id', $language->id)
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
+     * Renders the version against the applicant and freezes the same snapshot a
+     * generated contract carries: the parties, the closed entity payload and the
+     * template version shown on the printed document.
+     */
+    private function issueContent(
+        Contract $contract,
+        ContractTemplateVersion $version,
+        Applicant $applicant,
+        ApplicantContract $line,
+        string $signatory,
+        PlaceholderResolver $resolver,
+        ContentSanitizer $sanitizer,
+        ?Contract $extensionOf = null,
+    ): void {
+        $rendered = $resolver->resolve($version->content, [
+            'applicant' => $applicant,
+            'built_in_line' => $line,
+            'contract_number' => $contract->contract_number,
+            'start_date' => $contract->start_date?->toDateString(),
+            'status' => $contract->status,
+            'company_signatory_name' => $contract->company_signatory_name,
+        ], 'customer');
+
+        $contract->forceFill([
+            'content' => $sanitizer->clean($rendered['content']),
+            'snapshot_data' => [
+                'parties' => [
+                    'our_company' => PlaceholderRegistry::ourCompanyValues($signatory),
+                    'counterparty' => [
+                        'name' => $applicant->name,
+                        'email' => $applicant->email,
+                        'phone' => $applicant->contact,
+                        'address' => $applicant->address,
+                    ],
+                ],
+                'entity' => [
+                    'applicant_id' => $applicant->id,
+                    'service' => $line->service,
+                    'applicant' => $applicant->only(['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address']),
+                    'services' => [[
+                        ...$line->only(['id', 'service', 'fee', 'discount', 'currency_id', 'currency_rate', 'application_fee', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']),
+                        'currency_code' => $line->currency?->code,
+                    ]],
+                    'extension_of' => $extensionOf?->contract_number,
+                ],
+                'template_version' => $version->only(['id', 'name', 'version_number', 'country_id', 'language_id']),
+            ],
+        ])->save();
     }
 }

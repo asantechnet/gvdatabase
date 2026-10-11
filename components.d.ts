@@ -66,6 +66,7 @@ declare module 'vue' {
     DialogCloseBtn: typeof import('./resources/ts/@core/components/DialogCloseBtn.vue')['default']
     DirectoryCrudPage: typeof import('./resources/ts/components/setup/DirectoryCrudPage.vue')['default']
     DropZone: typeof import('./resources/ts/@core/components/DropZone.vue')['default']
+    EducationalReportPrint: typeof import('./resources/ts/components/educational/EducationalReportPrint.vue')['default']
     EnableOneTimePasswordDialog: typeof import('./resources/ts/components/dialogs/EnableOneTimePasswordDialog.vue')['default']
     EndDayDialog: typeof import('./resources/ts/components/workday/EndDayDialog.vue')['default']
     ErpDateRange: typeof import('./resources/ts/components/erp/ErpDateRange.vue')['default']

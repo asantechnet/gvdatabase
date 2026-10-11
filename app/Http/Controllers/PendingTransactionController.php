@@ -11,6 +11,7 @@ use App\Models\PendingTransaction;
 use App\Models\Salary;
 use App\Services\ActiveContractService;
 use App\Services\EducationalWorkflowNotificationService;
+use App\Services\LoanReceiptService;
 use App\Support\EditWindow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,11 @@ class PendingTransactionController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => $query->latest()->paginate($request->integer('per_page', 25))]);
+    }
+
+    public function receipt(PendingTransaction $pendingTransaction, LoanReceiptService $receipts)
+    {
+        return response()->json(['success' => true, 'data' => $receipts->for($pendingTransaction)]);
     }
 
     public function options(Request $request)

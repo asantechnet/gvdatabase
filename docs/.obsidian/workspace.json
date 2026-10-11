@@ -13,12 +13,22 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "applicant-visa-firm-restructure-plan.md",
+                "file": "Educational New Comments++.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "applicant-visa-firm-restructure-plan"
+              "title": "Educational New Comments++"
+            }
+          },
+          {
+            "id": "85289b46cf0f66bf",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "New tab"
             }
           }
         ]
@@ -161,7 +171,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "applicant-visa-firm-restructure-plan.md",
+                "file": "Educational New Comments++.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
@@ -175,7 +185,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -188,6 +199,13 @@
       "bases:Create new base": false
     }
   },
-  "active": "19c5fd2f93217607",
-  "lastOpenFiles": []
+  "active": "602962d5a73fb01c",
+  "lastOpenFiles": [
+    "educational-comments-master-plan.md",
+    "Educational New Comments++.md",
+    "applicant-visa-firm-restructure-plan.md",
+    "visa-reports-contracts-cancel-print-plan.md",
+    "visa-case-loans-contract-print-plan.md",
+    "contracts-extend-versioning-print-plan.md"
+  ]
 }

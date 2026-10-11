@@ -20,6 +20,16 @@ class TaskUserSeeder extends Seeder
             ->with(['applicant.responsibleEmployee', 'applicant.admissionEmployee', 'board'])
             ->get()
             ->each(function (Task $task) use ($operationsUserIds): void {
+                // A personal-board task belongs to its owner alone; never
+                // spread it to every operations user.
+                if ($task->board?->isPersonal()) {
+                    if ($task->board->user_id) {
+                        $task->users()->syncWithoutDetaching([$task->board->user_id]);
+                    }
+
+                    return;
+                }
+
                 $assignees = [];
                 if ($task->applicant) {
                     $assignees = array_filter([

@@ -21,6 +21,7 @@ const isSuperAdmin = computed(() => userData.value?.roles?.some(role =>
 export interface ContractFormPayload {
   template_id: number | null
   contract_template_version_id: number | null
+  parent_contract_id?: number | null
   country_id: number | null
   language_id: number | null
   employee_id: number | null
@@ -48,31 +49,38 @@ interface TemplateOption {
   versions?: Array<{ id: number; name: string; country_id: number | null; language_id: number | null; version_number?: number; content?: string; status: string; is_current: boolean; country?: { id: number; name: string } | null; language?: { id: number; name: string; code?: string } | null }>
 }
 
+// Shared shape for the record being edited and for the parent of an extension,
+// so both prefill the form through the same code path.
+interface ContractFormSource {
+  id: number
+  contract: string
+  status: ContractStatus
+  start_date: string | null
+  end_date?: string | null
+  company_signatory_name?: string | null
+  template_id: number | null
+  contract_template_version_id?: number | null
+  contract_country_id?: number | null
+  contract_language_id?: number | null
+  contract_type_id?: number | null
+  employee_id?: number | null
+  applicant_id?: number | null
+  counterparty?: string | null
+  counterparty_company?: string | null
+  counterparty_email?: string | null
+  counterparty_contact?: string | null
+  counterparty_address?: string | null
+  is_custom?: boolean
+  type_slug?: string | null
+  cover_text?: string | null
+  content?: string | null
+}
+
 const props = defineProps<{
-  contract?: {
-    id: number
-    contract: string
-    status: ContractStatus
-    start_date: string | null
-    end_date?: string | null
-    company_signatory_name?: string | null
-    template_id: number | null
-    contract_template_version_id?: number | null
-    contract_country_id?: number | null
-    contract_language_id?: number | null
-    contract_type_id?: number | null
-    employee_id?: number | null
-    applicant_id?: number | null
-    counterparty?: string | null
-    counterparty_company?: string | null
-    counterparty_email?: string | null
-    counterparty_contact?: string | null
-    counterparty_address?: string | null
-    is_custom?: boolean
-    type_slug?: string | null
-    cover_text?: string | null
-    content?: string | null
-  }
+  contract?: ContractFormSource
+  /** When set, the new contract is a draft extension of this agreement. */
+  parentContract?: ContractFormSource | null
+  extensionMode?: boolean
   templates: TemplateOption[]
   audience?: 'employees' | 'other'
   applicantId?: number | null
@@ -101,26 +109,45 @@ const languages = ref<MasterDataRecord[]>([])
 const positions = ref<Position[]>([])
 const loadingEntities = ref(true)
 
+// The extension prefill comes from the parent agreement; an edit still starts
+// from the record itself.
+const formSource = props.contract ?? props.parentContract ?? null
+
+// A renewal starts the day after the agreement it extends ends. Without an end
+// date there is nothing to continue from, so it starts today.
+const initialStartDate = () => {
+  const parentEnd = props.parentContract?.end_date
+  if (props.extensionMode && parentEnd) {
+    const next = new Date(`${parentEnd}T00:00:00`)
+    if (!Number.isNaN(next.getTime())) {
+      next.setDate(next.getDate() + 1)
+
+      return next.toISOString().slice(0, 10)
+    }
+  }
+
+  return props.contract?.start_date || new Date().toISOString().slice(0, 10)
+}
+
 const form = ref({
-  template_id: (props.contract?.template_id ?? null) as number | null,
-  contract_template_version_id: (props.contract?.contract_template_version_id ?? null) as number | null,
-  country_id: (props.applicantCountryId ?? props.contract?.contract_country_id ?? null) as number | null,
-  language_id: (props.contract?.contract_language_id ?? null) as number | null,
-  position_id: null as number | null,
-  employee_id: (props.contract?.employee_id ?? null) as number | null,
-  applicant_id: (props.contract?.applicant_id ?? props.applicantId ?? null) as number | null,
-  name: props.contract?.contract || '',
-  cover_text: (props.contract?.cover_text || null) as string | null,
-  content: props.contract?.content || '',
-  status: (props.contract?.status || 'active') as ContractStatus,
-  start_date: props.contract?.start_date || new Date().toISOString().slice(0, 10),
-  end_date: (props.contract?.end_date ?? '') as string,
-  counterparty: (props.contract?.counterparty || '') as string,
-  counterparty_company: (props.contract?.counterparty_company || null) as string | null,
-  counterparty_email: (props.contract?.counterparty_email || null) as string | null,
-  counterparty_contact: (props.contract?.counterparty_contact || null) as string | null,
-  counterparty_address: (props.contract?.counterparty_address || null) as string | null,
-  company_signatory_name: (props.contract?.company_signatory_name ?? null) as string | null,
+  template_id: (formSource?.template_id ?? null) as number | null,
+  contract_template_version_id: (formSource?.contract_template_version_id ?? null) as number | null,
+  country_id: (props.applicantCountryId ?? formSource?.contract_country_id ?? null) as number | null,
+  language_id: (formSource?.contract_language_id ?? null) as number | null,
+  employee_id: (formSource?.employee_id ?? null) as number | null,
+  applicant_id: (formSource?.applicant_id ?? props.applicantId ?? null) as number | null,
+  name: formSource?.contract || '',
+  cover_text: (formSource?.cover_text || null) as string | null,
+  content: formSource?.content || '',
+  status: (props.extensionMode ? 'draft' : (formSource?.status || 'active')) as ContractStatus,
+  start_date: initialStartDate(),
+  end_date: (props.extensionMode ? '' : (formSource?.end_date ?? '')) as string,
+  counterparty: (formSource?.counterparty || '') as string,
+  counterparty_company: (formSource?.counterparty_company || null) as string | null,
+  counterparty_email: (formSource?.counterparty_email || null) as string | null,
+  counterparty_contact: (formSource?.counterparty_contact || null) as string | null,
+  counterparty_address: (formSource?.counterparty_address || null) as string | null,
+  company_signatory_name: (formSource?.company_signatory_name ?? null) as string | null,
 })
 
 const applySignatoryDefault = (employeeName: string | null) => {
@@ -147,8 +174,11 @@ const activeSlug = computed<string | null>(() => {
   return selectedTemplate.value?.type_slug ?? null
 })
 
+// Employment templates are not versioned per country/language: they carry a
+// single current version identified by its name, so it is selected for you.
+const isEmploymentTemplate = computed(() => activeSlug.value === 'employment')
 const activeTemplateVersions = computed(() => selectedTemplate.value?.versions?.filter(version => version.is_current && version.status === 'active') ?? [])
-const requiresVersionSelection = computed(() => activeTemplateVersions.value.length > 0)
+const requiresVersionSelection = computed(() => activeTemplateVersions.value.length > 0 && !isEmploymentTemplate.value)
 const hasTemplateVersions = computed(() => (selectedTemplate.value?.versions?.length ?? 0) > 0)
 const countryOptions = computed(() => {
   const versionCountryIds = [...new Set(activeTemplateVersions.value.map(version => version.country_id ?? null))]
@@ -166,7 +196,12 @@ const countryScopedVersions = computed(() => activeTemplateVersions.value.filter
 const languageOptions = computed(() => languages.value
   .filter(language => language.is_active && countryScopedVersions.value.some(version => version.language_id === language.id))
   .map(language => ({ title: `${language.name}${language.code ? ` (${language.code})` : ''}`, value: language.id })))
-const selectedTemplateVersion = computed(() => countryScopedVersions.value.find(version => version.language_id === form.value.language_id) ?? null)
+const selectedTemplateVersion = computed(() => {
+  if (isEmploymentTemplate.value)
+    return activeTemplateVersions.value.find(version => version.id === form.value.contract_template_version_id) ?? activeTemplateVersions.value[0] ?? null
+
+  return countryScopedVersions.value.find(version => version.language_id === form.value.language_id) ?? null
+})
 
 const context = computed<'employee' | 'other' | null>(() => {
   const slug = activeSlug.value
@@ -197,13 +232,13 @@ const applicantOptions = computed(() => applicants.value.map(applicant => ({
   title: applicant.name,
   value: applicant.id,
 })))
-const positionOptions = computed(() => positions.value.map(position => ({
-  title: position.title,
-  value: position.id,
-})))
+// The selected employment template owns the position; the employee list only
+// offers people who actually hold it.
+const templatePositionId = computed(() => selectedTemplate.value?.position_id ?? null)
+const templatePositionTitle = computed(() => positions.value.find(position => position.id === templatePositionId.value)?.title ?? '')
 
 const employeeOptions = computed(() => employees.value
-  .filter(employee => context.value !== 'employee' || !form.value.position_id || employee.position_id === form.value.position_id)
+  .filter(employee => context.value !== 'employee' || !templatePositionId.value || employee.position_id === templatePositionId.value)
   .map(employee => ({
     title: employee.position ? `${employee.name} — ${employee.position}` : employee.name,
     value: employee.id,
@@ -289,9 +324,13 @@ const counterpartyDetails = computed<CounterpartyDetails | null>(() => {
 })
 
 onMounted(async () => {
+  // Employment contracts are drawn for an employee, never an applicant, so
+  // fetching the applicant page here only produced a spurious pagination
+  // validation error (the API caps `per_page` at 100).
+  const loadsApplicants = props.audience !== 'employees'
   try {
     const [applicantResult, employeeResult, countryResult, languageResult, positionResult, authResult] = await Promise.allSettled([
-      ApplicantApi.list({ per_page: 200 }),
+      loadsApplicants ? ApplicantApi.list({ per_page: 100 }) : Promise.resolve(null),
       EmployeeApi.getOptions(),
       MasterDataApi.list('countries'),
       MasterDataApi.list('languages'),
@@ -299,7 +338,7 @@ onMounted(async () => {
       AuthApi.me(),
     ])
 
-    if (applicantResult.status === 'fulfilled')
+    if (applicantResult.status === 'fulfilled' && applicantResult.value)
       applicants.value = applicantResult.value.data
     if (employeeResult.status === 'fulfilled')
       employees.value = employeeResult.value
@@ -351,8 +390,6 @@ watch(context, currentContext => {
   else {
     form.value.applicant_id = null
   }
-  if (currentContext !== 'employee')
-    form.value.position_id = null
 })
 
 // Keep the visa-case applicant locked even if the dialog is reused.
@@ -364,24 +401,36 @@ watch(() => props.applicantId, applicantId => {
 watch(() => form.value.template_id, () => {
   const existingVersion = activeTemplateVersions.value.find(version => version.id === form.value.contract_template_version_id)
 
+  if (isEmploymentTemplate.value) {
+    form.value.country_id = null
+    form.value.language_id = null
+    form.value.contract_template_version_id = existingVersion?.id ?? activeTemplateVersions.value[0]?.id ?? null
+
+    return
+  }
+
   form.value.country_id = props.applicantCountryId ?? existingVersion?.country_id ?? countryOptions.value[0]?.value ?? null
   form.value.language_id = existingVersion?.language_id ?? null
   form.value.contract_template_version_id = existingVersion?.id ?? null
 }, { immediate: true })
 
 watch(() => form.value.country_id, () => {
+  if (isEmploymentTemplate.value)
+    return
   if (!countryScopedVersions.value.some(version => version.language_id === form.value.language_id))
     form.value.language_id = null
   form.value.contract_template_version_id = null
 })
 
 watch(() => form.value.language_id, () => {
+  if (isEmploymentTemplate.value)
+    return
   form.value.contract_template_version_id = selectedTemplateVersion.value?.id ?? null
 })
 
-// Employment position narrows the employee list; clearing it keeps the
-// employee only when they actually hold that position.
-watch(() => form.value.position_id, positionId => {
+// A template's position drives the employee list; clearing keeps the employee
+// only when they actually hold that position.
+watch(templatePositionId, positionId => {
   if (positionId && form.value.employee_id) {
     const employee = employees.value.find(item => item.id === form.value.employee_id)
     if (employee && employee.position_id !== positionId)
@@ -400,6 +449,7 @@ const submit = async () => {
 
   emit('submit', {
     ...form.value,
+    parent_contract_id: props.extensionMode ? (props.parentContract?.id ?? null) : null,
     company_signatory_name: !isSuperAdmin.value && currentEmployeeName.value
       ? currentEmployeeName.value
       : (form.value.company_signatory_name?.trim() || currentEmployeeName.value),
@@ -424,6 +474,19 @@ defineExpose({ submit })
     @submit.prevent="submit"
   >
     <VRow>
+      <VCol
+        v-if="extensionMode && parentContract"
+        cols="12"
+      >
+        <VAlert
+          color="info"
+          variant="tonal"
+          density="compact"
+          icon="tabler-file-plus"
+        >
+          {{ tr('extendingNotice', { contract: parentContract.contract || `#${parentContract.id}` }) }}
+        </VAlert>
+      </VCol>
       <VCol cols="12">
         <ErpField kind="select"
           v-model="form.template_id"
@@ -438,7 +501,7 @@ defineExpose({ submit })
       </VCol>
 
       <VCol
-        v-if="selectedTemplate"
+        v-if="selectedTemplate && !isEmploymentTemplate"
         cols="12"
         md="3"
       >
@@ -452,7 +515,7 @@ defineExpose({ submit })
         />
       </VCol>
       <VCol
-        v-if="selectedTemplate"
+        v-if="selectedTemplate && !isEmploymentTemplate"
         cols="12"
         md="3"
       >
@@ -468,7 +531,7 @@ defineExpose({ submit })
         />
       </VCol>
       <VCol
-        v-if="selectedTemplate && !requiresVersionSelection"
+        v-if="selectedTemplate && !requiresVersionSelection && !isEmploymentTemplate"
         cols="12"
       >
         <VAlert
@@ -481,29 +544,38 @@ defineExpose({ submit })
         </VAlert>
       </VCol>
       <VCol
+        v-if="isEmploymentTemplate && hasTemplateVersions && !selectedTemplateVersion"
+        cols="12"
+      >
+        <VAlert color="warning" variant="tonal" density="compact" icon="tabler-versions">
+          {{ tr('noActiveEmploymentVersion') }}
+        </VAlert>
+      </VCol>
+      <VCol
         v-if="selectedTemplateVersion"
         cols="12"
       >
         <VAlert color="success" variant="tonal" density="compact" icon="tabler-versions">
-          {{ tr('selectedVersion', { name: selectedTemplateVersion.name, version: selectedTemplateVersion.version_number, country: selectedTemplateVersion.country?.name || tr('country'), language: selectedTemplateVersion.language?.name || tr('language') }) }}
+          {{ isEmploymentTemplate
+            ? tr('selectedVersionName', { name: selectedTemplateVersion.name, version: selectedTemplateVersion.version_number })
+            : tr('selectedVersion', { name: selectedTemplateVersion.name, version: selectedTemplateVersion.version_number, country: selectedTemplateVersion.country?.name || tr('country'), language: selectedTemplateVersion.language?.name || tr('language') }) }}
         </VAlert>
       </VCol>
 
       <!-- Context-driven counterparty selection -->
       <VCol
-        v-if="context === 'employee'"
+        v-if="context === 'employee' && selectedTemplate"
         cols="12"
       >
-        <ErpField kind="select"
-          v-model="form.position_id"
-          :items="positionOptions"
+        <VTextField
+          :model-value="templatePositionTitle"
           :label="tr('position')"
-          :placeholder="tr('selectPosition')"
           prepend-inner-icon="tabler-briefcase"
-          :loading="loadingEntities"
-          :rules="[v => !!v || tr('positionRequired')]"
-          :no-data-text="tr('noPositions')"
-          required
+          :hint="tr('positionFromTemplate')"
+          persistent-hint
+          readonly
+          variant="outlined"
+          density="compact"
         />
       </VCol>
       <VCol
@@ -600,6 +672,9 @@ defineExpose({ submit })
           :items="statusOptions"
           :label="tr('status')"
           :rules="[v => !!v || tr('statusRequired')]"
+          :disabled="extensionMode"
+          :hint="extensionMode ? tr('extensionStatusHint') : undefined"
+          persistent-hint
           required
         />
       </VCol>

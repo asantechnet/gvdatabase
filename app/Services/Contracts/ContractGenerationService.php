@@ -48,6 +48,14 @@ class ContractGenerationService
                 $primary = $parent;
                 $applicant = Applicant::query()->lockForUpdate()->findOrFail($parent->applicant_id);
                 abort_unless($applicant->service === $service, 422, 'business.contract_extension_invalid');
+                // An academy extension keeps its applicant editable, so the
+                // submitted identity and programme fields update that record
+                // before the new service line is created.
+                if ($service === BuiltInService::ACADEMY) {
+                    $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'admission_employee_id', 'responsible_employee_id', 'notes']));
+                    $this->details->sync($applicant, [...$data, 'service' => $service]);
+                    $applicant->refresh();
+                }
             } else {
                 $applicant = $this->createApplicant($service, $request, $data);
             }

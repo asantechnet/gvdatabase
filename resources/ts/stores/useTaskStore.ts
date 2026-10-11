@@ -597,6 +597,9 @@ export const useTaskStore = defineStore('taskManager', () => {
   const updateBoard = async (id: string, title: string) => {
     if (!canAccess('edit_assigned_boards'))
       return
+    // A private personal board is an internal workspace; keep its title stable.
+    if (boards.value.find(board => board.id === id)?.is_personal)
+      return
     try {
       isLoading.value = true
       error.value = null
@@ -617,6 +620,9 @@ export const useTaskStore = defineStore('taskManager', () => {
 
   const deleteBoard = async (id: string) => {
     if (!canAccess('delete_assigned_boards'))
+      return
+    // Never remove the caller's private personal workspace.
+    if (boards.value.find(board => board.id === id)?.is_personal)
       return
     try {
       isLoading.value = true

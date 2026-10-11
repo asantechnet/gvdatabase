@@ -98,14 +98,14 @@ onMounted(async () => {
   <VCard>
     <VCardTitle class="d-flex align-center ga-3">
       <VIcon icon="tabler-users" /> {{ $t('common.navigation.applicants') }}
-      <VSpacer /><VBtn icon="tabler-printer" variant="text" @click="printDocument({ bodyClass: 'printing-table-crm-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('common.actions.print') }}</VTooltip></VBtn>
     </VCardTitle>
-    <VCardText class="d-flex align-center ga-2">
-      <VTextField v-model="search" :label="$t('educational.searchApplicant')" prepend-inner-icon="tabler-search" clearable hide-details @keyup.enter="applyFilters" />
+    <VCardText class="d-flex align-center flex-wrap ga-2">
+      <VTextField v-model="search" class="data-table-search" :label="$t('educational.searchApplicant')" prepend-inner-icon="tabler-search" clearable hide-details @keyup.enter="applyFilters" />
       <DataTableFilterMenu :active="hasFilters" @reset="resetFilters">
         <VSelect v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable />
         <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="applyFilters" />
       </DataTableFilterMenu>
+      <VBtn icon="tabler-printer" variant="text" class="flex-shrink-0" @click="printDocument({ bodyClass: 'printing-table-crm-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('common.actions.print') }}</VTooltip></VBtn>
     </VCardText>
     <ResponsiveDataTableServer :headers="headers" :items="applicants" :items-length="total" :loading="loading" :page="page" :items-per-page="perPage" :items-per-page-options="[10, 25, 50, 100]" item-value="id" @update:options="updateOptions">
       <template #item.contact="{ item }"><ContactActionMenu kind="phone" :value="item.contact" contactable-type="applicant" :contactable-id="item.id" /></template>

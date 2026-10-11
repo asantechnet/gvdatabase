@@ -56,6 +56,19 @@ class IncomeController extends Controller
             });
         }
 
+        $dates = $request->validate([
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable'],
+        ]);
+
+        if (! empty($dates['date_from'])) {
+            $query->whereDate('date', '>=', $dates['date_from']);
+        }
+
+        if (! empty($dates['date_to'])) {
+            $query->whereDate('date', '<=', $dates['date_to']);
+        }
+
         $incomes = $query->latest()->get();
 
         return IncomeResource::collection($incomes);

@@ -6,6 +6,7 @@ import ContractApi, { type Contract } from '@/api/contracts'
 import ContractTemplateApi from '@/api/contractTemplate'
 import SettingApi, { type Setting } from '@/api/setting'
 import { legacyContentToHtml } from '@/utils/contractPlaceholders'
+import { resolveContractArtwork } from '@/utils/printArtwork'
 import { canPrintPartyDetails, partyDetailsFor } from '@/utils/contractPartyDetails'
 import { buildContractPrintHeader, canPrintContractHeader } from '@/composables/useContractPrintHeader'
 import ContractCover from '@/pages/templates/contract_cover_template.vue'
@@ -32,6 +33,12 @@ const includeCustomCover = ref(true)
 const includeCustomLetterhead = ref(true)
 const includePartyDetails = ref(false)
 const includeContractHeader = ref(false)
+
+// Configured artwork whose file is gone must never replace the built-in cover
+// or letterhead with a blank page, so availability is resolved before the
+// print body is rendered (and therefore before it is cloned for printing).
+const coverArtworkAvailable = ref(true)
+const letterheadArtworkAvailable = ref(true)
 
 const documentDesign = computed(() => documentContract.value?.snapshot_data?.document_design)
 const canShowPartyDetails = computed(() => documentContract.value !== null && canPrintPartyDetails(documentContract.value))
@@ -66,6 +73,15 @@ const printedTitle = computed(() => {
 })
 
 const coverDesignUrl = computed(() => documentDesign.value?.cover_design_url || setting.value?.contract_cover_design_url)
+const useCustomCover = computed(() => includeCustomCover.value && Boolean(coverDesignUrl.value) && coverArtworkAvailable.value)
+const printableCompany = computed<CompanyDetails>(() => ({
+  ...company.value,
+  letterheadUrl: includeCustomLetterhead.value && letterheadArtworkAvailable.value ? company.value.letterheadUrl : undefined,
+}))
+
+// The print body renders once per option change; resolving the pages here keeps
+// the render function from rebuilding the same HTML for every page binding.
+const printedPages = computed(() => (documentContract.value ? getContractPagesHtml(documentContract.value) : []))
 
 const getContractPagesHtml = (contract: Contract): string[] => {
   // Contracts retain their own content snapshot so later template edits never
@@ -106,6 +122,29 @@ const getContractPagesHtml = (contract: Contract): string[] => {
   ]
 }
 
+const resetPrintOptions = () => {
+  includeEmptyLastPage.value = false
+  includeSignatureSection.value = true
+  includePartyDetails.value = false
+  includeContractHeader.value = false
+}
+
+const loadPrintArtwork = async () => {
+  coverArtworkAvailable.value = true
+  letterheadArtworkAvailable.value = true
+
+  const { cover, letterhead } = await resolveContractArtwork({
+    cover: coverDesignUrl.value,
+    letterhead: company.value.letterheadUrl,
+  })
+
+  coverArtworkAvailable.value = cover
+  letterheadArtworkAvailable.value = letterhead
+
+  if ((coverDesignUrl.value && !cover) || (company.value.letterheadUrl && !letterhead))
+    toast.info(t('pages.contracts.allContracts.allContracts.artworkUnavailable'))
+}
+
 watch(() => [props.modelValue, props.contract] as const, async ([open, contract]) => {
   if (!open || !contract)
     return
@@ -136,22 +175,13 @@ watch(() => [props.modelValue, props.contract] as const, async ([open, contract]
     }
 
     documentContract.value = printable
-    includeEmptyLastPage.value = false
-    includeSignatureSection.value = true
-    includePartyDetails.value = false
-    includeContractHeader.value = false
+    resetPrintOptions()
   }
   catch (error) {
     console.error('Failed to load contract template:', error)
     toast.warning(translate('pages.contracts.allContracts.allContracts.failedToLoadContractTemplateUsingDefaultContent'))
     documentContract.value = contract
-    includeEmptyLastPage.value = false
-    includeSignatureSection.value = true
-    includePartyDetails.value = false
-    includeContractHeader.value = false
-  }
-  finally {
-    loading.value = false
+    resetPrintOptions()
   }
 
   try {
@@ -160,7 +190,15 @@ watch(() => [props.modelValue, props.contract] as const, async ([open, contract]
   catch {
     // Printing still works with neutral fallback company details.
   }
+
+  // Only publish the dialog once every input it shows is final: the loaded
+  // contract, the company profile and the artwork availability. Rendering it
+  // earlier leaves the dialog with a stale contract name and checkbox set.
+  await loadPrintArtwork()
+  loading.value = false
 }, { immediate: true })
+
+const dialogOpen = computed(() => props.modelValue && !loading.value && documentContract.value !== null)
 
 const executePrint = async () => {
   if (!printRef.value) return
@@ -172,7 +210,7 @@ const executePrint = async () => {
 
 <template>
   <VDialog
-    :model-value="modelValue"
+    :model-value="dialogOpen"
     max-width="480"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -255,12 +293,13 @@ const executePrint = async () => {
   >
     <template v-if="documentContract">
       <div
-        v-if="includeCustomCover && coverDesignUrl"
+        v-if="useCustomCover"
         class="custom-cover-page"
       >
         <img
-          :src="coverDesignUrl"
+          :src="coverDesignUrl || ''"
           alt=""
+          @error="coverArtworkAvailable = false"
         >
       </div>
       <ContractCover
@@ -278,27 +317,16 @@ const executePrint = async () => {
       />
 
       <ContractPageTemplate
-        v-if="includePartyDetails && canShowPartyDetails"
-        :document-title="$t('pages.contracts.shared.contractParties')"
-        :document-number="documentContract.contract_number || ''"
-        :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }"
-        :party-details="partyDetailsFor(documentContract, company)"
-        :contractee-name="documentContract.counterparty || ''"
-        :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: 1, total: getContractPagesHtml(documentContract).length + 1 })"
-        :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"
-        class="contract-content"
-      />
-
-      <ContractPageTemplate
-        v-for="(pageHtml, idx) in getContractPagesHtml(documentContract)"
+        v-for="(pageHtml, idx) in printedPages"
         :key="idx"
         :document-number="documentContract.contract_number || ''"
         :document-title="printedTitle"
-        :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }"
+        :company="printableCompany"
         :header-details="includeContractHeader && idx === 0 ? contractHeader : null"
+        :party-details="idx === 0 && includePartyDetails && canShowPartyDetails ? partyDetailsFor(documentContract, company) : undefined"
         :html-content="pageHtml"
-        :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: idx + (includePartyDetails && canShowPartyDetails ? 2 : 1), total: getContractPagesHtml(documentContract).length + (includePartyDetails && canShowPartyDetails ? 1 : 0) })"
-        :show-signature="includeSignatureSection && idx === getContractPagesHtml(documentContract).length - 1"
+        :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: idx + 1, total: printedPages.length })"
+        :show-signature="includeSignatureSection && idx === printedPages.length - 1"
         :contractee-name="documentContract.counterparty || ''"
         :company-signatory-name="documentContract.company_signatory_name || null"
         :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"

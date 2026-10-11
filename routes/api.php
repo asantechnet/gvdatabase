@@ -379,6 +379,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::post('loans/{pendingTransaction}/approve', [PendingTransactionController::class, 'approve'])->middleware('permission:approve_pending_transactions');
     Route::post('loans/{pendingTransaction}/reject', [PendingTransactionController::class, 'reject'])->middleware('permission:approve_pending_transactions');
     Route::post('loans/{pendingTransaction}/post', [PendingTransactionController::class, 'post'])->middleware('permission:post_pending_transactions');
+    Route::get('loans/{pendingTransaction}/receipt', [PendingTransactionController::class, 'receipt'])->middleware('permission:view_pending_transactions');
     Route::get('pending-transactions', [PendingTransactionController::class, 'index'])->middleware('permission:view_pending_transactions');
     Route::get('pending-transactions/options', [PendingTransactionController::class, 'options'])->middleware('permission:create_pending_transactions');
     Route::post('pending-transactions', [PendingTransactionController::class, 'store'])->middleware('permission:create_pending_transactions');
@@ -387,6 +388,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::post('pending-transactions/{pendingTransaction}/approve', [PendingTransactionController::class, 'approve'])->middleware('permission:approve_pending_transactions');
     Route::post('pending-transactions/{pendingTransaction}/reject', [PendingTransactionController::class, 'reject'])->middleware('permission:approve_pending_transactions');
     Route::post('pending-transactions/{pendingTransaction}/post', [PendingTransactionController::class, 'post'])->middleware('permission:post_pending_transactions');
+    Route::get('pending-transactions/{pendingTransaction}/receipt', [PendingTransactionController::class, 'receipt'])->middleware('permission:view_pending_transactions');
     // Timesheet routes
     Route::prefix('attendances')->group(function () {
         Route::get('/', [AttendanceController::class, 'index'])->middleware('permission:view_attendance');

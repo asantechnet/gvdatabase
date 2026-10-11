@@ -1,4 +1,5 @@
 import api from './axios'
+import { currentLocale } from '@/utils/localization'
 
 export type EducationalReportType = 'applicants' | 'employee-performance' | 'contracts' | 'services' | 'financial' | 'universities' | 'visa-outcomes'
 
@@ -31,7 +32,9 @@ export default {
         clean[key] = value
     }
 
-    const response = await api.get(`/educational-reports/${type}/export`, { params: clean, responseType: 'blob' })
+    // The CSV is rendered server-side, so its dates are localized with the
+    // locale the user is reading the page in.
+    const response = await api.get(`/educational-reports/${type}/export`, { params: { ...clean, locale: currentLocale() }, responseType: 'blob' })
 
     return response.data as Blob
   },

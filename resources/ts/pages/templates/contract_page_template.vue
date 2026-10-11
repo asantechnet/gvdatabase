@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { printDocument } from '@/utils/printDocument'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PartyDetails } from '@/utils/contractPartyDetails'
 import type { ContractPrintHeader } from '@/composables/useContractPrintHeader'
@@ -70,6 +70,15 @@ const resolvedDocumentTitle = computed(() => props.documentTitle || t('pages.con
 // 2. Template Reference
 const contractRef = ref<HTMLElement | null>(null)
 
+// A letterhead URL hides the built-in header/footer, so a URL whose file is
+// gone would remove the document chrome entirely. Print paths resolve
+// availability up front (see `utils/printArtwork`); this is the last-resort
+// guard for anyone rendering or printing the page on its own.
+const letterheadFailed = ref(false)
+const hasLetterhead = computed(() => Boolean(props.company.letterheadUrl) && !letterheadFailed.value)
+
+watch(() => props.company.letterheadUrl, () => { letterheadFailed.value = false })
+
 const letterheadSafeAreaStyle = computed(() => ({
   '--letterhead-safe-x': `${props.company.letterheadSafeX ?? 8.5}%`,
   '--letterhead-safe-y': `${props.company.letterheadSafeY ?? 15}%`,
@@ -97,16 +106,17 @@ defineExpose({
   <div
     ref="contractRef"
     class="contract-page-container print-document"
-    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale), 'has-letterhead': company.letterheadUrl }"
+    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale), 'has-letterhead': hasLetterhead }"
     :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
     :style="{ '--brand-accent': accentColor, ...letterheadSafeAreaStyle }"
   >
     <img
-      v-if="company.letterheadUrl"
+      v-if="hasLetterhead"
       :src="company.letterheadUrl"
       alt=""
       class="letterhead-background"
       aria-hidden="true"
+      @error="letterheadFailed = true"
     >
     <!-- Sleek Margin Accents -->
     <div class="margin-rail-left" />
@@ -114,7 +124,7 @@ defineExpose({
 
     <div class="content-wrapper">
       <!-- The custom letterhead already contains the document chrome. -->
-      <template v-if="!company.letterheadUrl">
+      <template v-if="!hasLetterhead">
         <!-- Compact Header -->
         <header class="contract-header">
           <div class="header-left">
@@ -247,12 +257,17 @@ defineExpose({
           <div class="signature-grid">
             <!-- Company Signature Area -->
             <div class="signature-box">
-              <img
-                v-if="company.signatureUrl"
-                :src="company.signatureUrl"
-                alt="Authorized company signature"
-                class="company-signature"
-              >
+              <!-- A fixed-height slot (mirrored by an empty slot in the
+                   contractee box) keeps the signature line, name and date
+                   aligned whether or not a signature has been loaded. -->
+              <div class="signature-slot">
+                <img
+                  v-if="company.signatureUrl"
+                  :src="company.signatureUrl"
+                  alt="Authorized company signature"
+                  class="company-signature"
+                >
+              </div>
               <div class="sig-line" />
               <p class="sig-name">
                 <strong>{{ company.brandName }}</strong>
@@ -279,6 +294,10 @@ defineExpose({
 
             <!-- Contractee Signature Area -->
             <div class="signature-box">
+              <div
+                class="signature-slot"
+                aria-hidden="true"
+              />
               <div class="sig-line" />
               <p class="sig-name">
                 <strong>{{ contracteeName }}</strong>
@@ -302,7 +321,7 @@ defineExpose({
 
       <!-- Fixed Bottom Footer -->
       <footer
-        v-if="!company.letterheadUrl"
+        v-if="!hasLetterhead"
         class="contract-footer-wrapper"
       >
         <div class="footer-divider" />
@@ -631,12 +650,18 @@ defineExpose({
   flex-direction: column;
 }
 
+.signature-slot {
+  display: flex;
+  align-items: flex-end;
+  height: 58px;
+  margin-bottom: 4px;
+}
+
 .company-signature {
   width: 150px;
   height: 58px;
   object-fit: contain;
   object-position: left bottom;
-  margin-bottom: 4px;
 }
 
 .sig-line {

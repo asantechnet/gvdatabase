@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { translate } from '@/utils/localization'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { VDialog } from 'vuetify/components'
 import PayslipTemplate, { type SalarySlipProps } from './templates/payslip_template.vue'
 import SalaryApi, { type AttendanceBreakdown, type CreateSalaryData, type Salary, type SalaryDeduction, type UpdateSalaryData } from '@/api/salary'
@@ -12,6 +13,12 @@ import { apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import { avatarText } from '@/@core/utils/formatters'
+import { formatLocalizedDate, formatLocalizedNumber } from '@/utils/localization'
+import { useToast } from 'vue-toastification'
+import { translateBackendValue } from '@/utils/localization'
+
+const toast = useToast()
+const { t } = useI18n()
 
 interface FormError {
   field: string
@@ -86,6 +93,16 @@ const filteredSalaries = computed(() => {
 const translatePaymentStatus = (status: string) => status === 'partially_paid'
   ? translate('common.statuses.partial')
   : translateBackendValue(status)
+
+const getStatusColor = (salary: Salary) => {
+  const status = activeTab.value === 'months' ? salary.paymentStatus : salary.paymentStatus
+  return status === 'paid' ? 'success' : status === 'partially_paid' ? 'warning' : 'secondary'
+}
+
+const getStatusLabel = (salary: Salary) => {
+  const status = activeTab.value === 'months' ? salary.paymentStatus : salary.paymentStatus
+  return translatePaymentStatus(status)
+}
 
 const paymentTotalsByCurrency = computed(() => {
   return filteredSalaries.value.reduce<Record<string, { amount: number; currency: Salary['currency'] }>>((totals, salary) => {
@@ -576,291 +593,106 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
 </script>
 
 <template>
-  <div>
-    <DataTablePageKpis
-      :items="filteredSalaries"
-      :base-currency="currencies.find(currency => currency.isBase) ?? null"
-      :title="$t('components.dataTablePageKpis.pages.staffSalaries.title')"
-      :description="$t('components.dataTablePageKpis.pages.staffSalaries.description')"
-      icon="tabler-wallet"
-    />
-    <VCard>
-      <VCardTitle class="d-flex flex-wrap align-center justify-space-between gap-3">
-        <VTabs v-model="activeTab" show-arrows>
+  <div class="education-workspace">
+    <VCard class="education-panel">
+      <VCardTitle class="d-flex justify-space-between">
+        <span>{{ $t('pages.payroll.staffSalary.staffSalary.title') }}</span>
+        <VBtn v-if="activeTab === 'salaries'" prepend-icon="tabler-plus" @click="openAddSalaryDialog">{{ $t('pages.payroll.staffSalary.staffSalary.addSalary') }}</VBtn>
+      </VCardTitle>
+      <VCardText>
+        <VTabs v-model="activeTab" show-arrows class="mb-4">
           <VTab value="salaries">{{ $t('pages.payroll.staffSalary.staffSalary.salariesTab') }}</VTab>
           <VTab value="months">{{ $t('pages.payroll.staffSalary.staffSalary.salaryMonthsTab') }}</VTab>
         </VTabs>
-        <VBtn
-          v-if="activeTab === 'salaries'"
-          color="primary"
-          class="flex-shrink-0"
-          @click="openAddSalaryDialog"
-        >
-          <VIcon
-            icon="tabler-plus"
-            class="me-1"
-          />
-          {{ $t('pages.payroll.staffSalary.staffSalary.addSalary') }}
-        </VBtn>
-      </VCardTitle>
-      <VCardText>
+        <VProgressLinear v-if="isLoading" indeterminate class="my-4" />
         <VWindow v-model="activeTab">
-          <VWindowItem value="months">
-            <div class="d-flex justify-end mb-4">
-              <VSelect
-                v-model="salaryMonthEmployeeFilter"
-                :items="employees.map(employee => ({ title: employee.name, value: employee.id }))"
-                :label="$t('pages.payroll.staffSalary.staffSalary.filterByEmployee')"
-                clearable
-                density="compact"
-                hide-details
-                style="min-width: 240px; max-inline-size: 320px"
-              />
-            </div>
-            <ResponsiveDataTable
-              :items="salaryMonths"
-              :headers="[
-                { title: translate('common.fields.employee'), key: 'employeeName' },
-                { title: translate('pages.payroll.staffSalary.staffSalary.payMonth'), key: 'salaryMonth' },
-                { title: translate('pages.payroll.staffSalary.staffSalary.due'), key: 'due' },
-                { title: translate('pages.payroll.staffSalary.staffSalary.paid'), key: 'paid' },
-                { title: translate('pages.payroll.staffSalary.staffSalary.remaining'), key: 'outstanding' },
-                { title: translate('common.fields.status'), key: 'paymentStatus' },
-              ]"
-              item-value="id"
-              density="compact"
-            >
-              <template #item.due="{ item }">{{ formatSalaryAmount(item.due, item.currency) }}</template>
-              <template #item.paid="{ item }">{{ formatSalaryAmount(item.paid, item.currency) }}</template>
-              <template #item.outstanding="{ item }"><strong :class="item.outstanding > 0 ? 'text-warning' : 'text-success'">{{ formatSalaryAmount(item.outstanding, item.currency) }}</strong></template>
-              <template #item.paymentStatus="{ item }"><VChip size="small" :color="item.paymentStatus === 'paid' ? 'success' : item.paymentStatus === 'partially_paid' ? 'warning' : 'secondary'" variant="tonal">{{ translatePaymentStatus(item.paymentStatus) }}</VChip></template>
-            </ResponsiveDataTable>
-          </VWindowItem>
           <VWindowItem value="salaries">
-            <VRow
-              align="center"
-              class="table-toolbar mb-4"
-            >
-              <VCol
-                cols="12"
-                md="7"
-                lg="9"
-              >
-                <VTextField
-                  v-model="searchQuery"
-                  class="data-table-search"
-                  prepend-inner-icon="tabler-search"
-                  :placeholder="$t('pages.payroll.staffSalary.staffSalary.searchSalaries')"
-                  density="compact"
-                  clearable
-                  hide-details
-                />
-              </VCol>
-
-              <VCol
-                cols="12"
-                md="5"
-                lg="3"
-                class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2"
-              >
-                <DataTableFilterMenu
-                  :active="Boolean(salaryMonthFilter || selectedSalaryAmountRange)"
-                  @reset="salaryMonthFilter = null; selectedSalaryAmountRange = null"
-                >
-                  <VSelect
-                    v-model="salaryMonthFilter"
-                    :items="[
-                      { title: translate('common.messages.allMonths'), value: null },
-                      ...Array.from({ length: 12 }, (_, i) => {
-                        const date = new Date()
-                        date.setMonth(date.getMonth() - i)
-                        return {
-                          title: formatLocalizedDate(date, { month: 'long', year: 'numeric' }),
-                          value: date.toISOString().slice(0, 7),
-                        }
-                      }),
-                    ]"
-                    :label="$t('pages.payroll.staffSalary.staffSalary.filterByMonth')"
-                    density="compact"
-                    clearable
-                    hide-details
-                  />
-                  <VSelect
-                    v-model="selectedSalaryAmountRange"
-                    :items="[
-                      { title: translate('pages.payroll.staffSalary.staffSalary.under40000'), value: 'low' },
-                      { title: '؋40,000 - ؋70,000', value: 'mid' },
-                      { title: translate('pages.payroll.staffSalary.staffSalary.over70000'), value: 'high' },
-                    ]"
-                    :label="$t('pages.payroll.staffSalary.staffSalary.filterByAmount')"
-                    density="compact"
-                    clearable
-                    hide-details
-                  />
-                </DataTableFilterMenu>
-                <VBtn
-                  icon="tabler-table"
-                  variant="text"
-                  class="flex-shrink-0"
-                  @click="printTable"
-                >
-                  <VIcon icon="tabler-table" /><VTooltip
-                    activator="parent"
-                    location="top"
-                  >
-                    {{ $t('pages.payroll.staffSalary.staffSalary.printAllSalaryRecords') }}
-                  </VTooltip>
-                </VBtn>
-              </VCol>
-            </VRow>
-
-            <div class="table-container">
-              <ResponsiveDataTable
-                :items="filteredSalaries"
-                :headers="[
-                  { title: translate('pages.payroll.staffSalary.staffSalary.payslipNumber'), key: 'payslip_number', sortable: true },
-                  { title: translate('common.fields.employee'), key: 'employeeName', sortable: true },
-                  { title: translate('pages.payroll.staffSalary.staffSalary.payMonth'), key: 'salaryMonth', sortable: true },
-                  { title: translate('common.fields.currency'), key: 'currency.code', sortable: true },
-                  { title: translate('pages.payroll.staffSalary.staffSalary.totalPaid'), key: 'totalAmount', sortable: true },
-                  { title: translate('common.messages.actions'), key: 'actions', sortable: false },
-                ]"
-                item-value="id"
-                class="text-no-wrap"
-                :loading="isLoading"
-                mobile-breakpoint="sm"
-                density="compact"
-              >
-                <template #item.employeeName="{ item }">
-                  <div class="d-flex align-center gap-3">
-                    <VAvatar
-                      size="34"
-                      class="mx-2"
-                      :variant="item.employeeAvatar ? undefined : 'tonal'"
-                      :color="item.employeeAvatar ? undefined : 'primary'"
-                    >
-                      <VImg
-                        v-if="item.employeeAvatar"
-                        :src="item.employeeAvatar"
-                        :alt="item.employeeName"
-                      />
-                      <span v-else>{{ avatarText(item.employeeName) }}</span>
-                    </VAvatar>
-                    <span>{{ item.employeeName }}</span>
-                  </div>
-                </template>
-
-                <template #item.workedDays="{ item }">
-                  <VChip
-                    size="small"
-                    :color="item.workedDays < item.totalDays ? 'warning' : 'success'"
-                    variant="tonal"
-                  >
-                    {{ $t('documents.payslip.workedDays', { worked: item.workedDays, total: item.totalDays }) }}
-                  </VChip>
-                </template>
-                <template #item.recordedBy.name="{ item }">
-                  <span>{{ item.recordedBy?.name || 'System / legacy' }}</span>
-                </template>
-
-                <template #item.bonus="{ item }">
-                  <span
-                    v-if="item.bonus > 0"
-                    class="text-info font-weight-medium"
-                  >+{{ formatSalaryAmount(item.bonus, item.currency) }}</span>
-                  <span
-                    v-else
-                    class="text-muted text-xs"
-                  >—</span>
-                </template>
-
-                <template #item.currency.code="{ item }">
-                  <VChip
-                    class="staff-salary-currency-chip"
-                    size="small"
-                    color="primary"
-                    variant="tonal"
-                    prepend-icon="tabler-cash"
-                  >
-                    {{ item.currency?.symbol || '' }} {{ item.currency?.code || item.cnvCurrShrt || '—' }}
-                  </VChip>
-                  <div class="text-caption text-medium-emphasis mt-1">
-                    {{ $t('common.crmUi.paymentCurrencyBookingRate', { rate: item.rate }) }}
-                  </div>
-                </template>
-
-                <template #item.amountPaid="{ item }">
-                  <span class="font-weight-medium">{{ formatSalaryAmount(item.amountPaid, item.currency) }}</span>
-                </template>
-
-                <template #item.totalAmount="{ item }">
-                  <span class="font-weight-bold">{{ formatSalaryAmount(item.totalAmount, item.currency) }}</span>
-                </template>
-
-                <template #item.actions="{ item }">
-                  <div class="d-flex gap-1">
-                    <FullDetailsButton :item="item" />
-                    <VBtn
-                      icon="tabler-printer"
-                      variant="text"
-                      size="small"
-                      color="primary"
-                      @click="printEmployeePayslip(item)"
-                    >
-                      <VIcon icon="tabler-printer" /><VTooltip
-                        activator="parent"
-                        location="top"
-                      >
-                        {{ $t('pages.payroll.staffSalary.staffSalary.printEmployeePayslip') }}
-                      </VTooltip>
-                    </VBtn>
-                    <VBtn
-                      icon="tabler-edit"
-                      variant="text"
-                      size="small"
-                      color="medium-emphasis"
-                      @click="openEditSalaryDialog(item)"
-                    >
-                      <VIcon icon="tabler-edit" /><VTooltip
-                        activator="parent"
-                        location="top"
-                      >
-                        {{ $t('pages.payroll.staffSalary.staffSalary.editSalaryRecord') }}
-                      </VTooltip>
-                    </VBtn>
-                    <VBtn
-                      icon="tabler-trash"
-                      variant="text"
-                      size="small"
-                      color="error"
-                      @click="openDeleteSalaryDialog(item)"
-                    >
-                      <VIcon icon="tabler-trash" /><VTooltip
-                        activator="parent"
-                        location="top"
-                      >
-                        {{ $t('pages.payroll.staffSalary.staffSalary.deleteSalaryRecord') }}
-                      </VTooltip>
-                    </VBtn>
-                  </div>
-                </template>
-              </ResponsiveDataTable>
+            <div class="education-table-scroll">
+              <VTable density="compact" class="education-table">
+                <thead>
+                  <tr>
+                    <th>{{ $t('pages.payroll.staffSalary.staffSalary.payslipNumber') }}</th>
+                    <th>{{ $t('common.fields.employee') }}</th>
+                    <th>{{ $t('pages.payroll.staffSalary.staffSalary.payMonth') }}</th>
+                    <th>{{ $t('common.fields.currency') }}</th>
+                    <th>{{ $t('pages.payroll.staffSalary.staffSalary.totalPaid') }}</th>
+                    <th>{{ $t('common.fields.status') }}</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="salary in filteredSalaries" :key="salary.id">
+                    <td>{{ salary.payslip_number }}</td>
+                    <td>{{ salary.employeeName }}</td>
+                    <td>{{ salary.salaryMonth }}</td>
+                    <td>
+                      <VChip size="small" color="primary" variant="tonal" prepend-icon="tabler-cash">{{ salary.currency?.symbol || '' }} {{ salary.currency?.code || '—' }}</VChip>
+                    </td>
+                    <td class="font-weight-bold">{{ formatSalaryAmount(salary.totalAmount, salary.currency) }}</td>
+                    <td>
+                      <VChip size="small" :color="getStatusColor(salary)" variant="tonal">{{ getStatusLabel(salary) }}</VChip>
+                    </td>
+                    <td class="text-no-wrap">
+                      <VBtn icon="tabler-printer" size="small" variant="text" color="primary" @click="printEmployeePayslip(salary)" />
+                      <VBtn icon="tabler-edit" size="small" variant="text" @click="openEditSalaryDialog(salary)" />
+                      <VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="openDeleteSalaryDialog(salary)" />
+                    </td>
+                  </tr>
+                  <tr v-if="filteredSalaries.length === 0">
+                    <td colspan="7" class="education-empty">{{ $t('common.messages.noRecordsFound') }}</td>
+                  </tr>
+                </tbody>
+              </VTable>
             </div>
-            <PrintableListReport
-              :title="$t('common.crmUi.printReports.salaries.title')"
-              :subtitle="$t('common.crmUi.printReports.salaries.subtitle')"
-              :columns="[$t('common.crmUi.printReports.columns.payslip'), $t('common.crmUi.printReports.columns.employee'), $t('common.crmUi.printReports.columns.payMonth'), $t('common.crmUi.printReports.columns.workedDays'), $t('common.crmUi.printReports.columns.currency'), $t('common.crmUi.printReports.columns.totalPaid'), $t('common.crmUi.printReports.columns.date')]"
-              :rows="filteredSalaries.map(salary => [salary.payslip_number, salary.employeeName, salary.salaryMonth, `${salary.workedDays}/${salary.totalDays}`, salary.currency?.code, formatSalaryAmount(salary.totalAmount, salary.currency), salary.date])"
-            />
+            <div class="table-toolbar mt-4">
+              <VTextField v-model="searchQuery" prepend-inner-icon="tabler-search" :placeholder="$t('pages.payroll.staffSalary.staffSalary.searchSalaries')" density="compact" clearable hide-details class="data-table-search" style="max-width: 400px;" />
+              <DataTableFilterMenu :active="Boolean(salaryMonthFilter || selectedSalaryAmountRange)" @reset="salaryMonthFilter = null; selectedSalaryAmountRange = null">
+                <VSelect v-model="salaryMonthFilter" :items="[{ title: translate('common.messages.allMonths'), value: null }, ...Array.from({ length: 12 }, (_, i) => { const date = new Date(); date.setMonth(date.getMonth() - i); return { title: formatLocalizedDate(date, { month: 'long', year: 'numeric' }), value: date.toISOString().slice(0, 7) } })]" :label="$t('pages.payroll.staffSalary.staffSalary.filterByMonth')" density="compact" clearable hide-details />
+                <VSelect v-model="selectedSalaryAmountRange" :items="[{ title: translate('pages.payroll.staffSalary.staffSalary.under40000'), value: 'low' }, { title: '40,000 - 70,000', value: 'mid' }, { title: translate('pages.payroll.staffSalary.staffSalary.over70000'), value: 'high' }]" :label="$t('pages.payroll.staffSalary.staffSalary.filterByAmount')" density="compact" clearable hide-details />
+              </DataTableFilterMenu>
+              <VBtn icon="tabler-printer" variant="text" @click="printTable" class="ml-2"><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t('pages.payroll.staffSalary.staffSalary.printAllSalaryRecords') }}</VTooltip></VBtn>
+            </div>
+          </VWindowItem>
+          <VWindowItem value="months">
+            <div v-if="salaryMonths.length" class="mb-4">
+              <VSelect v-model="salaryMonthEmployeeFilter" :items="employees.map(employee => ({ title: employee.name, value: employee.id }))" :label="$t('pages.payroll.staffSalary.staffSalary.filterByEmployee')" clearable density="compact" hide-details style="min-width: 240px; max-inline-size: 320px" />
+            </div>
+            <div class="education-table-scroll">
+              <VTable density="compact" class="education-table">
+                <thead>
+                  <tr>
+                    <th>{{ $t('common.fields.employee') }}</th>
+                    <th>{{ $t('pages.payroll.staffSalary.staffSalary.payMonth') }}</th>
+                    <th>{{ $t('pages.payroll.staffSalary.staffSalary.due') }}</th>
+                    <th>{{ $t('pages.payroll.staffSalary.staffSalary.paid') }}</th>
+                    <th>{{ $t('pages.payroll.staffSalary.staffSalary.remaining') }}</th>
+                    <th>{{ $t('common.fields.status') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="salary in salaryMonths" :key="salary.id">
+                    <td>{{ salary.employeeName }}</td>
+                    <td>{{ salary.salaryMonth }}</td>
+                    <td>{{ formatSalaryAmount(salary.due, salary.currency) }}</td>
+                    <td>{{ formatSalaryAmount(salary.paid, salary.currency) }}</td>
+                    <td><strong :class="salary.outstanding > 0 ? 'text-warning' : 'text-success'">{{ formatSalaryAmount(salary.outstanding, salary.currency) }}</strong></td>
+                    <td>
+                      <VChip size="small" :color="getStatusColor(salary)" variant="tonal">{{ getStatusLabel(salary) }}</VChip>
+                    </td>
+                  </tr>
+                  <tr v-if="salaryMonths.length === 0">
+                    <td colspan="6" class="education-empty">{{ $t('common.messages.noRecordsFound') }}</td>
+                  </tr>
+                </tbody>
+              </VTable>
+            </div>
           </VWindowItem>
         </VWindow>
       </VCardText>
     </VCard>
-
-    <VDialog
-      v-model="isPayslipPreviewOpen"
-      width="80vw"
-      max-width="1280"
+    <PrintableListReport v-if="activeTab === 'salaries'" :title="$t('common.crmUi.printReports.salaries.title')" :subtitle="$t('common.crmUi.printReports.salaries.subtitle')" :columns="[$t('common.crmUi.printReports.columns.payslip'), $t('common.crmUi.printReports.columns.employee'), $t('common.crmUi.printReports.columns.payMonth'), $t('common.crmUi.printReports.columns.workedDays'), $t('common.crmUi.printReports.columns.currency'), $t('common.crmUi.printReports.columns.totalPaid'), $t('common.crmUi.printReports.columns.date')]" :rows="filteredSalaries.map(salary => [salary.payslip_number, salary.employeeName, salary.salaryMonth, `${salary.workedDays}/${salary.totalDays}`, salary.currency?.code, formatSalaryAmount(salary.totalAmount, salary.currency), salary.date])" />
+  </div>
+</template>
       content-class="document-preview-modal"
     >
       <VCard class="document-preview-dialog">

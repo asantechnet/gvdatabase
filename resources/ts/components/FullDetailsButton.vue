@@ -578,10 +578,6 @@ watch(isOpen, open => {
         </VCardText>
 
         <VCardActions class="detail-viewer__footer">
-          <div class="detail-viewer__footer-note">
-            <VIcon icon="tabler-shield-check" size="17" />
-            <span>{{ detailsText('footer', 'Showing business-friendly details. Internal database references are hidden.') }}</span>
-          </div>
           <VBtn
             variant="flat"
             color="primary"
@@ -655,10 +651,7 @@ watch(isOpen, open => {
 .activity-timeline article > div:last-child { display: grid; }
 .activity-timeline span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .7rem; }
 .activity-timeline strong { font-size: .85rem; }
-.detail-viewer__footer { display: flex; min-block-size: 62px; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 1.35rem !important; border-block-start: 1px solid rgba(var(--v-border-color), .13); background: linear-gradient(90deg, rgba(var(--v-theme-primary), .055), rgba(var(--v-theme-surface), .98) 46%); }
-.detail-viewer__footer-note { display: flex; min-inline-size: 0; align-items: center; gap: .55rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .74rem; line-height: 1.4; }
-.detail-viewer__footer-note .v-icon { flex: 0 0 auto; color: rgb(var(--v-theme-primary)); }
-.detail-viewer__footer-note span { min-inline-size: 0; }
+.detail-viewer__footer { display: flex; min-block-size: 62px; align-items: center; justify-content: flex-end; gap: 1rem; padding: .7rem 1.35rem !important; border-block-start: 1px solid rgba(var(--v-border-color), .13); background: linear-gradient(90deg, rgba(var(--v-theme-primary), .055), rgba(var(--v-theme-surface), .98) 46%); }
 .detail-viewer__footer .v-btn { flex: 0 0 auto; min-inline-size: 92px; }
 @media (max-width: 700px) {
   .detail-viewer { max-block-size: calc(100dvh - 1rem); border-radius: .8rem !important; }
@@ -670,7 +663,6 @@ watch(isOpen, open => {
   .detail-facts, .related-grid { grid-template-columns: minmax(0, 1fr); }
   .collection-card__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .detail-viewer__footer { min-block-size: 56px; padding-inline: .9rem !important; }
-  .detail-viewer__footer-note { display: none; }
 }
 @media (max-width: 420px) { .collection-card__fields { grid-template-columns: minmax(0, 1fr); } }
 </style>

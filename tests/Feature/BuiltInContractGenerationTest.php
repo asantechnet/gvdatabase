@@ -142,8 +142,9 @@ class BuiltInContractGenerationTest extends TestCase
         $id = $this->postJson('/api/contracts/academy', $this->data())->assertCreated()->json('data.id');
         $primary = Contract::findOrFail($id);
         $content = $primary->content;
+        // An academy extension carries the (editable) identity; it still reuses
+        // the same applicant and freezes its own economics.
         $extension = $this->data(['parent_contract_id' => $id, 'fee' => 200]);
-        unset($extension['name'], $extension['contact']);
         $this->postJson('/api/contracts/academy', $extension)->assertCreated()
             ->assertJsonPath('data.contract_role', 'extension')->assertJsonPath('data.parent_contract_id', $id)
             ->assertJsonPath('data.applicant_id', $primary->applicant_id);
@@ -154,6 +155,35 @@ class BuiltInContractGenerationTest extends TestCase
         $this->postJson('/api/contracts/test_offer', $extension)->assertUnprocessable();
         $primary->update(['is_cancelled' => true, 'status' => 'cancelled']);
         $this->postJson('/api/contracts/academy', $extension)->assertUnprocessable();
+    }
+
+    public function test_academy_extension_applies_edited_applicant_identity(): void
+    {
+        $this->activate('academy');
+        $id = $this->postJson('/api/contracts/academy', $this->data())->assertCreated()->json('data.id');
+        $applicantId = Contract::findOrFail($id)->applicant_id;
+
+        $this->postJson('/api/contracts/academy', $this->data([
+            'parent_contract_id' => $id,
+            'name' => 'Renamed applicant',
+            'contact' => '0709999999',
+            'address' => 'New address',
+            'notes' => 'Updated during extension',
+            'fee' => 150,
+        ]))->assertCreated()->assertJsonPath('data.applicant_id', $applicantId);
+
+        $this->assertDatabaseCount('applicants', 1);
+        $applicant = Applicant::findOrFail($applicantId);
+        $this->assertSame('Renamed applicant', $applicant->name);
+        $this->assertSame('0709999999', $applicant->contact);
+        $this->assertSame('New address', $applicant->address);
+        $this->assertSame('Updated during extension', $applicant->notes);
+
+        // Every other service still copies the parent applicant and rejects edits.
+        $this->activate('test_offer');
+        $testOfferId = $this->postJson('/api/contracts/test_offer', $this->data())->assertCreated()->json('data.id');
+        $this->postJson('/api/contracts/test_offer', $this->data(['parent_contract_id' => $testOfferId, 'name' => 'Sneaky change']))
+            ->assertUnprocessable()->assertJsonValidationErrors('name');
     }
 
     public function test_render_failure_rolls_back_currency_rate_identity_line_and_audit_writes(): void
@@ -225,7 +255,6 @@ class BuiltInContractGenerationTest extends TestCase
         $this->assertTrue(Task::where('applicant_id', $contract->applicant_id)->sole()->users->contains('id', $user->id));
         $foreign = Contract::factory()->create(['service' => 'academy', 'applicant_id' => Applicant::factory()->create(['responsible_employee_id' => $other->id, 'service' => 'academy'])->id, 'contract_role' => 'primary', 'status' => 'active', 'is_cancelled' => false]);
         $extension = $this->data(['parent_contract_id' => $foreign->id]);
-        unset($extension['name'], $extension['contact']);
         $this->postJson('/api/contracts/academy', $extension)->assertForbidden();
     }
 }

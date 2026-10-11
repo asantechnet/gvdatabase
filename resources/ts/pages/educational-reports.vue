@@ -6,12 +6,13 @@ import ReportApi, { type EducationalReport, type EducationalReportType } from '@
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import ApplicantApi, { type ApplicantStage } from '@/api/applicants'
+import EducationalReportPrint from '@/components/educational/EducationalReportPrint.vue'
 import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
 
 const toast = useToast()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const tab = ref<EducationalReportType>('applicants')
 const report = ref<EducationalReport | null>(null)
@@ -126,18 +127,65 @@ function clearFilters() {
   load()
 }
 
-// Prints the on-screen report view. The body class namespaces the print CSS
-// below so the application shell (navbar, navigation, footer) and the
-// screen-only controls stay out of the final print.
+// The print job renders a dedicated, theme-independent document below instead
+// of the live Vuetify table, whose colours followed the active theme (a dark
+// theme printed dark). Only the rows currently loaded for this tab are printed.
 const pagePrintClass = 'printing-education-reports'
+const printRef = ref<InstanceType<typeof EducationalReportPrint> | null>(null)
+const printGeneratedAt = ref('')
+
+const refreshPrintStamp = () => { printGeneratedAt.value = formatLocalizedDate(new Date(), 'long') }
+const printDirection = computed(() => (['fa-AF', 'ps-AF'].includes(String(locale.value)) ? 'rtl' : 'ltr'))
+const printColumns = computed(() => (report.value?.columns ?? []).map(columnLabel))
+const printTotalLabel = computed(() => t('educational.resultCount', { count: report.value?.total ?? 0 }))
+const printRows = computed<Array<Array<string | number>>>(() => {
+  const current = report.value
+  if (!current)
+    return []
+
+  return current.rows.map(row => current.columns.map(column => displayValue(column, row[column])))
+})
+const printPeriod = computed(() => {
+  if (!dateFrom.value && !dateTo.value)
+    return ''
+
+  const from = dateFrom.value ? formatLocalizedDate(dateFrom.value) : '—'
+  const to = dateTo.value ? formatLocalizedDate(dateTo.value) : '—'
+
+  return `${from} — ${to}`
+})
+const printFacts = computed(() => {
+  const facts: Array<{ label: string, value: string }> = []
+  const country = countries.value.find(item => item.id === countryId.value)
+  const university = universities.value.find(item => item.id === universityId.value)
+  const level = levels.value.find(item => item.id === levelId.value)
+  const employee = employees.value.find(item => item.id === employeeId.value)
+  const stageRow = stages.value.find(item => item.key === stage.value)
+
+  if (country) facts.push({ label: t('educational.country'), value: country.name })
+  if (university) facts.push({ label: t('educational.university'), value: university.name })
+  if (level) facts.push({ label: t('educational.educationLevel'), value: level.name })
+  if (employee) facts.push({ label: t('educational.employee'), value: employee.name })
+  if (stageRow) facts.push({ label: t('educational.stage'), value: stageRow.name })
+  if (status.value) facts.push({ label: t('educational.status'), value: status.value === 'active' ? t('educational.active') : t('educational.closed') })
+
+  return facts
+})
 
 function printPage() {
-  void printDocument({ bodyClass: pagePrintClass, pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  refreshPrintStamp()
+  void printDocument({
+    bodyClass: pagePrintClass,
+    pageStyle: 'size: A4 landscape; margin: 12mm;',
+    element: (printRef.value?.$el as HTMLElement | undefined) ?? null,
+  })
 }
 
-// Native browser printing (Ctrl+P / menu) bypasses printDocument, so mirror
-// the same print-mode class for any print originating from this page.
+// Native browser printing (Ctrl+P / menu) bypasses printDocument, so mirror the
+// same print-mode class and let the namespaced rules below swap the screen view
+// for the print document.
 function enablePagePrintMode() {
+  refreshPrintStamp()
   document.body.classList.add(pagePrintClass)
 }
 
@@ -217,13 +265,27 @@ onBeforeUnmount(() => {
       <VDivider v-if="report?.last_page && report.last_page > 1" />
       <VCardText v-if="report?.last_page && report.last_page > 1" class="d-flex justify-center py-2 education-pagination"><VPagination v-model="page" :length="report.last_page" size="small" :total-visible="7" @update:model-value="load" /></VCardText>
     </VCard>
+
+    <EducationalReportPrint
+      ref="printRef"
+      :title="activeTab?.title ?? $t('educational.visaReports')"
+      :subtitle="$t('educational.reportsSubtitle')"
+      :columns="printColumns"
+      :rows="printRows"
+      :facts="printFacts"
+      :period="printPeriod"
+      :generated-at="printGeneratedAt"
+      :total-label="printTotalLabel"
+      :direction="printDirection"
+    />
   </div>
 </template>
 
 <style>
-/* Page-print overrides. Every selector is namespaced with the print-mode body
-   class applied by printDocument (and mirrored on native beforeprint) so these
-   rules only affect this report view while it is being printed. */
+/* Native browser printing (Ctrl+P) bypasses printDocument, so these rules swap
+   the screen view for the dedicated print document. The print button instead
+   uses `printing-isolated-document`, which hides the whole app shell by itself.
+   Every selector is namespaced with this page's print-mode body class. */
 @media print {
   body.printing-education-reports .layout-navbar,
   body.printing-education-reports .layout-menu,
@@ -239,13 +301,8 @@ onBeforeUnmount(() => {
   body.printing-education-reports .layout-footer,
   body.printing-education-reports #app > header,
   body.printing-education-reports #app > nav,
-  body.printing-education-reports .education-header-actions,
-  body.printing-education-reports .report-tabs,
-  body.printing-education-reports .education-filter-card,
-  body.printing-education-reports .education-result-bar > .v-btn,
-  body.printing-education-reports .education-result-bar > span.text-caption,
-  body.printing-education-reports .education-pagination,
-  body.printing-education-reports .v-progress-linear { display: none !important; }
+  body.printing-education-reports .education-page-header,
+  body.printing-education-reports .education-panel { display: none !important; }
 
   body.printing-education-reports,
   body.printing-education-reports .v-application,
@@ -274,16 +331,6 @@ onBeforeUnmount(() => {
     max-width: 100% !important;
   }
 
-  body.printing-education-reports .education-workspace { overflow: visible !important; }
-
-  body.printing-education-reports .education-panel { box-shadow: none !important; }
-
-  body.printing-education-reports .education-table-scroll { overflow: visible !important; }
-
-  body.printing-education-reports .education-panel,
-  body.printing-education-reports .education-table {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+  body.printing-education-reports .education-workspace { display: block !important; overflow: visible !important; }
 }
 </style>

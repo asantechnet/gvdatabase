@@ -106,18 +106,36 @@ for (const file of ['layouts/components/DefaultLayoutWithVerticalNav.vue', 'layo
 assert.doesNotMatch(readFileSync(new URL('../resources/ts/components/ContractForm.vue', import.meta.url), 'utf8'), /ServiceApi|service_lines|service_ids|company_id/)
 assert.doesNotMatch(readFileSync(new URL('../resources/ts/utils/apiAuthorization.ts', import.meta.url), 'utf8'), /issue_packages|educational-services|view_educational_services|manage_educational_services/)
 
-const templateEditorSource = readFileSync(new URL('../resources/ts/pages/contract/policies.vue', import.meta.url), 'utf8')
-const templateEditorScript = ts.createSourceFile('policies.ts', parse(templateEditorSource).descriptor.scriptSetup.content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-function editorComputed(name, bindings) {
-  const declaration = templateEditorScript.statements.filter(ts.isVariableStatement)
+function computedFrom(file, name, bindings) {
+  const source = readFileSync(new URL(`../resources/ts/${file}`, import.meta.url), 'utf8')
+  const script = ts.createSourceFile(file + '.ts', parse(source).descriptor.scriptSetup.content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const declaration = script.statements.filter(ts.isVariableStatement)
     .flatMap(statement => [...statement.declarationList.declarations])
-    .find(declaration => declaration.name.getText(templateEditorScript) === name)
+    .find(declaration => declaration.name.getText(script) === name)
   assert.ok(declaration?.initializer, name)
-  const compiled = ts.transpileModule(`const result = ${declaration.initializer.getText(templateEditorScript)};`, {
+  const compiled = ts.transpileModule(`const result = ${declaration.initializer.getText(script)};`, {
     compilerOptions: { target: ts.ScriptTarget.ESNext },
   }).outputText
   return new Function('computed', ...Object.keys(bindings), `${compiled}\nreturn result;`)(callback => callback(), ...Object.values(bindings))
 }
+const editorComputed = (name, bindings) => computedFrom('pages/contract/policies.vue', name, bindings)
+
+// A test-offer extension carries no form fields, so it must resolve the same
+// test scope as the primary applicant; a fresh contract uses the form's test.
+function testOfferMatch(formTestId, parentTestId) {
+  const result = computedFrom('pages/service-contracts.vue', 'matchingVersion', {
+    selectedTemplate: { value: { versions: [{ test_id: 7, country_id: null, language_id: 1, status: 'active', is_current: true }] } },
+    languageId: { value: 1 },
+    service: { value: 'test_offer' },
+    form: { value: { test_id: formTestId } },
+    parent: { value: parentTestId === undefined ? null : { applicant: { details: { test_id: parentTestId } } } },
+  })
+  return result?.test_id ?? null
+}
+assert.equal(testOfferMatch(7, undefined), 7)
+assert.equal(testOfferMatch(undefined, 7), 7)
+assert.equal(testOfferMatch(9, 7), null)
+assert.equal(testOfferMatch(undefined, undefined), null)
 for (const [id, saved, locked] of [[null, null, false], [12, null, false], [12, 'academy', true]]) {
   assert.equal(editorComputed('serviceBindingLocked', { templateId: { value: id }, savedBuiltInService: { value: saved } }), locked)
 }
@@ -165,8 +183,9 @@ for (const locale of ['fa-AF', 'ps-AF']) {
     assert.deepEqual(leafKeys(translatedGroup).sort(), leafKeys(englishGroup).sort(), locale + ':' + group)
     assert.ok(leafKeys(translatedGroup).every(key => String(key.split('.').reduce((node, part) => node?.[part], translatedGroup)).length > 0))
   }
-  assert.ok(messages.components.dataTablePageKpis.applicantLinked)
-  assert.ok(messages.components.dataTablePageKpis.applicantsRepresented)
+  // The KPI captions that no component renders any more were retired from the
+  // catalogue; only the live scroll hint must stay translated.
+  assert.ok(messages.components.dataTablePageKpis.scrollHint)
   assert.deepEqual(Object.keys(messages.serviceContracts).sort(), Object.keys(english.serviceContracts).sort())
   assert.ok(Object.values(messages.serviceContracts).every(value => typeof value === 'string' && value.length > 0))
   assert.deepEqual(Object.keys(messages.educational.salesTypes).sort(), Object.keys(english.educational.salesTypes).sort())

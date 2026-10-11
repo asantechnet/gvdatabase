@@ -27,8 +27,16 @@ class UpsertSettingRequest extends FormRequest
                 ->all(),
             'paid_leave_days_per_year' => [$required, 'numeric', 'min:0', 'max:366'],
             'website_title' => [$required, 'string', 'max:255'],
-            'website_logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:2048'],
-            'company_signature' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+            'website_logo' => [
+                'nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:2048',
+                Rule::prohibitedIf(fn () => $this->boolean('remove_website_logo')),
+            ],
+            'company_signature' => [
+                'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048',
+                Rule::prohibitedIf(fn () => $this->boolean('remove_company_signature')),
+            ],
+            'remove_website_logo' => ['sometimes', 'boolean'],
+            'remove_company_signature' => ['sometimes', 'boolean'],
             'contract_letterhead' => [
                 'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192',
                 Rule::prohibitedIf(fn () => $this->boolean('remove_contract_letterhead')),
@@ -64,7 +72,10 @@ class UpsertSettingRequest extends FormRequest
             'payslip_letterhead_safe_height' => ['sometimes', 'numeric', 'min:5', 'max:100'],
             'remove_payslip_letterhead' => ['sometimes', 'boolean'],
             'website_address' => ['nullable', 'string', 'max:255'],
-            'company_email' => [$required, 'email:rfc', 'max:255'],
+            // Company email delivery is optional: the profile saves without any
+            // mail configuration and falls back to the environment mailer.
+            'company_email' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
+            'email_delivery_enabled' => ['sometimes', 'boolean'],
             'mail_host' => ['sometimes', 'nullable', 'string', 'max:255'],
             'mail_port' => ['sometimes', 'nullable', 'integer', 'between:1,65535'],
             'mail_encryption' => ['sometimes', 'nullable', Rule::in(['tls', 'ssl'])],

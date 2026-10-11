@@ -58,6 +58,11 @@ const printing = ref(false)
 const printable = ref<Contract | null>(null)
 const slipOpen = ref(false)
 const slipContractId = ref<number | null>(null)
+// Cancelling never deletes a contract: the record stays in this list with a
+// cancelled label and stays available on the cancelled contracts page.
+const cancelTarget = ref<Contract | null>(null)
+const cancelOpen = ref(false)
+const cancelling = ref(false)
 let generation = 0
 let formGeneration = 0
 // Test-offer terms vary by the applicant's test; every other service version is
@@ -66,7 +71,7 @@ const matchingVersion = computed(() => selectedTemplate.value?.versions?.find(ve
   if (version.status !== 'active' || !version.is_current || version.language_id !== languageId.value)
     return false
   if (service.value === 'test_offer')
-    return version.test_id === (form.value.test_id ?? null)
+    return version.test_id === (form.value.test_id ?? parent.value?.applicant?.details?.test_id ?? null)
 
   const countryId = ['scholarship', 'private'].includes(service.value)
     ? (parent.value?.applicant?.details?.country_id ?? form.value.country_id ?? null)
@@ -78,6 +83,25 @@ const reportRows = computed(() => visible.value.map(row => [row.contract_number,
   row.snapshot_data?.template_version ? `${row.snapshot_data.template_version.name} · v${row.snapshot_data.template_version.version_number}` : '—', row.services?.map(line => `${line.fee} ${line.currency?.code ?? ''}`).join(', '), row.start_date, row.status]))
 const printList = () => printDocument({ bodyClass: 'printing-table-service-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 const openSlip = (row: Contract) => { slipContractId.value = row.id; slipOpen.value = true }
+const canCancel = (row: Contract) => ability.can('read', 'cancel_contracts')
+  && !row.is_cancelled && ['draft', 'active'].includes(row.status)
+const requestCancel = (row: Contract) => { cancelTarget.value = row; cancelOpen.value = true }
+
+async function confirmCancel() {
+  const target = cancelTarget.value
+  if (!target)
+    return
+
+  cancelOpen.value = false
+  cancelling.value = true
+  try {
+    await ContractApi.cancel(target.id)
+    await load()
+    toast.success(t('serviceContracts.cancelledDone'))
+  }
+  catch (cause) { toast.error(apiErrorMessage(cause)) }
+  finally { cancelling.value = false; cancelTarget.value = null }
+}
 const resetFilters = () => { search.value = ''; status.value = null; dateFrom.value = ''; dateTo.value = ''; void load() }
 const visible = computed(() => rows.value.filter(row => (!status.value || row.status === status.value)
   && `${row.contract_number} ${row.counterparty}`.toLocaleLowerCase().includes(search.value.toLocaleLowerCase())))
@@ -116,20 +140,55 @@ async function load() {
   finally { if (current === generation) loading.value = false }
 }
 
+// An academy extension is issued to the same applicant, so the form is filled
+// in from the parent contract and every field stays editable.
+const parentApplicantPayload = (contract: Contract): ApplicantPayload => {
+  const applicant = contract.applicant
+  const details = applicant?.details ?? {}
+  const identity: Record<string, unknown> = { service: service.value }
+  for (const field of ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'notes', 'admission_employee_id', 'responsible_employee_id'] as const)
+    identity[field] = applicant?.[field] ?? null
+
+  return {
+    ...identity,
+    program_id: details.program_id ?? null,
+    time_id: details.time_id ?? null,
+    duration_id: details.duration_id ?? null,
+    class_id: details.class_id ?? null,
+    test_id: details.test_id ?? null,
+    country_id: details.country_id ?? null,
+    university_id: details.university_id ?? null,
+    education_level_id: details.education_level_id ?? null,
+    semester_id: details.semester_id ?? null,
+    scholarship_id: details.scholarship_id ?? null,
+    passport_id: details.passport_id ?? null,
+    grade_score: details.grade_score ?? null,
+    university_fee: details.university_fee ?? null,
+    favorite_subject_ids: applicant?.favorite_subject_ids ?? [],
+    skill_ids: applicant?.skill_ids ?? [],
+    teacher_ids: applicant?.teacher_ids ?? [],
+  } as ApplicantPayload
+}
+
 async function create(extension: Contract | null = null) {
   const current = ++formGeneration
   parent.value = extension
-  form.value = { service: service.value, name: '', contact: '', email: '' }
+  const extensionLine = extension?.services?.[0] ?? null
+  const extendingAcademy = extension !== null && service.value === 'academy'
+  form.value = extendingAcademy && extension
+    ? parentApplicantPayload(extension)
+    : { service: service.value, name: '', contact: '', email: '' }
   visitorId.value = null
   visitors.value = []
-  charges.value = Object.fromEntries(chargeFields.value.map(field => [field, 0]))
-  discount.value = 0
-  currencyId.value = null
-  rate.value = 1
+  charges.value = Object.fromEntries(chargeFields.value.map(field => [field, Number((extensionLine as Record<string, unknown> | null)?.[field] ?? 0)]))
+  discount.value = Number(extensionLine?.discount ?? 0)
+  currencyId.value = extensionLine?.currency_id ?? null
+  rate.value = Number(extensionLine?.currency_rate ?? 1)
   selectedTemplate.value = null
-  languageId.value = null
+  languageId.value = extension?.contract_language_id ?? null
   const today = new Date()
-  startDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  startDate.value = extension?.start_date
+    ?? `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   open.value = true
   preparing.value = true
   error.value = ''
@@ -141,6 +200,9 @@ async function create(extension: Contract | null = null) {
     selectedTemplate.value = options.template
     admissionEmployees.value = options.admission_employees
     counselorEmployees.value = options.counselor_employees
+    // The parent line's rate wins; fall back to the currency's current rate.
+    if (extension)
+      rate.value = Number(extensionLine?.currency_rate ?? currencies.value.find(row => row.id === currencyId.value)?.rate ?? 1)
     // A counselor creating a contract owns its case: preselect themselves when
     // they are in the counselor list so the field is not left blank.
     if (!extension) {
@@ -191,8 +253,15 @@ async function save() {
   saving.value = true
   error.value = ''
   try {
+    // An academy extension keeps its applicant editable, so the edited identity
+    // and programme fields travel with the parent reference.
     const result = await ContractApi.createService(selectedService, {
-      ...(parent.value ? { parent_contract_id: parent.value.id } : serviceContractApplicantFields(selectedService, form.value)),
+      ...(parent.value
+        ? {
+            parent_contract_id: parent.value.id,
+            ...(selectedService === 'academy' ? serviceContractApplicantFields(selectedService, form.value) : {}),
+          }
+        : serviceContractApplicantFields(selectedService, form.value)),
       ...Object.fromEntries(chargeFields.value.map(field => [field, Number(charges.value[field])])),
       fee: Number(fee.value), discount: Number(discount.value), currency_id: currencyId.value!,
       currency_rate: Number(rate.value), language_id: languageId.value!, start_date: startDate.value,
@@ -210,32 +279,45 @@ async function save() {
 
 <template>
   <section class="erp-workspace">
-    <ErpPageHeader :title="t(labelKey)" section="contracts">
-      <template #actions><VBtn v-if="!route.query.applicant && ability.can('read', 'create_contracts')" color="primary" prepend-icon="tabler-plus" @click="create()">{{ t('serviceContracts.create') }}</VBtn></template>
-    </ErpPageHeader>
+    <ErpPageHeader :title="t(labelKey)" section="contracts" />
     <VAlert v-if="error && !open" type="error" variant="tonal" class="mb-4">{{ error }}</VAlert>
-    <div class="d-flex align-center ga-3 mb-4">
-      <VSpacer />
-      <DataTableFilterMenu :active="Boolean(search || status || dateFrom || dateTo)" @reset="resetFilters">
-        <VTextField v-model="search" prepend-inner-icon="tabler-search" :label="t('serviceContracts.search')" clearable @click:clear="search = ''" />
-        <VSelect v-model="status" :items="statuses" :label="t('serviceContracts.status')" clearable />
-        <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="load" />
-      </DataTableFilterMenu>
-      <VBtn icon="tabler-printer" variant="text" :aria-label="t('serviceContracts.print')" @click="printList"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('serviceContracts.print') }}</VTooltip></VBtn>
-    </div>
-    <VDataTable :headers="headers" :items="visible" :loading="loading" :no-data-text="t('serviceContracts.empty')">
+    <VCard>
+      <VCardText>
+        <!-- Same toolbar shape as the other contract lists: the filter menu,
+             print action and primary action live inside the data table's
+             card rather than a detached row above it. -->
+        <VRow align="center" class="table-toolbar">
+          <VCol cols="12" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2 ms-auto">
+            <DataTableFilterMenu :active="Boolean(search || status || dateFrom || dateTo)" @reset="resetFilters">
+              <VTextField v-model="search" class="data-table-search" prepend-inner-icon="tabler-search" :label="t('serviceContracts.search')" clearable @click:clear="search = ''" />
+              <VSelect v-model="status" :items="statuses" :label="t('serviceContracts.status')" clearable />
+              <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="load" />
+            </DataTableFilterMenu>
+            <VBtn icon="tabler-printer" variant="text" class="flex-shrink-0" :aria-label="t('serviceContracts.print')" @click="printList"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('serviceContracts.print') }}</VTooltip></VBtn>
+            <VBtn v-if="!route.query.applicant && ability.can('read', 'create_contracts')" color="primary" class="flex-shrink-0" prepend-icon="tabler-plus" @click="create()">{{ t('serviceContracts.create') }}</VBtn>
+          </VCol>
+        </VRow>
+      </VCardText>
+      <VDataTable :headers="headers" :items="visible" :loading="loading" :no-data-text="t('serviceContracts.empty')">
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
       <template #item.details="{ item }"><ApplicantSummary v-if="item.applicant" :applicant="item.applicant" :lines="item.services" /></template>
       <template #item.charges="{ item }"><span v-for="line in item.services" :key="line.id">{{ line.fee }} {{ line.currency?.code }}</span></template>
       <template #item.status="{ item }"><VChip size="small" :color="item.is_cancelled ? 'error' : 'success'">{{ t(`serviceContracts.${item.status}`) }}</VChip></template>
       <template #item.actions="{ item }">
         <div class="d-flex gap-1">
-          <VBtn icon="tabler-printer" size="small" variant="text" @click="printable = item; printing = true"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('serviceContracts.print') }}</VTooltip></VBtn>
-          <VBtn v-if="service === 'academy'" icon="tabler-school" size="small" variant="text" @click="openSlip(item)"><VIcon icon="tabler-school" /><VTooltip activator="parent">{{ t('documents.academySlip.print') }}</VTooltip></VBtn>
-          <VBtn v-if="ability.can('read', 'create_contracts') && item.contract_role === 'primary' && !item.is_cancelled && ['active', 'completed'].includes(item.status)" icon="tabler-file-plus" size="small" variant="text" @click="create(item)"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent">{{ t('serviceContracts.extend') }}</VTooltip></VBtn>
+          <FullDetailsButton :item="item" :title="item.contract_number || item.counterparty || ''" />
+          <!-- A cancelled contract keeps its history in this list: it stays
+               viewable but loses every other action, in particular printing. -->
+          <template v-if="!item.is_cancelled">
+            <VBtn v-if="service !== 'academy'" icon="tabler-printer" size="small" variant="text" @click="printable = item; printing = true"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('serviceContracts.print') }}</VTooltip></VBtn>
+            <VBtn v-if="service === 'academy'" icon="tabler-school" size="small" variant="text" @click="openSlip(item)"><VIcon icon="tabler-school" /><VTooltip activator="parent">{{ t('documents.academySlip.print') }}</VTooltip></VBtn>
+            <VBtn v-if="service === 'academy' && ability.can('read', 'create_contracts') && item.contract_role === 'primary' && ['active', 'completed'].includes(item.status)" icon="tabler-file-plus" size="small" variant="text" @click="create(item)"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent">{{ t('serviceContracts.extend') }}</VTooltip></VBtn>
+            <VBtn v-if="canCancel(item)" icon="tabler-ban" size="small" variant="text" color="error" @click="requestCancel(item)"><VIcon icon="tabler-ban" /><VTooltip activator="parent">{{ t('serviceContracts.cancelContract') }}</VTooltip></VBtn>
+          </template>
         </div>
       </template>
-    </VDataTable>
+      </VDataTable>
+    </VCard>
     <VDialog v-model="open" :persistent="saving" max-width="1100" scrollable class="erp-form">
       <VCard>
         <VCardTitle class="d-flex align-center flex-wrap gap-2">{{ t(labelKey) }}<VSpacer /><VBtn icon="tabler-x" variant="text" :disabled="saving" @click="open = false"><VIcon icon="tabler-x" /><VTooltip activator="parent">{{ t('serviceContracts.close') }}</VTooltip></VBtn></VCardTitle>
@@ -244,8 +326,8 @@ async function save() {
           <VAlert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</VAlert>
           <div v-if="parent" class="mb-4">{{ parent.contract_number }}: {{ parent.counterparty }}</div>
           <VForm ref="formRef" @submit.prevent="save">
-            <template v-if="!parent">
-              <VAutocomplete v-if="ability.can('read', 'view_visitors')" v-model="visitorId" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :disabled="preparing" clearable class="mb-4" />
+            <template v-if="!parent || service === 'academy'">
+              <VAutocomplete v-if="!parent && ability.can('read', 'view_visitors')" v-model="visitorId" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :disabled="preparing" clearable class="mb-4" />
               <VRow dense class="mb-3">
                 <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="form.name" :label="t('serviceContracts.applicant')" maxlength="255" required /></VCol>
                 <VCol cols="12" sm="6" md="3"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" maxlength="255" /></VCol>
@@ -290,5 +372,16 @@ async function save() {
     <PrintableListReport :title="t(labelKey)" :subtitle="[search, status, dateFrom, dateTo].filter(Boolean).join(' · ')" :columns="[t('serviceContracts.number'), t('serviceContracts.applicant'), t('erp.phone'), t('agencyStaff.contractVersion'), t('erp.totalFee'), t('serviceContracts.startDate'), t('serviceContracts.status')]" :rows="reportRows" />
     <ContractDocumentPrinter v-model="printing" :contract="printable" />
     <AcademySlipPrinter v-model="slipOpen" :contract-id="slipContractId" />
+    <VDialog v-model="cancelOpen" max-width="460">
+      <VCard>
+        <VCardTitle>{{ t('serviceContracts.cancelContract') }}</VCardTitle>
+        <VCardText>{{ t('serviceContracts.cancelConfirmation', { contract: cancelTarget?.contract_number || cancelTarget?.counterparty || '' }) }}</VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn variant="tonal" color="secondary" @click="cancelOpen = false">{{ t('common.actions.cancel') }}</VBtn>
+          <VBtn color="error" :loading="cancelling" @click="confirmCancel">{{ t('serviceContracts.cancelContract') }}</VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </section>
 </template>

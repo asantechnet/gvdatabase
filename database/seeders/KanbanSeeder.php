@@ -15,8 +15,8 @@ class KanbanSeeder extends Seeder
      * The working boards themselves are owned by {@see BoardSeeder} and each
      * task's assignees are attached to its board by {@see TaskUserSeeder}.
      * This seeder only guarantees the organisational baseline: the operations
-     * manager is a member of every board and every staff account can reach the
-     * Personal board, so the Kanban surface is never empty after a fresh seed.
+     * manager is a member of every shared board, and every staff account owns
+     * its own private Personal board.
      */
     public function run(): void
     {
@@ -25,19 +25,17 @@ class KanbanSeeder extends Seeder
             ->pluck('id')
             ->all();
 
-        foreach (Board::query()->get() as $board) {
+        foreach (Board::query()->whereNull('user_id')->get() as $board) {
             if ($managerIds !== []) {
                 $board->users()->syncWithoutDetaching($managerIds);
             }
         }
 
-        $personal = ServiceBoard::firstOrCreateFor(ServiceBoard::PERSONAL);
-        $staffIds = User::query()
+        // Personal boards are private per user; ownership, not membership, is
+        // the access grant, so there is no shared Personal board to join.
+        User::query()
             ->whereDoesntHave('roles', fn ($query) => $query->whereIn('name', ['applicant']))
-            ->pluck('id')
-            ->all();
-        if ($staffIds !== []) {
-            $personal->users()->syncWithoutDetaching($staffIds);
-        }
+            ->get()
+            ->each(fn (User $user) => ServiceBoard::personalFor($user));
     }
 }

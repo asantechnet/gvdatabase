@@ -16,6 +16,7 @@ import PrintableListReport from '@/components/PrintableListReport.vue'
 import { useContracts } from '@/composables/useContracts'
 import { legacyContentToHtml } from '@/utils/contractPlaceholders'
 import { printDocument } from '@/utils/printDocument'
+import { resolveContractArtwork } from '@/utils/printArtwork'
 import { canPrintPartyDetails, partyDetailsFor } from '@/utils/contractPartyDetails'
 import { buildContractPrintHeader, canPrintContractHeader } from '@/composables/useContractPrintHeader'
 
@@ -28,6 +29,7 @@ const props = withDefaults(defineProps<{
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const ability = useAbility()
 
 const currentListRoute = () => ({
   employees: 'employee-contracts',
@@ -54,6 +56,8 @@ const filterStatus = ref<string | null>(null)
 const isDialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit'>('add')
 const selectedContract = ref<Contract | null>(null)
+// Set only while the form creates an extension of an existing agreement.
+const extensionParent = ref<Contract | null>(null)
 
 // Print Specific State
 const isPrintDialogVisible = ref(false)
@@ -166,6 +170,34 @@ const company = computed<CompanyDetails>(() => ({
   letterheadSafeHeight: snapshotDesign.value?.safe_height ?? companySetting.value?.contract_letterhead_safe_height,
 }))
 
+// Configured artwork whose file is gone must never replace the built-in cover
+// or letterhead with a blank page (see `utils/printArtwork`).
+const coverArtworkAvailable = ref(true)
+const letterheadArtworkAvailable = ref(true)
+const useCustomCover = computed(() => includeCustomCover.value
+  && Boolean(snapshotDesign.value?.cover_design_url || companySetting.value?.contract_cover_design_url)
+  && coverArtworkAvailable.value)
+const printableCompany = computed<CompanyDetails>(() => ({
+  ...company.value,
+  letterheadUrl: includeCustomLetterhead.value && letterheadArtworkAvailable.value ? company.value.letterheadUrl : undefined,
+}))
+const printedPages = computed(() => (contractToPrint.value ? getContractPagesHtml(contractToPrint.value) : []))
+
+const loadPrintArtwork = async () => {
+  coverArtworkAvailable.value = true
+  letterheadArtworkAvailable.value = true
+
+  const coverUrl = snapshotDesign.value?.cover_design_url || companySetting.value?.contract_cover_design_url || null
+  const letterheadUrl = company.value.letterheadUrl || null
+  const availability = await resolveContractArtwork({ cover: coverUrl, letterhead: letterheadUrl })
+
+  coverArtworkAvailable.value = availability.cover
+  letterheadArtworkAvailable.value = availability.letterhead
+
+  if ((coverUrl && !availability.cover) || (letterheadUrl && !availability.letterhead))
+    toast.info(translate('pages.contracts.allContracts.allContracts.artworkUnavailable'))
+}
+
 const getContractPagesHtml = (contract: Contract): string[] => {
   // Contracts retain their own content snapshot so later template edits never
   // rewrite a document that has already been issued.
@@ -212,6 +244,13 @@ const printTable = async () => {
   await printDocument({ bodyClass: 'printing-table-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 }
 
+const resetPrintOptions = () => {
+  includeEmptyLastPage.value = false
+  includeSignatureSection.value = true
+  includePartyDetails.value = false
+  includeContractHeader.value = false
+}
+
 const printContract = async (contract: Contract) => {
   try {
     isPrintLoading.value = true
@@ -242,20 +281,15 @@ const printContract = async (contract: Contract) => {
     }
 
     contractToPrint.value = printable
-    includeEmptyLastPage.value = false
-    includeSignatureSection.value = true
-    includePartyDetails.value = false
-    includeContractHeader.value = false
+    resetPrintOptions()
+    await loadPrintArtwork()
     isPrintDialogVisible.value = true
   }
   catch (err) {
     console.error('Failed to load contract template:', err)
     toast.warning(translate('pages.contracts.allContracts.allContracts.failedToLoadContractTemplateUsingDefaultContent'))
     contractToPrint.value = contract
-    includeEmptyLastPage.value = false
-    includeSignatureSection.value = true
-    includePartyDetails.value = false
-    includeContractHeader.value = false
+    resetPrintOptions()
     isPrintDialogVisible.value = true
   }
   finally {
@@ -271,6 +305,7 @@ const executePrint = async () => {
 
 const addNew = () => {
   dialogMode.value = 'add'
+  extensionParent.value = null
 
   selectedContract.value = {
     id: 0,
@@ -292,6 +327,20 @@ const editContractUI = (contract: Contract) => {
 }
 
 const contractName = (contract: Contract) => contract.contract || contract.contract_template?.name || translate('pages.contracts.allContracts.allContracts.unnamedContract')
+
+// An agreement is extended from a live primary contract: cancelled, finished
+// and already-extended records never spawn another extension.
+const canExtend = (contract: Contract) => ability.can('read', 'create_contracts')
+  && !contract.is_cancelled
+  && contract.contract_role !== 'extension'
+  && ['active', 'completed'].includes(contract.status)
+
+const extendContract = (contract: Contract) => {
+  dialogMode.value = 'add'
+  selectedContract.value = null
+  extensionParent.value = contract
+  isDialogVisible.value = true
+}
 
 const requestContractAction = (type: 'delete' | 'cancel', contract: Contract) => {
   pendingContractAction.value = { type, contract }
@@ -339,13 +388,22 @@ const deleteContractUI = (contract: Contract) => {
 const handleFormSubmit = async (contractData: ContractFormPayload) => {
   try {
     if (dialogMode.value === 'add') {
-      await addContract(contractData)
+      const parent = extensionParent.value
+      await addContract({
+        ...contractData,
+        // An extension is linked to its parent and always issued as a draft.
+        parent_contract_id: parent?.id ?? null,
+        ...(parent ? { status: 'draft' as const } : {}),
+      })
+      toast.success(translate(parent
+        ? 'pages.contracts.allContracts.allContracts.extendedDraftCreated'
+        : 'pages.contracts.allContracts.allContracts.contractSaved'))
     }
     else if (selectedContract.value) {
       await editContract(selectedContract.value.id, contractData)
+      toast.success(translate('pages.contracts.allContracts.allContracts.contractSaved'))
     }
     isDialogVisible.value = false
-    toast.success(translate('pages.contracts.allContracts.allContracts.contractSaved'))
   }
   catch (err) {
     toast.error(translate('pages.contracts.allContracts.allContracts.failedToSaveContractPleaseTryAgain'))
@@ -378,7 +436,12 @@ onMounted(async () => {
   if (route.query.action === 'print' && contractId) {
     const contract = contracts.value.find(item => item.id === contractId) ?? await ContractApi.getById(contractId)
 
-    await printContract(contract)
+    // Cancelled contracts keep a view-only history, so printing them — even
+    // through a deep link — is refused.
+    if (contract.is_cancelled)
+      toast.warning(translate('pages.contracts.allContracts.allContracts.cancelledContractPrintBlocked'))
+    else
+      await printContract(contract)
     await router.replace({ name: currentListRoute() })
   }
   else if (contractId) {
@@ -524,7 +587,7 @@ onMounted(async () => {
           :title="item.contract_number || item.contract"
         />
         <VBtn
-          v-if="!item.is_cancelled && ['draft', 'active'].includes(item.status)"
+          v-if="ability.can('read', 'cancel_contracts') && !item.is_cancelled && ['draft', 'active'].includes(item.status)"
           icon="tabler-ban"
           variant="text"
           size="small"
@@ -571,6 +634,24 @@ onMounted(async () => {
           </VTooltip>
         </VBtn>
         <VBtn
+          v-if="canExtend(item)"
+          icon="tabler-file-plus"
+          variant="text"
+          size="small"
+          class="me-2"
+          @click="extendContract(item)"
+        >
+          <VIcon icon="tabler-file-plus" /><VTooltip
+            activator="parent"
+            location="top"
+          >
+            {{ $t('pages.contracts.allContracts.allContracts.extendContract') }}
+          </VTooltip>
+        </VBtn>
+        <!-- A cancelled contract keeps its history but is not printable; View
+             stays as its only action. -->
+        <VBtn
+          v-if="!item.is_cancelled"
           icon="tabler-printer"
           variant="text"
           size="small"
@@ -601,12 +682,15 @@ onMounted(async () => {
   >
     <VCard>
       <VCardTitle>
-        <span class="headline">{{ dialogMode === 'add' ? $t('pages.contracts.allContracts.allContracts.addNewContract') : $t('pages.contracts.allContracts.allContracts.editContract') }}</span>
+        <span class="headline">{{ extensionParent ? $t('pages.contracts.allContracts.allContracts.extendContract') : dialogMode === 'add' ? $t('pages.contracts.allContracts.allContracts.addNewContract') : $t('pages.contracts.allContracts.allContracts.editContract') }}</span>
       </VCardTitle>
 
       <VCardText>
         <ContractForm
+          :key="extensionParent ? `extend-${extensionParent.id}` : dialogMode === 'edit' ? `edit-${selectedContract?.id}` : 'add'"
           :contract="selectedContract || undefined"
+          :parent-contract="extensionParent"
+          :extension-mode="Boolean(extensionParent)"
           :templates="templates"
           :audience="contractAudience"
           @submit="handleFormSubmit"
@@ -729,12 +813,13 @@ onMounted(async () => {
   >
     <template v-if="contractToPrint">
         <div
-          v-if="includeCustomCover && (snapshotDesign?.cover_design_url || companySetting?.contract_cover_design_url)"
+          v-if="useCustomCover"
         class="custom-cover-page"
       >
         <img
-            :src="snapshotDesign?.cover_design_url || companySetting!.contract_cover_design_url!"
+            :src="snapshotDesign?.cover_design_url || companySetting?.contract_cover_design_url || ''"
           alt=""
+          @error="coverArtworkAvailable = false"
         >
       </div>
       <ContractCover
@@ -755,23 +840,23 @@ onMounted(async () => {
         v-if="includePartyDetails && canShowPartyDetails"
         :document-title="$t('pages.contracts.shared.contractParties')"
         :document-number="contractToPrint.contract_number || ''"
-        :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }"
+        :company="printableCompany"
         :party-details="partyDetailsFor(contractToPrint, company)"
         :contractee-name="contractToPrint.counterparty || ''"
-        :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: 1, total: getContractPagesHtml(contractToPrint).length + 1 })"
+        :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: 1, total: printedPages.length + 1 })"
         :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"
         class="contract-content"
       />
 
       <ContractPageTemplate
-        v-for="(pageHtml, idx) in getContractPagesHtml(contractToPrint)"
+        v-for="(pageHtml, idx) in printedPages"
         :key="idx"
         :document-number="contractToPrint.contract_number || ''"
-            :document-title="printedContractTitle"            :company="{ ...company, letterheadUrl: includeCustomLetterhead ? company.letterheadUrl : undefined }"
+            :document-title="printedContractTitle"            :company="printableCompany"
         :header-details="includeContractHeader && idx === 0 ? contractHeader : null"
         :html-content="pageHtml"
-        :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: idx + (includePartyDetails && canShowPartyDetails ? 2 : 1), total: getContractPagesHtml(contractToPrint).length + (includePartyDetails && canShowPartyDetails ? 1 : 0) })"
-        :show-signature="includeSignatureSection && idx === getContractPagesHtml(contractToPrint).length - 1"
+        :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: idx + (includePartyDetails && canShowPartyDetails ? 2 : 1), total: printedPages.length + (includePartyDetails && canShowPartyDetails ? 1 : 0) })"
+        :show-signature="includeSignatureSection && idx === printedPages.length - 1"
         :contractee-name="contractToPrint.counterparty || ''"
         :company-signatory-name="contractToPrint.company_signatory_name || null"
         :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"

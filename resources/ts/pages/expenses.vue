@@ -10,6 +10,7 @@ import { type Expense, type ExpenseCreateData, type ExpenseFormData, type Expens
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ExpenseFormDialog from '@/components/forms/ExpenseFormDialog.vue'
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
 
@@ -22,6 +23,8 @@ const isDeleteExpenseDialogVisible = ref(false)
 const searchQuery = ref('')
 const filterType = ref<string | null>(null)
 const filterCurrency = ref<number | null>(null)
+const dateFrom = ref('')
+const dateTo = ref('')
 const isLoading = ref(false)
 const formError = ref('')
 const fieldErrors = ref<Record<string, string>>({})
@@ -58,13 +61,17 @@ const fetchExpenses = async () => {
   try {
     isLoading.value = true
 
-    const params: { search?: string; type?: string; currency_id?: number } = {}
+    const params: { search?: string; type?: string; currency_id?: number; date_from?: string; date_to?: string } = {}
     if (searchQuery.value)
       params.search = searchQuery.value
     if (filterType.value)
       params.type = filterType.value
     if (filterCurrency.value)
       params.currency_id = filterCurrency.value
+    if (dateFrom.value)
+      params.date_from = dateFrom.value
+    if (dateTo.value)
+      params.date_to = dateTo.value
     expenses.value = await getExpenses(params)
   }
   catch (error) {
@@ -327,8 +334,8 @@ onMounted(() => {
             class="d-flex align-center justify-md-end ga-2"
           >
             <DataTableFilterMenu
-              :active="Boolean(filterType || filterCurrency)"
-              @reset="filterType = null; filterCurrency = null; fetchExpenses()"
+              :active="Boolean(filterType || filterCurrency || dateFrom || dateTo)"
+              @reset="filterType = null; filterCurrency = null; dateFrom = ''; dateTo = ''; fetchExpenses()"
             >
               <VSelect
                 v-model="filterType"
@@ -347,6 +354,7 @@ onMounted(() => {
                 hide-details
                 @update:model-value="fetchExpenses"
               />
+              <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="fetchExpenses" />
             </DataTableFilterMenu><div class="text-caption text-medium-emphasis">
               <strong class="text-high-emphasis">{{ expenses.length }}</strong> {{ $t('pages.finance.expenses.expenses.expenseRecordsShown') }}
             </div>

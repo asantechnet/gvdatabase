@@ -30,6 +30,47 @@ const copies = computed(() => receiptCopies(props.copies))
 const letterhead = computed(() => props.receipt.letterhead)
 const hasLetterhead = computed(() => Boolean(letterhead.value?.url))
 
+// Incomes and loans share this template; only the section labels and the extra
+// loan rows differ so both documents keep one layout and one print pipeline.
+const isLoan = computed(() => props.receipt.document === 'loan')
+const labels = computed(() => (isLoan.value
+  ? {
+      title: t('documents.loan.title'),
+      receivedFrom: t('documents.loan.requestedBy'),
+      paymentSummary: t('documents.loan.requestSummary'),
+      incomeName: t('documents.loan.reason'),
+      incomeId: t('documents.loan.reference'),
+      servicesProvided: t('documents.loan.details'),
+      item: t('documents.loan.item'),
+      fee: t('documents.loan.amount'),
+      totalFee: t('documents.loan.requestedAmount'),
+      paidToDate: t('documents.loan.approvedAmount'),
+      balance: t('documents.loan.remaining'),
+      amountReceived: t('documents.loan.amount'),
+      receivedBy: t('documents.loan.requestedBy'),
+      thankYou: t('documents.loan.footerNote'),
+      status: t('documents.loan.status'),
+      requestedAt: t('documents.loan.requestedAt'),
+    }
+  : {
+      title: t('documents.receipt.title'),
+      receivedFrom: t('documents.receipt.receivedFrom'),
+      paymentSummary: t('documents.receipt.paymentSummary'),
+      incomeName: t('documents.receipt.incomeName'),
+      incomeId: t('documents.receipt.incomeId'),
+      servicesProvided: t('documents.receipt.servicesProvided'),
+      item: t('documents.receipt.item'),
+      fee: t('documents.receipt.fee'),
+      totalFee: t('documents.receipt.totalFee'),
+      paidToDate: t('documents.receipt.paidToDate'),
+      balance: t('documents.receipt.balance'),
+      amountReceived: t('documents.receipt.amountReceived'),
+      receivedBy: t('documents.receipt.receivedBy'),
+      thankYou: t('documents.receipt.thankYou'),
+      status: '',
+      requestedAt: '',
+    }))
+
 const safeStyle = computed(() => ({
   insetInlineStart: `${letterhead.value?.safe?.x ?? 0}%`,
   insetBlockStart: `${letterhead.value?.safe?.y ?? 0}%`,
@@ -135,7 +176,7 @@ defineExpose({ print })
           </div>
           <div class="receipt-head__title">
             <div class="receipt-head__eyebrow">
-              {{ t('documents.receipt.title') }}
+              {{ labels.title }}
             </div>
             <div class="receipt-head__serial">
               {{ receipt.serial_number || '—' }}
@@ -152,7 +193,7 @@ defineExpose({ print })
           :class="{ 'receipt-grid--single': isCustomerCopy(copy) }"
         >
           <section class="receipt-block">
-            <h4>{{ t('documents.receipt.receivedFrom') }}</h4>
+            <h4>{{ labels.receivedFrom }}</h4>
             <dl>
               <div><dt>{{ t('common.fields.name') }}</dt><dd>{{ receipt.applicant?.name || '—' }}</dd></div>
               <div><dt>{{ t('documents.receipt.applicantId') }}</dt><dd>#{{ receipt.applicant?.id ?? '—' }}</dd></div>
@@ -168,13 +209,15 @@ defineExpose({ print })
             v-if="!isCustomerCopy(copy)"
             class="receipt-block"
           >
-            <h4>{{ t('documents.receipt.paymentSummary') }}</h4>
+            <h4>{{ labels.paymentSummary }}</h4>
             <dl>
-              <div><dt>{{ t('documents.receipt.incomeName') }}</dt><dd>{{ receipt.income.name || '—' }}</dd></div>
-              <div><dt>{{ t('documents.receipt.incomeId') }}</dt><dd>#{{ receipt.income.id }}</dd></div>
+              <div><dt>{{ labels.incomeName }}</dt><dd>{{ receipt.income.name || '—' }}</dd></div>
+              <div><dt>{{ labels.incomeId }}</dt><dd>#{{ receipt.income.id }}</dd></div>
               <div><dt>{{ t('common.fields.type') }}</dt><dd>{{ translateBackendValue(receipt.income.type) }}</dd></div>
               <div><dt>{{ t('common.fields.amount') }}</dt><dd>{{ formatAmount(receipt.income.line_total, receipt.income.currency) }}</dd></div>
-              <div><dt>{{ t('documents.receipt.contract') }}</dt><dd>{{ receipt.contract?.contract_number || t('documents.receipt.contractOptional') }}</dd></div>
+              <div v-if="!isLoan"><dt>{{ t('documents.receipt.contract') }}</dt><dd>{{ receipt.contract?.contract_number || t('documents.receipt.contractOptional') }}</dd></div>
+              <div v-if="receipt.loan"><dt>{{ labels.status }}</dt><dd>{{ translateBackendValue(receipt.loan.status) }}</dd></div>
+              <div v-if="receipt.loan?.requested_at"><dt>{{ labels.requestedAt }}</dt><dd>{{ formatDate(receipt.loan.requested_at) }}</dd></div>
               <div v-if="receipt.service"><dt>{{ t('documents.receipt.service') }}</dt><dd>{{ receipt.service.service_label || receipt.service.name }}</dd></div>
               <div v-if="receipt.service"><dt>{{ t('documents.receipt.paymentStatus') }}</dt><dd>{{ receipt.service.payment_status_label || '—' }}</dd></div>
             </dl>
@@ -182,13 +225,13 @@ defineExpose({ print })
         </div>
 
         <section class="receipt-lines">
-          <h4>{{ t('documents.receipt.servicesProvided') }}</h4>
+          <h4>{{ labels.servicesProvided }}</h4>
           <table>
             <thead>
               <tr>
-                <th>{{ t('documents.receipt.item') }}</th>
+                <th>{{ labels.item }}</th>
                 <th class="num">
-                  {{ t('documents.receipt.fee') }}
+                  {{ labels.fee }}
                 </th>
               </tr>
             </thead>
@@ -212,25 +255,25 @@ defineExpose({ print })
         </section>
 
         <section class="receipt-totals">
-          <div><span>{{ t('documents.receipt.totalFee') }}</span><strong>{{ formatAmount(receipt.totals.total_fee, receipt.totals.currency) }}</strong></div>
-          <div><span>{{ t('documents.receipt.paidToDate') }}</span><strong>{{ formatAmount(receipt.totals.paid_amount, receipt.totals.currency) }}</strong></div>
-          <div><span>{{ t('documents.receipt.balance') }}</span><strong>{{ formatAmount(receipt.totals.balance, receipt.totals.currency) }}</strong></div>
+          <div><span>{{ labels.totalFee }}</span><strong>{{ formatAmount(receipt.totals.total_fee, receipt.totals.currency) }}</strong></div>
+          <div><span>{{ labels.paidToDate }}</span><strong>{{ formatAmount(receipt.totals.paid_amount, receipt.totals.currency) }}</strong></div>
+          <div><span>{{ labels.balance }}</span><strong>{{ formatAmount(receipt.totals.balance, receipt.totals.currency) }}</strong></div>
           <div class="receipt-totals__received">
-            <span>{{ t('documents.receipt.amountReceived') }}</span>
+            <span>{{ labels.amountReceived }}</span>
             <strong>{{ formatAmount(receipt.income.line_total, receipt.income.currency) }}</strong>
           </div>
         </section>
 
         <footer class="receipt-foot">
           <div class="receipt-foot__note">
-            <p>{{ t('documents.receipt.thankYou') }}</p>
+            <p>{{ labels.thankYou }}</p>
             <p v-if="receipt.recorded_by && !isCustomerCopy(copy)">
               {{ t('documents.receipt.recordedBy') }}: {{ receipt.recorded_by.name }}
             </p>
           </div>
           <div class="receipt-foot__stamps">
             <div class="receipt-stamp">
-              <span>{{ t('documents.receipt.receivedBy') }}</span>
+              <span>{{ labels.receivedBy }}</span>
             </div>
             <div class="receipt-stamp">
               <img

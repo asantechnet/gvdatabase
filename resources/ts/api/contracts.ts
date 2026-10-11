@@ -118,6 +118,8 @@ export interface Contract {
 export interface ContractCreateData {
   template_id?: number | null
   contract_template_version_id?: number | null
+  /** Set when the new contract is an extension of an existing agreement. */
+  parent_contract_id?: number | null
   country_id?: number | null
   language_id?: number | null
   employee_id?: number | null

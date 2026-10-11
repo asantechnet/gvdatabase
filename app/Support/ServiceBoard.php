@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Board;
+use App\Models\User;
 
 /**
  * Single source of truth for the operational Kanban boards.
@@ -28,19 +29,25 @@ final class ServiceBoard
         BuiltInService::ACADEMY => 'Academy',
     ];
 
-    /** Deterministic board order used by the seeder. */
+    /**
+     * Deterministic order for the seeded **shared** boards. The Personal board
+     * is intentionally absent: it is private per user and created on demand.
+     */
     public const ORDER = [
         'Private Contracts',
         'Scholarship',
         'Test Offer',
         'Academy',
-        self::PERSONAL,
     ];
 
-    /** The board title a service's delivery work belongs on. */
+    /**
+     * The shared board title a service's delivery work belongs on. Work with no
+     * resolvable service is applicant-stage work; it must never fall back to the
+     * private Personal board.
+     */
     public static function titleFor(?string $service): string
     {
-        return self::BY_SERVICE[$service] ?? self::PERSONAL;
+        return self::BY_SERVICE[$service] ?? self::APPLICANT_CASES;
     }
 
     /** @return list<string> */
@@ -64,8 +71,28 @@ final class ServiceBoard
     }
 
     /**
-     * Resolve a board on demand without disturbing an existing board's order.
-     * Used by the workflow services so a fresh install needs no seeded boards.
+     * The user's private personal board, created (or restored) on demand.
+     * Ownership, not board membership, is what grants access to it.
+     */
+    public static function personalFor(User $user): Board
+    {
+        $board = Board::withTrashed()->firstOrNew([
+            'user_id' => $user->id,
+            'title' => self::PERSONAL,
+        ]);
+        if (! $board->exists) {
+            $board->order = (Board::query()->max('order') ?? -1) + 1;
+        }
+        $board->deleted_at = null;
+        $board->save();
+
+        return $board;
+    }
+
+    /**
+     * Resolve a shared board on demand without disturbing an existing board's
+     * order. Used by the workflow services so a fresh install needs no seeded
+     * boards.
      */
     public static function firstOrCreateFor(string $title): Board
     {

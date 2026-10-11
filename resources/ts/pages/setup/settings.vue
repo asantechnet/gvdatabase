@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -40,7 +40,9 @@ const defaultForm = (): SettingForm => ({
   paid_leave_days_per_year: 0,
   website_title: 'Educational Agency Portal',
   website_logo: null,
+  remove_website_logo: false,
   company_signature: null,
+  remove_company_signature: false,
   contract_letterhead: null,
   contract_cover_design: null,
   remove_contract_letterhead: false,
@@ -73,6 +75,7 @@ const defaultForm = (): SettingForm => ({
   clear_mail_password: false,
   mail_from_name: '',
   mail_reply_to: '',
+  email_delivery_enabled: true,
   timezone: 'Asia/Kabul',
   phone: '',
   physical_address: '',
@@ -89,7 +92,7 @@ const form = ref<SettingForm>(defaultForm())
 const persistedForm = ref<SettingForm>(defaultForm())
 const savedSetting = ref<Setting | null>(null)
 const settingId = ref<number | null>(null)
-const logoPreview = ref('/images/logo.png')
+const logoPreview = ref<string | null>('/images/logo.png')
 const signaturePreview = ref<string | null>(null)
 const letterheadPreview = ref<string | null>(null)
 const coverDesignPreview = ref<string | null>(null)
@@ -201,8 +204,8 @@ const appearanceGroups = computed(() => [
 ])
 
 const pageFields: Record<SettingsPage, (keyof SettingForm)[]> = {
-  company: ['website_title', 'website_logo', 'company_signature', 'website_address', 'timezone', 'phone', 'physical_address', 'short_company_name', 'original_company_name'],
-  email: ['company_email', 'mail_host', 'mail_port', 'mail_encryption', 'mail_username', 'mail_password', 'clear_mail_password', 'mail_from_name', 'mail_reply_to'],
+  company: ['website_title', 'website_logo', 'remove_website_logo', 'company_signature', 'remove_company_signature', 'website_address', 'timezone', 'phone', 'physical_address', 'short_company_name', 'original_company_name'],
+  email: ['email_delivery_enabled', 'company_email', 'mail_host', 'mail_port', 'mail_encryption', 'mail_username', 'mail_password', 'clear_mail_password', 'mail_from_name', 'mail_reply_to'],
   operations: ['paid_leave_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes', 'automatic_attendance_enabled'],
   appearance: themeColorFields,
   documents: ['contract_letterhead', 'contract_cover_design', 'remove_contract_letterhead', 'remove_contract_cover_design', 'contract_letterhead_safe_x', 'contract_letterhead_safe_y', 'contract_letterhead_safe_width', 'contract_letterhead_safe_height', 'receipt_letterhead', 'remove_receipt_letterhead', 'receipt_letterhead_source', 'receipt_letterhead_safe_x', 'receipt_letterhead_safe_y', 'receipt_letterhead_safe_width', 'receipt_letterhead_safe_height', 'payslip_letterhead', 'remove_payslip_letterhead', 'payslip_letterhead_source', 'payslip_letterhead_safe_x', 'payslip_letterhead_safe_y', 'payslip_letterhead_safe_width', 'payslip_letterhead_safe_height'],
@@ -283,6 +286,7 @@ function applySavedSetting(setting: Setting) {
     clear_mail_password: false,
     mail_from_name: setting.mail_from_name || '',
     mail_reply_to: setting.mail_reply_to || '',
+    email_delivery_enabled: setting.email_delivery_enabled ?? true,
     timezone: setting.timezone || 'UTC',
     phone: setting.phone || '',
     physical_address: setting.physical_address || '',
@@ -542,6 +546,9 @@ function handleDocumentLetterheadUpload(event: Event, kind: DocumentLetterheadKi
 }
 
 function removeDocumentLetterhead(kind: DocumentLetterheadKind) {
+  if (!confirm(translate('pages.settings.settings.confirmRemoveFile')))
+    return
+
   const config = documentLetterheadConfig[kind]
   const previewRef = documentLetterheadPreviewRef(kind)
 
@@ -642,6 +649,9 @@ function resizeDocumentSafeArea(event: PointerEvent, edge: 'top' | 'right' | 'bo
 }
 
 function removeArtwork(field: 'contract_letterhead' | 'contract_cover_design') {
+  if (!confirm(translate('pages.settings.settings.confirmRemoveFile')))
+    return
+
   const currentPreview = activeArtworkPreview(field)
 
   if (currentPreview && currentPreview.startsWith('blob:')) {
@@ -674,6 +684,33 @@ function removeArtwork(field: 'contract_letterhead' | 'contract_cover_design') {
   else {
     coverDesignPreview.value = null
     form.value.remove_contract_cover_design = true
+  }
+}
+
+/**
+ * Delete an uploaded asset (logo, signature or a document letterhead). The
+ * stored file is removed server-side and the setting cleared; the caller is
+ * always asked to confirm first.
+ */
+function removeUpload(field: 'website_logo' | 'company_signature') {
+  if (!confirm(translate('pages.settings.settings.confirmRemoveFile')))
+    return
+
+  const clearPreview = (target: Ref<string | null>) => {
+    if (target.value?.startsWith('blob:'))
+      URL.revokeObjectURL(target.value)
+    target.value = null
+  }
+
+  form.value[field] = null
+
+  if (field === 'website_logo') {
+    clearPreview(logoPreview)
+    form.value.remove_website_logo = true
+  }
+  else {
+    clearPreview(signaturePreview)
+    form.value.remove_company_signature = true
   }
 }
 
@@ -824,7 +861,7 @@ function activePagePayload(): Partial<SettingForm> {
 
       return
     }
-    if (field === 'remove_contract_letterhead' || field === 'remove_contract_cover_design' || field === 'remove_receipt_letterhead' || field === 'remove_payslip_letterhead') {
+    if (field === 'remove_website_logo' || field === 'remove_company_signature' || field === 'remove_contract_letterhead' || field === 'remove_contract_cover_design' || field === 'remove_receipt_letterhead' || field === 'remove_payslip_letterhead') {
       if (value === true)
         payload[field] = true as never
 
@@ -1021,7 +1058,7 @@ onBeforeUnmount(revokeObjectUrls)
                 class="mb-4 elevation-2 bg-light"
               >
                 <VImg
-                  :src="logoPreview"
+                  :src="logoPreview ?? undefined"
                   alt="Website logo preview"
                   cover
                 />
@@ -1049,6 +1086,20 @@ onBeforeUnmount(revokeObjectUrls)
                 {{ $t('pages.settings.settings.jpgPNGGIFOrWEBPUpTo2MB')
                 }}
               </p>
+              <VBtn
+                v-if="savedSetting?.website_logo || form.website_logo"
+                color="error"
+                variant="text"
+                density="comfortable"
+                class="mt-2"
+                :disabled="!canEditSettings"
+                @click="removeUpload('website_logo')"
+              >
+                <VIcon
+                  icon="tabler-trash"
+                  class="me-2"
+                />{{ $t('pages.settings.settings.removeFile') }}
+              </VBtn>
 
               <VDivider class="my-5 w-100" />
               <div class="text-subtitle-2 mb-2">
@@ -1092,6 +1143,20 @@ onBeforeUnmount(revokeObjectUrls)
                 {{ $t('pages.settings.settings.shownOnPrintedContracts')
                 }}
               </p>
+              <VBtn
+                v-if="signaturePreview"
+                color="error"
+                variant="text"
+                density="comfortable"
+                class="mt-2"
+                :disabled="!canEditSettings"
+                @click="removeUpload('company_signature')"
+              >
+                <VIcon
+                  icon="tabler-trash"
+                  class="me-2"
+                />{{ $t('pages.settings.settings.removeFile') }}
+              </VBtn>
             </VCol>
 
             <VCol
@@ -1176,6 +1241,18 @@ onBeforeUnmount(revokeObjectUrls)
                 {{ $t('pages.settings.settings.emailDeliveryHint') }}
               </VAlert>
             </VCol>
+            <VCol cols="12">
+              <VSwitch
+                v-model="form.email_delivery_enabled"
+                color="primary"
+                inset
+                :label="$t('pages.settings.settings.emailDeliveryEnabled')"
+                :hint="$t('pages.settings.settings.emailDeliveryEnabledHint')"
+                persistent-hint
+                :disabled="!canEditSettings"
+              />
+            </VCol>
+            <template v-if="form.email_delivery_enabled">
             <VCol
               cols="12"
               sm="6"
@@ -1274,6 +1351,7 @@ onBeforeUnmount(revokeObjectUrls)
                 type="email"
               />
             </VCol>
+            </template>
           </VRow>
 
           <VRow v-else-if="activeSettingsPage === 'operations'">

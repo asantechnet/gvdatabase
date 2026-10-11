@@ -74,6 +74,7 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'POST /loans/:id/approve': ['approve_pending_transactions'],
     'POST /loans/:id/reject': ['approve_pending_transactions'],
     'POST /loans/:id/post': ['post_pending_transactions'],
+    'GET /loans/:id/receipt': ['view_pending_transactions'],
     'GET /kanban': ['view_all_boards', 'view_assigned_boards'],
     'GET /boards': ['view_all_boards', 'view_assigned_boards'],
     'POST /boards': ['create_boards'],

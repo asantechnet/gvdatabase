@@ -15,6 +15,7 @@ const lines = ref<ApplicantContractPaymentOption[]>([])
 const lineId = ref<number | null>(null)
 const loadingLines = ref(false)
 const saving = ref(false)
+const confirmOpen = ref(false)
 const error = ref('')
 const amountOverride = ref(false)
 const statusOverride = ref(false)
@@ -70,6 +71,19 @@ watch(line, selected => {
   status.value = (selected?.payment_status ?? 'unpaid') as typeof status.value
 })
 
+// Overrides are audited and change the collectible balance, so the save is
+// gated behind an explicit confirmation rather than firing on the first click.
+function requestSave() {
+  if (!canSave.value || !line.value)
+    return
+  confirmOpen.value = true
+}
+
+async function confirmSave() {
+  confirmOpen.value = false
+  await save()
+}
+
 async function save() {
   if (!canSave.value || !line.value)
     return
@@ -101,6 +115,7 @@ onBeforeUnmount(() => {
     <VCard :title="t('finance.paymentOverrides.title')">
       <VCardText>
         <VAlert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</VAlert>
+        <VAlert type="warning" variant="tonal" class="mb-4">{{ t('finance.paymentOverrides.warning') }}</VAlert>
         <SearchableApplicantSelect v-model="applicantId" :active="modelValue" :disabled="saving" class="mb-4" />
         <VSelect v-model="lineId" :items="lineOptions" :label="t('finance.paymentOverrides.service')" :loading="loadingLines" :disabled="!applicantId || saving || loadingLines" />
         <template v-if="line">
@@ -116,8 +131,18 @@ onBeforeUnmount(() => {
       </VCardText>
       <VCardActions class="justify-end flex-wrap">
         <VBtn :disabled="saving" @click="emit('update:modelValue', false)">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="saving" :disabled="!canSave" @click="save">{{ t('common.actions.save') }}</VBtn>
+        <VBtn color="primary" :loading="saving" :disabled="!canSave" @click="requestSave">{{ t('common.actions.save') }}</VBtn>
       </VCardActions>
+      <VDialog v-model="confirmOpen" max-width="420" :persistent="saving">
+        <VCard :title="t('finance.paymentOverrides.confirmTitle')">
+          <VCardText>{{ t('finance.paymentOverrides.confirmWarning') }}</VCardText>
+          <VCardActions>
+            <VSpacer />
+            <VBtn variant="tonal" :disabled="saving" @click="confirmOpen = false">{{ t('common.actions.cancel') }}</VBtn>
+            <VBtn color="primary" :loading="saving" @click="confirmSave">{{ t('finance.paymentOverrides.confirmSave') }}</VBtn>
+          </VCardActions>
+        </VCard>
+      </VDialog>
     </VCard>
   </VDialog>
 </template>

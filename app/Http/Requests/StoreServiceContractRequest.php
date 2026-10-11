@@ -38,12 +38,15 @@ class StoreServiceContractRequest extends FormRequest
         $exists = fn (string $table) => Rule::exists($table, 'id')->whereNull('deleted_at');
         $service = $this->route('service');
         $extending = $this->filled('parent_contract_id');
-        $identity = $extending ? 'prohibited' : 'nullable';
+        // An academy extension keeps its applicant editable, so identity fields
+        // are accepted; every other extension copies the parent applicant and
+        // must not carry identity changes.
+        $identity = $extending && $service !== BuiltInService::ACADEMY ? 'prohibited' : 'nullable';
         $rules = [
             'parent_contract_id' => ['nullable', 'integer', $exists('contracts')],
             'marketer' => ['prohibited'],
             'marketer_id' => ['prohibited'],
-            'name' => [$extending ? 'prohibited' : 'required', 'string', 'max:255'],
+            'name' => [$extending && $service !== BuiltInService::ACADEMY ? 'prohibited' : 'required', 'string', 'max:255'],
             'father_name' => [$identity, 'string', 'max:255'],
             'backup_phone' => [$identity, 'string', 'max:50'],
             'father_phone' => [$identity, 'string', 'max:50'],
@@ -52,7 +55,7 @@ class StoreServiceContractRequest extends FormRequest
             'address' => [$identity, 'string', 'max:1000'],
             'tax_number' => [$identity, 'string', 'max:255'],
             'responsible_employee_id' => [$identity, 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('status', 'active')],
-            'admission_employee_id' => $extending ? ['prohibited'] : AgencyStaffAssignment::rules('admission'),
+            'admission_employee_id' => $extending && $service !== BuiltInService::ACADEMY ? ['prohibited'] : AgencyStaffAssignment::rules('admission'),
             'fee' => ['required', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2'],
             'discount' => ['required', 'numeric', 'min:0', 'lte:fee', 'decimal:0,2'],
             'currency_id' => ['required', 'integer', Rule::exists('currencies', 'id')->whereNull('deleted_at')->where('is_active', true)],
@@ -88,11 +91,12 @@ class StoreServiceContractRequest extends FormRequest
             BuiltInService::ACADEMY => ['program_id', 'time_id', 'duration_id', 'teacher_ids', 'class_id'],
             default => [],
         };
+        $allowsServiceFields = (! $extending || $service === BuiltInService::ACADEMY);
         foreach ($fields as $key => $fieldRules) {
-            $rules[$key] = ! $extending && in_array($key, $allowed, true) ? $fieldRules : ['prohibited'];
+            $rules[$key] = $allowsServiceFields && in_array($key, $allowed, true) ? $fieldRules : ['prohibited'];
         }
         foreach (['favorite_subject_ids' => 'subjects', 'skill_ids' => 'skills', 'teacher_ids' => 'teachers'] as $key => $table) {
-            if (! $extending && in_array($key, $allowed, true)) {
+            if ($allowsServiceFields && in_array($key, $allowed, true)) {
                 $rules["{$key}.*"] = ['integer', 'distinct', $exists($table)];
             }
         }

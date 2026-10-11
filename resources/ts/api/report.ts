@@ -1,4 +1,5 @@
 import api from './axios'
+import { currentLocale } from '@/utils/localization'
 
 export type ReportType = 'financial' | 'payroll' | 'attendance' | 'operations'
 
@@ -60,7 +61,9 @@ const ReportApi = {
     return response.data.data
   },
   async export(type: ReportType, params: ReportFilters, format: 'csv' | 'print' = 'csv'): Promise<Blob> {
-    const response = await api.get(`/reports/${type}/export`, { params: { ...params, format }, responseType: 'blob' })
+    // The print document and the CSV are rendered by the server, so the active
+    // locale travels with the request and its dates are localized there too.
+    const response = await api.get(`/reports/${type}/export`, { params: { ...params, format, locale: currentLocale() }, responseType: 'blob' })
 
     return response.data
   },

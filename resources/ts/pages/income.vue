@@ -6,11 +6,13 @@ import { type FinanceType, getFinanceTypes } from '@/api/financeTypes'
 import { financeTypeLabel } from '@/utils/financeTypes'
 import PendingTransactionApi from '@/api/pendingTransactions'
 import { type Income, type IncomeCreateData, type ApplicantContractPaymentOption, createIncome, deleteIncome, getIncomes, getApplicantContractPayments, updateIncome } from '@/api/incomes'
+import ReceiptApi from '@/api/receipts'
 import ApplicantApi, { type Applicant } from '@/api/applicants'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ApplicantSelect from '@/components/income/ApplicantSelect.vue'
 import ReceiptPrinter from '@/components/income/ReceiptPrinter.vue'
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
@@ -52,6 +54,8 @@ const selectedIncome = ref<IncomeForm>(emptyIncomeForm())
 const searchQuery = ref('')
 const filterType = ref<string | null>(null)
 const filterCurrency = ref<number | null>(null)
+const dateFrom = ref('')
+const dateTo = ref('')
 const isLoading = ref(false)
 const applicantContracts = ref<ApplicantContractPaymentOption[]>([])
 const currencies = ref<Currency[]>([])
@@ -165,6 +169,10 @@ const fetchIncomes = async () => {
       params.type = filterType.value
     if (filterCurrency.value)
       params.currency_id = filterCurrency.value
+    if (dateFrom.value)
+      params.date_from = dateFrom.value
+    if (dateTo.value)
+      params.date_to = dateTo.value
 
     const response = await getIncomes(params)
 
@@ -475,8 +483,8 @@ onMounted(() => {
             class="d-flex align-center justify-md-end ga-2"
           >
             <DataTableFilterMenu
-              :active="Boolean(filterType || filterCurrency)"
-              @reset="filterType = null; filterCurrency = null; fetchIncomes()"
+              :active="Boolean(filterType || filterCurrency || dateFrom || dateTo)"
+              @reset="filterType = null; filterCurrency = null; dateFrom = ''; dateTo = ''; fetchIncomes()"
             >
               <VSelect
                 v-model="filterType"
@@ -496,6 +504,7 @@ onMounted(() => {
                 hide-details
                 @update:model-value="fetchIncomes"
               />
+              <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="fetchIncomes" />
             </DataTableFilterMenu>
             <div class="text-caption text-medium-emphasis">
               <strong class="text-high-emphasis">{{ incomes.length }}</strong> {{ $t('pages.finance.income.income.recordsCurrentlyShown') }}
@@ -670,7 +679,8 @@ onMounted(() => {
 
     <ReceiptPrinter
       v-model="isReceiptPreviewOpen"
-      :income-id="activeReceiptIncomeId"
+      :record-id="activeReceiptIncomeId"
+      :loader="ReceiptApi.getForIncome"
     />
 
     <AttachmentsDialog

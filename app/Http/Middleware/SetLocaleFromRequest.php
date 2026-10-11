@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\AcceptedLocale;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -10,17 +11,9 @@ class SetLocaleFromRequest
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $locales = config('localization.accepted_locales', []);
-        app()->setLocale(config('app.locale'));
-
-        if ($request->headers->has('Accept-Language') && $locales) {
-            $preferredLocale = $request->getPreferredLanguage(array_keys($locales));
-            $frontendLocale = str_replace('_', '-', (string) $preferredLocale);
-
-            if (isset($locales[$frontendLocale])) {
-                app()->setLocale($locales[$frontendLocale]);
-            }
-        }
+        // The tag ⇒ language mapping lives in one place so the printable report
+        // exports resolve the request language exactly like the API does.
+        AcceptedLocale::fromRequest($request);
 
         $response = $next($request);
 

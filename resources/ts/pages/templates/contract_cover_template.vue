@@ -56,6 +56,8 @@ const props = defineProps({
 const contractCoverRef = ref<HTMLElement | null>(null)
 const logoImage = ref<HTMLImageElement | null>(null)
 const logoLoaded = ref<boolean>(false)
+// A logo URL whose file is gone must not print as a broken image on the cover.
+const logoFailed = ref(false)
 
 const waitForLogoLoad = () => {
   return new Promise<void>(resolve => {
@@ -120,7 +122,7 @@ onMounted(() => {
       class="cover-design-background"
       aria-hidden="true"
     >
-    <!-- Blue top section with complex clip-path geometric transition -->
+    <!-- Blue top section with a clean straight edge -->
     <div class="top-section">
       <div class="content-container">
         <!-- Far Left: "COVER PAGE" -->
@@ -132,11 +134,12 @@ onMounted(() => {
         <div class="right-info-block">
           <div class="logo-circle">
             <img
-              v-if="logo"
+              v-if="logo && !logoFailed"
               ref="logoImage"
               :src="logo"
               alt="Company Logo"
               class="logo-image"
+              @error="logoFailed = true"
             >
             <div
               v-else
@@ -257,7 +260,6 @@ onMounted(() => {
   background-color: #26308e;
   position: relative;
   z-index: 10;
-  clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 82% 76%, 64% 71%, 50% 80%, 30% 73%, 14% 78%, 0% 72%);
   overflow: hidden;
 }
 
@@ -402,7 +404,6 @@ onMounted(() => {
   }
 
   :global(body.printing-contract-document) .top-section {
-    clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 82% 76%, 64% 71%, 50% 80%, 30% 73%, 14% 78%, 0% 72%) !important;
     width: 100% !important;
     flex: 3 !important;
   }

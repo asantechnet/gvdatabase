@@ -44,6 +44,8 @@ class DatabaseSeeder extends Seeder
             // Applicant cases then the contracts that sell them services.
             ApplicantSeeder::class,
             ContractSeeder::class,
+            // Employment agreements for the seeded workforce.
+            EmploymentContractSeeder::class,
 
             // Work-management records: boards, tasks and their relationships.
             BoardSeeder::class,

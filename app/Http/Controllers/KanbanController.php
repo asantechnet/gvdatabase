@@ -6,6 +6,7 @@ use App\Http\Resources\BoardResource;
 use App\Models\Board;
 use App\Models\User;
 use App\Support\EmployeeScope;
+use App\Support\ServiceBoard;
 use Illuminate\Http\Request;
 
 class KanbanController extends Controller
@@ -18,9 +19,14 @@ class KanbanController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        // The Kanban always shows the caller's private personal board; create it
+        // on first access.
+        if (! Board::query()->where('user_id', $user->id)->exists()) {
+            ServiceBoard::personalFor($user);
+        }
+
         $boards = Board::query()
-            ->when(! $user->hasPermission('view_all_boards'), fn ($query) => $query
-                ->whereHas('users', fn ($members) => $members->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user))))
+            ->visibleTo($user)
             ->with([
                 // Load nested tasks ordered by their vertical position
                 'tasks' => fn ($query) => $query

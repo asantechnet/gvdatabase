@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\BoardResource;
 use App\Models\Board;
 use App\Support\EmployeeScope;
+use App\Support\ServiceBoard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -17,9 +18,15 @@ class BoardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+
+        // Every employee keeps one private personal board. Create it lazily so
+        // the Kanban always has a Personal column after a fresh install.
+        if (! Board::query()->where('user_id', $user->id)->exists()) {
+            ServiceBoard::personalFor($user);
+        }
+
         $boards = Board::query()
-            ->when(! $user->hasPermission('view_all_boards'), fn ($query) => $query
-                ->whereHas('users', fn ($members) => $members->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user))))
+            ->visibleTo($user)
             ->with(['tasks' => function ($query) use ($user) {
                 $query->when(! $user->hasPermission('view_all_tasks'), fn ($tasks) => $tasks
                     ->whereHas('users', fn ($assignees) => $assignees->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user))))

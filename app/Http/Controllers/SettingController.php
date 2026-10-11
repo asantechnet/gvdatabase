@@ -24,6 +24,8 @@ class SettingController extends Controller
     ];
 
     private const REMOVABLE_FILES = [
+        'website_logo',
+        'company_signature',
         'contract_letterhead',
         'contract_cover_design',
         'receipt_letterhead',
@@ -52,6 +54,8 @@ class SettingController extends Controller
     {
         abort_if(Setting::query()->exists(), 409, 'business.company_profile_already_exists');
         $data = Arr::except($request->validated(), [
+            'remove_website_logo',
+            'remove_company_signature',
             'remove_contract_letterhead',
             'remove_contract_cover_design',
             'remove_receipt_letterhead',
@@ -92,6 +96,8 @@ class SettingController extends Controller
     public function update(UpsertSettingRequest $request, Setting $setting): JsonResponse
     {
         $data = Arr::except($request->validated(), [
+            'remove_website_logo',
+            'remove_company_signature',
             'remove_contract_letterhead',
             'remove_contract_cover_design',
             'remove_receipt_letterhead',

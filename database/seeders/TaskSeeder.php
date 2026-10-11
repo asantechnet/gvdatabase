@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Contract;
 use App\Models\Task;
+use App\Models\User;
 use App\Support\BuiltInService;
 use App\Support\PaymentStatus;
 use App\Support\ServiceBoard;
@@ -63,8 +64,13 @@ class TaskSeeder extends Seeder
                 $orders[$board->title] = $order + 1;
             });
 
-        // Operational work on the Personal board.
-        $personal = ServiceBoard::firstOrCreateFor(ServiceBoard::PERSONAL);
+        // Operational work lives on the operations manager's *private*
+        // personal board, demonstrating that personal work is not shared.
+        $personalOwner = User::query()
+            ->whereHas('employee.position', fn ($query) => $query->whereIn('system_key', ['manager', 'document_officer']))
+            ->orderBy('id')
+            ->first();
+        $personal = $personalOwner ? ServiceBoard::personalFor($personalOwner) : null;
         $personalTasks = [
             ['title' => 'Update the HQ asset register', 'priority' => 'medium', 'progress' => 0, 'due_in_days' => 5],
             ['title' => 'Prepare the monthly attendance summary', 'priority' => 'medium', 'progress' => 30, 'due_in_days' => 3],
@@ -72,6 +78,9 @@ class TaskSeeder extends Seeder
             ['title' => 'Archive last quarter payslips', 'priority' => 'low', 'progress' => 100, 'due_in_days' => -2],
         ];
         foreach ($personalTasks as $index => $data) {
+            if (! $personal) {
+                break;
+            }
             $task = Task::withTrashed()->firstOrNew(['board_id' => $personal->id, 'title' => $data['title']]);
             $task->fill([
                 'description' => 'Routine operations task.',

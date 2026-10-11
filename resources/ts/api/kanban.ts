@@ -5,6 +5,10 @@ export interface Board {
   id: string
   title: string
   order: number
+  /** Non-null for a private personal board (one per user). */
+  user_id: string | null
+  is_personal: boolean
+  is_owned: boolean
   tasks: Task[]
 }
 

@@ -16,7 +16,8 @@ const printing = ref(false)
 const templateRef = ref<InstanceType<typeof AcademySlipTemplate> | null>(null)
 
 const paperSize = ref<AcademySlipPaperSize>('A4 2x A5')
-const copies = ref(2)
+// Two slips are always issued together: the academy copy and the office copy.
+const copies = 2
 let requestGeneration = 0
 
 const paperSizes = computed<Array<{ title: string; value: AcademySlipPaperSize }>>(() => [
@@ -84,7 +85,6 @@ const print = async () => {
         </div>
         <VSpacer />
         <VSelect v-model="paperSize" :items="paperSizes" :label="t('documents.academySlip.paperSize')" density="compact" hide-details :disabled="printing" style="min-width: 200px;" />
-        <VTextField v-model.number="copies" type="number" min="1" max="4" :label="t('documents.academySlip.copies')" density="compact" hide-details :disabled="printing" style="max-width: 110px;" />
         <VBtn variant="tonal" color="secondary" :disabled="printing" @click="emit('update:modelValue', false)">{{ t('common.actions.close') }}</VBtn>
         <VBtn color="primary" prepend-icon="tabler-printer" :disabled="!slip || loading || printing" :loading="printing" @click="print">{{ t('documents.academySlip.print') }}</VBtn>
       </VCardTitle>
@@ -99,7 +99,7 @@ const print = async () => {
           <AcademySlipTemplate
             ref="templateRef"
             :slip="slip"
-            :copies="Number(copies) || 1"
+            :copies="copies"
             :paper-size="paperSize"
           />
         </div>

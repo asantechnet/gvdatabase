@@ -14,7 +14,9 @@ use App\Models\Expense;
 use App\Models\Income;
 use App\Models\PendingTransaction;
 use App\Models\Salary;
+use App\Support\AcceptedLocale;
 use App\Support\BuiltInService;
+use App\Support\ReportDateFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -45,11 +47,13 @@ class EducationalReportController extends Controller
     {
         $this->assertType($type);
         abort_unless($request->user()->hasPermission('export_reports'), 403, 'auth.forbidden');
+        AcceptedLocale::fromRequest($request);
         $filters = $this->filters($request);
         $report = $this->rows($type, $filters, paginate: false, request: $request);
         $filename = sprintf('visa-%s-report-%s.csv', $type, now()->format('Y-m-d'));
+        $generatedAt = now('UTC')->toISOString();
 
-        return response()->streamDownload(function () use ($report): void {
+        return response()->streamDownload(function () use ($report, $generatedAt): void {
             $stream = fopen('php://output', 'wb');
             fwrite($stream, "\xEF\xBB\xBF");
             fputcsv($stream, $report['columns']);
@@ -57,7 +61,9 @@ class EducationalReportController extends Controller
                 fputcsv($stream, array_map(fn ($column) => $this->csvValue($row[$column] ?? null), $report['columns']));
             }
             fputcsv($stream, []);
-            fputcsv($stream, ['generated_at_utc', now('UTC')->toISOString()]);
+            // Keep the machine value and pair it with a localized, readable one.
+            fputcsv($stream, ['generated_at_utc', $generatedAt]);
+            fputcsv($stream, ['generated_at', ReportDateFormatter::human($generatedAt)]);
             fclose($stream);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }

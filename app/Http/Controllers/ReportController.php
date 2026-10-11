@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\GenerateReportRequest;
 use App\Models\User;
 use App\Services\ReportService;
+use App\Support\AcceptedLocale;
+use App\Support\ReportDateFormatter;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -29,6 +31,9 @@ class ReportController extends Controller
         /** @var User $user */
         $user = $request->user();
         abort_unless($reports->canExport($user, $type), 403, 'auth.forbidden');
+        // The print and CSV documents are rendered server-side, so the SPA's
+        // locale travels with the request instead of relying on the session.
+        AcceptedLocale::fromRequest($request);
         $report = $reports->generate($type, $request->validated(), $user);
 
         if (($request->validated('format') ?? 'csv') === 'print') {
@@ -52,7 +57,10 @@ class ReportController extends Controller
                 fputcsv($stream, ['totals', json_encode($section['totals'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
             }
             fputcsv($stream, []);
+            // The UTC value stays machine-readable; the localized line makes the
+            // export readable in the same way the printed report is.
             fputcsv($stream, ['generated_at_utc', $report['meta']['generated_at']]);
+            fputcsv($stream, ['generated_at', ReportDateFormatter::human($report['meta']['generated_at'], $report['meta']['timezone'])]);
             fputcsv($stream, ['company_timezone', $report['meta']['timezone']]);
             fclose($stream);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);

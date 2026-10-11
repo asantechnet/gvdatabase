@@ -1,10 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
-import ReceiptApi, { type ReceiptPayload } from '@/api/receipts'
+import type { ReceiptPayload } from '@/api/receipts'
 import ReceiptTemplate, { type ReceiptPaperSize } from '@/pages/templates/receipt_template.vue'
 
-const props = defineProps<{ modelValue: boolean; incomeId: number | null }>()
+// Shared preview/print dialog for A5 receipt-shaped documents. Incomes and
+// loans both render the same template; callers pass their own loader so the
+// income and loan API contracts stay separate.
+const props = withDefaults(defineProps<{
+  modelValue: boolean
+  recordId: number | null
+  loader: (id: number) => Promise<ReceiptPayload>
+  document?: 'receipt' | 'loan'
+}>(), {
+  document: 'receipt',
+})
+
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
 const toast = useToast()
@@ -16,6 +27,10 @@ const templateRef = ref<InstanceType<typeof ReceiptTemplate> | null>(null)
 const paperSize = ref<ReceiptPaperSize>('A5')
 const copies = ref(1)
 let requestGeneration = 0
+
+const isLoan = computed(() => props.document === 'loan' || receipt.value?.document === 'loan')
+const documentTitle = computed(() => translate(isLoan.value ? 'documents.loan.title' : 'documents.receipt.title'))
+const printLabel = computed(() => translate(isLoan.value ? 'documents.loan.print' : 'documents.receipt.printReceipt'))
 
 const paperSizes = computed<Array<{ title: string; value: ReceiptPaperSize }>>(() => [
   { title: translate('documents.receipt.paperA3Landscape'), value: 'A3 landscape' },
@@ -29,16 +44,16 @@ const paperSizes = computed<Array<{ title: string; value: ReceiptPaperSize }>>((
 
 const previewScale = computed(() => (paperSize.value === 'A5' || paperSize.value === 'A5 2x' ? 0.85 : paperSize.value === 'A4 2x A5' ? 0.9 : 1))
 
-watch(() => [props.modelValue, props.incomeId] as const, async ([open, incomeId]) => {
+watch(() => [props.modelValue, props.recordId] as const, async ([open, recordId]) => {
   const generation = ++requestGeneration
   receipt.value = null
   loading.value = false
-  if (!open || !incomeId)
+  if (!open || !recordId)
     return
 
   loading.value = true
   try {
-    const result = await ReceiptApi.getForIncome(Number(incomeId))
+    const result = await props.loader(Number(recordId))
     if (generation === requestGeneration)
       receipt.value = result
   }
@@ -89,11 +104,11 @@ const print = async () => {
             variant="tonal"
             size="38"
           >
-            <VIcon icon="tabler-receipt" />
+            <VIcon :icon="isLoan ? 'tabler-clock-dollar' : 'tabler-receipt'" />
           </VAvatar>
           <div>
             <div class="text-h6 font-weight-bold">
-              {{ $t('documents.receipt.title') }}
+              {{ documentTitle }}
             </div>
             <div class="text-caption text-medium-emphasis">
               {{ receipt?.serial_number || '—' }}
@@ -136,7 +151,7 @@ const print = async () => {
             :loading="printing"
             @click="print"
           >
-            {{ $t('documents.receipt.printReceipt') }}
+            {{ printLabel }}
           </VBtn>
         </div>
       </VCardTitle>

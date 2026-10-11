@@ -66,6 +66,7 @@ export interface Setting {
   mail_password_configured: boolean
   mail_from_name: string | null
   mail_reply_to: string | null
+  email_delivery_enabled: boolean
   timezone: string
   phone: string | null
   physical_address: string | null
@@ -94,7 +95,9 @@ export interface SettingForm {
   paid_leave_days_per_year: number
   website_title: string
   website_logo?: File | null
+  remove_website_logo?: boolean
   company_signature?: File | null
+  remove_company_signature?: boolean
   contract_letterhead?: File | null
   contract_cover_design?: File | null
   remove_contract_letterhead?: boolean
@@ -127,6 +130,7 @@ export interface SettingForm {
   clear_mail_password?: boolean
   mail_from_name: string
   mail_reply_to: string
+  email_delivery_enabled: boolean
   timezone: string
   phone: string
   physical_address: string

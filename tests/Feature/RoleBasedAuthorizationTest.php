@@ -41,12 +41,18 @@ class RoleBasedAuthorizationTest extends TestCase
 
         Sanctum::actingAs($staff, ['access']);
 
-        $this->getJson('/api/kanban')
-            ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', (string) $assignedBoard->id)
-            ->assertJsonCount(1, 'data.0.tasks')
-            ->assertJsonPath('data.0.tasks.0.id', (string) $assignedTask->id);
+        // The staff member receives their assigned shared board (never the
+        // hidden one) plus their own private personal board, which is theirs
+        // alone.
+        $staffBoards = $this->getJson('/api/kanban')->assertOk()->json('data');
+        $this->assertSame(
+            [(string) $assignedBoard->id],
+            collect($staffBoards)->where('is_personal', false)->pluck('id')->values()->all()
+        );
+        $assigned = collect($staffBoards)->firstWhere('id', (string) $assignedBoard->id);
+        $this->assertCount(1, $assigned['tasks']);
+        $this->assertSame((string) $assignedTask->id, $assigned['tasks'][0]['id']);
+        $this->assertTrue(collect($staffBoards)->contains(fn ($board) => $board['is_personal'] && $board['is_owned']));
 
         $subtaskId = $this->postJson("/api/tasks/{$assignedTask->id}/subtasks", [
             'title' => 'Prepare handoff',
@@ -66,9 +72,8 @@ class RoleBasedAuthorizationTest extends TestCase
             ->assertJsonPath('code', 'auth.forbidden');
 
         Sanctum::actingAs($outsider, ['access']);
-        $this->getJson('/api/kanban')
-            ->assertOk()
-            ->assertJsonCount(0, 'data');
+        $outsiderBoards = $this->getJson('/api/kanban')->assertOk()->json('data');
+        $this->assertCount(0, collect($outsiderBoards)->where('is_personal', false));
     }
 
     public function test_manager_can_manage_a_subtask_created_by_an_assignee(): void

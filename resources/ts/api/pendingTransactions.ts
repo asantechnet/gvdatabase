@@ -1,4 +1,5 @@
 import api from './axios'
+import type { ReceiptPayload } from './receipts'
 
 export type PendingTransactionType = 'income' | 'expense' | 'salary'
 export type PendingTransactionStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'posted'
@@ -57,4 +58,5 @@ export default {
   approve: async (id: number) => unwrap<PendingTransaction>(await api.post(`/loans/${id}/approve`)),
   reject: async (id: number, rejection_reason: string) => unwrap<PendingTransaction>(await api.post(`/loans/${id}/reject`, { rejection_reason })),
   post: async (id: number) => unwrap<PendingTransaction>(await api.post(`/loans/${id}/post`)),
+  receipt: async (id: number) => unwrap<ReceiptPayload>(await api.get(`/loans/${id}/receipt`)),
 }

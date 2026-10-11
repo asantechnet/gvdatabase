@@ -18,6 +18,13 @@ class TaskAccess
 {
     public static function canViewBoard(User $user, Board $board): bool
     {
+        // A personal board is private to its owner. Membership and even the
+        // blanket `view_all_boards` grant never widen it (super-admins are the
+        // only exception, for support).
+        if ($board->isPersonal()) {
+            return $user->isSuperAdmin() || (int) $board->user_id === (int) $user->id;
+        }
+
         if ($user->hasPermission('view_all_boards')) {
             return true;
         }

@@ -221,14 +221,27 @@ const openVersionDialog = () => {
 }
 
 const createVersion = async () => {
-  const scopeMissing = isTestOffer.value ? !versionForm.value.test_id : !versionForm.value.country_id
-  if (!templateId.value || !versionForm.value.name.trim() || scopeMissing || !versionForm.value.language_id) {
-    toast.warning(tr('versions.countryLanguageRequired'))
+  if (!templateId.value || !versionForm.value.name.trim()) {
+    toast.warning(tr('validation.versionNameRequired'))
     return
+  }
+  // Employment templates are name-only: no country/language scope.
+  if (!isEmployment.value) {
+    const scopeMissing = isTestOffer.value ? !versionForm.value.test_id : !versionForm.value.country_id
+    if (scopeMissing || !versionForm.value.language_id) {
+      toast.warning(tr('versions.countryLanguageRequired'))
+      return
+    }
   }
   try {
     versionsLoading.value = true
-    await ContractTemplateApi.createVersion(templateId.value, { ...versionForm.value, name: versionForm.value.name.trim(), content: serializePlaceholders(contentHtml.value) })
+    await ContractTemplateApi.createVersion(templateId.value, {
+      name: versionForm.value.name.trim(),
+      country_id: isEmployment.value ? null : versionForm.value.country_id,
+      test_id: isEmployment.value ? null : versionForm.value.test_id,
+      language_id: isEmployment.value ? null : versionForm.value.language_id,
+      content: serializePlaceholders(contentHtml.value),
+    })
     versionDialog.value = false
     await loadVersions()
     toast.success(tr('versions.created'))
@@ -400,8 +413,10 @@ const saveContract = async () => {
     return
   }
   const isNewTemplate = !templateId.value
-  const initialScopeMissing = isTestOffer.value ? !initialVersion.value.test_id : !initialVersion.value.country_id
-  if (isNewTemplate && (!initialVersion.value.name.trim() || initialScopeMissing || !initialVersion.value.language_id)) {
+  const initialScopeMissing = isEmployment.value
+    ? false
+    : (isTestOffer.value ? !initialVersion.value.test_id : !initialVersion.value.country_id) || !initialVersion.value.language_id
+  if (isNewTemplate && (!initialVersion.value.name.trim() || initialScopeMissing)) {
     toast.warning(tr('messages.selectInitialVersion'))
 
     return
@@ -415,8 +430,10 @@ const saveContract = async () => {
     const saved = templateId.value ? await ContractTemplateApi.update(templateId.value, payload) : await ContractTemplateApi.create(payload)
     if (isNewTemplate) {
       await ContractTemplateApi.createVersion(saved.id, {
-        ...initialVersion.value,
         name: initialVersion.value.name.trim(),
+        country_id: isEmployment.value ? null : initialVersion.value.country_id,
+        test_id: isEmployment.value ? null : initialVersion.value.test_id,
+        language_id: isEmployment.value ? null : initialVersion.value.language_id,
         content: serialized,
       })
     }
@@ -533,8 +550,8 @@ watch(locale, async () => {
       >
         <VCardItem>
           <template #prepend><VIcon icon="tabler-versions" color="primary" class="mr-2" /></template>
-          <VCardTitle>{{ tr('versions.title') }}</VCardTitle>
-          <VCardSubtitle>{{ tr('versions.subtitle') }}</VCardSubtitle>
+          <VCardTitle>{{ isEmployment ? tr('versions.titleEmployment') : tr('versions.title') }}</VCardTitle>
+          <VCardSubtitle>{{ isEmployment ? tr('versions.subtitleEmployment') : tr('versions.subtitle') }}</VCardSubtitle>
           <template #append>
             <VBtn
               v-if="canCreateVersions"
@@ -552,23 +569,23 @@ watch(locale, async () => {
             {{ tr('versions.saveFirstHint') }}
           </VAlert>
           <VRow dense class="mb-2">
-            <VCol v-if="isTestOffer" cols="12" sm="5"><VSelect v-model="versionTestFilter" :items="tests.filter(test => test.is_active).map(test => ({ title: test.name, value: test.id }))" :label="t('educational.masterData.tests')" clearable hide-details /></VCol>
-            <VCol v-else cols="12" sm="5"><VSelect v-model="versionCountryFilter" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="t('common.fields.country')" clearable hide-details /></VCol>
-            <VCol cols="12" sm="5"><VSelect v-model="versionLanguageFilter" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" :label="t('common.fields.language')" clearable hide-details /></VCol>
-            <VCol cols="12" sm="2" class="d-flex justify-end"><VBtn icon="tabler-refresh" variant="text" :loading="versionsLoading" @click="loadVersions" /></VCol>
+            <VCol v-if="!isEmployment && isTestOffer" cols="12" sm="5"><VSelect v-model="versionTestFilter" :items="tests.filter(test => test.is_active).map(test => ({ title: test.name, value: test.id }))" :label="t('educational.masterData.tests')" clearable hide-details /></VCol>
+            <VCol v-else-if="!isEmployment" cols="12" sm="5"><VSelect v-model="versionCountryFilter" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="t('common.fields.country')" clearable hide-details /></VCol>
+            <VCol v-if="!isEmployment" cols="12" sm="5"><VSelect v-model="versionLanguageFilter" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" :label="t('common.fields.language')" clearable hide-details /></VCol>
+            <VCol cols="12" :sm="isEmployment ? 12 : 2" class="d-flex justify-end"><VBtn icon="tabler-refresh" variant="text" :loading="versionsLoading" @click="loadVersions" /></VCol>
           </VRow>
           <VProgressLinear v-if="versionsLoading" indeterminate class="mb-3" />
           <VTable density="comfortable">
-            <thead><tr><th>{{ tr('versions.version') }}</th><th>{{ isTestOffer ? t('educational.masterData.tests') : t('common.fields.country') }}</th><th>{{ t('common.fields.language') }}</th><th>{{ t('common.fields.status') }}</th><th class="text-end">{{ t('pages.settings.policies.policies.policyLibrary.actions') }}</th></tr></thead>
+            <thead><tr><th>{{ tr('versions.version') }}</th><th v-if="!isEmployment">{{ isTestOffer ? t('educational.masterData.tests') : t('common.fields.country') }}</th><th v-if="!isEmployment">{{ t('common.fields.language') }}</th><th>{{ t('common.fields.status') }}</th><th class="text-end">{{ t('pages.settings.policies.policies.policyLibrary.actions') }}</th></tr></thead>
             <tbody>
               <tr v-for="version in visibleVersions" :key="version.id">
                 <td class="font-weight-medium">{{ version.name }} <span class="text-medium-emphasis">· v{{ version.version_number }}</span></td>
-                <td>{{ isTestOffer ? versionTestName(version) : versionCountryName(version) }}</td>
-                <td>{{ versionLanguageName(version) }}</td>
+                <td v-if="!isEmployment">{{ isTestOffer ? versionTestName(version) : versionCountryName(version) }}</td>
+                <td v-if="!isEmployment">{{ versionLanguageName(version) }}</td>
                 <td><VChip size="small" :color="version.is_current ? 'success' : version.status === 'draft' ? 'warning' : 'secondary'" variant="tonal">{{ version.is_current ? tr('versions.active') : translateBackendValue(version.status) }}</VChip></td>
                 <td class="text-end text-no-wrap"><VBtn size="small" variant="text" @click="previewVersion = version">{{ tr('versions.preview') }}</VBtn><VBtn v-if="canEditDraftVersions && version.status === 'draft'" size="small" variant="text" @click="editVersion(version)">{{ tr('versions.editDraft') }}</VBtn><VBtn v-if="canActivateVersions && version.status === 'draft'" size="small" color="primary" variant="text" :loading="activatingVersionId === version.id" @click="activateVersion(version)">{{ tr('versions.activate') }}</VBtn><VBtn v-if="canArchiveVersions && version.status === 'draft'" size="small" color="error" variant="text" @click="archiveVersion(version)">{{ tr('versions.archive') }}</VBtn></td>
               </tr>
-              <tr v-if="!versionsLoading && !visibleVersions.length"><td colspan="5" class="text-center text-medium-emphasis py-6">{{ tr('versions.empty') }}</td></tr>
+              <tr v-if="!versionsLoading && !visibleVersions.length"><td :colspan="isEmployment ? 3 : 5" class="text-center text-medium-emphasis py-6">{{ tr('versions.empty') }}</td></tr>
             </tbody>
           </VTable>
         </VCardText>
@@ -650,11 +667,11 @@ watch(locale, async () => {
                 <VTextField v-model="initialVersion.name" :label="tr('versions.versionName')" :rules="[value => !!String(value || '').trim() || tr('validation.versionNameRequired')]" />
               </VCol>
               <VCol
+                v-if="!isEmployment && isTestOffer"
                 cols="12"
                 md="6"
               >
                 <VSelect
-                  v-if="isTestOffer"
                   v-model="initialVersion.test_id"
                   :items="tests.filter(test => test.is_active).map(test => ({ title: test.name, value: test.id }))"
                   :label="t('educational.masterData.tests')"
@@ -662,8 +679,13 @@ watch(locale, async () => {
                   variant="outlined"
                   :rules="[value => !!value || t('common.validation.required')]"
                 />
+              </VCol>
+              <VCol
+                v-else-if="!isEmployment"
+                cols="12"
+                md="6"
+              >
                 <VSelect
-                  v-else
                   v-model="initialVersion.country_id"
                   :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))"
                   :label="tr('initialVersionCountry')"
@@ -673,6 +695,7 @@ watch(locale, async () => {
                 />
               </VCol>
               <VCol
+                v-if="!isEmployment"
                 cols="12"
                 md="6"
               >
@@ -835,11 +858,14 @@ watch(locale, async () => {
         <VAlert v-if="hasTemplateChanges" color="warning" variant="tonal" density="compact" icon="tabler-alert-triangle" class="mb-4">
           {{ tr('versions.unsavedHint') }}
         </VAlert>
+        <VAlert v-if="isEmployment" color="secondary" variant="tonal" density="compact" icon="tabler-versions" class="mb-4">
+          {{ tr('versions.nameOnlyHint') }}
+        </VAlert>
         <VRow>
           <VCol cols="12"><VTextField v-model="versionForm.name" :label="tr('versions.versionName')" :rules="[value => !!String(value || '').trim() || tr('validation.versionNameRequired')]" /></VCol>
-          <VCol v-if="isTestOffer" cols="12" sm="6"><VSelect v-model="versionForm.test_id" :items="tests.filter(test => test.is_active).map(test => ({ title: test.name, value: test.id }))" :label="t('educational.masterData.tests')" :rules="[value => !!value || t('common.validation.required')]" /></VCol>
-          <VCol v-else cols="12" sm="6"><VSelect v-model="versionForm.country_id" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="t('common.fields.country')" :rules="[value => !!value || tr('versions.countryRequired')]" /></VCol>
-          <VCol cols="12" sm="6"><VSelect v-model="versionForm.language_id" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" :label="t('common.fields.language')" :rules="[value => !!value || tr('versions.languageRequired')]" /></VCol>
+          <VCol v-if="!isEmployment && isTestOffer" cols="12" sm="6"><VSelect v-model="versionForm.test_id" :items="tests.filter(test => test.is_active).map(test => ({ title: test.name, value: test.id }))" :label="t('educational.masterData.tests')" :rules="[value => !!value || t('common.validation.required')]" /></VCol>
+          <VCol v-else-if="!isEmployment" cols="12" sm="6"><VSelect v-model="versionForm.country_id" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="t('common.fields.country')" :rules="[value => !!value || tr('versions.countryRequired')]" /></VCol>
+          <VCol v-if="!isEmployment" cols="12" sm="6"><VSelect v-model="versionForm.language_id" :items="languages.filter(language => language.is_active).map(language => ({ title: language.name, value: language.id }))" :label="t('common.fields.language')" :rules="[value => !!value || tr('versions.languageRequired')]" /></VCol>
         </VRow>
       </VCardText>
       <VCardActions><VSpacer/><VBtn variant="text" :disabled="versionsLoading" @click="versionDialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="primary" :loading="versionsLoading" :disabled="hasTemplateChanges" @click="createVersion">{{ tr('versions.createVersion') }}</VBtn></VCardActions>
@@ -848,7 +874,7 @@ watch(locale, async () => {
 
   <VDialog :model-value="!!previewVersion" max-width="900" @update:model-value="value => { if (!value) previewVersion = null }">
     <VCard>
-      <VCardItem :title="previewVersion ? `${previewVersion.name} · v${previewVersion.version_number}` : ''" :subtitle="previewVersion ? `${versionCountryName(previewVersion)} · ${versionLanguageName(previewVersion)}` : ''" />
+      <VCardItem :title="previewVersion ? `${previewVersion.name} · v${previewVersion.version_number}` : ''" :subtitle="previewVersion && !isEmployment ? `${versionCountryName(previewVersion)} · ${versionLanguageName(previewVersion)}` : ''" />
       <VDivider />
       <VCardText class="contract-version-preview" v-html="previewVersion?.content" />
       <VCardActions><VSpacer/><VBtn @click="previewVersion = null">{{ $t('common.actions.close') }}</VBtn></VCardActions>
