@@ -22,7 +22,7 @@ const editing = ref<CatalogRow | null>(null)
 const loading = ref(false)
 const form = ref<Partial<CatalogRow>>({ name: '', is_active: true })
 // Times, durations, teachers and classes moved to the academy data page under
-// the contracts submenu (see `pages/academy-data.vue`).
+// Options -> Contracts (see `pages/academy-data.vue`).
 const labels = computed<Record<Catalog, string>>(() => ({ countries: t('educational.masterData.countries'), 'education-levels': t('educational.masterData.educationLevels'), languages: t('educational.masterData.languages'), universities: t('educational.masterData.universities'), semesters: t('educational.semester'), subjects: t('educational.masterData.subjects'), tests: t('educational.masterData.tests'), skills: t('educational.masterData.skills'), programs: t('educational.masterData.programs'), scholarships: t('erp.scholarship'), 'applicant-stages': t('educational.masterData.applicantStages') }))
 const isStageCatalog = computed(() => catalog.value === 'applicant-stages')
 const hasCode = computed(() => ['countries', 'languages', 'semesters', 'applicant-stages'].includes(catalog.value))

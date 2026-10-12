@@ -144,7 +144,8 @@ const routeDefinitions: Array<{
   },
   { path: '/educational-master-data', component: 'educationalMasterData', name: 'educational-master-data', meta: { requiresAuth: true, action: 'read', subject: 'view_country' } },
   // Academy scheduling records (times, durations, teachers, classes) live on
-  // their own page under the contracts submenu.
+  // their own page, reached from Options -> Contracts. The path is kept as
+  // `/contracts/academy-data` so existing deep links keep working.
   { path: '/contracts/academy-data', component: 'academyData', name: 'academy-data', meta: { requiresAuth: true, action: 'read', subject: 'view_country' } },
   { path: '/applications', component: 'applicants', name: 'applications', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
   // Legacy path kept as a query-preserving redirect (deep links such as

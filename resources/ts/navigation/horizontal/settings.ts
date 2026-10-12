@@ -19,6 +19,13 @@ export default [
             action: 'read',
             subject: 'view_country',
           },
+          {
+            title: 'common.navigation.academyData',
+            icon: { icon: 'tabler-calendar-time' },
+            to: 'academy-data',
+            action: 'read',
+            subject: 'view_country',
+          },
         ],
       },
 
