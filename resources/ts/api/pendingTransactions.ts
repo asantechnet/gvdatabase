@@ -1,6 +1,9 @@
 import api from './axios'
 import type { ReceiptPayload } from './receipts'
 
+// Salary was retired from payment requests (payroll owns those records), so the
+// union keeps it only to read rows created before the change; the form offers
+// income and expense, and the API rejects salary on create and update.
 export type PendingTransactionType = 'income' | 'expense' | 'salary'
 export type PendingTransactionStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'posted'
 
@@ -50,13 +53,13 @@ export interface PendingTransactionPage {
 const unwrap = <T>(response: { data: { data: T } }) => response.data.data
 
 export default {
-  list: async (page = 1, perPage = 25) => unwrap<PendingTransactionPage>(await api.get('/loans', { params: { page, per_page: perPage } })),
-  create: async (data: PendingTransactionInput) => unwrap<PendingTransaction>(await api.post('/loans', data)),
-  update: async (id: number, data: Partial<PendingTransactionInput>) => unwrap<PendingTransaction>(await api.put(`/loans/${id}`, data)),
-  options: async () => unwrap<PendingTransactionOptions>(await api.get('/loans/options')),
-  review: async (id: number) => unwrap<PendingTransaction>(await api.post(`/loans/${id}/review`)),
-  approve: async (id: number) => unwrap<PendingTransaction>(await api.post(`/loans/${id}/approve`)),
-  reject: async (id: number, rejection_reason: string) => unwrap<PendingTransaction>(await api.post(`/loans/${id}/reject`, { rejection_reason })),
-  post: async (id: number) => unwrap<PendingTransaction>(await api.post(`/loans/${id}/post`)),
-  receipt: async (id: number) => unwrap<ReceiptPayload>(await api.get(`/loans/${id}/receipt`)),
+  list: async (page = 1, perPage = 25) => unwrap<PendingTransactionPage>(await api.get('/payment-requests', { params: { page, per_page: perPage } })),
+  create: async (data: PendingTransactionInput) => unwrap<PendingTransaction>(await api.post('/payment-requests', data)),
+  update: async (id: number, data: Partial<PendingTransactionInput>) => unwrap<PendingTransaction>(await api.put(`/payment-requests/${id}`, data)),
+  options: async () => unwrap<PendingTransactionOptions>(await api.get('/payment-requests/options')),
+  review: async (id: number) => unwrap<PendingTransaction>(await api.post(`/payment-requests/${id}/review`)),
+  approve: async (id: number) => unwrap<PendingTransaction>(await api.post(`/payment-requests/${id}/approve`)),
+  reject: async (id: number, rejection_reason: string) => unwrap<PendingTransaction>(await api.post(`/payment-requests/${id}/reject`, { rejection_reason })),
+  post: async (id: number) => unwrap<PendingTransaction>(await api.post(`/payment-requests/${id}/post`)),
+  receipt: async (id: number) => unwrap<ReceiptPayload>(await api.get(`/payment-requests/${id}/receipt`)),
 }

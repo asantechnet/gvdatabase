@@ -205,7 +205,9 @@ async function create(extension: Contract | null = null) {
       rate.value = Number(extensionLine?.currency_rate ?? currencies.value.find(row => row.id === currencyId.value)?.rate ?? 1)
     // A counselor creating a contract owns its case: preselect themselves when
     // they are in the counselor list so the field is not left blank.
-    if (!extension) {
+    // Academy enrolments have no associated employee, so they are never
+    // pre-filled with the signed-in counselor.
+    if (!extension && service.value !== 'academy') {
       const userData = useCookie<{ roles?: string[]; employee?: { id?: number } | null }>('userData').value
       const employeeId = userData?.employee?.id
       const isCounselor = (userData?.roles ?? []).some(role => role === 'counselor' || role === 'senior_counselor')
@@ -360,7 +362,8 @@ async function save() {
               <VExpansionPanel :title="t('erp.optionalDetails')"><VExpansionPanelText><VRow dense>
                 <VCol cols="12" sm="6" md="4"><ErpField v-model="form.email" :label="t('serviceContracts.email')" type="email" maxlength="255" /></VCol>
                 <VCol cols="12" sm="6" md="4"><ErpField v-model="form.address" :label="t('serviceContracts.address')" maxlength="1000" /></VCol>
-                <VCol cols="12" sm="6" md="4"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.responsibleEmployee')" clearable /></VCol>
+                <!-- Academy enrolments need no associated employee name. -->
+                <VCol v-if="service !== 'academy'" cols="12" sm="6" md="4"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.responsibleEmployee')" clearable /></VCol>
               </VRow></VExpansionPanelText></VExpansionPanel>
             </VExpansionPanels>
             <div class="d-flex align-center justify-space-between mt-4 mb-4"><strong>{{ t('erp.totalFee') }}: {{ fee.toFixed(2) }} {{ currencies.find(row => row.id === currencyId)?.code }}</strong><span>{{ t('serviceContracts.discount') }}: {{ discount }}</span></div>

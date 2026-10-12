@@ -104,6 +104,9 @@ const currentEmployeeName = computed(() => {
   return (match?.name?.trim() || cookieName || null) as string | null
 })
 const isApplicantLocked = computed(() => props.applicantId != null)
+// Other contracts are blank templates the office completes by hand: they carry
+// no counterparty identity, only the optional record that feeds placeholders.
+const isOtherAudience = computed(() => props.audience === 'other')
 const countries = ref<MasterDataRecord[]>([])
 const languages = ref<MasterDataRecord[]>([])
 const positions = ref<Position[]>([])
@@ -248,6 +251,18 @@ const selectedEmployee = computed(() => employees.value.find(item => item.id ===
 const selectedApplicant = computed(() => applicants.value.find(item => item.id === form.value.applicant_id) ?? null)
 
 watch(selectedApplicant, applicant => {
+  // Other contracts have no counterparty: the selected record only supplies
+  // template placeholders, so the counterparty fields are always cleared.
+  if (isOtherAudience.value) {
+    form.value.counterparty = ''
+    form.value.counterparty_company = null
+    form.value.counterparty_email = null
+    form.value.counterparty_contact = null
+    form.value.counterparty_address = null
+
+    return
+  }
+
   form.value.counterparty = applicant?.name ?? ''
   form.value.counterparty_company = null
   form.value.counterparty_email = applicant?.email ?? null
@@ -614,46 +629,40 @@ defineExpose({ submit })
         />
       </VCol>
 
-      <VCol
-        v-if="context === 'other'"
-        cols="12"
-      >
-        <ErpField
-          v-model="form.counterparty"
-          :label="tr('counterparty')"
-          :placeholder="tr('counterpartyPlaceholder')"
-          prepend-inner-icon="tabler-id"
-          :rules="[v => !!form.applicant_id || !!String(v || '').trim() || tr('counterpartyRequired')]"
-        />
-      </VCol>
-      <VCol
-        v-if="context === 'other'"
-        cols="12"
-        md="6"
-      >
-        <ErpField
-          v-model="form.counterparty_email"
-          :label="tr('counterpartyEmail')"
-          type="email"
-          prepend-inner-icon="tabler-mail"
-        />
-      </VCol>
-      <VCol
-        v-if="context === 'other'"
-        cols="12"
-        md="6"
-      >
-        <ErpField
-          v-model="form.counterparty_contact"
-          :label="tr('counterpartyContact')"
-          prepend-inner-icon="tabler-phone"
-        />
-      </VCol>
+      <!-- Other contracts carry no counterparty at all (blank template), so
+           these identity fields exist only for employee-derived parties. -->
+      <template v-if="context === 'other' && !isOtherAudience">
+        <VCol cols="12">
+          <ErpField
+            v-model="form.counterparty"
+            :label="tr('counterparty')"
+            :placeholder="tr('counterpartyPlaceholder')"
+            prepend-inner-icon="tabler-id"
+            :rules="[v => !!form.applicant_id || !!String(v || '').trim() || tr('counterpartyRequired')]"
+          />
+        </VCol>
+        <VCol cols="12" md="6">
+          <ErpField
+            v-model="form.counterparty_email"
+            :label="tr('counterpartyEmail')"
+            type="email"
+            prepend-inner-icon="tabler-mail"
+          />
+        </VCol>
+        <VCol cols="12" md="6">
+          <ErpField
+            v-model="form.counterparty_contact"
+            :label="tr('counterpartyContact')"
+            prepend-inner-icon="tabler-phone"
+          />
+        </VCol>
+      </template>
 
       <!-- Identity summary of the selected record, plus the contract dates -->
       <VCol cols="12">
         <CounterpartyCard
           :details="counterpartyDetails"
+          :title-key="isOtherAudience ? 'components.contractCounterpartyCard.applicantCardTitle' : null"
           editable
           start-required
           :start-date="form.start_date"

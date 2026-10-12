@@ -83,7 +83,7 @@ class GenericAgreementTest extends TestCase
         $this->deleteJson('/api/contracts/'.$contract->id)->assertUnprocessable();
     }
 
-    public function test_other_drafts_allow_metadata_edits_and_party_changes_without_retaining_old_contact_details(): void
+    public function test_other_drafts_allow_metadata_edits_and_record_swaps_without_retaining_party_details(): void
     {
         $template = $this->template();
         $first = Applicant::factory()->create(['email' => 'first@example.com']);
@@ -93,8 +93,12 @@ class GenericAgreementTest extends TestCase
         $template->update(['content' => '<p>New terms</p>']);
         $this->putJson('/api/contracts/'.$id, ['name' => 'Metadata only'])->assertOk();
         $this->assertSame('<p>Agreement</p>', Contract::findOrFail($id)->content);
-        $this->putJson('/api/contracts/'.$id, ['applicant_id' => $second->id])->assertOk()->assertJsonPath('data.counterparty', $second->name);
+        // Other contracts carry no counterparty at all: swapping the linked
+        // record updates the applicant snapshot without ever filling the party
+        // columns from either record's contact details.
+        $this->putJson('/api/contracts/'.$id, ['applicant_id' => $second->id])->assertOk()->assertJsonPath('data.counterparty', '');
         $contract = Contract::findOrFail($id);
+        $this->assertSame($second->id, $contract->applicant_id);
         $this->assertNull($contract->counterparty_email);
         $this->assertNull($contract->counterparty_contact);
         $this->assertNull($contract->counterparty_address);
@@ -128,8 +132,11 @@ class GenericAgreementTest extends TestCase
             $this->postJson('/api/contracts', ['template_id' => $this->template($slug)->id, 'counterparty' => 'Party'])->assertUnprocessable();
         }
         $this->postJson('/api/contracts', ['template_id' => $this->template('employment')->id])->assertUnprocessable();
-        $this->postJson('/api/contracts', ['template_id' => $template->id])->assertUnprocessable();
-        $this->assertDatabaseCount('contracts', 0);
+        // Other contracts are free-form templates the office completes by hand,
+        // so they carry no counterparty and a template alone is enough.
+        $this->postJson('/api/contracts', ['template_id' => $template->id])
+            ->assertCreated()->assertJsonPath('data.counterparty', '');
+        $this->assertDatabaseCount('contracts', 1);
     }
 
     public function test_custom_agreements_remain_available_and_cancellation_preserves_the_document(): void

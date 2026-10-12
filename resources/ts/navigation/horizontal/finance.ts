@@ -19,11 +19,18 @@ export default [
         subject: 'view_expenses',
       },
       {
-        title: 'common.navigation.loans',
-        icon: { icon: 'tabler-clock-dollar' },
-        to: 'pending-transactions',
+        title: 'common.navigation.paymentRequests',
+        icon: { icon: 'tabler-file-invoice' },
+        to: 'payment-requests',
         action: 'read',
         subject: 'view_pending_transactions',
+      },
+      {
+        title: 'common.navigation.commissions',
+        icon: { icon: 'tabler-percentage' },
+        to: 'commissions',
+        action: 'read',
+        subject: 'view_commissions',
       },
       {
         title: 'common.navigation.asset',

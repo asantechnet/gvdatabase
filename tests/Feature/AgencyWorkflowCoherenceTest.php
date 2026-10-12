@@ -52,6 +52,26 @@ class AgencyWorkflowCoherenceTest extends TestCase
         $this->postJson('/api/visitors', [...$data, 'counselor_employee_id' => $roleEmployee->id])->assertCreated();
     }
 
+    public function test_a_counselor_creating_a_visitor_is_locked_to_their_own_employee(): void
+    {
+        $other = $this->employee('counselor');
+        $roleUser = User::factory()->create(['roles' => ['counselor']]);
+        $self = Employee::factory()->create([
+            'user_id' => $roleUser->id,
+            'status' => 'active',
+            'position_id' => Position::where('system_key', 'counselor')->value('id'),
+        ]);
+        Sanctum::actingAs($roleUser, ['access']);
+
+        // Even when another counselor id is submitted, the signed-in counselor
+        // is recorded as the visitor's counselor.
+        $this->postJson('/api/visitors', [
+            'name' => 'Locked Visitor', 'contact' => '+93700000009',
+            'service' => 'Private', 'date' => '2026-10-09',
+            'counselor_employee_id' => $other->id,
+        ])->assertCreated()->assertJsonPath('data.counselor_employee_id', $self->id);
+    }
+
     public function test_admission_assignment_is_optional_and_independent_of_case_ownership(): void
     {
         $admission = $this->employee('admission');

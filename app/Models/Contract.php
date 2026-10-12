@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasDocumentNumber;
+use App\Services\CommissionService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
@@ -20,6 +21,27 @@ class Contract extends Model
 
     /** A later sale of the same service, linked back at the primary contract. */
     public const ROLE_EXTENSION = 'extension';
+
+    protected static function booted(): void
+    {
+        // Commission is earned by the *case*, not by this agreement: a service
+        // line pays out once its applicant reaches the terminal `completed`
+        // stage (see `CommissionService`). The hooks live on the model so every
+        // path — the service-contract flow, extension contracts, a manual
+        // status change — re-checks the case and either accrues the new line or
+        // voids what no longer earns. `syncForContract` is idempotent.
+        $sync = fn (Contract $contract) => app(CommissionService::class)->syncForContract($contract);
+
+        static::created(function (Contract $contract) use ($sync): void {
+            $sync($contract);
+        });
+
+        static::updated(function (Contract $contract) use ($sync): void {
+            if ($contract->wasChanged('status') || $contract->wasChanged('is_cancelled')) {
+                $sync($contract);
+            }
+        });
+    }
 
     protected $fillable = [
         'template_id',
@@ -120,6 +142,12 @@ class Contract extends Model
     public function soldByEmployee()
     {
         return $this->belongsTo(Employee::class, 'sold_by_employee_id')->withTrashed();
+    }
+
+    /** Commission accruals earned from completing this contract. */
+    public function commissionAccruals()
+    {
+        return $this->hasMany(CommissionAccrual::class);
     }
 
     public function templateVersion()

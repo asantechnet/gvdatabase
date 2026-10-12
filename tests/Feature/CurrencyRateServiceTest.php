@@ -68,9 +68,11 @@ class CurrencyRateServiceTest extends TestCase
     {
         Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
         $base = Currency::factory()->create(['is_base' => true]);
-        foreach (['incomes', 'expenses'] as $portal) {
+        // Each portal validates its type against `finance_types`, whose defaults
+        // differ per kind ('Service' for income, 'Salaries' for expense).
+        foreach ([['incomes', 'Service'], ['expenses', 'Salaries']] as [$portal, $type]) {
             $id = $this->postJson("/api/{$portal}", [
-                'type' => 'Service', 'description' => 'Base currency payment',
+                'type' => $type, 'description' => 'Base currency payment',
                 'amount' => 100, 'quantity' => 1, 'currency_id' => $base->id,
                 'rate' => 70, 'date' => now()->toDateString(),
             ])->assertCreated()->assertJsonPath('data.rate', 1)

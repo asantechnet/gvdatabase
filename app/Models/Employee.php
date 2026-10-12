@@ -62,6 +62,7 @@ class Employee extends Model
         'join_date',
         'contract_duration',
         'paid_leave_days',
+        'is_commission_based',
         'avatar',
         'document_path', 'document_name', 'document_mime', 'document_size',
         'user_id',
@@ -90,6 +91,18 @@ class Employee extends Model
     public function worthyEmployees(): HasMany
     {
         return $this->hasMany(WorthyEmployee::class);
+    }
+
+    /** Per-service commission rates this employee earns when commission-based. */
+    public function serviceCommissions(): HasMany
+    {
+        return $this->hasMany(EmployeeServiceCommission::class);
+    }
+
+    /** Commission accruals earned by this employee. */
+    public function commissionAccruals(): HasMany
+    {
+        return $this->hasMany(CommissionAccrual::class);
     }
 
     public function paidTimeOffs(): HasMany
@@ -180,6 +193,7 @@ class Employee extends Model
             'total_worked_hours' => 'decimal:2',
             'paid_leave_days' => 'decimal:1',
             'join_date' => 'date',
+            'is_commission_based' => 'boolean',
         ];
     }
 }

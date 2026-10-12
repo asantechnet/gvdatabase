@@ -75,13 +75,17 @@ const isCancelling = ref(false)
 const toast = useToast()
 const isContractActionDialogVisible = ref(false)
 const pendingContractAction = ref<{ type: 'delete' | 'cancel'; contract: Contract } | null>(null)
+// Other contracts are free-form templates the office completes by hand, so they
+// carry no counterparty at all: no input, no column, no filter and no print
+// party block. Only employment contracts are drawn for a named counterparty.
+const isOtherAudience = computed(() => props.contractAudience === 'other')
 const contractRequest = computed(() => ({ audience: props.contractAudience }))
 const pageTitle = computed(() => t(audienceCopy.value.title))
 const pageDescription = computed(() => t(audienceCopy.value.description))
 
 const counterparties = computed(() => [...new Set(contracts.value.map(c => c.counterparty).filter(c => c))])
 const statuses = ['draft', 'active', 'completed', 'terminated', 'cancelled']
-const canShowPartyDetails = computed(() => contractToPrint.value !== null && canPrintPartyDetails(contractToPrint.value))
+const canShowPartyDetails = computed(() => !isOtherAudience.value && contractToPrint.value !== null && canPrintPartyDetails(contractToPrint.value))
 const canShowContractHeader = computed(() => contractToPrint.value !== null && canPrintContractHeader(contractToPrint.value))
 const contractHeader = computed(() => (contractToPrint.value ? buildContractPrintHeader(contractToPrint.value) : null))
 const audienceCopy = computed(() => ({
@@ -113,34 +117,43 @@ const getStatusColor = (status: string) => {
 const filtered = computed(() => {
   return contracts.value.filter(c => {
     const contractName = c.contract || c.contract_template?.name || ''
-    const counterpartyName = c.counterparty || ''
+    const counterpartyName = isOtherAudience.value ? '' : c.counterparty || ''
 
     const matchesSearch = contractName.toLowerCase().includes(search.value.toLowerCase())
       || counterpartyName.toLowerCase().includes(search.value.toLowerCase())
       || (c.contract_number || '').toLowerCase().includes(search.value.toLowerCase())
 
-    const matchesCounterparty = !filterCounterparty.value || c.counterparty === filterCounterparty.value
+    const matchesCounterparty = isOtherAudience.value || !filterCounterparty.value || c.counterparty === filterCounterparty.value
     const matchesStatus = !filterStatus.value || c.status === filterStatus.value
 
     return matchesSearch && matchesCounterparty && matchesStatus
   })
 })
 
-const headers = computed(() => [
-  { title: t('common.messages.contractNumber'), key: 'contract_number', sortable: true },
-  { title: t('common.messages.contract'), key: 'contract', sortable: true },
-  { title: t('agencyStaff.contractVersion'), key: 'version', sortable: true },
-  { title: t('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true },
-  { title: t('common.fields.startDate'), key: 'start_date', sortable: true },
-  { title: t('common.fields.status'), key: 'status', sortable: true },
-  { title: t('common.messages.actions'), key: 'actions', sortable: false },
-])
+const headers = computed(() => {
+  const rows: Array<{ title: string; key: string; sortable: boolean }> = [
+    { title: t('common.messages.contractNumber'), key: 'contract_number', sortable: true },
+    { title: t('common.messages.contract'), key: 'contract', sortable: true },
+    { title: t('agencyStaff.contractVersion'), key: 'version', sortable: true },
+  ]
+
+  if (!isOtherAudience.value)
+    rows.push({ title: t('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true })
+
+  rows.push(
+    { title: t('common.fields.startDate'), key: 'start_date', sortable: true },
+    { title: t('common.fields.status'), key: 'status', sortable: true },
+    { title: t('common.messages.actions'), key: 'actions', sortable: false },
+  )
+
+  return rows
+})
 
 const contractReportRow = (contract: Contract) => [
   contract.contract_number,
   contract.contract || contract.contract_template?.name,
   contract.snapshot_data?.template_version?.name || '—',
-  contract.counterparty,
+  ...(isOtherAudience.value ? [] : [contract.counterparty]),
   contract.start_date,
   contract.status,
 ]
@@ -213,11 +226,11 @@ const getContractPagesHtml = (contract: Contract): string[] => {
   return [
     `
     <h1>${translate('pages.contracts.shared.contractAgreement')}</h1>
-    <p>${translate('pages.contracts.shared.fallbackOpening')} <strong>${company.value.brandName}</strong> ${translate('pages.contracts.shared.and')} <strong>${contract.counterparty}</strong> on <strong>${startDate}</strong>.</p>
+    <p>${translate('pages.contracts.shared.fallbackOpening')} <strong>${company.value.brandName}</strong> ${translate('pages.contracts.shared.and')} <strong>${contract.counterparty || '________________'}</strong> on <strong>${startDate}</strong>.</p>
 
     <h2>1. ${translate('pages.contracts.shared.contractParties')}</h2>
     <p><strong>${translate('pages.contracts.shared.serviceProvider')}:</strong> ${company.value.brandName}, ${translate('pages.contracts.shared.locatedAt')} ${company.value.address || translate('pages.contracts.shared.registeredCompanyAddress')}</p>
-    <p><strong>${translate('pages.contracts.shared.client')}:</strong> ${contract.counterparty}</p>
+    <p><strong>${translate('pages.contracts.shared.client')}:</strong> ${contract.counterparty || '________________'}</p>
 
     <h2>2. ${translate('pages.contracts.shared.contractDetails')}</h2>
     <p><strong>${translate('pages.contracts.shared.contractName')}:</strong> ${contractName}</p>
@@ -490,6 +503,7 @@ onMounted(async () => {
           />
             <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" class="mb-4" @apply="fetchContracts({ ...contractRequest, date_from: dateFrom || undefined, date_to: dateTo || undefined })" />
             <VSelect
+              v-if="!isOtherAudience"
               v-model="filterCounterparty"
               :items="counterparties"
               :label="$t('pages.contracts.allContracts.allContracts.filterByCounterparty')"
@@ -566,7 +580,10 @@ onMounted(async () => {
           {{ $t('common.statuses.cancelled') }}
         </VChip>
       </template>
-      <template #item.counterparty="{ item }">
+      <template
+        v-if="!isOtherAudience"
+        #item.counterparty="{ item }"
+      >
         {{ item.counterparty || $t('pages.contracts.allContracts.allContracts.unknownCounterparty') }}
       </template>
       <template #item.start_date="{ item }">

@@ -1,14 +1,14 @@
 export default [
   {
-    title: "common.navigation.applicants",
+    title: "common.navigation.applications",
     icon: { icon: "tabler-school" },
     action: "read",
     subject: "view_agency_overview",
     children: [
       {
-        title: "common.navigation.allApplicants",
+        title: "educational.allApplications",
         icon: { icon: "tabler-users" },
-        to: "applicants",
+        to: "applications",
         action: "read",
         subject: "view_applicants",
       },

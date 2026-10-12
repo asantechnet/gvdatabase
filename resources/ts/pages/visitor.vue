@@ -11,6 +11,7 @@ import VisitorApi, { type CreateVisitorData, type UpdateVisitorData, type Visito
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { printDocument } from '@/utils/printDocument'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
+import { useCookie } from '@core/composable/useCookie'
 
 interface VisitorForm {
   name: string
@@ -34,12 +35,22 @@ const isLoading = ref(false)
 const counselorDirectory = ref<Employee[]>([])
 const toast = useToast()
 const ability = useAbility()
+
+// A counselor creating a visitor owns that visitor: the counselor field is
+// pre-filled with the signed-in employee and locked so the case cannot be
+// attributed to somebody else from the form.
+const currentUser = useCookie<{ roles?: string[]; employee?: { id?: number } | null } | null>('userData')
+const isCounselorUser = computed(() => (currentUser.value?.roles ?? [])
+  .some(role => role === 'counselor' || role === 'senior_counselor'))
+const lockedCounselorId = computed(() => (isCounselorUser.value ? currentUser.value?.employee?.id ?? null : null))
+const counselorLocked = computed(() => lockedCounselorId.value !== null)
+
 const emptyVisitorForm = (): VisitorForm => ({
   name: '',
   contact: '',
   email: '',
   service: '',
-  counselor_employee_id: null,
+  counselor_employee_id: lockedCounselorId.value,
   notes: '',
 })
 
@@ -58,6 +69,11 @@ const resetForm = () => {
     contact: '',
     service: '',
   }
+}
+
+const openAddDialog = () => {
+  resetForm()
+  isAddNewVisitorDialogVisible.value = true
 }
 
 const validateForm = () => {
@@ -325,7 +341,7 @@ onMounted(() => {
           <VBtn
             color="primary"
             :loading="isLoading"
-            @click="isAddNewVisitorDialogVisible = true"
+            @click="openAddDialog"
           >
             <VIcon
               icon="tabler-plus"
@@ -342,8 +358,7 @@ onMounted(() => {
       item-value="id"
       class="text-no-wrap"
       :loading="isLoading"
-      mobile-breakpoint="sm"
-      style="overflow-x: auto;"
+      mobile-breakpoint="sm"            style="overflow-x: auto;"
     >
       <template #item.contact="{ item }">
         <ContactActionMenu
@@ -522,9 +537,10 @@ onMounted(() => {
                 item-value="id"
                 :label="$t('agencyStaff.counselor')"
                 :placeholder="$t('agencyStaff.counselor')"
-                :hint="$t('agencyStaff.optionalCounselor')"
+                :hint="counselorLocked ? $t('agencyStaff.counselorLockedToYou') : $t('agencyStaff.optionalCounselor')"
                 persistent-hint
-                clearable
+                :disabled="counselorLocked"
+                :clearable="!counselorLocked"
               />
             </VCol>
             <VCol cols="12">

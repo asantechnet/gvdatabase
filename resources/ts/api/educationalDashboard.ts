@@ -7,12 +7,18 @@ export interface CountryRow { id: number; name: string; active: number; total: n
 export interface UniversityRow { id: number; name: string; applications: number; in_progress: number; admitted: number }
 export interface CurrencySummary { currency: string | null; records: number; amount: number }
 
+export interface WorkloadSummary {
+  tasks: { open: number; due_today: number; overdue: number; unassigned: number; completed: number }
+  contracts: { total: number; draft: number; active: number; completed: number; terminated: number; cancelled: number; new_in_period: number; service_lines: number }
+}
+
 export interface EducationalDashboard {
   pipeline: { stages: DashboardStage[]; totals: { active: number; closed: number; all: number } }
   financial: { income: CurrencySummary[]; expenses: CurrencySummary[]; salaries: CurrencySummary[]; pending_by_status: Record<string, number> }
   sales: Record<'contracts' | 'scholarships' | 'test_offers' | 'academy' | 'private', { sold: number; by_currency: Array<{ currency: string | null; sold: number; revenue: number }> }>
   staff: StaffRow[]
   attention: { stuck_applicants: AttentionHit[]; overdue_tasks: AttentionHit[]; pending_approvals: number; missing_documents: AttentionHit[]; contracts_requiring_attention: AttentionHit[] }
+  work: WorkloadSummary
   countries: CountryRow[]
   universities: UniversityRow[]
 }

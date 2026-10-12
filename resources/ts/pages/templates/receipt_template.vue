@@ -33,6 +33,10 @@ const hasLetterhead = computed(() => Boolean(letterhead.value?.url))
 // Incomes and loans share this template; only the section labels and the extra
 // loan rows differ so both documents keep one layout and one print pipeline.
 const isLoan = computed(() => props.receipt.document === 'loan')
+// A payment request prints one of two layouts: money coming in keeps the income
+// receipt, while an expense or salary prints as a payment voucher.
+const isVoucher = computed(() => isLoan.value && props.receipt.loan?.transaction_type !== 'income')
+const vl = (key: string, values: Record<string, unknown> = {}) => t(`documents.paymentVoucher.${key}`, values)
 const labels = computed(() => (isLoan.value
   ? {
       title: t('documents.loan.title'),
@@ -176,18 +180,115 @@ defineExpose({ print })
           </div>
           <div class="receipt-head__title">
             <div class="receipt-head__eyebrow">
-              {{ labels.title }}
+              {{ isVoucher ? vl('title') : labels.title }}
             </div>
             <div class="receipt-head__serial">
               {{ receipt.serial_number || '—' }}
             </div>
             <div class="receipt-head__date">
-              <span>{{ t('documents.receipt.paymentDate') }}</span>
+              <span>{{ isVoucher ? vl('date') : t('documents.receipt.paymentDate') }}</span>
               <strong>{{ formatDate(receipt.date) }}</strong>
             </div>
           </div>
         </header>
 
+        <!-- Payment voucher: an outgoing amount (expense or salary) prints this
+             layout instead of the money-in receipt. -->
+        <template v-if="isVoucher">
+          <div class="receipt-grid">
+            <section class="receipt-block">
+              <h4>{{ vl('payTo') }}</h4>
+              <dl>
+                <div><dt>{{ t('common.fields.name') }}</dt><dd>{{ receipt.loan?.payee_name || receipt.applicant?.name || '—' }}</dd></div>
+                <div v-if="receipt.loan?.payee_type"><dt>{{ t('common.fields.type') }}</dt><dd>{{ translateBackendValue(receipt.loan.payee_type) }}</dd></div>
+                <div v-if="receipt.applicant?.id"><dt>{{ t('documents.receipt.applicantId') }}</dt><dd>#{{ receipt.applicant.id }}</dd></div>
+                <div v-if="receipt.applicant?.contact"><dt>{{ t('documents.receipt.phone') }}</dt><dd>{{ receipt.applicant.contact }}</dd></div>
+                <div v-if="receipt.applicant?.email"><dt>{{ t('documents.receipt.email') }}</dt><dd>{{ receipt.applicant.email }}</dd></div>
+                <div><dt>{{ t('common.fields.amount') }}</dt><dd class="receipt-voucher__amount">{{ formatAmount(receipt.income.line_total, receipt.income.currency) }}</dd></div>
+                <div v-if="receipt.income.base_amount"><dt>{{ vl('baseAmount') }}</dt><dd>{{ formatMoney(receipt.income.base_amount, receipt.totals.currency) }}</dd></div>
+              </dl>
+            </section>
+
+            <section class="receipt-block">
+              <h4>{{ vl('approval') }}</h4>
+              <dl>
+                <div><dt>{{ vl('voucherType') }}</dt><dd>{{ translateBackendValue(receipt.loan?.transaction_type) }}</dd></div>
+                <div><dt>{{ vl('reason') }}</dt><dd>{{ receipt.income.name || '—' }}</dd></div>
+                <div><dt>{{ labels.status }}</dt><dd>{{ translateBackendValue(receipt.loan?.status) }}</dd></div>
+                <div v-if="receipt.loan?.requested_at"><dt>{{ labels.requestedAt }}</dt><dd>{{ formatDate(receipt.loan.requested_at) }}</dd></div>
+                <div v-if="receipt.loan?.approved_at"><dt>{{ vl('approvedAt') }}</dt><dd>{{ formatDate(receipt.loan.approved_at) }}</dd></div>
+                <div><dt>{{ vl('requestedBy') }}</dt><dd>{{ receipt.recorded_by?.name || '—' }}</dd></div>
+                <div><dt>{{ vl('approvedBy') }}</dt><dd>{{ receipt.loan?.approver?.name || '—' }}</dd></div>
+                <div v-if="receipt.loan?.rejection_reason"><dt>{{ vl('rejectionReason') }}</dt><dd>{{ receipt.loan.rejection_reason }}</dd></div>
+              </dl>
+            </section>
+          </div>
+
+          <section class="receipt-lines">
+            <h4>{{ vl('breakdown') }}</h4>
+            <table>
+              <thead>
+                <tr>
+                  <th>{{ labels.item }}</th>
+                  <th class="num">
+                    {{ labels.fee }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="line in lines"
+                  :key="`voucher-${line.kind ?? 'line'}-${line.id}`"
+                >
+                  <td>{{ line.name }}</td>
+                  <td class="num">
+                    {{ formatMoney(line.converted_fee, receipt.totals.currency) }}
+                  </td>
+                </tr>
+                <tr v-if="!lines.length">
+                  <td colspan="2" class="muted">
+                    {{ t('documents.receipt.noServices') }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="receipt-totals receipt-totals--pair">
+            <div><span>{{ vl('totalPayout') }}</span><strong>{{ formatAmount(receipt.totals.total_fee, receipt.totals.currency) }}</strong></div>
+            <div class="receipt-totals__received">
+              <span>{{ vl('paidStatus') }}</span>
+              <strong>{{ translateBackendValue(receipt.loan?.status) }}</strong>
+            </div>
+          </section>
+
+          <footer class="receipt-foot">
+            <div class="receipt-foot__note">
+              <p>{{ vl('note') }}</p>
+              <p v-if="receipt.recorded_by && !isCustomerCopy(copy)">
+                {{ t('documents.receipt.recordedBy') }}: {{ receipt.recorded_by.name }}
+              </p>
+            </div>
+            <div class="receipt-foot__stamps receipt-foot__stamps--compact">
+              <div class="receipt-stamp receipt-stamp--compact">
+                <span>{{ vl('preparedBy') }}</span>
+              </div>
+              <div class="receipt-stamp receipt-stamp--compact">
+                <span>{{ vl('approvedBySignature') }}</span>
+              </div>
+              <div class="receipt-stamp receipt-stamp--compact">
+                <img
+                  v-if="receipt.signature.url"
+                  :src="receipt.signature.url"
+                  alt=""
+                >
+                <span>{{ t('documents.receipt.authorizedSignature') }}</span>
+              </div>
+            </div>
+          </footer>
+        </template>
+
+        <template v-else>
         <div
           class="receipt-grid"
           :class="{ 'receipt-grid--single': isCustomerCopy(copy) }"
@@ -285,6 +386,7 @@ defineExpose({ print })
             </div>
           </div>
         </footer>
+        </template>
       </div>
     </article>
   </div>
@@ -500,6 +602,25 @@ defineExpose({ print })
 .receipt-totals__received {
   border-color: #16a1d7 !important;
   background: #f1fbff;
+}
+
+/* The payment voucher shows a payout total and its state, not a 4-column
+   income summary. */
+.receipt-totals--pair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.receipt-voucher__amount {
+  font-weight: 800;
+}
+
+/* A voucher carries three signature lines, so the stamps are narrower. */
+.receipt-foot__stamps--compact {
+  gap: 4mm;
+}
+
+.receipt-stamp--compact {
+  width: 34mm;
 }
 
 .receipt-totals__received strong {

@@ -23,15 +23,11 @@ class Board extends Model
     /**
      * Boards the user may see: their own private personal board plus the shared
      * boards they belong to (or every shared board with `view_all_boards`).
-     * A personal board is never exposed to anyone but its owner; super-admins
-     * are the sole support exception.
+     * A personal board is never exposed to anyone but its owner, including
+     * super-admins.
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if ($user->isSuperAdmin()) {
-            return $query;
-        }
-
         $canSeeAllShared = $user->hasPermission('view_all_boards');
 
         return $query->where(function (Builder $q) use ($user, $canSeeAllShared) {

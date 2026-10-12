@@ -40,6 +40,10 @@ class EmployeeResource extends JsonResource
             'supervisor_id' => $this->supervisor_id,
             'supervisor_name' => $this->supervisor?->name,
             'salary' => $this->salary !== null ? (float) $this->salary : null,
+            'is_commission_based' => (bool) $this->is_commission_based,
+            'service_commissions' => $this->whenLoaded('serviceCommissions', fn () => $this->serviceCommissions
+                ->map(fn ($rate) => ['service' => $rate->service, 'percentage' => (float) $rate->percentage])
+                ->values()),
             'total_worked_hours' => (float) $this->total_worked_hours,
             'addr' => $this->addr,
             'avatar' => $this->avatar,

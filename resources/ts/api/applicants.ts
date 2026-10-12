@@ -29,6 +29,12 @@ export interface ApplicantServiceDetails {
   duration?: { id: number; name: string } | null
 }
 
+/**
+ * The terminal stage that finishes a case. Reaching it closes the case and
+ * releases the commission earned on its contracted services.
+ */
+export const COMPLETED_APPLICANT_STAGE = 'completed'
+
 export interface ApplicantStage {
   id: number
   name: string
@@ -67,9 +73,12 @@ export interface Applicant {
   responsible_employee_id?: number | null
   current_stage_id?: number | null
   status: string
+  payment_status?: 'paid' | 'unpaid' | 'partially_paid' | null
   notes?: string | null
   responsible_employee?: { id: number; name: string } | null
-  current_stage?: { id: number; name: string; key: string }
+  // A case's stage decides the workflow: terminal stages close the case, and
+  // `completed` is the terminal stage that also releases commission.
+  current_stage?: { id: number; name: string; key: string; is_terminal?: boolean; allowed_next_keys?: string[] }
   tasks?: Array<{ id: number; title: string; progress: number; priority?: string | null; due_date?: string | null; attachments?: Array<{ id: number; original_name: string; mime_type?: string | null; size?: number | null }> }>
   contracts?: Array<{ id: number; contract_number: string; status: string }>
   stage_history?: Array<{ id: number; changed_at: string; note?: string; new_stage?: { name: string }; old_stage?: { name: string } }>

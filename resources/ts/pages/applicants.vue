@@ -7,13 +7,14 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import ApplicantApi, { type Applicant, type ApplicantBoard, type ApplicantStage, type BuiltInService, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
+import ApplicantApi, { type Applicant, type ApplicantStage, type BuiltInService, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
 import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
 import { translateApplicantStage, translateBackendValue } from '@/utils/localization'
 import ApplicantSummary from '@/components/erp/ApplicantSummary.vue'
+import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import { apiErrorMessage } from '@/utils/apiErrors'
 
 const toast = useToast()
@@ -21,9 +22,6 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 
-type Tab = '' | ApplicantBoard
-
-const tab = ref<Tab>('operation')
 const rows = ref<Applicant[]>([])
 const loading = ref(false)
 const page = ref(1)
@@ -40,8 +38,11 @@ const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.academy'), value: 'academy' },
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
+// The stage tab strip drives this same filter, so deep links such as
+// `?stage=visa_processing` from the dashboard and the pipeline keep working.
 const stage = ref((route.query.stage as string) ?? '')
 const status = ref<'active' | 'closed' | ''>((route.query.status as 'active' | 'closed') ?? '')
+const paymentStatus = ref<'paid' | 'unpaid' | 'partially_paid' | ''>('')
 const responsibleEmployeeId = ref<number | null>(null)
 const countryId = ref<number | null>(null)
 const universityId = ref<number | null>(null)
@@ -62,18 +63,35 @@ const stages = ref<ApplicantStage[]>([])
 const canViewPipeline = computed(() => canAccess('view_applicants'))
 const canCreate = computed(() => canAccess('create_applicants'))
 const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
-const activeFilterCount = computed(() => [service.value, search.value, stage.value, status.value, responsibleEmployeeId.value, countryId.value, universityId.value, educationLevelId.value, semesterId.value, dateFrom.value, dateTo.value].filter(Boolean).length)
+const activeFilterCount = computed(() => [service.value, search.value, stage.value, status.value, paymentStatus.value, responsibleEmployeeId.value, countryId.value, universityId.value, educationLevelId.value, semesterId.value, dateFrom.value, dateTo.value].filter(Boolean).length)
+const visibleRows = computed(() => paymentStatus.value ? rows.value.filter(row => row.payment_status === paymentStatus.value) : rows.value)
 
 const createDialog = ref(false)
 const creating = ref(false)
 const createForm = ref({ name: '', father_name: '', father_phone: '', backup_phone: '', contact: '', email: '', admission_employee_id: null as number | null, responsible_employee_id: null as number | null, notes: '' })
 const serviceForm = ref<ApplicantPayload>({ service: 'scholarship' })
-const tabs = computed<Array<{ value: Tab; title: string }>>(() => [
-  { value: 'operation', title: t('educational.operationList') },
-  { value: 'final', title: t('educational.finalList') },
-  { value: 'cancelled', title: t('educational.cancelList') },
-  { value: '', title: t('educational.allApplicants') },
-])
+// The list is driven by the workflow stages themselves: every stage is a tab,
+// and the pipeline keeps its order while the terminal (closing) stages are
+// grouped at the end. This replaces the coarse Operation / Final / Cancelled
+// boards, which were just pre-grouped sets of these same stages.
+const pipelineStages = computed(() => stages.value.filter(item => !item.is_terminal))
+const terminalStages = computed(() => stages.value.filter(item => item.is_terminal))
+
+const terminalStageIcons: Record<string, string> = {
+  completed: 'tabler-circle-check',
+  cancelled: 'tabler-ban',
+  rejected: 'tabler-circle-x',
+  withdrawn: 'tabler-arrow-back-up',
+}
+
+const terminalStageIcon = (key: string) => terminalStageIcons[key] ?? 'tabler-flag'
+
+const terminalStageColor = (key: string) => {
+  if (key === 'completed')
+    return 'success'
+
+  return key === 'rejected' ? 'error' : 'secondary'
+}
 
 async function load() {
   if (invalidDateRange.value) return
@@ -81,7 +99,6 @@ async function load() {
   try {
     const result = await ApplicantApi.list({
       service: service.value || undefined,
-      board: (tab.value || undefined) as ApplicantBoard | undefined,
       stage: stage.value || undefined,
       status: (status.value || undefined) as 'active' | 'closed' | undefined,
       search: search.value || undefined,
@@ -163,6 +180,11 @@ async function create() {
     }
 
     Object.assign(payload, applicantServicePayload(serviceForm.value))
+    // Academy enrolment has no admission officer, so no employee is attached.
+    if (serviceForm.value.service !== 'academy')
+      payload.admission_employee_id = createForm.value.admission_employee_id
+    else
+      delete payload.admission_employee_id
     if (createForm.value.responsible_employee_id)
       payload.responsible_employee_id = createForm.value.responsible_employee_id
 
@@ -189,6 +211,7 @@ function clearFilters() {
   search.value = ''
   stage.value = ''
   status.value = ''
+  paymentStatus.value = ''
   responsibleEmployeeId.value = null
   countryId.value = null
   universityId.value = null
@@ -220,11 +243,7 @@ onMounted(async () => {
 
 <template>
   <div class="education-workspace erp-workspace">
-    <ErpPageHeader :title="$t('educational.applicantCases')" section="applicants">
-      <template #navigation>
-        <VBtn size="small" :variant="!stage ? 'flat' : 'tonal'" color="primary" @click="stage = ''; tab = ''; page = 1; load()">{{ t('educational.allApplicants') }}</VBtn>
-        <VBtn v-for="item in stages" :key="item.id" size="small" :variant="stage === item.key ? 'flat' : 'tonal'" color="primary" @click="stage = item.key; tab = ''; page = 1; load()">{{ item.name }}</VBtn>
-      </template>
+    <ErpPageHeader :title="$t('educational.applications')" section="applicants" :breadcrumbs="false">
       <template #actions><VBtn v-if="canCreate" color="primary" prepend-icon="tabler-plus" @click="openCreate">{{ $t('educational.newCase') }}</VBtn></template>
     </ErpPageHeader>
   <VCard class="education-panel">
@@ -235,8 +254,8 @@ onMounted(async () => {
           <DataTableFilterMenu v-model="filtersOpen" :active="activeFilterCount > 0" @reset="clearFilters">
             <VSelect v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable />
             <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" :show-apply="false" />
-            <VSelect v-model="stage" :items="stages.map(s => ({ title: translateApplicantStage(s), value: s.key }))" :label="$t('educational.stage')" clearable />
             <VSelect v-model="status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable />
+            <VSelect v-model="paymentStatus" :items="[{ title: $t('finance.paymentStatus.paid'), value: 'paid' }, { title: $t('finance.paymentStatus.partially_paid'), value: 'partially_paid' }, { title: $t('finance.paymentStatus.unpaid'), value: 'unpaid' }]" :label="$t('finance.paymentStatus')" clearable />
             <VSelect v-model="responsibleEmployeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable />
             <VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable />
             <VSelect v-model="universityId" :items="universities.filter(u => u.is_active && (!countryId || u.country_id === countryId)).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable />
@@ -247,26 +266,34 @@ onMounted(async () => {
         </VCol>
       </VRow>
     </VCardText>
-    <VTabs v-model="tab" show-arrows class="px-3" @update:model-value="onTabChange">
-      <VTab v-for="item in tabs" :key="item.title" :value="item.value">{{ item.title }}</VTab>
+    <VTabs v-model="stage" show-arrows class="px-3" @update:model-value="onTabChange">
+      <VTab value="">{{ $t('educational.allApplications') }}</VTab>
+      <VTab v-for="item in pipelineStages" :key="item.id" :value="item.key">{{ translateApplicantStage(item) }}</VTab>
+      <VDivider v-if="terminalStages.length && pipelineStages.length" vertical class="stage-tabs-divider align-self-center" />
+      <VTab v-for="item in terminalStages" :key="item.id" :value="item.key">
+        <VIcon start size="small" :icon="terminalStageIcon(item.key)" :color="terminalStageColor(item.key)" />
+        {{ translateApplicantStage(item) }}
+        <VTooltip activator="parent" location="bottom">{{ $t('educational.terminalStageTab') }}</VTooltip>
+      </VTab>
     </VTabs>
     <VDivider />
     <div class="d-flex align-center gap-2 px-4 py-3"><VIcon icon="tabler-users" color="primary" /><strong>{{ $t('educational.resultCount', { count: total }) }}</strong><VSpacer /><VBtn v-if="activeFilterCount" size="small" variant="text" prepend-icon="tabler-filter" @click="filtersOpen = true">{{ $t('educational.activeFilters', { count: activeFilterCount }) }}</VBtn></div>
     <VProgressLinear v-if="loading" indeterminate />
     <div class="education-table-scroll"><VTable density="compact" class="education-table">
-      <thead><tr><th>{{ $t('educational.id') }}</th><th>{{ $t('educational.applicant') }}</th><th>{{ $t('educational.caseUi.file') }}</th><th>{{ $t('educational.employee') }}</th><th>{{ $t('educational.destination') }}</th><th>{{ $t('erp.details') }}</th><th>{{ $t('educational.stage') }}</th><th>{{ $t('educational.status') }}</th><th /></tr></thead>
+      <thead><tr><th>{{ $t('educational.id') }}</th><th>{{ $t('educational.applicant') }}</th><th>{{ $t('educational.caseUi.file') }}</th><th>{{ $t('educational.employee') }}</th><th>{{ $t('educational.destination') }}</th><th>{{ $t('erp.details') }}</th><th>{{ $t('educational.stage') }}</th><th>{{ $t('educational.status') }}</th><th>{{ $t('finance.paymentStatus') }}</th><th /></tr></thead>
       <tbody>
-        <tr v-for="row in rows" :key="row.id" class="cursor-pointer" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">
+        <tr v-for="row in visibleRows" :key="row.id" class="cursor-pointer" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">
           <td>#{{ row.id }}</td>
-          <td>{{ row.name }}</td>
+          <td @click.stop><RouterLink class="applicant-name-link" :to="{ name: 'all-customers', query: { contact: row.id } }" :title="$t('educational.openContactInCrm')">{{ row.name }}</RouterLink></td>
           <td><VChip size="x-small" :color="row.attachments_count ? 'success' : 'warning'" variant="tonal">{{ row.attachments_count ? $t('educational.caseUi.documentCount', { count: row.attachments_count }) : $t('educational.caseUi.documentsNeeded') }}</VChip></td>
-          <td>{{ row.responsible_employee?.name ?? $t('educational.unassigned') }}</td>
+          <td>{{ row.service === 'academy' ? '—' : (row.responsible_employee?.name ?? $t('educational.unassigned')) }}</td>
           <td><VChip size="x-small" variant="tonal" class="me-2">{{ serviceOptions.find(option => option.value === row.service)?.title }}</VChip><span v-if="['scholarship', 'private'].includes(row.service)">{{ row.details?.country?.name ?? '—' }}{{ row.details?.university?.name ? ` · ${row.details.university.name}` : '' }}</span></td>
           <td><ApplicantSummary :applicant="row" /></td><td>{{ row.current_stage ? translateApplicantStage(row.current_stage) : '—' }}</td>
           <td><VChip size="small" :color="row.status === 'active' ? 'success' : 'secondary'">{{ translateBackendValue(row.status) }}</VChip></td>
-          <td class="text-end"><VBtn size="small" variant="text" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">{{ $t('educational.openCase') }}</VBtn></td>
+          <td><VChip v-if="row.payment_status" size="small" variant="tonal" :color="row.payment_status === 'paid' ? 'success' : row.payment_status === 'partially_paid' ? 'warning' : 'error'">{{ $t(`finance.paymentStatus.${row.payment_status}`) }}</VChip><span v-else class="text-medium-emphasis">—</span></td>
+          <td class="text-end"><div class="d-inline-flex align-center ga-1" @click.stop><CrmRelationshipDetails type="applicant" :id="row.id" :title="row.name" /><VBtn size="small" variant="text" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">{{ $t('educational.openCase') }}</VBtn></div></td>
         </tr>
-        <tr v-if="!loading && !rows.length"><td colspan="9" class="text-center text-medium-emphasis py-8">{{ $t('educational.noApplicants') }}</td></tr>
+        <tr v-if="!loading && !visibleRows.length"><td colspan="10" class="text-center text-medium-emphasis py-8">{{ $t('educational.noApplicants') }}</td></tr>
       </tbody>
     </VTable></div>
     <VCardText class="d-flex align-center gap-4">
@@ -284,7 +311,7 @@ onMounted(async () => {
           <VCol cols="12" sm="6" md="4"><ErpField v-model="createForm.email" :label="$t('common.fields.email')" type="email" /></VCol>
           <VCol v-if="['scholarship', 'private'].includes(serviceForm.service || '')" cols="12" sm="6" md="4"><ErpField v-model="createForm.father_name" :label="$t('educational.fatherName')" /></VCol>
           <VCol v-if="['scholarship', 'private'].includes(serviceForm.service || '')" cols="12" sm="6" md="4"><ErpField v-model="createForm.father_phone" :label="$t('educational.fatherPhone')" /></VCol>
-          <VCol cols="12" sm="6" md="4"><ErpField kind="select" v-model="createForm.admission_employee_id" :items="admissionEmployees.map(e => ({ title: e.name, value: e.id }))" :label="$t('agencyStaff.admission')" clearable /></VCol>
+          <VCol v-if="serviceForm.service !== 'academy'" cols="12" sm="6" md="4"><ErpField kind="select" v-model="createForm.admission_employee_id" :items="admissionEmployees.map(e => ({ title: e.name, value: e.id }))" :label="$t('agencyStaff.admission')" clearable /></VCol>
           <VCol v-if="serviceForm.service === 'test_offer'" cols="12" sm="6" md="4"><ErpField v-model="createForm.backup_phone" :label="$t('erp.backupPhone')" /></VCol>
           <VCol cols="12"><ApplicantServiceFields v-model="serviceForm" /></VCol>
           <VCol cols="12"><ErpField kind="textarea" rows="2" v-model="createForm.notes" :label="$t('educational.notes')" /></VCol>
@@ -298,3 +325,21 @@ onMounted(async () => {
     </VCard>
   </VDialog>
 </template>
+
+<style scoped>
+/* Separates the open pipeline stages from the terminal (closing) stages. */
+.stage-tabs-divider {
+  block-size: 22px;
+  margin-inline: 12px;
+}
+
+.applicant-name-link {
+  color: rgb(var(--v-theme-primary));
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.applicant-name-link:hover {
+  text-decoration: underline;
+}
+</style>

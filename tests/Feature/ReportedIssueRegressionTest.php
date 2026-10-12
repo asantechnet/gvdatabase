@@ -132,25 +132,12 @@ class ReportedIssueRegressionTest extends TestCase
         ]);
     }
 
-    public function test_marketers_and_the_single_office_profile_support_their_allowed_operations(): void
+    /**
+     * Marketers were retired with the CRM restructure, so this only covers the
+     * single-office profile that is still supported.
+     */
+    public function test_the_single_office_profile_supports_its_allowed_operations(): void
     {
-        $marketer = $this->postJson('/api/marketers', [
-            'name' => 'North Region Team',
-            'email' => 'north@example.test',
-            'phone' => '+93 700 000 001',
-            'status' => 'active',
-            'notes' => 'Enterprise accounts',
-        ])->assertCreated()->json('data.id');
-
-        $this->putJson("/api/marketers/{$marketer}", [
-            'name' => 'North Region',
-            'email' => 'north@example.test',
-            'phone' => '+93 700 000 001',
-            'status' => 'inactive',
-            'notes' => null,
-        ])->assertOk()->assertJsonPath('data.name', 'North Region');
-        $this->deleteJson("/api/marketers/{$marketer}")->assertOk();
-
         $office = $this->postJson('/api/offices', [
             'name' => 'Central Office',
             'code' => 'CENTRAL',

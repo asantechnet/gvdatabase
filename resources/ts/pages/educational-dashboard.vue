@@ -66,7 +66,7 @@ function clearFilters() {
   applyFilters()
 }
 
-function openStage(key: string) { router.push({ name: 'applicants', query: { stage: key } }) }
+function openStage(key: string) { router.push({ name: 'applications', query: { stage: key } }) }
 
 onMounted(async () => {
   try {
@@ -105,10 +105,10 @@ onMounted(async () => {
 
     <template v-if="data">
       <section class="education-metric-grid mb-4">
-        <button class="education-metric education-metric--primary" type="button" @click="router.push({ name: 'applicants', query: { status: 'active' } })">
+        <button class="education-metric education-metric--primary" type="button" @click="router.push({ name: 'applications', query: { status: 'active' } })">
           <VIcon icon="tabler-users-group" /><span><small>{{ $t('educational.activeCasesLabel') }}</small><strong>{{ n(data.pipeline.totals.active) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
         </button>
-        <button class="education-metric education-metric--warning" type="button" @click="router.push({ name: 'applicants' })">
+        <button class="education-metric education-metric--warning" type="button" @click="router.push({ name: 'applications' })">
           <VIcon icon="tabler-alert-triangle" /><span><small>{{ $t('educational.needsAttention') }}</small><strong>{{ n(attentionCount) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
         </button>
         <button class="education-metric education-metric--success" type="button" @click="router.push({ name: 'educational-reports' })">
@@ -169,6 +169,63 @@ onMounted(async () => {
         </VCol>
       </VRow>
 
+      <!-- Task and contract workload: the operational half of the picture. -->
+      <VRow dense class="mt-1">
+        <VCol cols="12" md="6">
+          <VCard class="education-panel h-100">
+            <VCardItem :title="$t('educational.tasksOverview')" :subtitle="$t('educational.tasksOverviewHelp')">
+              <template #append><VBtn size="small" variant="text" append-icon="tabler-arrow-right" :to="{ name: 'tasks' }">{{ $t('educational.openTasksBoard') }}</VBtn></template>
+            </VCardItem>
+            <VCardText>
+              <div class="education-workload-grid">
+                <button class="education-workload" type="button" @click="router.push({ name: 'tasks' })">
+                  <VIcon icon="tabler-checklist" /><span><small>{{ $t('educational.tasksOpen') }}</small><strong>{{ n(data.work.tasks.open) }}</strong></span>
+                </button>
+                <div class="education-workload education-workload--warning">
+                  <VIcon icon="tabler-calendar-due" /><span><small>{{ $t('educational.tasksDueToday') }}</small><strong>{{ n(data.work.tasks.due_today) }}</strong></span>
+                </div>
+                <div class="education-workload education-workload--error">
+                  <VIcon icon="tabler-alert-triangle" /><span><small>{{ $t('educational.tasksOverdue') }}</small><strong>{{ n(data.work.tasks.overdue) }}</strong></span>
+                </div>
+                <div class="education-workload education-workload--info">
+                  <VIcon icon="tabler-user-off" /><span><small>{{ $t('educational.tasksUnassigned') }}</small><strong>{{ n(data.work.tasks.unassigned) }}</strong></span>
+                </div>
+                <div class="education-workload education-workload--success">
+                  <VIcon icon="tabler-circle-check" /><span><small>{{ $t('educational.tasksCompleted') }}</small><strong>{{ n(data.work.tasks.completed) }}</strong></span>
+                </div>
+              </div>
+            </VCardText>
+          </VCard>
+        </VCol>
+        <VCol cols="12" md="6">
+          <VCard class="education-panel h-100">
+            <VCardItem :title="$t('educational.contractsOverview')" :subtitle="$t('educational.contractsOverviewHelp')" />
+            <VList density="compact">
+              <VListItem :title="$t('common.statuses.active')" :subtitle="$t('educational.contractsLiveHelp')" :to="{ name: 'scholarship-contracts' }">
+                <template #prepend><VAvatar color="success" variant="tonal" size="34"><VIcon icon="tabler-file-check" size="18" /></VAvatar></template>
+                <template #append><VChip size="small" variant="tonal">{{ n(data.work.contracts.active) }}</VChip></template>
+              </VListItem>
+              <VListItem :title="$t('common.statuses.draft')" :to="{ name: 'scholarship-contracts' }">
+                <template #prepend><VAvatar color="info" variant="tonal" size="34"><VIcon icon="tabler-file-pencil" size="18" /></VAvatar></template>
+                <template #append><VChip size="small" variant="tonal">{{ n(data.work.contracts.draft) }}</VChip></template>
+              </VListItem>
+              <VListItem :title="$t('common.statuses.completed')" :to="{ name: 'scholarship-contracts' }">
+                <template #prepend><VAvatar color="primary" variant="tonal" size="34"><VIcon icon="tabler-file-check" size="18" /></VAvatar></template>
+                <template #append><VChip size="small" variant="tonal">{{ n(data.work.contracts.completed) }}</VChip></template>
+              </VListItem>
+              <VListItem :title="$t('educational.contractsNewInPeriod')" :to="{ name: 'scholarship-contracts' }">
+                <template #prepend><VAvatar color="warning" variant="tonal" size="34"><VIcon icon="tabler-file-plus" size="18" /></VAvatar></template>
+                <template #append><VChip size="small" variant="tonal">{{ n(data.work.contracts.new_in_period) }}</VChip></template>
+              </VListItem>
+              <VListItem :title="$t('educational.serviceContractLines')" :to="{ name: 'scholarship-contracts' }">
+                <template #prepend><VAvatar color="secondary" variant="tonal" size="34"><VIcon icon="tabler-list-details" size="18" /></VAvatar></template>
+                <template #append><VChip size="small" variant="tonal">{{ n(data.work.contracts.service_lines) }}</VChip></template>
+              </VListItem>
+            </VList>
+          </VCard>
+        </VCol>
+      </VRow>
+
       <VCard class="education-panel mt-4">
         <VCardItem :title="$t('educational.employeePerformance')" :subtitle="$t('educational.performanceHelp')" />
         <div class="education-table-scroll"><VTable density="compact" class="education-table"><thead><tr><th>{{ $t('educational.employee') }}</th><th>{{ $t('educational.activeCases') }}</th><th>{{ $t('educational.servicesReport') }}</th><th>{{ $t('educational.contractsReport') }}</th><th>{{ $t('educational.bonusesGenerated') }}</th></tr></thead><tbody><tr v-for="row in data.staff" :key="row.id"><td class="font-weight-medium">{{ row.name }}</td><td>{{ n(row.active_applicants) }}</td><td>{{ n(row.sales_recorded) }}</td><td>{{ n(row.contracts_sold) }}</td><td>{{ n(row.bonuses_generated) }}</td></tr><tr v-if="!data.staff.length"><td colspan="5" class="education-empty">{{ $t('educational.noStaff') }}</td></tr></tbody></VTable></div>
@@ -176,3 +233,55 @@ onMounted(async () => {
     </template>
   </div>
 </template>
+
+<style scoped>
+.education-workload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.education-workload {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  border-radius: 10px;
+  background: transparent;
+  text-align: start;
+  inline-size: 100%;
+}
+
+.education-workload span {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.education-workload small {
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  font-size: 0.7rem;
+}
+
+.education-workload strong {
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.education-workload--warning {
+  border-color: rgba(var(--v-theme-warning), 0.45);
+}
+
+.education-workload--error {
+  border-color: rgba(var(--v-theme-error), 0.45);
+}
+
+.education-workload--info {
+  border-color: rgba(var(--v-theme-info), 0.45);
+}
+
+.education-workload--success {
+  border-color: rgba(var(--v-theme-success), 0.45);
+}
+</style>

@@ -93,7 +93,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "right": {
     "id": "1e12b317d5a4adab",
@@ -201,6 +202,8 @@
   },
   "active": "602962d5a73fb01c",
   "lastOpenFiles": [
+    "dashboards-payment-requests-applications-plan.md",
+    "commissions-visitor-relationships-plan.md",
     "educational-comments-master-plan.md",
     "Educational New Comments++.md",
     "applicant-visa-firm-restructure-plan.md",

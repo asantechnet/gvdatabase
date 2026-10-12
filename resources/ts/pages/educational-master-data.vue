@@ -10,7 +10,7 @@ import { canAccess } from '@/utils/authorization'
 const toast = useToast()
 const { t } = useI18n()
 const route = useRoute()
-type Catalog = EducationalCatalog | 'applicant-stages'
+type Catalog = Exclude<EducationalCatalog, 'times' | 'durations' | 'teachers' | 'classes'> | 'applicant-stages'
 type CatalogRow = MasterDataRecord & Partial<ApplicantStage>
 
 const catalog = ref<Catalog>(route.query.catalog === 'applicant-stages' ? 'applicant-stages' : 'countries')
@@ -21,14 +21,15 @@ const dialog = ref(false)
 const editing = ref<CatalogRow | null>(null)
 const loading = ref(false)
 const form = ref<Partial<CatalogRow>>({ name: '', is_active: true })
-const labels = computed<Record<Catalog, string>>(() => ({ countries: t('educational.masterData.countries'), 'education-levels': t('educational.masterData.educationLevels'), languages: t('educational.masterData.languages'), universities: t('educational.masterData.universities'), semesters: t('educational.semester'), subjects: t('educational.masterData.subjects'), tests: t('educational.masterData.tests'), skills: t('educational.masterData.skills'), programs: t('educational.masterData.programs'), times: t('educational.masterData.times'), durations: t('educational.masterData.durations'), teachers: t('educational.masterData.teachers'), scholarships: t('erp.scholarship'), classes: t('erp.class'), 'applicant-stages': t('educational.masterData.applicantStages') }))
+// Times, durations, teachers and classes moved to the academy data page under
+// the contracts submenu (see `pages/academy-data.vue`).
+const labels = computed<Record<Catalog, string>>(() => ({ countries: t('educational.masterData.countries'), 'education-levels': t('educational.masterData.educationLevels'), languages: t('educational.masterData.languages'), universities: t('educational.masterData.universities'), semesters: t('educational.semester'), subjects: t('educational.masterData.subjects'), tests: t('educational.masterData.tests'), skills: t('educational.masterData.skills'), programs: t('educational.masterData.programs'), scholarships: t('erp.scholarship'), 'applicant-stages': t('educational.masterData.applicantStages') }))
 const isStageCatalog = computed(() => catalog.value === 'applicant-stages')
 const hasCode = computed(() => ['countries', 'languages', 'semesters', 'applicant-stages'].includes(catalog.value))
-const isTeacherCatalog = computed(() => catalog.value === 'teachers')
 // `catalog` also carries the applicant-stage pseudo-catalog, which is served by
 // the applicant API. This narrows it back for the master-data API calls.
 const masterDataCatalog = computed(() => catalog.value as EducationalCatalog)
-const isSortedCatalog = computed(() => ['education-levels', 'subjects', 'tests', 'skills', 'programs', 'times', 'durations', 'teachers', 'scholarships', 'classes', 'applicant-stages'].includes(catalog.value))
+const isSortedCatalog = computed(() => ['education-levels', 'subjects', 'tests', 'skills', 'programs', 'scholarships', 'applicant-stages'].includes(catalog.value))
 const canManageCurrent = computed(() => isStageCatalog.value ? canAccess('manage_applicant_stages') : true)
 
 async function load() {
@@ -104,8 +105,6 @@ onMounted(load)
     <VTextField v-model="form.name" :label="$t('common.fields.name')" class="mb-3" />
     <VTextField v-if="hasCode && !isStageCatalog" v-model="form.code" :label="$t('common.fields.code')" class="mb-3" />
     <VTextField v-if="isSortedCatalog" v-model.number="form.sort_order" type="number" min="0" :label="$t('educational.masterData.displayOrder')" :hint="$t('educational.masterData.displayOrderHint')" persistent-hint class="mb-3" />
-    <VTextField v-if="isTeacherCatalog" v-model="form.contact" :label="$t('educational.masterData.contact')" class="mb-3" />
-    <VTextField v-if="isTeacherCatalog" v-model="form.email" type="email" :label="$t('common.fields.email')" class="mb-3" />
     <VSelect v-if="catalog==='universities' || isStageCatalog" v-model="form.country_id" :items="countries.filter(x=>x.is_active).map(x=>({title:x.name,value:x.id}))" :label="$t('educational.country')" clearable class="mb-3" />
     <VSelect v-if="isStageCatalog" v-model="form.university_id" :items="universities.filter(u=>!form.country_id||u.country_id===form.country_id).map(u=>({title:u.name,value:u.id}))" :label="$t('educational.university')" clearable class="mb-3" />
     <VTextField v-if="catalog==='universities'" v-model="form.city" :label="$t('educational.masterData.city')" class="mb-3" />

@@ -23,7 +23,6 @@ const userProfileList = [
   { type: 'navItem', icon: 'tabler-user', title: translate('components.navigation.userprofile.myAccount'), to: { name: 'account-settings', params: { tab: 'account' } } },
   { type: 'navItem', icon: 'tabler-lock', title: translate('common.messages.security'), to: { name: 'account-settings', params: { tab: 'security' } } },
   { type: 'navItem', icon: 'tabler-bell', title: translate('components.navigation.userprofile.notificationPreferences'), to: { name: 'account-settings', params: { tab: 'notifications' } } },
-  { type: 'navItem', icon: 'tabler-lifebuoy', title: translate('common.navigation.support'), to: { name: 'support' } },
   { type: 'navItem', icon: 'tabler-calendar-stats', title: translate('pages.settings.accountSettings.accountSettings.workHistory'), to: { name: 'account-settings', params: { tab: 'work-history' } } },
   ...(canAccess('view_recurring_events')
     ? [{ type: 'navItem', icon: 'tabler-repeat', title: translate('common.navigation.recurringEvents'), to: { name: 'recurring-events' } }]

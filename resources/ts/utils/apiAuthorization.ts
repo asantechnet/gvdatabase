@@ -64,8 +64,18 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'GET /incomes/:id/receipt': ['view_incomes'],
     'GET /incomes/applicants': ['view_incomes'],
     'PUT /incomes/applicant-contracts/:id/payment-override': ['override_contract_payments'],
-    // The loans workspace is the pending-transaction workflow under a
-    // friendlier name; both paths must mirror the same server permissions.
+    // Payment requests are the pending-transaction workflow under its public
+    // name. `loans` and `pending-transactions` stay as aliases, and every path
+    // must mirror the same server permissions.
+    'GET /payment-requests': ['view_pending_transactions'],
+    'GET /payment-requests/options': ['create_pending_transactions'],
+    'POST /payment-requests': ['create_pending_transactions'],
+    'PUT /payment-requests/:id': ['create_pending_transactions'],
+    'POST /payment-requests/:id/review': ['approve_pending_transactions'],
+    'POST /payment-requests/:id/approve': ['approve_pending_transactions'],
+    'POST /payment-requests/:id/reject': ['approve_pending_transactions'],
+    'POST /payment-requests/:id/post': ['post_pending_transactions'],
+    'GET /payment-requests/:id/receipt': ['view_pending_transactions'],
     'GET /loans': ['view_pending_transactions'],
     'GET /loans/options': ['create_pending_transactions'],
     'POST /loans': ['create_pending_transactions'],

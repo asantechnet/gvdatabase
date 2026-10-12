@@ -8,6 +8,7 @@ use App\Models\Board;
 use App\Models\RecurringEvent;
 use App\Models\RecurringEventOccurrence;
 use App\Services\RecurringEvents\RecurringEventService;
+use App\Support\TaskAccess;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -112,8 +113,8 @@ class RecurringEventController extends Controller
 
         if ($type === 'task' && $request->has('payload.board_id')) {
             $boardId = $request->input('payload.board_id');
-            $canUseBoard = $request->user()->hasPermission('view_all_boards')
-                || Board::query()->whereKey($boardId)->whereHas('users', fn ($users) => $users->whereKey($request->user()->id))->exists();
+            $board = Board::query()->find($boardId);
+            $canUseBoard = $board !== null && TaskAccess::canViewBoard($request->user(), $board);
 
             abort_unless($canUseBoard, 403, 'auth.forbidden');
         }

@@ -25,7 +25,7 @@ bottom records what landed and how it was verified.
    must not be available** for them; only **View** stays available.
 7. **Finance → Reports, General Reports page** — the print template's generated-at date is
    not normalized, human readable or localized. Fix it.
-
+`
 ---
 
 ## 2. Diagnosis (verified in code before the changes)

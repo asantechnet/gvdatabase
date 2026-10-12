@@ -34,6 +34,8 @@ export interface Employee {
   join_date: string | null
   contract_duration?: string
   paid_leave_days: number | null
+  is_commission_based: boolean
+  service_commissions?: Array<{ service: string; percentage: number }>
   work_start_time: string | null
   work_end_time: string | null
   created_at: string | null
@@ -86,6 +88,8 @@ export interface CreateEmployeeData {
   join_date: string
   contract_duration?: string
   paid_leave_days?: number | null
+  is_commission_based?: boolean
+  service_commissions?: Array<{ service: string; percentage: number }>
 }
 
 export interface UpdateEmployeeData {
@@ -114,6 +118,8 @@ export interface UpdateEmployeeData {
   join_date?: string
   contract_duration?: string
   paid_leave_days?: number | null
+  is_commission_based?: boolean
+  service_commissions?: Array<{ service: string; percentage: number }>
 }
 
 // Employee API endpoints

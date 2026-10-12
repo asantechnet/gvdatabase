@@ -122,11 +122,6 @@ const resendVerification = async () => {
     >
       <VCardItem class="justify-center">
         <template #prepend>
-          <VImg
-            src="/logo.svg"
-            width="32"
-            height="32"
-          />
         </template>
         <VCardTitle class="text-h5 font-weight-bold">
           {{ $t('pages.auth.login.login.asantechMiniManagement') }}

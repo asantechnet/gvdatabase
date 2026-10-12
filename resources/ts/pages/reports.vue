@@ -25,7 +25,8 @@ const profiles: Record<ReportType, ReportProfile> = {
   financial: { key: 'financial', icon: 'tabler-chart-line', color: 'success' },
   payroll: { key: 'payroll', icon: 'tabler-cash-banknote', color: 'primary' },
   attendance: { key: 'attendance', icon: 'tabler-clock-check', color: 'info' },
-  operations: { key: 'operations', icon: 'tabler-briefcase', color: 'warning' },
+  educational: { key: 'educational', icon: 'tabler-school', color: 'warning' },
+  crm: { key: 'crm', icon: 'tabler-users-group', color: 'secondary' },
 }
 
 const { locale } = useI18n()
@@ -54,6 +55,9 @@ const sortColumn = ref('')
 const sortDirection = ref<'asc' | 'desc'>('asc')
 
 const availableTypes = computed(() => catalog.value?.types.map(item => item.value) ?? [])
+// Every family carries the business domain it belongs to so the library reads
+// as Finance / HRM / Educational / CRM rather than one flat list.
+const categoryFor = (reportType: ReportType) => catalog.value?.types.find(item => item.value === reportType)?.category ?? 'educational'
 const currentProfile = computed(() => profiles[type.value])
 const direction = computed(() => ['fa-AF', 'ps-AF'].includes(locale.value) ? 'rtl' : 'ltr')
 
@@ -228,10 +232,17 @@ const metrics = computed<Metric[]>(() => {
     ]
   }
 
+  if (type.value === 'educational') {
+    return [
+      { label: rt('metrics.newApplicants'), value: number(numericTotal(section('applicants'), 'count')), detail: rt('metrics.addedInPeriod'), icon: 'tabler-user-plus', color: 'primary' },
+      { label: rt('metrics.serviceCommitments'), value: number(numericTotal(section('applicant_contracts'), 'commitments')), detail: rt('metrics.activeCount', { count: number(numericTotal(section('applicant_contracts'), 'active')) }), icon: 'tabler-heart-handshake', color: 'success' },
+      { label: rt('metrics.contractsInPeriod'), value: number(numericTotal(section('contracts'), 'count')), detail: rt('metrics.addedInPeriod'), icon: 'tabler-file-text', color: 'info' },
+    ]
+  }
+
   return [
-    { label: rt('metrics.newApplicants'), value: number(numericTotal(section('applicants'), 'count')), detail: rt('metrics.addedInPeriod'), icon: 'tabler-user-plus', color: 'primary' },
     { label: rt('metrics.visitors'), value: number(numericTotal(section('visitors'), 'count')), detail: rt('metrics.commercialInterest'), icon: 'tabler-walk', color: 'info' },
-    { label: rt('metrics.serviceCommitments'), value: number(numericTotal(section('applicant_contracts'), 'commitments')), detail: rt('metrics.activeCount', { count: number(numericTotal(section('applicant_contracts'), 'active')) }), icon: 'tabler-heart-handshake', color: 'success' },
+    { label: rt('metrics.taskDeadlines'), value: number(numericTotal(section('tasks'), 'count')), detail: rt('metrics.tasksInReport', { count: number(numericTotal(section('tasks'), 'count')) }), icon: 'tabler-checklist', color: 'primary' },
     { label: rt('metrics.deliveryRisk'), value: number(numericTotal(section('tasks'), 'overdue')), detail: rt('metrics.tasksInReport', { count: number(numericTotal(section('tasks'), 'count')) }), icon: 'tabler-calendar-exclamation', color: numericTotal(section('tasks'), 'overdue') ? 'error' : 'success' },
   ]
 })
@@ -272,11 +283,15 @@ const chartModel = computed(() => {
       { name: rt('charts.requiredHours'), color: '#7367f0', values: groupRowsByDate(section('attendance'), 'required_minutes', value => value / 60) },
     )
   }
-  if (type.value === 'operations') {
+  if (type.value === 'educational') {
     seriesMaps.push(
-      { name: rt('charts.visitors'), color: '#00bad1', values: groupRowsByDate(section('visitors')) },
       { name: rt('charts.applicants'), color: '#7367f0', values: groupRowsByDate(section('applicants')) },
       { name: rt('charts.contracts'), color: '#28c76f', values: groupRowsByDate(section('contracts')) },
+    )
+  }
+  if (type.value === 'crm') {
+    seriesMaps.push(
+      { name: rt('charts.visitors'), color: '#00bad1', values: groupRowsByDate(section('visitors')) },
       { name: rt('charts.taskDeadlines'), color: '#ff9f43', values: groupRowsByDate(section('tasks')) },
     )
   }
@@ -311,7 +326,7 @@ const breakdown = computed(() => {
   if (type.value === 'payroll') { rows = section('salary_payments')?.rows ?? []; field = 'office' }
   if (type.value === 'attendance')
     rows = section('attendance')?.rows ?? []
-  if (type.value === 'operations')
+  if (type.value === 'educational' || type.value === 'crm')
     return (report.value?.sections ?? []).filter(item => item.key !== 'net_cash_flow').map(item => ({ label: humanize(item.key), value: item.rows.length })).filter(item => item.value)
 
   const grouped = rows.reduce<Record<string, number>>((result, row) => {
@@ -359,10 +374,17 @@ const insights = computed(() => {
       { title: rt('insights.supportRequests', { count: number(numericTotal(section('daily_reports'), 'support_requested')) }), body: rt('insights.supportRequestsBody'), icon: 'tabler-help-hexagon', color: numericTotal(section('daily_reports'), 'support_requested') ? 'info' : 'success' },
     ]
   }
-  const visitors = numericTotal(section('visitors'), 'count'); const applicants = numericTotal(section('applicants'), 'count'); const tasks = numericTotal(section('tasks'), 'count'); const overdue = numericTotal(section('tasks'), 'overdue')
+  if (type.value === 'educational') {
+    const commitments = numericTotal(section('applicant_contracts'), 'commitments')
+
+    return [
+      { title: commitments ? rt('insights.activeAgreements', { count: number(numericTotal(section('applicant_contracts'), 'active')) }) : rt('insights.noServiceCommitments'), body: rt('insights.activeAgreementsBody', { commitments: number(commitments) }), icon: 'tabler-heart-handshake', color: 'success' },
+    ]
+  }
+  const visitors = numericTotal(section('visitors'), 'count'); const tasks = numericTotal(section('tasks'), 'count'); const overdue = numericTotal(section('tasks'), 'overdue')
 
   return [
-    { title: visitors ? rt('insights.conversionRatio', { rate: number((applicants / visitors) * 100, 1) }) : rt('insights.noVisitorActivity'), body: rt('insights.conversionBody', { visitors: number(visitors), applicants: number(applicants) }), icon: 'tabler-chart-funnel', color: 'info' },
+    { title: rt('insights.inboundInterest', { count: number(visitors) }), body: rt('insights.inboundInterestBody', { count: number(visitors) }), icon: 'tabler-chart-funnel', color: 'info' },
     { title: tasks ? rt('insights.overdueRatio', { rate: number((overdue / tasks) * 100, 1) }) : rt('insights.noTaskCommitments'), body: rt('insights.overdueBody', { overdue: number(overdue), tasks: number(tasks) }), icon: 'tabler-target-arrow', color: overdue ? 'warning' : 'success' },
   ]
 })
@@ -508,7 +530,7 @@ onBeforeUnmount(() => {
             size="22"
           />
         </VAvatar>
-        <span class="min-w-0"><strong>{{ profileText(profiles[reportType], 'label') }}</strong><small>{{ profileText(profiles[reportType], 'description') }}</small></span>
+        <span class="min-w-0"><strong>{{ profileText(profiles[reportType], 'label') }}</strong><small>{{ profileText(profiles[reportType], 'description') }}</small><VChip size="x-small" variant="tonal" class="mt-1">{{ rt(`domains.${categoryFor(reportType)}`) }}</VChip></span>
         <VIcon
           v-if="type === reportType"
           icon="tabler-circle-check-filled"
@@ -667,7 +689,7 @@ onBeforeUnmount(() => {
                 />
               </VCol>
               <VCol
-                v-if="type === 'operations'"
+                v-if="type === 'crm'"
                 cols="12"
                 md="3"
               >
@@ -681,7 +703,7 @@ onBeforeUnmount(() => {
                 />
               </VCol>
               <VCol
-                v-if="type === 'operations'"
+                v-if="type === 'educational'"
                 cols="12"
                 md="3"
               >
@@ -864,7 +886,7 @@ onBeforeUnmount(() => {
             <VCardItem class="px-5 pt-5 pb-0">
               <VCardTitle class="font-weight-bold">
                 {{ rt('result.composition') }}
-              </VCardTitle><VCardSubtitle>{{ type === 'operations' ? rt('result.operationsComposition') : rt('result.resultComposition') }}</VCardSubtitle>
+              </VCardTitle><VCardSubtitle>{{ type === 'educational' || type === 'crm' ? rt('result.operationsComposition') : rt('result.resultComposition') }}</VCardSubtitle>
             </VCardItem><VCardText>
               <VueApexCharts
                 type="donut"

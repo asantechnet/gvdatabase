@@ -41,8 +41,14 @@ class VisaFirmComplianceTest extends TestCase
         $document = Role::where('name', 'document_officer')->firstOrFail()->permissions()->pluck('name');
         $this->assertContains('view_applicant_contracts', $document);
         $this->assertNotContains('override_contract_payments', $document);
+        // Invoicing, companies, outsourcing, packages and leads stay retired.
+        // The commission ledger was deliberately restored on the new
+        // contract-driven architecture, so its permissions are expected.
         foreach (PermissionSeeder::catalogNames() as $name) {
-            $this->assertDoesNotMatchRegularExpression('/invoice|company|commission|outsourcing|package|lead|(?:view|manage)_services/', $name);
+            $this->assertDoesNotMatchRegularExpression('/invoice|company|outsourcing|package|lead|(?:view|manage)_services/', $name);
+        }
+        foreach (['view_commissions', 'manage_commission_settlements', 'approve_commissions', 'pay_commissions'] as $name) {
+            $this->assertContains($name, PermissionSeeder::catalogNames());
         }
     }
 

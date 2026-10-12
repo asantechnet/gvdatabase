@@ -397,16 +397,26 @@ class ContractController extends Controller
         ], $type->slug, $preview);
         abort_if($rendered['unresolved'] !== [], 422, 'business.unresolved_placeholders');
         abort_if(! $preview && $rendered['missing'] !== [], 422, 'business.missing_placeholder_values');
+        // Other contracts are free-form templates the office completes by hand:
+        // they carry no counterparty at all, so nothing is derived from the
+        // optional record link and nothing is required.
+        $isOther = $type->slug === 'other';
         $partyChanged = array_key_exists('employee_id', $data) || array_key_exists('applicant_id', $data);
-        $previous = fn (string $key) => $partyChanged ? null : $contract->{$key};
-        $counterparty = [
+        $previous = fn (string $key) => ($partyChanged || $isOther) ? null : $contract->{$key};
+        $counterparty = $isOther ? [
+            'counterparty' => '',
+            'counterparty_company' => null,
+            'counterparty_email' => null,
+            'counterparty_contact' => null,
+            'counterparty_address' => null,
+        ] : [
             'counterparty' => $employee?->name ?? $applicant?->name ?? $previous('counterparty'),
             'counterparty_company' => $employee?->position?->title ?? $previous('counterparty_company'),
             'counterparty_email' => $employee?->user?->email ?? $applicant?->email ?? $previous('counterparty_email'),
             'counterparty_contact' => $employee?->contact ?? $applicant?->contact ?? $previous('counterparty_contact'),
             'counterparty_address' => $employee?->addr ?? $applicant?->address ?? $previous('counterparty_address'),
         ];
-        if (! $employee) {
+        if (! $employee && ! $isOther) {
             foreach (array_keys($counterparty) as $key) {
                 if (array_key_exists($key, $data)) {
                     if ($key === 'counterparty' && $applicant && ! filled($data[$key])) {
@@ -416,7 +426,7 @@ class ContractController extends Controller
                 }
             }
         }
-        abort_unless(filled($counterparty['counterparty']), 422, 'business.contract_counterparty_required');
+        abort_unless($isOther || filled($counterparty['counterparty']), 422, 'business.contract_counterparty_required');
         $party = ['label' => $counterparty['counterparty'], 'fields' => $counterparty];
 
         return [

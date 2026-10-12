@@ -9,13 +9,14 @@ use App\Support\DocumentLetterheads;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Builds the printable receipt payload for a loan request.
+ * Builds the printable payload for a payment request.
  *
- * "Loans" are pending transactions (see PendingTransactionController), so this
- * mirrors IncomeReceiptService but swaps the contracted-service data for the
- * request data. The payload intentionally keeps the receipt shape (income /
- * totals / company / applicant / letterhead) so the frontend reuses the same
- * A5 receipt template and print pipeline for both documents.
+ * A payment request is a pending transaction (see PendingTransactionController).
+ * The payload intentionally keeps the receipt shape (income / totals / company /
+ * applicant / letterhead) so the frontend reuses the same A5 template and print
+ * pipeline. The `loan.transaction_type` decides the layout: money coming in
+ * prints as an income receipt, while any other direction (an expense, or a
+ * legacy salary request) prints as a payment voucher (see `receipt_template.vue`).
  */
 class LoanReceiptService
 {
@@ -25,6 +26,7 @@ class LoanReceiptService
             'currency',
             'applicant.scholarshipDetail.country',
             'applicant.scholarshipDetail.educationLevel',
+            'employee',
             'requester',
             'approver',
         ]);
@@ -89,17 +91,28 @@ class LoanReceiptService
                 'approved_at' => $loan->approved_at?->toDateString(),
                 'approver' => $loan->approver ? ['id' => $loan->approver->id, 'name' => $loan->approver->name] : null,
                 'rejection_reason' => $loan->rejection_reason,
+                // The payee block: a request that names an employee pays that
+                // employee, otherwise the linked applicant (if any) is named.
+                'payee_type' => $loan->employee_id ? 'employee' : ($loan->applicant ? 'applicant' : 'other'),
+                'payee_name' => $loan->employee?->name ?? $loan->applicant?->name,
+                'employee' => $loan->employee ? ['id' => $loan->employee->id, 'name' => $loan->employee->name] : null,
+                'reference' => $this->serial($loan),
             ],
         ];
     }
 
-    /** A stable reference so a reprint of the same loan never changes number. */
+    /**
+     * A stable reference so a reprint of the same request never changes number.
+     *
+     * The number is derived from the row id and its year, so it is stable for
+     * the life of the record; the `PR` prefix marks a payment request.
+     */
     private function serial(PendingTransaction $loan): string
     {
         $requestedAt = $loan->requested_at ?? $loan->created_at;
         $year = $requestedAt?->format('Y') ?? date('Y');
 
-        return sprintf('LN-%s-%06d', $year, $loan->id);
+        return sprintf('PR-%s-%06d', $year, $loan->id);
     }
 
     /** @return array<string, mixed>|null */

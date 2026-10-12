@@ -691,8 +691,10 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
       </VCardText>
     </VCard>
     <PrintableListReport v-if="activeTab === 'salaries'" :title="$t('common.crmUi.printReports.salaries.title')" :subtitle="$t('common.crmUi.printReports.salaries.subtitle')" :columns="[$t('common.crmUi.printReports.columns.payslip'), $t('common.crmUi.printReports.columns.employee'), $t('common.crmUi.printReports.columns.payMonth'), $t('common.crmUi.printReports.columns.workedDays'), $t('common.crmUi.printReports.columns.currency'), $t('common.crmUi.printReports.columns.totalPaid'), $t('common.crmUi.printReports.columns.date')]" :rows="filteredSalaries.map(salary => [salary.payslip_number, salary.employeeName, salary.salaryMonth, `${salary.workedDays}/${salary.totalDays}`, salary.currency?.code, formatSalaryAmount(salary.totalAmount, salary.currency), salary.date])" />
-  </div>
-</template>
+    <VDialog
+      v-model="isPayslipPreviewOpen"
+      width="80vw"
+      max-width="1280"
       content-class="document-preview-modal"
     >
       <VCard class="document-preview-dialog">

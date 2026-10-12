@@ -21,10 +21,12 @@ class FinanceRetirementMigrationTest extends TestCase
     use CreatesBuiltInContracts;
     use DatabaseTruncation;
 
+    // The commission ledger was later restored (2026_10_12) on the new,
+    // contract-driven architecture, so its tables are intentionally absent
+    // from this retirement list while invoicing/companies/outsourcing stay gone.
     private const RETIRED_TABLES = [
         'companies', 'invoices', 'invoice_service', 'payment_details',
         'invoice_service_commission_recipients', 'applicant_contract_employee',
-        'employee_service_commissions', 'commission_accruals', 'commission_settlements',
         'outsourcing_accruals', 'outsourcing_settlements',
     ];
 

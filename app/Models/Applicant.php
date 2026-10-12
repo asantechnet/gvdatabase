@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Support\BuiltInService;
+use App\Support\PaymentStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -141,6 +142,36 @@ class Applicant extends Model
     }
 
     /** Contracted service lines reached through this applicant's contracts. */
+    /**
+     * True when the case sits in the terminal stage that completes it.
+     *
+     * This is the state that earns commission for the case's contracted
+     * service lines, and it is the only state that does: a case anywhere else
+     * (including the other terminal stages) does not pay out.
+     */
+    public function isCaseCompleted(): bool
+    {
+        return $this->currentStage?->isCompletedStage() === true;
+    }
+
+    /**
+     * Overall payment state across every contracted service line.
+     *
+     * Null when the applicant has no lines or the lines were not loaded, so the
+     * applications list can show a single Paid / Partially Paid / Unpaid chip.
+     */
+    public function overallPaymentStatus(): ?string
+    {
+        if (! $this->relationLoaded('applicantContracts') || $this->applicantContracts->isEmpty()) {
+            return null;
+        }
+
+        $payable = (float) $this->applicantContracts->sum(fn (ApplicantContract $line) => $line->payableTotal());
+        $paid = (float) $this->applicantContracts->sum(fn (ApplicantContract $line) => (float) $line->amount_paid);
+
+        return PaymentStatus::derive($paid, $payable);
+    }
+
     public function applicantContracts(): HasManyThrough
     {
         return $this->hasManyThrough(ApplicantContract::class, Contract::class);

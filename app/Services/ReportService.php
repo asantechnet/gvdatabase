@@ -29,7 +29,19 @@ use Illuminate\Support\Collection;
 
 class ReportService
 {
-    public const TYPES = ['financial', 'payroll', 'attendance', 'operations'];
+    public const TYPES = ['financial', 'payroll', 'attendance', 'educational', 'crm'];
+
+    /**
+     * Business domain each report family belongs to, so the studio can group
+     * its work by focus: Finance, HRM, Educational and CRM.
+     */
+    public const CATEGORIES = [
+        'financial' => 'finance',
+        'payroll' => 'hrm',
+        'attendance' => 'hrm',
+        'educational' => 'educational',
+        'crm' => 'crm',
+    ];
 
     public function __construct(private readonly CompanyProfile $company) {}
 
@@ -39,7 +51,7 @@ class ReportService
         $types = collect(self::TYPES)->filter(fn (string $type) => $this->canView($user, $type))->values();
 
         return [
-            'types' => $types->map(fn (string $type) => ['value' => $type, 'category' => $type, 'title' => "reports.types.{$type}"])->all(),
+            'types' => $types->map(fn (string $type) => ['value' => $type, 'category' => self::CATEGORIES[$type], 'title' => "reports.types.{$type}"])->all(),
             'employees' => $this->canSeeEmployees($user) ? Employee::selectable()->active()->orderBy('name')->get(['id', 'name', 'office_id'])->all() : [],
             'offices' => $user->hasPermission('view_offices') || $user->hasPermission('view_attendance')
                 ? Office::query()->orderBy('name')->get(['id', 'name', 'code'])->all() : [],
@@ -63,13 +75,14 @@ class ReportService
             'financial' => $this->financial($filters, $start, $end, $user),
             'payroll' => $this->payroll($filters, $start, $end, $user),
             'attendance' => $this->attendance($filters, $start, $end, $user),
-            'operations' => $this->operations($filters, $start, $end, $user),
+            'educational' => $this->educational($filters, $start, $end, $user),
+            'crm' => $this->crm($filters, $start, $end, $user),
         };
         $setting = Setting::query()->latest('id')->first();
 
         return [
             'type' => $type,
-            'category' => $type,
+            'category' => self::CATEGORIES[$type],
             'title' => "reports.types.{$type}",
             'filters' => [...$filters, 'start_date' => $start->toDateString(), 'end_date' => $end->toDateString()],
             'sections' => array_values($sections),
@@ -99,8 +112,11 @@ class ReportService
             'financial' => $user->hasPermission('view_financial_reports'),
             'payroll' => $user->hasPermission('view_salaries') || $user->hasPermission('view_bonuses'),
             'attendance' => $user->hasPermission('view_attendance'),
-            'operations' => $user->hasPermission('view_contracts') || $user->hasPermission('view_applicants')
-                || $user->hasPermission('view_visitors') || $user->hasPermission('view_all_tasks'),
+            // The operational families are split by focus: the educational
+            // report owns cases and agreements, the CRM report owns inbound
+            // interest and the task commitments that follow it.
+            'educational' => $user->hasPermission('view_contracts') || $user->hasPermission('view_applicants'),
+            'crm' => $user->hasPermission('view_visitors') || $user->hasPermission('view_all_tasks'),
             default => false,
         };
     }
@@ -298,7 +314,8 @@ class ReportService
         return $sections;
     }
 
-    private function operations(array $filters, Carbon $start, Carbon $end, User $user): array
+    /** Case, service and agreement reporting for the educational pipeline. */
+    private function educational(array $filters, Carbon $start, Carbon $end, User $user): array
     {
         $sections = [];
         if ($user->hasPermission('view_contracts')) {
@@ -332,6 +349,14 @@ class ReportService
                 'commitments' => $services->count(), 'active' => $services->where('status', 'active')->count(),
             ]);
         }
+
+        return $sections;
+    }
+
+    /** Inbound interest and the task commitments that follow it. */
+    private function crm(array $filters, Carbon $start, Carbon $end, User $user): array
+    {
+        $sections = [];
         if ($user->hasPermission('view_visitors')) {
             $rows = Visitor::query()->whereBetween('date', [$start->toDateString(), $end->toDateString()])->latest('date')->get()
                 ->map(fn (Visitor $row) => ['date' => $row->date?->format('Y-m-d'), 'name' => $row->name, 'contact' => $row->contact, 'service' => $row->service]);

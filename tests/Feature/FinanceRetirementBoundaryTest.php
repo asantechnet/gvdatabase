@@ -32,12 +32,17 @@ class FinanceRetirementBoundaryTest extends TestCase
 
     public function test_removed_routes_are_not_redirected_or_replaced(): void
     {
-        foreach (['companies', 'invoices', 'payment-details', 'commissions', 'commission-settlements'] as $resource) {
+        foreach (['companies', 'invoices', 'payment-details', 'outsourcing', 'outsourcing-settlements'] as $resource) {
             $this->getJson('/api/'.$resource)->assertNotFound();
             $this->postJson('/api/'.$resource, [])->assertNotFound();
             $this->putJson('/api/'.$resource.'/1', [])->assertNotFound();
             $this->deleteJson('/api/'.$resource.'/1')->assertNotFound();
         }
+        // The contract-driven commission ledger was deliberately restored (see
+        // docs/commissions-visitor-relationships-plan.md), so its workspace
+        // must answer again instead of 404ing like the retired entities.
+        $this->assertNotSame(404, $this->getJson('/api/commissions/summary')->getStatusCode());
+        $this->assertNotSame(404, $this->getJson('/api/commission-settlements')->getStatusCode());
         $this->assertDatabaseCount('incomes', 0);
         $this->assertDatabaseCount('expenses', 0);
     }
@@ -93,11 +98,13 @@ class FinanceRetirementBoundaryTest extends TestCase
             $this->assertFalse(Schema::hasColumn($table, 'company_id'));
         }
         $this->assertFalse(Schema::hasColumn('visitors', 'company'));
+        // Only the permanently retired ledgers stay retired. The
+        // contract-driven commission ledger was deliberately restored, so its
+        // grants are covered by the live-permission assertion below instead.
         $names = [
             'view_companies', 'create_companies', 'edit_companies', 'delete_companies',
             'view_invoices', 'create_invoices', 'edit_invoices', 'void_invoices', 'delete_invoices',
             'view_payment_details', 'create_payment_details', 'edit_payment_details', 'delete_payment_details',
-            'view_commissions', 'manage_commission_settlements', 'approve_commissions', 'pay_commissions',
             'view_outsourcing', 'manage_outsourcing_settlements', 'approve_outsourcing', 'pay_outsourcing',
         ];
         $role = Role::where('name', 'staff')->firstOrFail();
@@ -114,6 +121,10 @@ class FinanceRetirementBoundaryTest extends TestCase
         $this->assertSame(0, DB::table('role_permissions')->whereIn('permission_id', $ids)->count());
         $this->seed([PermissionSeeder::class, RolePermissionSeeder::class]);
         $this->assertSame(0, Permission::withTrashed()->whereIn('name', $names)->count());
+        // The restored commission workspace keeps its grants across a reseed.
+        $this->assertSame(4, Permission::query()->whereIn('name', [
+            'view_commissions', 'manage_commission_settlements', 'approve_commissions', 'pay_commissions',
+        ])->count());
     }
 
     public function test_metadata_cleanup_removes_dead_entities_and_links_without_removing_current_audits_or_branding(): void

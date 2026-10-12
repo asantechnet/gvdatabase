@@ -112,6 +112,7 @@ declare module 'vue' {
     ServicePaymentsDialog: typeof import('./resources/ts/components/income/ServicePaymentsDialog.vue')['default']
     ShareProjectDialog: typeof import('./resources/ts/components/dialogs/ShareProjectDialog.vue')['default']
     Shortcuts: typeof import('./resources/ts/@core/components/Shortcuts.vue')['default']
+    StaffCommissionFields: typeof import('./resources/ts/components/StaffCommissionFields.vue')['default']
     TablePagination: typeof import('./resources/ts/@core/components/TablePagination.vue')['default']
     TaskAppShell: typeof import('./resources/ts/components/task-manager/TaskAppShell.vue')['default']
     TaskCommentsDrawer: typeof import('./resources/ts/components/task-manager/components/TaskCommentsDrawer.vue')['default']

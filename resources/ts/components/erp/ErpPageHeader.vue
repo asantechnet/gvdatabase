@@ -5,7 +5,12 @@ import { useI18n } from 'vue-i18n'
 import { canAccess } from '@/utils/authorization'
 import './workspace.scss'
 
-const props = defineProps<{ title: string; section: 'contracts' | 'crm' | 'applicants' | 'dashboard' }>()
+const props = withDefaults(defineProps<{
+  title: string
+  section: 'contracts' | 'crm' | 'applicants' | 'dashboard'
+  /** Pages whose own tab strip is the primary navigation hide the crumb trail. */
+  breadcrumbs?: boolean
+}>(), { breadcrumbs: true })
 const { t } = useI18n()
 const route = useRoute()
 const links = computed(() => {
@@ -29,7 +34,7 @@ const links = computed(() => {
 <template>
   <header class="erp-page-header">
     <div class="erp-page-heading">
-      <VBreadcrumbs :items="[{ title: t('erp.home'), to: { name: 'home' } }, { title: t(`erp.${section}`), disabled: true }]" density="compact" class="pa-0 mb-1" />
+      <VBreadcrumbs v-if="breadcrumbs" :items="[{ title: t('erp.home'), to: { name: 'home' } }, { title: t(`erp.${section}`), disabled: true }]" density="compact" class="pa-0 mb-1" />
       <h1 class="text-h5 font-weight-bold">{{ title }}</h1>
     </div>
     <nav v-if="links.length || $slots.navigation" class="erp-subnav" :aria-label="t(`erp.${section}`)">

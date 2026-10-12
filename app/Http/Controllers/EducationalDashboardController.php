@@ -62,6 +62,9 @@ class EducationalDashboardController extends Controller
             'sales' => $this->sales($data),
             'staff' => $this->staff($data),
             'attention' => $this->attention($data, $staleDays),
+            // Task and contract workload: the operational half of the agency
+            // picture that the financial/pipeline sections do not cover.
+            'work' => $this->work($data),
             'countries' => $this->countries($data),
             'universities' => $this->universities($data),
         ]]);
@@ -293,6 +296,59 @@ class EducationalDashboardController extends Controller
             ->map(fn (Contract $c) => ['id' => $c->id, 'title' => $c->contract_number ?? "Contract #{$c->id}", 'subtitle' => ($c->applicant?->name ?? 'No applicant').' · '.$c->status, 'route' => $c->applicant_id ? ['name' => 'applicant-case', 'params' => ['id' => $c->applicant_id]] : ['name' => 'contracts']])->all();
 
         return ['stuck_applicants' => $stuck, 'overdue_tasks' => $overdue, 'pending_approvals' => $pendingApprovals, 'missing_documents' => $missingDocuments, 'contracts_requiring_attention' => $contractsRequiringAttention];
+    }
+
+    /**
+     * Task and contract workload for the overview.
+     *
+     * Tasks are reached through their assignees so a scoped viewer only ever
+     * counts work that belongs to the employees they may see.
+     */
+    private function work(array $filters): array
+    {
+        $employeeIds = $this->employeeIds($filters);
+        $today = now()->toDateString();
+        $period = function ($query, string $column) use ($filters) {
+            if (! empty($filters['date_from'])) {
+                $query->whereDate($column, '>=', $filters['date_from']);
+            }
+            if (! empty($filters['date_to'])) {
+                $query->whereDate($column, '<=', $filters['date_to']);
+            }
+
+            return $query;
+        };
+        $taskScope = fn () => Task::query()->when($employeeIds !== [], fn ($query) => $query
+            ->whereHas('users.employee', fn ($employee) => $employee->whereIn('id', $employeeIds)));
+
+        $open = (clone $taskScope())->where('progress', '<', 100);
+        $tasks = [
+            'open' => (clone $open)->count(),
+            'due_today' => (clone $open)->whereDate('due_date', $today)->count(),
+            'overdue' => (clone $open)->whereDate('due_date', '<', $today)->count(),
+            'unassigned' => (clone $open)->whereDoesntHave('users')->count(),
+            'completed' => $period($taskScope()->where('progress', '>=', 100), 'completed_at')->count(),
+        ];
+
+        $contractScope = fn () => Contract::query()->when($employeeIds !== [], fn ($query) => $query
+            ->where(fn ($inner) => $inner->whereIn('employee_id', $employeeIds)->orWhereIn('sold_by_employee_id', $employeeIds)));
+        $statusRows = (clone $contractScope())->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
+        $contracts = [
+            'total' => (int) $statusRows->sum(),
+            'draft' => (int) ($statusRows['draft'] ?? 0),
+            'active' => (int) ($statusRows['active'] ?? 0),
+            'completed' => (int) ($statusRows['completed'] ?? 0),
+            'terminated' => (int) ($statusRows['terminated'] ?? 0),
+            'cancelled' => (int) ($statusRows['cancelled'] ?? 0),
+            'new_in_period' => $period(clone $contractScope(), 'created_at')->count(),
+            // Service contracts are the revenue line, so they are counted
+            // separately from employment and other agreements.
+            'service_lines' => ApplicantContract::query()
+                ->when($employeeIds !== [], fn ($query) => $query->whereIn('sold_by_employee_id', $employeeIds))
+                ->count(),
+        ];
+
+        return ['tasks' => $tasks, 'contracts' => $contracts];
     }
 
     private function countries(array $filters): array

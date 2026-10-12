@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Applicant;
 use App\Models\Currency;
 use App\Models\Position;
 use App\Models\User;
@@ -44,8 +43,11 @@ class PositionManagementTest extends TestCase
             ->assertJsonPath('data.title', 'Applicant Support Specialist')
             ->assertJsonPath('data.status', 'inactive');
 
+        // The list is alphabetical and other positions are seeded (e.g. the
+        // migration-seeded "Admission"), so assert the update is listed rather
+        // than that it sorts first.
         $this->getJson('/api/positions')->assertOk()
-            ->assertJsonPath('data.0.title', 'Applicant Support Specialist');
+            ->assertJsonFragment(['id' => $position->id, 'title' => 'Applicant Support Specialist']);
 
         $this->deleteJson("/api/positions/{$position->id}")->assertOk();
         $this->assertSoftDeleted('positions', ['id' => $position->id]);

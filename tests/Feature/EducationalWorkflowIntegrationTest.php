@@ -139,14 +139,33 @@ class EducationalWorkflowIntegrationTest extends TestCase
             'responsible_employee_id' => $otherEmployee->id,
         ])->assertCreated()->json('data.id');
 
+        // A staff member has no agency-overview access at all; the scoped
+        // overview belongs to roles that hold `view_agency_overview` without
+        // the company-wide `view_all_applicants` scope.
         Sanctum::actingAs($agent, ['access']);
-        $this->getJson('/api/educational-dashboard?responsible_employee_id='.$otherEmployee->id)
-            ->assertForbidden();
-        $this->getJson('/api/educational-dashboard')
-            ->assertOk()
-            ->assertJsonPath('data.pipeline.totals.all', 1)
-            ->assertJsonCount(1, 'data.staff')
-            ->assertJsonPath('data.staff.0.id', $ownEmployee->id);
+        $this->getJson('/api/educational-dashboard')->assertForbidden();
+
+        Sanctum::actingAs($manager, ['access']);
+        $companyWide = $this->getJson('/api/educational-dashboard')->assertOk()->json('data.pipeline.totals.all');
+
+        $counselor = $this->userWithRole('senior_counselor');
+        $counselorEmployee = Employee::factory()->create(['user_id' => $counselor->id]);
+        Sanctum::actingAs($manager, ['access']);
+        $this->postJson('/api/applicants', [
+            'name' => 'Case 4',
+            'responsible_employee_id' => $counselorEmployee->id,
+        ])->assertCreated();
+
+        Sanctum::actingAs($counselor, ['access']);
+        // Filtering by an employee outside the visible scope stays forbidden.
+        $this->getJson('/api/educational-dashboard?responsible_employee_id='.$otherEmployee->id)->assertForbidden();
+        $scoped = $this->getJson('/api/educational-dashboard')->assertOk();
+        $this->assertLessThan($companyWide, $scoped->json('data.pipeline.totals.all'));
+        $staffIds = collect($scoped->json('data.staff'))->pluck('id')->all();
+        $this->assertContains($counselorEmployee->id, $staffIds);
+        $this->assertNotContains($otherEmployee->id, $staffIds);
+
+        Sanctum::actingAs($agent, ['access']);
         $this->postJson("/api/applicants/{$otherCase}/universities", ['university_id' => $university->id])->assertForbidden();
         $this->postJson("/api/applicants/{$ownCase}/universities", ['university_id' => $university->id])->assertCreated();
     }

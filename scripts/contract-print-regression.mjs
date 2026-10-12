@@ -172,6 +172,16 @@ const page = `<!doctype html>
 <style>* { box-sizing: border-box; } body { font-family: Arial, sans-serif; margin: 0; }
 .layout-wrapper { padding: 40px; min-height: 100vh; background: #eef; }</style>
 <style>${css}</style>
+<!--
+  Faithful copy of Vuetify's VOverlay scroll-lock rules (node_modules/vuetify/lib/components/VOverlay/VOverlay.css).
+  Every print path opens a real VDialog, so the app runs these rules while the print job is prepared. Without them
+  the harness cannot reproduce the pinned <html>/clipped <body> state that truncates the print to one page.
+-->
+<style>
+.v-overlay-scroll-blocked { padding-inline-end: var(--v-scrollbar-offset); }
+.v-overlay-scroll-blocked:not(html) { overflow-y: hidden !important; }
+html.v-overlay-scroll-blocked { position: fixed; top: var(--v-body-scroll-y); left: var(--v-body-scroll-x); width: 100%; height: 100%; }
+</style>
 </head>
 <body>
 <nav>UNWANTED-NAVIGATION</nav>
@@ -285,6 +295,8 @@ const measure = async label => {
     document.documentElement.classList.add('v-overlay-scroll-blocked');
     document.body.classList.add('v-overlay-scroll-blocked');
     document.documentElement.style.setProperty('--v-scrollbar-offset', '15px');
+    document.documentElement.style.setProperty('--v-body-scroll-x', '0px');
+    document.documentElement.style.setProperty('--v-body-scroll-y', '0px');
     await window.__print();
     const host = document.querySelector('#app-print-host');
     if (!host) return { error: 'no print host' };
@@ -311,13 +323,15 @@ const measure = async label => {
       dialogText: document.querySelector('#app > *') ? document.querySelector('#app').textContent.replace(/\\s+/g, ' ').slice(0, 200) : null,
       htmlPosition: getComputedStyle(document.documentElement).position,
       htmlHeight: getComputedStyle(document.documentElement).height,
+      htmlPaddingInlineEnd: getComputedStyle(document.documentElement).paddingInlineEnd,
       viewportHeight: window.innerHeight,
+      direction: document.documentElement.dir,
       toasts: window.__state.toasts,
     };
   })()`)
   // Chrome's print pipeline lays out exactly what window.print() would.
   result.pdfPages = await pdfPageCount()
-  await evaluate('document.documentElement.classList.remove("v-overlay-scroll-blocked"); document.body.classList.remove("v-overlay-scroll-blocked"); document.documentElement.style.removeProperty("--v-scrollbar-offset")')
+  await evaluate('document.documentElement.classList.remove("v-overlay-scroll-blocked"); document.body.classList.remove("v-overlay-scroll-blocked"); document.documentElement.style.removeProperty("--v-scrollbar-offset"); document.documentElement.style.removeProperty("--v-body-scroll-x"); document.documentElement.style.removeProperty("--v-body-scroll-y")')
   await evaluate('window.dispatchEvent(new Event("afterprint"))')
   console.log(`--- ${label} ---`)
   console.log(JSON.stringify(result))
@@ -337,8 +351,16 @@ const withArtwork = await measure('usable artwork configured')
 await evaluate(`window.__reopen(${JSON.stringify({ contract_letterhead_url: missing('letterhead'), contract_cover_design_url: missing('cover') })})`)
 const withMissingArtwork = await measure('configured artwork whose file is gone')
 
+// The overlay lock's scrollbar compensation is a logical `padding-inline-end`, so
+// in RTL it lands on the left edge and shifts the whole sheet when it survives
+// into print. Print the same document right-to-left and check that too.
+await evaluate('document.documentElement.dir = "rtl"')
+await evaluate('window.__reopen({ contract_letterhead_url: null, contract_cover_design_url: null })')
+const rightToLeft = await measure('right-to-left with the overlay scroll-lock')
+await evaluate('document.documentElement.dir = "ltr"')
+
 // --- assertions ------------------------------------------------------------------
-for (const [label, result] of [['no artwork', withoutArtwork], ['usable artwork', withArtwork], ['missing artwork', withMissingArtwork]]) {
+for (const [label, result] of [['no artwork', withoutArtwork], ['usable artwork', withArtwork], ['missing artwork', withMissingArtwork], ['right-to-left', rightToLeft]]) {
   assert.equal(result.error, undefined, `${label}: ${result.error}`)
   assert.equal(result.pages, 2, `${label}: the document must print a cover page and one content page`)
   assert.ok(result.contentPage, `${label}: the content page is missing`)
@@ -347,7 +369,13 @@ for (const [label, result] of [['no artwork', withoutArtwork], ['usable artwork'
   assert.equal(result.htmlPosition, 'static', `${label}: the overlay scroll-lock must be released for print`)
   assert.notEqual(result.htmlHeight, `${result.viewportHeight}px`, `${label}: <html> must not stay pinned to the viewport height`)
   assert.ok(result.pdfPages >= 2, `${label}: the printed PDF must contain the cover and the content page (got ${result.pdfPages})`)
+  // The lock's scrollbar compensation must never widen or shift the printed sheet.
+  assert.equal(result.htmlPaddingInlineEnd, '0px', `${label}: the overlay scrollbar offset must not leak into print`)
 }
+
+assert.equal(rightToLeft.direction, 'rtl', 'right-to-left: the document must print in RTL')
+assert.ok(rightToLeft.builtInCover && rightToLeft.builtInFooter, 'right-to-left: the built-in cover and letterhead must print')
+assert.equal(rightToLeft.coverSurface.height, 1119, 'right-to-left: the built-in cover must fill one A4 page')
 
 // The cover is either the configured artwork or the built-in cover page, never neither.
 assert.ok(withoutArtwork.builtInCover && !withoutArtwork.customCover, 'no artwork: the built-in cover page must print')
@@ -377,4 +405,4 @@ socket.close()
 chrome.kill()
 server.close()
 
-console.log('Contract print cover/letterhead fallback, A4 page set, print isolation and print-dialog state passed in Chrome.')
+console.log('Contract print cover/letterhead fallback, A4 page set, print isolation, overlay scroll-lock release and print-dialog state passed in Chrome.')

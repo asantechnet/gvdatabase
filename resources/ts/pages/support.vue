@@ -3,6 +3,10 @@ import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import { type CreateSupportTicketData, type SupportTicket, createSupportTicket, getSupportTickets } from '@/api/supportTicket'
 import { currentLocale } from '@/utils/localization'
+import { SUPPORT_CONTACT } from '@/utils/constants'
+
+// Rendered both as a standalone route and as a tab inside Settings.
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 
 const toast = useToast()
 const { t } = useI18n()
@@ -11,6 +15,13 @@ const submitting = ref(false)
 const loading = ref(true)
 const tickets = ref<SupportTicket[]>([])
 const attachments = ref<File[]>([])
+
+const contactChannels = computed(() => [
+  { key: 'phone', icon: 'tabler-phone', color: 'primary', value: SUPPORT_CONTACT.phone, href: SUPPORT_CONTACT.phoneHref, external: false },
+  { key: 'whatsapp', icon: 'tabler-brand-whatsapp', color: 'success', value: SUPPORT_CONTACT.whatsapp, href: SUPPORT_CONTACT.whatsappHref, external: true },
+  { key: 'telegram', icon: 'tabler-brand-telegram', color: 'info', value: SUPPORT_CONTACT.telegram, href: SUPPORT_CONTACT.telegramHref, external: true },
+  { key: 'email', icon: 'tabler-mail', color: 'warning', value: SUPPORT_CONTACT.email, href: SUPPORT_CONTACT.emailHref, external: false },
+])
 
 const categoryOptions = computed(() => ['technical', 'account', 'billing', 'feature_request', 'other'].map(value => ({
   value,
@@ -77,7 +88,7 @@ onMounted(loadTickets)
 
 <template>
   <VRow>
-    <VCol cols="12">
+    <VCol v-if="!props.embedded" cols="12">
       <div data-page-title>
         <h4 class="text-h4 mb-1">
           {{ $t('pages.support.title') }}
@@ -86,6 +97,77 @@ onMounted(loadTickets)
           {{ $t('pages.support.intro') }}
         </p>
       </div>
+    </VCol>
+
+    <VCol cols="12">
+      <VCard class="support-contact-card">
+        <VCardItem>
+          <template #prepend>
+            <VAvatar
+              color="primary"
+              variant="tonal"
+            >
+              <VIcon icon="tabler-headset" />
+            </VAvatar>
+          </template>
+          <VCardTitle>{{ $t('pages.support.contact.title') }}</VCardTitle>
+          <VCardSubtitle>{{ $t('pages.support.contact.subtitle') }}</VCardSubtitle>
+        </VCardItem>
+        <VCardText>
+          <VAlert
+            type="info"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+          >
+            {{ $t('pages.support.contact.developerNotice') }}
+          </VAlert>
+          <div class="support-contact-grid">
+            <a
+              v-for="channel in contactChannels"
+              :key="channel.key"
+              class="support-contact-tile"
+              :href="channel.href"
+              :target="channel.external ? '_blank' : undefined"
+              :rel="channel.external ? 'noopener noreferrer' : undefined"
+            >
+              <VAvatar
+                :color="channel.color"
+                variant="tonal"
+                size="40"
+              >
+                <VIcon :icon="channel.icon" />
+              </VAvatar>
+              <div class="support-contact-tile__body">
+                <span class="support-contact-tile__label">{{ $t(`pages.support.contact.${channel.key}`) }}</span>
+                <span
+                  class="support-contact-tile__value"
+                  dir="ltr"
+                >{{ channel.value }}</span>
+              </div>
+              <VIcon
+                v-if="channel.external"
+                icon="tabler-external-link"
+                size="18"
+                class="support-contact-tile__arrow"
+              />
+            </a>
+          </div>
+          <div class="support-contact-address">
+            <VAvatar
+              color="secondary"
+              variant="tonal"
+              size="40"
+            >
+              <VIcon icon="tabler-map-pin" />
+            </VAvatar>
+            <div class="support-contact-tile__body">
+              <span class="support-contact-tile__label">{{ $t('pages.support.contact.address') }}</span>
+              <span class="support-contact-tile__value">{{ SUPPORT_CONTACT.address }}</span>
+            </div>
+          </div>
+        </VCardText>
+      </VCard>
     </VCol>
 
     <VCol cols="12" lg="7">
@@ -219,4 +301,54 @@ onMounted(loadTickets)
 
 <style scoped>
 .support-ticket-summary { white-space: normal; }
+
+.support-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.support-contact-tile,
+.support-contact-address {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.support-contact-tile:hover {
+  background-color: rgba(var(--v-theme-primary), 0.06);
+  border-color: rgba(var(--v-theme-primary), 0.35);
+}
+
+.support-contact-tile__body {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.support-contact-tile__label {
+  font-size: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.support-contact-tile__value {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.support-contact-tile__arrow {
+  margin-inline-start: auto;
+  opacity: 0.4;
+  flex: 0 0 auto;
+}
+
+.support-contact-address {
+  margin-block-start: 12px;
+}
 </style>

@@ -26,11 +26,14 @@ const props = withDefaults(defineProps<{
   endDate?: string | null
   editable?: boolean
   startRequired?: boolean
+  /** Override the card title (other contracts have no counterparty). */
+  titleKey?: string | null
 }>(), {
   startDate: null,
   endDate: null,
   editable: false,
   startRequired: false,
+  titleKey: null,
 })
 
 const emit = defineEmits<{
@@ -76,7 +79,7 @@ const startRules = computed(() => (props.editable && props.startRequired
         </VAvatar>
       </template>
       <VCardTitle class="text-body-1">
-        {{ tr('title') }}
+        {{ t(titleKey ?? 'components.contractCounterpartyCard.title') }}
       </VCardTitle>
       <VCardSubtitle>
         <VChip v-if="details?.kind" size="x-small" :color="meta[details.kind].color" variant="tonal" class="me-2">

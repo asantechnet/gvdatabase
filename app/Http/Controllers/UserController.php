@@ -34,11 +34,24 @@ class UserController extends Controller
         $this->guardRoleAssignment($request, $data['roles']);
         $roles = $data['roles'];
         unset($data['roles']);
-        $data['password'] = Hash::make(Str::random(64));
-        $data['must_set_password'] = true;
+        // A supplied password creates a ready-to-use account: the email is
+        // marked verified and no invitation is mailed. Without one the user is
+        // invited and chooses their own password after verifying.
+        $password = $data['password'] ?? null;
+        unset($data['password']);
+        if ($password) {
+            $data['password'] = Hash::make($password);
+            $data['must_set_password'] = false;
+            $data['email_verified_at'] = now();
+        } else {
+            $data['password'] = Hash::make(Str::random(64));
+            $data['must_set_password'] = true;
+        }
         $user = User::create($data);
         $user->syncRoles($roles);
-        $user->sendEmailVerificationNotification();
+        if (! $password) {
+            $user->sendEmailVerificationNotification();
+        }
 
         return response()->json(['success' => true, 'data' => new UserResource($user->fresh())], 201);
     }
@@ -126,7 +139,7 @@ class UserController extends Controller
 
     private function validated(Request $request, ?User $user = null): array
     {
-        $data = $request->validate([
+        $rules = [
             'name' => [$user ? 'sometimes' : 'required', 'string', 'max:255'],
             'email' => [$user ? 'sometimes' : 'required', 'email', 'max:255', Rule::unique('users')->ignore($user?->id)],
             'phone' => [$user ? 'sometimes' : 'required', 'nullable', 'string', 'max:20'],
@@ -137,9 +150,15 @@ class UserController extends Controller
                 $user ? 'sometimes' : 'required',
                 Rule::in($user ? ['active', 'inactive', 'deactivated'] : ['active', 'inactive']),
             ],
-        ]);
+        ];
+        // A password may only be supplied when creating the account. An edit has
+        // no rule for it at all, so the field is dropped from the validated data
+        // and can never overwrite a stored credential.
+        if (! $user) {
+            $rules['password'] = ['sometimes', 'nullable', 'string', 'min:8', 'confirmed'];
+        }
 
-        return $data;
+        return $request->validate($rules);
     }
 
     private function authorizePermission(Request $request, string $permission): void
@@ -190,7 +209,7 @@ class UserController extends Controller
      * counselor therefore cannot promote themselves or a peer into a
      * supervisory role.
      *
-     * @param array<int, string> $roleNames
+     * @param  array<int, string>  $roleNames
      */
     private function guardRoleAssignment(Request $request, array $roleNames): void
     {

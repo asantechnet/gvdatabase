@@ -1,7 +1,8 @@
 import api from './axios'
 import { currentLocale } from '@/utils/localization'
 
-export type ReportType = 'financial' | 'payroll' | 'attendance' | 'operations'
+/** Report families grouped by business domain: finance, HRM, educational, CRM. */
+export type ReportType = 'financial' | 'payroll' | 'attendance' | 'educational' | 'crm'
 
 export interface ReportFilters {
   start_date: string

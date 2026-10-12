@@ -13,6 +13,7 @@ import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
+import StaffCommissionFields from '@/components/StaffCommissionFields.vue'
 
 interface Staff {
   id: number
@@ -43,6 +44,8 @@ interface Staff {
   addr: string
   join_date: string
   paid_leave_days: number | null
+  is_commission_based: boolean
+  service_commissions?: Array<{ service: string; percentage: number }>
   document?: Employee['document']
   avatar?: string | null
 }
@@ -266,6 +269,38 @@ const validateStaffForm = () => {
   return isValid
 }
 
+// Commission rates are edited per built-in service. The rates live on the
+// selected employee so both the create and edit dialogs share one binding.
+const commissionServiceOptions = computed(() => [
+  { value: 'scholarship', title: translate('educational.builtInServices.scholarship') },
+  { value: 'test_offer', title: translate('educational.builtInServices.testOffer') },
+  { value: 'academy', title: translate('educational.builtInServices.academy') },
+  { value: 'private', title: translate('educational.builtInServices.private') },
+])
+
+const commissionRate = (service: string) => selectedStaff.value?.service_commissions?.find(row => row.service === service)?.percentage ?? null
+
+const setCommissionRate = (service: string, value: unknown) => {
+  if (!selectedStaff.value)
+    return
+
+  const rows = [...(selectedStaff.value.service_commissions ?? [])]
+  const index = rows.findIndex(row => row.service === service)
+  const percentage = value === '' || value === null || value === undefined ? 0 : Number(value)
+  const row = { service, percentage: Number.isFinite(percentage) ? percentage : 0 }
+
+  if (index === -1)
+    rows.push(row)
+  else
+    rows[index] = row
+
+  selectedStaff.value.service_commissions = rows
+}
+
+const commissionPayload = () => (selectedStaff.value?.is_commission_based
+  ? (selectedStaff.value.service_commissions ?? []).filter(row => Number(row.percentage) > 0)
+  : [])
+
 const openAddStaffDialog = () => {
   selectedStaff.value = {
     id: 0,
@@ -296,6 +331,8 @@ const openAddStaffDialog = () => {
     total_worked_hours: 0,
     join_date: new Date().toISOString().split('T')[0],
     paid_leave_days: null,
+    is_commission_based: false,
+    service_commissions: [],
   }
   resetFormErrors()
   formSubmissionError.value = ''
@@ -304,7 +341,11 @@ const openAddStaffDialog = () => {
 
 const openEditStaffDialog = (staff: Staff) => {
   // Keep edits local until Save.
-  selectedStaff.value = { ...staff }
+  selectedStaff.value = {
+    ...staff,
+    is_commission_based: staff.is_commission_based ?? false,
+    service_commissions: staff.service_commissions ?? [],
+  }
   resetFormErrors()
   formSubmissionError.value = ''
   isEditStaffDialogVisible.value = true
@@ -557,6 +598,8 @@ const addStaff = async () => {
       addr: selectedStaff.value.addr,
       join_date: selectedStaff.value.join_date,
       paid_leave_days: selectedStaff.value.paid_leave_days,
+      is_commission_based: selectedStaff.value.is_commission_based,
+      service_commissions: commissionPayload(),
       status: selectedStaff.value.status,
     }
 
@@ -617,6 +660,8 @@ const updateStaff = async () => {
       addr: selectedStaff.value.addr,
       join_date: selectedStaff.value.join_date,
       paid_leave_days: selectedStaff.value.paid_leave_days,
+      is_commission_based: selectedStaff.value.is_commission_based,
+      service_commissions: commissionPayload(),
     }
 
     const response = await EmployeeApi.update(selectedStaff.value.id, data)
@@ -1273,6 +1318,12 @@ onMounted(async () => {
                   required
                 />
               </VCol>
+              <StaffCommissionFields
+                v-model:enabled="selectedStaff.is_commission_based"
+                :options="commissionServiceOptions"
+                :rate="commissionRate"
+                @update:rate="setCommissionRate"
+              />
               <VCol
                 cols="12"
                 md="6"
@@ -1587,6 +1638,12 @@ onMounted(async () => {
                   required
                 />
               </VCol>
+              <StaffCommissionFields
+                v-model:enabled="selectedStaff.is_commission_based"
+                :options="commissionServiceOptions"
+                :rate="commissionRate"
+                @update:rate="setCommissionRate"
+              />
               <VCol
                 cols="12"
                 md="6"

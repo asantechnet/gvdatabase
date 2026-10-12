@@ -96,8 +96,11 @@ assert.deepEqual(validation.validateApiRequest({ method: 'post', url: '/contract
 assert.ok(Object.hasOwn(validation.validateApiRequest({ method: 'post', url: '/contracts', data: {} }), 'template_id'))
 const routes = readFileSync(new URL('../resources/ts/plugins/1.router/routes.ts', import.meta.url), 'utf8')
 assert.doesNotMatch(routes, /path: '\/contracts'|name: 'contracts'|path: '\/company-contracts'/)
-assert.doesNotMatch(routes, /path: '\/(companies|invoices|payment-details|commissions)'/)
-for (const file of ['api/company.ts', 'api/invoice.ts', 'api/commission.ts', 'pages/companies.vue', 'pages/innvoice.vue', 'pages/commissions.vue', 'api/services.ts', 'api/packages.ts', 'pages/options/services.vue'])
+// The retired ledgers stay retired. The contract-driven commission ledger was
+// deliberately restored (docs/commissions-visitor-relationships-plan.md), so
+// `commissions` is no longer part of this guard.
+assert.doesNotMatch(routes, /path: '\/(companies|invoices|payment-details)'/)
+for (const file of ['api/company.ts', 'api/invoice.ts', 'pages/companies.vue', 'pages/innvoice.vue', 'api/services.ts', 'api/packages.ts', 'pages/options/services.vue'])
   assert.equal(existsSync(new URL(`../resources/ts/${file}`, import.meta.url)), false, `${file} must stay retired`)
 for (const file of ['api/incomes.ts', 'api/visitor.ts', 'api/contracts.ts'])
   assert.doesNotMatch(readFileSync(new URL(`../resources/ts/${file}`, import.meta.url), 'utf8'), /\bcompany_id\b|\binvoice_id\b/)
@@ -165,7 +168,9 @@ for (const file of files) {
 const english = JSON.parse(readFileSync(new URL('../resources/ts/plugins/i18n/locales/en.json', import.meta.url), 'utf8'))
 function assertRetiredKeysAbsent(messages) {
   for (const [key, value] of Object.entries(messages)) {
-    assert.doesNotMatch(key, /invoice|innvoice|commission|outsourcing|companies|payment[_-]?Details|package|variant/i)
+    // `commission` is intentionally excluded: the contract-driven commission
+    // ledger was restored deliberately (docs/commissions-visitor-relationships-plan.md).
+    assert.doesNotMatch(key, /invoice|innvoice|outsourcing|companies|payment[_-]?Details|package|variant/i)
     if (value && typeof value === 'object')
       assertRetiredKeysAbsent(value)
   }
@@ -191,6 +196,16 @@ for (const locale of ['fa-AF', 'ps-AF']) {
   assert.deepEqual(Object.keys(messages.educational.salesTypes).sort(), Object.keys(english.educational.salesTypes).sort())
   assert.ok(messages.educational.salesTypes.academy)
 }
-console.log('Contract payloads, frozen party details, API wrappers, permission mapping, finance/catalogue retirement guards, Vue templates, and locale keys passed. No browser automation used.')
+// Both screens print the contract through the same component, so the A4 print
+// workflow stays a single path. The browser-level cover/content page assertions
+// (including the overlay scroll-lock and RTL) live in contract-print-regression.mjs,
+// which mounts this exact component.
+const serviceContractsSource = readFileSync(new URL('../resources/ts/pages/service-contracts.vue', import.meta.url), 'utf8')
+assert.match(serviceContractsSource, /<ContractDocumentPrinter\s+v-model="printing"/, 'service contracts must print through the shared contract document printer')
+const documentPrinterSource = readFileSync(new URL('../resources/ts/components/contract/ContractDocumentPrinter.vue', import.meta.url), 'utf8')
+assert.match(documentPrinterSource, /bodyClass: 'printing-contract-document'/, 'contracts must print under their own print-mode body class')
+assert.match(documentPrinterSource, /pageStyle: 'size: A4; margin: 0;'/, 'contracts must print on A4')
+
+console.log('Contract payloads, frozen party details, API wrappers, permission mapping, finance/catalogue retirement guards, Vue templates, locale keys and the shared A4 contract print path passed. No browser automation used.')
 delete globalThis.serviceContractTestPayload
 delete globalThis.serviceContractTestRequests

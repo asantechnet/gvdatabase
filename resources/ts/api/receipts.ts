@@ -69,6 +69,11 @@ export interface ReceiptLoan {
   approved_at: string | null
   approver: { id: number; name: string } | null
   rejection_reason: string | null
+  /** Expense/salary requests print as a payment voucher naming the payee. */
+  payee_type?: 'employee' | 'applicant' | 'other'
+  payee_name?: string | null
+  employee?: { id: number; name: string } | null
+  reference?: string | null
 }
 
 export interface ReceiptPayload {

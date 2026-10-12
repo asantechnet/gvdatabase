@@ -44,6 +44,9 @@ class ApplicantResource extends JsonResource
             'favorite_subject_ids' => $this->whenLoaded('favoriteSubjects', fn () => $this->favoriteSubjects->pluck('id')->all()),
             'skill_ids' => $this->whenLoaded('skills', fn () => $this->skills->pluck('id')->all()),
             'teacher_ids' => $this->whenLoaded('teachers', fn () => $this->teachers->pluck('id')->all()),
+            // Overall payment state across the contracted lines: one chip for
+            // the applications list (null when no lines were loaded).
+            'payment_status' => $this->whenLoaded('applicantContracts', fn () => $this->overallPaymentStatus()),
             // Case.
             'parent_applicant_id' => $this->parent_applicant_id,
             'status' => $this->status,

@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\User;
 use App\Support\AgencyStaffAssignment;
+use App\Support\BuiltInService;
 use App\Support\EmployeeScope;
 use App\Support\RoleHierarchy;
 use Illuminate\Http\JsonResponse;
@@ -36,7 +37,7 @@ class EmployeeController extends Controller
             $query->whereIn('id', app(EmployeeScope::class)->visibleEmployeeIds($request->user()));
         }
 
-        return EmployeeResource::collection($query->with(['position', 'office', 'user', 'departmentRecord', 'supervisor'])->get());
+        return EmployeeResource::collection($query->with(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions'])->get());
     }
 
     public function assignmentOptions(Request $request): AnonymousResourceCollection
@@ -90,6 +91,10 @@ class EmployeeController extends Controller
             // non-null database column while new profiles no longer expose it.
             'contract_duration' => 'nullable|string|max:255',
             'paid_leave_days' => 'nullable|numeric|min:0|max:366',
+            'is_commission_based' => 'sometimes|boolean',
+            'service_commissions' => 'nullable|array',
+            'service_commissions.*.service' => ['required', Rule::in(BuiltInService::ALL)],
+            'service_commissions.*.percentage' => 'required|numeric|min:0|max:100',
         ]);
         $this->guardHierarchyFields($request, $validated);
 
@@ -113,6 +118,8 @@ class EmployeeController extends Controller
                 $createdUser = true;
             }
 
+            $this->syncServiceCommissions($employee, $request);
+
             return $employee;
         });
 
@@ -120,7 +127,7 @@ class EmployeeController extends Controller
             $Employee->user->sendEmailVerificationNotification();
         }
 
-        return new EmployeeResource($Employee->load(['position', 'office', 'user']));
+        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'serviceCommissions']));
     }
 
     public function show(Employee $Employee): EmployeeResource
@@ -128,7 +135,7 @@ class EmployeeController extends Controller
         $this->authorizeEmployeeView(request(), $Employee);
         abort_if((int) $Employee->id === Employee::primaryRecordId(), 404);
 
-        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'departmentRecord', 'supervisor']));
+        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions']));
     }
 
     public function update(Request $request, Employee $Employee): EmployeeResource
@@ -165,6 +172,10 @@ class EmployeeController extends Controller
             'join_date' => 'sometimes|required|date',
             'contract_duration' => 'sometimes|nullable|string|max:255',
             'paid_leave_days' => 'sometimes|nullable|numeric|min:0|max:366',
+            'is_commission_based' => 'sometimes|boolean',
+            'service_commissions' => 'sometimes|nullable|array',
+            'service_commissions.*.service' => ['required', Rule::in(BuiltInService::ALL)],
+            'service_commissions.*.percentage' => 'required|numeric|min:0|max:100',
         ]);
         $this->guardHierarchyFields($request, $validated, $Employee);
 
@@ -198,9 +209,10 @@ class EmployeeController extends Controller
 
                 $Employee->user->update($userData);
             }
+            $this->syncServiceCommissions($Employee, $request);
         });
 
-        $Employee = $Employee->fresh(['position', 'office', 'user', 'departmentRecord', 'supervisor']);
+        $Employee = $Employee->fresh(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions']);
 
         if ($Employee->user && $createdUser && ! $hadUser) {
             $Employee->user->sendEmailVerificationNotification();
@@ -310,6 +322,33 @@ class EmployeeController extends Controller
             if ($manager) {
                 abort_unless($hierarchy->canSupervise($manager, $subordinate), 422, 'business.department_manager_rank_invalid');
             }
+        }
+    }
+
+    /**
+     * Replace the employee's per-service commission rates with the submitted
+     * list. Only touched when the form actually sent the list, so unrelated
+     * partial updates never wipe the rates.
+     */
+    private function syncServiceCommissions(Employee $employee, Request $request): void
+    {
+        if (! $request->has('service_commissions')) {
+            return;
+        }
+
+        $rates = collect($request->input('service_commissions') ?? [])
+            ->filter(fn ($row) => is_array($row) && isset($row['service']))
+            ->mapWithKeys(fn ($row) => [$row['service'] => (float) ($row['percentage'] ?? 0)])
+            ->all();
+
+        // Rates are configuration rows with a unique (employee, service) key;
+        // a soft-deleted row would block re-inserting the same pair.
+        $employee->serviceCommissions()->forceDelete();
+        foreach ($rates as $service => $percentage) {
+            $employee->serviceCommissions()->create([
+                'service' => $service,
+                'percentage' => $percentage,
+            ]);
         }
     }
 

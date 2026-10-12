@@ -29,8 +29,16 @@ const copies = ref(1)
 let requestGeneration = 0
 
 const isLoan = computed(() => props.document === 'loan' || receipt.value?.document === 'loan')
-const documentTitle = computed(() => translate(isLoan.value ? 'documents.loan.title' : 'documents.receipt.title'))
-const printLabel = computed(() => translate(isLoan.value ? 'documents.loan.print' : 'documents.receipt.printReceipt'))
+// A payment request prints as an income receipt when money comes in, and as a
+// payment voucher when money goes out (expense or salary).
+const isVoucher = computed(() => isLoan.value && !!receipt.value && receipt.value.loan?.transaction_type !== 'income')
+const documentTitle = computed(() => isVoucher.value
+  ? translate('documents.paymentVoucher.title')
+  : translate(isLoan.value ? 'documents.loan.title' : 'documents.receipt.title'))
+const printLabel = computed(() => isVoucher.value
+  ? translate('documents.paymentVoucher.print')
+  : translate(isLoan.value ? 'documents.loan.print' : 'documents.receipt.printReceipt'))
+const documentIcon = computed(() => isVoucher.value ? 'tabler-file-invoice' : isLoan.value ? 'tabler-clock-dollar' : 'tabler-receipt')
 
 const paperSizes = computed<Array<{ title: string; value: ReceiptPaperSize }>>(() => [
   { title: translate('documents.receipt.paperA3Landscape'), value: 'A3 landscape' },
@@ -104,7 +112,7 @@ const print = async () => {
             variant="tonal"
             size="38"
           >
-            <VIcon :icon="isLoan ? 'tabler-clock-dollar' : 'tabler-receipt'" />
+            <VIcon :icon="documentIcon" />
           </VAvatar>
           <div>
             <div class="text-h6 font-weight-bold">

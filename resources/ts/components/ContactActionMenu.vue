@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { translate } from '@/utils/localization'
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import CrmApi from '@/api/crmRelationships'
 import { useToast } from 'vue-toastification'
 import { apiErrorMessage } from '@/utils/apiErrors'
@@ -10,11 +10,19 @@ const props = defineProps<{
   value: string | null | undefined
   contactableType?: 'visitor' | 'applicant'
   contactableId?: number
+  /** Open the menu automatically, e.g. when deep-linked from another page. */
+  autoOpen?: boolean
 }>()
 
 const toast = useToast()
 const { t } = useI18n()
+const menuOpen = ref(false)
 const dialog = ref(false)
+
+onMounted(() => {
+  if (props.autoOpen)
+    menuOpen.value = true
+})
 const pendingAction = ref<ContactAction | null>(null)
 const saving = ref(false)
 const form = ref({ title: '', notes: '', follow_up_at: null as string | null })
@@ -92,6 +100,7 @@ const actions = computed<ContactAction[]>(() => {
 <template>
   <VMenu
     v-if="contactValue"
+    v-model="menuOpen"
     location="bottom start"
     transition="scale-transition"
     :open-delay="0"

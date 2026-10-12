@@ -1,3 +1,53 @@
+
+visitor form, if a user with role of counselor tried to add a visitor the visitor's counselor becomes auto-filled with that counselor and immutable 
+
+Applicants relationship need to be in the applications page as will. 
+
+commissions need to be in place 
+
+This is how commissions need to work. if a contract has the name of the employee in it and it reached completed stage then the associated employee gets a percentage of that service. 
+
+if an employee was marked as commission-based it need a commission list that is per each service. these both need to be editable in staff creation/edit form for each employee 
+
+when a contract reached completed stage the system need to check if the contract's associated employeesare commission-based or not. if they are depending on the service, emoloyee's comission for that service, service fee, etc. the system need to account for those employees' commission 
+
+for this to work you need to bring the commissions page back to life from previous commits. settlements, accruals are correctly in place in this page but I'm not sure if backend logic that was in place for commissions still applies to new architecture. please have a look at that as will and only reuse it if it's still viable for the new structure
+
+
+
+
+
+
+
+other contracts do not have any counterparty.
+
+academy applications do not need an associated employee name
+
+dashboard need to be changed to include the new data about tasks/contracts. visa reports and global reports need to be changed to be more focused on educational/finance/hrm/crm etc as will
+
+Duplicated fields in service contracts need to be moved to Applicants specially those that Generally relate to Applicant itself 
+
+
+extract the academy data from options -> contracts -> educational data page into its own page. under contracts subpage. the design need to just like 
+
+rename the all applicants page under /applicants fully to applications.
+applications need a payment status: paid/partially paid/
+
+visa case page and applications page. link the applicant name to CRM -> Applicants and clicking it automatically navigates to applicants and opens that specific applicant's phone contact menu. alternatively implement the same design in applicants CRM, relationship and quick contacting via email and phone, make it look good
+
+Loans need to be changed to payment requests. an admission/counselor can send payment requests and finance manager can approve and print them. the final print is depending on income/expense state of the transaction. if income it prints differently and if expense it prints a bit different 
+
+
+
+
+
+
+
+
+
+
+
+
 ## Task
 task remaining: contracts-extend-versioning-print-plan.md
 

@@ -66,19 +66,33 @@ class PersonalBoardIsolationTest extends TestCase
         $this->assertSame('Personal', Board::find($personalBoard['id'])->title);
     }
 
-    public function test_personal_boards_are_never_shared_even_with_view_all_boards(): void
+    public function test_personal_boards_are_never_shared_even_with_super_admins(): void
     {
         $owner = User::factory()->create(['roles' => ['staff'], 'acc_status' => 'active']);
-        $manager = User::factory()->create(['roles' => ['manager'], 'acc_status' => 'active']);
+        $superAdmin = User::factory()->create(['roles' => ['super_admin'], 'acc_status' => 'active']);
 
         $personal = ServiceBoard::personalFor($owner);
+        $personalTask = Task::factory()->create(['board_id' => $personal->id, 'title' => 'Owner private work']);
+        $personalTask->users()->attach($owner->id);
 
-        Sanctum::actingAs($manager, ['access']);
+        Sanctum::actingAs($superAdmin, ['access']);
         $boards = $this->getJson('/api/boards')->assertOk()->json('data');
 
         $this->assertFalse(
             collect($boards)->pluck('id')->contains((string) $personal->id),
-            'A board-level admin must not receive another user\'s personal board.'
+            'A super-admin must not receive another user\'s personal board.'
         );
+
+        $this->getJson('/api/kanban')
+            ->assertOk()
+            ->assertJsonMissing(['id' => (string) $personal->id]);
+
+        $this->putJson("/api/boards/{$personal->id}", ['title' => 'Admin takeover'])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'auth.forbidden');
+
+        $this->putJson("/api/tasks/{$personalTask->id}", ['title' => 'Admin takeover'])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'auth.forbidden');
     }
 }

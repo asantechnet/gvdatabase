@@ -166,6 +166,12 @@ class PermissionSeeder extends Seeder
         ['name' => 'manage_currencies', 'category' => 'finance'],
         ['name' => 'view_financial_reports', 'category' => 'finance'],
         ['name' => 'export_financial_reports', 'category' => 'finance'],
+        // Commission ledger: earned per-service commissions, settlement control
+        // flow and payout (which books an expense).
+        ['name' => 'view_commissions', 'category' => 'finance'],
+        ['name' => 'manage_commission_settlements', 'category' => 'finance'],
+        ['name' => 'approve_commissions', 'category' => 'finance'],
+        ['name' => 'pay_commissions', 'category' => 'finance'],
 
         // Task management. Assigned scope is based on the task/board member
         // relationship; all scope is supervisory. These scopes are enforced

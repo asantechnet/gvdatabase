@@ -101,7 +101,11 @@ class ApplicantContract extends Pivot
         return $this->belongsTo(Employee::class, 'sold_by_employee_id');
     }
 
-
+    /** Commission accruals earned from this service line. */
+    public function commissionAccruals(): HasMany
+    {
+        return $this->hasMany(CommissionAccrual::class, 'applicant_contract_id');
+    }
 
     public function currency(): BelongsTo
     {

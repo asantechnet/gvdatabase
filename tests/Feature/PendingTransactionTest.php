@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\Currency;
-use App\Models\Applicant;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\User;
@@ -19,7 +19,8 @@ class PendingTransactionTest extends TestCase
     private function actingAsAdmin(): User
     {
         $role = Role::firstOrCreate(['name' => 'super_admin']);
-        $user = User::factory()->create(); $user->roles()->attach($role);
+        $user = User::factory()->create();
+        $user->roles()->attach($role);
         Sanctum::actingAs($user, ['access']);
 
         return $user;
@@ -32,7 +33,8 @@ class PendingTransactionTest extends TestCase
         $pending = $this->postJson('/api/pending-transactions', ['transaction_type' => 'income', 'reason' => 'Deposit', 'amount' => 20, 'currency_id' => $currency->id])->assertCreated()->json('data');
         $this->postJson("/api/pending-transactions/{$pending['id']}/post")->assertUnprocessable();
         $this->postJson("/api/pending-transactions/{$pending['id']}/approve")->assertUnprocessable();
-        $approver = User::factory()->create(); $approver->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
+        $approver = User::factory()->create();
+        $approver->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
         Sanctum::actingAs($approver, ['access']);
         $this->postJson("/api/pending-transactions/{$pending['id']}/approve")->assertOk();
         $this->postJson("/api/pending-transactions/{$pending['id']}/post")->assertOk();
@@ -49,7 +51,8 @@ class PendingTransactionTest extends TestCase
         $employee = Employee::factory()->create();
 
         $income = $this->postJson('/api/pending-transactions', ['transaction_type' => 'income', 'reason' => 'Tuition fee', 'amount' => 100, 'currency_id' => $currency->id, 'applicant_id' => $applicant['id'], 'employee_id' => $employee->id])->assertCreated()->json('data');
-        $approver = User::factory()->create(); $approver->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
+        $approver = User::factory()->create();
+        $approver->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
         Sanctum::actingAs($approver, ['access']);
         $this->postJson("/api/pending-transactions/{$income['id']}/approve")->assertOk();
         $this->postJson("/api/pending-transactions/{$income['id']}/post")->assertOk();
@@ -79,6 +82,21 @@ class PendingTransactionTest extends TestCase
         $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertUnprocessable();
     }
 
+    public function test_salary_is_no_longer_a_payment_request_type(): void
+    {
+        $this->actingAsAdmin();
+        $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
+
+        // Payroll owns salary records, so a payment request may only be money in
+        // (income) or a cost going out (expense).
+        $this->postJson('/api/pending-transactions', [
+            'transaction_type' => 'salary',
+            'reason' => 'Payroll',
+            'amount' => 500,
+            'currency_id' => $currency->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('transaction_type');
+    }
+
     public function test_loan_receipt_returns_printable_payload(): void
     {
         $this->actingAsAdmin();
@@ -95,7 +113,7 @@ class PendingTransactionTest extends TestCase
         // The loan prints through the receipt template: a stable serial, the
         // request data in the income slot and the loan status block.
         $this->assertSame('loan', $payload['document']);
-        $this->assertStringStartsWith('LN-', $payload['serial_number']);
+        $this->assertStringStartsWith('PR-', $payload['serial_number']);
         $this->assertSame($pending['id'], $payload['income']['id']);
         $this->assertSame('Tuition deposit', $payload['income']['name']);
         $this->assertEqualsWithDelta(250.0, $payload['income']['line_total'], 0.001);

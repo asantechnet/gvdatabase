@@ -3,11 +3,13 @@ import { translateApplicantStage, translate } from '@/utils/localization'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ErpField from '@/components/erp/ErpField.vue'
+import ContactActionMenu from '@/components/ContactActionMenu.vue'
+import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import ApplicantApi, { type Applicant, type ApplicantStage, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
+import ApplicantApi, { COMPLETED_APPLICANT_STAGE, type Applicant, type ApplicantStage, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
 import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
 import ApplicantPortalApi from '@/api/applicantPortal'
 import BoardApi from '@/api/board'
@@ -72,6 +74,30 @@ const transitionOptions = computed(() => {
   const allowed = stages.value.find(stage => stage.key === current)?.allowed_next_keys ?? []
   return stages.value.filter(stage => allowed.includes(stage.key))
 })
+// Terminal stages are the ones that close the case: `completed` finishes it and
+// releases commission, while cancelled/rejected/withdrawn end it without one.
+// They are listed after the open pipeline in the move field so a closing move is
+// never mistaken for a regular step.
+const openTransitions = computed(() => transitionOptions.value.filter(stage => !stage.is_terminal))
+const terminalTransitions = computed(() => transitionOptions.value.filter(stage => stage.is_terminal))
+const transitionItems = computed<Array<Record<string, unknown>>>(() => {
+  const items: Array<Record<string, unknown>> = [...openTransitions.value]
+  if (openTransitions.value.length && terminalTransitions.value.length)
+    items.push({ type: 'divider' })
+  if (terminalTransitions.value.length)
+    items.push({ type: 'subheader', title: t('educational.caseUi.finalOutcomes') })
+
+  return [...items, ...terminalTransitions.value]
+})
+/** Terminal options carry a flag icon and say that choosing one closes the case. */
+const transitionItemProps = (item: Record<string, unknown>) => item.is_terminal === true
+  ? { prependIcon: 'tabler-flag', subtitle: t('educational.caseUi.terminalStageOption') }
+  : {}
+const caseIsClosed = computed(() => applicant.value?.current_stage?.is_terminal === true)
+const caseCompleted = computed(() => applicant.value?.current_stage?.key === COMPLETED_APPLICANT_STAGE)
+const terminalDialog = ref(false)
+const pendingTerminalStage = ref<ApplicantStage | null>(null)
+const pendingIsCompletion = computed(() => pendingTerminalStage.value?.key === 'completed')
 const openTasks = computed(() => (applicant.value?.tasks ?? []).filter(t => t.progress < 100))
 const doneTasks = computed(() => (applicant.value?.tasks ?? []).filter(t => t.progress >= 100))
 const stageHistory = computed(() => [...(applicant.value?.stage_history ?? [])].sort((a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime()))
@@ -173,14 +199,38 @@ async function move() {
 
     return
   }
-  if (target?.is_terminal && !confirm(t('educational.caseUi.terminalConfirm', { stage: translateApplicantStage(target) })))
+  // Closing a case is irreversible through the normal workflow and it decides
+  // commission, so it is confirmed in a dialog that states the consequence.
+  if (target?.is_terminal) {
+    pendingTerminalStage.value = target
+    terminalDialog.value = true
+
+    return
+  }
+
+  await recordStage(target)
+}
+
+function cancelTerminalMove() {
+  terminalDialog.value = false
+  pendingTerminalStage.value = null
+}
+
+async function confirmTerminalMove() {
+  if (!pendingTerminalStage.value)
     return
 
+  await recordStage(pendingTerminalStage.value)
+}
+
+async function recordStage(target: ApplicantStage) {
   moving.value = true
   try {
-    applicant.value = await ApplicantApi.changeStage(Number(route.params.id), stageId, note.value)
+    applicant.value = await ApplicantApi.changeStage(Number(route.params.id), target.id, note.value)
     selected.value = null
     note.value = ''
+    terminalDialog.value = false
+    pendingTerminalStage.value = null
     toast.success(t('educational.caseUi.stageRecorded'))
   }
   catch {
@@ -520,7 +570,11 @@ onMounted(async () => {
 <template>
   <VCard v-if="applicant" class="visa-case-card">
     <VCardTitle class="d-flex flex-wrap align-center ga-2">
-      <span>{{ t('educational.caseUi.visaCase', { name: applicant.name }) }}</span>
+      <RouterLink class="case-title-link" :to="{ name: 'all-customers', query: { contact: applicant.id } }" :title="t('educational.openContactInCrm')">{{ applicant.name }}</RouterLink>
+      <span class="text-caption text-medium-emphasis">{{ t('educational.caseUi.visaCaseLabel') }}</span>
+      <ContactActionMenu v-if="applicant.contact" kind="phone" :value="applicant.contact" contactable-type="applicant" :contactable-id="applicant.id" />
+      <ContactActionMenu v-if="applicant.email" kind="email" :value="applicant.email" contactable-type="applicant" :contactable-id="applicant.id" />
+      <CrmRelationshipDetails type="applicant" :id="applicant.id" :title="applicant.name" />
       <VSpacer />
       <VChip v-if="applicant.user_id" size="small" color="success">{{ t('educational.caseUi.portalActive') }}</VChip>
       <VBtn v-else-if="canInvitePortal" size="small" variant="tonal" color="primary" prepend-icon="tabler-send" @click="openPortalInvite">{{ t('educational.caseUi.invitePortal') }}</VBtn>
@@ -533,9 +587,28 @@ onMounted(async () => {
       <div class="visa-case-stage-panel">
       <VChip color="primary">{{ translateApplicantStage(applicant.current_stage) }}</VChip>
       <VChip v-if="openTasks.length" color="warning" size="small" class="ms-2">{{ t('educational.caseUi.openTasks', { count: n(openTasks.length) }) }}</VChip>
-      <VSelect v-model="selected" :items="transitionOptions" :item-title="translateApplicantStage" item-value="id" :label="t('educational.caseUi.moveStage')" class="mt-5 mb-4" />
-      <VTextarea v-model="note" :label="t('educational.caseUi.stageNote')" class="mb-4" />
-      <VBtn color="primary" :loading="moving" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
+      <VAlert v-if="caseIsClosed && !transitionOptions.length" :type="caseCompleted ? 'success' : 'warning'" variant="tonal" density="compact" class="mt-5 mb-0">
+        <div>{{ t('educational.caseUi.caseClosedFinal', { stage: translateApplicantStage(applicant.current_stage) }) }}</div>
+        <div v-if="caseCompleted" class="mt-1">{{ t('educational.caseUi.completedCommissionNote') }}</div>
+      </VAlert>
+      <template v-else>
+        <VAlert v-if="caseIsClosed" type="info" variant="tonal" density="compact" class="mt-5 mb-0">{{ t('educational.caseUi.caseClosedReopen', { stage: translateApplicantStage(applicant.current_stage) }) }}</VAlert>
+        <VSelect
+          v-model="selected"
+          :items="transitionItems"
+          :item-title="translateApplicantStage"
+          :item-props="transitionItemProps"
+          item-value="id"
+          :label="t('educational.caseUi.moveStage')"
+          class="mt-5 mb-4"
+        >
+          <template #subheader="{ props: item }">
+            <VListSubheader>{{ item.title }}</VListSubheader>
+          </template>
+        </VSelect>
+        <VTextarea v-model="note" :label="t('educational.caseUi.stageNote')" class="mb-4" />
+        <VBtn color="primary" :loading="moving" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
+      </template>
       </div>
       <VCard variant="tonal" color="primary" class="mt-6"><VCardItem :title="t('educational.caseUi.applicantDocuments')" :subtitle="applicantAttachments.length ? t('educational.caseUi.applicantDocumentsReady', { count: applicantAttachments.length }) : t('educational.caseUi.applicantDocumentsNeeded')" /><VCardText><VList density="compact"><VListItem v-for="file in applicantAttachments" :key="file.id" :title="file.label" :subtitle="file.name"><template #append><VBtn icon="tabler-download" size="x-small" variant="text" :href="file.download_url"/><VBtn v-if="canEditCase" icon="tabler-trash" size="x-small" variant="text" color="error" @click="removeApplicantAttachment(file.id)"/></template></VListItem></VList><div v-if="canEditCase" class="d-flex flex-wrap ga-2 mt-3"><VTextField v-model="attachmentLabel" :label="t('educational.caseUi.documentLabel')" density="compact" hide-details style="min-width:180px"/><VFileInput v-model="attachmentFile" density="compact" hide-details style="min-width:220px"/><VBtn color="primary" :loading="uploadingApplicantAttachment" :disabled="!attachmentFile || !attachmentLabel.trim()" @click="uploadApplicantAttachment">{{ t('educational.caseUi.attach') }}</VBtn></div></VCardText></VCard>
       <VDivider class="my-8" />
@@ -610,6 +683,23 @@ onMounted(async () => {
       <p v-else class="text-caption text-medium-emphasis">{{ t('educational.caseUi.notesPermission') }}</p>
     </VCardText>
   </VCard>
+  <VDialog v-model="terminalDialog" max-width="520">
+    <VCard :title="t('educational.caseUi.terminalConfirmTitle')">
+      <VCardText>
+        <VAlert :type="pendingIsCompletion ? 'success' : 'warning'" variant="tonal" density="compact" class="mb-4">
+          {{ pendingIsCompletion
+            ? t('educational.caseUi.completedMoveNote', { stage: translateApplicantStage(pendingTerminalStage) })
+            : t('educational.caseUi.exitMoveNote', { stage: translateApplicantStage(pendingTerminalStage) }) }}
+        </VAlert>
+        <p class="mb-0">{{ t('educational.caseUi.terminalConfirm', { stage: translateApplicantStage(pendingTerminalStage) }) }}</p>
+      </VCardText>
+      <VCardActions>
+        <VSpacer />
+        <VBtn variant="tonal" color="secondary" @click="cancelTerminalMove">{{ t('common.actions.cancel') }}</VBtn>
+        <VBtn color="primary" :loading="moving" @click="confirmTerminalMove">{{ t('educational.caseUi.recordStage') }}</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
   <VDialog v-model="taskDialog" max-width="560">
     <VCard :title="t('educational.caseUi.newTask')">
       <VCardText class="case-dialog-body">
@@ -644,7 +734,7 @@ onMounted(async () => {
   <VDialog v-model="editDialog" max-width="1100" class="erp-form">
     <VCard :title="t('educational.caseUi.editCase')">
       <VCardText class="case-dialog-body">
-        <ErpField kind="select" v-if="canAssignEmployee" v-model="editForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="t('educational.responsibleEmployee')" clearable class="mb-3" />
+        <ErpField kind="select" v-if="canAssignEmployee && applicant?.service !== 'academy'" v-model="editForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="t('educational.responsibleEmployee')" clearable class="mb-3" />
         <VRow dense>
           <VCol cols="12" sm="6"><ErpField v-model="editForm.father_name" :label="t('educational.fatherName')" clearable class="mb-3" /></VCol>
           <VCol cols="12" sm="6"><ErpField v-model="editForm.father_phone" :label="t('educational.fatherPhone')" clearable class="mb-3" /></VCol>
@@ -707,6 +797,16 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.case-title-link {
+  color: rgb(var(--v-theme-primary));
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.case-title-link:hover {
+  text-decoration: underline;
+}
+
 .visa-case-card :deep(.v-card-title) {
   padding-block: 1.25rem;
   padding-inline: 1.5rem;

@@ -38,16 +38,42 @@ const dateTo = ref('')
 
 const canExport = computed(() => canAccess('export_reports'))
 const activeFilterCount = computed(() => [countryId.value, universityId.value, levelId.value, employeeId.value, stage.value, status.value, dateFrom.value, dateTo.value].filter(Boolean).length)
-const tabs: Array<{ value: EducationalReportType; title: string }> = [
-  { value: 'applicants', title: t('educational.applicants') },
-  { value: 'employee-performance', title: t('educational.employeePerformance') },
-  { value: 'contracts', title: t('educational.contractsReport') },
-  { value: 'services', title: t('educational.servicesReport') },
-  { value: 'financial', title: t('educational.financialReport') },
-  { value: 'universities', title: t('educational.universityReport') },
-  { value: 'visa-outcomes', title: t('educational.visaOutcomes') },
+// Reports are grouped by the business domain they serve, so the workspace reads
+// as Educational & CRM / Finance / HRM instead of one flat tab list.
+type ReportDomain = 'educational' | 'finance' | 'hrm'
+
+const tabs: Array<{ value: EducationalReportType; title: string; domain: ReportDomain }> = [
+  { value: 'applicants', title: t('educational.applicants'), domain: 'educational' },
+  { value: 'contracts', title: t('educational.contractsReport'), domain: 'educational' },
+  { value: 'services', title: t('educational.servicesReport'), domain: 'educational' },
+  { value: 'universities', title: t('educational.universityReport'), domain: 'educational' },
+  { value: 'visa-outcomes', title: t('educational.visaOutcomes'), domain: 'educational' },
+  { value: 'financial', title: t('educational.financialReport'), domain: 'finance' },
+  { value: 'employee-performance', title: t('educational.employeePerformance'), domain: 'hrm' },
 ]
+const domain = ref<ReportDomain>('educational')
+const domainGroups: Array<{ value: ReportDomain; title: string; icon: string }> = [
+  { value: 'educational', title: t('educational.reportDomains.educational'), icon: 'tabler-school' },
+  { value: 'finance', title: t('educational.reportDomains.finance'), icon: 'tabler-cash-banknote' },
+  { value: 'hrm', title: t('educational.reportDomains.hrm'), icon: 'tabler-users-group' },
+]
+const visibleTabs = computed(() => tabs.filter(item => item.domain === domain.value))
 const activeTab = computed(() => tabs.find(item => item.value === tab.value))
+
+// Selecting a domain only reloads when the reported type actually changes, so
+// switching back to a domain keeps the report already on screen.
+watch(domain, () => {
+  if (visibleTabs.value.some(item => item.value === tab.value))
+    return
+
+  const first = visibleTabs.value[0]
+  if (!first)
+    return
+
+  tab.value = first.value
+  page.value = 1
+  void load()
+})
 const columnLabel = (column: string) => t(`educational.reportColumns.${column}`)
 const isDateColumn = (column: string) => column === 'date' || column.endsWith('_date')
 
@@ -236,7 +262,12 @@ onBeforeUnmount(() => {
     </header>
 
     <VCard class="education-panel">
-      <VTabs v-model="tab" show-arrows class="px-3 report-tabs" @update:model-value="onTabChange"><VTab v-for="item in tabs" :key="item.value" :value="item.value">{{ item.title }}</VTab></VTabs>
+      <div class="d-flex flex-wrap align-center gap-2 px-3 pt-3 report-domain-bar">
+        <VBtnToggle v-model="domain" density="comfortable" variant="tonal" color="primary" divided mandatory>
+          <VBtn v-for="group in domainGroups" :key="group.value" :value="group.value" :prepend-icon="group.icon">{{ group.title }}</VBtn>
+        </VBtnToggle>
+      </div>
+      <VTabs v-model="tab" show-arrows class="px-3 report-tabs" @update:model-value="onTabChange"><VTab v-for="item in visibleTabs" :key="item.value" :value="item.value">{{ item.title }}</VTab></VTabs>
       <VDivider />
       <VExpandTransition><VCardText v-if="filtersOpen" class="education-filter-card rounded-0 border-0">
         <VRow dense>

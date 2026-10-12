@@ -11,6 +11,7 @@ declare global {
   const CreateUrl: typeof import('./src/@core/composable/CreateUrl')['CreateUrl']
   const EffectScope: typeof import('vue')['EffectScope']
   const PLACEHOLDER_SPAN_PATTERN: typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']
+  const SUPPORT_CONTACT: typeof import('./resources/ts/utils/constants')['SUPPORT_CONTACT']
   const academySlipCopies: typeof import('./resources/ts/utils/printAcademySlip')['academySlipCopies']
   const academySlipPrintLayout: typeof import('./resources/ts/utils/printAcademySlip')['academySlipPrintLayout']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
@@ -479,6 +480,7 @@ declare module 'vue' {
     readonly COOKIE_MAX_AGE_1_YEAR: UnwrapRef<typeof import('./resources/ts/utils/constants')['COOKIE_MAX_AGE_1_YEAR']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly PLACEHOLDER_SPAN_PATTERN: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']>
+    readonly SUPPORT_CONTACT: UnwrapRef<typeof import('./resources/ts/utils/constants')['SUPPORT_CONTACT']>
     readonly academySlipCopies: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['academySlipCopies']>
     readonly academySlipPrintLayout: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['academySlipPrintLayout']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>

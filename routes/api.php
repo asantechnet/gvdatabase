@@ -17,6 +17,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AutomationController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\ContractDocumentDesignController;
 use App\Http\Controllers\ContractPolicyController;
@@ -264,6 +265,20 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('expenses/{expense}/document', [ExpenseController::class, 'downloadDocument'])->middleware('permission:view_expenses');
     Route::delete('expenses/{expense}/document', [ExpenseController::class, 'removeDocument'])->middleware('permission:edit_expenses');
 
+    // Commission ledger. Accruals are earned when a contract is completed;
+    // settlements move them through draft → approved → paid (paid books an
+    // expense). The former invoice-driven endpoints stay retired.
+    Route::get('commissions/accruals', [CommissionController::class, 'accruals'])->middleware('permission:view_commissions');
+    Route::get('commissions/summary', [CommissionController::class, 'summary'])->middleware('permission:view_commissions');
+    Route::post('commissions/adjustments', [CommissionController::class, 'storeAdjustment'])->middleware('permission:manage_commission_settlements');
+    Route::post('commissions/sync', [CommissionController::class, 'sync'])->middleware('permission:manage_commission_settlements');
+    Route::get('commission-settlements', [CommissionController::class, 'settlements'])->middleware('permission:view_commissions');
+    Route::post('commission-settlements', [CommissionController::class, 'storeSettlement'])->middleware('permission:manage_commission_settlements');
+    Route::get('commission-settlements/{commissionSettlement}', [CommissionController::class, 'show'])->middleware('permission:view_commissions');
+    Route::post('commission-settlements/{commissionSettlement}/approve', [CommissionController::class, 'approve'])->middleware('permission:approve_commissions');
+    Route::post('commission-settlements/{commissionSettlement}/pay', [CommissionController::class, 'pay'])->middleware('permission:pay_commissions');
+    Route::post('commission-settlements/{commissionSettlement}/cancel', [CommissionController::class, 'cancel'])->middleware('permission:manage_commission_settlements');
+
     // Income routes
     // Payments attach to a contracted service line, so the picker needs the
     // applicant's own lines (declared before the resource route below).
@@ -369,26 +384,21 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('educational-bonus-sources', [EducationalBonusSourceController::class, 'index'])->middleware('permission:view_bonuses');
     Route::post('educational-bonus-sources', [EducationalBonusSourceController::class, 'store'])->middleware('permission:manage_educational_bonuses');
     Route::put('educational-bonus-sources/{educationalBonusSource}', [EducationalBonusSourceController::class, 'update'])->middleware('permission:manage_educational_bonuses');
-    // Loans are the canonical public workflow. The older pending-transactions
-    // endpoints remain below only for already deployed clients.
-    Route::get('loans', [PendingTransactionController::class, 'index'])->middleware('permission:view_pending_transactions');
-    Route::get('loans/options', [PendingTransactionController::class, 'options'])->middleware('permission:create_pending_transactions');
-    Route::post('loans', [PendingTransactionController::class, 'store'])->middleware('permission:create_pending_transactions');
-    Route::put('loans/{pendingTransaction}', [PendingTransactionController::class, 'update'])->middleware('permission:create_pending_transactions');
-    Route::post('loans/{pendingTransaction}/review', [PendingTransactionController::class, 'review'])->middleware('permission:approve_pending_transactions');
-    Route::post('loans/{pendingTransaction}/approve', [PendingTransactionController::class, 'approve'])->middleware('permission:approve_pending_transactions');
-    Route::post('loans/{pendingTransaction}/reject', [PendingTransactionController::class, 'reject'])->middleware('permission:approve_pending_transactions');
-    Route::post('loans/{pendingTransaction}/post', [PendingTransactionController::class, 'post'])->middleware('permission:post_pending_transactions');
-    Route::get('loans/{pendingTransaction}/receipt', [PendingTransactionController::class, 'receipt'])->middleware('permission:view_pending_transactions');
-    Route::get('pending-transactions', [PendingTransactionController::class, 'index'])->middleware('permission:view_pending_transactions');
-    Route::get('pending-transactions/options', [PendingTransactionController::class, 'options'])->middleware('permission:create_pending_transactions');
-    Route::post('pending-transactions', [PendingTransactionController::class, 'store'])->middleware('permission:create_pending_transactions');
-    Route::put('pending-transactions/{pendingTransaction}', [PendingTransactionController::class, 'update'])->middleware('permission:create_pending_transactions');
-    Route::post('pending-transactions/{pendingTransaction}/review', [PendingTransactionController::class, 'review'])->middleware('permission:approve_pending_transactions');
-    Route::post('pending-transactions/{pendingTransaction}/approve', [PendingTransactionController::class, 'approve'])->middleware('permission:approve_pending_transactions');
-    Route::post('pending-transactions/{pendingTransaction}/reject', [PendingTransactionController::class, 'reject'])->middleware('permission:approve_pending_transactions');
-    Route::post('pending-transactions/{pendingTransaction}/post', [PendingTransactionController::class, 'post'])->middleware('permission:post_pending_transactions');
-    Route::get('pending-transactions/{pendingTransaction}/receipt', [PendingTransactionController::class, 'receipt'])->middleware('permission:view_pending_transactions');
+    // Payment requests are the canonical public workflow: an admission officer
+    // or counselor raises one, and the finance manager approves, posts and
+    // prints it. `loans` and `pending-transactions` stay as aliases so older
+    // clients, bookmarks and deep links keep hitting the same controller.
+    foreach (['payment-requests', 'loans', 'pending-transactions'] as $paymentRequestPath) {
+        Route::get($paymentRequestPath, [PendingTransactionController::class, 'index'])->middleware('permission:view_pending_transactions');
+        Route::get("{$paymentRequestPath}/options", [PendingTransactionController::class, 'options'])->middleware('permission:create_pending_transactions');
+        Route::post($paymentRequestPath, [PendingTransactionController::class, 'store'])->middleware('permission:create_pending_transactions');
+        Route::put("{$paymentRequestPath}/{pendingTransaction}", [PendingTransactionController::class, 'update'])->middleware('permission:create_pending_transactions');
+        Route::post("{$paymentRequestPath}/{pendingTransaction}/review", [PendingTransactionController::class, 'review'])->middleware('permission:approve_pending_transactions');
+        Route::post("{$paymentRequestPath}/{pendingTransaction}/approve", [PendingTransactionController::class, 'approve'])->middleware('permission:approve_pending_transactions');
+        Route::post("{$paymentRequestPath}/{pendingTransaction}/reject", [PendingTransactionController::class, 'reject'])->middleware('permission:approve_pending_transactions');
+        Route::post("{$paymentRequestPath}/{pendingTransaction}/post", [PendingTransactionController::class, 'post'])->middleware('permission:post_pending_transactions');
+        Route::get("{$paymentRequestPath}/{pendingTransaction}/receipt", [PendingTransactionController::class, 'receipt'])->middleware('permission:view_pending_transactions');
+    }
     // Timesheet routes
     Route::prefix('attendances')->group(function () {
         Route::get('/', [AttendanceController::class, 'index'])->middleware('permission:view_attendance');

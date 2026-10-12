@@ -287,7 +287,7 @@ onMounted(async () => {
               </VCardText>
             </VCard>
             <div v-if="!(cards[stage.key] || []).length" class="text-caption text-medium-emphasis text-center py-4">{{ $t('educational.dropAllowedCases') }}</div>
-            <VBtn v-if="stage.count > perColumnCap" size="x-small" variant="text" :to="{ name: 'applicants', query: { stage: stage.key } }">{{ $t('educational.viewAllCount', { count: stage.count }) }}</VBtn>
+            <VBtn v-if="stage.count > perColumnCap" size="x-small" variant="text" :to="{ name: 'applications', query: { stage: stage.key } }">{{ $t('educational.viewAllCount', { count: stage.count }) }}</VBtn>
           </VCardText>
         </VCard>
       </div>

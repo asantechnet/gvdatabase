@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\ReportService;
 use App\Support\AcceptedLocale;
 use App\Support\ReportDateFormatter;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -16,6 +17,7 @@ class ReportController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+
         return response()->json(['success' => true, 'data' => $reports->catalog($user)]);
     }
 
@@ -23,10 +25,11 @@ class ReportController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+
         return response()->json(['success' => true, 'data' => $reports->generate($type, $request->validated(), $user)]);
     }
 
-    public function export(GenerateReportRequest $request, string $type, ReportService $reports): StreamedResponse|\Illuminate\Contracts\View\View
+    public function export(GenerateReportRequest $request, string $type, ReportService $reports): StreamedResponse|View
     {
         /** @var User $user */
         $user = $request->user();
@@ -44,11 +47,14 @@ class ReportController extends Controller
         }
 
         $filename = sprintf('%s-report-%s-%s.csv', $type, $report['filters']['start_date'], $report['filters']['end_date']);
+
         return response()->streamDownload(function () use ($report): void {
             $stream = fopen('php://output', 'wb');
             fwrite($stream, "\xEF\xBB\xBF");
             foreach ($report['sections'] as $index => $section) {
-                if ($index > 0) fputcsv($stream, []);
+                if ($index > 0) {
+                    fputcsv($stream, []);
+                }
                 fputcsv($stream, [$section['key']]);
                 fputcsv($stream, $section['columns']);
                 foreach ($section['rows'] as $row) {
@@ -89,7 +95,7 @@ class ReportController extends Controller
 
     public function generateVisitorReport(GenerateReportRequest $request, ReportService $reports): JsonResponse
     {
-        return $this->legacy($request, $reports, 'operations', 'visitors');
+        return $this->legacy($request, $reports, 'crm', 'visitors');
     }
 
     private function legacy(GenerateReportRequest $request, ReportService $reports, string $type, string $section): JsonResponse
@@ -98,13 +104,19 @@ class ReportController extends Controller
         $user = $request->user();
         $report = $reports->generate($type, $request->validated(), $user);
         $report['sections'] = array_values(array_filter($report['sections'], fn (array $item) => $item['key'] === $section));
+
         return response()->json(['success' => true, 'data' => $report]);
     }
 
     private function csvValue(mixed $value): string|int|float
     {
-        if (is_bool($value)) return $value ? 'yes' : 'no';
-        if (is_array($value)) return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if (is_bool($value)) {
+            return $value ? 'yes' : 'no';
+        }
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
         return $value ?? '';
     }
 }

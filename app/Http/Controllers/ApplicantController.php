@@ -223,6 +223,14 @@ class ApplicantController extends Controller
                     $data['responsible_employee_id'] = $ownEmployeeId;
                 }
             }
+            // Academy enrolments carry no associated employee name: the class and
+            // teachers on the enrolment are the academy's own records. Any
+            // assignment sent (including the automatic self-assignment above) is
+            // cleared so an academy application never shows a staff member.
+            if ($service === BuiltInService::ACADEMY) {
+                $data['admission_employee_id'] = null;
+                $data['responsible_employee_id'] = null;
+            }
             if (! $updating) {
                 $stage = $this->stagesForContext($effectiveCountry, $effectiveUniversity)->firstWhere('key', 'new') ?? ApplicantStage::query()->where('key', 'new')->firstOrFail();
                 $data['current_stage_id'] = $stage->id;
@@ -310,7 +318,7 @@ class ApplicantController extends Controller
         if ($request->filled('board')) {
             match ($request->input('board')) {
                 'operation' => $query->where('status', 'active'),
-                'final' => $query->whereHas('currentStage', fn ($q) => $q->where('key', 'completed')),
+                'final' => $query->whereHas('currentStage', fn ($q) => $q->where('key', ApplicantStage::COMPLETED_KEY)),
                 'cancelled' => $query->where('status', 'closed')->whereHas('currentStage', fn ($q) => $q->whereIn('key', ['cancelled', 'rejected', 'withdrawn'])),
                 default => null,
             };

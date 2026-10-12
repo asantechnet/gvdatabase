@@ -53,7 +53,7 @@ class RolePermissionSeeder extends Seeder
                 'view_pending_transactions', 'create_pending_transactions', 'approve_pending_transactions', 'post_pending_transactions',
                 'view_recurring_events', 'create_recurring_events', 'edit_recurring_events', 'delete_recurring_events', 'manage_recurring_events', 'execute_recurring_events', 'create_recurring_incomes', 'create_recurring_expenses', 'create_recurring_tasks',
                 'view_assets', 'create_assets', 'edit_assets',
-                'view_currencies', 'view_financial_reports',
+                'view_currencies', 'view_financial_reports', 'view_commissions',
                 'view_all_boards', 'view_assigned_boards', 'create_boards', 'edit_all_boards', 'edit_assigned_boards', 'reorder_boards', 'assign_board_members',
                 'view_all_tasks', 'view_assigned_tasks', 'create_tasks', 'edit_all_tasks', 'edit_assigned_tasks', 'move_all_tasks', 'move_assigned_tasks',
                 'assign_task_members', 'manage_task_dependencies', 'manage_task_tags', 'view_task_tags',
@@ -123,7 +123,14 @@ class RolePermissionSeeder extends Seeder
         ]));
 
         // Visa counselors and case officers work their own assigned records.
-        $grants['counselor'] = $grants['staff'];
+        // Counselors own their visitor intake, so they may add and edit
+        // visitors; a visitor they create is recorded as their own.
+        $grants['counselor'] = array_values(array_unique([
+            ...$grants['staff'], 'view_visitors', 'create_visitors', 'edit_visitors',
+        ]));
+        $grants['senior_counselor'] = array_values(array_unique([
+            ...$grants['senior_counselor'], 'view_visitors', 'create_visitors', 'edit_visitors',
+        ]));
         $grants['case_officer'] = $grants['staff'];
 
         // Document officers only handle intake paperwork and files.
@@ -147,6 +154,7 @@ class RolePermissionSeeder extends Seeder
             'view_expenses', 'create_expenses', 'edit_expenses',
             'view_pending_transactions', 'create_pending_transactions', 'approve_pending_transactions', 'post_pending_transactions',
             'view_currencies', 'view_financial_reports', 'view_contracts', 'download_files',
+            'view_commissions', 'manage_commission_settlements', 'approve_commissions', 'pay_commissions',
         ];
 
         $permissionIds = Permission::query()->whereIn('name', $all)->pluck('id', 'name');

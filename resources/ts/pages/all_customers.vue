@@ -4,6 +4,7 @@ import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ErpField from '@/components/erp/ErpField.vue'
 import DataTableFilterMenu from '@/components/responsive-data-table/DataTableFilterMenu.vue'
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import ApplicantApi, { type Applicant, type BuiltInService } from '@/api/applicants'
 import EmployeeApi, { type Employee } from '@/api/employee'
@@ -14,7 +15,11 @@ import { printDocument } from '@/utils/printDocument'
 import { canAccess } from '@/utils/authorization'
 
 const { t } = useI18n()
+const route = useRoute()
 const toast = useToast()
+// Deep link support: `/all-customers?contact=<applicantId>` (from the visa case
+// or applications page) auto-opens that applicant's phone menu.
+const deepLinkContactId = computed(() => (route.query.contact ? String(route.query.contact) : ''))
 const applicants = ref<Applicant[]>([])
 const admissionEmployees = ref<Employee[]>([])
 const loading = ref(false)
@@ -108,7 +113,8 @@ onMounted(async () => {
       <VBtn icon="tabler-printer" variant="text" class="flex-shrink-0" @click="printDocument({ bodyClass: 'printing-table-crm-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('common.actions.print') }}</VTooltip></VBtn>
     </VCardText>
     <ResponsiveDataTableServer :headers="headers" :items="applicants" :items-length="total" :loading="loading" :page="page" :items-per-page="perPage" :items-per-page-options="[10, 25, 50, 100]" item-value="id" @update:options="updateOptions">
-      <template #item.contact="{ item }"><ContactActionMenu kind="phone" :value="item.contact" contactable-type="applicant" :contactable-id="item.id" /></template>
+      <template #item.name="{ item }"><span class="crm-applicant-name" :class="{ 'crm-applicant-name--focused': String(item.id) === deepLinkContactId }">{{ item.name }}</span></template>
+      <template #item.contact="{ item }"><ContactActionMenu kind="phone" :value="item.contact" contactable-type="applicant" :contactable-id="item.id" :auto-open="String(item.id) === deepLinkContactId" /></template>
       <template #item.email="{ item }"><ContactActionMenu kind="email" :value="item.email" contactable-type="applicant" :contactable-id="item.id" /></template>
       <template #item.actions="{ item }"><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" /><VBtn v-if="canEdit" icon="tabler-edit" variant="text" @click="openEdit(item)" /><VBtn v-if="canDelete" icon="tabler-trash" color="error" variant="text" @click="remove(item)" /></template>
     </ResponsiveDataTableServer>
@@ -133,3 +139,17 @@ onMounted(async () => {
   </VDialog>
   </div>
 </template>
+
+<style scoped>
+.crm-applicant-name {
+  border-radius: 6px;
+  font-weight: 600;
+  padding-block: 2px;
+  padding-inline: 4px;
+}
+
+.crm-applicant-name--focused {
+  background-color: rgba(var(--v-theme-primary), 0.12);
+  outline: 2px solid rgba(var(--v-theme-primary), 0.4);
+}
+</style>

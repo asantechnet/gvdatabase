@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useToast } from 'vue-toastification'
-import { type ManagedUser, type UserPayload, type UserRole, type UserStatus, createUser, deleteUser, getUsers, updateUser } from '@/api/user'
+import { type ManagedUser, type UserCreatePayload, type UserPayload, type UserRole, type UserStatus, createUser, deleteUser, getUsers, updateUser } from '@/api/user'
 import UserForm from '@/components/forms/UserForm.vue'
 import { formatLocalizedDate } from '@/utils/localization'
 
@@ -15,8 +15,12 @@ const dialogOpen = ref(false)
 const deleteDialogOpen = ref(false)
 const editingUser = ref<ManagedUser | null>(null)
 const deletingUser = ref<ManagedUser | null>(null)
-const emptyForm = (): UserPayload => ({ name: '', email: '', phone: '', address: '', roles: ['staff'], acc_status: 'active' })
-const form = ref<UserPayload>(emptyForm())
+// A manual password creates a ready-to-use account with no email at all;
+// otherwise the user is invited and picks their own password.
+const passwordMode = ref(false)
+const minimumPasswordLength = 8
+const emptyForm = (): UserCreatePayload => ({ name: '', email: '', phone: '', address: '', roles: ['staff'], acc_status: 'active', password: '', password_confirmation: '' })
+const form = ref<UserCreatePayload>(emptyForm())
 
 const roles: UserRole[] = ['super_admin', 'admin', 'manager', 'team_lead', 'senior_counselor', 'finance_officer', 'counselor', 'case_officer', 'staff', 'document_officer', 'viewer', 'applicant']
 const statuses: UserStatus[] = ['active', 'inactive', 'deactivated']
@@ -56,12 +60,14 @@ async function loadUsers() {
 
 function openCreate() {
   editingUser.value = null
+  passwordMode.value = false
   form.value = emptyForm()
   dialogOpen.value = true
 }
 
 function openEdit(user: ManagedUser) {
   editingUser.value = user
+  passwordMode.value = false
   form.value = { name: user.name, email: user.email, phone: user.phone, address: user.address, roles: [...user.roles], acc_status: user.acc_status }
   dialogOpen.value = true
 }
@@ -69,18 +75,36 @@ function openEdit(user: ManagedUser) {
 async function save() {
   if (!form.value.name || !form.value.email || !form.value.roles.length)
     return toast.error(translate('pages.settings.users.nameEmailAndAtLeastOneRoleAreRequired'))
+
+  const manualPassword = !editingUser.value && passwordMode.value
+  if (manualPassword) {
+    if (!form.value.password)
+      return toast.error(translate('pages.settings.users.passwordRequired'))
+    if (String(form.value.password).length < minimumPasswordLength)
+      return toast.error(translate('pages.settings.users.passwordTooShort', { count: minimumPasswordLength }))
+    if (form.value.password !== form.value.password_confirmation)
+      return toast.error(translate('pages.settings.users.passwordsDoNotMatch'))
+  }
+
   loading.value = true
   try {
-    const user = editingUser.value ? await updateUser(editingUser.value.id, form.value) : await createUser(form.value)
+    // Only a create may carry credentials; a manual password never leaves the
+    // request, so no invitation email is triggered on the server.
+    const payload: UserCreatePayload = { ...form.value }
+    if (!manualPassword) {
+      delete payload.password
+      delete payload.password_confirmation
+    }
+    const user = editingUser.value ? await updateUser(editingUser.value.id, payload) : await createUser(payload)
     const index = users.value.findIndex(item => item.id === user.id)
     if (index === -1)
       users.value.unshift(user)
     else users.value[index] = user
     dialogOpen.value = false
-    toast.success(translate(editingUser.value ? 'pages.settings.users.updated' : 'pages.settings.users.invitationSent'))
+    toast.success(translate(editingUser.value ? 'pages.settings.users.updated' : manualPassword ? 'pages.settings.users.userCreatedWithoutEmail' : 'pages.settings.users.invitationSent'))
   }
   catch (error: any) {
-    toast.error(error.validationErrors?.email?.[0] || error.message)
+    toast.error(error.validationErrors?.email?.[0] || error.validationErrors?.password?.[0] || error.message)
   }
   finally { loading.value = false }
 }
@@ -158,7 +182,7 @@ onMounted(loadUsers)
             prepend-icon="tabler-plus"
             @click="openCreate"
           >
-            {{ $t('pages.settings.users.inviteUser') }}
+            {{ $t('pages.settings.users.addUser') }}
           </VBtn>
         </VCol>
       </VRow>
@@ -235,16 +259,26 @@ onMounted(loadUsers)
     v-model="dialogOpen"
     max-width="700"
   >
-  <VCard :title="$t(editingUser ? 'pages.settings.users.editUserDialog' : 'pages.settings.users.inviteUserDialog')">
+  <VCard :title="$t(editingUser ? 'pages.settings.users.editUserDialog' : 'pages.settings.users.addUserDialog')">
       <VCardText>
-        <VAlert
-          v-if="!editingUser"
-          type="info"
-          variant="tonal"
-          class="mb-5"
-        >
-          {{ $t('pages.settings.users.theUserWillReceiveAVerificationEmailThenCreateTheirOwnPassword') }}
-        </VAlert>
+        <template v-if="!editingUser">
+          <VSwitch
+            v-model="passwordMode"
+            color="primary"
+            inset
+            :label="$t('pages.settings.users.setPasswordManually')"
+            :hint="$t('pages.settings.users.setPasswordManuallyHint')"
+            persistent-hint
+            class="mb-5"
+          />
+          <VAlert
+            :type="passwordMode ? 'warning' : 'info'"
+            variant="tonal"
+            class="mb-5"
+          >
+            {{ $t(passwordMode ? 'pages.settings.users.noEmailWillBeSent' : 'pages.settings.users.theUserWillReceiveAVerificationEmailThenCreateTheirOwnPassword') }}
+          </VAlert>
+        </template>
         <UserForm
           :form="form"
           :roles="roleOptions"
@@ -253,6 +287,7 @@ onMounted(loadUsers)
           :status-hint="editingUser?.acc_status === 'deactivated' ? $t('pages.settings.users.deactivatedStatusHint') : undefined"
           :editing="Boolean(editingUser)"
           :loading="loading"
+          :password-mode="passwordMode"
           @submit="save"
           @cancel="dialogOpen = false"
         />

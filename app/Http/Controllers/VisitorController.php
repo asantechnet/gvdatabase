@@ -63,9 +63,31 @@ class VisitorController extends Controller
             'notes' => 'nullable|string|max:10000',
         ]);
 
+        // A counselor creating a visitor is that visitor's counselor. The
+        // frontend locks the field, and this keeps the rule true even for a
+        // direct API call: the signed-in counselor's employee id always wins.
+        $validated['counselor_employee_id'] = $this->lockedCounselorId($request)
+            ?? $validated['counselor_employee_id']
+            ?? null;
+
         $visitor = Visitor::create($validated);
 
         return new VisitorResource($visitor->load(['counselor', 'interactions.creator']));
+    }
+
+    /**
+     * The employee id a counselor-role user must be recorded as, or null when
+     * the actor may freely choose the visitor's counselor.
+     */
+    private function lockedCounselorId(Request $request): ?int
+    {
+        $user = $request->user();
+        $isCounselor = array_intersect($user->roleNames(), ['counselor', 'senior_counselor']) !== [];
+        if (! $isCounselor) {
+            return null;
+        }
+
+        return $user->employee?->id;
     }
 
     /**

@@ -11,6 +11,7 @@ export default [
       { title: 'educational.builtInServices.testOffer', icon: { icon: 'tabler-certificate' }, to: 'test-offer-contracts', action: 'read', subject: 'view_contracts' },
       { title: 'educational.builtInServices.academy', icon: { icon: 'tabler-book' }, to: 'academy-contracts', action: 'read', subject: 'view_contracts' },
       { title: 'common.navigation.otherContracts', icon: { icon: 'tabler-files' }, to: 'other-contracts', action: 'read', subject: 'view_contracts' },
+      { title: 'common.navigation.academyData', icon: { icon: 'tabler-calendar-time' }, to: 'academy-data', action: 'read', subject: 'view_country' },
     ],
   },
 ]
