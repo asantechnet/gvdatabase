@@ -25,7 +25,7 @@ Six-comment batch from the requester. Everything below is implemented and verifi
 | Topic | Decision |
 |---|---|
 | Where the developer contacts live | Hardcoded in `resources/ts/utils/constants.ts` as `SUPPORT_CONTACT` (`as const`), with no import and no API call, so it can never be confused with the office profile. The card carries an info alert saying these belong to the platform team and are not editable here. The values are rendered `dir="ltr"` so they stay readable in RTL locales; only the WhatsApp/Telegram tiles open a new tab (`target="_blank"` + `rel="noopener noreferrer"`). |
-| Support placement | The `/support` route is **kept** so existing deep links keep working, but the profile-menu entry is gone. Settings owns a Support tab, and the page receives `embedded` from the shell so the standalone `data-page-title` block is not duplicated inside the Settings layout. |
+| Support placement | The `/support` route is **kept** so existing deep links keep working, but the profile-menu entry is gone. **Setup → Settings** owns a Support sub-page (`/setup/settings/support`), and the page receives `embedded` from the shell so the standalone `data-page-title` block is not duplicated inside the Settings layout. The earlier account-settings tab was removed (see §6) — there is one Support surface, next to the other Settings sub-pages. |
 | Manual password accounts | A supplied password is hashed, `must_set_password` is cleared and `email_verified_at` is stamped — otherwise the login flow would block the account forever (`AuthController` rejects unverified addresses) — and **no** verification notification is sent. The users table therefore reads “Verified” for these accounts, which is intentional. Without a password nothing changes: invitation email + user-chosen password. |
 | Password on edit | Edits never accept a password. The field has **no validation rule at all** on update rather than an empty rule list, because Laravel still returns a value in `validated()` for a key that has an (empty) rule — which would have mass-assigned a raw password. A feature test pins this. |
 | Salary in payment requests | Removed from creation and editing (UI list + API `in:` validation), but the legacy `'salary'` post branch and its employee guard are kept so rows created before this change still post and keep their payroll link. `PendingTransactionType` keeps `'salary'` for reading old rows only. |
@@ -40,7 +40,7 @@ Six-comment batch from the requester. Everything below is implemented and verifi
 |---|---|
 | `resources/ts/utils/constants.ts` | New exported `SUPPORT_CONTACT` (`phone`/`phoneHref`, `whatsapp`/`whatsappHref`, `telegram`/`telegramHref`, `email`/`emailHref`, `address`) documented as platform-team data that must stay separate from the office profile. |
 | `resources/ts/pages/support.vue` | New `embedded?: boolean` prop (default `false`); `contactChannels` computed (phone `tabler-phone`/primary, WhatsApp `tabler-brand-whatsapp`/success, Telegram `tabler-brand-telegram`/info, email `tabler-mail`/warning); a full-width `support-contact-card` with a `tabler-headset` avatar, the developer-ownership alert, a responsive `support-contact-grid` of tiles plus an address row (`tabler-map-pin`); the standalone title block is hidden when embedded. Scoped CSS uses logical properties (`margin-inline-start`, `min-inline-size`) and theme tokens only, so it holds in RTL/LTR and light/dark. |
-| `resources/ts/pages/account-settings.vue` | New `support` tab (`tabler-lifebuoy`) after Work history, rendering `SupportPage` with `embedded: true`. |
+| `resources/ts/pages/setup/settings.vue` | New `support` sub-page (`tabler-lifebuoy`, label `common.navigation.support`) in the settings sidebar, rendering `SupportPage` with `embedded: true`; the shared Save/Reset actions are hidden for it and for Office. |
 | `resources/ts/layouts/components/UserProfile.vue` | Support nav item removed. |
 | i18n `en` / `fa-AF` / `ps-AF` | New `pages.support.contact` block (`title`, `subtitle`, `developerNotice`, `phone`, `whatsapp`, `telegram`, `email`, `address`). |
 
@@ -83,7 +83,7 @@ Six-comment batch from the requester. Everything below is implemented and verifi
 | # | Item | Status |
 |---|---|---|
 | 1 | Support developer-contact section (links + labels + address) | ✅ |
-| 2 | Support out of the profile menu, into a Settings tab | ✅ |
+| 2 | Support out of the profile menu, into a Setup → Settings sub-page | ✅ |
 | 3 | Manual password user creation with no email | ✅ |
 | 4 | Applicants nav group renamed to Applications | ✅ |
 | 5 | Applications name column without call details | ✅ |
@@ -113,3 +113,25 @@ Six-comment batch from the requester. Everything below is implemented and verifi
   deploy, they should move into a platform-level settings row rather than the office profile.
 - `SUPPORT_CONTACT.telegramHref` uses the `https://t.me/+<number>` form; if the platform team
   later has a public username, that href is the one value to swap.
+
+## 6. Amendment (2026-10-13) — Support is a Setup → Settings sub-page
+
+The requester clarified that “Settings” means the admin **Setup → Settings** page
+(`/setup/settings/:section?`), not the personal account-settings page. So the Support
+surface moved there.
+
+| Surface | Change |
+|---|---|
+| `resources/ts/pages/setup/settings.vue` | `SettingsPage`/`settingsPageNames`/`pageFields` gained `'support'`; the sidebar lists it after Documents (`tabler-lifebuoy`, `common.navigation.support`, new `pages.settings.settings.supportPageDescription`); the content area renders `<SupportPage embedded />` for it *before* the Documents `v-else` fallback; new `showsSettingsActions` computed hides the shared Save/Reset actions for `office` and `support`. |
+| `resources/ts/pages/account-settings.vue` | Support tab, `SupportPage` import and the `embedded` v-bind removed — one Support surface, reachable at `/setup/settings/support`. |
+| i18n `en` / `fa-AF` / `ps-AF` | `pages.settings.settings.supportPageDescription` added. |
+| `scripts/support-contact-regression.mjs` | Static wiring updated: Setup → Settings owns the Support sub-page and the account page must not carry a Support tab. |
+
+Verification: `npm run typecheck` ✅, `npm run i18n:check` ✅ (3061 used keys, no missing),
+`npm run i18n:test` ✅ (en, fa-AF, ps-AF), `npm run build:icons` ✅ (294 references, no
+unresolved tokens), `node scripts/support-contact-regression.mjs` ✅.
+
+Known follow-up: Setup → Settings requires `view_settings`, so staff without that
+permission no longer have an in-app route to Support even though the standalone
+`/support` URL still exists. Restore a lighter entry point (profile menu or a help
+action) if every user must reach it.

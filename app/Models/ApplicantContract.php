@@ -40,6 +40,7 @@ class ApplicantContract extends Pivot
         'payment_status',
         'payment_status_overridden',
         'amount_paid_overridden',
+        'current_stage_id',
     ];
 
     protected $casts = [
@@ -80,6 +81,26 @@ class ApplicantContract extends Pivot
     public function contract(): BelongsTo
     {
         return $this->belongsTo(Contract::class);
+    }
+
+    /** The stage this service line currently sits in (per-service workflow). */
+    public function currentStage(): BelongsTo
+    {
+        return $this->belongsTo(ApplicantStage::class, 'current_stage_id');
+    }
+
+    /** Immutable transition log for this line. */
+    public function stageHistory(): HasMany
+    {
+        return $this->hasMany(ApplicantStageHistory::class, 'applicant_contract_id')->latest('changed_at');
+    }
+
+    /** Whether the given stage is a legal next step from this line's stage. */
+    public function allowsTransitionTo(ApplicantStage $next): bool
+    {
+        $current = $this->currentStage;
+
+        return $current ? $current->allowsTransitionTo($next) : true;
     }
 
     public function applicant(): BelongsTo

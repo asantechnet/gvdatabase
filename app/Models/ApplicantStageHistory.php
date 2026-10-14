@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ApplicantStageHistory extends Model
 {
-    protected $fillable = ['applicant_id', 'old_stage_id', 'new_stage_id', 'changed_by', 'changed_at', 'note'];
+    protected $fillable = ['applicant_id', 'applicant_contract_id', 'old_stage_id', 'new_stage_id', 'changed_by', 'changed_at', 'note'];
 
     protected $casts = ['changed_at' => 'immutable_datetime'];
 
@@ -33,6 +33,12 @@ class ApplicantStageHistory extends Model
     public function applicant(): BelongsTo
     {
         return $this->belongsTo(Applicant::class);
+    }
+
+    /** The service line this transition belongs to, when it was a line move. */
+    public function applicantContract(): BelongsTo
+    {
+        return $this->belongsTo(ApplicantContract::class, 'applicant_contract_id');
     }
 
     public function oldStage(): BelongsTo

@@ -470,6 +470,7 @@
       "loans": "Loans",
       "paymentRequests": "Payment requests",
       "educationalData": "Educational data",
+      "contractStages": "Contract stages",
       "announcements": "Announcements",
       "incomeTypes": "Income Types",
       "expenseTypes": "Expense Types"
@@ -1499,6 +1500,7 @@
         "operationsPageDescription": "Working hours and leave defaults.",
         "appearancePageDescription": "Application colour preferences.",
         "documentsPageDescription": "Artwork used on contract documents.",
+        "supportPageDescription": "Report a problem and reach the platform team.",
         "emailDeliveryHint": "SMTP credentials are stored securely and used for verification and password-reset emails. Leave the SMTP fields empty to use the server mail configuration.",
         "emailDeliveryEnabled": "Enable company email delivery",
         "emailDeliveryEnabledHint": "When off, the company SMTP settings below are ignored and the server's default mail configuration is used.",
@@ -1912,7 +1914,18 @@
           "filterByEmployee": "Filter by employee",
           "due": "Due",
           "paid": "Paid",
-          "remaining": "Remaining"
+          "remaining": "Remaining",
+          "advancesTab": "Advances",
+          "addAdvance": "Add Advance",
+          "advanceNumber": "Advance Number",
+          "advanceDate": "Advance Date",
+          "advanceAmount": "Advance Amount",
+          "advanceAmountMustBeGreaterThan0": "Advance amount must be greater than 0",
+          "totalAdvances": "Total Advances",
+          "searchAdvances": "Search Advances",
+          "advanceRecorded": "Salary advance recorded",
+          "advanceDeleted": "Salary advance deleted",
+          "confirmDeleteAdvance": "Delete the salary advance for {employee}? This also removes its payroll expense."
         }
       }
     },
@@ -4847,6 +4860,8 @@
       "loadBoardsFailed": "Unable to load task boards.",
       "terminalNoteRequired": "Add a reason before closing this case.",
       "stageRecorded": "Stage change recorded.",
+      "serviceWorkflow": "Service workflow",
+      "serviceWorkflowHint": "Each contracted service moves through its own stage list.",
       "taskCreated": "Case task created.",
       "taskCreateFailed": "Unable to create the case task.",
       "taskCompleted": "Task completed.",

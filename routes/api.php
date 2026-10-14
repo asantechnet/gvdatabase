@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountDeactivationRequestController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ApplicantAttachmentController;
+use App\Http\Controllers\ApplicantContractStageController;
 use App\Http\Controllers\ApplicantController;
 use App\Http\Controllers\ApplicantPortalController;
 use App\Http\Controllers\ApplicantStageController;
@@ -47,6 +48,7 @@ use App\Http\Controllers\PositionController;
 use App\Http\Controllers\RecurringEventController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\EmployeeAdvanceController;
 use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\SalaryDeductionController;
 use App\Http\Controllers\SalaryPaymentController;
@@ -241,9 +243,12 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middlewareFor('destroy', 'permission:delete_bonus_nominations');
 
     // Employee Salary routes
-    Route::get('salaries/granted-bonuses', [SalaryController::class, 'grantedBonuses'])->middleware('permission:view_bonuses');
-    Route::get('salaries/attendance-breakdown', [SalaryController::class, 'attendanceBreakdown'])->middleware('permission:view_salaries');
-    Route::post('salaries/{salary}/payments', [SalaryPaymentController::class, 'store'])->middleware('permission:create_salaries');
+    Route::get('salaries/granted-bonuses', [SalaryController::class, 'grantedBonuses'])->middleware('permission:view_bonuses');        Route::get('salaries/attendance-breakdown', [SalaryController::class, 'attendanceBreakdown'])->middleware('permission:view_salaries');
+        // Employee salary advances (an employee-level ledger, not tied to one salary).
+        Route::get('employee-advances', [EmployeeAdvanceController::class, 'index'])->middleware('permission:view_salaries');
+        Route::post('employee-advances', [EmployeeAdvanceController::class, 'store'])->middleware('permission:create_salaries');
+        Route::delete('employee-advances/{employeeAdvance}', [EmployeeAdvanceController::class, 'destroy'])->middleware('permission:delete_salaries');
+        Route::post('salaries/{salary}/payments', [SalaryPaymentController::class, 'store'])->middleware('permission:create_salaries');
     Route::delete('salaries/{salary}/payments/{payment}', [SalaryPaymentController::class, 'destroy'])->middleware('permission:delete_salaries');
     Route::get('salaries/{salary}/deductions', [SalaryDeductionController::class, 'index'])->middleware('permission:view_salary_deductions');
     Route::post('salaries/{salary}/deductions', [SalaryDeductionController::class, 'store'])->middleware('permission:create_salary_deductions');
@@ -367,6 +372,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('applicants/{applicant}/attachments/{attachment}/download', [ApplicantAttachmentController::class, 'download'])->middleware('permission:view_applicants');
     Route::delete('applicants/{applicant}/attachments/{attachment}', [ApplicantAttachmentController::class, 'destroy'])->middleware('permission:edit_applicants');
     Route::post('applicants/{applicant}/change-stage', [ApplicantController::class, 'changeStage'])->middleware('permission:change_applicant_stage');
+    // Per-service workflow: each contracted line moves through its own service's
+    // stage list independently of the applicant's other services.
+    Route::post('applicant-contracts/{line}/change-stage', [ApplicantContractStageController::class, 'changeStage'])->middleware('permission:change_applicant_stage');
     Route::get('applicants/{applicant}/universities', [ApplicantUniversityController::class, 'index'])->middleware('permission:view_applicants');
     Route::post('applicants/{applicant}/universities', [ApplicantUniversityController::class, 'store'])->middleware('permission:edit_applicants');
     Route::put('applicants/{applicant}/universities/{application}', [ApplicantUniversityController::class, 'update'])->middleware('permission:edit_applicants');

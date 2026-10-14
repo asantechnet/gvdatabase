@@ -6,7 +6,6 @@ import AccountSettingsNotification from '@/views/pages/account-settings/AccountS
 import AccountSettingsSecurity from '@/views/pages/account-settings/AccountSettingsSecurity.vue'
 import AccountDeactivationRequests from '@/views/pages/account-settings/AccountDeactivationRequests.vue'
 import AccountSettingsWorkHistory from '@/views/pages/account-settings/AccountSettingsWorkHistory.vue'
-import SupportPage from '@/pages/support.vue'
 import { canAccess } from '@/utils/authorization'
 
 const route = useRoute()
@@ -17,7 +16,6 @@ const tabs = computed(() => [
   { value: 'security', title: translate('common.messages.security'), icon: 'tabler-lock', component: AccountSettingsSecurity },
   { value: 'notifications', title: translate('common.messages.notifications'), icon: 'tabler-bell', component: AccountSettingsNotification },
   { value: 'work-history', title: translate('pages.settings.accountSettings.accountSettings.workHistory'), icon: 'tabler-calendar-stats', component: AccountSettingsWorkHistory },
-  { value: 'support', title: translate('common.navigation.support'), icon: 'tabler-lifebuoy', component: SupportPage },
   ...(canAccess('view_account_deactivation_requests')
     ? [{ value: 'deactivation-requests', title: translate('pages.settings.accountSettings.accountSettings.deactivationRequests'), icon: 'tabler-user-cancel', component: AccountDeactivationRequests }]
     : []),
@@ -66,10 +64,7 @@ function selectTab(tab: unknown) {
       md="9"
       lg="10"
     >
-      <component
-        :is="activeComponent"
-        v-bind="activeTab === 'support' ? { embedded: true } : {}"
-      />
+      <component :is="activeComponent" />
     </VCol>
   </VRow>
 </template>

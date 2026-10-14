@@ -14,14 +14,14 @@ import { fileURLToPath } from 'node:url'
  *     and `mailto:` links with the platform team's details (never the office
  *     profile), plus the address row,
  *  2. the channels come from i18n and read left-to-right even in RTL locales,
- *  3. the section is visible both standalone and as an embedded Settings tab,
- *     while the standalone page title only renders when it is not embedded,
+ *  3. the section is visible both standalone and as an embedded Setup → Settings
+ *     sub-page, while the standalone page title only renders when it is not embedded,
  *  4. the tiles stay inside the viewport on mobile, light and dark.
  *
  * It also checks the wiring of the rest of the batch's non-browser changes:
- * Support is gone from the profile menu and lives in Settings, payment requests
- * no longer offer salary, and a user can be created with a manual password that
- * sends no email.
+ * Support is gone from the profile menu and lives in a Setup → Settings sub-page,
+ * payment requests no longer offer salary, and a user can be created with a
+ * manual password that sends no email.
  */
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -61,11 +61,14 @@ const iconsCss = readFileSync(join(root, 'resources/ts/plugins/iconify/icons.css
 for (const icon of ['tabler-brand-whatsapp', 'tabler-brand-telegram', 'tabler-headset', 'tabler-external-link'])
   assert.ok(iconsCss.includes(`.${icon}`), `the bundled icon set must include ${icon}: run npm run build:icons`)
 
-// Support moved out of the profile menu into a Settings tab.
+// Support lives as an embedded sub-page of Setup → Settings, not in the profile menu or the account page.
 assert.ok(!read('layouts/components/UserProfile.vue').includes("name: 'support'"), 'the profile menu must no longer link to Support')
-const settings = read('pages/account-settings.vue')
-assert.ok(settings.includes("value: 'support'"), 'Settings must own the Support tab')
-assert.ok(settings.includes('embedded: true'), 'the Support tab must render the page in embedded mode')
+const setupSettings = read('pages/setup/settings.vue')
+assert.ok(setupSettings.includes("value: 'support' as const"), 'Setup → Settings must own the Support sub-page')
+assert.ok(setupSettings.includes('<SupportPage'), 'the Support sub-page must render the support page component')
+assert.ok(/activeSettingsPage === 'support'/.test(setupSettings), 'the Support sub-page must render inside the settings content area')
+const accountSettings = read('pages/account-settings.vue')
+assert.ok(!accountSettings.includes("value: 'support'"), 'Support must no longer be a tab of the account settings page')
 
 // Payment requests are income/expense only; payroll owns salary.
 const pendingPage = read('pages/pending-transactions.vue')
@@ -334,4 +337,4 @@ try {
 }
 
 assert.deepEqual(errors, [], `console errors: ${JSON.stringify(errors)}`)
-console.log('Support centre passed: the developer phone/WhatsApp/Telegram/email and address render as working links (i18n labels, LTR values, safe new-tab targets) standalone and as a Settings tab, the standalone title only shows outside Settings, the grid stays responsive, and Support/payment-request/manual-password wiring matches the batch.')
+console.log('Support centre passed: the developer phone/WhatsApp/Telegram/email and address render as working links (i18n labels, LTR values, safe new-tab targets) standalone and embedded, the standalone title only shows outside Settings, the grid stays responsive, and the Support sub-page/payment-request/manual-password wiring matches the batch.')

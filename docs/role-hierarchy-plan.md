@@ -36,7 +36,11 @@ Neither dimension grants the other.
 - [x] Restrict manual notifications to own/team recipients; require
   `send_all_notifications` for a broadcast.
 - [x] Provide department and direct-supervisor controls in the staff form,
-  plus all hierarchy roles in user management.
+  plus all hierarchy roles in user management. Both staff dialogs now render
+  exactly one of each: the add dialog had the pair duplicated by a copy/paste
+  slip and the edit dialog omitted it entirely, so the fields could not be
+  changed after creation. Guarded by
+  `scripts/staff-form-hierarchy-regression.mjs`.
 - [x] Add English, Dari, and Pashto messages for hierarchy validation errors.
 
 ### Required acceptance tests

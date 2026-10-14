@@ -1,4 +1,3 @@
-import applicants from './applicants'
 import applicantPortal from './applicant-portal'
 import contracts from './contracts'
 import crm from './crm'
@@ -12,7 +11,6 @@ import type { HorizontalNavItems } from '@layouts/types'
 
 export default [
   ...home,
-  ...applicants,
   ...applicantPortal,
   ...contracts,
   ...crm,

@@ -30,6 +30,7 @@ use App\Models\EducationalBonusSource;
 use App\Models\EducationalScholarship;
 use App\Models\EducationLevel;
 use App\Models\Employee;
+use App\Models\EmployeeAdvance;
 use App\Models\Expense;
 use App\Models\Income;
 use App\Models\Language;
@@ -102,6 +103,7 @@ final class AuditRegistry
             'education_levels' => EducationLevel::class,
             'educational_bonus_sources' => EducationalBonusSource::class,
             'employees' => Employee::class,
+            'employee_advances' => EmployeeAdvance::class,
             'expenses' => Expense::class,
             'incomes' => Income::class,
             'languages' => Language::class,

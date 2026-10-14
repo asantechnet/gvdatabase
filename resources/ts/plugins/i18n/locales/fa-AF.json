@@ -470,6 +470,7 @@
       "loans": "قرضه‌ها / وام‌ها",
       "paymentRequests": "درخواست‌های پرداخت",
       "educationalData": "داده‌های تحصیلی",
+      "contractStages": "مراحل قرارداد",
       "announcements": "اعلامیه‌ها",
       "incomeTypes": "انواع درآمد",
       "expenseTypes": "انواع هزینه"
@@ -1600,6 +1601,7 @@
         "operationsPageDescription": "ساعات کاری و پیش‌فرض‌های رخصتی.",
         "appearancePageDescription": "تنظیمات رنگ برنامه.",
         "documentsPageDescription": "طرح‌های استفاده‌شده در اسناد قرارداد.",
+        "supportPageDescription": "یک مشکل را گزارش کنید و با تیم پلتفرم در تماس شوید.",
         "emailDeliveryHint": "اعتبارنامه‌های SMTP به‌صورت امن نگهداری می‌شوند و برای تأیید و بازیابی گذرواژه استفاده می‌گردند. برای استفاده از تنظیمات ایمیل سرور، فیلدهای SMTP را خالی بگذارید.",
         "emailDeliveryEnabled": "فعال‌سازی ارسال ایمیل شرکت",
         "emailDeliveryEnabledHint": "در صورت غیرفعال بودن، تنظیمات SMTP شرکت نادیده گرفته می‌شود و تنظیمات پیش‌فرض ایمیل سرور استفاده می‌گردد.",
@@ -1907,7 +1909,18 @@
           "filterByEmployee": "فیلتر بر اساس کارمند",
           "due": "قابل پرداخت",
           "paid": "پرداخت‌شده",
-          "remaining": "باقی‌مانده"
+          "remaining": "باقی‌مانده",
+          "advancesTab": "پیش‌پرداخت‌ها",
+          "addAdvance": "افزودن پیش‌پرداخت",
+          "advanceNumber": "شماره پیش‌پرداخت",
+          "advanceDate": "تاریخ پیش‌پرداخت",
+          "advanceAmount": "مبلغ پیش‌پرداخت",
+          "advanceAmountMustBeGreaterThan0": "مبلغ پیش‌پرداخت باید بیشتر از ۰ باشد",
+          "totalAdvances": "مجموع پیش‌پرداخت‌ها",
+          "searchAdvances": "جستجوی پیش‌پرداخت‌ها",
+          "advanceRecorded": "پیش‌پرداخت معاش ثبت شد",
+          "advanceDeleted": "پیش‌پرداخت معاش حذف شد",
+          "confirmDeleteAdvance": "پیش‌پرداخت معاش برای {employee} حذف شود؟ مصرف مربوطه آن نیز حذف می‌گردد."
         }
       }
     },
@@ -4832,6 +4845,8 @@
       "loadBoardsFailed": "تابلوهای وظایف بارگذاری نشد.",
       "terminalNoteRequired": "پیش از بستن پرونده دلیل را وارد کنید.",
       "stageRecorded": "تغییر مرحله ثبت شد.",
+      "serviceWorkflow": "روند کار خدمت",
+      "serviceWorkflowHint": "هر خدمت قراردادشده مراحل مخصوص خود را طی می‌کند.",
       "taskCreated": "وظیفه پرونده ایجاد شد.",
       "taskCreateFailed": "وظیفه پرونده ایجاد نشد.",
       "taskCompleted": "وظیفه تکمیل شد.",

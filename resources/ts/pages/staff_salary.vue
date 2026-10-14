@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { VDialog } from 'vuetify/components'
 import PayslipTemplate, { type SalarySlipProps } from './templates/payslip_template.vue'
 import SalaryApi, { type AttendanceBreakdown, type CreateSalaryData, type Salary, type SalaryDeduction, type UpdateSalaryData } from '@/api/salary'
+import EmployeeAdvanceApi, { type CreateEmployeeAdvanceData, type EmployeeAdvance } from '@/api/employeeAdvances'
 import { type WorthyEmployee } from '@/api/bonuslist'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import CurrencyApi, { type Currency } from '@/api/currency'
@@ -42,10 +43,28 @@ const selectedSalaryAmountRange = ref<'low' | 'mid' | 'high' | null>(null)
 const salaryMonthEmployeeFilter = ref<number | null>(null)
 const isLoading = ref(false)
 
+// Employee salary advances: an employee-level ledger for money paid ahead of
+// the payroll period. Recording one also creates a payroll expense; deleting
+// it is how staff record that the employee paid the advance back.
+const advances = ref<EmployeeAdvance[]>([])
+const isLoadingAdvances = ref(false)
+const advanceEmployeeFilter = ref<number | null>(null)
+const advanceSearchQuery = ref('')
+const isAddAdvanceDialogVisible = ref(false)
+const isDeleteAdvanceDialogVisible = ref(false)
+const selectedAdvance = ref<EmployeeAdvance | null>(null)
+const advanceFormErrors = ref<FormError[]>([])
+const advanceForm = ref<{ employee_id: number | null; amount: number; date: string; remarks: string }>({
+  employee_id: null,
+  amount: 0,
+  date: new Date().toISOString().split('T')[0],
+  remarks: '',
+})
+
 // The payroll workspace is divided into subpages like the educational
 // master-data page: individual salary records and the month-by-month
 // balance summary share one card and switch through these tabs.
-const activeTab = ref<'salaries' | 'months'>('salaries')
+const activeTab = ref<'salaries' | 'months' | 'advances'>('salaries')
 
 // Payslip Printing Reference & State
 const payslipRef = ref<InstanceType<typeof PayslipTemplate> | null>(null)
@@ -126,6 +145,24 @@ const salaryMonths = computed(() => filteredSalaries.value
     outstanding: Number(salary.amountOutstanding ?? 0),
   })))
 
+// Advances are filtered locally like salaries; the ledger is small and this
+// keeps the employee filter and search instant.
+const filteredAdvances = computed(() => {
+  const search = advanceSearchQuery.value.trim().toLowerCase()
+
+  return advances.value.filter(advance => {
+    const matchesEmployee = !advanceEmployeeFilter.value || advance.employee_id === advanceEmployeeFilter.value
+    const matchesSearch = !search
+      || advance.employeeName.toLowerCase().includes(search)
+      || (advance.advanceNumber ?? '').toLowerCase().includes(search)
+      || advance.remarks.toLowerCase().includes(search)
+
+    return matchesEmployee && matchesSearch
+  })
+})
+
+const advancesTotal = computed(() => filteredAdvances.value.reduce((sum, advance) => sum + Number(advance.amount || 0), 0))
+
 // The absence/leave deduction is locked and derived from the editable
 // worked-days input: base salary is prorated by the share of unworked days.
 const formMissingDays = computed(() => Math.max(0, Number(salaryForm.value.totalDays || 0) - Number(salaryForm.value.workedDays || 0)))
@@ -151,7 +188,7 @@ const convertedBonusAmount = (bonus: WorthyEmployee, _currency = selectedFormCur
   return sourceRate > 0 ? (bookedBaseAmount / sourceRate) * targetRate : bookedBaseAmount
 }
 
-const formatSalaryAmount = (amount: number, currency?: Salary['currency'] | Currency | null) => {
+const formatSalaryAmount = (amount: number, currency?: { code?: string | null; symbol?: string | null; decimalPlaces?: number | null } | null) => {
   const decimalPlaces = currency?.decimalPlaces ?? 2
 
   const formattedAmount = formatLocalizedNumber(Number(amount || 0), {
@@ -567,6 +604,105 @@ const applySalaryApiErrors = (error: unknown) => {
     salaryFormErrors.value = [{ field: 'form', message: translate('pages.payroll.staffSalary.staffSalary.unableToSaveTheSalaryPaymentPleaseTryAgain') }]
 }
 
+const fetchAdvances = async () => {
+  try {
+    isLoadingAdvances.value = true
+    advances.value = await EmployeeAdvanceApi.list()
+  }
+  catch (error) {
+    console.error('Error fetching advances:', error)
+  }
+  finally {
+    isLoadingAdvances.value = false
+  }
+}
+
+const openAddAdvanceDialog = () => {
+  advanceForm.value = {
+    employee_id: null,
+    amount: 0,
+    date: new Date().toISOString().split('T')[0],
+    remarks: '',
+  }
+  advanceFormErrors.value = []
+  isAddAdvanceDialogVisible.value = true
+}
+
+const getAdvanceErrorMessage = (field: string) => advanceFormErrors.value.find(error => error.field === field)?.message ?? ''
+
+const validateAdvanceForm = () => {
+  advanceFormErrors.value = []
+
+  if (!advanceForm.value.employee_id)
+    advanceFormErrors.value.push({ field: 'employee', message: translate('pages.payroll.staffSalary.staffSalary.employeeIsRequired') })
+
+  if (!(Number(advanceForm.value.amount) > 0))
+    advanceFormErrors.value.push({ field: 'amount', message: translate('pages.payroll.staffSalary.staffSalary.advanceAmountMustBeGreaterThan0') })
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(advanceForm.value.date))
+    advanceFormErrors.value.push({ field: 'date', message: translate('pages.payroll.staffSalary.staffSalary.paymentDateIsRequired') })
+
+  if (advanceForm.value.remarks && advanceForm.value.remarks.length > 255)
+    advanceFormErrors.value.push({ field: 'remarks', message: translate('pages.payroll.staffSalary.staffSalary.remarksMustBeLessThan255Characters') })
+
+  return advanceFormErrors.value.length === 0
+}
+
+const saveAdvance = async () => {
+  if (!validateAdvanceForm())
+    return
+
+  try {
+    isLoading.value = true
+
+    const payload: CreateEmployeeAdvanceData = {
+      employee_id: advanceForm.value.employee_id!,
+      amount: Number(advanceForm.value.amount),
+      date: advanceForm.value.date,
+      remarks: advanceForm.value.remarks || undefined,
+    }
+
+    await EmployeeAdvanceApi.create(payload)
+    await fetchAdvances()
+    isAddAdvanceDialogVisible.value = false
+    toast.success(translate('pages.payroll.staffSalary.staffSalary.advanceRecorded'))
+  }
+  catch (error) {
+    console.error('Error recording advance:', error)
+    const fieldMap: Record<string, string> = { employee_id: 'employee', amount: 'amount', date: 'date', remarks: 'remarks' }
+    advanceFormErrors.value = Object.entries(apiFieldErrors(error)).map(([field, message]) => ({ field: fieldMap[field] ?? field, message }))
+    if (!advanceFormErrors.value.length)
+      toast.error(translate('pages.payroll.staffSalary.staffSalary.unableToSaveTheSalaryPaymentPleaseTryAgain'))
+  }
+  finally {
+    isLoading.value = false
+  }
+}
+
+const openDeleteAdvanceDialog = (advance: EmployeeAdvance) => {
+  selectedAdvance.value = advance
+  isDeleteAdvanceDialogVisible.value = true
+}
+
+const deleteAdvance = async () => {
+  if (!selectedAdvance.value)
+    return
+
+  try {
+    isLoading.value = true
+    await EmployeeAdvanceApi.remove(selectedAdvance.value.id)
+    await fetchAdvances()
+    isDeleteAdvanceDialogVisible.value = false
+    toast.success(translate('pages.payroll.staffSalary.staffSalary.advanceDeleted'))
+  }
+  catch (error) {
+    console.error('Error deleting advance:', error)
+  }
+  finally {
+    isLoading.value = false
+  }
+}
+
 const printTable = () => void printDocument({ bodyClass: 'printing-table-salaries', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 
 // Fetch salaries when component mounts
@@ -575,6 +711,7 @@ onMounted(async () => {
   fetchSalaries()
   fetchEmployees()
   fetchCurrencies()
+  fetchAdvances()
 })
 
 // Watch for filter changes and fetch data
@@ -598,11 +735,13 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
       <VCardTitle class="d-flex justify-space-between">
         <span>{{ $t('pages.payroll.staffSalary.staffSalary.title') }}</span>
         <VBtn v-if="activeTab === 'salaries'" prepend-icon="tabler-plus" @click="openAddSalaryDialog">{{ $t('pages.payroll.staffSalary.staffSalary.addSalary') }}</VBtn>
+        <VBtn v-else-if="activeTab === 'advances'" prepend-icon="tabler-plus" @click="openAddAdvanceDialog">{{ $t('pages.payroll.staffSalary.staffSalary.addAdvance') }}</VBtn>
       </VCardTitle>
       <VCardText>
         <VTabs v-model="activeTab" show-arrows class="mb-4">
           <VTab value="salaries">{{ $t('pages.payroll.staffSalary.staffSalary.salariesTab') }}</VTab>
           <VTab value="months">{{ $t('pages.payroll.staffSalary.staffSalary.salaryMonthsTab') }}</VTab>
+          <VTab value="advances">{{ $t('pages.payroll.staffSalary.staffSalary.advancesTab') }}</VTab>
         </VTabs>
         <VProgressLinear v-if="isLoading" indeterminate class="my-4" />
         <VWindow v-model="activeTab">
@@ -682,6 +821,68 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
                   </tr>
                   <tr v-if="salaryMonths.length === 0">
                     <td colspan="6" class="education-empty">{{ $t('common.messages.noRecordsFound') }}</td>
+                  </tr>
+                </tbody>
+              </VTable>
+            </div>
+          </VWindowItem>
+          <VWindowItem value="advances">
+            <VProgressLinear
+              v-if="isLoadingAdvances"
+              indeterminate
+              class="my-4"
+            />
+            <div class="table-toolbar mb-4">
+              <VSelect
+                v-model="advanceEmployeeFilter"
+                :items="employees.map(employee => ({ title: employee.name, value: employee.id }))"
+                :label="$t('pages.payroll.staffSalary.staffSalary.filterByEmployee')"
+                clearable
+                density="compact"
+                hide-details
+                style="min-width: 240px; max-inline-size: 320px"
+              />
+              <VTextField
+                v-model="advanceSearchQuery"
+                prepend-inner-icon="tabler-search"
+                :placeholder="$t('pages.payroll.staffSalary.staffSalary.searchAdvances')"
+                density="compact"
+                clearable
+                hide-details
+                class="data-table-search"
+                style="max-width: 400px;"
+              />
+            </div>
+            <div class="education-table-scroll">
+              <VTable density="compact" class="education-table">
+                <thead>
+                  <tr>
+                    <th>{{ $t('pages.payroll.staffSalary.staffSalary.advanceNumber') }}</th>
+                    <th>{{ $t('common.fields.employee') }}</th>
+                    <th>{{ $t('pages.payroll.staffSalary.staffSalary.advanceDate') }}</th>
+                    <th>{{ $t('pages.payroll.staffSalary.staffSalary.advanceAmount') }}</th>
+                    <th>{{ $t('common.messages.remarks') }}</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="advance in filteredAdvances" :key="advance.id">
+                    <td>{{ advance.advanceNumber || '—' }}</td>
+                    <td>{{ advance.employeeName }}</td>
+                    <td>{{ formatLocalizedDate(advance.date) }}</td>
+                    <td class="font-weight-bold">{{ formatSalaryAmount(advance.amount, advance.currency) }}</td>
+                    <td>{{ advance.remarks || '—' }}</td>
+                    <td class="text-no-wrap">
+                      <VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="openDeleteAdvanceDialog(advance)" />
+                    </td>
+                  </tr>
+                  <tr v-if="filteredAdvances.length === 0">
+                    <td colspan="6" class="education-empty">{{ $t('common.messages.noRecordsFound') }}</td>
+                  </tr>
+                  <tr v-else>
+                    <td colspan="3" class="text-end font-weight-medium">{{ $t('pages.payroll.staffSalary.staffSalary.totalAdvances') }}</td>
+                    <td class="font-weight-bold">{{ formatSalaryAmount(advancesTotal, filteredAdvances[0]?.currency) }}</td>
+                    <td colspan="2" />
                   </tr>
                 </tbody>
               </VTable>
@@ -1398,6 +1599,100 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
             color="error"
             :loading="isLoading"
             @click="deleteSalary"
+          >
+            {{ $t('common.actions.delete') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Add Advance Dialog -->
+    <VDialog
+      v-model="isAddAdvanceDialogVisible"
+      max-width="600px"
+    >
+      <VCard>
+        <VCardTitle class="pa-5">
+          <span class="headline">{{ $t('pages.payroll.staffSalary.staffSalary.addAdvance') }}</span>
+        </VCardTitle>
+        <VCardText>
+          <VSelect
+            v-model="advanceForm.employee_id"
+            :items="employees.map(employee => ({ title: employee.name, value: employee.id }))"
+            :label="$t('common.fields.employee')"
+            :error-messages="getAdvanceErrorMessage('employee')"
+            class="mb-3"
+          />
+          <VTextField
+            v-model.number="advanceForm.amount"
+            type="number"
+            min="0"
+            :label="$t('pages.payroll.staffSalary.staffSalary.advanceAmount')"
+            :error-messages="getAdvanceErrorMessage('amount')"
+            class="mb-3"
+          />
+          <VTextField
+            v-model="advanceForm.date"
+            type="date"
+            :label="$t('pages.payroll.staffSalary.staffSalary.advanceDate')"
+            :error-messages="getAdvanceErrorMessage('date')"
+            class="mb-3"
+          />
+          <VTextarea
+            v-model="advanceForm.remarks"
+            :label="$t('common.messages.remarks')"
+            :error-messages="getAdvanceErrorMessage('remarks')"
+            rows="2"
+            auto-grow
+          />
+        </VCardText>
+        <VCardActions class="pa-5">
+          <VSpacer />
+          <VBtn
+            color="secondary"
+            variant="tonal"
+            @click="isAddAdvanceDialogVisible = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="primary"
+            :loading="isLoading"
+            @click="saveAdvance"
+          >
+            {{ $t('common.actions.save') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Delete Advance Dialog -->
+    <VDialog
+      v-model="isDeleteAdvanceDialogVisible"
+      max-width="500px"
+    >
+      <VCard>
+        <VCardTitle class="pa-5">
+          <span class="headline">{{ $t('common.messages.confirmDelete') }}</span>
+        </VCardTitle>
+        <VCardText>
+          {{ $t('pages.payroll.staffSalary.staffSalary.confirmDeleteAdvance', { employee: selectedAdvance?.employeeName ?? '' }) }}
+          <br>
+          {{ $t('common.confirmations.thisActionCannotBeUndone') }}
+        </VCardText>
+        <VCardActions class="pa-5">
+          <VSpacer />
+          <VBtn
+            color="secondary"
+            variant="tonal"
+            @click="isDeleteAdvanceDialogVisible = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="error"
+            :loading="isLoading"
+            @click="deleteAdvance"
           >
             {{ $t('common.actions.delete') }}
           </VBtn>

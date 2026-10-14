@@ -9,7 +9,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import ApplicantApi, { COMPLETED_APPLICANT_STAGE, type Applicant, type ApplicantStage, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
+import ApplicantApi, { COMPLETED_APPLICANT_STAGE, type Applicant, type ApplicantStage, type BuiltInService, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
 import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
 import ApplicantPortalApi from '@/api/applicantPortal'
 import BoardApi from '@/api/board'
@@ -161,6 +161,43 @@ async function load() {
   selected.value = null
   notesDraft.value = applicant.value.notes ?? ''
   applicantAttachments.value = await ApplicantAttachmentApi.list(applicant.value.id)
+  await loadLineStages()
+}
+
+// Per-service workflow: each contracted line tracks its own service's stage.
+const lineStageOptions = ref<Record<string, ApplicantStage[]>>({})
+const lineStageSelection = ref<Record<number, number | null>>({})
+const movingLine = ref<number | null>(null)
+const canMoveLineStage = computed(() => canAccess('change_applicant_stage'))
+const lineStageLabel = (stage?: { name: string; key: string } | null) => stage ? translateApplicantStage(stage) : '—'
+const lineNextStages = (line: { service?: BuiltInService | null; current_stage?: { allowed_next_keys?: string[] } | null }) => {
+  const allowed = line.current_stage?.allowed_next_keys ?? []
+
+  return (lineStageOptions.value[line.service ?? ''] ?? []).filter(stage => allowed.includes(stage.key))
+}
+async function loadLineStages() {
+  const services = [...new Set((applicant.value?.services ?? []).map(line => line.service).filter((service): service is BuiltInService => !!service))]
+  await Promise.all(services.map(async service => {
+    if (!lineStageOptions.value[service])
+      lineStageOptions.value[service] = await ApplicantApi.stageDefinitions(service)
+  }))
+}
+async function moveLine(line: { id: number }) {
+  const stageId = Number(lineStageSelection.value[line.id])
+  if (!Number.isSafeInteger(stageId))
+    return
+  movingLine.value = line.id
+  try {
+    await ApplicantApi.changeLineStage(line.id, stageId)
+    await load()
+    toast.success(t('educational.caseUi.stageRecorded'))
+  }
+  catch {
+    // The shared API error notifier shows the server's message.
+  }
+  finally {
+    movingLine.value = null
+  }
 }
 
 async function uploadApplicantAttachment() { const file = Array.isArray(attachmentFile.value) ? attachmentFile.value[0] : attachmentFile.value; if (!applicant.value || !file || !attachmentLabel.value.trim()) return; uploadingApplicantAttachment.value = true; try { applicantAttachments.value.unshift(await ApplicantAttachmentApi.upload(applicant.value.id, file, attachmentLabel.value.trim())); attachmentFile.value = null; attachmentLabel.value = ''; toast.success(t('educational.caseUi.documentAdded')) } catch { toast.error(t('educational.caseUi.documentAddFailed')) } finally { uploadingApplicantAttachment.value = false } }
@@ -610,6 +647,7 @@ onMounted(async () => {
         <VBtn color="primary" :loading="moving" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
       </template>
       </div>
+      <VCard v-if="applicant.services?.length" variant="tonal" class="mt-6"><VCardItem :title="t('educational.caseUi.serviceWorkflow')" :subtitle="t('educational.caseUi.serviceWorkflowHint')" /><VCardText><div v-for="line in applicant.services" :key="line.id" class="d-flex flex-wrap align-center ga-3 mb-3"><strong>{{ line.type ?? line.service }}</strong><VChip size="small" color="primary">{{ lineStageLabel(line.current_stage) }}</VChip><template v-if="canMoveLineStage && lineNextStages(line).length"><VSelect v-model="lineStageSelection[line.id]" :items="lineNextStages(line).map(s => ({ title: translateApplicantStage(s), value: s.id }))" density="compact" hide-details style="max-width:220px" :placeholder="t('educational.caseUi.moveStage')"/><VBtn size="small" color="primary" :disabled="!lineStageSelection[line.id]" :loading="movingLine === line.id" @click="moveLine(line)">{{ t('educational.caseUi.recordStage') }}</VBtn></template></div></VCardText></VCard>
       <VCard variant="tonal" color="primary" class="mt-6"><VCardItem :title="t('educational.caseUi.applicantDocuments')" :subtitle="applicantAttachments.length ? t('educational.caseUi.applicantDocumentsReady', { count: applicantAttachments.length }) : t('educational.caseUi.applicantDocumentsNeeded')" /><VCardText><VList density="compact"><VListItem v-for="file in applicantAttachments" :key="file.id" :title="file.label" :subtitle="file.name"><template #append><VBtn icon="tabler-download" size="x-small" variant="text" :href="file.download_url"/><VBtn v-if="canEditCase" icon="tabler-trash" size="x-small" variant="text" color="error" @click="removeApplicantAttachment(file.id)"/></template></VListItem></VList><div v-if="canEditCase" class="d-flex flex-wrap ga-2 mt-3"><VTextField v-model="attachmentLabel" :label="t('educational.caseUi.documentLabel')" density="compact" hide-details style="min-width:180px"/><VFileInput v-model="attachmentFile" density="compact" hide-details style="min-width:220px"/><VBtn color="primary" :loading="uploadingApplicantAttachment" :disabled="!attachmentFile || !attachmentLabel.trim()" @click="uploadApplicantAttachment">{{ t('educational.caseUi.attach') }}</VBtn></div></VCardText></VCard>
       <VDivider class="my-8" />
       <h3>{{ t('educational.caseUi.timeline') }}</h3>

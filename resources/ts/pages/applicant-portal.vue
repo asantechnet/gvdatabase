@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import ApplicantPortalApi, { type ApplicantPortalAttachment, type ApplicantPortalData } from '@/api/applicantPortal'
+import { celebrateApplicationCompletion, stopApplicationCelebration } from '@/extensions/celebration/applicantCelebration'
 import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate } from '@/utils/localization'
 
 const toast = useToast()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const portal = ref<ApplicantPortalData | null>(null)
 const loading = ref(true)
 const saving = ref(false)
@@ -68,6 +69,7 @@ async function load() {
     portal.value = portalData
     attachments.value = portalAttachments
     populateForm()
+    celebrateCompletedCase()
   }
   catch { toast.error(t('applicantPortal.loadFailed')) }
   finally { loading.value = false }
@@ -114,7 +116,22 @@ async function saveProfile() {
   finally { saving.value = false }
 }
 
+// Celebrate a case that has reached its completion stage. Fired once per launch of
+// the portal — the confetti runs itself, so there is nothing to await here.
+function celebrateCompletedCase() {
+  if (!portal.value)
+    return
+
+  celebrateApplicationCompletion({
+    caseId: portal.value.case.id,
+    fullName: portal.value.profile.name,
+    stage: portal.value.case.current_stage,
+    locale: locale.value,
+  })
+}
+
 onMounted(load)
+onBeforeUnmount(stopApplicationCelebration)
 </script>
 
 <template>

@@ -26,6 +26,13 @@ export default [
             action: 'read',
             subject: 'view_country',
           },
+          {
+            title: 'common.navigation.contractStages',
+            icon: { icon: 'tabler-list-details' },
+            to: 'applicant-stages',
+            action: 'read',
+            subject: 'view_applicant_stages',
+          },
         ],
       },
 

@@ -1,3 +1,17 @@
+Settings/setup -> company info, for some parts the system is using native browser alerts, remove them and use vuexy template alerts instead 
+
+Remove announcements from HR navGroup and create a icon-button for it in header, with a vuexy tooltip saying what is it for
+
+there need to be proper should 
+
+staff list, deletion alert, there need to be a fine-grained message ensuring user understands the consequenses of deleting an employee, the same goes for users page. a fine grained user deletetion message need to be in place. those are important 
+
+move staff salaries from HR to finance navGroup
+
+staff list, salary month is not appearing good, the date icon is going off the component vertically
+
+staff list page, there department and report to fields are appearing as duplicated see if this is per logic or is an error
+
 
 visitor form, if a user with role of counselor tried to add a visitor the visitor's counselor becomes auto-filled with that counselor and immutable 
 

@@ -1283,32 +1283,6 @@ onMounted(async () => {
                 cols="12"
                 md="6"
               >
-                <VSelect
-                  v-model="selectedStaff.department_id"
-                  :items="departments"
-                  item-title="name"
-                  item-value="id"
-                  :label="$t('common.fields.department')"
-                  clearable
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VSelect
-                  v-model="selectedStaff.supervisor_id"
-                  :items="staffList.filter(staff => staff.id !== selectedStaff?.id)"
-                  item-title="name"
-                  item-value="id"
-                  :label="$t('common.fields.supervisor')"
-                  clearable
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
                 <VTextField
                   v-model.number="selectedStaff.salary"
                   :label="$t('common.messages.salary')"
@@ -1622,6 +1596,32 @@ onMounted(async () => {
                   item-title="name"
                   item-value="id"
                   :label="$t('common.fields.office')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedStaff.department_id"
+                  :items="departments"
+                  item-title="name"
+                  item-value="id"
+                  :label="$t('common.fields.department')"
+                  clearable
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedStaff.supervisor_id"
+                  :items="staffList.filter(staff => staff.id !== selectedStaff?.id)"
+                  item-title="name"
+                  item-value="id"
+                  :label="$t('common.fields.supervisor')"
                   clearable
                 />
               </VCol>

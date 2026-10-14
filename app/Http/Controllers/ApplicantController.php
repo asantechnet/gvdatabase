@@ -26,7 +26,7 @@ class ApplicantController extends Controller
     {
         $query = Applicant::with($this->relations())->withCount('attachments');
         if ($request->user()->hasPermission('view_applicant_financials')) {
-            $query->with('applicantContracts.currency', 'applicantContracts.contract');
+            $query->with('applicantContracts.currency', 'applicantContracts.contract', 'applicantContracts.currentStage');
         }
         $this->scopeCasesToActor($query, $request);
         $this->applyFilters($query, $request);
@@ -43,7 +43,7 @@ class ApplicantController extends Controller
 
     public function pipeline(Request $request)
     {
-        $stages = $this->stagesForContext($request->integer('country_id') ?: null, $request->integer('university_id') ?: null);
+        $stages = $this->stagesForContext($request->integer('country_id') ?: null, $request->integer('university_id') ?: null, $this->requestedService($request));
         $columns = $stages->map(function (ApplicantStage $stage) use ($request) {
             $query = Applicant::query();
             $this->scopeCasesToActor($query, $request);
@@ -72,7 +72,7 @@ class ApplicantController extends Controller
             array_push($relations, 'pendingTransactions.currency', 'incomes', 'expenses');
         }
         if ($request->user()->hasPermission('view_applicant_contracts')) {
-            array_push($relations, 'services.currency', 'services.soldByEmployee', 'services.bonusSource', 'services.contract');
+            array_push($relations, 'services.currency', 'services.soldByEmployee', 'services.bonusSource', 'services.contract', 'services.currentStage');
         }
 
         $applicant->load($relations);
@@ -117,7 +117,7 @@ class ApplicantController extends Controller
 
     public function stages(Request $request)
     {
-        return response()->json(['success' => true, 'data' => $this->stagesForContext($request->integer('country_id') ?: null, $request->integer('university_id') ?: null)]);
+        return response()->json(['success' => true, 'data' => $this->stagesForContext($request->integer('country_id') ?: null, $request->integer('university_id') ?: null, $this->requestedService($request))]);
     }
 
     public function changeStage(Request $request, Applicant $applicant, EducationalWorkflowNotificationService $notifications)
@@ -232,7 +232,8 @@ class ApplicantController extends Controller
                 $data['responsible_employee_id'] = null;
             }
             if (! $updating) {
-                $stage = $this->stagesForContext($effectiveCountry, $effectiveUniversity)->firstWhere('key', 'new') ?? ApplicantStage::query()->where('key', 'new')->firstOrFail();
+                $stage = $this->stagesForContext($effectiveCountry, $effectiveUniversity, $service)->firstWhere('key', 'new')
+                    ?? ApplicantStage::query()->where('key', 'new')->where('service', $service)->firstOrFail();
                 $data['current_stage_id'] = $stage->id;
             }
             $applicant->fill($data)->save();
@@ -296,6 +297,11 @@ class ApplicantController extends Controller
             ...$record->only(['application_fee', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee', 'currency_rate']),
             'currency_id' => $record->currency_id,
             'date' => $record->contract?->start_date?->toDateString(), 'fee' => $record->fee, 'status' => $record->contract?->status,
+            'current_stage_id' => $record->current_stage_id,
+            'current_stage' => $record->relationLoaded('currentStage') && $record->currentStage ? [
+                'id' => $record->currentStage->id, 'key' => $record->currentStage->key, 'name' => $record->currentStage->name,
+                'is_terminal' => (bool) $record->currentStage->is_terminal, 'allowed_next_keys' => $record->currentStage->allowed_next_keys ?? [],
+            ] : null,
             'currency' => $record->currency,
             'bonus_source' => $record->relationLoaded('bonusSource') ? $record->bonusSource : null,
         ];
@@ -382,9 +388,11 @@ class ApplicantController extends Controller
         $query->whereIn('responsible_employee_id', app(EmployeeScope::class)->visibleEmployeeIds($user));
     }
 
-    private function stagesForContext(?int $countryId, ?int $universityId)
+    private function stagesForContext(?int $countryId, ?int $universityId, ?string $service = null)
     {
-        return ApplicantStage::query()->where('is_active', true)->where(function ($query) use ($countryId, $universityId) {
+        return ApplicantStage::query()->where('is_active', true)
+            ->when($service, fn ($q) => $q->where('service', $service))
+            ->where(function ($query) use ($countryId, $universityId) {
             $query->whereNull('country_id')->whereNull('university_id');
             if ($countryId) {
                 $query->orWhere(fn ($q) => $q->where('country_id', $countryId)->whereNull('university_id'));
@@ -395,8 +403,20 @@ class ApplicantController extends Controller
         })->orderBy('sort_order')->get()->unique('key')->values();
     }
 
+    /** The service filter for a request, only when it is a real built-in service. */
+    private function requestedService(Request $request): ?string
+    {
+        $service = $request->input('service');
+
+        return BuiltInService::isValid($service) ? $service : null;
+    }
+
     private function stageAppliesTo(ApplicantStage $stage, Applicant $applicant): bool
     {
+        // A stage scoped to another service can never apply to this applicant.
+        if ($stage->service && $stage->service !== $applicant->service) {
+            return false;
+        }
         if (! in_array($applicant->service, [BuiltInService::SCHOLARSHIP, BuiltInService::PRIVATE], true)) {
             return ! $stage->country_id && ! $stage->university_id;
         }

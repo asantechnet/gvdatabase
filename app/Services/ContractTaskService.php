@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ApplicantContract;
+use App\Models\ApplicantStage;
 use App\Models\Task;
 use App\Models\User;
 use App\Support\PaymentStatus;
@@ -98,6 +99,35 @@ class ContractTaskService
         }
 
         return $task;
+    }
+
+    /**
+     * Keep the work in step with the service line's stage.
+     *
+     * A terminal stage (completed / cancelled / rejected / withdrawn) finishes
+     * the linked task, and a move back into the pipeline re-opens the work by
+     * ensuring the delivery task exists again. This is what makes contracts and
+     * tasks read as one thing.
+     */
+    public function syncForStage(ApplicantContract $line, ApplicantStage $stage, ?User $actor = null): void
+    {
+        $openTasks = Task::query()
+            ->where('applicant_contract_id', $line->id)
+            ->where('progress', '<', 100)
+            ->get();
+
+        if ($stage->is_terminal) {
+            foreach ($openTasks as $task) {
+                $task->update(['progress' => 100, 'completed_at' => now('UTC')]);
+            }
+
+            return;
+        }
+
+        // Back in the pipeline: make sure a delivery task exists.
+        if ($openTasks->isEmpty()) {
+            $this->ensureForApplicantContract($line, $actor);
+        }
     }
 
     /** Human-readable context for the person delivering the contract. */

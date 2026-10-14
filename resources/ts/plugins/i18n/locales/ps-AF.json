@@ -787,6 +787,7 @@
       "loans": "پورونه",
       "paymentRequests": "د تادیې غوښتنې",
       "educationalData": "تحصیلي معلومات",
+      "contractStages": "د قرارداد مرحلې",
       "announcements": "اعلانیې",
       "incomeTypes": "د عاید ډولونه",
       "expenseTypes": "د لګښت ډولونه"
@@ -1917,6 +1918,7 @@
         "operationsPageDescription": "کاري ساعتونه او د رخصتۍ اصلي ارزښتونه.",
         "appearancePageDescription": "د اپلېکېشن رنګیز غوره‌توبونه.",
         "documentsPageDescription": "د قرارداد په اسنادو کې کارېدونکې طرحې.",
+        "supportPageDescription": "یوه ستونزه راپور کړئ او د پلیټفارم ټیم سره اړیکه ونیسئ.",
         "emailDeliveryHint": "د SMTP اسناد په خوندي ډول ساتل کېږي او د تایید او پټنوم بېرته ټاکلو برېښنالیکونو لپاره کارېږي. د سرور د برېښنالیک امستنو کارولو لپاره د SMTP برخې تشې پرېږدئ.",
         "emailDeliveryEnabled": "د شرکت برېښنالیک استول فعال کړئ",
         "emailDeliveryEnabledHint": "کله چې بند وي، د شرکت SMTP امستنې نه کارول کیږي او د سرور د برېښنالیک ډیفالټ ترتیبات کارېږي.",
@@ -2224,7 +2226,18 @@
           "filterByEmployee": "د کارمند له مخې فلټر",
           "due": "ورکړه وړ",
           "paid": "ورکړل شوی",
-          "remaining": "پاتې"
+          "remaining": "پاتې",
+          "advancesTab": "مخکین تادیات",
+          "addAdvance": "مخکینه تادیه اضافه کړه",
+          "advanceNumber": "د مخکینې تادیې شمېره",
+          "advanceDate": "د مخکینې تادیې نېټه",
+          "advanceAmount": "د مخکینې تادیې مقدار",
+          "advanceAmountMustBeGreaterThan0": "د مخکینې تادیې مقدار باید له ۰ څخه ډېر وي",
+          "totalAdvances": "د مخکینو تادیاتو مجموعه",
+          "searchAdvances": "مخکین تادیات ولټوئ",
+          "advanceRecorded": "د معاش مخکینه تادیه ثبت شوه",
+          "advanceDeleted": "د معاش مخکینه تادیه ړنګه شوه",
+          "confirmDeleteAdvance": "د {employee} لپاره مخکینه تادیه ړنګه کړو؟ د دې اړوند لګښت هم ړنګېږي."
         }
       }
     },
@@ -3783,6 +3796,8 @@
       "loadBoardsFailed": "د دندو تختې پورته نه شوې.",
       "terminalNoteRequired": "د دوسیې له تړلو مخکې دلیل ولیکئ.",
       "stageRecorded": "د پړاو بدلون ثبت شو.",
+      "serviceWorkflow": "د خدمت کاري بهیر",
+      "serviceWorkflowHint": "هره قرارداد شوې خدمت خپل پړاوونه لري.",
       "taskCreated": "د دوسیې دنده جوړه شوه.",
       "taskCreateFailed": "د دوسیې دنده جوړه نه شوه.",
       "taskCompleted": "دنده بشپړه شوه.",

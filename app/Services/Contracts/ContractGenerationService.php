@@ -99,8 +99,10 @@ class ContractGenerationService
                 'counterparty' => $applicant->name, 'counterparty_email' => $applicant->email,
                 'counterparty_contact' => $applicant->contact, 'counterparty_address' => $applicant->address,
             ]);
+            $newStage = $this->newStage($service, $countryId, $applicant->detail()?->university_id);
             $line = $contract->applicantContracts()->create([
                 'service' => $service, 'applicant_id' => $applicant->id,
+                'current_stage_id' => $newStage->id,
                 'fee' => $data['fee'], 'discount' => $data['discount'],
                 'currency_id' => $data['currency_id'], 'currency_rate' => $rate,
                 'sold_by_employee_id' => $contract->sold_by_employee_id,
@@ -121,6 +123,12 @@ class ContractGenerationService
                     'template_version' => $version->only(['id', 'name', 'version_number', 'country_id', 'language_id']),
                     'document_design' => $this->designs->snapshot($this->designs->resolve($type->id, [$service])),
                 ],
+            ]);
+            // Each service line starts its own workflow at the service's `new` stage.
+            ApplicantStageHistory::create([
+                'applicant_id' => $applicant->id, 'applicant_contract_id' => $line->id,
+                'new_stage_id' => $newStage->id, 'changed_by' => $request->user()->id,
+                'changed_at' => now(), 'note' => 'Contract created',
             ]);
             $this->tasks->ensureForApplicantContract($line, $request->user());
             if (! $primary) {
@@ -144,12 +152,7 @@ class ContractGenerationService
             abort_unless(app(EmployeeScope::class)->canManageOwnedBy($request->user(), (int) $selected), 403, 'auth.forbidden');
             $data['responsible_employee_id'] = $selected;
         }
-        $stage = ApplicantStage::query()->where('key', 'new')->where('is_active', true)
-            ->where(function ($query) use ($data) {
-                $query->whereNull('country_id')->orWhere('country_id', $data['country_id'] ?? null);
-            })->where(function ($query) use ($data) {
-                $query->whereNull('university_id')->orWhere('university_id', $data['university_id'] ?? null);
-            })->orderByRaw('university_id IS NULL')->orderByRaw('country_id IS NULL')->firstOrFail();
+        $stage = $this->newStage($service, $data['country_id'] ?? null, $data['university_id'] ?? null);
         $applicant = Applicant::create([
             ...Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'admission_employee_id', 'responsible_employee_id', 'notes']),
             'service' => $service, 'current_stage_id' => $stage->id, 'status' => 'active',
@@ -159,5 +162,17 @@ class ContractGenerationService
         ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'new_stage_id' => $stage->id, 'changed_by' => $request->user()->id, 'changed_at' => now(), 'note' => 'Contract created']);
 
         return $applicant->fresh();
+    }
+
+    /** The `new` stage of one service, preferring the most specific context. */
+    private function newStage(string $service, ?int $countryId, ?int $universityId): ApplicantStage
+    {
+        return ApplicantStage::query()->where('key', 'new')->where('is_active', true)
+            ->where('service', $service)
+            ->where(function ($query) use ($countryId) {
+                $query->whereNull('country_id')->orWhere('country_id', $countryId);
+            })->where(function ($query) use ($universityId) {
+                $query->whereNull('university_id')->orWhere('university_id', $universityId);
+            })->orderByRaw('university_id IS NULL')->orderByRaw('country_id IS NULL')->firstOrFail();
     }
 }

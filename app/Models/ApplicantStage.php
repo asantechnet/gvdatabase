@@ -24,9 +24,15 @@ class ApplicantStage extends Model
      */
     public const EXIT_KEYS = ['cancelled', 'rejected', 'withdrawn'];
 
-    protected $fillable = ['key', 'name', 'country_id', 'university_id', 'sort_order', 'is_active', 'is_terminal', 'allowed_next_keys'];
+    protected $fillable = ['key', 'name', 'service', 'country_id', 'university_id', 'sort_order', 'is_active', 'is_terminal', 'allowed_next_keys'];
 
     protected $casts = ['sort_order' => 'integer', 'is_active' => 'boolean', 'is_terminal' => 'boolean', 'allowed_next_keys' => 'array'];
+
+    /** Stages are scoped to one built-in service (see Migration 2026_10_13_000001). */
+    public function scopeForService($query, ?string $service)
+    {
+        return $service ? $query->where('service', $service) : $query;
+    }
 
     public function allowsTransitionTo(self $stage): bool
     {

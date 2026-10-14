@@ -15,10 +15,11 @@ import ContractDocumentDesignApi, { type ContractDocumentDesign, type ContractDo
 import ContractTypeApi, { type ContractType } from '@/api/contractType'
 import type { BuiltInService } from '@/api/applicants'
 import OfficeSettingsPanel from '@/components/setup/OfficeSettingsPanel.vue'
+import SupportPage from '@/pages/support.vue'
 
 type UploadField = 'website_logo' | 'company_signature' | 'contract_letterhead' | 'contract_cover_design' | 'receipt_letterhead' | 'payslip_letterhead'
 type DocumentLetterheadKind = 'receipt' | 'payslip'
-type SettingsPage = 'company' | 'email' | 'operations' | 'appearance' | 'documents' | 'office'
+type SettingsPage = 'company' | 'email' | 'operations' | 'appearance' | 'documents' | 'office' | 'support'
 
 const toast = useToast()
 const { settings } = useAppApi()
@@ -29,7 +30,7 @@ const route = useRoute()
 const router = useRouter()
 const canEditSettings = computed(() => canAccess('edit_settings'))
 const canViewOffices = computed(() => canAccess('view_offices'))
-const settingsPageNames: SettingsPage[] = ['company', 'email', 'operations', 'appearance', 'documents', 'office']
+const settingsPageNames: SettingsPage[] = ['company', 'email', 'operations', 'appearance', 'documents', 'office', 'support']
 const validSettingsPage = (section: unknown): section is SettingsPage => settingsPageNames.includes(section as SettingsPage) && (section !== 'office' || canViewOffices.value)
 const activeSettingsPage = ref<SettingsPage>(validSettingsPage(route.params.section) ? route.params.section : 'company')
 
@@ -161,10 +162,13 @@ const settingsPages = computed(() => [
   { value: 'operations' as const, icon: 'tabler-clock', title: translate('pages.settings.settings.operationsPage'), description: translate('pages.settings.settings.operationsPageDescription') },
   { value: 'appearance' as const, icon: 'tabler-palette', title: translate('pages.settings.settings.appearancePage'), description: translate('pages.settings.settings.appearancePageDescription') },
   { value: 'documents' as const, icon: 'tabler-file-description', title: translate('pages.settings.settings.documentsPage'), description: translate('pages.settings.settings.documentsPageDescription') },
+  { value: 'support' as const, icon: 'tabler-lifebuoy', title: translate('common.navigation.support'), description: translate('pages.settings.settings.supportPageDescription') },
   ...(canViewOffices.value ? [{ value: 'office' as const, icon: 'tabler-building-community', title: translate('common.fields.office'), description: 'Company location, contact details, and attendance geofence.' }] : []),
 ])
 
 const activePage = computed(() => settingsPages.value.find(page => page.value === activeSettingsPage.value)!)
+// Office and Support render entirely self-managed panels, so the shared Save/Reset actions do not apply.
+const showsSettingsActions = computed(() => activeSettingsPage.value !== 'office' && activeSettingsPage.value !== 'support')
 
 const appearanceGroups = computed(() => [
   {
@@ -210,6 +214,8 @@ const pageFields: Record<SettingsPage, (keyof SettingForm)[]> = {
   appearance: themeColorFields,
   documents: ['contract_letterhead', 'contract_cover_design', 'remove_contract_letterhead', 'remove_contract_cover_design', 'contract_letterhead_safe_x', 'contract_letterhead_safe_y', 'contract_letterhead_safe_width', 'contract_letterhead_safe_height', 'receipt_letterhead', 'remove_receipt_letterhead', 'receipt_letterhead_source', 'receipt_letterhead_safe_x', 'receipt_letterhead_safe_y', 'receipt_letterhead_safe_width', 'receipt_letterhead_safe_height', 'payslip_letterhead', 'remove_payslip_letterhead', 'payslip_letterhead_source', 'payslip_letterhead_safe_x', 'payslip_letterhead_safe_y', 'payslip_letterhead_safe_width', 'payslip_letterhead_safe_height'],
   office: [],
+  // The Support sub-page owns its own API and form; nothing here is part of the settings record.
+  support: [],
 }
 
 const timezoneOptions = (Intl.supportedValuesOf?.('timeZone') ?? ['UTC']).map(timezone => ({
@@ -961,7 +967,7 @@ onBeforeUnmount(revokeObjectUrls)
 
 <template>
   <VAlert
-    v-if="!canEditSettings"
+    v-if="!canEditSettings && showsSettingsActions"
     type="info"
     variant="tonal"
     class="mb-6"
@@ -1046,6 +1052,10 @@ onBeforeUnmount(revokeObjectUrls)
 
         <VCardText class="pa-6 pt-4">
           <OfficeSettingsPanel v-if="activeSettingsPage === 'office'" :automatic-attendance-enabled="Boolean(form.automatic_attendance_enabled)" />
+          <SupportPage
+            v-else-if="activeSettingsPage === 'support'"
+            embedded
+          />
           <VRow v-else-if="activeSettingsPage === 'company'">
             <VCol
               cols="12"
@@ -1903,8 +1913,8 @@ onBeforeUnmount(revokeObjectUrls)
             </VRow>
           </template>
         </VCardText>
-        <VDivider v-if="activeSettingsPage !== 'office'" />
-        <VCardActions v-if="activeSettingsPage !== 'office'" class="pa-5 px-6 justify-end ga-3">
+        <VDivider v-if="showsSettingsActions" />
+        <VCardActions v-if="showsSettingsActions" class="pa-5 px-6 justify-end ga-3">
           <VBtn
             color="secondary"
             variant="tonal"
