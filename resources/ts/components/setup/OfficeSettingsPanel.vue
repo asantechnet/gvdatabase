@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { translate } from '@/utils/localization'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import OfficeApi, { type Office, type OfficePayload } from '@/api/office'
 import OfficeGeofenceMap from '@/components/setup/OfficeGeofenceMap.vue'
 import { canAccess } from '@/utils/authorization'
+import { useSettingsValidation } from '@/composables/useSettingsValidation'
 
 const props = defineProps<{ automaticAttendanceEnabled: boolean }>()
 const { t } = useI18n()
 const toast = useToast()
+const { inputProps, clear: clearErrors, capture: captureError } = useSettingsValidation()
 const office = ref<Office | null>(null)
 const loading = ref(false)
 const saving = ref(false)
@@ -21,6 +23,11 @@ const form = reactive({
 })
 const geofenceReady = computed(() => form.latitude !== null && form.longitude !== null)
 const profileComplete = computed(() => Boolean(form.name.trim() && form.code.trim() && form.address.trim()))
+watch(() => ({ ...form }), (values, previous) => {
+  for (const field of Object.keys(values) as (keyof typeof form)[]) {
+    if (values[field] !== previous[field]) clearErrors(field)
+  }
+})
 
 function apply(record: Office | null) {
   office.value = record
@@ -51,14 +58,26 @@ function locate() {
 }
 async function save() {
   if (saving.value || !canManage.value) return
-  if (!form.name.trim() || !form.code.trim()) { toast.error(translate('common.ui.officeNameAndCodeAreRequired')); return }
-  if (form.geofence_enabled && !geofenceReady.value) { toast.error(t('pages.settings.geofence.coordinatesRequired')); return }
+  clearErrors()
+  const errors: Record<string, string[]> = {}
+  for (const field of ['name', 'code'] as const) {
+    if (!form[field]?.trim()) errors[field] = ['validation.required']
+  }
+  if (form.geofence_enabled) {
+    for (const field of ['latitude', 'longitude'] as const) {
+      if (form[field] == null || String(form[field]).trim() === '') errors[field] = ['validation.required']
+    }
+  }
+  if (Object.keys(errors).length) {
+    await captureError({ errors }, translate('settingsValidation.saveFailed'))
+    return
+  }
   saving.value = true
   const payload: OfficePayload = { ...form, name: form.name.trim(), code: form.code.trim().toUpperCase(), email: form.email.trim() || null, phone: form.phone.trim() || null, address: form.address.trim() || null }
   try {
-    apply(office.value ? await OfficeApi.update(office.value.id, payload) : await OfficeApi.create(payload))
+    apply(office.value ? await OfficeApi.update(office.value.id, payload, { quiet: true }) : await OfficeApi.create(payload, { quiet: true }))
     toast.success(translate('common.ui.officeProfileSaved'))
-  } catch (error: any) { toast.error(error.response?.data?.message || translate('common.ui.unableToSaveTheOfficeProfile')) }
+  } catch (error) { await captureError(error, translate('settingsValidation.saveFailed')) }
   finally { saving.value = false }
 }
 onMounted(load)
@@ -90,12 +109,12 @@ onMounted(load)
           <VCardItem :title="$t('common.ui.officeProfile')" :subtitle="$t('common.ui.keepTheCompanySPhysicalLocationAndContactDetailsAccurate')" />
           <VCardText>
             <VRow>
-              <VCol cols="12" sm="8"><VTextField v-model="form.name" :disabled="!canManage" :label="$t('common.fields.name')" required /></VCol>
-              <VCol cols="12" sm="4"><VTextField v-model="form.code" :disabled="!canManage" :label="$t('pages.settings.directorycrudpage.officeCode')" required /></VCol>
-              <VCol cols="12" sm="6"><VTextField v-model="form.email" :disabled="!canManage" :label="$t('common.fields.email')" type="email" /></VCol>
-              <VCol cols="12" sm="6"><VTextField v-model="form.phone" :disabled="!canManage" :label="$t('common.fields.phone')" /></VCol>
-              <VCol cols="12"><VTextarea v-model="form.address" :disabled="!canManage" :label="$t('common.fields.address')" rows="2" auto-grow /></VCol>
-              <VCol cols="12" sm="6"><VSelect v-model="form.status" :disabled="!canManage" :items="[{ title: $t('serviceContracts.active'), value: 'active' }, { title: $t('common.statuses.inactive'), value: 'inactive' }]" :label="$t('common.fields.status')" /></VCol>
+              <VCol cols="12" sm="8"><VTextField v-model="form.name" v-bind="inputProps('name')" :disabled="!canManage" :label="$t('common.fields.name')" required /></VCol>
+              <VCol cols="12" sm="4"><VTextField v-model="form.code" v-bind="inputProps('code')" :disabled="!canManage" :label="$t('pages.settings.directorycrudpage.officeCode')" required /></VCol>
+              <VCol cols="12" sm="6"><VTextField v-model="form.email" v-bind="inputProps('email')" :disabled="!canManage" :label="$t('common.fields.email')" type="email" /></VCol>
+              <VCol cols="12" sm="6"><VTextField v-model="form.phone" v-bind="inputProps('phone')" :disabled="!canManage" :label="$t('common.fields.phone')" /></VCol>
+              <VCol cols="12"><VTextarea v-model="form.address" v-bind="inputProps('address')" :disabled="!canManage" :label="$t('common.fields.address')" rows="2" auto-grow /></VCol>
+              <VCol cols="12" sm="6"><VSelect v-model="form.status" v-bind="inputProps('status')" :disabled="!canManage" :items="[{ title: $t('serviceContracts.active'), value: 'active' }, { title: $t('common.statuses.inactive'), value: 'inactive' }]" :label="$t('common.fields.status')" /></VCol>
               <VCol cols="12" sm="6" class="d-flex align-center"><VChip :color="profileComplete ? 'success' : 'warning'" variant="tonal" prepend-icon="tabler-list-check">{{ profileComplete ? $t('common.ui.profileComplete') : $t('common.ui.completeTheProfile') }}</VChip></VCol>
             </VRow>
           </VCardText>
@@ -105,9 +124,9 @@ onMounted(load)
         <VCard variant="outlined">
           <VCardItem :title="$t('common.ui.attendanceGeofence')" :subtitle="$t('common.ui.setOneTrustedLocationForLocationAwareClockIns')" />
           <VCardText>
-            <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4"><VSwitch v-model="form.geofence_enabled" :disabled="!canManage || !automaticAttendanceEnabled" color="primary" :label="$t('common.ui.requireStaffToClockInFromThisOffice')" hide-details /><VBtn variant="tonal" prepend-icon="tabler-current-location" :disabled="!canManage" :loading="locating" @click="locate">{{ $t('common.ui.useMyCurrentLocation') }}</VBtn></div>
+            <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4"><VSwitch v-model="form.geofence_enabled" v-bind="inputProps('geofence_enabled')" :disabled="!canManage || !automaticAttendanceEnabled" color="primary" :label="$t('common.ui.requireStaffToClockInFromThisOffice')" hide-details="auto" /><VBtn variant="tonal" prepend-icon="tabler-current-location" :disabled="!canManage" :loading="locating" @click="locate">{{ $t('common.ui.useMyCurrentLocation') }}</VBtn></div>
             <OfficeGeofenceMap :readonly="!canManage" v-model:latitude="form.latitude" v-model:longitude="form.longitude" v-model:radius-meters="form.geofence_radius_meters" :current-latitude="location.latitude" :current-longitude="location.longitude" />
-            <VRow class="mt-2"><VCol cols="12" md="4"><VTextField v-model.number="form.latitude" :disabled="!canManage" type="number" step="0.0000001" :label="$t('pages.settings.geofence.latitude')" /></VCol><VCol cols="12" md="4"><VTextField v-model.number="form.longitude" :disabled="!canManage" type="number" step="0.0000001" :label="$t('pages.settings.geofence.longitude')" /></VCol><VCol cols="12" md="4"><VTextField v-model.number="form.geofence_radius_meters" :disabled="!canManage" type="number" min="10" max="5000" suffix="m" :label="$t('pages.settings.geofence.radiusMeters')" /></VCol></VRow>
+            <VRow class="mt-2"><VCol cols="12" md="4"><VTextField v-model.number="form.latitude" v-bind="inputProps('latitude')" :disabled="!canManage" type="number" step="0.0000001" :label="$t('pages.settings.geofence.latitude')" /></VCol><VCol cols="12" md="4"><VTextField v-model.number="form.longitude" v-bind="inputProps('longitude')" :disabled="!canManage" type="number" step="0.0000001" :label="$t('pages.settings.geofence.longitude')" /></VCol><VCol cols="12" md="4"><VTextField v-model.number="form.geofence_radius_meters" v-bind="inputProps('geofence_radius_meters')" :disabled="!canManage" type="number" min="10" max="5000" suffix="m" :label="$t('pages.settings.geofence.radiusMeters')" /></VCol></VRow>
           </VCardText>
         </VCard>
       </VCol>

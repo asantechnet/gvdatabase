@@ -231,7 +231,7 @@ onMounted(async () => {
 
 <template>
   <div class="education-workspace erp-workspace">
-    <ErpPageHeader :title="$t('educational.applicantPipeline')" section="applicants" />
+    <ErpPageHeader :title="$t('educational.applicantPipeline')" section="applications" />
     <VCard class="education-panel">
     <VCardItem :subtitle="$t('educational.pipelineInstructions')">
       <template #append>

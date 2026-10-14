@@ -8,7 +8,7 @@ import type { ApplicantPayload } from '@/api/applicants'
 import MasterDataApi, { type EducationalCatalog, type MasterDataRecord } from '@/api/educationalMasterData'
 
 const model = defineModel<ApplicantPayload>({ required: true })
-defineProps<{ fixedService?: boolean }>()
+const props = defineProps<{ fixedService?: boolean; serviceContract?: boolean }>()
 const { t } = useI18n()
 const toast = useToast()
 const ability = useAbility()
@@ -43,7 +43,9 @@ watch(() => model.value.country_id, (value, old) => {
 
 onMounted(async () => {
   loading.value = true
-  const names: EducationalCatalog[] = ['countries', 'universities', 'education-levels', 'semesters', 'subjects', 'tests', 'skills', 'programs', 'times', 'durations', 'teachers', 'scholarships', 'classes']
+  const names: EducationalCatalog[] = ['countries', 'education-levels', 'semesters', 'subjects', 'tests', 'skills', 'programs', 'times', 'durations', 'teachers', 'scholarships', 'classes']
+  if (!props.serviceContract)
+    names.push('universities')
   const results = await Promise.allSettled([
     ...names.map(async name => { catalogs.value[name] = await MasterDataApi.list(name) }),
   ])
@@ -63,8 +65,8 @@ onMounted(async () => {
       <VCol cols="12" sm="6" md="3"><ErpField v-model="model.country_id" kind="select" :items="options('countries')" :label="t('educational.destinationCountry')" clearable /></VCol>
       <VCol cols="12" sm="6" md="3"><ErpField v-model="model.education_level_id" kind="select" :items="options('education-levels')" :label="t('educational.educationLevel')" clearable /></VCol>
       <VCol cols="12" sm="6" md="3"><ErpField v-model="model.semester_id" kind="select" :items="options('semesters')" :label="t('educational.semester')" clearable /></VCol>
-      <VCol cols="12" sm="6" md="3"><ErpField v-model="model.university_id" kind="select" :items="universities" :disabled="!model.country_id" :label="t('educational.university')" clearable /></VCol>
-      <VCol v-if="model.service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="model.university_fee" type="number" min="0" step="0.01" :label="t('educational.serviceFields.universityFee')" clearable /></VCol>
+      <VCol v-if="!props.serviceContract" cols="12" sm="6" md="3"><ErpField v-model="model.university_id" kind="select" :items="universities" :disabled="!model.country_id" :label="t('educational.university')" clearable /></VCol>
+      <VCol v-if="!props.serviceContract && model.service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="model.university_fee" type="number" min="0" step="0.01" :label="t('educational.serviceFields.universityFee')" clearable /></VCol>
       <VCol cols="12" sm="6" md="3"><ErpField v-model="model.favorite_subject_ids" kind="select" :items="options('subjects')" :label="t('erp.requestedFields')" multiple chips closable-chips clearable /></VCol>
     </template>
     <template v-else-if="model.service === 'test_offer'">
@@ -78,7 +80,7 @@ onMounted(async () => {
       <VCol cols="12" sm="6" md="4"><ErpField v-model="model.program_id" kind="select" :items="options('programs')" :label="t('educational.masterData.programs')" clearable /></VCol>
       <VCol cols="12" sm="6" md="4"><ErpField v-model="model.class_id" kind="select" :items="options('classes')" :label="t('erp.class')" clearable /></VCol>
     </template>
-    <VCol cols="12" class="pt-2">
+    <VCol v-if="!props.serviceContract" cols="12" class="pt-2">
       <VExpansionPanels variant="accordion" elevation="0">
         <VExpansionPanel :title="t('erp.optionalDetails')">
           <VExpansionPanelText><VRow dense>

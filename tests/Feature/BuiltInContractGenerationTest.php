@@ -28,6 +28,8 @@ class BuiltInContractGenerationTest extends TestCase
 
     private Language $language;
 
+    private ?ContractTemplateVersion $activeVersion = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -41,7 +43,7 @@ class BuiltInContractGenerationTest extends TestCase
     {
         $template = app(BuiltInContractTemplateService::class)->ensure($service);
 
-        return $template->versions()->create([
+        return $this->activeVersion = $template->versions()->create([
             'language_id' => $this->language->id, 'country_id' => null,
             'version_number' => 1, 'name' => 'Agreed terms', 'status' => 'active',
             'is_current' => true, 'current_scope_key' => "{$template->id}:0:{$this->language->id}",
@@ -55,7 +57,7 @@ class BuiltInContractGenerationTest extends TestCase
             'name' => 'New applicant', 'contact' => '0701234567',
             'fee' => 120, 'discount' => 20, 'currency_id' => $this->currency->id,
             'currency_rate' => 2.5, 'language_id' => $this->language->id,
-            'start_date' => '2026-10-08',
+            ...($this->activeVersion ? ['contract_template_version_id' => $this->activeVersion->id] : []),
         ], ...$extra];
     }
 
@@ -69,6 +71,7 @@ class BuiltInContractGenerationTest extends TestCase
                 ->assertJsonPath('data.services.0.built_in_service', $service)
                 ->assertJsonPath('data.services.0.currency_rate', '2.50000000');
             $contract = Contract::findOrFail($response->json('data.id'));
+            $this->assertSame(now()->toDateString(), $contract->start_date->toDateString());
             $applicant = $contract->applicant;
             $this->assertSame($service, $applicant->service);
             $this->assertNotNull($applicant->detail());
@@ -106,6 +109,27 @@ class BuiltInContractGenerationTest extends TestCase
         $this->assertEquals(1, $this->currency->fresh()->rate);
     }
 
+    public function test_an_active_historical_version_can_be_selected_explicitly(): void
+    {
+        $historical = $this->activate('academy');
+        $historical->update(['is_current' => false, 'current_scope_key' => null]);
+        $template = $historical->template;
+        $template->versions()->create([
+            'language_id' => $this->language->id,
+            'country_id' => null,
+            'version_number' => 2,
+            'name' => 'Current terms',
+            'status' => 'active',
+            'is_current' => true,
+            'current_scope_key' => "{$template->id}:0:{$this->language->id}",
+            'content' => '<p>{{contract.number}} {{customer.name}}</p>',
+        ]);
+
+        $this->postJson('/api/contracts/academy', $this->data([
+            'contract_template_version_id' => $historical->id,
+        ]))->assertCreated()->assertJsonPath('data.contract_template_version_id', $historical->id);
+    }
+
     public function test_catalogue_and_cross_service_fields_are_rejected(): void
     {
         foreach (['applicant_id' => 1, 'service_id' => 1, 'package_id' => 1, 'test_id' => 1, 'amount_paid' => 100, 'status' => 'draft'] as $field => $value) {
@@ -114,6 +138,15 @@ class BuiltInContractGenerationTest extends TestCase
         }
         $this->postJson('/api/contracts/unknown', $this->data())->assertStatus(405);
         $this->assertDatabaseCount('applicants', 0);
+    }
+
+    public function test_service_contract_rejects_single_university_fields(): void
+    {
+        $this->activate('scholarship');
+        $this->postJson('/api/contracts/scholarship', $this->data([
+            'university_id' => 1,
+            'university_fee' => 100,
+        ]))->assertUnprocessable()->assertJsonValidationErrors(['university_id', 'university_fee']);
     }
 
     public function test_generic_creation_cannot_bypass_the_builtin_command(): void
@@ -130,7 +163,7 @@ class BuiltInContractGenerationTest extends TestCase
 
     public function test_invalid_money_identity_and_scope_are_rejected_without_side_effects(): void
     {
-        foreach ([['name' => ''], ['discount' => 121], ['currency_rate' => 0], ['fee' => -1], ['fee' => 1.001], ['language_id' => 99999], ['start_date' => 'invalid']] as $change) {
+        foreach ([['name' => ''], ['discount' => 121], ['currency_rate' => 0], ['fee' => -1], ['fee' => 1.001], ['language_id' => 99999], ['start_date' => '2026-10-08']] as $change) {
             $this->postJson('/api/contracts/test_offer', $this->data($change))->assertUnprocessable();
         }
         $this->assertDatabaseCount('applicants', 0);

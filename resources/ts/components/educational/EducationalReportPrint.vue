@@ -128,6 +128,14 @@ const { logoUrl, originalCompanyName } = useBranding()
     print-color-adjust: exact;
   }
 
+  /* Native Ctrl+P has no isolated print host, so preserve the same paper
+     inset directly on the report. The print utility applies this inset to
+     #app-print-host for the button-driven print path. */
+  body.printing-education-reports:not(.printing-isolated-document) .education-print-report {
+    padding: 12mm;
+    box-sizing: border-box;
+  }
+
   html.locale-persian-script body.printing-isolated-document .education-print-report,
   html.locale-persian-script body.printing-isolated-document .education-print-report *,
   html.locale-persian-script body.printing-education-reports .education-print-report,

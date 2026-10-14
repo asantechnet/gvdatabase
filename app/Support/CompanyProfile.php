@@ -20,7 +20,7 @@ class CompanyProfile
     /** Whether the company's own SMTP/from settings should be used at all. */
     public function emailDeliveryEnabled(): bool
     {
-        return (bool) ($this->current()?->email_delivery_enabled ?? true);
+        return (bool) ($this->current()?->email_delivery_enabled ?? false);
     }
 
     /** @return array{address: string, name: string}|null */
@@ -69,7 +69,7 @@ class CompanyProfile
 
     public function replyTo(): ?string
     {
-        return $this->current()?->mail_reply_to;
+        return $this->emailDeliveryEnabled() ? $this->current()?->mail_reply_to : null;
     }
 
     public function timezone(): string

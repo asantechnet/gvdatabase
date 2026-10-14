@@ -4,6 +4,9 @@ import { computed, onMounted, ref } from 'vue'
 import CrmApi from '@/api/crmRelationships'
 import { useToast } from 'vue-toastification'
 import { apiErrorMessage } from '@/utils/apiErrors'
+import type { WhatsappAudience, WhatsappPlaceholderField, WhatsappTemplate } from '@/api/whatsappTemplates'
+import { activeWhatsappTemplates, whatsappPlaceholderFields } from '@/composables/useWhatsappTemplates'
+import { buildWhatsappUrl, renderWhatsappMessage, whatsappPhoneDigits } from '@/utils/whatsappTemplates'
 
 const props = defineProps<{
   kind: 'phone' | 'email'
@@ -12,6 +15,14 @@ const props = defineProps<{
   contactableId?: number
   /** Open the menu automatically, e.g. when deep-linked from another page. */
   autoOpen?: boolean
+  /**
+   * The record type the row shows. When set, the phone menu also offers the
+   * active WhatsApp templates for that audience — and only those, so a visitor
+   * row never offers an applicant's message.
+   */
+  audience?: WhatsappAudience
+  /** The row itself: the template placeholders are filled from it. */
+  context?: unknown
 }>()
 
 const toast = useToast()
@@ -22,10 +33,46 @@ const dialog = ref(false)
 onMounted(() => {
   if (props.autoOpen)
     menuOpen.value = true
+  void loadWhatsappTemplates()
 })
 const pendingAction = ref<ContactAction | null>(null)
 const saving = ref(false)
 const form = ref({ title: '', notes: '', follow_up_at: null as string | null })
+const whatsappTemplates = ref<WhatsappTemplate[]>([])
+const placeholderFields = ref<WhatsappPlaceholderField[]>([])
+
+/** The audience's active templates and the fields that fill them, loaded once. */
+const loadWhatsappTemplates = async () => {
+  if (props.kind !== 'phone' || !props.audience)
+    return
+
+  const [templates, fields] = await Promise.all([
+    activeWhatsappTemplates(props.audience),
+    whatsappPlaceholderFields(props.audience),
+  ])
+
+  whatsappTemplates.value = templates
+  placeholderFields.value = fields
+}
+
+/**
+ * Send a template: fill its placeholders from this row, open WhatsApp with the
+ * message ready, then offer the usual CRM dialog so the contact is recorded.
+ * Employees have no conversation record, so there the link alone is opened.
+ */
+const sendWhatsappTemplate = (template: WhatsappTemplate, event: MouseEvent | KeyboardEvent) => {
+  event.preventDefault()
+  const message = renderWhatsappMessage(template.message, placeholderFields.value, props.context ?? null)
+
+  window.open(buildWhatsappUrl(contactValue.value, message), '_blank', 'noopener,noreferrer')
+
+  if (!props.contactableType || !props.contactableId)
+    return
+
+  pendingAction.value = { label: template.title, icon: 'tabler-brand-whatsapp', href: '' }
+  form.value = { title: `${template.title} conversation`, notes: '', follow_up_at: null }
+  dialog.value = true
+}
 
 const offsetFollowUpCalendar = (_selectedDates: Date[], _dateString: string, instance: { calendarContainer: HTMLElement }) => {
   requestAnimationFrame(() => {
@@ -77,7 +124,7 @@ interface ContactAction {
 
 const contactValue = computed(() => props.value?.trim() ?? '')
 const phoneValue = computed(() => contactValue.value.replace(/[^\d+]/g, ''))
-const phoneDigits = computed(() => phoneValue.value.replace(/\D/g, ''))
+const phoneDigits = computed(() => whatsappPhoneDigits(contactValue.value))
 
 const actions = computed<ContactAction[]>(() => {
   if (props.kind === 'email') {
@@ -135,7 +182,7 @@ const actions = computed<ContactAction[]>(() => {
     <VList
       v-if="actions.length"
       density="compact"
-      min-width="150"
+      min-width="220"
     >
       <VListItem
         v-for="action in actions"
@@ -154,6 +201,31 @@ const actions = computed<ContactAction[]>(() => {
         </template>
         <VListItemTitle>{{ action.label }}</VListItemTitle>
       </VListItem>
+
+      <!-- The audience's active templates, already filled from this row. Only
+           the templates of this page's record type are ever offered. -->
+      <template v-if="kind === 'phone' && whatsappTemplates.length">
+        <VDivider class="my-1" />
+        <VListSubheader>{{ $t('pages.whatsapp.quickContactHeading') }}</VListSubheader>
+        <VListItem
+          v-for="template in whatsappTemplates"
+          :key="template.id"
+          link
+          @click.stop="sendWhatsappTemplate(template, $event)"
+        >
+          <template #prepend>
+            <VIcon
+              icon="tabler-brand-whatsapp"
+              size="18"
+              color="success"
+            />
+          </template>
+          <VListItemTitle>{{ template.title }}</VListItemTitle>
+          <VListItemSubtitle v-if="template.labels.length">
+            {{ template.labels.join(' · ') }}
+          </VListItemSubtitle>
+        </VListItem>
+      </template>
     </VList>
     <VList
       v-else

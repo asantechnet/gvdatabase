@@ -271,6 +271,7 @@ class PermissionSeeder extends Seeder
         ['name' => 'view_applicant_stages', 'category' => 'educational_visa'],
         ['name' => 'manage_applicant_stages', 'category' => 'educational_visa'],
         ['name' => 'assign_applicant_employee', 'category' => 'educational_visa'],
+        ['name' => 'assign_admission_employee', 'category' => 'educational_visa'],
         ['name' => 'view_applicant_financials', 'category' => 'educational_visa'],
         ['name' => 'view_applicant_contracts', 'category' => 'educational_visa'],
         ['name' => 'invite_applicant_portal', 'category' => 'educational_visa'],

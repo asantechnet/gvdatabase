@@ -8,6 +8,8 @@ import type { ApiResponse, Setting, SettingForm } from '@/api/setting'
 import { useAppApi } from '@/composables/useAppApi'
 import { useBranding } from '@/composables/useBranding'
 import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
+import { useSettingsValidation } from '@/composables/useSettingsValidation'
+import { settingsUploadError } from '@/api/settingValidation'
 import { canAccess } from '@/utils/authorization'
 import { contrastingTextColor } from '@/utils/themeContrast'
 import { type ThemeColorField, type ThemeColorPreferences, applyThemePalette, persistThemeColors, themeColorDefaults, themeColorFields } from '@/utils/themePersistence'
@@ -35,6 +37,8 @@ const validSettingsPage = (section: unknown): section is SettingsPage => setting
 const activeSettingsPage = ref<SettingsPage>(validSettingsPage(route.params.section) ? route.params.section : 'company')
 
 const { t: translate } = useI18n()
+const { errors: fieldErrors, inputProps: settingInputProps, clear: clearSettingErrors, capture: captureSettingError } = useSettingsValidation()
+const { errors: designFieldErrors, inputProps: designInputProps, clear: clearDesignErrors, capture: captureDesignError } = useSettingsValidation()
 
 const defaultForm = (): SettingForm => ({
   ...themeColorDefaults,
@@ -76,7 +80,7 @@ const defaultForm = (): SettingForm => ({
   clear_mail_password: false,
   mail_from_name: '',
   mail_reply_to: '',
-  email_delivery_enabled: true,
+  email_delivery_enabled: false,
   timezone: 'Asia/Kabul',
   phone: '',
   physical_address: '',
@@ -217,6 +221,42 @@ const pageFields: Record<SettingsPage, (keyof SettingForm)[]> = {
   // The Support sub-page owns its own API and form; nothing here is part of the settings record.
   support: [],
 }
+const hasEmailErrors = computed(() => pageFields.email.some(field => !!fieldErrors.value[field]))
+const artworkKey = (field: 'contract_letterhead' | 'contract_cover_design') => field === 'contract_letterhead' ? 'letterhead' : 'cover_design'
+const uploadError = (field: UploadField) => fieldErrors.value[field] || fieldErrors.value[`remove_${field}`]
+const artworkInputProps = (field: 'contract_letterhead' | 'contract_cover_design') => isDesignScope.value ? designInputProps(artworkKey(field)) : settingInputProps(field)
+const artworkError = (field: 'contract_letterhead' | 'contract_cover_design') => isDesignScope.value ? designFieldErrors.value[artworkKey(field)] || designFieldErrors.value[`remove_${artworkKey(field)}`] : uploadError(field)
+const safeInputProps = (field: keyof ContractDocumentDesignSafeArea) => isDesignScope.value ? designInputProps(`safe_${field}`) : settingInputProps(`contract_letterhead_safe_${field}`)
+const documentSafeField = (kind: DocumentLetterheadKind, field: keyof ContractDocumentDesignSafeArea) => `${kind}_letterhead_safe_${field}`
+
+function revealInvalidSection(field: string) {
+  const section = settingsPageNames.find(page => pageFields[page].includes(field as keyof SettingForm))
+  if (section) activeSettingsPage.value = section
+}
+
+function validateUpload(file: File, field: UploadField, design = false): boolean {
+  const key = design ? artworkKey(field as 'contract_letterhead' | 'contract_cover_design') : field
+  const errors = design ? designFieldErrors : fieldErrors
+  const message = settingsUploadError(file, key)
+  if (!message) {
+    if (design) { clearDesignErrors(key); clearDesignErrors(`remove_${key}`) }
+    else { clearSettingErrors(key); clearSettingErrors(`remove_${key}`) }
+    return true
+  }
+  // Keep the invalid selection in the draft so Save cannot silently ignore it.
+  if (design) {
+    if (key === 'letterhead') { designLetterhead.value = file; designRemoveLetterhead.value = false }
+    else { designCover.value = file; designRemoveCover.value = false }
+    designDirty.value = true
+  }
+  else {
+    form.value[field] = file
+    form.value[`remove_${field}` as keyof SettingForm] = false as never
+  }
+  errors.value = { ...errors.value, [key]: message }
+  toast.error(message)
+  return false
+}
 
 const timezoneOptions = (Intl.supportedValuesOf?.('timeZone') ?? ['UTC']).map(timezone => ({
   title: timezone.replaceAll('_', ' '),
@@ -292,7 +332,7 @@ function applySavedSetting(setting: Setting) {
     clear_mail_password: false,
     mail_from_name: setting.mail_from_name || '',
     mail_reply_to: setting.mail_reply_to || '',
-    email_delivery_enabled: setting.email_delivery_enabled ?? true,
+    email_delivery_enabled: setting.email_delivery_enabled ?? false,
     timezone: setting.timezone || 'UTC',
     phone: setting.phone || '',
     physical_address: setting.physical_address || '',
@@ -360,6 +400,7 @@ function releasePreview(url: string | null) {
 
 /** Mirror the selected scope's saved design (or the settings fallback) into the artwork editor. */
 function syncDesignScopeFromSelection() {
+  clearDesignErrors()
   const design = selectedDocumentDesign.value
 
   releasePreview(designLetterheadPreview.value)
@@ -392,8 +433,9 @@ function resetDesignScopeChanges() {
 }
 
 async function saveDocumentDesign() {
-  if (!canEditSettings.value || !selectedDesignTypeId.value)
+  if (designSaving.value || !canEditSettings.value || !selectedDesignTypeId.value)
     return
+  clearDesignErrors()
   designSaving.value = true
   try {
     const saved = await ContractDocumentDesignApi.save(selectedDocumentDesign.value?.id ?? null, {
@@ -404,7 +446,7 @@ async function saveDocumentDesign() {
       removeLetterhead: designRemoveLetterhead.value,
       removeCoverDesign: designRemoveCover.value,
       safeArea: { ...designSafeArea.value },
-    })
+    }, { quiet: true })
 
     designLetterhead.value = null
     designCover.value = null
@@ -415,11 +457,8 @@ async function saveDocumentDesign() {
     toast.success(translate('pages.settings.settings.artworkScopeSaved'))
   }
   catch (error) {
-    // A 422 here means the scope is no longer valid (e.g. the contract type
-    // lost its customer slug). Refresh the catalogue so the scope picker
-    // reflects the current data, then surface the validation error.
-    await loadDocumentDesigns()
-    throw error
+    // Keep the draft artwork and dimensions available for correction.
+    await captureDesignError(error, translate('settingsValidation.saveFailed'))
   }
   finally { designSaving.value = false }
 }
@@ -438,6 +477,11 @@ function handleArtworkUpload(event: Event, field: 'contract_letterhead' | 'contr
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file)
     return
+
+  if (!validateUpload(file, field, true)) {
+    ;(event.target as HTMLInputElement).value = ''
+    return
+  }
 
   const preview = previewFile(file)
 
@@ -463,6 +507,11 @@ function handleImageUpload(event: Event, field: UploadField) {
   if (!file)
     return
 
+  if (!validateUpload(file, field)) {
+    ;(event.target as HTMLInputElement).value = ''
+    return
+  }
+
   const oldPreview = field === 'website_logo'
     ? logoPreview.value
     : field === 'company_signature'
@@ -477,6 +526,7 @@ function handleImageUpload(event: Event, field: UploadField) {
   }
 
   form.value[field] = file
+  form.value[`remove_${field}` as keyof SettingForm] = false as never
 
   const preview = previewFile(file)
   if (field === 'website_logo')
@@ -540,6 +590,10 @@ function handleDocumentLetterheadUpload(event: Event, kind: DocumentLetterheadKi
     return
 
   const config = documentLetterheadConfig[kind]
+  if (!validateUpload(file, config.file)) {
+    ;(event.target as HTMLInputElement).value = ''
+    return
+  }
   const previewRef = documentLetterheadPreviewRef(kind)
   const preview = previewFile(file)
 
@@ -556,6 +610,8 @@ function removeDocumentLetterhead(kind: DocumentLetterheadKind) {
     return
 
   const config = documentLetterheadConfig[kind]
+  clearSettingErrors(config.file)
+  clearSettingErrors(config.remove)
   const previewRef = documentLetterheadPreviewRef(kind)
 
   releasePreview(previewRef.value)
@@ -616,9 +672,9 @@ function updateDocumentSafeArea(kind: DocumentLetterheadKind, patch: Partial<Con
 }
 
 function setDocumentSafeAreaFromInput(kind: DocumentLetterheadKind, field: keyof ContractDocumentDesignSafeArea, value: unknown) {
-  const numeric = Number(value)
+  const numeric = String(value ?? '').trim() === '' ? Number.NaN : Number(value)
 
-  updateDocumentSafeArea(kind, { [field]: Number.isFinite(numeric) ? numeric : 0 } as Partial<ContractDocumentDesignSafeArea>)
+  updateDocumentSafeArea(kind, { [field]: numeric } as Partial<ContractDocumentDesignSafeArea>)
 }
 
 function resizeDocumentSafeArea(event: PointerEvent, edge: 'top' | 'right' | 'bottom' | 'left', kind: DocumentLetterheadKind) {
@@ -657,6 +713,8 @@ function resizeDocumentSafeArea(event: PointerEvent, edge: 'top' | 'right' | 'bo
 function removeArtwork(field: 'contract_letterhead' | 'contract_cover_design') {
   if (!confirm(translate('pages.settings.settings.confirmRemoveFile')))
     return
+  if (isDesignScope.value) { clearDesignErrors(artworkKey(field)); clearDesignErrors(`remove_${artworkKey(field)}`) }
+  else clearSettingErrors(field)
 
   const currentPreview = activeArtworkPreview(field)
 
@@ -701,6 +759,8 @@ function removeArtwork(field: 'contract_letterhead' | 'contract_cover_design') {
 function removeUpload(field: 'website_logo' | 'company_signature') {
   if (!confirm(translate('pages.settings.settings.confirmRemoveFile')))
     return
+  clearSettingErrors(field)
+  clearSettingErrors(`remove_${field}`)
 
   const clearPreview = (target: Ref<string | null>) => {
     if (target.value?.startsWith('blob:'))
@@ -746,11 +806,11 @@ function updateSafeArea(patch: Partial<ContractDocumentDesignSafeArea>) {
     form.value.contract_letterhead_safe_height = patch.height
 }
 
-/** Numeric size fields: empty/invalid input falls back to 0 instead of NaN. */
+/** Preserve invalid entries for validation instead of silently turning them into zero. */
 function setSafeAreaFromInput(field: keyof ContractDocumentDesignSafeArea, value: unknown) {
-  const numeric = Number(value)
+  const numeric = String(value ?? '').trim() === '' ? Number.NaN : Number(value)
 
-  updateSafeArea({ [field]: Number.isFinite(numeric) ? numeric : 0 } as Partial<ContractDocumentDesignSafeArea>)
+  updateSafeArea({ [field]: numeric } as Partial<ContractDocumentDesignSafeArea>)
 }
 
 function resizeLetterheadSafeArea(event: PointerEvent, edge: 'top' | 'right' | 'bottom' | 'left') {
@@ -792,20 +852,25 @@ const colorPreviewStyle = (color: string | null | undefined) => color
   : {}
 
 function handleColorPickerUpdate(field: ThemeColorField) {
+  clearSettingErrors(field)
   applyTheme()
 }
 
 function restoreThemeColor(field: ThemeColorField) {
+  clearSettingErrors(field)
   form.value[field] = themeColorDefaults[field]
   applyTheme()
 }
 
 function restoreThemeDefaults() {
+  themeColorFields.forEach(field => clearSettingErrors(field))
   themeColorFields.forEach(field => form.value[field] = themeColorDefaults[field])
   applyTheme()
 }
 
 function resetSettings(apply: boolean = false, page: SettingsPage | null = null) {
+  if (page) pageFields[page].forEach(field => clearSettingErrors(field))
+  else clearSettingErrors()
   if (!page)
     revokeObjectUrls()
 
@@ -893,8 +958,10 @@ function activePagePayload(): Partial<SettingForm> {
 }
 
 async function saveSettings() {
-  if (!canEditSettings.value)
+  if (isSaving.value || !canEditSettings.value)
     return
+  if (settingId.value) pageFields[activeSettingsPage.value].forEach(field => clearSettingErrors(field))
+  else clearSettingErrors()
   isSaving.value = true
 
   try {
@@ -909,7 +976,7 @@ async function saveSettings() {
 
         return
       }
-      response = await settings.update(settingId.value, payload)
+      response = await settings.update(settingId.value, payload, { quiet: true })
     }
     else {
       if (activeSettingsPage.value !== 'company') {
@@ -920,7 +987,7 @@ async function saveSettings() {
       }
 
       // A first record must satisfy the server's required company defaults.
-      response = await settings.create(form.value)
+      response = await settings.create(form.value, { quiet: true })
     }
 
     const colorsToPersist = isCreating
@@ -953,6 +1020,9 @@ async function saveSettings() {
     }
     updateBranding(response.data)
     toast.success(translate('pages.settings.settings.settingsSavedSuccessfully'))
+  }
+  catch (error) {
+    await captureSettingError(error, translate('settingsValidation.saveFailed'), revealInvalidSection)
   }
   finally {
     isSaving.value = false
@@ -1074,11 +1144,13 @@ onBeforeUnmount(revokeObjectUrls)
                 />
               </VAvatar>
               <VBtn
-                color="primary"
+                :color="uploadError('website_logo') ? 'error' : 'primary'"
                 variant="tonal"
                 density="comfortable"
                 class="position-relative"
                 :disabled="!canEditSettings"
+                :data-settings-field="'website_logo'"
+                :class="{ 'settings-upload-error': !!uploadError('website_logo') }"
               >
                 <VIcon
                   icon="tabler-upload"
@@ -1090,8 +1162,11 @@ onBeforeUnmount(revokeObjectUrls)
                   class="file-overlay"
                   :disabled="!canEditSettings"
                   @change="handleImageUpload($event, 'website_logo')"
+                  :name="'website_logo'"
+                  :aria-invalid="!!uploadError('website_logo')"
                 >
               </VBtn>
+                <p v-if="uploadError('website_logo')" role="alert" class="text-error text-caption mt-2">{{ uploadError('website_logo') }}</p>
               <p class="text-caption text-medium-emphasis mt-2">
                 {{ $t('pages.settings.settings.jpgPNGGIFOrWEBPUpTo2MB')
                 }}
@@ -1131,11 +1206,13 @@ onBeforeUnmount(revokeObjectUrls)
                 class="text-disabled mb-3"
               />
               <VBtn
-                color="primary"
+                :color="uploadError('company_signature') ? 'error' : 'primary'"
                 variant="tonal"
                 density="comfortable"
                 class="position-relative"
                 :disabled="!canEditSettings"
+                :data-settings-field="'company_signature'"
+                :class="{ 'settings-upload-error': !!uploadError('company_signature') }"
               >
                 <VIcon
                   icon="tabler-upload"
@@ -1147,8 +1224,11 @@ onBeforeUnmount(revokeObjectUrls)
                   class="file-overlay"
                   :disabled="!canEditSettings"
                   @change="handleImageUpload($event, 'company_signature')"
+                  :name="'company_signature'"
+                  :aria-invalid="!!uploadError('company_signature')"
                 >
               </VBtn>
+                <p v-if="uploadError('company_signature')" role="alert" class="text-error text-caption mt-2">{{ uploadError('company_signature') }}</p>
               <p class="text-caption text-medium-emphasis mt-2">
                 {{ $t('pages.settings.settings.shownOnPrintedContracts')
                 }}
@@ -1181,6 +1261,7 @@ onBeforeUnmount(revokeObjectUrls)
                 >
                   <VTextField
                     v-model="form.website_title"
+                    v-bind="settingInputProps('website_title')"
                     :label="$t('pages.settings.settings.websiteTitle')"
                   />
                 </VCol>
@@ -1190,12 +1271,14 @@ onBeforeUnmount(revokeObjectUrls)
                 >
                   <VTextField
                     v-model="form.short_company_name"
+                    v-bind="settingInputProps('short_company_name')"
                     :label="$t('pages.settings.settings.shortCompanyName')"
                   />
                 </VCol>
                 <VCol cols="12">
                   <VTextField
                     v-model="form.original_company_name"
+                    v-bind="settingInputProps('original_company_name')"
                     :label="$t('pages.settings.settings.originalCompanyName')"
                   />
                 </VCol>
@@ -1205,6 +1288,7 @@ onBeforeUnmount(revokeObjectUrls)
                 >
                   <VTextField
                     v-model="form.website_address"
+                    v-bind="settingInputProps('website_address')"
                     :label="$t('pages.settings.settings.websiteAddress')"
                     :placeholder="$t('pages.settings.settings.httpsExampleCom')"
                   />
@@ -1215,6 +1299,7 @@ onBeforeUnmount(revokeObjectUrls)
                 >
                   <VTextField
                     v-model="form.phone"
+                    v-bind="settingInputProps('phone')"
                     :label="$t('common.fields.phone')"
                   />
                 </VCol>
@@ -1224,6 +1309,7 @@ onBeforeUnmount(revokeObjectUrls)
                 >
                   <AppSelect
                     v-model="form.timezone"
+                    v-bind="settingInputProps('timezone')"
                     :items="timezoneOptions"
                     :label="$t('pages.settings.settings.companyTimezone')"
                     autocomplete="off"
@@ -1232,6 +1318,7 @@ onBeforeUnmount(revokeObjectUrls)
                 <VCol cols="12">
                   <VTextarea
                     v-model="form.physical_address"
+                    v-bind="settingInputProps('physical_address')"
                     :label="$t('pages.settings.settings.physicalAddress')"
                     rows="2"
                     auto-grow
@@ -1254,6 +1341,7 @@ onBeforeUnmount(revokeObjectUrls)
             <VCol cols="12">
               <VSwitch
                 v-model="form.email_delivery_enabled"
+                v-bind="settingInputProps('email_delivery_enabled')"
                 color="primary"
                 inset
                 :label="$t('pages.settings.settings.emailDeliveryEnabled')"
@@ -1262,13 +1350,14 @@ onBeforeUnmount(revokeObjectUrls)
                 :disabled="!canEditSettings"
               />
             </VCol>
-            <template v-if="form.email_delivery_enabled">
+            <template v-if="form.email_delivery_enabled || hasEmailErrors">
             <VCol
               cols="12"
               sm="6"
             >
               <VTextField
                 v-model="form.company_email"
+                v-bind="settingInputProps('company_email')"
                 :label="$t('pages.settings.settings.fromEmailAddress')"
                 type="email"
                 :placeholder="$t('pages.settings.settings.helloExampleCom')"
@@ -1280,6 +1369,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <VTextField
                 v-model="form.mail_from_name"
+                v-bind="settingInputProps('mail_from_name')"
                 :label="$t('pages.settings.settings.fromName')"
                 :placeholder="form.website_title"
               />
@@ -1295,6 +1385,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <VTextField
                 v-model="form.mail_host"
+                v-bind="settingInputProps('mail_host')"
                 :label="$t('pages.settings.settings.smtpHost')"
                 placeholder="smtp.example.com"
               />
@@ -1305,6 +1396,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <VTextField
                 v-model.number="form.mail_port"
+                v-bind="settingInputProps('mail_port')"
                 :label="$t('pages.settings.settings.smtpPort')"
                 type="number"
                 min="1"
@@ -1317,6 +1409,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <VTextField
                 v-model="form.mail_username"
+                v-bind="settingInputProps('mail_username')"
                 :label="$t('pages.settings.settings.smtpUsername')"
                 autocomplete="username"
               />
@@ -1327,6 +1420,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <AppSelect
                 v-model="form.mail_encryption"
+                v-bind="settingInputProps('mail_encryption')"
                 :items="[{ title: $t('pages.settings.settings.tlsRecommended'), value: 'tls' }, { title: 'SSL', value: 'ssl' }]"
                 :label="$t('pages.settings.settings.encryption')"
                 clearable
@@ -1338,6 +1432,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <VTextField
                 v-model="form.mail_password"
+                v-bind="settingInputProps('mail_password')"
                 :label="$t('pages.settings.settings.smtpPassword')"
                 type="password"
                 autocomplete="new-password"
@@ -1346,9 +1441,10 @@ onBeforeUnmount(revokeObjectUrls)
               /><VCheckbox
                 v-if="savedSetting?.mail_password_configured"
                 v-model="form.clear_mail_password"
+                v-bind="settingInputProps('clear_mail_password')"
                 :label="$t('pages.settings.settings.removeSavedSmtpPassword')"
                 density="compact"
-                hide-details
+                hide-details="auto"
               />
             </VCol>
             <VCol
@@ -1357,6 +1453,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <VTextField
                 v-model="form.mail_reply_to"
+                v-bind="settingInputProps('mail_reply_to')"
                 :label="$t('pages.settings.settings.replyToEmail')"
                 type="email"
               />
@@ -1371,6 +1468,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <VTextField
                 v-model="form.business_licence"
+                v-bind="settingInputProps('business_licence')"
                 :label="$t('pages.settings.settings.businessLicence')"
                 :placeholder="$t('pages.settings.settings.licenceNumber')"
               />
@@ -1381,6 +1479,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <VTextField
                 v-model.number="form.paid_leave_days_per_year"
+                v-bind="settingInputProps('paid_leave_days_per_year')"
                 :label="$t('pages.settings.settings.paidLeaveDaysPerYear')"
                 type="number"
                 min="0"
@@ -1394,6 +1493,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <AppSelect
                 v-model="form.office_open_time"
+                v-bind="settingInputProps('office_open_time')"
                 :items="timeOptions"
                 :label="$t('pages.settings.settings.officeOpens')"
                 clearable
@@ -1405,6 +1505,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <AppSelect
                 v-model="form.office_close_time"
+                v-bind="settingInputProps('office_close_time')"
                 :items="timeOptions"
                 :label="$t('pages.settings.settings.officeCloses')"
                 clearable
@@ -1416,6 +1517,7 @@ onBeforeUnmount(revokeObjectUrls)
             >
               <VTextField
                 v-model.number="form.default_break_minutes"
+                v-bind="settingInputProps('default_break_minutes')"
                 :label="$t('pages.settings.settings.defaultBreakMinutes')"
                 type="number"
                 min="0"
@@ -1425,6 +1527,7 @@ onBeforeUnmount(revokeObjectUrls)
             <VCol cols="12">
               <VSwitch
                 v-model="form.automatic_attendance_enabled"
+                v-bind="settingInputProps('automatic_attendance_enabled')"
                 color="primary"
                 inset
                 :label="$t('pages.settings.settings.automaticAttendanceEnabled')"
@@ -1501,6 +1604,9 @@ onBeforeUnmount(revokeObjectUrls)
                     </div>
                     <VColorPicker
                       v-model="form[item.field]"
+                      :data-settings-field="item.field"
+                      :class="{ 'settings-color-error': !!fieldErrors[item.field] }"
+                      :aria-invalid="!!fieldErrors[item.field]"
                       mode="hex"
                       hide-inputs
                       canvas-height="90"
@@ -1508,6 +1614,7 @@ onBeforeUnmount(revokeObjectUrls)
                       :disabled="!canEditSettings"
                       @update:model-value="handleColorPickerUpdate(item.field)"
                     />
+                    <p v-if="fieldErrors[item.field]" role="alert" class="text-error text-caption mt-2">{{ fieldErrors[item.field] }}</p>
                     <div
                       class="color-swatch text-caption font-mono mt-2 px-2 py-1 rounded d-flex align-center justify-space-between"
                       :style="colorPreviewStyle(form[item.field])"
@@ -1540,6 +1647,7 @@ onBeforeUnmount(revokeObjectUrls)
                   <VCol cols="12" md="6">
                     <VSelect
                       v-model="selectedDesignTypeId"
+                      v-bind="designInputProps('contract_type_id')"
                       :items="typeOptions"
                       :label="$t('pages.settings.settings.contractTypeScope')"
                       :disabled="!canEditSettings"
@@ -1552,6 +1660,7 @@ onBeforeUnmount(revokeObjectUrls)
                   >
                     <VSelect
                       v-model="selectedDesignService"
+                      v-bind="designInputProps('service')"
                       :items="serviceOptions"
                       :label="$t('pages.settings.settings.serviceScopeOptional')"
                       clearable
@@ -1640,10 +1749,12 @@ onBeforeUnmount(revokeObjectUrls)
                 </div>
                 <div class="d-flex flex-wrap ga-2">
                   <VBtn
-                    color="primary"
+                    :color="artworkError(asset.field) ? 'error' : 'primary'"
                     variant="tonal"
                     class="position-relative"
                     :disabled="!canEditSettings"
+                    :data-settings-field="isDesignScope ? artworkKey(asset.field) : asset.field"
+                    :class="{ 'settings-upload-error': !!artworkError(asset.field) }"
                   >
                     <VIcon
                       icon="tabler-upload"
@@ -1655,8 +1766,11 @@ onBeforeUnmount(revokeObjectUrls)
                       class="file-overlay"
                       :disabled="!canEditSettings"
                       @change="handleArtworkUpload($event, asset.field)"
+                      :name="isDesignScope ? artworkKey(asset.field) : asset.field"
+                      :aria-invalid="!!artworkError(asset.field)"
                     >
                   </VBtn>
+                <p v-if="artworkError(asset.field)" role="alert" class="text-error text-caption mt-2">{{ artworkError(asset.field) }}</p>
                   <VBtn
                     v-if="activeArtworkPreview(asset.field)"
                     color="error"
@@ -1738,11 +1852,12 @@ onBeforeUnmount(revokeObjectUrls)
                     >
                       <VTextField
                         :model-value="activeSafeArea[size.field]"
+                        v-bind="safeInputProps(size.field)"
                         :label="size.label"
                         type="number"
                         suffix="%"
                         density="compact"
-                        hide-details
+                        hide-details="auto"
                         :disabled="!canEditSettings"
                         @update:model-value="setSafeAreaFromInput(size.field, $event)"
                       />
@@ -1776,6 +1891,7 @@ onBeforeUnmount(revokeObjectUrls)
                 </div>
                 <VSelect
                   :model-value="documentLetterheadSource(doc.kind)"
+                  v-bind="settingInputProps(documentLetterheadConfig[doc.kind].source)"
                   :items="[
                     { title: $t('pages.settings.settings.letterheadSourceNone'), value: 'none' },
                     { title: $t('pages.settings.settings.letterheadSourceContract'), value: 'contract' },
@@ -1783,7 +1899,7 @@ onBeforeUnmount(revokeObjectUrls)
                   ]"
                   :label="$t('pages.settings.settings.letterheadSource')"
                   density="compact"
-                  hide-details
+                  hide-details="auto"
                   class="mb-3"
                   :disabled="!canEditSettings"
                   @update:model-value="setDocumentLetterheadSource(doc.kind, $event)"
@@ -1809,10 +1925,12 @@ onBeforeUnmount(revokeObjectUrls)
                 </div>
                 <div class="d-flex flex-wrap ga-2">
                   <VBtn
-                    color="primary"
+                    :color="uploadError(documentLetterheadConfig[doc.kind].file) ? 'error' : 'primary'"
                     variant="tonal"
                     class="position-relative"
                     :disabled="!canEditSettings"
+                    :data-settings-field="documentLetterheadConfig[doc.kind].file"
+                    :class="{ 'settings-upload-error': !!uploadError(documentLetterheadConfig[doc.kind].file) }"
                   >
                     <VIcon
                       icon="tabler-upload"
@@ -1824,8 +1942,11 @@ onBeforeUnmount(revokeObjectUrls)
                       class="file-overlay"
                       :disabled="!canEditSettings"
                       @change="handleDocumentLetterheadUpload($event, doc.kind)"
+                      :name="documentLetterheadConfig[doc.kind].file"
+                      :aria-invalid="!!uploadError(documentLetterheadConfig[doc.kind].file)"
                     >
                   </VBtn>
+                <p v-if="uploadError(documentLetterheadConfig[doc.kind].file)" role="alert" class="text-error text-caption mt-2">{{ uploadError(documentLetterheadConfig[doc.kind].file) }}</p>
                   <VBtn
                     v-if="documentLetterheadSource(doc.kind) === 'custom' && documentLetterheadPreview(doc.kind)"
                     color="error"
@@ -1898,11 +2019,12 @@ onBeforeUnmount(revokeObjectUrls)
                     >
                       <VTextField
                         :model-value="documentSafeArea(doc.kind)[size.field]"
+                        v-bind="settingInputProps(documentSafeField(doc.kind, size.field))"
                         :label="size.label"
                         type="number"
                         suffix="%"
                         density="compact"
-                        hide-details
+                        hide-details="auto"
                         :disabled="!canEditSettings"
                         @update:model-value="setDocumentSafeAreaFromInput(doc.kind, size.field, $event)"
                       />
@@ -1938,6 +2060,13 @@ onBeforeUnmount(revokeObjectUrls)
 </template>
 
 <style scoped>
+.settings-color-error,
+.settings-upload-error {
+  outline: 2px solid rgb(var(--v-theme-error));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 .file-overlay {
   position: absolute;
   inset: 0;

@@ -96,9 +96,13 @@ class ApplicantController extends Controller
     {
         $this->assertCaseManageAccess($request, $applicant);
         $previousEmployeeId = $applicant->responsible_employee_id;
+        $previousAdmissionEmployeeId = $applicant->admission_employee_id;
         $applicant = $this->save($request, $applicant, true);
         if ($previousEmployeeId !== $applicant->responsible_employee_id) {
             $notifications->applicantAssigned($applicant, $request->user()?->id);
+        }
+        if ($previousAdmissionEmployeeId !== $applicant->admission_employee_id) {
+            $notifications->admissionAssigned($applicant);
         }
 
         return response()->json(['success' => true, 'data' => $applicant]);
@@ -205,6 +209,11 @@ class ApplicantController extends Controller
                 $universityCountry = University::query()->whereKey($effectiveUniversity)->value('country_id');
                 abort_unless($universityCountry && (int) $universityCountry === (int) $effectiveCountry, 422, 'business.university_country_mismatch');
             }
+            if (array_key_exists('admission_employee_id', $data)
+                && (int) $data['admission_employee_id'] !== (int) $applicant->admission_employee_id
+                && ! $request->user()->hasPermission('assign_admission_employee')) {
+                abort(403, 'auth.forbidden');
+            }
             if (! $request->user()->hasPermission('assign_applicant_employee')) {
                 $ownEmployeeId = Employee::query()->where('user_id', $request->user()->id)->value('id');
                 abort_unless($ownEmployeeId, 422, 'business.employee_profile_missing');
@@ -269,6 +278,8 @@ class ApplicantController extends Controller
             $applicant->setRelation('services', $applicant->applicantContracts->map(fn ($line) => $this->presentService($line)));
         }
         $applicant->setRelation('details', $applicant->getRelationValue($applicant->detailRelationName()));
+        $applicant->setAttribute('portal_access_status', $applicant->user?->acc_status);
+        $applicant->unsetRelation('user');
         foreach (['favoriteSubjects' => 'favorite_subject_ids', 'skills' => 'skill_ids', 'teachers' => 'teacher_ids'] as $relation => $key) {
             $applicant->setAttribute($key, $applicant->getRelationValue($relation)->pluck('id')->all());
         }
@@ -279,7 +290,7 @@ class ApplicantController extends Controller
     private function relations(): array
     {
         return [
-            'responsibleEmployee', 'admissionEmployee', 'currentStage',
+            'responsibleEmployee', 'admissionEmployee', 'currentStage', 'user:id,acc_status',
             // The per-service half of the record and its multi-valued fields.
             // All four detail relations are loaded; the resource picks the one
             // matching the applicant's service.
@@ -309,6 +320,16 @@ class ApplicantController extends Controller
 
     private function applyFilters($query, Request $request, bool $excludeStage = false): void
     {
+        $request->validate(['focus' => ['nullable', Rule::in(['outstanding', 'admitted', 'awaiting_decision', 'unassigned'])]]);
+        if ($request->input('focus') === 'outstanding') {
+            $query->whereHas('services', fn ($q) => $q
+                ->whereRaw('fee - COALESCE(discount, 0) - COALESCE(amount_paid, 0) > 0')
+                ->whereHas('contract', fn ($c) => $c->whereNotIn('status', ['cancelled', 'terminated'])->where('is_cancelled', false)));
+        } elseif (in_array($request->input('focus'), ['admitted', 'awaiting_decision'], true)) {
+            $query->whereHas('universities', fn ($q) => $q->where('status', $request->input('focus') === 'admitted' ? 'admitted' : 'applied'));
+        } elseif ($request->input('focus') === 'unassigned') {
+            $query->where('status', 'active')->whereNull('responsible_employee_id');
+        }
         $request->validate(['date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable'], 'per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
 
         if (! $excludeStage && $request->filled('stage')) {

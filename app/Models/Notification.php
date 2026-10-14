@@ -64,6 +64,12 @@ class Notification extends Model
                 'read_at' => null,
                 'deleted_at' => null,
             ]])->all());
+
+            // Raise the real-time flag in the same delivery operation so the
+            // heartbeat can pick the rows up without polling the whole inbox.
+            // Recipients who opted out of in-app delivery were already filtered
+            // out above, so they are never flagged.
+            User::query()->whereIn('id', $recipientIds)->update(['unread_notifications' => true]);
         }
     }
 

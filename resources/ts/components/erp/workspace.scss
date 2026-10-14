@@ -1,7 +1,31 @@
 @media screen {
   .erp-page-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-block-end: 20px; }
   .erp-page-heading { flex: 1 0 220px; }
-  .erp-subnav { display: flex; flex-wrap: wrap; gap: 6px; }
+  /* Concept-level navigation follows the Conversation History filter pattern:
+     one filled selected chip and outlined destination chips. */
+  .erp-subnav {
+    display: flex;
+    flex: 0 1 auto;
+    gap: 8px;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+    overflow-x: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overscroll-behavior-inline: contain;
+    scrollbar-color: rgba(var(--v-theme-on-surface), .28) transparent;
+    scrollbar-width: thin;
+  }
+
+  .erp-subnav-chip {
+    flex: 0 0 auto;
+    cursor: pointer;
+  }
+
+  .erp-subnav-chip:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); outline-offset: 2px; }
   .erp-header-actions { display: flex; gap: 8px; }
   .erp-date-range { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) auto; gap: 8px; align-items: start; }
   .erp-workspace .v-table tbody > tr:nth-child(odd) > td { background: rgb(var(--v-theme-surface)); }
@@ -20,7 +44,8 @@
   .erp-form .v-input { inline-size: 100%; min-inline-size: 0; }
   .erp-workspace .education-page-header { margin-block-end: 16px; }
   @media (max-width: 599px) {
-    .erp-subnav { inline-size: 100%; }
+    .erp-page-header { gap: 12px; }
+    .erp-subnav { flex-basis: 100%; inline-size: 100%; }
     .erp-date-range { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .erp-date-range .v-btn { grid-column: 1 / -1; }
     .erp-form .v-card-text { padding: 16px; }

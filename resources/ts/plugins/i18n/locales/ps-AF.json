@@ -28,6 +28,7 @@
     "discount": "تخفیف",
     "language": "د قرارداد ژبه",
     "created": "قرارداد جوړ شو",
+    "currentVersion": "اوسنی",
     "draft": "مسوده",
     "active": "فعال",
     "completed": "بشپړ شوی",
@@ -732,6 +733,7 @@
       "closeNavigation": "لارښود تړل"
     },
     "navigation": {
+      "whatsappMessages": "د واټساپ پیغامونه",
       "home": "کور پاڼه",
       "finance": "مالي برخه",
       "income": "عاید",
@@ -767,6 +769,7 @@
       "settings": "تنظیمات",
       "tasks": "دندې",
       "visitor": "لیدونکي",
+      "followUpList": "د تعقیب لړلیک",
       "otherContracts": "نور قراردادونه",
       "contractTemplates": "د قراردادونو بڼې",
       "contractDocuments": "بڼې او پالیسۍ",
@@ -886,6 +889,10 @@
         "visitors": {
           "title": "د لیدونکو راپور",
           "subtitle": "فلټر شوي د لیدونکو ریکارډونه"
+        },
+        "followUp": {
+          "title": "د تعقیب لړلیک راپور",
+          "subtitle": "د تعقیب لپاره ټاکل شوي لیدونکي"
         },
         "columns": {
           "receipt": "رسید",
@@ -1106,6 +1113,94 @@
     "no": "نه"
   },
   "pages": {
+    "whatsapp": {
+      "subtitle": "د واټساپ پیغام نمونې، د هغو ریکارډونو له مخې ډلبندي شوې چې د دوی لپاره لیکل کیږي.",
+      "addTemplate": "نوی نمونه",
+      "editTemplate": "نمونه سمول",
+      "searchTemplates": "نمونې لټول",
+      "sortOrder": "ترتیب",
+    "orderValue": "ترتیب {order}",
+    "clearFilters": "فلټرونه پاک کړئ",
+    "showMore": "نور ښکاره کړئ",
+    "showLess": "لږ ښکاره کړئ",
+    "noMatches": "له دې فلټرونو سره هېڅ نمونه برابره نه ده.",
+    "retry": "بیا هڅه وکړئ",
+      "empty": "په دې برخه کې لا تر اوسه څه نمونه نشته.",
+      "loadFailed": "د پیغام نمونې بار نه شوې.",
+      "deleteFailed": "نمونه ړنګه نه شوه.",
+      "created": "نمونه جوړه شوه.",
+      "updated": "نمونه نوې شوه.",
+      "deleted": "نمونه ړنګه شوه.",
+      "confirmDelete": "نمونه «{title}» ړنګه شي؟ هغه پیغامونه چې مخکې لېږل شوي دي نه بدلیږي.",
+      "titleLabel": "سرلیک",
+      "labelsLabel": "لیبلونه",
+      "labelsHint": "لیبلونه په کامې سره جلا کړئ؛ وروسته به د نمونې پیدا کولو کې مرسته وکړي.",
+      "quickContactHeading": "د واټساپ نمونه",
+      "audiences": {
+        "visitor": "لیدونکي",
+        "applicant": "غوښتونکي",
+        "employee": "کارکوونکي"
+      },
+      "filters": {
+        "all": "ټول حالتونه"
+      },
+      "validation": {
+        "titleRequired": "سرلیک اړین دی.",
+        "messageRequired": "پیغام نشي کولی تش وي.",
+        "unknownPlaceholder": "دا پیغام داسې فیلډ کاروي چې په دې برخه کې نشته."
+      },
+      "editor": {
+        "bold": "زغرد",
+        "italic": "کږ",
+        "strikethrough": "په کرښه وتلی",
+        "monospace": "ثابت متن",
+        "insertPlaceholder": "فیلډ ننوول",
+        "searchPlaceholders": "فیلډونه لټول",
+        "placeholders": "شته فیلډونه",
+        "message": "پیغام",
+        "supportedFormatting": "واټساپ یوازې ساده متن ښیي: نوی کرښه، لینک، ایموجي او *زغرد*، _کږ_، ~په کرښه وتلی~ او ```ثابت متن```.",
+        "characters": "{count} له {limit} توري",
+        "tooLong": "دا پیغام له هغو {limit} تورو اوږد دی چې واټساپ یې مني.",
+        "preview": "مخکتنه",
+        "previewSample": "د بېلګې ډاټا سره",
+        "previewTokens": "د فیلډونو سره",
+        "previewEmpty": "مخکتنه به دلته ښکاره شي کله چې لیکل پیل کړئ."
+      },
+      "placeholders": {
+        "visitor": {
+          "name": "نوم",
+          "contact": "د اړیکې شمېره",
+          "email": "برېښنالیک",
+          "service": "خدمت",
+          "counselor": "مشاور",
+          "date": "د کتنې نېټه"
+        },
+        "applicant": {
+          "name": "نوم",
+          "father_name": "د پلار نوم",
+          "father_phone": "د پلار تلیفون",
+          "backup_phone": "د احتیاطي تلیفون شمېره",
+          "contact": "تلیفون",
+          "email": "برېښنالیک",
+          "address": "پته",
+          "tax_number": "د مالیې شمېره",
+          "service": "خدمت",
+          "stage": "اوسنی پړاو",
+          "responsible_employee": "مشاور",
+          "admission_employee": "د داخلې کارکوونکی"
+        },
+        "employee": {
+          "name": "نوم",
+          "father_name": "د پلار نوم",
+          "contact": "د اړیکې شمېره",
+          "email": "برېښنالیک",
+          "position": "دنده",
+          "department": "څانګه",
+          "office": "دفتر",
+          "join_date": "د شاملېدو نېټه"
+        }
+      }
+    },
     "auth": {
       "createPassword": {
         "invalidInvitation": "دا د بلنې لینک نیمګړی یا ختم شوی دی.",
@@ -2549,7 +2644,12 @@
           "addVisitor": "لیدونکی اضافه کړئ",
           "editVisitor": "لیدونکی بدل کړئ",
           "deleteVisitor": "لیدونکی حذف کړئ",
-          "addNewVisitor": "نوی لیدونکی اضافه کړئ"
+          "addNewVisitor": "نوی لیدونکی اضافه کړئ",
+          "markForFollowUp": "د تعقیب لړلیک ته یې اضافه کړئ",
+          "removeFromFollowUp": "له تعقیب لړلیک څخه یې لرې کړئ",
+          "markedForFollowUp": "لیدونکی د تعقیب لړلیک ته اضافه شو.",
+          "removedFromFollowUp": "لیدونکی له تعقیب لړلیک څخه لرې شو.",
+          "followUpUpdateFailed": "د تعقیب لړلیک تازه نه شو."
         }
       },
       "contractform": {
@@ -3735,6 +3835,13 @@
       "visaCase": "د {name} د ویزې دوسیه",
       "visaCaseLabel": "د ویزې دوسیه",
       "portalActive": "پورټل فعال دی",
+      "portalDisabledStatus": "پورټل غیر فعال دی",
+      "disablePortal": "پورټل غیر فعالول",
+      "enablePortal": "پورټل فعالول",
+      "disablePortalConfirm": "د دې غوښتونکي پورټل لاسرسی غیر فعال شي؟ حساب، دوسیه او اسناد به خوندي وي، خو فعالې ناستې به وتړل شي.",
+      "enablePortalConfirm": "د دې غوښتونکي پورټل لاسرسی بېرته فعال شي؟ پخوانی حساب او معلومات به بیا د لاسرسي وړ وي.",
+      "portalDisabled": "د پورټل لاسرسی غیر فعال شو.",
+      "portalEnabled": "د پورټل لاسرسی فعال شو.",
       "invitePortal": "پورټل ته بلنه",
       "editCase": "دوسیه سمول",
       "openTasks": "{count} پرانیستې دندې",
@@ -3876,6 +3983,7 @@
     "reportColumns": {
       "id": "پېژند",
       "customer": "پېرودونکی",
+      "applicant": "غوښتونکی",
       "employee": "کارکوونکی",
       "country": "هېواد",
       "university": "پوهنتون",
@@ -4173,6 +4281,7 @@
     "contracts": "قراردادونه",
     "crm": "د پېرودونکو اړیکې",
     "applicants": "غوښتونکي",
+    "applications": "غوښتنلیکونه",
     "dashboard": "ډشبورډ",
     "overview": "عمومي کتنه",
     "required": "دا ډګر اړین دی",
@@ -4209,5 +4318,61 @@
     "templateNotReady": "د قرارداد قالب نه دی تنظیم شوی",
     "noMatchingVersion": "د دې هېواد او ژبې لپاره فعاله نسخه نشته. مناسبه نسخه په قالبونو او پالیسیو کې فعاله کړئ.",
     "currentPageReport": "د اوسنۍ پاڼې غوښتونکي"
+  },
+  "agencyDashboard": {
+    "noPriorityItems": "په دې کټګوریو کې د دوسیې یا قرارداد خبرتیا نشته.",
+    "prospects": "احتمالي زده کوونکي",
+    "refresh": "تازه کول",
+    "applications": "غوښتنلیکونه",
+    "reports": "راپورونه",
+    "unspecifiedCurrency": "نامعلوم اسعار",
+    "periodHelp": "نېټې د غوښتونکو ډلې او ثبت شوي مالي اسناد فلټر کوي. لومړیتوبونه، پاتې پیسې او منل کېدل اوسنی حالت ښيي.",
+    "liveOperations": "اوسني عملیات · ټولې نېټې",
+    "unassigned": "{count} له سلاکار پرته",
+    "actionItems": "د اقدام وړ موارد",
+    "itemsNotCases": "دندې، دوسیې، قراردادونه او تاییدونه",
+    "toCollect": "پاتې ترلاسه کېدونکې پیسې",
+    "balanceHelp": "له تخفیف او ثبت شوو تادیاتو وروسته",
+    "admitted": "د پوهنتون ترلاسه شوې مننې",
+    "awaitingDecision": "{count} غوښتنلیکونه د پرېکړې په تمه",
+    "caseProgress": "زموږ دوسیې په کوم پړاو کې دي؟",
+    "pipelineHelp": "د اوسني پړاو له مخې د دوسیو شمېر · ټاکل شوې د جوړېدو موده",
+    "admissionsHelp": "د پوهنتون غوښتنلیکونه · اوسنی حالت، ټولې نېټې",
+    "priorities": "څه اقدام ته اړتیا لري؟",
+    "priorityHelp": "زاړه موارد لومړی · له ۱۴ ورځو راهیسې بې پرمختګه دوسیې",
+    "documentsAwaited": "د ضمیمو په تمه دوسیې",
+    "moneyAndSales": "پیسې او د خدمتونو پلور",
+    "postedPeriod": "ثبت شوي اسناد · ټاکل شوې موده یا ټولې نېټې",
+    "serviceCountHelp": "پلورل شوي خدمتونه · له لغوه او پای ته رسېدلو قراردادونو پرته",
+    "teamWorkload": "د کار بار د چا پر غاړه دی؟",
+    "teamHelp": "د فعالو دوسیو له مخې ۶ مخکښ سلاکاران · ټاکل شوې ډله",
+    "destinations": "غوښتونکي کوم ځای ته ځي؟",
+    "destinationHelp": "فعالې / ټولې دوسیې · ټاکل شوې ډله",
+    "universitiesHelp": "مخکښ پوهنتونونه · منل شوي / ټول غوښتنلیکونه په موده کې",
+    "noAdmissions": "د پوهنتون غوښتنلیک نه دی ثبت شوی",
+    "serviceProgress": "د قراردادي خدمتونو پرمختګ",
+    "serviceProgressHelp": "د خدمتونو اوسني پړاوونه · ټولې نېټې",
+    "noStage": "پړاو نه دی ټاکل شوی"
+  },
+  "contractPrintDialog": {
+    "title": "یو رسمي ګام مخکې",
+    "subtitle": "یو نوی فصل د ښکلي وړاندې شوي تړون وړ دی."
+  },
+  "settingsValidation": {
+    "websiteURL": "{field} باید د وېبپاڼې بشپړه پته وي چې په http:// یا https:// پیل کېږي.",
+    "smtpHost": "{field} باید د کوربه نوم یا IP پته وي، لکه smtp.example.com. پورټ جلا ولیکئ او د وېب پتې مخکښ مه ورزیاتوئ.",
+    "required": "{field} اړین دی. له خوندي کولو مخکې یو ارزښت ولیکئ.",
+    "color": "{field} باید شپږ رقمي هېکس رنګ وي، لکه #7367F0.",
+    "image": "{field} باید د دې انځور ډولونو څخه وي: {types}.",
+    "fileSize": "د {field} اندازه باید له {size} مېګابایټ څخه زیاته نه وي.",
+    "uploadFailed": "{field} پورته نه شو. انځور بیا وټاکئ او هڅه وکړئ.",
+    "moreErrors": "{count} نورې خانې سمون ته اړتیا لري.",
+    "lightBackground": "د روښانه حالت شالید",
+    "lightSurface": "د روښانه حالت کارتونه او مېنوګانې",
+    "darkBackground": "د تیاره حالت شالید",
+    "darkSurface": "د تیاره حالت کارتونه او مېنوګانې",
+    "safeWidth": "{field}: افقي واټن او پلنوالی یوځای له ۱۰۰٪ څخه زیاتېدای نه شي. واټن یا پلنوالی کم کړئ.",
+    "safeHeight": "{field}: عمودي واټن او لوړوالی یوځای له ۱۰۰٪ څخه زیاتېدای نه شي. واټن یا لوړوالی کم کړئ.",
+    "saveFailed": "تنظیمات خوندي نه شول. نښه شوې خانې سمې او بیا هڅه وکړئ."
   }
 }

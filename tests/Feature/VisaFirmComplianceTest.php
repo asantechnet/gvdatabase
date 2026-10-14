@@ -9,6 +9,7 @@ use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Income;
 use App\Models\Notification;
+use App\Models\Position;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\EducationalWorkflowNotificationService;
@@ -32,7 +33,9 @@ class VisaFirmComplianceTest extends TestCase
             $this->assertContains('create_contracts', $permissions);
             $this->assertNotContains('override_contract_payments', $permissions);
             $this->assertNotContains('manage_contract_templates', $permissions);
+            $this->assertNotContains('assign_admission_employee', $permissions);
         }
+        $this->assertContains('assign_admission_employee', Role::where('name', 'manager')->firstOrFail()->permissions()->pluck('name'));
         $finance = Role::where('name', 'finance_officer')->firstOrFail()->permissions()->pluck('name');
         foreach (['view_incomes', 'create_incomes', 'edit_incomes', 'override_contract_payments'] as $name) {
             $this->assertContains($name, $finance);
@@ -72,12 +75,17 @@ class VisaFirmComplianceTest extends TestCase
     {
         $actor = $this->administrator();
         $owner = Employee::factory()->create();
+        $admission = Employee::factory()->create([
+            'position_id' => Position::query()->where('system_key', 'admission')->value('id'),
+            'status' => 'active',
+        ]);
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $notifier = app(EducationalWorkflowNotificationService::class);
 
         foreach (['scholarship' => 'scholarship_applicant_details', 'test_offer' => 'test_applicant_details', 'academy' => 'academy_applicant_details'] as $service => $detail) {
             $created = $this->createBuiltInContract($service, [
                 'responsible_employee_id' => $owner->id,
+                'admission_employee_id' => $admission->id,
                 'currency_id' => $currency->id,
                 'discount' => 10,
             ]);
@@ -90,8 +98,8 @@ class VisaFirmComplianceTest extends TestCase
             $generated = Notification::where('notification_key', "contract.generated.{$contract->id}")->firstOrFail();
             $this->assertSame($service, $generated->data['service']);
             $this->assertSame('/contracts/'.str_replace('_', '-', $service).'?contractId='.$contract->id, $generated->go_to_url);
-            $this->assertSame([$owner->user_id], $generated->recipients()->pluck('users.id')->all());
-            $generated->recipients()->updateExistingPivot($owner->user_id, ['is_read' => true]);
+            $this->assertSame([$admission->user_id], $generated->recipients()->pluck('users.id')->all());
+            $generated->recipients()->updateExistingPivot($admission->user_id, ['is_read' => true]);
             $notifier->contractGenerated($contract, $actor->id);
             $this->assertSame(1, Notification::where('notification_key', $generated->notification_key)->count());
             $this->assertEquals(1, DB::table('notification_user')->where('notification_id', $generated->id)->value('is_read'));

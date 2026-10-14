@@ -75,6 +75,15 @@ Rules:
 - ApplicantContractPaymentService owns calculated balances and sticky payment overrides. CurrencyRateService persists supplied rates atomically.
 - Preserve issued contract snapshots and receipt numbers. Receipt printing uses the namespaced A5 print workflow.
 
+## Real-time notifications
+
+- Delivery is heartbeat-based HTTP polling; there is no websocket/broadcast stack. Do not add one without an explicit decision.
+- `Notification::deliverTo()` is the only delivery choke point. Keep it that way: it filters recipients by their notification preferences and sets `users.unread_notifications = true` for everyone it actually delivered to. New producers must go through it (directly or via `EducationalWorkflowNotificationService::notifyOnce`).
+- `GET /api/notifications/heartbeat` (`view_own_notifications`) returns the caller's unread notifications only while their `unread_notifications` flag is true, then clears the flag inside a transaction that locks the user row, so a batch is delivered exactly once even under concurrent polls. Route order matters: register it before `apiResource('notifications')` so `{notification}` does not swallow `heartbeat`.
+- The heartbeat is a separate channel from the on-launch inbox load (`GET /notifications`) and the 60s inbox refresh; both stay in place. Heartbeat items are merged into the same list (prepended, de-duped by id), so they share the existing mark-read/delete/click-through behaviour and `go_to_url` navigation.
+- The frontend polls every 30s via `resources/ts/composables/useNotificationHeartbeat.ts`. `notification-ding.mp3` plays once per heartbeat batch, and once on app launch when the user already had unread notifications (`playLaunchDingOnce`); never once per notification. The served asset is `public/sounds/notification-ding.mp3`.
+- Notification producers are permission/role-scoped by the producer: task assignment notifies each assignee (`taskAssigned`), payment requests notify `approve_pending_transactions` holders (`pendingSubmitted`), and contract creation notifies the applicant's responsible and admission employees plus the seller (`contractGenerated`).
+
 ## Asset
 
 - Asset condition is required and limited to `new`, `good`, `fair`, `poor`, or `damaged` across migration, validation, API, filters, and UI.

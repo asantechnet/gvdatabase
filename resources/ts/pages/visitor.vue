@@ -3,13 +3,15 @@ import { translate } from '@/utils/localization'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ErpField from '@/components/erp/ErpField.vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAbility } from '@casl/vue'
 import { useToast } from 'vue-toastification'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import VisitorApi, { type CreateVisitorData, type UpdateVisitorData, type Visitor } from '@/api/visitor'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { printDocument } from '@/utils/printDocument'
+import { apiErrorMessage } from '@/utils/apiErrors'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import { useCookie } from '@core/composable/useCookie'
 
@@ -26,7 +28,13 @@ const visitors = ref<Visitor[]>([])
 const search = ref('')
 const dateFrom = ref('')
 const dateTo = ref('')
-const filterCounselorId = ref<number | null>(null)
+const route = useRoute()
+// This page hosts two lists. The Visitors list shows the records that are not
+// marked worthy of follow-up; the Follow-up list shows the marked ones. The
+// shared CRM strip selects the mode with `?list=follow-up`, so both lists stay
+// deep-linkable and print their own report title.
+const isFollowUpList = computed(() => route.query.list === 'follow-up')
+const filterCounselorId = ref<number | null>(/^\d+$/.test(String(route.query.counselor_employee_id ?? '')) ? Number(route.query.counselor_employee_id) || null : null)
 const isAddNewVisitorDialogVisible = ref(false)
 const isEditVisitorDialogVisible = ref(false)
 const isDeleteVisitorDialogVisible = ref(false)
@@ -133,6 +141,7 @@ const fetchVisitors = async () => {
       date_to: dateTo.value || undefined,
       search: search.value,
       counselor_employee_id: filterCounselorId.value || undefined,
+      follow_up: isFollowUpList.value ? 1 : 0,
     })
 
     visitors.value = response
@@ -169,7 +178,9 @@ const headers = computed(() => [
 ])
 
 const printTable = () => {
-  void printDocument({ bodyClass: 'printing-visitor-list', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  // `printing-table-*` tells the shared print helper to isolate the
+  // PrintableListReport rather than print this interactive data-table page.
+  void printDocument({ bodyClass: 'printing-table-visitors', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 }
 
 const addNewVisitor = async () => {
@@ -275,10 +286,30 @@ const deleteVisitor = async () => {
   }
 }
 
+// Mark or unmark a visitor as worthy of follow-up. The record leaves the list on
+// screen either way, so it is dropped instead of being left as a row that
+// contradicts the active list.
+const setFollowUp = async (visitor: Visitor, followUp: boolean) => {
+  try {
+    isLoading.value = true
+    await VisitorApi.setFollowUp(visitor.id, followUp)
+    visitors.value = visitors.value.filter(v => v.id !== visitor.id)
+    toast.success(translate(followUp ? 'pages.contracts.visitor.visitor.markedForFollowUp' : 'pages.contracts.visitor.visitor.removedFromFollowUp'))
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, translate('pages.contracts.visitor.visitor.followUpUpdateFailed')))
+  }
+  finally {
+    isLoading.value = false
+  }
+}
+
 // Extract unique values for filters
 const services = computed(() => {
   return [...new Set(visitors.value.map(v => v.service))].filter(Boolean)
 })
+
+watch(() => route.query.list, () => { fetchVisitors() })
 
 onMounted(() => {
   fetchVisitors()
@@ -288,7 +319,10 @@ onMounted(() => {
 
 <template>
   <div class="erp-workspace">
-  <ErpPageHeader :title="$t('common.navigation.visitor')" section="crm" />
+  <ErpPageHeader
+    :title="isFollowUpList ? $t('common.navigation.followUpList') : $t('common.navigation.visitor')"
+    section="crm"
+  />
   <VCard>
     <VCardText>
       <VRow
@@ -338,7 +372,10 @@ onMounted(() => {
             :loading="isLoading"
             @click="printTable"
           />
+          <!-- The Follow-up list is a curated list: visitors enter it from the
+               Visitors list, so there is no add button here. -->
           <VBtn
+            v-if="!isFollowUpList"
             color="primary"
             :loading="isLoading"
             @click="openAddDialog"
@@ -360,18 +397,24 @@ onMounted(() => {
       :loading="isLoading"
       mobile-breakpoint="sm"            style="overflow-x: auto;"
     >
+      <!-- Quick contact belongs to the Follow-up list: unqualified visitors are
+           shown as plain contact details until somebody marks them for follow-up. -->
       <template #item.contact="{ item }">
         <ContactActionMenu
+          v-if="isFollowUpList"
           kind="phone"
           :value="item.contact"
           contactable-type="visitor"
           :contactable-id="item.id"
+          audience="visitor"
+          :context="item"
         />
+        <span v-else>{{ item.contact }}</span>
       </template>
 
       <template #item.email="{ item }">
         <ContactActionMenu
-          v-if="item.email"
+          v-if="isFollowUpList && item.email"
           kind="email"
           :value="item.email"
           contactable-type="visitor"
@@ -380,7 +423,7 @@ onMounted(() => {
         <span
           v-else
           class="text-medium-emphasis"
-        >—</span>
+        >{{ item.email || '—' }}</span>
       </template>
 
       <template #item.counselor="{ item }">
@@ -401,7 +444,24 @@ onMounted(() => {
 
       <template #item.actions="{ item }">
         <div class="d-flex gap-1">
-          <VMenu v-if="ability.can('read', 'create_contracts') && ability.can('read', 'view_contracts')">
+          <!-- Mark for follow-up: the only promotion path into the Follow-up list. -->
+          <VBtn
+            v-if="!isFollowUpList"
+            icon="tabler-star"
+            variant="text"
+            size="small"
+            color="warning"
+            :loading="isLoading"
+            @click="setFollowUp(item, true)"
+          >
+            <VIcon icon="tabler-star" /><VTooltip
+              activator="parent"
+              location="top"
+            >
+              {{ $t('pages.contracts.visitor.visitor.markForFollowUp') }}
+            </VTooltip>
+          </VBtn>
+          <VMenu v-if="isFollowUpList && ability.can('read', 'create_contracts') && ability.can('read', 'view_contracts')">
             <template #activator="{ props: menuProps }">
               <VBtn v-bind="menuProps" icon="tabler-file-plus" variant="text" size="small"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent">{{ $t('serviceContracts.create') }}</VTooltip></VBtn>
             </template>
@@ -413,10 +473,29 @@ onMounted(() => {
             </VList>
           </VMenu>
           <CrmRelationshipDetails
+            v-if="isFollowUpList"
             :id="item.id"
             type="visitor"
             :title="item.name"
           />
+          <!-- The Follow-up list takes the visitor back off the list again, so the
+               move stays reversible. -->
+          <VBtn
+            v-if="isFollowUpList"
+            icon="tabler-star-off"
+            variant="text"
+            size="small"
+            color="warning"
+            :loading="isLoading"
+            @click="setFollowUp(item, false)"
+          >
+            <VIcon icon="tabler-star-off" /><VTooltip
+              activator="parent"
+              location="top"
+            >
+              {{ $t('pages.contracts.visitor.visitor.removeFromFollowUp') }}
+            </VTooltip>
+          </VBtn>
           <VBtn
             icon="tabler-edit"
             variant="text"
@@ -452,8 +531,8 @@ onMounted(() => {
     </ResponsiveDataTable>
   </VCard>
   <PrintableListReport
-    :title="$t('common.crmUi.printReports.visitors.title')"
-    :subtitle="$t('common.crmUi.printReports.visitors.subtitle')"
+    :title="isFollowUpList ? $t('common.crmUi.printReports.followUp.title') : $t('common.crmUi.printReports.visitors.title')"
+    :subtitle="isFollowUpList ? $t('common.crmUi.printReports.followUp.subtitle') : $t('common.crmUi.printReports.visitors.subtitle')"
     :columns="headers.slice(0, -1).map(header => header.title)"
     :rows="filtered.map(visitor => [visitor.name, visitor.contact, visitor.email || '—', visitor.service, counselorLabel(visitor), visitor.date])"
   />
@@ -733,17 +812,5 @@ onMounted(() => {
 </template>
 
 <style>
-@media print {
-  body.printing-visitor-list .v-card,
-  body.printing-visitor-list .v-card > .v-card-text,
-  body.printing-visitor-list .v-data-table__td:last-child,
-  body.printing-visitor-list .v-data-table__th:last-child,
-  body.printing-visitor-list .v-data-table-footer,
-  body.printing-visitor-list .layout-navbar,
-  body.printing-visitor-list .layout-menu,
-  body.printing-visitor-list .layout-footer { display: none !important; }
-  body.printing-visitor-list .v-main,
-  body.printing-visitor-list .layout-page-content { padding: 0 !important; margin: 0 !important; }
-}
 @media (max-width: 1279px) { .table-toolbar-actions { justify-content: flex-start; } }
 </style>

@@ -61,7 +61,8 @@ class StoreServiceContractRequest extends FormRequest
             'currency_id' => ['required', 'integer', Rule::exists('currencies', 'id')->whereNull('deleted_at')->where('is_active', true)],
             'currency_rate' => ['required', 'numeric', 'gt:0', 'max:9999999', 'decimal:0,8'],
             'language_id' => ['required', 'integer', Rule::exists('languages', 'id')->whereNull('deleted_at')->where('is_active', true)],
-            'start_date' => ['required', 'date_format:Y-m-d'],
+            'start_date' => ['prohibited'],
+            'contract_template_version_id' => ['required', 'integer', 'exists:contract_template_versions,id'],
             'company_signatory_name' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:10000'],
         ];
@@ -85,8 +86,8 @@ class StoreServiceContractRequest extends FormRequest
             'teacher_ids' => ['nullable', 'array', 'max:100'],
         ];
         $allowed = match ($service) {
-            BuiltInService::SCHOLARSHIP => ['passport_id', 'grade_score', 'country_id', 'contract_type_id', 'education_level_id', 'semester_id', 'university_id', 'university_fee', 'favorite_subject_ids', 'scholarship_id'],
-            BuiltInService::PRIVATE => ['passport_id', 'grade_score', 'country_id', 'contract_type_id', 'education_level_id', 'semester_id', 'university_id', 'university_fee', 'favorite_subject_ids'],
+            BuiltInService::SCHOLARSHIP => ['passport_id', 'grade_score', 'country_id', 'contract_type_id', 'education_level_id', 'semester_id', 'favorite_subject_ids', 'scholarship_id'],
+            BuiltInService::PRIVATE => ['passport_id', 'grade_score', 'country_id', 'contract_type_id', 'education_level_id', 'semester_id', 'favorite_subject_ids'],
             BuiltInService::TEST_OFFER => ['passport_id', 'test_id', 'skill_ids'],
             BuiltInService::ACADEMY => ['program_id', 'time_id', 'duration_id', 'teacher_ids', 'class_id'],
             default => [],
@@ -100,7 +101,7 @@ class StoreServiceContractRequest extends FormRequest
                 $rules["{$key}.*"] = ['integer', 'distinct', $exists($table)];
             }
         }
-        foreach (['applicant_id', 'service', 'service_id', 'service_ids', 'service_lines', 'package_id', 'customer_package_id', 'template_id', 'contract_template_version_id', 'status', 'content', 'amount_paid', 'payment_status'] as $field) {
+        foreach (['applicant_id', 'service', 'service_id', 'service_ids', 'service_lines', 'package_id', 'customer_package_id', 'template_id', 'status', 'content', 'amount_paid', 'payment_status'] as $field) {
             $rules[$field] = ['prohibited'];
         }
 

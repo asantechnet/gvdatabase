@@ -9,7 +9,6 @@ use App\Models\ApplicantStageHistory;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\Employee;
-use App\Models\University;
 use App\Services\ApplicantServiceDetails;
 use App\Services\ContractDocumentDesignService;
 use App\Services\ContractTaskService;
@@ -68,8 +67,10 @@ class ContractGenerationService
             abort_unless($template, 422, 'business.builtin_contract_template_not_ready');
             $type = $template->contractType;
             abort_unless($type?->is_active && $type->slug === 'customer', 422, 'business.builtin_contract_template_not_ready');
-            // Never issue a draft, another language, or another country's terms.
-            $version = $template->versions()->where('status', 'active')->where('is_current', true)
+            // The operator may intentionally issue any active historical version,
+            // but never one belonging to another template, language or scope.
+            $version = $template->versions()->whereKey($data['contract_template_version_id'])
+                ->where('status', 'active')
                 ->where('language_id', $data['language_id'])
                 ->where('country_id', $countryId)
                 ->where('test_id', $testId)->lockForUpdate()->first();
@@ -93,7 +94,7 @@ class ContractGenerationService
                 'sold_by_employee_id' => Employee::query()->active()->where('user_id', $request->user()->id)->value('id'),
                 'contract_country_id' => $countryId, 'contract_language_id' => $data['language_id'],
                 'name' => $template->name, 'type' => $type->name, 'cover_text' => $template->cover_text,
-                'content' => '', 'status' => 'active', 'start_date' => $data['start_date'],
+                'content' => '', 'status' => 'active', 'start_date' => now()->toDateString(),
                 'company_signatory_name' => $signatory,
                 'is_custom' => false, 'is_cancelled' => false,
                 'counterparty' => $applicant->name, 'counterparty_email' => $applicant->email,
@@ -111,7 +112,7 @@ class ContractGenerationService
             ]);
             $rendered = $this->resolver->resolve($version->content, [
                 'applicant' => $applicant, 'built_in_line' => $line,
-                'contract_number' => $contract->contract_number, 'start_date' => $data['start_date'],
+                'contract_number' => $contract->contract_number, 'start_date' => $contract->start_date->toDateString(),
                 'status' => 'active', 'company_signatory_name' => $contract->company_signatory_name,
             ], 'customer');
             abort_unless($rendered['unresolved'] === [], 422, 'business.contract_template_unresolved_placeholders');
@@ -142,8 +143,8 @@ class ContractGenerationService
 
     private function createApplicant(string $service, StoreServiceContractRequest $request, array $data): Applicant
     {
-        if (! empty($data['university_id'])) {
-            abort_unless((int) University::findOrFail($data['university_id'])->country_id === (int) ($data['country_id'] ?? 0), 422, 'business.university_country_mismatch');
+        if (array_key_exists('admission_employee_id', $data) && ! $request->user()->hasPermission('assign_admission_employee')) {
+            abort(403, 'auth.forbidden');
         }
         if (! $request->user()->hasPermission('assign_applicant_employee')) {
             $ownEmployee = Employee::query()->active()->where('user_id', $request->user()->id)->value('id');
@@ -152,7 +153,7 @@ class ContractGenerationService
             abort_unless(app(EmployeeScope::class)->canManageOwnedBy($request->user(), (int) $selected), 403, 'auth.forbidden');
             $data['responsible_employee_id'] = $selected;
         }
-        $stage = $this->newStage($service, $data['country_id'] ?? null, $data['university_id'] ?? null);
+        $stage = $this->newStage($service, $data['country_id'] ?? null, null);
         $applicant = Applicant::create([
             ...Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'admission_employee_id', 'responsible_employee_id', 'notes']),
             'service' => $service, 'current_stage_id' => $stage->id, 'status' => 'active',

@@ -28,6 +28,7 @@
     "discount": "تخفیف",
     "language": "زبان قرارداد",
     "created": "قرارداد ایجاد شد",
+    "currentVersion": "فعلی",
     "draft": "پیش‌نویس",
     "active": "فعال",
     "completed": "تکمیل‌شده",
@@ -413,6 +414,7 @@
       "closeNavigation": "بستن منوی راهبری"
     },
     "navigation": {
+      "whatsappMessages": "پیام‌های واتساپ",
       "home": "صفحه اصلی",
       "finance": "مالی",
       "income": "عواید / درآمد",
@@ -450,6 +452,7 @@
       "settings": "تنظیمات",
       "tasks": "وظایف",
       "visitor": "بازدیدکنندگان",
+      "followUpList": "لیست پیگیری",
       "contractTemplates": "قالب‌های قرارداد",
       "contractDocuments": "قالب‌ها و پالیسی‌ها",
       "audits": "تفتیش‌ها",
@@ -578,6 +581,10 @@
         "visitors": {
           "title": "گزارش بازدیدکنندگان",
           "subtitle": "رکوردهای فیلترشده بازدیدکنندگان"
+        },
+        "followUp": {
+          "title": "گزارش لیست پیگیری",
+          "subtitle": "مراجعین علامت‌گذاری‌شده برای پیگیری"
         },
         "columns": {
           "receipt": "رسید",
@@ -789,6 +796,94 @@
     "no": "نخیر"
   },
   "pages": {
+    "whatsapp": {
+      "subtitle": "قالب‌های پیام واتساپ، به تفکیک نوع سابقه‌ای که برای آن نوشته می‌شوند.",
+      "addTemplate": "قالب جدید",
+      "editTemplate": "ویرایش قالب",
+      "searchTemplates": "جستجوی قالب‌ها",
+      "sortOrder": "ترتیب",
+    "orderValue": "ترتیب {order}",
+    "clearFilters": "پاک کردن فیلترها",
+    "showMore": "نمایش بیشتر",
+    "showLess": "نمایش کمتر",
+    "noMatches": "هیچ قالبی با این فیلترها مطابقت ندارد.",
+    "retry": "تلاش دوباره",
+      "empty": "هنوز در این بخش قالبی وجود ندارد.",
+      "loadFailed": "بارگذاری قالب‌های پیام ممکن نشد.",
+      "deleteFailed": "حذف قالب ممکن نشد.",
+      "created": "قالب ایجاد شد.",
+      "updated": "قالب به‌روز شد.",
+      "deleted": "قالب حذف شد.",
+      "confirmDelete": "قالب «{title}» حذف شود؟ پیام‌هایی که قبلاً ارسال شده‌اند تغییری نمی‌کنند.",
+      "titleLabel": "عنوان",
+      "labelsLabel": "برچسب‌ها",
+      "labelsHint": "برچسب‌ها را با کامه جدا کنید؛ برای یافتن قالب در آینده کمک می‌کنند.",
+      "quickContactHeading": "قالب واتساپ",
+      "audiences": {
+        "visitor": "بازدیدکنندگان",
+        "applicant": "متقاضیان",
+        "employee": "کارمندان"
+      },
+      "filters": {
+        "all": "همه وضعیت‌ها"
+      },
+      "validation": {
+        "titleRequired": "وارد کردن عنوان الزامی است.",
+        "messageRequired": "متن پیام نمی‌تواند خالی باشد.",
+        "unknownPlaceholder": "این پیام از فیلدی استفاده می‌کند که در این بخش وجود ندارد."
+      },
+      "editor": {
+        "bold": "ضخیم",
+        "italic": "کج",
+        "strikethrough": "خط‌خورده",
+        "monospace": "متن ثابت",
+        "insertPlaceholder": "درج فیلد",
+        "searchPlaceholders": "جستجوی فیلدها",
+        "placeholders": "فیلدهای موجود",
+        "message": "پیام",
+        "supportedFormatting": "واتساپ تنها متن ساده را نمایش می‌دهد: خط جدید، لینک، ایموجی و *ضخیم*، _کج_، ~خط‌خورده~ و ```متن ثابت```.",
+        "characters": "{count} از {limit} حرف",
+        "tooLong": "این پیام از {limit} حرفی که واتساپ می‌پذیرد بلندتر است.",
+        "preview": "پیش‌نمایش",
+        "previewSample": "با داده نمونه",
+        "previewTokens": "با فیلدها",
+        "previewEmpty": "پیش‌نمایش هنگام نوشتن اینجا نمایش داده می‌شود."
+      },
+      "placeholders": {
+        "visitor": {
+          "name": "نام کامل",
+          "contact": "تلیفون",
+          "email": "ایمیل",
+          "service": "خدمت",
+          "counselor": "مشاور",
+          "date": "تاریخ بازدید"
+        },
+        "applicant": {
+          "name": "نام کامل",
+          "father_name": "نام پدر",
+          "father_phone": "تلیفون پدر",
+          "backup_phone": "تلیفون احتیاطی",
+          "contact": "تلیفون",
+          "email": "ایمیل",
+          "address": "آدرس",
+          "tax_number": "شماره مالیاتی",
+          "service": "خدمت",
+          "stage": "مرحله فعلی",
+          "responsible_employee": "مشاور",
+          "admission_employee": "کارمند پذیرش"
+        },
+        "employee": {
+          "name": "نام کامل",
+          "father_name": "نام پدر",
+          "contact": "تلیفون",
+          "email": "ایمیل",
+          "position": "سمت",
+          "department": "دیپارتمنت / بخش",
+          "office": "دفتر",
+          "join_date": "تاریخ شمولیت"
+        }
+      }
+    },
     "auth": {
       "createPassword": {
         "invalidInvitation": "این لینک دعوت ناقص یا منقضی شده است.",
@@ -2232,7 +2327,12 @@
           "addVisitor": "افزودن بازدیدکننده",
           "editVisitor": "ویرایش بازدیدکننده",
           "deleteVisitor": "حذف بازدیدکننده",
-          "addNewVisitor": "افزودن بازدیدکننده جدید"
+          "addNewVisitor": "افزودن بازدیدکننده جدید",
+          "markForFollowUp": "انتقال به لیست پیگیری",
+          "removeFromFollowUp": "حذف از لیست پیگیری",
+          "markedForFollowUp": "مراجع به لیست پیگیری منتقل شد.",
+          "removedFromFollowUp": "مراجع از لیست پیگیری حذف شد.",
+          "followUpUpdateFailed": "به‌روزرسانی لیست پیگیری ممکن نشد."
         }
       },
       "contractform": {
@@ -4784,6 +4884,13 @@
       "visaCase": "پرونده ویزای {name}",
       "visaCaseLabel": "پرونده ویزه",
       "portalActive": "پورتال فعال است",
+      "portalDisabledStatus": "پورتال غیرفعال است",
+      "disablePortal": "غیرفعال‌کردن پورتال",
+      "enablePortal": "فعال‌کردن پورتال",
+      "disablePortalConfirm": "دسترسی این متقاضی به پورتال غیرفعال شود؟ حساب، پرونده و اسناد حفظ می‌شوند اما نشست‌های فعال پایان می‌یابند.",
+      "enablePortalConfirm": "دسترسی این متقاضی به پورتال دوباره فعال شود؟ حساب و اطلاعات قبلی دوباره در دسترس خواهند بود.",
+      "portalDisabled": "دسترسی پورتال غیرفعال شد.",
+      "portalEnabled": "دسترسی پورتال فعال شد.",
       "invitePortal": "دعوت به پورتال",
       "editCase": "ویرایش پرونده",
       "openTasks": "{count} وظیفه باز",
@@ -4925,6 +5032,7 @@
     "reportColumns": {
       "id": "شناسه",
       "customer": "مشتری",
+      "applicant": "متقاضی",
       "employee": "کارمند",
       "country": "کشور",
       "university": "دانشگاه",
@@ -5222,6 +5330,7 @@
     "contracts": "قراردادها",
     "crm": "ارتباط با مشتری",
     "applicants": "متقاضیان",
+    "applications": "درخواست‌ها",
     "dashboard": "داشبورد",
     "overview": "نمای کلی",
     "required": "این فیلد الزامی است",
@@ -5258,5 +5367,61 @@
     "templateNotReady": "قالب قرارداد تنظیم نشده است",
     "noMatchingVersion": "نسخه فعال برای این کشور و زبان موجود نیست. نسخه مناسب را در قالب‌ها و پالیسی‌ها فعال کنید.",
     "currentPageReport": "متقاضیان صفحه فعلی"
+  },
+  "agencyDashboard": {
+    "noPriorityItems": "در این دسته‌ها هشدار پرونده یا قرارداد وجود ندارد.",
+    "prospects": "متقاضیان بالقوه",
+    "refresh": "تازه‌سازی",
+    "applications": "درخواست‌ها",
+    "reports": "گزارش‌ها",
+    "unspecifiedCurrency": "واحد پول نامشخص",
+    "periodHelp": "تاریخ‌ها گروه متقاضیان و اسناد مالی را فیلتر می‌کنند. اولویت‌ها، مانده‌ها و پذیرش‌ها وضعیت فعلی را نشان می‌دهند.",
+    "liveOperations": "عملیات فعلی · همه تاریخ‌ها",
+    "unassigned": "{count} بدون مشاور",
+    "actionItems": "موارد نیازمند اقدام",
+    "itemsNotCases": "وظایف، پرونده‌ها، قراردادها و تأییدها",
+    "toCollect": "مانده قابل دریافت",
+    "balanceHelp": "پس از تخفیف و پرداخت‌های ثبت‌شده",
+    "admitted": "پذیرش‌های دانشگاه دریافت‌شده",
+    "awaitingDecision": "{count} درخواست در انتظار تصمیم",
+    "caseProgress": "پرونده‌ها در کدام مرحله‌اند؟",
+    "pipelineHelp": "تعداد پرونده‌ها بر اساس مرحله فعلی · دوره ایجاد انتخاب‌شده",
+    "admissionsHelp": "درخواست‌های دانشگاه · وضعیت فعلی، همه تاریخ‌ها",
+    "priorities": "چه چیزی نیازمند اقدام است؟",
+    "priorityHelp": "قدیمی‌ترین موارد در ابتدا · پرونده‌های بدون پیشرفت بیش از ۱۴ روز",
+    "documentsAwaited": "پرونده‌های در انتظار پیوست",
+    "moneyAndSales": "امور مالی و فروش خدمات",
+    "postedPeriod": "اسناد ثبت‌شده · دوره انتخاب‌شده یا همه تاریخ‌ها",
+    "serviceCountHelp": "خدمات فروخته‌شده · بدون قراردادهای لغوشده و خاتمه‌یافته",
+    "teamWorkload": "حجم کار بر عهده چه کسی است؟",
+    "teamHelp": "۶ مشاور با بیشترین پرونده فعال · گروه انتخاب‌شده",
+    "destinations": "مقصد متقاضیان کجاست؟",
+    "destinationHelp": "پرونده‌های فعال / کل · گروه انتخاب‌شده",
+    "universitiesHelp": "دانشگاه‌های برتر · پذیرش / کل درخواست‌ها در دوره",
+    "noAdmissions": "درخواست دانشگاه ثبت نشده است",
+    "serviceProgress": "پیشرفت خدمات قراردادی",
+    "serviceProgressHelp": "مراحل فعلی خدمات · همه تاریخ‌ها",
+    "noStage": "مرحله تعیین نشده"
+  },
+  "contractPrintDialog": {
+    "title": "یک گام رسمی به پیش",
+    "subtitle": "یک فصل تازه، شایسته قراردادی با ارائه زیباست."
+  },
+  "settingsValidation": {
+    "websiteURL": "{field} باید نشانی کامل وب‌سایت باشد که با http:// یا https:// شروع شود.",
+    "smtpHost": "{field} باید نام میزبان یا نشانی IP باشد، مانند smtp.example.com. پورت را جداگانه وارد کنید و پیشوند نشانی وب ننویسید.",
+    "required": "{field} الزامی است. پیش از ذخیره یک مقدار وارد کنید.",
+    "color": "{field} باید رنگ هگزادسیمال شش‌رقمی باشد، مانند #7367F0.",
+    "image": "{field} باید یکی از این نوع تصاویر باشد: {types}.",
+    "fileSize": "اندازه {field} نباید بیش از {size} مگابایت باشد.",
+    "uploadFailed": "بارگذاری {field} انجام نشد. تصویر را دوباره انتخاب و تلاش کنید.",
+    "moreErrors": "{count} فیلد دیگر نیازمند اصلاح است.",
+    "lightBackground": "پس‌زمینه حالت روشن",
+    "lightSurface": "کارت‌ها و منوهای حالت روشن",
+    "darkBackground": "پس‌زمینه حالت تاریک",
+    "darkSurface": "کارت‌ها و منوهای حالت تاریک",
+    "safeWidth": "{field}: مجموع فاصله افقی و عرض نباید بیش از ۱۰۰٪ باشد. فاصله یا عرض را کاهش دهید.",
+    "safeHeight": "{field}: مجموع فاصله عمودی و ارتفاع نباید بیش از ۱۰۰٪ باشد. فاصله یا ارتفاع را کاهش دهید.",
+    "saveFailed": "تنظیمات ذخیره نشد. فیلدهای مشخص‌شده را اصلاح و دوباره تلاش کنید."
   }
 }

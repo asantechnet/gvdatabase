@@ -6,6 +6,9 @@ import { validateApiRequest } from '@/utils/apiValidation'
 import { clearFormErrors, replaceFormErrors } from '@/utils/formErrors'
 import { currentLocale } from '@/utils/localization'
 
+export interface ApiMutationOptions { quiet?: boolean }
+export const mutationHeaders = (options?: ApiMutationOptions) => options?.quiet ? { 'X-Suppress-Error-Notification': 'true' } : {}
+
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -49,7 +52,8 @@ api.interceptors.request.use(
 
     const errors = validateApiRequest(config)
     if (Object.keys(errors).length) {
-      replaceFormErrors(errors)
+      const suppressErrorNotification = config.headers?.['X-Suppress-Error-Notification'] === 'true'
+      if (!suppressErrorNotification) replaceFormErrors(errors)
 
       const apiError: ApiError = {
         code: 'validation_failed',
@@ -58,7 +62,6 @@ api.interceptors.request.use(
         handled: true,
       }
 
-      const suppressErrorNotification = config.headers?.['X-Suppress-Error-Notification'] === 'true'
       if (typeof window !== 'undefined' && !suppressErrorNotification)
         window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))
 
@@ -73,7 +76,7 @@ api.interceptors.request.use(
         success: false,
       }
 
-      if (typeof window !== 'undefined')
+      if (typeof window !== 'undefined' && config.headers?.['X-Suppress-Error-Notification'] !== 'true')
         window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))
 
       return Promise.reject(apiError)
@@ -160,8 +163,7 @@ api.interceptors.response.use(
 
       apiError.message = apiErrorMessage(apiError)
 
-      const quietPreview = ['/contracts/preview', '/workday/status'].includes(originalRequest?.url ?? '')
-        && originalRequest?.headers?.['X-Suppress-Error-Notification'] === 'true'
+      const quietPreview = originalRequest?.headers?.['X-Suppress-Error-Notification'] === 'true'
 
       if (!quietPreview && apiError.status === 422 && apiError.errors)
         replaceFormErrors(apiFieldErrors(apiError))
@@ -178,8 +180,7 @@ api.interceptors.response.use(
       success: false,
     } as ApiError
 
-    const quietStatus = originalRequest?.url === '/workday/status'
-      && originalRequest?.headers?.['X-Suppress-Error-Notification'] === 'true'
+    const quietStatus = originalRequest?.headers?.['X-Suppress-Error-Notification'] === 'true'
     if (!quietStatus && typeof window !== 'undefined')
       window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))
 

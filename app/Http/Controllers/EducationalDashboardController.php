@@ -15,6 +15,7 @@ use App\Models\Income;
 use App\Models\PendingTransaction;
 use App\Models\Salary;
 use App\Models\Task;
+use App\Models\Visitor;
 use App\Support\BuiltInService;
 use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
@@ -51,7 +52,7 @@ class EducationalDashboardController extends Controller
             // Scope every metric, rather than only case totals. A senior
             // counselor gets the team's read-only picture, never an arbitrary
             // employee chosen through the query string.
-            $data['responsible_employee_ids'] = $visibleIds;
+            $data['responsible_employee_ids'] = $visibleIds ?: [0];
         }
 
         $staleDays = (int) ($data['stale_days'] ?? 14);
@@ -67,6 +68,7 @@ class EducationalDashboardController extends Controller
             'work' => $this->work($data),
             'countries' => $this->countries($data),
             'universities' => $this->universities($data),
+            'operations' => $this->operations($data, $user->hasPermission('view_visitors')),
         ]]);
     }
 
@@ -104,10 +106,11 @@ class EducationalDashboardController extends Controller
     private function pipeline(array $filters): array
     {
         $stages = ApplicantStage::query()->where('is_active', true)->orderBy('sort_order')->get();
-        $columns = $stages->map(function (ApplicantStage $stage) use ($filters) {
-            $count = $this->applicantScope($filters)->where('current_stage_id', $stage->id)->count();
+        $counts = $this->applicantScope($filters)->selectRaw('current_stage_id, COUNT(*) as total')->groupBy('current_stage_id')->pluck('total', 'current_stage_id');
+        $columns = $stages->map(function (ApplicantStage $stage) use ($counts) {
+            $count = (int) ($counts[$stage->id] ?? 0);
 
-            return ['key' => $stage->key, 'name' => $stage->name, 'is_terminal' => (bool) $stage->is_terminal, 'count' => $count];
+            return ['id' => $stage->id, 'service' => $stage->service, 'key' => $stage->key, 'name' => $stage->name, 'is_terminal' => (bool) $stage->is_terminal, 'count' => $count];
         });
 
         $base = $this->applicantScope($filters);
@@ -137,7 +140,8 @@ class EducationalDashboardController extends Controller
         }
         $out['contracts']['sold'] = $contractQuery->count();
         foreach (['scholarships' => 'scholarship', 'test_offers' => 'test_offer', 'academy' => 'academy', 'private' => 'private'] as $key => $category) {
-            $query = ApplicantContract::query()->where('service', $category);
+            $query = ApplicantContract::query()->where('service', $category)
+                ->whereHas('contract', fn ($q) => $q->whereNotIn('status', ['cancelled', 'terminated'])->where('is_cancelled', false));
             if (($employeeIds = $this->employeeIds($filters)) !== []) {
                 $query->whereIn('sold_by_employee_id', $employeeIds);
             }
@@ -227,12 +231,15 @@ class EducationalDashboardController extends Controller
             ->active()
             ->excludePrimaryRecord()
             ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereIn('id', $employeeIds))
+            ->select(['employees.id', 'employees.name'])
+            ->selectSub($this->applicantScope($filters)->where('status', 'active')
+                ->whereColumn('responsible_employee_id', 'employees.id')->selectRaw('COUNT(*)'), 'active_case_count')
+            ->orderByDesc('active_case_count')
             ->orderBy('name')
             ->limit(50)
-            ->get(['id', 'name']);
+            ->get();
 
         return $employees->map(function (Employee $employee) use ($filters) {
-            $cases = $this->applicantScope($filters)->where('responsible_employee_id', $employee->id);
             $sales = ApplicantContract::query()->whereIn('service', BuiltInService::ALL)->where('sold_by_employee_id', $employee->id);
             $bonuses = EducationalBonusSource::query()->where('employee_id', $employee->id);
             if (! empty($filters['date_from']) || ! empty($filters['date_to'])) {
@@ -245,7 +252,7 @@ class EducationalDashboardController extends Controller
             return [
                 'id' => $employee->id,
                 'name' => $employee->name,
-                'active_applicants' => (clone $cases)->where('status', 'active')->count(),
+                'active_applicants' => (int) $employee->active_case_count,
                 'sales_recorded' => (clone $sales)->count(),
                 'contracts_sold' => Contract::query()->where(fn ($q) => $q->where('employee_id', $employee->id)->orWhere('sold_by_employee_id', $employee->id))->whereNotIn('status', ['cancelled'])->count(),
                 'bonuses_generated' => (float) (clone $bonuses)->whereNotIn('status', ['void'])->sum('bonus_amount'),
@@ -255,13 +262,19 @@ class EducationalDashboardController extends Controller
 
     private function attention(array $filters, int $staleDays): array
     {
+        // Daily priorities must not disappear when a sales reporting period changes.
+        unset($filters['date_from'], $filters['date_to']);
         $cutoff = now()->subDays($staleDays)->toDateTimeString();
+        $counts = [];
 
         $stuck = $this->applicantScope($filters)
             ->with(['currentStage:id,name,key'])
             ->where('status', 'active')
+            ->where('applicants.created_at', '<', $cutoff)
             ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('applicant_stage_histories')->whereColumn('applicant_stage_histories.applicant_id', 'applicants.id')->where('applicant_stage_histories.changed_at', '>=', $cutoff))
-            ->latest('applicants.updated_at')
+            ->oldest('applicants.updated_at');
+        $counts['stuck_applicants'] = (clone $stuck)->count();
+        $stuck = $stuck
             ->limit(10)
             ->get()
             ->map(fn (Applicant $a) => ['id' => $a->id, 'title' => $a->name ?: "Applicant #{$a->id}", 'subtitle' => ($a->currentStage?->name ?? 'No stage')." · idle {$staleDays}+ days", 'route' => ['name' => 'applicant-case', 'params' => ['id' => $a->id]]])
@@ -272,8 +285,10 @@ class EducationalDashboardController extends Controller
             ->whereNotNull('applicant_id')
             ->where('progress', '<', 100)
             ->whereDate('due_date', '<', now()->toDateString())
-            ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereHas('applicant', fn ($applicant) => $applicant->whereIn('responsible_employee_id', $employeeIds)))
-            ->latest('due_date')
+            ->whereHas('applicant', fn ($q) => $q->whereIn('id', $this->applicantScope($filters)->select('applicants.id')))
+            ->oldest('due_date');
+        $counts['overdue_tasks'] = (clone $overdue)->count();
+        $overdue = $overdue
             ->limit(10)
             ->get()
             ->map(fn (Task $t) => ['id' => $t->id, 'title' => $t->title, 'subtitle' => ($t->applicant?->name ?: "Applicant #{$t->applicant_id}")." · due {$t->due_date}", 'route' => ['name' => 'applicant-case', 'params' => ['id' => $t->applicant_id]]])
@@ -282,20 +297,62 @@ class EducationalDashboardController extends Controller
         $pendingApprovals = PendingTransaction::query()
             ->whereIn('approval_status', [PendingTransaction::SUBMITTED, PendingTransaction::UNDER_REVIEW])
             ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereIn('employee_id', $employeeIds))
+            ->when(! empty($filters['country_id']) || ! empty($filters['university_id']), fn ($q) => $q->whereIn('applicant_id', $this->applicantScope($filters)->select('applicants.id')))
             ->count();
         $missingDocuments = $this->applicantScope($filters)
             ->where('status', 'active')
             ->whereHas('currentStage', fn ($q) => $q->where('key', 'documents_required'))
+            ->whereDoesntHave('attachments')
             ->whereDoesntHave('tasks.attachments')
-            ->limit(10)->get()
+            ->oldest('applicants.created_at');
+        $counts['missing_documents'] = (clone $missingDocuments)->count();
+        $missingDocuments = $missingDocuments->limit(10)->get()
             ->map(fn (Applicant $a) => ['id' => $a->id, 'title' => $a->name ?: "Applicant #{$a->id}", 'subtitle' => 'Documents have not been attached to a case task yet.', 'route' => ['name' => 'applicant-case', 'params' => ['id' => $a->id]]])->all();
-        $contractsRequiringAttention = Contract::query()->with(['applicant:id,name'])
-            ->whereIn('status', ['draft', 'terminated'])
+        $contractsRequiringAttention = Contract::query()->with(['applicant:id,name', 'contractType'])
+            ->where('is_cancelled', false)
+            ->where(fn ($q) => $q->whereIn('status', ['draft', 'terminated'])
+                ->orWhere(fn ($active) => $active->where('status', 'active')->whereDate('end_date', '<=', now()->addDays(30)->toDateString())))
             ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereIn('employee_id', $employeeIds))
-            ->limit(10)->get()
-            ->map(fn (Contract $c) => ['id' => $c->id, 'title' => $c->contract_number ?? "Contract #{$c->id}", 'subtitle' => ($c->applicant?->name ?? 'No applicant').' · '.$c->status, 'route' => $c->applicant_id ? ['name' => 'applicant-case', 'params' => ['id' => $c->applicant_id]] : ['name' => 'contracts']])->all();
+            ->when(! empty($filters['country_id']) || ! empty($filters['university_id']), fn ($q) => $q->whereIn('applicant_id', $this->applicantScope($filters)->select('applicants.id')))
+            ->oldest('created_at');
+        $counts['contracts_requiring_attention'] = (clone $contractsRequiringAttention)->count();
+        $contractsRequiringAttention = $contractsRequiringAttention->limit(10)->get()
+            ->map(fn (Contract $c) => ['id' => $c->id, 'title' => $c->contract_number ?? "Contract #{$c->id}", 'subtitle' => ($c->applicant?->name ?? 'No applicant').' · '.$c->status, 'route' => $c->applicant_id ? ['name' => 'applicant-case', 'params' => ['id' => $c->applicant_id]] : ['name' => $c->type_slug === 'employment' ? 'employee-contracts' : 'other-contracts']])->all();
 
-        return ['stuck_applicants' => $stuck, 'overdue_tasks' => $overdue, 'pending_approvals' => $pendingApprovals, 'missing_documents' => $missingDocuments, 'contracts_requiring_attention' => $contractsRequiringAttention];
+        return ['counts' => $counts, 'stuck_applicants' => $stuck, 'overdue_tasks' => $overdue, 'pending_approvals' => $pendingApprovals, 'missing_documents' => $missingDocuments, 'contracts_requiring_attention' => $contractsRequiringAttention];
+    }
+
+    private function operations(array $filters, bool $canViewVisitors): array
+    {
+        unset($filters['date_from'], $filters['date_to']);
+        $cases = $this->applicantScope($filters);
+        $lines = ApplicantContract::query()
+            ->whereIn('applicant_id', (clone $cases)->select('applicants.id'))
+            ->whereHas('contract', fn ($q) => $q->whereNotIn('status', ['cancelled', 'terminated'])->where('is_cancelled', false));
+        // Use persisted payment state, including deliberate manager overrides.
+        $balance = 'CASE WHEN fee - COALESCE(discount, 0) - COALESCE(amount_paid, 0) > 0 THEN fee - COALESCE(discount, 0) - COALESCE(amount_paid, 0) ELSE 0 END';
+        $outstanding = (clone $lines)->with('currency:id,code')
+            ->selectRaw("currency_id, COUNT(*) as records, SUM({$balance}) as amount")
+            ->whereRaw("({$balance}) > 0")->groupBy('currency_id')->get()
+            ->map(fn ($row) => ['currency' => $row->currency?->code, 'records' => (int) $row->records, 'amount' => (float) $row->amount])->all();
+        $admissions = ApplicantUniversity::query()->whereIn('applicant_id', (clone $cases)->select('applicants.id'))
+            ->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
+        return [
+            // Prospects have no destination fields; omit this count for a destination slice.
+            'prospects' => $canViewVisitors && empty($filters['country_id']) && empty($filters['university_id'])
+                ? Visitor::query()->whereNull('converted_at')
+                    ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereIn('counselor_employee_id', $employeeIds))->count()
+                : null,
+            'active_cases' => (clone $cases)->where('status', 'active')->count(),
+            'unassigned_cases' => (clone $cases)->where('status', 'active')->whereNull('responsible_employee_id')->count(),
+            'outstanding' => $outstanding,
+            'admissions' => collect(ApplicantUniversity::STATUSES)->mapWithKeys(fn ($status) => [$status => (int) ($admissions[$status] ?? 0)])->all(),
+            'service_stages' => (clone $lines)->with('currentStage:id,key,name,is_terminal')->selectRaw('service, current_stage_id, COUNT(*) as total')
+                ->groupBy('service', 'current_stage_id')->get()->map(fn ($row) => [
+                    'service' => $row->service, 'key' => $row->currentStage?->key,
+                    'name' => $row->currentStage?->name, 'is_terminal' => (bool) $row->currentStage?->is_terminal, 'count' => (int) $row->total,
+                ])->all(),
+        ];
     }
 
     /**
@@ -319,7 +376,13 @@ class EducationalDashboardController extends Controller
             return $query;
         };
         $taskScope = fn () => Task::query()->when($employeeIds !== [], fn ($query) => $query
-            ->whereHas('users.employee', fn ($employee) => $employee->whereIn('id', $employeeIds)));
+            ->where(fn ($q) => $q->whereHas('users.employee', fn ($employee) => $employee->whereIn('id', $employeeIds))
+                ->orWhereHas('applicant', fn ($applicant) => $applicant->whereIn('responsible_employee_id', $employeeIds))))
+            ->when(! empty($filters['country_id']) || ! empty($filters['university_id']), function ($query) use ($filters) {
+                $liveFilters = $filters;
+                unset($liveFilters['date_from'], $liveFilters['date_to']);
+                $query->whereIn('applicant_id', $this->applicantScope($liveFilters)->select('applicants.id'));
+            });
 
         $open = (clone $taskScope())->where('progress', '<', 100);
         $tasks = [

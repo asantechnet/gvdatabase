@@ -1,21 +1,21 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useToast } from 'vue-toastification'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
-import ErpField from '@/components/erp/ErpField.vue'
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useToast } from 'vue-toastification'
-import { useI18n } from 'vue-i18n'
-import DashboardApi, { type EducationalDashboard } from '@/api/educationalDashboard'
+import DashboardApi, { type EducationalDashboard, type EducationalDashboardParams } from '@/api/educationalDashboard'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
+import { canAccess } from '@/utils/authorization'
+import { translateApplicantStage, translateBackendValue } from '@/utils/localization'
 
-const toast = useToast()
 const { t, n } = useI18n()
-const router = useRouter()
-const loading = ref(false)
-const filtersOpen = ref(false)
+const toast = useToast()
 const data = ref<EducationalDashboard | null>(null)
+const loading = ref(false)
+const failed = ref(false)
+const filtersOpen = ref(false)
 const countries = ref<MasterDataRecord[]>([])
 const universities = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
@@ -24,264 +24,147 @@ const countryId = ref<number | null>(null)
 const universityId = ref<number | null>(null)
 const dateFrom = ref('')
 const dateTo = ref('')
-
-const activeFilterCount = computed(() => [employeeId.value, countryId.value, universityId.value, dateFrom.value, dateTo.value].filter(Boolean).length)
-const maxStage = computed(() => Math.max(1, ...(data.value?.pipeline.stages.map(stage => stage.count) ?? [1])))
-const attentionCount = computed(() => data.value
-  ? data.value.attention.stuck_applicants.length + data.value.attention.overdue_tasks.length + data.value.attention.missing_documents.length + data.value.attention.contracts_requiring_attention.length + data.value.attention.pending_approvals
-  : 0)
-const totalSales = computed(() => data.value ? [data.value.sales.scholarships, data.value.sales.test_offers, data.value.sales.academy, data.value.sales.private].reduce((sum, row) => sum + row.sold, 0) : 0)
-const visibleStages = computed(() => data.value?.pipeline.stages.filter(stage => stage.count > 0) ?? [])
-const topCountries = computed(() => [...(data.value?.countries ?? [])].sort((a, b) => b.total - a.total).slice(0, 6))
-const attentionGroups = computed(() => data.value ? [
-  { icon: 'tabler-clock-exclamation', color: 'warning', title: t('educational.stuckCases'), rows: data.value.attention.stuck_applicants },
-  { icon: 'tabler-calendar-due', color: 'error', title: t('educational.overdueCaseTasks'), rows: data.value.attention.overdue_tasks },
-  { icon: 'tabler-file-alert', color: 'info', title: t('educational.missingDocuments'), rows: data.value.attention.missing_documents },
-  { icon: 'tabler-file-description', color: 'secondary', title: t('educational.contractAttention'), rows: data.value.attention.contracts_requiring_attention },
+const appliedFilters = ref<EducationalDashboardParams>({})
+const filters = computed(() => ({ responsible_employee_id: employeeId.value, country_id: countryId.value, university_id: universityId.value, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined }))
+const activeFilterCount = computed(() => Object.values(filters.value).filter(Boolean).length)
+const applicationLink = (extra: Record<string, string | number> = {}) => ({ name: 'applications', query: { ...Object.fromEntries(Object.entries(appliedFilters.value).filter(([, value]) => value != null)), ...extra } })
+const serviceNames: Record<string, string> = { scholarship: 'scholarship', test_offer: 'testOffer', academy: 'academy', private: 'private' }
+const serviceName = (service: string) => t(`educational.builtInServices.${serviceNames[service] ?? service}`)
+const money = (rows: Array<{ amount: number; currency: string | null }>) => rows.map(row => `${n(row.amount, 'decimal')} ${row.currency ?? t('agencyDashboard.unspecifiedCurrency')}`).join(' · ') || n(0)
+const stages = computed(() => data.value?.pipeline.stages.filter(row => row.count > 0) ?? [])
+const maxStage = computed(() => Math.max(1, ...stages.value.map(row => row.count)))
+const priorities = computed(() => [
+  { key: 'overdue_tasks' as const, icon: 'tabler-calendar-due', color: 'error', label: t('educational.overdueCaseTasks') },
+  { key: 'stuck_applicants' as const, icon: 'tabler-clock-exclamation', color: 'warning', label: t('educational.stuckCases') },
+  { key: 'missing_documents' as const, icon: 'tabler-file-alert', color: 'info', label: t('agencyDashboard.documentsAwaited') },
+  { key: 'contracts_requiring_attention' as const, icon: 'tabler-file-description', color: 'secondary', label: t('educational.contractAttention') },
+])
+const priorityCount = computed(() => data.value ? Object.values(data.value.attention.counts).reduce((sum, count) => sum + count, 0) + data.value.attention.pending_approvals + data.value.operations.unassigned_cases : 0)
+const staff = computed(() => [...(data.value?.staff ?? [])].sort((a, b) => b.active_applicants - a.active_applicants).slice(0, 6))
+const sales = computed(() => data.value ? [
+  { service: 'scholarship', route: 'scholarship-contracts', row: data.value.sales.scholarships },
+  { service: 'private', route: 'private-contracts', row: data.value.sales.private },
+  { service: 'test_offer', route: 'test-offer-contracts', row: data.value.sales.test_offers },
+  { service: 'academy', route: 'academy-contracts', row: data.value.sales.academy },
 ] : [])
-
-const money = (rows: Array<{ amount: number; currency: string | null }>) => rows.map(row => `${n(row.amount, 'decimal')} ${row.currency ?? ''}`.trim()).join(' · ') || '—'
-const salesName = (name: string) => name === 'private' ? t('educational.builtInServices.private') : t(`educational.salesTypes.${name}`)
-
+const quickLinks = computed(() => [
+  { name: 'applications', permission: 'view_applicants', label: t('agencyDashboard.applications'), icon: 'tabler-users-group' },
+  { name: 'visitor', permission: 'view_visitors', label: t('agencyDashboard.prospects') + (data.value?.operations.prospects != null ? ` · ${n(data.value.operations.prospects)}` : ''), icon: 'tabler-user-search' },
+  { name: 'tasks', permission: 'view_assigned_boards', label: t('educational.tasksOverview'), icon: 'tabler-checklist' },
+  { name: 'income', permission: 'view_incomes', label: t('educational.postedIncome'), icon: 'tabler-cash-banknote' },
+  { name: 'payment-requests', permission: 'view_pending_transactions', label: t('educational.awaitingApproval'), icon: 'tabler-hourglass' },
+  { name: 'visa-reports', permission: 'view_visa_reports', label: t('agencyDashboard.reports'), icon: 'tabler-chart-bar' },
+].filter(link => canAccess(link.permission)))
+let requestId = 0
 async function load() {
+  if (dateFrom.value && dateTo.value && dateFrom.value > dateTo.value) return
+  const id = ++requestId
+  const requestedFilters = { ...filters.value }
   loading.value = true
+  failed.value = false
   try {
-    data.value = await DashboardApi.get({ responsible_employee_id: employeeId.value, country_id: countryId.value, university_id: universityId.value, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined })
+    const result = await DashboardApi.get(requestedFilters)
+    if (id === requestId) { data.value = result; appliedFilters.value = requestedFilters }
   }
-  catch { toast.error(t('educational.loadOverviewFailed')) }
-  finally { loading.value = false }
+  catch {
+    if (id === requestId) { failed.value = true; toast.error(t('educational.loadOverviewFailed')) }
+  }
+  finally { if (id === requestId) loading.value = false }
 }
-
-function applyFilters() {
-  filtersOpen.value = false
+function clearFilters() {
+  employeeId.value = countryId.value = universityId.value = null
+  dateFrom.value = dateTo.value = ''
   load()
 }
-
-function clearFilters() {
-  employeeId.value = null
-  countryId.value = null
-  universityId.value = null
-  dateFrom.value = ''
-  dateTo.value = ''
-  applyFilters()
-}
-
-function openStage(key: string) { router.push({ name: 'applications', query: { stage: key } }) }
-
-onMounted(async () => {
-  try {
-    const [countryRows, universityRows, employeeRows] = await Promise.all([MasterDataApi.list('countries'), MasterDataApi.list('universities'), EmployeeApi.getOptions()])
-    countries.value = countryRows
-    universities.value = universityRows
-    employees.value = employeeRows
-  }
-  catch { toast.error(t('educational.loadFiltersFailed')) }
-  await load()
+onMounted(() => {
+  load()
+  Promise.allSettled([MasterDataApi.list('countries'), MasterDataApi.list('universities'), EmployeeApi.getOptions()]).then(([c, u, e]) => {
+    if (c.status === 'fulfilled') countries.value = c.value
+    if (u.status === 'fulfilled') universities.value = u.value
+    if (e.status === 'fulfilled') employees.value = e.value
+  })
 })
 </script>
 
 <template>
-  <div class="education-workspace erp-workspace">
-    <ErpPageHeader :title="$t('educational.agencyOverview')" section="dashboard" />
-    <VCard class="mb-4"><VCardText><VRow dense align="center">
-      <VCol cols="12" md="8"><ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="load" /></VCol>
-      <VCol cols="12" md="4"><VBtn variant="tonal" color="secondary" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">{{ $t('educational.filters') }}</VBtn></VCol>
-    </VRow></VCardText></VCard>
-
-    <VExpandTransition>
-      <VCard v-if="filtersOpen" class="education-filter-card mb-4" variant="outlined">
-        <VCardText>
-          <VRow dense>
-            <VCol cols="12" sm="6" lg="3"><VSelect v-model="employeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.responsibleEmployee')" clearable hide-details /></VCol>
-            <VCol cols="12" sm="6" lg="3"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.destinationCountry')" clearable hide-details /></VCol>
-            <VCol cols="12" sm="6" lg="3"><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable hide-details /></VCol>
-          </VRow>
-          <div class="d-flex justify-end gap-2 mt-3"><VBtn variant="text" @click="clearFilters">{{ $t('educational.clear') }}</VBtn><VBtn color="primary" :loading="loading" @click="applyFilters">{{ $t('educational.apply') }}</VBtn></div>
-        </VCardText>
-      </VCard>
-    </VExpandTransition>
-
-    <VProgressLinear v-if="loading" indeterminate color="primary" class="mb-3" rounded />
-
+  <div class="education-workspace erp-workspace agency-dashboard" :aria-busy="loading">
+    <ErpPageHeader :title="t('educational.agencyOverview')" section="dashboard" />
+    <div class="dashboard-toolbar mb-4">
+      <div class="d-flex flex-wrap gap-2"><VBtn v-for="link in quickLinks" :key="link.name" :to="{ name: link.name, ...(link.name === 'visitor' && appliedFilters.responsible_employee_id ? { query: { counselor_employee_id: appliedFilters.responsible_employee_id } } : {}) }" :prepend-icon="link.icon" size="small" variant="tonal">{{ link.label }}</VBtn></div>
+      <div class="d-flex gap-2"><VBtn variant="text" size="small" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">{{ t('educational.filters') }}<VChip v-if="activeFilterCount" size="x-small" class="ms-2">{{ activeFilterCount }}</VChip></VBtn><VBtn variant="text" size="small" prepend-icon="tabler-refresh" :loading="loading" @click="load">{{ t('agencyDashboard.refresh') }}</VBtn></div>
+    </div>
+    <VExpandTransition><VCard v-if="filtersOpen" class="mb-4"><VCardText><VRow dense>
+      <VCol cols="12" md="4"><VSelect v-model="employeeId" :items="employees" item-title="name" item-value="id" :label="t('educational.responsibleEmployee')" clearable hide-details /></VCol>
+      <VCol cols="12" md="4"><VSelect v-model="countryId" :items="countries" item-title="name" item-value="id" :label="t('educational.destinationCountry')" clearable hide-details /></VCol>
+      <VCol cols="12" md="4"><VSelect v-model="universityId" :items="universities" item-title="name" item-value="id" :label="t('educational.university')" clearable hide-details /></VCol>
+      <VCol cols="12"><ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="load" /></VCol>
+    </VRow><div class="d-flex align-center justify-space-between mt-3 gap-2"><span class="text-caption text-medium-emphasis">{{ t('agencyDashboard.periodHelp') }}</span><VBtn variant="text" size="small" @click="clearFilters">{{ t('educational.clear') }}</VBtn></div></VCardText></VCard></VExpandTransition>
+    <VProgressLinear v-if="loading" indeterminate class="mb-3" />
+    <VAlert v-if="failed" type="error" variant="tonal" class="mb-4">{{ t('educational.loadOverviewFailed') }}<VBtn variant="text" size="small" @click="load">{{ t('agencyDashboard.refresh') }}</VBtn></VAlert>
     <template v-if="data">
-      <section class="education-metric-grid mb-4">
-        <button class="education-metric education-metric--primary" type="button" @click="router.push({ name: 'applications', query: { status: 'active' } })">
-          <VIcon icon="tabler-users-group" /><span><small>{{ $t('educational.activeCasesLabel') }}</small><strong>{{ n(data.pipeline.totals.active) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
-        </button>
-        <button class="education-metric education-metric--warning" type="button" @click="router.push({ name: 'applications' })">
-          <VIcon icon="tabler-alert-triangle" /><span><small>{{ $t('educational.needsAttention') }}</small><strong>{{ n(attentionCount) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
-        </button>
-        <button class="education-metric education-metric--success" type="button" @click="router.push({ name: 'educational-reports' })">
-          <VIcon icon="tabler-cash-banknote" /><span><small>{{ $t('educational.postedIncome') }}</small><strong class="education-money">{{ money(data.financial.income) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
-        </button>
-        <button class="education-metric" type="button" @click="router.push({ name: 'scholarship-contracts' })">
-          <VIcon icon="tabler-shopping-bag" /><span><small>{{ $t('educational.salesRecorded') }}</small><strong>{{ n(totalSales) }}</strong></span><VIcon icon="tabler-chevron-right" size="18" />
-        </button>
+      <div class="text-caption text-medium-emphasis mb-2">{{ t('agencyDashboard.liveOperations') }}</div>
+      <section class="summary-grid mb-4">
+        <VCard :to="applicationLink({ status: 'active', date_from: '', date_to: '' })" class="summary-card"><VIcon color="primary" icon="tabler-users-group" /><div><div class="text-caption">{{ t('educational.activeCasesLabel') }}</div><strong>{{ n(data.operations.active_cases) }}</strong><div class="text-caption text-medium-emphasis">{{ t('agencyDashboard.unassigned', { count: n(data.operations.unassigned_cases) }) }}</div></div></VCard>
+        <VCard href="#agency-priorities" class="summary-card"><VIcon color="warning" icon="tabler-alert-triangle" /><div><div class="text-caption">{{ t('agencyDashboard.actionItems') }}</div><strong>{{ n(priorityCount) }}</strong><div class="text-caption text-medium-emphasis">{{ t('agencyDashboard.itemsNotCases') }}</div></div></VCard>
+        <VCard :to="applicationLink({ focus: 'outstanding', date_from: '', date_to: '' })" class="summary-card"><VIcon color="error" icon="tabler-wallet" /><div><div class="text-caption">{{ t('agencyDashboard.toCollect') }}</div><strong class="money-value">{{ money(data.operations.outstanding) }}</strong><div class="text-caption text-medium-emphasis">{{ t('agencyDashboard.balanceHelp') }}</div></div></VCard>
+        <VCard :to="applicationLink({ focus: 'admitted', date_from: '', date_to: '' })" class="summary-card"><VIcon color="success" icon="tabler-school" /><div><div class="text-caption">{{ t('agencyDashboard.admitted') }}</div><strong>{{ n(data.operations.admissions.admitted) }}</strong><div class="text-caption text-medium-emphasis">{{ t('agencyDashboard.awaitingDecision', { count: n(data.operations.admissions.applied) }) }}</div></div></VCard>
       </section>
-
       <VRow dense>
-        <VCol cols="12" lg="8">
-          <VCard class="education-panel h-100">
-            <VCardItem :title="$t('educational.applicantPipeline')" :subtitle="$t('educational.pipelineHelp')">
-              <template #append><VBtn size="small" variant="text" append-icon="tabler-arrow-right" :to="{ name: 'applicant-pipeline' }">{{ $t('educational.openBoard') }}</VBtn></template>
-            </VCardItem>
-            <VCardText>
-              <div v-for="stage in visibleStages" :key="stage.key" class="pipeline-row" role="button" tabindex="0" @click="openStage(stage.key)" @keyup.enter="openStage(stage.key)">
-                <div class="pipeline-row__label"><span>{{ stage.name }}</span><strong>{{ n(stage.count) }}</strong></div>
-                <VProgressLinear :model-value="stage.count / maxStage * 100" :color="stage.is_terminal ? 'success' : 'primary'" height="7" rounded />
-              </div>
-              <div v-if="!visibleStages.length" class="education-empty"><VIcon icon="tabler-route-off" size="34" /><span>{{ $t('educational.noActivePipeline') }}</span></div>
-            </VCardText>
-          </VCard>
-        </VCol>
-        <VCol cols="12" lg="4">
-          <VCard class="education-panel h-100">
-            <VCardItem :title="$t('educational.attentionRequired')" :subtitle="$t('educational.attentionHelp')">
-              <template #append><VChip :color="attentionCount ? 'warning' : 'success'" size="small">{{ attentionCount }}</VChip></template>
-            </VCardItem>
-            <VList class="education-action-list" lines="two">
-              <template v-for="group in attentionGroups" :key="group.title">
-                <VListItem v-for="hit in group.rows.slice(0, 2)" :key="`${group.title}-${hit.id}`" :title="hit.title" :subtitle="hit.subtitle" :to="hit.route">
-                  <template #prepend><VAvatar :color="group.color" variant="tonal" size="34"><VIcon :icon="group.icon" size="18" /></VAvatar></template>
-                  <template #append><VIcon icon="tabler-chevron-right" size="17" /></template>
-                </VListItem>
-              </template>
-              <VListItem v-if="!attentionCount" :title="$t('educational.allCaughtUp')" :subtitle="$t('educational.nothingNeedsAttention')"><template #prepend><VAvatar color="success" variant="tonal"><VIcon icon="tabler-circle-check" /></VAvatar></template></VListItem>
-            </VList>
-          </VCard>
-        </VCol>
+        <VCol cols="12" lg="7"><VCard class="h-100">
+          <VCardItem :title="t('agencyDashboard.caseProgress')" :subtitle="t('agencyDashboard.pipelineHelp')"><template #append><VBtn size="small" variant="text" :to="applicationLink()">{{ t('educational.openBoard') }}</VBtn></template></VCardItem>
+          <VCardText class="pipeline-grid"><RouterLink v-for="stage in stages" :key="stage.id" :to="applicationLink({ stage: stage.key, ...(stage.service ? { service: stage.service } : {}) })" class="stage-link"><div class="d-flex justify-space-between gap-2 mb-1"><span>{{ translateApplicantStage(stage) }}<small v-if="stage.service" class="d-block text-medium-emphasis">{{ serviceName(stage.service) }}</small></span><strong>{{ n(stage.count) }}</strong></div><VProgressLinear :model-value="stage.count / maxStage * 100" :color="stage.is_terminal ? 'success' : 'primary'" height="6" rounded /></RouterLink><p v-if="!stages.length" class="text-medium-emphasis">{{ t('educational.noActivePipeline') }}</p></VCardText>
+          <VDivider /><VCardText><div class="text-caption text-medium-emphasis mb-2">{{ t('agencyDashboard.admissionsHelp') }}</div><div class="d-flex flex-wrap gap-2"><VChip v-for="(count, status) in data.operations.admissions" :key="status" :to="status === 'admitted' || status === 'applied' ? applicationLink({ focus: status === 'admitted' ? 'admitted' : 'awaiting_decision', date_from: '', date_to: '' }) : undefined" size="small" :color="status === 'admitted' ? 'success' : status === 'rejected' ? 'error' : 'secondary'">{{ translateBackendValue(status) }} · {{ n(count) }}</VChip></div>
+            <details v-if="data.operations.service_stages.length" class="service-progress mt-4"><summary>{{ t('agencyDashboard.serviceProgress') }}</summary><div class="text-caption text-medium-emphasis my-2">{{ t('agencyDashboard.serviceProgressHelp') }}</div><div class="d-flex flex-wrap gap-2"><VChip v-for="(stage, index) in data.operations.service_stages" :key="index" size="small" :color="stage.is_terminal ? 'success' : 'primary'">{{ serviceName(stage.service) }} · {{ stage.name ? translateApplicantStage({ key: stage.key ?? undefined, name: stage.name }) : t('agencyDashboard.noStage') }} · {{ n(stage.count) }}</VChip></div></details>
+          </VCardText>
+        </VCard></VCol>
+        <VCol cols="12" lg="5"><VCard id="agency-priorities" class="h-100">
+          <VCardItem :title="t('agencyDashboard.priorities')" :subtitle="t('agencyDashboard.priorityHelp')" />
+          <div v-for="group in priorities" :key="group.key" class="priority-group"><div class="d-flex align-center gap-2"><VIcon :icon="group.icon" :color="group.color" size="18" /><span class="flex-grow-1 text-body-2">{{ group.label }}</span><VChip :color="data.attention.counts[group.key] ? group.color : 'secondary'" size="x-small">{{ n(data.attention.counts[group.key]) }}</VChip></div><RouterLink v-for="hit in data.attention[group.key].slice(0, 2)" :key="hit.id" :to="hit.route" class="priority-link">{{ hit.title }}<VIcon icon="tabler-arrow-right" size="14" /></RouterLink></div>
+          <VListItem v-if="canAccess('view_pending_transactions')" :to="{ name: 'payment-requests' }" :title="t('educational.awaitingApproval')"><template #prepend><VIcon color="warning" icon="tabler-hourglass" /></template><template #append><VChip size="small" color="warning">{{ n(data.attention.pending_approvals) }}</VChip></template></VListItem>
+          <VListItem v-if="data.operations.unassigned_cases" :to="applicationLink({ focus: 'unassigned', date_from: '', date_to: '' })" :title="t('agencyDashboard.unassigned', { count: n(data.operations.unassigned_cases) })"><template #prepend><VIcon color="warning" icon="tabler-user-off" /></template></VListItem>
+          <p v-if="!priorityCount" class="text-success px-4 pb-4">{{ t('agencyDashboard.noPriorityItems') }}</p>
+        </VCard></VCol>
+        <VCol cols="12" md="6" lg="4"><VCard class="h-100">
+          <VCardItem :title="t('agencyDashboard.moneyAndSales')" :subtitle="t('agencyDashboard.postedPeriod')" /><VList density="compact">
+            <VListItem :to="canAccess('view_incomes') ? { name: 'income' } : undefined" :title="t('educational.postedIncome')" :subtitle="money(data.financial.income)"><template #prepend><VIcon color="success" icon="tabler-trending-up" /></template></VListItem>
+            <VListItem :to="canAccess('view_expenses') ? { name: 'expenses' } : undefined" :title="t('educational.postedExpenses')" :subtitle="money(data.financial.expenses)"><template #prepend><VIcon color="error" icon="tabler-trending-down" /></template></VListItem>
+            <VListItem :title="t('educational.postedSalaries')" :subtitle="money(data.financial.salaries)"><template #prepend><VIcon color="info" icon="tabler-wallet" /></template></VListItem>
+          </VList><VDivider /><VList density="compact"><VListItem v-for="sale in sales" :key="sale.service" :to="canAccess('view_contracts') ? { name: sale.route } : undefined" :title="serviceName(sale.service)"><template #append><span class="text-body-2">{{ n(sale.row.sold) }}</span></template></VListItem></VList><div class="text-caption text-medium-emphasis px-4 pb-3">{{ t('agencyDashboard.serviceCountHelp') }}</div>
+        </VCard></VCol>
+        <VCol cols="12" md="6" lg="4"><VCard class="h-100">
+          <VCardItem :title="t('agencyDashboard.teamWorkload')" :subtitle="t('agencyDashboard.teamHelp')"><template #append><VBtn v-if="canAccess('view_assigned_boards')" :to="{ name: 'tasks' }" size="small" variant="text">{{ t('educational.openTasksBoard') }}</VBtn></template></VCardItem>
+          <div class="task-strip"><div><strong>{{ n(data.work.tasks.due_today) }}</strong><small>{{ t('educational.tasksDueToday') }}</small></div><div><strong class="text-error">{{ n(data.work.tasks.overdue) }}</strong><small>{{ t('educational.tasksOverdue') }}</small></div><div><strong>{{ n(data.work.tasks.open) }}</strong><small>{{ t('educational.tasksOpen') }}</small></div></div>
+          <VTable density="compact"><thead><tr><th>{{ t('educational.employee') }}</th><th class="text-end">{{ t('educational.activeCases') }}</th></tr></thead><tbody><tr v-for="row in staff" :key="row.id"><td><RouterLink :to="applicationLink({ responsible_employee_id: row.id, status: 'active' })" class="stage-link">{{ row.name }}</RouterLink></td><td class="text-end">{{ n(row.active_applicants) }}</td></tr></tbody></VTable><p v-if="!staff.length" class="text-medium-emphasis px-4">{{ t('educational.noStaff') }}</p>
+        </VCard></VCol>
+        <VCol cols="12" lg="4"><VCard class="h-100">
+          <VCardItem :title="t('agencyDashboard.destinations')" :subtitle="t('agencyDashboard.destinationHelp')" /><VCardText><RouterLink v-for="country in data.countries.slice(0, 5)" :key="country.id" :to="applicationLink({ country_id: country.id })" class="destination-link"><span>{{ country.name }}</span><strong>{{ n(country.active) }} / {{ n(country.total) }}</strong></RouterLink><p v-if="!data.countries.length" class="text-medium-emphasis">{{ t('educational.noCountryData') }}</p></VCardText><VDivider /><VCardText><div class="text-caption text-medium-emphasis mb-2">{{ t('agencyDashboard.universitiesHelp') }}</div><div v-for="university in data.universities.slice(0, 3)" :key="university.id" class="destination-link"><span>{{ university.name }}</span><strong>{{ n(university.admitted) }} / {{ n(university.applications) }}</strong></div><p v-if="!data.universities.length" class="text-medium-emphasis">{{ t('agencyDashboard.noAdmissions') }}</p></VCardText>
+        </VCard></VCol>
       </VRow>
-
-      <VRow dense class="mt-1">
-        <VCol cols="12" md="6" lg="4">
-          <VCard class="education-panel h-100"><VCardItem :title="$t('educational.financialSnapshot')" :subtitle="$t('educational.postedRecordsOnly')" /><VList density="compact">
-            <VListItem :title="$t('educational.postedIncome')" :subtitle="money(data.financial.income)"><template #prepend><VIcon color="success" icon="tabler-trending-up" /></template></VListItem>
-            <VListItem :title="$t('educational.postedExpenses')" :subtitle="money(data.financial.expenses)"><template #prepend><VIcon color="error" icon="tabler-trending-down" /></template></VListItem>
-            <VListItem :title="$t('educational.postedSalaries')" :subtitle="money(data.financial.salaries)"><template #prepend><VIcon color="info" icon="tabler-wallet" /></template></VListItem>
-            <VListItem :title="$t('educational.awaitingApproval')" :subtitle="String(data.attention.pending_approvals)"><template #prepend><VIcon color="warning" icon="tabler-hourglass" /></template></VListItem>
-          </VList></VCard>
-        </VCol>
-        <VCol cols="12" md="6" lg="4">
-          <VCard class="education-panel h-100"><VCardItem :title="$t('educational.salesByService')" :subtitle="$t('educational.salesHelp')" /><VTable density="compact" class="education-table"><tbody><tr v-for="(row, name) in data.sales" :key="name"><td><strong>{{ salesName(String(name)) }}</strong><div class="text-caption text-medium-emphasis">{{ row.by_currency.map(c => `${n(c.revenue)} ${c.currency ?? ''}`.trim()).join(' · ') || '—' }}</div></td><td class="text-end"><VChip size="small" variant="tonal">{{ row.sold }}</VChip></td></tr></tbody></VTable></VCard>
-        </VCol>
-        <VCol cols="12" lg="4">
-          <VCard class="education-panel h-100"><VCardItem :title="$t('educational.casesByCountry')" :subtitle="$t('educational.countryHelp')" /><VCardText><div v-for="country in topCountries" :key="country.id" class="country-row"><span>{{ country.name }}</span><span class="text-medium-emphasis">{{ country.active }} / {{ country.total }}</span><VProgressLinear :model-value="country.total ? country.active / country.total * 100 : 0" height="5" rounded /></div><div v-if="!topCountries.length" class="education-empty">{{ $t('educational.noCountryData') }}</div></VCardText></VCard>
-        </VCol>
-      </VRow>
-
-      <!-- Task and contract workload: the operational half of the picture. -->
-      <VRow dense class="mt-1">
-        <VCol cols="12" md="6">
-          <VCard class="education-panel h-100">
-            <VCardItem :title="$t('educational.tasksOverview')" :subtitle="$t('educational.tasksOverviewHelp')">
-              <template #append><VBtn size="small" variant="text" append-icon="tabler-arrow-right" :to="{ name: 'tasks' }">{{ $t('educational.openTasksBoard') }}</VBtn></template>
-            </VCardItem>
-            <VCardText>
-              <div class="education-workload-grid">
-                <button class="education-workload" type="button" @click="router.push({ name: 'tasks' })">
-                  <VIcon icon="tabler-checklist" /><span><small>{{ $t('educational.tasksOpen') }}</small><strong>{{ n(data.work.tasks.open) }}</strong></span>
-                </button>
-                <div class="education-workload education-workload--warning">
-                  <VIcon icon="tabler-calendar-due" /><span><small>{{ $t('educational.tasksDueToday') }}</small><strong>{{ n(data.work.tasks.due_today) }}</strong></span>
-                </div>
-                <div class="education-workload education-workload--error">
-                  <VIcon icon="tabler-alert-triangle" /><span><small>{{ $t('educational.tasksOverdue') }}</small><strong>{{ n(data.work.tasks.overdue) }}</strong></span>
-                </div>
-                <div class="education-workload education-workload--info">
-                  <VIcon icon="tabler-user-off" /><span><small>{{ $t('educational.tasksUnassigned') }}</small><strong>{{ n(data.work.tasks.unassigned) }}</strong></span>
-                </div>
-                <div class="education-workload education-workload--success">
-                  <VIcon icon="tabler-circle-check" /><span><small>{{ $t('educational.tasksCompleted') }}</small><strong>{{ n(data.work.tasks.completed) }}</strong></span>
-                </div>
-              </div>
-            </VCardText>
-          </VCard>
-        </VCol>
-        <VCol cols="12" md="6">
-          <VCard class="education-panel h-100">
-            <VCardItem :title="$t('educational.contractsOverview')" :subtitle="$t('educational.contractsOverviewHelp')" />
-            <VList density="compact">
-              <VListItem :title="$t('common.statuses.active')" :subtitle="$t('educational.contractsLiveHelp')" :to="{ name: 'scholarship-contracts' }">
-                <template #prepend><VAvatar color="success" variant="tonal" size="34"><VIcon icon="tabler-file-check" size="18" /></VAvatar></template>
-                <template #append><VChip size="small" variant="tonal">{{ n(data.work.contracts.active) }}</VChip></template>
-              </VListItem>
-              <VListItem :title="$t('common.statuses.draft')" :to="{ name: 'scholarship-contracts' }">
-                <template #prepend><VAvatar color="info" variant="tonal" size="34"><VIcon icon="tabler-file-pencil" size="18" /></VAvatar></template>
-                <template #append><VChip size="small" variant="tonal">{{ n(data.work.contracts.draft) }}</VChip></template>
-              </VListItem>
-              <VListItem :title="$t('common.statuses.completed')" :to="{ name: 'scholarship-contracts' }">
-                <template #prepend><VAvatar color="primary" variant="tonal" size="34"><VIcon icon="tabler-file-check" size="18" /></VAvatar></template>
-                <template #append><VChip size="small" variant="tonal">{{ n(data.work.contracts.completed) }}</VChip></template>
-              </VListItem>
-              <VListItem :title="$t('educational.contractsNewInPeriod')" :to="{ name: 'scholarship-contracts' }">
-                <template #prepend><VAvatar color="warning" variant="tonal" size="34"><VIcon icon="tabler-file-plus" size="18" /></VAvatar></template>
-                <template #append><VChip size="small" variant="tonal">{{ n(data.work.contracts.new_in_period) }}</VChip></template>
-              </VListItem>
-              <VListItem :title="$t('educational.serviceContractLines')" :to="{ name: 'scholarship-contracts' }">
-                <template #prepend><VAvatar color="secondary" variant="tonal" size="34"><VIcon icon="tabler-list-details" size="18" /></VAvatar></template>
-                <template #append><VChip size="small" variant="tonal">{{ n(data.work.contracts.service_lines) }}</VChip></template>
-              </VListItem>
-            </VList>
-          </VCard>
-        </VCol>
-      </VRow>
-
-      <VCard class="education-panel mt-4">
-        <VCardItem :title="$t('educational.employeePerformance')" :subtitle="$t('educational.performanceHelp')" />
-        <div class="education-table-scroll"><VTable density="compact" class="education-table"><thead><tr><th>{{ $t('educational.employee') }}</th><th>{{ $t('educational.activeCases') }}</th><th>{{ $t('educational.servicesReport') }}</th><th>{{ $t('educational.contractsReport') }}</th><th>{{ $t('educational.bonusesGenerated') }}</th></tr></thead><tbody><tr v-for="row in data.staff" :key="row.id"><td class="font-weight-medium">{{ row.name }}</td><td>{{ n(row.active_applicants) }}</td><td>{{ n(row.sales_recorded) }}</td><td>{{ n(row.contracts_sold) }}</td><td>{{ n(row.bonuses_generated) }}</td></tr><tr v-if="!data.staff.length"><td colspan="5" class="education-empty">{{ $t('educational.noStaff') }}</td></tr></tbody></VTable></div>
-      </VCard>
     </template>
   </div>
 </template>
 
 <style scoped>
-.education-workload-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.75rem;
-}
-
-.education-workload {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.7rem 0.85rem;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-  border-radius: 10px;
-  background: transparent;
-  text-align: start;
-  inline-size: 100%;
-}
-
-.education-workload span {
-  display: flex;
-  flex-direction: column;
-  min-inline-size: 0;
-}
-
-.education-workload small {
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  font-size: 0.7rem;
-}
-
-.education-workload strong {
-  font-size: 1.1rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.education-workload--warning {
-  border-color: rgba(var(--v-theme-warning), 0.45);
-}
-
-.education-workload--error {
-  border-color: rgba(var(--v-theme-error), 0.45);
-}
-
-.education-workload--info {
-  border-color: rgba(var(--v-theme-info), 0.45);
-}
-
-.education-workload--success {
-  border-color: rgba(var(--v-theme-success), 0.45);
-}
+.dashboard-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.summary-card { display: flex; align-items: flex-start; gap: 12px; padding: 18px; }
+.summary-card > div { min-inline-size: 0; }
+.summary-card strong { display: block; font-size: 1.75rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.summary-card .money-value { font-size: 1.15rem; overflow-wrap: anywhere; margin-block: 6px; }
+.pipeline-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.stage-link, .priority-link, .destination-link { color: inherit; text-decoration: none; }
+.stage-link:hover, .priority-link:hover, .destination-link:hover { color: rgb(var(--v-theme-primary)); }
+.priority-group { padding: 10px 20px; border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
+.priority-link { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block-start: 5px; padding-inline-start: 26px; font-size: 0.8rem; }
+.task-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 0 20px 16px; }
+.task-strip strong, .task-strip small { display: block; }
+.task-strip strong { font-size: 1.3rem; }
+.task-strip small { color: rgba(var(--v-theme-on-surface), 0.65); }
+.destination-link { display: flex; justify-content: space-between; gap: 12px; padding-block: 7px; font-size: 0.85rem; }
+.destination-link strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.service-progress summary { cursor: pointer; font-size: 0.85rem; color: rgb(var(--v-theme-primary)); }
+:global(.v-locale--is-rtl) .priority-link :deep(.v-icon) { transform: rotate(180deg); }
+#agency-priorities { scroll-margin-block-start: 90px; }
+@media (max-width: 1100px) { .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 599px) { .pipeline-grid { grid-template-columns: 1fr; } .summary-card { padding: 12px; gap: 8px; } .summary-card strong { font-size: 1.4rem; } }
 </style>

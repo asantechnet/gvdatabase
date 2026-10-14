@@ -50,6 +50,7 @@ const pageComponents: Record<string, Component> = {
   pendingTransactions: () => import('@/pages/pending-transactions.vue'),
   optionsHr: () => import('@/pages/options_hr.vue'),
   optionsContract: () => import('@/pages/options_contract.vue'),
+  whatsappMessages: () => import('@/pages/whatsapp-messages.vue'),
   setupUsers: () => import('@/pages/setup/users.vue'),
   setupRoles: () => import('@/pages/setup/roles.vue'),
   setupPositions: () => import('@/pages/setup/positions.vue'),
@@ -176,6 +177,16 @@ const routeDefinitions: Array<{
     component: 'optionsContract',
     name: 'options-contract',
     meta: { requiresAuth: true, action: 'read', subject: 'view_contract_templates' },
+  },
+  {
+    // WhatsApp message templates, one subpage per audience. Access follows the
+    // record type the templates belong to, so any of the three view
+    // permissions opens the page; each subpage additionally hides itself
+    // without its own permission.
+    path: '/options/whatsapp-messages',
+    component: 'whatsappMessages',
+    name: 'whatsapp-messages',
+    meta: { requiresAuth: true, anyPermissions: ['view_visitors', 'view_applicants', 'view_employees'] },
   },
   {
     path: '/setup/users',

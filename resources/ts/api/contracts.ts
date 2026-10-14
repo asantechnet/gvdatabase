@@ -211,6 +211,7 @@ export interface ServiceContractOptions {
 }
 
 export interface ServiceContractCreateData {
+  contract_template_version_id: number
   parent_contract_id?: number | null
   name?: string
   father_name?: string | null
@@ -234,7 +235,6 @@ export interface ServiceContractCreateData {
   currency_id: number
   currency_rate: number
   language_id: number
-  start_date: string
   notes?: string | null
   company_signatory_name?: string | null
   passport_id?: string | null
@@ -254,8 +254,10 @@ export interface ServiceContractCreateData {
   teacher_ids?: number[]
 }
 
-export function serviceContractApplicantFields(service: BuiltInService, applicant: ApplicantPayload): Partial<ServiceContractCreateData> {
+export function serviceContractApplicantFields(service: BuiltInService, applicant: ApplicantPayload, canAssignAdmission = false): Partial<ServiceContractCreateData> {
   const { service: omitted, ...details } = applicantServicePayload({ ...applicant, service })
+  delete details.university_id
+  delete details.university_fee
   const identity: Partial<ServiceContractCreateData> = {}
   const fields = ['name', 'father_name', 'father_phone', 'backup_phone', 'notes', 'contact', 'email', 'address', 'tax_number', 'admission_employee_id', 'responsible_employee_id'] as const
   for (const field of fields) {
@@ -263,6 +265,8 @@ export function serviceContractApplicantFields(service: BuiltInService, applican
     if (value !== undefined)
       Object.assign(identity, { [field]: value === '' ? null : value })
   }
+  if (!canAssignAdmission)
+    delete identity.admission_employee_id
 
   return { ...identity, ...details }
 }

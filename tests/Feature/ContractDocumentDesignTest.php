@@ -189,6 +189,19 @@ class ContractDocumentDesignTest extends TestCase
         $this->assertNull($design->fresh()->letterhead);
     }
 
+    public function test_scoped_artwork_rejects_a_safe_area_that_extends_beyond_the_page(): void
+    {
+        $type = $this->type('customer');
+        $response = $this->postJson('/api/contract-document-designs', [
+            'contract_type_id' => $type->id, 'safe_x' => 95, 'safe_width' => 10,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['safe_x', 'safe_width']);
+        $this->assertStringContainsString('100%', $response->json('messages.safe_width.0'));
+        $this->assertDatabaseCount('contract_document_designs', 0);
+        $this->postJson('/api/contract-document-designs', [
+            'contract_type_id' => $type->id, 'safe_x' => 90, 'safe_width' => 10,
+        ])->assertCreated()->assertJsonPath('data.safe_width', 10);
+    }
+
     private function type(string $slug): ContractType
     {
         return ContractType::query()->where('slug', $slug)->firstOrFail();

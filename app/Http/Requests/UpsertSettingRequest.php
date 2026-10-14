@@ -4,8 +4,10 @@ namespace App\Http\Requests;
 
 use App\Support\DocumentLetterheads;
 use App\Support\ThemePalette;
+use App\Support\SettingsValidation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpsertSettingRequest extends FormRequest
 {
@@ -16,7 +18,7 @@ class UpsertSettingRequest extends FormRequest
 
     public function rules(): array
     {
-        $required = $this->isMethod('post') ? 'required' : 'sometimes';
+        $required = $this->isMethod('post') ? ['required'] : ['sometimes', 'required'];
 
         return [
             'navigation_clr' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
@@ -25,8 +27,8 @@ class UpsertSettingRequest extends FormRequest
             ...collect(ThemePalette::fields())
                 ->mapWithKeys(fn (string $field) => [$field => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/']])
                 ->all(),
-            'paid_leave_days_per_year' => [$required, 'numeric', 'min:0', 'max:366'],
-            'website_title' => [$required, 'string', 'max:255'],
+            'paid_leave_days_per_year' => [...$required, 'numeric', 'min:0', 'max:366'],
+            'website_title' => [...$required, 'string', 'max:255'],
             'website_logo' => [
                 'nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:2048',
                 Rule::prohibitedIf(fn () => $this->boolean('remove_website_logo')),
@@ -71,12 +73,16 @@ class UpsertSettingRequest extends FormRequest
             'payslip_letterhead_safe_width' => ['sometimes', 'numeric', 'min:5', 'max:100'],
             'payslip_letterhead_safe_height' => ['sometimes', 'numeric', 'min:5', 'max:100'],
             'remove_payslip_letterhead' => ['sometimes', 'boolean'],
-            'website_address' => ['nullable', 'string', 'max:255'],
+            'website_address' => ['nullable', 'string', 'url:http,https', 'max:255'],
             // Company email delivery is optional: the profile saves without any
             // mail configuration and falls back to the environment mailer.
             'company_email' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
             'email_delivery_enabled' => ['sometimes', 'boolean'],
-            'mail_host' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'mail_host' => ['sometimes', 'nullable', 'string', 'max:255', function ($attribute, $value, $fail) {
+                if (is_string($value) && ! filter_var($value, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) && ! filter_var($value, FILTER_VALIDATE_IP)) {
+                    $fail(__('settings.validation.smtpHost', ['attribute' => __('settings.fields.mail_host')]));
+                }
+            }],
             'mail_port' => ['sometimes', 'nullable', 'integer', 'between:1,65535'],
             'mail_encryption' => ['sometimes', 'nullable', Rule::in(['tls', 'ssl'])],
             'mail_username' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -84,11 +90,11 @@ class UpsertSettingRequest extends FormRequest
             'clear_mail_password' => ['sometimes', 'boolean'],
             'mail_from_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'mail_reply_to' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
-            'timezone' => [$required, 'timezone:all'],
-            'phone' => [$required, 'string', 'max:50'],
-            'physical_address' => [$required, 'string', 'max:1000'],
-            'short_company_name' => [$required, 'string', 'max:255'],
-            'original_company_name' => [$required, 'string', 'max:255'],
+            'timezone' => [...$required, 'timezone:all'],
+            'phone' => [...$required, 'string', 'max:50'],
+            'physical_address' => [...$required, 'string', 'max:1000'],
+            'short_company_name' => [...$required, 'string', 'max:255'],
+            'original_company_name' => [...$required, 'string', 'max:255'],
             'business_licence' => ['nullable', 'string', 'max:255'],
             'office_open_time' => ['nullable', 'date_format:H:i'],
             'office_close_time' => ['nullable', 'date_format:H:i'],
@@ -100,22 +106,33 @@ class UpsertSettingRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'contract_letterhead.image' => 'validation.image',
-            'contract_letterhead.mimes' => 'validation.mimes',
-            'contract_letterhead.max' => 'validation.max',
-            'contract_letterhead.uploaded' => 'validation.uploaded',
-            'contract_cover_design.image' => 'validation.image',
-            'contract_cover_design.mimes' => 'validation.mimes',
-            'contract_cover_design.max' => 'validation.max',
-            'contract_cover_design.uploaded' => 'validation.uploaded',
-            'receipt_letterhead.image' => 'validation.image',
-            'receipt_letterhead.mimes' => 'validation.mimes',
-            'receipt_letterhead.max' => 'validation.max',
-            'receipt_letterhead.uploaded' => 'validation.uploaded',
-            'payslip_letterhead.image' => 'validation.image',
-            'payslip_letterhead.mimes' => 'validation.mimes',
-            'payslip_letterhead.max' => 'validation.max',
-            'payslip_letterhead.uploaded' => 'validation.uploaded',
+            'required' => __('settings.validation.required'),
+            'regex' => __('settings.validation.color'),
+            'uploaded' => __('settings.validation.uploadFailed'),
+            'website_address.url' => __('settings.validation.websiteURL'),
         ];
+    }
+
+    public function attributes(): array
+    {
+        return (array) __('settings.fields');
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $saved = $this->route('setting');
+            $defaults = $saved instanceof \App\Models\Setting ? $saved->getAttributes() : [
+                'contract_letterhead_safe_x' => 8.5, 'contract_letterhead_safe_y' => 15,
+                'contract_letterhead_safe_width' => 83, 'contract_letterhead_safe_height' => 70,
+                'receipt_letterhead_safe_x' => 6, 'receipt_letterhead_safe_y' => 18,
+                'receipt_letterhead_safe_width' => 88, 'receipt_letterhead_safe_height' => 64,
+                'payslip_letterhead_safe_x' => 8, 'payslip_letterhead_safe_y' => 14,
+                'payslip_letterhead_safe_width' => 84, 'payslip_letterhead_safe_height' => 72,
+            ];
+            foreach (['contract', 'receipt', 'payslip'] as $kind) {
+                SettingsValidation::safeArea($validator, $this->all(), $defaults, $kind.'_letterhead_');
+            }
+        });
     }
 }

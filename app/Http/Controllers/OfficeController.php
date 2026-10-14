@@ -59,14 +59,18 @@ class OfficeController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'geofence_radius_meters' => ['sometimes', 'integer', 'between:10,5000'],
             'geofence_enabled' => ['sometimes', 'boolean'],
-        ]);
+        ], ['required' => __('settings.validation.required')], (array) __('settings.fields'));
         $enabled = $validated['geofence_enabled'] ?? $office?->geofence_enabled ?? false;
         if ($enabled) {
+            $errors = [];
             foreach (['latitude', 'longitude'] as $coordinate) {
                 $value = array_key_exists($coordinate, $validated) ? $validated[$coordinate] : $office?->{$coordinate};
                 if ($value === null) {
-                    throw ValidationException::withMessages([$coordinate => ['validation.required']]);
+                    $errors[$coordinate] = [__('settings.validation.required', ['attribute' => __('settings.fields.'.$coordinate)])];
                 }
+            }
+            if ($errors !== []) {
+                throw ValidationException::withMessages($errors);
             }
         }
 

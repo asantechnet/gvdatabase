@@ -4,6 +4,11 @@ interface PrintDocumentOptions {
   bodyClass: string
   pageStyle: string
   element?: HTMLElement | null
+  /**
+   * Padding applied to the isolated print host. This keeps document spacing
+   * intact when the browser print dialog overrides the @page margin.
+   */
+  hostPadding?: string
   beforePrint?: () => void | Promise<void>
   afterPrint?: () => void
 }
@@ -18,6 +23,7 @@ export const printDocument = async ({
   bodyClass,
   pageStyle,
   element,
+  hostPadding,
   beforePrint,
   afterPrint,
 }: PrintDocumentOptions) => {
@@ -25,14 +31,14 @@ export const printDocument = async ({
   await beforePrint?.()
   document.dispatchEvent(new Event('app:before-print'))
 
-  // List reports paginate inside the browser's print area. The browser print
+  // Reports paginate inside the browser's print area. The browser print
   // dialog's margin setting ("None"/"Default") overrides @page margins, so a
   // report that relies on @page has no margin once the user picks "None". Move
   // that margin onto the cloned print host instead: the host is the only
   // content we print, and element padding is never overridden by the dialog.
   const isTablePrint = bodyClass.startsWith('printing-table-')
-  const tableMargin = isTablePrint ? /(?:^|;)\s*margin\s*:\s*([^;]+)/i.exec(pageStyle)?.[1]?.trim() : undefined
-  const documentPageStyle = tableMargin ? pageStyle.replace(/margin\s*:[^;]*;?/i, 'margin: 0;') : pageStyle
+  const contentMargin = hostPadding ?? (isTablePrint ? /(?:^|;)\s*margin\s*:\s*([^;]+)/i.exec(pageStyle)?.[1]?.trim() : undefined)
+  const documentPageStyle = contentMargin ? pageStyle.replace(/margin\s*:[^;]*;?/i, 'margin: 0;') : pageStyle
 
   const pageStyleElement = document.createElement('style')
 
@@ -69,7 +75,7 @@ export const printDocument = async ({
         body.printing-isolated-document #app-print-host { display: block !important; position: static !important; color: #222; background: white; --v-scrollbar-offset: 0px; }
         body.printing-isolated-document #app-print-host > * { display: block !important; margin: 0 !important; }
         body.printing-isolated-document #app-print-host > :not(.print-page):not(.payslip-container) { position: static !important; }
-        ${tableMargin ? `body.printing-isolated-document #app-print-host { padding: ${tableMargin} !important; box-sizing: border-box; }` : ''}
+        ${contentMargin ? `body.printing-isolated-document #app-print-host { padding: ${contentMargin} !important; box-sizing: border-box; }` : ''}
       }
       /*
        * Vuetify's overlay scroll strategy pins <html> to the viewport

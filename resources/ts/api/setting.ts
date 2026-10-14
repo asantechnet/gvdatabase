@@ -1,4 +1,4 @@
-import api from './axios'
+import api, { mutationHeaders, type ApiMutationOptions } from './axios'
 
 export type LetterheadSource = 'none' | 'contract' | 'custom'
 
@@ -209,9 +209,9 @@ const SettingApi = {
     }
   },
 
-  create: async (data: SettingForm): Promise<ApiResponse<Setting>> => {
+  create: async (data: SettingForm, options?: ApiMutationOptions): Promise<ApiResponse<Setting>> => {
     const response = await api.post('/settings', toFormData(data), {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': 'multipart/form-data', ...mutationHeaders(options) },
     })
 
     return {
@@ -220,7 +220,7 @@ const SettingApi = {
     }
   },
 
-  update: async (id: number, data: Partial<SettingForm>): Promise<ApiResponse<Setting>> => {
+  update: async (id: number, data: Partial<SettingForm>, options?: ApiMutationOptions): Promise<ApiResponse<Setting>> => {
     if (hasFiles(data)) {
       // PHP only reliably populates uploaded files for multipart POST requests.
       // Laravel honours this override and still dispatches to the PATCH route.
@@ -229,7 +229,7 @@ const SettingApi = {
       formData.append('_method', 'PATCH')
 
       const response = await api.post(`/settings/${id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': 'multipart/form-data', ...mutationHeaders(options) },
       })
 
       return {
@@ -238,7 +238,7 @@ const SettingApi = {
       }
     }
 
-    const response = await api.patch(`/settings/${id}`, data)
+    const response = await api.patch(`/settings/${id}`, data, { headers: mutationHeaders(options) })
 
     return {
       success: true,

@@ -11,6 +11,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -36,7 +37,7 @@ class SettingsEmailAndFileRemovalTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('data.company_email', null)
-            ->assertJsonPath('data.email_delivery_enabled', true);
+            ->assertJsonPath('data.email_delivery_enabled', false);
 
         $setting = Setting::query()->firstOrFail();
         $this->assertNull($setting->company_email);
@@ -52,6 +53,7 @@ class SettingsEmailAndFileRemovalTest extends TestCase
             'mail_port' => 587,
             'mail_username' => 'mailer',
             'mail_password' => 'secret',
+            'mail_reply_to' => 'reply@example.com',
             'email_delivery_enabled' => false,
         ]);
 
@@ -60,6 +62,91 @@ class SettingsEmailAndFileRemovalTest extends TestCase
         $this->assertFalse($profile->emailDeliveryEnabled());
         $this->assertNull($profile->configureMailer());
         $this->assertNull($profile->mailFrom());
+        $this->assertNull($profile->replyTo());
+    }
+
+    public function test_email_delivery_is_opt_in_for_the_model_database_and_missing_profile(): void
+    {
+        $this->assertFalse((new CompanyProfile)->emailDeliveryEnabled());
+        $this->assertFalse((new Setting)->email_delivery_enabled);
+        DB::table('settings')->insert($this->basePayload());
+        $this->assertFalse(Setting::firstOrFail()->email_delivery_enabled);
+    }
+
+    public function test_an_explicit_email_opt_in_survives_other_settings_updates(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $id = $this->postJson('/api/settings', [...$this->basePayload(), 'email_delivery_enabled' => true])->assertCreated()->json('data.id');
+        $this->patchJson('/api/settings/'.$id, ['website_title' => 'Updated portal'])->assertOk()
+            ->assertJsonPath('data.email_delivery_enabled', true);
+    }
+
+    public function test_email_default_migration_round_trip_preserves_explicit_preferences(): void
+    {
+        $setting = Setting::create([...$this->basePayload(), 'email_delivery_enabled' => true]);
+        $migration = require database_path('migrations/2026_10_14_000002_default_company_email_delivery_to_disabled.php');
+        $migration->down();
+        $this->assertTrue($setting->fresh()->email_delivery_enabled);
+        $migration->up();
+        $this->assertTrue($setting->fresh()->email_delivery_enabled);
+        DB::table('settings')->insert($this->basePayload());
+        $this->assertFalse(Setting::latest('id')->firstOrFail()->email_delivery_enabled);
+    }
+
+    public function test_partial_updates_report_required_fields_with_their_names_and_preserve_the_record(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $setting = Setting::create($this->basePayload());
+        $response = $this->patchJson('/api/settings/'.$setting->id, ['phone' => '', 'website_title' => '', 'physical_address' => ''])
+            ->assertUnprocessable()->assertJsonValidationErrors(['phone', 'website_title', 'physical_address']);
+        $this->assertSame('validation.required', $response->json('errors.website_title.0'));
+        $this->assertStringContainsString('Website Title', $response->json('messages.website_title.0'));
+        $this->assertStringContainsString('before saving', $response->json('messages.website_title.0'));
+        $this->assertSame($this->basePayload()['phone'], $setting->fresh()->phone);
+    }
+
+    public function test_invalid_email_operations_and_colors_have_descriptive_field_errors(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $setting = Setting::create($this->basePayload());
+        $response = $this->patchJson('/api/settings/'.$setting->id, [
+            'company_email' => 'invalid', 'mail_port' => 70000, 'mail_reply_to' => 'invalid',
+            'timezone' => 'Invalid/Zone', 'primary_color' => '#12', 'paid_leave_days_per_year' => 400,
+            'office_open_time' => '25:90', 'default_break_minutes' => -1, 'automatic_attendance_enabled' => 'invalid',
+            'website_address' => 'example.com', 'mail_host' => 'https://smtp.example.com:587',
+        ])->assertUnprocessable()->assertJsonValidationErrors([
+            'company_email', 'mail_port', 'mail_reply_to', 'timezone', 'primary_color',
+            'paid_leave_days_per_year', 'office_open_time', 'default_break_minutes', 'automatic_attendance_enabled',
+            'website_address', 'mail_host',
+        ]);
+        $this->assertStringContainsString('SMTP port', $response->json('messages.mail_port.0'));
+        $this->assertStringContainsString('65535', $response->json('messages.mail_port.0'));
+        $this->assertStringContainsString('#7367F0', $response->json('messages.primary_color.0'));
+        $this->assertStringContainsString('http://', $response->json('messages.website_address.0'));
+        $this->assertStringContainsString('port separately', $response->json('messages.mail_host.0'));
+    }
+
+    public function test_every_document_safe_area_reports_overflow_and_accepts_a_corrected_partial_update(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $setting = Setting::create($this->basePayload());
+        foreach (['contract', 'receipt', 'payslip'] as $kind) {
+            $prefix = $kind.'_letterhead_safe_';
+            $response = $this->patchJson('/api/settings/'.$setting->id, [$prefix.'x' => 95])
+                ->assertUnprocessable()->assertJsonValidationErrors([$prefix.'x', $prefix.'width']);
+            $this->assertStringContainsString('100%', $response->json('messages.'.$prefix.'width.0'));
+            $this->patchJson('/api/settings/'.$setting->id, [$prefix.'x' => 90, $prefix.'width' => 10])->assertOk();
+        }
+    }
+
+    public function test_invalid_artwork_reports_the_file_field_and_supported_types(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $setting = Setting::create($this->basePayload());
+        $response = $this->post('/api/settings/'.$setting->id, [
+            '_method' => 'PATCH', 'receipt_letterhead' => UploadedFile::fake()->create('receipt.pdf', 10, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonValidationErrors(['receipt_letterhead']);
+        $this->assertStringContainsString('receipt letterhead', strtolower($response->json('messages.receipt_letterhead.0')));
     }
 
     public function test_logo_and_signature_files_can_be_removed(): void

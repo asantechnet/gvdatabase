@@ -10,7 +10,9 @@ import { fileURLToPath } from 'node:url'
  * Applications list regression: mounts the real `pages/applicants.vue` in Chrome
  * with real Vuetify and asserts that
  *
- *  1. the page header carries no breadcrumbs and no dedicated stage strip,
+ *  1. the page header carries the concept breadcrumbs plus the shared in-page
+ *     navigation that interconnects Applications / Search / Visa reports, with
+ *     its own icon and colour on every destination,
  *  2. the workflow stages are the data-table tabs (open pipeline first, then the
  *     terminal/closing stages after a separator, marked with their own icons),
  *  3. picking a stage tab calls the list API with `stage=<key>` and never with
@@ -30,6 +32,19 @@ const output = process.env.APPLICATIONS_TABS_OUTPUT ?? join(tmpdir(), 'education
 mkdirSync(output, { recursive: true })
 
 const read = file => readFileSync(join(root, 'resources/ts', file), 'utf8')
+
+// The page renders the real Vuetify components, so the harness must use the app's
+// own theme: the in-page navigation paints each destination with a theme colour
+// (including `tertiary`, which Vuetify's built-in light theme does not define).
+const themeModule = { exports: {} }
+
+new Function('exports', 'module', ts.transpileModule(read('plugins/vuetify/theme.ts'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText)(themeModule.exports, themeModule)
+
+const appThemes = themeModule.exports.themes
+
+assert.ok(appThemes?.light?.colors?.tertiary && appThemes?.dark?.colors?.tertiary, 'the app theme must define tertiary for both themes')
 
 const chromeBinary = process.env.CHROME_BIN ?? ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']
   .find(candidate => {
@@ -126,7 +141,7 @@ function require(name){
 }
 const vuetify = Vuetify.createVuetify({
   locale: { rtl: { en: false, fa: true }, locale: ${JSON.stringify(locale === 'en' ? 'en' : 'fa')} },
-  theme: { defaultTheme: 'light' },
+  theme: { defaultTheme: 'light', themes: ${JSON.stringify(appThemes)} },
   icons: { defaultSet: 'class', sets: { class: { component: props => Vue.h('i', { class: props.icon }) } } },
 });
 window.testTheme = theme => vuetify.theme.change(theme);
@@ -261,9 +276,32 @@ try {
     const bootError = await evaluate('window.bootError ?? null')
     assert.equal(bootError, null, `the applications page failed to mount (${locale}): ${bootError}`)
 
-    // 1. breadcrumbs and the dedicated stage strip are gone.
-    assert.equal(await evaluate('Boolean(document.querySelector(".erp-page-header .v-breadcrumbs"))'), false, 'applications must not render breadcrumbs')
-    assert.equal(await evaluate('Boolean(document.querySelector(".erp-subnav"))'), false, 'applications must not render a separate stage strip')
+    // 1. the concept frame is present: breadcrumbs plus the shared in-page
+    //    navigation that interconnects Applications / Search / Visa reports.
+    //    (This replaces an earlier assertion that they were absent: the page was
+    //    brought in line with the Visitors and Contracts pages on request.)
+    assert.equal(await evaluate('Boolean(document.querySelector(".erp-page-header .v-breadcrumbs"))'), true, 'applications must render breadcrumbs')
+    const subnav = JSON.parse(await evaluate(`JSON.stringify(Array.from(document.querySelectorAll('.erp-subnav .erp-subnav-btn')).map(button => {
+      const computed = getComputedStyle(button);
+
+      return {
+        label: button.textContent.trim(),
+        icon: Array.from(button.querySelectorAll('i')).flatMap(node => String(node.className).split(' ')).find(name => name.startsWith('tabler-')) ?? '',
+        tone: computed.color + ' / ' + computed.backgroundColor,
+        declaredColor: Array.from(button.classList).find(name => name.startsWith('bg-') || name.startsWith('text-')) ?? '',
+        current: button.getAttribute('aria-current') ?? '',
+        variant: button.className,
+      };
+    }))`))
+    assert.equal(subnav.length, 3, `the applications in-page navigation must offer 3 destinations: ${JSON.stringify(subnav)}`)
+    assert.deepEqual(subnav.map(entry => entry.label), [messages.educational.applications, messages.common.navigation.globalSearch, messages.common.navigation.visaReports], `unexpected in-page destinations: ${JSON.stringify(subnav)}`)
+    assert.deepEqual(subnav.map(entry => entry.icon), ['tabler-clipboard-list', 'tabler-search', 'tabler-report-analytics'], `every destination needs its own icon: ${JSON.stringify(subnav)}`)
+    assert.ok(subnav.every(entry => entry.declaredColor), `every destination needs its own colour: ${JSON.stringify(subnav)}`)
+    assert.equal(new Set(subnav.map(entry => entry.declaredColor)).size, 3, `every destination needs its own colour: ${JSON.stringify(subnav)}`)
+    assert.equal(new Set(subnav.map(entry => entry.tone)).size, 3, `every destination must actually paint its own colour: ${JSON.stringify(subnav)}`)
+    assert.equal(subnav[0].current, 'page', `the current page must be marked as current: ${JSON.stringify(subnav)}`)
+    assert.ok(subnav[0].variant.includes('v-btn--variant-flat'), `the current page must be filled: ${JSON.stringify(subnav)}`)
+    assert.ok(subnav[1].variant.includes('v-btn--variant-tonal') && subnav[2].variant.includes('v-btn--variant-tonal'), `the sibling pages must stay tonal: ${JSON.stringify(subnav)}`)
 
     // 2. the stages are the data-table tabs, pipeline first and terminal last.
     const labels = await tabLabels()
@@ -314,4 +352,4 @@ try {
 }
 
 assert.deepEqual(errors, [], `console errors: ${JSON.stringify(errors)}`)
-console.log('Applications list passed: no breadcrumbs, no separate stage strip, stages as data-table tabs in workflow order, terminal stages marked, stage tabs filter the list by `stage` (no `board`), All applications clears the filter, and the strip stays responsive in LTR/RTL and light/dark.')
+console.log('Applications list passed: breadcrumbs plus the 3-destination in-page navigation (each with its own icon and colour, current page filled), stages as data-table tabs in workflow order, terminal stages marked, stage tabs filter the list by `stage` (no `board`), All applications clears the filter, and the stage strip stays responsive in LTR/RTL and light/dark.')

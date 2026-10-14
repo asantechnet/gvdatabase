@@ -181,7 +181,7 @@ export const apiErrorMessage = (error: unknown, fallback = translate('common.mes
 
   if (field && code) {
     const label = fieldLabel(field)
-    const text = isErrorCode(code) ? humanizeApiError(code) : code
+    const text = apiFieldErrors(apiError)[field] || humanizeApiError(code)
 
     return label ? `${label}: ${text}` : text
   }

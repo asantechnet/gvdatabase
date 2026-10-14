@@ -52,7 +52,7 @@ const discount = ref<number | string>(0)
 const currencyId = ref<number | null>(null)
 const rate = ref<number | string>(1)
 const languageId = ref<number | null>(null)
-const startDate = ref('')
+const selectedVersionId = ref<number | null>(null)
 const parent = ref<Contract | null>(null)
 const printing = ref(false)
 const printable = ref<Contract | null>(null)
@@ -67,8 +67,8 @@ let generation = 0
 let formGeneration = 0
 // Test-offer terms vary by the applicant's test; every other service version is
 // scoped by its destination country (or none at all for academy).
-const matchingVersion = computed(() => selectedTemplate.value?.versions?.find(version => {
-  if (version.status !== 'active' || !version.is_current || version.language_id !== languageId.value)
+const compatibleVersions = computed(() => selectedTemplate.value?.versions?.filter(version => {
+  if (version.status !== 'active' || version.language_id !== languageId.value)
     return false
   if (service.value === 'test_offer')
     return version.test_id === (form.value.test_id ?? parent.value?.applicant?.details?.test_id ?? null)
@@ -78,7 +78,12 @@ const matchingVersion = computed(() => selectedTemplate.value?.versions?.find(ve
     : null
 
   return version.country_id === countryId
-}) ?? null)
+}) ?? [])
+const versionItems = computed(() => compatibleVersions.value.map(version => ({
+  title: `${version.name} · v${version.version_number}${version.is_current ? ` · ${t('serviceContracts.currentVersion')}` : ''}`,
+  value: version.id,
+})))
+const selectedVersion = computed(() => compatibleVersions.value.find(version => version.id === selectedVersionId.value) ?? null)
 const reportRows = computed(() => visible.value.map(row => [row.contract_number, row.counterparty, row.counterparty_contact,
   row.snapshot_data?.template_version ? `${row.snapshot_data.template_version.name} · v${row.snapshot_data.template_version.version_number}` : '—', row.services?.map(line => `${line.fee} ${line.currency?.code ?? ''}`).join(', '), row.start_date, row.status]))
 const printList = () => printDocument({ bodyClass: 'printing-table-service-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
@@ -117,11 +122,11 @@ const headers = computed(() => [
   { title: t('serviceContracts.status'), key: 'status' },
   { title: t('serviceContracts.actions'), key: 'actions', sortable: false },
 ])
-const valid = computed(() => !!matchingVersion.value && !preparing.value && (parent.value || form.value.name?.trim()) && currencyId.value && languageId.value
+const valid = computed(() => !!selectedVersion.value && !preparing.value && (parent.value || form.value.name?.trim()) && currencyId.value && languageId.value
   && chargeFields.value.every(field => Number.isFinite(Number(charges.value[field])) && Number(charges.value[field]) >= 0)
   && Number.isFinite(Number(fee.value)) && Number(fee.value) >= 0
   && Number.isFinite(Number(discount.value)) && Number(discount.value) >= 0 && Number(discount.value) <= Number(fee.value)
-  && Number.isFinite(Number(rate.value)) && Number(rate.value) > 0 && startDate.value)
+  && Number.isFinite(Number(rate.value)) && Number(rate.value) > 0)
 
 async function load() {
   const current = ++generation
@@ -186,9 +191,7 @@ async function create(extension: Contract | null = null) {
   rate.value = Number(extensionLine?.currency_rate ?? 1)
   selectedTemplate.value = null
   languageId.value = extension?.contract_language_id ?? null
-  const today = new Date()
-  startDate.value = extension?.start_date
-    ?? `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  selectedVersionId.value = extension?.contract_template_version_id ?? null
   open.value = true
   preparing.value = true
   error.value = ''
@@ -238,6 +241,10 @@ watch(visitorId, id => {
     form.value = { ...form.value, ...visitorApplicantFields(visitor) }
 })
 watch(currencyId, id => { rate.value = currencies.value.find(row => row.id === id)?.rate ?? 1 })
+watch(compatibleVersions, versions => {
+  if (!versions.some(version => version.id === selectedVersionId.value))
+    selectedVersionId.value = versions.find(version => version.is_current)?.id ?? versions[0]?.id ?? null
+}, { immediate: true })
 watch(() => [service.value, route.query.visitor, route.query.applicant, route.query.contractId], async () => {
   ++formGeneration
   open.value = false
@@ -261,12 +268,12 @@ async function save() {
       ...(parent.value
         ? {
             parent_contract_id: parent.value.id,
-            ...(selectedService === 'academy' ? serviceContractApplicantFields(selectedService, form.value) : {}),
+            ...(selectedService === 'academy' ? serviceContractApplicantFields(selectedService, form.value, ability.can('read', 'assign_admission_employee')) : {}),
           }
-        : serviceContractApplicantFields(selectedService, form.value)),
+        : serviceContractApplicantFields(selectedService, form.value, ability.can('read', 'assign_admission_employee'))),
       ...Object.fromEntries(chargeFields.value.map(field => [field, Number(charges.value[field])])),
       fee: Number(fee.value), discount: Number(discount.value), currency_id: currencyId.value!,
-      currency_rate: Number(rate.value), language_id: languageId.value!, start_date: startDate.value,
+      currency_rate: Number(rate.value), language_id: languageId.value!, contract_template_version_id: selectedVersionId.value!,
     })
     if (service.value === selectedService) {
       rows.value.unshift(result)
@@ -320,54 +327,49 @@ async function save() {
       </template>
       </VDataTable>
     </VCard>
-    <VDialog v-model="open" :persistent="saving" max-width="1100" scrollable class="erp-form">
+    <VDialog v-model="open" :persistent="saving" max-width="1240" scrollable class="erp-form service-contract-dialog">
       <VCard>
-        <VCardTitle class="d-flex align-center flex-wrap gap-2">{{ t(labelKey) }}<VSpacer /><VBtn icon="tabler-x" variant="text" :disabled="saving" @click="open = false"><VIcon icon="tabler-x" /><VTooltip activator="parent">{{ t('serviceContracts.close') }}</VTooltip></VBtn></VCardTitle>
-        <VCardText>
+        <VCardTitle class="service-contract-header">
+          <div class="min-w-0"><div class="text-h6">{{ t(labelKey) }}</div><div class="text-caption text-medium-emphasis text-truncate">{{ selectedTemplate?.name ?? t('agencyStaff.templateNotReady') }}</div></div>
+          <VSpacer />
+          <VSelect v-model="selectedVersionId" :items="versionItems" :label="t('agencyStaff.contractVersion')" density="compact" variant="outlined" hide-details :disabled="preparing || !versionItems.length" class="contract-version-select" />
+          <VBtn icon="tabler-x" variant="text" :disabled="saving" :aria-label="t('serviceContracts.close')" @click="open = false"><VIcon icon="tabler-x" /><VTooltip activator="parent">{{ t('serviceContracts.close') }}</VTooltip></VBtn>
+        </VCardTitle>
+        <VCardText class="service-contract-body">
           <VProgressLinear v-if="preparing" indeterminate class="mb-4" />
           <VAlert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</VAlert>
           <div v-if="parent" class="mb-4">{{ parent.contract_number }}: {{ parent.counterparty }}</div>
           <VForm ref="formRef" @submit.prevent="save">
             <template v-if="!parent || service === 'academy'">
-              <VAutocomplete v-if="!parent && ability.can('read', 'view_visitors')" v-model="visitorId" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :disabled="preparing" clearable class="mb-4" />
+              <VRow v-if="!parent && ability.can('read', 'view_visitors')" dense><VCol cols="12" sm="6" md="4"><VAutocomplete v-model="visitorId" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :disabled="preparing" density="compact" clearable /></VCol></VRow>
               <VRow dense class="mb-3">
                 <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="form.name" :label="t('serviceContracts.applicant')" maxlength="255" required /></VCol>
                 <VCol cols="12" sm="6" md="3"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" maxlength="255" /></VCol>
                 <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="form.contact" :label="t('erp.phone')" maxlength="255" /></VCol>
                 <VCol cols="12" sm="6" md="3"><ErpField v-model="form.father_phone" :label="t('serviceContracts.fatherPhone')" maxlength="50" /></VCol>
                 <VCol v-if="service === 'test_offer'" cols="12" sm="6" md="4"><ErpField v-model="form.backup_phone" :label="t('erp.backupPhone')" maxlength="50" /></VCol>
+                <VCol v-if="!parent" cols="12" sm="6" md="3"><ErpField v-model="form.email" :label="t('serviceContracts.email')" type="email" maxlength="255" /></VCol>
+                <VCol v-if="!parent" cols="12" sm="6" md="3"><ErpField v-model="form.address" :label="t('serviceContracts.address')" maxlength="1000" /></VCol>
+                <VCol v-if="!parent && service !== 'academy'" cols="12" sm="6" md="3"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.responsibleEmployee')" clearable /></VCol>
+                <VCol v-if="!parent && service !== 'academy'" cols="12" sm="6" md="3"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('agencyStaff.admission')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
               </VRow>
-              <ApplicantServiceFields v-model="form" fixed-service />
+              <ApplicantServiceFields v-model="form" fixed-service service-contract />
             </template>
             <template v-if="service !== 'academy'">
-              <VTextField :model-value="selectedTemplate?.name ?? t('agencyStaff.templateNotReady')" :label="t('common.messages.contract')" readonly class="mt-4" />
-              <VTextField :model-value="matchingVersion ? `${matchingVersion.name} · v${matchingVersion.version_number}` : t('agencyStaff.noMatchingVersion')" :label="t('agencyStaff.contractVersion')" readonly class="mt-4" />
-              <VAlert v-if="!preparing && !matchingVersion" type="warning" variant="tonal" class="mt-3">{{ t('agencyStaff.noMatchingVersion') }}</VAlert>
-              <VCol v-if="!parent" cols="12"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('agencyStaff.admission')" clearable /></VCol>
-              <VDivider class="my-4" />
-            </template>
-            <template v-if="service === 'academy'">
-              <VDivider class="my-4" />
+              <VAlert v-if="!preparing && !compatibleVersions.length" type="warning" variant="tonal" density="compact" class="mb-2">{{ t('agencyStaff.noMatchingVersion') }}</VAlert>
             </template>
             <VRow dense>
               <VCol v-for="field in chargeFields" :key="field" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="charges[field]" type="number" min="0" step="0.01" :label="chargeLabel(field)" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="languageId" kind="select" :items="languages" item-title="name" item-value="id" :label="t('serviceContracts.language')" required /></VCol>
-              <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="startDate" type="date" :label="t('serviceContracts.startDate')" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="discount" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.discount')" /></VCol>
-              <VCol cols="12"><ErpField v-model="form.notes" kind="textarea" rows="2" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
+              <VCol cols="12" md="6"><ErpField v-model="form.notes" kind="textarea" rows="1" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
             </VRow>
-            <VExpansionPanels v-if="!parent" variant="accordion" elevation="0" class="mt-3">
-              <VExpansionPanel :title="t('erp.optionalDetails')"><VExpansionPanelText><VRow dense>
-                <VCol cols="12" sm="6" md="4"><ErpField v-model="form.email" :label="t('serviceContracts.email')" type="email" maxlength="255" /></VCol>
-                <VCol cols="12" sm="6" md="4"><ErpField v-model="form.address" :label="t('serviceContracts.address')" maxlength="1000" /></VCol>
-                <!-- Academy enrolments need no associated employee name. -->
-                <VCol v-if="service !== 'academy'" cols="12" sm="6" md="4"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.responsibleEmployee')" clearable /></VCol>
-              </VRow></VExpansionPanelText></VExpansionPanel>
-            </VExpansionPanels>
-            <div class="d-flex align-center justify-space-between mt-4 mb-4"><strong>{{ t('erp.totalFee') }}: {{ fee.toFixed(2) }} {{ currencies.find(row => row.id === currencyId)?.code }}</strong><span>{{ t('serviceContracts.discount') }}: {{ discount }}</span></div>
-            <div class="erp-form-actions"><VBtn color="secondary" variant="tonal" :disabled="saving" @click="open = false">{{ t('erp.cancel') }}</VBtn><VBtn type="submit" color="primary" prepend-icon="tabler-check" :disabled="!valid" :loading="saving">{{ t('erp.save') }}</VBtn></div>
+            <div class="service-contract-footer">
+              <div class="d-flex flex-wrap align-center ga-4"><strong>{{ t('erp.totalFee') }}: {{ fee.toFixed(2) }} {{ currencies.find(row => row.id === currencyId)?.code }}</strong><span class="text-medium-emphasis">{{ t('serviceContracts.discount') }}: {{ discount }}</span></div>
+              <div class="d-flex ga-2"><VBtn color="secondary" variant="tonal" :disabled="saving" @click="open = false">{{ t('erp.cancel') }}</VBtn><VBtn type="submit" color="primary" prepend-icon="tabler-check" :disabled="!valid" :loading="saving">{{ t('erp.save') }}</VBtn></div>
+            </div>
           </VForm>
         </VCardText>
       </VCard>
@@ -388,3 +390,57 @@ async function save() {
     </VDialog>
   </section>
 </template>
+
+<style scoped>
+.service-contract-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-block: 10px;
+}
+
+.contract-version-select {
+  flex: 0 1 360px;
+  min-inline-size: 240px;
+}
+
+.service-contract-body {
+  padding-block: 10px 12px;
+}
+
+.service-contract-body :deep(.v-row) {
+  margin-block: -3px;
+}
+
+.service-contract-body :deep(.v-col) {
+  padding-block: 3px;
+}
+
+.service-contract-footer {
+  position: sticky;
+  z-index: 2;
+  bottom: -12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block-start: 8px;
+  padding-block: 10px;
+  background: rgb(var(--v-theme-surface));
+  border-block-start: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+@media (max-width: 600px) {
+  .service-contract-header,
+  .service-contract-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .contract-version-select {
+    flex-basis: auto;
+    inline-size: 100%;
+    min-inline-size: 0;
+  }
+}
+</style>

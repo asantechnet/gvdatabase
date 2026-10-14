@@ -2,26 +2,26 @@
 
 - **Task ID:** real-time-notifications
 - **Created:** 2026-10-13
-- **Last updated:** 2026-10-13
-- **Status:** PLANNED (planning only — no code changed)
+- **Last updated:** 2026-10-14
+- **Status:** IMPLEMENTED (validated on SQLite; see §7/§8)
 - **Outcome:** Add a heartbeat-driven, flag-gated real-time notification path on top of the existing notification tables. A per-user `users.unread_notifications` flag turns on when a notification is delivered; a heartbeat endpoint returns the user's unread notifications only while the flag is set, then clears it; the frontend polls every 30s, plays `notification-ding.mp3` once per real-time batch and once on app launch when unread notifications already exist, and clicking a notification navigates to its section. Task-assignment and payment-request notifications already exist and will flow through this channel; the one new notification is telling the admission employee when a contract line is created. Documented in `AGENTS.md`.
 
 ## 1. Requirements and acceptance criteria
 
-- [ ] AC1 `users.unread_notifications` boolean column exists (`default false`); `User` casts it to boolean.
-- [ ] AC2 When a notification is delivered to a user, that user's `unread_notifications` flag is set true in the same delivery operation.
-- [ ] AC3 `GET /api/notifications/heartbeat` returns the user's unread notifications **only** when the flag is true; when false it returns an empty payload and does not query notification content.
-- [ ] AC4 After returning the queued unread notifications, the heartbeat clears the flag for that user (atomically, no double-send under concurrent requests).
-- [ ] AC5 The heartbeat channel is independent of the existing on-launch inbox retrieval (`GET /notifications`); the existing load, 60s poll, mark-read, delete and UI are unchanged.
-- [ ] AC6 The frontend polls the heartbeat every 30s while the app is open (only when the user holds `view_own_notifications`).
-- [ ] AC7 `notification-ding.mp3` plays once per real-time heartbeat batch that contains new notifications; on app launch it plays once when the user already has unread notifications, never once per notification.
-- [ ] AC8 Clicking a notification navigates to its `go_to_url` section (existing behaviour, preserved for heartbeat-delivered items).
-- [ ] AC9 Task creation assigns notify all task assignees (already implemented via `taskAssigned`; verify every assignment path, add regression test).
-- [ ] AC10 Creating a payment request notifies the finance audience (already implemented via `pendingSubmitted`; verify + regression test). Payment-request audience remains the approvers as today (see §5 decision).
-- [ ] AC11 Creating a contract line notifies the applicant's **admission employee** (new).
-- [ ] AC12 Delivery targets are strictly permission/role-scoped; a user without the required permission receives nothing. Regression test asserts this.
-- [ ] AC13 Query indexes support the heartbeat/unread path.
-- [ ] AC14 The system is documented in `AGENTS.md`.
+- [x] AC1 `users.unread_notifications` boolean column exists (`default false`); `User` casts it to boolean.
+- [x] AC2 When a notification is delivered to a user, that user's `unread_notifications` flag is set true in the same delivery operation.
+- [x] AC3 `GET /api/notifications/heartbeat` returns the user's unread notifications **only** when the flag is true; when false it returns an empty payload and does not query notification content.
+- [x] AC4 After returning the queued unread notifications, the heartbeat clears the flag for that user (atomically, no double-send under concurrent requests).
+- [x] AC5 The heartbeat channel is independent of the existing on-launch inbox retrieval (`GET /notifications`); the existing load, 60s poll, mark-read, delete and UI are unchanged.
+- [x] AC6 The frontend polls the heartbeat every 30s while the app is open (only when the user holds `view_own_notifications`).
+- [x] AC7 `notification-ding.mp3` plays once per real-time heartbeat batch that contains new notifications; on app launch it plays once when the user already has unread notifications, never once per notification.
+- [x] AC8 Clicking a notification navigates to its `go_to_url` section (existing behaviour, preserved for heartbeat-delivered items).
+- [x] AC9 Task creation assigns notify all task assignees (already implemented via `taskAssigned`; verified + regression test).
+- [x] AC10 Creating a payment request notifies the finance audience (already implemented via `pendingSubmitted`; verified + regression test). Payment-request audience remains the approvers as today (see §5 decision).
+- [x] AC11 Creating a contract line notifies the applicant's **admission employee** (new).
+- [x] AC12 Delivery targets are strictly permission/role-scoped; a user without the required permission receives nothing. Regression test asserts this.
+- [x] AC13 Query indexes support the heartbeat/unread path.
+- [x] AC14 The system is documented in `AGENTS.md`.
 
 ## 2. Scope and non-goals
 
@@ -92,41 +92,42 @@
 
 ### Backend
 
-- [ ] **Step 1 — Migration** `database/migrations/2026_10_13_000004_add_unread_notifications_flag_to_users.php`:
+- [x] **Step 1 — Migration** `database/migrations/2026_10_13_000004_add_unread_notifications_flag_to_users.php`:
   - `Schema::table('users', fn (Blueprint $t) => $t->boolean('unread_notifications')->default(false)->after('acc_status'));`
   - Indexes for the unread/heartbeat path (added on existing tables):
-    - `notification_user`: `index(['user_id', 'is_read', 'deleted_at', 'notification_id'], 'notification_user_user_id_is_read_deleted_at_notification_id_index')` — covers "this user's undelivered/undrained rows" and the join back to notifications.
+    - `notification_user`: `index(['user_id', 'is_read', 'deleted_at', 'notification_id'], 'notification_user_heartbeat_index')` — covers "this user's undelivered/undrained rows" and the join back to notifications. The name is **set explicitly and must stay short**: Laravel's generated name for these four columns is 66 characters and MySQL rejects identifiers over 64 (`1059 Identifier name ... is too long`). See §9 for the fix entry.
     - `notifications`: `index(['date_time', 'id'], 'notifications_date_time_id_index')` — supports the `orderByDesc('date_time')` listing once candidates are joined.
   - `down()` drops the indexes then the column.
-- [ ] **Step 2 — `app/Models/User.php`:** add `'unread_notifications' => 'boolean'` to `$casts` (and to `$fillable` if the codebase fills it by mass assignment; otherwise leave it out and set via query builder). Add two small helpers used by delivery and heartbeat: `markNotificationsPending(): void` and `consumeNotificationsPending(): bool` (the latter returns the previous flag), or keep the logic inline — final choice at implementation time; helpers keep the transaction in one place.
-- [ ] **Step 3 — `app/Models/Notification.php`:** in `deliverTo()`, after the successful `syncWithoutDetaching`, set `users.unread_notifications = true` for exactly the delivered recipient ids (`User::whereIn('id', $recipientIds)->update(['unread_notifications' => true])`). This runs inside the same operation as delivery. Do not set it when `$recipientIds` is empty. This is the only producer change needed — every existing notification flows through it.
-- [ ] **Step 4 — Heartbeat endpoint** `NotificationController::heartbeat(Request $request): JsonResponse`:
+- [x] **Step 2 — `app/Models/User.php`:** added `'unread_notifications' => 'boolean'` to `$casts`. **Decision:** no helper methods and not added to `$fillable` — the flag is only ever written through query-builder updates (delivery bulk-updates recipients; the heartbeat clears inside its own transaction), so a model helper would add an indirection without owning anything.
+- [x] **Step 3 — `app/Models/Notification.php`:** in `deliverTo()`, after the successful `syncWithoutDetaching`, set `users.unread_notifications = true` for exactly the delivered recipient ids (`User::whereIn('id', $recipientIds)->update(['unread_notifications' => true])`). This runs inside the same operation as delivery. Do not set it when `$recipientIds` is empty. This is the only producer change needed — every existing notification flows through it.
+- [x] **Step 4 — Heartbeat endpoint** `NotificationController::heartbeat(Request $request): JsonResponse`:
   - Load the authenticated user. If `unread_notifications` is false → return `['success' => true, 'data' => []]` **without** querying notifications.
   - If true → in a `DB::transaction`: `User::whereKey($user->id)->lockForUpdate()` (serializes concurrent polls), re-check the flag, read the user's unread, non-deleted notifications joined/ordered by `date_time desc` (limit ~20), set the flag false, then return `NotificationResource::collection($rows)` (double `data` wrapper preserved).
   - Loading pivot state via the existing `visibleTo()`/`with('recipients' ...)` pattern so `NotificationResource` returns the recipient's `is_read`.
-- [ ] **Step 5 — Route** in `routes/api.php` next to `notifications/mark-all-read` (line ~480, **before** `apiResource('notifications')` so `{notification}` does not swallow `heartbeat`):
+- [x] **Step 5 — Route** in `routes/api.php` next to `notifications/mark-all-read` (line ~480, **before** `apiResource('notifications')` so `{notification}` does not swallow `heartbeat`):
   `Route::get('notifications/heartbeat', [NotificationController::class, 'heartbeat'])->middleware('permission:view_own_notifications');`
-- [ ] **Step 6 — Admission employee recipient** in `EducationalWorkflowNotificationService::contractGenerated()`: `loadMissing('applicant.admissionEmployee')` and add `$contract->applicant?->admissionEmployee?->user_id` to the recipient collection (still filtered against the actor). Preserve the existing key and the responsible-employee/seller recipients.
+- [x] **Step 6 — Admission employee recipient** in `EducationalWorkflowNotificationService::contractGenerated()`: `loadMissing('applicant.admissionEmployee')` and add `$contract->applicant?->admissionEmployee?->user_id` to the recipient collection (still filtered against the actor). Preserve the existing key and the responsible-employee/seller recipients.
 
 ### Frontend
 
-- [ ] **Step 7 — Audio asset:** copy `notification-ding.mp3` → `public/sounds/notification-ding.mp3`.
-- [ ] **Step 8 — API contract** `resources/ts/api/notification.ts`: add
+- [x] **Step 7 — Audio asset:** copied `notification-ding.mp3` → `public/sounds/notification-ding.mp3`.
+- [x] **Step 8 — API contract** `resources/ts/api/notification.ts`: added
   `export const fetchNotificationHeartbeat = async (): Promise<AppNotification[]> => { const response = await api.get('/notifications/heartbeat'); return (response.data.data ?? []) as AppNotification[] }`
   and add it to the default export. Keep the same `request()`/error conventions.
-- [ ] **Step 9 — Heartbeat composable** `resources/ts/composables/useNotificationHeartbeat.ts` (composables are auto-imported):
+- [x] **Step 8b — Deviation (recorded):** the plan guessed the collection was double-wrapped. Verified shape is the same as the existing `GET /notifications` index: `{"success": true, "data": [ ...items ]}` (no nested `data`), which is what `request()` already unwraps. The tests assert against that verified shape.
+- [x] **Step 9 — Heartbeat composable** `resources/ts/composables/useNotificationHeartbeat.ts` (composables are auto-imported):
   - Guard on `canAccess('view_own_notifications')` and on being authenticated.
   - Poll `fetchNotificationHeartbeat` every **30s**; `setInterval` cleared in `onUnmounted`.
   - When the response is non-empty: play the ding **once** for the batch, and emit/prepend the new notifications into the inbox (expose a callback or shared ref the navbar consumes).
   - Audio: a single reused `new Audio('/sounds/notification-ding.mp3')`; `.play().catch(() => {})` to tolerate browser autoplay policies; never play per item.
   - Include a one-time launch helper: `playLaunchDingOnce(hasUnread: boolean)` guarded by a module-level flag so it fires at most once per session.
-- [ ] **Step 10 — `resources/ts/layouts/components/NavBarNotifications.vue`:** start the heartbeat poller on mount (so it mounts with every layout that already includes the navbar), merge heartbeat-delivered notifications into `rawNotifications` (prepend, de-duped by id) so they appear in the list and are clickable via the existing `go_to_url` handler, and call `playLaunchDingOnce(rawNotifications.value.some(n => n.is_read !== true))` once after the initial `loadNotifications()` resolves. Leave the existing 60s poll and all mark-read/delete behaviour untouched.
-- [ ] **Step 11 — Auth mirror** `resources/ts/utils/apiAuthorization.ts`: add `'GET /notifications/heartbeat': ['view_own_notifications']` (place it before the generic `/notifications` GET rule so it matches exactly).
+- [x] **Step 10 — `resources/ts/layouts/components/NavBarNotifications.vue`:** start the heartbeat poller on mount (so it mounts with every layout that already includes the navbar), merge heartbeat-delivered notifications into `rawNotifications` (prepend, de-duped by id) so they appear in the list and are clickable via the existing `go_to_url` handler, and call `playLaunchDingOnce(rawNotifications.value.some(n => n.is_read !== true))` once after the initial `loadNotifications()` resolves. Leave the existing 60s poll and all mark-read/delete behaviour untouched.
+- [x] **Step 11 — Auth mirror** `resources/ts/utils/apiAuthorization.ts`: add `'GET /notifications/heartbeat': ['view_own_notifications']` (place it before the generic `/notifications` GET rule so it matches exactly).
 
 ### Documentation & tests
 
-- [ ] **Step 12 — `AGENTS.md`:** add a "Real-time notifications" subsection documenting: the `unread_notifications` flag semantics, delivery sets the flag, heartbeat returns-and-clears, 30s polling, the audio behaviour (per batch + once on launch), the separation from the on-launch inbox, and the click-through navigation. Note that notification producers remain centralized in `Notification::deliverTo()`.
-- [ ] **Step 13 — Tests** `tests/Feature/RealtimeNotificationTest.php`:
+- [x] **Step 12 — `AGENTS.md`:** add a "Real-time notifications" subsection documenting: the `unread_notifications` flag semantics, delivery sets the flag, heartbeat returns-and-clears, 30s polling, the audio behaviour (per batch + once on launch), the separation from the on-launch inbox, and the click-through navigation. Note that notification producers remain centralized in `Notification::deliverTo()`.
+- [x] **Step 13 — Tests** `tests/Feature/RealtimeNotificationTest.php`:
   - Delivering a notification sets the recipient's flag; a recipient who opted out via preferences is not flagged/delivered.
   - Heartbeat returns unread items and clears the flag; a second heartbeat returns empty.
   - Heartbeat with the flag false returns empty and performs no content query.
@@ -134,17 +135,20 @@
   - Task creation notifies each assignee (flag set) and not the actor.
   - Contract generation notifies the applicant's admission employee.
   - Permission isolation: a user who should not receive a notification receives none and their flag stays false.
-- [ ] **Step 14 — Validate:** `php artisan test --filter=RealtimeNotificationTest`; full `php artisan test`; `npm run typecheck`; `npm run build:icons` (confirm no new unavailable-token warning). Record exact commands/results in §9.
+- [x] **Step 14 — Validate:** `php artisan test --filter=RealtimeNotificationTest`; full `php artisan test`; `npm run typecheck`; `npm run build:icons` (confirm no new unavailable-token warning). Record exact commands/results in §9.
 
 ## 7. Validation plan and results
 
-- [ ] `php artisan test --filter=RealtimeNotificationTest` — planned.
-- [ ] Full `php artisan test` — planned (baseline 379 passing).
-- [ ] `npm run typecheck` — planned.
-- [ ] `npm run build:icons` — planned (only if any class-based icon token is added).
+- [x] `DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test tests/Feature/RealtimeNotificationTest.php` — **PASS: 8 tests, 38 assertions.**
+- [x] `DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test` (full suite) — **PASS: 387 tests, 3571 assertions, duration 824s.** Baseline was 379; the +8 are the new `RealtimeNotificationTest` cases. No regressions, including `VisaFirmComplianceTest` (`contractGenerated` recipients unchanged when the applicant has no admission employee).
+- [x] `npm run typecheck` — **PASS (exit 0).**
+- [x] `npm run build:icons` — **PASS:** scanned 837 files / 294 references, bundled tabler 292, mdi 2, no unavailable-token warning, `icons.css` generated byte-identical (not modified).
 - [ ] Manual check: two logged-in sessions; create a task assigned to the other user; confirm their heartbeat returns it within ~30s, the ding plays once, and clicking navigates.
-- **Results:** not run — planning-only task; no code changed.
-- **Checks not run and why:** MySQL application of the migration and browser audio autoplay behaviour are environment-dependent; both are called out in §8.
+- **Environment note (corrected):** MySQL **is** available in this workspace (`127.0.0.1:3306`, user `root`, empty password; `.env` points at `laravel_test`, `phpunit.xml` overrides only `DB_DATABASE` to `testing`). The SQLite runs above therefore are *additional* coverage, not the only option. Earlier in the session I wrongly recorded that no MySQL service existed.
+- **MySQL findings:** the first MySQL `php artisan test` run revealed a real MySQL-only defect in this change — the Laravel-generated index name `notification_user_user_id_is_read_deleted_at_notification_id_index` is 66 characters and MySQL rejects identifiers over 64 (`SQLSTATE[42000] ... 1059`). The migration now names it explicitly (`notification_user_heartbeat_index`), and `php artisan migrate` against MySQL then completed the migration without error.
+- **MySQL run status:** a full-suite MySQL run was **aborted as invalid** — a stray second test process was executing against the same `testing` database, producing deadlocks and mass spurious failures (`Base table or view not found`) in classes that pass in isolation (e.g. `CompanySettingsTest`). That run's 244 failures are not attributable to this change. A clean, non-concurrent re-run of the affected classes was **not** completed (the backgrounded job died with an empty log), so MySQL results for this change rest on the migration-error fix plus the isolated checks listed above.
+- **Pre-existing MySQL-only failure (unrelated to this change):** `CatalogueRetirementMigrationTest > test_populated_cleanup_preserves_builtin_work_and_discards_catalogue_links_and_grants` fails on MySQL with `SQLSTATE[HY000]: 1553 Cannot drop index 'applicant_contract_contract_id_service_id_unique': needed in a foreign key constraint`, raised from `database/migrations/2026_10_08_000010_retire_service_package_catalogue.php:107` (`dropColumns()` drops indexes before/independently of the FK that depends on them once MySQL has folded the standalone FK index into the composite unique). This migration was not touched by this change (which only alters `users`, `notification_user` and `notifications`), and the test passes on SQLite.
+- **Checks not run and why:** browser audio autoplay behaviour (needs a real browser session) and a clean full MySQL suite run (see above); both are called out in §8.
 
 ## 8. Risks and mitigations
 
@@ -154,7 +158,8 @@
 - **Route ordering** — the heartbeat route must be registered before `apiResource('notifications')`, otherwise `{notification}` model binding will 404 it; step 5 places it explicitly.
 - **Existing `VisaFirmComplianceTest`** expects current `contractGenerated` recipients — mitigation: add the admission employee without removing existing recipients, and run the full suite.
 - **Permission leakage** — recipients are already permission/role-scoped by producers; add the explicit isolation test (step 13).
-- **Migration only validated on SQLite** — plain `Schema::table` with standard types; note that the owner must run it on MySQL.
+- **MySQL index identifier limit** — the original generated pivot index name was 66 chars and MySQL rejects >64; explicitly named `notification_user_heartbeat_index` now (this was caught and fixed against real MySQL).
+- **Migration NOT yet applied to the developer's MySQL database** — the migration itself was verified to run on MySQL, but `.env`'s `laravel_test` database still needs `php artisan migrate`.
 - **Heartbeat adding items to the inbox** could clash with a simultaneous 60s inbox reload — mitigation: merge by id (prepend, de-dupe) instead of assigning the array.
 
 ## 9. Progress log
@@ -162,10 +167,15 @@
 - 2026-10-13 — DISCOVERY: mapped the existing notification tables/models/controller/resource, `deliverTo` choke point, preference keys, task-assignment and payment-request (PendingTransaction) flows, contract generation, permission catalog and `finance_officer` grants, layouts that mount `NavBarNotifications`, build/test conventions, and confirmed no websocket stack exists (heartbeat polling). Located `notification-ding.mp3` at the repo root (not web-served).
 - 2026-10-13 — CLARIFIED: user chose (1) contract-line creation → notify admission employee, (2) payment-request notification already viable so no new one, (3) ensure task-assignment notifications, (4) 30s heartbeat.
 - 2026-10-13 — PLAN: full plan saved (this file), status `PLANNED`. No code changed (planning-only request).
+- 2026-10-14 — BACKEND: added migration `2026_10_14_000001_add_unread_notifications_flag_to_users.php` (`users.unread_notifications` boolean default false + `users_unread_notifications_index`; `notification_user` composite index; `notifications (date_time, id)` index); `User::$casts` boolean; `Notification::deliverTo()` raises the flag for delivered recipients only (after the preference filter); `NotificationController::heartbeat()` (flag-gated, `DB::transaction` + `lockForUpdate`, returns unread non-deleted rows limit 20, clears the flag, same `{success, data}` shape as `index`); route registered before `apiResource('notifications')`; `contractGenerated()` now also notifies the applicant's admission employee.
+- 2026-10-14 — FRONTEND: copied the chime to `public/sounds/notification-ding.mp3`; `fetchNotificationHeartbeat()` added to `resources/ts/api/notification.ts` (uses the same `request()` unwrap and `NotificationApiError`); new `resources/ts/composables/useNotificationHeartbeat.ts` (30s poll, one chime per batch, `playLaunchDingOnce`, guards on `view_own_notifications`, clears interval on unmount); `NavBarNotifications.vue` merges heartbeat batches by id, plays the launch chime once after the initial load, and leaves the 60s inbox refresh / read / delete behaviour untouched; `apiAuthorization.ts` mirrors `GET /notifications/heartbeat` → `view_own_notifications`.
+- 2026-10-14 — DOCS + TESTS: `AGENTS.md` gained a "Real-time notifications" section; `tests/Feature/RealtimeNotificationTest.php` added (8 tests). Two plan assumptions were corrected during implementation: (a) the heartbeat response is **not** double-`data`-wrapped — it matches `index`, so the API contract needed no special unwrapping; (b) a test must refresh the acting user after delivery, because `Sanctum::actingAs` holds the same in-memory instance the request reads (in production every request reloads the row).
+- 2026-10-14 — VALIDATE: see §7 (all automated checks pass on SQLite).
+- 2026-10-14 — MySQL VALIDATION + FIX: discovered MySQL *is* present; the first MySQL run failed the new migration with `1059 Identifier name ... is too long` (66-char generated index name) → renamed the pivot index to `notification_user_heartbeat_index` and re-verified `php artisan migrate` on MySQL. Also found `CatalogueRetirementMigrationTest`'s populated-cleanup case fails on MySQL (`1553`, `dropColumns()` dropping an FK-dependent index) in the pre-existing `2026_10_08_000010` retirement migration — unrelated to this change and outside its scope. A concurrent stray test process invalidated the full MySQL run; a clean subset re-run was not completed before the session ended.
 
 ## 10. Completion summary
 
-- **Delivered:** discovery findings + finalized plan. No code changed.
-- **Acceptance criteria:** not yet satisfied (planning-only).
-- **Tests/checks passed:** none run.
-- **Remaining / follow-up:** implement steps 1–14 when approved; optionally revisit the payment-request audience (`approve_pending_transactions` vs `view_pending_transactions`) as a separate change.
+- **Delivered:** `users.unread_notifications` flag + indexes, flag raised in `Notification::deliverTo()`, flag-gated `GET /api/notifications/heartbeat` (returns-and-clears, transaction-locked against double delivery), 30s frontend poller with per-batch chime and one-time launch chime, heartbeat items merged into the existing inbox, admission-employee recipient in `contractGenerated`, auth mirror, `AGENTS.md` documentation, and `tests/Feature/RealtimeNotificationTest.php`.
+- **Acceptance criteria:** AC1–AC14 satisfied (AC9/AC10 verified as pre-existing producers with new regression coverage).
+- **Tests/checks passed:** `RealtimeNotificationTest` 8/8; full `php artisan test` 387 passed / 3571 assertions; `npm run typecheck` exit 0; `npm run build:icons` clean (no new token warnings).
+- **Remaining / follow-up:** run `php artisan migrate` on the developer's MySQL database (migration application itself is verified on MySQL); re-run the MySQL suite cleanly with no concurrent process (a subset re-run was cut short); fix the pre-existing MySQL-only `CatalogueRetirementMigrationTest` 1553 failure in `dropColumns()`; do a manual two-session browser check of the 30s delivery + chime; optionally revisit the payment-request audience (`approve_pending_transactions` vs `view_pending_transactions`) as a separate change.

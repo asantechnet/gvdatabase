@@ -4,12 +4,15 @@ import { useI18n } from 'vue-i18n'
 import { type CreateSupportTicketData, type SupportTicket, createSupportTicket, getSupportTickets } from '@/api/supportTicket'
 import { currentLocale } from '@/utils/localization'
 import { SUPPORT_CONTACT } from '@/utils/constants'
+import { useSettingsValidation } from '@/composables/useSettingsValidation'
 
 // Rendered both as a standalone route and as a tab inside Settings.
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 
 const toast = useToast()
 const { t } = useI18n()
+const { inputProps, clear: clearErrors, capture: captureError } = useSettingsValidation()
+const requiredField = (field: string) => (value: unknown) => String(value ?? '').trim().length > 0 || t('settingsValidation.required', { field: t(`pages.support.${field}`) })
 const form = ref()
 const submitting = ref(false)
 const loading = ref(true)
@@ -62,21 +65,25 @@ async function loadTickets() {
 }
 
 async function submit() {
+  if (submitting.value) return
+  clearErrors()
   const result = await form.value?.validate()
-  if (result && !result.valid)
+  if (result && !result.valid) {
+    await captureError({ errors: Object.fromEntries(result.errors.map((entry: { id: string; errorMessages: string[] }) => [entry.id, entry.errorMessages])) }, t('pages.support.messages.sendFailed'))
     return
+  }
 
   submitting.value = true
   try {
-    const ticket = await createSupportTicket(ticketForm.value, attachments.value)
+    const ticket = await createSupportTicket(ticketForm.value, attachments.value, { quiet: true })
     tickets.value.unshift(ticket)
     ticketForm.value = blankForm()
     attachments.value = []
     form.value?.resetValidation()
     toast.success(t('pages.support.messages.sent', { ticket: ticket.ticket_number }))
   }
-  catch (error: any) {
-    toast.error(error.message || t('pages.support.messages.sendFailed'))
+  catch (error) {
+    await captureError(error, t('pages.support.messages.sendFailed'))
   }
   finally {
     submitting.value = false
@@ -191,10 +198,11 @@ onMounted(loadTickets)
               <VCol cols="12" sm="6">
                 <AppSelect
                   v-model="ticketForm.category"
+                  v-bind="inputProps('category')"
                   name="category"
                   :label="$t('pages.support.category')"
                   :items="categoryOptions"
-                  :rules="[requiredValidator]"
+                  :rules="[requiredField('category')]"
                 />
                 <p class="text-caption text-medium-emphasis mt-2 mb-0">
                   {{ severityHelp }}
@@ -203,35 +211,39 @@ onMounted(loadTickets)
               <VCol cols="12" sm="6">
                 <AppSelect
                   v-model="ticketForm.severity"
+                  v-bind="inputProps('severity')"
                   name="severity"
                   :label="$t('pages.support.severity')"
                   :items="severityOptions"
-                  :rules="[requiredValidator]"
+                  :rules="[requiredField('severity')]"
                 />
               </VCol>
               <VCol cols="12">
                 <AppTextField
                   v-model="ticketForm.subject"
+                  v-bind="inputProps('subject')"
                   name="subject"
                   :label="$t('pages.support.subject')"
                   :placeholder="$t('pages.support.subjectPlaceholder')"
-                  :rules="[requiredValidator, (value: string) => value.length >= 5 || $t('pages.support.validation.subjectMin')]"
+                  :rules="[requiredField('subject'), (value: string) => String(value ?? '').length >= 5 || $t('pages.support.validation.subjectMin')]"
                 />
               </VCol>
               <VCol cols="12">
                 <AppTextarea
                   v-model="ticketForm.description"
+                  v-bind="inputProps('description')"
                   name="description"
                   :label="$t('pages.support.description')"
                   :placeholder="$t('pages.support.descriptionPlaceholder')"
                   rows="6"
                   counter="5000"
-                  :rules="[requiredValidator, (value: string) => value.length >= 20 || $t('pages.support.validation.descriptionMin')]"
+                  :rules="[requiredField('description'), (value: string) => String(value ?? '').length >= 20 || $t('pages.support.validation.descriptionMin')]"
                 />
               </VCol>
               <VCol cols="12">
                 <VFileInput
                   v-model="attachments"
+                  v-bind="inputProps('attachments')"
                   :label="$t('pages.support.attachments')"
                   :hint="$t('pages.support.attachmentsHint')"
                   persistent-hint

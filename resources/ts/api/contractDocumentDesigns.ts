@@ -1,4 +1,4 @@
-import api from './axios'
+import api, { mutationHeaders, type ApiMutationOptions } from './axios'
 import type { BuiltInService } from './applicants'
 
 export interface ContractDocumentDesign {
@@ -70,7 +70,7 @@ const ContractDocumentDesignApi = {
 
     return Array.isArray(response.data.data) ? response.data.data : []
   },
-  async save(id: number | null, payload: ContractDocumentDesignPayload): Promise<ContractDocumentDesign> {
+  async save(id: number | null, payload: ContractDocumentDesignPayload, options?: ApiMutationOptions): Promise<ContractDocumentDesign> {
     const data = toFormData(payload)
 
     if (id) {
@@ -78,12 +78,12 @@ const ContractDocumentDesignApi = {
       // Laravel honours this override and still dispatches to the PUT route.
       data.append('_method', 'PUT')
 
-      const response = await api.post<{ data: ContractDocumentDesign }>(`/contract-document-designs/${id}`, data)
+      const response = await api.post<{ data: ContractDocumentDesign }>(`/contract-document-designs/${id}`, data, { headers: mutationHeaders(options) })
 
       return response.data.data
     }
 
-    const response = await api.post<{ data: ContractDocumentDesign }>('/contract-document-designs', data)
+    const response = await api.post<{ data: ContractDocumentDesign }>('/contract-document-designs', data, { headers: mutationHeaders(options) })
 
     return response.data.data
   },

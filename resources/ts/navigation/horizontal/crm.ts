@@ -1,10 +1,12 @@
 export default [
   {
     title: 'common.navigation.crm',
+
+    // One concept, one global link: CRM lands on its Visitors page, and the CRM
+    // in-page navigation (Visitors / Applicants) reaches the rest of the concept.
     icon: { icon: 'tabler-users-group' },
-    children: [
-      { title: 'common.navigation.applicants', icon: { icon: 'tabler-users' }, to: 'all-customers', action: 'read', subject: 'view_applicants' },
-      { title: 'common.navigation.visitor', icon: { icon: 'tabler-user-search' }, to: 'visitor', action: 'read', subject: 'view_visitors' },
-    ],
+    to: 'visitor',
+    action: 'read',
+    subject: 'view_visitors',
   },
 ]

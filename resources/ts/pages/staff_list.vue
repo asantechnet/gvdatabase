@@ -14,6 +14,7 @@ import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
 import StaffCommissionFields from '@/components/StaffCommissionFields.vue'
+import ContactActionMenu from '@/components/ContactActionMenu.vue'
 
 interface Staff {
   id: number
@@ -894,6 +895,19 @@ onMounted(async () => {
         >
           <template #item.salary="{ item }">
             <div>${{ Number(item.salary || 0).toFixed(2) }}</div>
+          </template>
+
+          <!-- Quick contact for the employee directory: the same menu the CRM
+               lists use, offering this page's (employee) WhatsApp templates.
+               Employees have no CRM conversation record, so the menu opens the
+               chat and leaves logging to the CRM surfaces. -->
+          <template #item.contact="{ item }">
+            <ContactActionMenu
+              kind="phone"
+              :value="item.contact"
+              audience="employee"
+              :context="item"
+            />
           </template>
 
           <template #item.office="{ item }">

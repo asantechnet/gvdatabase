@@ -11,6 +11,8 @@ class Setting extends Model
 {
     use Auditable, HasFactory, SoftDeletes;
 
+    protected $attributes = ['email_delivery_enabled' => false];
+
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

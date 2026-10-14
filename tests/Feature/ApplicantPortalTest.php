@@ -95,6 +95,30 @@ class ApplicantPortalTest extends TestCase
         $this->getJson('/api/applicant-portal')->assertForbidden();
     }
 
+    public function test_staff_can_suspend_and_restore_portal_access_without_unlinking_the_case(): void
+    {
+        $case = Applicant::factory()->create();
+        $user = User::factory()->create(['acc_status' => 'active', 'email_verified_at' => now()]);
+        $user->roles()->attach(Role::query()->where('name', 'applicant')->firstOrFail());
+        $case->update(['user_id' => $user->id]);
+        $user->createToken('existing session', ['access']);
+
+        $this->putJson("/api/applicants/{$case->id}/portal-access", ['enabled' => false])
+            ->assertOk()->assertJsonPath('data.status', 'inactive');
+        $this->assertSame('inactive', $user->fresh()->acc_status);
+        $this->assertSame(0, $user->tokens()->count());
+        $this->assertSame($user->id, $case->fresh()->user_id);
+
+        Sanctum::actingAs($user->fresh(), ['access']);
+        $this->getJson('/api/applicant-portal')->assertForbidden();
+
+        Sanctum::actingAs($this->administrator, ['access']);
+        $this->putJson("/api/applicants/{$case->id}/portal-access", ['enabled' => true])
+            ->assertOk()->assertJsonPath('data.status', 'active');
+        $this->assertSame('active', $user->fresh()->acc_status);
+        $this->assertSame($user->id, $case->fresh()->user_id);
+    }
+
     public function test_portal_shows_the_guardian_contact_and_grade_metric_and_keeps_the_metric_staff_managed(): void
     {
         $case = Applicant::factory()->create([

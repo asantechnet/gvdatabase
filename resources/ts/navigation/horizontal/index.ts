@@ -1,4 +1,5 @@
 import applicantPortal from './applicant-portal'
+import applications from './applications'
 import contracts from './contracts'
 import crm from './crm'
 import finance from './finance'
@@ -13,6 +14,7 @@ export default [
   ...home,
   ...applicantPortal,
   ...contracts,
+  ...applications,
   ...crm,
   ...finance,
   ...hr,

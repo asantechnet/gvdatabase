@@ -19,6 +19,7 @@ class VisitorResource extends JsonResource
             'counselor' => $this->whenLoaded('counselor', fn () => $this->counselor ? $this->counselor->only(['id', 'name']) : null),
             'notes' => $this->notes,
             'converted_at' => $this->converted_at?->toISOString(),
+            'follow_up' => (bool) $this->follow_up,
             'interactions' => CrmInteractionResource::collection($this->whenLoaded('interactions')),
             'date' => $this->date->format('Y-m-d'),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),

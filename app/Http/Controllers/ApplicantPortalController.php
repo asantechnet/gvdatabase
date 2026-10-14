@@ -152,6 +152,27 @@ class ApplicantPortalController extends Controller
         ]], 201);
     }
 
+    public function setAccess(Request $request, Applicant $applicant): JsonResponse
+    {
+        abort_unless($request->user()?->hasPermission('invite_applicant_portal'), 403, 'auth.forbidden');
+        $this->assertStaffCaseAccess($request, $applicant);
+        $data = $request->validate(['enabled' => ['required', 'boolean']]);
+        abort_unless($applicant->user_id, 422, 'business.request_rejected');
+
+        DB::transaction(function () use ($applicant, $data): void {
+            $user = User::query()->lockForUpdate()->findOrFail($applicant->user_id);
+            $user->update(['acc_status' => $data['enabled'] ? 'active' : 'inactive']);
+            if (! $data['enabled']) {
+                $user->tokens()->delete();
+            }
+        });
+
+        return response()->json(['success' => true, 'data' => [
+            'user_id' => $applicant->user_id,
+            'status' => $data['enabled'] ? 'active' : 'inactive',
+        ]]);
+    }
+
     private function applicantFor(Request $request): Applicant
     {
         abort_unless(in_array('applicant', $request->user()->roleNames(), true), 403, 'auth.forbidden');

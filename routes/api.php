@@ -62,6 +62,7 @@ use App\Http\Controllers\TaskAttachmentController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VisitorController;
+use App\Http\Controllers\WhatsappTemplateController;
 use App\Http\Controllers\WorkdayController;
 use App\Http\Controllers\WorthyEmployeeController;
 use App\Http\Middleware\AttendanceBrowser;
@@ -330,6 +331,10 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middlewareFor('store', 'permission:create_visitors')
         ->middlewareFor('update', 'permission:edit_visitors')
         ->middlewareFor('destroy', 'permission:delete_visitors');
+    // Marking a visitor as worthy of follow-up (and taking it back off the
+    // list) is an edit of the visitor record, so it reuses that permission.
+    Route::put('visitors/{visitor}/follow-up', [VisitorController::class, 'setFollowUp'])
+        ->middleware('permission:edit_visitors');
     // Visitors reach the pipeline by becoming applicants; there is no lead stage.
     Route::post('visitors/{visitor}/convert-to-applicant', [VisitorController::class, 'convertToApplicant'])
         ->middleware('permission:create_applicants');
@@ -364,6 +369,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('applicant-portal/attachments', [ApplicantPortalController::class, 'attachments'])->middleware('permission:view_own_applicant_portal');
     Route::post('applicant-portal/attachments', [ApplicantPortalController::class, 'uploadAttachment'])->middleware('permission:edit_own_applicant_profile');
     Route::post('applicants/{applicant}/portal-invitation', [ApplicantPortalController::class, 'invite'])->middleware('permission:invite_applicant_portal');
+    Route::put('applicants/{applicant}/portal-access', [ApplicantPortalController::class, 'setAccess'])->middleware('permission:invite_applicant_portal');
     Route::get('applicants-pipeline', [ApplicantController::class, 'pipeline'])->middleware('permission:view_applicants');
     Route::apiResource('applicants', ApplicantController::class)->middlewareFor(['index', 'show'], 'permission:view_applicants')->middlewareFor('store', 'permission:create_applicants')->middlewareFor('update', 'permission:edit_applicants')->middlewareFor('destroy', 'permission:delete_applicants');
     Route::get('applicants/{applicant}/attachments', [ApplicantAttachmentController::class, 'index'])->middleware('permission:view_applicants');
@@ -478,6 +484,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
 
     // Notification routes
     Route::patch('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->middleware('permission:update_own_notifications');
+    // Real-time poll endpoint. Must stay above apiResource('notifications') so
+    // `heartbeat` is not captured by the {notification} route binding.
+    Route::get('notifications/heartbeat', [NotificationController::class, 'heartbeat'])->middleware('permission:view_own_notifications');
     Route::apiResource('notifications', NotificationController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_own_notifications')
         ->middlewareFor('store', 'permission:send_notifications')
@@ -528,6 +537,18 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         Route::get('/runs', [AutomationController::class, 'runs'])->middleware('permission:view_automation_runs');
         Route::get('/analytics', [AutomationController::class, 'analytics'])->middleware('permission:view_analytics');
     });
+
+    // WhatsApp message templates. A template belongs to one record type, so
+    // access follows that record type's permissions instead of adding a new
+    // permission: reading needs the record's view permission, managing needs
+    // its edit permission. Delivery stays a `wa.me` deep link built on the
+    // client, so nothing here talks to WhatsApp and no send route exists.
+    Route::get('whatsapp-template-placeholders', [WhatsappTemplateController::class, 'placeholders'])
+        ->middleware('permission:view_visitors,view_applicants,view_employees');
+    Route::apiResource('whatsapp-templates', WhatsappTemplateController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->middlewareFor('index', 'permission:view_visitors,view_applicants,view_employees')
+        ->middlewareFor(['store', 'update', 'destroy'], 'permission:edit_visitors,edit_applicants,edit_employees');
 
     // Announcements are immutable: no update/destroy routes exist by design.
     Route::get('announcements', [AnnouncementController::class, 'index'])->middleware('permission:send_announcements');

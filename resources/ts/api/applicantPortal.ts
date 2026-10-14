@@ -67,4 +67,7 @@ const uploadAttachment = async (file: File, label?: string) => {
 const invite = async (applicantId: number, data: { name: string; email: string; phone?: string | null; address?: string | null }) =>
   (await api.post(`/applicants/${applicantId}/portal-invitation`, data)).data.data as { user_id: number; email: string; message: string }
 
-export default { get, updateProfile, listAttachments, uploadAttachment, invite }
+const setAccess = async (applicantId: number, enabled: boolean) =>
+  (await api.put(`/applicants/${applicantId}/portal-access`, { enabled })).data.data as { user_id: number; status: 'active' | 'inactive' }
+
+export default { get, updateProfile, listAttachments, uploadAttachment, invite, setAccess }

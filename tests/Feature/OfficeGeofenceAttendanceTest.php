@@ -42,6 +42,17 @@ class OfficeGeofenceAttendanceTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_missing_geofence_coordinates_are_both_reported_with_field_names(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
+        $response = $this->postJson('/api/offices', [
+            'name' => 'New office', 'code' => 'NEW', 'status' => 'active', 'geofence_enabled' => true,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['latitude', 'longitude']);
+        $this->assertStringContainsString('Latitude', $response->json('messages.latitude.0'));
+        $this->assertStringContainsString('Longitude', $response->json('messages.longitude.0'));
+        $this->assertDatabaseCount('offices', 0);
+    }
+
     private function position(float $latitude = 34.5553, int $accuracy = 8): array
     {
         return ['latitude' => $latitude, 'longitude' => 69.2075,

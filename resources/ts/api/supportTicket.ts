@@ -1,4 +1,4 @@
-import api from './axios'
+import api, { mutationHeaders, type ApiMutationOptions } from './axios'
 
 export type SupportTicketCategory = 'technical' | 'account' | 'billing' | 'feature_request' | 'other'
 export type SupportTicketSeverity = 'low' | 'normal' | 'high' | 'critical'
@@ -36,11 +36,17 @@ export interface CreateSupportTicketData {
 
 export class SupportTicketApiError extends Error {
   public readonly validationErrors: Record<string, string[]> | undefined
+  public readonly errors: Record<string, string[]> | undefined
+  public readonly messages: Record<string, string[]> | undefined
+  public readonly code: string | undefined
 
   constructor(error: any) {
     super(error?.message || 'Your support request could not be sent.')
     this.name = 'SupportTicketApiError'
     this.validationErrors = error?.errors
+    this.errors = error?.errors
+    this.messages = error?.messages
+    this.code = error?.code
   }
 }
 
@@ -56,7 +62,7 @@ const request = async <T>(operation: () => Promise<any>): Promise<T> => {
 }
 
 export const getSupportTickets = (limit = 50): Promise<SupportTicket[]> => request(() => api.get('/support-tickets', { params: { limit } }))
-export const createSupportTicket = (data: CreateSupportTicketData, attachments: File[] = []): Promise<SupportTicket> => {
+export const createSupportTicket = (data: CreateSupportTicketData, attachments: File[] = [], options?: ApiMutationOptions): Promise<SupportTicket> => {
   const payload = new FormData()
   Object.entries(data).forEach(([key, value]) => {
     if (value)
@@ -65,6 +71,6 @@ export const createSupportTicket = (data: CreateSupportTicketData, attachments: 
   attachments.forEach(file => payload.append('attachments[]', file))
 
   return request(() => api.post('/support-tickets', payload, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': 'multipart/form-data', ...mutationHeaders(options) },
   }))
 }

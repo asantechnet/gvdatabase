@@ -22,10 +22,19 @@ class VisitorController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $dates = $request->validate(['date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable']]);
+        $request->validate(['follow_up' => ['nullable', 'boolean']]);
         $search = $request->input('search');
 
         $query = Visitor::query()->with('counselor')
             ->when(! $request->boolean('include_converted'), fn ($query) => $query->whereNull('converted_at'));
+
+        // The visitor surface is split into two lists on one page: the Visitors
+        // list (not marked worthy of follow-up) and the Follow-up list (marked).
+        // Omitting the filter keeps the endpoint's historical "all visitors"
+        // behaviour for other consumers.
+        if ($request->has('follow_up')) {
+            $query->where('follow_up', $request->boolean('follow_up'));
+        }
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -127,6 +136,21 @@ class VisitorController extends Controller
         $visitor->delete();
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Mark or unmark a visitor as worthy of follow-up.
+     *
+     * One endpoint drives both directions so the two lists stay symmetric: the
+     * Visitors list moves a record in, the Follow-up list moves it back out.
+     */
+    public function setFollowUp(Request $request, Visitor $visitor): VisitorResource
+    {
+        $validated = $request->validate(['follow_up' => ['required', 'boolean']]);
+
+        $visitor->update(['follow_up' => $validated['follow_up']]);
+
+        return new VisitorResource($visitor->load(['counselor', 'interactions.creator']));
     }
 
     public function convertToApplicant(Visitor $visitor): ApplicantResource

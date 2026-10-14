@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import SearchApi, { type SearchGroup, type SearchHit, type SearchResponse } from '@/api/search'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 
 const toast = useToast()
 const router = useRouter()
@@ -64,6 +65,8 @@ watch(q, debounced)
 </script>
 
 <template>
+  <div class="erp-workspace">
+  <ErpPageHeader :title="$t('educational.search.title')" section="applications" />
   <VCard>
     <VCardTitle>{{ $t('educational.search.title') }}</VCardTitle>
     <VCardText>
@@ -92,4 +95,5 @@ watch(q, debounced)
       <p v-if="!totalHits" class="text-center text-medium-emphasis py-6">{{ $t('educational.search.nothingFound') }}</p>
     </VCardText>
   </VCard>
+  </div>
 </template>

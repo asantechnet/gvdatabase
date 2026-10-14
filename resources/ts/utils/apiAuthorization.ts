@@ -152,6 +152,7 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'GET /contracts/test_offer/options': ['create_contracts'],
     'GET /contracts/academy/options': ['create_contracts'],
     'POST /visitors/:id/convert-to-applicant': ['create_applicants'],
+    'PUT /visitors/:id/follow-up': ['edit_visitors'],
     'PATCH /crm/applicant/:id/notes': ['view_applicants'],
     'POST /applicants/:id/change-stage': ['change_applicant_stage'],
     'GET /applicant-portal': ['view_own_applicant_portal'],
@@ -270,6 +271,8 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
   if (path === '/announcements/:id' && requestMethod === 'GET')
     return ['send_announcements']
 
+  if (path === '/notifications/heartbeat' && requestMethod === 'GET')
+    return ['view_own_notifications']
   if (path === '/notifications' && requestMethod === 'GET')
     return ['view_own_notifications']
   if (path === '/notifications' && requestMethod === 'POST')

@@ -1,4 +1,4 @@
-import api from './axios'
+import api, { mutationHeaders, type ApiMutationOptions } from './axios'
 
 export interface Office {
   id: number
@@ -25,13 +25,13 @@ const OfficeApi = {
 
     return response.data.data
   },
-  async create(data: OfficePayload): Promise<Office> {
-    const response = await api.post('/offices', data)
+  async create(data: OfficePayload, options?: ApiMutationOptions): Promise<Office> {
+    const response = await api.post('/offices', data, { headers: mutationHeaders(options) })
 
     return response.data.data
   },
-  async update(id: number, data: OfficePayload): Promise<Office> {
-    const response = await api.put(`/offices/${id}`, data)
+  async update(id: number, data: OfficePayload, options?: ApiMutationOptions): Promise<Office> {
+    const response = await api.put(`/offices/${id}`, data, { headers: mutationHeaders(options) })
 
     return response.data.data
   },

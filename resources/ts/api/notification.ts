@@ -48,6 +48,14 @@ const request = async <T>(operation: () => Promise<any>): Promise<T> => {
   }
 }
 
+/**
+ * Real-time delivery channel. Returns the user's unread notifications that were
+ * queued since the last poll and clears the server-side flag for that batch.
+ * An empty array is the normal "nothing new" response.
+ */
+export const fetchNotificationHeartbeat = (): Promise<AppNotification[]> =>
+  request(() => api.get('/notifications/heartbeat'))
+
 export const getNotifications = (params?: { limit?: number; is_read?: boolean }): Promise<AppNotification[]> => request(() => api.get('/notifications', { params }))
 export const getNotification = (id: number): Promise<AppNotification> => request(() => api.get(`/notifications/${id}`))
 export const createNotification = (data: CreateNotificationData): Promise<AppNotification> => request(() => api.post('/notifications', data))
@@ -55,4 +63,4 @@ export const updateNotification = (id: number, data: Partial<CreateNotificationD
 export const markAllNotificationsRead = (): Promise<void> => request(() => api.patch('/notifications/mark-all-read'))
 export const deleteNotification = (id: number): Promise<void> => request(() => api.delete(`/notifications/${id}`))
 
-export default { getNotifications, getNotification, createNotification, updateNotification, markAllNotificationsRead, deleteNotification }
+export default { getNotifications, getNotification, fetchNotificationHeartbeat, createNotification, updateNotification, markAllNotificationsRead, deleteNotification }

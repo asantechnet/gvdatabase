@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { type AppNotification, deleteNotification, getNotifications, markAllNotificationsRead, updateNotification } from '@/api/notification'
 import { notificationText } from '@/utils/notificationText'
 import { openAuditNotification } from '@/utils/auditNotification'
+import { playLaunchDingOnce, useNotificationHeartbeat } from '@/composables/useNotificationHeartbeat'
 import type { Notification } from '@layouts/types'
 import { canAccess } from '@/utils/authorization'
 
@@ -40,6 +41,17 @@ async function loadNotifications() {
   catch { /* Preserve the visible inbox during a temporary background failure. */ }
 }
 
+/** Adds real-time items to the inbox, de-duped against what is already listed. */
+function mergeHeartbeatBatch(batch: AppNotification[]) {
+  const knownIds = new Set(rawNotifications.value.map(item => item.id))
+  const incoming = batch.filter(item => !knownIds.has(item.id))
+
+  if (incoming.length)
+    rawNotifications.value = [...incoming, ...rawNotifications.value]
+}
+
+const { start: startHeartbeat } = useNotificationHeartbeat(mergeHeartbeatBatch)
+
 async function setRead(ids: number[], isRead: boolean) {
   const targets = rawNotifications.value.filter(item => ids.includes(item.id) && item.is_read !== isRead)
 
@@ -73,7 +85,14 @@ async function handleNotificationClick(notification: Notification) {
 }
 
 let refreshTimer: ReturnType<typeof setInterval> | undefined
-onMounted(() => { loadNotifications(); refreshTimer = setInterval(loadNotifications, 60_000) })
+onMounted(async () => {
+  await loadNotifications()
+
+  // One chime when the app opens with unread notifications already waiting.
+  playLaunchDingOnce(rawNotifications.value.some(item => item.is_read !== true))
+  refreshTimer = setInterval(loadNotifications, 60_000)
+  startHeartbeat()
+})
 onUnmounted(() => {
   if (refreshTimer)
     clearInterval(refreshTimer)

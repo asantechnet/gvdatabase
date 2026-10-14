@@ -3,9 +3,16 @@
 namespace Tests\Feature;
 
 use App\Models\Board;
+use App\Models\Applicant;
+use App\Models\ApplicantContract;
+use App\Models\ApplicantStage;
+use App\Models\ApplicantUniversity;
 use App\Models\Country;
 use App\Models\Employee;
 use App\Models\Role;
+use App\Models\Permission;
+use App\Models\University;
+use App\Models\Visitor;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -39,6 +46,7 @@ class EducationalDashboardTest extends TestCase
 
         // The case has sat untouched for 20 days, so it counts as stuck.
         DB::table('applicant_stage_histories')->where('applicant_id', $a['id'])->update(['changed_at' => now()->subDays(20)]);
+        DB::table('applicants')->where('id', $a['id'])->update(['created_at' => now()->subDays(20)]);
 
         $data = $this->getJson('/api/educational-dashboard')->assertOk()->json('data');
 
@@ -69,5 +77,66 @@ class EducationalDashboardTest extends TestCase
 
         Sanctum::actingAs(User::factory()->create(), ['access']);
         $this->getJson('/api/educational-dashboard')->assertForbidden();
+    }
+
+    public function test_priority_counts_are_not_capped_and_new_cases_are_not_idle(): void
+    {
+        Applicant::factory()->count(12)->create(['status' => 'active', 'created_at' => now()->subDays(20)]);
+        Applicant::factory()->create(['status' => 'active']);
+
+        $data = $this->getJson('/api/educational-dashboard?date_from='.now()->toDateString())->assertOk()->json('data');
+        $this->assertSame(12, $data['attention']['counts']['stuck_applicants']);
+        $this->assertCount(10, $data['attention']['stuck_applicants']);
+        $this->assertSame(13, $data['operations']['active_cases']);
+        $this->assertSame(1, $data['pipeline']['totals']['all']);
+    }
+
+    public function test_balances_use_discounts_and_payment_overrides_and_exclude_cancelled_contracts(): void
+    {
+        $sale = $this->createBuiltInContract('scholarship', ['fee' => 500, 'discount' => 50]);
+        $line = ApplicantContract::where('contract_id', $sale['id'])->firstOrFail();
+        $line->update(['amount_paid' => 100, 'amount_paid_overridden' => true]);
+        $cancelled = $this->createBuiltInContract('academy', ['fee' => 700]);
+        DB::table('contracts')->where('id', $cancelled['id'])->update(['status' => 'cancelled', 'is_cancelled' => true]);
+
+        $university = University::create(['name' => 'Dashboard University', 'is_active' => true]);
+        ApplicantUniversity::create(['applicant_id' => $sale['applicant_id'], 'university_id' => $university->id, 'status' => 'admitted']);
+        $data = $this->getJson('/api/educational-dashboard')->assertOk()->json('data');
+        $this->assertCount(1, $data['operations']['outstanding']);
+        $this->assertEquals(350, $data['operations']['outstanding'][0]['amount']);
+        $this->assertSame(1, $data['operations']['admissions']['admitted']);
+        $this->assertSame(0, $data['sales']['academy']['sold']);
+        $this->getJson('/api/applicants?focus=outstanding')->assertOk()
+            ->assertJsonPath('data.total', 1)->assertJsonPath('data.data.0.id', $sale['applicant_id']);
+        $this->getJson('/api/applicants?focus=admitted')->assertOk()
+            ->assertJsonPath('data.total', 1)->assertJsonPath('data.data.0.id', $sale['applicant_id']);
+        $this->getJson('/api/applicants?focus=awaiting_decision')->assertOk()->assertJsonPath('data.total', 0);
+    }
+
+    public function test_overview_permission_without_an_employee_does_not_expose_the_agency(): void
+    {
+        Applicant::factory()->create(['status' => 'active']);
+        $user = User::factory()->create();
+        $role = Role::create(['name' => 'overview_only']);
+        $role->permissions()->attach(Permission::firstOrCreate(['name' => 'view_agency_overview'], ['category' => 'educational_visa']));
+        $user->roles()->attach($role);
+        Sanctum::actingAs($user, ['access']);
+
+        $this->getJson('/api/educational-dashboard')->assertOk()
+            ->assertJsonPath('data.pipeline.totals.all', 0);
+    }
+
+    public function test_current_prospects_and_contract_expiry_are_actionable_and_destination_scoped(): void
+    {
+        Visitor::create(['name' => 'Open prospect', 'contact' => '070000001', 'date' => now()->toDateString(), 'service' => 'scholarship']);
+        Visitor::create(['name' => 'Converted prospect', 'contact' => '070000002', 'date' => now()->toDateString(), 'service' => 'scholarship', 'converted_at' => now()]);
+        $country = Country::create(['name' => 'Destination', 'code' => 'DS', 'is_active' => true]);
+        $sale = $this->createBuiltInContract('scholarship', ['country_id' => $country->id]);
+        DB::table('contracts')->where('id', $sale['id'])->update(['status' => 'active', 'end_date' => now()->addDays(10)->toDateString()]);
+        $data = $this->getJson('/api/educational-dashboard')->assertOk()->json('data');
+        $this->assertSame(1, $data['operations']['prospects']);
+        $this->assertSame(1, $data['attention']['counts']['contracts_requiring_attention']);
+        $this->assertSame('applicant-case', $data['attention']['contracts_requiring_attention'][0]['route']['name']);
+        $this->getJson('/api/educational-dashboard?country_id='.$country->id)->assertOk()->assertJsonPath('data.operations.prospects', null);
     }
 }

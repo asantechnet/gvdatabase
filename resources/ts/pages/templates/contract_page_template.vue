@@ -251,15 +251,8 @@ defineExpose({
           v-if="showSignature"
           class="signature-section"
         >
-          <h3 class="signature-title">
-            {{ $t('documents.contract_page_template.contractPageTemplate.inWITNESSWHEREOFThePartiesHeretoHaveExecutedThisAgreement') }}
-          </h3>
           <div class="signature-grid">
-            <!-- Company Signature Area -->
             <div class="signature-box">
-              <!-- A fixed-height slot (mirrored by an empty slot in the
-                   contractee box) keeps the signature line, name and date
-                   aligned whether or not a signature has been loaded. -->
               <div class="signature-slot">
                 <img
                   v-if="company.signatureUrl"
@@ -269,51 +262,36 @@ defineExpose({
                 >
               </div>
               <div class="sig-line" />
-              <p class="sig-name">
-                <strong>{{ company.brandName }}</strong>
-              </p>
-              <p class="sig-sub">
-                {{ $t('documents.contract_page_template.contractPageTemplate.companyName') }}
-              </p>
-              <p
-                v-if="companySignatoryName"
-                class="sig-name"
-              >
-                <strong>{{ companySignatoryName }}</strong>
-              </p>
-              <p
-                v-if="companySignatoryName"
-                class="sig-sub"
-              >
-                {{ $t('pages.contracts.contractform.contractform.signatory') }}
-              </p>
-              <p class="sig-sub">
-                {{ $t('common.messages.authorizedSignatureDate') }}
-              </p>
+              <div class="sig-data">
+                <p
+                  v-if="companySignatoryName"
+                  class="sig-name"
+                >
+                  {{ companySignatoryName }}
+                </p>
+                <p class="sig-detail">
+                  {{ company.brandName }}
+                </p>
+              </div>
             </div>
 
-            <!-- Contractee Signature Area -->
             <div class="signature-box">
               <div
                 class="signature-slot"
                 aria-hidden="true"
               />
               <div class="sig-line" />
-              <p class="sig-name">
-                <strong>{{ contracteeName }}</strong>
-              </p>
-              <p
-                v-if="contracteeCompanyName"
-                class="sig-sub"
-              >
-                {{ contracteeCompanyName }}
-              </p>
-              <p class="sig-sub">
-                {{ $t('documents.contract_page_template.contractPageTemplate.clientContracteeName') }}
-              </p>
-              <p class="sig-sub">
-                {{ $t('common.messages.authorizedSignatureDate') }}
-              </p>
+              <div class="sig-data">
+                <p class="sig-name">
+                  {{ contracteeName }}
+                </p>
+                <p
+                  v-if="contracteeCompanyName"
+                  class="sig-detail"
+                >
+                  {{ contracteeCompanyName }}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -624,64 +602,63 @@ defineExpose({
 
 /* --- Signature Section --- */
 .signature-section {
-  margin-top: 30px;
-  padding-top: 16px;
-  border-top: 2px dashed #cbd5e1;
+  margin-top: 40px;
   break-inside: avoid;
   page-break-inside: avoid;
 }
 
-.signature-title {
-  font-size: 0.9rem;
-  color: #475569;
-  margin-bottom: 65px;
-  font-weight: 600;
-}
-
 .signature-grid {
-  display: flex;
-  justify-content: space-between;
-  gap: 40px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 56px;
 }
 
 .signature-box {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 64px 1px minmax(42px, auto);
+  min-width: 0;
 }
 
 .signature-slot {
   display: flex;
   align-items: flex-end;
-  height: 58px;
-  margin-bottom: 4px;
+  height: 64px;
+  padding-bottom: 5px;
 }
 
 .company-signature {
   width: 150px;
-  height: 58px;
+  height: 60px;
   object-fit: contain;
   object-position: left bottom;
 }
 
 .sig-line {
   height: 1px;
-  background-color: #0f172a;
-  margin-bottom: 10px;
-  width: 95%;
+  width: 100%;
+  background-color: #475569;
+}
+
+.sig-data {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 42px;
+  padding-top: 10px;
 }
 
 .sig-name {
-  margin: 0 0 4px 0;
+  margin: 0;
   font-size: 0.95rem;
+  font-weight: 700;
   color: #0f172a;
 }
 
-.sig-sub {
-  margin: 0 0 3px 0;
+.sig-detail {
+  margin: 3px 0 0;
   font-size: 0.75rem;
   color: #64748b;
-  letter-spacing: 0.3px;
 }
 
 /* 4. Footer Wrapper */

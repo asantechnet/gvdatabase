@@ -52,6 +52,15 @@ export default [
         ],
       },
 
+      // WhatsApp message templates. No `action`/`subject` gate here: a nav item
+      // supports one permission pair and this page accepts any of three (the
+      // record types it serves). The route guard and the API enforce access.
+      {
+        title: 'common.navigation.whatsappMessages',
+        icon: { icon: 'tabler-brand-whatsapp' },
+        to: 'whatsapp-messages',
+      },
+
       // {
       //   title: "common.navigation.hrm",
       //   icon: { icon: "tabler-users-group" },

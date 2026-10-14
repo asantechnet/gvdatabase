@@ -72,7 +72,7 @@ class RolePermissionSeeder extends Seeder
                 'view_skill', 'create_skill', 'edit_skill', 'view_program', 'create_program', 'edit_program',
                 'view_time', 'create_time', 'edit_time', 'view_duration', 'create_duration', 'edit_duration',
                 'view_teacher', 'create_teacher', 'edit_teacher',
-                'view_applicants', 'view_all_applicants', 'create_applicants', 'edit_applicants', 'delete_applicants', 'change_applicant_stage', 'view_applicant_stages', 'manage_applicant_stages', 'assign_applicant_employee',
+                'view_applicants', 'view_all_applicants', 'create_applicants', 'edit_applicants', 'delete_applicants', 'change_applicant_stage', 'view_applicant_stages', 'manage_applicant_stages', 'assign_applicant_employee', 'assign_admission_employee',
                 'view_applicant_financials', 'view_applicant_contracts', 'invite_applicant_portal',
                 'manage_educational_bonuses', 'view_visa_reports',
             ],

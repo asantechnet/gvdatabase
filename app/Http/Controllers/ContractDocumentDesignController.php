@@ -65,7 +65,7 @@ class ContractDocumentDesignController extends Controller
     /** @return array<string, mixed> */
     private function validated(Request $request, ?ContractDocumentDesign $design = null): array
     {
-        $data = $request->validate([
+        $validator = validator($request->all(), [
             'contract_type_id' => [($design ? 'sometimes' : 'required'), 'integer', 'exists:contract_types,id'],
             'service' => ['nullable', Rule::in(BuiltInService::ALL)],
             'service_id' => ['prohibited'],
@@ -77,7 +77,11 @@ class ContractDocumentDesignController extends Controller
             'safe_y' => ['sometimes', 'numeric', 'between:0,95'],
             'safe_width' => ['sometimes', 'numeric', 'between:5,100'],
             'safe_height' => ['sometimes', 'numeric', 'between:5,100'],
-        ]);
+        ], ['required' => __('settings.validation.required'), 'uploaded' => __('settings.validation.uploadFailed')], (array) __('settings.fields'));
+        $validator->after(fn ($validator) => \App\Support\SettingsValidation::safeArea($validator, $request->all(), $design?->getAttributes() ?? [
+            'safe_x' => 8.5, 'safe_y' => 15, 'safe_width' => 83, 'safe_height' => 70,
+        ]));
+        $data = $validator->validate();
 
         $typeId = (int) ($data['contract_type_id'] ?? $design?->contract_type_id);
         $service = array_key_exists('service', $data) ? $data['service'] : $design?->service;

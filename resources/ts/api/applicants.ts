@@ -61,6 +61,7 @@ export interface Applicant {
   skill_ids?: number[]
   teacher_ids?: number[]
   user_id?: number | null
+  portal_access_status?: 'active' | 'inactive' | null
   name: string
   father_name?: string | null
   father_phone?: string | null
@@ -94,6 +95,7 @@ export interface Applicant {
 export type ApplicantBoard = 'operation' | 'final' | 'cancelled'
 
 export interface ApplicantListParams {
+  focus?: 'outstanding' | 'admitted' | 'awaiting_decision' | 'unassigned' | ''
   service?: BuiltInService | ''
   stage?: string
   status?: 'active' | 'closed'

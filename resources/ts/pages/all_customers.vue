@@ -114,7 +114,7 @@ onMounted(async () => {
     </VCardText>
     <ResponsiveDataTableServer :headers="headers" :items="applicants" :items-length="total" :loading="loading" :page="page" :items-per-page="perPage" :items-per-page-options="[10, 25, 50, 100]" item-value="id" @update:options="updateOptions">
       <template #item.name="{ item }"><span class="crm-applicant-name" :class="{ 'crm-applicant-name--focused': String(item.id) === deepLinkContactId }">{{ item.name }}</span></template>
-      <template #item.contact="{ item }"><ContactActionMenu kind="phone" :value="item.contact" contactable-type="applicant" :contactable-id="item.id" :auto-open="String(item.id) === deepLinkContactId" /></template>
+      <template #item.contact="{ item }"><ContactActionMenu kind="phone" :value="item.contact" contactable-type="applicant" :contactable-id="item.id" audience="applicant" :context="item" :auto-open="String(item.id) === deepLinkContactId" /></template>
       <template #item.email="{ item }"><ContactActionMenu kind="email" :value="item.email" contactable-type="applicant" :contactable-id="item.id" /></template>
       <template #item.actions="{ item }"><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" /><VBtn v-if="canEdit" icon="tabler-edit" variant="text" @click="openEdit(item)" /><VBtn v-if="canDelete" icon="tabler-trash" color="error" variant="text" @click="remove(item)" /></template>
     </ResponsiveDataTableServer>

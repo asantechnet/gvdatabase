@@ -164,7 +164,7 @@ class CompanySettingsTest extends TestCase
 
     public function test_verification_email_uses_company_sender_identity(): void
     {
-        Setting::create($this->validSettings());
+        Setting::create([...$this->validSettings(), 'email_delivery_enabled' => true]);
         $user = User::factory()->unverified()->create();
 
         $mail = (new VerifyEmail)->toMail($user);

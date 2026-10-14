@@ -7,6 +7,7 @@ import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterDat
 import EmployeeApi, { type Employee } from '@/api/employee'
 import ApplicantApi, { type ApplicantStage } from '@/api/applicants'
 import EducationalReportPrint from '@/components/educational/EducationalReportPrint.vue'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
@@ -203,6 +204,7 @@ function printPage() {
   void printDocument({
     bodyClass: pagePrintClass,
     pageStyle: 'size: A4 landscape; margin: 12mm;',
+    hostPadding: '12mm',
     element: (printRef.value?.$el as HTMLElement | undefined) ?? null,
   })
 }
@@ -255,15 +257,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="education-workspace">
-    <header class="education-page-header">
-      <div><div class="education-eyebrow">{{ $t('educational.decisionReports') }}</div><h1>{{ $t('educational.visaReports') }}</h1><p>{{ $t('educational.reportsSubtitle') }}</p></div>
-      <div class="d-flex gap-2 education-header-actions"><VBtn variant="tonal" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">{{ $t('educational.filters') }}<VBadge v-if="activeFilterCount" :content="activeFilterCount" color="primary" inline /></VBtn><VBtn variant="outlined" :disabled="!report" prepend-icon="tabler-printer" @click="printPage">{{ $t('educational.printView') }}</VBtn><VBtn v-if="canExport" color="primary" :loading="exporting" prepend-icon="tabler-download" @click="download">{{ $t('educational.exportCsv') }}</VBtn></div>
-    </header>
+  <div class="education-workspace erp-workspace">
+    <!-- Same concept frame as the other Applications pages: breadcrumbs plus the
+         shared in-page navigation, with this page's own actions in the slot. -->
+    <ErpPageHeader :title="$t('educational.visaReports')" section="applications">
+      <template #actions><div class="d-flex gap-2 education-header-actions"><VBtn variant="tonal" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">{{ $t('educational.filters') }}<VBadge v-if="activeFilterCount" :content="activeFilterCount" color="primary" inline /></VBtn><VBtn variant="outlined" :disabled="!report" prepend-icon="tabler-printer" @click="printPage">{{ $t('educational.printView') }}</VBtn><VBtn v-if="canExport" color="primary" :loading="exporting" prepend-icon="tabler-download" @click="download">{{ $t('educational.exportCsv') }}</VBtn></div></template>
+    </ErpPageHeader>
 
     <VCard class="education-panel">
-      <div class="d-flex flex-wrap align-center gap-2 px-3 pt-3 report-domain-bar">
-        <VBtnToggle v-model="domain" density="comfortable" variant="tonal" color="primary" divided mandatory>
+      <div class="d-flex align-center px-3 pt-3 report-domain-bar">
+        <VBtnToggle v-model="domain" class="report-domain-toggle" density="comfortable" variant="tonal" color="primary" mandatory>
           <VBtn v-for="group in domainGroups" :key="group.value" :value="group.value" :prepend-icon="group.icon">{{ group.title }}</VBtn>
         </VBtnToggle>
       </div>
@@ -332,7 +335,7 @@ onBeforeUnmount(() => {
   body.printing-education-reports .layout-footer,
   body.printing-education-reports #app > header,
   body.printing-education-reports #app > nav,
-  body.printing-education-reports .education-page-header,
+  body.printing-education-reports .erp-page-header,
   body.printing-education-reports .education-panel { display: none !important; }
 
   body.printing-education-reports,
@@ -363,5 +366,31 @@ onBeforeUnmount(() => {
   }
 
   body.printing-education-reports .education-workspace { display: block !important; overflow: visible !important; }
+}
+
+.report-domain-bar {
+  /* Keep the report domains on the physical right edge while respecting the
+     page's active writing direction and RTL button content. */
+  justify-content: flex-end;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+[dir='rtl'] .report-domain-bar { justify-content: flex-start; }
+
+.report-domain-bar::-webkit-scrollbar { display: none; }
+
+.report-domain-toggle {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-inline-size: 100%;
+}
+
+.report-domain-toggle .v-btn {
+  flex: 0 1 auto;
+  min-inline-size: max-content;
+  border-radius: 6px !important;
 }
 </style>

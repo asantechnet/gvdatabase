@@ -16,6 +16,8 @@ export interface Visitor {
   counselor_employee_id: number | null
   counselor: Counselor | null
   notes: string | null
+  /** Marked as worthy of follow-up: shown in the Follow-up list, not in Visitors. */
+  follow_up: boolean
   date: string
   created_at?: string
   updated_at?: string
@@ -28,6 +30,8 @@ export interface VisitorParams {
   counselor_employee_id?: number | null
   date_from?: string
   date_to?: string
+  /** 1 = only follow-up worthy visitors, 0 = only the rest. Omit for every visitor. */
+  follow_up?: 0 | 1
 }
 
 export interface CreateVisitorData {
@@ -108,6 +112,19 @@ const VisitorApi = {
     }
     catch (error) {
       console.error('API update error:', error)
+      throw error
+    }
+  },
+
+  // Mark or unmark a visitor as worthy of follow-up
+  setFollowUp: async (id: number, followUp: boolean) => {
+    try {
+      const response = await api.put<{ data: Visitor }>(`/visitors/${id}/follow-up`, { follow_up: followUp })
+
+      return response.data.data
+    }
+    catch (error) {
+      console.error('API setFollowUp error:', error)
       throw error
     }
   },

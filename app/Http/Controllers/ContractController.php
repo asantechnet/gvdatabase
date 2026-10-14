@@ -182,9 +182,11 @@ class ContractController extends Controller
             'currencies' => Currency::query()->where('is_active', true)->get(['id', 'code', 'rate']),
             'languages' => Language::query()->where('is_active', true)->get(['id', 'name']),
             'employees' => $employees->get(['id', 'name']),
-            'admission_employees' => AgencyStaffAssignment::query('admission')->get(['id', 'name']),
+            'admission_employees' => $request->user()->hasPermission('assign_admission_employee')
+                ? AgencyStaffAssignment::query('admission')->get(['id', 'name'])
+                : [],
             'counselor_employees' => AgencyStaffAssignment::query('counselor')->get(['id', 'name']),
-            'template' => ($template = ContractTemplate::with(['versions' => fn ($query) => $query->where('status', 'active')->where('is_current', true)->with(['country', 'language'])])->where('service', $service)->first())
+            'template' => ($template = ContractTemplate::with(['versions' => fn ($query) => $query->where('status', 'active')->orderByDesc('is_current')->orderByDesc('version_number')->with(['country', 'language', 'test'])])->where('service', $service)->first())
                 ? new ContractTemplateResource($template) : null,
         ]]);
     }

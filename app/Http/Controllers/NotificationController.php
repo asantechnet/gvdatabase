@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -27,6 +28,42 @@ class NotificationController extends Controller
             ->orderByDesc('date_time')
             ->limit(min(max($request->integer('limit', 50), 1), 100))
             ->get();
+
+        return response()->json(['success' => true, 'data' => NotificationResource::collection($notifications)]);
+    }
+
+    /**
+     * Real-time delivery channel. Returns the user's unread notifications only
+     * while their `unread_notifications` flag is raised, then clears the flag so
+     * a batch is delivered exactly once. Cheap for the common (nothing new) case:
+     * the flag is checked before any notification content is queried.
+     */
+    public function heartbeat(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user->unread_notifications) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $notifications = DB::transaction(function () use ($request, $user) {
+            // Serialize concurrent polls on the user row so a batch cannot be
+            // returned twice when two heartbeat requests overlap.
+            $pending = (bool) User::query()->whereKey($user->getKey())->lockForUpdate()->value('unread_notifications');
+            if (! $pending) {
+                return collect();
+            }
+
+            $rows = $this->visibleTo($request, true)
+                ->orderByDesc('date_time')
+                ->limit(20)
+                ->get();
+
+            User::query()->whereKey($user->getKey())->update(['unread_notifications' => false]);
+            $user->unread_notifications = false;
+
+            return $rows;
+        });
 
         return response()->json(['success' => true, 'data' => NotificationResource::collection($notifications)]);
     }
@@ -154,14 +191,17 @@ class NotificationController extends Controller
         return $recipientIds;
     }
 
-    private function visibleTo(Request $request): Builder
+    private function visibleTo(Request $request, bool $onlyUnread = false): Builder
     {
         $userId = $request->user()->id;
 
         return Notification::query()
             ->whereHas('recipients', fn (Builder $recipients) => $recipients
                 ->whereKey($userId)
-                ->whereNull('notification_user.deleted_at'))
+                ->whereNull('notification_user.deleted_at')
+                ->when($onlyUnread, fn (Builder $unread) => $unread->where(fn (Builder $state) => $state
+                    ->whereNull('notification_user.is_read')
+                    ->orWhere('notification_user.is_read', false))))
             ->with(['recipients' => fn (BelongsToMany $recipients) => $recipients
                 ->whereKey($userId)
                 ->whereNull('notification_user.deleted_at')]);

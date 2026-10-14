@@ -56,6 +56,11 @@ export const dynamicTranslationKeys = root => {
     for (const field of match[2].matchAll(/\['key' => '([^']+)', 'label' => '[^']+'\]/g))
       used.add(`${base}.${match[1]}.fields.${field[1].split('.').slice(1).join('.')}`)
   }
+  // WhatsApp message templates declare each placeholder's label key in the
+  // registry rather than in TypeScript, so harvest those literals here too.
+  // The frontend renders them through translateOrFallback().
+  const whatsappRegistry = fs.readFileSync(path.join(root, 'app/Services/Whatsapp/WhatsappPlaceholderRegistry.php'), 'utf8')
+  for (const match of whatsappRegistry.matchAll(/'(pages\.whatsapp\.[\w.]+)'/g)) used.add(match[1])
 
   return used
 }

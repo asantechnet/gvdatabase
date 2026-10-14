@@ -28,6 +28,7 @@
     "discount": "Discount",
     "language": "Contract language",
     "created": "Contract created",
+    "currentVersion": "Current",
     "draft": "Draft",
     "active": "Active",
     "completed": "Completed",
@@ -413,6 +414,7 @@
       "closeNavigation": "Close navigation"
     },
     "navigation": {
+      "whatsappMessages": "WhatsApp Messages",
       "home": "Home",
       "finance": "Finance",
       "income": "Income",
@@ -449,6 +451,7 @@
       "settings": "Settings",
       "tasks": "Tasks",
       "visitor": "Visitors",
+      "followUpList": "Follow-up list",
       "otherContracts": "Other contracts",
       "contractTemplates": "Contract templates",
       "contractDocuments": "Templates & policies",
@@ -578,6 +581,10 @@
         "visitors": {
           "title": "Visitors report",
           "subtitle": "Filtered visitor records"
+        },
+        "followUp": {
+          "title": "Follow-up list report",
+          "subtitle": "Visitors marked as worthy of follow-up"
         },
         "columns": {
           "receipt": "Receipt",
@@ -789,6 +796,94 @@
     "no": "No"
   },
   "pages": {
+    "whatsapp": {
+      "subtitle": "Reusable WhatsApp message templates, grouped by the records they are written for.",
+      "addTemplate": "New template",
+      "editTemplate": "Edit template",
+      "searchTemplates": "Search templates",
+      "sortOrder": "Order",
+    "orderValue": "Order {order}",
+    "clearFilters": "Clear filters",
+    "showMore": "Show more",
+    "showLess": "Show less",
+    "noMatches": "No templates match these filters.",
+    "retry": "Try again",
+      "empty": "No templates in this section yet.",
+      "loadFailed": "Could not load the message templates.",
+      "deleteFailed": "Could not delete the template.",
+      "created": "Template created.",
+      "updated": "Template updated.",
+      "deleted": "Template deleted.",
+      "confirmDelete": "Delete the template \"{title}\"? Messages already sent are not affected.",
+      "titleLabel": "Title",
+      "labelsLabel": "Labels",
+      "labelsHint": "Separate labels with commas; they help you find a template later.",
+      "quickContactHeading": "WhatsApp template",
+      "audiences": {
+        "visitor": "Visitors",
+        "applicant": "Applicants",
+        "employee": "Employees"
+      },
+      "filters": {
+        "all": "All statuses"
+      },
+      "validation": {
+        "titleRequired": "A title is required.",
+        "messageRequired": "The message cannot be empty.",
+        "unknownPlaceholder": "This message uses a field that the section does not provide."
+      },
+      "editor": {
+        "bold": "Bold",
+        "italic": "Italic",
+        "strikethrough": "Strikethrough",
+        "monospace": "Monospace",
+        "insertPlaceholder": "Insert field",
+        "searchPlaceholders": "Search fields",
+        "placeholders": "Available fields",
+        "message": "Message",
+        "supportedFormatting": "WhatsApp shows plain text only: line breaks, links, emoji, and *bold*, _italic_, ~strikethrough~ and ```monospace```.",
+        "characters": "{count} / {limit} characters",
+        "tooLong": "This message is longer than the {limit} characters WhatsApp accepts.",
+        "preview": "Preview",
+        "previewSample": "With example data",
+        "previewTokens": "With fields",
+        "previewEmpty": "The preview appears here as you type."
+      },
+      "placeholders": {
+        "visitor": {
+          "name": "Full name",
+          "contact": "Phone",
+          "email": "Email",
+          "service": "Service",
+          "counselor": "Counselor",
+          "date": "Visit date"
+        },
+        "applicant": {
+          "name": "Full name",
+          "father_name": "Father name",
+          "father_phone": "Father phone",
+          "backup_phone": "Backup phone",
+          "contact": "Phone",
+          "email": "Email",
+          "address": "Address",
+          "tax_number": "Tax number",
+          "service": "Service",
+          "stage": "Current stage",
+          "responsible_employee": "Responsible employee",
+          "admission_employee": "Admission employee"
+        },
+        "employee": {
+          "name": "Full name",
+          "father_name": "Father name",
+          "contact": "Phone",
+          "email": "Email",
+          "position": "Position",
+          "department": "Department",
+          "office": "Office",
+          "join_date": "Join date"
+        }
+      }
+    },
     "auth": {
       "createPassword": {
         "invalidInvitation": "This invitation link is incomplete or expired.",
@@ -2237,7 +2332,12 @@
           "addVisitor": "Add Visitor",
           "editVisitor": "Edit Visitor",
           "deleteVisitor": "Delete Visitor",
-          "addNewVisitor": "Add New Visitor"
+          "addNewVisitor": "Add New Visitor",
+          "markForFollowUp": "Move to follow-up list",
+          "removeFromFollowUp": "Remove from follow-up list",
+          "markedForFollowUp": "Visitor moved to the follow-up list.",
+          "removedFromFollowUp": "Visitor removed from the follow-up list.",
+          "followUpUpdateFailed": "Unable to update the follow-up list."
         }
       },
       "contractform": {
@@ -4799,6 +4899,13 @@
       "visaCase": "{name} — visa case",
       "visaCaseLabel": "Visa case",
       "portalActive": "Portal active",
+      "portalDisabledStatus": "Portal disabled",
+      "disablePortal": "Disable portal",
+      "enablePortal": "Enable portal",
+      "disablePortalConfirm": "Disable this applicant's portal access now? Their account, case data, and uploads will be preserved, but all active sessions will be signed out.",
+      "enablePortalConfirm": "Restore this applicant's portal access? Their existing account and data will be available again.",
+      "portalDisabled": "Portal access disabled.",
+      "portalEnabled": "Portal access enabled.",
       "invitePortal": "Invite to portal",
       "editCase": "Edit case",
       "openTasks": "{count} open task(s)",
@@ -5136,6 +5243,7 @@
     "reportColumns": {
       "id": "ID",
       "customer": "Customer",
+      "applicant": "Applicant",
       "employee": "Employee",
       "country": "Country",
       "university": "University",
@@ -5237,6 +5345,7 @@
     "contracts": "Contracts",
     "crm": "CRM",
     "applicants": "Applicants",
+    "applications": "Applications",
     "dashboard": "Dashboard",
     "overview": "Overview",
     "required": "This field is required",
@@ -5273,5 +5382,61 @@
     "templateNotReady": "Contract template is not configured",
     "noMatchingVersion": "No active contract version matches this country and language. Configure and activate a matching version in Templates & Policies.",
     "currentPageReport": "Applicants on the current page"
+  },
+  "agencyDashboard": {
+    "noPriorityItems": "No case or contract alerts in these categories.",
+    "prospects": "Prospective students",
+    "refresh": "Refresh",
+    "applications": "Applications",
+    "reports": "Reports",
+    "unspecifiedCurrency": "Unspecified currency",
+    "periodHelp": "Dates filter case cohorts and posted financial records. Live priorities, balances and admissions remain current.",
+    "liveOperations": "Current operations · all dates",
+    "unassigned": "{count} without a counselor",
+    "actionItems": "Action items",
+    "itemsNotCases": "Tasks, cases, contracts and approvals",
+    "toCollect": "Still to collect",
+    "balanceHelp": "After discounts and recorded payments",
+    "admitted": "University offers received",
+    "awaitingDecision": "{count} applications awaiting a decision",
+    "caseProgress": "Where are our cases?",
+    "pipelineHelp": "Case count by current stage · selected creation period",
+    "admissionsHelp": "University applications · current status, all dates",
+    "priorities": "What needs action?",
+    "priorityHelp": "Oldest items first · cases idle for 14+ days",
+    "documentsAwaited": "Cases awaiting attachments",
+    "moneyAndSales": "Money & service sales",
+    "postedPeriod": "Posted records · selected period or all dates",
+    "serviceCountHelp": "Service lines sold · excludes cancelled and terminated agreements",
+    "teamWorkload": "Who has the workload?",
+    "teamHelp": "Top 6 counselors by active cases · selected case cohort",
+    "destinations": "Where are applicants going?",
+    "destinationHelp": "Active / total cases · selected case cohort",
+    "universitiesHelp": "Top universities · admitted / total applications in the period",
+    "noAdmissions": "No university applications recorded",
+    "serviceProgress": "Contracted service progress",
+    "serviceProgressHelp": "Current stages of service lines · all dates",
+    "noStage": "No stage assigned"
+  },
+  "contractPrintDialog": {
+    "title": "Make it official",
+    "subtitle": "A new chapter deserves a well-presented agreement."
+  },
+  "settingsValidation": {
+    "websiteURL": "{field} must be a full website URL starting with http:// or https://.",
+    "smtpHost": "{field} must be a hostname or IP address, such as smtp.example.com. Enter the port separately; do not include a URL prefix.",
+    "required": "{field} is required. Enter a value before saving.",
+    "color": "{field} must use a six-digit hexadecimal color, such as #7367F0.",
+    "image": "{field} must be one of these image types: {types}.",
+    "fileSize": "{field} must be no larger than {size} MB.",
+    "uploadFailed": "{field} could not be uploaded. Choose the image again and retry.",
+    "moreErrors": "{count} more fields need correction.",
+    "lightBackground": "Light mode background",
+    "lightSurface": "Light mode cards and menus",
+    "darkBackground": "Dark mode background",
+    "darkSurface": "Dark mode cards and menus",
+    "safeWidth": "{field}: horizontal offset plus width cannot exceed 100%. Reduce the offset or width.",
+    "safeHeight": "{field}: vertical offset plus height cannot exceed 100%. Reduce the offset or height.",
+    "saveFailed": "Could not save settings. Correct the highlighted fields and try again."
   }
 }

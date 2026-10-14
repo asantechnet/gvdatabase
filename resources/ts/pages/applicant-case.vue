@@ -42,6 +42,7 @@ const canCreateTask = computed(() => canAccess('create_tasks'))
 const canEditCase = computed(() => canAccess('edit_applicants'))
 const canInvitePortal = computed(() => canAccess('invite_applicant_portal'))
 const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
+const canAssignAdmission = computed(() => canAccess('assign_admission_employee'))
 const canViewFinance = computed(() => canAccess('view_applicant_financials'))
 const canCreatePendingTransactions = computed(() => canAccess('create_pending_transactions'))
 // Shared contact and service details remain visible beside the case title.
@@ -128,6 +129,7 @@ const countries = ref<MasterDataRecord[]>([])
 const levels = ref<MasterDataRecord[]>([])
 const semesters = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
+const admissionEmployees = ref<Employee[]>([])
 const uniDialog = ref(false)
 const savingUni = ref(false)
 const uniForm = ref({ university_id: null as number | null, semester_id: null as number | null, status: 'pending', intake: '', notes: '' })
@@ -136,10 +138,12 @@ const statusColor = (status: string) => ({ pending: 'secondary', applied: 'info'
 
 const editDialog = ref(false)
 const savingCase = ref(false)
-const editForm = ref({ father_name: '', father_phone: '', backup_phone: '', responsible_employee_id: null as number | null })
+const editForm = ref({ father_name: '', father_phone: '', backup_phone: '', responsible_employee_id: null as number | null, admission_employee_id: null as number | null })
 const serviceForm = ref<ApplicantPayload>({ service: 'scholarship' })
 const portalDialog = ref(false)
 const sendingPortalInvite = ref(false)
+const portalAccessDialog = ref(false)
+const updatingPortalAccess = ref(false)
 const portalForm = ref({ name: '', email: '', phone: '', address: '' })
 const financeDialog = ref(false)
 const savingFinance = ref(false)
@@ -377,6 +381,7 @@ function openEditCase() {
     father_phone: applicant.value.father_phone ?? '',
     backup_phone: applicant.value.backup_phone ?? '',
     responsible_employee_id: applicant.value.responsible_employee_id ?? null,
+    admission_employee_id: applicant.value.admission_employee_id ?? null,
   }
   serviceForm.value = { service: applicant.value.service, ...applicant.value.details, favorite_subject_ids: [...(applicant.value.favorite_subject_ids ?? [])], skill_ids: [...(applicant.value.skill_ids ?? [])], teacher_ids: [...(applicant.value.teacher_ids ?? [])] }
   editDialog.value = true
@@ -419,6 +424,23 @@ async function sendPortalInvite() {
   }
 }
 
+async function updatePortalAccess() {
+  if (!applicant.value?.user_id)
+    return
+
+  updatingPortalAccess.value = true
+  try {
+    const enabled = applicant.value.portal_access_status !== 'active'
+    await ApplicantPortalApi.setAccess(applicant.value.id, enabled)
+    portalAccessDialog.value = false
+    await load()
+    toast.success(t(enabled ? 'educational.caseUi.portalEnabled' : 'educational.caseUi.portalDisabled'))
+  }
+  finally {
+    updatingPortalAccess.value = false
+  }
+}
+
 async function saveCase() {
   if (!applicant.value)
     return
@@ -428,6 +450,8 @@ async function saveCase() {
     const payload: ApplicantPayload = { ...applicantServicePayload(serviceForm.value), father_name: editForm.value.father_name || null, father_phone: editForm.value.father_phone || null, backup_phone: editForm.value.backup_phone || null }
     if (canAssignEmployee.value)
       payload.responsible_employee_id = editForm.value.responsible_employee_id
+    if (canAssignAdmission.value)
+      payload.admission_employee_id = editForm.value.admission_employee_id
 
     applicant.value = await ApplicantApi.update(applicant.value.id, payload)
     editDialog.value = false
@@ -585,12 +609,13 @@ onMounted(async () => {
   await loadBoards()
 
   try {
-    const [universityRows, countryRows, levelRows, semesterRows, employeeRows] = await Promise.all([
+    const [universityRows, countryRows, levelRows, semesterRows, employeeRows, admissionRows] = await Promise.all([
       MasterDataApi.list('universities'),
       MasterDataApi.list('countries'),
       MasterDataApi.list('education-levels'),
       MasterDataApi.list('semesters'),
       EmployeeApi.getOptions(),
+      canAssignAdmission.value ? EmployeeApi.getAssignmentOptions('admission') : Promise.resolve([]),
     ])
 
     universities.value = universityRows
@@ -598,6 +623,7 @@ onMounted(async () => {
     levels.value = levelRows
     semesters.value = semesterRows
     employees.value = employeeRows
+    admissionEmployees.value = admissionRows
   }
   catch {
     toast.error(t('educational.caseUi.loadUniversitiesFailed'))
@@ -609,11 +635,12 @@ onMounted(async () => {
     <VCardTitle class="d-flex flex-wrap align-center ga-2">
       <RouterLink class="case-title-link" :to="{ name: 'all-customers', query: { contact: applicant.id } }" :title="t('educational.openContactInCrm')">{{ applicant.name }}</RouterLink>
       <span class="text-caption text-medium-emphasis">{{ t('educational.caseUi.visaCaseLabel') }}</span>
-      <ContactActionMenu v-if="applicant.contact" kind="phone" :value="applicant.contact" contactable-type="applicant" :contactable-id="applicant.id" />
+      <ContactActionMenu v-if="applicant.contact" kind="phone" :value="applicant.contact" contactable-type="applicant" :contactable-id="applicant.id" audience="applicant" :context="applicant" />
       <ContactActionMenu v-if="applicant.email" kind="email" :value="applicant.email" contactable-type="applicant" :contactable-id="applicant.id" />
       <CrmRelationshipDetails type="applicant" :id="applicant.id" :title="applicant.name" />
       <VSpacer />
-      <VChip v-if="applicant.user_id" size="small" color="success">{{ t('educational.caseUi.portalActive') }}</VChip>
+      <VChip v-if="applicant.user_id" size="small" :color="applicant.portal_access_status === 'active' ? 'success' : 'warning'">{{ t(applicant.portal_access_status === 'active' ? 'educational.caseUi.portalActive' : 'educational.caseUi.portalDisabledStatus') }}</VChip>
+      <VBtn v-if="applicant.user_id && canInvitePortal" size="small" variant="tonal" :color="applicant.portal_access_status === 'active' ? 'error' : 'success'" :prepend-icon="applicant.portal_access_status === 'active' ? 'tabler-lock' : 'tabler-lock-open'" @click="portalAccessDialog = true">{{ t(applicant.portal_access_status === 'active' ? 'educational.caseUi.disablePortal' : 'educational.caseUi.enablePortal') }}</VBtn>
       <VBtn v-else-if="canInvitePortal" size="small" variant="tonal" color="primary" prepend-icon="tabler-send" @click="openPortalInvite">{{ t('educational.caseUi.invitePortal') }}</VBtn>
       <VBtn v-if="canEditCase" size="small" variant="text" prepend-icon="tabler-pencil" @click="openEditCase">{{ t('educational.caseUi.editCase') }}</VBtn>
     </VCardTitle>
@@ -773,6 +800,7 @@ onMounted(async () => {
     <VCard :title="t('educational.caseUi.editCase')">
       <VCardText class="case-dialog-body">
         <ErpField kind="select" v-if="canAssignEmployee && applicant?.service !== 'academy'" v-model="editForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="t('educational.responsibleEmployee')" clearable class="mb-3" />
+        <ErpField kind="select" v-if="canAssignAdmission && applicant?.service !== 'academy'" v-model="editForm.admission_employee_id" :items="admissionEmployees.map(e => ({ title: e.name, value: e.id }))" :label="t('agencyStaff.admission')" clearable class="mb-3" />
         <VRow dense>
           <VCol cols="12" sm="6"><ErpField v-model="editForm.father_name" :label="t('educational.fatherName')" clearable class="mb-3" /></VCol>
           <VCol cols="12" sm="6"><ErpField v-model="editForm.father_phone" :label="t('educational.fatherPhone')" clearable class="mb-3" /></VCol>
@@ -784,6 +812,16 @@ onMounted(async () => {
         <VSpacer />
         <VBtn color="secondary" variant="tonal" @click="editDialog = false">{{ t('common.actions.cancel') }}</VBtn>
         <VBtn color="primary" variant="flat" :loading="savingCase" @click="saveCase">{{ t('common.actions.save') }}</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+  <VDialog v-model="portalAccessDialog" max-width="520">
+    <VCard :title="t(applicant?.portal_access_status === 'active' ? 'educational.caseUi.disablePortal' : 'educational.caseUi.enablePortal')">
+      <VCardText>{{ t(applicant?.portal_access_status === 'active' ? 'educational.caseUi.disablePortalConfirm' : 'educational.caseUi.enablePortalConfirm') }}</VCardText>
+      <VCardActions>
+        <VSpacer />
+        <VBtn variant="tonal" color="secondary" @click="portalAccessDialog = false">{{ t('common.actions.cancel') }}</VBtn>
+        <VBtn :color="applicant?.portal_access_status === 'active' ? 'error' : 'success'" :loading="updatingPortalAccess" @click="updatePortalAccess">{{ t('common.actions.confirm') }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

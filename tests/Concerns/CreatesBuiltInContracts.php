@@ -13,7 +13,7 @@ trait CreatesBuiltInContracts
         $language = Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'is_active' => true]);
         $template = app(BuiltInContractTemplateService::class)->ensure($service);
         $countryId = in_array($service, ['scholarship', 'private'], true) ? ($data['country_id'] ?? null) : null;
-        $template->versions()->firstOrCreate([
+        $version = $template->versions()->firstOrCreate([
             'current_scope_key' => "{$template->id}:".($countryId ?? 0).":{$language->id}",
         ], [
             'language_id' => $language->id, 'country_id' => $countryId, 'version_number' => 1,
@@ -24,7 +24,7 @@ trait CreatesBuiltInContracts
         $payload = [...[
             'name' => 'Built-in applicant', 'fee' => 100, 'discount' => 0,
             'currency_id' => Currency::factory()->create(['rate' => 1])->id, 'currency_rate' => 1,
-            'language_id' => $language->id, 'start_date' => now()->toDateString(),
+            'language_id' => $language->id, 'contract_template_version_id' => $version->id,
         ], ...$data];
         if (! empty($data['parent_contract_id'])) {
             unset($payload['name']);

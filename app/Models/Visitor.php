@@ -21,11 +21,12 @@ class Visitor extends Model
         'service',
         'notes',
         'converted_at',
+        'follow_up',
         'date',
     ];
 
     protected $casts = [
-        'date' => 'date', 'converted_at' => 'immutable_datetime',
+        'date' => 'date', 'converted_at' => 'immutable_datetime', 'follow_up' => 'boolean',
     ];
 
     public function interactions(): MorphMany

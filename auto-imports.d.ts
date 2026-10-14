@@ -12,10 +12,15 @@ declare global {
   const EffectScope: typeof import('vue')['EffectScope']
   const PLACEHOLDER_SPAN_PATTERN: typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']
   const SUPPORT_CONTACT: typeof import('./resources/ts/utils/constants')['SUPPORT_CONTACT']
+  const WHATSAPP_AUDIENCES: typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_AUDIENCES']
+  const WHATSAPP_AUDIENCE_TABS: typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_AUDIENCE_TABS']
+  const WHATSAPP_FORMAT_TOKENS: typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_FORMAT_TOKENS']
+  const WHATSAPP_MESSAGE_LIMIT: typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_MESSAGE_LIMIT']
   const academySlipCopies: typeof import('./resources/ts/utils/printAcademySlip')['academySlipCopies']
   const academySlipPrintLayout: typeof import('./resources/ts/utils/printAcademySlip')['academySlipPrintLayout']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
   const actionWarningState: typeof import('./resources/ts/composables/useActionWarning')['actionWarningState']
+  const activeWhatsappTemplates: typeof import('./resources/ts/composables/useWhatsappTemplates')['activeWhatsappTemplates']
   const addContractMonths: typeof import('./resources/ts/utils/contractExpiry')['addContractMonths']
   const alphaDashValidator: typeof import('./resources/ts/@core/utils/validators')['alphaDashValidator']
   const alphaValidator: typeof import('./resources/ts/@core/utils/validators')['alphaValidator']
@@ -32,6 +37,7 @@ declare global {
   const avatarText: typeof import('./resources/ts/@core/utils/formatters')['avatarText']
   const betweenValidator: typeof import('./resources/ts/@core/utils/validators')['betweenValidator']
   const buildContractPrintHeader: typeof import('./resources/ts/composables/useContractPrintHeader')['buildContractPrintHeader']
+  const buildWhatsappUrl: typeof import('./resources/ts/utils/whatsappTemplates')['buildWhatsappUrl']
   const calendarDate: typeof import('./resources/ts/utils/calendarDate')['calendarDate']
   const calendarDurationUntil: typeof import('./resources/ts/utils/contractExpiry')['calendarDurationUntil']
   const canAccess: typeof import('./resources/ts/utils/authorization')['canAccess']
@@ -111,6 +117,7 @@ declare global {
   const inject: typeof import('vue')['inject']
   const injectLocal: typeof import('@vueuse/core')['injectLocal']
   const integerValidator: typeof import('./resources/ts/@core/utils/validators')['integerValidator']
+  const invalidateWhatsappTemplates: typeof import('./resources/ts/composables/useWhatsappTemplates')['invalidateWhatsappTemplates']
   const isActionWarningDismissed: typeof import('./resources/ts/composables/useActionWarning')['isActionWarningDismissed']
   const isApiRequestAllowed: typeof import('./resources/ts/utils/apiAuthorization')['isApiRequestAllowed']
   const isDarkPreferred: typeof import('./src/@core/composable/useThemeConfig')['isDarkPreferred']
@@ -165,6 +172,7 @@ declare global {
   const onWatcherCleanup: typeof import('vue')['onWatcherCleanup']
   const openAuditNotification: typeof import('./resources/ts/utils/auditNotification')['openAuditNotification']
   const paginationMeta: typeof import('./resources/ts/utils/paginationMeta')['paginationMeta']
+  const parseWhatsappLabels: typeof import('./resources/ts/utils/whatsappTemplates')['parseWhatsappLabels']
   const partyDetailsFor: typeof import('./resources/ts/utils/contractPartyDetails')['partyDetailsFor']
   const passwordValidator: typeof import('./resources/ts/@core/utils/validators')['passwordValidator']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
@@ -173,6 +181,8 @@ declare global {
   const permissionsForApiRequest: typeof import('./resources/ts/utils/apiAuthorization')['permissionsForApiRequest']
   const persistThemeColors: typeof import('./resources/ts/utils/themePersistence')['persistThemeColors']
   const placeholderLabels: typeof import('./resources/ts/utils/contractPlaceholders')['placeholderLabels']
+  const playLaunchDingOnce: typeof import('./resources/ts/composables/useNotificationHeartbeat')['playLaunchDingOnce']
+  const playNotificationDing: typeof import('./resources/ts/composables/useNotificationHeartbeat')['playNotificationDing']
   const prefixWithPlus: typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']
   const printAcademySlip: typeof import('./resources/ts/utils/printAcademySlip')['printAcademySlip']
   const printDocument: typeof import('./resources/ts/utils/printDocument')['printDocument']
@@ -198,6 +208,7 @@ declare global {
   const regexValidator: typeof import('./resources/ts/@core/utils/validators')['regexValidator']
   const registerPlugins: typeof import('./resources/ts/@core/utils/plugins')['registerPlugins']
   const registerPlugins_: typeof import('./src/@core/utils/plugins')['registerPlugins_']
+  const renderWhatsappMessage: typeof import('./resources/ts/utils/whatsappTemplates')['renderWhatsappMessage']
   const replaceFormErrors: typeof import('./resources/ts/utils/formErrors')['replaceFormErrors']
   const requiredValidator: typeof import('./resources/ts/@core/utils/validators')['requiredValidator']
   const resolveActionWarning: typeof import('./resources/ts/composables/useActionWarning')['resolveActionWarning']
@@ -237,6 +248,7 @@ declare global {
   const toRef: typeof import('vue')['toRef']
   const toRefs: typeof import('vue')['toRefs']
   const toValue: typeof import('vue')['toValue']
+  const toggleWhatsappWrapping: typeof import('./resources/ts/utils/whatsappTemplates')['toggleWhatsappWrapping']
   const translate: typeof import('./resources/ts/utils/localization')['translate']
   const translateApplicantStage: typeof import('./resources/ts/utils/localization')['translateApplicantStage']
   const translateBackendValue: typeof import('./resources/ts/utils/localization')['translateBackendValue']
@@ -365,6 +377,7 @@ declare global {
   const useMutationObserver: typeof import('@vueuse/core')['useMutationObserver']
   const useNavigatorLanguage: typeof import('@vueuse/core')['useNavigatorLanguage']
   const useNetwork: typeof import('@vueuse/core')['useNetwork']
+  const useNotificationHeartbeat: typeof import('./resources/ts/composables/useNotificationHeartbeat')['useNotificationHeartbeat']
   const useNow: typeof import('@vueuse/core')['useNow']
   const useObjectUrl: typeof import('@vueuse/core')['useObjectUrl']
   const useOffsetPagination: typeof import('@vueuse/core')['useOffsetPagination']
@@ -399,6 +412,7 @@ declare global {
   const useScrollLock: typeof import('@vueuse/core')['useScrollLock']
   const useServiceContractNavigation: typeof import('./resources/ts/composables/useServiceContractNavigation')['useServiceContractNavigation']
   const useSessionStorage: typeof import('@vueuse/core')['useSessionStorage']
+  const useSettingsValidation: typeof import('./resources/ts/composables/useSettingsValidation')['useSettingsValidation']
   const useShare: typeof import('@vueuse/core')['useShare']
   const useSkins: typeof import('./resources/ts/@core/composable/useSkins')['useSkins']
   const useSlots: typeof import('vue')['useSlots']
@@ -443,6 +457,7 @@ declare global {
   const useWebSocket: typeof import('@vueuse/core')['useWebSocket']
   const useWebWorker: typeof import('@vueuse/core')['useWebWorker']
   const useWebWorkerFn: typeof import('@vueuse/core')['useWebWorkerFn']
+  const useWhatsappTemplates: typeof import('./resources/ts/composables/useWhatsappTemplates')['useWhatsappTemplates']
   const useWindowFocus: typeof import('@vueuse/core')['useWindowFocus']
   const useWindowScroll: typeof import('@vueuse/core')['useWindowScroll']
   const useWindowSize: typeof import('@vueuse/core')['useWindowSize']
@@ -463,6 +478,11 @@ declare global {
   const watchThrottled: typeof import('@vueuse/core')['watchThrottled']
   const watchTriggerable: typeof import('@vueuse/core')['watchTriggerable']
   const watchWithFilter: typeof import('@vueuse/core')['watchWithFilter']
+  const whatsappPhoneDigits: typeof import('./resources/ts/utils/whatsappTemplates')['whatsappPhoneDigits']
+  const whatsappPlaceholderFields: typeof import('./resources/ts/composables/useWhatsappTemplates')['whatsappPlaceholderFields']
+  const whatsappPreviewHtml: typeof import('./resources/ts/utils/whatsappTemplates')['whatsappPreviewHtml']
+  const whatsappSampleRecord: typeof import('./resources/ts/utils/whatsappTemplates')['whatsappSampleRecord']
+  const whatsappTemplateTokens: typeof import('./resources/ts/utils/whatsappTemplates')['whatsappTemplateTokens']
   const whenever: typeof import('@vueuse/core')['whenever']
 }
 // for type re-export
@@ -481,10 +501,15 @@ declare module 'vue' {
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly PLACEHOLDER_SPAN_PATTERN: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']>
     readonly SUPPORT_CONTACT: UnwrapRef<typeof import('./resources/ts/utils/constants')['SUPPORT_CONTACT']>
+    readonly WHATSAPP_AUDIENCES: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_AUDIENCES']>
+    readonly WHATSAPP_AUDIENCE_TABS: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_AUDIENCE_TABS']>
+    readonly WHATSAPP_FORMAT_TOKENS: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_FORMAT_TOKENS']>
+    readonly WHATSAPP_MESSAGE_LIMIT: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_MESSAGE_LIMIT']>
     readonly academySlipCopies: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['academySlipCopies']>
     readonly academySlipPrintLayout: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['academySlipPrintLayout']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly actionWarningState: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['actionWarningState']>
+    readonly activeWhatsappTemplates: UnwrapRef<typeof import('./resources/ts/composables/useWhatsappTemplates')['activeWhatsappTemplates']>
     readonly alphaDashValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['alphaDashValidator']>
     readonly alphaValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['alphaValidator']>
     readonly apiErrorMessage: UnwrapRef<typeof import('./resources/ts/utils/apiErrors')['apiErrorMessage']>
@@ -499,6 +524,7 @@ declare module 'vue' {
     readonly avatarText: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['avatarText']>
     readonly betweenValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['betweenValidator']>
     readonly buildContractPrintHeader: UnwrapRef<typeof import('./resources/ts/composables/useContractPrintHeader')['buildContractPrintHeader']>
+    readonly buildWhatsappUrl: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['buildWhatsappUrl']>
     readonly calendarDate: UnwrapRef<typeof import('./resources/ts/utils/calendarDate')['calendarDate']>
     readonly canAccess: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canAccess']>
     readonly canLoadImage: UnwrapRef<typeof import('./resources/ts/utils/printArtwork')['canLoadImage']>
@@ -572,6 +598,7 @@ declare module 'vue' {
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly integerValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['integerValidator']>
+    readonly invalidateWhatsappTemplates: UnwrapRef<typeof import('./resources/ts/composables/useWhatsappTemplates')['invalidateWhatsappTemplates']>
     readonly isActionWarningDismissed: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['isActionWarningDismissed']>
     readonly isApiRequestAllowed: UnwrapRef<typeof import('./resources/ts/utils/apiAuthorization')['isApiRequestAllowed']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
@@ -623,6 +650,7 @@ declare module 'vue' {
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
     readonly openAuditNotification: UnwrapRef<typeof import('./resources/ts/utils/auditNotification')['openAuditNotification']>
     readonly paginationMeta: UnwrapRef<typeof import('./resources/ts/utils/paginationMeta')['paginationMeta']>
+    readonly parseWhatsappLabels: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['parseWhatsappLabels']>
     readonly partyDetailsFor: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['partyDetailsFor']>
     readonly passwordValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['passwordValidator']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
@@ -631,6 +659,8 @@ declare module 'vue' {
     readonly permissionsForApiRequest: UnwrapRef<typeof import('./resources/ts/utils/apiAuthorization')['permissionsForApiRequest']>
     readonly persistThemeColors: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['persistThemeColors']>
     readonly placeholderLabels: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['placeholderLabels']>
+    readonly playLaunchDingOnce: UnwrapRef<typeof import('./resources/ts/composables/useNotificationHeartbeat')['playLaunchDingOnce']>
+    readonly playNotificationDing: UnwrapRef<typeof import('./resources/ts/composables/useNotificationHeartbeat')['playNotificationDing']>
     readonly prefixWithPlus: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']>
     readonly printAcademySlip: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['printAcademySlip']>
     readonly printDocument: UnwrapRef<typeof import('./resources/ts/utils/printDocument')['printDocument']>
@@ -655,6 +685,7 @@ declare module 'vue' {
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
     readonly regexValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['regexValidator']>
     readonly registerPlugins: UnwrapRef<typeof import('./resources/ts/@core/utils/plugins')['registerPlugins']>
+    readonly renderWhatsappMessage: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['renderWhatsappMessage']>
     readonly replaceFormErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['replaceFormErrors']>
     readonly requiredValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['requiredValidator']>
     readonly resolveActionWarning: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['resolveActionWarning']>
@@ -694,6 +725,7 @@ declare module 'vue' {
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>
     readonly toRefs: UnwrapRef<typeof import('vue')['toRefs']>
     readonly toValue: UnwrapRef<typeof import('vue')['toValue']>
+    readonly toggleWhatsappWrapping: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['toggleWhatsappWrapping']>
     readonly translate: UnwrapRef<typeof import('./resources/ts/utils/localization')['translate']>
     readonly translateApplicantStage: UnwrapRef<typeof import('./resources/ts/utils/localization')['translateApplicantStage']>
     readonly translateBackendValue: UnwrapRef<typeof import('./resources/ts/utils/localization')['translateBackendValue']>
@@ -819,6 +851,7 @@ declare module 'vue' {
     readonly useMutationObserver: UnwrapRef<typeof import('@vueuse/core')['useMutationObserver']>
     readonly useNavigatorLanguage: UnwrapRef<typeof import('@vueuse/core')['useNavigatorLanguage']>
     readonly useNetwork: UnwrapRef<typeof import('@vueuse/core')['useNetwork']>
+    readonly useNotificationHeartbeat: UnwrapRef<typeof import('./resources/ts/composables/useNotificationHeartbeat')['useNotificationHeartbeat']>
     readonly useNow: UnwrapRef<typeof import('@vueuse/core')['useNow']>
     readonly useObjectUrl: UnwrapRef<typeof import('@vueuse/core')['useObjectUrl']>
     readonly useOffsetPagination: UnwrapRef<typeof import('@vueuse/core')['useOffsetPagination']>
@@ -850,6 +883,7 @@ declare module 'vue' {
     readonly useScroll: UnwrapRef<typeof import('@vueuse/core')['useScroll']>
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
     readonly useSessionStorage: UnwrapRef<typeof import('@vueuse/core')['useSessionStorage']>
+    readonly useSettingsValidation: UnwrapRef<typeof import('./resources/ts/composables/useSettingsValidation')['useSettingsValidation']>
     readonly useShare: UnwrapRef<typeof import('@vueuse/core')['useShare']>
     readonly useSkins: UnwrapRef<typeof import('./resources/ts/@core/composable/useSkins')['useSkins']>
     readonly useSlots: UnwrapRef<typeof import('vue')['useSlots']>
@@ -892,6 +926,7 @@ declare module 'vue' {
     readonly useWebSocket: UnwrapRef<typeof import('@vueuse/core')['useWebSocket']>
     readonly useWebWorker: UnwrapRef<typeof import('@vueuse/core')['useWebWorker']>
     readonly useWebWorkerFn: UnwrapRef<typeof import('@vueuse/core')['useWebWorkerFn']>
+    readonly useWhatsappTemplates: UnwrapRef<typeof import('./resources/ts/composables/useWhatsappTemplates')['useWhatsappTemplates']>
     readonly useWindowFocus: UnwrapRef<typeof import('@vueuse/core')['useWindowFocus']>
     readonly useWindowScroll: UnwrapRef<typeof import('@vueuse/core')['useWindowScroll']>
     readonly useWindowSize: UnwrapRef<typeof import('@vueuse/core')['useWindowSize']>
@@ -911,6 +946,11 @@ declare module 'vue' {
     readonly watchThrottled: UnwrapRef<typeof import('@vueuse/core')['watchThrottled']>
     readonly watchTriggerable: UnwrapRef<typeof import('@vueuse/core')['watchTriggerable']>
     readonly watchWithFilter: UnwrapRef<typeof import('@vueuse/core')['watchWithFilter']>
+    readonly whatsappPhoneDigits: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['whatsappPhoneDigits']>
+    readonly whatsappPlaceholderFields: UnwrapRef<typeof import('./resources/ts/composables/useWhatsappTemplates')['whatsappPlaceholderFields']>
+    readonly whatsappPreviewHtml: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['whatsappPreviewHtml']>
+    readonly whatsappSampleRecord: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['whatsappSampleRecord']>
+    readonly whatsappTemplateTokens: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['whatsappTemplateTokens']>
     readonly whenever: UnwrapRef<typeof import('@vueuse/core')['whenever']>
   }
 }

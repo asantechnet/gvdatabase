@@ -211,20 +211,30 @@ const executePrint = async () => {
 <template>
   <VDialog
     :model-value="dialogOpen"
-    max-width="480"
+    max-width="520"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <VCard>
-      <VCardTitle class="d-flex align-center gap-2">
-        <VIcon icon="tabler-printer" />
-        <span>{{ $t('pages.contracts.allContracts.allContracts.printContractOptions') }}</span>
-      </VCardTitle>
+    <VCard class="contract-print-dialog" rounded="lg">
+      <div class="contract-print-dialog__hero">
+        <VAvatar class="contract-print-dialog__seal" size="52" rounded="lg">
+          <VIcon icon="tabler-signature" size="28" />
+        </VAvatar>
+        <div class="flex-grow-1">
+          <h2 class="text-h5 font-weight-bold mb-1">{{ $t('contractPrintDialog.title') }}</h2>
+          <p class="text-body-2 text-medium-emphasis mb-0">{{ $t('contractPrintDialog.subtitle') }}</p>
+        </div>
+      </div>
       <VCardText>
-        <p class="mb-4">
-          {{ $t('pages.contracts.allContracts.allContracts.prepare') }} <strong>{{ documentContract?.contract || documentContract?.contract_template?.name
-            || $t('pages.contracts.allContracts.allContracts.untitledContract') }}</strong> {{ $t('pages.contracts.allContracts.allContracts.forA4PrintingTheDocumentWillIncludeTheCoverPageAndAllContractTerms') }}
-        </p>
-        <div class="d-flex flex-column gap-2">
+        <div class="contract-print-dialog__document mb-5">
+          <VIcon icon="tabler-file-description" color="primary" size="24" />
+          <div class="contract-print-dialog__identity">
+            <strong class="text-body-1 font-weight-medium">{{ printedTitle }}</strong>
+            <span v-if="documentContract?.contract_number" class="text-caption text-medium-emphasis">{{ documentContract.contract_number }}</span>
+          </div>
+          <VChip color="primary" variant="tonal" size="small" class="flex-shrink-0">A4</VChip>
+        </div>
+        <h3 class="text-subtitle-2 mb-2">{{ $t('pages.contracts.allContracts.allContracts.printContractOptions') }}</h3>
+        <div class="contract-print-dialog__options d-flex flex-column gap-1">
           <VCheckbox
             v-model="includeSignatureSection"
             :label="$t('pages.contracts.allContracts.allContracts.includeFormalSignatureStampSectionAtTheEnd')"
@@ -267,16 +277,20 @@ const executePrint = async () => {
           />
         </div>
       </VCardText>
-      <VCardActions class="justify-end px-4 pb-4">
+      <VCardActions class="contract-print-dialog__actions px-6 py-4 gap-3">
         <VBtn
-          variant="outlined"
+          variant="text"
           color="secondary"
           @click="emit('update:modelValue', false)"
         >
           {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
+          class="contract-print-dialog__print"
           color="primary"
+          variant="flat"
+          size="large"
+          prepend-icon="tabler-printer"
           :disabled="!documentContract"
           @click="executePrint"
         >
@@ -341,3 +355,77 @@ const executePrint = async () => {
     </template>
   </div>
 </template>
+
+<style scoped>
+.contract-print-dialog {
+  border-block-start: 3px solid rgb(var(--v-theme-primary));
+}
+
+.contract-print-dialog__hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  background: linear-gradient(120deg, rgba(var(--v-theme-primary), 0.1), rgba(var(--v-theme-primary), 0.02));
+}
+
+.contract-print-dialog__seal {
+  flex-shrink: 0;
+  color: rgb(var(--v-theme-primary));
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-primary), 0.18);
+  box-shadow: 0 4px 16px rgba(var(--v-theme-primary), 0.1);
+}
+
+.contract-print-dialog__document {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.contract-print-dialog__identity {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.contract-print-dialog__options :deep(.v-label) {
+  opacity: 0.85;
+  font-size: 0.875rem;
+  white-space: normal;
+}
+
+.contract-print-dialog__actions {
+  justify-content: space-between;
+  border-block-start: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  background: rgba(var(--v-theme-primary), 0.025);
+}
+
+.contract-print-dialog__actions .contract-print-dialog__print {
+  padding-inline: 22px;
+  font-weight: 600;
+  letter-spacing: 0;
+  box-shadow: 0 4px 14px rgba(var(--v-theme-primary), 0.22);
+  transition: box-shadow 160ms ease;
+}
+
+.contract-print-dialog__print:hover {
+  box-shadow: 0 6px 20px rgba(var(--v-theme-primary), 0.3);
+}
+
+@media (max-width: 399px) {
+  .contract-print-dialog__hero { padding: 20px; gap: 12px; }
+  .contract-print-dialog__actions { flex-wrap: wrap; }
+  .contract-print-dialog__actions .contract-print-dialog__print { flex: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contract-print-dialog__actions .contract-print-dialog__print { transition: none; }
+}
+</style>

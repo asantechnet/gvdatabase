@@ -7,7 +7,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import ApplicantApi, { type Applicant, type ApplicantStage, type BuiltInService, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
+import ApplicantApi, { type Applicant, type ApplicantStage, type BuiltInService, type ApplicantPayload, type ApplicantListParams, applicantServicePayload } from '@/api/applicants'
 import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
@@ -16,6 +16,7 @@ import { translateApplicantStage, translateBackendValue } from '@/utils/localiza
 import ApplicantSummary from '@/components/erp/ApplicantSummary.vue'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import { apiErrorMessage } from '@/utils/apiErrors'
+import { printDocument } from '@/utils/printDocument'
 
 const toast = useToast()
 const router = useRouter()
@@ -31,7 +32,14 @@ const total = ref(0)
 const filtersOpen = ref(false)
 
 const search = ref((route.query.search as string) ?? '')
-const service = ref<BuiltInService | ''>('')
+const focus = ref<ApplicantListParams['focus']>(['outstanding', 'admitted', 'awaiting_decision', 'unassigned'].includes(String(route.query.focus)) ? route.query.focus as ApplicantListParams['focus'] : '')
+const focusOptions = computed(() => [
+  { title: t('agencyDashboard.toCollect'), value: 'outstanding' },
+  { title: t('agencyDashboard.admitted'), value: 'admitted' },
+  { title: t('agencyDashboard.awaitingDecision', { count: '' }), value: 'awaiting_decision' },
+  { title: t('agencyDashboard.unassigned', { count: '' }), value: 'unassigned' },
+])
+const service = ref<BuiltInService | ''>(['scholarship', 'private', 'test_offer', 'academy'].includes(String(route.query.service)) ? route.query.service as BuiltInService : '')
 const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
   { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
@@ -43,13 +51,15 @@ const serviceOptions = computed(() => [
 const stage = ref((route.query.stage as string) ?? '')
 const status = ref<'active' | 'closed' | ''>((route.query.status as 'active' | 'closed') ?? '')
 const paymentStatus = ref<'paid' | 'unpaid' | 'partially_paid' | ''>('')
-const responsibleEmployeeId = ref<number | null>(null)
-const countryId = ref<number | null>(null)
-const universityId = ref<number | null>(null)
+const queryId = (key: string) => /^\d+$/.test(String(route.query[key] ?? '')) && Number(route.query[key]) > 0 ? Number(route.query[key]) : null
+const responsibleEmployeeId = ref<number | null>(queryId('responsible_employee_id'))
+const countryId = ref<number | null>(queryId('country_id'))
+const universityId = ref<number | null>(queryId('university_id'))
 const educationLevelId = ref<number | null>(null)
 const semesterId = ref<number | null>(null)
-const dateFrom = ref('')
-const dateTo = ref('')
+const queryDate = (key: string) => /^\d{4}-\d{2}-\d{2}$/.test(String(route.query[key] ?? '')) ? String(route.query[key]) : ''
+const dateFrom = ref(queryDate('date_from'))
+const dateTo = ref(queryDate('date_to'))
 const invalidDateRange = computed(() => !!dateFrom.value && !!dateTo.value && dateFrom.value > dateTo.value)
 
 const countries = ref<MasterDataRecord[]>([])
@@ -61,9 +71,8 @@ const admissionEmployees = ref<Employee[]>([])
 const stages = ref<ApplicantStage[]>([])
 
 const canViewPipeline = computed(() => canAccess('view_applicants'))
-const canCreate = computed(() => canAccess('create_applicants'))
 const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
-const activeFilterCount = computed(() => [service.value, search.value, stage.value, status.value, paymentStatus.value, responsibleEmployeeId.value, countryId.value, universityId.value, educationLevelId.value, semesterId.value, dateFrom.value, dateTo.value].filter(Boolean).length)
+const activeFilterCount = computed(() => [focus.value, service.value, search.value, stage.value, status.value, paymentStatus.value, responsibleEmployeeId.value, countryId.value, universityId.value, educationLevelId.value, semesterId.value, dateFrom.value, dateTo.value].filter(Boolean).length)
 const visibleRows = computed(() => paymentStatus.value ? rows.value.filter(row => row.payment_status === paymentStatus.value) : rows.value)
 
 const createDialog = ref(false)
@@ -98,6 +107,7 @@ async function load() {
   loading.value = true
   try {
     const result = await ApplicantApi.list({
+      focus: focus.value || undefined,
       service: service.value || undefined,
       stage: stage.value || undefined,
       status: (status.value || undefined) as 'active' | 'closed' | undefined,
@@ -157,12 +167,6 @@ function onTabChange() {
   load()
 }
 
-function openCreate() {
-  createForm.value = { name: '', father_name: '', father_phone: '', backup_phone: '', contact: '', email: '', admission_employee_id: null, responsible_employee_id: null, notes: '' }
-  serviceForm.value = { service: 'scholarship' }
-  createDialog.value = true
-}
-
 async function create() {
   if (!createForm.value.name.trim())
     return
@@ -207,6 +211,7 @@ async function create() {
 }
 
 function clearFilters() {
+  focus.value = ''
   service.value = ''
   search.value = ''
   stage.value = ''
@@ -243,19 +248,15 @@ onMounted(async () => {
 
 <template>
   <div class="education-workspace erp-workspace">
-    <ErpPageHeader :title="$t('educational.applications')" section="applicants" :breadcrumbs="false">
-      <template #actions><VBtn v-if="canCreate" color="primary" prepend-icon="tabler-plus" @click="openCreate">{{ $t('educational.newCase') }}</VBtn></template>
-    </ErpPageHeader>
-  <VCard class="education-panel">
-    <VCardText>
-      <VRow dense align="center">
-        <VCol cols="12" sm="8" md="6"><VTextField v-model="search" :label="$t('educational.searchApplicant')" prepend-inner-icon="tabler-search" clearable hide-details @keyup.enter="page = 1; load()" /></VCol>
-        <VCol cols="12" sm="4" md="6" class="d-flex justify-end">
+    <ErpPageHeader :title="$t('educational.applications')" section="applications">
+      <template #actions>
+        <div class="applicants-header-actions">
           <DataTableFilterMenu v-model="filtersOpen" :active="activeFilterCount > 0" @reset="clearFilters">
+            <VSelect v-model="focus" :items="focusOptions" :label="$t('educational.needsAttention')" clearable />
             <VSelect v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable />
             <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" :show-apply="false" />
             <VSelect v-model="status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable />
-            <VSelect v-model="paymentStatus" :items="[{ title: $t('finance.paymentStatus.paid'), value: 'paid' }, { title: $t('finance.paymentStatus.partially_paid'), value: 'partially_paid' }, { title: $t('finance.paymentStatus.unpaid'), value: 'unpaid' }]" :label="$t('finance.paymentStatus')" clearable />
+            <VSelect v-model="paymentStatus" :items="[{ title: $t('finance.paymentStatus.paid'), value: 'paid' }, { title: $t('finance.paymentStatus.partially_paid'), value: 'partially_paid' }, { title: $t('finance.paymentStatus.unpaid'), value: 'unpaid' }]" :label="$t('pages.finance.income.income.paymentStatus')" clearable />
             <VSelect v-model="responsibleEmployeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable />
             <VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable />
             <VSelect v-model="universityId" :items="universities.filter(u => u.is_active && (!countryId || u.country_id === countryId)).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable />
@@ -263,9 +264,17 @@ onMounted(async () => {
             <VSelect v-model="semesterId" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="$t('educational.semester')" clearable />
             <VBtn color="primary" :loading="loading" :disabled="invalidDateRange" @click="page = 1; load()">{{ $t('educational.apply') }}</VBtn>
           </DataTableFilterMenu>
-        </VCol>
+          <VBtn icon="tabler-printer" variant="text" @click="printDocument({ bodyClass: 'printing-table-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ $t('common.actions.print') }}</VTooltip></VBtn>
+        </div>
+      </template>
+    </ErpPageHeader>
+  <VCard class="education-panel">
+    <VCardText>
+      <VRow dense align="center">
+        <VCol cols="12"><VTextField v-model="search" :label="$t('educational.searchApplicant')" prepend-inner-icon="tabler-search" clearable hide-details @keyup.enter="page = 1; load()" /></VCol>
       </VRow>
     </VCardText>
+    <VChip v-if="focus" closable class="mx-4 mb-3" color="primary" @click:close="focus = ''; page = 1; load()">{{ focusOptions.find(option => option.value === focus)?.title }}</VChip>
     <VTabs v-model="stage" show-arrows class="px-3" @update:model-value="onTabChange">
       <VTab value="">{{ $t('educational.allApplications') }}</VTab>
       <VTab v-for="item in pipelineStages" :key="item.id" :value="item.key">{{ translateApplicantStage(item) }}</VTab>
@@ -280,7 +289,7 @@ onMounted(async () => {
     <div class="d-flex align-center gap-2 px-4 py-3"><VIcon icon="tabler-users" color="primary" /><strong>{{ $t('educational.resultCount', { count: total }) }}</strong><VSpacer /><VBtn v-if="activeFilterCount" size="small" variant="text" prepend-icon="tabler-filter" @click="filtersOpen = true">{{ $t('educational.activeFilters', { count: activeFilterCount }) }}</VBtn></div>
     <VProgressLinear v-if="loading" indeterminate />
     <div class="education-table-scroll"><VTable density="compact" class="education-table">
-      <thead><tr><th>{{ $t('educational.id') }}</th><th>{{ $t('educational.applicant') }}</th><th>{{ $t('educational.caseUi.file') }}</th><th>{{ $t('educational.employee') }}</th><th>{{ $t('educational.destination') }}</th><th>{{ $t('erp.details') }}</th><th>{{ $t('educational.stage') }}</th><th>{{ $t('educational.status') }}</th><th>{{ $t('finance.paymentStatus') }}</th><th /></tr></thead>
+      <thead><tr><th>{{ $t('educational.id') }}</th><th>{{ $t('educational.applicant') }}</th><th>{{ $t('educational.caseUi.file') }}</th><th>{{ $t('educational.employee') }}</th><th>{{ $t('educational.destination') }}</th><th>{{ $t('erp.details') }}</th><th>{{ $t('educational.stage') }}</th><th>{{ $t('educational.status') }}</th><th>{{ $t('pages.finance.income.income.paymentStatus') }}</th><th /></tr></thead>
       <tbody>
         <tr v-for="row in visibleRows" :key="row.id" class="cursor-pointer" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">
           <td>#{{ row.id }}</td>
@@ -341,5 +350,26 @@ onMounted(async () => {
 
 .applicant-name-link:hover {
   text-decoration: underline;
+}
+
+:deep(.erp-header-actions) {
+  flex: 0 0 auto;
+  order: 2;
+}
+
+:deep(.erp-subnav) {
+  order: 3;
+}
+
+.applicants-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 599px) {
+  :deep(.erp-header-actions) {
+    flex-basis: 100%;
+  }
 }
 </style>
