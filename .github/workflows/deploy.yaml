@@ -1,0 +1,136 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+  DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+  DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+
+jobs:
+  deploy:
+    name: Build and deploy Laravel application
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out ${{ github.sha }}
+        uses: actions/checkout@v4
+
+      # Vite 7 requires Node 20.19+ (or 22.12+). This project pins pnpm 10.33.0.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+
+      - name: Install frontend dependencies and build assets
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm install --frozen-lockfile
+          pnpm run build
+
+      - name: Configure deploy SSH key
+        env:
+          DEPLOY_PRIVATE_KEY: ${{ secrets.DEPLOY_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+
+      - name: Create the release directory
+        run: |
+          ssh -i "$HOME/.ssh/id_ed25519" \
+            -p "$DEPLOY_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "mkdir -p '$DEPLOY_PATH/releases/$GITHUB_SHA' '$DEPLOY_PATH/shared/storage'"
+
+      - name: Upload the application release
+        run: |
+          rsync --archive --compress --delete \
+            --exclude='/.env' \
+            --exclude='/.git/' \
+            --exclude='/.github/' \
+            --exclude='/node_modules/' \
+            --exclude='/storage/' \
+            --exclude='/vendor/' \
+            --exclude='/tests/' \
+            --exclude='/bootstrap/cache/*.php' \
+            -e "ssh -i $HOME/.ssh/id_ed25519 -p $DEPLOY_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            ./ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/releases/$GITHUB_SHA/"
+
+      - name: Activate release, migrate, and restart workers
+        run: |
+          ssh -i "$HOME/.ssh/id_ed25519" \
+            -p "$DEPLOY_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") RELEASE=$(printf '%q' "$GITHUB_SHA") bash -s" <<'REMOTE_SCRIPT'
+          set -Eeuo pipefail
+
+          release="$DEPLOY_PATH/releases/$RELEASE"
+          shared="$DEPLOY_PATH/shared"
+          current="$DEPLOY_PATH/current"
+          maintenance_enabled=false
+
+          cleanup() {
+            if [ "$maintenance_enabled" = true ] && [ -f "$current/artisan" ]; then
+              php "$current/artisan" up || true
+            fi
+          }
+          trap cleanup EXIT
+
+          test -f "$shared/.env" || {
+            echo "Missing $shared/.env; create the production environment file before deploying." >&2
+            exit 1
+          }
+
+          if [ -e "$current" ] && [ ! -L "$current" ]; then
+            echo "$current must be a symlink, not a directory or file." >&2
+            exit 1
+          fi
+
+          if [ -e "$release/storage" ] && [ ! -L "$release/storage" ]; then
+            echo "$release/storage must not contain persistent files." >&2
+            exit 1
+          fi
+
+          ln -sfn "$shared/.env" "$release/.env"
+          ln -s "$shared/storage" "$release/storage"
+
+          cd "$release"
+          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+          php artisan package:discover --ansi
+          php artisan storage:link --force
+
+          if [ -f "$current/artisan" ]; then
+            php "$current/artisan" down --retry=60
+            maintenance_enabled=true
+          fi
+
+          php artisan migrate --force
+          php artisan optimize
+          ln -sfn "$release" "$current"
+          php "$current/artisan" queue:restart
+          php "$current/artisan" up
+          maintenance_enabled=false
+          trap - EXIT
+          REMOTE_SCRIPT

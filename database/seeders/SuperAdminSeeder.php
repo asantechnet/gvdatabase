@@ -12,27 +12,32 @@ use Illuminate\Support\Facades\Hash;
 class SuperAdminSeeder extends Seeder
 {
     /**
+     * Demo administrator credentials.
+     *
+     * Deliberately hardcoded so seeding never depends on environment
+     * configuration. These are demo-only credentials and must only be run
+     * against a non-production database.
+     */
+    public const DEMO_EMAIL = 'admin@example.test';
+
+    public const DEMO_PASSWORD = '1234';
+
+    /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        $email = (string) env('SUPER_ADMIN_EMAIL', '');
-        $password = (string) env('SUPER_ADMIN_PASSWORD', '');
-        if ($email === '' || $password === '') {
-            throw new \RuntimeException('SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD are required to provision an administrator.');
-        }
-
-        $superAdmin = User::firstOrNew(['email' => $email]);
+        $superAdmin = User::withTrashed()->firstOrNew(['email' => self::DEMO_EMAIL]);
         $superAdmin->fill([
-            'name' => (string) env('SUPER_ADMIN_NAME', 'Super Admin'),
-            'phone' => (string) env('SUPER_ADMIN_PHONE', ''),
-            'address' => (string) env('SUPER_ADMIN_ADDRESS', ''),
+            'name' => 'Demo Admin',
+            'phone' => '+93 700 000 000',
+            'address' => 'Kabul, Afghanistan',
             'acc_status' => 'active',
+            'email_verified_at' => now(),
+            'must_set_password' => false,
         ]);
-        if (! $superAdmin->exists) {
-            $superAdmin->password = Hash::make($password);
-            $superAdmin->email_verified_at = now();
-        }
+        $superAdmin->password = Hash::make(self::DEMO_PASSWORD);
+        $superAdmin->deleted_at = null;
         $superAdmin->save();
 
         $directorPosition = Position::firstOrCreate(
@@ -70,6 +75,10 @@ class SuperAdminSeeder extends Seeder
             ],
         );
 
-        $this->command->info('Super Admin user, role, and employee position created successfully!');
+        $this->command->info(sprintf(
+            'Demo admin %s seeded with password "%s".',
+            self::DEMO_EMAIL,
+            self::DEMO_PASSWORD,
+        ));
     }
 }
