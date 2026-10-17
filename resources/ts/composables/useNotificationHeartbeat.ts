@@ -1,6 +1,7 @@
-import { onUnmounted, ref } from 'vue'
+import { ref } from 'vue'
 import { type AppNotification, fetchNotificationHeartbeat } from '@/api/notification'
 import { canAccess } from '@/utils/authorization'
+import { useVisiblePolling } from '@/composables/useVisiblePolling'
 
 /**
  * Real-time notification delivery.
@@ -48,7 +49,6 @@ export const playLaunchDingOnce = (hasUnread: boolean) => {
 
 export function useNotificationHeartbeat(onBatch: (notifications: AppNotification[]) => void) {
   const isPolling = ref(false)
-  let timer: ReturnType<typeof setInterval> | undefined
 
   const poll = async () => {
     if (isPolling.value || !canAccess('view_own_notifications'))
@@ -72,21 +72,17 @@ export function useNotificationHeartbeat(onBatch: (notifications: AppNotificatio
     }
   }
 
+  // Pauses while the tab is hidden; catches up once when it becomes visible.
+  const polling = useVisiblePolling(poll, HEARTBEAT_INTERVAL)
+
   const start = () => {
-    if (timer || !canAccess('view_own_notifications'))
+    if (!canAccess('view_own_notifications'))
       return
 
-    timer = setInterval(poll, HEARTBEAT_INTERVAL)
+    polling.start()
   }
 
-  const stop = () => {
-    if (timer) {
-      clearInterval(timer)
-      timer = undefined
-    }
-  }
-
-  onUnmounted(stop)
+  const stop = () => polling.stop()
 
   return { start, stop, poll, isPolling }
 }

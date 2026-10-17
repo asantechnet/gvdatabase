@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import WorkdayApi, { type WorkdayStatus } from '@/api/workday'
 import { canAccess } from '@/utils/authorization'
+import { useVisiblePolling } from '@/composables/useVisiblePolling'
 
 const emit = defineEmits<{
   openStartDialog: []
@@ -26,23 +27,18 @@ const loadStatus = async () => {
   finally { requestPending = false }
 }
 
-function refreshWhenVisible() {
-  if (document.visibilityState === 'visible') loadStatus()
-}
-let refreshTimer: ReturnType<typeof setInterval> | undefined
+const { start: startStatusRefresh } = useVisiblePolling(loadStatus, 60_000)
+
 onMounted(() => {
   loadStatus()
   window.addEventListener('workday-status-changed', loadStatus)
   window.addEventListener('online', loadStatus)
-  document.addEventListener('visibilitychange', refreshWhenVisible)
-  refreshTimer = setInterval(refreshWhenVisible, 60_000)
+  startStatusRefresh()
 })
 onBeforeUnmount(() => {
   disposed = true
   window.removeEventListener('workday-status-changed', loadStatus)
   window.removeEventListener('online', loadStatus)
-  document.removeEventListener('visibilitychange', refreshWhenVisible)
-  clearInterval(refreshTimer)
 })
 </script>
 

@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router'
 import { getPendingAuditCount } from '@/api/auditLog'
 import { canAccess } from '@/utils/authorization'
 import { translate } from '@/utils/localization'
+import { useVisiblePolling } from '@/composables/useVisiblePolling'
 
 const router = useRouter()
 const $t = translate
@@ -28,16 +29,15 @@ function handleAuditNotification(event: Event) {
     void router.push({ name: 'audits', query: { audit: String(auditLogId) } })
 }
 
-let refreshTimer: ReturnType<typeof setInterval> | undefined
+const { start: startCountRefresh } = useVisiblePolling(refreshCount, 60_000)
+
 onMounted(() => {
   window.addEventListener('open-audit-log', handleAuditNotification)
   void refreshCount()
-  refreshTimer = setInterval(refreshCount, 60_000)
+  startCountRefresh()
 })
 onUnmounted(() => {
   window.removeEventListener('open-audit-log', handleAuditNotification)
-  if (refreshTimer)
-    clearInterval(refreshTimer)
 })
 </script>
 

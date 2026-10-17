@@ -6,6 +6,7 @@ import { type AppNotification, deleteNotification, getNotifications, markAllNoti
 import { notificationText } from '@/utils/notificationText'
 import { openAuditNotification } from '@/utils/auditNotification'
 import { playLaunchDingOnce, useNotificationHeartbeat } from '@/composables/useNotificationHeartbeat'
+import { useVisiblePolling } from '@/composables/useVisiblePolling'
 import type { Notification } from '@layouts/types'
 import { canAccess } from '@/utils/authorization'
 
@@ -51,6 +52,7 @@ function mergeHeartbeatBatch(batch: AppNotification[]) {
 }
 
 const { start: startHeartbeat } = useNotificationHeartbeat(mergeHeartbeatBatch)
+const { start: startInboxRefresh } = useVisiblePolling(loadNotifications, 60_000)
 
 async function setRead(ids: number[], isRead: boolean) {
   const targets = rawNotifications.value.filter(item => ids.includes(item.id) && item.is_read !== isRead)
@@ -84,18 +86,13 @@ async function handleNotificationClick(notification: Notification) {
     await router.push(notification.goToUrl)
 }
 
-let refreshTimer: ReturnType<typeof setInterval> | undefined
 onMounted(async () => {
   await loadNotifications()
 
   // One chime when the app opens with unread notifications already waiting.
   playLaunchDingOnce(rawNotifications.value.some(item => item.is_read !== true))
-  refreshTimer = setInterval(loadNotifications, 60_000)
+  startInboxRefresh()
   startHeartbeat()
-})
-onUnmounted(() => {
-  if (refreshTimer)
-    clearInterval(refreshTimer)
 })
 </script>
 
