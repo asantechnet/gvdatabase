@@ -15,8 +15,17 @@ export interface AttendanceBreakdown {
   workedDays: number
   totalDays: number
   paidLeaveDays: number
+  offDays: number
   unpaidLeaveDays: number
   absentDays: number
+}
+
+export interface SalaryAdvanceLine {
+  id: number
+  advanceNumber: string | null
+  date: string | null
+  amount: number
+  remarks: string | null
 }
 
 // Types matching the frontend requirements
@@ -39,6 +48,9 @@ export interface Salary {
   bonus: number
   workedDays?: number
   paidLeaveDays: number
+  offDays: number
+  advanceRecovery: number
+  advances?: SalaryAdvanceLine[]
   absentDays: number
   unpaidLeaveDays: number
   totalDays: number

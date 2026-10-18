@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification'
 import { getPendingAuditCount } from '@/api/auditLog'
 import { canAccess } from '@/utils/authorization'
 import { translate } from '@/utils/localization'
 import { useVisiblePolling } from '@/composables/useVisiblePolling'
+import { useAuditHeartbeat } from '@/composables/useAuditHeartbeat'
 
 const router = useRouter()
+const toast = useToast()
 const $t = translate
 const pendingCount = ref(0)
 const userData = useCookie<any>('userData')
@@ -31,10 +34,19 @@ function handleAuditNotification(event: Event) {
 
 const { start: startCountRefresh } = useVisiblePolling(refreshCount, 60_000)
 
+// Real-time channel: a raised flag delivers the new audit rows, the badge is
+// refreshed from the authoritative pending count and the user gets one notice
+// per batch (never per row).
+const { start: startHeartbeat } = useAuditHeartbeat(batch => {
+  pendingCount.value += batch.filter(audit => audit.audit_state === 'pending').length
+  toast.info($t('pages.audits.realtimeBody', { count: batch.length }), { timeout: 5_000 })
+})
+
 onMounted(() => {
   window.addEventListener('open-audit-log', handleAuditNotification)
   void refreshCount()
   startCountRefresh()
+  startHeartbeat()
 })
 onUnmounted(() => {
   window.removeEventListener('open-audit-log', handleAuditNotification)

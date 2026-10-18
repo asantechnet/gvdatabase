@@ -161,7 +161,9 @@ const canAttachDocuments = computed(() => (applicant.value?.tasks?.length ?? 0) 
 
 async function load() {
   applicant.value = await ApplicantApi.get(Number(route.params.id))
-  stages.value = await ApplicantApi.stages({ country_id: applicant.value.details?.country_id, university_id: applicant.value.details?.university_id })
+  // Stages are service-scoped: an academy or test-offer case must only be
+  // offered its own service's pipeline.
+  stages.value = await ApplicantApi.stages({ service: applicant.value.service, country_id: applicant.value.details?.country_id, university_id: applicant.value.details?.university_id })
   selected.value = null
   notesDraft.value = applicant.value.notes ?? ''
   applicantAttachments.value = await ApplicantAttachmentApi.list(applicant.value.id)
@@ -182,8 +184,9 @@ const lineNextStages = (line: { service?: BuiltInService | null; current_stage?:
 async function loadLineStages() {
   const services = [...new Set((applicant.value?.services ?? []).map(line => line.service).filter((service): service is BuiltInService => !!service))]
   await Promise.all(services.map(async service => {
+    // Active stages only: an inactive stage must never be offered as a target.
     if (!lineStageOptions.value[service])
-      lineStageOptions.value[service] = await ApplicantApi.stageDefinitions(service)
+      lineStageOptions.value[service] = await ApplicantApi.stages({ service })
   }))
 }
 async function moveLine(line: { id: number }) {

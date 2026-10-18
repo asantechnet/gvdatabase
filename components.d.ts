@@ -95,6 +95,7 @@ declare module 'vue' {
     PricingPlanDialog: typeof import('./resources/ts/components/dialogs/PricingPlanDialog.vue')['default']
     PrintableListReport: typeof import('./resources/ts/components/PrintableListReport.vue')['default']
     ProductDescriptionEditor: typeof import('./resources/ts/@core/components/ProductDescriptionEditor.vue')['default']
+    PwaUpdateNotifier: typeof import('./resources/ts/components/PwaUpdateNotifier.vue')['default']
     ReceiptPrinter: typeof import('./resources/ts/components/income/ReceiptPrinter.vue')['default']
     ReferAndEarnDialog: typeof import('./resources/ts/components/dialogs/ReferAndEarnDialog.vue')['default']
     ResetPasswordForm: typeof import('./resources/ts/components/forms/ResetPasswordForm.vue')['default']

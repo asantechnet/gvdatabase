@@ -12,12 +12,13 @@ export interface Office {
   longitude: number | null
   geofence_radius_meters: number
   geofence_enabled: boolean
+  paid_leave_days_per_year: number | null
   asset_count: number
   created_at: string | null
   updated_at: string | null
 }
 
-export type OfficePayload = Pick<Office, 'name' | 'code' | 'email' | 'phone' | 'address' | 'status' | 'latitude' | 'longitude' | 'geofence_radius_meters' | 'geofence_enabled'>
+export type OfficePayload = Pick<Office, 'name' | 'code' | 'email' | 'phone' | 'address' | 'status' | 'latitude' | 'longitude' | 'geofence_radius_meters' | 'geofence_enabled' | 'paid_leave_days_per_year'>
 
 const OfficeApi = {
   async getAll(): Promise<Office[]> {

@@ -103,15 +103,55 @@ class EducationalDashboardController extends Controller
         return ! empty($filters['responsible_employee_id']) ? [(int) $filters['responsible_employee_id']] : [];
     }
 
+    /**
+     * The cross-service overview of the per-service workflows.
+     *
+     * Each column belongs to one service, and it counts that service's contract
+     * lines (plus cases that have not bought the service yet), never the shared
+     * applicant-level mirror. This keeps a case that buys two services visible
+     * in both of their pipelines instead of only in the last one it touched.
+     */
     private function pipeline(array $filters): array
     {
-        $stages = ApplicantStage::query()->where('is_active', true)->orderBy('sort_order')->get();
-        $counts = $this->applicantScope($filters)->selectRaw('current_stage_id, COUNT(*) as total')->groupBy('current_stage_id')->pluck('total', 'current_stage_id');
-        $columns = $stages->map(function (ApplicantStage $stage) use ($counts) {
-            $count = (int) ($counts[$stage->id] ?? 0);
+        $applicantIds = $this->applicantScope($filters)->select('applicants.id');
+        $counts = [];
 
-            return ['id' => $stage->id, 'service' => $stage->service, 'key' => $stage->key, 'name' => $stage->name, 'is_terminal' => (bool) $stage->is_terminal, 'count' => $count];
-        });
+        $lines = ApplicantContract::query()
+            ->whereIn('applicant_id', $applicantIds)
+            ->whereNotNull('current_stage_id')
+            ->whereHas('contract', fn ($q) => $q->whereNotIn('status', ['cancelled', 'terminated'])->where('is_cancelled', false))
+            ->selectRaw('service, current_stage_id, COUNT(*) as total')
+            ->groupBy('service', 'current_stage_id')->get();
+
+        // Cases without a line for their own service are still work in progress.
+        $unlined = $this->applicantScope($filters)
+            ->whereNotExists(function ($q): void {
+                $q->selectRaw('1')->from('applicant_contract')
+                    ->whereColumn('applicant_contract.applicant_id', 'applicants.id')
+                    ->whereColumn('applicant_contract.service', 'applicants.service')
+                    ->whereNull('applicant_contract.deleted_at');
+            })
+            ->selectRaw('service, current_stage_id, COUNT(*) as total')
+            ->groupBy('service', 'current_stage_id')->get();
+
+        foreach ($lines->concat($unlined) as $row) {
+            $key = ($row->service ?? BuiltInService::SCHOLARSHIP).'|'.$row->current_stage_id;
+            $counts[$key] = ($counts[$key] ?? 0) + (int) $row->total;
+        }
+
+        $order = array_flip(BuiltInService::ALL);
+        $stages = ApplicantStage::query()->where('is_active', true)->orderBy('sort_order')->get()
+            ->sortBy(fn (ApplicantStage $stage) => [$order[$stage->service] ?? 99, $stage->sort_order])
+            ->values();
+
+        $columns = $stages->map(fn (ApplicantStage $stage) => [
+            'id' => $stage->id,
+            'service' => $stage->service,
+            'key' => $stage->key,
+            'name' => $stage->name,
+            'is_terminal' => (bool) $stage->is_terminal,
+            'count' => (int) ($counts[($stage->service ?? BuiltInService::SCHOLARSHIP).'|'.$stage->id] ?? 0),
+        ]);
 
         $base = $this->applicantScope($filters);
 

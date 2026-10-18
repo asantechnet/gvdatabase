@@ -78,6 +78,46 @@ class AuditLogController extends Controller
         return $this->index($request, $presenter);
     }
 
+    /**
+     * Real-time audit delivery, mirroring the notification heartbeat.
+     *
+     * The flag is raised when an audit row is written. Only while the flag is
+     * set does this endpoint read rows, and it advances the user's id cursor
+     * and clears the flag inside a row-locked transaction so a batch is handed
+     * out exactly once even under overlapping polls.
+     */
+    public function heartbeat(Request $request, AuditPresenter $presenter): JsonResponse
+    {
+        $this->authorizePermission($request, 'view_audit_logs', 'view_team_audit_logs');
+
+        $rows = DB::transaction(function () use ($request) {
+            $locked = User::query()->whereKey($request->user()->getKey())->lockForUpdate()->firstOrFail();
+            if (! $locked->unread_audit_logs) {
+                return collect();
+            }
+
+            $query = AuditLog::query()->with(['user:id,name,email', 'employee:id,name', 'auditor:id,name,email']);
+            $this->scopeToActor($query, $locked);
+            $rows = $query->where('id', '>', (int) ($locked->audit_logs_seen_id ?? 0))
+                ->orderBy('id')
+                ->limit(20)
+                ->get();
+
+            $locked->forceFill([
+                'unread_audit_logs' => false,
+                'audit_logs_seen_at' => now(),
+                'audit_logs_seen_id' => $rows->max('id') ?? $locked->audit_logs_seen_id,
+            ])->saveQuietly();
+
+            return $rows;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $rows->map(fn (AuditLog $audit) => $presenter->present($audit))->values(),
+        ]);
+    }
+
     public function show(Request $request, AuditLog $auditLog, AuditPresenter $presenter): JsonResponse
     {
         $this->authorizePermission($request, 'view_audit_logs');
@@ -213,9 +253,13 @@ class AuditLogController extends Controller
         return $model;
     }
 
-    private function authorizePermission(Request $request, string $permission): void
+    private function authorizePermission(Request $request, string ...$permissions): void
     {
-        abort_unless($request->user()->hasPermission($permission), 403, 'auth.forbidden');
+        abort_unless(
+            collect($permissions)->contains(fn (string $permission) => $request->user()->hasPermission($permission)),
+            403,
+            'auth.forbidden',
+        );
     }
 
     /**

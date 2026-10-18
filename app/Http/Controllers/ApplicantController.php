@@ -15,6 +15,7 @@ use App\Services\EducationalWorkflowNotificationService;
 use App\Support\AgencyStaffAssignment;
 use App\Support\BuiltInService;
 use App\Support\EmployeeScope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -41,22 +42,176 @@ class ApplicantController extends Controller
         return response()->json(['success' => true, 'data' => $page->appends($request->query())]);
     }
 
+    /**
+     * The per-service pipeline.
+     *
+     * Stages belong to a single built-in service, so the board is scoped to one
+     * service (default: scholarship) instead of mixing every service's columns.
+     * A contracted service line is the unit that moves through the workflow; a
+     * case that has not bought the service yet still appears on its own
+     * service's stage list so new work never disappears from the board.
+     */
     public function pipeline(Request $request)
     {
-        $stages = $this->stagesForContext($request->integer('country_id') ?: null, $request->integer('university_id') ?: null, $this->requestedService($request));
-        $columns = $stages->map(function (ApplicantStage $stage) use ($request) {
-            $query = Applicant::query();
-            $this->scopeCasesToActor($query, $request);
-            $this->applyFilters($query, $request, $excludeStage = true);
-            $query->where('current_stage_id', $stage->id);
+        $service = $this->requestedService($request) ?? BuiltInService::SCHOLARSHIP;
+        $stages = $this->stagesForContext($request->integer('country_id') ?: null, $request->integer('university_id') ?: null, $service);
+        $stageIds = $stages->pluck('id')->all();
 
-            return ['id' => $stage->id, 'key' => $stage->key, 'name' => $stage->name, 'sort_order' => $stage->sort_order, 'is_terminal' => (bool) $stage->is_terminal, 'allowed_next_keys' => $stage->allowed_next_keys ?? [], 'count' => $query->count()];
-        });
-        $totalsQuery = Applicant::query();
-        $this->scopeCasesToActor($totalsQuery, $request);
-        $this->applyFilters($totalsQuery, $request, $excludeStage = true);
+        $lineQuery = fn () => ApplicantContract::query()
+            ->where('service', $service)
+            ->whereIn('current_stage_id', $stageIds)
+            ->whereHas('contract', fn ($q) => $q->whereNotIn('status', ['cancelled', 'terminated'])->where('is_cancelled', false))
+            ->whereIn('applicant_id', $this->filteredApplicants($request)->select('applicants.id'));
 
-        return response()->json(['success' => true, 'data' => ['stages' => $columns, 'totals' => ['active' => (clone $totalsQuery)->where('status', 'active')->count(), 'closed' => (clone $totalsQuery)->where('status', 'closed')->count(), 'all' => (clone $totalsQuery)->count()]]]);
+        // Column counts are line counts; unlined cases are counted below.
+        $counts = $lineQuery()->selectRaw('current_stage_id, COUNT(*) as total')
+            ->groupBy('current_stage_id')->pluck('total', 'current_stage_id')->all();
+
+        $lines = $lineQuery()
+            ->with(['currentStage', 'contract:id,contract_number,status', 'applicant' => fn ($q) => $q->with($this->pipelineApplicantRelations())])
+            ->latest('applicant_contract.id')->limit(500)->get();
+
+        $unlined = $this->unlinedApplicants($request, $service)
+            ->with(['currentStage', ...$this->pipelineApplicantRelations()])
+            ->latest('applicants.id')->limit(500)->get();
+
+        foreach ($unlined as $applicant) {
+            $stageId = $this->placementStageId($applicant, $stages);
+            $counts[$stageId] = ($counts[$stageId] ?? 0) + 1;
+        }
+
+        $columns = $stages->map(fn (ApplicantStage $stage) => [
+            'id' => $stage->id, 'key' => $stage->key, 'name' => $stage->name, 'sort_order' => $stage->sort_order,
+            'is_terminal' => (bool) $stage->is_terminal, 'allowed_next_keys' => $stage->allowed_next_keys ?? [],
+            'count' => (int) ($counts[$stage->id] ?? 0),
+        ]);
+
+        $cards = $lines->map(fn (ApplicantContract $line) => $this->pipelineLineCard($line))
+            ->concat($unlined->map(fn (Applicant $applicant) => $this->pipelineApplicantCard($applicant, $stages)))
+            ->values();
+
+        // The counts describe this board's cases, not every service's.
+        $totalsQuery = $this->filteredApplicants($request)
+            ->where(fn ($q) => $q->where('service', $service)
+                ->orWhereHas('services', fn ($line) => $line->where('service', $service)));
+
+        return response()->json(['success' => true, 'data' => [
+            'service' => $service,
+            'stages' => $columns,
+            'cards' => $cards,
+            'totals' => [
+                'active' => (clone $totalsQuery)->where('status', 'active')->count(),
+                'closed' => (clone $totalsQuery)->where('status', 'closed')->count(),
+                'all' => (clone $totalsQuery)->count(),
+            ],
+        ]]);
+    }
+
+    /** Applicants narrowed the same way the list narrows them. */
+    private function filteredApplicants(Request $request): Builder
+    {
+        $query = Applicant::query();
+        $this->scopeCasesToActor($query, $request);
+        $this->applyFilters($query, $request, true);
+
+        return $query;
+    }
+
+    /**
+     * Cases of this service without a contract line for it yet. They stay on
+     * the board (placed on their service's stages) until the line exists.
+     */
+    private function unlinedApplicants(Request $request, string $service): Builder
+    {
+        return $this->filteredApplicants($request)
+            ->where('service', $service)
+            ->whereDoesntHave('services', fn ($q) => $q->where('service', $service));
+    }
+
+    /** The stage a case without a line is placed on: its own stage when it
+     * belongs to the service, otherwise the service's starting stage. */
+    private function placementStageId(Applicant $applicant, $stages): ?int
+    {
+        $current = $stages->firstWhere('id', $applicant->current_stage_id);
+
+        if ($current) {
+            return $current->id;
+        }
+
+        $key = $applicant->currentStage?->key;
+
+        return ($key ? $stages->firstWhere('key', $key)?->id : null)
+            ?? $stages->firstWhere('key', 'new')?->id
+            ?? $stages->first()?->id;
+    }
+
+    private function pipelineStage(?ApplicantStage $stage): ?array
+    {
+        return $stage ? [
+            'id' => $stage->id, 'key' => $stage->key, 'name' => $stage->name,
+            'is_terminal' => (bool) $stage->is_terminal, 'allowed_next_keys' => $stage->allowed_next_keys ?? [],
+        ] : null;
+    }
+
+    /** Relations the board needs to describe a case on a card. */
+    private function pipelineApplicantRelations(): array
+    {
+        return [
+            'responsibleEmployee:id,name',
+            'scholarshipDetail.country:id,name', 'scholarshipDetail.university:id,name',
+            'privateDetail.country:id,name', 'privateDetail.university:id,name',
+        ];
+    }
+
+    private function pipelineLineCard(ApplicantContract $line): array
+    {
+        $applicant = $line->applicant;
+        $detail = $applicant?->detail();
+
+        return [
+            'id' => 'line:'.$line->id,
+            'source' => 'line',
+            'line_id' => $line->id,
+            'applicant_id' => $line->applicant_id,
+            'name' => $applicant?->name,
+            'service' => $line->service ?? BuiltInService::SCHOLARSHIP,
+            'status' => $applicant?->status ?? 'active',
+            'current_stage_id' => $line->current_stage_id,
+            'current_stage' => $this->pipelineStage($line->currentStage),
+            'responsible_employee' => $applicant?->responsibleEmployee
+                ? ['id' => $applicant->responsibleEmployee->id, 'name' => $applicant->responsibleEmployee->name]
+                : null,
+            'country' => $detail?->country?->name,
+            'university' => $detail?->university?->name,
+            'contract_number' => $line->contract?->contract_number,
+            'contract_status' => $line->contract?->status,
+        ];
+    }
+
+    private function pipelineApplicantCard(Applicant $applicant, $stages): array
+    {
+        $stageId = $this->placementStageId($applicant, $stages);
+        $stage = $stages->firstWhere('id', $stageId);
+        $detail = $applicant->detail();
+
+        return [
+            'id' => 'applicant:'.$applicant->id,
+            'source' => 'applicant',
+            'line_id' => null,
+            'applicant_id' => $applicant->id,
+            'name' => $applicant->name,
+            'service' => $applicant->service,
+            'status' => $applicant->status,
+            'current_stage_id' => $stageId,
+            'current_stage' => $this->pipelineStage($stage),
+            'responsible_employee' => $applicant->responsibleEmployee
+                ? ['id' => $applicant->responsibleEmployee->id, 'name' => $applicant->responsibleEmployee->name]
+                : null,
+            'country' => $detail?->country?->name,
+            'university' => $detail?->university?->name,
+            'contract_number' => null,
+            'contract_status' => null,
+        ];
     }
 
     public function show(Applicant $applicant)
@@ -240,7 +395,11 @@ class ApplicantController extends Controller
                 $data['admission_employee_id'] = null;
                 $data['responsible_employee_id'] = null;
             }
-            if (! $updating) {
+            // A new case starts at its service's `new` stage, and a case that
+            // switches service is re-seated there too: the old service's stage
+            // key is not a valid position on the new service's workflow.
+            $serviceChanged = $updating && array_key_exists('service', $data) && $data['service'] !== $applicant->service;
+            if (! $updating || $serviceChanged) {
                 $stage = $this->stagesForContext($effectiveCountry, $effectiveUniversity, $service)->firstWhere('key', 'new')
                     ?? ApplicantStage::query()->where('key', 'new')->where('service', $service)->firstOrFail();
                 $data['current_stage_id'] = $stage->id;
@@ -332,15 +491,26 @@ class ApplicantController extends Controller
         }
         $request->validate(['date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable'], 'per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
 
+        $service = $this->requestedService($request);
         if (! $excludeStage && $request->filled('stage')) {
             $stage = $request->input('stage');
-            $query->whereHas('currentStage', fn ($q) => $q->where('key', $stage));
+            // A case is in a stage when its mirror is there or when any of its
+            // service lines is; with a service filter only that line counts.
+            $query->where(function ($q) use ($stage, $service) {
+                $q->whereHas('currentStage', fn ($s) => $s->where('key', $stage))
+                    ->orWhereHas('services', fn ($line) => $line
+                        ->whereHas('currentStage', fn ($s) => $s->where('key', $stage))
+                        ->when($service, fn ($l) => $l->where('service', $service)));
+            });
         }
         if ($request->filled('status') && in_array($request->input('status'), ['active', 'closed'], true)) {
             $query->where('status', $request->input('status'));
         }
-        if ($request->filled('service') && BuiltInService::isValid($request->input('service'))) {
-            $query->where('service', $request->input('service'));
+        if ($service) {
+            // Buying a service creates a line without changing the case's own
+            // service, so the filter has to match either.
+            $query->where(fn ($q) => $q->where('service', $service)
+                ->orWhereHas('services', fn ($line) => $line->where('service', $service)));
         }
         if ($request->filled('board')) {
             match ($request->input('board')) {

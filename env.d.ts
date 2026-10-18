@@ -11,6 +11,11 @@ declare module "vue-router" {
   }
 }
 
+declare global {
+  // Injected by Vite at build time (package version + git short SHA).
+  const __APP_VERSION__: string
+}
+
 // Environment variables type declaration
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string;

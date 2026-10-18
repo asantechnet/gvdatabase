@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#7367F0" />
+  <title>Offline</title>
+  <style>
+    :root { color-scheme: light dark; }
+
+    body {
+      align-items: center;
+      background: #f5f7f4;
+      color: #173330;
+      display: flex;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+      justify-content: center;
+      margin: 0;
+      min-block-size: 100vh;
+      padding: 24px;
+    }
+
+    .offline-card {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(23, 51, 48, 0.12);
+      max-inline-size: 420px;
+      padding: 32px;
+      text-align: center;
+      inline-size: 100%;
+    }
+
+    .offline-mark {
+      background: #7367f0;
+      block-size: 56px;
+      border-radius: 14px;
+      color: #ffffff;
+      display: grid;
+      font-size: 28px;
+      font-weight: 700;
+      inline-size: 56px;
+      margin: 0 auto 20px;
+      place-items: center;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0 0 8px;
+    }
+
+    p {
+      color: #5b6b69;
+      margin: 0 0 24px;
+    }
+
+    button {
+      background: #7367f0;
+      border: 0;
+      border-radius: 8px;
+      color: #ffffff;
+      cursor: pointer;
+      font-size: 15px;
+      padding: 10px 22px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body { background: #0f1c1b; color: #e8f0ef; }
+      .offline-card { background: #173330; box-shadow: none; }
+      p { color: #b9c9c6; }
+    }
+  </style>
+</head>
+<body>
+  <main class="offline-card">
+    <div class="offline-mark" aria-hidden="true">E</div>
+    <h1>You are offline</h1>
+    <p>This page has not been saved yet. Reconnect to the internet and try again.</p>
+    <button type="button" onclick="window.location.reload()">Reload</button>
+  </main>
+</body>
+</html>

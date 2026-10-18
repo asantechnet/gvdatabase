@@ -15,6 +15,8 @@ export interface EmployeeAdvance {
   date: string
   remarks: string
   expenseId: number | null
+  salaryId?: number | null
+  recoveredAt?: string | null
   recordedBy?: { id: number; name: string } | null
 }
 

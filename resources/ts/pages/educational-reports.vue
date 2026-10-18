@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import ReportApi, { type EducationalReport, type EducationalReportType } from '@/api/educationalReports'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
-import ApplicantApi, { type ApplicantStage } from '@/api/applicants'
+import ApplicantApi, { type ApplicantStage, type BuiltInService } from '@/api/applicants'
 import EducationalReportPrint from '@/components/educational/EducationalReportPrint.vue'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import { canAccess } from '@/utils/authorization'
@@ -32,13 +32,20 @@ const countryId = ref<number | ''>('')
 const universityId = ref<number | ''>('')
 const levelId = ref<number | ''>('')
 const employeeId = ref<number | ''>('')
+const service = ref<BuiltInService | ''>('')
 const stage = ref('')
 const status = ref<'active' | 'closed' | ''>('')
 const dateFrom = ref('')
 const dateTo = ref('')
 
 const canExport = computed(() => canAccess('export_reports'))
-const activeFilterCount = computed(() => [countryId.value, universityId.value, levelId.value, employeeId.value, stage.value, status.value, dateFrom.value, dateTo.value].filter(Boolean).length)
+const serviceOptions = computed(() => [
+  { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
+  { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
+  { title: t('educational.builtInServices.academy'), value: 'academy' },
+  { title: t('educational.builtInServices.private'), value: 'private' },
+])
+const activeFilterCount = computed(() => [countryId.value, universityId.value, levelId.value, employeeId.value, service.value, stage.value, status.value, dateFrom.value, dateTo.value].filter(Boolean).length)
 // Reports are grouped by the business domain they serve, so the workspace reads
 // as Educational & CRM / Finance / HRM instead of one flat tab list.
 type ReportDomain = 'educational' | 'finance' | 'hrm'
@@ -94,6 +101,7 @@ function params() {
     university_id: universityId.value || undefined,
     education_level_id: levelId.value || undefined,
     employee_id: employeeId.value || undefined,
+    service: service.value || undefined,
     stage: stage.value || undefined,
     status: status.value || undefined,
     date_from: dateFrom.value || undefined,
@@ -146,6 +154,7 @@ function clearFilters() {
   universityId.value = ''
   levelId.value = ''
   employeeId.value = ''
+  service.value = ''
   stage.value = ''
   status.value = ''
   dateFrom.value = ''
@@ -187,8 +196,10 @@ const printFacts = computed(() => {
   const university = universities.value.find(item => item.id === universityId.value)
   const level = levels.value.find(item => item.id === levelId.value)
   const employee = employees.value.find(item => item.id === employeeId.value)
+  const serviceRow = serviceOptions.value.find(item => item.value === service.value)
   const stageRow = stages.value.find(item => item.key === stage.value)
 
+  if (serviceRow) facts.push({ label: t('educational.service'), value: serviceRow.title })
   if (country) facts.push({ label: t('educational.country'), value: country.name })
   if (university) facts.push({ label: t('educational.university'), value: university.name })
   if (level) facts.push({ label: t('educational.educationLevel'), value: level.name })
@@ -223,24 +234,45 @@ function disablePagePrintMode() {
 
 async function loadCatalogs() {
   try {
-    const [countryRows, universityRows, levelRows, employeeRows, stageRows] = await Promise.all([
+    const [countryRows, universityRows, levelRows, employeeRows] = await Promise.all([
       MasterDataApi.list('countries'),
       MasterDataApi.list('universities'),
       MasterDataApi.list('education-levels'),
       EmployeeApi.getOptions(),
-      ApplicantApi.stages(),
     ])
 
     countries.value = countryRows
     universities.value = universityRows
     levels.value = levelRows
     employees.value = employeeRows
-    stages.value = stageRows
+    await loadStages()
   }
   catch {
     toast.error(t('educational.loadFiltersFailed'))
   }
 }
+
+// Stage options follow the selected service so a report cannot be filtered by
+// another service's stage key.
+async function loadStages() {
+  stages.value = await ApplicantApi.stages({ service: service.value || undefined })
+}
+
+watch(service, async () => {
+  const previousStage = stage.value
+
+  try {
+    await loadStages()
+  }
+  catch {
+    toast.error(t('educational.loadFiltersFailed'))
+
+    return
+  }
+
+  if (previousStage && !stages.value.some(item => item.key === previousStage))
+    stage.value = ''
+})
 
 onMounted(async () => {
   window.addEventListener('beforeprint', enablePagePrintMode)
@@ -278,6 +310,7 @@ onBeforeUnmount(() => {
           <VCol cols="12" sm="6" lg="3"><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable hide-details /></VCol>
           <VCol cols="12" sm="6" lg="3"><VSelect v-model="levelId" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable hide-details /></VCol>
           <VCol cols="12" sm="6" lg="3"><VSelect v-model="employeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable hide-details /></VCol>
+          <VCol v-if="tab === 'applicants'" cols="12" sm="6" lg="3"><VSelect v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable hide-details /></VCol>
           <VCol v-if="tab === 'applicants'" cols="12" sm="6" lg="3"><VSelect v-model="stage" :items="stages.map(item => ({ title: item.name, value: item.key }))" :label="$t('educational.stage')" clearable hide-details /></VCol>
           <VCol v-if="tab === 'applicants'" cols="12" sm="6" lg="3"><VSelect v-model="status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable hide-details /></VCol>
           <VCol cols="6" sm="3" lg="2"><VTextField v-model="dateFrom" type="date" :label="$t('educational.from')" clearable hide-details /></VCol>

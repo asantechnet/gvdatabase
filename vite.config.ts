@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
@@ -6,10 +8,43 @@ import vueJsx from '@vitejs/plugin-vue-jsx'
 import laravel from 'laravel-vite-plugin'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import MetaLayouts from 'vite-plugin-vue-meta-layouts'
+import { VitePWA } from 'vite-plugin-pwa'
 import vuetify from 'vite-plugin-vuetify'
 import svgLoader from 'vite-svg-loader'
+
+/**
+ * Deployed build identity: package version plus the commit being built. The
+ * client compares it with `GET /api/version` to notice a new deploy.
+ */
+const packageJson = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')) as { version: string }
+
+const gitSha = (() => {
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+  }
+  catch {
+    return null
+  }
+})()
+
+const buildVersion = gitSha ? `${packageJson.version}+${gitSha}` : `${packageJson.version}+${Date.now()}`
+
+/** Writes `public/version.json`, the source of `GET /api/version`. */
+const buildVersionFile = (): Plugin => ({
+  name: 'app-build-version',
+  apply: 'build',
+  writeBundle: {
+    order: 'post',
+    handler: () => {
+      writeFileSync(
+        path.resolve(__dirname, 'public/version.json'),
+        `${JSON.stringify({ version: buildVersion, built_at: new Date().toISOString() }, null, 2)}\n`,
+      )
+    },
+  },
+})
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -84,8 +119,33 @@ export default defineConfig({
       ],
     }),
     svgLoader(),
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'resources/ts/service-worker',
+      filename: 'sw.ts',
+      // Emit the worker at the origin root (`/sw.js`) so its scope is `/`
+      // without needing a `Service-Worker-Allowed` header.
+      outDir: 'public',
+      // Activation is user-consented: the worker waits until the reload toast
+      // is clicked (see `plugins/pwa`).
+      registerType: 'prompt',
+      injectRegister: null,
+      // Laravel serves the manifest dynamically from Settings.
+      manifest: false,
+      devOptions: { enabled: false },
+      injectManifest: {
+        // No HTML: the offline fallback lives at the origin root and is added
+        // explicitly by the worker with the build version as its revision.
+        globPatterns: ['**/*.{js,css,svg,png,ico,woff,woff2,ttf,webmanifest}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
+    }),
+    buildVersionFile(),
   ],
-  define: { 'process.env': {} },
+  define: {
+    'process.env': {},
+    __APP_VERSION__: JSON.stringify(buildVersion),
+  },
   resolve: {
     alias: {
       '@core-scss': fileURLToPath(

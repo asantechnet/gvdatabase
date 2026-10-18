@@ -862,19 +862,25 @@ watch(logDate, async () => {
                     <!-- Status Pill Badge -->
                     <td class="py-3 px-4 text-center">
                       <VChip
-                        :color="statusColor(record.status)"
+                        :color="record.is_off_day ? 'info' : statusColor(record.status)"
                         variant="flat"
                         size="small"
                         class="font-weight-bold text-uppercase px-3"
                         style="min-width: 90px; justify-content: center;"
                       >
                         <VIcon
-                          :icon="statusIcon(record.status)"
+                          :icon="record.is_off_day ? 'tabler-calendar-off' : statusIcon(record.status)"
                           size="14"
                           class="mr-1"
                         />
-                        {{ translateBackendValue(record.status) }}
+                        {{ record.is_off_day ? $t('pages.attendance.timesheet.timesheet.offDay') : translateBackendValue(record.status) }}
                       </VChip>
+                      <div
+                        v-if="record.is_off_day && record.off_day_reason"
+                        class="text-caption text-medium-emphasis mt-1"
+                      >
+                        {{ record.off_day_reason }}
+                      </div>
                       <div
                         v-if="record.leave_duration_days"
                         class="d-flex justify-center ga-1 mt-1"

@@ -95,6 +95,12 @@ class PermissionSeeder extends Seeder
         ['name' => 'request_own_paid_time_off', 'category' => 'human_resources'],
         ['name' => 'grant_paid_time_off', 'category' => 'human_resources'],
         ['name' => 'print_paid_time_off', 'category' => 'human_resources'],
+        // Off days are company-wide holidays. Announcing, approving and
+        // removing them are separate capabilities so HR can schedule a range
+        // while only an authorised reviewer activates it.
+        ['name' => 'view_off_days', 'category' => 'human_resources'],
+        ['name' => 'manage_off_days', 'category' => 'human_resources'],
+        ['name' => 'approve_off_days', 'category' => 'human_resources'],
         ['name' => 'view_attendance', 'category' => 'human_resources'],
         ['name' => 'record_attendance', 'category' => 'human_resources'],
         ['name' => 'delete_attendance', 'category' => 'human_resources'],

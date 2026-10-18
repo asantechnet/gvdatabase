@@ -61,6 +61,7 @@
   },
   "include": [
     "./vite.config.*",
+    "./pwa-assets.config.ts",
     "./env.d.ts",
     "./shims.d.ts",
     "./resources/ts/**/*",

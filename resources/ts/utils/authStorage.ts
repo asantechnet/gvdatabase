@@ -1,3 +1,5 @@
+import { purgeApiCache } from './offlineCache'
+
 export interface AuthTokens {
   access_token: string
   refresh_token?: string
@@ -42,6 +44,10 @@ export const clearAuthTokens = () => {
 
   document.cookie = 'accessToken=; Path=/; Max-Age=0; SameSite=Lax'
   document.cookie = 'userData=; Path=/; Max-Age=0; SameSite=Lax'
+
+  // Cached API data is per user: every logout, 401 and login (which clears
+  // before storing) must drop it so another account can never see it.
+  void purgeApiCache()
 }
 
 export const storeAuthTokens = (tokens: AuthTokens, remember: boolean) => {

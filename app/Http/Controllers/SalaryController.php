@@ -11,6 +11,7 @@ use App\Models\PaidTimeOff;
 use App\Models\Salary;
 use App\Models\WorthyEmployee;
 use App\Services\CurrencyConversionService;
+use App\Services\SalaryAdvanceService;
 use App\Services\SalaryExpenseSynchronizer;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -25,11 +26,12 @@ class SalaryController extends Controller
     public function __construct(
         private readonly CurrencyConversionService $currencies,
         private readonly SalaryExpenseSynchronizer $expenses,
+        private readonly SalaryAdvanceService $advances,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'recorder']);
+        $query = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advances', 'recorder']);
 
         // Handle frontend filtering
         if ($request->filled('salaryMonthFilter')) {
@@ -78,6 +80,7 @@ class SalaryController extends Controller
             $this->ensureDeductionsWithinPayable($validated['deductions'], (float) $validated['total_amount']);
             $counts = $this->attendanceCounts($validated['employee_id'], $validated['salary_month']);
             $validated = array_merge($validated, $counts, $this->resolveWorkedDays($validated, $counts));
+            $validated['advance_recovery'] = 0;
             $validated += $this->salaryCurrencySnapshot($currency, $validated['amount_paid'], $bonusBase, $rate);
 
             $salary = Salary::create($validated);
@@ -86,7 +89,13 @@ class SalaryController extends Controller
             }
             $this->syncDeductions($salary, $validated['deductions']);
             $this->syncAutomaticDeduction($salary);
-            $this->expenses->sync($salary);
+            // Advance recovery is a deduction; it owns the payable balance from
+            // here so the initial payment is checked against the real net due.
+            $this->advances->apply($salary);
+            // Recovery updates the salary through its own locked instance, so
+            // the payable balance must be re-read before the first payment is
+            // validated against it.
+            $salary->refresh()->load(['deductions']);
             $initialPayment = (float) ($validated['initial_payment'] ?? 0);
             $netDue = max(0, (float) $salary->amount_due);
             if ($initialPayment > $netDue + 0.00000001) {
@@ -99,12 +108,12 @@ class SalaryController extends Controller
             return $salary;
         });
 
-        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'recorder']));
+        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advances', 'recorder']));
     }
 
     public function show(Salary $salary): SalaryResource
     {
-        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'recorder']));
+        return new SalaryResource($salary->load(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advances', 'recorder']));
     }
 
     public function update(Request $request, Salary $salary): SalaryResource
@@ -113,6 +122,9 @@ class SalaryController extends Controller
         abort_if((int) $validated['employee_id'] !== (int) $salary->employee_id, 422, 'business.salary_employee_immutable');
         abort_if($validated['salary_month'] !== $salary->salary_month, 422, 'business.salary_period_immutable');
         abort_if((int) $validated['currency_id'] !== (int) $salary->currency_id, 422, 'business.salary_currency_immutable');
+        // The agreed base amount is a snapshot of the employment terms. Only
+        // payments (and deduction lines) may change after the payslip exists.
+        abort_if(abs((float) $validated['amount_paid'] - (float) $salary->amount_paid) > 0.00000001, 422, 'business.salary_amount_immutable');
 
         DB::transaction(function () use ($salary, $validated) {
             $salary = Salary::query()->lockForUpdate()->findOrFail($salary->id);
@@ -130,16 +142,17 @@ class SalaryController extends Controller
             $salary->update($validated);
             $this->syncDeductions($salary, $validated['deductions']);
             $this->syncAutomaticDeduction($salary);
-            $this->expenses->sync($salary);
+            $this->advances->apply($salary);
         });
 
         // Returns updated resource to populate the form view in place
-        return new SalaryResource($salary->fresh(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'recorder']));
+        return new SalaryResource($salary->fresh(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advances', 'recorder']));
     }
 
     public function destroy(Salary $salary): JsonResponse
     {
         DB::transaction(function () use ($salary) {
+            $this->advances->release($salary);
             $salary->payments()->with('expense')->get()->each(function ($payment): void {
                 $payment->expense?->delete();
             });
@@ -193,6 +206,7 @@ class SalaryController extends Controller
             'workedDays' => $counts['worked_days'],
             'totalDays' => $counts['total_days'],
             'paidLeaveDays' => $counts['paid_leave_days'],
+            'offDays' => $counts['off_days'],
             'unpaidLeaveDays' => $counts['unpaid_leave_days'],
             'absentDays' => $counts['absent_days'],
         ]]);
@@ -361,7 +375,11 @@ class SalaryController extends Controller
         $missingDays = max(0.0, $total - $worked);
         $amount = $total > 0 ? round($base * $missingDays / $total, (int) ($salary->currency_decimal_places ?? 2)) : 0.0;
 
-        $automatic = $salary->deductions()->where('is_automatic', true)->first();
+        // Advance recovery has its own automatic row; keep the attendance
+        // proration scoped to its code so the two never overwrite each other.
+        $automatic = $salary->deductions()->where('is_automatic', true)
+            ->where(fn ($query) => $query->whereNull('code')->orWhere('code', 'attendance_proration'))
+            ->first();
 
         if ($amount <= 0) {
             $automatic?->delete();
@@ -502,10 +520,16 @@ class SalaryController extends Controller
         $paid = (float) $leave->sum('paid_days');
         $unpaid = (float) $leave->sum(fn ($row) => max(0, (float) $row->duration_days - (float) $row->paid_days));
 
+        // Approved off days are materialized as present rows carrying the
+        // holiday id, so they are already inside `$present`. They are also
+        // counted separately for the payslip breakdown.
+        $offDays = (float) $attendances->whereNotNull('off_day_id')->count();
+
         return [
             'total_days' => $workingDays,
             'worked_days' => round(min($workingDays, $present + $paid), 1),
             'paid_leave_days' => round($paid, 1),
+            'off_days' => round($offDays, 1),
             'unpaid_leave_days' => round($unpaid, 1),
             'absent_days' => round(max(0, $workingDays - $present - $paid - $unpaid), 1),
         ];

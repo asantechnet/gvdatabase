@@ -44,6 +44,7 @@ class Employee extends Model
         'emergency_contact_name',
         'emergency_contact_phone',
         'id_number',
+        'guarantor_name',
         'guarantor_id_number',
         'guarantor_phone',
         'guarantor_address',

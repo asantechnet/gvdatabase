@@ -25,8 +25,14 @@ class ApplicantStageController extends Controller
             // A service-scoped request returns that service's list. Without a
             // service (the cross-service list filter) every service's stages are
             // returned once per key, preserving the legacy single-pipeline shape.
-            ->when($service, fn ($q) => $q->where('service', $service))
-            ->when(array_key_exists('active', $data), fn ($q) => $q->where('is_active', $data['active']));
+            ->when($service, fn ($q) => $q->where('service', $service));
+        // Stage pickers only offer live stages; `all=1` is reserved for the
+        // stage editor, which must also show inactive rows.
+        if (array_key_exists('active', $data)) {
+            $query->where('is_active', (bool) $data['active']);
+        } elseif (! ($data['all'] ?? false)) {
+            $query->where('is_active', true);
+        }
         if (! ($data['all'] ?? false)) {
             $countryId = $data['country_id'] ?? null;
             $universityId = $data['university_id'] ?? null;
@@ -63,7 +69,12 @@ class ApplicantStageController extends Controller
         $required = $partial ? 'sometimes' : 'required';
         $service = $request->input('service', $request->route('applicantStage')?->service ?? BuiltInService::SCHOLARSHIP);
         $data = $request->validate([
-            'key' => [$required, 'string', 'max:100', 'alpha_dash', Rule::unique('applicant_stages', 'key')->where('service', $service)->ignore($request->route('applicantStage'))],
+            // A key is unique inside its service. The database keeps the same
+            // composite unique index, so a soft-deleted stage still reserves
+            // its key and allowed-next references never point at a reused key.
+            'key' => [$required, 'string', 'max:100', 'alpha_dash', Rule::unique('applicant_stages', 'key')
+                ->where('service', $service)
+                ->ignore($request->route('applicantStage'))],
             'name' => [$required, 'string', 'max:255'],
             'service' => ['sometimes', Rule::in(BuiltInService::ALL)],
             'country_id' => ['nullable', 'exists:countries,id'],
@@ -74,7 +85,11 @@ class ApplicantStageController extends Controller
             'allowed_next_keys' => ['nullable', 'array'],
             'allowed_next_keys.*' => ['string', 'max:100'],
         ]);
-        if (! $partial && empty($data['service'])) {
+        if ($partial) {
+            // A stage belongs to its service: moving it to another service
+            // would silently reparent every line currently standing on it.
+            unset($data['service']);
+        } elseif (empty($data['service'])) {
             $data['service'] = BuiltInService::SCHOLARSHIP;
         }
 

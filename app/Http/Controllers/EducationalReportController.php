@@ -19,6 +19,7 @@ use App\Support\BuiltInService;
 use App\Support\ReportDateFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -85,6 +86,7 @@ class EducationalReportController extends Controller
             'contract_type_id' => ['nullable', 'integer', 'exists:contract_types,id'],
             'package_id' => ['prohibited'],
             'package_type_id' => ['prohibited'],
+            'service' => ['nullable', Rule::in(BuiltInService::ALL)],
             'stage' => ['nullable', 'string', 'max:60'],
             'status' => ['nullable', 'in:active,closed'],
             'date_from' => ['nullable', 'date'],
@@ -118,8 +120,21 @@ class EducationalReportController extends Controller
         if (! empty($filters['employee_id'])) {
             $query->where('responsible_employee_id', $filters['employee_id']);
         }
+        if (! empty($filters['service'])) {
+            // A case belongs to a service when it is its own service or when
+            // it bought that service as a contract line.
+            $query->where(fn ($q) => $q->where('service', $filters['service'])
+                ->orWhereHas('services', fn ($line) => $line->where('service', $filters['service'])));
+            // The report shows the stage of the selected service's line.
+            $query->with(['services' => fn ($line) => $line->where('service', $filters['service'])->with('currentStage:id,name,key')]);
+        }
         if (! empty($filters['stage'])) {
-            $query->whereHas('currentStage', fn ($q) => $q->where('key', $filters['stage']));
+            $query->where(function ($q) use ($filters) {
+                $q->whereHas('currentStage', fn ($stage) => $stage->where('key', $filters['stage']))
+                    ->orWhereHas('services', fn ($line) => $line
+                        ->whereHas('currentStage', fn ($stage) => $stage->where('key', $filters['stage']))
+                        ->when(! empty($filters['service']), fn ($scoped) => $scoped->where('service', $filters['service'])));
+            });
         }
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -145,7 +160,11 @@ class EducationalReportController extends Controller
             'university' => $a->detail()?->university?->name ?? '—',
             'education_level' => $a->detail()?->educationLevel?->name ?? '—',
             'service' => $a->service,
-            'stage' => $a->currentStage?->name ?? '—',
+            // With a service filter the stage belongs to that service's line;
+            // without one the case-level mirror is the only single answer.
+            'stage' => ! empty($filters['service'])
+                ? ($a->services->first()?->currentStage?->name ?? '—')
+                : ($a->currentStage?->name ?? '—'),
             'status' => $a->status,
             'created_at' => $a->created_at?->format('Y-m-d') ?? '',
         ];

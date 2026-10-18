@@ -26,6 +26,7 @@ interface Staff {
   emergency_contact_phone: string | null
   id_number: string | null
   bank_account_number: string | null
+  guarantor_name: string | null
   guarantor_id_number: string | null
   guarantor_phone: string | null
   guarantor_address: string | null
@@ -85,7 +86,13 @@ const paidTimeOffYear = ref(new Date().getFullYear())
 const leaveAllowance = ref(0)
 const leaveUsed = ref(0)
 const leaveRemaining = ref(0)
-const leaveForm = ref({ id: null as number | null, date: new Date().toISOString().slice(0, 10), duration_days: 1 as 0.5 | 1, reason: '' })
+const leaveForm = ref({
+  id: null as number | null,
+  start_date: new Date().toISOString().slice(0, 10),
+  end_date: new Date().toISOString().slice(0, 10),
+  duration_days: 1 as 0.5 | 1,
+  reason: '',
+})
 const leaveError = ref('')
 const isLeaveLoading = ref(false)
 const attachmentTarget = ref<Staff | null>(null)
@@ -96,8 +103,27 @@ function openAttachments(staff: Staff) {
   isAttachmentsOpen.value = true
 }
 
+// Same range semantics as the self-service request dialog: Fridays are the
+// weekly day off and are not counted as requested leave days.
+const requestedLeaveDays = computed(() => {
+  const start = new Date(`${leaveForm.value.start_date}T00:00:00`)
+  const end = new Date(`${leaveForm.value.end_date}T00:00:00`)
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start)
+    return 0
+
+  let days = 0
+  for (const day = new Date(start); day <= end; day.setDate(day.getDate() + 1)) {
+    if (day.getDay() !== 5)
+      days++
+  }
+
+  return days
+})
+
 const isPaidTimeOffFormComplete = computed(() => Boolean(
-  leaveForm.value.date
+  leaveForm.value.start_date
+  && leaveForm.value.end_date
   && leaveForm.value.reason.trim(),
 ))
 
@@ -302,6 +328,18 @@ const commissionPayload = () => (selectedStaff.value?.is_commission_based
   ? (selectedStaff.value.service_commissions ?? []).filter(row => Number(row.percentage) > 0)
   : [])
 
+// Paid leave is an employee entitlement. Selecting an office prefills the
+// employee field with the office base so HR sees what will actually apply;
+// the value stays editable as a personal override.
+const applyOfficeLeaveBase = (officeId: number | null) => {
+  if (!selectedStaff.value)
+    return
+  const current = selectedStaff.value.paid_leave_days
+  if (current !== null && current !== undefined && `${current}` !== '')
+    return
+  selectedStaff.value.paid_leave_days = offices.value.find(office => office.id === officeId)?.paid_leave_days_per_year ?? null
+}
+
 const openAddStaffDialog = () => {
   selectedStaff.value = {
     id: 0,
@@ -332,6 +370,7 @@ const openAddStaffDialog = () => {
     total_worked_hours: 0,
     join_date: new Date().toISOString().split('T')[0],
     paid_leave_days: null,
+    guarantor_name: null,
     is_commission_based: false,
     service_commissions: [],
   }
@@ -381,24 +420,39 @@ const loadPaidTimeOffs = async () => {
 const openPaidTimeOffDialog = async (staff: Staff) => {
   leaveStaff.value = staff
   paidTimeOffYear.value = new Date().getFullYear()
-  leaveForm.value = { id: null, date: new Date().toISOString().slice(0, 10), duration_days: 1, reason: '' }
+  const today = new Date().toISOString().slice(0, 10)
+  leaveForm.value = { id: null, start_date: today, end_date: today, duration_days: 1, reason: '' }
   isPaidTimeOffDialogVisible.value = true
   await loadPaidTimeOffs()
 }
 
 const editPaidTimeOff = (record: PaidTimeOff) => {
-  leaveForm.value = { id: record.id, date: record.date, duration_days: record.duration_days, reason: record.reason }
+  leaveForm.value = {
+    id: record.id,
+    start_date: record.date,
+    end_date: record.date,
+    duration_days: record.duration_days,
+    reason: record.reason,
+  }
   leaveError.value = ''
 }
 
 const resetPaidTimeOffForm = () => {
-  leaveForm.value = { id: null, date: `${paidTimeOffYear.value}-01-01`, duration_days: 1, reason: '' }
+  leaveForm.value = {
+    id: null,
+    start_date: `${paidTimeOffYear.value}-01-01`,
+    end_date: `${paidTimeOffYear.value}-01-01`,
+    duration_days: 1,
+    reason: '',
+  }
   leaveError.value = ''
 }
 
 const changePaidTimeOffYear = async () => {
-  if (!leaveForm.value.id)
-    leaveForm.value.date = `${paidTimeOffYear.value}-01-01`
+  if (!leaveForm.value.id) {
+    leaveForm.value.start_date = `${paidTimeOffYear.value}-01-01`
+    leaveForm.value.end_date = `${paidTimeOffYear.value}-01-01`
+  }
 
   await loadPaidTimeOffs()
 }
@@ -406,24 +460,40 @@ const changePaidTimeOffYear = async () => {
 const savePaidTimeOff = async () => {
   if (!leaveStaff.value)
     return
-  if (!leaveForm.value.date || !leaveForm.value.reason.trim()) {
-    leaveError.value = translate(!leaveForm.value.date ? 'pages.users.staffList.dateRequired' : 'pages.users.staffList.reasonRequired')
+  if (!leaveForm.value.start_date || !leaveForm.value.end_date || !leaveForm.value.reason.trim()) {
+    leaveError.value = translate(!leaveForm.value.start_date ? 'pages.users.staffList.dateRequired' : 'pages.users.staffList.reasonRequired')
 
     return
   }
-  if (!leaveForm.value.date.startsWith(`${paidTimeOffYear.value}-`)) {
+  if (!leaveForm.value.start_date.startsWith(`${paidTimeOffYear.value}-`)
+    || !leaveForm.value.end_date.startsWith(`${paidTimeOffYear.value}-`)) {
     leaveError.value = `Date: Choose a date in ${paidTimeOffYear.value}.`
+
+    return
+  }
+  if (leaveForm.value.end_date < leaveForm.value.start_date) {
+    leaveError.value = translate('pages.paidTimeOff.rangeExceeds', { count: leaveRemaining.value })
 
     return
   }
   isLeaveLoading.value = true
   leaveError.value = ''
   try {
-    const payload = { date: leaveForm.value.date, duration_days: leaveForm.value.duration_days, reason: leaveForm.value.reason.trim() }
-    if (leaveForm.value.id)
-      await PaidTimeOffApi.update(leaveStaff.value.id, leaveForm.value.id, payload)
-    else
-      await PaidTimeOffApi.create(leaveStaff.value.id, payload)
+    if (leaveForm.value.id) {
+      await PaidTimeOffApi.update(leaveStaff.value.id, leaveForm.value.id, {
+        date: leaveForm.value.start_date,
+        duration_days: leaveForm.value.duration_days,
+        reason: leaveForm.value.reason.trim(),
+      })
+    }
+    else {
+      await PaidTimeOffApi.createRange(leaveStaff.value.id, {
+        start_date: leaveForm.value.start_date,
+        end_date: leaveForm.value.end_date,
+        duration_days: requestedLeaveDays.value === 1 ? leaveForm.value.duration_days : 1,
+        reason: leaveForm.value.reason.trim(),
+      })
+    }
     resetPaidTimeOffForm()
     await loadPaidTimeOffs()
   }
@@ -584,6 +654,7 @@ const addStaff = async () => {
       emergency_contact_phone: selectedStaff.value.emergency_contact_phone,
       id_number: selectedStaff.value.id_number ?? '',
       bank_account_number: selectedStaff.value.bank_account_number,
+      guarantor_name: selectedStaff.value.guarantor_name,
       guarantor_id_number: selectedStaff.value.guarantor_id_number,
       guarantor_phone: selectedStaff.value.guarantor_phone,
       guarantor_address: selectedStaff.value.guarantor_address,
@@ -645,6 +716,7 @@ const updateStaff = async () => {
       emergency_contact_phone: selectedStaff.value.emergency_contact_phone,
       id_number: selectedStaff.value.id_number ?? '',
       bank_account_number: selectedStaff.value.bank_account_number,
+      guarantor_name: selectedStaff.value.guarantor_name,
       guarantor_id_number: selectedStaff.value.guarantor_id_number,
       guarantor_phone: selectedStaff.value.guarantor_phone,
       guarantor_address: selectedStaff.value.guarantor_address,
@@ -1265,6 +1337,7 @@ onMounted(async () => {
                   item-value="id"
                   :label="$t('common.fields.office')"
                   clearable
+                  @update:model-value="applyOfficeLeaveBase"
                 />
               </VCol>
               <VCol
@@ -1326,6 +1399,15 @@ onMounted(async () => {
                 description-key="common.messages.guarantorAddress"
                 icon="tabler-shield-check"
               />
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.guarantor_name"
+                  :label="$t('common.messages.guarantorName')"
+                />
+              </VCol>
               <VCol
                 cols="12"
                 md="6"
@@ -1611,6 +1693,7 @@ onMounted(async () => {
                   item-value="id"
                   :label="$t('common.fields.office')"
                   clearable
+                  @update:model-value="applyOfficeLeaveBase"
                 />
               </VCol>
               <VCol
@@ -1665,6 +1748,15 @@ onMounted(async () => {
                 <VTextField
                   v-model="selectedStaff.bank_account_number"
                   :label="$t('common.ui.bankAccountNumber')"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model="selectedStaff.guarantor_name"
+                  :label="$t('common.messages.guarantorName')"
                 />
               </VCol>
               <VCol
@@ -1814,50 +1906,52 @@ onMounted(async () => {
           >
             {{ paidTimeOffLimitMessage }}
           </VAlert>
+          <VAlert
+            v-else-if="requestedLeaveDays > leaveRemaining"
+            type="warning"
+            variant="tonal"
+            class="mb-4"
+          >
+            {{ $t('pages.paidTimeOff.rangeExceeds', { count: leaveRemaining }) }}
+          </VAlert>
 
           <VRow class="align-end mb-3">
-            <VCol
-              cols="12"
-              md="3"
-            >
+            <VCol cols="12" sm="6" md="3">
               <AppDateTimePicker
-                v-model="leaveForm.date"
-                :label="$t('common.fields.date')"
+                v-model="leaveForm.start_date"
+                :label="$t('pages.paidTimeOff.from')"
                 :config="{ dateFormat: 'Y-m-d' }"
               />
             </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
+            <VCol cols="12" sm="6" md="3">
+              <AppDateTimePicker
+                v-model="leaveForm.end_date"
+                :label="$t('pages.paidTimeOff.to')"
+                :config="{ dateFormat: 'Y-m-d' }"
+                :disabled="Boolean(leaveForm.id)"
+              />
+            </VCol>
+            <VCol cols="12" md="3">
               <VTextField
                 v-model="leaveForm.reason"
                 :label="$t('common.fields.reason')"
                 maxlength="1000"
               />
             </VCol>
-            <VCol
-              cols="12"
-              md="2"
-            >
+            <VCol v-if="requestedLeaveDays === 1" cols="12" md="2">
               <VSelect
                 v-model="leaveForm.duration_days"
                 :items="[{ title: $t('pages.paidTimeOff.fullDay'), value: 1 }, { title: $t('pages.paidTimeOff.halfDay'), value: 0.5 }]"
                 :label="$t('pages.paidTimeOff.duration')"
               />
             </VCol>
-            <VCol
-              cols="12"
-              md="3"
-              class="d-flex gap-2"
-            >
+            <VCol cols="12" md="1" class="d-flex gap-2">
               <VBtn
                 color="primary"
-                :loading="isLeaveLoading"
-                :disabled="!canSavePaidTimeOff"
+                :disabled="!canSavePaidTimeOff || isLeaveLoading"
                 @click="savePaidTimeOff"
               >
-                {{ leaveForm.id ? 'Update' : 'Add day' }}
+                {{ leaveForm.id ? $t('common.actions.update') : $t('pages.paidTimeOff.requestDays', { count: requestedLeaveDays || '' }) }}
                 <VTooltip
                   activator="parent"
                   location="top"

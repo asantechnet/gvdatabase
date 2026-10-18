@@ -17,7 +17,7 @@ class Attendance extends Model
     protected $fillable = [
         'employee_id',
         'date',
-        'status', 'leave_duration_days', 'paid_leave_days', 'unpaid_leave_days',
+        'status', 'off_day_id', 'leave_duration_days', 'paid_leave_days', 'unpaid_leave_days',
         'logged_at',
         'check_in_time',
         'check_out_time',
@@ -69,6 +69,12 @@ class Attendance extends Model
     public function office(): BelongsTo
     {
         return $this->belongsTo(Office::class)->withTrashed();
+    }
+
+    /** The announced holiday that turned this day into a paid off day. */
+    public function offDay(): BelongsTo
+    {
+        return $this->belongsTo(OffDay::class);
     }
 
     /**

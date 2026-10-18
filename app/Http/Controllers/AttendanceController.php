@@ -37,7 +37,7 @@ class AttendanceController extends Controller
 
         // Daily-report contents deliberately stay out of this list query. The
         // timesheet fetches an individual report only when it is opened.
-        $records = Attendance::with(['staff.position', 'office'])
+        $records = Attendance::with(['staff.position', 'office', 'offDay'])
             ->withExists('dailyReport')
             ->betweenDates($startDate, $endDate)
             ->when($request->filled('employee_id'), fn ($query) => $query->where('employee_id', $request->integer('employee_id')))
@@ -81,7 +81,7 @@ class AttendanceController extends Controller
         $request->validate(['start_date' => ['sometimes', 'date'], 'end_date' => ['sometimes', 'date', 'after_or_equal:start_date']]);
         $employeeId = $request->user()->employee?->id;
         abort_unless($employeeId, 404, 'Employee profile not found.');
-        $records = Attendance::with(['staff.position', 'office'])->withExists('dailyReport')
+        $records = Attendance::with(['staff.position', 'office', 'offDay'])->withExists('dailyReport')
             ->betweenDates($request->input('start_date', now(app(CompanyProfile::class)->timezone())->startOfMonth()->toDateString()), $request->input('end_date', now(app(CompanyProfile::class)->timezone())->toDateString()))
             ->where('employee_id', $employeeId)->latest('date')->get();
         $records->each(fn (Attendance $attendance) => $calculator->calculate($attendance));

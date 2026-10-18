@@ -77,6 +77,12 @@ export const getAuditLog = async (id: number): Promise<AuditLog> => {
   return response.data.data as AuditLog
 }
 
+export const getAuditHeartbeat = async (): Promise<AuditLog[]> => {
+  const response = await api.get('/audit-logs/heartbeat')
+
+  return Array.isArray(response.data.data) ? response.data.data as AuditLog[] : []
+}
+
 export const getPendingAuditCount = async (): Promise<number> => {
   const response = await api.get('/audit-logs/pending-count')
 
@@ -107,4 +113,4 @@ export const updateAuditResource = async (id: number, enabled: boolean): Promise
   return response.data.data as AuditResource
 }
 
-export default { getAuditLogs, getAuditLog, getPendingAuditCount, reviewAuditLog, bulkReviewAuditLogs, getAuditResources, updateAuditResource }
+export default { getAuditLogs, getAuditLog, getAuditHeartbeat, getPendingAuditCount, reviewAuditLog, bulkReviewAuditLogs, getAuditResources, updateAuditResource }

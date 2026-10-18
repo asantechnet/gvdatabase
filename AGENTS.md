@@ -75,14 +75,55 @@ Rules:
 - ApplicantContractPaymentService owns calculated balances and sticky payment overrides. CurrencyRateService persists supplied rates atomically.
 - Preserve issued contract snapshots and receipt numbers. Receipt printing uses the namespaced A5 print workflow.
 
+## HR, payroll and leave
+
+- `employees.guarantor_name` is a first-class field alongside the guarantor ID/phone/address/licence; keep it in the model, validation, resource, factory and staff form.
+- An employee's paid-leave allowance resolves as employee override (`employees.paid_leave_days`) → office base (`offices.paid_leave_days_per_year`) → global setting. Never read the global setting directly for a single employee.
+- A salary's base `amount_paid` is immutable after creation; only payments, manual deductions and the automatic rows change. `SalaryController::update` rejects an amount change.
+- Salary advances are recovered from payroll by `SalaryAdvanceService`: one automatic `advance_recovery` salary deduction per period, each advance recovered once (`employee_advances.salary_id`), fully or not at all, so net pay never goes negative. Deleting the salary releases them. The advance's own expense remains the cash record — recovery is never a second expense.
+- `SalaryController` writes the attendance proration row under the `attendance_proration` code so it never collides with `advance_recovery`.
+- Payslips snapshot `salaries.off_days` and `salaries.advance_recovery` and itemize recovered advances. Advance receipts print employee + company copies on one A5 sheet (`templates/advance_receipt_template.vue`).
+- Off days are company-wide holidays managed by HR in `off_days` (range + reason + `approved_by`). `OffDayService` is the only writer: an approved holiday materializes non-worked days as `attendances.status = present` with `off_day_id`, so payroll counts them as present while the payslip reports them separately. Worked rows and leave rows are never overwritten; reverting/deleting deletes or restores the synthesized rows.
+- Permissions: `view_off_days`, `manage_off_days` (announce/edit) and `approve_off_days` (approve/reject/remove an approved holiday) are separate. A holder of `approve_off_days` announces an already-approved holiday in one step. `finance_officer` holds payroll + `view_off_days`.
+- Self-service leave and the staff-page leave dialog accept a date range; Fridays are the weekly day off and are skipped (never rejected), and the range is stored one row per date.
+
 ## Real-time notifications
 
 - Delivery is heartbeat-based HTTP polling; there is no websocket/broadcast stack. Do not add one without an explicit decision.
 - `Notification::deliverTo()` is the only delivery choke point. Keep it that way: it filters recipients by their notification preferences and sets `users.unread_notifications = true` for everyone it actually delivered to. New producers must go through it (directly or via `EducationalWorkflowNotificationService::notifyOnce`).
 - `GET /api/notifications/heartbeat` (`view_own_notifications`) returns the caller's unread notifications only while their `unread_notifications` flag is true, then clears the flag inside a transaction that locks the user row, so a batch is delivered exactly once even under concurrent polls. Route order matters: register it before `apiResource('notifications')` so `{notification}` does not swallow `heartbeat`.
 - The heartbeat is a separate channel from the on-launch inbox load (`GET /notifications`) and the 60s inbox refresh; both stay in place. Heartbeat items are merged into the same list (prepended, de-duped by id), so they share the existing mark-read/delete/click-through behaviour and `go_to_url` navigation.
-- The frontend polls every 30s via `resources/ts/composables/useNotificationHeartbeat.ts`. `notification-ding.mp3` plays once per heartbeat batch, and once on app launch when the user already had unread notifications (`playLaunchDingOnce`); never once per notification. The served asset is `public/sounds/notification-ding.mp3`.
+- The frontend polls every 30s via `resources/ts/composables/useNotificationHeartbeat.ts`. `notification-ding.mp3` plays once per heartbeat batch, and once on app launch when the user already had unread notifications (`playLaunchDingOnce`); never once per notification. The only served copy is `public/sounds/notification-ding.mp3`, fetched at runtime from `/sounds/notification-ding.mp3` (Laravel serves `public/` at the origin root) and precached by the service worker. Do not keep a repository-root copy: it is never served and drifts from the real asset.
 - Notification producers are permission/role-scoped by the producer: task assignment notifies each assignee (`taskAssigned`), payment requests notify `approve_pending_transactions` holders (`pendingSubmitted`), and contract creation notifies the applicant's responsible and admission employees plus the seller (`contractGenerated`).
+- Audits have a parallel real-time channel. `AuditLog::created` raises `users.unread_audit_logs` in one bulk `UPDATE` scoped to active holders of `view_audit_logs` / `view_team_audit_logs` (plus super admins); `GET /api/audit-logs/heartbeat` returns rows after the user's `audit_logs_seen_id` cursor, then advances the cursor and clears the flag inside a row-locked transaction. Register it before the audit-log resource routes. The flag write is skipped until its migration has run, because earlier migrations create audited models. `resources/ts/composables/useAuditHeartbeat.ts` polls every 30s and drives `NavBarAuditLogs`; one notice per batch, never per row.
+
+## PWA and offline caching
+
+- The SPA is installable. `vite-plugin-pwa` runs in `injectManifest` mode with
+  `resources/ts/service-worker/sw.ts`; the build emits `public/sw.js` at the origin root so its scope is
+  `/`. `public/sw.js`, `public/version.json` and `public/icons/**` are generated and committed like
+  `public/build` — never hand-edit them, run `npm run build` (icons: `npm run pwa:assets`).
+- The worker precaches all of `public/build/assets/**` plus `/offline.html` and `/sounds/notification-ding.mp3` (public assets are outside the Vite manifest, so the chime and the fallback are added explicitly in `sw.ts`). Bundle hashes are revisioned, so
+  only changed chunks are re-downloaded; `maximumFileSizeToCacheInBytes` is 4 MiB (covers the largest chunk).
+- Authenticated `GET /api/**` is `NetworkFirst` (5 s, 500 entries / 24 h, status 200 only). Never cache
+  `/api/notifications/heartbeat` and `/api/audit-logs/heartbeat` (they clear a server flag — a cached response stops delivery), `/api/auth/*`,
+  `/api/version`, `/manifest.webmanifest`, file downloads or report exports. Those rules are `NetworkOnly` in
+  the worker; keep them first.
+- Data caches are namespaced `api-<__APP_VERSION__>`, `pages-<__APP_VERSION__>`, `assets-<__APP_VERSION__>`.
+  On activate the worker deletes every other version's cache, so a deploy reclaims old assets and old API data.
+- Per-user isolation goes through `clearAuthTokens()` in `resources/ts/utils/authStorage.ts`, which calls
+  `purgeApiCache()`. It already runs on login (before storing), logout and 401 — keep that single choke point
+  instead of purging in individual components.
+- Version mechanism: the build bakes `__APP_VERSION__` (`package.json` version + git short SHA) into the bundle
+  and writes `public/version.json`, served publicly at `GET /api/version`. `plugins/pwa` registers the worker
+  with update-waiting semantics and `useAppVersion` compares the two; a mismatch purges API data and raises a
+  translated reload toast. Activation is always user-consented (no silent reload, no `skipWaiting` on install).
+- Offline is read-only: there is no mutation queue. A write attempted without a connection fails with the
+  translated `pwa.offline_action_blocked` message. Do not add Background Sync without an explicit decision.
+- The manifest is served dynamically by `PwaManifestController` from Settings (`short_company_name` /
+  `website_title` / `website_logo` / `primary_color`), with committed PNG fallbacks, so branding changes need no
+  rebuild. PWA install and service workers require HTTPS (or `localhost`); `devOptions.enabled` is false, so
+  service-worker behaviour is only testable against `npm run build` output.
 
 ## Asset
 

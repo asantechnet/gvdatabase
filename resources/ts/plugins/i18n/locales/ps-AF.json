@@ -63,6 +63,9 @@
       },
       "geofence": {
         "inaccurate": "د موقعیت دقت {accuracy} متر دی. د ښه موقعیت سیګنال لپاره بیا هڅه وکړئ."
+      },
+      "accountsettingsbillingandplans": {
+        "days": "ورځې"
       }
     },
     "bonusRules": {
@@ -566,7 +569,8 @@
       "withdrawn": "بېرته اخیستل شوی",
       "income": "عاید",
       "expense": "لګښت",
-      "unpaidLeave": "بې معاشه رخصتي"
+      "unpaidLeave": "بې معاشه رخصتي",
+      "offDay": "د رخصتۍ ورځ"
     },
     "messages": {
       "taskFormHint": "روښانه کاري سرلیک ولیکئ، مناسبه وروستۍ نېټه وټاکئ، بیا نښې او مسؤل کسان ورزیات کړئ.",
@@ -700,7 +704,8 @@
       "saveChanges": "بدلونونه خوندي کړئ",
       "unableToSaveChanges": "ستاسو بدلونونه خوندي نشول.",
       "areYouSure": "ایا ډاډه یاست؟",
-      "failedToDelete": "حذف نه شو"
+      "failedToDelete": "حذف نه شو",
+      "guarantorName": "د تضمین کوونکي نوم"
     },
     "confirmations": {
       "areYouSureYouWantToDeleteThisContractTemplateThisActionCannotBeUndone": "ایا ډاډه یاست چې د قرارداد دا بڼه حذف کړئ؟ دا کړنه بېرته نه شي ګرځېدلی.",
@@ -852,13 +857,35 @@
         "payFailed": "تادیه ثبت نه شوه.",
         "cancelledSuccess": "تصفیه {number} لغوه شوه.",
         "cancelFailed": "تصفیه لغوه نه شوه.",
-        "entryTypes": { "earned": "ترلاسه شوی", "adjustment": "سمون" },
-        "statuses": { "pending": "ځنډیز", "draft": "مسوده", "approved": "تأیید شوی", "paid": "تادیه شوی", "cancelled": "لغوه شوی", "void": "باطل" }
+        "entryTypes": {
+          "earned": "ترلاسه شوی",
+          "adjustment": "سمون"
+        },
+        "statuses": {
+          "pending": "ځنډیز",
+          "draft": "مسوده",
+          "approved": "تأیید شوی",
+          "paid": "تادیه شوی",
+          "cancelled": "لغوه شوی",
+          "void": "باطل"
+        }
       },
       "commissionHeaders": {
-        "date": "نېټه", "type": "ډول", "employee": "کارکوونکی", "contract": "قرارداد", "case": "قضیه", "service": "خدمت",
-        "eligibleRevenue": "د وړ عاید", "rate": "کچه", "commission": "کمیشن", "status": "حالت",
-        "settlement": "تصفیه", "period": "موده", "amount": "مقدار", "paymentDate": "د تادیې نېټه", "actions": "کړنې"
+        "date": "نېټه",
+        "type": "ډول",
+        "employee": "کارکوونکی",
+        "contract": "قرارداد",
+        "case": "قضیه",
+        "service": "خدمت",
+        "eligibleRevenue": "د وړ عاید",
+        "rate": "کچه",
+        "commission": "کمیشن",
+        "status": "حالت",
+        "settlement": "تصفیه",
+        "period": "موده",
+        "amount": "مقدار",
+        "paymentDate": "د تادیې نېټه",
+        "actions": "کړنې"
       },
       "invalidPhone": "د اعتبار وړ د تلیفون شمېره نشته",
       "invalidPhoneHint": "د زنګ او پیغام لپاره شمېرې او د هېواد کوډ ورزیات کړئ.",
@@ -1105,7 +1132,9 @@
       "call": "زنګ",
       "editRole": "رول سمول",
       "createRole": "رول جوړول",
-      "legacyRecord": "پخوانی ثبت"
+      "legacyRecord": "پخوانی ثبت",
+      "paidLeaveDaysPerYear": "په کال کې با معاشه رخصتۍ",
+      "paidLeaveDaysPerYearHint": "په دې دفتر کې هر کارکوونکي ته پلي کېږي پرته له دې چې کارکوونکی شخصي مقدار ولري."
     },
     "unspecified": "ناڅرګند",
     "notAvailable": "نشته",
@@ -1119,12 +1148,12 @@
       "editTemplate": "نمونه سمول",
       "searchTemplates": "نمونې لټول",
       "sortOrder": "ترتیب",
-    "orderValue": "ترتیب {order}",
-    "clearFilters": "فلټرونه پاک کړئ",
-    "showMore": "نور ښکاره کړئ",
-    "showLess": "لږ ښکاره کړئ",
-    "noMatches": "له دې فلټرونو سره هېڅ نمونه برابره نه ده.",
-    "retry": "بیا هڅه وکړئ",
+      "orderValue": "ترتیب {order}",
+      "clearFilters": "فلټرونه پاک کړئ",
+      "showMore": "نور ښکاره کړئ",
+      "showLess": "لږ ښکاره کړئ",
+      "noMatches": "له دې فلټرونو سره هېڅ نمونه برابره نه ده.",
+      "retry": "بیا هڅه وکړئ",
       "empty": "په دې برخه کې لا تر اوسه څه نمونه نشته.",
       "loadFailed": "د پیغام نمونې بار نه شوې.",
       "deleteFailed": "نمونه ړنګه نه شوه.",
@@ -2117,7 +2146,7 @@
           "commissionBased": "کمیشن ولاړ کارکوونکی",
           "commissionBasedHint": "د قرارداد په بشپړېدو سره د هر قراردادي خدمت سلنه ترلاسه کوي.",
           "commissionPerService": "د هر خدمت لپاره د کمیشن کچه (٪)",
-          "paidLeaveDaysHint": "اختیاري. د کاري قرارداد د چاپ سرلیک کې ښودل کیږي.",
+          "paidLeaveDaysHint": "اختیاري. خالي پرېږدئ چې د دفتر اساس او بیا د شرکت تلوالې ارزښت پلي شي.",
           "paidOffDaysTheYearlyAllowanceHasBeenUsed": "بامعاشه رخصتۍ: د کال ټولې رخصتۍ کارول شوې دي.",
           "searchStaff": "کارمندان وپلټئ",
           "filterByPosition": "د موقف له مخې فلټر کړئ",
@@ -2269,7 +2298,8 @@
           "achievements": "لاسته راوړنې",
           "challenges": "ستونزې",
           "nextDayPlan": "د راتلونکې کاري ورځې پلان",
-          "supportNeeded": "اړینه مرسته"
+          "supportNeeded": "اړینه مرسته",
+          "offDay": "د رخصتۍ ورځ"
         },
         "unmarkedFor": "د {date} لپاره حاضري نده اخیستل شوې",
         "steps": {
@@ -2332,7 +2362,17 @@
           "searchAdvances": "مخکین تادیات ولټوئ",
           "advanceRecorded": "د معاش مخکینه تادیه ثبت شوه",
           "advanceDeleted": "د معاش مخکینه تادیه ړنګه شوه",
-          "confirmDeleteAdvance": "د {employee} لپاره مخکینه تادیه ړنګه کړو؟ د دې اړوند لګښت هم ړنګېږي."
+          "confirmDeleteAdvance": "د {employee} لپاره مخکینه تادیه ړنګه کړو؟ د دې اړوند لګښت هم ړنګېږي.",
+          "offDays": "د رخصتۍ ورځې",
+          "advanceRecovery": "د پیشکي بېرته اخیستنه",
+          "advancesRecovered": "بېرته اخیستل شوې پیشکې",
+          "outstandingAdvances": "پاتې پیشکې",
+          "printAdvanceReceipt": "د پیشکې رسید چاپ",
+          "advanceReceiptTitle": "د معاش پیشکې رسید",
+          "salaryAmountLocked": "د معاش اساسي مقدار د فیش له جوړېدو وروسته نشي بدلېدای.",
+          "payrollPrint": "میاشتنی معاش چاپ",
+          "payrollSummaryTitle": "میاشتنی معاش دفتر",
+          "netPayable": "خالص قابل پرداخت"
         }
       }
     },
@@ -3140,7 +3180,8 @@
       "fullDay": "بشپړه ورځ",
       "halfDay": "نیمه ورځ",
       "historyTitle": "د غوښتنو تاریخچه",
-      "historySubtitle": "د خپلو ثبت شوو غوښتنو حالت تعقیب کړئ."
+      "historySubtitle": "د خپلو ثبت شوو غوښتنو حالت تعقیب کړئ.",
+      "perEmployeeAllowanceHint": "د معاش رخصتۍ د هر کارکوونکي د دفتر پر بنسټ دي پرته له دې چې شخصي مقدار ټاکل شوی وي."
     },
     "support": {
       "title": "د ملاتړ مرکز",
@@ -3246,7 +3287,10 @@
         "semesters": "سمسترونه",
         "attachments": "ضمیمې",
         "universities": "پوهنتونونه"
-      }
+      },
+      "realtimeTitle": "نوی پلټنیز فعالیت",
+      "realtimeBody": "{count} نوي پلټنیز بدلونونه د بیاکتنې په تمه دي.",
+      "openPage": "د پلټنو خلاصول"
     },
     "announcements": {
       "title": "اعلانیې",
@@ -3292,6 +3336,32 @@
         "empty": "لا تر اوسه اعلانیه نشته.",
         "emptyHint": "اعلانیې چې لېږئ دلته ښکاري."
       }
+    },
+    "offDays": {
+      "title": "د رخصتۍ ورځې",
+      "subtitle": "د شرکت عمومي رخصتۍ اعلان کړئ؛ تصویب شوې ورځې په حاضري کې ثبت او په معاش کې حاضر ګڼل کېږي.",
+      "add": "د رخصتۍ ورځ اعلان کړئ",
+      "edit": "د رخصتۍ ورځ سمول",
+      "startDate": "پیل نېټه",
+      "endDate": "پای نېټه",
+      "reason": "دلیل",
+      "days": "ورځې",
+      "approvedBy": "تصویب کوونکی",
+      "approve": "تصویب",
+      "reject": "رد",
+      "remove": "حذف",
+      "removeConfirm": "دا د رخصتۍ ورځ حذف شي؟ د هغې له امله جوړ شوي حاضري ریکارډونه به خوشې شي.",
+      "saved": "د رخصتۍ ورځ خوندي شوه.",
+      "approvedMessage": "د رخصتۍ ورځ تصویب او په حاضري کې پلي شوه.",
+      "rejectedMessage": "د رخصتۍ ورځ رد شوه.",
+      "removed": "د رخصتۍ ورځ حذف شوه.",
+      "unableToLoad": "د رخصتۍ ورځې نشي لوستل کېدای.",
+      "unableToSave": "د رخصتۍ ورځ نشي خوندي کېدای.",
+      "reportTitle": "د رخصتۍ ورځو راپور",
+      "empty": "د دې مودې لپاره هېڅ د رخصتۍ ورځ نه ده اعلان شوې.",
+      "affectsNote": "تصویب شوې د رخصتۍ ورځې په حاضري کې حاضر ثبت او په معاش فیش کې جلا ښودل کېږي.",
+      "startDateRequired": "د پیل او پای نېټه وټاکئ.",
+      "endDateAfterStart": "د پای نېټه باید د پیل له نېټې وروسته یا برابر وي."
     }
   },
   "documents": {
@@ -3454,7 +3524,66 @@
         "companyName": "د شرکت نوم",
         "clientContracteeName": "د مشتری / قرارداد اړخ نوم"
       }
+    },
+    "advanceReceipt": {
+      "title": "د معاش پیشکې رسید",
+      "subtitle": "پیشکې تادیه",
+      "receiptNo": "د رسید شمېره",
+      "date": "نېټه",
+      "employee": "کارکوونکی",
+      "employeeId": "د کارکوونکي پېژندنه",
+      "position": "وظیفه",
+      "department": "څانګه",
+      "amount": "مقدار",
+      "amountInWords": "مقدار په تورو",
+      "reason": "هدف / یادښتونه",
+      "receivedBy": "ترلاسه کوونکی (کارکوونکی)",
+      "paidBy": "تادیه کوونکی (شرکت)",
+      "companySignature": "مجاز لاسلیک",
+      "employeeSignature": "د کارکوونکي لاسلیک",
+      "note": "دا پیشکه د راتلونکي معاش څخه بېرته اخیستل کېږي.",
+      "employeeCopy": "د کارکوونکي نسخه",
+      "companyCopy": "د شرکت نسخه"
+    },
+    "payslip": {
+      "amountInWordsFallback": "{amount} {currency} یوازې",
+      "totalNetPayable": "ټول خالص واجب الادا ({currency})",
+      "workedDays": "کار شوې ورځې"
+    },
+    "payslip_template": {
+      "payslipTemplate": {
+        "mofTINRegNo": "د مالیې وزارت د TIN د ثبت شمېره",
+        "officialPAYSLIP": "رسمي معاش پاڼه",
+        "companySignature": "د شرکت لاسلیک",
+        "docNo": "د سند شمېره",
+        "payPeriod": "د تادیې دوره",
+        "payDate": "د تادیې نېټه",
+        "employeeName": "د کارکوونکي نوم",
+        "designation": "د وظیفې عنوان",
+        "dateOfJoining": "د شاملېدو نېټه",
+        "tazkiraNationalID": "تذکره (ملي پېژندنه)",
+        "employeeMoFTIN": "د کارکوونکي د TIN شمېره",
+        "bankAccountNo": "د بانکي حساب شمېره",
+        "workedTotalDays": "کار شوې ورځې / ټولې ورځې",
+        "earningsDeductionsSummary": "د عایداتو او کسرونو لنډیز",
+        "earningsDESCRIPTION": "د عایداتو توضیحات",
+        "deductionsDESCRIPTION": "د کسرونو توضیحات",
+        "grossEarnings": "ټول عایدات",
+        "totalDeductions": "ټول کسرونه",
+        "reimbursementsAdditions": "بېرته تاداویې / اضافات",
+        "totalReimbursements": "ټولې بېرته تاداویې",
+        "employeeSignature": "د کارکوونکي لاسلیک",
+        "hrPayrollOfficer": "د بشري سرچینو / معاشاتو مسئول",
+        "financeDirectorApproval": "د مالي مدیر تایید",
+        "thisDocumentIsGeneratedInComplianceWithTheAfghanistanLaborLawAndMinist": "دا سند د افغانستان د کار قانون او د وزارت مقرراتو سره سم جوړ شوی دی.",
+        "pleaseAllowPopupsInYourBrowserToPrintThePayslip": "د معاش پاڼې چاپ لپاره مهرباني وکړئ په خپل براوزر کې پاپ اپونه اجازه کړئ"
+      }
     }
+  },
+  "pwa": {
+    "updateAvailable": "د اپ نوی نسخه شته.",
+    "reloadNow": "اوس بیا پورته کړئ",
+    "offlineReady": "اپ د آفلاین کار لپاره چمتو دی."
   },
   "backend": {
     "errors": {
@@ -3507,6 +3636,9 @@
         "url": "باوري وېب پته ولیکئ.",
         "invalid": "باوري ارزښت ولیکئ."
       },
+      "pwa": {
+        "offline_action_blocked": "تاسو آفلاین یاست. دا عمل انټرنېټ ته اړتیا لري."
+      },
       "business": {
         "attendance_browser_account_mismatch": "دې براوزر نن د بل کارکوونکي حاضري ثبت کړې ده. خپله حاضري باید په شخصي توګه له خپل براوزر څخه ثبت کړئ.",
         "attendance_employee_inactive": "ستاسو د کارکوونکي پروفایل غیر فعال دی. د حاضري ثبتولو لپاره د بشري سرچینو سره اړیکه ونیسئ.",
@@ -3526,7 +3658,10 @@
         "edit_window_expired": "دا توکی یوازې د جوړېدو وروسته په لومړي ساعت کې سمول کېدای شي.",
         "office_geofence_unavailable": "اتوماتیکه حاضری شتون نلري ځکه چې د ستاسو د دفتر جغرافیایي محدوده (Geofence) نه ده تنظیم شوې.",
         "currency_in_use": "له قراردادي کرښو، معاشونو، عوایدو یا لګښتونو سره تړلي اسعار نه شي حذف کېدای.",
-        "finance_type_in_use": "دا ډول د سیستم لپاره اړین دی یا په راکړه ورکړه کې کارول شوی او نه شي حذف کېدای."
+        "finance_type_in_use": "دا ډول د سیستم لپاره اړین دی یا په راکړه ورکړه کې کارول شوی او نه شي حذف کېدای.",
+        "salary_amount_immutable": "د معاش اساسي مقدار د معاش فیش له جوړولو وروسته نه شي بدلېدای.",
+        "off_day_already_approved": "یوازې د رخصتۍ د ورځې تصویب اجازه لرونکی کولای شي تصویب شوې ورځ بدله کړي.",
+        "off_day_range_too_long": "د رخصتۍ ورځو دوره نشي کولای له یو کال ډېره وي."
       }
     }
   },

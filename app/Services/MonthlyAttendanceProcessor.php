@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\MonthlyAttendanceSummary;
+use App\Models\OffDay;
 use App\Models\PaidTimeOff;
 use App\Support\CompanyProfile;
 use Illuminate\Support\Carbon;
@@ -64,6 +65,13 @@ class MonthlyAttendanceProcessor
             return 0;
         }
         $employees = Employee::selectable()->active()->whereDate('join_date', '<=', $end)->get(['id', 'office_id', 'join_date']);
+        $offDays = OffDay::query()->approved()
+            ->overlapping($start->toDateString(), $end->toDateString())
+            ->get(['id', 'start_date', 'end_date']);
+        $offDayFor = function (string $date) use ($offDays): ?OffDay {
+            return $offDays->first(fn (OffDay $offDay) => $offDay->start_date->format('Y-m-d') <= $date
+                && $offDay->end_date->format('Y-m-d') >= $date);
+        };
         foreach ($employees as $employee) {
             $employeeStart = $start->copy()->max(Carbon::parse($employee->join_date));
             for ($day = $employeeStart->copy()->startOfDay(); $day->lte($end); $day->addDay()) {
@@ -76,6 +84,27 @@ class MonthlyAttendanceProcessor
                 if (Attendance::withTrashed()->where('employee_id', $employee->id)->where('date', $date)->exists()) {
                     continue;
                 }
+                $offDay = $offDayFor($date);
+                if ($offDay) {
+                    $row = Attendance::withTrashed()->createOrFirst(['employee_id' => $employee->id, 'date' => $date], [
+                        'employee_id' => $employee->id,
+                        'office_id' => $employee->office_id,
+                        'date' => $date,
+                        // An off day counts as present for payroll without
+                        // pretending the employee worked. The holiday id lets
+                        // the payslip report it separately.
+                        'status' => 'present',
+                        'off_day_id' => $offDay->id,
+                        'leave_duration_days' => 0,
+                        'paid_leave_days' => 0,
+                        'unpaid_leave_days' => 0,
+                        'logged_at' => '00:00:00',
+                    ]);
+                    $created += (int) $row->wasRecentlyCreated;
+
+                    continue;
+                }
+
                 $leave = PaidTimeOff::query()->where('employee_id', $employee->id)->whereDate('date', $date)
                     ->where('is_granted', true)->first();
                 $paidDays = (float) ($leave?->paid_days ?? 0);
@@ -105,6 +134,7 @@ class MonthlyAttendanceProcessor
             $present = $rows->sum(fn (Attendance $row) => $row->status === 'present'
                 ? max(0, 1 - (float) $row->leave_duration_days) : 0);
             $paid = $rows->sum(fn (Attendance $row) => (float) $row->paid_leave_days);
+            $offDays = $rows->whereNotNull('off_day_id')->count();
             $unpaid = $rows->sum(fn (Attendance $row) => (float) $row->unpaid_leave_days);
             $unworked = $rows->sum(fn (Attendance $row) => $row->status !== 'present'
                 ? max(0, 1 - (float) $row->leave_duration_days) : 0);
@@ -114,6 +144,7 @@ class MonthlyAttendanceProcessor
                     'present_days' => round($present, 1),
                     'absent_days' => round($unworked + $unpaid, 1),
                     'paid_leave_days' => round($paid, 1),
+                    'off_days' => round((float) $offDays, 1),
                     'unpaid_leave_days' => round($unpaid, 1),
                     'incomplete_days' => $rows->where('status', 'present')->where('missing_punch_state', '!=', 'none')->count(),
                     'gross_minutes' => (int) $rows->sum('gross_minutes'),

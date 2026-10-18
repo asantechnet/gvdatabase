@@ -18,6 +18,9 @@ const loading = ref(false)
 const overrideDialog = ref(false)
 const approvalNote = ref('')
 const allowance = ref(0)
+// Paid leave is an employee entitlement: the office base (or the employee's own
+// override) is resolved per row, not once for the whole ledger.
+const allowances = ref<Record<number, number>>({})
 
 const statusOptions = computed(() => [
   { title: $t('common.statuses.pending'), value: 'pending' },
@@ -60,7 +63,9 @@ const allowanceRisks = computed(() => {
   return [...selectedByEmployee.entries()].map(([employeeId, selection]) => {
     const used = paidByEmployee.get(employeeId) ?? 0
 
-    return { employeeId, ...selection, used, remaining: Math.max(0, allowance.value - used), excess: Math.max(0, used + selection.requested - allowance.value) }
+    const employeeAllowance = allowances.value[employeeId] ?? allowance.value
+
+    return { employeeId, ...selection, used, remaining: Math.max(0, employeeAllowance - used), excess: Math.max(0, used + selection.requested - employeeAllowance) }
   }).filter(item => item.excess > 0)
 })
 
@@ -73,6 +78,7 @@ async function load() {
 
     rows.value = result.data
     allowance.value = result.allowance
+    allowances.value = result.allowances ?? {}
   }
   catch (error) { toast.error(apiErrorMessage(error, $t('pages.paidTimeOff.unableToLoad'))) }
   finally { loading.value = false }

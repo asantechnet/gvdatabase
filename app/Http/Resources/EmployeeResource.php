@@ -22,6 +22,7 @@ class EmployeeResource extends JsonResource
             'emergency_contact_phone' => $this->emergency_contact_phone,
             'id_number' => $this->id_number,
             'bank_account_number' => $this->bank_account_number,
+            'guarantor_name' => $this->guarantor_name,
             'guarantor_id_number' => $this->guarantor_id_number,
             'guarantor_phone' => $this->guarantor_phone,
             'guarantor_address' => $this->guarantor_address,

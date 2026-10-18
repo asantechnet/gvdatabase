@@ -21,6 +21,7 @@ export interface PaidTimeOff {
 export interface PaidTimeOffLedger {
   data: PaidTimeOff[]
   allowance: number
+  allowances?: Record<number, number>
   used: number
   remaining: number
   pending: number
@@ -40,6 +41,11 @@ const PaidTimeOffApi = {
 
     return response.data.data as PaidTimeOff
   },
+  async createRange(employeeId: number, data: { start_date: string; end_date: string; reason: string; duration_days?: 0.5 | 1 }): Promise<PaidTimeOff[]> {
+    const response = await api.post(`/employees/${employeeId}/leaves`, data)
+
+    return response.data.data as PaidTimeOff[]
+  },
   async update(employeeId: number, id: number, data: PaidTimeOffPayload): Promise<PaidTimeOff> {
     const response = await api.put(`/employees/${employeeId}/leaves/${id}`, data)
 
@@ -58,10 +64,14 @@ const PaidTimeOffApi = {
 
     return response.data.data
   },
-  async getAllRequests(year: number): Promise<{ data: PaidTimeOff[]; allowance: number }> {
+  async getAllRequests(year: number): Promise<{ data: PaidTimeOff[]; allowance: number; allowances: Record<number, number> }> {
     const response = await api.get('/leaves', { params: { year } })
 
-    return { data: response.data.data, allowance: Number(response.data.allowance ?? 0) }
+    return {
+      data: response.data.data,
+      allowance: Number(response.data.allowance ?? 0),
+      allowances: response.data.allowances ?? {},
+    }
   },
   async grant(ids: number[], forcePaid = false, approvalNote?: string): Promise<{ data: PaidTimeOff[]; exceeded: number }> {
     const response = await api.patch('/leaves/grant', { ids, force_paid: forcePaid, approval_note: approvalNote })

@@ -9,6 +9,9 @@ export interface Attendance {
   office: string | null
   date: string
   status: 'present' | 'absent' | 'paid-leave' | 'unpaid-leave'
+  off_day_id: number | null
+  is_off_day: boolean
+  off_day_reason: string | null
   leave_duration_days: number
   paid_leave_days: number
   unpaid_leave_days: number

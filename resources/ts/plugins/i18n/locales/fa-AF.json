@@ -245,7 +245,8 @@
       "withdrawn": "انصراف داده",
       "income": "عاید",
       "expense": "مصرف",
-      "unpaidLeave": "رخصتی بدون معاش"
+      "unpaidLeave": "رخصتی بدون معاش",
+      "offDay": "روز رخصتی"
     },
     "messages": {
       "taskFormHint": "یک عنوان عملی روشن بنویسید، مهلت واقع‌بینانه تعیین کنید و سپس برچسب‌ها و مسئولان را اضافه کنید.",
@@ -381,7 +382,8 @@
       "saveChanges": "ذخیره تغییرات",
       "unableToSaveChanges": "امکان ذخیره تغییرات شما وجود ندارد.",
       "areYouSure": "مطمئن هستید؟",
-      "failedToDelete": "حذف ممکن نشد"
+      "failedToDelete": "حذف ممکن نشد",
+      "guarantorName": "نام ضامن"
     },
     "confirmations": {
       "areYouSureYouWantToDeleteThisContractTemplateThisActionCannotBeUndone": "آیا مطمئن هستید که می‌خواهید این قالب قرارداد را حذف کنید؟ این عمل قابل برگشت نیست.",
@@ -535,13 +537,35 @@
         "payFailed": "ثبت پرداخت انجام نشد.",
         "cancelledSuccess": "تسویه {number} لغو شد.",
         "cancelFailed": "لغو تسویه انجام نشد.",
-        "entryTypes": { "earned": "کسب‌شده", "adjustment": "تعدیل" },
-        "statuses": { "pending": "معوق", "draft": "پیش‌نویس", "approved": "تأییدشده", "paid": "پرداخت‌شده", "cancelled": "لغوشده", "void": "باطل" }
+        "entryTypes": {
+          "earned": "کسب‌شده",
+          "adjustment": "تعدیل"
+        },
+        "statuses": {
+          "pending": "معوق",
+          "draft": "پیش‌نویس",
+          "approved": "تأییدشده",
+          "paid": "پرداخت‌شده",
+          "cancelled": "لغوشده",
+          "void": "باطل"
+        }
       },
       "commissionHeaders": {
-        "date": "تاریخ", "type": "نوع", "employee": "کارمند", "contract": "قرارداد", "case": "پرونده", "service": "خدمت",
-        "eligibleRevenue": "عاید واجد شرایط", "rate": "نرخ", "commission": "کمیسیون", "status": "وضعیت",
-        "settlement": "تسویه", "period": "دوره", "amount": "مبلغ", "paymentDate": "تاریخ پرداخت", "actions": "عملیات"
+        "date": "تاریخ",
+        "type": "نوع",
+        "employee": "کارمند",
+        "contract": "قرارداد",
+        "case": "پرونده",
+        "service": "خدمت",
+        "eligibleRevenue": "عاید واجد شرایط",
+        "rate": "نرخ",
+        "commission": "کمیسیون",
+        "status": "وضعیت",
+        "settlement": "تسویه",
+        "period": "دوره",
+        "amount": "مبلغ",
+        "paymentDate": "تاریخ پرداخت",
+        "actions": "عملیات"
       },
       "relationshipNotes": "یادداشت‌های رابطه",
       "conversationHistory": "تاریخچه گفتگو",
@@ -788,7 +812,9 @@
       "call": "تماس",
       "editRole": "ویرایش نقش",
       "createRole": "ایجاد نقش",
-      "legacyRecord": "رکورد قدیمی"
+      "legacyRecord": "رکورد قدیمی",
+      "paidLeaveDaysPerYear": "روزهای رخصتی با معاش در سال",
+      "paidLeaveDaysPerYearHint": "برای همه کارمندان این دفتر اعمال می‌شود مگر این‌که کارمند مقدار شخصی داشته باشد."
     },
     "unspecified": "نامشخص",
     "notAvailable": "موجود نیست",
@@ -802,12 +828,12 @@
       "editTemplate": "ویرایش قالب",
       "searchTemplates": "جستجوی قالب‌ها",
       "sortOrder": "ترتیب",
-    "orderValue": "ترتیب {order}",
-    "clearFilters": "پاک کردن فیلترها",
-    "showMore": "نمایش بیشتر",
-    "showLess": "نمایش کمتر",
-    "noMatches": "هیچ قالبی با این فیلترها مطابقت ندارد.",
-    "retry": "تلاش دوباره",
+      "orderValue": "ترتیب {order}",
+      "clearFilters": "پاک کردن فیلترها",
+      "showMore": "نمایش بیشتر",
+      "showLess": "نمایش کمتر",
+      "noMatches": "هیچ قالبی با این فیلترها مطابقت ندارد.",
+      "retry": "تلاش دوباره",
       "empty": "هنوز در این بخش قالبی وجود ندارد.",
       "loadFailed": "بارگذاری قالب‌های پیام ممکن نشد.",
       "deleteFailed": "حذف قالب ممکن نشد.",
@@ -1800,7 +1826,7 @@
           "commissionBased": "کارمند کمیسیون‌محور",
           "commissionBasedHint": "با تکمیل قرارداد، درصدی از هر خدمت قراردادی را کسب می‌کند.",
           "commissionPerService": "نرخ کمیسیون به ازای هر خدمت (٪)",
-          "paidLeaveDaysHint": "اختیاری. در سرصفحه چاپ قرارداد کاری نشان داده می‌شود.",
+          "paidLeaveDaysHint": "اختیاری. خالی بگذارید تا اساس دفتر و سپس مقدار پیش‌فرض شرکت اعمال شود.",
           "paidOffDaysTheYearlyAllowanceHasBeenUsed": "روزهای رخصتی با معاش: سهمیه سالانه استفاده شده است.",
           "searchStaff": "جستجوی پرسونل / کارمند",
           "filterByPosition": "فیلتر بر اساس موقف",
@@ -1952,7 +1978,8 @@
           "achievements": "دستاوردها",
           "challenges": "چالش‌ها",
           "nextDayPlan": "برنامه روز کاری بعدی",
-          "supportNeeded": "نیاز به حمایت"
+          "supportNeeded": "نیاز به حمایت",
+          "offDay": "روز رخصتی"
         },
         "unmarkedFor": "ثبت‌نشده برای {date}",
         "steps": {
@@ -2015,7 +2042,17 @@
           "searchAdvances": "جستجوی پیش‌پرداخت‌ها",
           "advanceRecorded": "پیش‌پرداخت معاش ثبت شد",
           "advanceDeleted": "پیش‌پرداخت معاش حذف شد",
-          "confirmDeleteAdvance": "پیش‌پرداخت معاش برای {employee} حذف شود؟ مصرف مربوطه آن نیز حذف می‌گردد."
+          "confirmDeleteAdvance": "پیش‌پرداخت معاش برای {employee} حذف شود؟ مصرف مربوطه آن نیز حذف می‌گردد.",
+          "offDays": "روزهای رخصتی",
+          "advanceRecovery": "بازپس‌گیری پیش‌پرداخت",
+          "advancesRecovered": "پیش‌پرداخت‌های بازپس‌گیری‌شده",
+          "outstandingAdvances": "پیش‌پرداخت‌های باقی‌مانده",
+          "printAdvanceReceipt": "چاپ رسید پیش‌پرداخت",
+          "advanceReceiptTitle": "رسید پیش‌پرداخت معاش",
+          "salaryAmountLocked": "مبلغ اساسی معاش پس از ایجاد فیش قابل تغییر نیست.",
+          "payrollPrint": "چاپ معاش ماهانه",
+          "payrollSummaryTitle": "دفتر معاش ماهانه",
+          "netPayable": "قابل پرداخت خالص"
         }
       }
     },
@@ -3004,7 +3041,8 @@
       "fullDay": "تمام روز",
       "halfDay": "نیم روز",
       "historyTitle": "تاریخچه درخواست‌ها",
-      "historySubtitle": "وضعیت درخواست‌های ثبت‌شده خود را پیگیری کنید."
+      "historySubtitle": "وضعیت درخواست‌های ثبت‌شده خود را پیگیری کنید.",
+      "perEmployeeAllowanceHint": "مقدار رخصتی با معاش بر اساس دفتر هر کارمند است مگر مقدار شخصی تعیین شده باشد."
     },
     "audits": {
       "title": "تفتیش‌ها",
@@ -3233,7 +3271,9 @@
       "noUserFacingChanges": "معلومات قابل‌نمایش برای کاربر وجود ندارد.",
       "otherInformation": "معلومات دیگر",
       "moreChanges": "و {count} مورد دیگر",
-      "valueSeparator": "·"
+      "valueSeparator": "·",
+      "realtimeTitle": "فعالیت جدید حسابرسی",
+      "realtimeBody": "{count} تغییر جدید حسابرسی در انتظار بررسی است."
     },
     "support": {
       "title": "مرکز پشتیبانی",
@@ -3350,6 +3390,32 @@
         "empty": "هنوز اعلامیه‌ای وجود ندارد.",
         "emptyHint": "اعلامیه‌هایی که ارسال می‌کنید اینجا ظاهر می‌شوند."
       }
+    },
+    "offDays": {
+      "title": "روزهای رخصتی",
+      "subtitle": "رخصتی‌های عمومی شرکت را اعلام کنید؛ روزهای تأییدشده در حاضری ثبت و در معاش حاضر شمرده می‌شوند.",
+      "add": "اعلام روز رخصتی",
+      "edit": "ویرایش روز رخصتی",
+      "startDate": "تاریخ شروع",
+      "endDate": "تاریخ ختم",
+      "reason": "دلیل",
+      "days": "روزها",
+      "approvedBy": "تأییدکننده",
+      "approve": "تأیید",
+      "reject": "رد",
+      "remove": "حذف",
+      "removeConfirm": "این روز رخصتی حذف شود؟ رکوردهای حاضری ایجادشده توسط آن آزاد می‌شوند.",
+      "saved": "روز رخصتی ذخیره شد.",
+      "approvedMessage": "روز رخصتی تأیید و در حاضری اعمال شد.",
+      "rejectedMessage": "روز رخصتی رد شد.",
+      "removed": "روز رخصتی حذف شد.",
+      "unableToLoad": "بارگیری روزهای رخصتی ممکن نشد.",
+      "unableToSave": "ذخیره روز رخصتی ممکن نشد.",
+      "reportTitle": "گزارش روزهای رخصتی",
+      "empty": "برای این دوره روز رخصتی اعلام نشده است.",
+      "affectsNote": "روزهای رخصتی تأییدشده در حاضری حاضر ثبت و در فیش معاش جداگانه نمایش داده می‌شوند.",
+      "startDateRequired": "تاریخ شروع و ختم را انتخاب کنید.",
+      "endDateAfterStart": "تاریخ ختم باید بعد یا برابر تاریخ شروع باشد."
     }
   },
   "components": {
@@ -4187,7 +4253,32 @@
         "printTimesheet": "چاپ جدول حاضری",
         "monthlyAttendanceRecord": "رکورد حاضری ماهانه"
       }
+    },
+    "advanceReceipt": {
+      "title": "رسید پیش‌پرداخت معاش",
+      "subtitle": "پرداخت پیش‌پرداخت",
+      "receiptNo": "شماره رسید",
+      "date": "تاریخ",
+      "employee": "کارمند",
+      "employeeId": "شناسه کارمند",
+      "position": "وظیفه",
+      "department": "بخش",
+      "amount": "مبلغ",
+      "amountInWords": "مبلغ به حروف",
+      "reason": "هدف / ملاحظات",
+      "receivedBy": "دریافت‌کننده (کارمند)",
+      "paidBy": "پرداخت‌کننده (شرکت)",
+      "companySignature": "امضای مجاز",
+      "employeeSignature": "امضای کارمند",
+      "note": "این پیش‌پرداخت از معاش آینده بازپس گرفته می‌شود.",
+      "employeeCopy": "نسخه کارمند",
+      "companyCopy": "نسخه شرکت"
     }
+  },
+  "pwa": {
+    "updateAvailable": "نسخهٔ جدیدی از برنامه در دسترس است.",
+    "reloadNow": "اکنون بارگذاری مجدد کنید",
+    "offlineReady": "برنامه برای کار بدون اتصال آماده است."
   },
   "backend": {
     "values": {
@@ -4248,6 +4339,9 @@
         "invalid": "یک مقدار معتبر وارد کنید."
       },
       "validation_failed": "لطفاً فیلدهای مشخص‌شده را اصلاح کنید.",
+      "pwa": {
+        "offline_action_blocked": "شما آفلاین هستید. این عملیات به اتصال انترنت نیاز دارد."
+      },
       "business": {
         "contract_payment_exceeds_balance": "مبلغ پرداختی از مانده این خدمت بیشتر است.",
         "contract_payment_currency_mismatch": "پرداخت را با واحد پول قرارداد خدمت ثبت کنید.",
@@ -4318,7 +4412,10 @@
         "support_recipient_not_configured": "ایمیل پشتیبانی هنوز تنظیم نشده است. از مدیر بخواهید SUPPORT_TICKET_RECIPIENT را تنظیم کند.",
         "support_email_delivery_failed": "درخواست پشتیبانی شما ارسال نشد. چیزی ثبت نشده است؛ لطفاً کمی بعد دوباره تلاش کنید.",
         "support_attachment_total_exceeded": "مجموع ضمیمه‌ها نباید بیشتر از ۱۰ مگابایت باشد.",
-        "finance_type_in_use": "این نوع برای سیستم ضروری است یا در تراکنش استفاده شده و قابل حذف نیست."
+        "finance_type_in_use": "این نوع برای سیستم ضروری است یا در تراکنش استفاده شده و قابل حذف نیست.",
+        "salary_amount_immutable": "مبلغ اساسی معاش پس از ایجاد فیش معاش قابل تغییر نیست.",
+        "off_day_already_approved": "تنها دارنده مجوز تأیید روز رخصتی می‌تواند روز رخصتی تأییدشده را تغییر دهد.",
+        "off_day_range_too_long": "بازه روز رخصتی نمی‌تواند بیش از یک سال باشد."
       },
       "auth": {
         "email_verification_required": "پیش از ورود، آدرس ایمیل خود را تایید کنید.",

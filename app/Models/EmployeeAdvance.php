@@ -14,6 +14,8 @@ class EmployeeAdvance extends Model
     protected $fillable = [
         'advance_number',
         'employee_id',
+        'salary_id',
+        'recovered_at',
         'currency_id',
         'base_currency_id',
         'currency_code',
@@ -34,6 +36,7 @@ class EmployeeAdvance extends Model
             'base_amount' => 'float',
             'rate' => 'decimal:8',
             'advance_date' => 'date',
+            'recovered_at' => 'immutable_datetime',
         ];
     }
 
@@ -50,6 +53,12 @@ class EmployeeAdvance extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class)->withTrashed();
+    }
+
+    /** The payroll period that recovered this advance, if any. */
+    public function salary(): BelongsTo
+    {
+        return $this->belongsTo(Salary::class);
     }
 
     public function currency(): BelongsTo

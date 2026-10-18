@@ -34,6 +34,7 @@ use App\Models\EmployeeAdvance;
 use App\Models\Expense;
 use App\Models\Income;
 use App\Models\Language;
+use App\Models\OffDay;
 use App\Models\Office;
 use App\Models\PaidTimeOff;
 use App\Models\PendingTransaction;
@@ -108,6 +109,7 @@ final class AuditRegistry
             'incomes' => Income::class,
             'languages' => Language::class,
             'offices' => Office::class,
+            'off_days' => OffDay::class,
             'leaves' => PaidTimeOff::class,
             'pending_transactions' => PendingTransaction::class,
             'permissions' => Permission::class,

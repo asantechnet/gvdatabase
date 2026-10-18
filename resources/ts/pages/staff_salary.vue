@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { VDialog } from 'vuetify/components'
 import PayslipTemplate, { type SalarySlipProps } from './templates/payslip_template.vue'
+import AdvanceReceiptTemplate, { type AdvanceReceiptData } from './templates/advance_receipt_template.vue'
 import SalaryApi, { type AttendanceBreakdown, type CreateSalaryData, type Salary, type SalaryDeduction, type UpdateSalaryData } from '@/api/salary'
 import EmployeeAdvanceApi, { type CreateEmployeeAdvanceData, type EmployeeAdvance } from '@/api/employeeAdvances'
 import { type WorthyEmployee } from '@/api/bonuslist'
@@ -70,6 +71,11 @@ const activeTab = ref<'salaries' | 'months' | 'advances'>('salaries')
 const payslipRef = ref<InstanceType<typeof PayslipTemplate> | null>(null)
 const activePayslipProps = ref<SalarySlipProps | null>(null)
 const isPayslipPreviewOpen = ref(false)
+
+// Advance receipt preview (employee copy + company copy on one A5 sheet).
+const advanceReceiptRef = ref<InstanceType<typeof AdvanceReceiptTemplate> | null>(null)
+const activeAdvanceReceipt = ref<AdvanceReceiptData | null>(null)
+const isAdvanceReceiptOpen = ref(false)
 
 const salaryForm = ref({
   id: null as number | null,
@@ -215,6 +221,17 @@ const formatAmountInWords = (amount: number, currencyCode: string): string => {
   return translate('documents.payslip.amountInWordsFallback', { amount: formatLocalizedNumber(amount, { minimumFractionDigits: 2 }), currency: currencyCode })
 }
 
+const companyProfile = computed(() => ({
+  name: companySetting.value?.original_company_name || companySetting.value?.website_title || '',
+  brandName: companySetting.value?.short_company_name || companySetting.value?.website_title || '',
+  addressLines: [companySetting.value?.physical_address].filter(Boolean) as string[],
+  email: companySetting.value?.company_email || '',
+  phone: companySetting.value?.phone || '',
+  tinNumber: companySetting.value?.business_licence || undefined,
+  logo: companySetting.value?.website_logo_url || undefined,
+  signature: companySetting.value?.company_signature_url || undefined,
+}))
+
 // Fetch all salaries from API
 const fetchSalaries = async () => {
   try {
@@ -327,8 +344,17 @@ const printEmployeePayslip = async (salary: Salary) => {
     earningsList.push({ label: translate('common.messages.grantedBonus'), amount: salary.bonus })
 
   const deductionsList = salary.deductions.map(deduction => ({
-    label: deduction.isAutomatic ? translate('common.messages.automaticAttendanceDeduction') : deduction.description,
+    label: deduction.isAutomatic
+      ? (deduction.code === 'advance_recovery'
+          ? translate('pages.payroll.staffSalary.staffSalary.advanceRecovery')
+          : translate('common.messages.automaticAttendanceDeduction'))
+      : deduction.description,
     amount: deduction.amount,
+  }))
+
+  const advanceLines = (salary.advances ?? []).map(advance => ({
+    label: `${advance.advanceNumber ?? '—'}${advance.date ? ` · ${formatLocalizedDate(advance.date)}` : ''}`,
+    amount: advance.amount,
   }))
 
   activePayslipProps.value = {
@@ -336,16 +362,7 @@ const printEmployeePayslip = async (salary: Salary) => {
     documentNumber: salary.payslip_number,
     payslipSubtitle: `Pay Period: ${salary.salaryMonth}`,
     currency: salary.currency?.code ?? 'AFN',
-    company: {
-      name: companySetting.value?.original_company_name || companySetting.value?.website_title || '',
-      brandName: companySetting.value?.short_company_name || companySetting.value?.website_title || '',
-      addressLines: [companySetting.value?.physical_address].filter(Boolean) as string[],
-      email: companySetting.value?.company_email || '',
-      phone: companySetting.value?.phone || '',
-      tinNumber: companySetting.value?.business_licence || undefined,
-      logo: companySetting.value?.website_logo_url || undefined,
-      signature: companySetting.value?.company_signature_url || undefined,
-    },
+    company: companyProfile.value,
     letterheadUrl: companySetting.value?.letterheads?.payslip?.url || undefined,
     letterheadSafe: companySetting.value?.letterheads?.payslip?.safe,
     employee: {
@@ -358,6 +375,7 @@ const printEmployeePayslip = async (salary: Salary) => {
       workedDays: salary.workedDays ?? 0,
       totalDays: salary.totalDays,
       paidLeaveDays: salary.paidLeaveDays,
+      offDays: salary.offDays ?? 0,
       absentDays: salary.absentDays,
       unpaidLeaveDays: salary.unpaidLeaveDays,
       tazkiraNumber: emp?.id_number || 'N/A',
@@ -365,6 +383,7 @@ const printEmployeePayslip = async (salary: Salary) => {
     },
     earnings: earningsList,
     deductions: deductionsList,
+    advances: advanceLines,
     reimbursements: [],
     amountInWords: formatAmountInWords(salary.netAmount, salary.currency?.code ?? 'AFN'),
   }
@@ -374,6 +393,32 @@ const printEmployeePayslip = async (salary: Salary) => {
 }
 
 const printPreviewedPayslip = () => payslipRef.value?.print()
+
+// A salary advance is a cash document: preview it, then print the employee's
+// and the company's copy together on one A5 sheet.
+const printAdvanceReceipt = async (advance: EmployeeAdvance) => {
+  const employee = employees.value.find(row => row.id === advance.employee_id)
+
+  activeAdvanceReceipt.value = {
+    advanceNumber: advance.advanceNumber,
+    date: advance.date,
+    amount: advance.amount,
+    currency: advance.currency,
+    remarks: advance.remarks,
+    amountInWords: formatAmountInWords(advance.amount, advance.currency?.code ?? 'AFN'),
+    employee: {
+      name: advance.employeeName,
+      idNumber: employee?.id_number ?? null,
+      position: getEmployeePosition(employee),
+      department: employee?.department ?? employee?.department_name ?? null,
+    },
+    company: companyProfile.value,
+  }
+
+  // Open the document preview; the toolbar's Print action sends it to the
+  // printer so the reader can confirm the copy before paper is used.
+  isAdvanceReceiptOpen.value = true
+}
 
 const openAddSalaryDialog = () => {
   salaryForm.value = {
@@ -873,13 +918,26 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
                     <td class="font-weight-bold">{{ formatSalaryAmount(advance.amount, advance.currency) }}</td>
                     <td>{{ advance.remarks || '—' }}</td>
                     <td class="text-no-wrap">
+                      <VBtn
+                        icon="tabler-printer"
+                        size="small"
+                        variant="text"
+                        color="primary"
+                        :aria-label="$t('pages.payroll.staffSalary.staffSalary.printAdvanceReceipt')"
+                        @click="printAdvanceReceipt(advance)"
+                      >
+                        <VIcon icon="tabler-printer" />
+                        <VTooltip activator="parent" location="top">
+                          {{ $t('pages.payroll.staffSalary.staffSalary.printAdvanceReceipt') }}
+                        </VTooltip>
+                      </VBtn>
                       <VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="openDeleteAdvanceDialog(advance)" />
                     </td>
                   </tr>
                   <tr v-if="filteredAdvances.length === 0">
                     <td colspan="6" class="education-empty">{{ $t('common.messages.noRecordsFound') }}</td>
                   </tr>
-                  <tr v-else>
+                  <tr v-if="filteredAdvances.length">
                     <td colspan="3" class="text-end font-weight-medium">{{ $t('pages.payroll.staffSalary.staffSalary.totalAdvances') }}</td>
                     <td class="font-weight-bold">{{ formatSalaryAmount(advancesTotal, filteredAdvances[0]?.currency) }}</td>
                     <td colspan="2" />
@@ -891,7 +949,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
         </VWindow>
       </VCardText>
     </VCard>
-    <PrintableListReport v-if="activeTab === 'salaries'" :title="$t('common.crmUi.printReports.salaries.title')" :subtitle="$t('common.crmUi.printReports.salaries.subtitle')" :columns="[$t('common.crmUi.printReports.columns.payslip'), $t('common.crmUi.printReports.columns.employee'), $t('common.crmUi.printReports.columns.payMonth'), $t('common.crmUi.printReports.columns.workedDays'), $t('common.crmUi.printReports.columns.currency'), $t('common.crmUi.printReports.columns.totalPaid'), $t('common.crmUi.printReports.columns.date')]" :rows="filteredSalaries.map(salary => [salary.payslip_number, salary.employeeName, salary.salaryMonth, `${salary.workedDays}/${salary.totalDays}`, salary.currency?.code, formatSalaryAmount(salary.totalAmount, salary.currency), salary.date])" />
+    <PrintableListReport v-if="activeTab === 'salaries'" :title="$t('common.crmUi.printReports.salaries.title')" :subtitle="salaryMonthFilter ? `${$t('pages.payroll.staffSalary.staffSalary.payrollSummaryTitle')} · ${salaryMonthFilter}` : $t('common.crmUi.printReports.salaries.subtitle')" :columns="[$t('common.crmUi.printReports.columns.payslip'), $t('common.crmUi.printReports.columns.employee'), $t('common.crmUi.printReports.columns.payMonth'), $t('common.crmUi.printReports.columns.workedDays'), $t('common.crmUi.printReports.columns.currency'), $t('common.crmUi.printReports.columns.totalPaid'), $t('common.crmUi.printReports.columns.date')]" :rows="filteredSalaries.map(salary => [salary.payslip_number, salary.employeeName, salary.salaryMonth, `${salary.workedDays}/${salary.totalDays}`, salary.currency?.code, formatSalaryAmount(salary.totalAmount, salary.currency), salary.date])" />
     <VDialog
       v-model="isPayslipPreviewOpen"
       width="80vw"
@@ -1012,6 +1070,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
                   :label="$t('common.messages.salaryMonth')"
                   type="month"
                   :error-messages="getSalaryErrorMessage('salaryMonth')"
+                  :disabled="isEditSalaryDialogVisible"
                   required
                 />
               </VCol>
@@ -1086,6 +1145,9 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
                   :label="$t('common.messages.amountPaid')"
                   type="number"
                   :error-messages="getSalaryErrorMessage('amountPaid')"
+                  :disabled="isEditSalaryDialogVisible"
+                  :hint="isEditSalaryDialogVisible ? $t('pages.payroll.staffSalary.staffSalary.salaryAmountLocked') : undefined"
+                  persistent-hint
                   required
                   @input="calculateSalaryTotal"
                 />
@@ -1102,16 +1164,9 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
                   <VCardText class="py-3">
                     <div class="d-flex justify-space-between align-center mb-2">
                       <span class="font-weight-medium">{{ $t('common.messages.grantedBonus2') }}</span>
-                      <VProgressCircular
-                        v-if="isLoadingBonuses"
-                        indeterminate
-                        size="18"
-                        width="2"
-                      />
                       <span
-                        v-else
                         class="text-h6 font-weight-bold"
-                      >{{ formatSalaryAmount(salaryForm.bonus, selectedFormCurrency) }}</span>
+                      >{{ isLoadingBonuses ? '—' : formatSalaryAmount(salaryForm.bonus, selectedFormCurrency) }}</span>
                     </div>
                     <div
                       v-if="grantedBonuses.length"
@@ -1252,7 +1307,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
           </VBtn>
           <VBtn
             color="primary"
-            :loading="isLoading"
+            :disabled="isLoading"
             @click="addSalary"
           >
             {{ $t('common.actions.save') }}
@@ -1324,6 +1379,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
                   :label="$t('common.messages.salaryMonth')"
                   type="month"
                   :error-messages="getSalaryErrorMessage('salaryMonth')"
+                  :disabled="isEditSalaryDialogVisible"
                   required
                 />
               </VCol>
@@ -1397,6 +1453,9 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
                   :label="$t('common.messages.amountPaid')"
                   type="number"
                   :error-messages="getSalaryErrorMessage('amountPaid')"
+                  :disabled="isEditSalaryDialogVisible"
+                  :hint="isEditSalaryDialogVisible ? $t('pages.payroll.staffSalary.staffSalary.salaryAmountLocked') : undefined"
+                  persistent-hint
                   required
                   @input="calculateSalaryTotal"
                 />
@@ -1413,16 +1472,9 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
                   <VCardText class="py-3">
                     <div class="d-flex justify-space-between align-center mb-2">
                       <span class="font-weight-medium">{{ $t('common.messages.grantedBonus2') }}</span>
-                      <VProgressCircular
-                        v-if="isLoadingBonuses"
-                        indeterminate
-                        size="18"
-                        width="2"
-                      />
                       <span
-                        v-else
                         class="text-h6 font-weight-bold"
-                      >{{ formatSalaryAmount(salaryForm.bonus, selectedFormCurrency) }}</span>
+                      >{{ isLoadingBonuses ? '—' : formatSalaryAmount(salaryForm.bonus, selectedFormCurrency) }}</span>
                     </div>
                     <div
                       v-if="grantedBonuses.length"
@@ -1563,7 +1615,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
           </VBtn>
           <VBtn
             color="primary"
-            :loading="isLoading"
+            :disabled="isLoading"
             @click="updateSalary"
           >
             {{ $t('common.actions.save') }}
@@ -1657,7 +1709,7 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
           </VBtn>
           <VBtn
             color="primary"
-            :loading="isLoading"
+            :disabled="isLoading"
             @click="saveAdvance"
           >
             {{ $t('common.actions.save') }}
@@ -1691,12 +1743,54 @@ watch(() => salaryForm.value.employee_id, applyEmployeeSalary)
           </VBtn>
           <VBtn
             color="error"
-            :loading="isLoading"
+            :disabled="isLoading"
             @click="deleteAdvance"
           >
             {{ $t('common.actions.delete') }}
           </VBtn>
         </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Advance receipt preview: two copies on one A5 sheet. -->
+    <VDialog
+      v-model="isAdvanceReceiptOpen"
+      width="80vw"
+      max-width="860"
+      content-class="document-preview-modal"
+    >
+      <VCard class="document-preview-dialog">
+        <VCardTitle class="document-preview-dialog__header">
+          <div class="document-preview-dialog__heading">
+            <VAvatar color="primary" variant="tonal" size="38">
+              <VIcon icon="tabler-receipt" />
+            </VAvatar>
+            <div>
+              <div class="text-h6 font-weight-bold">
+                {{ $t('pages.payroll.staffSalary.staffSalary.advanceReceiptTitle') }}
+              </div>
+              <div class="text-caption text-medium-emphasis">
+                {{ activeAdvanceReceipt?.advanceNumber }}
+              </div>
+            </div>
+          </div>
+          <div class="document-preview-dialog__actions">
+            <VBtn variant="tonal" color="secondary" @click="isAdvanceReceiptOpen = false">
+              {{ $t('common.actions.close') }}
+            </VBtn>
+            <VBtn color="primary" variant="flat" prepend-icon="tabler-printer" @click="advanceReceiptRef?.print()">
+              {{ $t('common.actions.print') }}
+            </VBtn>
+          </div>
+        </VCardTitle>
+        <VDivider />
+        <VCardText class="document-preview-dialog__body">
+          <AdvanceReceiptTemplate
+            v-if="activeAdvanceReceipt"
+            ref="advanceReceiptRef"
+            :receipt="activeAdvanceReceipt"
+          />
+        </VCardText>
       </VCard>
     </VDialog>
   </div>

@@ -7,6 +7,7 @@ use App\Http\Controllers\ApplicantContractStageController;
 use App\Http\Controllers\ApplicantController;
 use App\Http\Controllers\ApplicantPortalController;
 use App\Http\Controllers\ApplicantStageController;
+use App\Http\Controllers\AppVersionController;
 use App\Http\Controllers\ApplicantUniversityController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AttachmentController;
@@ -40,6 +41,7 @@ use App\Http\Controllers\FinanceTypeController;
 use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\KanbanController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OffDayController;
 use App\Http\Controllers\OfficeController;
 use App\Http\Controllers\PaidTimeOffController;
 use App\Http\Controllers\PendingTransactionController;
@@ -81,6 +83,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Public routes
+// Deployed frontend build version. Never cached by the service worker.
+Route::get('version', AppVersionController::class);
+
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
@@ -211,6 +216,15 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::post('employees/{employee}/leaves', [PaidTimeOffController::class, 'store'])->middleware('permission:create_paid_time_off');
     Route::put('employees/{employee}/leaves/{paidTimeOff}', [PaidTimeOffController::class, 'update'])->middleware('permission:edit_paid_time_off');
     Route::delete('employees/{employee}/leaves/{paidTimeOff}', [PaidTimeOffController::class, 'destroy'])->middleware('permission:delete_paid_time_off');
+
+    // Company-wide off days. Announcing needs manage_off_days; activating and
+    // removing an approved holiday needs the dedicated approve_off_days grant.
+    Route::get('off-days', [OffDayController::class, 'index'])->middleware('permission:view_off_days');
+    Route::post('off-days', [OffDayController::class, 'store'])->middleware('permission:manage_off_days');
+    Route::put('off-days/{offDay}', [OffDayController::class, 'update'])->middleware('permission:manage_off_days');
+    Route::patch('off-days/{offDay}/approve', [OffDayController::class, 'approve'])->middleware('permission:approve_off_days');
+    Route::patch('off-days/{offDay}/reject', [OffDayController::class, 'reject'])->middleware('permission:approve_off_days');
+    Route::delete('off-days/{offDay}', [OffDayController::class, 'destroy'])->middleware('permission:manage_off_days');
     // Departments are the firm's groups; the manager assignment is what makes
     // a senior role see a team's data.
     Route::get('departments', [DepartmentController::class, 'index'])->middleware('permission:view_departments');
@@ -498,6 +512,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     // rows to their group; organisation-wide review needs view_all_audits.
     Route::get('audit-logs', [AuditLogController::class, 'index'])->middleware('permission:view_audit_logs,view_team_audit_logs');
     Route::get('audit-logs/pending-count', [AuditLogController::class, 'pendingCount'])->middleware('permission:view_audit_logs,view_team_audit_logs');
+    // Must precede `audit-logs/{auditLog}` so the route binding cannot swallow
+    // the heartbeat segment. The endpoint drains a per-user flag exactly once.
+    Route::get('audit-logs/heartbeat', [AuditLogController::class, 'heartbeat'])->middleware('permission:view_audit_logs,view_team_audit_logs');
     Route::get('audit-logs/deleted', [AuditLogController::class, 'deleted'])->middleware('permission:view_deleted_records');
     Route::get('audit-resources', [AuditResourceController::class, 'index'])->middleware('permission:view_audit_logs');
     Route::patch('audit-resources/{auditResourceSetting}', [AuditResourceController::class, 'update'])->middleware('permission:manage_audit_scope');

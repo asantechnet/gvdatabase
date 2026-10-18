@@ -174,6 +174,21 @@ api.interceptors.response.use(
       return Promise.reject(apiError)
     }
 
+    // Offline writes are never queued (read-only offline is deliberate), so
+    // say a connection is needed instead of surfacing a generic network error.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const offlineError = {
+        code: 'pwa.offline_action_blocked',
+        success: false,
+      } as ApiError
+      const quietOffline = originalRequest?.headers?.['X-Suppress-Error-Notification'] === 'true'
+
+      if (!quietOffline && typeof window !== 'undefined')
+        window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: offlineError }))
+
+      return Promise.reject(offlineError)
+    }
+
     const apiError = {
       code: 'server.error',
       message: error.message || 'Network Error',

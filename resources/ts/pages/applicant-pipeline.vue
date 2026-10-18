@@ -5,7 +5,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import ApplicantApi, { type Applicant, type ApplicantListParams, type PipelineColumn } from '@/api/applicants'
+import ApplicantApi, { type ApplicantListParams, type BuiltInService, type PipelineCard, type PipelineColumn } from '@/api/applicants'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
@@ -16,11 +16,11 @@ const router = useRouter()
 const { t } = useI18n()
 
 const loading = ref(false)
-const movingId = ref<number | null>(null)
-const dragId = ref<number | null>(null)
+const movingId = ref<string | null>(null)
+const dragCard = ref<PipelineCard | null>(null)
 const pipelineScroller = ref<HTMLElement | null>(null)
 const stages = ref<PipelineColumn[]>([])
-const cards = ref<Record<string, Applicant[]>>({})
+const cards = ref<Record<string, PipelineCard[]>>({})
 const totals = ref({ active: 0, closed: 0, all: 0 })
 
 const countries = ref<MasterDataRecord[]>([])
@@ -28,7 +28,9 @@ const universities = ref<MasterDataRecord[]>([])
 const levels = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
 
-const filters = ref<ApplicantListParams>({ search: '', status: undefined, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, date_from: '', date_to: '' })
+// The board shows one service's stage list at a time; the line's own stage is
+// what places a card, so mixing services in one board is meaningless here.
+const filters = ref<ApplicantListParams>({ service: 'scholarship', search: '', status: undefined, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, date_from: '', date_to: '' })
 const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
   { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
@@ -53,50 +55,54 @@ watch(() => filters.value.country_id, () => {
     filters.value.university_id = null
 })
 
-function stageOf(applicant: Applicant) {
-  return stages.value.find(s => s.id === applicant.current_stage_id)
+// A different service is a different stage list, so switch the board at once.
+watch(() => filters.value.service, () => {
+  void load()
+})
+
+function stageOf(card: PipelineCard) {
+  return stages.value.find(s => s.id === card.current_stage_id)
 }
 
-function allowedTargets(applicant: Applicant) {
-  const current = stageOf(applicant)
+function allowedTargets(card: PipelineCard) {
+  const current = card.current_stage
 
   if (!current?.allowed_next_keys?.length)
     return []
 
-  return stages.value.filter(s => current.allowed_next_keys!.includes(s.key))
+  return stages.value.filter(s => current.allowed_next_keys.includes(s.key))
 }
 
-function dropAllowed(applicant: Applicant, targetKey: string) {
-  const current = stageOf(applicant)
-
-  if (!current)
-    return false
-
-  return (current.allowed_next_keys ?? []).includes(targetKey)
+function dropAllowed(card: PipelineCard, targetKey: string) {
+  return (card.current_stage?.allowed_next_keys ?? []).includes(targetKey)
 }
 
 async function load() {
   loading.value = true
   try {
-    const params = { ...filters.value, per_page: 100 } as ApplicantListParams
-    const [pipeline, list] = await Promise.all([ApplicantApi.pipeline(params), ApplicantApi.list(params)])
+    // The board returns its own capped card set; `per_page` belongs to the list.
+    const params = { ...filters.value } as ApplicantListParams
+    const pipeline = await ApplicantApi.pipeline(params)
 
     stages.value = [...pipeline.stages].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     totals.value = pipeline.totals
 
-    const grouped: Record<string, Applicant[]> = {}
+    const grouped: Record<string, PipelineCard[]> = {}
 
     for (const stage of stages.value)
       grouped[stage.key] = []
 
-    for (const row of list.data) {
-      const key = row.current_stage?.key ?? stages.value.find(s => s.id === row.current_stage_id)?.key ?? 'new'
+    for (const card of pipeline.cards) {
+      const key = card.current_stage?.key ?? stages.value[0]?.key
+
+      if (!key)
+        continue
 
       if (!grouped[key])
         grouped[key] = []
 
       if (grouped[key].length < perColumnCap)
-        grouped[key].push(row)
+        grouped[key].push(card)
     }
 
     cards.value = grouped
@@ -128,18 +134,18 @@ async function loadCatalogs() {
   }
 }
 
-function onDragStart(applicant: Applicant) {
-  dragId.value = applicant.id
+function onDragStart(card: PipelineCard) {
+  dragCard.value = card
 }
 
 function onDragEnd() {
-  dragId.value = null
+  dragCard.value = null
 }
 
 function onPipelineDragOver(event: DragEvent) {
   const scroller = pipelineScroller.value
 
-  if (!dragId.value || !scroller)
+  if (!dragCard.value || !scroller)
     return
 
   const bounds = scroller.getBoundingClientRect()
@@ -157,33 +163,25 @@ function onPipelineDragOver(event: DragEvent) {
   }
 }
 
-
 function isAllowedDropStage(stage: PipelineColumn) {
-  const applicant = dragId.value
-    ? Object.values(cards.value).flat().find(row => row.id === dragId.value)
-    : undefined
+  const card = dragCard.value
 
-  return !!applicant && dropAllowed(applicant, stage.key)
+  return !!card && dropAllowed(card, stage.key)
 }
 
 async function onDrop(target: PipelineColumn) {
-  const id = dragId.value
+  const card = dragCard.value
 
-  dragId.value = null
+  dragCard.value = null
 
-  if (!id)
+  if (!card)
     return
 
-  await moveApplicant(id, target)
+  await moveCard(card, target)
 }
 
-async function moveApplicant(id: number, target: PipelineColumn) {
-  const applicant = Object.values(cards.value).flat().find(a => a.id === id)
-
-  if (!applicant)
-    return
-
-  if (applicant.current_stage_id === target.id)
+async function moveCard(card: PipelineCard, target: PipelineColumn) {
+  if (card.current_stage_id === target.id)
     return
 
   if (!canMove.value) {
@@ -192,17 +190,25 @@ async function moveApplicant(id: number, target: PipelineColumn) {
     return
   }
 
-  if (!dropAllowed(applicant, target.key)) {
-    const from = stageOf(applicant)?.name ?? t('educational.currentStage')
+  if (!dropAllowed(card, target.key)) {
+    const from = stageOf(card)?.name ?? t('educational.currentStage')
 
     toast.error(t('educational.messages.stageMoveNotAllowed', { from, to: translateApplicantStage(target) }))
 
     return
   }
 
-  movingId.value = id
+  movingId.value = card.id
   try {
-    await ApplicantApi.changeStage(id, target.id, t('educational.pipelineMoveNote', { stage: translateApplicantStage(target) }))
+    const note = t('educational.pipelineMoveNote', { stage: translateApplicantStage(target) })
+
+    // A contracted line moves its own workflow; a case that has not bought the
+    // service yet moves through the applicant-level stage until the line exists.
+    if (card.line_id)
+      await ApplicantApi.changeLineStage(card.line_id, target.id, note)
+    else
+      await ApplicantApi.changeStage(card.applicant_id, target.id, note)
+
     toast.success(t('educational.messages.stageMoved', { stage: translateApplicantStage(target) }))
     await load()
   }
@@ -215,7 +221,7 @@ async function moveApplicant(id: number, target: PipelineColumn) {
 }
 
 function clearFilters() {
-  filters.value = { search: '', status: undefined, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, date_from: '', date_to: '' }
+  filters.value = { service: filters.value.service, search: '', status: undefined, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, date_from: '', date_to: '' }
   load()
 }
 
@@ -235,7 +241,7 @@ onMounted(async () => {
     <VCard class="education-panel">
     <VCardItem :subtitle="$t('educational.pipelineInstructions')">
       <template #append>
-<VBtn v-if="canAccess('manage_applicant_stages')" size="small" variant="text" :to="{ name: 'educational-master-data', query: { catalog: 'applicant-stages' } }">{{ $t('educational.stage') }}</VBtn>
+<VBtn v-if="canAccess('view_applicant_stages')" size="small" variant="text" :to="{ name: 'applicant-stages' }">{{ $t('educational.stage') }}</VBtn>
         <VChip color="success" size="small" class="me-2">{{ $t('educational.activeCount', { count: totals.active }) }}</VChip>
         <VChip color="secondary" size="small" class="me-2">{{ $t('educational.closedCount', { count: totals.closed }) }}</VChip>
         <VChip color="primary" size="small">{{ $t('educational.allCount', { count: totals.all }) }}</VChip>
@@ -243,7 +249,7 @@ onMounted(async () => {
     </VCardItem>
     <VCardText>
       <VRow dense>
-        <VCol cols="12" md="3"><VSelect v-model="filters.service" :items="serviceOptions" :label="$t('educational.service')" clearable /></VCol>
+        <VCol cols="12" md="3"><VSelect v-model="filters.service" :items="serviceOptions" :label="$t('educational.service')" /></VCol>
         <VCol cols="12" md="3"><VTextField v-model="filters.search" :label="$t('educational.searchApplicant')" clearable @keyup.enter="load" /></VCol>
         <VCol cols="12" md="3"><VSelect v-model="filters.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable /></VCol>
         <VCol cols="12" md="3"><VSelect v-model="filters.country_id" :items="activeCountries.map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable /></VCol>
@@ -262,32 +268,32 @@ onMounted(async () => {
     <VCardText>
       <div v-if="!loading && !stages.length" class="text-center text-medium-emphasis py-8">{{ $t('educational.noActiveStages') }}</div>
       <div v-else ref="pipelineScroller" class="d-flex gap-3 overflow-x-auto pb-2 pipeline-scroller" @dragover.prevent="onPipelineDragOver">
-        <VCard v-for="stage in stages" :key="stage.key" variant="outlined" min-width="260" class="flex-shrink-0 pipeline-column" :class="{ 'pipeline-column--allowed': isAllowedDropStage(stage), 'pipeline-column--blocked': dragId && !isAllowedDropStage(stage) }" style="inline-size: 260px;" @dragover.prevent @drop="onDrop(stage)">
+        <VCard v-for="stage in stages" :key="stage.key" variant="outlined" min-width="260" class="flex-shrink-0 pipeline-column" :class="{ 'pipeline-column--allowed': isAllowedDropStage(stage), 'pipeline-column--blocked': dragCard && !isAllowedDropStage(stage) }" style="inline-size: 260px;" @dragover.prevent @drop="onDrop(stage)">
           <VCardItem :subtitle="$t('educational.caseCount', { count: stage.count })">
             <template #title><VTooltip location="top"><template #activator="{ props }"><span v-bind="props" class="d-inline-block text-truncate" style="max-inline-size: 185px">{{ translateApplicantStage(stage) }}</span></template>{{ translateApplicantStage(stage) }}</VTooltip></template>
             <template #append><VChip size="small" :color="stage.is_terminal ? 'secondary' : 'primary'">{{ stage.count }}</VChip></template>
           </VCardItem>
           <VCardText class="d-flex flex-column gap-2" style="min-block-size: 120px;">
-            <VCard v-for="applicant in (cards[stage.key] || [])" :key="applicant.id" variant="tonal" :draggable="canMove && movingId !== applicant.id" @dragstart="onDragStart(applicant)" @dragend="onDragEnd">
+            <VCard v-for="card in (cards[stage.key] || [])" :key="card.id" variant="tonal" :draggable="canMove && movingId !== card.id" @dragstart="onDragStart(card)" @dragend="onDragEnd">
               <VCardText class="py-2">
-                <div class="font-weight-medium">{{ applicant.name || $t('educational.applicantNumber', { id: applicant.id }) }}</div>
-                <div class="text-caption text-medium-emphasis">#{{ applicant.id }} · {{ translateBackendValue(applicant.status) }}</div>
-                <div class="text-caption">{{ serviceOptions.find(option => option.value === applicant.service)?.title }}<span v-if="['scholarship', 'private'].includes(applicant.service)"> · {{ applicant.details?.country?.name ?? '—' }}{{ applicant.details?.university?.name ? ` · ${applicant.details.university.name}` : '' }}</span></div>
-                <div class="text-caption text-medium-emphasis">{{ applicant.responsible_employee?.name ?? $t('educational.unassigned') }}</div>
+                <div class="font-weight-medium">{{ card.name || $t('educational.applicantNumber', { id: card.applicant_id }) }}</div>
+                <div class="text-caption text-medium-emphasis">#{{ card.applicant_id }} · {{ translateBackendValue(card.status) }}<span v-if="card.contract_number"> · {{ card.contract_number }}</span></div>
+                <div class="text-caption">{{ serviceOptions.find(option => option.value === card.service)?.title }}<span v-if="card.country">{{ ` · ${card.country}` }}</span><span v-if="card.university">{{ ` · ${card.university}` }}</span></div>
+                <div class="text-caption text-medium-emphasis">{{ card.responsible_employee?.name ?? $t('educational.unassigned') }}</div>
                 <div class="d-flex gap-1 mt-2">
-                  <VBtn size="x-small" variant="text" @click="openCase(applicant.id)">{{ $t('educational.openCase') }}</VBtn>
-                  <VMenu v-if="canMove && allowedTargets(applicant).length">
+                  <VBtn size="x-small" variant="text" @click="openCase(card.applicant_id)">{{ $t('educational.openCase') }}</VBtn>
+                  <VMenu v-if="canMove && allowedTargets(card).length">
                     <template #activator="{ props }"><VBtn size="x-small" variant="text" color="primary" v-bind="props">{{ $t('educational.move') }}</VBtn></template>
                     <VList density="compact">
-                      <VListItem v-for="target in allowedTargets(applicant)" :key="target.id" :title="$t('educational.moveTo', { stage: translateApplicantStage(target) })" @click="moveApplicant(applicant.id, target)" />
+                      <VListItem v-for="target in allowedTargets(card)" :key="target.id" :title="$t('educational.moveTo', { stage: translateApplicantStage(target) })" @click="moveCard(card, target)" />
                     </VList>
                   </VMenu>
-                  <VChip v-if="movingId === applicant.id" size="x-small" color="primary">{{ $t('educational.moving') }}</VChip>
+                  <VChip v-if="movingId === card.id" size="x-small" color="primary">{{ $t('educational.moving') }}</VChip>
                 </div>
               </VCardText>
             </VCard>
             <div v-if="!(cards[stage.key] || []).length" class="text-caption text-medium-emphasis text-center py-4">{{ $t('educational.dropAllowedCases') }}</div>
-            <VBtn v-if="stage.count > perColumnCap" size="x-small" variant="text" :to="{ name: 'applications', query: { stage: stage.key } }">{{ $t('educational.viewAllCount', { count: stage.count }) }}</VBtn>
+            <VBtn v-if="stage.count > perColumnCap" size="x-small" variant="text" :to="{ name: 'applications', query: { service: filters.service, stage: stage.key } }">{{ $t('educational.viewAllCount', { count: stage.count }) }}</VBtn>
           </VCardText>
         </VCard>
       </div>

@@ -40,6 +40,13 @@ export default [
         subject: 'view_paid_time_off',
       },
       {
+        title: 'pages.offDays.title',
+        to: 'off-days',
+        icon: { icon: 'tabler-calendar-off' },
+        action: 'read',
+        subject: 'view_off_days',
+      },
+      {
         title: 'common.navigation.staffSalary',
         icon: { icon: 'tabler-wallet' },
         to: 'staff-salary',

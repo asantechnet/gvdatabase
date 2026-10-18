@@ -24,6 +24,8 @@ export interface Employee {
   workedDays: number
   totalDays: number
   paidLeaveDays: number
+  /** Approved company off days inside the pay period (paid, non-worked). */
+  offDays?: number
   absentDays: number
   unpaidLeaveDays: number
   tazkiraNumber?: string
@@ -52,6 +54,8 @@ export interface SalarySlipProps {
   earnings: EarningDeduction[]
   deductions: EarningDeduction[]
   reimbursements?: EarningDeduction[]
+  /** Advances recovered in this payroll period, itemized by reference. */
+  advances?: EarningDeduction[]
   amountInWords: string
   /** Optional letterhead artwork from Settings → Documents. */
   letterheadUrl?: string
@@ -64,6 +68,7 @@ const props = withDefaults(defineProps<SalarySlipProps>(), {
   currency: 'AFN',
   deductions: () => [],
   reimbursements: () => [],
+  advances: () => [],
   letterheadUrl: '',
   letterheadSafe: () => ({ x: 8, y: 14, width: 84, height: 72 }),
 })
@@ -83,29 +88,27 @@ const letterheadSafeStyle = computed(() => ({
   height: `${props.letterheadSafe?.height ?? 72}%`,
 }))
 
-// Computed properties
-const grossSalary = computed(() => {
-  return props.earnings.reduce((sum, item) => sum + item.amount, 0)
-})
+const grossSalary = computed(() => props.earnings.reduce((sum, item) => sum + item.amount, 0))
 
-const totalDeductions = computed(() => {
-  return props.deductions.reduce((sum, item) => sum + item.amount, 0)
-})
+const totalDeductions = computed(() => props.deductions.reduce((sum, item) => sum + item.amount, 0))
 
-const totalReimbursements = computed(() => {
-  return props.reimbursements.reduce((sum, item) => sum + item.amount, 0)
-})
+const totalReimbursements = computed(() => props.reimbursements.reduce((sum, item) => sum + item.amount, 0))
 
-const netPay = computed(() => {
-  return grossSalary.value - totalDeductions.value
-})
+const netPay = computed(() => grossSalary.value - totalDeductions.value)
 
-const totalNetPayable = computed(() => {
-  return netPay.value + totalReimbursements.value
-})
+const totalNetPayable = computed(() => netPay.value + totalReimbursements.value)
+
+const offDays = computed(() => Number(props.employee.offDays ?? 0))
+
+const attendanceMetrics = computed(() => [
+  { key: 'worked', value: `${props.employee.workedDays} / ${props.employee.totalDays}` },
+  { key: 'paidLeave', value: props.employee.paidLeaveDays },
+  { key: 'offDays', value: offDays.value },
+  { key: 'absent', value: props.employee.absentDays },
+  { key: 'unpaidLeave', value: props.employee.unpaidLeaveDays },
+])
 
 const formatCurrency = (amount: number) => {
-  // Afghanistan Afghani Formatting
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: props.currency || 'AFN',
@@ -114,13 +117,12 @@ const formatCurrency = (amount: number) => {
 }
 
 const printSalarySlip = async () => {
-  if (!payslipContainerRef.value) return
+  if (!payslipContainerRef.value)
+    return
   await printDocument({ bodyClass: 'printing-payslip-document', pageStyle: 'size: A5; margin: 0;', element: payslipContainerRef.value })
 }
 
-defineExpose({
-  print: printSalarySlip,
-})
+defineExpose({ print: printSalarySlip })
 </script>
 
 <template>
@@ -136,271 +138,296 @@ defineExpose({
       :class="{ 'payslip-content--safe': hasLetterhead }"
       :style="hasLetterhead ? letterheadSafeStyle : undefined"
     >
-    <!-- Corporate Header -->
-    <header class="payslip-header">
-      <div class="company-info">
-        <div class="brand-wrapper">
+      <header class="doc-head">
+        <div class="brand">
           <img
             v-if="company.logo"
             :src="company.logo"
             :alt="company.name"
-            class="company-logo"
+            class="brand__logo"
           >
-          <h1 class="company-name">
-            {{ company.name }}
-          </h1>
-          <span class="brand-badge">{{ company.brandName }}</span>
+          <div class="brand__text">
+            <h1 class="brand__name">
+              {{ company.name }}
+            </h1>
+            <span
+              v-if="company.brandName"
+              class="brand__badge"
+            >{{ company.brandName }}</span>
+            <p
+              v-if="company.addressLines?.length"
+              class="brand__meta"
+            >
+              {{ company.addressLines.join(' · ') }}
+            </p>
+            <p class="brand__meta">
+              <bdi v-if="company.email">{{ company.email }}</bdi>
+              <span v-if="company.email && company.phone"> · </span>
+              <bdi v-if="company.phone">{{ company.phone }}</bdi>
+            </p>
+            <p
+              v-if="company.tinNumber"
+              class="brand__meta"
+            >
+              {{ $t('documents.payslip_template.payslipTemplate.mofTINRegNo') }} <strong>{{ company.tinNumber }}</strong>
+            </p>
+          </div>
         </div>
+
+        <div class="doc-title">
+          <span class="doc-title__eyebrow">{{ $t('documents.payslip_template.payslipTemplate.officialPAYSLIP') }}</span>
+          <span class="doc-title__sub">شقه معاش رسمی / رسمی د معاش شقه</span>
+          <dl class="doc-title__meta">
+            <div>
+              <dt>{{ $t('documents.payslip_template.payslipTemplate.docNo') }}</dt>
+              <dd>{{ documentNumber || `PAY-${employee.payPeriod}` }}</dd>
+            </div>
+            <div>
+              <dt>{{ $t('documents.payslip_template.payslipTemplate.payPeriod') }}</dt>
+              <dd>{{ employee.payPeriod }}</dd>
+            </div>
+            <div>
+              <dt>{{ $t('documents.payslip_template.payslipTemplate.payDate') }}</dt>
+              <dd>{{ formatLocalizedDate(employee.payDate) }}</dd>
+            </div>
+          </dl>
+        </div>
+      </header>
+
+      <section class="employee-strip">
+        <div class="employee-strip__item employee-strip__item--wide">
+          <span class="label">{{ $t('documents.payslip_template.payslipTemplate.employeeName') }}</span>
+          <span class="value value--strong">{{ employee.name }}</span>
+        </div>
+        <div class="employee-strip__item">
+          <span class="label">{{ $t('documents.payslip_template.payslipTemplate.designation') }}</span>
+          <span class="value">{{ employee.designation }}</span>
+        </div>
+        <div class="employee-strip__item">
+          <span class="label">{{ $t('common.fields.department') }}</span>
+          <span class="value">{{ employee.department || '—' }}</span>
+        </div>
+        <div class="employee-strip__item">
+          <span class="label">{{ $t('documents.payslip_template.payslipTemplate.dateOfJoining') }}</span>
+          <span class="value">{{ formatLocalizedDate(employee.dateOfJoining) }}</span>
+        </div>
+        <div class="employee-strip__item">
+          <span class="label">{{ $t('documents.payslip_template.payslipTemplate.tazkiraNationalID') }}</span>
+          <span class="value value--mono">{{ employee.tazkiraNumber || '—' }}</span>
+        </div>
+        <div class="employee-strip__item">
+          <span class="label">{{ $t('documents.payslip_template.payslipTemplate.bankAccountNo') }}</span>
+          <span class="value value--mono">{{ employee.accountNumber || '—' }}</span>
+        </div>
+      </section>
+
+      <section class="attendance-strip">
         <div
-          v-if="company.addressLines && company.addressLines.length"
-          class="company-address"
+          v-for="metric in attendanceMetrics"
+          :key="metric.key"
+          class="attendance-strip__item"
+          :class="{ 'attendance-strip__item--off': metric.key === 'offDays' && offDays > 0 }"
         >
-          <p
-            v-for="(line, idx) in company.addressLines"
-            :key="idx"
-          >
-            {{ line }}
-          </p>
+          <span class="attendance-strip__label">
+            {{ metric.key === 'worked'
+              ? $t('documents.payslip_template.payslipTemplate.workedTotalDays')
+              : metric.key === 'paidLeave'
+                ? $t('common.statuses.paidLeave')
+                : metric.key === 'offDays'
+                  ? $t('pages.payroll.staffSalary.staffSalary.offDays')
+                  : metric.key === 'absent'
+                    ? $t('components.dataTablePageKpis.absentDays')
+                    : $t('documents.timesheet.statuses.unpaid-leave') }}
+          </span>
+          <span class="attendance-strip__value">{{ metric.value }}</span>
         </div>
-        <p class="company-contact">
-          <bdi>{{ company.email }}</bdi> · <bdi>{{ company.phone }}</bdi>
-        </p>
-        <p
-          v-if="company.tinNumber"
-          class="company-tin"
-        >
-          {{ $t('documents.payslip_template.payslipTemplate.mofTINRegNo') }} <strong>{{ company.tinNumber }}</strong>
-        </p>
+      </section>
+
+      <div class="ledger-grid">
+        <section class="ledger">
+          <h3 class="ledger__title">
+            {{ $t('documents.payslip_template.payslipTemplate.earningsDESCRIPTION') }}
+          </h3>
+          <table class="ledger__table">
+            <tbody>
+              <tr
+                v-for="(item, index) in earnings"
+                :key="`earning-${index}`"
+              >
+                <td>{{ item.label }}</td>
+                <td class="num">
+                  {{ formatCurrency(item.amount) }}
+                </td>
+              </tr>
+              <tr class="ledger__total">
+                <td>{{ $t('documents.payslip_template.payslipTemplate.grossEarnings') }}</td>
+                <td class="num">
+                  {{ formatCurrency(grossSalary) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="ledger">
+          <h3 class="ledger__title">
+            {{ $t('documents.payslip_template.payslipTemplate.deductionsDESCRIPTION') }}
+          </h3>
+          <table class="ledger__table">
+            <tbody>
+              <tr
+                v-for="(item, index) in deductions"
+                :key="`deduction-${index}`"
+              >
+                <td>{{ item.label }}</td>
+                <td class="num">
+                  {{ formatCurrency(item.amount) }}
+                </td>
+              </tr>
+              <tr v-if="!deductions.length">
+                <td colspan="2" class="muted">
+                  {{ $t('common.statuses.none') }}
+                </td>
+              </tr>
+              <tr class="ledger__total">
+                <td>{{ $t('documents.payslip_template.payslipTemplate.totalDeductions') }}</td>
+                <td class="num">
+                  {{ formatCurrency(totalDeductions) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
       </div>
-      <div class="document-title">
-        <h2>{{ $t('documents.payslip_template.payslipTemplate.officialPAYSLIP') }}</h2>
-        <p class="arabic-title">
-          شقه معاش رسمی / رسمی د معاش شقه
-        </p>
-        <div class="doc-meta">
-          <p><strong>{{ $t('documents.payslip_template.payslipTemplate.docNo') }}</strong> {{ documentNumber || `PAY-${employee.payPeriod}` }}</p>
-          <p><strong>{{ $t('documents.payslip_template.payslipTemplate.payPeriod') }}</strong> {{ employee.payPeriod }}</p>
-          <p><strong>{{ $t('documents.payslip_template.payslipTemplate.payDate') }}</strong> {{ formatLocalizedDate(employee.payDate) }}</p>
+
+      <section
+        v-if="advances.length"
+        class="advances"
+      >
+        <h3 class="ledger__title">
+          {{ $t('pages.payroll.staffSalary.staffSalary.advancesRecovered') }}
+        </h3>
+        <table class="ledger__table ledger__table--compact">
+          <tbody>
+            <tr
+              v-for="(item, index) in advances"
+              :key="`advance-${index}`"
+            >
+              <td>{{ item.label }}</td>
+              <td class="num">
+                {{ formatCurrency(item.amount) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section
+        v-if="reimbursements.length"
+        class="advances"
+      >
+        <h3 class="ledger__title">
+          {{ $t('documents.payslip_template.payslipTemplate.reimbursementsAdditions') }}
+        </h3>
+        <table class="ledger__table ledger__table--compact">
+          <tbody>
+            <tr
+              v-for="(item, index) in reimbursements"
+              :key="`reimbursement-${index}`"
+            >
+              <td>{{ item.label }}</td>
+              <td class="num">
+                {{ formatCurrency(item.amount) }}
+              </td>
+            </tr>
+            <tr class="ledger__total">
+              <td>{{ $t('documents.payslip_template.payslipTemplate.totalReimbursements') }}</td>
+              <td class="num">
+                {{ formatCurrency(totalReimbursements) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="net-banner">
+        <div class="net-banner__info">
+          <span class="net-banner__label">{{ $t('documents.payslip.totalNetPayable', { currency }) }}</span>
+          <span
+            v-if="amountInWords"
+            class="net-banner__words"
+          >{{ amountInWords }}</span>
         </div>
-      </div>
-    </header>
+        <div class="net-banner__amount">
+          {{ formatCurrency(totalNetPayable) }}
+        </div>
+      </section>
 
-    <!-- Employee Pay Summary Card -->
-    <section class="employee-card">
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.employeeName') }}</span>
-        <span class="value font-bold">{{ employee.name }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.designation') }}</span>
-        <span class="value">{{ employee.designation }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('common.fields.department') }}</span>
-        <span class="value">{{ employee.department || 'General Staff' }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.dateOfJoining') }}</span>
-        <span class="value">{{ formatLocalizedDate(employee.dateOfJoining) }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.tazkiraNationalID') }}</span>
-        <span class="value font-mono">{{ employee.tazkiraNumber || 'N/A' }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.employeeMoFTIN') }}</span>
-        <span class="value font-mono">{{ employee.tinNumber || 'N/A' }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.payslip_template.payslipTemplate.bankAccountNo') }}</span>
-        <span class="value font-mono">{{ employee.accountNumber }}</span>
-      </div>
-      <div class="grid-item highlight-box">
-        <span class="label text-primary">{{ $t('documents.payslip_template.payslipTemplate.workedTotalDays') }}</span>
-        <span class="value font-bold text-primary">{{ $t('documents.payslip.workedDays', { worked: employee.workedDays, total: employee.totalDays || 30 }) }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('common.statuses.paidLeave') }}</span><span class="value">{{ employee.paidLeaveDays }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('components.dataTablePageKpis.absentDays') }}</span><span class="value">{{ employee.absentDays }}</span>
-      </div>
-      <div class="grid-item">
-        <span class="label">{{ $t('documents.timesheet.statuses.unpaid-leave') }}</span><span class="value">{{ employee.unpaidLeaveDays }}</span>
-      </div>
-    </section>
-
-    <!-- Earnings and Deductions Table -->
-    <section class="table-section">
-      <h3 class="section-title">
-        {{ $t('documents.payslip_template.payslipTemplate.earningsDeductionsSummary') }}
-      </h3>
-      <table class="payslip-table">
-        <thead>
-          <tr>
-            <th style="width: 35%">
-              {{ $t('documents.payslip_template.payslipTemplate.earningsDESCRIPTION') }}
-            </th>
-            <th
-              style="width: 15%"
-              class="text-right"
-            >
-              {{ $t('common.fields.amount') }}
-            </th>
-            <th style="width: 35%">
-              {{ $t('documents.payslip_template.payslipTemplate.deductionsDESCRIPTION') }}
-            </th>
-            <th
-              style="width: 15%"
-              class="text-right"
-            >
-              {{ $t('common.fields.amount') }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="index in Math.max(earnings.length, deductions.length)"
-            :key="index"
+      <footer class="signatures">
+        <div class="signature">
+          <div class="signature__line" />
+          <span>{{ $t('documents.payslip_template.payslipTemplate.employeeSignature') }}</span>
+        </div>
+        <div class="signature">
+          <div class="signature__line" />
+          <span>{{ $t('documents.payslip_template.payslipTemplate.hrPayrollOfficer') }}</span>
+        </div>
+        <div class="signature">
+          <img
+            v-if="company.signature"
+            :src="company.signature"
+            :alt="$t('documents.payslip_template.payslipTemplate.companySignature')"
+            class="signature__image"
           >
-            <td>{{ earnings[index - 1]?.label || '' }}</td>
-            <td class="text-right font-mono">
-              {{ earnings[index - 1] ? formatCurrency(earnings[index - 1].amount) : '' }}
-            </td>
-            <td>{{ deductions[index - 1]?.label || '' }}</td>
-            <td class="text-right font-mono">
-              {{ deductions[index - 1] ? formatCurrency(deductions[index - 1].amount)
-                : '' }}
-            </td>
-          </tr>
-          <tr class="total-row">
-            <td>{{ $t('documents.payslip_template.payslipTemplate.grossEarnings') }}</td>
-            <td class="text-right font-mono">
-              {{ formatCurrency(grossSalary) }}
-            </td>
-            <td>{{ $t('documents.payslip_template.payslipTemplate.totalDeductions') }}</td>
-            <td class="text-right font-mono">
-              {{ formatCurrency(totalDeductions) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+          <div class="signature__line" />
+          <span>{{ $t('documents.payslip_template.payslipTemplate.companySignature') }}</span>
+        </div>
+      </footer>
 
-    <!-- Reimbursements Table -->
-    <section
-      v-if="reimbursements.length > 0"
-      class="table-section"
-    >
-      <h3 class="section-title">
-        {{ $t('documents.payslip_template.payslipTemplate.reimbursementsAdditions') }}
-      </h3>
-      <table class="payslip-table">
-        <thead>
-          <tr>
-            <th>{{ $t('common.fields.description') }}</th>
-            <th
-              class="text-right"
-              style="width: 20%"
-            >
-              {{ $t('common.fields.amount') }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="item in reimbursements"
-            :key="item.label"
-          >
-            <td>{{ item.label }}</td>
-            <td class="text-right font-mono">
-              {{ formatCurrency(item.amount) }}
-            </td>
-          </tr>
-          <tr class="total-row">
-            <td>{{ $t('documents.payslip_template.payslipTemplate.totalReimbursements') }}</td>
-            <td class="text-right font-mono">
-              {{ formatCurrency(totalReimbursements) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- Final Net Payable Banner -->
-    <section class="net-pay-banner">
-      <div class="net-pay-info">
-        <span class="net-label">{{ $t('documents.payslip.totalNetPayable', { currency }) }}</span>
-        <span
-          v-if="amountInWords"
-          class="net-words"
-        >{{ amountInWords }}</span>
-      </div>
-      <div class="net-amount font-mono">
-        {{ formatCurrency(totalNetPayable) }}
-      </div>
-    </section>
-
-    <!-- Signatures Section -->
-    <footer class="signatures">
-      <div class="signature-box">
-        <div class="signature-line" />
-        <span>{{ $t('documents.payslip_template.payslipTemplate.employeeSignature') }}</span>
-      </div>
-      <div class="signature-box">
-        <div class="signature-line" />
-        <span>{{ $t('documents.payslip_template.payslipTemplate.hrPayrollOfficer') }}</span>
-      </div>
-      <div class="signature-box">
-        <img
-          v-if="company.signature"
-          :src="company.signature"
-          :alt="$t('documents.payslip_template.payslipTemplate.companySignature')"
-          class="company-signature"
-        >
-        <div class="signature-line" />
-        <span>{{ $t('documents.payslip_template.payslipTemplate.companySignature') }}</span>
-      </div>
-    </footer>
-
-    <!-- Compliance Note -->
-    <div class="compliance-footer">
-      <p>{{ $t('documents.payslip_template.payslipTemplate.thisDocumentIsGeneratedInComplianceWithTheAfghanistanLaborLawAndMinist') }}</p>
-    </div>
+      <p class="compliance">
+        {{ $t('documents.payslip_template.payslipTemplate.thisDocumentIsGeneratedInComplianceWithTheAfghanistanLaborLawAndMinist') }}
+      </p>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Web Component Preview Styles - Constrained to 680px to match exactly 180mm printable A4 width */
 .payslip-container {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  color: #1e293b;
-  padding: 24px;
-  max-width: 680px;
-  width: 100%;
-  margin: 0 auto;
+  --payslip-ink: #16212f;
+  --payslip-muted: #5b6b7c;
+  --payslip-line: #d6dee7;
+  --payslip-accent: #0f6f92;
+  --payslip-soft: #f4f8fb;
+
   box-sizing: border-box;
-  position: relative;
+  width: 100%;
+  max-width: 148mm;
+  margin: 0 auto;
+  padding: 7mm;
+  background: #fff;
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
+  color: var(--payslip-ink);
+  font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 8.6pt;
+  line-height: 1.35;
 }
 
-/* With a letterhead the safe-zone owns all spacing, so the built-in padding is dropped. */
 .payslip-container--letterhead {
   padding: 0;
 }
 
 .payslip-content {
   display: flex;
-  min-height: 100%;
   flex-direction: column;
+  gap: 3mm;
+  min-height: 100%;
 }
 
 .payslip-content--safe {
   position: absolute;
-  padding: 5mm;
+  padding: 4mm;
   overflow: hidden;
 }
 
@@ -408,257 +435,340 @@ defineExpose({
   font-family: Vazirmatn, 'Public Sans', sans-serif;
 }
 
-.payslip-header {
+/* Header ------------------------------------------------------------------ */
+.doc-head {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  border-bottom: 2px solid #1e293b;
-  padding-bottom: 12px;
-  margin-bottom: 16px;
+  justify-content: space-between;
+  gap: 6mm;
+  padding-block-end: 3mm;
+  border-block-end: 2.5px solid var(--payslip-accent);
 }
 
-.brand-wrapper {
+.brand {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  align-items: flex-start;
+  gap: 3mm;
+  min-inline-size: 0;
 }
 
-.company-logo {
-  width: 52px;
-  height: 52px;
+.brand__logo {
+  inline-size: 13mm;
+  block-size: 13mm;
   object-fit: contain;
-  flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
-.company-name {
-  font-size: 20px;
-  font-weight: 800;
-  color: #0f172a;
+.brand__name {
   margin: 0;
+  font-size: 13pt;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
-.brand-badge {
-  background-color: #f1f5f9;
-  color: #334155;
-  font-size: 11px;
+.brand__badge {
+  display: inline-block;
+  margin-block: 1mm;
+  padding: 0.4mm 1.6mm;
+  border-radius: 2px;
+  background: var(--payslip-soft);
+  color: var(--payslip-accent);
+  font-size: 6.8pt;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 3px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.company-address p,
-.company-contact,
-.company-tin {
-  font-size: 13px;
-  color: #475569;
-  margin: 2px 0;
+.brand__meta {
+  margin: 0.5mm 0 0;
+  color: var(--payslip-muted);
+  font-size: 6.6pt;
 }
 
-.document-title {
-  text-align: right;
+.doc-title {
+  text-align: end;
+  min-inline-size: 0;
+  flex-shrink: 0;
 }
 
-.document-title h2 {
-  font-size: 18px;
+.doc-title__eyebrow {
+  display: block;
+  color: var(--payslip-accent);
+  font-size: 11pt;
   font-weight: 800;
-  color: #0f172a;
-  margin: 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-.arabic-title {
-  font-size: 12px;
-  color: #64748b;
-  direction: rtl;
-  margin: 2px 0 6px 0;
+.doc-title__sub {
+  display: block;
+  margin-block: 0.6mm 2mm;
+  color: var(--payslip-muted);
+  font-size: 7pt;
   font-weight: 600;
 }
 
-.doc-meta p {
-  font-size: 13px;
-  color: #334155;
-  margin: 2px 0;
-}
-
-.employee-card {
+.doc-title__meta {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  background-color: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  padding: 14px;
-  margin-bottom: 16px;
+  gap: 0.6mm;
+  margin: 0;
 }
 
-.grid-item {
+.doc-title__meta > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2mm;
+  font-size: 7pt;
+}
+
+.doc-title__meta dt {
+  color: var(--payslip-muted);
+}
+
+.doc-title__meta dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+/* Employee + attendance ---------------------------------------------------- */
+.employee-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2mm 4mm;
+  padding: 2.5mm 3mm;
+  border: 1px solid var(--payslip-line);
+  border-radius: 1.5mm;
+  background: var(--payslip-soft);
+}
+
+.employee-strip__item {
   display: flex;
   flex-direction: column;
+  min-inline-size: 0;
+}
+
+.employee-strip__item--wide {
+  grid-column: span 2;
 }
 
 .label {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: #64748b;
+  color: var(--payslip-muted);
+  font-size: 6.2pt;
   font-weight: 700;
-  margin-bottom: 2px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .value {
-  font-size: 13px;
-  color: #0f172a;
-  word-break: break-word;
+  overflow: hidden;
+  font-size: 8pt;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.font-bold {
+.value--strong {
+  font-weight: 800;
+}
+
+.value--mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.attendance-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border: 1px solid var(--payslip-line);
+  border-radius: 1.5mm;
+  overflow: hidden;
+}
+
+.attendance-strip__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5mm;
+  padding: 1.8mm 2mm;
+  text-align: center;
+  border-inline-end: 1px solid var(--payslip-line);
+}
+
+.attendance-strip__item:last-child {
+  border-inline-end: 0;
+}
+
+.attendance-strip__item--off {
+  background: #eef7f1;
+}
+
+.attendance-strip__label {
+  color: var(--payslip-muted);
+  font-size: 6.2pt;
   font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.font-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+.attendance-strip__value {
+  font-size: 9pt;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
-.highlight-box {
-  background-color: #eff6ff;
-  padding: 4px 6px;
-  border-radius: 3px;
-  border: 1px solid #bfdbfe;
+/* Ledgers ------------------------------------------------------------------ */
+.ledger-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4mm;
 }
 
-.text-primary {
-  color: #1d4ed8 !important;
-}
-
-.table-section {
-  margin-bottom: 16px;
-}
-
-.section-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 6px;
+.ledger__title {
+  margin: 0 0 1.2mm;
+  color: var(--payslip-accent);
+  font-size: 7pt;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-.payslip-table {
+.ledger__table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
-.payslip-table th,
-.payslip-table td {
-  border: 1px solid #cbd5e1;
-  padding: 8px 10px;
-  text-align: left;
-  word-wrap: break-word;
+.ledger__table td {
+  padding: 1.3mm 1.6mm;
+  border-block-end: 1px solid var(--payslip-line);
+  font-size: 7.6pt;
+  overflow-wrap: anywhere;
 }
 
-.payslip-table th {
-  background-color: #f1f5f9;
-  font-size: 11px;
-  font-weight: 700;
-  color: #334155;
+.ledger__table td.num {
+  inline-size: 34%;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
-.payslip-table td {
-  font-size: 13px;
-}
-
-.text-right {
-  text-align: right !important;
-}
-
-.total-row {
-  font-weight: 700;
-  background-color: #f8fafc;
-}
-
-.net-pay-banner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #eff6ff;
-  border: 1px solid #93c5fd;
-  border-inline-start: 5px solid #1d4ed8;
-  border-radius: 4px;
-  padding: 14px 18px;
-  margin-top: 16px;
-  margin-bottom: 40px;
-}
-
-.net-pay-info {
-  display: flex;
-  flex-direction: column;
-  max-width: 65%;
-}
-
-.net-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #1e40af;
-}
-
-.net-words {
-  font-size: 13px;
-  color: #2563eb;
-  font-style: italic;
-  margin-top: 2px;
-}
-
-.net-amount {
-  font-size: 20px;
+.ledger__total td {
+  border-block-end: 0;
+  border-block-start: 1.2px solid var(--payslip-line);
+  background: var(--payslip-soft);
   font-weight: 800;
-  color: #1e3a8a;
 }
 
-.signatures {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 50px;
-  margin-bottom: 20px;
+.ledger__table--compact td {
+  padding-block: 1mm;
 }
 
-.signature-box {
-  width: 180px;
+.muted {
+  color: var(--payslip-muted);
   text-align: center;
 }
 
-.signature-line {
-  border-top: 1px solid #475569;
-  margin-bottom: 6px;
+.advances {
+  break-inside: avoid;
 }
 
-.company-signature {
-  display: block;
-  max-width: 140px;
-  max-height: 55px;
-  object-fit: contain;
-  margin: 0 auto 6px;
+/* Net banner --------------------------------------------------------------- */
+.net-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5mm;
+  padding: 3mm 4mm;
+  border: 1px solid #9ec7d8;
+  border-inline-start: 4px solid var(--payslip-accent);
+  border-radius: 1.5mm;
+  background: #f2f9fc;
 }
 
-.signature-box span {
-  font-size: 11px;
-  color: #475569;
-  font-weight: 600;
+.net-banner__info {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.net-banner__label {
+  color: #0b5673;
+  font-size: 7pt;
+  font-weight: 800;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.compliance-footer {
-  border-top: 1px dashed #cbd5e1;
-  padding-top: 10px;
+.net-banner__words {
+  color: var(--payslip-muted);
+  font-size: 6.8pt;
+  font-style: italic;
+}
+
+.net-banner__amount {
+  color: #0b4a63;
+  font-size: 14pt;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Signatures --------------------------------------------------------------- */
+.signatures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5mm;
+  margin-block-start: auto;
+  padding-block-start: 4mm;
+}
+
+.signature {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-block-size: 14mm;
   text-align: center;
 }
 
-.compliance-footer p {
-  font-size: 11px;
-  color: #64748b;
+.signature__line {
+  margin-block-end: 1.2mm;
+  border-block-start: 1px solid #7b8a99;
 }
 
-[dir='rtl'] .document-title,
-[dir='rtl'] .text-right {
-  text-align: left !important;
+.signature__image {
+  display: block;
+  max-inline-size: 26mm;
+  max-block-size: 10mm;
+  margin: 0 auto 1mm;
+  object-fit: contain;
+}
+
+.signature span {
+  color: var(--payslip-muted);
+  font-size: 6.4pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.compliance {
+  margin: 0;
+  padding-block-start: 2mm;
+  border-block-start: 1px dashed var(--payslip-line);
+  color: var(--payslip-muted);
+  font-size: 6.2pt;
+  text-align: center;
+}
+
+[dir='rtl'] .doc-title,
+[dir='rtl'] .ledger__table td.num {
+  text-align: start;
+}
+
+[dir='rtl'] .doc-title__meta > div {
+  justify-content: flex-start;
+}
+
+@media print {
+  .payslip-container {
+    box-shadow: none;
+  }
 }
 </style>

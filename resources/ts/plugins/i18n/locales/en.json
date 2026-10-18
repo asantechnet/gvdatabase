@@ -245,7 +245,8 @@
       "withdrawn": "Withdrawn",
       "income": "Income",
       "expense": "Expense",
-      "unpaidLeave": "Unpaid leave"
+      "unpaidLeave": "Unpaid leave",
+      "offDay": "Off day"
     },
     "messages": {
       "taskFormHint": "Use a clear action title, set a realistic deadline, then add labels and owners.",
@@ -381,7 +382,8 @@
       "saveChanges": "Save Changes",
       "unableToSaveChanges": "Unable to save your changes.",
       "areYouSure": "Are you sure?",
-      "failedToDelete": "Unable to delete"
+      "failedToDelete": "Unable to delete",
+      "guarantorName": "Guarantor name"
     },
     "confirmations": {
       "areYouSureYouWantToDeleteThisContractTemplateThisActionCannotBeUndone": "Are you sure you want to delete this contract template? This action cannot be undone.",
@@ -535,13 +537,35 @@
         "payFailed": "Could not record the payment.",
         "cancelledSuccess": "Settlement {number} cancelled.",
         "cancelFailed": "Could not cancel the settlement.",
-        "entryTypes": { "earned": "Earned", "adjustment": "Adjustment" },
-        "statuses": { "pending": "Pending", "draft": "Draft", "approved": "Approved", "paid": "Paid", "cancelled": "Cancelled", "void": "Void" }
+        "entryTypes": {
+          "earned": "Earned",
+          "adjustment": "Adjustment"
+        },
+        "statuses": {
+          "pending": "Pending",
+          "draft": "Draft",
+          "approved": "Approved",
+          "paid": "Paid",
+          "cancelled": "Cancelled",
+          "void": "Void"
+        }
       },
       "commissionHeaders": {
-        "date": "Date", "type": "Type", "employee": "Employee", "contract": "Contract", "case": "Case", "service": "Service",
-        "eligibleRevenue": "Eligible revenue", "rate": "Rate", "commission": "Commission", "status": "Status",
-        "settlement": "Settlement", "period": "Period", "amount": "Amount", "paymentDate": "Payment date", "actions": "Actions"
+        "date": "Date",
+        "type": "Type",
+        "employee": "Employee",
+        "contract": "Contract",
+        "case": "Case",
+        "service": "Service",
+        "eligibleRevenue": "Eligible revenue",
+        "rate": "Rate",
+        "commission": "Commission",
+        "status": "Status",
+        "settlement": "Settlement",
+        "period": "Period",
+        "amount": "Amount",
+        "paymentDate": "Payment date",
+        "actions": "Actions"
       },
       "relationshipNotes": "Relationship notes",
       "conversationHistory": "Conversation history",
@@ -788,7 +812,9 @@
       "call": "Call",
       "editRole": "Edit Role",
       "createRole": "Create Role",
-      "legacyRecord": "Legacy record"
+      "legacyRecord": "Legacy record",
+      "paidLeaveDaysPerYear": "Paid leave days per year",
+      "paidLeaveDaysPerYearHint": "Applied to every employee in this office unless the employee has a personal override."
     },
     "unspecified": "Unspecified",
     "notAvailable": "Not available",
@@ -802,12 +828,12 @@
       "editTemplate": "Edit template",
       "searchTemplates": "Search templates",
       "sortOrder": "Order",
-    "orderValue": "Order {order}",
-    "clearFilters": "Clear filters",
-    "showMore": "Show more",
-    "showLess": "Show less",
-    "noMatches": "No templates match these filters.",
-    "retry": "Try again",
+      "orderValue": "Order {order}",
+      "clearFilters": "Clear filters",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "noMatches": "No templates match these filters.",
+      "retry": "Try again",
       "empty": "No templates in this section yet.",
       "loadFailed": "Could not load the message templates.",
       "deleteFailed": "Could not delete the template.",
@@ -1805,7 +1831,7 @@
           "commissionBased": "Commission-based employee",
           "commissionBasedHint": "Earns a percentage of each contracted service when a contract is completed.",
           "commissionPerService": "Commission rate per service (%)",
-          "paidLeaveDaysHint": "Optional. Shown in the printed employment contract header.",
+          "paidLeaveDaysHint": "Optional. Leave empty to inherit the office base, then the company default.",
           "paidOffDaysTheYearlyAllowanceHasBeenUsed": "Leave: The yearly allowance has been used.",
           "searchStaff": "Search Staff",
           "filterByPosition": "Filter By Position",
@@ -1957,7 +1983,8 @@
           "achievements": "Achievements",
           "challenges": "Challenges",
           "nextDayPlan": "Next workday plan",
-          "supportNeeded": "Support needed"
+          "supportNeeded": "Support needed",
+          "offDay": "Off day"
         },
         "unmarkedFor": "Unmarked for {date}",
         "steps": {
@@ -2020,7 +2047,17 @@
           "searchAdvances": "Search Advances",
           "advanceRecorded": "Salary advance recorded",
           "advanceDeleted": "Salary advance deleted",
-          "confirmDeleteAdvance": "Delete the salary advance for {employee}? This also removes its payroll expense."
+          "confirmDeleteAdvance": "Delete the salary advance for {employee}? This also removes its payroll expense.",
+          "offDays": "Off days",
+          "advanceRecovery": "Advance recovery",
+          "advancesRecovered": "Advances recovered",
+          "outstandingAdvances": "Outstanding advances",
+          "printAdvanceReceipt": "Print advance receipt",
+          "advanceReceiptTitle": "Salary advance receipt",
+          "salaryAmountLocked": "The base salary amount cannot be changed after the payslip is created.",
+          "payrollPrint": "Print monthly payroll",
+          "payrollSummaryTitle": "Monthly payroll register",
+          "netPayable": "Net payable"
         }
       }
     },
@@ -3009,7 +3046,8 @@
       "fullDay": "Full day",
       "halfDay": "Half day",
       "historyTitle": "Request history",
-      "historySubtitle": "Track the status of your submitted requests."
+      "historySubtitle": "Track the status of your submitted requests.",
+      "perEmployeeAllowanceHint": "Allowances follow each employee's office base unless a personal override is set."
     },
     "audits": {
       "title": "Audits",
@@ -3238,7 +3276,9 @@
       "noUserFacingChanges": "No user-facing information to show.",
       "otherInformation": "Other information",
       "moreChanges": "and {count} more",
-      "valueSeparator": "·"
+      "valueSeparator": "·",
+      "realtimeTitle": "New audit activity",
+      "realtimeBody": "{count} new audit change(s) await review."
     },
     "support": {
       "title": "Support centre",
@@ -3355,6 +3395,32 @@
         "empty": "No announcements yet.",
         "emptyHint": "Announcements you send will appear here."
       }
+    },
+    "offDays": {
+      "title": "Off days",
+      "subtitle": "Announce company-wide holidays; approved days mark attendance and count as present in payroll.",
+      "add": "Announce off day",
+      "edit": "Edit off day",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "reason": "Reason",
+      "days": "Days",
+      "approvedBy": "Approved by",
+      "approve": "Approve",
+      "reject": "Reject",
+      "remove": "Remove",
+      "removeConfirm": "Remove this off day? Attendance rows created by it will be released.",
+      "saved": "Off day saved.",
+      "approvedMessage": "Off day approved and applied to attendance.",
+      "rejectedMessage": "Off day rejected.",
+      "removed": "Off day removed.",
+      "unableToLoad": "Unable to load off days.",
+      "unableToSave": "Unable to save the off day.",
+      "reportTitle": "Off days report",
+      "empty": "No off days announced for this period.",
+      "affectsNote": "Approved off days are marked as present in attendance and shown separately on the payslip.",
+      "startDateRequired": "Choose a start and end date.",
+      "endDateAfterStart": "The end date must be on or after the start date."
     }
   },
   "components": {
@@ -4196,7 +4262,32 @@
         "printTimesheet": "Print Timesheet",
         "monthlyAttendanceRecord": "Monthly Attendance Record"
       }
+    },
+    "advanceReceipt": {
+      "title": "SALARY ADVANCE RECEIPT",
+      "subtitle": "Advance payment",
+      "receiptNo": "Receipt no.",
+      "date": "Date",
+      "employee": "Employee",
+      "employeeId": "Employee ID",
+      "position": "Position",
+      "department": "Department",
+      "amount": "Amount",
+      "amountInWords": "Amount in words",
+      "reason": "Purpose / remarks",
+      "receivedBy": "Received by (employee)",
+      "paidBy": "Paid by (company)",
+      "companySignature": "Authorized signature",
+      "employeeSignature": "Employee signature",
+      "note": "This advance is recovered from future payroll.",
+      "employeeCopy": "Employee copy",
+      "companyCopy": "Company copy"
     }
+  },
+  "pwa": {
+    "updateAvailable": "A new version is available.",
+    "reloadNow": "Reload now",
+    "offlineReady": "The app is ready to work offline."
   },
   "backend": {
     "values": {
@@ -4257,6 +4348,9 @@
         "invalid": "Enter a valid value."
       },
       "validation_failed": "Please correct the highlighted fields.",
+      "pwa": {
+        "offline_action_blocked": "You are offline. This action needs a connection."
+      },
       "business": {
         "contract_payment_exceeds_balance": "The payment exceeds the remaining balance of this service.",
         "contract_payment_currency_mismatch": "Record the payment in the contracted service currency.",
@@ -4327,7 +4421,10 @@
         "support_recipient_not_configured": "Support email is not configured yet. Ask an administrator to set SUPPORT_TICKET_RECIPIENT.",
         "support_email_delivery_failed": "Your support request could not be delivered. Nothing was submitted; please try again shortly.",
         "support_attachment_total_exceeded": "Attachments together must not exceed 10 MB.",
-        "finance_type_in_use": "This type is required by the system or used by a transaction and cannot be deleted."
+        "finance_type_in_use": "This type is required by the system or used by a transaction and cannot be deleted.",
+        "salary_amount_immutable": "The base salary amount cannot be changed after the payslip is created.",
+        "off_day_already_approved": "Only a holder of the off-day approval permission can change an approved off day.",
+        "off_day_range_too_long": "An off day range cannot exceed one year."
       },
       "auth": {
         "email_verification_required": "Verify your email address before signing in.",

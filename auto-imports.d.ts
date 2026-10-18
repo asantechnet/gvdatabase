@@ -189,6 +189,7 @@ declare global {
   const printReceipt: typeof import('./resources/ts/utils/printReceipt')['printReceipt']
   const provide: typeof import('vue')['provide']
   const provideLocal: typeof import('@vueuse/core')['provideLocal']
+  const purgeApiCache: typeof import('./resources/ts/utils/offlineCache')['purgeApiCache']
   const reactify: typeof import('@vueuse/core')['reactify']
   const reactifyObject: typeof import('@vueuse/core')['reactifyObject']
   const reactive: typeof import('vue')['reactive']
@@ -272,6 +273,7 @@ declare global {
   const useAnimate: typeof import('@vueuse/core')['useAnimate']
   const useApi: typeof import('./resources/ts/composables/useApi')['useApi']
   const useAppApi: typeof import('./resources/ts/composables/useAppApi')['useAppApi']
+  const useAppVersion: typeof import('./resources/ts/composables/useAppVersion')['useAppVersion']
   const useArrayDifference: typeof import('@vueuse/core')['useArrayDifference']
   const useArrayEvery: typeof import('@vueuse/core')['useArrayEvery']
   const useArrayFilter: typeof import('@vueuse/core')['useArrayFilter']
@@ -287,6 +289,7 @@ declare global {
   const useAsyncQueue: typeof import('@vueuse/core')['useAsyncQueue']
   const useAsyncState: typeof import('@vueuse/core')['useAsyncState']
   const useAttrs: typeof import('vue')['useAttrs']
+  const useAuditHeartbeat: typeof import('./resources/ts/composables/useAuditHeartbeat')['useAuditHeartbeat']
   const useAutomaticAttendance: typeof import('./resources/ts/composables/useAutomaticAttendance')['useAutomaticAttendance']
   const useAverage: typeof import('@vueuse/math')['useAverage']
   const useBase64: typeof import('@vueuse/core')['useBase64']
@@ -452,6 +455,7 @@ declare global {
   const useVModels: typeof import('@vueuse/core')['useVModels']
   const useVibrate: typeof import('@vueuse/core')['useVibrate']
   const useVirtualList: typeof import('@vueuse/core')['useVirtualList']
+  const useVisiblePolling: typeof import('./resources/ts/composables/useVisiblePolling')['useVisiblePolling']
   const useWakeLock: typeof import('@vueuse/core')['useWakeLock']
   const useWebNotification: typeof import('@vueuse/core')['useWebNotification']
   const useWebSocket: typeof import('@vueuse/core')['useWebSocket']
@@ -667,6 +671,7 @@ declare module 'vue' {
     readonly printReceipt: UnwrapRef<typeof import('./resources/ts/utils/printReceipt')['printReceipt']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
+    readonly purgeApiCache: UnwrapRef<typeof import('./resources/ts/utils/offlineCache')['purgeApiCache']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
     readonly reactifyObject: UnwrapRef<typeof import('@vueuse/core')['reactifyObject']>
     readonly reactive: UnwrapRef<typeof import('vue')['reactive']>
@@ -749,6 +754,7 @@ declare module 'vue' {
     readonly useAnimate: UnwrapRef<typeof import('@vueuse/core')['useAnimate']>
     readonly useApi: UnwrapRef<typeof import('./resources/ts/composables/useApi')['useApi']>
     readonly useAppApi: UnwrapRef<typeof import('./resources/ts/composables/useAppApi')['useAppApi']>
+    readonly useAppVersion: UnwrapRef<typeof import('./resources/ts/composables/useAppVersion')['useAppVersion']>
     readonly useArrayDifference: UnwrapRef<typeof import('@vueuse/core')['useArrayDifference']>
     readonly useArrayEvery: UnwrapRef<typeof import('@vueuse/core')['useArrayEvery']>
     readonly useArrayFilter: UnwrapRef<typeof import('@vueuse/core')['useArrayFilter']>
@@ -764,6 +770,7 @@ declare module 'vue' {
     readonly useAsyncQueue: UnwrapRef<typeof import('@vueuse/core')['useAsyncQueue']>
     readonly useAsyncState: UnwrapRef<typeof import('@vueuse/core')['useAsyncState']>
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
+    readonly useAuditHeartbeat: UnwrapRef<typeof import('./resources/ts/composables/useAuditHeartbeat')['useAuditHeartbeat']>
     readonly useAutomaticAttendance: UnwrapRef<typeof import('./resources/ts/composables/useAutomaticAttendance')['useAutomaticAttendance']>
     readonly useAverage: UnwrapRef<typeof import('@vueuse/math')['useAverage']>
     readonly useBase64: UnwrapRef<typeof import('@vueuse/core')['useBase64']>
@@ -921,6 +928,7 @@ declare module 'vue' {
     readonly useVModels: UnwrapRef<typeof import('@vueuse/core')['useVModels']>
     readonly useVibrate: UnwrapRef<typeof import('@vueuse/core')['useVibrate']>
     readonly useVirtualList: UnwrapRef<typeof import('@vueuse/core')['useVirtualList']>
+    readonly useVisiblePolling: UnwrapRef<typeof import('./resources/ts/composables/useVisiblePolling')['useVisiblePolling']>
     readonly useWakeLock: UnwrapRef<typeof import('@vueuse/core')['useWakeLock']>
     readonly useWebNotification: UnwrapRef<typeof import('@vueuse/core')['useWebNotification']>
     readonly useWebSocket: UnwrapRef<typeof import('@vueuse/core')['useWebSocket']>

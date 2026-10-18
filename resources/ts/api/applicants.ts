@@ -142,9 +142,34 @@ export interface PipelineColumn extends ApplicantStage {
   count: number
 }
 
+/**
+ * One card on a service pipeline. A contracted service line is the card once
+ * it exists; before that the case itself stands in, still placed on its
+ * service's own stage list so new work never disappears from the board.
+ */
+export interface PipelineCard {
+  id: string
+  source: 'line' | 'applicant'
+  line_id: number | null
+  applicant_id: number
+  name: string | null
+  service: BuiltInService
+  status: string
+  current_stage_id: number
+  current_stage: { id: number, key: string, name: string, is_terminal: boolean, allowed_next_keys: string[] }
+  responsible_employee?: { id: number, name: string } | null
+  country?: string | null
+  university?: string | null
+  contract_number?: string | null
+  contract_status?: string | null
+}
+
 export interface PipelineResponse {
+  // The pipeline is scoped to one service at a time.
+  service: BuiltInService
   stages: PipelineColumn[]
-  totals: { active: number; closed: number; all: number }
+  cards: PipelineCard[]
+  totals: { active: number, closed: number, all: number }
 }
 
 const clean = (params: ApplicantListParams = {}) => {

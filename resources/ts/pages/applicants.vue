@@ -137,15 +137,20 @@ async function load() {
   }
 }
 
+async function loadStages() {
+  // Stage tabs follow the selected service. Without one, the API returns the
+  // cross-service list deduped by key (the legacy single-pipeline shape).
+  stages.value = await ApplicantApi.stages({ service: service.value || undefined })
+}
+
 async function loadCatalogs() {
   try {
-    const [countryRows, universityRows, levelRows, semesterRows, employeeRows, stageRows, admissionRows] = await Promise.all([
+    const [countryRows, universityRows, levelRows, semesterRows, employeeRows, admissionRows] = await Promise.all([
       MasterDataApi.list('countries'),
       MasterDataApi.list('universities'),
       MasterDataApi.list('education-levels'),
       MasterDataApi.list('semesters'),
       canAccess('view_employees') ? EmployeeApi.getOptions() : Promise.resolve([]),
-      ApplicantApi.stages(),
       EmployeeApi.getAssignmentOptions('admission'),
     ])
 
@@ -155,7 +160,7 @@ async function loadCatalogs() {
     semesters.value = semesterRows
     employees.value = employeeRows
     admissionEmployees.value = admissionRows
-    stages.value = stageRows
+    await loadStages()
   }
   catch {
     toast.error(t('educational.messages.loadFiltersFailed'))
@@ -237,6 +242,27 @@ watch(countryId, () => {
 
   if (!stillVisible)
     universityId.value = null
+})
+
+// A tab from the previous service's pipeline must not stay selected: the
+// server would filter by a stage key that no longer belongs to this service.
+watch(service, async () => {
+  const previousStage = stage.value
+
+  try {
+    await loadStages()
+  }
+  catch {
+    toast.error(t('educational.messages.loadFiltersFailed'))
+
+    return
+  }
+
+  if (previousStage && !stages.value.some(item => item.key === previousStage)) {
+    stage.value = ''
+    page.value = 1
+    load()
+  }
 })
 
 

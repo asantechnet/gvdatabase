@@ -12,6 +12,7 @@ export interface Employee {
   emergency_contact_phone: string | null
   id_number: string | null
   bank_account_number: string | null
+  guarantor_name: string | null
   guarantor_id_number: string | null
   guarantor_phone: string | null
   guarantor_address: string | null
@@ -71,6 +72,7 @@ export interface CreateEmployeeData {
   emergency_contact_phone?: string | null
   id_number: string
   bank_account_number?: string | null
+  guarantor_name?: string | null
   guarantor_id_number?: string | null
   guarantor_phone?: string | null
   guarantor_address?: string | null
@@ -101,6 +103,7 @@ export interface UpdateEmployeeData {
   emergency_contact_phone?: string | null
   id_number?: string
   bank_account_number?: string | null
+  guarantor_name?: string | null
   guarantor_id_number?: string | null
   guarantor_phone?: string | null
   guarantor_address?: string | null

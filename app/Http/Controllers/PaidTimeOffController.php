@@ -23,12 +23,19 @@ class PaidTimeOffController extends Controller
     {
         $data = $request->validate(['year' => ['nullable', 'integer', 'between:2000,3000']]);
         $year = $data['year'] ?? now()->year;
-        $rows = PaidTimeOff::with(['employee.position', 'grantor'])->where('year', $year)->latest('date')->get();
+        $rows = PaidTimeOff::with(['employee.position', 'employee.office', 'grantor'])->where('year', $year)->latest('date')->get();
+
+        // The allowance is per employee (office base unless the employee has a
+        // personal override), so the ledger ships the resolved map with it.
+        $allowances = $rows->pluck('employee')->filter()->unique('id')
+            ->mapWithKeys(fn (Employee $employee) => [$employee->id => $this->allowanceFor($employee)])
+            ->all();
 
         return response()->json([
             'success' => true,
             'data' => PaidTimeOffResource::collection($rows)->resolve(),
-            'allowance' => $this->allowance(),
+            'allowance' => $this->defaultAllowance(),
+            'allowances' => $allowances,
             'year' => $year,
         ]);
     }
@@ -97,7 +104,8 @@ class PaidTimeOffController extends Controller
                 ->sort()
                 ->values();
             Employee::whereIn('id', $employeeIds)->orderBy('id')->lockForUpdate()->get();
-            $lockedRows = PaidTimeOff::whereIn('employee_id', $employeeIds)
+            $lockedRows = PaidTimeOff::with(['employee.office'])
+                ->whereIn('employee_id', $employeeIds)
                 ->orderBy('employee_id')
                 ->orderBy('year')
                 ->orderBy('date')
@@ -109,7 +117,6 @@ class PaidTimeOffController extends Controller
                 throw ValidationException::withMessages(['ids' => ['business.request_rejected']]);
             }
 
-            $allowance = $this->allowance();
             $paidUsage = $lockedRows
                 ->where('is_granted', true)
                 ->groupBy(fn (PaidTimeOff $row) => "{$row->employee_id}:{$row->year}")
@@ -131,6 +138,7 @@ class PaidTimeOffController extends Controller
                 }
                 $usageKey = "{$row->employee_id}:{$row->year}";
                 $paidUsed = (float) $paidUsage->get($usageKey, 0);
+                $allowance = $this->allowanceFor($row->employee);
                 $duration = (float) $row->duration_days;
                 $forcePaid = $request->boolean('force_paid');
                 $available = max(0, $allowance - $paidUsed);
@@ -170,6 +178,14 @@ class PaidTimeOffController extends Controller
     public function store(Request $request, Employee $employee): JsonResponse
     {
         $this->ensureSelectableEmployee($employee);
+
+        // The staff ledger mirrors the self-service request dialog: a range of
+        // dates can be recorded in one call. Fridays are the weekly day off and
+        // are skipped rather than rejected.
+        if ($request->filled('start_date') || $request->filled('end_date')) {
+            return $this->storeRange($request, $employee);
+        }
+
         $data = $this->validated($request, $employee);
         $year = (int) substr($data['date'], 0, 4);
 
@@ -198,6 +214,50 @@ class PaidTimeOffController extends Controller
         });
 
         return response()->json(['success' => true, 'data' => new PaidTimeOffResource($leave)], 201);
+    }
+
+    private function storeRange(Request $request, Employee $employee): JsonResponse
+    {
+        $data = $request->validate([
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'reason' => ['required', 'string', 'max:1000'],
+            'duration_days' => ['nullable', Rule::in([0.5, 1])],
+        ]);
+
+        $start = Carbon::parse($data['start_date'])->startOfDay();
+        $end = Carbon::parse($data['end_date'])->startOfDay();
+        abort_if($start->year !== $end->year || $start->diffInDays($end) > 365, 422, 'business.request_rejected');
+        abort_if($employee->join_date && $start->lt($employee->join_date->copy()->startOfDay()), 422, 'business.leave_before_employment');
+
+        $dates = collect(range(0, $start->diffInDays($end)))
+            ->map(fn (int $offset) => $start->copy()->addDays($offset))
+            ->reject(fn (Carbon $date) => $date->isFriday())
+            ->map(fn (Carbon $date) => $date->toDateString())
+            ->values();
+        abort_if($dates->isEmpty(), 422, 'business.leave_range_contains_no_workdays');
+
+        $created = DB::transaction(function () use ($employee, $request, $dates, $data, $start) {
+            Employee::whereKey($employee->id)->lockForUpdate()->firstOrFail();
+            $existing = $employee->paidTimeOffs()->whereIn('date', $dates)->pluck('date');
+            if ($existing->isNotEmpty()) {
+                throw ValidationException::withMessages(['start_date' => ['business.paid_time_off_date_exists']]);
+            }
+
+            return $dates->map(fn (string $date) => $employee->paidTimeOffs()->create([
+                'date' => $date,
+                'year' => $start->year,
+                'reason' => $data['reason'],
+                'duration_days' => $dates->count() === 1 ? ($data['duration_days'] ?? 1) : 1,
+                'requested_by' => $request->user()->id,
+                'is_granted' => false,
+            ]));
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => PaidTimeOffResource::collection($created)->resolve(),
+        ], 201);
     }
 
     public function update(Request $request, Employee $employee, PaidTimeOff $paidTimeOff): JsonResponse
@@ -381,7 +441,7 @@ class PaidTimeOffController extends Controller
     private function ledger(Employee $employee, int $year): array
     {
         $rows = $employee->paidTimeOffs()->where('year', $year)->latest('date')->get();
-        $allowance = (float) (Setting::latest('id')->value('paid_leave_days_per_year') ?? 0);
+        $allowance = $this->allowanceFor($employee);
         $used = (float) $rows->where('is_granted', true)->sum('paid_days');
 
         return [
@@ -395,7 +455,23 @@ class PaidTimeOffController extends Controller
         ];
     }
 
-    private function allowance(): float
+    /**
+     * Paid leave allowance for one employee: a personal override wins, then
+     * the office base, then the company-wide default. This keeps offices free
+     * to offer different leave terms without copying a value per employee.
+     */
+    private function allowanceFor(?Employee $employee): float
+    {
+        if ($employee?->paid_leave_days !== null) {
+            return (float) $employee->paid_leave_days;
+        }
+
+        $office = $employee?->office?->paid_leave_days_per_year;
+
+        return $office !== null ? (float) $office : $this->defaultAllowance();
+    }
+
+    private function defaultAllowance(): float
     {
         return (float) (Setting::latest('id')->value('paid_leave_days_per_year') ?? 0);
     }

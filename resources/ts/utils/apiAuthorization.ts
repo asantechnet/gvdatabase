@@ -123,6 +123,14 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'POST /tags': ['manage_task_tags_catalog'],
     'PUT /tags/:id': ['manage_task_tags_catalog'],
     'DELETE /tags/:id': ['manage_task_tags_catalog'],
+    // Off days: announcing/editing needs manage_off_days, activating or
+    // removing an approved holiday needs the dedicated approve_off_days grant.
+    'GET /off-days': ['view_off_days'],
+    'POST /off-days': ['manage_off_days'],
+    'PUT /off-days/:id': ['manage_off_days'],
+    'DELETE /off-days/:id': ['manage_off_days'],
+    'PATCH /off-days/:id/approve': ['approve_off_days'],
+    'PATCH /off-days/:id/reject': ['approve_off_days'],
     'GET /salaries/granted-bonuses': ['view_bonuses'],
     'GET /salaries/:id/deductions': ['view_salary_deductions'],
     'POST /salaries/:id/deductions': ['create_salary_deductions'],
@@ -179,6 +187,7 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'PATCH /notifications/mark-all-read': ['update_own_notifications'],
     'GET /audit-logs': ['view_audit_logs'],
     'GET /audit-logs/pending-count': ['view_audit_logs'],
+    'GET /audit-logs/heartbeat': ['view_audit_logs'],
     'GET /audit-logs/deleted': ['view_deleted_records'],
     'GET /audit-logs/:id': ['view_audit_logs'],
     'PATCH /audit-logs/:id/review': ['review_audit_logs'],

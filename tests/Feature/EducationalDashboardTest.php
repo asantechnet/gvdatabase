@@ -65,6 +65,30 @@ class EducationalDashboardTest extends TestCase
         $this->assertSame($iran->name, $data['countries'][0]['name']);
     }
 
+    public function test_pipeline_counts_each_service_line_in_its_own_column(): void
+    {
+        $this->createBuiltInContract('scholarship', ['name' => 'Visa Case', 'fee' => 300]);
+        $this->createBuiltInContract('test_offer', ['name' => 'Offer Case', 'fee' => 100]);
+
+        $data = $this->getJson('/api/educational-dashboard')->assertOk()->json('data');
+        $counted = collect($data['pipeline']['stages'])->where('count', '>', 0);
+
+        $this->assertSame(1, $counted->where('service', 'scholarship')->sum('count'));
+        $this->assertSame(1, $counted->where('service', 'test_offer')->sum('count'));
+        $this->assertSame(2, $data['pipeline']['totals']['all']);
+
+        // Moving one line only changes that service's column.
+        $line = ApplicantContract::query()->where('service', 'test_offer')->firstOrFail();
+        $next = ApplicantStage::query()->where('service', 'test_offer')->where('key', 'documents_required')->firstOrFail();
+        $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", ['stage_id' => $next->id])->assertOk();
+
+        $moved = collect($this->getJson('/api/educational-dashboard')->assertOk()->json('data.pipeline.stages'));
+        $column = fn (string $service, string $key) => $moved->first(fn ($row) => $row['service'] === $service && $row['key'] === $key)['count'];
+        $this->assertSame(1, $column('test_offer', 'documents_required'));
+        $this->assertSame(0, $column('test_offer', 'new'));
+        $this->assertSame(1, $column('scholarship', 'new'));
+    }
+
     public function test_overview_respects_filters_and_permissions(): void
     {
         $iran = Country::create(['name' => 'Iran', 'code' => 'IRN', 'is_active' => true]);

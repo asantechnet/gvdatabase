@@ -9,6 +9,8 @@ import { hexToRgb } from '@core/utils/colorConverter'
 import ApiErrorNotifier from '@/components/ApiErrorNotifier.vue'
 import ActionWarningDialog from '@/components/ActionWarningDialog.vue'
 import FormWarningGuard from '@/components/FormWarningGuard.vue'
+import PwaUpdateNotifier from '@/components/PwaUpdateNotifier.vue'
+import { useAppVersion } from '@/composables/useAppVersion'
 
 const { global } = useTheme()
 const { locale } = useI18n({ useScope: 'global' })
@@ -18,6 +20,9 @@ initCore()
 initConfigStore()
 
 const configStore = useConfigStore()
+
+// Watches for a deployed build that no longer matches this bundle.
+useAppVersion()
 </script>
 
 <template>
@@ -31,6 +36,7 @@ const configStore = useConfigStore()
       <FormWarningGuard />
       <ActionWarningDialog />
       <ApiErrorNotifier />
+      <PwaUpdateNotifier />
       <ScrollToTop />
     </VApp>
   </VLocaleProvider>

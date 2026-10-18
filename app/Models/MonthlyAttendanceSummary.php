@@ -13,7 +13,7 @@ class MonthlyAttendanceSummary extends Model
     {
         return [
             'present_days' => 'float', 'absent_days' => 'float',
-            'paid_leave_days' => 'float', 'unpaid_leave_days' => 'float',
+            'paid_leave_days' => 'float', 'off_days' => 'float', 'unpaid_leave_days' => 'float',
             'calculated_at' => 'immutable_datetime',
         ];
     }

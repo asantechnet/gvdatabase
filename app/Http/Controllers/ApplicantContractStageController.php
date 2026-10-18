@@ -38,8 +38,10 @@ class ApplicantContractStageController extends Controller
         ]);
 
         $next = ApplicantStage::findOrFail($data['stage_id']);
-        // The stage must belong to the line's service (or be service-agnostic).
-        abort_if($next->service && $line->service && $next->service !== $line->service, 422, 'business.applicant_stage_context_mismatch');
+        // The stage must belong to the line's service. Legacy, service-agnostic
+        // rows stay usable; another service's stage never is.
+        $lineService = $line->serviceKey() ?? $applicant->service;
+        abort_if($next->service && $lineService && $next->service !== $lineService, 422, 'business.applicant_stage_context_mismatch');
 
         $current = $line->currentStage;
         if ($current && ! $current->allowsTransitionTo($next)) {

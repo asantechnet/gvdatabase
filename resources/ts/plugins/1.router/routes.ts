@@ -23,6 +23,7 @@ const pageComponents: Record<string, Component> = {
   staffList: () => import('@/pages/staff_list.vue'),
   timesheet: () => import('@/pages/timesheet.vue'),
   paidTimeOffs: () => import('@/pages/paid_time_offs.vue'),
+  offDays: () => import('@/pages/off_days.vue'),
   bonuslist: () => import('@/pages/bonuslist.vue'),
   staffSalary: () => import('@/pages/staff_salary.vue'),
   serviceContracts: () => import('@/pages/service-contracts.vue'),
@@ -41,6 +42,7 @@ const pageComponents: Record<string, Component> = {
   educationalMasterData: () => import('@/pages/educational-master-data.vue'),
   academyData: () => import('@/pages/academy-data.vue'),
   applicants: () => import('@/pages/applicants.vue'),
+  applicantPipeline: () => import('@/pages/applicant-pipeline.vue'),
   applicantStages: () => import('@/pages/applicant-stages.vue'),
   applicantSearch: () => import('@/pages/search.vue'),
   educationalDashboard: () => import('@/pages/educational-dashboard.vue'),
@@ -90,6 +92,7 @@ const routeDefinitions: Array<{
   { path: '/timesheet', component: 'timesheet', name: 'timesheet', meta: { requiresAuth: true, action: 'read', subject: 'view_attendance' } },
   { path: '/leaves', component: 'paidTimeOffs', name: 'leaves', meta: { requiresAuth: true, action: 'read', subject: 'view_paid_time_off' } },
   { path: '/paid-time-offs', redirect: { name: 'leaves' } },
+  { path: '/off-days', component: 'offDays', name: 'off-days', meta: { requiresAuth: true, action: 'read', subject: 'view_off_days' } },
   {
     path: '/staff-salary',
     component: 'staffSalary',
@@ -152,8 +155,11 @@ const routeDefinitions: Array<{
   // Legacy path kept as a query-preserving redirect (deep links such as
   // `/applicants?contact=12` must keep working after the rename).
   { path: '/applicants', name: 'applicants', redirect: to => ({ name: 'applications', query: to.query }), meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
-  { path: '/applicant-pipeline', redirect: { name: 'applications' }, name: 'applicant-pipeline', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
-  { path: '/applicant-stages', component: 'applicantStages', name: 'applicant-stages', meta: { requiresAuth: true, action: 'manage', subject: 'manage_applicant_stages' } },
+  // The service-line board: one service at a time, one card per contract line.
+  { path: '/applicant-pipeline', component: 'applicantPipeline', name: 'applicant-pipeline', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
+  // Editing a stage additionally requires `manage_applicant_stages`; the page
+  // itself is readable with `view_applicant_stages`, matching the nav item.
+  { path: '/applicant-stages', component: 'applicantStages', name: 'applicant-stages', meta: { requiresAuth: true, action: 'read', subject: 'view_applicant_stages' } },
   { path: '/search', component: 'applicantSearch', name: 'search', meta: { requiresAuth: true } },
   { path: '/agency-overview', component: 'educationalDashboard', name: 'agency-overview', meta: { requiresAuth: true, action: 'read', subject: 'view_agency_overview' } },
   { path: '/visa-reports', component: 'educationalReports', name: 'visa-reports', meta: { requiresAuth: true, action: 'read', subject: 'view_visa_reports' } },

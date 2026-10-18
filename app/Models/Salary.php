@@ -24,8 +24,10 @@ class Salary extends Model
         'salary_month',
         'amount_paid',
         'bonus',
+        'advance_recovery',
         'worked_days',
         'paid_leave_days',
+        'off_days',
         'absent_days',
         'unpaid_leave_days',
         'total_days',
@@ -43,6 +45,8 @@ class Salary extends Model
             'total_amount' => 'float',
             'worked_days' => 'float',
             'paid_leave_days' => 'float',
+            'off_days' => 'float',
+            'advance_recovery' => 'float',
             'absent_days' => 'float',
             'unpaid_leave_days' => 'float',
             'total_days' => 'integer',
@@ -92,6 +96,12 @@ class Salary extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(SalaryPayment::class)->orderBy('payment_date')->orderBy('id');
+    }
+
+    /** Advances recovered by this payroll period. */
+    public function advances(): HasMany
+    {
+        return $this->hasMany(EmployeeAdvance::class);
     }
 
     public function recorder(): BelongsTo

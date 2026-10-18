@@ -336,7 +336,6 @@ async function save() {
           <VBtn icon="tabler-x" variant="text" :disabled="saving" :aria-label="t('serviceContracts.close')" @click="open = false"><VIcon icon="tabler-x" /><VTooltip activator="parent">{{ t('serviceContracts.close') }}</VTooltip></VBtn>
         </VCardTitle>
         <VCardText class="service-contract-body">
-          <VProgressLinear v-if="preparing" indeterminate class="mb-4" />
           <VAlert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</VAlert>
           <div v-if="parent" class="mb-4">{{ parent.contract_number }}: {{ parent.counterparty }}</div>
           <VForm ref="formRef" @submit.prevent="save">
@@ -368,7 +367,7 @@ async function save() {
             </VRow>
             <div class="service-contract-footer">
               <div class="d-flex flex-wrap align-center ga-4"><strong>{{ t('erp.totalFee') }}: {{ fee.toFixed(2) }} {{ currencies.find(row => row.id === currencyId)?.code }}</strong><span class="text-medium-emphasis">{{ t('serviceContracts.discount') }}: {{ discount }}</span></div>
-              <div class="d-flex ga-2"><VBtn color="secondary" variant="tonal" :disabled="saving" @click="open = false">{{ t('erp.cancel') }}</VBtn><VBtn type="submit" color="primary" prepend-icon="tabler-check" :disabled="!valid" :loading="saving">{{ t('erp.save') }}</VBtn></div>
+              <div class="d-flex ga-2"><VBtn color="secondary" variant="tonal" :disabled="saving" @click="open = false">{{ t('erp.cancel') }}</VBtn><VBtn type="submit" color="primary" prepend-icon="tabler-check" :disabled="!valid || saving">{{ t('erp.save') }}</VBtn></div>
             </div>
           </VForm>
         </VCardText>
@@ -384,7 +383,7 @@ async function save() {
         <VCardActions>
           <VSpacer />
           <VBtn variant="tonal" color="secondary" @click="cancelOpen = false">{{ t('common.actions.cancel') }}</VBtn>
-          <VBtn color="error" :loading="cancelling" @click="confirmCancel">{{ t('serviceContracts.cancelContract') }}</VBtn>
+          <VBtn color="error" :disabled="cancelling" @click="confirmCancel">{{ t('serviceContracts.cancelContract') }}</VBtn>
         </VCardActions>
       </VCard>
     </VDialog>

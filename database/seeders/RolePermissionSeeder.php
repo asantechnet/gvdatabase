@@ -44,6 +44,7 @@ class RolePermissionSeeder extends Seeder
                 'grant_paid_time_off', 'print_paid_time_off',
                 'view_attendance', 'record_attendance', 'view_unmarked_attendance_staff',
                 'view_bonuses', 'nominate_bonus_candidates', 'edit_bonus_nominations',
+                'view_off_days', 'manage_off_days', 'approve_off_days',
                 'view_positions', 'view_offices',
                 'view_contracts', 'create_contracts', 'edit_contracts', 'cancel_contracts', 'download_contracts',
                 'view_contract_templates', 'manage_contract_templates', 'create_contract_template_versions', 'edit_draft_contract_template_versions', 'activate_contract_template_versions', 'archive_contract_template_versions', 'view_contract_policies',
@@ -155,6 +156,13 @@ class RolePermissionSeeder extends Seeder
             'view_pending_transactions', 'create_pending_transactions', 'approve_pending_transactions', 'post_pending_transactions',
             'view_currencies', 'view_financial_reports', 'view_contracts', 'download_files',
             'view_commissions', 'manage_commission_settlements', 'approve_commissions', 'pay_commissions',
+            // Payroll for finance: the officer records salaries, deductions and
+            // advance recovery and prints the monthly payroll register.
+            'view_employees', 'view_offices', 'view_positions',
+            'view_salaries', 'create_salaries', 'edit_salaries', 'delete_salaries',
+            'view_salary_deductions', 'create_salary_deductions', 'edit_salary_deductions', 'delete_salary_deductions',
+            'view_bonuses', 'view_off_days',
+            'print_paid_time_off',
         ];
 
         $permissionIds = Permission::query()->whereIn('name', $all)->pluck('id', 'name');

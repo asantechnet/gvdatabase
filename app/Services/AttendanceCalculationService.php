@@ -44,7 +44,9 @@ class AttendanceCalculationService
 
     private function derive(Attendance $attendance, string $timezone, ?string $scheduleStart, ?string $scheduleEnd, int $breakMinutes): array
     {
-        if ($attendance->status !== 'present') {
+        // An approved off day is a paid, non-worked day: it has no punches and
+        // must not be reported as an incomplete attendance.
+        if ($attendance->status !== 'present' || $attendance->off_day_id) {
             return $this->emptySummary('none', 0);
         }
 

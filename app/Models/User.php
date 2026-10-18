@@ -76,6 +76,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'two_factor_confirmed_at' => 'datetime',
         'must_set_password' => 'boolean',
         'unread_notifications' => 'boolean',
+        'unread_audit_logs' => 'boolean',
+        'audit_logs_seen_at' => 'datetime',
     ];
 
     public function positions()

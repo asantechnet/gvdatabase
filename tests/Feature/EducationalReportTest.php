@@ -43,6 +43,21 @@ class EducationalReportTest extends TestCase
         $this->assertSame('Iran', $filtered['rows'][0]['country']);
     }
 
+    public function test_applicant_report_can_be_scoped_to_a_service_line(): void
+    {
+        $this->createBuiltInContract('scholarship', ['name' => 'Visa Case', 'fee' => 300]);
+        $this->createBuiltInContract('test_offer', ['name' => 'Offer Case', 'fee' => 100]);
+
+        $report = $this->getJson('/api/educational-reports/applicants?service=test_offer')->assertOk()->json('data');
+        $this->assertSame(1, $report['total']);
+        $this->assertSame('test_offer', $report['rows'][0]['service']);
+        $this->assertSame('New', $report['rows'][0]['stage']);
+
+        $scholarship = $this->getJson('/api/educational-reports/applicants?service=scholarship')->assertOk()->json('data');
+        $this->assertSame(1, $scholarship['total']);
+        $this->assertSame('scholarship', $scholarship['rows'][0]['service']);
+    }
+
     public function test_performance_and_sales_reports_attribute_work(): void
     {
         $employee = Employee::factory()->create();
