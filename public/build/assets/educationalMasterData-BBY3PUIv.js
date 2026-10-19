@@ -1,0 +1,1 @@
+import{a8 as e}from"./main-CTubRfG2.js";const s=a=>`/educational-master-data/${a}`,i={list:async a=>(await e.get(s(a))).data.data,create:async(a,t)=>(await e.post(s(a),t)).data.data,update:async(a,t,d)=>(await e.put(`${s(a)}/${t}`,d)).data.data,remove:async(a,t)=>e.delete(`${s(a)}/${t}`)};export{i as M};

@@ -163,7 +163,9 @@ onMounted(() => {
 .destination-link { display: flex; justify-content: space-between; gap: 12px; padding-block: 7px; font-size: 0.85rem; }
 .destination-link strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .service-progress summary { cursor: pointer; font-size: 0.85rem; color: rgb(var(--v-theme-primary)); }
-:global(.v-locale--is-rtl) .priority-link :deep(.v-icon) { transform: rotate(180deg); }
+/* Vue drops every selector after a global pseudo-selector block, so the whole
+   selector must live inside it; otherwise the rotation lands on the app root. */
+:global(html[dir='rtl'] .agency-dashboard .priority-link .v-icon) { transform: rotate(180deg); }
 #agency-priorities { scroll-margin-block-start: 90px; }
 @media (max-width: 1100px) { .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 599px) { .pipeline-grid { grid-template-columns: 1fr; } .summary-card { padding: 12px; gap: 8px; } .summary-card strong { font-size: 1.4rem; } }

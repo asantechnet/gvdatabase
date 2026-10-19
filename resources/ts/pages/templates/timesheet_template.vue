@@ -560,11 +560,11 @@ const printReport = () => {
    Print CSS Configuration
 ========================================== */
 @media print {
-  :global(body:is(.printing-timesheet, .printing-timesheet-template)) .no-print {
+  :global(body:is(.printing-timesheet, .printing-timesheet-template) .no-print) {
     display: none !important;
   }
 
-  :global(body:is(.printing-timesheet, .printing-timesheet-template)) .timesheet-wrapper {
+  :global(body:is(.printing-timesheet, .printing-timesheet-template) .timesheet-wrapper) {
     background: none;
     padding: 0;
     margin: 0;
@@ -572,12 +572,12 @@ const printReport = () => {
     display: block;
   }
 
-  :global(body:is(.printing-timesheet, .printing-timesheet-template)) .print-container {
+  :global(body:is(.printing-timesheet, .printing-timesheet-template) .print-container) {
     gap: 0;
     width: 100%;
   }
 
-  :global(body:is(.printing-timesheet, .printing-timesheet-template)) .a4-page {
+  :global(body:is(.printing-timesheet, .printing-timesheet-template) .a4-page) {
     box-shadow: none;
     border-radius: 0;
     margin: 0 auto;
@@ -593,7 +593,7 @@ const printReport = () => {
   }
 
   /* A forced break belongs only between pages, never after the final page. */
-  :global(body:is(.printing-timesheet, .printing-timesheet-template)) .a4-page:not(:last-child) {
+  :global(body:is(.printing-timesheet, .printing-timesheet-template) .a4-page:not(:last-child)) {
     break-after: page;
     page-break-after: always;
   }

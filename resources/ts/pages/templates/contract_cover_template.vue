@@ -377,12 +377,12 @@ onMounted(() => {
 
 @media print {
 
-  :global(body.printing-contract-document) body {
+  :global(body.printing-contract-document) {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  :global(body.printing-contract-document) .contract-cover {
+  :global(body.printing-contract-document .contract-cover) {
     box-shadow: none !important;
     margin: 0 auto !important;
     width: 210mm !important;
@@ -403,12 +403,12 @@ onMounted(() => {
     background: #ffffff !important;
   }
 
-  :global(body.printing-contract-document) .top-section {
+  :global(body.printing-contract-document .top-section) {
     width: 100% !important;
     flex: 3 !important;
   }
 
-  :global(body.printing-contract-document) .bottom-section {
+  :global(body.printing-contract-document .bottom-section) {
     width: 100% !important;
     flex: 2 !important;
   }

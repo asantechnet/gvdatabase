@@ -1,1 +1,0 @@
-import{d as a,dG as s,r as t,o as r,c as l,w as i,a as _,C as m,D as e}from"./main-B8XV38YN.js";const f=a({__name:"NavbarFullscreenToggle",setup(u){const{isFullscreen:n,toggle:o}=s();return(p,C)=>{const c=t("IconBtn");return r(),l(c,{onClick:e(o)},{default:i(()=>[_(m,{icon:e(n)?"tabler-minimize":"tabler-maximize"},null,8,["icon"])]),_:1},8,["onClick"])}}});export{f as _};

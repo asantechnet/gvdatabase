@@ -713,12 +713,12 @@ defineExpose({
 /* 5. Print Optimization */
 @media print {
 
-  :global(body.printing-contract-document) * {
+  :global(body.printing-contract-document *) {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  :global(body.printing-contract-document) .contract-page-container {
+  :global(body.printing-contract-document .contract-page-container) {
     width: 210mm !important;
     max-width: 210mm !important;
     height: 297mm !important;
@@ -737,7 +737,7 @@ defineExpose({
     break-after: auto !important;
   }
 
-  :global(body.printing-contract-document) .content-wrapper {
+  :global(body.printing-contract-document .content-wrapper) {
     display: flex !important;
     flex-direction: column !important;
     height: 100% !important;
@@ -745,14 +745,14 @@ defineExpose({
     overflow: visible !important;
   }
 
-  :global(body.printing-contract-document) .has-letterhead .content-wrapper {
+  :global(body.printing-contract-document .has-letterhead .content-wrapper) {
     position: absolute !important;
     inset: var(--letterhead-safe-y) auto auto var(--letterhead-safe-x) !important;
     width: var(--letterhead-safe-width) !important;
     height: var(--letterhead-safe-height) !important;
   }
 
-  :global(body.printing-contract-document) .contract-header {
+  :global(body.printing-contract-document .contract-header) {
     flex: 0 0 auto !important;
     flex-shrink: 0 !important;
     width: 100% !important;
@@ -766,22 +766,19 @@ defineExpose({
     padding-top: 10px !important;
   }
 
-  :global(body.printing-contract-document) .header-left,
-  :global(body.printing-contract-document) .header-right {
+  :global(body.printing-contract-document .header-left, body.printing-contract-document .header-right) {
     display: flex !important;
     opacity: 1 !important;
     visibility: visible !important;
   }
 
-  :global(body.printing-contract-document) .document-title,
-  :global(body.printing-contract-document) .brand-name,
-  :global(body.printing-contract-document) .company-slogan {
+  :global(body.printing-contract-document .document-title, body.printing-contract-document .brand-name, body.printing-contract-document .company-slogan) {
     display: block !important;
     opacity: 1 !important;
     visibility: visible !important;
   }
 
-  :global(body.printing-contract-document) .header-divider {
+  :global(body.printing-contract-document .header-divider) {
     flex: 0 0 auto !important;
     flex-shrink: 0 !important;
     width: 100% !important;
@@ -791,13 +788,13 @@ defineExpose({
     visibility: visible !important;
   }
 
-  :global(body.printing-contract-document) .contract-body {
+  :global(body.printing-contract-document .contract-body) {
     flex: 1 1 auto !important;
     width: 100% !important;
     overflow: hidden !important;
   }
 
-  :global(body.printing-contract-document) .contract-footer-wrapper {
+  :global(body.printing-contract-document .contract-footer-wrapper) {
     flex: 0 0 auto !important;
     flex-shrink: 0 !important;
     width: 100% !important;
@@ -808,7 +805,7 @@ defineExpose({
     visibility: visible !important;
   }
 
-  :global(body.printing-contract-document) .contract-footer {
+  :global(body.printing-contract-document .contract-footer) {
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
