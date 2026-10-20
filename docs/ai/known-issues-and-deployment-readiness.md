@@ -1,5 +1,7 @@
 # Known issues and deployment readiness
 
+> Historical review of the revisions named below, not a current deployment guarantee. For maintained PWA behavior and manual deployment requirements, use [PWA facts](../facts/pwa.md). The old statement that a version mismatch alone raises an update toast has been superseded by worker readiness verification.
+
 - **Repository:** `razavidev/educational`
 - **Branch reviewed:** `main` code state at `3628908` (in sync with `origin/main` at review time; this document is committed on top of that state)
 - **Last updated:** 2026-10-18

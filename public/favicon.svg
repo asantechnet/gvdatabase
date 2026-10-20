@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="14" fill="#7367F0"/>
-  <text x="32" y="43" font-family="Inter, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="34" font-weight="700" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">E</text>
+  <path d="M22 19h20v5H28v5.5h12v5H28V40h14v5H22Z" fill="#FFFFFF"/>
 </svg>

@@ -143,24 +143,29 @@ self.addEventListener('activate', (event: Event) => {
 
       return caches.delete(name)
     }))
+
+    // Claim after activation and cleanup. Tabs reload only on local consent.
+    await self.clients.claim()
   })())
 })
 
 self.addEventListener('message', (event: Event) => {
-  const data = (event as MessageEvent).data as { type?: string } | undefined
-  const waitUntil = (event as WaitUntilEvent).waitUntil
+  const message = event as MessageEvent
+  const data = message.data as { type?: string } | undefined
+
+  if (data?.type === 'GET_VERSION')
+    message.ports[0]?.postMessage({ version: VERSION })
 
   if (data?.type === 'SKIP_WAITING') {
-    waitUntil?.((async () => {
+    (event as WaitUntilEvent).waitUntil?.((async () => {
       // Only the user-consented reload activates the waiting worker, so an
       // open form is never discarded silently.
       await self.skipWaiting()
-      await self.clients.claim()
     })())
   }
 
   if (data?.type === 'PURGE_API_CACHE') {
-    waitUntil?.((async () => {
+    (event as WaitUntilEvent).waitUntil?.((async () => {
       const names = await caches.keys()
 
       await Promise.all(

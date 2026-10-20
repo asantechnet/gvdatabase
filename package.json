@@ -9,6 +9,8 @@
     "build": "vite build",
     "typecheck": "node scripts/typecheck.mjs",
     "test:settings-validation": "node scripts/settings-validation-test.cjs",
+    "test:pwa-updates": "node scripts/pwa-updates-test.cjs",
+    "test:background-polling": "node scripts/background-polling-test.cjs",
     "i18n:check": "node scripts/i18n/check.mjs",
     "i18n:test": "node scripts/i18n/runtime-test.mjs",
     "i18n:migrate": "node scripts/i18n/migrate-ui.mjs",

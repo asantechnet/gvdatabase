@@ -5,6 +5,7 @@ import { isApiRequestAllowed, permissionsForApiRequest } from '@/utils/apiAuthor
 import { validateApiRequest } from '@/utils/apiValidation'
 import { clearFormErrors, replaceFormErrors } from '@/utils/formErrors'
 import { currentLocale } from '@/utils/localization'
+import { isBackgroundActive } from '@/utils/backgroundActivity'
 
 export interface ApiMutationOptions { quiet?: boolean }
 export const mutationHeaders = (options?: ApiMutationOptions) => options?.quiet ? { 'X-Suppress-Error-Notification': 'true' } : {}
@@ -29,6 +30,7 @@ const renewSession = (refreshToken: string): Promise<AuthTokens> => {
       remember: isRememberedSession(),
     }, {
       headers: { 'Accept-Language': currentLocale() },
+      timeout: 10000,
     }).then(response => {
       const tokens = response.data.data as AuthTokens
 
@@ -46,6 +48,9 @@ const renewSession = (refreshToken: string): Promise<AuthTokens> => {
 // Request interceptor for adding the authorization token
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (config.headers['X-Background-Request'] === 'true' && !isBackgroundActive())
+      return Promise.reject(new axios.CanceledError('Background refresh paused', config))
+
     if (['post', 'put', 'patch', 'delete'].includes((config.method ?? '').toLowerCase()))
       clearFormErrors()
     config.headers['Accept-Language'] = currentLocale()
@@ -121,10 +126,16 @@ api.interceptors.response.use(
     }
   },
   async (error: AxiosError) => {
-    if ((error as ApiError).handled)
+    if (axios.isCancel(error) || (error as ApiError).handled)
       return Promise.reject(error)
 
     const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined
+    const backgroundRequest = originalRequest?.headers?.['X-Background-Request'] === 'true'
+
+    // Do not start token renewal after the user leaves the app. A replay after
+    // an in-flight renewal also passes through the dispatch-time gate above.
+    if (backgroundRequest && error.response?.status === 401 && !isBackgroundActive())
+      return Promise.reject(new axios.CanceledError('Background refresh paused', originalRequest))
 
     // Handle 401 Unauthorized (token expired)
     const isPublicAuthRequest = originalRequest?.url?.includes('/auth/login')
@@ -145,6 +156,10 @@ api.interceptors.response.use(
         }
       }
       catch (refreshError) {
+        const response = (refreshError as AxiosError).response
+        if (backgroundRequest && (!response || response.status >= 500 || response.status === 429))
+          return Promise.reject(refreshError)
+
         // If refresh fails, redirect to login
         clearAuthTokens()
         window.location.href = '/login'

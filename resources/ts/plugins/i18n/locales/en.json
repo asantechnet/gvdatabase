@@ -4286,6 +4286,7 @@
   },
   "pwa": {
     "updateAvailable": "A new version is available.",
+    "updateFailed": "The update could not be applied. Please try again.",
     "reloadNow": "Reload now",
     "offlineReady": "The app is ready to work offline."
   },

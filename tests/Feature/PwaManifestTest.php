@@ -78,6 +78,7 @@ class PwaManifestTest extends TestCase
         $response = $this->getJson('/api/version');
 
         $response->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, private')
             ->assertJsonStructure(['version', 'built_at'])
             ->assertJsonPath('version', fn (string $version) => $version !== '');
     }

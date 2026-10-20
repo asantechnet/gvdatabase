@@ -1,4 +1,5 @@
 import api from './axios'
+import { type ApiReadOptions, backgroundReadConfig } from './backgroundRead'
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'task' | 'contract' | 'finance' | 'system' | string
 
@@ -54,9 +55,9 @@ const request = async <T>(operation: () => Promise<any>): Promise<T> => {
  * An empty array is the normal "nothing new" response.
  */
 export const fetchNotificationHeartbeat = (): Promise<AppNotification[]> =>
-  request(() => api.get('/notifications/heartbeat'))
+  request(() => api.get('/notifications/heartbeat', backgroundReadConfig({ background: true })))
 
-export const getNotifications = (params?: { limit?: number; is_read?: boolean }): Promise<AppNotification[]> => request(() => api.get('/notifications', { params }))
+export const getNotifications = (params?: { limit?: number; is_read?: boolean }, options?: ApiReadOptions): Promise<AppNotification[]> => request(() => api.get('/notifications', { ...backgroundReadConfig(options), params }))
 export const getNotification = (id: number): Promise<AppNotification> => request(() => api.get(`/notifications/${id}`))
 export const createNotification = (data: CreateNotificationData): Promise<AppNotification> => request(() => api.post('/notifications', data))
 export const updateNotification = (id: number, data: Partial<CreateNotificationData> & { is_read?: boolean | null }): Promise<AppNotification> => request(() => api.put(`/notifications/${id}`, data))

@@ -1,80 +1,66 @@
-import type { App } from 'vue'
 import { ref } from 'vue'
-import { Workbox } from 'workbox-window'
-
-/**
- * PWA registration and update orchestration.
- *
- * The Blade shell bypasses Vite's HTML pipeline, so the worker is registered
- * here (from `main.ts` via the plugin glob) instead of through an injected
- * script. The worker is emitted at the origin root and controls `/`.
- *
- * Activation is never automatic: a waiting worker only takes over after the
- * user accepts the reload toast, so unsaved forms are not discarded silently.
- */
+import { purgeApiCache } from '@/utils/offlineCache'
+import { PwaUpdates } from '@/utils/pwaUpdates'
 
 export const pwaUpdateReady = ref(false)
+export const pwaUpdateApplying = ref(false)
+export const pwaUpdateFailed = ref(0)
 export const pwaOfflineReady = ref(false)
 
 const OFFLINE_READY_STORAGE_KEY = 'vuexy-pwa-offline-ready'
-const SW_URL = '/sw.js'
+let updates: Promise<PwaUpdates | null> | null = null
 
-let workbox: Workbox | null = null
-let reloading = false
-
-const reload = () => {
-  if (reloading)
-    return
-
-  reloading = true
-  window.location.reload()
+const failed = (error: unknown) => {
+  console.warn('[PWA] Update check or activation failed; a later check can retry.', error)
 }
 
-/** Applies the waiting worker, then reloads once it controls the page. */
+export const checkPwaUpdate = async (version?: string) => {
+  if (!updates)
+    registerPwa()
+
+  const coordinator = await updates
+
+  await coordinator?.check(version)
+}
+
 export const reloadToUpdatedApp = async () => {
-  const waiting = async () => (await navigator.serviceWorker.getRegistration())?.waiting
+  const coordinator = await updates
 
-  if (workbox) {
-    let worker = await waiting().catch(() => undefined)
-
-    // A deploy without a known waiting worker (version mismatch) may still
-    // have one after an update check.
-    if (!worker) {
-      await workbox.update().catch(() => undefined)
-      worker = await waiting().catch(() => undefined)
-    }
-
-    if (worker) {
-      // The worker's `SKIP_WAITING` handler activates it; `controlling` reloads.
-      workbox.messageSkipWaiting()
-      window.setTimeout(reload, 1500)
-
-      return
-    }
-  }
-
-  reload()
+  await coordinator?.apply()
 }
 
-export default function () {
-  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || import.meta.env.DEV)
+export default function registerPwa() {
+  if (updates || typeof window === 'undefined' || !('serviceWorker' in navigator) || import.meta.env.DEV)
     return
 
-  workbox = new Workbox(SW_URL, { scope: '/' })
+  updates = navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
+    .then(registration => new PwaUpdates({
+      version: __APP_VERSION__,
+      registration,
+      container: navigator.serviceWorker,
+      ready: ready => { pwaUpdateReady.value = ready },
+      applying: applying => { pwaUpdateApplying.value = applying },
+      offlineReady: () => {
+        try {
+          if (localStorage.getItem(OFFLINE_READY_STORAGE_KEY))
+            return
+          localStorage.setItem(OFFLINE_READY_STORAGE_KEY, 'true')
+        }
+        catch { /* Storage restrictions must not break registration. */ }
+        pwaOfflineReady.value = true
+      },
+      failed: error => {
+        failed(error)
+        if (pwaUpdateApplying.value)
+          pwaUpdateFailed.value++
+      },
+      purge: purgeApiCache,
+      reload: () => window.location.reload(),
+    }))
+    .catch(error => {
+      failed(error)
+      updates = null
 
-  workbox.addEventListener('waiting', () => {
-    pwaUpdateReady.value = true
-  })
-  workbox.addEventListener('controlling', reload)
-
-  void workbox.register().then(() => {
-    // Shown once per install, not on every launch.
-    if (localStorage.getItem(OFFLINE_READY_STORAGE_KEY))
-      return
-
-    pwaOfflineReady.value = true
-    localStorage.setItem(OFFLINE_READY_STORAGE_KEY, 'true')
-  }).catch(() => {
-    // Registration fails on insecure origins; the app keeps working online.
-  })
+      return null
+    })
 }

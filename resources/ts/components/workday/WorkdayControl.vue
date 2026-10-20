@@ -27,18 +27,15 @@ const loadStatus = async () => {
   finally { requestPending = false }
 }
 
-const { start: startStatusRefresh } = useVisiblePolling(loadStatus, 60_000)
+const { start: startStatusRefresh, run: refreshStatus } = useVisiblePolling(loadStatus, 60_000)
 
 onMounted(() => {
-  loadStatus()
-  window.addEventListener('workday-status-changed', loadStatus)
-  window.addEventListener('online', loadStatus)
-  startStatusRefresh()
+  window.addEventListener('workday-status-changed', refreshStatus)
+  startStatusRefresh(true)
 })
 onBeforeUnmount(() => {
   disposed = true
-  window.removeEventListener('workday-status-changed', loadStatus)
-  window.removeEventListener('online', loadStatus)
+  window.removeEventListener('workday-status-changed', refreshStatus)
 })
 </script>
 

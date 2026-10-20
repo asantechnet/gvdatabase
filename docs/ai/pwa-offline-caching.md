@@ -1,5 +1,7 @@
 # Task: Make the educational system installable as a PWA with full asset + API caching and version-driven refetch/recache
 
+> Historical implementation record. For maintained behavior, exact icon paths, update readiness/activation rules and manual deployment, read [PWA facts](../facts/pwa.md). The update behavior in this original plan has been superseded; preserve the record as history.
+
 - **Task ID:** pwa-offline-caching
 - **Created:** 2026-10-14
 - **Last updated:** 2026-10-17

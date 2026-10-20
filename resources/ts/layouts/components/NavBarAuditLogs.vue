@@ -6,6 +6,7 @@ import { canAccess } from '@/utils/authorization'
 import { translate } from '@/utils/localization'
 import { useVisiblePolling } from '@/composables/useVisiblePolling'
 import { useAuditHeartbeat } from '@/composables/useAuditHeartbeat'
+import { isBackgroundActive } from '@/utils/backgroundActivity'
 
 const router = useRouter()
 const toast = useToast()
@@ -16,10 +17,10 @@ const isSuperAdmin = computed(() => userData.value?.roles?.includes('super_admin
 const canViewAudit = computed(() => isSuperAdmin.value || canAccess('view_audit_logs'))
 
 async function refreshCount() {
-  if (!canViewAudit.value)
+  if (!isBackgroundActive() || !canViewAudit.value)
     return
-  try { pendingCount.value = await getPendingAuditCount() }
-  catch { pendingCount.value = 0 }
+  try { pendingCount.value = await getPendingAuditCount({ background: true }) }
+  catch { /* Preserve the last successful count during background failures. */ }
 }
 
 function openAudits() {
@@ -44,8 +45,7 @@ const { start: startHeartbeat } = useAuditHeartbeat(batch => {
 
 onMounted(() => {
   window.addEventListener('open-audit-log', handleAuditNotification)
-  void refreshCount()
-  startCountRefresh()
+  startCountRefresh(true)
   startHeartbeat()
 })
 onUnmounted(() => {

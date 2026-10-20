@@ -89,6 +89,10 @@ Rules:
 
 ## Real-time notifications
 
+- Read `docs/facts/background-polling.md` before changing polling or background API error behavior. Notification/audit heartbeats, navbar inbox/count, workday status and version checks run only while visible, focused and online. Route initial/event loads through `useVisiblePolling` (`start(true)` / `run`) and keep completion-based single-flight scheduling.
+- Background reads opt into `backgroundReadConfig` in the API layer (quiet error header, background dispatch marker and 10-second timeout). Local catches alone cannot stop Axios global error toasts. Preserve ordinary user-action error feedback; do not globally mute `ApiErrorNotifier` or clear unrelated toasts.
+- Do not cancel already-dispatched heartbeat reads on blur; they clear server flags/cursors. Retain successful late responses through `useForegroundBatch` and present only when active, within the same token/session. Transport failure after server commit remains an acknowledgment limitation. A transient background refresh-token failure must not log the user out or discard an unsaved form.
+
 - Delivery is heartbeat-based HTTP polling; there is no websocket/broadcast stack. Do not add one without an explicit decision.
 - `Notification::deliverTo()` is the only delivery choke point. Keep it that way: it filters recipients by their notification preferences and sets `users.unread_notifications = true` for everyone it actually delivered to. New producers must go through it (directly or via `EducationalWorkflowNotificationService::notifyOnce`).
 - `GET /api/notifications/heartbeat` (`view_own_notifications`) returns the caller's unread notifications only while their `unread_notifications` flag is true, then clears the flag inside a transaction that locks the user row, so a batch is delivered exactly once even under concurrent polls. Route order matters: register it before `apiResource('notifications')` so `{notification}` does not swallow `heartbeat`.
@@ -99,9 +103,14 @@ Rules:
 
 ## PWA and offline caching
 
+- Read `docs/facts/pwa.md` before changing PWA, caching, release identity or update behavior. It is the maintained behavior reference; `docs/ai` contains historical implementation records. Update facts and lifecycle regression tests with behavior changes.
+- Update readiness requires a completed waiting (or already controlling) worker identifying the server-reported release, different from the running bundle. A version mismatch or waiting event alone must never raise the toast. Check both API metadata and worker at launch, every 15 visible minutes and on visibility return; keep checks coalesced.
+- Activation/reload consent is per tab: wait for the accepted worker to be activated and control that tab, then purge API data and reload once. Never restore an unconditional controllerchange reload or a timer that forces reload. A 30-second activation timeout reports failure and allows retry. Use GET_VERSION messaging to reject same-version, stale or unidentified workers.
+- Static icon output currently lives at the public root (`icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`, `icon-64.png`, `favicon.ico`), generated from `public/favicon.svg` by `npm run pwa:assets`; older `public/icons/` references are historical.
+
 - The SPA is installable. `vite-plugin-pwa` runs in `injectManifest` mode with
   `resources/ts/service-worker/sw.ts`; the build emits `public/sw.js` at the origin root so its scope is
-  `/`. `public/sw.js`, `public/version.json` and `public/icons/**` are generated and committed like
+  `/`. `public/sw.js`, `public/version.json` and the static root icon files are generated and committed like
   `public/build` — never hand-edit them, run `npm run build` (icons: `npm run pwa:assets`).
 - The worker precaches all of `public/build/assets/**` plus `/offline.html` and `/sounds/notification-ding.mp3` (public assets are outside the Vite manifest, so the chime and the fallback are added explicitly in `sw.ts`). Bundle hashes are revisioned, so
   only changed chunks are re-downloaded; `maximumFileSizeToCacheInBytes` is 4 MiB (covers the largest chunk).
@@ -116,8 +125,10 @@ Rules:
   instead of purging in individual components.
 - Version mechanism: the build bakes `__APP_VERSION__` (`package.json` version + git short SHA) into the bundle
   and writes `public/version.json`, served publicly at `GET /api/version`. `plugins/pwa` registers the worker
-  with update-waiting semantics and `useAppVersion` compares the two; a mismatch purges API data and raises a
-  translated reload toast. Activation is always user-consented (no silent reload, no `skipWaiting` on install).
+  with update-waiting semantics; `useAppVersion` polls metadata and requests explicit worker update checks.
+  Only a verified ready release raises the translated reload toast. Purge API data when accepting the update
+  or booting a different build, rather than merely detecting a mismatch. Activation is user-consented while
+  old clients remain open; browsers may activate naturally once no old clients remain. Never call skipWaiting on install.
 - Offline is read-only: there is no mutation queue. A write attempted without a connection fails with the
   translated `pwa.offline_action_blocked` message. Do not add Background Sync without an explicit decision.
 - The manifest is served dynamically by `PwaManifestController` from Settings (`short_company_name` /

@@ -1,64 +1,104 @@
 import { onUnmounted } from 'vue'
+import { isBackgroundActive } from '@/utils/backgroundActivity'
 
-/**
- * Background polling that respects the Page Visibility API.
- *
- * Interval ticks only invoke the callback while `document.visibilityState` is
- * `visible`, so hidden tabs issue no HTTP requests (browsers still throttle,
- * but do not stop, timers in background tabs). When the tab becomes visible
- * again the callback runs once immediately so a poller can catch up without
- * waiting for the next interval.
- *
- * The composable never performs an initial call: call sites keep their own
- * on-mounted load before calling `start()`. Overlap safety stays with each
- * call site (`isPolling`, `requestPending` guards); repeated rapid visibility
- * flips therefore cannot produce concurrent requests.
- */
+/** One foreground request at a time; the next interval starts on completion. */
 export function useVisiblePolling(callback: () => void | Promise<void>, intervalMs: number) {
-  let timer: ReturnType<typeof setInterval> | undefined
+  let timer: ReturnType<typeof setTimeout> | undefined
   let started = false
+  let disposed = false
+  let pending = false
+  let active = false
+  let suspended = false
 
-  // Callbacks own their error handling; a failed tick is retried next time.
-  const invoke = () => void callback()
-
-  const isVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible'
-
-  const tick = () => {
-    if (isVisible())
-      invoke()
+  const eligible = () => !suspended && isBackgroundActive()
+  const clear = () => {
+    if (timer !== undefined)
+      clearTimeout(timer)
+    timer = undefined
   }
-
-  const handleVisibilityChange = () => {
-    if (isVisible())
-      invoke()
+  const schedule = () => {
+    clear()
+    if (started && eligible())
+      timer = setTimeout(() => { void run() }, intervalMs)
   }
+  const run = async () => {
+    if (!started || disposed || pending || !eligible())
+      return
 
-  const start = () => {
-    // SSR has no document and no timers to manage.
-    if (started || typeof document === 'undefined')
+    clear()
+    pending = true
+    try {
+      await callback()
+    }
+    catch (error) {
+      // Polls never retry recursively or create UI errors at scheduler level.
+      console.warn('[Polling] Background refresh failed; retrying on the next interval.', error)
+    }
+    finally {
+      pending = false
+      schedule()
+    }
+  }
+  const reconcile = () => {
+    const next = eligible()
+    const resumed = next && !active
+    active = next
+    if (!next)
+      clear()
+    else if (resumed)
+      void run()
+  }
+  const pause = () => {
+    active = false
+    clear()
+  }
+  const hide = () => {
+    suspended = true
+    pause()
+  }
+  const show = () => {
+    suspended = false
+    reconcile()
+  }
+  const start = (immediate = false) => {
+    if (started || disposed || typeof document === 'undefined')
       return
 
     started = true
-    timer = setInterval(tick, intervalMs)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+    suspended = false
+    active = eligible()
+    document.addEventListener('visibilitychange', reconcile)
+    window.addEventListener('focus', reconcile)
+    window.addEventListener('blur', pause)
+    window.addEventListener('online', reconcile)
+    window.addEventListener('offline', reconcile)
+    window.addEventListener('pagehide', hide)
+    window.addEventListener('pageshow', show)
+    if (immediate)
+      void run()
+    else
+      schedule()
   }
-
   const stop = () => {
-    if (!started)
+    started = false
+    active = false
+    clear()
+    if (typeof document === 'undefined')
       return
 
-    started = false
-
-    if (timer) {
-      clearInterval(timer)
-      timer = undefined
-    }
-
-    if (typeof document !== 'undefined')
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    document.removeEventListener('visibilitychange', reconcile)
+    window.removeEventListener('focus', reconcile)
+    window.removeEventListener('blur', pause)
+    window.removeEventListener('online', reconcile)
+    window.removeEventListener('offline', reconcile)
+    window.removeEventListener('pagehide', hide)
+    window.removeEventListener('pageshow', show)
   }
 
-  onUnmounted(stop)
+  onUnmounted(() => {
+    disposed = true
+    stop()
+  })
 
-  return { start, stop }
+  return { start, stop, run }
 }

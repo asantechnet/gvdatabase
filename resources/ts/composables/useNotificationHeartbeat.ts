@@ -1,7 +1,10 @@
-import { ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import { type AppNotification, fetchNotificationHeartbeat } from '@/api/notification'
 import { canAccess } from '@/utils/authorization'
 import { useVisiblePolling } from '@/composables/useVisiblePolling'
+import { useForegroundBatch } from '@/composables/useForegroundBatch'
+import { isBackgroundActive } from '@/utils/backgroundActivity'
+import { getAccessToken } from '@/utils/authStorage'
 
 /**
  * Real-time notification delivery.
@@ -22,7 +25,7 @@ let launchDingPlayed = false
 
 /** Plays the notification chime once. Autoplay policies may reject it. */
 export const playNotificationDing = () => {
-  if (typeof window === 'undefined')
+  if (typeof window === 'undefined' || !isBackgroundActive())
     return
 
   try {
@@ -40,7 +43,7 @@ export const playNotificationDing = () => {
  * already had unread notifications when the app opened (never once per item).
  */
 export const playLaunchDingOnce = (hasUnread: boolean) => {
-  if (launchDingPlayed || !hasUnread)
+  if (launchDingPlayed || !hasUnread || !isBackgroundActive())
     return
 
   launchDingPlayed = true
@@ -49,20 +52,25 @@ export const playLaunchDingOnce = (hasUnread: boolean) => {
 
 export function useNotificationHeartbeat(onBatch: (notifications: AppNotification[]) => void) {
   const isPolling = ref(false)
+  let disposed = false
+  onUnmounted(() => { disposed = true })
+  const deliver = useForegroundBatch<AppNotification>(batch => {
+    playNotificationDing()
+    onBatch(batch)
+  })
 
   const poll = async () => {
-    if (isPolling.value || !canAccess('view_own_notifications'))
+    if (disposed || isPolling.value || !isBackgroundActive() || !canAccess('view_own_notifications'))
       return
 
+    deliver()
     isPolling.value = true
     try {
+      const account = getAccessToken()
       const batch = await fetchNotificationHeartbeat()
 
-      // One chime per batch, regardless of how many notifications it carries.
-      if (batch.length) {
-        playNotificationDing()
-        onBatch(batch)
-      }
+      // Do not cancel a delivery read on blur: the server may have drained it.
+      deliver(batch, account)
     }
     catch {
       // A transient poll failure is retried on the next tick.

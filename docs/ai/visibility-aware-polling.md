@@ -1,5 +1,7 @@
 # Task record: Visibility-aware background polling
 
+> Superseded historical task record. Visibility-only gating and local catches did not satisfy the owner's inactive-tab/error-toast requirements. Read [background polling facts](../facts/background-polling.md) and the [replacement plan/progress](background-polling-error-storm.md) for focus/online gating, quiet API intent, guarded initial loads and late heartbeat handling. PWA update behavior is in [PWA facts](../facts/pwa.md). The original completion claims below are retained as history, not current browser validation.
+
 - **Task ID:** visibility-aware-polling
 - **Created:** 2026-10-17
 - **Last updated:** 2026-10-17

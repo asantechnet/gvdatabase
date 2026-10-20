@@ -9,11 +9,16 @@ import { playLaunchDingOnce, useNotificationHeartbeat } from '@/composables/useN
 import { useVisiblePolling } from '@/composables/useVisiblePolling'
 import type { Notification } from '@layouts/types'
 import { canAccess } from '@/utils/authorization'
+import { isBackgroundActive } from '@/utils/backgroundActivity'
 
 const router = useRouter()
 const toast = useToast()
 const { t } = useI18n()
 const rawNotifications = ref<AppNotification[]>([])
+let inboxPending = false
+let disposed = false
+let launchChecked = false
+onUnmounted(() => { disposed = true })
 
 const visual = {
   success: { icon: 'tabler-circle-check', color: 'success' },
@@ -35,11 +40,22 @@ const notifications = computed<Notification[]>(() => rawNotifications.value.map(
 }))
 
 async function loadNotifications() {
-  if (!canAccess('view_own_notifications'))
+  if (disposed || inboxPending || !isBackgroundActive() || !canAccess('view_own_notifications'))
     return
 
-  try { rawNotifications.value = await getNotifications({ limit: 20 }) }
+  inboxPending = true
+  try {
+    const items = await getNotifications({ limit: 20 }, { background: true })
+    if (disposed)
+      return
+    rawNotifications.value = items
+    if (!launchChecked && isBackgroundActive()) {
+      launchChecked = true
+      playLaunchDingOnce(items.some(item => item.is_read !== true))
+    }
+  }
   catch { /* Preserve the visible inbox during a temporary background failure. */ }
+  finally { inboxPending = false }
 }
 
 /** Adds real-time items to the inbox, de-duped against what is already listed. */
@@ -86,12 +102,8 @@ async function handleNotificationClick(notification: Notification) {
     await router.push(notification.goToUrl)
 }
 
-onMounted(async () => {
-  await loadNotifications()
-
-  // One chime when the app opens with unread notifications already waiting.
-  playLaunchDingOnce(rawNotifications.value.some(item => item.is_read !== true))
-  startInboxRefresh()
+onMounted(() => {
+  startInboxRefresh(true)
   startHeartbeat()
 })
 </script>

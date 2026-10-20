@@ -1,4 +1,5 @@
 import api from './axios'
+import { backgroundReadConfig } from './backgroundRead'
 import AttendanceGeofenceApi from './attendanceGeofence'
 import { getAccessToken } from '@/utils/authStorage'
 
@@ -51,7 +52,7 @@ export class WorkdayLocationError extends Error {
 
 const WorkdayApi = {
   async status(quiet = false): Promise<WorkdayStatus> {
-    const response = await api.get<{ data: WorkdayStatus }>('/workday/status', { headers: quiet ? { 'X-Suppress-Error-Notification': 'true' } : {} })
+    const response = await api.get<{ data: WorkdayStatus }>('/workday/status', backgroundReadConfig({ background: quiet }))
 
     return response.data.data
   },

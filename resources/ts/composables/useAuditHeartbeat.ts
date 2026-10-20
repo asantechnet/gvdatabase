@@ -1,7 +1,10 @@
-import { ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import { type AuditLog, getAuditHeartbeat } from '@/api/auditLog'
 import { canAccess } from '@/utils/authorization'
 import { useVisiblePolling } from '@/composables/useVisiblePolling'
+import { useForegroundBatch } from '@/composables/useForegroundBatch'
+import { isBackgroundActive } from '@/utils/backgroundActivity'
+import { getAccessToken } from '@/utils/authStorage'
 
 /**
  * Real-time audit delivery.
@@ -16,22 +19,26 @@ const HEARTBEAT_INTERVAL = 30_000
 
 export function useAuditHeartbeat(onBatch: (audits: AuditLog[]) => void) {
   const isPolling = ref(false)
+  let disposed = false
+  onUnmounted(() => { disposed = true })
+  const deliver = useForegroundBatch<AuditLog>(onBatch)
 
   const canPoll = () => canAccess('view_audit_logs') || canAccess('view_team_audit_logs')
 
   const poll = async () => {
-    if (isPolling.value || !canPoll())
+    if (disposed || isPolling.value || !isBackgroundActive() || !canPoll())
       return
 
+    deliver()
     isPolling.value = true
     try {
+      const account = getAccessToken()
       const batch = await getAuditHeartbeat()
-      if (batch.length)
-        onBatch(batch)
+      deliver(batch, account)
     }
     catch {
-      // A transient poll failure is retried on the next tick; the flag stays
-      // raised server-side so nothing is lost.
+      // Retry on a later tick. Transport failure does not prove whether the
+      // server already committed delivery; never recursively retry this read.
     }
     finally {
       isPolling.value = false

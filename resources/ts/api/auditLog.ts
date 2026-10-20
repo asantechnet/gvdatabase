@@ -1,4 +1,5 @@
 import api from './axios'
+import { type ApiReadOptions, backgroundReadConfig } from './backgroundRead'
 
 export type AuditEvent = 'created' | 'updated' | 'deleted' | 'restored' | 'audit_scope_enabled' | 'audit_scope_disabled' | string
 export type AuditResolution = 'pending' | 'approved' | 'discarded'
@@ -78,13 +79,13 @@ export const getAuditLog = async (id: number): Promise<AuditLog> => {
 }
 
 export const getAuditHeartbeat = async (): Promise<AuditLog[]> => {
-  const response = await api.get('/audit-logs/heartbeat')
+  const response = await api.get('/audit-logs/heartbeat', backgroundReadConfig({ background: true }))
 
   return Array.isArray(response.data.data) ? response.data.data as AuditLog[] : []
 }
 
-export const getPendingAuditCount = async (): Promise<number> => {
-  const response = await api.get('/audit-logs/pending-count')
+export const getPendingAuditCount = async (options?: ApiReadOptions): Promise<number> => {
+  const response = await api.get('/audit-logs/pending-count', backgroundReadConfig(options))
 
   return Number(response.data.data?.count ?? 0)
 }
