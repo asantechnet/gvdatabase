@@ -870,7 +870,7 @@ onMounted(loadDashboard)
 </template>
 
 <style scoped>
-.executive-dashboard { max-width: 1680px; margin-inline: auto; }
+.executive-dashboard { margin-inline: auto; }
 .dashboard-controls { margin-inline-start: auto; }
 .period-segments { display: grid; grid-template-columns: repeat(4, minmax(76px, 1fr)); gap: 3px; padding: 3px; border: 1px solid rgba(var(--v-theme-on-surface), .14); border-radius: 12px; background: rgba(var(--v-theme-on-surface), .045); }
 .period-segment { min-height: 34px; padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: rgba(var(--v-theme-on-surface), .68); font: inherit; font-size: .78rem; font-weight: 650; line-height: 1.15; white-space: nowrap; cursor: pointer; transition: background .18s ease, color .18s ease, box-shadow .18s ease; }

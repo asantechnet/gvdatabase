@@ -1117,10 +1117,7 @@ watch(logDate, async () => {
 </template>
 
 <style scoped>
-.attendance-container {
-  max-width: 1600px;
-  margin: 0 auto;
-}
+
 
 /* Accent Card Aesthetics */
 .border-inline-start-success {

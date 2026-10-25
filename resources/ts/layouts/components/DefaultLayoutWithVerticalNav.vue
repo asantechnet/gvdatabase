@@ -5,6 +5,7 @@ import { themeConfig } from '@themeConfig'
 import Footer from '@/layouts/components/Footer.vue'
 import NavBarAuditLogs from '@/layouts/components/NavBarAuditLogs.vue'
 import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
+import HeaderPageGuide from '@/layouts/components/HeaderPageGuide.vue'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
@@ -72,6 +73,7 @@ onMounted(async () => {
         </IconBtn>
 
         <NavSearchBar class="ms-lg-n3" />
+        <HeaderPageGuide />
 
         <VSpacer />
 

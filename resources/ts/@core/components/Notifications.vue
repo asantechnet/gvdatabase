@@ -53,9 +53,10 @@ const toggleReadUnread = (isSeen: boolean, Id: number) => {
       v-bind="props.badgeProps"
       :model-value="props.notifications.some(n => !n.isSeen)"
       color="error"
-      dot
-      offset-x="2"
-      offset-y="3"
+      :content="totalUnseenNotifications > 99 ? '99+' : totalUnseenNotifications"
+      location="top end"
+      offset-x="8"
+      offset-y="8"
     >
       <VIcon icon="tabler-bell" />
     </VBadge>

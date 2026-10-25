@@ -924,7 +924,7 @@ watch(locale, async () => {
 
 <style lang="scss">
 .template-workspace {
-  max-inline-size: 1180px;
+
   margin-inline: auto;
 
   &__hero, &__card { overflow: hidden; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: 0.9rem; }

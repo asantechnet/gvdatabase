@@ -1,1 +1,0 @@
-import{a8 as a,cO as o}from"./main-CFsHl80r.js";const c={async getAll(){return(await a.get("/offices")).data.data},async create(e,s){return(await a.post("/offices",e,{headers:o(s)})).data.data},async update(e,s,t){return(await a.put(`/offices/${e}`,s,{headers:o(t)})).data.data},async delete(e){await a.delete(`/offices/${e}`)}};export{c as O};

@@ -272,7 +272,8 @@ html[dir='rtl'] .driver-popover-close-btn {
   z-index: 1002;
   border-radius: 6px;
   background: rgb(var(--v-theme-surface));
-  box-shadow: 0 0.25rem 1rem rgba(var(--v-theme-on-surface), 0.18);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  box-shadow: none;
   color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
   padding-block: 0.3rem;
   max-height: 300px !important;
@@ -634,7 +635,7 @@ html[dir='rtl'] .driver-popover-close-btn {
   --edu-radius: 14px;
   --edu-border: rgba(var(--v-border-color), var(--v-border-opacity));
 
-  max-inline-size: 1680px;
+
   margin-inline: auto;
 
   .education-page-header {
@@ -893,4 +894,9 @@ html[dir='rtl'] .driver-popover-close-btn {
   body.printing-payslip-document #app-print-host td { padding: 5px; }
   body.printing-payslip-document #app-print-host tr { break-inside: avoid; }
   body.printing-timesheet-template #app-print-host .no-print { display: none !important; }
+}
+
+// Let workspace grids shrink within the shell without changing print layout.
+@media screen {
+  .layout-wrapper .layout-page-content { min-inline-size: 0; }
 }

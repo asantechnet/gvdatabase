@@ -5,11 +5,22 @@
   @at-root #{&}-spacing {
     // TODO: Use grid gutter variable here
     padding-inline: 1.5rem;
+
+    @media screen {
+      padding-inline: 6px;
+
+      @media (min-width: 600px) { padding-inline: 24px; }
+      @media (min-width: 1280px) { padding-inline: 32px; }
+    }
   }
 
   inline-size: 100%;
   margin-inline: auto;
   max-inline-size: variables.$layout-boxed-content-width;
+
+  @media screen {
+    max-inline-size: none;
+  }
 }
 
 %layout-navbar-hidden {

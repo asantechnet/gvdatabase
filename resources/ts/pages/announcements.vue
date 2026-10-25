@@ -487,10 +487,7 @@ onMounted(loadAnnouncements)
 </template>
 
 <style scoped>
-.announcements-page {
-  margin-inline: auto;
-  max-inline-size: 1100px;
-}
+
 
 .composer-card {
   border: 1px solid rgb(var(--v-theme-primary) / 25%);

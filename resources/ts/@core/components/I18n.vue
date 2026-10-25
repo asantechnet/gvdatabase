@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { I18nLanguage } from '@layouts/types'
 import { loadLocale } from '@/plugins/i18n'
+import { Icon } from '@iconify/vue'
 
 interface Props {
   languages: I18nLanguage[]
@@ -12,6 +13,9 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const { locale } = useI18n({ useScope: 'global' })
+
+const activeLanguage = computed(() => props.languages.find(language => language.i18nLang === locale.value))
+const languageFlag = (language: string) => language === 'en' ? 'flag:gb-4x3' : 'flag:af-4x3'
 
 // Locales other than the default one live in their own chunk. Load the target
 // locale before switching so the UI never renders untranslated keys.
@@ -25,8 +29,14 @@ const switchLocale = async (next: string) => {
 </script>
 
 <template>
-  <IconBtn>
-    <VIcon icon="tabler-language" />
+  <VBtn
+    variant="text"
+    color="high-emphasis"
+    class="language-switcher"
+    :aria-label="activeLanguage ? $t(activeLanguage.label) : locale"
+  >
+    <Icon :icon="languageFlag(locale)" width="22" height="17" aria-hidden="true" />
+    <span v-if="activeLanguage" class="language-switcher__label">{{ $t(activeLanguage.label) }}</span>
 
     <!-- Menu -->
     <VMenu
@@ -47,6 +57,9 @@ const switchLocale = async (next: string) => {
           :value="lang.i18nLang"
           @click="switchLocale(lang.i18nLang)"
         >
+          <template #prepend>
+            <Icon :icon="languageFlag(lang.i18nLang)" width="22" height="17" class="me-3" aria-hidden="true" />
+          </template>
           <!-- Language label -->
           <VListItemTitle>
             {{ $t(lang.label) }}
@@ -54,5 +67,20 @@ const switchLocale = async (next: string) => {
         </VListItem>
       </VList>
     </VMenu>
-  </IconBtn>
+  </VBtn>
 </template>
+
+<style scoped>
+.language-switcher {
+  min-inline-size: 40px;
+  padding-inline: 8px;
+}
+
+.language-switcher__label {
+  margin-inline-start: 8px;
+}
+
+@media (max-width: 599px) {
+  .language-switcher__label { display: none; }
+}
+</style>

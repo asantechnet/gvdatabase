@@ -11,6 +11,7 @@ declare global {
   const CreateUrl: typeof import('./src/@core/composable/CreateUrl')['CreateUrl']
   const EffectScope: typeof import('vue')['EffectScope']
   const PLACEHOLDER_SPAN_PATTERN: typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']
+  const PwaUpdates: typeof import('./resources/ts/utils/pwaUpdates')['PwaUpdates']
   const SUPPORT_CONTACT: typeof import('./resources/ts/utils/constants')['SUPPORT_CONTACT']
   const WHATSAPP_AUDIENCES: typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_AUDIENCES']
   const WHATSAPP_AUDIENCE_TABS: typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_AUDIENCE_TABS']
@@ -120,6 +121,7 @@ declare global {
   const invalidateWhatsappTemplates: typeof import('./resources/ts/composables/useWhatsappTemplates')['invalidateWhatsappTemplates']
   const isActionWarningDismissed: typeof import('./resources/ts/composables/useActionWarning')['isActionWarningDismissed']
   const isApiRequestAllowed: typeof import('./resources/ts/utils/apiAuthorization')['isApiRequestAllowed']
+  const isBackgroundActive: typeof import('./resources/ts/utils/backgroundActivity')['isBackgroundActive']
   const isDarkPreferred: typeof import('./src/@core/composable/useThemeConfig')['isDarkPreferred']
   const isDefined: typeof import('@vueuse/core')['isDefined']
   const isEmpty: typeof import('./resources/ts/@core/utils/helpers')['isEmpty']
@@ -346,6 +348,7 @@ declare global {
   const useFloor: typeof import('@vueuse/math')['useFloor']
   const useFocus: typeof import('@vueuse/core')['useFocus']
   const useFocusWithin: typeof import('@vueuse/core')['useFocusWithin']
+  const useForegroundBatch: typeof import('./resources/ts/composables/useForegroundBatch')['useForegroundBatch']
   const useFps: typeof import('@vueuse/core')['useFps']
   const useFullscreen: typeof import('@vueuse/core')['useFullscreen']
   const useGamepad: typeof import('@vueuse/core')['useGamepad']
@@ -488,12 +491,16 @@ declare global {
   const whatsappSampleRecord: typeof import('./resources/ts/utils/whatsappTemplates')['whatsappSampleRecord']
   const whatsappTemplateTokens: typeof import('./resources/ts/utils/whatsappTemplates')['whatsappTemplateTokens']
   const whenever: typeof import('@vueuse/core')['whenever']
+  const workerVersion: typeof import('./resources/ts/utils/pwaUpdates')['workerVersion']
 }
 // for type re-export
 declare global {
   // @ts-ignore
   export type { Component, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
+  // @ts-ignore
+  export type { PwaUpdates } from './resources/ts/utils/pwaUpdates'
+  import('./resources/ts/utils/pwaUpdates')
 }
 
 // for vue template auto import
@@ -504,6 +511,7 @@ declare module 'vue' {
     readonly COOKIE_MAX_AGE_1_YEAR: UnwrapRef<typeof import('./resources/ts/utils/constants')['COOKIE_MAX_AGE_1_YEAR']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly PLACEHOLDER_SPAN_PATTERN: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']>
+    readonly PwaUpdates: UnwrapRef<typeof import('./resources/ts/utils/pwaUpdates')['PwaUpdates']>
     readonly SUPPORT_CONTACT: UnwrapRef<typeof import('./resources/ts/utils/constants')['SUPPORT_CONTACT']>
     readonly WHATSAPP_AUDIENCES: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_AUDIENCES']>
     readonly WHATSAPP_AUDIENCE_TABS: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['WHATSAPP_AUDIENCE_TABS']>
@@ -605,6 +613,7 @@ declare module 'vue' {
     readonly invalidateWhatsappTemplates: UnwrapRef<typeof import('./resources/ts/composables/useWhatsappTemplates')['invalidateWhatsappTemplates']>
     readonly isActionWarningDismissed: UnwrapRef<typeof import('./resources/ts/composables/useActionWarning')['isActionWarningDismissed']>
     readonly isApiRequestAllowed: UnwrapRef<typeof import('./resources/ts/utils/apiAuthorization')['isApiRequestAllowed']>
+    readonly isBackgroundActive: UnwrapRef<typeof import('./resources/ts/utils/backgroundActivity')['isBackgroundActive']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
     readonly isEmpty: UnwrapRef<typeof import('./resources/ts/@core/utils/helpers')['isEmpty']>
     readonly isEmptyArray: UnwrapRef<typeof import('./resources/ts/@core/utils/helpers')['isEmptyArray']>
@@ -825,6 +834,7 @@ declare module 'vue' {
     readonly useFloor: UnwrapRef<typeof import('@vueuse/math')['useFloor']>
     readonly useFocus: UnwrapRef<typeof import('@vueuse/core')['useFocus']>
     readonly useFocusWithin: UnwrapRef<typeof import('@vueuse/core')['useFocusWithin']>
+    readonly useForegroundBatch: UnwrapRef<typeof import('./resources/ts/composables/useForegroundBatch')['useForegroundBatch']>
     readonly useFps: UnwrapRef<typeof import('@vueuse/core')['useFps']>
     readonly useFullscreen: UnwrapRef<typeof import('@vueuse/core')['useFullscreen']>
     readonly useGamepad: UnwrapRef<typeof import('@vueuse/core')['useGamepad']>
@@ -960,5 +970,6 @@ declare module 'vue' {
     readonly whatsappSampleRecord: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['whatsappSampleRecord']>
     readonly whatsappTemplateTokens: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['whatsappTemplateTokens']>
     readonly whenever: UnwrapRef<typeof import('@vueuse/core')['whenever']>
+    readonly workerVersion: UnwrapRef<typeof import('./resources/ts/utils/pwaUpdates')['workerVersion']>
   }
 }

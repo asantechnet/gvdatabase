@@ -827,7 +827,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.audit-page { max-inline-size: 1500px; margin-inline: auto; }
+.audit-page { margin-inline: auto; }
 .audit-filters { display: grid; grid-template-columns: auto minmax(220px, 1fr) minmax(180px, 0.45fr) minmax(170px, 0.4fr); gap: 0.75rem; align-items: center; }
 .audit-resource-filters { grid-template-columns: auto minmax(240px, 1fr); }
 .audit-filter-toggle { display: inline-flex; inline-size: max-content; max-inline-size: 100%; overflow-x: auto; }

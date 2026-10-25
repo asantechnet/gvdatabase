@@ -5,7 +5,6 @@ import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { layoutConfig } from '@layouts'
 import { VerticalNavGroup, VerticalNavLink, VerticalNavSectionTitle } from '@layouts/components'
 import { useLayoutConfigStore } from '@layouts/stores/config'
-import HeaderPageGuide from '@/layouts/components/HeaderPageGuide.vue'
 import { injectionKeyIsVerticalNavHovered } from '@layouts/symbols'
 import type { NavGroup, NavLink, NavSectionTitle, VerticalNavItems } from '@layouts/types'
 
@@ -54,17 +53,7 @@ const handleNavScroll = (evt: Event) => {
   isVerticalNavScrolled.value = (evt.target as HTMLElement).scrollTop > 0
 }
 
-const closeOverlayBeforeGuide = async () => {
-  if (!configStore.isLessThanOverlayNavBreakpoint || !props.isOverlayNavActive)
-    return
 
-  props.toggleIsOverlayNavActive(false)
-  await nextTick()
-
-  // Wait for the drawer's close transition so Driver.js measures the page,
-  // rather than the overlay navigation, on small screens.
-  await new Promise<void>(resolve => window.setTimeout(resolve, 250))
-}
 
 </script>
 
@@ -134,9 +123,6 @@ const closeOverlayBeforeGuide = async () => {
           :key="index"
           :item="item"
         />
-        <li class="nav-page-guide">
-          <HeaderPageGuide :before-open="closeOverlayBeforeGuide" />
-        </li>
       </PerfectScrollbar>
     </slot>
     <slot name="after-nav-items" />
@@ -192,11 +178,7 @@ const closeOverlayBeforeGuide = async () => {
     // overflow-y: auto;
   }
 
-  .nav-page-guide {
-    display: flex;
-    justify-content: center;
-    padding-block: .5rem;
-  }
+
 
   .nav-item-title {
     overflow: hidden;
