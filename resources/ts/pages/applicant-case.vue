@@ -11,6 +11,7 @@ import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import ApplicantApi, { COMPLETED_APPLICANT_STAGE, type Applicant, type ApplicantStage, type BuiltInService, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
 import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
+import ApplicantSummary from '@/components/erp/ApplicantSummary.vue'
 import ApplicantPortalApi from '@/api/applicantPortal'
 import BoardApi from '@/api/board'
 import EmployeeApi, { type Employee } from '@/api/employee'
@@ -45,6 +46,7 @@ const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
 const canAssignAdmission = computed(() => canAccess('assign_admission_employee'))
 const canViewFinance = computed(() => canAccess('view_applicant_financials'))
 const canCreatePendingTransactions = computed(() => canAccess('create_pending_transactions'))
+const serviceLabel = computed(() => applicant.value ? translateBackendValue(applicant.value.service) : '')
 // Shared contact and service details remain visible beside the case title.
 const guardianSummary = computed(() => {
   const current = applicant.value
@@ -677,78 +679,64 @@ onMounted(async () => {
         <VBtn color="primary" :loading="moving" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
       </template>
       </div>
-      <VCard v-if="applicant.services?.length" variant="tonal" class="mt-6"><VCardItem :title="t('educational.caseUi.serviceWorkflow')" :subtitle="t('educational.caseUi.serviceWorkflowHint')" /><VCardText><div v-for="line in applicant.services" :key="line.id" class="d-flex flex-wrap align-center ga-3 mb-3"><strong>{{ line.type ?? line.service }}</strong><VChip size="small" color="primary">{{ lineStageLabel(line.current_stage) }}</VChip><template v-if="canMoveLineStage && lineNextStages(line).length"><VSelect v-model="lineStageSelection[line.id]" :items="lineNextStages(line).map(s => ({ title: translateApplicantStage(s), value: s.id }))" density="compact" hide-details style="max-width:220px" :placeholder="t('educational.caseUi.moveStage')"/><VBtn size="small" color="primary" :disabled="!lineStageSelection[line.id]" :loading="movingLine === line.id" @click="moveLine(line)">{{ t('educational.caseUi.recordStage') }}</VBtn></template></div></VCardText></VCard>
-      <VCard variant="tonal" color="primary" class="mt-6"><VCardItem :title="t('educational.caseUi.applicantDocuments')" :subtitle="applicantAttachments.length ? t('educational.caseUi.applicantDocumentsReady', { count: applicantAttachments.length }) : t('educational.caseUi.applicantDocumentsNeeded')" /><VCardText><VList density="compact"><VListItem v-for="file in applicantAttachments" :key="file.id" :title="file.label" :subtitle="file.name"><template #append><VBtn icon="tabler-download" size="x-small" variant="text" :href="file.download_url"/><VBtn v-if="canEditCase" icon="tabler-trash" size="x-small" variant="text" color="error" @click="removeApplicantAttachment(file.id)"/></template></VListItem></VList><div v-if="canEditCase" class="d-flex flex-wrap ga-2 mt-3"><VTextField v-model="attachmentLabel" :label="t('educational.caseUi.documentLabel')" density="compact" hide-details style="min-width:180px"/><VFileInput v-model="attachmentFile" density="compact" hide-details style="min-width:220px"/><VBtn color="primary" :loading="uploadingApplicantAttachment" :disabled="!attachmentFile || !attachmentLabel.trim()" @click="uploadApplicantAttachment">{{ t('educational.caseUi.attach') }}</VBtn></div></VCardText></VCard>
-      <VDivider class="my-8" />
-      <h3>{{ t('educational.caseUi.timeline') }}</h3>
-      <VList><VListItem v-for="item in stageHistory" :key="item.id" :title="t('educational.caseUi.stageTransition', { from: item.old_stage ? translateApplicantStage(item.old_stage) : t('educational.caseUi.started'), to: translateApplicantStage(item.new_stage) })" :subtitle="stageSubtitle(item)" /></VList>
-      <div class="d-flex align-center mt-4">
-        <h3>{{ t('educational.caseUi.tasks') }}</h3>
-        <VSpacer />
-        <VBtn v-if="canCreateTask" size="small" prepend-icon="tabler-plus" @click="openTaskDialog">{{ t('educational.caseUi.newTask') }}</VBtn>
+      <div class="case-overview-grid mt-6">
+        <section class="case-section case-section--details">
+          <div class="case-section__heading"><div><p class="case-section__eyebrow">{{ t('educational.applicant') }}</p><h3>{{ t('common.crmDetails.profileTitle') }}</h3></div><VChip size="small" variant="tonal">{{ serviceLabel }}</VChip></div>
+          <ApplicantSummary :applicant="applicant" />
+          <div v-if="guardianSummary.length" class="case-detail-grid mt-4"><div v-for="row in guardianSummary" :key="row.key"><span>{{ row.label }}</span><strong>{{ row.value }}</strong></div></div>
+        </section>
+        <section class="case-section case-section--workflow">
+          <div class="case-section__heading"><div><p class="case-section__eyebrow">{{ t('educational.stage') }}</p><h3>{{ t('educational.caseUi.serviceWorkflow') }}</h3></div></div>
+          <div v-for="line in applicant.services" :key="line.id" class="case-service-line"><strong>{{ line.type ?? line.service }}</strong><VChip size="small" color="primary">{{ lineStageLabel(line.current_stage) }}</VChip><template v-if="canMoveLineStage && lineNextStages(line).length"><VSelect v-model="lineStageSelection[line.id]" :items="lineNextStages(line).map(s => ({ title: translateApplicantStage(s), value: s.id }))" density="compact" hide-details :placeholder="t('educational.caseUi.moveStage')"/><VBtn size="small" color="primary" :disabled="!lineStageSelection[line.id]" :loading="movingLine === line.id" @click="moveLine(line)">{{ t('educational.caseUi.recordStage') }}</VBtn></template></div>
+          <p v-if="!applicant.services?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.serviceWorkflowHint') }}</p>
+        </section>
       </div>
-      <p v-if="!canCreateTask" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.taskPermission') }}</p>
-      <VList>
-        <VListItem v-for="task in openTasks" :key="task.id" :title="task.title" :subtitle="taskSummary(task)">
-          <template #append><VBtn size="small" variant="text" color="success" :loading="completingId === task.id" @click="completeTask(task.id)">{{ t('educational.caseUi.complete') }}</VBtn></template>
-        </VListItem>
-        <VListItem v-for="task in doneTasks" :key="`done-${task.id}`" :title="task.title" :subtitle="t('educational.caseUi.complete')"><template #prepend><VIcon icon="tabler-check" color="success" /></template></VListItem>
-      </VList>
-      <p v-if="!applicant.tasks?.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noTasks') }}</p>
-      <template v-if="['scholarship', 'private'].includes(applicant.service)">
-      <div class="d-flex align-center mt-4">
-        <h3>{{ t('educational.caseUi.universityApplications') }}</h3>
-        <VSpacer />
-        <VBtn v-if="canEditCase" size="small" prepend-icon="tabler-plus" @click="openUniDialog">{{ t('educational.caseUi.addApplication') }}</VBtn>
+
+      <section class="case-section case-section--timeline mt-5">
+        <div class="case-section__heading"><div><p class="case-section__eyebrow">{{ t('educational.stage') }}</p><h3>{{ t('educational.caseUi.timeline') }}</h3></div></div>
+        <VList><VListItem v-for="item in stageHistory" :key="item.id" :title="t('educational.caseUi.stageTransition', { from: item.old_stage ? translateApplicantStage(item.old_stage) : t('educational.caseUi.started'), to: translateApplicantStage(item.new_stage) })" :subtitle="stageSubtitle(item)" /></VList>
+      </section>
+
+      <div class="case-content-grid mt-5">
+        <section class="case-section">
+          <div class="case-section__heading"><h3>{{ t('educational.caseUi.tasks') }}</h3><VBtn v-if="canCreateTask" size="small" prepend-icon="tabler-plus" @click="openTaskDialog">{{ t('educational.caseUi.newTask') }}</VBtn></div>
+          <p v-if="!canCreateTask" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.taskPermission') }}</p>
+          <VList><VListItem v-for="task in openTasks" :key="task.id" :title="task.title" :subtitle="taskSummary(task)"><template #append><VBtn size="small" variant="text" color="success" :loading="completingId === task.id" @click="completeTask(task.id)">{{ t('educational.caseUi.complete') }}</VBtn></template></VListItem><VListItem v-for="task in doneTasks" :key="`done-${task.id}`" :title="task.title" :subtitle="t('educational.caseUi.complete')"><template #prepend><VIcon icon="tabler-check" color="success" /></template></VListItem></VList>
+          <p v-if="!applicant.tasks?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noTasks') }}</p>
+        </section>
+
+        <section v-if="['scholarship', 'private'].includes(applicant.service)" class="case-section">
+          <div class="case-section__heading"><h3>{{ t('educational.caseUi.universityApplications') }}</h3><VBtn v-if="canEditCase" size="small" prepend-icon="tabler-plus" @click="openUniDialog">{{ t('educational.caseUi.addApplication') }}</VBtn></div>
+          <p v-if="applicant.details?.university" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.primaryChoice', { university: applicant.details?.university.name }) }}</p>
+          <VList><VListItem v-for="app in applicant.universities" :key="app.id" class="university-application-item" :title="app.university?.name ?? t('educational.caseUi.universityNumber', { id: n(app.university_id) })" :subtitle="t('educational.caseUi.applicationSummary', { status: translateBackendValue(app.status), intake: app.intake || t('common.messages.notAvailable'), notes: app.notes || t('common.messages.notAvailable') })"><template #prepend><VChip size="small" :color="statusColor(app.status)">{{ translateBackendValue(app.status) }}</VChip></template><template v-if="canEditCase" #append><VMenu><template #activator="{ props }"><VBtn size="small" variant="text" v-bind="props">{{ t('common.fields.status') }}</VBtn></template><VList density="compact"><VListItem v-for="s in uniStatuses" :key="s" :title="translateBackendValue(s)" @click="setUniStatus(app.id, s)" /></VList></VMenu><VBtn v-if="app.university_id !== applicant.details?.university_id" size="small" variant="text" @click="setPrimaryUniversity(app.university_id)">{{ t('educational.caseUi.primary') }}</VBtn><VBtn size="small" variant="text" color="error" @click="removeUni(app.id)">{{ t('common.actions.remove') }}</VBtn></template></VListItem></VList>
+          <p v-if="!applicant.universities?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noApplications') }}</p>
+        </section>
+
+        <section v-if="canViewFinance" class="case-section">
+          <div class="case-section__heading"><h3>{{ t('educational.caseUi.finance') }}</h3><div class="d-flex flex-wrap justify-end ga-1"><VBtn v-if="canCreatePendingTransactions" size="small" prepend-icon="tabler-plus" @click="openFinanceDialog">{{ $t('common.ui.newFinancialRequest') }}</VBtn><VBtn size="small" variant="text" :to="{ name: 'pending-transactions' }">{{ t('educational.caseUi.pendingWorkspace') }}</VBtn></div></div>
+          <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.financeSummary', { income: money(postedIncomeTotal), expenses: money(postedExpenseTotal) }) }}</p>
+          <VList><VListItem v-for="row in applicant.pending_transactions" :key="`pt-${row.id}`" :title="t('educational.caseUi.transactionTitle', { type: translateBackendValue(row.transaction_type), reason: row.reason })" :subtitle="t('educational.caseUi.transactionSummary', { amount: money(row.amount), status: translateBackendValue(row.approval_status), rejection: row.rejection_reason || t('common.messages.notAvailable') })" /></VList>
+          <VList><VListItem v-for="row in applicant.incomes" :key="`in-${row.id}`" :title="t('educational.caseUi.incomePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-down-left" color="success" /></template></VListItem><VListItem v-for="row in applicant.expenses" :key="`ex-${row.id}`" :title="t('educational.caseUi.expensePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-up-right" color="error" /></template></VListItem></VList>
+          <p v-if="!applicant.pending_transactions?.length && !applicant.incomes?.length && !applicant.expenses?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noFinance') }}</p>
+        </section>
+
+        <section class="case-section case-section--documents">
+          <div class="case-section__heading"><div><h3>{{ t('educational.caseUi.documents') }}</h3><p class="text-caption text-medium-emphasis mb-0">{{ applicantAttachments.length ? t('educational.caseUi.applicantDocumentsReady', { count: applicantAttachments.length }) : t('educational.caseUi.applicantDocumentsNeeded') }}</p></div><VBtn v-if="canAttachDocuments" size="small" prepend-icon="tabler-paperclip" @click="openDocumentDialog">{{ $t('common.ui.attachDocument') }}</VBtn></div>
+          <h4>{{ t('educational.caseUi.applicantDocuments') }}</h4>
+          <VList density="compact"><VListItem v-for="file in applicantAttachments" :key="file.id" :title="file.label" :subtitle="file.name"><template #append><VBtn icon="tabler-download" size="x-small" variant="text" :href="file.download_url"/><VBtn v-if="canEditCase" icon="tabler-trash" size="x-small" variant="text" color="error" @click="removeApplicantAttachment(file.id)"/></template></VListItem></VList>
+          <div v-if="canEditCase" class="case-document-upload"><VTextField v-model="attachmentLabel" :label="t('educational.caseUi.documentLabel')" density="compact" hide-details/><VFileInput v-model="attachmentFile" density="compact" hide-details/><VBtn color="primary" :loading="uploadingApplicantAttachment" :disabled="!attachmentFile || !attachmentLabel.trim()" @click="uploadApplicantAttachment">{{ t('educational.caseUi.attach') }}</VBtn></div>
+          <VDivider class="my-4" />
+          <VList><VListItem v-for="doc in documents" :key="doc.id" :title="doc.original_name" :subtitle="t('educational.caseUi.fromTask', { task: doc.task_title })"><template #append><VBtn size="small" variant="text" :loading="downloadingId === doc.id" @click="downloadDoc(doc.task_id, doc.id, doc.original_name)">{{ t('educational.caseUi.download') }}</VBtn></template></VListItem></VList>
+          <p v-if="!documents.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noDocuments') }}</p>
+        </section>
+
+        <section class="case-section case-section--notes">
+          <div class="case-section__heading"><h3>{{ t('educational.caseUi.notes') }}</h3></div>
+          <VTextarea v-model="notesDraft" :label="t('educational.caseUi.caseNotes')" :disabled="!canEditCase" class="mb-4" />
+          <VBtn v-if="canEditCase" color="primary" :loading="savingNotes" @click="saveNotes">{{ t('educational.caseUi.saveNotes') }}</VBtn>
+          <p v-else class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.notesPermission') }}</p>
+        </section>
       </div>
-      <p v-if="applicant.details?.university" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.primaryChoice', { university: applicant.details?.university.name }) }}</p>
-      <VList>
-        <VListItem v-for="app in applicant.universities" :key="app.id" class="university-application-item" :title="app.university?.name ?? t('educational.caseUi.universityNumber', { id: n(app.university_id) })" :subtitle="t('educational.caseUi.applicationSummary', { status: translateBackendValue(app.status), intake: app.intake || t('common.messages.notAvailable'), notes: app.notes || t('common.messages.notAvailable') })">
-          <template #prepend><VChip size="small" :color="statusColor(app.status)">{{ translateBackendValue(app.status) }}</VChip></template>
-          <template v-if="canEditCase" #append>
-            <VMenu>
-              <template #activator="{ props }"><VBtn size="small" variant="text" v-bind="props">{{ t('common.fields.status') }}</VBtn></template>
-              <VList density="compact"><VListItem v-for="s in uniStatuses" :key="s" :title="translateBackendValue(s)" @click="setUniStatus(app.id, s)" /></VList>
-            </VMenu>
-            <VBtn v-if="app.university_id !== applicant.details?.university_id" size="small" variant="text" @click="setPrimaryUniversity(app.university_id)">{{ t('educational.caseUi.primary') }}</VBtn>
-            <VBtn size="small" variant="text" color="error" @click="removeUni(app.id)">{{ t('common.actions.remove') }}</VBtn>
-          </template>
-        </VListItem>
-      </VList>
-      <p v-if="!applicant.universities?.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noApplications') }}</p>
-      </template>
-      <div v-if="canViewFinance">
-        <div class="d-flex align-center mt-4">
-          <h3>{{ t('educational.caseUi.finance') }}</h3>
-          <VSpacer />
-          <VBtn v-if="canCreatePendingTransactions" size="small" prepend-icon="tabler-plus" @click="openFinanceDialog">{{ $t('common.ui.newFinancialRequest') }}</VBtn>
-          <VBtn size="small" variant="text" :to="{ name: 'pending-transactions' }">{{ t('educational.caseUi.pendingWorkspace') }}</VBtn>
-        </div>
-        <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.financeSummary', { income: money(postedIncomeTotal), expenses: money(postedExpenseTotal) }) }}</p>
-        <VList>
-          <VListItem v-for="row in applicant.pending_transactions" :key="`pt-${row.id}`" :title="t('educational.caseUi.transactionTitle', { type: translateBackendValue(row.transaction_type), reason: row.reason })" :subtitle="t('educational.caseUi.transactionSummary', { amount: money(row.amount), status: translateBackendValue(row.approval_status), rejection: row.rejection_reason || t('common.messages.notAvailable') })" />
-        </VList>
-        <VList>
-          <VListItem v-for="row in applicant.incomes" :key="`in-${row.id}`" :title="t('educational.caseUi.incomePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-down-left" color="success" /></template></VListItem>
-          <VListItem v-for="row in applicant.expenses" :key="`ex-${row.id}`" :title="t('educational.caseUi.expensePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-up-right" color="error" /></template></VListItem>
-        </VList>
-        <p v-if="!applicant.pending_transactions?.length && !applicant.incomes?.length && !applicant.expenses?.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noFinance') }}</p>
-      </div>
-      <div class="d-flex align-center mt-4">
-        <h3>{{ t('educational.caseUi.documents') }}</h3>
-        <VSpacer />
-        <VBtn v-if="canAttachDocuments" size="small" prepend-icon="tabler-paperclip" @click="openDocumentDialog">{{ $t('common.ui.attachDocument') }}</VBtn>
-      </div>
-      <VList>
-        <VListItem v-for="doc in documents" :key="doc.id" :title="doc.original_name" :subtitle="t('educational.caseUi.fromTask', { task: doc.task_title })">
-          <template #append><VBtn size="small" variant="text" :loading="downloadingId === doc.id" @click="downloadDoc(doc.task_id, doc.id, doc.original_name)">{{ t('educational.caseUi.download') }}</VBtn></template>
-        </VListItem>
-      </VList>
-      <p v-if="!documents.length" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.noDocuments') }}</p>
-      <h3 class="mt-4">{{ t('educational.caseUi.notes') }}</h3>
-      <VTextarea v-model="notesDraft" :label="t('educational.caseUi.caseNotes')" :disabled="!canEditCase" class="mb-4" />
-      <VBtn v-if="canEditCase" color="primary" class="mb-2" :loading="savingNotes" @click="saveNotes">{{ t('educational.caseUi.saveNotes') }}</VBtn>
-      <p v-else class="text-caption text-medium-emphasis">{{ t('educational.caseUi.notesPermission') }}</p>
     </VCardText>
   </VCard>
   <VDialog v-model="terminalDialog" max-width="520">
@@ -899,16 +887,100 @@ onMounted(async () => {
   max-inline-size: 46rem;
 }
 
-.visa-case-content h3 {
-  margin-block: 2rem 0.75rem;
+.case-overview-grid,
+.case-content-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.visa-case-content h3:first-of-type {
-  margin-block-start: 0;
+.case-section {
+  background: rgb(var(--v-theme-on-surface) / 0.035);
+  border: 1px solid rgb(var(--v-border-color) / var(--v-border-opacity));
+  border-radius: 0.75rem;
+  min-inline-size: 0;
+  padding: clamp(1rem, 2vw, 1.5rem);
 }
 
-.visa-case-content :deep(.v-list) {
-  margin-block-end: 1.25rem;
+.case-section--timeline {
+  background: rgb(var(--v-theme-on-surface) / 0.06);
+}
+
+.case-section--details,
+.case-section--workflow {
+  min-block-size: 100%;
+}
+
+.case-section__heading {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-block-end: 1rem;
+}
+
+.case-section__heading h3,
+.case-section__heading h4,
+.case-section h4 {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 1rem;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.case-section h4 {
+  font-size: 0.875rem;
+  margin-block: 1rem 0.5rem;
+}
+
+.case-section__eyebrow {
+  color: rgb(var(--v-theme-on-surface) / var(--v-medium-emphasis-opacity));
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.25rem;
+  text-transform: uppercase;
+}
+
+.case-detail-grid {
+  display: grid;
+  gap: 0.75rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.case-detail-grid > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.case-detail-grid span {
+  color: rgb(var(--v-theme-on-surface) / var(--v-medium-emphasis-opacity));
+  font-size: 0.75rem;
+}
+
+.case-service-line {
+  align-items: center;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(8rem, 1fr) auto minmax(11rem, 1fr) auto;
+  padding-block: 0.75rem;
+}
+
+.case-service-line + .case-service-line {
+  border-block-start: 1px solid rgb(var(--v-border-color) / var(--v-border-opacity));
+}
+
+.case-section :deep(.v-list) {
+  background: transparent;
+}
+
+.case-document-upload {
+  align-items: center;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(10rem, 1fr) minmax(12rem, 1fr) auto;
+  margin-block-start: 1rem;
 }
 
 .university-application-item :deep(.v-list-item__prepend) {
@@ -934,5 +1006,31 @@ onMounted(async () => {
 
 .case-dialog-body :deep(.v-field:last-child) {
   margin-block-end: 0;
+}
+
+@media (max-width: 959px) {
+  .case-overview-grid,
+  .case-content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 599px) {
+  .visa-case-content {
+    padding: 1rem;
+  }
+
+  .case-section {
+    padding: 1rem;
+  }
+
+  .case-service-line,
+  .case-document-upload {
+    grid-template-columns: 1fr;
+  }
+
+  .case-section__heading > :last-child:not(:only-child) {
+    inline-size: 100%;
+  }
 }
 </style>

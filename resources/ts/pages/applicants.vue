@@ -3,6 +3,7 @@ import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ErpField from '@/components/erp/ErpField.vue'
 import DataTableFilterMenu from '@/components/responsive-data-table/DataTableFilterMenu.vue'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -13,10 +14,12 @@ import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterDat
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
 import { translateApplicantStage, translateBackendValue } from '@/utils/localization'
-import ApplicantSummary from '@/components/erp/ApplicantSummary.vue'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
+import PrintableListReport from '@/components/PrintableListReport.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
 const toast = useToast()
 const router = useRouter()
@@ -26,7 +29,6 @@ const { t } = useI18n()
 const rows = ref<Applicant[]>([])
 const loading = ref(false)
 const page = ref(1)
-const lastPage = ref(1)
 const perPage = ref(25)
 const total = ref(0)
 const filtersOpen = ref(false)
@@ -74,6 +76,33 @@ const canViewPipeline = computed(() => canAccess('view_applicants'))
 const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
 const activeFilterCount = computed(() => [focus.value, service.value, search.value, stage.value, status.value, paymentStatus.value, responsibleEmployeeId.value, countryId.value, universityId.value, educationLevelId.value, semesterId.value, dateFrom.value, dateTo.value].filter(Boolean).length)
 const visibleRows = computed(() => paymentStatus.value ? rows.value.filter(row => row.payment_status === paymentStatus.value) : rows.value)
+const headers = computed(() => [
+  { title: t('educational.id'), key: 'id', sortable: false },
+  { title: t('educational.applicant'), key: 'name', sortable: false },
+  { title: t('educational.employee'), key: 'employee', sortable: false },
+  { title: t('educational.destination'), key: 'destination', sortable: false },
+  { title: t('educational.stage'), key: 'stage', sortable: false },
+  { title: t('educational.status'), key: 'status', sortable: false },
+  { title: t('pages.finance.income.income.paymentStatus'), key: 'paymentStatus', sortable: false },
+  { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
+])
+const serviceLabel = (row: Applicant) => serviceOptions.value.find(option => option.value === row.service)?.title ?? row.service
+const destinationLabel = (row: Applicant) => {
+  const details = row.details
+  const place = [details?.country?.name, details?.university?.name].filter(Boolean).join(' · ')
+
+  return [serviceLabel(row), place].filter(Boolean).join(' · ')
+}
+const paymentStatusLabel = (row: Applicant) => row.payment_status ? t(`finance.paymentStatus.${row.payment_status}`) : '—'
+const printRows = computed(() => visibleRows.value.map(row => [
+  `#${row.id}`,
+  row.name,
+  row.service === 'academy' ? '—' : (row.responsible_employee?.name ?? t('educational.unassigned')),
+  destinationLabel(row),
+  row.current_stage ? translateApplicantStage(row.current_stage) : '—',
+  translateBackendValue(row.status),
+  paymentStatusLabel(row),
+]))
 
 const createDialog = ref(false)
 const creating = ref(false)
@@ -125,7 +154,6 @@ async function load() {
 
     rows.value = result.data
     page.value = result.current_page
-    lastPage.value = result.last_page
     perPage.value = result.per_page
     total.value = result.total
   }
@@ -169,6 +197,15 @@ async function loadCatalogs() {
 
 function onTabChange() {
   page.value = 1
+  load()
+}
+
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
   load()
 }
 
@@ -290,7 +327,7 @@ onMounted(async () => {
             <VSelect v-model="semesterId" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="$t('educational.semester')" clearable />
             <VBtn color="primary" :loading="loading" :disabled="invalidDateRange" @click="page = 1; load()">{{ $t('educational.apply') }}</VBtn>
           </DataTableFilterMenu>
-          <VBtn icon="tabler-printer" variant="text" @click="printDocument({ bodyClass: 'printing-table-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ $t('common.actions.print') }}</VTooltip></VBtn>
+          <VBtn icon="tabler-printer" variant="text" :loading="loading" @click="printDocument({ bodyClass: 'printing-table-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ $t('common.actions.print') }}</VTooltip></VBtn>
         </div>
       </template>
     </ErpPageHeader>
@@ -313,29 +350,34 @@ onMounted(async () => {
     </VTabs>
     <VDivider />
     <div class="d-flex align-center gap-2 px-4 py-3"><VIcon icon="tabler-users" color="primary" /><strong>{{ $t('educational.resultCount', { count: total }) }}</strong><VSpacer /><VBtn v-if="activeFilterCount" size="small" variant="text" prepend-icon="tabler-filter" @click="filtersOpen = true">{{ $t('educational.activeFilters', { count: activeFilterCount }) }}</VBtn></div>
-    <VProgressLinear v-if="loading" indeterminate />
-    <div class="education-table-scroll"><VTable density="compact" class="education-table">
-      <thead><tr><th>{{ $t('educational.id') }}</th><th>{{ $t('educational.applicant') }}</th><th>{{ $t('educational.caseUi.file') }}</th><th>{{ $t('educational.employee') }}</th><th>{{ $t('educational.destination') }}</th><th>{{ $t('erp.details') }}</th><th>{{ $t('educational.stage') }}</th><th>{{ $t('educational.status') }}</th><th>{{ $t('pages.finance.income.income.paymentStatus') }}</th><th /></tr></thead>
-      <tbody>
-        <tr v-for="row in visibleRows" :key="row.id" class="cursor-pointer" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">
-          <td>#{{ row.id }}</td>
-          <td @click.stop><RouterLink class="applicant-name-link" :to="{ name: 'all-customers', query: { contact: row.id } }" :title="$t('educational.openContactInCrm')">{{ row.name }}</RouterLink></td>
-          <td><VChip size="x-small" :color="row.attachments_count ? 'success' : 'warning'" variant="tonal">{{ row.attachments_count ? $t('educational.caseUi.documentCount', { count: row.attachments_count }) : $t('educational.caseUi.documentsNeeded') }}</VChip></td>
-          <td>{{ row.service === 'academy' ? '—' : (row.responsible_employee?.name ?? $t('educational.unassigned')) }}</td>
-          <td><VChip size="x-small" variant="tonal" class="me-2">{{ serviceOptions.find(option => option.value === row.service)?.title }}</VChip><span v-if="['scholarship', 'private'].includes(row.service)">{{ row.details?.country?.name ?? '—' }}{{ row.details?.university?.name ? ` · ${row.details.university.name}` : '' }}</span></td>
-          <td><ApplicantSummary :applicant="row" /></td><td>{{ row.current_stage ? translateApplicantStage(row.current_stage) : '—' }}</td>
-          <td><VChip size="small" :color="row.status === 'active' ? 'success' : 'secondary'">{{ translateBackendValue(row.status) }}</VChip></td>
-          <td><VChip v-if="row.payment_status" size="small" variant="tonal" :color="row.payment_status === 'paid' ? 'success' : row.payment_status === 'partially_paid' ? 'warning' : 'error'">{{ $t(`finance.paymentStatus.${row.payment_status}`) }}</VChip><span v-else class="text-medium-emphasis">—</span></td>
-          <td class="text-end"><div class="d-inline-flex align-center ga-1" @click.stop><CrmRelationshipDetails type="applicant" :id="row.id" :title="row.name" /><VBtn size="small" variant="text" @click="router.push({ name: 'applicant-case', params: { id: row.id } })">{{ $t('educational.openCase') }}</VBtn></div></td>
-        </tr>
-        <tr v-if="!loading && !visibleRows.length"><td colspan="10" class="text-center text-medium-emphasis py-8">{{ $t('educational.noApplicants') }}</td></tr>
-      </tbody>
-    </VTable></div>
-    <VCardText class="d-flex align-center gap-4">
-      <VPagination v-model="page" :length="Math.max(lastPage, 1)" size="small" @update:model-value="load" />
-      <VSelect v-model="perPage" :items="[10, 25, 50, 100]" :label="$t('educational.perPage')" style="max-inline-size: 140px;" @update:model-value="page = 1; load()" />
-    </VCardText>
+    <ResponsiveDataTableServer
+      :headers="headers"
+      :items="visibleRows"
+      :items-length="total"
+      :loading="loading"
+      :page="page"
+      :items-per-page="perPage"
+      :items-per-page-options="[10, 25, 50, 100]"
+      item-value="id"
+      class="education-applications-table"
+      mobile-cards
+      mobile-title-key="name"
+      mobile-action-key="actions"
+      @update:options="updateTableOptions"
+    >
+      <template #loading><TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" /></template>
+      <template #no-data><TableEmptyState icon="tabler-clipboard-list" :description="$t('educational.noApplicants')" /></template>
+      <template #item.id="{ item }">#{{ item.id }}</template>
+      <template #item.name="{ item }"><span class="font-weight-medium">{{ item.name }}</span></template>
+      <template #item.employee="{ item }">{{ item.service === 'academy' ? '—' : (item.responsible_employee?.name ?? $t('educational.unassigned')) }}</template>
+      <template #item.destination="{ item }"><VChip size="x-small" variant="tonal">{{ serviceLabel(item) }}</VChip><span v-if="['scholarship', 'private'].includes(item.service)" class="ms-2">{{ item.details?.country?.name ?? '—' }}{{ item.details?.university?.name ? ` · ${item.details.university.name}` : '' }}</span></template>
+      <template #item.stage="{ item }">{{ item.current_stage ? translateApplicantStage(item.current_stage) : '—' }}</template>
+      <template #item.status="{ item }"><VChip size="small" :color="item.status === 'active' ? 'success' : 'secondary'">{{ translateBackendValue(item.status) }}</VChip></template>
+      <template #item.paymentStatus="{ item }"><VChip v-if="item.payment_status" size="small" variant="tonal" :color="item.payment_status === 'paid' ? 'success' : item.payment_status === 'partially_paid' ? 'warning' : 'error'">{{ paymentStatusLabel(item) }}</VChip><span v-else class="text-medium-emphasis">—</span></template>
+      <template #item.actions="{ item }"><div class="d-flex justify-end align-center ga-1"><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" /><VBtn size="small" variant="text" @click="router.push({ name: 'applicant-case', params: { id: item.id } })">{{ $t('educational.openCase') }}</VBtn></div></template>
+    </ResponsiveDataTableServer>
   </VCard>
+  <PrintableListReport :title="t('educational.applications')" :subtitle="t('agencyStaff.currentPageReport')" :columns="headers.slice(0, -1).map(column => column.title)" :rows="printRows" />
   </div>
   <VDialog v-model="createDialog" max-width="1100" scrollable class="erp-form">
     <VCard :title="$t('educational.newApplicantCase')">
@@ -366,16 +408,6 @@ onMounted(async () => {
 .stage-tabs-divider {
   block-size: 22px;
   margin-inline: 12px;
-}
-
-.applicant-name-link {
-  color: rgb(var(--v-theme-primary));
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.applicant-name-link:hover {
-  text-decoration: underline;
 }
 
 :deep(.erp-header-actions) {

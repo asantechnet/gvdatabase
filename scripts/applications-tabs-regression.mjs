@@ -37,10 +37,20 @@ const read = file => readFileSync(join(root, 'resources/ts', file), 'utf8')
 // own theme: the in-page navigation paints each destination with a theme colour
 // (including `tertiary`, which Vuetify's built-in light theme does not define).
 const themeModule = { exports: {} }
+const semanticThemeColorsModule = { exports: {} }
 
-new Function('exports', 'module', ts.transpileModule(read('plugins/vuetify/theme.ts'), {
+new Function('exports', 'module', ts.transpileModule(read('utils/semanticThemeColors.ts'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText)(themeModule.exports, themeModule)
+}).outputText)(semanticThemeColorsModule.exports, semanticThemeColorsModule)
+
+new Function('exports', 'module', 'require', ts.transpileModule(read('plugins/vuetify/theme.ts'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText)(themeModule.exports, themeModule, name => {
+  if (name === '@/utils/semanticThemeColors')
+    return semanticThemeColorsModule.exports
+
+  throw new Error(`unexpected theme dependency: ${name}`)
+})
 
 const appThemes = themeModule.exports.themes
 
@@ -86,11 +96,14 @@ const buildHarness = locale => {
   const stubs = [
     '@/components/erp/ErpField.vue',
     '@/components/erp/ErpDateRange.vue',
-    '@/components/erp/ApplicantSummary.vue',
     '@/components/ApplicantServiceFields.vue',
     '@/components/crm/CrmRelationshipDetails.vue',
     '@/components/ContactActionMenu.vue',
     '@/components/responsive-data-table/DataTableFilterMenu.vue',
+    '@/components/responsive-data-table/ResponsiveDataTableServer.vue',
+    '@/components/PrintableListReport.vue',
+    '@/components/TableEmptyState.vue',
+    '@/components/TableLoadingSkeleton.vue',
   ]
 
   return `
@@ -125,6 +138,7 @@ const mocks = {
   'vue-toastification': { useToast: () => ({ error: message => window.toastErrors.push(String(message)), success: () => {}, info: () => {} }) },
   '@/utils/authorization': { canAccess: () => true },
   '@/utils/apiErrors': { apiErrorMessage: () => 'Request failed' },
+  '@/utils/printDocument': { printDocument: () => {} },
   '@/utils/localization': { translateApplicantStage: stage => stage?.name ?? '', translateBackendValue: value => String(value ?? '') },
   '@/api/applicants': { default: applicantsApi, applicantServicePayload: form => ({ ...form }) },
   '@/api/educationalMasterData': { default: { list: async () => [] } },
