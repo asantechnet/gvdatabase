@@ -95,7 +95,7 @@ const nodeChildren = (node: VNode): VNode[] => {
   return []
 }
 
-const isActionNode = (node: VNode) => /^(?:VBtn|IconBtn|FullDetailsButton)$/i.test(componentName(node))
+const isActionNode = (node: VNode) => /^(?:VBtn|IconBtn|FullDetailsButton|CrmRelationshipDetails|VMenu)$/i.test(componentName(node))
 
 const collectActionNodes = (nodes: unknown): VNode[] => flattenNodes(nodes).flatMap(node => {
   if (isActionNode(node))
@@ -415,6 +415,12 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
           mobileAction: true,
         })
       }
+
+      if (/VMenu/i.test(name))
+        return cloneVNode(node, { key: `action-${index}` })
+
+      if (/CrmRelationshipDetails/i.test(name))
+        return cloneVNode(node, { key: `action-${index}`, mobileAction: true })
 
       const nodeProps = { ...((node.props || {}) as Record<string, any>) }
       const icon = typeof nodeProps.icon === 'string' ? nodeProps.icon : undefined

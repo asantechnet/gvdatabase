@@ -20,10 +20,6 @@ export interface Setting {
   id: number
   primary_color: string
   secondary_color: string
-  success_color: string
-  info_color: string
-  warning_color: string
-  error_color: string
   light_background_color: string
   light_surface_color: string
   dark_background_color: string
@@ -84,10 +80,6 @@ export interface Setting {
 export interface SettingForm {
   primary_color?: string | null
   secondary_color?: string | null
-  success_color?: string | null
-  info_color?: string | null
-  warning_color?: string | null
-  error_color?: string | null
   light_background_color?: string | null
   light_surface_color?: string | null
   dark_background_color?: string | null

@@ -111,14 +111,14 @@ onMounted(load)
           <VCardItem :title="$t('common.ui.officeProfile')" :subtitle="$t('common.ui.keepTheCompanySPhysicalLocationAndContactDetailsAccurate')" />
           <VCardText>
             <VRow>
-              <VCol cols="12" sm="8"><VTextField v-model="form.name" v-bind="inputProps('name')" :disabled="!canManage" :label="$t('common.fields.name')" required /></VCol>
-              <VCol cols="12" sm="4"><VTextField v-model="form.code" v-bind="inputProps('code')" :disabled="!canManage" :label="$t('pages.settings.directorycrudpage.officeCode')" required /></VCol>
+              <VCol cols="12" sm="6"><VTextField v-model="form.name" v-bind="inputProps('name')" :disabled="!canManage" :label="$t('common.fields.name')" required /></VCol>
+              <VCol cols="12" sm="6"><VTextField v-model="form.code" v-bind="inputProps('code')" :disabled="!canManage" :label="$t('pages.settings.directorycrudpage.officeCode')" required /></VCol>
               <VCol cols="12" sm="6"><VTextField v-model="form.email" v-bind="inputProps('email')" :disabled="!canManage" :label="$t('common.fields.email')" type="email" /></VCol>
               <VCol cols="12" sm="6"><VTextField v-model="form.phone" v-bind="inputProps('phone')" :disabled="!canManage" :label="$t('common.fields.phone')" /></VCol>
               <VCol cols="12"><VTextarea v-model="form.address" v-bind="inputProps('address')" :disabled="!canManage" :label="$t('common.fields.address')" rows="2" auto-grow /></VCol>
-              <VCol cols="12" sm="4"><VSelect v-model="form.status" v-bind="inputProps('status')" :disabled="!canManage" :items="[{ title: $t('serviceContracts.active'), value: 'active' }, { title: $t('common.statuses.inactive'), value: 'inactive' }]" :label="$t('common.fields.status')" /></VCol>
-              <VCol cols="12" sm="4"><VTextField v-model.number="form.paid_leave_days_per_year" v-bind="inputProps('paid_leave_days_per_year')" :disabled="!canManage" type="number" min="0" max="366" :label="$t('common.ui.paidLeaveDaysPerYear')" :hint="$t('common.ui.paidLeaveDaysPerYearHint')" persistent-hint /></VCol>
-              <VCol cols="12" sm="4" class="d-flex align-center"><VChip :color="profileComplete ? 'success' : 'warning'" variant="tonal" prepend-icon="tabler-list-check">{{ profileComplete ? $t('common.ui.profileComplete') : $t('common.ui.completeTheProfile') }}</VChip></VCol>
+              <VCol cols="12" sm="6"><VSelect v-model="form.status" v-bind="inputProps('status')" :disabled="!canManage" :items="[{ title: $t('serviceContracts.active'), value: 'active' }, { title: $t('common.statuses.inactive'), value: 'inactive' }]" :label="$t('common.fields.status')" /></VCol>
+              <VCol cols="12" sm="6"><VTextField v-model.number="form.paid_leave_days_per_year" v-bind="inputProps('paid_leave_days_per_year')" :disabled="!canManage" type="number" min="0" max="366" :label="$t('common.ui.paidLeaveDaysPerYear')" :hint="$t('common.ui.paidLeaveDaysPerYearHint')" persistent-hint /></VCol>
+              <VCol cols="12" class="d-flex align-center"><VChip :color="profileComplete ? 'success' : 'warning'" variant="tonal" prepend-icon="tabler-list-check">{{ profileComplete ? $t('common.ui.profileComplete') : $t('common.ui.completeTheProfile') }}</VChip></VCol>
             </VRow>
           </VCardText>
         </VCard>

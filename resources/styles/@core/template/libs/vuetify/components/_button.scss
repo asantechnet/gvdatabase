@@ -125,6 +125,13 @@ body .v-btn {
     }
   }
 
+  // Primary actions deliberately use the active palette's contrast token.
+  // This stays correct when Setup changes the light/dark primary colour.
+  &.bg-primary.v-btn--variant-elevated,
+  &.bg-primary.v-btn--variant-flat {
+    color: rgb(var(--v-theme-on-primary));
+  }
+
   // Outlined button
   &:not(.v-btn--icon, .v-tab).v-btn--variant-text {
     &.v-btn--size-default {

@@ -11,6 +11,8 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { printDocument } from '@/utils/printDocument'
 import { canAccess } from '@/utils/authorization'
 
@@ -46,7 +48,7 @@ const headers = computed(() => [
   { title: t('common.fields.name'), key: 'name' },
   { title: t('common.messages.contact'), key: 'contact' },
   { title: t('common.fields.email'), key: 'email' },
-  { title: t('common.messages.actions'), key: 'actions', sortable: false },
+  { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
 async function load() {
   loading.value = true
@@ -101,22 +103,27 @@ onMounted(async () => {
   <div class="erp-workspace">
   <ErpPageHeader :title="$t('common.navigation.applicants')" section="crm" />
   <VCard>
-    <VCardTitle class="d-flex align-center ga-3">
-      <VIcon icon="tabler-users" /> {{ $t('common.navigation.applicants') }}
-    </VCardTitle>
-    <VCardText class="d-flex align-center flex-wrap ga-2">
+    <VCardText class="crm-applicants-toolbar">
       <VTextField v-model="search" class="data-table-search" :label="$t('educational.searchApplicant')" prepend-inner-icon="tabler-search" clearable hide-details @keyup.enter="applyFilters" />
-      <DataTableFilterMenu :active="hasFilters" @reset="resetFilters">
-        <VSelect v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable />
-        <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="applyFilters" />
-      </DataTableFilterMenu>
-      <VBtn icon="tabler-printer" variant="text" class="flex-shrink-0" @click="printDocument({ bodyClass: 'printing-table-crm-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('common.actions.print') }}</VTooltip></VBtn>
+      <div class="crm-applicants-toolbar__actions">
+        <DataTableFilterMenu :active="hasFilters" @reset="resetFilters">
+          <VSelect v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable />
+          <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="applyFilters" />
+        </DataTableFilterMenu>
+        <VBtn icon="tabler-printer" variant="text" class="flex-shrink-0" :loading="loading" @click="printDocument({ bodyClass: 'printing-table-crm-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('common.actions.print') }}</VTooltip></VBtn>
+      </div>
     </VCardText>
-    <ResponsiveDataTableServer :headers="headers" :items="applicants" :items-length="total" :loading="loading" :page="page" :items-per-page="perPage" :items-per-page-options="[10, 25, 50, 100]" item-value="id" @update:options="updateOptions">
+    <ResponsiveDataTableServer :headers="headers" :items="applicants" :items-length="total" :loading="loading" :page="page" :items-per-page="perPage" :items-per-page-options="[10, 25, 50, 100]" item-value="id" class="crm-responsive-table" mobile-cards mobile-title-key="name" mobile-action-key="actions" @update:options="updateOptions">
+      <template #loading>
+        <TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" />
+      </template>
+      <template #no-data>
+        <TableEmptyState icon="tabler-users" :description="$t('educational.noApplicants')" />
+      </template>
       <template #item.name="{ item }"><span class="crm-applicant-name" :class="{ 'crm-applicant-name--focused': String(item.id) === deepLinkContactId }">{{ item.name }}</span></template>
       <template #item.contact="{ item }"><ContactActionMenu kind="phone" :value="item.contact" contactable-type="applicant" :contactable-id="item.id" audience="applicant" :context="item" :auto-open="String(item.id) === deepLinkContactId" /></template>
       <template #item.email="{ item }"><ContactActionMenu kind="email" :value="item.email" contactable-type="applicant" :contactable-id="item.id" /></template>
-      <template #item.actions="{ item }"><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" /><VBtn v-if="canEdit" icon="tabler-edit" variant="text" @click="openEdit(item)" /><VBtn v-if="canDelete" icon="tabler-trash" color="error" variant="text" @click="remove(item)" /></template>
+      <template #item.actions="{ item }"><div class="d-flex justify-end ga-1" @click.stop><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" /><VBtn v-if="canEdit" icon="tabler-edit" variant="text" @click="openEdit(item)" /><VBtn v-if="canDelete" icon="tabler-trash" color="error" variant="text" @click="remove(item)" /></div></template>
     </ResponsiveDataTableServer>
   </VCard>
   <PrintableListReport :title="t('common.navigation.applicants')" :subtitle="t('agencyStaff.currentPageReport')" :columns="headers.slice(0, -1).map(column => column.title)" :rows="applicants.map(row => [row.name, row.contact, row.email])" />
@@ -141,6 +148,23 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.crm-applicants-toolbar,
+.crm-applicants-toolbar__actions {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.crm-applicants-toolbar {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.crm-applicants-toolbar__actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
 .crm-applicant-name {
   border-radius: 6px;
   font-weight: 600;
@@ -151,5 +175,12 @@ onMounted(async () => {
 .crm-applicant-name--focused {
   background-color: rgba(var(--v-theme-primary), 0.12);
   outline: 2px solid rgba(var(--v-theme-primary), 0.4);
+}
+
+@media (max-width: 599px) {
+  .crm-applicants-toolbar__actions {
+    inline-size: 100%;
+    justify-content: space-between;
+  }
 }
 </style>

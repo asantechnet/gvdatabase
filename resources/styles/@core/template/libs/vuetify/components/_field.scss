@@ -1,6 +1,5 @@
 @use "sass:map";
 @use "@configured-variables" as variables;
-@use "@core-scss/template/mixins" as templateMixins;
 
 $v-input-density: (
   comfortable: (
@@ -53,6 +52,9 @@ $v-input-density: (
 
     // Label
     &.v-field--variant-outlined {
+      --v-field-padding-end: 14px;
+      --v-field-padding-start: 14px;
+
       .v-label {
         &.v-field-label--floating {
           line-height: 0.9375rem;
@@ -66,19 +68,14 @@ $v-input-density: (
       --v-field-border-opacity: 0.6 !important;
     }
 
-    // Shadow on focus
+    // Keep focus warm and precise through the configured primary outline.
+    // An outline has no drop shadow, remains theme-aware, and avoids colouring
+    // the whole control as a focus signal.
     &.v-field--variant-outlined.v-field--focused:not(.v-field--error, .v-field--success) {
-      .v-field__outline {
-        @each $color-name in variables.$theme-colors-name {
-          &.text-#{$color-name} {
-            @include templateMixins.custom-elevation(var(--v-theme-#{$color-name}), "sm");
-          }
-        }
+      --v-field-border-opacity: 1;
+      --v-field-border-width: 2px;
 
-        &:not([class*="text-"]) {
-          @include templateMixins.custom-elevation(var(--v-theme-primary), "sm");
-        }
-      }
+      box-shadow: none;
     }
   }
 
@@ -116,6 +113,13 @@ $v-input-density: (
         }
       }
     }
+  }
+}
+
+@media (max-width: 599px) {
+  .v-input .v-field.v-field--variant-outlined {
+    --v-field-padding-end: 12px;
+    --v-field-padding-start: 12px;
   }
 }
 

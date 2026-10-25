@@ -19,8 +19,10 @@ export default {
     color: 'primary',
   },
   VBtn: {
-    // set v-btn default color to primary
+    // Default actions are prominent primary controls. Explicit text, outlined,
+    // tonal, and non-primary variants remain available at their call sites.
     color: 'primary',
+    variant: 'flat',
   },
   VChip: {
     label: true,

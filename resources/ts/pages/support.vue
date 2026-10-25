@@ -36,8 +36,6 @@ const severityOptions = computed(() => ['low', 'normal', 'high', 'critical'].map
   title: t(`pages.support.severities.${value}`),
 })))
 
-const severityHelp = computed(() => t(`pages.support.severityHelp.${ticketForm.value.severity}`))
-
 const blankForm = (): CreateSupportTicketData => ({
   category: 'technical',
   severity: 'normal',
@@ -204,9 +202,6 @@ onMounted(loadTickets)
                   :items="categoryOptions"
                   :rules="[requiredField('category')]"
                 />
-                <p class="text-caption text-medium-emphasis mt-2 mb-0">
-                  {{ severityHelp }}
-                </p>
               </VCol>
               <VCol cols="12" sm="6">
                 <AppSelect

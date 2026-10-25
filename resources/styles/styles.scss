@@ -442,6 +442,75 @@ html[dir='rtl'] .driver-popover-close-btn {
   display: none;
 }
 
+// The opt-in card presentation replaces a dense grid on phones. Keep the
+// native table scaffold constrained while the cards supply readable labels and
+// values, so no horizontal scrolling is needed to reach a cell or action.
+@media (max-width: 959px) {
+  .responsive-data-table--mobile-cards {
+    max-inline-size: 100%;
+    overflow: hidden;
+    overflow: clip;
+
+    .v-data-table__thead { display: none; }
+
+    .v-table__wrapper {
+      inline-size: 100%;
+      max-inline-size: 100%;
+      overflow: hidden;
+      overflow: clip;
+    }
+
+    table {
+      inline-size: 100% !important;
+      max-inline-size: 100% !important;
+      min-inline-size: 0 !important;
+      table-layout: fixed;
+    }
+
+    .responsive-data-table__mobile-row > td {
+      inline-size: 100%;
+      max-inline-size: 100%;
+      padding: 0.75rem;
+    }
+
+    .responsive-data-table__cards {
+      gap: 0.75rem !important;
+    }
+
+    .responsive-data-table__card,
+    .responsive-data-table__card-toggle,
+    .v-card-item__content,
+    .responsive-data-table__card-title {
+      inline-size: 100%;
+      max-inline-size: 100%;
+      min-inline-size: 0;
+    }
+
+    .responsive-data-table__card-title,
+    .responsive-data-table__field-value {
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+
+    .responsive-data-table__field {
+      gap: 0.25rem;
+      padding-block: 0.75rem;
+    }
+
+    .responsive-data-table__field + .responsive-data-table__field {
+      border-block-start: thin solid rgb(var(--v-border-color) / var(--v-border-opacity));
+    }
+
+    .v-chip {
+      align-self: flex-start;
+      flex: 0 0 auto !important;
+      inline-size: fit-content !important;
+      max-inline-size: 100%;
+      width: fit-content !important;
+    }
+  }
+}
+
 // Form dialogs can continue to scroll when their content exceeds the viewport,
 // but without exposing browser scrollbars around the popup or its card body.
 .v-dialog,

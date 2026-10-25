@@ -67,10 +67,6 @@ interface BrandingSettings {
   contract_cover_design_url?: string | null
   primary_color?: string | null
   secondary_color?: string | null
-  success_color?: string | null
-  info_color?: string | null
-  warning_color?: string | null
-  error_color?: string | null
   light_background_color?: string | null
   light_surface_color?: string | null
   dark_background_color?: string | null

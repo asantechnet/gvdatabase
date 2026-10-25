@@ -222,6 +222,7 @@ declare global {
   const resolveVuetifyTheme: typeof import('./resources/ts/@core/utils/vuetify')['resolveVuetifyTheme']
   const restoreUiScale: typeof import('./resources/ts/utils/uiScale')['restoreUiScale']
   const rgbaToHex: typeof import('./resources/ts/@core/utils/colorConverter')['rgbaToHex']
+  const semanticThemeColors: typeof import('./resources/ts/utils/semanticThemeColors')['semanticThemeColors']
   const serializePlaceholders: typeof import('./resources/ts/utils/contractPlaceholders')['serializePlaceholders']
   const servicePaymentIssue: typeof import('./resources/ts/utils/incomePaymentBalance')['servicePaymentIssue']
   const setActivePinia: typeof import('pinia')['setActivePinia']
@@ -710,6 +711,7 @@ declare module 'vue' {
     readonly resolveVuetifyTheme: UnwrapRef<typeof import('./resources/ts/@core/utils/vuetify')['resolveVuetifyTheme']>
     readonly restoreUiScale: UnwrapRef<typeof import('./resources/ts/utils/uiScale')['restoreUiScale']>
     readonly rgbaToHex: UnwrapRef<typeof import('./resources/ts/@core/utils/colorConverter')['rgbaToHex']>
+    readonly semanticThemeColors: UnwrapRef<typeof import('./resources/ts/utils/semanticThemeColors')['semanticThemeColors']>
     readonly serializePlaceholders: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['serializePlaceholders']>
     readonly servicePaymentIssue: UnwrapRef<typeof import('./resources/ts/utils/incomePaymentBalance')['servicePaymentIssue']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>

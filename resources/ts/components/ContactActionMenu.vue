@@ -142,6 +142,40 @@ const actions = computed<ContactAction[]>(() => {
     { label: translate('common.ui.call'), icon: 'tabler-phone', href: `tel:${encodeURIComponent(phoneValue.value)}` },
   ]
 })
+
+const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
+  event.preventDefault()
+
+  if (!contactValue.value)
+    return
+
+  try {
+    if (navigator.clipboard?.writeText)
+      await navigator.clipboard.writeText(contactValue.value)
+    else {
+      const textarea = document.createElement('textarea')
+
+      textarea.value = contactValue.value
+      textarea.setAttribute('readonly', '')
+      textarea.style.inset = '0 auto auto -9999px'
+      textarea.style.position = 'fixed'
+      document.body.append(textarea)
+      textarea.select()
+
+      const copied = document.execCommand('copy')
+
+      textarea.remove()
+      if (!copied)
+        throw new Error('Clipboard copy failed')
+    }
+
+    menuOpen.value = false
+    toast.success(t('common.crmUi.emailCopied'))
+  }
+  catch {
+    toast.error(t('common.crmUi.emailCopyFailed'))
+  }
+}
 </script>
 
 <template>
@@ -164,9 +198,9 @@ const actions = computed<ContactAction[]>(() => {
           class="contact-action-menu__trigger"
           :prepend-icon="kind === 'phone' ? 'tabler-phone' : 'tabler-mail'"
           color="primary"
-          variant="tonal"
+          variant="text"
           size="small"
-          rounded="lg"
+          :ripple="false"
           :aria-label="`Communication options for ${contactValue}`"
         >
           <span class="contact-action-menu__value">{{ contactValue }}</span>
@@ -200,6 +234,15 @@ const actions = computed<ContactAction[]>(() => {
           />
         </template>
         <VListItemTitle>{{ action.label }}</VListItemTitle>
+      </VListItem>
+
+      <VListItem
+        v-if="kind === 'email'"
+        prepend-icon="tabler-copy"
+        link
+        @click.stop="copyEmail"
+      >
+        <VListItemTitle>{{ $t('common.crmUi.copyEmail') }}</VListItemTitle>
       </VListItem>
 
       <!-- The audience's active templates, already filled from this row. Only
@@ -302,10 +345,22 @@ const actions = computed<ContactAction[]>(() => {
 
 <style scoped>
 .contact-action-menu__trigger {
+  --v-activated-opacity: 0;
+  --v-focus-opacity: 0;
+  --v-hover-opacity: 0;
+
+  background: transparent !important;
+  box-shadow: none !important;
   min-block-size: 36px;
   max-inline-size: 100%;
+  padding-inline: 0;
   text-transform: none;
   letter-spacing: normal;
+}
+
+.contact-action-menu__trigger:hover,
+.contact-action-menu__trigger:focus-visible {
+  background: transparent !important;
 }
 
 .contact-action-menu__boundary,

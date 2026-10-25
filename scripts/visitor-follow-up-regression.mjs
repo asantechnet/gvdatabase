@@ -161,6 +161,8 @@ const mocks = {
   '@/api/employee': { default: { getAssignmentOptions: async () => [] } },
   '@/components/PrintableListReport.vue': printableReport,
   '@/components/ContactActionMenu.vue': stub('ContactActionMenu', 'quick-contact-stub'),
+  '@/components/TableEmptyState.vue': stub('TableEmptyState', 'table-empty-state-stub'),
+  '@/components/TableLoadingSkeleton.vue': stub('TableLoadingSkeleton', 'table-loading-skeleton-stub'),
   '@/components/crm/CrmRelationshipDetails.vue': stub('CrmRelationshipDetails', 'relationship-details-stub'),
   '@/components/erp/ErpDateRange.vue': stub('ErpDateRange', 'date-range-stub'),
   '@/components/erp/ErpField.vue': stub('ErpField', 'field-stub'),

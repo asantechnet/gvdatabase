@@ -3,23 +3,19 @@
 namespace App\Support;
 
 /**
- * The colours exposed in company settings map one-to-one to Vuexy/Vuetify
- * tokens. Keeping their defaults here lets the API return a complete, usable
- * palette even for installations created before theme settings existed.
+ * The colours exposed in company settings map to editable Vuexy/Vuetify
+ * brand and surface tokens. Semantic status colours intentionally remain
+ * fixed in the frontend theme utility so their meaning stays consistent.
  */
 final class ThemePalette
 {
     public const DEFAULTS = [
         'primary_color' => '#0F766E',
         'secondary_color' => '#475569',
-        'success_color' => '#15803D',
-        'info_color' => '#0284C7',
-        'warning_color' => '#D97706',
-        'error_color' => '#DC2626',
         'light_background_color' => '#F5F7F4',
         'light_surface_color' => '#FFFEFA',
-        'dark_background_color' => '#102321',
-        'dark_surface_color' => '#173330',
+        'dark_background_color' => '#111313',
+        'dark_surface_color' => '#1A1B1B',
     ];
 
     public static function fields(): array
