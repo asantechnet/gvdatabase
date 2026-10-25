@@ -3,6 +3,8 @@ import navItems from '@/navigation/horizontal'
 
 import { themeConfig } from '@themeConfig'
 
+import Footer from '@/layouts/components/Footer.vue'
+
 // Components
 import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
 import NavBarAuditLogs from '@/layouts/components/NavBarAuditLogs.vue'
@@ -67,7 +69,7 @@ onMounted(async () => {
 
     <!-- 👉 Footer -->
     <template #footer>
-      <!-- <Footer /> -->
+      <Footer />
     </template>
 
     <!-- 👉 Customizer -->

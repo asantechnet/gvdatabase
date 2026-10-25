@@ -1,28 +1,8 @@
-<script setup lang="ts">
-import { useBranding } from '@/composables/useBranding'
-
-const { logoUrl, originalCompanyName, loadBranding } = useBranding()
-
-onMounted(loadBranding)
-</script>
-
 <template>
-  <div class="h-100 d-flex align-center justify-center">
-    <span class="d-flex align-center text-medium-emphasis">
-      <img
-        :src="logoUrl"
-        :alt="originalCompanyName"
-        class="footer-logo me-2"
-      >
-      {{ $t('components.navigation.footer.copyright', { year: new Date().getFullYear(), company: originalCompanyName }) }}
-    </span>
+  <div class="h-100 d-flex align-center justify-center text-medium-emphasis text-body-2">
+    <I18nT keypath="components.navigation.footer.developedBy" tag="span" scope="global">
+      <template #year>{{ new Date().getFullYear() }}</template>
+      <template #developer><a href="https://asantech.net" target="_blank" rel="noopener noreferrer">{{ $t('components.navigation.footer.developerName') }}</a></template>
+    </I18nT>
   </div>
 </template>
-
-<style scoped>
-.footer-logo {
-  block-size: 1.5rem;
-  inline-size: 1.5rem;
-  object-fit: contain;
-}
-</style>

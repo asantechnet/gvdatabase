@@ -14,7 +14,6 @@ export interface WorkloadSummary {
 
 export interface EducationalDashboard {
   operations: {
-    prospects: number | null
     active_cases: number
     unassigned_cases: number
     outstanding: CurrencySummary[]
@@ -32,9 +31,6 @@ export interface EducationalDashboard {
 }
 
 export interface EducationalDashboardParams {
-  responsible_employee_id?: number | null
-  country_id?: number | null
-  university_id?: number | null
   date_from?: string
   date_to?: string
   stale_days?: number

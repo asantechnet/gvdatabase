@@ -15,7 +15,6 @@ use App\Models\Income;
 use App\Models\PendingTransaction;
 use App\Models\Salary;
 use App\Models\Task;
-use App\Models\Visitor;
 use App\Support\BuiltInService;
 use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
@@ -68,7 +67,7 @@ class EducationalDashboardController extends Controller
             'work' => $this->work($data),
             'countries' => $this->countries($data),
             'universities' => $this->universities($data),
-            'operations' => $this->operations($data, $user->hasPermission('view_visitors')),
+            'operations' => $this->operations($data),
         ]]);
     }
 
@@ -362,7 +361,7 @@ class EducationalDashboardController extends Controller
         return ['counts' => $counts, 'stuck_applicants' => $stuck, 'overdue_tasks' => $overdue, 'pending_approvals' => $pendingApprovals, 'missing_documents' => $missingDocuments, 'contracts_requiring_attention' => $contractsRequiringAttention];
     }
 
-    private function operations(array $filters, bool $canViewVisitors): array
+    private function operations(array $filters): array
     {
         unset($filters['date_from'], $filters['date_to']);
         $cases = $this->applicantScope($filters);
@@ -378,11 +377,6 @@ class EducationalDashboardController extends Controller
         $admissions = ApplicantUniversity::query()->whereIn('applicant_id', (clone $cases)->select('applicants.id'))
             ->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
         return [
-            // Prospects have no destination fields; omit this count for a destination slice.
-            'prospects' => $canViewVisitors && empty($filters['country_id']) && empty($filters['university_id'])
-                ? Visitor::query()->whereNull('converted_at')
-                    ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereIn('counselor_employee_id', $employeeIds))->count()
-                : null,
             'active_cases' => (clone $cases)->where('status', 'active')->count(),
             'unassigned_cases' => (clone $cases)->where('status', 'active')->whereNull('responsible_employee_id')->count(),
             'outstanding' => $outstanding,

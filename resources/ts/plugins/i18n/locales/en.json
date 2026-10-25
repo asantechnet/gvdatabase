@@ -3851,7 +3851,8 @@
     },
     "navigation": {
       "footer": {
-        "copyright": "© {year} {company}. All rights reserved."
+        "developerName": "Asan Tech",
+        "developedBy": "© {year} Developed by {developer}"
       },
       "navbarnotifications": {
         "couldNotUpdateNotificationStatus": "Could Not Update Notification Status"
@@ -5483,12 +5484,8 @@
   },
   "agencyDashboard": {
     "noPriorityItems": "No case or contract alerts in these categories.",
-    "prospects": "Prospective students",
     "refresh": "Refresh",
-    "applications": "Applications",
-    "reports": "Reports",
     "unspecifiedCurrency": "Unspecified currency",
-    "periodHelp": "Dates filter case cohorts and posted financial records. Live priorities, balances and admissions remain current.",
     "liveOperations": "Current operations · all dates",
     "unassigned": "{count} without a counselor",
     "actionItems": "Action items",

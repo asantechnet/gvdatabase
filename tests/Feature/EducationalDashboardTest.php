@@ -150,17 +150,21 @@ class EducationalDashboardTest extends TestCase
             ->assertJsonPath('data.pipeline.totals.all', 0);
     }
 
-    public function test_current_prospects_and_contract_expiry_are_actionable_and_destination_scoped(): void
+    public function test_removed_prospect_metric_is_not_queried_and_contract_expiry_remains_actionable(): void
     {
         Visitor::create(['name' => 'Open prospect', 'contact' => '070000001', 'date' => now()->toDateString(), 'service' => 'scholarship']);
         Visitor::create(['name' => 'Converted prospect', 'contact' => '070000002', 'date' => now()->toDateString(), 'service' => 'scholarship', 'converted_at' => now()]);
         $country = Country::create(['name' => 'Destination', 'code' => 'DS', 'is_active' => true]);
         $sale = $this->createBuiltInContract('scholarship', ['country_id' => $country->id]);
         DB::table('contracts')->where('id', $sale['id'])->update(['status' => 'active', 'end_date' => now()->addDays(10)->toDateString()]);
+        DB::enableQueryLog();
         $data = $this->getJson('/api/educational-dashboard')->assertOk()->json('data');
-        $this->assertSame(1, $data['operations']['prospects']);
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+        $this->assertFalse(collect($queries)->contains(fn ($query) => preg_match('/(?:from|join)\s+[`"]?visitors[`"]?/i', $query['query']) === 1));
+        $this->assertArrayNotHasKey('prospects', $data['operations']);
         $this->assertSame(1, $data['attention']['counts']['contracts_requiring_attention']);
         $this->assertSame('applicant-case', $data['attention']['contracts_requiring_attention'][0]['route']['name']);
-        $this->getJson('/api/educational-dashboard?country_id='.$country->id)->assertOk()->assertJsonPath('data.operations.prospects', null);
+        $this->getJson('/api/educational-dashboard?country_id='.$country->id)->assertOk()->assertJsonMissingPath('data.operations.prospects');
     }
 }

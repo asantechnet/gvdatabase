@@ -3842,7 +3842,8 @@
     },
     "navigation": {
       "footer": {
-        "copyright": "© {year} {company}. تمامی حقوق محفوظ است."
+        "developerName": "Asan Tech",
+        "developedBy": "© {year} توسعه‌یافته توسط {developer}"
       },
       "navbarnotifications": {
         "couldNotUpdateNotificationStatus": "نمی‌توان وضعیت اعلان را بروزرسانی کرد"
@@ -5468,12 +5469,8 @@
   },
   "agencyDashboard": {
     "noPriorityItems": "در این دسته‌ها هشدار پرونده یا قرارداد وجود ندارد.",
-    "prospects": "متقاضیان بالقوه",
     "refresh": "تازه‌سازی",
-    "applications": "درخواست‌ها",
-    "reports": "گزارش‌ها",
     "unspecifiedCurrency": "واحد پول نامشخص",
-    "periodHelp": "تاریخ‌ها گروه متقاضیان و اسناد مالی را فیلتر می‌کنند. اولویت‌ها، مانده‌ها و پذیرش‌ها وضعیت فعلی را نشان می‌دهند.",
     "liveOperations": "عملیات فعلی · همه تاریخ‌ها",
     "unassigned": "{count} بدون مشاور",
     "actionItems": "موارد نیازمند اقدام",
