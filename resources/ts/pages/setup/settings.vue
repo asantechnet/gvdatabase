@@ -167,7 +167,7 @@ const settingsPages = computed(() => [
   { value: 'appearance' as const, icon: 'tabler-palette', title: translate('pages.settings.settings.appearancePage'), description: translate('pages.settings.settings.appearancePageDescription') },
   { value: 'documents' as const, icon: 'tabler-file-description', title: translate('pages.settings.settings.documentsPage'), description: translate('pages.settings.settings.documentsPageDescription') },
   { value: 'support' as const, icon: 'tabler-lifebuoy', title: translate('common.navigation.support'), description: translate('pages.settings.settings.supportPageDescription') },
-  ...(canViewOffices.value ? [{ value: 'office' as const, icon: 'tabler-building-community', title: translate('common.fields.office'), description: 'Company location, contact details, and attendance geofence.' }] : []),
+  ...(canViewOffices.value ? [{ value: 'office' as const, icon: 'tabler-building-community', title: translate('common.fields.office'), description: translate('pages.settings.settings.officePageDescription') }] : []),
 ])
 
 const activePage = computed(() => settingsPages.value.find(page => page.value === activeSettingsPage.value)!)
@@ -181,16 +181,6 @@ const appearanceGroups = computed(() => [
     fields: [
       { label: translate('pages.settings.settings.primaryColor'), field: 'primary_color' as const },
       { label: translate('pages.settings.settings.secondaryColor'), field: 'secondary_color' as const },
-    ],
-  },
-  {
-    title: translate('pages.settings.settings.feedbackColors'),
-    description: translate('pages.settings.settings.feedbackColorsHint'),
-    fields: [
-      { label: translate('pages.settings.settings.successColor'), field: 'success_color' as const },
-      { label: translate('pages.settings.settings.infoColor'), field: 'info_color' as const },
-      { label: translate('pages.settings.settings.warningColor'), field: 'warning_color' as const },
-      { label: translate('pages.settings.settings.errorColor'), field: 'error_color' as const },
     ],
   },
   {
@@ -312,10 +302,6 @@ function applySavedSetting(setting: Setting) {
     ...defaultForm(),
     primary_color: setting.primary_color,
     secondary_color: setting.secondary_color,
-    success_color: setting.success_color,
-    info_color: setting.info_color,
-    warning_color: setting.warning_color,
-    error_color: setting.error_color,
     light_background_color: setting.light_background_color,
     light_surface_color: setting.light_surface_color,
     dark_background_color: setting.dark_background_color,
@@ -1052,8 +1038,49 @@ onBeforeUnmount(revokeObjectUrls)
     <VRow no-gutters>
       <VCol
         cols="12"
+        class="settings-mobile-navigation d-md-none"
+      >
+        <div class="pa-4">
+          <VMenu location="bottom start">
+            <template #activator="{ props: menuProps }">
+              <VBtn
+                v-bind="menuProps"
+                variant="tonal"
+                color="primary"
+                block
+                class="settings-mobile-navigation__trigger justify-space-between"
+              >
+                <span class="d-flex align-center text-truncate">
+                  <VIcon
+                    :icon="activePage.icon"
+                    class="me-2"
+                  />
+                  {{ activePage.title }}
+                </span>
+                <VIcon icon="tabler-chevron-down" />
+              </VBtn>
+            </template>
+            <VList
+              nav
+              density="comfortable"
+              min-width="240"
+            >
+              <VListItem
+                v-for="page in settingsPages"
+                :key="page.value"
+                :active="activeSettingsPage === page.value"
+                :prepend-icon="page.icon"
+                :to="{ name: 'setup-settings', params: { section: page.value } }"
+                :title="page.title"
+              />
+            </VList>
+          </VMenu>
+        </div>
+      </VCol>
+      <VCol
+        cols="12"
         md="3"
-        class="settings-sidebar"
+        class="settings-sidebar d-none d-md-block"
       >
         <div class="pa-6 pb-4">
           <div class="text-overline text-primary font-weight-bold">
@@ -1080,7 +1107,6 @@ onBeforeUnmount(revokeObjectUrls)
             :to="{ name: 'setup-settings', params: { section: page.value } }"
           >
             <VListItemTitle>{{ page.title }}</VListItemTitle>
-            <VListItemSubtitle>{{ page.description }}</VListItemSubtitle>
           </VListItem>
         </VList>
       </VCol>
@@ -1725,6 +1751,7 @@ onBeforeUnmount(revokeObjectUrls)
                 cols="12"
                 md="6"
               >
+                <section class="document-artwork-editor">
                 <div class="text-subtitle-1 font-weight-medium mb-2">
                   {{ asset.title }}
                 </div>
@@ -1864,6 +1891,7 @@ onBeforeUnmount(revokeObjectUrls)
                     </VCol>
                   </VRow>
                 </div>
+                </section>
               </VCol>
 
               <!--
@@ -1886,6 +1914,7 @@ onBeforeUnmount(revokeObjectUrls)
                 cols="12"
                 md="6"
               >
+                <section class="document-artwork-editor">
                 <div class="text-subtitle-1 font-weight-medium mb-2">
                   {{ doc.kind === 'receipt' ? $t('pages.settings.settings.receiptLetterhead') : $t('pages.settings.settings.payslipLetterhead') }}
                 </div>
@@ -2031,6 +2060,7 @@ onBeforeUnmount(revokeObjectUrls)
                     </VCol>
                   </VRow>
                 </div>
+                </section>
               </VCol>
             </VRow>
           </template>
@@ -2087,10 +2117,17 @@ onBeforeUnmount(revokeObjectUrls)
   background: rgba(var(--v-theme-surface), 0.62);
 }
 
+.document-artwork-editor {
+  block-size: 100%;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
+  background: rgba(var(--v-theme-surface), 0.62);
+  padding: clamp(1rem, 2vw, 1.25rem);
+}
+
 .letterhead-safe-preview {
   position: relative;
-  width: 100%;
-  max-width: 360px;
+  width: clamp(180px, 65vw, 260px);
   aspect-ratio: 210 / 297;
   overflow: hidden;
   background: rgba(var(--v-theme-on-surface), 0.05);
@@ -2107,8 +2144,7 @@ onBeforeUnmount(revokeObjectUrls)
 .safe-area-handle--left { left: -7px; }.safe-area-handle--right { right: -7px; }
 
 .document-artwork-preview {
-  width: 100%;
-  max-width: 360px;
+  width: clamp(180px, 65vw, 260px);
   aspect-ratio: 210 / 297;
   overflow: hidden;
   background: rgba(var(--v-theme-on-surface), 0.03);
@@ -2127,13 +2163,8 @@ onBeforeUnmount(revokeObjectUrls)
   margin-block: 4px;
 }
 
-.settings-sidebar :deep(.v-list-item__subtitle) {
-  font-size: 0.75rem;
-}
-
 @media (max-width: 959px) {
-  .settings-sidebar {
-    border-inline-end: 0;
+  .settings-mobile-navigation {
     border-block-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   }
 }

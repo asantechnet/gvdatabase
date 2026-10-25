@@ -5,7 +5,14 @@ import { useToast } from 'vue-toastification'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import CrmApi, { type EntityType, type Channel, type Interaction, type Relationship } from '@/api/crmRelationships'
 
-const props = defineProps<{ type: EntityType; id: number; title?: string }>()
+const props = withDefaults(defineProps<{
+  type: EntityType
+  id: number
+  title?: string
+  mobileAction?: boolean
+}>(), {
+  mobileAction: false,
+})
 const { t, locale } = useI18n()
 const toast = useToast()
 const open = ref(false)
@@ -181,14 +188,19 @@ const removeInteraction = async (interaction: Interaction) => {
 
 <template>
   <VBtn
-    icon="tabler-address-book"
+    :icon="!props.mobileAction"
+    :block="props.mobileAction"
     variant="text"
     size="small"
     color="primary"
+    :class="{ 'crm-relationship-details__mobile-action': props.mobileAction }"
     :aria-label="$t('common.crmDetails.relationshipDetails')"
     @click.stop="show"
   >
     <VIcon icon="tabler-address-book" />
+    <span v-if="props.mobileAction" class="ms-2">
+      {{ $t('common.crmDetails.relationshipDetails') }}
+    </span>
     <VTooltip
       activator="parent"
       location="top"
@@ -422,8 +434,8 @@ const removeInteraction = async (interaction: Interaction) => {
                 md="7"
               >
                 <VCard
-                  variant="tonal"
-                  color="primary"
+                  border
+                  variant="flat"
                 >
                   <VCardText>
                     <div class="d-flex align-center justify-space-between mb-3">
@@ -729,6 +741,7 @@ const removeInteraction = async (interaction: Interaction) => {
 .detail-tile { background: linear-gradient(145deg, rgba(var(--v-theme-primary), .045), rgb(var(--v-theme-surface))); }
 .interaction-card { transition: border-color .18s ease, transform .18s ease; }
 .interaction-card:hover { border-color: rgba(var(--v-theme-primary), .45) !important; transform: translateY(-1px); }
+.crm-relationship-details__mobile-action { justify-content: flex-start; }
 .min-w-0 { min-width: 0; }
 
 @media (max-height: 650px) {

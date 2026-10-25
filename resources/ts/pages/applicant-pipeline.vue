@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import DataTableFilterMenu from '@/components/responsive-data-table/DataTableFilterMenu.vue'
+import ApplicantPipelineSkeleton from '@/components/ApplicantPipelineSkeleton.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -22,6 +24,7 @@ const pipelineScroller = ref<HTMLElement | null>(null)
 const stages = ref<PipelineColumn[]>([])
 const cards = ref<Record<string, PipelineCard[]>>({})
 const totals = ref({ active: 0, closed: 0, all: 0 })
+const filtersOpen = ref(false)
 
 const countries = ref<MasterDataRecord[]>([])
 const universities = ref<MasterDataRecord[]>([])
@@ -39,7 +42,10 @@ const serviceOptions = computed(() => [
 ])
 
 const canMove = computed(() => canAccess('change_applicant_stage'))
-const activeFilterCount = computed(() => Object.values(filters.value).filter(v => v !== '' && v !== null && v !== undefined).length)
+// A service is required to choose the board's stage catalogue, so it is a
+// board scope rather than an optional active filter in the filter-button cue.
+const activeFilterCount = computed(() => Object.entries(filters.value)
+  .filter(([key, value]) => key !== 'service' && value !== '' && value !== null && value !== undefined).length)
 const perColumnCap = 30
 
 const activeCountries = computed(() => countries.value.filter(c => c.is_active))
@@ -225,6 +231,10 @@ function clearFilters() {
   load()
 }
 
+function applyFilters() {
+  void load()
+}
+
 function openCase(id: number) {
   router.push({ name: 'applicant-case', params: { id } })
 }
@@ -241,32 +251,29 @@ onMounted(async () => {
     <VCard class="education-panel">
     <VCardItem :subtitle="$t('educational.pipelineInstructions')">
       <template #append>
-<VBtn v-if="canAccess('view_applicant_stages')" size="small" variant="text" :to="{ name: 'applicant-stages' }">{{ $t('educational.stage') }}</VBtn>
-        <VChip color="success" size="small" class="me-2">{{ $t('educational.activeCount', { count: totals.active }) }}</VChip>
-        <VChip color="secondary" size="small" class="me-2">{{ $t('educational.closedCount', { count: totals.closed }) }}</VChip>
-        <VChip color="primary" size="small">{{ $t('educational.allCount', { count: totals.all }) }}</VChip>
+        <div class="pipeline-header-actions">
+          <VBtn v-if="canAccess('view_applicant_stages')" size="small" variant="text" :to="{ name: 'applicant-stages' }">{{ $t('educational.stage') }}</VBtn>
+          <VChip color="success" size="small">{{ $t('educational.activeCount', { count: totals.active }) }}</VChip>
+          <VChip color="secondary" size="small">{{ $t('educational.closedCount', { count: totals.closed }) }}</VChip>
+          <VChip color="primary" size="small">{{ $t('educational.allCount', { count: totals.all }) }}</VChip>
+          <DataTableFilterMenu v-model="filtersOpen" :active="activeFilterCount > 0" @reset="clearFilters">
+            <VSelect v-model="filters.service" :items="serviceOptions" :label="$t('educational.service')" />
+            <VTextField v-model="filters.search" :label="$t('educational.searchApplicant')" clearable @keyup.enter="applyFilters" />
+            <VSelect v-model="filters.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable />
+            <VSelect v-model="filters.country_id" :items="activeCountries.map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable />
+            <VSelect v-model="filters.university_id" :items="activeUniversities.map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable />
+            <VSelect v-model="filters.education_level_id" :items="activeLevels.map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable />
+            <VSelect v-model="filters.status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable />
+            <ErpDateRange v-model:from="filters.date_from" v-model:to="filters.date_to" @apply="applyFilters" />
+            <VBtn color="primary" :loading="loading" @click="applyFilters">{{ $t('educational.applyFilters', { count: activeFilterCount }) }}</VBtn>
+          </DataTableFilterMenu>
+        </div>
       </template>
     </VCardItem>
     <VCardText>
-      <VRow dense>
-        <VCol cols="12" md="3"><VSelect v-model="filters.service" :items="serviceOptions" :label="$t('educational.service')" /></VCol>
-        <VCol cols="12" md="3"><VTextField v-model="filters.search" :label="$t('educational.searchApplicant')" clearable @keyup.enter="load" /></VCol>
-        <VCol cols="12" md="3"><VSelect v-model="filters.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable /></VCol>
-        <VCol cols="12" md="3"><VSelect v-model="filters.country_id" :items="activeCountries.map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable /></VCol>
-        <VCol cols="12" md="3"><VSelect v-model="filters.university_id" :items="activeUniversities.map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable /></VCol>
-        <VCol cols="12" md="3"><VSelect v-model="filters.education_level_id" :items="activeLevels.map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable /></VCol>
-        <VCol cols="12" md="2"><VSelect v-model="filters.status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable /></VCol>
-        <VCol cols="12" md="6"><ErpDateRange v-model:from="filters.date_from" v-model:to="filters.date_to" @apply="load" /></VCol>
-      </VRow>
-      <div class="d-flex gap-2 mt-2">
-        <VBtn color="primary" :loading="loading" @click="load">{{ $t('educational.applyFilters', { count: activeFilterCount }) }}</VBtn>
-        <VBtn variant="text" @click="clearFilters">{{ $t('educational.clear') }}</VBtn>
-        <VBtn v-if="!canMove" variant="text" disabled>{{ $t('educational.stageMovePermission') }}</VBtn>
-      </div>
-    </VCardText>
-    <VProgressLinear v-if="loading" indeterminate />
-    <VCardText>
-      <div v-if="!loading && !stages.length" class="text-center text-medium-emphasis py-8">{{ $t('educational.noActiveStages') }}</div>
+      <VAlert v-if="!canMove" type="info" variant="tonal" density="compact" class="mb-4">{{ $t('educational.stageMovePermission') }}</VAlert>
+      <ApplicantPipelineSkeleton v-if="loading" />
+      <div v-else-if="!stages.length" class="text-center text-medium-emphasis py-8">{{ $t('educational.noActiveStages') }}</div>
       <div v-else ref="pipelineScroller" class="d-flex gap-3 overflow-x-auto pb-2 pipeline-scroller" @dragover.prevent="onPipelineDragOver">
         <VCard v-for="stage in stages" :key="stage.key" variant="outlined" min-width="260" class="flex-shrink-0 pipeline-column" :class="{ 'pipeline-column--allowed': isAllowedDropStage(stage), 'pipeline-column--blocked': dragCard && !isAllowedDropStage(stage) }" style="inline-size: 260px;" @dragover.prevent @drop="onDrop(stage)">
           <VCardItem :subtitle="$t('educational.caseCount', { count: stage.count })">
@@ -315,6 +322,14 @@ onMounted(async () => {
   transition: border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease, transform 160ms ease;
 }
 
+.pipeline-header-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
 .pipeline-column--allowed {
   border-color: rgb(var(--v-theme-success)) !important;
   box-shadow: 0 0 0 2px rgba(var(--v-theme-success), 0.24);
@@ -327,5 +342,11 @@ onMounted(async () => {
 
 .pipeline-column--blocked {
   opacity: 0.55;
+}
+
+@media (max-width: 599px) {
+  .pipeline-header-actions {
+    justify-content: flex-start;
+  }
 }
 </style>

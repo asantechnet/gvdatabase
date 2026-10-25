@@ -1,18 +1,15 @@
 import { contrastingTextColor } from '@/utils/themeContrast'
+import { semanticThemeColors } from '@/utils/semanticThemeColors'
 
 // These values deliberately match resources/ts/plugins/vuetify/theme.ts.
 // They are the complete set of company-adjustable Vuexy core tokens.
 export const themeColorDefaults = {
   primary_color: '#0F766E',
   secondary_color: '#475569',
-  success_color: '#15803D',
-  info_color: '#0284C7',
-  warning_color: '#D97706',
-  error_color: '#DC2626',
   light_background_color: '#F5F7F4',
   light_surface_color: '#FFFEFA',
-  dark_background_color: '#102321',
-  dark_surface_color: '#173330',
+  dark_background_color: '#111313',
+  dark_surface_color: '#1A1B1B',
 } as const
 
 export const themeColorFields = Object.keys(themeColorDefaults) as (keyof typeof themeColorDefaults)[]
@@ -28,10 +25,6 @@ export interface MutableVuetifyTheme {
 const storageKeys: Record<ThemeColorField, string> = {
   primary_color: 'theme-primary-color',
   secondary_color: 'theme-secondary-color',
-  success_color: 'theme-success-color',
-  info_color: 'theme-info-color',
-  warning_color: 'theme-warning-color',
-  error_color: 'theme-error-color',
   light_background_color: 'theme-light-background-color',
   light_surface_color: 'theme-light-surface-color',
   dark_background_color: 'theme-dark-background-color',
@@ -91,19 +84,23 @@ export function persistThemeColors(colors: Partial<Record<ThemeColorField, strin
 
 /** Apply a complete or partial palette to one Vuetify light/dark definition. */
 export function applyThemePalette(theme: MutableVuetifyTheme, palette: ThemeColorPreferences) {
-  const semanticTokens: Record<Exclude<ThemeColorField, 'light_background_color' | 'light_surface_color' | 'dark_background_color' | 'dark_surface_color'>, string> = {
+  const editableTokens: Record<'primary_color' | 'secondary_color', string> = {
     primary_color: 'primary',
     secondary_color: 'secondary',
-    success_color: 'success',
-    info_color: 'info',
-    warning_color: 'warning',
-    error_color: 'error',
   }
 
-  Object.entries(semanticTokens).forEach(([field, token]) => {
-    const color = palette[field as keyof typeof semanticTokens]
+  Object.entries(editableTokens).forEach(([field, token]) => {
+    const color = palette[field as keyof typeof editableTokens]
     if (!isThemeColor(color))
       return
+    theme.colors[token] = color
+    theme.colors[`on-${token}`] = contrastingTextColor(color)
+    theme.colors[`${token}-darken-1`] = darkenHexColor(color)
+  })
+
+  // Status colors deliberately stay fixed and are reapplied even if a user
+  // still has obsolete company preferences in an old API response or storage.
+  Object.entries(semanticThemeColors).forEach(([token, color]) => {
     theme.colors[token] = color
     theme.colors[`on-${token}`] = contrastingTextColor(color)
     theme.colors[`${token}-darken-1`] = darkenHexColor(color)

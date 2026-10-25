@@ -1,0 +1,1 @@
+import{_ as e}from"./FinanceTypesPage.vue_vue_type_script_setup_true_lang-iZLaJnLH.js";import{d as o,o as t,c as n}from"./main-6QGIW82z.js";import"./financeTypes-B46i9Ukb.js";import"./VForm-Z_5d92Px.js";const i=o({__name:"expense-types",setup(p){return(r,s)=>(t(),n(e,{kind:"expense"}))}});export{i as default};

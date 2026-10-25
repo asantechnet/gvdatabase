@@ -13,6 +13,8 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import { printDocument } from '@/utils/printDocument'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { useCookie } from '@core/composable/useCookie'
 
 interface VisitorForm {
@@ -39,7 +41,8 @@ const isAddNewVisitorDialogVisible = ref(false)
 const isEditVisitorDialogVisible = ref(false)
 const isDeleteVisitorDialogVisible = ref(false)
 const selectedVisitor = ref<Visitor | null>(null)
-const isLoading = ref(false)
+const isTableLoading = ref(false)
+const isSaving = ref(false)
 const counselorDirectory = ref<Employee[]>([])
 const toast = useToast()
 const ability = useAbility()
@@ -134,7 +137,7 @@ const counselorPayload = () => ({ counselor_employee_id: visitorData.value.couns
 
 const fetchVisitors = async () => {
   try {
-    isLoading.value = true
+    isTableLoading.value = true
 
     const response = await VisitorApi.getAll({
       date_from: dateFrom.value || undefined,
@@ -151,7 +154,7 @@ const fetchVisitors = async () => {
     visitors.value = []
   }
   finally {
-    isLoading.value = false
+    isTableLoading.value = false
   }
 }
 
@@ -174,7 +177,7 @@ const headers = computed(() => [
   { title: translate('common.messages.service'), key: 'service', sortable: true },
   { title: translate('agencyStaff.counselor'), key: 'counselor', sortable: true },
   { title: translate('common.fields.date'), key: 'date', sortable: true },
-  { title: translate('common.messages.actions'), key: 'actions', sortable: false },
+  { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
 
 const printTable = () => {
@@ -188,7 +191,7 @@ const addNewVisitor = async () => {
     return
 
   try {
-    isLoading.value = true
+    isSaving.value = true
 
     const data: CreateVisitorData = {
       name: visitorData.value.name,
@@ -211,7 +214,7 @@ const addNewVisitor = async () => {
     console.error('Error creating visitor:', error)
   }
   finally {
-    isLoading.value = false
+    isSaving.value = false
   }
 }
 
@@ -222,7 +225,7 @@ const editVisitor = async () => {
     return
 
   try {
-    isLoading.value = true
+    isSaving.value = true
 
     const data: UpdateVisitorData = {
       name: visitorData.value.name,
@@ -246,7 +249,7 @@ const editVisitor = async () => {
     console.error('Error updating visitor:', error)
   }
   finally {
-    isLoading.value = false
+    isSaving.value = false
   }
 }
 
@@ -273,7 +276,7 @@ const deleteVisitor = async () => {
     return
 
   try {
-    isLoading.value = true
+    isSaving.value = true
     await VisitorApi.delete(selectedVisitor.value.id)
     visitors.value = visitors.value.filter(v => v.id !== selectedVisitor.value?.id)
     isDeleteVisitorDialogVisible.value = false
@@ -282,7 +285,7 @@ const deleteVisitor = async () => {
     console.error('Error deleting visitor:', error)
   }
   finally {
-    isLoading.value = false
+    isSaving.value = false
   }
 }
 
@@ -291,7 +294,7 @@ const deleteVisitor = async () => {
 // contradicts the active list.
 const setFollowUp = async (visitor: Visitor, followUp: boolean) => {
   try {
-    isLoading.value = true
+    isSaving.value = true
     await VisitorApi.setFollowUp(visitor.id, followUp)
     visitors.value = visitors.value.filter(v => v.id !== visitor.id)
     toast.success(translate(followUp ? 'pages.contracts.visitor.visitor.markedForFollowUp' : 'pages.contracts.visitor.visitor.removedFromFollowUp'))
@@ -300,7 +303,7 @@ const setFollowUp = async (visitor: Visitor, followUp: boolean) => {
     toast.error(apiErrorMessage(error, translate('pages.contracts.visitor.visitor.followUpUpdateFailed')))
   }
   finally {
-    isLoading.value = false
+    isSaving.value = false
   }
 }
 
@@ -369,7 +372,7 @@ onMounted(() => {
           <VBtn
             icon="tabler-printer"
             variant="text"
-            :loading="isLoading"
+            :loading="isTableLoading"
             @click="printTable"
           />
           <!-- The Follow-up list is a curated list: visitors enter it from the
@@ -377,7 +380,7 @@ onMounted(() => {
           <VBtn
             v-if="!isFollowUpList"
             color="primary"
-            :loading="isLoading"
+            :disabled="isTableLoading"
             @click="openAddDialog"
           >
             <VIcon
@@ -389,13 +392,26 @@ onMounted(() => {
       </VRow>
     </VCardText>
 
+    <TableLoadingSkeleton
+      v-if="isTableLoading"
+      :columns="headers.length"
+      :label="$t('common.messages.loading')"
+    />
+    <TableEmptyState
+      v-else-if="!filtered.length"
+      :icon="isFollowUpList ? 'tabler-list-check' : 'tabler-walk'"
+      :description="$t('common.messages.noRecordsFound')"
+    />
     <ResponsiveDataTable
+      v-else
       :headers="headers"
       :items="filtered"
       item-value="id"
-      class="text-no-wrap"
-      :loading="isLoading"
-      mobile-breakpoint="sm"            style="overflow-x: auto;"
+      class="crm-responsive-table"
+      mobile-breakpoint="sm"
+      mobile-cards
+      mobile-title-key="name"
+      mobile-action-key="actions"
     >
       <!-- Quick contact belongs to the Follow-up list: unqualified visitors are
            shown as plain contact details until somebody marks them for follow-up. -->
@@ -443,7 +459,7 @@ onMounted(() => {
       </template>
 
       <template #item.actions="{ item }">
-        <div class="d-flex gap-1">
+        <div class="d-flex justify-end gap-1">
           <!-- Mark for follow-up: the only promotion path into the Follow-up list. -->
           <VBtn
             v-if="!isFollowUpList"
@@ -451,7 +467,7 @@ onMounted(() => {
             variant="text"
             size="small"
             color="warning"
-            :loading="isLoading"
+            :loading="isSaving"
             @click="setFollowUp(item, true)"
           >
             <VIcon icon="tabler-star" /><VTooltip
@@ -486,7 +502,7 @@ onMounted(() => {
             variant="text"
             size="small"
             color="warning"
-            :loading="isLoading"
+            :loading="isSaving"
             @click="setFollowUp(item, false)"
           >
             <VIcon icon="tabler-star-off" /><VTooltip
@@ -501,7 +517,7 @@ onMounted(() => {
             variant="text"
             size="small"
             color="medium-emphasis"
-            :loading="isLoading"
+            :loading="isSaving"
             @click="openEditDialog(item)"
           >
             <VIcon icon="tabler-edit" /><VTooltip
@@ -516,7 +532,7 @@ onMounted(() => {
             variant="text"
             size="small"
             color="error"
-            :loading="isLoading"
+            :loading="isSaving"
             @click="openDeleteDialog(item)"
           >
             <VIcon icon="tabler-trash" /><VTooltip
@@ -563,8 +579,6 @@ onMounted(() => {
                 v-model="visitorData.name"
                 :label="$t('common.messages.visitorName')"
                 :placeholder="$t('common.messages.enterVisitorName')"
-                :hint="$t('common.messages.enterTheFullNameOfTheVisitor')"
-                persistent-hint
                 :error-messages="formErrors.name"
                 required
               />
@@ -577,8 +591,6 @@ onMounted(() => {
                 v-model="visitorData.contact"
                 :label="$t('common.messages.contactPhone')"
                 :placeholder="$t('common.messages.enterPhoneNumber')"
-                :hint="$t('common.messages.enterTheVisitorSContactNumber')"
-                persistent-hint
                 :error-messages="formErrors.contact"
                 required
               />
@@ -602,8 +614,6 @@ onMounted(() => {
                 v-model="visitorData.service"
                 :label="$t('common.messages.service')"
                 :placeholder="$t('common.messages.enterService')"
-                :hint="$t('common.messages.enterTheServiceTheVisitorIsInterestedIn')"
-                persistent-hint
                 :error-messages="formErrors.service"
                 required
               />
@@ -616,8 +626,6 @@ onMounted(() => {
                 item-value="id"
                 :label="$t('agencyStaff.counselor')"
                 :placeholder="$t('agencyStaff.counselor')"
-                :hint="counselorLocked ? $t('agencyStaff.counselorLockedToYou') : $t('agencyStaff.optionalCounselor')"
-                persistent-hint
                 :disabled="counselorLocked"
                 :clearable="!counselorLocked"
               />
@@ -640,14 +648,14 @@ onMounted(() => {
         <VBtn
           variant="outlined"
           color="secondary"
-          :disabled="isLoading"
+          :disabled="isSaving"
           @click="isAddNewVisitorDialogVisible = false; resetForm()"
         >
           {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="primary"
-          :loading="isLoading"
+          :loading="isSaving"
           @click="addNewVisitor"
         >
           {{ $t('common.actions.add') }}
@@ -758,14 +766,14 @@ onMounted(() => {
         <VBtn
           variant="outlined"
           color="secondary"
-          :disabled="isLoading"
+          :disabled="isSaving"
           @click="isEditVisitorDialogVisible = false; resetForm()"
         >
           {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="primary"
-          :loading="isLoading"
+          :loading="isSaving"
           @click="editVisitor"
         >
           {{ $t('common.actions.save') }}
@@ -793,14 +801,14 @@ onMounted(() => {
         <VBtn
           variant="outlined"
           color="secondary"
-          :disabled="isLoading"
+          :disabled="isSaving"
           @click="isDeleteVisitorDialogVisible = false"
         >
           {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
           color="error"
-          :loading="isLoading"
+          :loading="isSaving"
           @click="deleteVisitor"
         >
           {{ $t('common.actions.delete') }}

@@ -117,6 +117,27 @@ async function main() {
     visit(parseTemplate(descriptor.template.content))
     assert.ok(count >= (file.endsWith('support.vue') ? 5 : 10), `${file}: no controls audited`)
   }
-  console.log('Settings validation passed: localized field descriptions, limits, error bindings, focus, independent correction, uploads and editor coverage.')
+
+  const settingsPage = fs.readFileSync(path.join(root, 'resources/ts/pages/setup/settings.vue'), 'utf8')
+  const officePanel = fs.readFileSync(path.join(root, 'resources/ts/components/setup/OfficeSettingsPanel.vue'), 'utf8')
+  const supportPage = fs.readFileSync(path.join(root, 'resources/ts/pages/support.vue'), 'utf8')
+  const themePersistence = fs.readFileSync(path.join(root, 'resources/ts/utils/themePersistence.ts'), 'utf8')
+  const semanticColors = fs.readFileSync(path.join(root, 'resources/ts/utils/semanticThemeColors.ts'), 'utf8')
+
+  assert.match(settingsPage, /settings-mobile-navigation d-md-none/, 'settings sections need a mobile menu')
+  assert.match(settingsPage, /settings-sidebar d-none d-md-block/, 'the desktop settings sidebar must not render on mobile')
+  assert.doesNotMatch(settingsPage, /VListItemSubtitle/, 'section descriptions belong only to the active heading')
+  assert.match(settingsPage, /document-artwork-editor/, 'artwork editors need their compact card wrapper')
+  assert.match(settingsPage, /width: clamp\(180px, 65vw, 260px\)/, 'artwork previews need a compact responsive bound')
+  assert.doesNotMatch(settingsPage, /feedbackColors|success_color|info_color|warning_color|error_color/, 'settings must not expose configurable feedback colours')
+  assert.doesNotMatch(supportPage, /severityHelp/, 'the severity helper copy must not render below the support inputs')
+  assert.match(officePanel, /<VCol cols="12" sm="6"><VTextField v-model="form\.name"/, 'office name needs an even column')
+  assert.match(officePanel, /<VCol cols="12" class="d-flex align-center"><VChip/, 'profile completion belongs below the fields')
+  assert.doesNotMatch(themePersistence, /success_color|info_color|warning_color|error_color/, 'obsolete semantic preferences must not be read or persisted')
+  assert.match(themePersistence, /dark_background_color: '#111313'/)
+  assert.match(themePersistence, /dark_surface_color: '#1A1B1B'/)
+  assert.match(semanticColors, /success: '#15803D'/)
+  assert.match(semanticColors, /error: '#DC2626'/)
+  console.log('Settings validation passed: localized field descriptions, limits, error bindings, focus, uploads, responsive settings UI, and fixed semantic theme tokens.')
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

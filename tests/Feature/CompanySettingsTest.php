@@ -106,7 +106,6 @@ class CompanySettingsTest extends TestCase
             ...$this->validSettings(),
             'primary_color' => '#111111',
             'secondary_color' => '#222222',
-            'success_color' => '#333333',
         ]);
 
         $this->patchJson("/api/settings/{$setting->id}", [
@@ -117,7 +116,6 @@ class CompanySettingsTest extends TestCase
         $setting->refresh();
         $this->assertSame('#abcdef', $setting->primary_color);
         $this->assertSame('#222222', $setting->secondary_color);
-        $this->assertSame('#333333', $setting->success_color);
     }
 
     public function test_patch_can_restore_a_theme_token_to_its_vuexy_default(): void
@@ -136,15 +134,18 @@ class CompanySettingsTest extends TestCase
         $this->assertSame('#0F766E', $setting->fresh()->primary_color);
     }
 
-    public function test_theme_palette_returns_vuexy_defaults_and_tertiary_is_removed(): void
+    public function test_theme_palette_returns_only_adjustable_defaults(): void
     {
         $setting = Setting::create($this->validSettings());
 
         $resource = (new SettingResource($setting))->resolve();
 
-        $this->assertSame('#15803D', $resource['success_color']);
         $this->assertSame('#F5F7F4', $resource['light_background_color']);
-        $this->assertSame('#173330', $resource['dark_surface_color']);
+        $this->assertSame('#1A1B1B', $resource['dark_surface_color']);
+        $this->assertArrayNotHasKey('success_color', $resource);
+        $this->assertArrayNotHasKey('info_color', $resource);
+        $this->assertArrayNotHasKey('warning_color', $resource);
+        $this->assertArrayNotHasKey('error_color', $resource);
         $this->assertArrayNotHasKey('tertiary_color', $resource);
         $this->assertFalse(\Schema::hasColumn('settings', 'tertiary_color'));
     }
