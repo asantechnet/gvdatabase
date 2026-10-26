@@ -35,7 +35,10 @@ class VersionedContractGenerationTest extends TestCase
         $persian = Language::create(['name' => 'Persian', 'code' => 'fa']);
         ContractTemplateVersion::create(['contract_template_id' => $template->id, 'country_id' => $country->id, 'language_id' => $english->id, 'name' => 'English agreement', 'version_number' => 1, 'content' => '<p>{{customer.name}} English</p>', 'status' => 'active', 'is_current' => true, 'current_scope_key' => "{$template->id}:{$country->id}:{$english->id}"]);
         $persianVersion = ContractTemplateVersion::create(['contract_template_id' => $template->id, 'country_id' => $country->id, 'language_id' => $persian->id, 'name' => 'Persian agreement', 'version_number' => 1, 'content' => '<p>{{customer.name}} Persian</p>', 'status' => 'active', 'is_current' => true, 'current_scope_key' => "{$template->id}:{$country->id}:{$persian->id}"]);
-        $applicant = Applicant::factory()->create();
+        // A fixed name: the factory's random one sometimes contains an apostrophe,
+        // which the rendered contract escapes, so the raw interpolation below would
+        // fail for a reason unrelated to placeholder substitution.
+        $applicant = Applicant::factory()->create(['name' => 'Maryam Ahmadi']);
         $this->seedApplicantDocuments($applicant);
 
         $this->postJson('/api/contracts', ['template_id' => $template->id, 'applicant_id' => $applicant->id, 'country_id' => $country->id, 'language_id' => $persian->id, 'status' => 'active', 'start_date' => '2026-09-17'])
