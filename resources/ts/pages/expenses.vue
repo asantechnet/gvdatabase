@@ -11,6 +11,8 @@ import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import ExpenseFormDialog from '@/components/forms/ExpenseFormDialog.vue'
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
 
@@ -387,7 +389,7 @@ onMounted(() => {
         <ResponsiveDataTable
           :items="expenses"
           :headers="[
-            { title: translate('pages.finance.expenses.expenses.expense'), key: 'id', align: 'start' }, { title: translate('common.fields.type'), key: 'type', align: 'start' }, { title: translate('common.messages.details'), key: 'description', align: 'start' }, { title: translate('common.fields.currency'), key: 'currency', align: 'start' }, { title: translate('common.fields.amount'), key: 'base_amount', align: 'end' }, { title: translate('common.fields.date'), key: 'date', align: 'center' }, { title: translate('common.messages.recordedBy'), key: 'recordedBy.name', align: 'start' }, { title: translate('common.messages.actions'), key: 'actions', align: 'center', sortable: false },
+            { title: translate('pages.finance.expenses.expenses.expense'), key: 'id', align: 'start' }, { title: translate('common.fields.type'), key: 'type', align: 'start' }, { title: translate('common.fields.currency'), key: 'currency', align: 'start' }, { title: translate('common.fields.amount'), key: 'base_amount', align: 'end' }, { title: translate('common.fields.date'), key: 'date', align: 'center' }, { title: translate('common.messages.actions'), key: 'actions', align: 'center', sortable: false },
           ]"
           item-value="id"
           class="text-no-wrap"
@@ -395,6 +397,12 @@ onMounted(() => {
           mobile-breakpoint="sm"
           density="compact"
         >
+          <template #loading>
+            <TableLoadingSkeleton :columns="6" :label="$t('common.messages.loading')" />
+          </template>
+          <template #no-data>
+            <TableEmptyState icon="tabler-receipt-off" :description="$t('common.messages.noMatchingRecords')" />
+          </template>
           <template #item.id="{ item }">
             <div class="font-weight-bold">
               <bdi>{{ `EXP-${String(item.id).padStart(6, '0')}` }}</bdi>
@@ -410,11 +418,6 @@ onMounted(() => {
             >
               {{ typeLabel(item.type) }}
             </VChip>
-          </template>
-          <template #item.description="{ item }">
-            <div class="detail-copy">
-              {{ item.description }}
-            </div>
           </template>
           <template #item.currency="{ item }">
             <VChip
@@ -434,9 +437,6 @@ onMounted(() => {
           </template>
           <template #item.date="{ item }">
             {{ formatDate(item.date) }}
-          </template>
-          <template #item.recordedBy.name="{ item }">
-            <span>{{ item.recordedBy?.name || $t('common.messages.systemLegacy') }}</span>
           </template>
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
@@ -526,7 +526,7 @@ onMounted(() => {
 
 <style scoped>
 .expense-page { padding-bottom: 32px; }
-.filter-deck, .ledger-card { overflow: hidden; border: 0; border-radius: 16px; box-shadow: 0 10px 28px rgb(36 20 31 / .08); }.filter-deck { background: rgb(var(--v-theme-surface)); }.filter-deck__content { padding: 14px 18px !important; }.filter-deck :deep(.v-field) { border-radius: 10px; background: rgb(var(--v-theme-on-surface) / .025); }.ledger-card__header { min-height: 68px; padding-inline: 20px; }.ledger-card__title { display: flex; align-items: center; gap: 9px; }.detail-copy { max-width: 290px; overflow: hidden; color: rgb(var(--v-theme-on-surface) / .76); text-overflow: ellipsis; }.expense-dialog { overflow: visible; }.table-container { overflow-x: auto; }
+.filter-deck, .ledger-card { overflow: hidden; border: 0; border-radius: 16px; box-shadow: 0 10px 28px rgb(36 20 31 / .08); }.filter-deck { background: rgb(var(--v-theme-surface)); }.filter-deck__content { padding: 14px 18px !important; }.filter-deck :deep(.v-field) { border-radius: 10px; background: rgb(var(--v-theme-on-surface) / .025); }.ledger-card__header { min-height: 68px; padding-inline: 20px; }.ledger-card__title { display: flex; align-items: center; gap: 9px; }.expense-dialog { overflow: visible; }.table-container { overflow-x: auto; }
 .ledger-card :deep(thead th) { height: 48px !important; color: rgb(var(--v-theme-on-surface) / .58) !important; font-size: .68rem !important; font-weight: 800 !important; letter-spacing: .075em; text-transform: uppercase; background: rgb(var(--v-theme-on-surface) / .018); }.ledger-card :deep(tbody td) { height: 66px !important; border-bottom-color: rgb(var(--v-border-color) / .7) !important; }.ledger-card :deep(tbody tr) { transition: background .16s ease; }.ledger-card :deep(tbody tr:hover) { background: rgb(var(--v-theme-error) / .035) !important; }
 .ledger-empty { display: flex; align-items: center; gap: 14px; min-height: 176px; padding: 28px 32px; text-align: start; background: linear-gradient(90deg, rgb(var(--v-theme-error) / .07), transparent 58%); }.ledger-empty :deep(.v-btn) { margin-inline-start: auto; }
 @media (max-width: 600px) { .ledger-empty { align-items: flex-start; flex-direction: column; padding: 24px; }.ledger-empty :deep(.v-btn) { margin-inline-start: 0; } }

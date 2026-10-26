@@ -146,7 +146,10 @@ function submit() {
           >
             {{ formError }}
           </VAlert><VRow>
-            <VCol cols="12">
+            <VCol
+              cols="12"
+              md="4"
+            >
               <VAutocomplete
                 v-model="form.applicant_id"
                 v-model:search="applicantSearch"
@@ -162,7 +165,7 @@ function submit() {
             </VCol>
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
               <VSelect
                 v-model="form.type"
@@ -174,7 +177,7 @@ function submit() {
             </VCol>
             <VCol
               cols="12"
-              md="6"
+              md="4"
             >
               <VSelect
                 v-model="form.currency_id"

@@ -2566,7 +2566,6 @@
           "paymentStatus": "Payment status",
           "paymentExceedsRemainingBalance": "Payment cannot exceed the remaining balance of this service:",
           "selectTheContractedServiceThisReceiptPaysFor": "Select the contracted service this receipt pays for",
-          "selectAnApplicantToSeeTheirServices": "Select an applicant to see their contracted services",
           "customerTypeQuantityCurrencyAndExchangeRateComeFromTheSelectedService": "Customer, quantity, currency and exchange rate come from the selected service. Enter only the amount received.",
           "servicePayments": "Service Payments"
         }

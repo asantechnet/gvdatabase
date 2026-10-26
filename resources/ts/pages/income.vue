@@ -13,6 +13,8 @@ import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import ApplicantSelect from '@/components/income/ApplicantSelect.vue'
 import ReceiptPrinter from '@/components/income/ReceiptPrinter.vue'
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
@@ -554,6 +556,12 @@ onMounted(() => {
           mobile-breakpoint="sm"
           density="compact"
         >
+          <template #loading>
+            <TableLoadingSkeleton :columns="8" :label="$t('common.messages.loading')" />
+          </template>
+          <template #no-data>
+            <TableEmptyState icon="tabler-receipt-off" :description="$t('common.messages.noMatchingRecords')" />
+          </template>
           <template #item.receipt_number="{ item }">
             <div class="font-weight-bold">
               {{ item.receipt_number || `RCPT-${String(item.id).padStart(6, '0')}` }}
@@ -730,27 +738,38 @@ onMounted(() => {
               {{ formError }}
             </VAlert>
             <VRow>
-              <VCol cols="12">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <ApplicantSelect
                   v-model="selectedIncome.applicant_id"
                   :applicants="applicants"
                   :disabled="Boolean(selectedServiceLine)"
-                  class="mb-4"
                   @update:model-value="handleApplicantChange"
                 />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedIncome.applicant_contract_id"
                   :items="serviceLineOptions"
                   :label="$t('pages.finance.income.income.service')"
                   :disabled="!selectedIncome.applicant_id"
                   clearable
-                  :hint="selectedIncome.applicant_id ? $t('pages.finance.income.income.selectTheContractedServiceThisReceiptPaysFor') : $t('pages.finance.income.income.selectAnApplicantToSeeTheirServices')"
-                  persistent-hint
+                  :hint="selectedIncome.applicant_id ? $t('pages.finance.income.income.selectTheContractedServiceThisReceiptPaysFor') : undefined"
+                  :persistent-hint="Boolean(selectedIncome.applicant_id)"
                   @update:model-value="handleServiceLineChange"
                 />
+              </VCol>
+              <VCol
+                v-if="selectedServiceLine"
+                cols="12"
+              >
                 <div
-                  v-if="selectedServiceLine"
-                  class="d-flex flex-wrap gap-x-6 gap-y-2 mt-4"
+                  class="d-flex flex-wrap gap-x-6 gap-y-2"
                 >
                   <div>
                     <div class="text-caption text-medium-emphasis">
@@ -795,7 +814,6 @@ onMounted(() => {
                   </div>
                 </div>
                 <VAlert
-                  v-if="selectedServiceLine"
                   type="info"
                   variant="tonal"
                   density="compact"
@@ -839,18 +857,19 @@ onMounted(() => {
                   required
                 />
               </VCol>
-              <VCol cols="12">
-                <VTextarea
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
                   v-model="selectedIncome.description"
                   :label="$t('common.messages.descriptionPaymentNoteOptional')"
                   :placeholder="$t('common.messages.addAReferencePaymentNoteOrReceiptDetail')"
-                  rows="2"
-                  auto-grow
                 />
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model.number="selectedIncome.amount"
@@ -864,7 +883,7 @@ onMounted(() => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model.number="selectedIncome.quantity"
@@ -877,7 +896,7 @@ onMounted(() => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedIncome.currency_id"
@@ -890,7 +909,7 @@ onMounted(() => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model.number="selectedIncome.rate"
@@ -902,7 +921,7 @@ onMounted(() => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedIncome.base_amount"
@@ -913,7 +932,7 @@ onMounted(() => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <AppDateTimePicker
                   v-model="selectedIncome.date"
@@ -978,27 +997,38 @@ onMounted(() => {
               {{ formError }}
             </VAlert>
             <VRow>
-              <VCol cols="12">
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <ApplicantSelect
                   v-model="selectedIncome.applicant_id"
                   :applicants="applicants"
                   :disabled="Boolean(selectedServiceLine)"
-                  class="mb-4"
                   @update:model-value="handleApplicantChange"
                 />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
                 <VSelect
                   v-model="selectedIncome.applicant_contract_id"
                   :items="serviceLineOptions"
                   :label="$t('pages.finance.income.income.service')"
                   :disabled="!selectedIncome.applicant_id"
                   clearable
-                  :hint="selectedIncome.applicant_id ? $t('pages.finance.income.income.selectTheContractedServiceThisReceiptPaysFor') : $t('pages.finance.income.income.selectAnApplicantToSeeTheirServices')"
-                  persistent-hint
+                  :hint="selectedIncome.applicant_id ? $t('pages.finance.income.income.selectTheContractedServiceThisReceiptPaysFor') : undefined"
+                  :persistent-hint="Boolean(selectedIncome.applicant_id)"
                   @update:model-value="handleServiceLineChange"
                 />
+              </VCol>
+              <VCol
+                v-if="selectedServiceLine"
+                cols="12"
+              >
                 <div
-                  v-if="selectedServiceLine"
-                  class="d-flex flex-wrap gap-x-6 gap-y-2 mt-4"
+                  class="d-flex flex-wrap gap-x-6 gap-y-2"
                 >
                   <div>
                     <div class="text-caption text-medium-emphasis">
@@ -1043,7 +1073,6 @@ onMounted(() => {
                   </div>
                 </div>
                 <VAlert
-                  v-if="selectedServiceLine"
                   type="info"
                   variant="tonal"
                   density="compact"
@@ -1064,18 +1093,19 @@ onMounted(() => {
                   required
                 />
               </VCol>
-              <VCol cols="12">
-                <VTextarea
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
                   v-model="selectedIncome.description"
                   :label="$t('common.messages.descriptionPaymentNoteOptional')"
                   :placeholder="$t('common.messages.addAReferencePaymentNoteOrReceiptDetail')"
-                  rows="2"
-                  auto-grow
                 />
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model.number="selectedIncome.amount"
@@ -1089,7 +1119,7 @@ onMounted(() => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model.number="selectedIncome.quantity"
@@ -1102,7 +1132,7 @@ onMounted(() => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedIncome.currency_id"
@@ -1115,7 +1145,7 @@ onMounted(() => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model.number="selectedIncome.rate"
@@ -1127,7 +1157,7 @@ onMounted(() => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedIncome.base_amount"
@@ -1138,7 +1168,7 @@ onMounted(() => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <AppDateTimePicker
                   v-model="selectedIncome.date"

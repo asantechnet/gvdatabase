@@ -2561,7 +2561,6 @@
           "paymentStatus": "وضعیت پرداخت",
           "paymentExceedsRemainingBalance": "مبلغ پرداختی نمی‌تواند از باقی‌مانده این خدمت بیشتر باشد:",
           "selectTheContractedServiceThisReceiptPaysFor": "خدمت قراردادی را که این رسید برای آن پرداخت می‌شود انتخاب کنید",
-          "selectAnApplicantToSeeTheirServices": "برای دیدن خدمات قراردادی، یک متقاضی را انتخاب کنید",
           "customerTypeQuantityCurrencyAndExchangeRateComeFromTheSelectedService": "مشتری، تعداد، واحد پولی و نرخ تبادله از خدمت انتخاب‌شده می‌آید. تنها مبلغ دریافتی را وارد کنید.",
           "servicePayments": "پرداخت‌های خدمت"
         }

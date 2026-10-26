@@ -2885,7 +2885,6 @@
           "paymentStatus": "د تادیې حالت",
           "paymentExceedsRemainingBalance": "تادیه نشي کولی د دې خدمت له پاتې برخې زیاته شي:",
           "selectTheContractedServiceThisReceiptPaysFor": "هغه تړون شوې خدمت وټاکئ چې دا رسید ورته تادیه کوي",
-          "selectAnApplicantToSeeTheirServices": "د هغه د تړون شوو خدمتونو لیدلو لپاره غوښتونکی وټاکئ",
           "customerTypeQuantityCurrencyAndExchangeRateComeFromTheSelectedService": "پیرودونکی، شمېر، پولي واحد او د تبادلې نرخ د ټاکل شوې خدمت څخه راځي. یوازې ترلاسه شوې پیسې ولیکئ.",
           "servicePayments": "د خدمت تادیې"
         }
