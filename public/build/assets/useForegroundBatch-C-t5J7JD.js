@@ -1,0 +1,1 @@
+import{ac as d,dv as o,du as f}from"./main-YQkeKeOa.js";function p(c){const e=new Map;let t,n=!1;return d(()=>{n=!0,e.clear()}),(u=[],a=o())=>{if(n)return;const r=o();if(t!==r&&(e.clear(),t=r),a!==r||(u.forEach(s=>e.set(s.id,s)),!f()||!e.size))return;const i=[...e.values()];e.clear(),c(i)}}export{p as u};
