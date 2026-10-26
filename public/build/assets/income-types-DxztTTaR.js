@@ -1,0 +1,1 @@
+import{_ as o}from"./FinanceTypesPage.vue_vue_type_script_setup_true_lang-BmBwuqvb.js";import{d as e,o as t,c as n}from"./main-HhKRp4pT.js";import"./financeTypes-Brlo9usW.js";import"./VForm-CC10wjs4.js";const i=e({__name:"income-types",setup(r){return(c,m)=>(t(),n(o,{kind:"income"}))}});export{i as default};
