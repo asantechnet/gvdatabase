@@ -1,0 +1,1 @@
+import{a8 as e}from"./main-Ban1QTx4.js";const s=["employment","customer","other"],o={async getAll(t){const a=await e.get("/contract-types",{params:t});return Array.isArray(a.data.data)?a.data.data:[]},async getById(t){return(await e.get(`/contract-types/${t}`)).data.data}};export{o as C,s as S};
