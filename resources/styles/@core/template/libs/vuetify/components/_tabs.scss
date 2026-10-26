@@ -3,6 +3,16 @@
 
 // 👉 Tabs
 .v-tabs {
+  // Keep every tab strip horizontally reachable when it overflows, but avoid
+  // rendering the browser scrollbar as a second, low-quality line below it.
+  // VSlideGroup retains its touch, wheel, and keyboard scroll behavior.
+  .v-slide-group__container {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+
   &.v-tabs--vertical {
     --v-tabs-height: 38px !important;
 

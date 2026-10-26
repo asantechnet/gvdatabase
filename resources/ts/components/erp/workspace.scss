@@ -16,9 +16,13 @@
     background: transparent;
     box-shadow: none;
     overscroll-behavior-inline: contain;
-    scrollbar-color: rgba(var(--v-theme-on-surface), .28) transparent;
-    scrollbar-width: thin;
+    // Keep horizontal navigation reachable on narrow screens without showing
+    // a scrollbar that reads like an unintended divider under the tabs.
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
+
+  .erp-subnav::-webkit-scrollbar { display: none; }
 
   .erp-subnav-chip {
     flex: 0 0 auto;

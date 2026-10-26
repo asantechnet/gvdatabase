@@ -36,22 +36,4 @@ class ServiceContractNavigationTest extends TestCase
         }
     }
 
-    public function test_search_results_link_to_the_actual_workspace_and_contract(): void
-    {
-        $admin = User::factory()->create();
-        $admin->roles()->attach(Role::where('name', 'super_admin')->firstOrFail());
-        Sanctum::actingAs($admin, ['access']);
-        foreach (['scholarship', 'test_offer', 'academy', 'employment', 'other'] as $scope) {
-            $type = in_array($scope, ['employment', 'other']) ? $scope : 'customer';
-            $contract = Contract::factory()->create([
-                'contract_type_id' => ContractType::where('slug', $type)->value('id'),
-                'service' => $type === 'customer' ? $scope : null,
-                'name' => 'Workspace '.$scope,
-            ]);
-            $route = $this->getJson('/api/search?q=Workspace%20'.$scope)->assertOk()->json('data.groups.contracts.0.route');
-            $expected = $scope === 'employment' ? 'employee-contracts' : str_replace('_', '-', $scope).'-contracts';
-            $this->assertSame($expected, $route['name']);
-            $this->assertSame($contract->id, $route['query']['contractId']);
-        }
-    }
 }

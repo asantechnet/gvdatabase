@@ -53,7 +53,6 @@ const sections: Record<HeaderSection, HeaderLink[]> = {
   applications: [
     { name: 'applications', label: 'educational.applications', icon: 'tabler-clipboard-list', color: 'primary', permission: 'view_applicants' },
     { name: 'applicant-pipeline', label: 'educational.applicantPipeline', icon: 'tabler-layout-kanban', color: 'warning', permission: 'view_applicants' },
-    { name: 'search', label: 'common.navigation.globalSearch', icon: 'tabler-search', color: 'info' },
     { name: 'visa-reports', label: 'common.navigation.visaReports', icon: 'tabler-report-analytics', color: 'tertiary', permission: 'view_visa_reports' },
   ],
   dashboard: [],

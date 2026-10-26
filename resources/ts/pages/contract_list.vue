@@ -13,6 +13,8 @@ import type { Contract } from '@/api/contracts'
 import SettingApi, { type Setting } from '@/api/setting'
 import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { useContracts } from '@/composables/useContracts'
 import { legacyContentToHtml } from '@/utils/contractPlaceholders'
 import { printDocument } from '@/utils/printDocument'
@@ -564,10 +566,10 @@ onMounted(async () => {
       class="text-no-wrap"
       mobile-breakpoint="sm"
       :loading="isLoading"
-      :loading-text="$t('pages.contracts.allContracts.allContracts.loadingContracts')"
-      :no-data-text="$t('pages.contracts.allContracts.allContracts.noContracts')"
       style="overflow-x: auto;"
     >
+      <template #loading><TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" /></template>
+      <template #no-data><TableEmptyState icon="tabler-file-off" :description="$t('pages.contracts.allContracts.allContracts.noContracts')" /></template>
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
       <template #item.contract="{ item }">
         {{ item.contract || item.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract') }}

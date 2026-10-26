@@ -15,6 +15,8 @@ import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
 import ContractDocumentPrinter from '@/components/contract/ContractDocumentPrinter.vue'
 import AcademySlipPrinter from '@/components/academy/AcademySlipPrinter.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { printDocument } from '@/utils/printDocument'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { useCookie } from '@core/composable/useCookie'
@@ -307,7 +309,9 @@ async function save() {
           </VCol>
         </VRow>
       </VCardText>
-      <VDataTable :headers="headers" :items="visible" :loading="loading" :no-data-text="t('serviceContracts.empty')">
+      <VDataTable :headers="headers" :items="visible" :loading="loading">
+      <template #loading><TableLoadingSkeleton :columns="headers.length" :label="t('common.messages.loading')" /></template>
+      <template #no-data><TableEmptyState icon="tabler-file-description" :description="t('serviceContracts.empty')" /></template>
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
       <template #item.details="{ item }"><ApplicantSummary v-if="item.applicant" :applicant="item.applicant" :lines="item.services" /></template>
       <template #item.charges="{ item }"><span v-for="line in item.services" :key="line.id">{{ line.fee }} {{ line.currency?.code }}</span></template>

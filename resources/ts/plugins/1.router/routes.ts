@@ -44,7 +44,6 @@ const pageComponents: Record<string, Component> = {
   applicants: () => import('@/pages/applicants.vue'),
   applicantPipeline: () => import('@/pages/applicant-pipeline.vue'),
   applicantStages: () => import('@/pages/applicant-stages.vue'),
-  applicantSearch: () => import('@/pages/search.vue'),
   educationalDashboard: () => import('@/pages/educational-dashboard.vue'),
   educationalReports: () => import('@/pages/educational-reports.vue'),
   applicantCase: () => import('@/pages/applicant-case.vue'),
@@ -160,7 +159,6 @@ const routeDefinitions: Array<{
   // Editing a stage additionally requires `manage_applicant_stages`; the page
   // itself is readable with `view_applicant_stages`, matching the nav item.
   { path: '/applicant-stages', component: 'applicantStages', name: 'applicant-stages', meta: { requiresAuth: true, action: 'read', subject: 'view_applicant_stages' } },
-  { path: '/search', component: 'applicantSearch', name: 'search', meta: { requiresAuth: true } },
   { path: '/agency-overview', component: 'educationalDashboard', name: 'agency-overview', meta: { requiresAuth: true, action: 'read', subject: 'view_agency_overview' } },
   { path: '/visa-reports', component: 'educationalReports', name: 'visa-reports', meta: { requiresAuth: true, action: 'read', subject: 'view_visa_reports' } },
   { path: '/applicants/:id', component: 'applicantCase', name: 'applicant-case', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },

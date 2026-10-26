@@ -2,6 +2,8 @@
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { printDocument } from '@/utils/printDocument'
 import { computed, onMounted, ref } from 'vue'
 import { VAlert } from 'vuetify/components'
@@ -154,10 +156,10 @@ export default {
       class="text-no-wrap"
       mobile-breakpoint="sm"
       :loading="isLoading"
-      :loading-text="$t('pages.contracts.cancelledContracts.cancelledContracts.loadingCancelledContracts')"
-      :no-data-text="$t('pages.contracts.cancelledContracts.cancelledContracts.noContracts')"
       style="overflow-x: auto;"
     >
+      <template #loading><TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" /></template>
+      <template #no-data><TableEmptyState icon="tabler-file-off" :description="$t('pages.contracts.cancelledContracts.cancelledContracts.noContracts')" /></template>
       <template #item.contract="{ item }">
         {{ item.contract || item.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract') }}
       </template>

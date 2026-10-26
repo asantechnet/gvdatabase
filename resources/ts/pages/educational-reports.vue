@@ -8,6 +8,9 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import ApplicantApi, { type ApplicantStage, type BuiltInService } from '@/api/applicants'
 import EducationalReportPrint from '@/components/educational/EducationalReportPrint.vue'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
+import DataTableFilterMenu from '@/components/responsive-data-table/DataTableFilterMenu.vue'
 import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
@@ -67,6 +70,19 @@ const domainGroups: Array<{ value: ReportDomain; title: string; icon: string }> 
 ]
 const visibleTabs = computed(() => tabs.filter(item => item.domain === domain.value))
 const activeTab = computed(() => tabs.find(item => item.value === tab.value))
+
+const applicantStatusColor = (value: unknown) => ({
+  active: 'success',
+  closed: 'secondary',
+}[String(value).toLowerCase()] ?? 'default')
+
+const applicantStatusLabel = (value: unknown) => {
+  const statusValue = String(value).toLowerCase()
+
+  return statusValue === 'active' || statusValue === 'closed'
+    ? t(`educational.${statusValue}`)
+    : displayValue('status', value as string | number | null | undefined)
+}
 
 // Selecting a domain only reloads when the reported type actually changes, so
 // switching back to a domain keeps the report already on screen.
@@ -293,7 +309,7 @@ onBeforeUnmount(() => {
     <!-- Same concept frame as the other Applications pages: breadcrumbs plus the
          shared in-page navigation, with this page's own actions in the slot. -->
     <ErpPageHeader :title="$t('educational.visaReports')" section="applications">
-      <template #actions><div class="d-flex gap-2 education-header-actions"><VBtn variant="tonal" prepend-icon="tabler-adjustments-horizontal" @click="filtersOpen = !filtersOpen">{{ $t('educational.filters') }}<VBadge v-if="activeFilterCount" :content="activeFilterCount" color="primary" inline /></VBtn><VBtn variant="outlined" :disabled="!report" prepend-icon="tabler-printer" @click="printPage">{{ $t('educational.printView') }}</VBtn><VBtn v-if="canExport" color="primary" :loading="exporting" prepend-icon="tabler-download" @click="download">{{ $t('educational.exportCsv') }}</VBtn></div></template>
+      <template #actions><div class="d-flex gap-2 education-header-actions"><DataTableFilterMenu v-model="filtersOpen" :active="activeFilterCount > 0" @reset="clearFilters"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable /><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable /><VSelect v-model="levelId" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable /><VSelect v-model="employeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable /><VSelect v-if="tab === 'applicants'" v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable /><VSelect v-if="tab === 'applicants'" v-model="stage" :items="stages.map(item => ({ title: item.name, value: item.key }))" :label="$t('educational.stage')" clearable /><VSelect v-if="tab === 'applicants'" v-model="status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable /><VTextField v-model="dateFrom" type="date" :label="$t('educational.from')" clearable /><VTextField v-model="dateTo" type="date" :label="$t('educational.to')" clearable /><VBtn color="primary" :loading="loading" @click="page = 1; load()">{{ $t('educational.apply') }}</VBtn></DataTableFilterMenu><VBtn variant="outlined" :disabled="!report" prepend-icon="tabler-printer" @click="printPage">{{ $t('educational.printView') }}</VBtn><VBtn v-if="canExport" color="primary" :loading="exporting" prepend-icon="tabler-download" @click="download">{{ $t('educational.exportCsv') }}</VBtn></div></template>
     </ErpPageHeader>
 
     <VCard class="education-panel">
@@ -303,31 +319,16 @@ onBeforeUnmount(() => {
         </VBtnToggle>
       </div>
       <VTabs v-model="tab" show-arrows class="px-3 report-tabs" @update:model-value="onTabChange"><VTab v-for="item in visibleTabs" :key="item.value" :value="item.value">{{ item.title }}</VTab></VTabs>
-      <VDivider />
-      <VExpandTransition><VCardText v-if="filtersOpen" class="education-filter-card rounded-0 border-0">
-        <VRow dense>
-          <VCol cols="12" sm="6" lg="3"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable hide-details /></VCol>
-          <VCol cols="12" sm="6" lg="3"><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable hide-details /></VCol>
-          <VCol cols="12" sm="6" lg="3"><VSelect v-model="levelId" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable hide-details /></VCol>
-          <VCol cols="12" sm="6" lg="3"><VSelect v-model="employeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable hide-details /></VCol>
-          <VCol v-if="tab === 'applicants'" cols="12" sm="6" lg="3"><VSelect v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable hide-details /></VCol>
-          <VCol v-if="tab === 'applicants'" cols="12" sm="6" lg="3"><VSelect v-model="stage" :items="stages.map(item => ({ title: item.name, value: item.key }))" :label="$t('educational.stage')" clearable hide-details /></VCol>
-          <VCol v-if="tab === 'applicants'" cols="12" sm="6" lg="3"><VSelect v-model="status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable hide-details /></VCol>
-          <VCol cols="6" sm="3" lg="2"><VTextField v-model="dateFrom" type="date" :label="$t('educational.from')" clearable hide-details /></VCol>
-          <VCol cols="6" sm="3" lg="2"><VTextField v-model="dateTo" type="date" :label="$t('educational.to')" clearable hide-details /></VCol>
-        </VRow>
-        <div class="d-flex justify-end gap-2 mt-3"><VBtn variant="text" @click="clearFilters">{{ $t('educational.clear') }}</VBtn><VBtn color="primary" :loading="loading" @click="page = 1; load()">{{ $t('educational.apply') }}</VBtn></div>
-      </VCardText></VExpandTransition>
-
       <div class="d-flex align-center flex-wrap gap-2 px-4 py-3 education-result-bar">
         <VAvatar color="primary" variant="tonal" size="36"><VIcon icon="tabler-chart-bar" size="20" /></VAvatar>
         <div><strong>{{ activeTab?.title }}</strong><div class="text-caption text-medium-emphasis">{{ $t('educational.resultCount', { count: report?.total ?? 0 }) }}</div></div>
         <VSpacer /><VBtn v-if="activeFilterCount" size="small" variant="text" prepend-icon="tabler-filter" @click="filtersOpen = true">{{ $t('educational.activeFilters', { count: activeFilterCount }) }}</VBtn><span v-if="!canExport" class="text-caption text-medium-emphasis">{{ $t('educational.exportRequired') }}</span>
       </div>
-      <VProgressLinear v-if="loading" indeterminate />
-      <div v-if="report" class="education-table-scroll"><VTable density="compact" class="education-table report-table">
+      <TableLoadingSkeleton v-if="loading" :columns="report?.columns.length ?? 6" :label="$t('common.messages.loading')" />
+      <TableEmptyState v-else-if="report && !report.rows.length" icon="tabler-report-off" :description="$t('educational.noRows')" />
+      <div v-else-if="report" class="education-table-scroll"><VTable density="compact" class="education-table report-table">
         <thead><tr><th v-for="column in report.columns" :key="column">{{ columnLabel(column) }}</th></tr></thead>
-        <tbody><tr v-for="(row, index) in report.rows" :key="index"><td v-for="column in report.columns" :key="column">{{ displayValue(column, row[column]) }}</td></tr><tr v-if="!report.rows.length"><td :colspan="report.columns.length || 1"><div class="education-empty"><VIcon icon="tabler-report-off" size="34" /><strong>{{ $t('educational.noRows') }}</strong><span>{{ $t('educational.adjustFilters') }}</span></div></td></tr></tbody>
+        <tbody><tr v-for="(row, index) in report.rows" :key="index"><td v-for="column in report.columns" :key="column"><VChip v-if="tab === 'applicants' && column === 'status'" size="small" :color="applicantStatusColor(row[column])">{{ applicantStatusLabel(row[column]) }}</VChip><template v-else>{{ displayValue(column, row[column]) }}</template></td></tr></tbody>
       </VTable></div>
       <VDivider v-if="report?.last_page && report.last_page > 1" />
       <VCardText v-if="report?.last_page && report.last_page > 1" class="d-flex justify-center py-2 education-pagination"><VPagination v-model="page" :length="report.last_page" size="small" :total-visible="7" @update:model-value="load" /></VCardText>

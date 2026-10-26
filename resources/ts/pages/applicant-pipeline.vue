@@ -3,6 +3,7 @@ import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import DataTableFilterMenu from '@/components/responsive-data-table/DataTableFilterMenu.vue'
 import ApplicantPipelineSkeleton from '@/components/ApplicantPipelineSkeleton.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -273,7 +274,7 @@ onMounted(async () => {
     <VCardText>
       <VAlert v-if="!canMove" type="info" variant="tonal" density="compact" class="mb-4">{{ $t('educational.stageMovePermission') }}</VAlert>
       <ApplicantPipelineSkeleton v-if="loading" />
-      <div v-else-if="!stages.length" class="text-center text-medium-emphasis py-8">{{ $t('educational.noActiveStages') }}</div>
+      <TableEmptyState v-else-if="!stages.length" icon="tabler-layout-kanban" :description="$t('educational.noActiveStages')" />
       <div v-else ref="pipelineScroller" class="d-flex gap-3 overflow-x-auto pb-2 pipeline-scroller" @dragover.prevent="onPipelineDragOver">
         <VCard v-for="stage in stages" :key="stage.key" variant="outlined" min-width="260" class="flex-shrink-0 pipeline-column" :class="{ 'pipeline-column--allowed': isAllowedDropStage(stage), 'pipeline-column--blocked': dragCard && !isAllowedDropStage(stage) }" style="inline-size: 260px;" @dragover.prevent @drop="onDrop(stage)">
           <VCardItem :subtitle="$t('educational.caseCount', { count: stage.count })">

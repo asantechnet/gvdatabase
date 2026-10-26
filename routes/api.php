@@ -54,7 +54,6 @@ use App\Http\Controllers\EmployeeAdvanceController;
 use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\SalaryDeductionController;
 use App\Http\Controllers\SalaryPaymentController;
-use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SubtaskController;
 use App\Http\Controllers\SupportTicketController;
@@ -399,9 +398,6 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::post('applicants/{applicant}/universities', [ApplicantUniversityController::class, 'store'])->middleware('permission:edit_applicants');
     Route::put('applicants/{applicant}/universities/{application}', [ApplicantUniversityController::class, 'update'])->middleware('permission:edit_applicants');
     Route::delete('applicants/{applicant}/universities/{application}', [ApplicantUniversityController::class, 'destroy'])->middleware('permission:edit_applicants');
-    // Cross-module staff search. Each result group is permission-gated
-    // inside the controller, so any signed-in user may query it.
-    Route::get('search', [SearchController::class, 'index']);
     // Agency operations overview. Read-only aggregates over applicant,
     // sales, task and approval rows; any dashboard viewer may open it.
     Route::get('educational-dashboard', [EducationalDashboardController::class, 'index'])->middleware('permission:view_agency_overview');
