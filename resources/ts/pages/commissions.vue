@@ -8,6 +8,8 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { translateApplicantStage } from '@/utils/localization'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
 const { t } = useI18n()
 const tr = (key: string, values?: Record<string, unknown>) => t(`common.crmUi.commissions.${key}`, values ?? {})
@@ -351,6 +353,12 @@ onMounted(load)
               { title: t('common.crmUi.commissionHeaders.status'), key: 'status' },
             ]"
           >
+            <template #loading>
+              <TableLoadingSkeleton :columns="10" :label="$t('common.messages.loading')" />
+            </template>
+            <template #no-data>
+              <TableEmptyState icon="tabler-receipt-off" :description="$t('common.messages.noMatchingRecords')" />
+            </template>
             <template #item.earned_at="{ item }">{{ item.earned_at }}</template>
             <template #item.entry_type="{ item }">
               <VChip size="small" variant="tonal" class="ma-1">
@@ -392,6 +400,12 @@ onMounted(load)
               { title: t('common.crmUi.commissionHeaders.actions'), key: 'actions', sortable: false },
             ]"
           >
+            <template #loading>
+              <TableLoadingSkeleton :columns="8" :label="$t('common.messages.loading')" />
+            </template>
+            <template #no-data>
+              <TableEmptyState icon="tabler-receipt-off" :description="$t('common.messages.noMatchingRecords')" />
+            </template>
             <template #item.period="{ item }">{{ item.period_start }} — {{ item.period_end }}</template>
             <template #item.gross_base_amount="{ item }"><strong>{{ money(item.gross_base_amount, item.base_currency) }}</strong></template>
             <template #item.status="{ item }">
@@ -414,10 +428,10 @@ onMounted(load)
       <VCard :title="tr('createSettlement')">
         <VCardText>
           <VRow>
-            <VCol cols="12">
+            <VCol cols="12" md="6">
               <VSelect v-model="form.employee_id" :items="commissionEmployees" item-title="name" item-value="id" :label="tr('commissionEmployee')" />
             </VCol>
-            <VCol cols="12">
+            <VCol cols="12" md="6">
               <VSelect v-model="form.base_currency_id" :items="pendingCurrencies" item-title="title" item-value="id" :label="tr('accrualCurrency')" />
             </VCol>
             <VCol cols="12" sm="6">
@@ -455,7 +469,7 @@ onMounted(load)
                 show-select
                 density="compact"
               >
-                <template #no-data>{{ tr('noMatchingAccruals') }}</template>
+                <template #no-data><TableEmptyState icon="tabler-receipt-off" :description="tr('noMatchingAccruals')" min-height="180" /></template>
                 <template #item.service="{ item }">{{ serviceLabel(item.service) }}</template>
                 <template #item.commission_base_amount="{ item }">{{ money(item.commission_base_amount, item.base_currency) }}</template>
               </ResponsiveDataTable>

@@ -6,6 +6,8 @@ import PendingTransactionApi, { type PendingTransaction, type PendingTransaction
 import { canAccess } from '@/utils/authorization'
 import { translateBackendValue } from '@/utils/localization'
 import ReceiptPrinter from '@/components/income/ReceiptPrinter.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
 const toast = useToast()
 const { t, d, n } = useI18n()
@@ -102,11 +104,53 @@ onMounted(load)
     <VCardItem :title="$t('common.navigation.paymentRequests')" :subtitle="$t('educational.paymentRequestsSubtitle')">
       <template #append><VBtn v-if="canCreate" prepend-icon="tabler-plus" color="primary" @click="openCreate">{{ $t('educational.paymentRequestsNew') }}</VBtn></template>
     </VCardItem>
-    <VProgressLinear v-if="loading" indeterminate />
-    <VTable><thead><tr><th>{{ $t('educational.transactionType') }}</th><th>{{ $t('educational.reason') }}</th><th>{{ $t('educational.pendingUi.customerEmployee') }}</th><th>{{ $t('educational.amount') }}</th><th>{{ $t('educational.status') }}</th><th>{{ $t('educational.requested') }}</th><th /></tr></thead><tbody>
-      <tr v-for="row in rows" :key="row.id"><td><VChip size="small" variant="tonal" :color="directionColor(row)"><VIcon :icon="directionIcon(row)" size="14" start />{{ translateBackendValue(row.transaction_type) }}</VChip></td><td>{{ row.reason }}<div v-if="row.applicant_id"><VChip size="x-small" color="info" :to="{ name: 'applicant-case', params: { id: row.applicant_id } }">{{ row.applicant?.name ?? $t('educational.caseNumber', { id: row.applicant_id }) }}</VChip></div></td><td>{{ row.applicant?.name || row.employee?.name || '—' }}</td><td>{{ money(row) }}</td><td><VChip size="small" :color="statusColor(row.approval_status)">{{ translateBackendValue(row.approval_status) }}</VChip><div v-if="row.rejection_reason" class="text-caption text-error">{{ row.rejection_reason }}</div></td><td>{{ row.requested_at ? d(new Date(row.requested_at), 'long') : '—' }}</td><td class="text-end text-no-wrap"><VTooltip v-if="canPrint(row)" location="top" :text="$t(printLabelKey(row))"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" color="primary" :aria-label="$t(printLabelKey(row))" @click="openLoanReceipt(row)"><VIcon icon="tabler-printer" size="18" /></VBtn></template></VTooltip><VTooltip v-if="canCreate && ['draft', 'submitted'].includes(row.approval_status)" location="top" :text="$t('educational.pendingUi.actions.edit')"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" :aria-label="$t('educational.pendingUi.actions.edit')" @click="openEdit(row)"><VIcon icon="tabler-pencil" size="18" /></VBtn></template></VTooltip><VTooltip v-if="canApprove && row.approval_status === 'submitted'" location="top" :text="$t('educational.pendingUi.actions.review')"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" color="info" :aria-label="$t('educational.pendingUi.actions.review')" @click="transition('review', row)"><VIcon icon="tabler-eye" size="18" /></VBtn></template></VTooltip><VTooltip v-if="canApprove && ['submitted', 'under_review'].includes(row.approval_status)" location="top" :text="$t('educational.pendingUi.actions.approve')"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" color="success" :aria-label="$t('educational.pendingUi.actions.approve')" @click="transition('approve', row)"><VIcon icon="tabler-check" size="18" /></VBtn></template></VTooltip><VTooltip v-if="canApprove && ['submitted', 'under_review'].includes(row.approval_status)" location="top" :text="$t('educational.pendingUi.actions.reject')"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" color="error" :aria-label="$t('educational.pendingUi.actions.reject')" @click="openReject(row)"><VIcon icon="tabler-x" size="18" /></VBtn></template></VTooltip><VTooltip v-if="canPost && row.approval_status === 'approved'" location="top" :text="$t('educational.pendingUi.actions.post')"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" color="primary" :aria-label="$t('educational.pendingUi.actions.post')" @click="transition('post', row)"><VIcon icon="tabler-send" size="18" /></VBtn></template></VTooltip></td></tr>
-      <tr v-if="!loading && !rows.length"><td colspan="7" class="text-center text-medium-emphasis py-8">{{ $t('educational.noTransactions') }}</td></tr>
-    </tbody></VTable>
+    <ResponsiveDataTable
+      :loading="loading"
+      :items="rows"
+      :headers="[
+        { title: $t('educational.transactionType'), key: 'transaction_type' },
+        { title: $t('educational.pendingUi.customerEmployee'), key: 'customer_employee' },
+        { title: $t('educational.amount'), key: 'amount' },
+        { title: $t('educational.status'), key: 'approval_status' },
+        { title: $t('educational.requested'), key: 'requested_at' },
+        { title: $t('common.messages.actions'), key: 'actions', sortable: false },
+      ]"
+      item-value="id"
+      mobile-cards
+      mobile-title-key="transaction_type"
+      mobile-action-key="actions"
+    >
+      <template #loading>
+        <TableLoadingSkeleton :columns="6" :label="$t('common.messages.loading')" />
+      </template>
+      <template #no-data>
+        <TableEmptyState icon="tabler-receipt-off" :description="$t('educational.noTransactions')" />
+      </template>
+      <template #item.transaction_type="{ item }">
+        <VChip size="small" variant="tonal" :color="directionColor(item)">
+          <VIcon :icon="directionIcon(item)" size="14" start />{{ translateBackendValue(item.transaction_type) }}
+        </VChip>
+      </template>
+      <template #item.customer_employee="{ item }">
+        {{ item.applicant?.name || item.employee?.name || '—' }}
+      </template>
+      <template #item.amount="{ item }">
+        {{ money(item) }}
+      </template>
+      <template #item.approval_status="{ item }">
+        <VChip size="small" :color="statusColor(item.approval_status)">{{ translateBackendValue(item.approval_status) }}</VChip>
+        <div v-if="item.rejection_reason" class="text-caption text-error">{{ item.rejection_reason }}</div>
+      </template>
+      <template #item.requested_at="{ item }">
+        {{ item.requested_at ? d(new Date(item.requested_at), 'long') : '—' }}
+      </template>
+      <template #item.actions="{ item }">
+        <div class="d-flex gap-1">
+          <FullDetailsButton :item="item" />
+          <VTooltip v-if="canPrint(item)" location="top" :text="$t(printLabelKey(item))"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" color="primary" :aria-label="$t(printLabelKey(item))" @click="openLoanReceipt(item)"><VIcon icon="tabler-printer" size="18" /></VBtn></template></VTooltip><VTooltip v-if="canCreate && ['draft', 'submitted'].includes(item.approval_status)" location="top" :text="$t('educational.pendingUi.actions.edit')"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" :aria-label="$t('educational.pendingUi.actions.edit')" @click="openEdit(item)"><VIcon icon="tabler-pencil" size="18" /></VBtn></template></VTooltip><VTooltip v-if="canApprove && item.approval_status === 'submitted'" location="top" :text="$t('educational.pendingUi.actions.review')"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" color="info" :aria-label="$t('educational.pendingUi.actions.review')" @click="transition('review', item)"><VIcon icon="tabler-eye" size="18" /></VBtn></template></VTooltip><VTooltip v-if="canApprove && ['submitted', 'under_review'].includes(item.approval_status)" location="top" :text="$t('educational.pendingUi.actions.approve')"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" color="success" :aria-label="$t('educational.pendingUi.actions.approve')" @click="transition('approve', item)"><VIcon icon="tabler-check" size="18" /></VBtn></template></VTooltip><VTooltip v-if="canApprove && ['submitted', 'under_review'].includes(item.approval_status)" location="top" :text="$t('educational.pendingUi.actions.reject')"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" color="error" :aria-label="$t('educational.pendingUi.actions.reject')" @click="openReject(item)"><VIcon icon="tabler-x" size="18" /></VBtn></template></VTooltip><VTooltip v-if="canPost && item.approval_status === 'approved'" location="top" :text="$t('educational.pendingUi.actions.post')"><template #activator="{ props: tooltipProps }"><VBtn v-bind="tooltipProps" icon size="small" variant="text" color="primary" :aria-label="$t('educational.pendingUi.actions.post')" @click="transition('post', item)"><VIcon icon="tabler-send" size="18" /></VBtn></template></VTooltip>
+        </div>
+      </template>
+    </ResponsiveDataTable>
     <VCardText class="d-flex align-center gap-4"><VPagination v-model="page" :length="Math.max(lastPage, 1)" size="small" @update:model-value="load"/><VSelect v-model="perPage" :items="[10, 25, 50, 100]" :label="$t('educational.perPage')" style="max-inline-size: 140px" @update:model-value="page = 1; load()"/><span class="text-caption text-medium-emphasis">{{ $t('educational.resultCount', { count: total }) }}</span></VCardText>
   </VCard>
   <VDialog v-model="dialog" max-width="600"><VCard :title="$t(editing ? 'educational.editPending' : 'educational.newPending')"><VCardText><VSelect v-model="form.transaction_type" :items="['income', 'expense'].map(value => ({ value, title: translateBackendValue(value) }))" :label="$t('educational.transactionType')" class="mb-3" :disabled="!!editing"/><VTextarea v-model="form.reason" :label="$t('educational.reason')" class="mb-3"/><VTextField v-model.number="form.amount" type="number" min="0.000001" :label="$t('educational.amount')" class="mb-3"/><VSelect v-model="form.currency_id" :items="currencyOptions" :label="$t('common.fields.currency')" class="mb-3" :disabled="!!editing"/><VSelect v-model="form.applicant_id" :items="applicantOptions" :label="$t('educational.applicantOptional')" clearable class="mb-3" :disabled="!!editing"/><VSelect v-if="showsEmployeeField" v-model="form.employee_id" :items="employeeOptions" :label="$t('educational.employeeOptional')" clearable :disabled="!!editing"/></VCardText><VCardActions><VSpacer/><VBtn @click="dialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="primary" :disabled="!form.reason || form.amount <= 0 || !form.currency_id" @click="save">{{ $t(editing ? 'common.actions.update' : 'common.actions.submit') }}</VBtn></VCardActions></VCard></VDialog>
