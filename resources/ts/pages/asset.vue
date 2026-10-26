@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { translate } from '@/utils/localization'
 import { computed, onMounted, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useToast } from 'vue-toastification'
+import { translate } from '@/utils/localization'
 import AssetApi, { type AssetCondition, type AssetItem, type AssetParams } from '@/api/asset'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import OfficeApi, { type Office } from '@/api/office'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
 const toast = useToast()
 
@@ -323,6 +325,20 @@ onMounted(() => {
           density="compact"
           sticky-last-column
         >
+          <template #loading>
+            <TableLoadingSkeleton
+              :columns="headers.length"
+              :label="$t('common.messages.loading')"
+            />
+          </template>
+
+          <template #no-data>
+            <TableEmptyState
+              icon="tabler-packages"
+              :description="$t('common.messages.noMatchingRecords')"
+            />
+          </template>
+
           <template #item.allocations="{ item }">
             <div class="d-flex flex-wrap ga-1">
               <VChip
