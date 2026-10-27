@@ -8,7 +8,12 @@ import MasterDataApi, { type EducationalCatalog, type MasterDataRecord } from '@
 import ContractTypeApi, { type ContractType } from '@/api/contractType'
 
 const model = defineModel<ApplicantPayload>({ required: true })
-const props = defineProps<{ fixedService?: boolean }>()
+const languageId = defineModel<number | null>('languageId')
+const props = defineProps<{
+  fixedService?: boolean
+  showLanguage?: boolean
+  languages?: Array<{ id: number; name: string }>
+}>()
 const { t } = useI18n()
 const toast = useToast()
 const loading = ref(false)
@@ -64,6 +69,7 @@ onMounted(async () => {
     <template v-if="model.service === 'scholarship' || model.service === 'private'">
       <VCol cols="12" sm="6" md="3"><ErpField v-model="model.grade_score" type="number" min="0" max="100" step="0.01" suffix="%" :label="t('erp.percentage')" required clearable /></VCol>
       <VCol cols="12" sm="6" md="3"><ErpField v-model="model.country_id" kind="select" :items="options('countries')" :label="t('educational.destinationCountry')" required clearable /></VCol>
+      <VCol v-if="props.showLanguage" cols="12" sm="6" md="3"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" required /></VCol>
       <VCol cols="12" sm="6" md="3"><ErpField v-model="model.education_level_id" kind="select" :items="options('education-levels')" :label="t('educational.educationLevel')" required clearable /></VCol>
       <VCol v-if="model.service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="model.semester_id" kind="select" :items="options('semesters')" :label="t('educational.semester')" required clearable /></VCol>
       <VCol v-if="model.service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="model.contract_type_id" kind="select" :items="contractTypeOptions" :label="t('educational.contractType')" required clearable /></VCol>
@@ -72,10 +78,12 @@ onMounted(async () => {
     </template>
     <template v-else-if="model.service === 'test_offer'">
       <VCol cols="12" sm="6" md="4"><ErpField v-model="model.test_id" kind="select" :items="options('tests')" :label="t('educational.masterData.tests')" required clearable /></VCol>
+      <VCol v-if="props.showLanguage" cols="12" sm="6" md="4"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" required /></VCol>
       <VCol cols="12" sm="6" md="4"><ErpField v-model="model.skill_ids" kind="select" :items="options('skills')" :label="t('educational.masterData.skills')" required multiple chips closable-chips clearable /></VCol>
     </template>
     <template v-else-if="model.service === 'academy'">
       <VCol cols="12" sm="6" md="4"><ErpField v-model="model.student_id" :label="t('serviceContracts.studentId')" maxlength="64" required /></VCol>
+      <VCol v-if="props.showLanguage" cols="12" sm="6" md="4"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" required /></VCol>
       <VCol cols="12" sm="6" md="4"><ErpField v-model="model.time_id" kind="select" :items="options('times')" :label="t('educational.masterData.times')" required clearable /></VCol>
       <VCol cols="12" sm="6" md="4"><ErpField v-model="model.teacher_ids" kind="select" :items="options('teachers')" :label="t('educational.masterData.teachers')" required multiple chips closable-chips clearable /></VCol>
       <VCol cols="12" sm="6" md="4"><ErpField v-model="model.duration_id" kind="select" :items="options('durations')" :label="t('educational.masterData.durations')" required clearable /></VCol>

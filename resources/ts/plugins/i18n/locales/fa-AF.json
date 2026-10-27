@@ -5463,7 +5463,7 @@
     "admission": "کارمند پذیرش (اختیاری)",
     "contractVersion": "نسخه قرارداد",
     "templateNotReady": "قالب قرارداد تنظیم نشده است",
-    "noMatchingVersion": "نسخه فعال برای این کشور و زبان موجود نیست. نسخه مناسب را در قالب‌ها و پالیسی‌ها فعال کنید.",
+    "noMatchingVersion": "نسخه مطابق موجود نیست",
     "currentPageReport": "متقاضیان صفحه فعلی"
   },
   "agencyDashboard": {

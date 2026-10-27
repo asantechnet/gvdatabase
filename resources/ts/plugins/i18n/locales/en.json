@@ -5478,7 +5478,7 @@
     "admission": "Admission employee (optional)",
     "contractVersion": "Contract version",
     "templateNotReady": "Contract template is not configured",
-    "noMatchingVersion": "No active contract version matches this country and language. Configure and activate a matching version in Templates & Policies.",
+    "noMatchingVersion": "No matching version",
     "currentPageReport": "Applicants on the current page"
   },
   "agencyDashboard": {

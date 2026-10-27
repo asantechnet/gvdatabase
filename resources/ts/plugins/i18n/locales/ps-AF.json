@@ -4455,7 +4455,7 @@
     "admission": "د پذیرش کارکوونکی (اختیاري)",
     "contractVersion": "د قرارداد نسخه",
     "templateNotReady": "د قرارداد قالب نه دی تنظیم شوی",
-    "noMatchingVersion": "د دې هېواد او ژبې لپاره فعاله نسخه نشته. مناسبه نسخه په قالبونو او پالیسیو کې فعاله کړئ.",
+    "noMatchingVersion": "مناسبه نسخه نشته",
     "currentPageReport": "د اوسنۍ پاڼې غوښتونکي"
   },
   "agencyDashboard": {

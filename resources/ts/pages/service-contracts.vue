@@ -424,7 +424,7 @@ async function save() {
                 <VCol v-if="!parent" cols="12" sm="6" md="3"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" clearable /></VCol>
                 <VCol v-if="!parent && ['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('agencyStaff.admission')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
               </VRow>
-              <ApplicantServiceFields v-model="form" fixed-service />
+              <ApplicantServiceFields v-model="form" v-model:language-id="languageId" fixed-service show-language :languages="languages" />
             </template>
             <VRow dense>
               <VCol v-if="service === 'private'" cols="12" md="6">
@@ -442,12 +442,9 @@ async function save() {
                   {{ applicationFeeRange[0] }} – {{ applicationFeeRange[1] }} {{ currencies.find(row => row.id === currencyId)?.code }}
                 </div>
               </VCol>
-              <template v-else>
-                <VCol v-for="field in chargeFields" :key="field" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="charges[field]" type="number" min="0" step="0.01" :label="chargeLabel(field)" required /></VCol>
-              </template>
+              <VCol v-for="field in chargeFields" :key="field" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="charges[field]" type="number" min="0" step="0.01" :label="chargeLabel(field)" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" required /></VCol>
-              <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="languageId" kind="select" :items="languages" item-title="name" item-value="id" :label="t('serviceContracts.language')" required /></VCol>
               <VCol class="service-contract-discount" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="discount" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.discount')" /></VCol>
               <VCol v-if="service === 'academy' && canRecordIncome" cols="12" sm="6" md="3"><ErpField v-model="paidFee" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.paidFee')" :hint="t('serviceContracts.paidFeeHint')" persistent-hint /></VCol>
               <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" md="6"><ErpField v-model="form.notes" kind="textarea" rows="1" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
