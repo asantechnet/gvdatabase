@@ -59,7 +59,6 @@ onMounted(async () => {
 </script>
 
 <template>
-  <VProgressLinear v-if="loading" indeterminate />
   <VRow dense>
     <VCol v-if="!props.fixedService" cols="12"><ErpField v-model="model.service" kind="select" :items="serviceOptions" :label="t('educational.service')" required /></VCol>
     <template v-if="model.service === 'scholarship' || model.service === 'private'">

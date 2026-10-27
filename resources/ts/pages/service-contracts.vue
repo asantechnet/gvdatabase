@@ -404,7 +404,7 @@ async function save() {
         <VCardTitle class="service-contract-header">
           <div class="min-w-0"><div class="text-h6">{{ t(labelKey) }}</div><div class="text-caption text-medium-emphasis text-truncate">{{ selectedTemplate?.name ?? t('agencyStaff.templateNotReady') }}</div></div>
           <VSpacer />
-          <VSelect v-model="selectedVersionId" :items="versionItems" :label="t('agencyStaff.contractVersion')" density="compact" variant="outlined" hide-details :disabled="preparing || !versionItems.length" class="contract-version-select" />
+          <VSelect v-model="selectedVersionId" :items="versionItems" :label="versionItems.length ? t('agencyStaff.contractVersion') : t('agencyStaff.noMatchingVersion')" density="compact" variant="outlined" hide-details :disabled="preparing || !versionItems.length" class="contract-version-select" />
           <VBtn icon="tabler-x" variant="text" :disabled="saving" :aria-label="t('serviceContracts.close')" @click="open = false"><VIcon icon="tabler-x" /><VTooltip activator="parent">{{ t('serviceContracts.close') }}</VTooltip></VBtn>
         </VCardTitle>
         <VCardText class="service-contract-body">
@@ -425,9 +425,6 @@ async function save() {
                 <VCol v-if="!parent && ['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('agencyStaff.admission')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
               </VRow>
               <ApplicantServiceFields v-model="form" fixed-service />
-            </template>
-            <template v-if="service !== 'academy'">
-              <VAlert v-if="!preparing && !compatibleVersions.length" type="warning" variant="tonal" density="compact" class="mb-2">{{ t('agencyStaff.noMatchingVersion') }}</VAlert>
             </template>
             <VRow dense>
               <VCol v-if="service === 'private'" cols="12" md="6">
@@ -451,7 +448,7 @@ async function save() {
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="languageId" kind="select" :items="languages" item-title="name" item-value="id" :label="t('serviceContracts.language')" required /></VCol>
-              <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="discount" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.discount')" /></VCol>
+              <VCol class="service-contract-discount" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="discount" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.discount')" /></VCol>
               <VCol v-if="service === 'academy' && canRecordIncome" cols="12" sm="6" md="3"><ErpField v-model="paidFee" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.paidFee')" :hint="t('serviceContracts.paidFeeHint')" persistent-hint /></VCol>
               <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" md="6"><ErpField v-model="form.notes" kind="textarea" rows="1" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
             </VRow>
@@ -495,6 +492,10 @@ async function save() {
 
 .service-contract-body {
   padding-block: 10px 12px;
+}
+
+.service-contract-discount {
+  display: none;
 }
 
 .service-contract-body :deep(.v-row) {
