@@ -437,7 +437,7 @@ async function save() {
                   class="mt-2"
                   :min="0"
                   :max="applicationFeeCeiling"
-                  :step="1"
+                  :step="10"
                   thumb-label="always"
                   color="primary"
                 />
