@@ -3,7 +3,7 @@
 - **Task ID:** visitor-profiles-and-service-contract-field-sets
 - **Created:** 2026-10-27
 - **Last updated:** 2026-10-27
-- **Status:** PARTIALLY COMPLETED
+- **Status:** COMPLETED
 - **Outcome:** Visitors carry a complete enquiry profile (education, age, percentage, province, English level, acquisition route, consultant, consultant review). Each built-in service contract (scholarship, private, test offer, academy) shows only its own field set, the frontend can select a visitor and auto-fill the overlapping fields for every service type, private contracts price the application fee as a saved range whose paid state can be completed from the contract list, and academy contracts can record a paid fee as a real receipt. Main changes are mirrored into the multi-tenancy worktree per `docs/facts/branch-mirroring.md`.
 
 ### 1. Requirements and acceptance criteria
@@ -143,10 +143,13 @@
 - 2026-10-27 — FIX: added the scholarship/private university-country validation that the operational reporting test exercises.
 - 2026-10-27 — VALIDATION: combined affected suite 87 passed (707 assertions); `npm run typecheck` and `npm run i18n:check` pass. Full suite timed out at the 600-second command limit.
 - 2026-10-27 — COMMIT PREP: staged only this task's files; shared files were partially staged by hunk so the parallel HR work is excluded.
+- 2026-10-27 — COMMIT: `d91acc6` on main. A follow-up `a4ea4d5` replaced `tabler-cash-check`, which no configured icon set provides, with the bundled `tabler-checks` so the mark-paid action does not render blank.
+- 2026-10-27 — MIRROR: ported `d91acc6` and `a4ea4d5` to `feature/multi-tenancy-per-office` as `cf2b570`, `35b1c9c`, `b369295` and the rebuilt bundle `7105cac`; the port log is `docs/ai/mirror-main-into-multi-tenancy.md` there. Catalogue tables carry `office_id`, the new models use `BelongsToOffice`, and the migration lives in `database/migrations/office`.
+- 2026-10-27 — TENANT VALIDATION: isolated worktree at `35b1c9c` passes the 87 affected tests (707 assertions), typecheck, icon generation with no unavailable-icon warning, and build (267 precache entries). `i18n:check` retains only the two pre-existing tenant-only literal findings.
 
 ### 10. Completion summary
 
 - Delivered: visitor profile fields and catalogues, consultant rename and review RBAC, strict per-service contract field sets, private application-fee range with range-aware mark-paid, academy student id and paid-fee receipt, visitor autofill, i18n and focused feature coverage.
-- Acceptance criteria satisfied: all code-level criteria; the multi-tenancy mirror is still pending.
-- Tests/checks passed: 87 affected tests (707 assertions), `npm run typecheck`, `npm run i18n:check`.
-- Remaining limitations or follow-up work: full PHP suite was not completed within the command limit; the commit and multi-tenancy mirror are being finalized.
+- Acceptance criteria satisfied: all code-level criteria and the multi-tenancy mirror.
+- Tests/checks passed: 87 affected tests (707 assertions), `npm run typecheck`, `npm run i18n:check`; the tenant port repeats the same 87 tests plus typecheck, icon generation and build.
+- Remaining limitations or follow-up work: the full PHP suite exceeded the 600-second command limit on main; the tenant `i18n:check` retains the two pre-existing `MySQL`/`SQLite` findings in its own offices page.
