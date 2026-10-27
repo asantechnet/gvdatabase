@@ -131,6 +131,7 @@ declare module 'vue' {
     UserForm: typeof import('./resources/ts/components/forms/UserForm.vue')['default']
     UserInfoEditDialog: typeof import('./resources/ts/components/dialogs/UserInfoEditDialog.vue')['default']
     UserUpgradePlanDialog: typeof import('./resources/ts/components/dialogs/UserUpgradePlanDialog.vue')['default']
+    VisitorProfileFields: typeof import('./resources/ts/components/crm/VisitorProfileFields.vue')['default']
     WhatsappMessageEditor: typeof import('./resources/ts/components/whatsapp/WhatsappMessageEditor.vue')['default']
     WorkdayControl: typeof import('./resources/ts/components/workday/WorkdayControl.vue')['default']
   }
