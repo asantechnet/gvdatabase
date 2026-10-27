@@ -2,16 +2,27 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademyClass;
 use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\ContractTemplateVersion;
+use App\Models\ContractType;
 use App\Models\Country;
 use App\Models\Currency;
+use App\Models\Duration;
+use App\Models\EducationLevel;
 use App\Models\Employee;
 use App\Models\Language;
 use App\Models\Permission;
+use App\Models\Program;
 use App\Models\Role;
+use App\Models\Semester;
+use App\Models\Skill;
+use App\Models\Subject;
 use App\Models\Task;
+use App\Models\Teacher;
+use App\Models\Test;
+use App\Models\TimeSlot;
 use App\Models\User;
 use App\Services\Contracts\BuiltInContractTemplateService;
 use App\Support\BuiltInService;
@@ -30,6 +41,10 @@ class BuiltInContractGenerationTest extends TestCase
 
     private ?ContractTemplateVersion $activeVersion = null;
 
+    private Country $defaultCountry;
+
+    private Test $defaultTest;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -37,35 +52,85 @@ class BuiltInContractGenerationTest extends TestCase
         Currency::factory()->create(['code' => 'USD', 'rate' => 1, 'is_base' => true]);
         $this->currency = Currency::factory()->create(['code' => 'AFN', 'rate' => 1, 'is_base' => false]);
         $this->language = Language::create(['name' => 'English', 'code' => 'en']);
+        $this->defaultCountry = Country::create(['name' => 'Default destination', 'code' => 'QA']);
+        $this->defaultTest = Test::create(['name' => 'IELTS', 'is_active' => true]);
     }
 
     private function activate(string $service): ContractTemplateVersion
     {
         $template = app(BuiltInContractTemplateService::class)->ensure($service);
+        $countryId = in_array($service, [BuiltInService::SCHOLARSHIP, BuiltInService::PRIVATE], true) ? $this->defaultCountry->id : null;
+        $testId = $service === BuiltInService::TEST_OFFER ? $this->defaultTest->id : null;
 
         return $this->activeVersion = $template->versions()->create([
-            'language_id' => $this->language->id, 'country_id' => null,
+            'language_id' => $this->language->id, 'country_id' => $countryId,
+            'test_id' => $testId,
             'version_number' => 1, 'name' => 'Agreed terms', 'status' => 'active',
-            'is_current' => true, 'current_scope_key' => "{$template->id}:0:{$this->language->id}",
+            'is_current' => true, 'current_scope_key' => implode(':', [$template->id, $countryId, $testId, $this->language->id]),
             'content' => '<p>{{contract.number}} {{customer.name}} {{service.name}} {{service.fee}} {{service.currency}} {{service.discount}}</p>',
         ]);
     }
 
-    private function data(array $extra = []): array
+    /**
+     * A valid payload for one built-in service: the strict field sets mean each
+     * service now needs its own catalogue references and itemised charges.
+     */
+    private function data(array $extra = [], string $service = BuiltInService::ACADEMY): array
     {
+        $country = $this->defaultCountry;
+        $education = EducationLevel::firstOrCreate(['name' => 'Bachelor'], ['is_active' => true]);
+        $subject = Subject::firstOrCreate(['name' => 'Mathematics'], ['is_active' => true]);
+        $semester = Semester::firstOrCreate(['code' => 'FALL'], ['name' => 'Fall', 'is_active' => true]);
+        $test = $this->defaultTest;
+        $skill = Skill::firstOrCreate(['name' => 'Writing'], ['is_active' => true]);
+        $program = Program::firstOrCreate(['name' => 'Foundation'], ['is_active' => true]);
+        $time = TimeSlot::firstOrCreate(['name' => 'Morning'], ['is_active' => true]);
+        $duration = Duration::firstOrCreate(['name' => '6 months'], ['is_active' => true]);
+        $class = AcademyClass::firstOrCreate(['name' => 'Class A'], ['is_active' => true]);
+        $teacher = Teacher::firstOrCreate(['name' => 'Jane Doe'], ['is_active' => true]);
+        $contractType = ContractType::firstOrCreate(['slug' => 'customer'], ['name' => 'Customer']);
+
+        $fields = match ($service) {
+            BuiltInService::SCHOLARSHIP => [
+                'father_name' => 'Father', 'father_phone' => '0701111111',
+                'grade_score' => 80, 'country_id' => $country->id,
+                'education_level_id' => $education->id, 'favorite_subject_ids' => [$subject->id],
+                'application_fee' => 120,
+            ],
+            BuiltInService::PRIVATE => [
+                'father_name' => 'Father', 'father_phone' => '0701111111',
+                'grade_score' => 80, 'country_id' => $country->id,
+                'education_level_id' => $education->id, 'semester_id' => $semester->id,
+                'contract_type_id' => $contractType->id, 'favorite_subject_ids' => [$subject->id],
+                'university_fee' => 0, 'application_fee_min' => 60,
+                'application_fee_max' => 100, 'visa_fee' => 20,
+            ],
+            BuiltInService::TEST_OFFER => [
+                'backup_phone' => '0702222222', 'test_id' => $test->id,
+                'skill_ids' => [$skill->id], 'booking_fee' => 50,
+                'service_fee' => 50, 'remote_fee' => 20,
+            ],
+            default => [
+                'student_id' => 'STU-1001', 'program_id' => $program->id,
+                'time_id' => $time->id, 'duration_id' => $duration->id,
+                'teacher_ids' => [$teacher->id], 'class_id' => $class->id,
+                'service_fee' => 120,
+            ],
+        };
+
         return [...[
             'name' => 'New applicant', 'contact' => '0701234567',
             'fee' => 120, 'discount' => 20, 'currency_id' => $this->currency->id,
             'currency_rate' => 2.5, 'language_id' => $this->language->id,
             ...($this->activeVersion ? ['contract_template_version_id' => $this->activeVersion->id] : []),
-        ], ...$extra];
+        ], ...$fields, ...$extra];
     }
 
     public function test_each_service_atomically_creates_identity_details_contract_line_and_task(): void
     {
         foreach (BuiltInService::ALL as $service) {
             $this->activate($service);
-            $response = $this->postJson("/api/contracts/{$service}", $this->data())
+            $response = $this->postJson("/api/contracts/{$service}", $this->data([], $service))
                 ->assertCreated()->assertJsonPath('data.service', $service)
                 ->assertJsonPath('data.contract_role', 'primary')
                 ->assertJsonPath('data.services.0.built_in_service', $service)
@@ -140,13 +205,13 @@ class BuiltInContractGenerationTest extends TestCase
         $this->assertDatabaseCount('applicants', 0);
     }
 
-    public function test_service_contract_rejects_single_university_fields(): void
+    public function test_service_contract_rejects_another_services_detail_fields(): void
     {
         $this->activate('scholarship');
         $this->postJson('/api/contracts/scholarship', $this->data([
-            'university_id' => 1,
-            'university_fee' => 100,
-        ]))->assertUnprocessable()->assertJsonValidationErrors(['university_id', 'university_fee']);
+            'test_id' => 1,
+            'skill_ids' => [1],
+        ], BuiltInService::SCHOLARSHIP))->assertUnprocessable()->assertJsonValidationErrors(['test_id', 'skill_ids']);
     }
 
     public function test_generic_creation_cannot_bypass_the_builtin_command(): void
@@ -164,7 +229,7 @@ class BuiltInContractGenerationTest extends TestCase
     public function test_invalid_money_identity_and_scope_are_rejected_without_side_effects(): void
     {
         foreach ([['name' => ''], ['discount' => 121], ['currency_rate' => 0], ['fee' => -1], ['fee' => 1.001], ['language_id' => 99999], ['start_date' => '2026-10-08']] as $change) {
-            $this->postJson('/api/contracts/test_offer', $this->data($change))->assertUnprocessable();
+            $this->postJson('/api/contracts/test_offer', $this->data($change, BuiltInService::TEST_OFFER))->assertUnprocessable();
         }
         $this->assertDatabaseCount('applicants', 0);
     }
@@ -177,7 +242,7 @@ class BuiltInContractGenerationTest extends TestCase
         $content = $primary->content;
         // An academy extension carries the (editable) identity; it still reuses
         // the same applicant and freezes its own economics.
-        $extension = $this->data(['parent_contract_id' => $id, 'fee' => 200]);
+        $extension = $this->data(['parent_contract_id' => $id, 'fee' => 200, 'service_fee' => 200]);
         $this->postJson('/api/contracts/academy', $extension)->assertCreated()
             ->assertJsonPath('data.contract_role', 'extension')->assertJsonPath('data.parent_contract_id', $id)
             ->assertJsonPath('data.applicant_id', $primary->applicant_id);
@@ -203,6 +268,7 @@ class BuiltInContractGenerationTest extends TestCase
             'address' => 'New address',
             'notes' => 'Updated during extension',
             'fee' => 150,
+            'service_fee' => 150,
         ]))->assertCreated()->assertJsonPath('data.applicant_id', $applicantId);
 
         $this->assertDatabaseCount('applicants', 1);
@@ -214,8 +280,8 @@ class BuiltInContractGenerationTest extends TestCase
 
         // Every other service still copies the parent applicant and rejects edits.
         $this->activate('test_offer');
-        $testOfferId = $this->postJson('/api/contracts/test_offer', $this->data())->assertCreated()->json('data.id');
-        $this->postJson('/api/contracts/test_offer', $this->data(['parent_contract_id' => $testOfferId, 'name' => 'Sneaky change']))
+        $testOfferId = $this->postJson('/api/contracts/test_offer', $this->data([], BuiltInService::TEST_OFFER))->assertCreated()->json('data.id');
+        $this->postJson('/api/contracts/test_offer', $this->data(['parent_contract_id' => $testOfferId, 'name' => 'Sneaky change'], BuiltInService::TEST_OFFER))
             ->assertUnprocessable()->assertJsonValidationErrors('name');
     }
 
@@ -245,20 +311,20 @@ class BuiltInContractGenerationTest extends TestCase
     {
         $version = $this->activate('scholarship');
         $country = Country::create(['name' => 'Destination', 'code' => 'DS']);
-        $this->postJson('/api/contracts/scholarship', $this->data(['country_id' => $country->id]))->assertUnprocessable();
+        $this->postJson('/api/contracts/scholarship', $this->data(['country_id' => $country->id], BuiltInService::SCHOLARSHIP))->assertUnprocessable();
         $version->update(['country_id' => $country->id]);
-        $id = $this->postJson('/api/contracts/scholarship', $this->data(['country_id' => $country->id]))
+        $id = $this->postJson('/api/contracts/scholarship', $this->data(['country_id' => $country->id], BuiltInService::SCHOLARSHIP))
             ->assertCreated()->assertJsonPath('data.contract_country_id', $country->id)->json('data.id');
         $this->assertSame($country->id, Contract::findOrFail($id)->applicant->scholarshipDetail->country_id);
         $other = Country::create(['name' => 'Other destination', 'code' => 'OD']);
-        $this->postJson('/api/contracts/scholarship', $this->data(['country_id' => $other->id]))->assertUnprocessable();
+        $this->postJson('/api/contracts/scholarship', $this->data(['country_id' => $other->id], BuiltInService::SCHOLARSHIP))->assertUnprocessable();
         $this->assertDatabaseCount('applicants', 1);
     }
 
     public function test_builtin_line_accepts_a_payment_and_printable_receipt_without_a_catalogue_row(): void
     {
         $this->activate('test_offer');
-        $id = $this->postJson('/api/contracts/test_offer', $this->data())->assertCreated()->json('data.id');
+        $id = $this->postJson('/api/contracts/test_offer', $this->data([], BuiltInService::TEST_OFFER))->assertCreated()->json('data.id');
         $line = Contract::findOrFail($id)->applicantContracts()->sole();
         $incomeId = $this->postJson('/api/incomes', [
             'applicant_contract_id' => $line->id, 'type' => 'Service', 'amount' => 40,

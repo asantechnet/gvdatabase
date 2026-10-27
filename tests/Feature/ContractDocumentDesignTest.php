@@ -84,10 +84,8 @@ class ContractDocumentDesignTest extends TestCase
             'cover_design' => 'contract-designs/customer-cover.png', 'safe_x' => 11.25, 'safe_height' => 55,
         ]);
         $this->design(['contract_type_id' => $customer->id, 'service' => 'scholarship', 'letterhead' => 'contract-designs/unrelated.png']);
-        $id = $this->postJson('/api/contracts/academy', [
-            'name' => 'Artwork applicant', 'fee' => 100, 'discount' => 0, 'currency_id' => $currency->id,
-            'currency_rate' => 1, 'language_id' => $language->id, 'start_date' => now()->toDateString(),
-        ])->assertCreated()->assertJsonPath('data.snapshot_data.document_design.id', $typeDesign->id)->json('data.id');
+        $id = $this->createBuiltInContract('academy', ['name' => 'Artwork applicant'])['id'];
+        $this->assertSame($typeDesign->id, Contract::findOrFail($id)->snapshot_data['document_design']['id']);
         $typeDesign->update(['safe_x' => 50, 'letterhead' => 'contract-designs/revised.png']);
         $this->getJson('/api/contracts/'.$id)->assertOk()
             ->assertJsonPath('data.snapshot_data.document_design.letterhead', 'contract-designs/customer.png')

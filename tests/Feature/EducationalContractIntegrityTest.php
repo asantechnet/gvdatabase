@@ -2,8 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademyClass;
 use App\Models\Currency;
+use App\Models\Duration;
 use App\Models\Language;
+use App\Models\Program;
+use App\Models\Teacher;
+use App\Models\TimeSlot;
 use App\Models\User;
 use App\Services\Contracts\BuiltInContractTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,7 +25,7 @@ class EducationalContractIntegrityTest extends TestCase
         $currency = Currency::factory()->create(['rate' => 1]);
         $language = Language::create(['name' => 'English', 'code' => 'en']);
         $template = app(BuiltInContractTemplateService::class)->ensure('academy');
-        $template->versions()->create([
+        $version = $template->versions()->create([
             'language_id' => $language->id, 'version_number' => 1, 'name' => 'Terms',
             'status' => 'active', 'is_current' => true,
             'current_scope_key' => "{$template->id}:0:{$language->id}",
@@ -28,8 +33,16 @@ class EducationalContractIntegrityTest extends TestCase
         ]);
 
         return $this->postJson('/api/contracts/academy', [
-            'name' => 'Contract Case', 'fee' => 100, 'discount' => 0, 'currency_id' => $currency->id,
-            'currency_rate' => 1, 'language_id' => $language->id, 'start_date' => now()->toDateString(),
+            'name' => 'Contract Case', 'contact' => '0701234567',
+            'fee' => 100, 'discount' => 0, 'currency_id' => $currency->id,
+            'currency_rate' => 1, 'language_id' => $language->id,
+            'contract_template_version_id' => $version->id, 'student_id' => 'STU-100',
+            'program_id' => Program::create(['name' => 'Foundation', 'is_active' => true])->id,
+            'time_id' => TimeSlot::create(['name' => 'Morning', 'is_active' => true])->id,
+            'duration_id' => Duration::create(['name' => '6 months', 'is_active' => true])->id,
+            'teacher_ids' => [Teacher::create(['name' => 'Jane Doe', 'is_active' => true])->id],
+            'class_id' => AcademyClass::create(['name' => 'Class A', 'is_active' => true])->id,
+            'service_fee' => 100,
         ])->assertCreated()->assertJsonPath('data.type_slug', 'customer')->json('data');
     }
 

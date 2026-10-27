@@ -14,7 +14,7 @@ class CrmSeeder extends Seeder
     {
         $fallbackOwner = User::query()->orderBy('id')->value('id');
 
-        foreach (Visitor::query()->with('counselor')->orderBy('id')->get() as $visitor) {
+        foreach (Visitor::query()->with('consultant')->orderBy('id')->get() as $visitor) {
             CrmInteraction::withTrashed()->updateOrCreate(
                 ['contactable_type' => $visitor->getMorphClass(), 'contactable_id' => $visitor->id, 'title' => 'Visitor intake follow-up'],
                 [

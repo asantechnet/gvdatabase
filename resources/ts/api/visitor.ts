@@ -1,7 +1,7 @@
 import api from './axios'
-import type { Applicant } from './applicants'
+import type { Applicant, ApplicantPayload } from './applicants'
 
-export interface Counselor {
+export interface VisitorPerson {
   id: number
   name: string
 }
@@ -12,9 +12,20 @@ export interface Visitor {
   contact: string
   email: string | null
   service: string
-
-  counselor_employee_id: number | null
-  counselor: Counselor | null
+  education_level_id: number | null
+  education_level: VisitorPerson | null
+  age: number | null
+  grade_score: number | string | null
+  province_id: number | null
+  province: VisitorPerson | null
+  english_level_id: number | null
+  english_level: VisitorPerson | null
+  acquisition_route_id: number | null
+  acquisition_route: VisitorPerson | null
+  consultant_employee_id: number | null
+  consultant: VisitorPerson | null
+  /** Consultant sign-off; only holders of `review_visitors` may change it. */
+  reviewed_by_consultant: boolean
   notes: string | null
   /** Marked as worthy of follow-up: shown in the Follow-up list, not in Visitors. */
   follow_up: boolean
@@ -27,7 +38,12 @@ export interface VisitorParams {
   page?: number
   perPage?: number
   search?: string
-  counselor_employee_id?: number | null
+  consultant_employee_id?: number | null
+  education_level_id?: number | null
+  province_id?: number | null
+  english_level_id?: number | null
+  acquisition_route_id?: number | null
+  reviewed_by_consultant?: 0 | 1
   date_from?: string
   date_to?: string
   /** 1 = only follow-up worthy visitors, 0 = only the rest. Omit for every visitor. */
@@ -39,26 +55,56 @@ export interface CreateVisitorData {
   contact: string
   email?: string | null
   service: string
-  counselor_employee_id?: number | null
+  education_level_id?: number | null
+  age?: number | null
+  grade_score?: number | string | null
+  province_id?: number | null
+  english_level_id?: number | null
+  acquisition_route_id?: number | null
+  consultant_employee_id?: number | null
+  reviewed_by_consultant?: boolean
   date: string
   notes?: string | null
 }
 
-export interface UpdateVisitorData {
-  name?: string
-  contact?: string
-  email?: string | null
-  service?: string
-  counselor_employee_id?: number | null
-  date?: string
-  notes?: string | null
+export type UpdateVisitorData = Partial<CreateVisitorData>
+
+/** The editable visitor dialog shape (the visit date is set on create). */
+export interface VisitorFormData {
+  name: string
+  contact: string
+  email: string
+  service: string
+  education_level_id: number | null
+  age: number | string | null
+  grade_score: number | string | null
+  province_id: number | null
+  english_level_id: number | null
+  acquisition_route_id: number | null
+  consultant_employee_id: number | null
+  reviewed_by_consultant: boolean
+  notes: string
 }
 
-export const visitorApplicantFields = (visitor: Pick<Visitor, 'name' | 'contact' | 'email'>) => ({
-  name: visitor.name,
-  contact: visitor.contact,
-  email: visitor.email,
-})
+/**
+ * The visitor fields that also exist on an applicant/contract. Only present
+ * values are copied so selecting a visitor never clears what the operator
+ * already typed.
+ */
+export const visitorApplicantFields = (visitor: Pick<Visitor, 'name' | 'contact' | 'email' | 'education_level_id' | 'grade_score'>): ApplicantPayload => {
+  const payload: ApplicantPayload = {
+    name: visitor.name,
+    contact: visitor.contact,
+  }
+  if (visitor.email)
+    payload.email = visitor.email
+  if (visitor.education_level_id != null)
+    payload.education_level_id = visitor.education_level_id
+  if (visitor.grade_score != null && visitor.grade_score !== '')
+    payload.grade_score = visitor.grade_score
+
+  return payload
+}
 
 // Visitor API endpoints
 const VisitorApi = {

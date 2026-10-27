@@ -342,6 +342,7 @@ class ApplicantController extends Controller
             'skill_ids' => ['nullable', 'array'],
             'skill_ids.*' => ['integer', 'exists:skills,id'],
             // Academy detail fields.
+            'student_id' => ['nullable', 'string', 'max:64'],
             'program_id' => ['nullable', 'integer', 'exists:programs,id'],
             'time_id' => ['nullable', 'integer', 'exists:times,id'],
             'duration_id' => ['nullable', 'integer', 'exists:durations,id'],
@@ -410,7 +411,7 @@ class ApplicantController extends Controller
                 $details->sync($applicant, $data);
             } elseif (array_intersect(array_keys($data), [
                 'service', 'passport_id', 'grade_score', 'contract_type_id', 'university_fee',
-                'favorite_subject_ids', 'test_id', 'skill_ids', 'program_id', 'time_id',
+                'favorite_subject_ids', 'test_id', 'skill_ids', 'student_id', 'program_id', 'time_id',
                 'duration_id', 'teacher_ids', 'scholarship_id', 'class_id',
                 'country_id', 'university_id', 'education_level_id', 'semester_id',
             ]) !== []) {

@@ -8,8 +8,11 @@ use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
+use App\Models\Currency;
 use App\Models\Employee;
+use App\Models\Income;
 use App\Services\ApplicantServiceDetails;
+use App\Services\CurrencyConversionService;
 use App\Services\ContractDocumentDesignService;
 use App\Services\ContractTaskService;
 use App\Services\CurrencyRateService;
@@ -30,6 +33,7 @@ class ContractGenerationService
         private readonly ContractTaskService $tasks,
         private readonly ContractDocumentDesignService $designs,
         private readonly EducationalWorkflowNotificationService $notifications,
+        private readonly CurrencyConversionService $currencies,
     ) {}
 
     public function create(string $service, StoreServiceContractRequest $request): Contract
@@ -101,15 +105,40 @@ class ContractGenerationService
                 'counterparty_contact' => $applicant->contact, 'counterparty_address' => $applicant->address,
             ]);
             $newStage = $this->newStage($service, $countryId, $applicant->detail()?->university_id);
+            $lineFees = Arr::only($data, ['application_fee', 'application_fee_min', 'application_fee_max', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']);
+            // A private application fee is a range; the legacy single column
+            // keeps the range maximum so older readers see a price.
+            if ($service === BuiltInService::PRIVATE) {
+                $lineFees['application_fee'] = $data['application_fee_max'];
+            }
             $line = $contract->applicantContracts()->create([
                 'service' => $service, 'applicant_id' => $applicant->id,
                 'current_stage_id' => $newStage->id,
                 'fee' => $data['fee'], 'discount' => $data['discount'],
                 'currency_id' => $data['currency_id'], 'currency_rate' => $rate,
                 'sold_by_employee_id' => $contract->sold_by_employee_id,
-                ...Arr::only($data, ['application_fee', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']),
+                ...$lineFees,
                 'notes' => $data['notes'] ?? null,
             ]);
+            // An academy fee paid at signing is a real receipt, not a stored
+            // informational amount: the line's paid state follows the income.
+            if ($service === BuiltInService::ACADEMY && (float) ($data['paid_fee'] ?? 0) > 0) {
+                abort_unless($request->user()->hasPermission('create_incomes'), 403, 'auth.forbidden');
+                $currency = Currency::query()->where('is_active', true)->findOrFail($data['currency_id']);
+                Income::create([
+                    ...$this->currencies->snapshot($currency),
+                    'applicant_id' => $applicant->id,
+                    'applicant_contract_id' => $line->id,
+                    'type' => 'Service',
+                    'description' => 'Academy fee — '.$contract->contract_number,
+                    'amount' => $data['paid_fee'],
+                    'quantity' => 1,
+                    'currency_id' => $currency->id,
+                    'rate' => $rate,
+                    'date' => now()->toDateString(),
+                    'recorded_by' => $request->user()->id,
+                ]);
+            }
             $rendered = $this->resolver->resolve($version->content, [
                 'applicant' => $applicant, 'built_in_line' => $line,
                 'contract_number' => $contract->contract_number, 'start_date' => $contract->start_date->toDateString(),
@@ -120,7 +149,7 @@ class ContractGenerationService
                 'content' => $this->sanitizer->clean($rendered['content']),
                 'snapshot_data' => [
                     'parties' => ['our_company' => PlaceholderRegistry::ourCompanyValues($contract->company_signatory_name), 'counterparty' => $counterparty],
-                    'entity' => ['applicant_id' => $applicant->id, 'service' => $service, 'applicant' => $applicant->only(['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address']), 'details' => $applicant->detail()?->toArray(), 'favorite_subject_ids' => $applicant->favoriteSubjects()->pluck('subjects.id')->all(), 'skill_ids' => $applicant->skills()->pluck('skills.id')->all(), 'teacher_ids' => $applicant->teachers()->pluck('teachers.id')->all(), 'services' => [[...$line->only(['id', 'service', 'fee', 'discount', 'currency_id', 'currency_rate', 'application_fee', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']), 'currency_code' => $line->currency?->code]], 'extension_of' => $primary?->contract_number],
+                    'entity' => ['applicant_id' => $applicant->id, 'service' => $service, 'applicant' => $applicant->only(['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address']), 'details' => $applicant->detail()?->toArray(), 'favorite_subject_ids' => $applicant->favoriteSubjects()->pluck('subjects.id')->all(), 'skill_ids' => $applicant->skills()->pluck('skills.id')->all(), 'teacher_ids' => $applicant->teachers()->pluck('teachers.id')->all(), 'services' => [[...$line->only(['id', 'service', 'fee', 'discount', 'currency_id', 'currency_rate', 'application_fee', 'application_fee_min', 'application_fee_max', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']), 'currency_code' => $line->currency?->code]], 'extension_of' => $primary?->contract_number],
                     'template_version' => $version->only(['id', 'name', 'version_number', 'country_id', 'language_id']),
                     'document_design' => $this->designs->snapshot($this->designs->resolve($type->id, [$service])),
                 ],

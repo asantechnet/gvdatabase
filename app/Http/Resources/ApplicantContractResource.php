@@ -18,6 +18,8 @@ class ApplicantContractResource extends JsonResource
             'service_label' => $this->serviceLabel(),
             'service_label_key' => BuiltInService::labelKey($this->serviceKey()),
             'application_fee' => $this->application_fee,
+            'application_fee_min' => $this->application_fee_min,
+            'application_fee_max' => $this->application_fee_max,
             'visa_fee' => $this->visa_fee,
             'booking_fee' => $this->booking_fee,
             'service_fee' => $this->service_fee,

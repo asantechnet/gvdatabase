@@ -366,7 +366,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     // Educational visa agency master data and case management. These routes
     // intentionally reuse configurable RBAC; the dedicated permission catalog
     // is added in the authorization phase before production role rollout.
-    Route::prefix('educational-master-data/{catalog}')->whereIn('catalog', ['countries', 'education-levels', 'languages', 'universities', 'semesters', 'subjects', 'tests', 'skills', 'programs', 'times', 'durations', 'teachers', 'scholarships', 'classes'])->group(function () {
+    Route::prefix('educational-master-data/{catalog}')->whereIn('catalog', ['countries', 'education-levels', 'languages', 'universities', 'semesters', 'subjects', 'tests', 'skills', 'programs', 'times', 'durations', 'teachers', 'scholarships', 'classes', 'provinces', 'english-levels', 'acquisition-routes'])->group(function () {
         Route::get('/', [EducationalMasterDataController::class, 'index']);
         Route::post('/', [EducationalMasterDataController::class, 'store']);
         Route::get('/{id}', [EducationalMasterDataController::class, 'show']);

@@ -49,6 +49,8 @@ export interface ApplicantContractLine {
   service_label?: string
   discount?: number | string | null
   application_fee?: number | string | null
+  application_fee_min?: number | string | null
+  application_fee_max?: number | string | null
   visa_fee?: number | string | null
   booking_fee?: number | string | null
   service_fee?: number | string | null
@@ -59,6 +61,12 @@ export interface ApplicantContractLine {
   currency?: { id?: number; code?: string | null; symbol?: string | null } | null
   applicant_id?: number | null
   notes?: string | null
+  payable_total?: number | string | null
+  amount_paid?: number | string | null
+  remaining_total?: number | string | null
+  payment_status?: string | null
+  payment_status_overridden?: boolean
+  amount_paid_overridden?: boolean
 }
 
 export interface Contract {
@@ -224,7 +232,11 @@ export interface ServiceContractCreateData {
   admission_employee_id?: number | null
   responsible_employee_id?: number | null
   application_fee?: number
+  application_fee_min?: number
+  application_fee_max?: number
   visa_fee?: number
+  paid_fee?: number
+  student_id?: string | null
   booking_fee?: number
   service_fee?: number
   remote_fee?: number
@@ -256,17 +268,21 @@ export interface ServiceContractCreateData {
 
 export function serviceContractApplicantFields(service: BuiltInService, applicant: ApplicantPayload, canAssignAdmission = false): Partial<ServiceContractCreateData> {
   const { service: omitted, ...details } = applicantServicePayload({ ...applicant, service })
-  delete details.university_id
-  delete details.university_fee
   const identity: Partial<ServiceContractCreateData> = {}
-  const fields = ['name', 'father_name', 'father_phone', 'backup_phone', 'notes', 'contact', 'email', 'address', 'tax_number', 'admission_employee_id', 'responsible_employee_id'] as const
+  const fields: Array<keyof ApplicantPayload> = service === 'private'
+    ? ['name', 'father_name', 'father_phone', 'contact', 'email', 'address', 'notes', 'responsible_employee_id']
+    : service === 'scholarship'
+      ? ['name', 'father_name', 'father_phone', 'contact', 'notes', 'responsible_employee_id']
+      : service === 'test_offer'
+        ? ['name', 'backup_phone', 'contact', 'responsible_employee_id']
+        : ['name', 'contact', 'responsible_employee_id']
   for (const field of fields) {
     const value = applicant[field]
     if (value !== undefined)
       Object.assign(identity, { [field]: value === '' ? null : value })
   }
-  if (!canAssignAdmission)
-    delete identity.admission_employee_id
+  if (canAssignAdmission && ['private', 'scholarship'].includes(service) && applicant.admission_employee_id !== undefined)
+    identity.admission_employee_id = applicant.admission_employee_id
 
   return { ...identity, ...details }
 }

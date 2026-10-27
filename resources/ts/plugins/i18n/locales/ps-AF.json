@@ -33,7 +33,15 @@
     "active": "فعال",
     "completed": "بشپړ شوی",
     "terminated": "پای ته رسېدلی",
-    "cancelled": "لغوه شوی"
+    "cancelled": "لغوه شوی",
+    "studentId": "د زده کوونکي پېژندنه",
+    "studentFullName": "د زده کوونکي بشپړ نوم",
+    "consultant": "سلاکار",
+    "applicationFeeRange": "د غوښتنلیک فیس حد",
+    "paidFee": "تادیه شوې فیس",
+    "paidFeeHint": "د دې قرارداد لپاره د تادیې رسید په توګه ثبت کیږي.",
+    "markPaid": "تادیه شوی په توګه ثبت کړه",
+    "markedPaid": "قرارداد تادیه شوی وټاکل شو."
   },
   "$vuetify": {
     "dataIterator": {

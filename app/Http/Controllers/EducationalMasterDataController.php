@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademyClass;
+use App\Models\AcquisitionRoute;
 use App\Models\Country;
 use App\Models\Duration;
+use App\Models\EnglishLevel;
 use App\Models\EducationalScholarship;
 use App\Models\EducationLevel;
 use App\Models\Language;
 use App\Models\Program;
+use App\Models\Province;
 use App\Models\Semester;
 use App\Models\Skill;
 use App\Models\Subject;
@@ -43,12 +46,16 @@ class EducationalMasterDataController extends Controller
         'teachers' => Teacher::class,
         'scholarships' => EducationalScholarship::class,
         'classes' => AcademyClass::class,
+        'provinces' => Province::class,
+        'english-levels' => EnglishLevel::class,
+        'acquisition-routes' => AcquisitionRoute::class,
     ];
 
     /** Sorted catalogues whose rows carry a display order. */
     private const SORTED_CATALOGS = [
         'education-levels', 'semesters', 'subjects', 'tests', 'skills',
         'programs', 'times', 'durations', 'teachers', 'scholarships', 'classes',
+        'provinces', 'english-levels', 'acquisition-routes',
     ];
 
     public function index(Request $request, string $catalog)
@@ -132,8 +139,9 @@ class EducationalMasterDataController extends Controller
             'semesters' => ['name' => [$required, 'string', 'max:255', $unique('semesters')], 'code' => [$required, 'string', 'max:30', $unique('semesters', 'code')], 'sort_order' => ['sometimes', 'integer', 'min:0'], 'is_active' => ['sometimes', 'boolean']],
             'universities' => ['name' => [$required, 'string', 'max:255', Rule::unique('universities', 'name')->where(fn ($query) => $query->where('country_id', $request->input('country_id', $record?->country_id))->when($creating, fn ($query) => $query->whereNull('deleted_at')))->ignore($record?->id)], 'country_id' => [$required, 'integer', 'exists:countries,id'], 'city' => ['nullable', 'string', 'max:255'], 'website' => ['nullable', 'url', 'max:255'], 'description' => ['nullable', 'string'], 'is_active' => ['sometimes', 'boolean']],
             'teachers' => ['name' => [$required, 'string', 'max:255', $unique('teachers')], 'contact' => ['nullable', 'string', 'max:255'], 'email' => ['nullable', 'email', 'max:255'], 'description' => ['nullable', 'string'], 'sort_order' => ['sometimes', 'integer', 'min:0'], 'is_active' => ['sometimes', 'boolean']],
-            'subjects', 'tests', 'skills', 'programs', 'times', 'durations', 'scholarships', 'classes' => ['name' => [$required, 'string', 'max:255', $unique(match ($catalog) {
-                'classes' => 'academy_classes', 'scholarships' => 'educational_scholarships', default => $catalog
+            'subjects', 'tests', 'skills', 'programs', 'times', 'durations', 'scholarships', 'classes', 'provinces', 'english-levels', 'acquisition-routes' => ['name' => [$required, 'string', 'max:255', $unique(match ($catalog) {
+                'classes' => 'academy_classes', 'scholarships' => 'educational_scholarships',
+                'english-levels' => 'english_levels', 'acquisition-routes' => 'acquisition_routes', default => $catalog
             })], 'description' => ['nullable', 'string'], 'sort_order' => ['sometimes', 'integer', 'min:0'], 'is_active' => ['sometimes', 'boolean']],
         };
         $data = $request->validate($rules);
@@ -155,7 +163,8 @@ class EducationalMasterDataController extends Controller
             'countries', 'languages' => $query->where(fn ($query) => $query
                 ->where('name', $data['name'])
                 ->orWhere('code', $data['code'])),
-            'education-levels', 'semesters', 'subjects', 'tests', 'skills', 'programs', 'times', 'durations', 'teachers' => $query->where('name', $data['name']),
+            'education-levels', 'semesters', 'subjects', 'tests', 'skills', 'programs', 'times', 'durations', 'teachers',
+            'provinces', 'english-levels', 'acquisition-routes' => $query->where('name', $data['name']),
             'universities' => $query->where('name', $data['name'])
                 ->where('country_id', $data['country_id'] ?? null),
         };
@@ -209,6 +218,9 @@ class EducationalMasterDataController extends Controller
             $record instanceof Duration => DB::table('academy_applicant_details')->where('duration_id', $record->id)->exists(),
             $record instanceof EducationalScholarship => DB::table('scholarship_applicant_details')->where('scholarship_id', $record->id)->exists(),
             $record instanceof AcademyClass => DB::table('academy_applicant_details')->where('class_id', $record->id)->exists(),
+            $record instanceof Province => DB::table('visitors')->where('province_id', $record->id)->whereNull('deleted_at')->exists(),
+            $record instanceof EnglishLevel => DB::table('visitors')->where('english_level_id', $record->id)->whereNull('deleted_at')->exists(),
+            $record instanceof AcquisitionRoute => DB::table('visitors')->where('acquisition_route_id', $record->id)->whereNull('deleted_at')->exists(),
             default => false,
         };
     }
@@ -220,6 +232,7 @@ class EducationalMasterDataController extends Controller
             'universities' => 'university', 'semesters' => 'semester', 'subjects' => 'subject',
             'tests' => 'test', 'skills' => 'skill', 'programs' => 'program', 'times' => 'time',
             'durations' => 'duration', 'teachers' => 'teacher', 'scholarships' => 'subject', 'classes' => 'program',
+            'provinces' => 'province', 'english-levels' => 'english_level', 'acquisition-routes' => 'acquisition_route',
         ][$catalog];
         abort_unless($request->user()?->hasPermission("{$action}_{$singular}"), 403, 'auth.forbidden');
     }

@@ -16,6 +16,9 @@ export type EducationalCatalog =
   | 'teachers'
   | 'scholarships'
   | 'classes'
+  | 'provinces'
+  | 'english-levels'
+  | 'acquisition-routes'
 
 export interface MasterDataRecord {
   id: number

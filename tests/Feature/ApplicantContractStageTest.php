@@ -2,12 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademyClass;
 use App\Models\ApplicantStage;
 use App\Models\Contract;
 use App\Models\ContractTemplateVersion;
 use App\Models\Currency;
+use App\Models\Duration;
 use App\Models\Language;
+use App\Models\Program;
 use App\Models\Task;
+use App\Models\Teacher;
+use App\Models\TimeSlot;
 use App\Models\User;
 use App\Services\Contracts\BuiltInContractTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,12 +50,18 @@ class ApplicantContractStageTest extends TestCase
 
     private function createAcademyContract(): Contract
     {
-        $this->activate('academy');
+        $version = $this->activate('academy');
         $id = $this->postJson('/api/contracts/academy', [
             'name' => 'Stage applicant', 'contact' => '0701234567',
             'fee' => 120, 'discount' => 0, 'currency_id' => $this->currency->id,
             'currency_rate' => 1, 'language_id' => $this->language->id,
-            'start_date' => '2026-10-13',
+            'contract_template_version_id' => $version->id,
+            'student_id' => 'STU-100', 'service_fee' => 120,
+            'program_id' => Program::create(['name' => 'Foundation', 'is_active' => true])->id,
+            'time_id' => TimeSlot::create(['name' => 'Morning', 'is_active' => true])->id,
+            'duration_id' => Duration::create(['name' => '6 months', 'is_active' => true])->id,
+            'teacher_ids' => [Teacher::create(['name' => 'Jane Doe', 'is_active' => true])->id],
+            'class_id' => AcademyClass::create(['name' => 'Class A', 'is_active' => true])->id,
         ])->assertCreated()->json('data.id');
 
         return Contract::findOrFail($id);

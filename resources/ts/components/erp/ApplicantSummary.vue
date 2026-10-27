@@ -16,21 +16,26 @@ const entries = computed(() => {
   add('erp.phone', a.contact)
   if (a.service === 'test_offer') add('erp.backupPhone', a.backup_phone)
   if (['scholarship', 'private'].includes(a.service)) {
+    add('serviceContracts.email', a.email)
+    add('serviceContracts.address', a.address)
     add('serviceContracts.fatherName', a.father_name)
     add('serviceContracts.fatherPhone', a.father_phone)
     add('erp.percentage', d?.grade_score == null ? null : `${d.grade_score}%`)
-    add('erp.scholarship', d?.scholarship?.name)
     add('educational.country', d?.country?.name)
     add('educational.educationLevel', d?.education_level?.name)
-    add('educational.semester', d?.semester?.name)
+    if (a.service === 'private') {
+      add('educational.semester', d?.semester?.name)
+      add('educational.contractType', (d as { contract_type?: { name?: string } | null })?.contract_type?.name)
+      add('educational.serviceFields.universityFee', d?.university_fee)
+    }
     add('erp.requestedFields', a.favorite_subjects?.map(row => row.name).join(', '))
-    add('educational.serviceFields.universityFee', d?.university_fee)
   }
   if (a.service === 'test_offer') {
     add('educational.masterData.tests', d?.test?.name)
     add('educational.masterData.skills', a.skills?.map(row => row.name).join(', '))
   }
   if (a.service === 'academy') {
+    add('serviceContracts.studentId', d?.student_id)
     add('educational.masterData.times', d?.time?.name)
     add('educational.masterData.teachers', a.teachers?.map(row => row.name).join(', '))
     add('educational.masterData.durations', d?.duration?.name)
@@ -39,10 +44,15 @@ const entries = computed(() => {
   }
   add('erp.admissionNotes', a.notes)
   for (const line of props.lines ?? a.services ?? []) {
-    for (const [field, key] of [['application_fee', 'applicationFee'], ['visa_fee', 'visaFee'], ['booking_fee', 'bookingFee'], ['service_fee', 'serviceFee'], ['remote_fee', 'remoteFee']] as const)
+    if (line.application_fee_min != null && line.application_fee_max != null)
+      add('serviceContracts.applicationFeeRange', `${line.application_fee_min} – ${line.application_fee_max} ${line.currency?.code ?? ''}`)
+    else
+      add('erp.applicationFee', line.application_fee == null ? null : `${line.application_fee} ${line.currency?.code ?? ''}`)
+    for (const [field, key] of [['visa_fee', 'visaFee'], ['booking_fee', 'bookingFee'], ['service_fee', 'serviceFee'], ['remote_fee', 'remoteFee']] as const)
       add(`erp.${key}`, line[field] == null ? null : `${line[field]} ${line.currency?.code ?? ''}`)
     add('erp.totalFee', `${line.fee} ${line.currency?.code ?? ''}`)
     add('serviceContracts.rate', line.currency_rate)
+    add('serviceContracts.paidFee', line.amount_paid == null ? null : `${line.amount_paid} ${line.currency?.code ?? ''}`)
   }
   return list
 })

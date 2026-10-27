@@ -2,14 +2,15 @@
 import { translate } from '@/utils/localization'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
-import ErpField from '@/components/erp/ErpField.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAbility } from '@casl/vue'
 import { useToast } from 'vue-toastification'
 import PrintableListReport from '@/components/PrintableListReport.vue'
-import VisitorApi, { type CreateVisitorData, type UpdateVisitorData, type Visitor } from '@/api/visitor'
+import VisitorProfileFields from '@/components/crm/VisitorProfileFields.vue'
+import VisitorApi, { type CreateVisitorData, type UpdateVisitorData, type Visitor, type VisitorFormData } from '@/api/visitor'
 import EmployeeApi, { type Employee } from '@/api/employee'
+import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import { printDocument } from '@/utils/printDocument'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
@@ -17,55 +18,56 @@ import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { useCookie } from '@core/composable/useCookie'
 
-interface VisitorForm {
-  name: string
-  contact: string
-  email: string
-  service: string
-  counselor_employee_id: number | null
-  notes: string
-}
-
 const visitors = ref<Visitor[]>([])
 const search = ref('')
 const dateFrom = ref('')
 const dateTo = ref('')
+const reviewStatus = ref<boolean | null>(null)
 const route = useRoute()
 // This page hosts two lists. The Visitors list shows the records that are not
 // marked worthy of follow-up; the Follow-up list shows the marked ones. The
 // shared CRM strip selects the mode with `?list=follow-up`, so both lists stay
 // deep-linkable and print their own report title.
 const isFollowUpList = computed(() => route.query.list === 'follow-up')
-const filterCounselorId = ref<number | null>(/^\d+$/.test(String(route.query.counselor_employee_id ?? '')) ? Number(route.query.counselor_employee_id) || null : null)
+const filterConsultantId = ref<number | null>(/^\d+$/.test(String(route.query.consultant_employee_id ?? '')) ? Number(route.query.consultant_employee_id) || null : null)
 const isAddNewVisitorDialogVisible = ref(false)
 const isEditVisitorDialogVisible = ref(false)
 const isDeleteVisitorDialogVisible = ref(false)
 const selectedVisitor = ref<Visitor | null>(null)
 const isTableLoading = ref(false)
 const isSaving = ref(false)
-const counselorDirectory = ref<Employee[]>([])
+const consultantDirectory = ref<Employee[]>([])
+const catalogs = ref<Partial<Record<'education-levels' | 'provinces' | 'english-levels' | 'acquisition-routes', MasterDataRecord[]>>>({})
 const toast = useToast()
 const ability = useAbility()
+const canReview = computed(() => ability.can('read', 'review_visitors'))
 
-// A counselor creating a visitor owns that visitor: the counselor field is
+// A consultant creating a visitor owns that visitor: the consultant field is
 // pre-filled with the signed-in employee and locked so the case cannot be
 // attributed to somebody else from the form.
 const currentUser = useCookie<{ roles?: string[]; employee?: { id?: number } | null } | null>('userData')
-const isCounselorUser = computed(() => (currentUser.value?.roles ?? [])
+const isConsultantUser = computed(() => (currentUser.value?.roles ?? [])
   .some(role => role === 'counselor' || role === 'senior_counselor'))
-const lockedCounselorId = computed(() => (isCounselorUser.value ? currentUser.value?.employee?.id ?? null : null))
-const counselorLocked = computed(() => lockedCounselorId.value !== null)
+const lockedConsultantId = computed(() => (isConsultantUser.value ? currentUser.value?.employee?.id ?? null : null))
+const consultantLocked = computed(() => isConsultantUser.value)
 
-const emptyVisitorForm = (): VisitorForm => ({
+const emptyVisitorForm = (): VisitorFormData => ({
   name: '',
   contact: '',
   email: '',
   service: '',
-  counselor_employee_id: lockedCounselorId.value,
+  education_level_id: null,
+  age: null,
+  grade_score: null,
+  province_id: null,
+  english_level_id: null,
+  acquisition_route_id: null,
+  consultant_employee_id: lockedConsultantId.value,
+  reviewed_by_consultant: false,
   notes: '',
 })
 
-const visitorData = ref<VisitorForm>(emptyVisitorForm())
+const visitorData = ref<VisitorFormData>(emptyVisitorForm())
 
 const formErrors = ref({
   name: '',
@@ -132,8 +134,20 @@ const validateForm = () => {
   return isValid
 }
 
-const counselorLabel = (record: Pick<Visitor, 'counselor'>) => record.counselor?.name || translate('educational.unassigned')
-const counselorPayload = () => ({ counselor_employee_id: visitorData.value.counselor_employee_id })
+const consultantLabel = (record: Pick<Visitor, 'consultant'>) => record.consultant?.name || translate('educational.unassigned')
+
+const profilePayload = (): Omit<CreateVisitorData, 'date' | 'name' | 'contact' | 'service'> => ({
+  email: visitorData.value.email || null,
+  education_level_id: visitorData.value.education_level_id,
+  age: visitorData.value.age === '' ? null : Number(visitorData.value.age),
+  grade_score: visitorData.value.grade_score === '' ? null : visitorData.value.grade_score,
+  province_id: visitorData.value.province_id,
+  english_level_id: visitorData.value.english_level_id,
+  acquisition_route_id: visitorData.value.acquisition_route_id,
+  consultant_employee_id: consultantLocked.value ? lockedConsultantId.value : visitorData.value.consultant_employee_id,
+  notes: visitorData.value.notes,
+  ...(canReview.value ? { reviewed_by_consultant: visitorData.value.reviewed_by_consultant } : {}),
+})
 
 const fetchVisitors = async () => {
   try {
@@ -143,7 +157,8 @@ const fetchVisitors = async () => {
       date_from: dateFrom.value || undefined,
       date_to: dateTo.value || undefined,
       search: search.value,
-      counselor_employee_id: filterCounselorId.value || undefined,
+      consultant_employee_id: filterConsultantId.value || undefined,
+      reviewed_by_consultant: reviewStatus.value === null ? undefined : (reviewStatus.value ? 1 : 0),
       follow_up: isFollowUpList.value ? 1 : 0,
     })
 
@@ -164,9 +179,10 @@ const filtered = computed(() => {
       || v.contact.includes(search.value)
       || (v.email?.toLowerCase().includes(search.value.toLowerCase()) ?? false)
 
-    const matchesCounselor = !filterCounselorId.value || v.counselor_employee_id === filterCounselorId.value
+    const matchesConsultant = !filterConsultantId.value || v.consultant_employee_id === filterConsultantId.value
+    const matchesReview = reviewStatus.value === null || v.reviewed_by_consultant === reviewStatus.value
 
-    return matchesSearch && matchesCounselor
+    return matchesSearch && matchesConsultant && matchesReview
   })
 })
 
@@ -175,7 +191,12 @@ const headers = computed(() => [
   { title: translate('common.messages.contact'), key: 'contact', sortable: true },
   { title: translate('common.fields.email'), key: 'email', sortable: true },
   { title: translate('common.messages.service'), key: 'service', sortable: true },
-  { title: translate('agencyStaff.counselor'), key: 'counselor', sortable: true },
+  { title: translate('educational.educationLevel'), key: 'education', sortable: false },
+  { title: translate('pages.contracts.visitor.visitor.province'), key: 'province', sortable: false },
+  { title: translate('pages.contracts.visitor.visitor.englishLevel'), key: 'english', sortable: false },
+  { title: translate('pages.contracts.visitor.visitor.acquisitionRoute'), key: 'acquisition', sortable: false },
+  { title: translate('pages.contracts.visitor.visitor.consultant'), key: 'consultant', sortable: true },
+  { title: translate('pages.contracts.visitor.visitor.review'), key: 'review', sortable: false },
   { title: translate('common.fields.date'), key: 'date', sortable: true },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
@@ -196,11 +217,9 @@ const addNewVisitor = async () => {
     const data: CreateVisitorData = {
       name: visitorData.value.name,
       contact: visitorData.value.contact,
-      email: visitorData.value.email || null,
       service: visitorData.value.service,
-      notes: visitorData.value.notes,
       date: new Date().toISOString().split('T')[0],
-      ...counselorPayload(),
+      ...profilePayload(),
     }
 
     const response = await VisitorApi.create(data)
@@ -212,6 +231,7 @@ const addNewVisitor = async () => {
   }
   catch (error) {
     console.error('Error creating visitor:', error)
+    toast.error(apiErrorMessage(error))
   }
   finally {
     isSaving.value = false
@@ -230,10 +250,8 @@ const editVisitor = async () => {
     const data: UpdateVisitorData = {
       name: visitorData.value.name,
       contact: visitorData.value.contact,
-      email: visitorData.value.email || null,
       service: visitorData.value.service,
-      notes: visitorData.value.notes,
-      ...counselorPayload(),
+      ...profilePayload(),
     }
 
     const response = await VisitorApi.update(selectedVisitor.value.id, data)
@@ -247,6 +265,7 @@ const editVisitor = async () => {
   }
   catch (error) {
     console.error('Error updating visitor:', error)
+    toast.error(apiErrorMessage(error))
   }
   finally {
     isSaving.value = false
@@ -260,7 +279,14 @@ const openEditDialog = (visitor: Visitor) => {
     contact: visitor.contact,
     email: visitor.email ?? '',
     service: visitor.service,
-    counselor_employee_id: visitor.counselor_employee_id,
+    education_level_id: visitor.education_level_id,
+    age: visitor.age,
+    grade_score: visitor.grade_score,
+    province_id: visitor.province_id,
+    english_level_id: visitor.english_level_id,
+    acquisition_route_id: visitor.acquisition_route_id,
+    consultant_employee_id: visitor.consultant_employee_id,
+    reviewed_by_consultant: visitor.reviewed_by_consultant,
     notes: visitor.notes || '',
   }
   isEditVisitorDialogVisible.value = true
@@ -283,6 +309,7 @@ const deleteVisitor = async () => {
   }
   catch (error) {
     console.error('Error deleting visitor:', error)
+    toast.error(apiErrorMessage(error))
   }
   finally {
     isSaving.value = false
@@ -307,16 +334,46 @@ const setFollowUp = async (visitor: Visitor, followUp: boolean) => {
   }
 }
 
-// Extract unique values for filters
-const services = computed(() => {
-  return [...new Set(visitors.value.map(v => v.service))].filter(Boolean)
-})
+// The consultant sign-off is a dedicated permission. A reviewer can complete it
+// from the list without opening the full edit dialog.
+const markReviewed = async (visitor: Visitor) => {
+  try {
+    isSaving.value = true
+    const updated = await VisitorApi.update(visitor.id, { reviewed_by_consultant: true })
+    const index = visitors.value.findIndex(v => v.id === visitor.id)
+    if (index !== -1)
+      visitors.value[index] = updated
+    toast.success(translate('pages.contracts.visitor.visitor.markedReviewed'))
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error))
+  }
+  finally {
+    isSaving.value = false
+  }
+}
 
 watch(() => route.query.list, () => { fetchVisitors() })
 
-onMounted(() => {
+onMounted(async () => {
   fetchVisitors()
-  EmployeeApi.getAssignmentOptions('counselor').then(data => { counselorDirectory.value = data }).catch(console.error)
+  const [consultants, educationLevels, provinces, englishLevels, acquisitionRoutes] = await Promise.allSettled([
+    EmployeeApi.getAssignmentOptions('counselor'),
+    MasterDataApi.list('education-levels'),
+    MasterDataApi.list('provinces'),
+    MasterDataApi.list('english-levels'),
+    MasterDataApi.list('acquisition-routes'),
+  ])
+  if (consultants.status === 'fulfilled')
+    consultantDirectory.value = consultants.value
+  else
+    console.error(consultants.reason)
+  catalogs.value = {
+    'education-levels': educationLevels.status === 'fulfilled' ? educationLevels.value : [],
+    provinces: provinces.status === 'fulfilled' ? provinces.value : [],
+    'english-levels': englishLevels.status === 'fulfilled' ? englishLevels.value : [],
+    'acquisition-routes': acquisitionRoutes.status === 'fulfilled' ? acquisitionRoutes.value : [],
+  }
 })
 </script>
 
@@ -353,16 +410,25 @@ onMounted(() => {
           class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2"
         >
           <DataTableFilterMenu
-            :active="Boolean(filterCounselorId || dateFrom || dateTo)"
-            @reset="filterCounselorId = null; dateFrom = ''; dateTo = ''; fetchVisitors()"
+            :active="Boolean(filterConsultantId || reviewStatus !== null || dateFrom || dateTo)"
+            @reset="filterConsultantId = null; reviewStatus = null; dateFrom = ''; dateTo = ''; fetchVisitors()"
           >
             <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="fetchVisitors" />
             <VSelect
-              v-model="filterCounselorId"
-              :items="counselorDirectory"
+              v-model="filterConsultantId"
+              :items="consultantDirectory"
               item-title="name"
               item-value="id"
-              :label="$t('agencyStaff.counselor')"
+              :label="$t('pages.contracts.visitor.visitor.consultant')"
+              density="compact"
+              clearable
+              hide-details
+              @update:model-value="fetchVisitors"
+            />
+            <VSelect
+              v-model="reviewStatus"
+              :items="[{ title: $t('pages.contracts.visitor.visitor.reviewed'), value: true }, { title: $t('pages.contracts.visitor.visitor.pendingReview'), value: false }]"
+              :label="$t('pages.contracts.visitor.visitor.review')"
               density="compact"
               clearable
               hide-details
@@ -442,7 +508,26 @@ onMounted(() => {
         >{{ item.email || '—' }}</span>
       </template>
 
-      <template #item.counselor="{ item }">
+      <template #item.education="{ item }">
+        <div class="d-flex flex-column">
+          <span>{{ item.education_level?.name || '—' }}</span>
+          <span v-if="item.grade_score !== null && item.grade_score !== ''" class="text-caption text-medium-emphasis">{{ item.grade_score }}%</span>
+        </div>
+      </template>
+
+      <template #item.province="{ item }">
+        <span class="text-medium-emphasis">{{ item.province?.name || '—' }}</span>
+      </template>
+
+      <template #item.english="{ item }">
+        <span class="text-medium-emphasis">{{ item.english_level?.name || '—' }}</span>
+      </template>
+
+      <template #item.acquisition="{ item }">
+        <span class="text-medium-emphasis">{{ item.acquisition_route?.name || '—' }}</span>
+      </template>
+
+      <template #item.consultant="{ item }">
         <div class="d-flex align-center ga-2">
           <VAvatar
             size="28"
@@ -454,8 +539,18 @@ onMounted(() => {
               size="16"
             />
           </VAvatar>
-          <span>{{ counselorLabel(item) }}</span>
+          <span>{{ consultantLabel(item) }}</span>
         </div>
+      </template>
+
+      <template #item.review="{ item }">
+        <VChip
+          size="small"
+          :color="item.reviewed_by_consultant ? 'success' : 'warning'"
+          variant="tonal"
+        >
+          {{ item.reviewed_by_consultant ? $t('pages.contracts.visitor.visitor.reviewed') : $t('pages.contracts.visitor.visitor.pendingReview') }}
+        </VChip>
       </template>
 
       <template #item.actions="{ item }">
@@ -513,6 +608,22 @@ onMounted(() => {
             </VTooltip>
           </VBtn>
           <VBtn
+            v-if="canReview && !item.reviewed_by_consultant"
+            icon="tabler-user-check"
+            variant="text"
+            size="small"
+            color="success"
+            :loading="isSaving"
+            @click="markReviewed(item)"
+          >
+            <VIcon icon="tabler-user-check" /><VTooltip
+              activator="parent"
+              location="top"
+            >
+              {{ $t('pages.contracts.visitor.visitor.markReviewed') }}
+            </VTooltip>
+          </VBtn>
+          <VBtn
             icon="tabler-edit"
             variant="text"
             size="small"
@@ -550,7 +661,7 @@ onMounted(() => {
     :title="isFollowUpList ? $t('common.crmUi.printReports.followUp.title') : $t('common.crmUi.printReports.visitors.title')"
     :subtitle="isFollowUpList ? $t('common.crmUi.printReports.followUp.subtitle') : $t('common.crmUi.printReports.visitors.subtitle')"
     :columns="headers.slice(0, -1).map(header => header.title)"
-    :rows="filtered.map(visitor => [visitor.name, visitor.contact, visitor.email || '—', visitor.service, counselorLabel(visitor), visitor.date])"
+    :rows="filtered.map(visitor => [visitor.name, visitor.contact, visitor.email || '—', visitor.service, visitor.education_level?.name || '—', visitor.province?.name || '—', visitor.english_level?.name || '—', visitor.acquisition_route?.name || '—', consultantLabel(visitor), visitor.reviewed_by_consultant ? $t('pages.contracts.visitor.visitor.reviewed') : $t('pages.contracts.visitor.visitor.pendingReview'), visitor.date])"
   />
 
   <!-- Add New Visitor Dialog -->
@@ -570,76 +681,14 @@ onMounted(() => {
           class="app-form"
           @submit.prevent="addNewVisitor"
         >
-          <VRow>
-            <VCol
-              cols="12"
-              md="4"
-            >
-              <ErpField
-                v-model="visitorData.name"
-                :label="$t('common.messages.visitorName')"
-                :placeholder="$t('common.messages.enterVisitorName')"
-                :error-messages="formErrors.name"
-                required
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="4"
-            >
-              <ErpField
-                v-model="visitorData.contact"
-                :label="$t('common.messages.contactPhone')"
-                :placeholder="$t('common.messages.enterPhoneNumber')"
-                :error-messages="formErrors.contact"
-                required
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="4"
-            >
-              <ErpField
-                v-model="visitorData.email"
-                :label="$t('common.fields.email')"
-                type="email"
-                prepend-inner-icon="tabler-mail"
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="4"
-            >
-              <ErpField
-                v-model="visitorData.service"
-                :label="$t('common.messages.service')"
-                :placeholder="$t('common.messages.enterService')"
-                :error-messages="formErrors.service"
-                required
-              />
-            </VCol>
-            <VCol cols="12" md="4">
-              <VAutocomplete
-                v-model="visitorData.counselor_employee_id"
-                :items="counselorDirectory"
-                item-title="name"
-                item-value="id"
-                :label="$t('agencyStaff.counselor')"
-                :placeholder="$t('agencyStaff.counselor')"
-                :disabled="counselorLocked"
-                :clearable="!counselorLocked"
-              />
-            </VCol>
-            <VCol cols="12">
-              <ErpField kind="textarea"
-                v-model="visitorData.notes"
-                :label="$t('common.crmUi.visitorNotes')"
-                rows="3"
-                :hint="$t('common.crmUi.visitorNotesHint')"
-                persistent-hint
-              />
-            </VCol>
-          </VRow>
+          <VisitorProfileFields
+            v-model="visitorData"
+            :catalogs="catalogs"
+            :consultants="consultantDirectory"
+            :consultant-locked="consultantLocked"
+            :can-review="canReview"
+            :errors="formErrors"
+          />
         </VForm>
       </VCardText>
 
@@ -681,83 +730,14 @@ onMounted(() => {
           class="app-form"
           @submit.prevent="editVisitor"
         >
-          <VRow>
-            <VCol
-              cols="12"
-              md="4"
-            >
-              <ErpField
-                v-model="visitorData.name"
-                :label="$t('common.messages.visitorName')"
-                :placeholder="$t('common.messages.enterVisitorName')"
-                :hint="$t('common.messages.enterTheFullNameOfTheVisitor')"
-                persistent-hint
-                :error-messages="formErrors.name"
-                required
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="4"
-            >
-              <ErpField
-                v-model="visitorData.contact"
-                :label="$t('common.messages.contactPhone')"
-                :placeholder="$t('common.messages.enterPhoneNumber')"
-                :hint="$t('common.messages.enterTheVisitorSContactNumber')"
-                persistent-hint
-                :error-messages="formErrors.contact"
-                required
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="4"
-            >
-              <ErpField
-                v-model="visitorData.email"
-                :label="$t('common.fields.email')"
-                type="email"
-                prepend-inner-icon="tabler-mail"
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="4"
-            >
-              <ErpField
-                v-model="visitorData.service"
-                :label="$t('common.messages.service')"
-                :placeholder="$t('common.messages.enterService')"
-                :hint="$t('common.messages.enterTheServiceTheVisitorIsInterestedIn')"
-                persistent-hint
-                :error-messages="formErrors.service"
-                required
-              />
-            </VCol>
-            <VCol cols="12" md="4">
-              <VAutocomplete
-                v-model="visitorData.counselor_employee_id"
-                :items="counselorDirectory"
-                item-title="name"
-                item-value="id"
-                :label="$t('agencyStaff.counselor')"
-                :placeholder="$t('agencyStaff.counselor')"
-                :hint="$t('agencyStaff.optionalCounselor')"
-                persistent-hint
-                clearable
-              />
-            </VCol>
-            <VCol cols="12">
-              <ErpField kind="textarea"
-                v-model="visitorData.notes"
-                :label="$t('common.crmUi.visitorNotes')"
-                rows="3"
-                :hint="$t('common.crmUi.visitorNotesHint')"
-                persistent-hint
-              />
-            </VCol>
-          </VRow>
+          <VisitorProfileFields
+            v-model="visitorData"
+            :catalogs="catalogs"
+            :consultants="consultantDirectory"
+            :consultant-locked="consultantLocked"
+            :can-review="canReview"
+            :errors="formErrors"
+          />
         </VForm>
       </VCardText>
 

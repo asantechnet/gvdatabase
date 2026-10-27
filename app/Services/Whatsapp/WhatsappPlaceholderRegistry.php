@@ -27,7 +27,9 @@ final class WhatsappPlaceholderRegistry
             ['token' => 'contact', 'label' => 'Phone', 'label_key' => 'pages.whatsapp.placeholders.visitor.contact', 'source' => 'contact', 'sample' => '0700 123 456'],
             ['token' => 'email', 'label' => 'Email', 'label_key' => 'pages.whatsapp.placeholders.visitor.email', 'source' => 'email', 'sample' => 'visitor@example.com'],
             ['token' => 'service', 'label' => 'Service', 'label_key' => 'pages.whatsapp.placeholders.visitor.service', 'source' => 'service', 'sample' => 'Scholarship'],
-            ['token' => 'counselor', 'label' => 'Counselor', 'label_key' => 'pages.whatsapp.placeholders.visitor.counselor', 'source' => 'counselor.name', 'sample' => 'Sara Noori'],
+            // The token stays `counselor` so templates saved before the visitor
+            // consultant rename keep working; it resolves the visitor's consultant.
+            ['token' => 'counselor', 'label' => 'Consultant', 'label_key' => 'pages.whatsapp.placeholders.visitor.counselor', 'source' => 'consultant.name', 'sample' => 'Sara Noori'],
             ['token' => 'date', 'label' => 'Visit Date', 'label_key' => 'pages.whatsapp.placeholders.visitor.date', 'source' => 'date', 'sample' => '2026-10-14'],
         ],
         WhatsappAudience::APPLICANT => [

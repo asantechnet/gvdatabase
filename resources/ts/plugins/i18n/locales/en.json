@@ -33,7 +33,15 @@
     "active": "Active",
     "completed": "Completed",
     "terminated": "Terminated",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "studentId": "Student ID",
+    "studentFullName": "Student full name",
+    "consultant": "Consultant",
+    "applicationFeeRange": "Application fee range",
+    "paidFee": "Paid fee",
+    "paidFeeHint": "Recorded as a payment receipt for this contract.",
+    "markPaid": "Mark as paid",
+    "markedPaid": "Contract marked as paid."
   },
   "common": {
     "attachments": {

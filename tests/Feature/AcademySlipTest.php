@@ -25,6 +25,10 @@ class AcademySlipTest extends TestCase
 
     private Language $language;
 
+    private ?\App\Models\ContractTemplateVersion $version = null;
+
+    private ?\App\Models\Test $test = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -37,10 +41,15 @@ class AcademySlipTest extends TestCase
     private function activate(string $service): void
     {
         $template = app(BuiltInContractTemplateService::class)->ensure($service);
-        $template->versions()->create([
-            'language_id' => $this->language->id, 'country_id' => null,
+        $testId = null;
+        if ($service === BuiltInService::TEST_OFFER) {
+            $this->test = \App\Models\Test::create(['name' => 'IELTS', 'is_active' => true]);
+            $testId = $this->test->id;
+        }
+        $this->version = $template->versions()->create([
+            'language_id' => $this->language->id, 'country_id' => null, 'test_id' => $testId,
             'version_number' => 1, 'name' => 'Agreed terms', 'status' => 'active',
-            'is_current' => true, 'current_scope_key' => "{$template->id}:0:{$this->language->id}",
+            'is_current' => true, 'current_scope_key' => implode(':', [$template->id, null, $testId, $this->language->id]),
             'content' => '<p>Academy terms</p>',
         ]);
     }
@@ -58,7 +67,8 @@ class AcademySlipTest extends TestCase
             'name' => 'Academy applicant', 'contact' => '0701234567',
             'fee' => 120, 'discount' => 20, 'currency_id' => $this->currency->id,
             'currency_rate' => 2.5, 'language_id' => $this->language->id,
-            'start_date' => '2026-10-08', 'service_fee' => 120,
+            'contract_template_version_id' => $this->version->id, 'service_fee' => 120,
+            'student_id' => 'STU-100',
             'program_id' => $program->id, 'time_id' => $time->id,
             'duration_id' => $duration->id, 'class_id' => $class->id,
             'teacher_ids' => [$teacher->id],
@@ -85,11 +95,16 @@ class AcademySlipTest extends TestCase
     public function test_academy_slip_rejects_a_non_academy_contract(): void
     {
         $this->activate(BuiltInService::TEST_OFFER);
+        $test = $this->test;
+        $skill = \App\Models\Skill::create(['name' => 'Writing', 'is_active' => true]);
         $id = $this->postJson('/api/contracts/test_offer', [
-            'name' => 'Test applicant', 'fee' => 50, 'discount' => 0,
+            'name' => 'Test applicant', 'contact' => '0701234567', 'backup_phone' => '0707654321',
+            'fee' => 50, 'discount' => 0,
             'currency_id' => $this->currency->id, 'currency_rate' => 1,
-            'language_id' => $this->language->id, 'start_date' => '2026-10-08',
-            'booking_fee' => 50,
+            'language_id' => $this->language->id,
+            'contract_template_version_id' => $this->version->id,
+            'test_id' => $test->id, 'skill_ids' => [$skill->id],
+            'booking_fee' => 20, 'service_fee' => 20, 'remote_fee' => 10,
         ])->assertCreated()->json('data.id');
 
         $this->getJson("/api/contracts/{$id}/academy-slip")->assertNotFound();

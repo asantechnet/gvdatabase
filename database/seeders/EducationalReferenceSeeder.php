@@ -5,10 +5,12 @@ namespace Database\Seeders;
 use App\Models\AcademyClass;
 use App\Models\Country;
 use App\Models\Duration;
+use App\Models\EnglishLevel;
 use App\Models\EducationalScholarship;
 use App\Models\EducationLevel;
 use App\Models\Language;
 use App\Models\Program;
+use App\Models\Province;
 use App\Models\Semester;
 use App\Models\Skill;
 use App\Models\Subject;
@@ -75,6 +77,25 @@ class EducationalReferenceSeeder extends Seeder
         }
         foreach (['en' => 'English', 'de' => 'German', 'fr' => 'French'] as $code => $name) {
             Language::withTrashed()->updateOrCreate(['code' => $code], ['name' => $name, 'is_active' => true, 'deleted_at' => null]);
+        }
+
+        // Visitor profile catalogues. Provinces cover Afghanistan; English
+        // levels use the CEFR bands. Acquisition routes stay admin-managed.
+        foreach ([
+            'Badakhshan', 'Badghis', 'Baghlan', 'Balkh', 'Bamyan', 'Daykundi', 'Farah', 'Faryab',
+            'Ghazni', 'Ghor', 'Helmand', 'Herat', 'Jowzjan', 'Kabul', 'Kandahar', 'Kapisa',
+            'Khost', 'Kunar', 'Kunduz', 'Laghman', 'Logar', 'Nangarhar', 'Nimroz', 'Nuristan',
+            'Paktia', 'Paktika', 'Panjshir', 'Parwan', 'Samangan', 'Sar-e Pol', 'Takhar',
+            'Urozgan', 'Wardak', 'Zabul',
+        ] as $index => $name) {
+            Province::withTrashed()->updateOrCreate(['name' => $name], [
+                'sort_order' => ($index + 1) * 10, 'is_active' => true, 'deleted_at' => null,
+            ]);
+        }
+        foreach (['A1 Beginner', 'A2 Elementary', 'B1 Intermediate', 'B2 Upper Intermediate', 'C1 Advanced', 'C2 Proficiency'] as $index => $name) {
+            EnglishLevel::withTrashed()->updateOrCreate(['name' => $name], [
+                'sort_order' => ($index + 1) * 10, 'is_active' => true, 'deleted_at' => null,
+            ]);
         }
         Semester::withTrashed()->updateOrCreate(['code' => 'FALL-2027'], ['name' => 'Fall 2027', 'sort_order' => 10, 'is_active' => true, 'deleted_at' => null]);
 

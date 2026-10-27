@@ -15,7 +15,7 @@ class AcademyApplicantDetail extends Model
 {
     use Auditable, SoftDeletes;
 
-    protected $fillable = ['applicant_id', 'program_id', 'time_id', 'duration_id', 'class_id'];
+    protected $fillable = ['applicant_id', 'student_id', 'program_id', 'time_id', 'duration_id', 'class_id'];
 
     public function applicant(): BelongsTo
     {

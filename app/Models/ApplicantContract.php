@@ -25,6 +25,8 @@ class ApplicantContract extends Pivot
         'contract_id',
         'service',
         'application_fee',
+        'application_fee_min',
+        'application_fee_max',
         'visa_fee',
         'booking_fee',
         'service_fee',
@@ -45,6 +47,8 @@ class ApplicantContract extends Pivot
 
     protected $casts = [
         'application_fee' => 'decimal:2',
+        'application_fee_min' => 'decimal:2',
+        'application_fee_max' => 'decimal:2',
         'visa_fee' => 'decimal:2',
         'booking_fee' => 'decimal:2',
         'service_fee' => 'decimal:2',

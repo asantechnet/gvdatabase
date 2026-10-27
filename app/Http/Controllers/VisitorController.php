@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class VisitorController extends Controller
 {
@@ -22,10 +23,19 @@ class VisitorController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $dates = $request->validate(['date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable']]);
-        $request->validate(['follow_up' => ['nullable', 'boolean']]);
+        $request->validate([
+            'follow_up' => ['nullable', 'boolean'],
+            'reviewed_by_consultant' => ['nullable', 'boolean'],
+            'consultant_employee_id' => ['nullable', 'integer'],
+            'education_level_id' => ['nullable', 'integer'],
+            'province_id' => ['nullable', 'integer'],
+            'english_level_id' => ['nullable', 'integer'],
+            'acquisition_route_id' => ['nullable', 'integer'],
+        ]);
         $search = $request->input('search');
 
-        $query = Visitor::query()->with('counselor')
+        $query = Visitor::query()
+            ->with(['consultant', 'educationLevel', 'province', 'englishLevel', 'acquisitionRoute'])
             ->when(! $request->boolean('include_converted'), fn ($query) => $query->whereNull('converted_at'));
 
         // The visitor surface is split into two lists on one page: the Visitors
@@ -36,6 +46,10 @@ class VisitorController extends Controller
             $query->where('follow_up', $request->boolean('follow_up'));
         }
 
+        if ($request->has('reviewed_by_consultant')) {
+            $query->where('reviewed_by_consultant', $request->boolean('reviewed_by_consultant'));
+        }
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%$search%")
@@ -44,8 +58,10 @@ class VisitorController extends Controller
             });
         }
 
-        if ($request->integer('counselor_employee_id')) {
-            $query->where('counselor_employee_id', $request->integer('counselor_employee_id'));
+        foreach (['consultant_employee_id', 'education_level_id', 'province_id', 'english_level_id', 'acquisition_route_id'] as $field) {
+            if ($request->integer($field)) {
+                $query->where($field, $request->integer($field));
+            }
         }
 
         $query->when(! empty($dates['date_from']), fn ($q) => $q->whereDate('date', '>=', $dates['date_from']))
@@ -67,36 +83,30 @@ class VisitorController extends Controller
             'contact' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
             'service' => 'required|string|max:255',
-            'counselor_employee_id' => AgencyStaffAssignment::rules('counselor'),
+            'consultant_employee_id' => AgencyStaffAssignment::rules('counselor'),
+            'education_level_id' => ['nullable', 'integer', Rule::exists('education_levels', 'id')->whereNull('deleted_at')],
+            'age' => ['nullable', 'integer', 'min:1', 'max:120'],
+            'grade_score' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'province_id' => ['nullable', 'integer', Rule::exists('provinces', 'id')->whereNull('deleted_at')],
+            'english_level_id' => ['nullable', 'integer', Rule::exists('english_levels', 'id')->whereNull('deleted_at')],
+            'acquisition_route_id' => ['nullable', 'integer', Rule::exists('acquisition_routes', 'id')->whereNull('deleted_at')],
+            'reviewed_by_consultant' => ['sometimes', 'boolean'],
             'date' => 'required|date',
             'notes' => 'nullable|string|max:10000',
         ]);
 
-        // A counselor creating a visitor is that visitor's counselor. The
+        // A consultant creating a visitor is that visitor's consultant. The
         // frontend locks the field, and this keeps the rule true even for a
-        // direct API call: the signed-in counselor's employee id always wins.
-        $validated['counselor_employee_id'] = $this->lockedCounselorId($request)
-            ?? $validated['counselor_employee_id']
-            ?? null;
+        // direct API call: the signed-in consultant's employee id always wins.
+        if ($this->isConsultant($request)) {
+            $validated['consultant_employee_id'] = $this->lockedConsultantId($request);
+        }
+
+        $this->guardReviewPermission($request, $validated);
 
         $visitor = Visitor::create($validated);
 
-        return new VisitorResource($visitor->load(['counselor', 'interactions.creator']));
-    }
-
-    /**
-     * The employee id a counselor-role user must be recorded as, or null when
-     * the actor may freely choose the visitor's counselor.
-     */
-    private function lockedCounselorId(Request $request): ?int
-    {
-        $user = $request->user();
-        $isCounselor = array_intersect($user->roleNames(), ['counselor', 'senior_counselor']) !== [];
-        if (! $isCounselor) {
-            return null;
-        }
-
-        return $user->employee?->id;
+        return new VisitorResource($visitor->load($this->relations()));
     }
 
     /**
@@ -104,7 +114,7 @@ class VisitorController extends Controller
      */
     public function show(Visitor $visitor): VisitorResource
     {
-        return new VisitorResource($visitor->load(['counselor', 'interactions.creator']));
+        return new VisitorResource($visitor->load($this->relations()));
     }
 
     /**
@@ -118,14 +128,29 @@ class VisitorController extends Controller
             'contact' => 'sometimes|required|string|max:255',
             'email' => 'nullable|email|max:255',
             'service' => 'sometimes|required|string|max:255',
-            'counselor_employee_id' => AgencyStaffAssignment::rules('counselor'),
+            'consultant_employee_id' => AgencyStaffAssignment::rules('counselor'),
+            'education_level_id' => ['nullable', 'integer', Rule::exists('education_levels', 'id')->whereNull('deleted_at')],
+            'age' => ['nullable', 'integer', 'min:1', 'max:120'],
+            'grade_score' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'province_id' => ['nullable', 'integer', Rule::exists('provinces', 'id')->whereNull('deleted_at')],
+            'english_level_id' => ['nullable', 'integer', Rule::exists('english_levels', 'id')->whereNull('deleted_at')],
+            'acquisition_route_id' => ['nullable', 'integer', Rule::exists('acquisition_routes', 'id')->whereNull('deleted_at')],
+            'reviewed_by_consultant' => ['sometimes', 'boolean'],
             'date' => 'sometimes|required|date',
             'notes' => 'nullable|string|max:10000',
         ]);
 
+        // The consultant is immutable for consultant-role users: an edit may
+        // not move somebody else's visitor onto (or off) their own desk.
+        if ($this->isConsultant($request)) {
+            unset($validated['consultant_employee_id']);
+        }
+
+        $this->guardReviewPermission($request, $validated);
+
         $visitor->update($validated);
 
-        return new VisitorResource($visitor->load(['counselor', 'interactions.creator']));
+        return new VisitorResource($visitor->load($this->relations()));
     }
 
     /**
@@ -150,7 +175,7 @@ class VisitorController extends Controller
 
         $visitor->update(['follow_up' => $validated['follow_up']]);
 
-        return new VisitorResource($visitor->load(['counselor', 'interactions.creator']));
+        return new VisitorResource($visitor->load($this->relations()));
     }
 
     public function convertToApplicant(Visitor $visitor): ApplicantResource
@@ -185,5 +210,40 @@ class VisitorController extends Controller
             'admissionEmployee',
             'interactions.creator',
         ]));
+    }
+
+    private function relations(): array
+    {
+        return ['consultant', 'educationLevel', 'province', 'englishLevel', 'acquisitionRoute', 'interactions.creator'];
+    }
+
+    private function isConsultant(Request $request): bool
+    {
+        return array_intersect($request->user()->roleNames(), ['counselor', 'senior_counselor']) !== [];
+    }
+
+    /**
+     * The employee id a consultant-role user must be recorded as. A consultant
+     * without an employee profile cannot own an enquiry.
+     */
+    private function lockedConsultantId(Request $request): int
+    {
+        $employeeId = $request->user()->employee?->id;
+        abort_unless($employeeId, 422, 'business.employee_profile_missing');
+
+        return (int) $employeeId;
+    }
+
+    /**
+     * The consultant review is a dedicated sign-off; a visitor edit alone does
+     * not grant it.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function guardReviewPermission(Request $request, array $data): void
+    {
+        if (array_key_exists('reviewed_by_consultant', $data) && ! $request->user()->hasPermission('review_visitors')) {
+            abort(403, 'auth.forbidden');
+        }
     }
 }

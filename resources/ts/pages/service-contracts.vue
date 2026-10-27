@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { useAbility } from '@casl/vue'
 import { useToast } from 'vue-toastification'
 import ContractApi, { type Contract, type ServiceContractOptions, serviceContractApplicantFields } from '@/api/contracts'
+import { setContractPaymentOverride } from '@/api/incomes'
 import type { ApplicantPayload, BuiltInService } from '@/api/applicants'
 import VisitorApi, { visitorApplicantFields, type Visitor } from '@/api/visitor'
 import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
@@ -46,9 +47,20 @@ const counselorEmployees = ref<ServiceContractOptions['counselor_employees']>([]
 const visitors = ref<Visitor[]>([])
 const visitorId = ref<number | null>(null)
 const charges = ref<Record<string, number | string>>({})
-const chargeFields = computed(() => service.value === 'private' ? ['application_fee', 'visa_fee'] : service.value === 'scholarship' ? ['application_fee'] : service.value === 'test_offer' ? ['booking_fee', 'service_fee', 'remote_fee'] : ['service_fee'])
+// Private contracts price the application fee as a range; every other service
+// keeps a single itemised charge.
+const applicationFeeRange = ref<[number, number]>([0, 0])
+const paidFee = ref<number | string>(0)
+const chargeFields = computed(() => service.value === 'private' ? ['visa_fee'] : service.value === 'scholarship' ? ['application_fee'] : service.value === 'test_offer' ? ['booking_fee', 'service_fee', 'remote_fee'] : ['service_fee'])
 const chargeLabel = (field: string) => t(`erp.${field.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())}`)
-const fee = computed(() => chargeFields.value.reduce((sum, field) => sum + Number(charges.value[field] || 0), 0))
+const fee = computed(() => service.value === 'private'
+  ? Number(applicationFeeRange.value[1] || 0) + Number(charges.value.visa_fee || 0)
+  : chargeFields.value.reduce((sum, field) => sum + Number(charges.value[field] || 0), 0))
+const feeMin = computed(() => service.value === 'private'
+  ? Number(applicationFeeRange.value[0] || 0) + Number(charges.value.visa_fee || 0)
+  : fee.value)
+const applicationFeeCeiling = computed(() => Math.max(10000, Math.ceil(Number(applicationFeeRange.value[1] || 0) / 1000) * 1000 + 1000))
+const canRecordIncome = computed(() => ability.can('read', 'create_incomes'))
 const formRef = ref()
 const discount = ref<number | string>(0)
 const currencyId = ref<number | null>(null)
@@ -87,12 +99,54 @@ const versionItems = computed(() => compatibleVersions.value.map(version => ({
 })))
 const selectedVersion = computed(() => compatibleVersions.value.find(version => version.id === selectedVersionId.value) ?? null)
 const reportRows = computed(() => visible.value.map(row => [row.contract_number, row.counterparty, row.counterparty_contact,
-  row.snapshot_data?.template_version ? `${row.snapshot_data.template_version.name} · v${row.snapshot_data.template_version.version_number}` : '—', row.services?.map(line => `${line.fee} ${line.currency?.code ?? ''}`).join(', '), row.start_date, row.status]))
+  row.snapshot_data?.template_version ? `${row.snapshot_data.template_version.name} · v${row.snapshot_data.template_version.version_number}` : '—', row.services?.map(line => linePrice(line)).join(', '), row.start_date, row.status]))
 const printList = () => printDocument({ bodyClass: 'printing-table-service-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
 const openSlip = (row: Contract) => { slipContractId.value = row.id; slipOpen.value = true }
 const canCancel = (row: Contract) => ability.can('read', 'cancel_contracts')
   && !row.is_cancelled && ['draft', 'active'].includes(row.status)
 const requestCancel = (row: Contract) => { cancelTarget.value = row; cancelOpen.value = true }
+
+// A private application fee is a range. The displayed price is the whole
+// service (range + visa fee); the payable ceiling is the range maximum.
+const linePrice = (line: NonNullable<Contract['services']>[number]) => {
+  const currency = line.currency?.code ?? ''
+  if (line.application_fee_min != null && line.application_fee_max != null) {
+    const min = Number(line.application_fee_min) + Number(line.visa_fee ?? 0)
+    const max = Number(line.application_fee_max) + Number(line.visa_fee ?? 0)
+
+    return `${min}–${max} ${currency}`.trim()
+  }
+
+  return `${line.fee} ${currency}`.trim()
+}
+const lineRangePaid = (line: NonNullable<Contract['services']>[number]) => {
+  if (line.application_fee_min == null)
+    return false
+  const discount = Number(line.discount ?? 0)
+  const min = Math.max(0, Number(line.fee ?? 0) - Number(line.application_fee_max ?? line.fee ?? 0) + Number(line.application_fee_min) - discount)
+  const max = Math.max(0, Number(line.fee ?? 0) - discount)
+  const paid = Number(line.amount_paid ?? 0)
+
+  return paid > 0 && paid >= min - 0.00001 && paid <= max + 0.00001
+}
+const canMarkPaid = (row: Contract) => service.value === 'private'
+  && ability.can('read', 'override_contract_payments')
+  && !row.is_cancelled
+  && (row.services ?? []).some(line => line.payment_status !== 'paid' && lineRangePaid(line))
+const markingPaid = ref<number | null>(null)
+async function markPaid(row: Contract) {
+  const line = (row.services ?? []).find(item => item.payment_status !== 'paid' && lineRangePaid(item))
+  if (!line)
+    return
+  markingPaid.value = row.id
+  try {
+    await setContractPaymentOverride(line.id, { amount_paid: null, payment_status: 'paid' })
+    await load()
+    toast.success(t('serviceContracts.markedPaid'))
+  }
+  catch (cause) { toast.error(apiErrorMessage(cause)) }
+  finally { markingPaid.value = null }
+}
 
 async function confirmCancel() {
   const target = cancelTarget.value
@@ -126,8 +180,10 @@ const headers = computed(() => [
 ])
 const valid = computed(() => !!selectedVersion.value && !preparing.value && (parent.value || form.value.name?.trim()) && currencyId.value && languageId.value
   && chargeFields.value.every(field => Number.isFinite(Number(charges.value[field])) && Number(charges.value[field]) >= 0)
+  && (service.value !== 'private' || (Number.isFinite(applicationFeeRange.value[0]) && Number.isFinite(applicationFeeRange.value[1]) && applicationFeeRange.value[0] >= 0 && applicationFeeRange.value[1] >= applicationFeeRange.value[0]))
   && Number.isFinite(Number(fee.value)) && Number(fee.value) >= 0
   && Number.isFinite(Number(discount.value)) && Number(discount.value) >= 0 && Number(discount.value) <= Number(fee.value)
+  && (service.value !== 'academy' || !canRecordIncome.value || !Number(paidFee.value) || (Number(paidFee.value) >= 0 && Number(paidFee.value) <= Number(fee.value)))
   && Number.isFinite(Number(rate.value)) && Number(rate.value) > 0)
 
 async function load() {
@@ -158,6 +214,7 @@ const parentApplicantPayload = (contract: Contract): ApplicantPayload => {
 
   return {
     ...identity,
+    student_id: details.student_id ?? null,
     program_id: details.program_id ?? null,
     time_id: details.time_id ?? null,
     duration_id: details.duration_id ?? null,
@@ -188,6 +245,10 @@ async function create(extension: Contract | null = null) {
   visitorId.value = null
   visitors.value = []
   charges.value = Object.fromEntries(chargeFields.value.map(field => [field, Number((extensionLine as Record<string, unknown> | null)?.[field] ?? 0)]))
+  const lineMin = Number(extensionLine?.application_fee_min ?? 0)
+  const lineMax = Number(extensionLine?.application_fee_max ?? extensionLine?.application_fee ?? 0)
+  applicationFeeRange.value = [lineMin, Math.max(lineMin, lineMax)]
+  paidFee.value = 0
   discount.value = Number(extensionLine?.discount ?? 0)
   currencyId.value = extensionLine?.currency_id ?? null
   rate.value = Number(extensionLine?.currency_rate ?? 1)
@@ -274,6 +335,12 @@ async function save() {
           }
         : serviceContractApplicantFields(selectedService, form.value, ability.can('read', 'assign_admission_employee'))),
       ...Object.fromEntries(chargeFields.value.map(field => [field, Number(charges.value[field])])),
+      ...(selectedService === 'private' ? {
+        application_fee_min: Number(applicationFeeRange.value[0]),
+        application_fee_max: Number(applicationFeeRange.value[1]),
+        application_fee: Number(applicationFeeRange.value[1]),
+      } : {}),
+      ...(selectedService === 'academy' && canRecordIncome.value && Number(paidFee.value) > 0 ? { paid_fee: Number(paidFee.value) } : {}),
       fee: Number(fee.value), discount: Number(discount.value), currency_id: currencyId.value!,
       currency_rate: Number(rate.value), language_id: languageId.value!, contract_template_version_id: selectedVersionId.value!,
     })
@@ -314,7 +381,7 @@ async function save() {
       <template #no-data><TableEmptyState icon="tabler-file-description" :description="t('serviceContracts.empty')" /></template>
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
       <template #item.details="{ item }"><ApplicantSummary v-if="item.applicant" :applicant="item.applicant" :lines="item.services" /></template>
-      <template #item.charges="{ item }"><span v-for="line in item.services" :key="line.id">{{ line.fee }} {{ line.currency?.code }}</span></template>
+      <template #item.charges="{ item }"><span v-for="line in item.services" :key="line.id">{{ linePrice(line) }}</span></template>
       <template #item.status="{ item }"><VChip size="small" :color="item.is_cancelled ? 'error' : 'success'">{{ t(`serviceContracts.${item.status}`) }}</VChip></template>
       <template #item.actions="{ item }">
         <div class="d-flex gap-1">
@@ -325,6 +392,7 @@ async function save() {
             <VBtn v-if="service !== 'academy'" icon="tabler-printer" size="small" variant="text" @click="printable = item; printing = true"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('serviceContracts.print') }}</VTooltip></VBtn>
             <VBtn v-if="service === 'academy'" icon="tabler-school" size="small" variant="text" @click="openSlip(item)"><VIcon icon="tabler-school" /><VTooltip activator="parent">{{ t('documents.academySlip.print') }}</VTooltip></VBtn>
             <VBtn v-if="service === 'academy' && ability.can('read', 'create_contracts') && item.contract_role === 'primary' && ['active', 'completed'].includes(item.status)" icon="tabler-file-plus" size="small" variant="text" @click="create(item)"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent">{{ t('serviceContracts.extend') }}</VTooltip></VBtn>
+            <VBtn v-if="canMarkPaid(item)" icon="tabler-cash-check" size="small" variant="text" color="success" :loading="markingPaid === item.id" @click="markPaid(item)"><VIcon icon="tabler-cash-check" /><VTooltip activator="parent">{{ t('serviceContracts.markPaid') }}</VTooltip></VBtn>
             <VBtn v-if="canCancel(item)" icon="tabler-ban" size="small" variant="text" color="error" @click="requestCancel(item)"><VIcon icon="tabler-ban" /><VTooltip activator="parent">{{ t('serviceContracts.cancelContract') }}</VTooltip></VBtn>
           </template>
         </div>
@@ -346,31 +414,49 @@ async function save() {
             <template v-if="!parent || service === 'academy'">
               <VRow v-if="!parent && ability.can('read', 'view_visitors')" dense><VCol cols="12" sm="6" md="4"><VAutocomplete v-model="visitorId" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :disabled="preparing" density="compact" clearable /></VCol></VRow>
               <VRow dense class="mb-3">
-                <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="form.name" :label="t('serviceContracts.applicant')" maxlength="255" required /></VCol>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" maxlength="255" /></VCol>
-                <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="form.contact" :label="t('erp.phone')" maxlength="255" /></VCol>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="form.father_phone" :label="t('serviceContracts.fatherPhone')" maxlength="50" /></VCol>
-                <VCol v-if="service === 'test_offer'" cols="12" sm="6" md="4"><ErpField v-model="form.backup_phone" :label="t('erp.backupPhone')" maxlength="50" /></VCol>
-                <VCol v-if="!parent" cols="12" sm="6" md="3"><ErpField v-model="form.email" :label="t('serviceContracts.email')" type="email" maxlength="255" /></VCol>
-                <VCol v-if="!parent" cols="12" sm="6" md="3"><ErpField v-model="form.address" :label="t('serviceContracts.address')" maxlength="1000" /></VCol>
-                <VCol v-if="!parent && service !== 'academy'" cols="12" sm="6" md="3"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.responsibleEmployee')" clearable /></VCol>
-                <VCol v-if="!parent && service !== 'academy'" cols="12" sm="6" md="3"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('agencyStaff.admission')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
+                <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="form.name" :label="service === 'academy' ? t('serviceContracts.studentFullName') : t('serviceContracts.applicant')" maxlength="255" required /></VCol>
+                <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" maxlength="255" required /></VCol>
+                <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="form.contact" :label="t('erp.phone')" maxlength="255" required /></VCol>
+                <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.father_phone" :label="t('serviceContracts.fatherPhone')" maxlength="50" required /></VCol>
+                <VCol v-if="service === 'test_offer'" cols="12" sm="6" md="4"><ErpField v-model="form.backup_phone" :label="t('erp.backupPhone')" maxlength="50" required /></VCol>
+                <VCol v-if="!parent && service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="form.email" :label="t('serviceContracts.email')" type="email" maxlength="255" /></VCol>
+                <VCol v-if="!parent && service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="form.address" :label="t('serviceContracts.address')" maxlength="1000" /></VCol>
+                <VCol v-if="!parent" cols="12" sm="6" md="3"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" clearable /></VCol>
+                <VCol v-if="!parent && ['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('agencyStaff.admission')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
               </VRow>
-              <ApplicantServiceFields v-model="form" fixed-service service-contract />
+              <ApplicantServiceFields v-model="form" fixed-service />
             </template>
             <template v-if="service !== 'academy'">
               <VAlert v-if="!preparing && !compatibleVersions.length" type="warning" variant="tonal" density="compact" class="mb-2">{{ t('agencyStaff.noMatchingVersion') }}</VAlert>
             </template>
             <VRow dense>
-              <VCol v-for="field in chargeFields" :key="field" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="charges[field]" type="number" min="0" step="0.01" :label="chargeLabel(field)" required /></VCol>
+              <VCol v-if="service === 'private'" cols="12" md="6">
+                <label class="erp-field-label">{{ t('serviceContracts.applicationFeeRange') }} <span class="text-error" aria-hidden="true">*</span></label>
+                <VRangeSlider
+                  v-model="applicationFeeRange"
+                  class="mt-2"
+                  :min="0"
+                  :max="applicationFeeCeiling"
+                  :step="1"
+                  thumb-label="always"
+                  color="primary"
+                />
+                <div class="text-caption text-medium-emphasis">
+                  {{ applicationFeeRange[0] }} – {{ applicationFeeRange[1] }} {{ currencies.find(row => row.id === currencyId)?.code }}
+                </div>
+              </VCol>
+              <template v-else>
+                <VCol v-for="field in chargeFields" :key="field" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="charges[field]" type="number" min="0" step="0.01" :label="chargeLabel(field)" required /></VCol>
+              </template>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="languageId" kind="select" :items="languages" item-title="name" item-value="id" :label="t('serviceContracts.language')" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="discount" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.discount')" /></VCol>
-              <VCol cols="12" md="6"><ErpField v-model="form.notes" kind="textarea" rows="1" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
+              <VCol v-if="service === 'academy' && canRecordIncome" cols="12" sm="6" md="3"><ErpField v-model="paidFee" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.paidFee')" :hint="t('serviceContracts.paidFeeHint')" persistent-hint /></VCol>
+              <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" md="6"><ErpField v-model="form.notes" kind="textarea" rows="1" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
             </VRow>
             <div class="service-contract-footer">
-              <div class="d-flex flex-wrap align-center ga-4"><strong>{{ t('erp.totalFee') }}: {{ fee.toFixed(2) }} {{ currencies.find(row => row.id === currencyId)?.code }}</strong><span class="text-medium-emphasis">{{ t('serviceContracts.discount') }}: {{ discount }}</span></div>
+              <div class="d-flex flex-wrap align-center ga-4"><strong>{{ t('erp.totalFee') }}: {{ feeMin.toFixed(2) }}<template v-if="service === 'private'"> – {{ fee.toFixed(2) }}</template> {{ currencies.find(row => row.id === currencyId)?.code }}</strong><span class="text-medium-emphasis">{{ t('serviceContracts.discount') }}: {{ discount }}</span></div>
               <div class="d-flex ga-2"><VBtn color="secondary" variant="tonal" :disabled="saving" @click="open = false">{{ t('erp.cancel') }}</VBtn><VBtn type="submit" color="primary" prepend-icon="tabler-check" :disabled="!valid || saving">{{ t('erp.save') }}</VBtn></div>
             </div>
           </VForm>

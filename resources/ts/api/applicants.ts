@@ -15,6 +15,7 @@ export interface ApplicantServiceDetails {
   semester_id?: number | null
   contract_type_id?: number | null
   university_fee?: number | string | null
+  student_id?: string | null
   test_id?: number | null
   program_id?: number | null
   time_id?: number | null
@@ -88,7 +89,7 @@ export interface Applicant {
   pending_transactions?: Array<{ id: number; transaction_type: string; reason: string; amount: number | string; approval_status: string; rejection_reason?: string | null }>
   incomes?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
   expenses?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
-  services?: Array<{ application_fee?: number | string | null; visa_fee?: number | string | null; booking_fee?: number | string | null; service_fee?: number | string | null; remote_fee?: number | string | null; currency_rate?: number | string | null; current_stage_id?: number | null; current_stage?: { id: number; key: string; name: string; is_terminal?: boolean; allowed_next_keys?: string[] } | null; id: number; service?: BuiltInService | null; type: string; category?: string; employee_id?: number | null; contract_id?: number | null; contract_number?: string | null; currency_id: number; country_id?: number | null; education_level_id?: number | null; language_id?: number | null; fee: number | string; date?: string | null; status?: 'active' | 'paused' | 'completed' | 'cancelled'; currency?: { id: number; code: string } | null; bonus_source?: { bonus_amount: number | string; rule_source?: string | null } | null }>
+  services?: Array<{ application_fee?: number | string | null; application_fee_min?: number | string | null; application_fee_max?: number | string | null; visa_fee?: number | string | null; booking_fee?: number | string | null; service_fee?: number | string | null; remote_fee?: number | string | null; payable_total?: number | string | null; amount_paid?: number | string | null; remaining_total?: number | string | null; payment_status?: string | null; currency_rate?: number | string | null; current_stage_id?: number | null; current_stage?: { id: number; key: string; name: string; is_terminal?: boolean; allowed_next_keys?: string[] } | null; id: number; service?: BuiltInService | null; type: string; category?: string; employee_id?: number | null; contract_id?: number | null; contract_number?: string | null; currency_id: number; country_id?: number | null; education_level_id?: number | null; language_id?: number | null; fee: number | string; date?: string | null; status?: 'active' | 'paused' | 'completed' | 'cancelled'; currency?: { id: number; code: string } | null; bonus_source?: { bonus_amount: number | string; rule_source?: string | null } | null }>
   universities?: Array<{ id: number; university_id: number; semester_id?: number | null; status: string; intake?: string | null; notes?: string | null; university?: { id: number; name: string } | null; semester?: { id: number; name: string; code?: string } | null }>
 }
 
@@ -117,11 +118,15 @@ export interface ApplicantListParams {
 export type ApplicantPayload = Partial<Applicant> & ApplicantServiceDetails
 
 export function applicantServicePayload(form: ApplicantPayload): ApplicantPayload {
+  // Strict per-service sets: a field that belongs to another service is never
+  // sent, so switching service cannot carry stale data across.
   const fields = form.service === 'academy'
-    ? ['program_id', 'time_id', 'duration_id', 'teacher_ids', 'class_id']
+    ? ['student_id', 'program_id', 'time_id', 'duration_id', 'teacher_ids', 'class_id']
     : form.service === 'test_offer'
-      ? ['passport_id', 'test_id', 'skill_ids']
-      : ['passport_id', 'grade_score', 'country_id', 'university_id', 'education_level_id', 'semester_id', 'contract_type_id', 'university_fee', 'favorite_subject_ids', ...(form.service === 'scholarship' ? ['scholarship_id'] : [])]
+      ? ['test_id', 'skill_ids']
+      : form.service === 'private'
+        ? ['grade_score', 'country_id', 'contract_type_id', 'education_level_id', 'semester_id', 'university_fee', 'favorite_subject_ids']
+        : ['grade_score', 'country_id', 'education_level_id', 'favorite_subject_ids']
   const payload: Record<string, unknown> = { service: form.service ?? 'scholarship' }
   for (const field of fields) {
     const value = form[field as keyof ApplicantPayload]

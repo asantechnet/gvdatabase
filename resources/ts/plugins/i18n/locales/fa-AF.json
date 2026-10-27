@@ -33,7 +33,15 @@
     "active": "فعال",
     "completed": "تکمیل‌شده",
     "terminated": "خاتمه‌یافته",
-    "cancelled": "لغوشده"
+    "cancelled": "لغوشده",
+    "studentId": "شناسه شاگرد",
+    "studentFullName": "نام کامل شاگرد",
+    "consultant": "مشاور",
+    "applicationFeeRange": "محدوده فیس درخواست",
+    "paidFee": "فیس پرداخت‌شده",
+    "paidFeeHint": "به عنوان رسید پرداخت برای این قرارداد ثبت می‌شود.",
+    "markPaid": "ثبت به عنوان پرداخت‌شده",
+    "markedPaid": "قرارداد به عنوان پرداخت‌شده ثبت شد."
   },
   "common": {
     "attachments": {

@@ -32,24 +32,24 @@ class AgencyWorkflowCoherenceTest extends TestCase
         ]);
     }
 
-    public function test_visitors_optionally_assign_active_counselors_by_position_or_role(): void
+    public function test_visitors_optionally_assign_active_consultants_by_position_or_role(): void
     {
-        $counselor = $this->employee('counselor');
+        $consultant = $this->employee('counselor');
         $admission = $this->employee('admission');
         $data = ['name' => 'Visitor', 'contact' => '+93700000000', 'service' => 'Private', 'date' => '2026-10-09'];
-        $this->postJson('/api/visitors', $data)->assertCreated()->assertJsonPath('data.counselor_employee_id', null);
-        $created = $this->postJson('/api/visitors', [...$data, 'counselor_employee_id' => $counselor->id])
-            ->assertCreated()->assertJsonPath('data.counselor.name', $counselor->name)->json('data.id');
-        $this->putJson("/api/visitors/{$created}", ['counselor_employee_id' => null])->assertOk()
-            ->assertJsonPath('data.counselor_employee_id', null);
-        $this->postJson('/api/visitors', [...$data, 'counselor_employee_id' => $admission->id])
-            ->assertUnprocessable()->assertJsonValidationErrors('counselor_employee_id');
-        $counselor->update(['status' => 'inactive']);
-        $this->postJson('/api/visitors', [...$data, 'counselor_employee_id' => $counselor->id])
-            ->assertUnprocessable()->assertJsonValidationErrors('counselor_employee_id');
+        $this->postJson('/api/visitors', $data)->assertCreated()->assertJsonPath('data.consultant_employee_id', null);
+        $created = $this->postJson('/api/visitors', [...$data, 'consultant_employee_id' => $consultant->id])
+            ->assertCreated()->assertJsonPath('data.consultant.name', $consultant->name)->json('data.id');
+        $this->putJson("/api/visitors/{$created}", ['consultant_employee_id' => null])->assertOk()
+            ->assertJsonPath('data.consultant_employee_id', null);
+        $this->postJson('/api/visitors', [...$data, 'consultant_employee_id' => $admission->id])
+            ->assertUnprocessable()->assertJsonValidationErrors('consultant_employee_id');
+        $consultant->update(['status' => 'inactive']);
+        $this->postJson('/api/visitors', [...$data, 'consultant_employee_id' => $consultant->id])
+            ->assertUnprocessable()->assertJsonValidationErrors('consultant_employee_id');
         $roleUser = User::factory()->create(['roles' => ['counselor']]);
         $roleEmployee = Employee::factory()->create(['user_id' => $roleUser->id, 'status' => 'active']);
-        $this->postJson('/api/visitors', [...$data, 'counselor_employee_id' => $roleEmployee->id])->assertCreated();
+        $this->postJson('/api/visitors', [...$data, 'consultant_employee_id' => $roleEmployee->id])->assertCreated();
     }
 
     public function test_a_counselor_creating_a_visitor_is_locked_to_their_own_employee(): void
@@ -63,13 +63,13 @@ class AgencyWorkflowCoherenceTest extends TestCase
         ]);
         Sanctum::actingAs($roleUser, ['access']);
 
-        // Even when another counselor id is submitted, the signed-in counselor
-        // is recorded as the visitor's counselor.
+        // Even when another consultant id is submitted, the signed-in
+        // consultant is recorded as the visitor's consultant.
         $this->postJson('/api/visitors', [
             'name' => 'Locked Visitor', 'contact' => '+93700000009',
             'service' => 'Private', 'date' => '2026-10-09',
-            'counselor_employee_id' => $other->id,
-        ])->assertCreated()->assertJsonPath('data.counselor_employee_id', $self->id);
+            'consultant_employee_id' => $other->id,
+        ])->assertCreated()->assertJsonPath('data.consultant_employee_id', $self->id);
     }
 
     public function test_admission_assignment_is_optional_and_independent_of_case_ownership(): void

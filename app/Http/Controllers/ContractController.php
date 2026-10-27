@@ -36,7 +36,7 @@ class ContractController extends Controller
         'employee.position', 'employee.office', 'employee.user',
         'applicant.scholarshipDetail.educationLevel', 'applicant.scholarshipDetail.semester',
         'applicant.scholarshipDetail.country', 'applicant.scholarshipDetail.scholarship',
-        'applicant.privateDetail.country', 'applicant.privateDetail.university', 'applicant.privateDetail.educationLevel', 'applicant.privateDetail.semester',
+        'applicant.privateDetail.country', 'applicant.privateDetail.university', 'applicant.privateDetail.educationLevel', 'applicant.privateDetail.semester', 'applicant.privateDetail.contractType',
         'applicant.testDetail.test', 'applicant.academyDetail.program', 'applicant.academyDetail.time', 'applicant.academyDetail.duration', 'applicant.academyDetail.academyClass',
         'applicant.favoriteSubjects', 'applicant.skills', 'applicant.teachers',
     ];

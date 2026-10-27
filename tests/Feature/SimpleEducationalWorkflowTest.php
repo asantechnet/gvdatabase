@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AcademyClass;
 use App\Models\Applicant;
+use App\Models\Contract;
 use App\Models\Country;
 use App\Models\EducationalScholarship;
 use App\Models\Subject;
@@ -32,9 +33,12 @@ class SimpleEducationalWorkflowTest extends TestCase
             'name' => 'Private applicant', 'father_name' => 'Guardian', 'father_phone' => '0701234567',
             'grade_score' => 90, 'country_id' => $country->id, 'university_fee' => 12000,
             'favorite_subject_ids' => [$subject->id], 'notes' => 'Admission note',
-            'fee' => 150, 'application_fee' => 100, 'visa_fee' => 50,
+            'fee' => 150, 'application_fee_min' => 80, 'application_fee_max' => 100,
+            'application_fee' => 100, 'visa_fee' => 50,
         ]);
         $this->assertSame('100.00', $contract['services'][0]['application_fee']);
+        $this->assertSame('80.00', $contract['services'][0]['application_fee_min']);
+        $this->assertSame('100.00', $contract['services'][0]['application_fee_max']);
         $this->assertSame('50.00', $contract['services'][0]['visa_fee']);
         $this->assertSame('90.00', $contract['snapshot_data']['entity']['details']['grade_score']);
         $this->assertDatabaseHas('private_applicant_details', ['applicant_id' => $contract['applicant_id'], 'country_id' => $country->id]);
@@ -83,11 +87,13 @@ class SimpleEducationalWorkflowTest extends TestCase
         $this->getJson('/api/applicants?date_to=2026-10-02')->assertOk()->assertJsonPath('data.total', 2);
         $this->getJson('/api/applicants?date_from=2026-10-03&date_to=2026-10-01')->assertUnprocessable();
         $this->getJson('/api/contracts?date_from=invalid')->assertUnprocessable();
-        Visitor::create(['name' => 'In range', 'contact' => '0701111111', 'service' => 'Academy', 'marketer' => 'Test marketer', 'date' => '2026-10-02']);
-        Visitor::create(['name' => 'Outside range', 'contact' => '0702222222', 'service' => 'Academy', 'marketer' => 'Test marketer', 'date' => '2026-10-03']);
+        Visitor::create(['name' => 'In range', 'contact' => '0701111111', 'service' => 'Academy', 'date' => '2026-10-02']);
+        Visitor::create(['name' => 'Outside range', 'contact' => '0702222222', 'service' => 'Academy', 'date' => '2026-10-03']);
         $this->getJson('/api/visitors?date_to=2026-10-02')->assertOk()->assertJsonCount(1, 'data');
-        $this->createBuiltInContract('academy', ['start_date' => '2026-10-02']);
-        $this->createBuiltInContract('academy', ['start_date' => '2026-10-03']);
+        $inRange = $this->createBuiltInContract('academy');
+        $outside = $this->createBuiltInContract('academy');
+        Contract::findOrFail($inRange['id'])->update(['start_date' => '2026-10-02']);
+        Contract::findOrFail($outside['id'])->update(['start_date' => '2026-10-03']);
         $this->getJson('/api/contracts?service=academy&date_from=2026-10-02&date_to=2026-10-02')->assertOk()->assertJsonCount(1, 'data');
     }
 }
