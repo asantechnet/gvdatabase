@@ -171,6 +171,11 @@ const ContractApi = {
 
     return response.data.data
   },
+  async updateService(service: BuiltInService, id: number, data: ServiceContractCreateData): Promise<Contract> {
+    const response = await api.put<{ success: boolean; data: Contract }>(`/contracts/${service}/${id}`, data)
+
+    return response.data.data
+  },
   async getAll(params?: ContractParams): Promise<Contract[]> {
     const response = await api.get<{ success: boolean; data: Contract[] }>('/contracts', { params: { ...params, only_cancelled: params?.only_cancelled === undefined ? undefined : Number(params.only_cancelled) } })
 

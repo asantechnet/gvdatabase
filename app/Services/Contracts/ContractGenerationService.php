@@ -4,6 +4,7 @@ namespace App\Services\Contracts;
 
 use App\Http\Requests\StoreServiceContractRequest;
 use App\Models\Applicant;
+use App\Models\ApplicantContract;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
 use App\Models\Contract;
@@ -170,6 +171,57 @@ class ContractGenerationService
         });
     }
 
+    /** Update the live case and service-line terms without altering the issued document snapshot. */
+    public function update(string $service, int $id, StoreServiceContractRequest $request): Contract
+    {
+        abort_unless(BuiltInService::isValid($service), 404);
+        $data = $request->validated();
+
+        return DB::transaction(function () use ($service, $id, $request, $data): Contract {
+            $contract = Contract::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($contract->service === $service && ! $contract->is_cancelled, 422, 'business.builtin_contract_creation_required');
+            abort_unless(ContractAccess::canManage($request->user(), $contract), 403, 'auth.forbidden');
+
+            $line = ApplicantContract::query()->where('contract_id', $contract->id)->lockForUpdate()->sole();
+            abort_unless($line->service === $service && (int) $line->applicant_id === (int) $contract->applicant_id, 422, 'business.builtin_contract_creation_required');
+            abort_if($line->incomes()->exists() && (int) $line->currency_id !== (int) $data['currency_id'], 422, 'business.contract_paid_line_immutable');
+
+            $applicant = Applicant::query()->lockForUpdate()->findOrFail($contract->applicant_id);
+            $this->authorizeApplicantAssignment($request, $data, $applicant);
+            if (array_key_exists('admission_employee_id', $data) && ! $request->user()->hasPermission('assign_admission_employee')) {
+                abort(403, 'auth.forbidden');
+            }
+            $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'admission_employee_id', 'responsible_employee_id', 'notes']));
+            $this->details->sync($applicant, [...$data, 'service' => $service]);
+            $applicant->refresh();
+
+            $rate = $this->rates->remember((int) $data['currency_id'], $data['currency_rate']);
+            abort_unless($rate, 422, 'business.invalid_currency_rate');
+            $lineFees = Arr::only($data, ['application_fee', 'application_fee_min', 'application_fee_max', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']);
+            if ($service === BuiltInService::PRIVATE) {
+                $lineFees['application_fee'] = $data['application_fee_max'];
+            }
+            $line->update([
+                'fee' => $data['fee'], 'discount' => $data['discount'],
+                'currency_id' => $data['currency_id'], 'currency_rate' => $rate,
+                ...$lineFees,
+                'notes' => $data['notes'] ?? null,
+            ]);
+
+            $countryId = in_array($service, [BuiltInService::SCHOLARSHIP, BuiltInService::PRIVATE], true)
+                ? $applicant->detail()?->country_id : null;
+            $contract->update([
+                'contract_country_id' => $countryId,
+                'counterparty' => $applicant->name,
+                'counterparty_email' => $applicant->email,
+                'counterparty_contact' => $applicant->contact,
+                'counterparty_address' => $applicant->address,
+            ]);
+
+            return $contract->load(['template.contractType', 'contractType', 'applicant', 'applicantContracts.currency']);
+        });
+    }
+
     private function createApplicant(string $service, StoreServiceContractRequest $request, array $data): Applicant
     {
         if (array_key_exists('admission_employee_id', $data) && ! $request->user()->hasPermission('assign_admission_employee')) {
@@ -192,6 +244,20 @@ class ContractGenerationService
         ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'new_stage_id' => $stage->id, 'changed_by' => $request->user()->id, 'changed_at' => now(), 'note' => 'Contract created']);
 
         return $applicant->fresh();
+    }
+
+    /** @param array<string, mixed> $data */
+    private function authorizeApplicantAssignment(StoreServiceContractRequest $request, array $data, Applicant $applicant): void
+    {
+        if ($request->user()->hasPermission('assign_applicant_employee')) {
+            return;
+        }
+
+        $ownEmployee = Employee::query()->active()->where('user_id', $request->user()->id)->value('id');
+        abort_unless($ownEmployee, 422, 'business.employee_profile_missing');
+        $selected = $data['responsible_employee_id'] ?? $applicant->responsible_employee_id ?? $ownEmployee;
+        abort_unless(app(EmployeeScope::class)->canManageOwnedBy($request->user(), (int) $selected), 403, 'auth.forbidden');
+        abort_unless((int) $selected === (int) $ownEmployee, 403, 'auth.forbidden');
     }
 
     /** The `new` stage of one service, preferring the most specific context. */

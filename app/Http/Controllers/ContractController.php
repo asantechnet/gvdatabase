@@ -168,6 +168,11 @@ class ContractController extends Controller
         return $this->contractResponse($generator->create($service, $request), 201);
     }
 
+    public function updateService(StoreServiceContractRequest $request, string $service, int $id, ContractGenerationService $generator): JsonResponse
+    {
+        return $this->contractResponse($generator->update($service, $id, $request));
+    }
+
     public function serviceOptions(Request $request, string $service): JsonResponse
     {
         abort_unless(BuiltInService::isValid($service), 404);

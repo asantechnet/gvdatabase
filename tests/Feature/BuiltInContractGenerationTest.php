@@ -157,6 +157,43 @@ class BuiltInContractGenerationTest extends TestCase
         $this->assertFalse(Schema::hasTable('packages'));
     }
 
+    public function test_each_service_contract_updates_its_live_case_and_terms_without_rewriting_the_issued_snapshot(): void
+    {
+        foreach (BuiltInService::ALL as $service) {
+            $this->activate($service);
+            $created = $this->postJson("/api/contracts/{$service}", $this->data([], $service))->assertCreated()->json('data');
+            $issued = Contract::findOrFail($created['id']);
+            $content = $issued->content;
+            $snapshot = $issued->snapshot_data;
+
+            $charges = match ($service) {
+                BuiltInService::SCHOLARSHIP => ['application_fee' => 150],
+                BuiltInService::PRIVATE => ['application_fee_min' => 80, 'application_fee_max' => 120, 'visa_fee' => 30],
+                BuiltInService::TEST_OFFER => ['booking_fee' => 50, 'service_fee' => 70, 'remote_fee' => 30],
+                default => ['service_fee' => 150],
+            };
+            $payload = $this->data([
+                'name' => 'Edited '.$service,
+                'fee' => 150,
+                'discount' => 10,
+                'currency_rate' => 3,
+                ...$charges,
+            ], $service);
+
+            $this->putJson("/api/contracts/{$service}/{$issued->id}", $payload)
+                ->assertOk()
+                ->assertJsonPath('data.service', $service)
+                ->assertJsonPath('data.counterparty', 'Edited '.$service);
+
+            $updated = $issued->fresh();
+            $this->assertSame($content, $updated->content);
+            $this->assertSame($snapshot, $updated->snapshot_data);
+            $this->assertSame('Edited '.$service, $updated->applicant->name);
+            $this->assertEquals(150, $updated->applicantContracts()->sole()->fee);
+            $this->assertEquals(10, $updated->applicantContracts()->sole()->discount);
+        }
+    }
+
     public function test_missing_draft_archived_and_wrong_language_versions_cannot_be_issued(): void
     {
         $this->postJson('/api/contracts/academy', $this->data())->assertUnprocessable();

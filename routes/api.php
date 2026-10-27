@@ -478,6 +478,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::post('contracts/{service}', [ContractController::class, 'storeService'])
         ->whereIn('service', BuiltInService::ALL)
         ->middleware('permission:create_contracts');
+    Route::put('contracts/{service}/{id}', [ContractController::class, 'updateService'])
+        ->whereIn('service', BuiltInService::ALL)
+        ->middleware('permission:edit_contracts');
     // Receipt-like A5 enrolment slip for an individual academy contract.
     Route::get('contracts/{id}/academy-slip', [ContractController::class, 'academySlip'])
         ->middleware('permission:view_contracts');

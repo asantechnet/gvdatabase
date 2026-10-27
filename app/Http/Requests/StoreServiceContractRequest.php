@@ -31,7 +31,7 @@ class StoreServiceContractRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user()?->hasPermission('create_contracts') ?? false;
+        return $this->user()?->hasPermission($this->isMethod('post') ? 'create_contracts' : 'edit_contracts') ?? false;
     }
 
     public function withValidator(Validator $validator): void
@@ -135,7 +135,7 @@ class StoreServiceContractRequest extends FormRequest
             BuiltInService::TEST_OFFER, BuiltInService::ACADEMY => ['required', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2'],
             default => ['prohibited'],
         };
-        $rules['paid_fee'] = $service === BuiltInService::ACADEMY
+        $rules['paid_fee'] = $service === BuiltInService::ACADEMY && $this->isMethod('post')
             ? ['nullable', 'numeric', 'min:0', 'lte:fee', 'max:9999999999999', 'decimal:0,2']
             : ['prohibited'];
 

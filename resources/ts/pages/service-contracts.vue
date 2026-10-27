@@ -68,6 +68,7 @@ const rate = ref<number | string>(1)
 const languageId = ref<number | null>(null)
 const selectedVersionId = ref<number | null>(null)
 const parent = ref<Contract | null>(null)
+const editing = ref<Contract | null>(null)
 const printing = ref(false)
 const printable = ref<Contract | null>(null)
 const slipOpen = ref(false)
@@ -93,10 +94,16 @@ const compatibleVersions = computed(() => selectedTemplate.value?.versions?.filt
 
   return version.country_id === countryId
 }) ?? [])
-const versionItems = computed(() => compatibleVersions.value.map(version => ({
+const versionItems = computed(() => {
+  const items = compatibleVersions.value.map(version => ({
   title: `${version.name} · v${version.version_number}${version.is_current ? ` · ${t('serviceContracts.currentVersion')}` : ''}`,
   value: version.id,
-})))
+  }))
+  if (editing.value && selectedVersionId.value && !items.some(item => item.value === selectedVersionId.value))
+    items.unshift({ title: t('serviceContracts.issuedVersion'), value: selectedVersionId.value })
+
+  return items
+})
 const selectedVersion = computed(() => compatibleVersions.value.find(version => version.id === selectedVersionId.value) ?? null)
 const reportRows = computed(() => visible.value.map(row => [row.contract_number, row.counterparty, row.counterparty_contact,
   row.snapshot_data?.template_version ? `${row.snapshot_data.template_version.name} · v${row.snapshot_data.template_version.version_number}` : '—', row.services?.map(line => linePrice(line)).join(', '), row.start_date, row.status]))
@@ -178,7 +185,7 @@ const headers = computed(() => [
   { title: t('serviceContracts.status'), key: 'status' },
   { title: t('serviceContracts.actions'), key: 'actions', sortable: false },
 ])
-const valid = computed(() => !!selectedVersion.value && !preparing.value && (parent.value || form.value.name?.trim()) && currencyId.value && languageId.value
+const valid = computed(() => !!(editing.value ? selectedVersionId.value : selectedVersion.value) && !preparing.value && (parent.value || form.value.name?.trim()) && currencyId.value && languageId.value
   && chargeFields.value.every(field => Number.isFinite(Number(charges.value[field])) && Number(charges.value[field]) >= 0)
   && (service.value !== 'private' || (Number.isFinite(applicationFeeRange.value[0]) && Number.isFinite(applicationFeeRange.value[1]) && applicationFeeRange.value[0] >= 0 && applicationFeeRange.value[1] >= applicationFeeRange.value[0]))
   && Number.isFinite(Number(fee.value)) && Number(fee.value) >= 0
@@ -234,13 +241,15 @@ const parentApplicantPayload = (contract: Contract): ApplicantPayload => {
   } as ApplicantPayload
 }
 
-async function create(extension: Contract | null = null) {
+async function create(extension: Contract | null = null, editedContract: Contract | null = null) {
   const current = ++formGeneration
   parent.value = extension
-  const extensionLine = extension?.services?.[0] ?? null
+  editing.value = editedContract
+  const source = extension ?? editedContract
+  const extensionLine = source?.services?.[0] ?? null
   const extendingAcademy = extension !== null && service.value === 'academy'
-  form.value = extendingAcademy && extension
-    ? parentApplicantPayload(extension)
+  form.value = (extendingAcademy && extension) || editedContract
+    ? parentApplicantPayload(source!)
     : { service: service.value, name: '', contact: '', email: '' }
   visitorId.value = null
   visitors.value = []
@@ -253,8 +262,8 @@ async function create(extension: Contract | null = null) {
   currencyId.value = extensionLine?.currency_id ?? null
   rate.value = Number(extensionLine?.currency_rate ?? 1)
   selectedTemplate.value = null
-  languageId.value = extension?.contract_language_id ?? null
-  selectedVersionId.value = extension?.contract_template_version_id ?? null
+  languageId.value = source?.contract_language_id ?? null
+  selectedVersionId.value = source?.contract_template_version_id ?? null
   open.value = true
   preparing.value = true
   error.value = ''
@@ -267,20 +276,20 @@ async function create(extension: Contract | null = null) {
     admissionEmployees.value = options.admission_employees
     counselorEmployees.value = options.counselor_employees
     // The parent line's rate wins; fall back to the currency's current rate.
-    if (extension)
+    if (source)
       rate.value = Number(extensionLine?.currency_rate ?? currencies.value.find(row => row.id === currencyId.value)?.rate ?? 1)
     // A counselor creating a contract owns its case: preselect themselves when
     // they are in the counselor list so the field is not left blank.
     // Academy enrolments have no associated employee, so they are never
     // pre-filled with the signed-in counselor.
-    if (!extension && service.value !== 'academy') {
+    if (!source && service.value !== 'academy') {
       const userData = useCookie<{ roles?: string[]; employee?: { id?: number } | null }>('userData').value
       const employeeId = userData?.employee?.id
       const isCounselor = (userData?.roles ?? []).some(role => role === 'counselor' || role === 'senior_counselor')
       if (isCounselor && employeeId && counselorEmployees.value.some(row => row.id === employeeId))
         form.value.responsible_employee_id = employeeId
     }
-    if (!extension && ability.can('read', 'view_visitors')) {
+    if (!source && ability.can('read', 'view_visitors')) {
       const visitorRows = await VisitorApi.getAll()
       const preselected = Number(route.query.visitor)
       let visitor: Visitor | undefined
@@ -298,6 +307,16 @@ async function create(extension: Contract | null = null) {
   finally { if (current === formGeneration) preparing.value = false }
 }
 
+async function edit(contract: Contract) {
+  const current = ++formGeneration
+  try {
+    const fullContract = await ContractApi.getById(contract.id)
+    if (current === formGeneration)
+      await create(null, fullContract)
+  }
+  catch (cause) { error.value = apiErrorMessage(cause) }
+}
+
 watch(visitorId, id => {
   const visitor = visitors.value.find(row => row.id === id)
   if (visitor)
@@ -305,6 +324,8 @@ watch(visitorId, id => {
 })
 watch(currencyId, id => { rate.value = currencies.value.find(row => row.id === id)?.rate ?? 1 })
 watch(compatibleVersions, versions => {
+  if (editing.value)
+    return
   if (!versions.some(version => version.id === selectedVersionId.value))
     selectedVersionId.value = versions.find(version => version.is_current)?.id ?? versions[0]?.id ?? null
 }, { immediate: true })
@@ -327,7 +348,7 @@ async function save() {
   try {
     // An academy extension keeps its applicant editable, so the edited identity
     // and programme fields travel with the parent reference.
-    const result = await ContractApi.createService(selectedService, {
+    const payload = {
       ...(parent.value
         ? {
             parent_contract_id: parent.value.id,
@@ -340,15 +361,20 @@ async function save() {
         application_fee_max: Number(applicationFeeRange.value[1]),
         application_fee: Number(applicationFeeRange.value[1]),
       } : {}),
-      ...(selectedService === 'academy' && canRecordIncome.value && Number(paidFee.value) > 0 ? { paid_fee: Number(paidFee.value) } : {}),
+      ...(!editing.value && selectedService === 'academy' && canRecordIncome.value && Number(paidFee.value) > 0 ? { paid_fee: Number(paidFee.value) } : {}),
       fee: Number(fee.value), discount: Number(discount.value), currency_id: currencyId.value!,
       currency_rate: Number(rate.value), language_id: languageId.value!, contract_template_version_id: selectedVersionId.value!,
-    })
+    }
+    const result = editing.value
+      ? await ContractApi.updateService(selectedService, editing.value.id, payload)
+      : await ContractApi.createService(selectedService, payload)
     if (service.value === selectedService) {
-      rows.value.unshift(result)
+      const index = rows.value.findIndex(row => row.id === result.id)
+      if (index === -1) rows.value.unshift(result)
+      else rows.value[index] = result
       open.value = false
     }
-    toast.success(t('serviceContracts.created'))
+    toast.success(t(editing.value ? 'serviceContracts.updated' : 'serviceContracts.created'))
   }
   catch (cause) { error.value = apiErrorMessage(cause) }
   finally { saving.value = false }
@@ -389,6 +415,7 @@ async function save() {
           <!-- A cancelled contract keeps its history in this list: it stays
                viewable but loses every other action, in particular printing. -->
           <template v-if="!item.is_cancelled">
+            <VBtn v-if="ability.can('read', 'edit_contracts')" icon="tabler-edit" size="small" variant="text" @click="edit(item)"><VIcon icon="tabler-edit" /><VTooltip activator="parent">{{ t('serviceContracts.edit') }}</VTooltip></VBtn>
             <VBtn v-if="service !== 'academy'" icon="tabler-printer" size="small" variant="text" @click="printable = item; printing = true"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('serviceContracts.print') }}</VTooltip></VBtn>
             <VBtn v-if="service === 'academy'" icon="tabler-school" size="small" variant="text" @click="openSlip(item)"><VIcon icon="tabler-school" /><VTooltip activator="parent">{{ t('documents.academySlip.print') }}</VTooltip></VBtn>
             <VBtn v-if="service === 'academy' && ability.can('read', 'create_contracts') && item.contract_role === 'primary' && ['active', 'completed'].includes(item.status)" icon="tabler-file-plus" size="small" variant="text" @click="create(item)"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent">{{ t('serviceContracts.extend') }}</VTooltip></VBtn>
@@ -404,7 +431,7 @@ async function save() {
         <VCardTitle class="service-contract-header">
           <div class="min-w-0"><div class="text-h6">{{ t(labelKey) }}</div><div class="text-caption text-medium-emphasis text-truncate">{{ selectedTemplate?.name ?? t('agencyStaff.templateNotReady') }}</div></div>
           <VSpacer />
-          <VSelect v-model="selectedVersionId" :items="versionItems" :label="versionItems.length ? t('agencyStaff.contractVersion') : t('agencyStaff.noMatchingVersion')" density="compact" variant="outlined" hide-details :disabled="preparing || !versionItems.length" class="contract-version-select" />
+          <VSelect v-model="selectedVersionId" :items="versionItems" :label="versionItems.length ? t('agencyStaff.contractVersion') : t('agencyStaff.noMatchingVersion')" density="compact" variant="outlined" hide-details :disabled="preparing || !versionItems.length || !!editing" class="contract-version-select" />
           <VBtn icon="tabler-x" variant="text" :disabled="saving" :aria-label="t('serviceContracts.close')" @click="open = false"><VIcon icon="tabler-x" /><VTooltip activator="parent">{{ t('serviceContracts.close') }}</VTooltip></VBtn>
         </VCardTitle>
         <VCardText class="service-contract-body">
@@ -412,7 +439,7 @@ async function save() {
           <div v-if="parent" class="mb-4">{{ parent.contract_number }}: {{ parent.counterparty }}</div>
           <VForm ref="formRef" @submit.prevent="save">
             <template v-if="!parent || service === 'academy'">
-              <VRow v-if="!parent && ability.can('read', 'view_visitors')" dense><VCol cols="12" sm="6" md="4"><VAutocomplete v-model="visitorId" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :disabled="preparing" density="compact" clearable /></VCol></VRow>
+              <VRow v-if="!parent && !editing && ability.can('read', 'view_visitors')" dense><VCol cols="12" sm="6" md="4"><VAutocomplete v-model="visitorId" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :disabled="preparing" density="compact" clearable /></VCol></VRow>
               <VRow dense class="mb-3">
                 <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="form.name" :label="service === 'academy' ? t('serviceContracts.studentFullName') : t('serviceContracts.applicant')" maxlength="255" required /></VCol>
                 <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" maxlength="255" required /></VCol>
@@ -446,7 +473,7 @@ async function save() {
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" required /></VCol>
               <VCol class="service-contract-discount" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="discount" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.discount')" /></VCol>
-              <VCol v-if="service === 'academy' && canRecordIncome" cols="12" sm="6" md="3"><ErpField v-model="paidFee" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.paidFee')" :hint="t('serviceContracts.paidFeeHint')" persistent-hint /></VCol>
+              <VCol v-if="service === 'academy' && canRecordIncome && !editing" cols="12" sm="6" md="3"><ErpField v-model="paidFee" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.paidFee')" :hint="t('serviceContracts.paidFeeHint')" persistent-hint /></VCol>
               <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" md="6"><ErpField v-model="form.notes" kind="textarea" rows="1" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
             </VRow>
             <div class="service-contract-footer">
