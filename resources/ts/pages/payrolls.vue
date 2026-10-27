@@ -1,0 +1,1172 @@
+<script setup lang="ts">
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useToast } from 'vue-toastification'
+import { VDialog } from 'vuetify/components'
+import SalaryApi, { type Salary, type SalaryDeduction } from '@/api/salary'
+import CurrencyApi from '@/api/currency'
+import EmployeeApi, { type Employee } from '@/api/employee'
+import EmployeeAdvanceApi, { type EmployeeAdvance, type CreateEmployeeAdvanceData } from '@/api/employeeAdvances'
+import SettingApi, { type Setting } from '@/api/setting'
+import PayslipTemplate, { type SalarySlipProps } from './templates/payslip_template.vue'
+import AdvanceReceiptTemplate, { type AdvanceReceiptData } from './templates/advance_receipt_template.vue'
+import PrintableListReport from '@/components/PrintableListReport.vue'
+import { apiErrorMessage } from '@/utils/apiErrors'
+import { formatLocalizedDate, formatLocalizedNumber, translate } from '@/utils/localization'
+import { printDocument } from '@/utils/printDocument'
+
+const toast = useToast()
+const { t: $t } = useI18n()
+
+interface PayrollRow {
+  [key: string]: unknown
+  id: number
+  employeeId: number
+  name: string
+  position: string
+  base: number
+  workedDays: number | null
+  totalDays: number | null
+  offDays: number | null
+  absentDays: number | null
+  net: number | null
+  paid: number
+  outstanding: number
+  status: 'missing' | 'open' | 'partially_paid' | 'paid'
+  salary: Salary | null
+}
+
+const today = new Date()
+const month = ref(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`)
+const activeTab = ref<'payslips' | 'advances'>('payslips')
+const search = ref('')
+const employees = ref<Employee[]>([])
+const salaries = ref<Salary[]>([])
+const advances = ref<EmployeeAdvance[]>([])
+const companySetting = ref<Setting | null>(null)
+const baseCurrencyId = ref<number | null>(null)
+const loading = ref(false)
+const saving = ref(false)
+
+// Dialog state ------------------------------------------------------------
+const generateDialog = ref(false)
+const deleteSalaryDialog = ref(false)
+const selectedSalary = ref<Salary | null>(null)
+
+const createDialog = ref(false)
+const createForm = ref({ employee_id: null as number | null, amountPaid: 0, date: today.toISOString().slice(0, 10), remarks: '', deductions: [] as SalaryDeduction[] })
+
+const deductionDialog = ref(false)
+const deductionForm = ref({ description: '', amount: 0 })
+
+const paymentDialog = ref(false)
+const paymentForm = ref({ amount: 0, date: today.toISOString().slice(0, 10), remarks: '' })
+
+const payslipDialog = ref(false)
+const payslipProps = ref<SalarySlipProps | null>(null)
+const payslipRef = ref<InstanceType<typeof PayslipTemplate> | null>(null)
+
+const advanceDialog = ref(false)
+const advanceForm = ref<{ employee_id: number | null; amount: number; date: string; remarks: string }>({ employee_id: null, amount: 0, date: today.toISOString().slice(0, 10), remarks: '' })
+const deleteAdvanceDialog = ref(false)
+const selectedAdvance = ref<EmployeeAdvance | null>(null)
+const advanceReceiptDialog = ref(false)
+const advanceReceipt = ref<AdvanceReceiptData | null>(null)
+const advanceReceiptRef = ref<InstanceType<typeof AdvanceReceiptTemplate> | null>(null)
+
+// Derived data ------------------------------------------------------------
+const salaryByEmployee = computed(() => new Map(salaries.value.map(salary => [salary.employee_id, salary])))
+
+const rows = computed<PayrollRow[]>(() => employees.value.map(employee => {
+  const salary = salaryByEmployee.value.get(employee.id) ?? null
+  const base = salary ? Number(salary.totalAmount) - Number(salary.bonus ?? 0) : Number(employee.salary ?? 0)
+
+  return {
+    id: employee.id,
+    employeeId: employee.id,
+    name: employee.name,
+    position: typeof employee.position === 'string' ? employee.position : '',
+    base,
+    workedDays: salary ? Number(salary.workedDays ?? 0) : null,
+    totalDays: salary ? Number(salary.totalDays ?? 0) : null,
+    offDays: salary ? Number(salary.offDays ?? 0) : null,
+    absentDays: salary ? Number(salary.absentDays ?? 0) : null,
+    net: salary ? Number(salary.netAmount ?? 0) : null,
+    paid: salary ? Number(salary.amountPaid ?? 0) : 0,
+    outstanding: salary ? Number(salary.amountOutstanding ?? 0) : 0,
+    status: !salary ? 'missing' : (salary.paymentStatus ?? 'open'),
+    salary,
+  }
+}))
+
+const filteredRows = computed(() => {
+  const term = search.value.trim().toLowerCase()
+  if (!term)
+    return rows.value
+
+  return rows.value.filter(row => row.name.toLowerCase().includes(term) || row.position.toLowerCase().includes(term))
+})
+
+const totals = computed(() => {
+  const generated = rows.value.filter(row => row.salary)
+  const net = generated.reduce((sum, row) => sum + (row.net ?? 0), 0)
+  const paid = generated.reduce((sum, row) => sum + row.paid, 0)
+
+  return {
+    net,
+    paid,
+    outstanding: Math.max(0, net - paid),
+    generated: generated.length,
+    missing: rows.value.filter(row => !row.salary).length,
+  }
+})
+
+const currencyCode = computed(() => salaries.value[0]?.currency?.code ?? 'AFN')
+const currencySymbol = computed(() => salaries.value[0]?.currency?.symbol ?? '')
+
+const companyProfile = computed(() => ({
+  name: companySetting.value?.original_company_name || companySetting.value?.website_title || '',
+  brandName: companySetting.value?.short_company_name || companySetting.value?.website_title || '',
+  addressLines: [companySetting.value?.physical_address].filter(Boolean) as string[],
+  email: companySetting.value?.company_email || '',
+  phone: companySetting.value?.phone || '',
+  tinNumber: companySetting.value?.business_licence || undefined,
+  logo: companySetting.value?.website_logo_url || undefined,
+  signature: companySetting.value?.company_signature_url || undefined,
+}))
+
+const formatAmount = (amount: number | null | undefined) => {
+  if (amount === null || amount === undefined)
+    return '—'
+  const decimals = 2
+
+  return `${currencySymbol.value}${formatLocalizedNumber(Number(amount), { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
+}
+
+const formatInWords = (amount: number) => translate('documents.payslip.amountInWordsFallback', {
+  amount: formatLocalizedNumber(amount, { minimumFractionDigits: 2 }),
+  currency: currencyCode.value,
+})
+
+// Loading ----------------------------------------------------------------
+async function load() {
+  loading.value = true
+  try {
+    const [salaryResponse, employeeResponse, advanceResponse, settingResponse, currencyResponse] = await Promise.all([
+      SalaryApi.getAll({ salaryMonthFilter: month.value }),
+      EmployeeApi.getAll(),
+      EmployeeAdvanceApi.list(),
+      SettingApi.getCompanyProfile(),
+      CurrencyApi.getAll(),
+    ])
+
+    salaries.value = salaryResponse.data
+    employees.value = employeeResponse.data.data
+    advances.value = advanceResponse
+    companySetting.value = settingResponse.data
+    baseCurrencyId.value = currencyResponse.data.find(currency => currency.isBase)?.id ?? null
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToLoad')))
+  }
+  finally {
+    loading.value = false
+  }
+}
+
+// Payroll actions --------------------------------------------------------
+async function generateMissing() {
+  saving.value = true
+  try {
+    const result = await SalaryApi.generate(month.value)
+
+    toast.success($t('pages.payrolls.generatedCount', { created: result.created, skipped: result.skipped }))
+    generateDialog.value = false
+    await load()
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToGenerate')))
+  }
+  finally {
+    saving.value = false
+  }
+}
+
+function openCreate(row: PayrollRow) {
+  createForm.value = {
+    employee_id: row.employeeId,
+    amountPaid: row.base,
+    date: today.toISOString().slice(0, 10),
+    remarks: '',
+    deductions: [],
+  }
+  createDialog.value = true
+}
+
+async function saveCreate() {
+  if (!createForm.value.employee_id)
+    return
+
+  saving.value = true
+  try {
+    if (!baseCurrencyId.value) {
+      toast.error($t('pages.payrolls.baseCurrencyMissing'))
+
+      return
+    }
+
+    await SalaryApi.create({
+      employee_id: createForm.value.employee_id,
+      salaryMonth: month.value,
+      currency_id: baseCurrencyId.value,
+      rate: 1,
+      amountPaid: Number(createForm.value.amountPaid),
+      remarks: createForm.value.remarks || undefined,
+      date: createForm.value.date,
+      deductions: createForm.value.deductions,
+    })
+    toast.success($t('pages.payrolls.saved'))
+    createDialog.value = false
+    await load()
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToSave')))
+  }
+  finally {
+    saving.value = false
+  }
+}
+
+function openDeductions(salary: Salary) {
+  selectedSalary.value = salary
+  deductionForm.value = { description: '', amount: 0 }
+  deductionDialog.value = true
+}
+
+async function addDeduction() {
+  if (!selectedSalary.value)
+    return
+
+  saving.value = true
+  try {
+    await SalaryApi.createDeduction(selectedSalary.value.id, {
+      description: deductionForm.value.description,
+      amount: Number(deductionForm.value.amount),
+    })
+    toast.success($t('pages.payrolls.deductionSaved'))
+    deductionForm.value = { description: '', amount: 0 }
+    await refreshSelectedSalary()
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToSave')))
+  }
+  finally {
+    saving.value = false
+  }
+}
+
+async function removeDeduction(deduction: SalaryDeduction) {
+  if (!selectedSalary.value || !deduction.id)
+    return
+
+  saving.value = true
+  try {
+    await SalaryApi.deleteDeduction(selectedSalary.value.id, deduction.id)
+    toast.success($t('pages.payrolls.deductionDeleted'))
+    await refreshSelectedSalary()
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToSave')))
+  }
+  finally {
+    saving.value = false
+  }
+}
+
+async function refreshSelectedSalary() {
+  if (!selectedSalary.value)
+    return
+  const response = await SalaryApi.getById(selectedSalary.value.id)
+
+  selectedSalary.value = response.data
+  salaries.value = salaries.value.map(salary => salary.id === response.data.id ? response.data : salary)
+}
+
+function openPayment(salary: Salary) {
+  selectedSalary.value = salary
+  paymentForm.value = { amount: Number(salary.amountOutstanding ?? 0), date: today.toISOString().slice(0, 10), remarks: '' }
+  paymentDialog.value = true
+}
+
+async function savePayment() {
+  if (!selectedSalary.value)
+    return
+
+  saving.value = true
+  try {
+    await SalaryApi.addPayment(selectedSalary.value.id, {
+      amount: Number(paymentForm.value.amount),
+      date: paymentForm.value.date,
+      remarks: paymentForm.value.remarks || undefined,
+    })
+    toast.success($t('pages.payrolls.paymentSaved'))
+    paymentDialog.value = false
+    await load()
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToSave')))
+  }
+  finally {
+    saving.value = false
+  }
+}
+
+function confirmDelete(salary: Salary) {
+  selectedSalary.value = salary
+  deleteSalaryDialog.value = true
+}
+
+async function deleteSalary() {
+  if (!selectedSalary.value)
+    return
+
+  saving.value = true
+  try {
+    await SalaryApi.delete(selectedSalary.value.id)
+    toast.success($t('pages.payrolls.deleted'))
+    deleteSalaryDialog.value = false
+    await load()
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToDelete')))
+  }
+  finally {
+    saving.value = false
+  }
+}
+
+async function openPayslip(row: PayrollRow) {
+  const salary = row.salary
+  if (!salary)
+    return
+
+  const employee = employees.value.find(item => item.id === row.employeeId)
+  const earnings = [{ label: $t('pages.payrolls.baseSalary'), amount: Number(salary.totalAmount) - Number(salary.bonus ?? 0) }]
+  if (Number(salary.bonus ?? 0) > 0)
+    earnings.push({ label: $t('pages.payrolls.bonus'), amount: Number(salary.bonus) })
+
+  payslipProps.value = {
+    documentTitle: translate('documents.payslip_template.payslipTemplate.officialPAYSLIP'),
+    documentNumber: salary.payslip_number,
+    payslipSubtitle: $t('pages.payrolls.payPeriodLabel', { month: salary.salaryMonth }),
+    currency: salary.currency?.code ?? currencyCode.value,
+    company: companyProfile.value,
+    letterheadUrl: companySetting.value?.letterheads?.payslip?.url || undefined,
+    letterheadSafe: companySetting.value?.letterheads?.payslip?.safe,
+    employee: {
+      name: salary.employeeName,
+      designation: getEmployeePosition(employee),
+      department: employee?.department || '—',
+      dateOfJoining: employee?.join_date || '—',
+      payPeriod: salary.salaryMonth,
+      payDate: salary.date,
+      workedDays: Number(salary.workedDays ?? 0),
+      totalDays: Number(salary.totalDays ?? 0),
+      offDays: Number(salary.offDays ?? 0),
+      absentDays: Number(salary.absentDays ?? 0),
+      tazkiraNumber: employee?.id_number || 'N/A',
+      accountNumber: employee?.bank_account_number || 'N/A',
+    },
+    earnings,
+    deductions: (salary.deductions ?? []).map(deduction => ({
+      label: deduction.isAutomatic ? $t('pages.payrolls.automaticDeduction') : deduction.description,
+      amount: Number(deduction.amount),
+    })),
+    advances: (salary.advances ?? []).map(advance => ({
+      label: `${advance.advanceNumber ?? '—'}${advance.date ? ` · ${formatLocalizedDate(advance.date)}` : ''}`,
+      amount: Number(advance.amount),
+    })),
+    reimbursements: [],
+    amountInWords: formatInWords(Number(salary.netAmount ?? 0)),
+  }
+  payslipDialog.value = true
+  await nextTick()
+}
+
+function printPayslip() {
+  payslipRef.value?.print()
+}
+
+function printRegister() {
+  void printDocument({ bodyClass: 'printing-table-payrolls', pageStyle: 'size: A4 landscape; margin: 10mm;' })
+}
+
+function getEmployeePosition(employee: Employee | undefined): string {
+  if (!employee)
+    return $t('pages.payrolls.noPosition')
+
+  return typeof employee.position === 'string' && employee.position ? employee.position : $t('pages.payrolls.noPosition')
+}
+
+// Salary advances --------------------------------------------------------
+function openAdvanceDialog() {
+  advanceForm.value = { employee_id: null, amount: 0, date: today.toISOString().slice(0, 10), remarks: '' }
+  advanceDialog.value = true
+}
+
+async function saveAdvance() {
+  if (!advanceForm.value.employee_id)
+    return
+
+  saving.value = true
+  try {
+    await EmployeeAdvanceApi.create({
+      employee_id: advanceForm.value.employee_id,
+      amount: Number(advanceForm.value.amount),
+      date: advanceForm.value.date,
+      remarks: advanceForm.value.remarks,
+    } as CreateEmployeeAdvanceData)
+    toast.success($t('pages.payrolls.advanceSaved'))
+    advanceDialog.value = false
+    await load()
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToSave')))
+  }
+  finally {
+    saving.value = false
+  }
+}
+
+function confirmDeleteAdvance(advance: EmployeeAdvance) {
+  selectedAdvance.value = advance
+  deleteAdvanceDialog.value = true
+}
+
+async function deleteAdvance() {
+  if (!selectedAdvance.value)
+    return
+
+  saving.value = true
+  try {
+    await EmployeeAdvanceApi.remove(selectedAdvance.value.id)
+    toast.success($t('pages.payrolls.advanceDeleted'))
+    deleteAdvanceDialog.value = false
+    await load()
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToDelete')))
+  }
+  finally {
+    saving.value = false
+  }
+}
+
+function openAdvanceReceipt(advance: EmployeeAdvance) {
+  const employee = employees.value.find(item => item.id === advance.employee_id)
+  advanceReceipt.value = {
+    advanceNumber: advance.advanceNumber,
+    date: advance.date,
+    amount: advance.amount,
+    currency: advance.currency,
+    remarks: advance.remarks,
+    amountInWords: formatInWords(advance.amount),
+    employee: {
+      name: advance.employeeName,
+      idNumber: employee?.id_number ?? null,
+      position: getEmployeePosition(employee),
+      department: employee?.department ?? employee?.department_name ?? null,
+    },
+    company: companyProfile.value,
+  }
+  advanceReceiptDialog.value = true
+  void nextTick(() => advanceReceiptRef.value?.print())
+}
+
+function statusLabel(status: PayrollRow['status']) {
+  return {
+    missing: $t('pages.payrolls.notGenerated'),
+    open: $t('pages.payrolls.open'),
+    partially_paid: $t('pages.payrolls.partiallyPaid'),
+    paid: $t('common.statuses.paid'),
+  }[status]
+}
+
+function statusColor(status: PayrollRow['status']) {
+  return { missing: 'secondary', open: 'warning', partially_paid: 'info', paid: 'success' }[status]
+}
+
+watch(month, load)
+onMounted(load)
+</script>
+
+<template>
+  <div class="payrolls-page pa-4">
+    <DataTablePageKpis
+      :items="filteredRows"
+      :title="$t('pages.payrolls.title')"
+      :description="$t('pages.payrolls.description')"
+      icon="tabler-wallet"
+    />
+    <VCard class="payrolls-screen">
+      <VCardTitle class="d-flex flex-wrap align-center ga-3 pa-5">
+        <VIcon icon="tabler-wallet" />{{ $t('pages.payrolls.title') }}<VSpacer /><VTextField
+          v-model="month"
+          type="month"
+          density="compact"
+          hide-details
+          style="max-width: 190px"
+        /><VBtn
+          prepend-icon="tabler-player-play"
+          :loading="loading"
+          @click="generateDialog = true"
+        >
+          {{ $t('pages.payrolls.generate') }}
+        </VBtn><VBtn
+          prepend-icon="tabler-printer"
+          variant="tonal"
+          :disabled="activeTab !== 'payslips'"
+          @click="printRegister"
+        >
+          {{ $t('common.actions.print') }}
+        </VBtn>
+      </VCardTitle>
+      <VCardText class="pb-0">
+        <div class="payroll-kpis">
+          <VCard
+            border
+            variant="flat"
+          >
+            <VCardText>
+              <div class="text-caption text-medium-emphasis">
+                {{ $t('pages.payrolls.netPayroll') }}
+              </div><div class="text-h5">
+                {{ formatAmount(totals.net) }}
+              </div>
+            </VCardText>
+          </VCard>
+          <VCard
+            border
+            variant="flat"
+          >
+            <VCardText>
+              <div class="text-caption text-medium-emphasis">
+                {{ $t('pages.payrolls.paid') }}
+              </div><div class="text-h5 text-success">
+                {{ formatAmount(totals.paid) }}
+              </div>
+            </VCardText>
+          </VCard>
+          <VCard
+            border
+            variant="flat"
+          >
+            <VCardText>
+              <div class="text-caption text-medium-emphasis">
+                {{ $t('pages.payrolls.outstanding') }}
+              </div><div class="text-h5 text-warning">
+                {{ formatAmount(totals.outstanding) }}
+              </div>
+            </VCardText>
+          </VCard>
+          <VCard
+            border
+            variant="flat"
+          >
+            <VCardText>
+              <div class="text-caption text-medium-emphasis">
+                {{ $t('pages.payrolls.progress') }}
+              </div><div class="text-h5">
+                {{ totals.generated }} · {{ totals.missing }} {{ $t('pages.payrolls.missing') }}
+              </div>
+            </VCardText>
+          </VCard>
+        </div>
+        <VTabs
+          v-model="activeTab"
+          class="mt-4"
+        >
+          <VTab value="payslips">
+            {{ $t('pages.payrolls.payslipsTab') }}
+          </VTab>
+          <VTab value="advances">
+            {{ $t('pages.payrolls.advancesTab') }}
+          </VTab>
+        </VTabs>
+      </VCardText>
+      <VCardText>
+        <VWindow
+          v-model="activeTab"
+          class="payroll-window"
+        >
+          <VWindowItem value="payslips">
+            <div class="d-flex flex-wrap align-center ga-3 mb-4">
+              <VTextField
+                v-model="search"
+                :label="$t('common.actions.search')"
+                prepend-inner-icon="tabler-search"
+                density="compact"
+                hide-details
+                style="max-width: 320px"
+              />
+            </div>
+            <ResponsiveDataTable
+              :items="filteredRows"
+              :loading="loading"
+              item-value="id"
+              :headers="[
+                { title: $t('common.fields.employee'), key: 'name' },
+                { title: $t('pages.payrolls.baseSalary'), key: 'base' },
+                { title: $t('pages.payrolls.worked'), key: 'workedDays' },
+                { title: $t('pages.payrolls.offDays'), key: 'offDays' },
+                { title: $t('pages.payrolls.absent'), key: 'absentDays' },
+                { title: $t('pages.payrolls.net'), key: 'net' },
+                { title: $t('pages.payrolls.paid'), key: 'paid' },
+                { title: $t('pages.payrolls.outstanding'), key: 'outstanding' },
+                { title: $t('common.fields.status'), key: 'status' },
+                { title: $t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
+              ]"
+            >
+              <template #item.name="{ item }">
+                <div>
+                  <div class="font-weight-medium">
+                    {{ item.name }}
+                  </div><div class="text-caption text-medium-emphasis">
+                    {{ item.position || '—' }}
+                  </div>
+                </div>
+              </template>
+              <template #item.base="{ item }">
+                {{ formatAmount(item.base) }}
+              </template>
+              <template #item.workedDays="{ item }">
+                {{ item.salary ? `${item.workedDays} / ${item.totalDays}` : '—' }}
+              </template>
+              <template #item.offDays="{ item }">
+                {{ item.offDays ?? '—' }}
+              </template>
+              <template #item.absentDays="{ item }">
+                {{ item.absentDays ?? '—' }}
+              </template>
+              <template #item.net="{ item }">
+                {{ formatAmount(item.net) }}
+              </template>
+              <template #item.paid="{ item }">
+                {{ formatAmount(item.paid) }}
+              </template>
+              <template #item.outstanding="{ item }">
+                {{ formatAmount(item.outstanding) }}
+              </template>
+              <template #item.status="{ item }">
+                <VChip
+                  :color="statusColor(item.status)"
+                  size="small"
+                  variant="tonal"
+                >
+                  {{ statusLabel(item.status) }}
+                </VChip>
+              </template>
+              <template #item.actions="{ item }">
+                <div class="d-flex justify-end ga-1">
+                  <VBtn
+                    v-if="!item.salary"
+                    icon="tabler-file-plus"
+                    size="small"
+                    variant="text"
+                    color="primary"
+                    :title="$t('pages.payrolls.createPayslip')"
+                    @click="openCreate(item)"
+                  />
+                  <template v-else>
+                    <VBtn
+                      icon="tabler-printer"
+                      size="small"
+                      variant="text"
+                      :title="$t('pages.payrolls.printPayslip')"
+                      @click="openPayslip(item)"
+                    />
+                    <VBtn
+                      icon="tabler-receipt-refund"
+                      size="small"
+                      variant="text"
+                      :title="$t('pages.payrolls.addDeduction')"
+                      @click="openDeductions(item.salary!)"
+                    />
+                    <VBtn
+                      icon="tabler-cash-plus"
+                      size="small"
+                      variant="text"
+                      color="success"
+                      :title="$t('pages.payrolls.addPayment')"
+                      @click="openPayment(item.salary!)"
+                    />
+                    <VBtn
+                      icon="tabler-trash"
+                      size="small"
+                      variant="text"
+                      color="error"
+                      :title="$t('pages.payrolls.deletePayslip')"
+                      @click="confirmDelete(item.salary!)"
+                    />
+                  </template>
+                </div>
+              </template>
+            </ResponsiveDataTable>
+          </VWindowItem>
+          <VWindowItem value="advances">
+            <div class="d-flex flex-wrap align-center ga-3 mb-4">
+              <VBtn
+                prepend-icon="tabler-plus"
+                color="primary"
+                @click="openAdvanceDialog"
+              >
+                {{ $t('pages.payrolls.addAdvance') }}
+              </VBtn>
+            </div>
+            <ResponsiveDataTable
+              :items="advances"
+              :loading="loading"
+              item-value="id"
+              :headers="[
+                { title: $t('pages.payrolls.advanceNumber'), key: 'advanceNumber' },
+                { title: $t('common.fields.employee'), key: 'employeeName' },
+                { title: $t('pages.payrolls.date'), key: 'date' },
+                { title: $t('pages.payrolls.amount'), key: 'amount' },
+                { title: $t('common.fields.status'), key: 'status' },
+                { title: $t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
+              ]"
+            >
+              <template #item.date="{ item }">
+                {{ item.date ? formatLocalizedDate(`${item.date}T00:00:00`, { day: '2-digit', month: 'short', year: 'numeric' }) : '—' }}
+              </template>
+              <template #item.amount="{ item }">
+                {{ formatAmount(item.amount) }}
+              </template>
+              <template #item.status="{ item }">
+                <VChip
+                  :color="item.salaryId ? 'success' : 'warning'"
+                  size="small"
+                  variant="tonal"
+                >
+                  {{ item.salaryId ? $t('pages.payrolls.recovered') : $t('pages.payrolls.outstandingAdvance') }}
+                </VChip>
+              </template>
+              <template #item.actions="{ item }">
+                <div class="d-flex justify-end ga-1">
+                  <VBtn
+                    icon="tabler-printer"
+                    size="small"
+                    variant="text"
+                    :title="$t('pages.payrolls.printReceipt')"
+                    @click="openAdvanceReceipt(item)"
+                  />
+                  <VBtn
+                    icon="tabler-trash"
+                    size="small"
+                    variant="text"
+                    color="error"
+                    :title="$t('common.actions.delete')"
+                    @click="confirmDeleteAdvance(item)"
+                  />
+                </div>
+              </template>
+            </ResponsiveDataTable>
+          </VWindowItem>
+        </VWindow>
+      </VCardText>
+    </VCard>
+
+    <PrintableListReport
+      :title="$t('pages.payrolls.registerTitle')"
+      :subtitle="month"
+      :columns="[$t('common.fields.employee'), $t('pages.payrolls.baseSalary'), $t('pages.payrolls.worked'), $t('pages.payrolls.offDays'), $t('pages.payrolls.absent'), $t('pages.payrolls.net'), $t('pages.payrolls.paid'), $t('pages.payrolls.outstanding')]"
+      :rows="filteredRows.map(row => [row.name, formatAmount(row.base), row.salary ? `${row.workedDays}/${row.totalDays}` : '—', row.offDays ?? '—', row.absentDays ?? '—', formatAmount(row.net), formatAmount(row.paid), formatAmount(row.outstanding)])"
+    />
+
+    <!-- Generate missing payslips -->
+    <VDialog
+      v-model="generateDialog"
+      max-width="480"
+    >
+      <VCard :title="$t('pages.payrolls.generateTitle')">
+        <VCardText>
+          {{ $t('pages.payrolls.generateHint', { month, count: totals.missing }) }}
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            variant="text"
+            @click="generateDialog = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="primary"
+            :loading="saving"
+            @click="generateMissing"
+          >
+            {{ $t('pages.payrolls.generate') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Create one payslip -->
+    <VDialog
+      v-model="createDialog"
+      max-width="600"
+    >
+      <VCard :title="$t('pages.payrolls.createPayslip')">
+        <VCardText class="d-flex flex-column ga-4">
+          <VSelect
+            v-model="createForm.employee_id"
+            :items="employees.map(employee => ({ title: employee.name, value: employee.id }))"
+            :label="$t('common.fields.employee')"
+            disabled
+          />
+          <VTextField
+            v-model.number="createForm.amountPaid"
+            type="number"
+            min="0"
+            :label="$t('pages.payrolls.baseSalary')"
+          />
+          <VTextField
+            v-model="createForm.date"
+            type="date"
+            :label="$t('pages.payrolls.paymentDate')"
+          />
+          <VTextField
+            v-model="createForm.remarks"
+            :label="$t('pages.payrolls.remarks')"
+          />
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            variant="text"
+            @click="createDialog = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="primary"
+            :loading="saving"
+            @click="saveCreate"
+          >
+            {{ $t('common.actions.save') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Deductions -->
+    <VDialog
+      v-model="deductionDialog"
+      max-width="640"
+    >
+      <VCard :title="$t('pages.payrolls.deductionsTitle')">
+        <VCardText>
+          <VTable
+            v-if="selectedSalary?.deductions?.length"
+            density="compact"
+            class="mb-5"
+          >
+            <thead>
+              <tr>
+                <th>{{ $t('pages.payrolls.description') }}</th>
+                <th class="text-end">
+                  {{ $t('pages.payrolls.amount') }}
+                </th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="deduction in selectedSalary.deductions"
+                :key="deduction.id"
+              >
+                <td>{{ deduction.isAutomatic ? $t('pages.payrolls.automaticDeduction') : deduction.description }}</td>
+                <td class="text-end">
+                  {{ formatAmount(deduction.amount) }}
+                </td>
+                <td class="text-end">
+                  <VBtn
+                    v-if="!deduction.isAutomatic"
+                    icon="tabler-trash"
+                    size="x-small"
+                    variant="text"
+                    color="error"
+                    :loading="saving"
+                    @click="removeDeduction(deduction)"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </VTable>
+          <VAlert
+            v-else
+            variant="tonal"
+            color="info"
+            class="mb-5"
+          >
+            {{ $t('pages.payrolls.noDeductions') }}
+          </VAlert>
+          <div class="d-flex flex-column ga-4">
+            <VTextField
+              v-model="deductionForm.description"
+              :label="$t('pages.payrolls.description')"
+            />
+            <VTextField
+              v-model.number="deductionForm.amount"
+              type="number"
+              min="0"
+              :label="$t('pages.payrolls.amount')"
+            />
+          </div>
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            variant="text"
+            @click="deductionDialog = false"
+          >
+            {{ $t('common.actions.close') }}
+          </VBtn>
+          <VBtn
+            color="primary"
+            :loading="saving"
+            :disabled="!deductionForm.description || deductionForm.amount <= 0"
+            @click="addDeduction"
+          >
+            {{ $t('pages.payrolls.addDeduction') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Payment -->
+    <VDialog
+      v-model="paymentDialog"
+      max-width="520"
+    >
+      <VCard :title="$t('pages.payrolls.addPayment')">
+        <VCardText class="d-flex flex-column ga-4">
+          <VTextField
+            v-model.number="paymentForm.amount"
+            type="number"
+            min="0"
+            :label="$t('pages.payrolls.amount')"
+          />
+          <VTextField
+            v-model="paymentForm.date"
+            type="date"
+            :label="$t('pages.payrolls.paymentDate')"
+          />
+          <VTextField
+            v-model="paymentForm.remarks"
+            :label="$t('pages.payrolls.remarks')"
+          />
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            variant="text"
+            @click="paymentDialog = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="success"
+            :loading="saving"
+            :disabled="paymentForm.amount <= 0"
+            @click="savePayment"
+          >
+            {{ $t('common.actions.save') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Delete payslip -->
+    <VDialog
+      v-model="deleteSalaryDialog"
+      max-width="480"
+    >
+      <VCard :title="$t('pages.payrolls.deletePayslip')">
+        <VCardText>
+          {{ $t('pages.payrolls.confirmDelete', { employee: selectedSalary?.employeeName ?? '' }) }}
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            variant="text"
+            @click="deleteSalaryDialog = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="error"
+            :loading="saving"
+            @click="deleteSalary"
+          >
+            {{ $t('common.actions.delete') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Advance -->
+    <VDialog
+      v-model="advanceDialog"
+      max-width="520"
+    >
+      <VCard :title="$t('pages.payrolls.addAdvance')">
+        <VCardText class="d-flex flex-column ga-4">
+          <VSelect
+            v-model="advanceForm.employee_id"
+            :items="employees.map(employee => ({ title: employee.name, value: employee.id }))"
+            :label="$t('common.fields.employee')"
+          />
+          <VTextField
+            v-model.number="advanceForm.amount"
+            type="number"
+            min="0"
+            :label="$t('pages.payrolls.amount')"
+          />
+          <VTextField
+            v-model="advanceForm.date"
+            type="date"
+            :label="$t('pages.payrolls.date')"
+          />
+          <VTextField
+            v-model="advanceForm.remarks"
+            :label="$t('pages.payrolls.remarks')"
+          />
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            variant="text"
+            @click="advanceDialog = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="primary"
+            :loading="saving"
+            @click="saveAdvance"
+          >
+            {{ $t('common.actions.save') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <VDialog
+      v-model="deleteAdvanceDialog"
+      max-width="480"
+    >
+      <VCard :title="$t('pages.payrolls.deleteAdvance')">
+        <VCardText>
+          {{ $t('pages.payrolls.confirmDeleteAdvance', { employee: selectedAdvance?.employeeName ?? '' }) }}
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            variant="text"
+            @click="deleteAdvanceDialog = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="error"
+            :loading="saving"
+            @click="deleteAdvance"
+          >
+            {{ $t('common.actions.delete') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Payslip preview -->
+    <VDialog
+      v-model="payslipDialog"
+      max-width="1100"
+      scrollable
+    >
+      <VCard class="document-preview-dialog">
+        <VCardText class="pa-0">
+          <PayslipTemplate
+            v-if="payslipProps"
+            ref="payslipRef"
+            v-bind="payslipProps"
+          />
+        </VCardText>
+        <VCardActions class="justify-end pa-4">
+          <VBtn
+            variant="text"
+            @click="payslipDialog = false"
+          >
+            {{ $t('common.actions.close') }}
+          </VBtn>
+          <VBtn
+            prepend-icon="tabler-printer"
+            color="primary"
+            @click="printPayslip"
+          >
+            {{ $t('common.actions.print') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Advance receipt preview -->
+    <VDialog
+      v-model="advanceReceiptDialog"
+      max-width="900"
+      scrollable
+    >
+      <VCard class="document-preview-dialog">
+        <VCardText class="pa-0">
+          <AdvanceReceiptTemplate
+            v-if="advanceReceipt"
+            ref="advanceReceiptRef"
+            :receipt="advanceReceipt"
+          />
+        </VCardText>
+        <VCardActions class="justify-end pa-4">
+          <VBtn
+            variant="text"
+            @click="advanceReceiptDialog = false"
+          >
+            {{ $t('common.actions.close') }}
+          </VBtn>
+          <VBtn
+            prepend-icon="tabler-printer"
+            color="primary"
+            @click="advanceReceiptRef?.print()"
+          >
+            {{ $t('common.actions.print') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+  </div>
+</template>
+
+<style scoped>
+.payroll-kpis {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.payroll-window {
+  overflow: visible;
+}
+
+.document-preview-dialog {
+  max-height: 88vh;
+}
+</style>

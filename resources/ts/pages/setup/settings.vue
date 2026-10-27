@@ -42,7 +42,8 @@ const { errors: designFieldErrors, inputProps: designInputProps, clear: clearDes
 
 const defaultForm = (): SettingForm => ({
   ...themeColorDefaults,
-  paid_leave_days_per_year: 0,
+  off_day_allowance_days_per_year: 0,
+  missing_attendance_status: 'absent',
   website_title: 'Educational Agency Portal',
   website_logo: null,
   remove_website_logo: false,
@@ -204,7 +205,7 @@ const appearanceGroups = computed(() => [
 const pageFields: Record<SettingsPage, (keyof SettingForm)[]> = {
   company: ['website_title', 'website_logo', 'remove_website_logo', 'company_signature', 'remove_company_signature', 'website_address', 'timezone', 'phone', 'physical_address', 'short_company_name', 'original_company_name'],
   email: ['email_delivery_enabled', 'company_email', 'mail_host', 'mail_port', 'mail_encryption', 'mail_username', 'mail_password', 'clear_mail_password', 'mail_from_name', 'mail_reply_to'],
-  operations: ['paid_leave_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes', 'automatic_attendance_enabled'],
+  operations: ['off_day_allowance_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes', 'automatic_attendance_enabled', 'missing_attendance_status'],
   appearance: themeColorFields,
   documents: ['contract_letterhead', 'contract_cover_design', 'remove_contract_letterhead', 'remove_contract_cover_design', 'contract_letterhead_safe_x', 'contract_letterhead_safe_y', 'contract_letterhead_safe_width', 'contract_letterhead_safe_height', 'receipt_letterhead', 'remove_receipt_letterhead', 'receipt_letterhead_source', 'receipt_letterhead_safe_x', 'receipt_letterhead_safe_y', 'receipt_letterhead_safe_width', 'receipt_letterhead_safe_height', 'payslip_letterhead', 'remove_payslip_letterhead', 'payslip_letterhead_source', 'payslip_letterhead_safe_x', 'payslip_letterhead_safe_y', 'payslip_letterhead_safe_width', 'payslip_letterhead_safe_height'],
   office: [],
@@ -306,7 +307,8 @@ function applySavedSetting(setting: Setting) {
     light_surface_color: setting.light_surface_color,
     dark_background_color: setting.dark_background_color,
     dark_surface_color: setting.dark_surface_color,
-    paid_leave_days_per_year: Number(setting.paid_leave_days_per_year ?? 0),
+    off_day_allowance_days_per_year: Number(setting.off_day_allowance_days_per_year ?? 0),
+    missing_attendance_status: setting.missing_attendance_status ?? 'absent',
     website_title: setting.website_title,
     website_address: setting.website_address || '',
     company_email: setting.company_email || '',
@@ -1504,9 +1506,11 @@ onBeforeUnmount(revokeObjectUrls)
               sm="6"
             >
               <VTextField
-                v-model.number="form.paid_leave_days_per_year"
-                v-bind="settingInputProps('paid_leave_days_per_year')"
-                :label="$t('pages.settings.settings.paidLeaveDaysPerYear')"
+                v-model.number="form.off_day_allowance_days_per_year"
+                v-bind="settingInputProps('off_day_allowance_days_per_year')"
+                :label="$t('pages.settings.settings.offDayAllowanceDaysPerYear')"
+                :hint="$t('pages.settings.settings.offDayAllowanceDaysPerYearHint')"
+                persistent-hint
                 type="number"
                 min="0"
                 max="366"
@@ -1560,6 +1564,34 @@ onBeforeUnmount(revokeObjectUrls)
                 :hint="$t('pages.settings.settings.automaticAttendanceEnabledHint')"
                 persistent-hint
               />
+            </VCol>
+            <VCol
+              cols="12"
+              sm="6"
+            >
+              <VSelect
+                v-model="form.missing_attendance_status"
+                v-bind="settingInputProps('missing_attendance_status')"
+                :items="[
+                  { title: $t('common.attendanceStatuses.present'), value: 'present' },
+                  { title: $t('common.attendanceStatuses.absent'), value: 'absent' },
+                  { title: $t('common.attendanceStatuses.offDay'), value: 'off_day' },
+                ]"
+                :label="$t('pages.settings.settings.missingAttendanceStatus')"
+                :hint="$t('pages.settings.settings.missingAttendanceStatusHint')"
+                persistent-hint
+              />
+            </VCol>
+            <VCol cols="12">
+              <VAlert
+                type="warning"
+                variant="tonal"
+                density="compact"
+                icon="tabler-cloud-storm"
+                class="mb-2"
+              >
+                {{ $t('pages.settings.settings.attendanceWeatherWarning') }}
+              </VAlert>
             </VCol>
           </VRow>
 

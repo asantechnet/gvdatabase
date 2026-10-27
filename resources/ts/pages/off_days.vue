@@ -153,7 +153,7 @@ onMounted(load)
   <div>
     <DataTablePageKpis
       :items="filteredRows"
-      :title="t('pages.offDays.title')"
+      :title="t('pages.offDays.companyTitle')"
       :description="t('pages.offDays.subtitle')"
       icon="tabler-calendar-off"
     />
@@ -161,7 +161,7 @@ onMounted(load)
     <VCard>
       <VCardTitle class="d-flex flex-wrap align-center ga-3">
         <VIcon icon="tabler-calendar-off" />
-        {{ t('pages.offDays.title') }}
+        {{ t('pages.offDays.companyTitle') }}
         <VSpacer />
         <DataTableFilterMenu
           :active="Boolean(statusFilter || year !== new Date().getFullYear())"

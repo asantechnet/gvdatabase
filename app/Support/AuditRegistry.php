@@ -36,7 +36,7 @@ use App\Models\Income;
 use App\Models\Language;
 use App\Models\OffDay;
 use App\Models\Office;
-use App\Models\PaidTimeOff;
+use App\Models\LeaveRequest;
 use App\Models\PendingTransaction;
 use App\Models\Permission;
 use App\Models\Position;
@@ -110,7 +110,7 @@ final class AuditRegistry
             'languages' => Language::class,
             'offices' => Office::class,
             'off_days' => OffDay::class,
-            'leaves' => PaidTimeOff::class,
+            'leaves' => LeaveRequest::class,
             'pending_transactions' => PendingTransaction::class,
             'permissions' => Permission::class,
             'positions' => Position::class,
@@ -199,7 +199,7 @@ final class AuditRegistry
             'case_wins' => ['won_at', 'stage_key'],
             'daily_reports' => ['report_date'],
             'attendances' => ['date'],
-            'leaves' => ['date', 'duration_days', 'reason', 'approval_note'],
+            'leaves' => ['date', 'duration_days', 'off_day_days', 'reason', 'approval_note'],
             'applicant_contracts' => ['notes'],
             'worthy_employees' => ['bonus_month', 'selected_type'],
             'settings' => ['short_company_name', 'website_title'],

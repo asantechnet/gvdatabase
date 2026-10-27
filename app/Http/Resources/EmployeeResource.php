@@ -52,7 +52,7 @@ class EmployeeResource extends JsonResource
             'attachments' => $this->attachmentsPayload('employees', $this->id),
             'join_date' => $this->join_date->format('Y-m-d'),
             'contract_duration' => $this->contract_duration,
-            'paid_leave_days' => $this->paid_leave_days !== null ? (float) $this->paid_leave_days : null,
+            'off_day_allowance_days' => $this->off_day_allowance_days !== null ? (float) $this->off_day_allowance_days : null,
         ];
     }
 }

@@ -103,9 +103,9 @@ class WorkdayController extends Controller
                 ->first();
 
             $isOpenHalfLeave = $attendance && ! $attendance->trashed()
-                && (float) $attendance->leave_duration_days > 0
-                && (float) $attendance->leave_duration_days < 1
-                && in_array($attendance->status, ['paid-leave', 'unpaid-leave'], true);
+                && (float) $attendance->leave_days > 0
+                && (float) $attendance->leave_days < 1
+                && in_array($attendance->status, ['off_day', 'absent'], true);
             if ($attendance && ! $attendance->trashed() && $attendance->status !== 'present' && ! $isOpenHalfLeave) {
                 throw ValidationException::withMessages([
                     'workday' => ['business.workday_attendance_conflict'],
@@ -248,10 +248,11 @@ class WorkdayController extends Controller
 
     private function statusPayload(?Attendance $attendance, string $timezone): array
     {
+        $halfDayAway = (float) $attendance?->leave_days > 0 && (float) $attendance?->leave_days < 1;
         $state = ! $attendance
             ? 'not_started'
             : ($attendance->status !== 'present'
-                ? ((float) $attendance->leave_duration_days > 0 && (float) $attendance->leave_duration_days < 1 ? 'not_started' : 'blocked')
+                ? ($halfDayAway ? 'not_started' : 'blocked')
                 : (($attendance->checked_out_at || $attendance->check_out_time)
                     ? ($attendance->dailyReport ? 'completed' : 'awaiting_report')
                     : 'active'));
@@ -268,9 +269,9 @@ class WorkdayController extends Controller
             'attendance' => $attendance ? [
                 'id' => $attendance->id,
                 'date' => $attendance->date->format('Y-m-d'),
-                'leaveDurationDays' => (float) $attendance->leave_duration_days,
-                'paidLeaveDays' => (float) $attendance->paid_leave_days,
-                'unpaidLeaveDays' => (float) $attendance->unpaid_leave_days,
+                'status' => $attendance->status,
+                'leaveDays' => (float) $attendance->leave_days,
+                'offDayDays' => (float) $attendance->off_day_days,
                 'checkedInAt' => $attendance->checked_in_at?->utc()->toISOString(),
                 'checkedOutAt' => $attendance->checked_out_at?->utc()->toISOString(),
                 'checkInTime' => $attendance->check_in_time ? substr($attendance->check_in_time, 0, 5) : null,

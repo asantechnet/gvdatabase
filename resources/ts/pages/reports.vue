@@ -437,7 +437,7 @@ onMounted(async () => {
           >
             <VSelect
               v-model="filters.attendance_state"
-                  :items="['present', 'absent', 'paid-leave', 'unpaid-leave', 'complete', 'incomplete']"
+                  :items="['present', 'absent', 'off_day', 'complete', 'incomplete']"
               :item-title="translateBackendValue"
               :label="rt('filters.attendanceState')"
               clearable

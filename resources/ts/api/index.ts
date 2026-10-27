@@ -12,7 +12,7 @@ import PositionApi from './position'
 import ReportApi from './report'
 import SettingApi from './setting'
 import UserApi from './user'
-import PaidTimeOffApi from './paidTimeOff'
+import LeaveRequestApi from './leaveRequests'
 
 export type {
   ApiResponse as SettingApiResponse,
@@ -34,13 +34,13 @@ export {
   ReportApi,
   SettingApi,
   UserApi,
-  PaidTimeOffApi,
+  LeaveRequestApi,
 }
 
 export default {
   AuthApi,
   UserApi,
-  PaidTimeOffApi,
+  LeaveRequestApi,
   EmployeeApi,
   PositionApi,
   CurrencyApi,

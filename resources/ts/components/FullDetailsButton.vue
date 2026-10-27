@@ -77,8 +77,8 @@ const friendlyLabels: Record<string, string> = {
   'recordedBy': 'Recorded by',
   'recorded_by': 'Recorded by',
   'salaryMonth': 'Payroll month',
-  'paidOffDays': 'Paid leave days',
-  'unpaidOffDays': 'Unpaid leave days',
+  'off_day_days': 'Off-day days',
+  'absent_days': 'Absent days',
 }
 
 const labelFor = (key: string) => {

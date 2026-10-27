@@ -91,13 +91,19 @@ class EmployeeController extends Controller
             // employee profile. Keep a harmless legacy value for the existing
             // non-null database column while new profiles no longer expose it.
             'contract_duration' => 'nullable|string|max:255',
-            'paid_leave_days' => 'nullable|numeric|min:0|max:366',
+            'off_day_allowance_days' => 'nullable|numeric|min:0|max:366',
             'is_commission_based' => 'sometimes|boolean',
             'service_commissions' => 'nullable|array',
             'service_commissions.*.service' => ['required', Rule::in(BuiltInService::ALL)],
             'service_commissions.*.percentage' => 'required|numeric|min:0|max:100',
         ]);
         $this->guardHierarchyFields($request, $validated);
+
+        // The company-wide allowance is only a catalogue value: it prefills a
+        // new employee profile and is never read for an existing employee.
+        if (! array_key_exists('off_day_allowance_days', $validated) || $validated['off_day_allowance_days'] === null) {
+            $validated['off_day_allowance_days'] = (float) (\App\Models\Setting::latest('id')->value('off_day_allowance_days_per_year') ?? 0);
+        }
 
         $createdUser = false;
         $Employee = DB::transaction(function () use ($validated, $request, &$createdUser) {
@@ -142,6 +148,15 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $Employee): EmployeeResource
     {
         $this->authorizeEmployeeManage($request, $Employee);
+
+        // An employee may update their own profile only when the dedicated
+        // permission is granted, and then only their personal details. Pay,
+        // position, office, hierarchy, status, join date, allowance and
+        // commissions remain HR management fields.
+        if (! $request->user()->hasPermission('edit_employees')) {
+            return $this->updateOwnProfile($request, $Employee);
+        }
+
         $Employee->loadMissing('user');
         $hadUser = $Employee->user !== null;
         $previousUserId = $Employee->user_id;
@@ -173,7 +188,7 @@ class EmployeeController extends Controller
             'addr' => 'sometimes|required|string|min:5',
             'join_date' => 'sometimes|required|date',
             'contract_duration' => 'sometimes|nullable|string|max:255',
-            'paid_leave_days' => 'sometimes|nullable|numeric|min:0|max:366',
+            'off_day_allowance_days' => 'sometimes|nullable|numeric|min:0|max:366',
             'is_commission_based' => 'sometimes|boolean',
             'service_commissions' => 'sometimes|nullable|array',
             'service_commissions.*.service' => ['required', Rule::in(BuiltInService::ALL)],
@@ -223,6 +238,51 @@ class EmployeeController extends Controller
         }
 
         return new EmployeeResource($Employee);
+    }
+
+    /**
+     * A self-editor updates only personal, contact, guarantor and bank fields
+     * on their own employee row. Everything else is rejected rather than
+     * silently ignored, so the UI cannot imply a change that did not happen.
+     */
+    private function updateOwnProfile(Request $request, Employee $Employee): EmployeeResource
+    {
+        abort_unless((int) $request->user()->employee?->id === (int) $Employee->id, 403, 'auth.forbidden');
+
+        $allowed = [
+            'name', 'father_name', 'contact', 'emergency_contact_name', 'emergency_contact_phone',
+            'addr', 'bank_account_number', 'guarantor_name', 'guarantor_id_number',
+            'guarantor_phone', 'guarantor_address', 'guarantor_licence',
+        ];
+        $rejected = array_diff(array_keys($request->all()), $allowed);
+        abort_if($rejected !== [], 403, 'auth.forbidden');
+
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|min:2|max:255',
+            'father_name' => 'sometimes|required|string|min:2|max:255',
+            'contact' => ['sometimes', 'required', 'string', 'regex:/^[\\d\\s\\-()+]{8,}$/'],
+            'emergency_contact_name' => ['nullable', 'string', 'max:255'],
+            'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
+            'addr' => 'sometimes|required|string|min:5',
+            'bank_account_number' => ['nullable', 'string', 'max:255'],
+            'guarantor_name' => ['nullable', 'string', 'max:255'],
+            'guarantor_id_number' => ['nullable', 'string', 'max:100'],
+            'guarantor_phone' => ['nullable', 'string', 'max:30'],
+            'guarantor_address' => ['nullable', 'string', 'max:2000'],
+            'guarantor_licence' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        DB::transaction(function () use ($Employee, $validated): void {
+            $Employee = Employee::query()->lockForUpdate()->findOrFail($Employee->id);
+            $Employee->update($validated);
+            $Employee->user?->update(array_filter([
+                'name' => $validated['name'] ?? null,
+                'phone' => $validated['contact'] ?? null,
+                'address' => $validated['addr'] ?? null,
+            ], fn ($value) => $value !== null));
+        });
+
+        return new EmployeeResource($Employee->fresh(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions']));
     }
 
     public function destroy(Employee $Employee): JsonResponse

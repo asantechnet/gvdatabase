@@ -187,8 +187,8 @@ const saveExpense = async (isEditing = false, submittedExpense?: ExpenseFormData
     formError.value = ''
     fieldErrors.value = {}
 
-    // Loans route the expense through the approval workflow instead of
-    // writing the ledger row immediately.
+    // Payment requests route the expense through the approval workflow instead
+    // of writing the ledger row immediately.
     if (!isEditing && mode === 'loan') {
       await PendingTransactionApi.create({
         transaction_type: 'expense',

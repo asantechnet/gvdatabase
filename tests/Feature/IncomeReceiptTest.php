@@ -244,7 +244,7 @@ class IncomeReceiptTest extends TestCase
     private function validSettings(): array
     {
         return [
-            'paid_leave_days_per_year' => 20,
+            'off_day_allowance_days_per_year' => 20,
             'website_title' => 'Asantech',
             'website_address' => 'https://example.com',
             'company_email' => 'people@example.com',

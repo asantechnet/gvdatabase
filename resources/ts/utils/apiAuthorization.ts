@@ -11,7 +11,7 @@ interface ResourcePermissions {
 
 const resources: Record<string, ResourcePermissions> = {
   'users': { view: 'view_users', create: 'create_users', update: 'edit_users', delete: 'delete_users' },
-  'employees': { view: 'view_employees', create: 'create_employees', update: 'edit_employees', delete: 'delete_employees' },
+  'employees': { view: 'view_employees', create: 'create_employees', update: ['edit_employees', 'edit_own_employee_profile'], delete: 'delete_employees' },
   'departments': { view: 'view_departments', create: 'manage_departments', update: 'manage_departments', delete: 'manage_departments' },
   'positions': { view: 'view_positions', create: 'manage_positions', update: 'manage_positions', delete: 'manage_positions' },
   'offices': { view: 'view_offices', create: 'manage_offices', update: 'manage_offices', delete: 'manage_offices' },
@@ -65,8 +65,8 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'GET /incomes/applicants': ['view_incomes'],
     'PUT /incomes/applicant-contracts/:id/payment-override': ['override_contract_payments'],
     // Payment requests are the pending-transaction workflow under its public
-    // name. `loans` and `pending-transactions` stay as aliases, and every path
-    // must mirror the same server permissions.
+    // name; the legacy `loans` and `pending-transactions` aliases are gone, so
+    // only this path remains and it mirrors the server permissions.
     'GET /payment-requests': ['view_pending_transactions'],
     'GET /payment-requests/options': ['create_pending_transactions'],
     'POST /payment-requests': ['create_pending_transactions'],
@@ -76,15 +76,6 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'POST /payment-requests/:id/reject': ['approve_pending_transactions'],
     'POST /payment-requests/:id/post': ['post_pending_transactions'],
     'GET /payment-requests/:id/receipt': ['view_pending_transactions'],
-    'GET /loans': ['view_pending_transactions'],
-    'GET /loans/options': ['create_pending_transactions'],
-    'POST /loans': ['create_pending_transactions'],
-    'PUT /loans/:id': ['create_pending_transactions'],
-    'POST /loans/:id/review': ['approve_pending_transactions'],
-    'POST /loans/:id/approve': ['approve_pending_transactions'],
-    'POST /loans/:id/reject': ['approve_pending_transactions'],
-    'POST /loans/:id/post': ['post_pending_transactions'],
-    'GET /loans/:id/receipt': ['view_pending_transactions'],
     'GET /kanban': ['view_all_boards', 'view_assigned_boards'],
     'GET /boards': ['view_all_boards', 'view_assigned_boards'],
     'POST /boards': ['create_boards'],
@@ -107,10 +98,10 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'POST /permissions': ['manage_role_permissions'],
     'PUT /permissions/:id': ['manage_role_permissions'],
     'DELETE /permissions/:id': ['manage_role_permissions'],
-    'GET /paid-time-offs': ['view_paid_time_off'],
-    'PATCH /paid-time-offs/grant': ['grant_paid_time_off'],
-    'GET /my-paid-time-offs': ['request_own_paid_time_off'],
-    'POST /my-paid-time-offs': ['request_own_paid_time_off'],
+    'GET /leave-requests': ['view_leave_requests'],
+    'PATCH /leave-requests/grant': ['grant_leave_requests'],
+    'GET /my-leave-requests': ['request_own_leave'],
+    'POST /my-leave-requests': ['request_own_leave'],
     'GET /roles': ['view_roles'],
     'PUT /roles/:id/permissions': ['manage_role_permissions'],
     'PUT /users/:id/status': ['manage_user_status'],
@@ -132,6 +123,8 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'PATCH /off-days/:id/approve': ['approve_off_days'],
     'PATCH /off-days/:id/reject': ['approve_off_days'],
     'GET /salaries/granted-bonuses': ['view_bonuses'],
+    'GET /salaries/attendance-breakdown': ['view_salaries'],
+    'POST /salaries/generate': ['create_salaries'],
     'GET /salaries/:id/deductions': ['view_salary_deductions'],
     'POST /salaries/:id/deductions': ['create_salary_deductions'],
     'PATCH /salaries/:id/deductions/:id': ['edit_salary_deductions'],
@@ -202,14 +195,6 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'GET /educational-bonus-sources': ['view_bonuses'],
     'POST /educational-bonus-sources': ['manage_educational_bonuses'],
     'PUT /educational-bonus-sources/:id': ['manage_educational_bonuses'],
-    'GET /pending-transactions': ['view_pending_transactions'],
-    'GET /pending-transactions/options': ['create_pending_transactions'],
-    'POST /pending-transactions': ['create_pending_transactions'],
-    'PUT /pending-transactions/:id': ['create_pending_transactions'],
-    'POST /pending-transactions/:id/review': ['approve_pending_transactions'],
-    'POST /pending-transactions/:id/approve': ['approve_pending_transactions'],
-    'POST /pending-transactions/:id/reject': ['approve_pending_transactions'],
-    'POST /pending-transactions/:id/post': ['post_pending_transactions'],
     'GET /reports/expences': ['view_financial_reports'],
     'GET /reports/expenses': ['view_financial_reports'],
     'GET /reports/salaries': ['view_salaries'],
@@ -245,15 +230,15 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     return ['view_expenses', 'view_incomes', 'view_employees', 'edit_expenses', 'edit_incomes', 'edit_employees']
   }
 
-  if (path.startsWith('/employees/:id/paid-time-offs')) {
+  if (path.startsWith('/employees/:id/leave-requests')) {
     if (requestMethod === 'GET')
-      return ['view_paid_time_off']
+      return ['view_leave_requests']
     if (requestMethod === 'POST')
-      return ['create_paid_time_off']
+      return ['create_leave_requests']
     if (requestMethod === 'PUT')
-      return ['edit_paid_time_off']
+      return ['edit_leave_requests']
     if (requestMethod === 'DELETE')
-      return ['delete_paid_time_off']
+      return ['delete_leave_requests']
   }
 
   if (path === '/worthy-employees' && requestMethod === 'GET')

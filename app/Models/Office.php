@@ -15,7 +15,6 @@ class Office extends Model
     protected $fillable = [
         'name', 'code', 'email', 'phone', 'address', 'status',
         'latitude', 'longitude', 'geofence_radius_meters', 'geofence_enabled',
-        'paid_leave_days_per_year',
     ];
 
     protected function casts(): array
@@ -25,7 +24,6 @@ class Office extends Model
             'longitude' => 'decimal:7',
             'geofence_radius_meters' => 'integer',
             'geofence_enabled' => 'boolean',
-            'paid_leave_days_per_year' => 'integer',
         ];
     }
 

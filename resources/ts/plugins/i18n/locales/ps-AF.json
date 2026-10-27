@@ -574,7 +574,7 @@
       "pastDue": "له ټاکلي وخت تېر شوی",
       "terminated": "??? ?? ??????",
       "noContracts": "قراردادونه نشته",
-      "pendingTransaction": "په تمه راکړه ورکړه",
+      "pendingTransaction": "د تادیې غوښتنه",
       "closed": "تړل شوی",
       "applied": "غوښتنه شوې",
       "admitted": "منل شوی",
@@ -668,7 +668,7 @@
       "noDeductionsAdded": "هیڅ کسرات نه دي اضافه شوي.",
       "totalDeductions": "ټول کسرات",
       "totalDays": "ټولې ورځې",
-      "automaticAttendanceDeduction": "بې معاش رخصتي / غیر حاضري ورځې",
+      "automaticAttendanceDeduction": "د غیر حاضرۍ ورځو کسر",
       "unpaidAndAbsentDays": "{days} ناکاره ورځې",
       "remarks": "ملاحظات",
       "serialNumber": "سریال نمبر",
@@ -803,14 +803,13 @@
       "myVisaCase": "زما د ویزې قضیه",
       "sales": "پلور",
       "serviceSales": "د خدمتونو پلور",
-      "pendingTransactions": "انتظار معاملې",
-      "loans": "پورونه",
       "paymentRequests": "د تادیې غوښتنې",
       "educationalData": "تحصیلي معلومات",
       "contractStages": "د قرارداد مرحلې",
       "announcements": "اعلانیې",
       "incomeTypes": "د عاید ډولونه",
-      "expenseTypes": "د لګښت ډولونه"
+      "expenseTypes": "د لګښت ډولونه",
+      "payrolls": "معاشونه"
     },
     "languages": {
       "english": "English",
@@ -1051,26 +1050,26 @@
       "contractedServices": "د تړون خدمتونه"
     },
     "leaveApproval": {
-      "paidException": "د با معاشه استثنا په توګه منظورول ({count})",
-      "exceptionTitle": "د با معاشه رخصتۍ استثنا",
-      "exceptionHint": "د یو یا څو ټاکل شوو کارکوونکو د با معاشه رخصتۍ سهمیه کافي نه ده. دا اجازه ټولې ټاکل شوې ورځې با معاشه ساتي او دلیل یې د پلټنې په تاریخچه کې ثبتوي.",
+      "exceptionTitle": "د رخصتۍ سهمیې استثنا",
+      "exceptionHint": "یو یا څو ټاکل شوي کارکوونکي کافي د رخصتۍ سهمیه نه لري. دا تصویب ټاکل شوې ورځې رخصتي ساتي او توجیه په سابقه کې ثبتوي.",
       "usageSummary": "کارول شوې {used} · پاتې {remaining} · ټاکل شوې {selected} ورځې",
       "overLimit": "+{count} له حد څخه زیات",
       "justification": "د منظورۍ دلیل",
-      "approvePaid": "با معاشه رخصتي منظورول",
-      "employeeFallback": "کارکوونکی"
+      "employeeFallback": "کارکوونکی",
+      "offDayException": "د با معاشه استثنا په توګه منظورول ({count})",
+      "approveOffDay": "د رخصتۍ ورځې استثنا منظورول"
     },
     "validation": {
       "required": "دا برخه اړینه ده."
     },
     "ui": {
-      "newFinancialRequest": "نوې مالي غوښتنه",
+      "newFinancialRequest": "نوې د تادیې غوښتنه",
       "attachCaseDocument": "د دوسیې سند نښلول",
       "caseTask": "د دوسیې دنده",
       "document": "سند",
       "documentsAreStoredAsInputAttachmentsOnACaseTaskSoTheyFollowTheSameAccessControlsAndAuditTrail": "اسناد د دوسیې دندې ته د ضمیمو په توګه ساتل کېږي او د هماغې دندې د لاسرسي او پلټنې اصول پرې پلي کېږي.",
-      "unableToLoadFinancialRequestOptions": "د مالي غوښتنې غوراوي پورته نه شول.",
-      "financialRequestLinkedToThisVisaCase": "مالي غوښتنه له دې ویزې دوسیې سره ونښلول شوه.",
+      "unableToLoadFinancialRequestOptions": "د تادیې غوښتنې غوراوي پورته نه شول.",
+      "financialRequestLinkedToThisVisaCase": "د تادیې غوښتنه له دې ویزې دوسیې سره ونښلول شوه.",
       "documentAttachedToThisVisaCase": "سند له دې ویزې دوسیې سره ونښلول شو.",
       "allocatedTo": "ورکړل شوی کس",
       "whatIsMonitored": "څارل کېدونکي موارد",
@@ -1154,7 +1153,12 @@
     "unspecified": "ناڅرګند",
     "notAvailable": "نشته",
     "yes": "هو",
-    "no": "نه"
+    "no": "نه",
+    "attendanceStatuses": {
+      "present": "حاضر",
+      "absent": "غیر حاضر",
+      "offDay": "د رخصتۍ ورځ"
+    }
   },
   "pages": {
     "whatsapp": {
@@ -2074,7 +2078,12 @@
         "encryption": "کوډیزه ساتنه",
         "tlsRecommended": "TLS (سپارښتنه کېږي)",
         "resetPage": "پاڼه بېرته وټاکئ",
-        "saveChanges": "بدلونونه خوندي کړئ"
+        "saveChanges": "بدلونونه خوندي کړئ",
+        "offDayAllowanceDaysPerYear": "د رخصتۍ ورځو اصلي سهمیه (ورځې / کال)",
+        "offDayAllowanceDaysPerYearHint": "دا مقدار یوازې د نوي کارکوونکي پروفایل مخکې ډکوي. د کارکوونکي خپله سهمیه د تصویب اساس ده.",
+        "missingAttendanceStatus": "د حاضري رکورد نه لرونکې ورځې",
+        "missingAttendanceStatusHint": "هغه تېره کاري ورځ چې د حاضري رکورد نه لري څنګه ثبت شي. د شرکت رخصتۍ تل لومړیتوب لري.",
+        "attendanceWeatherWarning": "اتوماتیکه حاضري د وسیلې موقعیت ته تړلې ده او په بد هوا کې کېدای شي لږ دقت ولري. د معاش تر چمتو کولو مخکې د حاضري جدول وګورئ."
       },
       "users": {
         "user": "کاروونکی",
@@ -2157,7 +2166,7 @@
           "commissionBasedHint": "د قرارداد په بشپړېدو سره د هر قراردادي خدمت سلنه ترلاسه کوي.",
           "commissionPerService": "د هر خدمت لپاره د کمیشن کچه (٪)",
           "paidLeaveDaysHint": "اختیاري. خالي پرېږدئ چې د دفتر اساس او بیا د شرکت تلوالې ارزښت پلي شي.",
-          "paidOffDaysTheYearlyAllowanceHasBeenUsed": "بامعاشه رخصتۍ: د کال ټولې رخصتۍ کارول شوې دي.",
+          "paidOffDaysTheYearlyAllowanceHasBeenUsed": "د کال د رخصتۍ ورځو سهمیه کارول شوې ده.",
           "searchStaff": "کارمندان وپلټئ",
           "filterByPosition": "د موقف له مخې فلټر کړئ",
           "printStaffRecords": "د کارمندانو ریکارډونه چاپ کړئ",
@@ -2167,7 +2176,7 @@
           "salary": "معاش",
           "workedHours": "کاري ساعتونه",
           "joinDate": "د شاملېدو نېټه",
-          "managePaidOffDays": "بامعاشه رخصتۍ مدیریت کړئ",
+          "managePaidOffDays": "د رخصتۍ ورځو غوښتنې مدیریت کړئ",
           "editStaffRecord": "د کارمند ریکارډ بدل کړئ",
           "deleteStaffRecord": "د کارمند ریکارډ حذف کړئ",
           "activateStaffRecord": "کارکوونکی فعال کړئ",
@@ -2175,10 +2184,14 @@
           "staffStatusUpdated": "د کارمند حالت تازه شو.",
           "addNewStaff": "نوی کارمند اضافه کړئ",
           "editStaff": "کارمند بدل کړئ",
-          "paidOffDays": "بامعاشه رخصتۍ",
+          "paidOffDays": "د رخصتۍ ورځو غوښتنې",
           "salaryCannotBeNegative": "معاش منفي کېدای نشي.",
           "service": "خدمت",
-          "statusUpdateFailed": "د کارکوونکي حالت بدل نه شو."
+          "statusUpdateFailed": "د کارکوونکي حالت بدل نه شو.",
+          "offDayAllowanceDays": "د رخصتۍ ورځو سهمیه (ورځې / کال)",
+          "offDayAllowanceDaysHint": "د دې کارکوونکي د حساب وړ سهمیه. له هغې زیاته رخصتي غیرحاضري ثبت کیږي.",
+          "editMyProfile": "زما پروفایل سم کړه",
+          "unableToSaveEmployee": "ستاسو پروفایل خوندي نه شو."
         }
       },
       "apppricing": {
@@ -2699,7 +2712,20 @@
           "removeFromFollowUp": "له تعقیب لړلیک څخه یې لرې کړئ",
           "markedForFollowUp": "لیدونکی د تعقیب لړلیک ته اضافه شو.",
           "removedFromFollowUp": "لیدونکی له تعقیب لړلیک څخه لرې شو.",
-          "followUpUpdateFailed": "د تعقیب لړلیک تازه نه شو."
+          "followUpUpdateFailed": "د تعقیب لړلیک تازه نه شو.",
+          "age": "عمر",
+          "province": "ولایت",
+          "englishLevel": "د انګلیسي کچه",
+          "acquisitionRoute": "د پېژندنې لاره",
+          "acquisitionRouteHint": "لیدونکی د شرکت په اړه څنګه پوه شو.",
+          "consultant": "سلاکار",
+          "reviewedByConsultant": "د سلاکار لخوا بیاکتنه",
+          "reviewedByConsultantHint": "دا غوښتنلیک د سلاکار لپاره تاییدوي.",
+          "review": "د سلاکار بیاکتنه",
+          "reviewed": "بیاکتل شوی",
+          "pendingReview": "بیاکتنې ته په تمه",
+          "markReviewed": "بیاکتل شوی وټاکه",
+          "markedReviewed": "لیدونکی بیاکتل شوی وټاکل شو."
         }
       },
       "contractform": {
@@ -2804,10 +2830,10 @@
           "captureOutgoingCashWithItsLiveCurrencyRelationship": "وتونکې پیسې د اسعارو له اوسني نرخ سره ثبت کړئ.",
           "saveExpense": "لګښت خوندي کړئ",
           "saveModeDirect": "مستقیم ثبت",
-          "saveModeLoan": "پورونو ته واستوئ",
+          "saveModeLoan": "د تادیې غوښتنو ته واستوئ",
           "saveModeDirectHint": "لګښت سمدلاسه کتابچې ته لیکل کیږي.",
-          "saveModeLoanHint": "اندازه د پور غوښتنې په توګه واستول کیږي او یوازې له منلو وروسته کتابچې ته رسیږي.",
-          "loanSubmitted": "د لګښت غوښتنه د منلو لپاره پورونو ته واستول شوه.",
+          "saveModeLoanHint": "اندازه د تادیې غوښتنې په توګه واستول کیږي او یوازې له منلو وروسته کتابچې ته رسیږي.",
+          "loanSubmitted": "د لګښت غوښتنه د منلو لپاره د تادیې غوښتنو ته واستول شوه.",
           "editExpense": "لګښت بدل کړئ",
           "updateTheRecordedSpendAndItsCurrency": "ثبت شوی لګښت او پولي واحد یې نوی کړئ.",
           "deleteExpense": "لګښت حذف کړئ؟",
@@ -2859,10 +2885,10 @@
           "incomeLedger": "د عاید کتابچه",
           "saveMode": "د خوندي کولو طریقه",
           "saveModeDirect": "مستقیم ثبت",
-          "saveModeLoan": "پورونو ته واستوئ",
+          "saveModeLoan": "د تادیې غوښتنو ته واستوئ",
           "saveModeDirectHint": "رسید سمدلاسه د عاید کتابچې ته لیکل کیږي.",
-          "saveModeLoanHint": "اندازه د پور غوښتنې په توګه واستول کیږي او یوازې له منلو وروسته کتابچې ته رسیږي.",
-          "loanSubmitted": "د عاید غوښتنه د منلو لپاره پورونو ته واستول شوه.",
+          "saveModeLoanHint": "اندازه د تادیې غوښتنې په توګه واستول کیږي او یوازې له منلو وروسته کتابچې ته رسیږي.",
+          "loanSubmitted": "د عاید غوښتنه د منلو لپاره د تادیې غوښتنو ته واستول شوه.",
           "liveReceiptActivityAndCurrencyTotalsInOneView": "د رسیدونو ژوندی فعالیت او د اسعارو مجموعې په یوه ځای کې",
           "printIncomeRecords": "د عاید ریکارډونه چاپ کړئ",
           "recordIncome": "عاید ثبت کړئ",
@@ -3147,50 +3173,15 @@
         "tasks": "دندې او سپارنه",
         "asset_assets": "زېرمه او شتمنۍ",
         "employee_roster": "د کارکوونکو نوملړ",
-        "paid_time_off": "له معاش سره رخصتي",
+        "leave_requests": "د رخصتۍ ورځو غوښتنې",
         "daily_reports": "ورځني راپورونه",
         "applicants": "غوښتونکي",
         "applicant_contracts": "د تړون خدمتونه"
       },
       "columns": {
-        "applicant": "غوښتونکی"
+        "applicant": "غوښتونکی",
+        "treatment": "ډول"
       }
-    },
-    "paidTimeOff": {
-      "title": "با معاشه رخصتۍ",
-      "myTitle": "زما با معاشه رخصتۍ",
-      "reportTitle": "د با معاشه رخصتیو راپور",
-      "calendarYear": "تقویمي کال {year}",
-      "classification": "ډلبندي",
-      "generated": "جوړ شوی: {date}",
-      "grantSelected": "ټاکل شوي منظور کړئ ({count})",
-      "requestsGranted": "{count} غوښتنې منظورې شوې.",
-      "allowanceExceeded": "{count} ورځې له با معاشه سهمیې واوښتې او د بې معاشه رخصتۍ په توګه ثبت شوې.",
-      "unableToLoad": "د با معاشه رخصتیو پورته کول ممکن نه وو.",
-      "unableToGrant": "د ټاکل شوو غوښتنو منظورول ممکن نه وو.",
-      "unableToRequest": "د رخصتۍ غوښتنه ممکنه نه وه.",
-      "requestSubmitted": "د رخصتۍ غوښتنه ثبت شوه.",
-      "limit": "سهمیه: {count}",
-      "grantedPaid": "منظورې با معاشه: {count}",
-      "pending": "په تمه: {count}",
-      "remaining": "پاتې: {count}",
-      "from": "له",
-      "to": "تر",
-      "requestDays": "غوښتنه {count}",
-      "rangeExceeds": "دا موده ستاسو له پاتې {count} ورځو زیاته ده.",
-      "balance": "د رخصتۍ موجودي",
-      "allowance": "سهمیه",
-      "paidDaysGranted": "کارول شوې",
-      "pendingRequests": "په تمه",
-      "daysRemaining": "پاتې",
-      "requestTimeOff": "د رخصتۍ غوښتنه",
-      "requestHint": "نېټې وټاکئ او دلیل ولیکئ.",
-      "duration": "موده",
-      "fullDay": "بشپړه ورځ",
-      "halfDay": "نیمه ورځ",
-      "historyTitle": "د غوښتنو تاریخچه",
-      "historySubtitle": "د خپلو ثبت شوو غوښتنو حالت تعقیب کړئ.",
-      "perEmployeeAllowanceHint": "د معاش رخصتۍ د هر کارکوونکي د دفتر پر بنسټ دي پرته له دې چې شخصي مقدار ټاکل شوی وي."
     },
     "support": {
       "title": "د ملاتړ مرکز",
@@ -3285,7 +3276,7 @@
         "educational_bonus_sources": "د بونس سرچینې",
         "languages": "ژبې",
         "leaves": "رخصتي",
-        "pending_transactions": "مالي غوښتنې",
+        "pending_transactions": "د تادیې غوښتنې",
         "salary_payments": "د معاش تادیې",
         "semesters": "سمسترونه",
         "attachments": "ضمیمې",
@@ -3341,7 +3332,6 @@
       }
     },
     "offDays": {
-      "title": "د رخصتۍ ورځې",
       "subtitle": "د شرکت عمومي رخصتۍ اعلان کړئ؛ تصویب شوې ورځې په حاضري کې ثبت او په معاش کې حاضر ګڼل کېږي.",
       "add": "د رخصتۍ ورځ اعلان کړئ",
       "edit": "د رخصتۍ ورځ سمول",
@@ -3364,7 +3354,111 @@
       "empty": "د دې مودې لپاره هېڅ د رخصتۍ ورځ نه ده اعلان شوې.",
       "affectsNote": "تصویب شوې د رخصتۍ ورځې په حاضري کې حاضر ثبت او په معاش فیش کې جلا ښودل کېږي.",
       "startDateRequired": "د پیل او پای نېټه وټاکئ.",
-      "endDateAfterStart": "د پای نېټه باید د پیل له نېټې وروسته یا برابر وي."
+      "endDateAfterStart": "د پای نېټه باید د پیل له نېټې وروسته یا برابر وي.",
+      "companyTitle": "د شرکت رخصتۍ"
+    },
+    "leaveRequests": {
+      "title": "د رخصتۍ ورځو غوښتنې",
+      "myTitle": "زما د رخصتۍ ورځې",
+      "reportTitle": "د رخصتۍ ورځو غوښتنو راپور",
+      "calendarYear": "کال {year}",
+      "classification": "ډلبندي",
+      "generated": "{date} جوړ شو",
+      "grantSelected": "ټاکل شوې تصویب کړه ({count})",
+      "requestsGranted": "{count} غوښتنې تصویب شوې.",
+      "allowanceExceeded": "{count} ورځې له سهمیې زیاتې وې او غیرحاضري ثبت شوې.",
+      "unableToLoad": "د غوښتنو راوړل ناکام شول.",
+      "unableToGrant": "د ټاکل شوو غوښتنو تصویب ناکام شو.",
+      "unableToRequest": "د غوښتنې ثبت ناکام شو.",
+      "requestSubmitted": "غوښتنه ثبت شوه.",
+      "limit": "سهمیه: {count}",
+      "grantedPaid": "منظورې با معاشه: {count}",
+      "pending": "په تمه: {count}",
+      "remaining": "پاتې: {count}",
+      "from": "له",
+      "to": "تر",
+      "requestDays": "د {count} ورځو غوښتنه",
+      "rangeExceeds": "ټاکل شوې موده له پاتې سهمیې {count} ورځې زیاته ده.",
+      "balance": "د رخصتۍ موجودي",
+      "allowance": "سهمیه",
+      "paidDaysGranted": "کارول شوې",
+      "pendingRequests": "په تمه",
+      "daysRemaining": "پاتې",
+      "requestTimeOff": "د رخصتۍ غوښتنه",
+      "requestHint": "نېټې وټاکئ او دلیل ولیکئ.",
+      "duration": "موده",
+      "fullDay": "بشپړه ورځ",
+      "halfDay": "نیمه ورځ",
+      "historyTitle": "زما غوښتنې",
+      "historySubtitle": "د سهمیې په حدودو کې تصویب شوې ورځې رخصتي او پاتې غیرحاضري ثبت کیږي.",
+      "perEmployeeAllowanceHint": "د معاش رخصتۍ د هر کارکوونکي د دفتر پر بنسټ دي پرته له دې چې شخصي مقدار ټاکل شوی وي.",
+      "description": "د کارکوونکو د رخصتۍ غوښتنې. د سهمیې په حدودو کې تصویب شوې ورځې رخصتي او پاتې برخه غیرحاضري ده.",
+      "treatment": "د حساب ډول",
+      "partial": "په برخه کې پوښل شوې",
+      "partialWithAbsence": "{off} د رخصتۍ ورځ · {absent} غیرحاضري",
+      "subtitle": "د شرکت رخصتۍ مخکې وغواړئ او سهمیه تعقیب کړئ."
+    },
+    "payrolls": {
+      "title": "معاشونه",
+      "description": "توضیحات",
+      "unableToLoad": "د معاش معلومات راوړل ناکام شول.",
+      "unableToGenerate": "د معاش پاڼو جوړول ناکام شول.",
+      "generate": "د معاش پاڼې جوړې کړه",
+      "generateTitle": "پاتې پاڼې جوړې کړه",
+      "generateHint": "د {month} لپاره د {count} کارکوونکو لپاره چې معاش پاڼه نه لري جوړه کړه. موجودې پاڼې نه بدلیږي.",
+      "generatedCount": "{created} پاڼې جوړې شوې؛ {skipped} پرېښودل شوې.",
+      "saved": "معاش خوندي شو.",
+      "unableToSave": "د معاش بدلون خوندي نه شو.",
+      "deductionSaved": "کسر خوندي شو.",
+      "deductionDeleted": "کسر حذف شو.",
+      "paymentSaved": "تادیه ثبت شوه.",
+      "deleted": "د معاش پاڼه حذف شوه.",
+      "unableToDelete": "رکورد حذف نه شو.",
+      "baseSalary": "بنسټیز معاش",
+      "bonus": "بونس",
+      "payPeriodLabel": "د معاش دوره: {month}",
+      "automaticDeduction": "د حاضري کسر",
+      "noPosition": "وظیفه نه ده ټاکل شوې",
+      "advanceSaved": "پیش تادیه ثبت شوه.",
+      "advanceDeleted": "پیش تادیه حذف شوه.",
+      "notGenerated": "نه ده جوړه شوې",
+      "open": "خلاص",
+      "partiallyPaid": "په برخه کې تادیه شوې",
+      "netPayroll": "خالص معاش",
+      "paid": "تادیه شوی",
+      "outstanding": "پاتې",
+      "progress": "جوړ شوي",
+      "missing": "پاتې",
+      "payslipsTab": "د معاش پاڼې",
+      "advancesTab": "پیش تادیې",
+      "worked": "کار شوې / ټولې",
+      "offDays": "د رخصتۍ ورځې",
+      "absent": "غیرحاضر",
+      "net": "د تادیې وړ",
+      "createPayslip": "د معاش پاڼه جوړه کړه",
+      "printPayslip": "د معاش پاڼه وګوره او چاپ کړه",
+      "addDeduction": "کسر اضافه کړه",
+      "addPayment": "تادیه ثبت کړه",
+      "deletePayslip": "د معاش پاڼه حذف کړه",
+      "addAdvance": "پیش تادیه اضافه کړه",
+      "advanceNumber": "د پیش تادیې شمېره",
+      "date": "نېټه",
+      "amount": "مقدار",
+      "recovered": "بیرته اخیستل شوې",
+      "outstandingAdvance": "پاتې",
+      "printReceipt": "د پیش تادیې رسید چاپ کړه",
+      "registerTitle": "میاشتنی د معاش دفتر",
+      "deductionsTitle": "کسرونه",
+      "noDeductions": "د دې پاڼې لپاره لا کسر نه دی ثبت شوی.",
+      "paymentDate": "د تادیې نېټه",
+      "remarks": "یادښتونه",
+      "confirmDelete": "د {employee} معاش پاڼه حذف شي؟ تادیې او لګښتونه یې هم حذف کیږي.",
+      "confirmDeleteAdvance": "د {employee} پیش تادیه حذف شي؟ د معاش لګښت یې هم حذف کیږي.",
+      "deleteAdvance": "پیش تادیه حذف کړه",
+      "totalWorkingDays": "ټولې کاري ورځې",
+      "workedDays": "کار شوې ورځې",
+      "absentDays": "غیرحاضرې ورځې",
+      "baseCurrencyMissing": "بنسټیزه اسعار نه ده ټاکل شوې."
     }
   },
   "documents": {
@@ -3439,12 +3533,12 @@
       "approvedBySignature": "منونکی"
     },
     "loan": {
-      "title": "د پور غوښتنه",
+      "title": "د تادیې غوښتنه",
       "requestedBy": "غوښتونکی",
       "requestSummary": "د غوښتنې لنډیز",
       "reason": "دلیل",
-      "reference": "د پور پېژند",
-      "details": "د پور توضیحات",
+      "reference": "د تادیې غوښتنې پېژند",
+      "details": "د تادیې غوښتنې توضیحات",
       "item": "توکی",
       "amount": "مبلغ",
       "requestedAmount": "غوښتل شوی مبلغ",
@@ -3452,8 +3546,8 @@
       "remaining": "نه تصدیق شوی",
       "status": "حالت",
       "requestedAt": "د غوښتنې نېټه",
-      "footerNote": "دا د پور غوښتنې سند په اتومات ډول جوړ شوی دی.",
-      "print": "پور چاپ کړه"
+      "footerNote": "دا د تادیې غوښتنې سند په اتومات ډول جوړ شوی دی.",
+      "print": "د تادیې غوښتنه چاپ کړه"
     },
     "academySlip": {
       "title": "د اکادمۍ نوملیکنې پاڼه",
@@ -3503,8 +3597,7 @@
       "statuses": {
         "present": "حاضر",
         "absent": "غایب",
-        "paid-leave": "بامعاشه رخصتي",
-        "unpaid-leave": "بې‌معاشه رخصتي"
+        "off_day": "د رخصتۍ ورځ"
       }
     },
     "timesheet_template": {
@@ -3706,11 +3799,11 @@
     },
     "finance": {
       "pendingSubmitted": {
-        "title": "مالي غوښتنه کتنې ته چمتو ده",
+        "title": "د تادیې غوښتنه کتنې ته چمتو ده",
         "message": "د {amount} په ارزښت د {type} غوښتنه کتنې ته چمتو ده."
       },
       "pendingStatus": {
-        "title": "مالي غوښتنه تازه شوه",
+        "title": "د تادیې غوښتنه تازه شوه",
         "message": "ستاسو د {type} غوښتنه اوس {status} ده. {reason}"
       }
     },
@@ -4004,7 +4097,7 @@
       "primary": "اصلي",
       "noApplications": "تر اوسه غوښتنلیک نشته. هر هغه پوهنتون جلا ورزیات کړئ چې زده‌کوونکی ورته غوښتنه کوي.",
       "finance": "مالي چارې",
-      "pendingWorkspace": "د ځنډېدلو غوښتنو کاري ساحه",
+      "pendingWorkspace": "د تادیې غوښتنې",
       "financeSummary": "ثبت شوی عاید {income} · ثبت شوي لګښتونه {expenses}.",
       "transactionTitle": "{type} — {reason}",
       "transactionSummary": "{amount} · {status} · {rejection}",
@@ -4233,9 +4326,9 @@
     "reason": "دلیل",
     "amount": "مبلغ",
     "requested": "غوښتل شوی",
-    "noTransactions": "هیڅ په تمه معامله نشته.",
-    "newPending": "نوې په تمه معامله",
-    "editPending": "په تمه معامله سمول",
+    "noTransactions": "هیچ د تادیې غوښتنه نشته.",
+    "newPending": "نوې د تادیې غوښتنه",
+    "editPending": "د تادیې غوښتنه سمول",
     "applicantOptional": "غوښتونکی / قضیه (اختیاري)",
     "employeeOptional": "کارکوونکی (اختیاري)",
     "rejectTransaction": "معامله ردول",
@@ -4326,7 +4419,10 @@
       "saved": "خوندي شو.",
       "saveFailed": "دا ریکارډ خوندي نه شو.",
       "removeConfirm": "{name} لرې شي؟",
-      "inUse": "دا ریکارډ کارول کېږي او لرې کېدای نه شي."
+      "inUse": "دا ریکارډ کارول کېږي او لرې کېدای نه شي.",
+      "provinces": "ولایتونه",
+      "englishLevels": "د انګلیسي کچې",
+      "acquisitionRoutes": "د پېژندنې لارې"
     },
     "pendingUi": {
       "customerEmployee": "پېرودونکی / کارکوونکی",
@@ -4335,7 +4431,7 @@
       "rejected": "معامله رد شوه.",
       "rejectFailed": "معامله رد نه شوه.",
       "actions": {
-        "edit": "دا پور غوښتنه سم کړئ",
+        "edit": "دا د تادیې غوښتنه سم کړئ",
         "review": "بیاکتنې ته یې واستوئ",
         "approve": "دا غوښتنه تایید کړئ",
         "reject": "له دلیل سره یې رد کړئ",
@@ -4380,7 +4476,8 @@
       "cancelled": "لغوه شوی",
       "rejected": "رد شوی",
       "withdrawn": "بېرته اخیستل شوی"
-    }
+    },
+    "contractType": "د قرارداد ډول"
   },
   "finance": {
     "servicePayments": {
@@ -4450,8 +4547,8 @@
   },
   "agencyStaff": {
     "counselor": "مشاور",
-    "optionalCounselor": "اختیاري. د دې لیدونکي لپاره فعال مشاور وټاکئ.",
-    "counselorLockedToYou": "تاسو د مشاور په توګه د دې لیدونکي مشاور ثبت کیږئ.",
+    "optionalCounselor": "اختیاري. د دې لیدونکي لپاره سلاکار وټاکئ.",
+    "counselorLockedToYou": "تاسو د سلاکار په توګه د دې لیدونکي سلاکار ثبت کیږئ.",
     "admission": "د پذیرش کارکوونکی (اختیاري)",
     "contractVersion": "د قرارداد نسخه",
     "templateNotReady": "د قرارداد قالب نه دی تنظیم شوی",

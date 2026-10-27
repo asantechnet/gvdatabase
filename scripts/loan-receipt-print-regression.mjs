@@ -25,10 +25,12 @@ const load = (source, dependencies) => {
   return module.exports
 }
 
-// --- static wiring: the loan endpoint must exist end to end ----------------------
+// --- static wiring: the payment-request endpoint must exist end to end -----------
 const routes = await read('routes/api.php')
-assert.ok(routes.includes("foreach (['payment-requests', 'loans', 'pending-transactions'] as $paymentRequestPath)"), 'payment-requests must be the canonical route with loans/pending-transactions aliases')
-assert.ok(routes.includes('"{$paymentRequestPath}/{pendingTransaction}/receipt"'), 'the receipt endpoint must be registered for every payment-request prefix')
+assert.ok(routes.includes("Route::prefix('payment-requests')->group(function () {"), 'payment-requests must be the public route prefix of the workflow')
+assert.ok(routes.includes("Route::get('{pendingTransaction}/receipt'"), 'the receipt endpoint must be registered under the payment-requests prefix')
+assert.ok(!routes.includes("'pending-transactions'"), 'the legacy pending-transactions path must be gone')
+assert.ok(!routes.includes("'loans'"), 'the legacy loans path must be gone')
 
 const controller = await read('app/Http/Controllers/PendingTransactionController.php')
 assert.ok(controller.includes('use App\\Services\\LoanReceiptService;'), 'the controller must import LoanReceiptService')
@@ -46,7 +48,7 @@ assert.ok(!api.includes("'/loans'"), 'the API contract must not call the legacy 
 
 const authorization = await read('resources/ts/utils/apiAuthorization.ts')
 assert.ok(authorization.includes("'GET /payment-requests/:id/receipt': ['view_pending_transactions']"), 'the client RBAC mirror must allow the payment-request document')
-assert.ok(authorization.includes("'GET /loans/:id/receipt': ['view_pending_transactions']"), 'the client RBAC mirror must keep the legacy loans alias')
+assert.ok(!authorization.includes("'/loans"), 'the client RBAC mirror must not keep any legacy loans path')
 
 const printer = await read('resources/ts/components/income/ReceiptPrinter.vue')
 assert.ok(printer.includes('loader: (id: number) => Promise<ReceiptPayload>'), 'the shared printer must take a loader')
@@ -70,7 +72,7 @@ for (const lang of locales) {
   assert.deepEqual(Object.keys(messages[lang].documents.paymentVoucher).sort(), [...voucherKeys].sort(), `${lang}: documents.paymentVoucher keys differ`)
 }
 
-// --- render the real receipt template for a loan and an income -------------------
+// --- render the real receipt template for a request and an income ----------------
 const file = 'resources/ts/pages/templates/receipt_template.vue'
 const { descriptor, errors } = parse(await read(file), { filename: file })
 assert.deepEqual(errors, [])
@@ -133,7 +135,7 @@ const incomeDoc = {
 
 // A money-in request keeps the income-slip layout.
 const loanMarkup = await renderComponent('en', loanDoc)
-for (const label of ['Loan Request', 'Requested By', 'Request Summary', 'Loan ID', 'Loan Details', 'Requested Amount', 'Approved Amount', 'Not Yet Approved', 'Requested On', 'PR-2026-000123'])
+for (const label of ['Payment Request', 'Requested By', 'Request Summary', 'Payment request ID', 'Payment request details', 'Requested Amount', 'Approved Amount', 'Not Yet Approved', 'Requested On', 'PR-2026-000123'])
   assert.ok(loanMarkup.includes(label), `the payment-request receipt must render "${label}"`)
 // The income-only sections must not leak into the request document.
 for (const label of ['Received From', 'Contracted Services', 'Amount Received', 'Not linked to a contract'])
@@ -153,7 +155,7 @@ const voucherMarkup = await renderComponent('en', voucherDoc)
 for (const label of ['Payment Voucher', 'Pay To', 'Approval', 'Voucher Type', 'Payment Breakdown', 'Total Payout', 'Voucher Status', 'Prepared By', 'PR-2026-000456'])
   assert.ok(voucherMarkup.includes(label), `the payment voucher must render "${label}"`)
 // The income-slip sections must not leak into the voucher.
-for (const label of ['Loan Request', 'Request Summary', 'Requested Amount', 'Approved Amount', 'Received From', 'Amount Received', 'Contracted Services'])
+for (const label of ['Payment Request', 'Request Summary', 'Requested Amount', 'Approved Amount', 'Received From', 'Amount Received', 'Contracted Services'])
   assert.ok(!voucherMarkup.includes(label), `the payment voucher must not show the receipt label "${label}"`)
 
 // Localized voucher titles must resolve in RTL locales too.
@@ -167,14 +169,14 @@ for (const lang of ['fa-AF', 'ps-AF']) {
 const incomeMarkup = await renderComponent('en', incomeDoc)
 for (const label of ['Payment Receipt', 'Received From', 'Payment Summary', 'Contracted Services', 'Amount Received', 'RCPT-000123'])
   assert.ok(incomeMarkup.includes(label), `the income receipt must still render "${label}"`)
-assert.ok(!incomeMarkup.includes('Loan Request'), 'the income receipt must not show the loan title')
+assert.ok(!incomeMarkup.includes('Payment Request'), 'the income receipt must not show the payment-request title')
 
-// Localized loan titles must resolve (not fall back to the raw key).
+// Localized payment-request titles must resolve (not fall back to the raw key).
 for (const lang of ['fa-AF', 'ps-AF']) {
   const markup = await renderComponent(lang, loanDoc)
-  assert.ok(markup.includes(messages[lang].documents.loan.title), `${lang}: the loan title must be localized`)
-  assert.ok(!markup.includes('documents.loan.title'), `${lang}: the loan title must not fall back to the key`)
-  assert.ok(markup.includes('dir="rtl"'), `${lang}: the loan receipt must render RTL`)
+  assert.ok(markup.includes(messages[lang].documents.loan.title), `${lang}: the payment-request title must be localized`)
+  assert.ok(!markup.includes('documents.loan.title'), `${lang}: the payment-request title must not fall back to the key`)
+  assert.ok(markup.includes('dir="rtl"'), `${lang}: the payment-request document must render RTL`)
 }
 
 console.log('Payment request wiring, RBAC mirror, i18n parity (3 locales) and receipt/voucher layout switching passed. Browser/PDF layout is not verified.')

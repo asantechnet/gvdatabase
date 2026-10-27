@@ -5,18 +5,16 @@ namespace App\Services;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\OffDay;
-use App\Models\PaidTimeOff;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Applies approved off days to the attendance ledger and reverses them.
+ * Applies an approved company off day (a holiday) to the attendance ledger and
+ * reverses it.
  *
- * An off day is a paid, worked-free day: it is written to attendance as a
- * `present` row carrying the `off_day_id`, so payroll counts it as present
- * while the payslip can still report it separately as an off day. Days that
- * already contain real work (punches or a daily report) and half/full leave
- * rows are never overwritten.
+ * A holiday is a company-wide `off_day`: it is never absent and never deducted.
+ * Days that already contain real work or an approved off-day request are never
+ * overwritten.
  */
 class OffDayService
 {
@@ -48,7 +46,7 @@ class OffDayService
                         ->lockForUpdate()
                         ->first();
 
-                    if ($attendance && ($this->hasWork($attendance) || (float) $attendance->leave_duration_days > 0)) {
+                    if ($attendance && ($this->hasWork($attendance) || (float) $attendance->leave_days > 0)) {
                         $counts['skipped']++;
 
                         continue;
@@ -58,11 +56,12 @@ class OffDayService
                         'employee_id' => $employee->id,
                         'office_id' => $employee->office_id,
                         'date' => $date->toDateString(),
-                        'status' => 'present',
+                        'status' => 'off_day',
+                        'source' => 'holiday',
                         'off_day_id' => $offDay->id,
-                        'leave_duration_days' => 0,
-                        'paid_leave_days' => 0,
-                        'unpaid_leave_days' => 0,
+                        'leave_request_id' => null,
+                        'leave_days' => 0,
+                        'off_day_days' => 1,
                         'logged_at' => '00:00:00',
                         'check_in_time' => null,
                         'check_out_time' => null,
@@ -74,7 +73,6 @@ class OffDayService
                     ];
 
                     if ($attendance) {
-                        // A stale absent row is claimed by the holiday.
                         $attendance->fill($attributes);
                         if ($attendance->trashed()) {
                             $attendance->restore();
@@ -107,31 +105,7 @@ class OffDayService
                 $attendance->forceFill(['off_day_id' => null, 'calculation_hash' => null, 'calculated_at' => null]);
 
                 if ($this->hasWork($attendance) || $attendance->dailyReport()->exists()) {
-                    if ($attendance->trashed()) {
-                        $attendance->restore();
-                    } else {
-                        $attendance->save();
-                    }
-
-                    continue;
-                }
-
-                $leave = PaidTimeOff::query()
-                    ->where('employee_id', $attendance->employee_id)
-                    ->whereDate('date', $attendance->date)
-                    ->where('is_granted', true)
-                    ->first();
-
-                if ($leave) {
-                    $duration = min(1, max(0, (float) $leave->duration_days));
-                    $paid = min($duration, max(0, (float) $leave->paid_days));
-                    $attendance->fill([
-                        'status' => $paid >= $duration ? 'paid-leave' : 'unpaid-leave',
-                        'leave_duration_days' => $duration,
-                        'paid_leave_days' => $paid,
-                        'unpaid_leave_days' => max(0, $duration - $paid),
-                        'logged_at' => '00:00:00',
-                    ]);
+                    $attendance->fill(['status' => 'present', 'off_day_days' => 0]);
                     if ($attendance->trashed()) {
                         $attendance->restore();
                     } else {
@@ -143,7 +117,7 @@ class OffDayService
 
                 // Releasing the claim leaves no evidence of work; deleting the
                 // synthesized row lets the attendance processor rebuild the
-                // day from the real ledger (absent, leave or Friday).
+                // day from the real ledger (leave request, missing policy).
                 $attendance->forceDelete();
             }
         });

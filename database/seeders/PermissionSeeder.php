@@ -83,18 +83,21 @@ class PermissionSeeder extends Seeder
         ['name' => 'view_all_employees', 'category' => 'human_resources'],
         ['name' => 'create_employees', 'category' => 'human_resources'],
         ['name' => 'edit_employees', 'category' => 'human_resources'],
+        // Lets an employee maintain their own HR profile (personal, contact,
+        // guarantor and bank fields only). Not granted to a default role.
+        ['name' => 'edit_own_employee_profile', 'category' => 'human_resources'],
         ['name' => 'manage_all_employees', 'category' => 'human_resources'],
         ['name' => 'delete_employees', 'category' => 'human_resources'],
         ['name' => 'view_departments', 'category' => 'human_resources'],
         ['name' => 'manage_departments', 'category' => 'human_resources'],
         ['name' => 'assign_employee_supervisor', 'category' => 'human_resources'],
-        ['name' => 'view_paid_time_off', 'category' => 'human_resources'],
-        ['name' => 'create_paid_time_off', 'category' => 'human_resources'],
-        ['name' => 'edit_paid_time_off', 'category' => 'human_resources'],
-        ['name' => 'delete_paid_time_off', 'category' => 'human_resources'],
-        ['name' => 'request_own_paid_time_off', 'category' => 'human_resources'],
-        ['name' => 'grant_paid_time_off', 'category' => 'human_resources'],
-        ['name' => 'print_paid_time_off', 'category' => 'human_resources'],
+        ['name' => 'view_leave_requests', 'category' => 'human_resources'],
+        ['name' => 'create_leave_requests', 'category' => 'human_resources'],
+        ['name' => 'edit_leave_requests', 'category' => 'human_resources'],
+        ['name' => 'delete_leave_requests', 'category' => 'human_resources'],
+        ['name' => 'request_own_leave', 'category' => 'human_resources'],
+        ['name' => 'grant_leave_requests', 'category' => 'human_resources'],
+        ['name' => 'print_leave_requests', 'category' => 'human_resources'],
         // Off days are company-wide holidays. Announcing, approving and
         // removing them are separate capabilities so HR can schedule a range
         // while only an authorised reviewer activates it.

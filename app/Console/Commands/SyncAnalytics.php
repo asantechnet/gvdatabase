@@ -51,7 +51,7 @@ class SyncAnalytics extends Command
         DailyAnalytics::updateOrCreate(['date' => $date], [
             'attendance_present' => (clone $attendance)->where('status', 'present')->count(),
             'attendance_absent' => (clone $attendance)->where('status', 'absent')->count(),
-            'attendance_paid_leave' => (clone $attendance)->where('status', 'paid-leave')->count(),
+            'attendance_off_day' => (clone $attendance)->where('status', 'off_day')->count(),
             'attendance_incomplete' => (clone $attendance)->where('status', 'present')->where('missing_punch_state', '!=', 'none')->count(),
             'worked_minutes' => (int) (clone $attendance)->sum('net_worked_minutes'), 'overtime_minutes' => (int) (clone $attendance)->sum('overtime_minutes'),
             // These are booked snapshot totals for the analytics archive. Live
@@ -68,7 +68,7 @@ class SyncAnalytics extends Command
     private function syncMonth(Carbon $month): void
     {
         $rows = DailyAnalytics::whereBetween('date', [$month->copy()->startOfMonth()->toDateString(), $month->copy()->endOfMonth()->toDateString()]);
-        $fields = ['attendance_present', 'attendance_absent', 'attendance_paid_leave', 'attendance_incomplete', 'worked_minutes', 'overtime_minutes', 'income_total', 'expense_total', 'tasks_created', 'tasks_completed', 'contracts_created', 'contracts_cancelled', 'employees_onboarded', 'bonus_nominations', 'bonuses_granted', 'bonus_base_total'];
+        $fields = ['attendance_present', 'attendance_absent', 'attendance_off_day', 'attendance_incomplete', 'worked_minutes', 'overtime_minutes', 'income_total', 'expense_total', 'tasks_created', 'tasks_completed', 'contracts_created', 'contracts_cancelled', 'employees_onboarded', 'bonus_nominations', 'bonuses_granted', 'bonus_base_total'];
         $values = collect($fields)->mapWithKeys(fn ($field) => [$field => (float) (clone $rows)->sum($field)])->all();
         MonthlyAnalytics::updateOrCreate(['year' => $month->year, 'month' => $month->month], [...$values, 'calculated_at' => now('UTC')]);
     }

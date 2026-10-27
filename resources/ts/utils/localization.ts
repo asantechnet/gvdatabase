@@ -49,8 +49,7 @@ export const formatLocalizedNumber = (value: number | string | null | undefined,
 }
 
 const backendAliases: Record<string, string> = {
-  'paid-leave': 'paidLeave',
-  'unpaid-leave': 'unpaidLeave',
+  'off_day': 'offDay',
   'in_progress': 'inProgress',
   'in progress': 'inProgress',
   'not_started': 'notStarted',

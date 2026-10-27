@@ -34,7 +34,7 @@ export interface Employee {
   total_worked_hours: number
   join_date: string | null
   contract_duration?: string
-  paid_leave_days: number | null
+  off_day_allowance_days: number | null
   is_commission_based: boolean
   service_commissions?: Array<{ service: string; percentage: number }>
   work_start_time: string | null
@@ -89,7 +89,7 @@ export interface CreateEmployeeData {
   addr: string
   join_date: string
   contract_duration?: string
-  paid_leave_days?: number | null
+  off_day_allowance_days?: number | null
   is_commission_based?: boolean
   service_commissions?: Array<{ service: string; percentage: number }>
 }
@@ -120,7 +120,7 @@ export interface UpdateEmployeeData {
   addr?: string
   join_date?: string
   contract_duration?: string
-  paid_leave_days?: number | null
+  off_day_allowance_days?: number | null
   is_commission_based?: boolean
   service_commissions?: Array<{ service: string; percentage: number }>
 }

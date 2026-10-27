@@ -111,12 +111,12 @@ class SettingsEmailAndFileRemovalTest extends TestCase
         $setting = Setting::create($this->basePayload());
         $response = $this->patchJson('/api/settings/'.$setting->id, [
             'company_email' => 'invalid', 'mail_port' => 70000, 'mail_reply_to' => 'invalid',
-            'timezone' => 'Invalid/Zone', 'primary_color' => '#12', 'paid_leave_days_per_year' => 400,
+            'timezone' => 'Invalid/Zone', 'primary_color' => '#12', 'off_day_allowance_days_per_year' => 400,
             'office_open_time' => '25:90', 'default_break_minutes' => -1, 'automatic_attendance_enabled' => 'invalid',
             'website_address' => 'example.com', 'mail_host' => 'https://smtp.example.com:587',
         ])->assertUnprocessable()->assertJsonValidationErrors([
             'company_email', 'mail_port', 'mail_reply_to', 'timezone', 'primary_color',
-            'paid_leave_days_per_year', 'office_open_time', 'default_break_minutes', 'automatic_attendance_enabled',
+            'off_day_allowance_days_per_year', 'office_open_time', 'default_break_minutes', 'automatic_attendance_enabled',
             'website_address', 'mail_host',
         ]);
         $this->assertStringContainsString('SMTP port', $response->json('messages.mail_port.0'));
@@ -181,7 +181,7 @@ class SettingsEmailAndFileRemovalTest extends TestCase
     private function basePayload(): array
     {
         return [
-            'paid_leave_days_per_year' => 20,
+            'off_day_allowance_days_per_year' => 20,
             'website_title' => 'Asantech',
             'timezone' => 'Asia/Kabul',
             'phone' => '+93 700 000 000',

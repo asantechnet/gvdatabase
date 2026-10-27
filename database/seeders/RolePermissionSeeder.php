@@ -37,11 +37,11 @@ class RolePermissionSeeder extends Seeder
                 'view_dashboard',
                 'view_reports', 'export_reports', 'view_automation_runs', 'view_analytics',
                 'manage_own_workday', 'submit_own_daily_report',
-                'request_own_paid_time_off',
+                'request_own_leave',
                 'request_account_deactivation', 'cancel_own_deactivation_request',
                 'view_account_deactivation_requests', 'review_account_deactivation_requests', 'reactivate_user_accounts',
-                'view_employees', 'view_paid_time_off', 'create_paid_time_off', 'edit_paid_time_off', 'delete_paid_time_off',
-                'grant_paid_time_off', 'print_paid_time_off',
+                'view_employees', 'view_leave_requests', 'create_leave_requests', 'edit_leave_requests', 'delete_leave_requests',
+                'grant_leave_requests', 'print_leave_requests',
                 'view_attendance', 'record_attendance', 'view_unmarked_attendance_staff',
                 'view_bonuses', 'nominate_bonus_candidates', 'edit_bonus_nominations',
                 'view_off_days', 'manage_off_days', 'approve_off_days',
@@ -86,7 +86,7 @@ class RolePermissionSeeder extends Seeder
             'staff' => [
                 'view_dashboard', 'request_account_deactivation', 'cancel_own_deactivation_request',
                 'manage_own_workday', 'submit_own_daily_report',
-                'request_own_paid_time_off',
+                'request_own_leave',
                 'view_assigned_boards', 'view_assigned_tasks', 'view_task_tags',
                 'create_subtasks_on_assigned_tasks', 'edit_own_subtasks', 'delete_own_subtasks',
                 'create_comments_on_assigned_tasks', 'edit_own_comments', 'delete_own_comments',
@@ -102,7 +102,7 @@ class RolePermissionSeeder extends Seeder
             'viewer' => [
                 'view_dashboard', 'request_account_deactivation', 'cancel_own_deactivation_request',
                 'manage_own_workday', 'submit_own_daily_report',
-                'request_own_paid_time_off',
+                'request_own_leave',
                 'view_assigned_boards', 'view_assigned_tasks', 'view_task_tags',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
             ],
@@ -140,7 +140,7 @@ class RolePermissionSeeder extends Seeder
         // Document officers only handle intake paperwork and files.
         $grants['document_officer'] = [
             'view_dashboard', 'manage_own_workday', 'submit_own_daily_report',
-            'request_own_paid_time_off', 'request_account_deactivation', 'cancel_own_deactivation_request',
+            'request_own_leave', 'request_account_deactivation', 'cancel_own_deactivation_request',
             'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
             'view_applicants', 'view_applicant_stages', 'view_applicant_contracts',
             'view_contracts', 'view_contract_templates', 'download_contracts',
@@ -152,7 +152,7 @@ class RolePermissionSeeder extends Seeder
             'override_contract_payments',
             'view_dashboard', 'view_reports', 'view_analytics',
             'manage_own_workday', 'submit_own_daily_report',
-            'request_own_paid_time_off', 'request_account_deactivation', 'cancel_own_deactivation_request',
+            'request_own_leave', 'request_account_deactivation', 'cancel_own_deactivation_request',
             'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
             'view_incomes', 'create_incomes', 'edit_incomes',
             'view_expenses', 'create_expenses', 'edit_expenses',
@@ -165,7 +165,7 @@ class RolePermissionSeeder extends Seeder
             'view_salaries', 'create_salaries', 'edit_salaries', 'delete_salaries',
             'view_salary_deductions', 'create_salary_deductions', 'edit_salary_deductions', 'delete_salary_deductions',
             'view_bonuses', 'view_off_days',
-            'print_paid_time_off',
+            'print_leave_requests',
         ];
 
         $permissionIds = Permission::query()->whereIn('name', $all)->pluck('id', 'name');

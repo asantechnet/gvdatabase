@@ -27,7 +27,7 @@ class UpsertSettingRequest extends FormRequest
             ...collect(ThemePalette::fields())
                 ->mapWithKeys(fn (string $field) => [$field => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/']])
                 ->all(),
-            'paid_leave_days_per_year' => [...$required, 'numeric', 'min:0', 'max:366'],
+            'off_day_allowance_days_per_year' => [...$required, 'numeric', 'min:0', 'max:366'],
             'website_title' => [...$required, 'string', 'max:255'],
             'website_logo' => [
                 'nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:2048',
@@ -100,6 +100,7 @@ class UpsertSettingRequest extends FormRequest
             'office_close_time' => ['nullable', 'date_format:H:i'],
             'default_break_minutes' => ['sometimes', 'integer', 'min:0', 'max:720'],
             'automatic_attendance_enabled' => ['sometimes', 'boolean'],
+            'missing_attendance_status' => ['sometimes', 'required', Rule::in(['present', 'absent', 'off_day'])],
         ];
     }
 

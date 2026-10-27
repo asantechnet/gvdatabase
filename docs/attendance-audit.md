@@ -39,10 +39,10 @@ Files traced during the audit:
 | Settings and employee eligibility | `CompanyProfile`, `Setting`, `SettingController`, `SettingResource`, `UpsertSettingRequest`, settings page/composable, `Employee` active/selectable scopes and factory |
 | Attendance persistence | `Attendance`, `DailyReport`, resources, HR baseline migration and `2026_10_08_000002_create_attendance_browser_days.php` |
 | Calculations/finalization | `AttendanceCalculationService`, `MonthlyAttendanceProcessor`, `FinalizeAttendance`, `CalculateOvertime`, `routes/console.php` |
-| Leave and payroll | Paid-time-off grant flow, `PaidTimeOff`, attendance leave metadata, salary attendance breakdown/deduction flow and payroll synchronization |
+| Leave and payroll | `LeaveRequestController`/`LeaveRequest` grant flow, `attendances.leave_days`/`off_day_days`, attendance-derived salary breakdown/deduction flow and payroll synchronization |
 | Reports/aggregates | `ReportService`, report exports, `MonthlyAttendanceSummary`, employee total-worked-hours refresh, `SyncAnalytics` |
 | Frontend interactions | Default layout, `UserProfile`, `WorkdayControl`, `EndDayDialog`, workday/geofence/attendance API modules, Timesheet and print template, `AccountSettingsWorkHistory`, English/Persian/Pashto messages |
-| Regression coverage | `PhaseSixWorkdayTest`, `OfficeGeofenceAttendanceTest`, `PhaseSevenWorkingTimeTest`, `PaidLeaveGrantTest`, `SalaryAttendanceDeductionTest`, `EmployeeActiveStatusTest`, `PhaseEightReportsTest`, `scripts/attendance-workday-regression.mjs` |
+| Regression coverage | `PhaseSixWorkdayTest`, `OfficeGeofenceAttendanceTest`, `PhaseSevenWorkingTimeTest`, `LeaveRequestGrantTest`, `SalaryAttendanceDeductionTest`, `EmployeeActiveStatusTest`, `PhaseEightReportsTest`, `scripts/attendance-workday-regression.mjs` |
 
 Operational limits remain important. Browser geolocation requires a secure context and permission, can be inaccurate, and is not an authenticated proof of physical presence. The [W3C Geolocation specification](https://www.w3.org/TR/geolocation/) also makes background location delivery unsuitable as a dependable time clock. The new flow does not rely on that delivery. Clearing browser data, using another profile/device, sharing account credentials, or spoofing client coordinates cannot be prevented by an ordinary web cookie and GPS alone. The account guard prevents normal account switching; stronger personal identity assurance requires a separate trusted device or identity mechanism.
 

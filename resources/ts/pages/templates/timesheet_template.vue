@@ -10,7 +10,7 @@ export interface Attendance {
   name: string
   role: string
   date: string // Format: 'YYYY-MM-DD'
-  status: 'present' | 'absent' | 'paid-leave' | 'unpaid-leave'
+  status: 'present' | 'absent' | 'off_day'
   timestamp: string
   net_worked_minutes: number | null
   overtime_minutes: number
@@ -36,7 +36,7 @@ const weekDays = computed(() => Array.from({ length: 7 }, (_, day) =>
   new Intl.DateTimeFormat(locale.value, { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2023, 0, day + 1))),
 ))
 
-const attendanceStatuses: Attendance['status'][] = ['present', 'absent', 'paid-leave', 'unpaid-leave']
+const attendanceStatuses: Attendance['status'][] = ['present', 'absent', 'off_day']
 const statusLabel = (status: Attendance['status']) => t(`documents.timesheet.statuses.${status}`)
 const employeeInitials = (name: string) => name
   .trim()
@@ -288,8 +288,7 @@ const printReport = () => {
   --bg-out-of-month: #f8fafc;
   --color-present: #10b981;
   --color-absent: #ef4444;
-  --color-paid-leave: #3b82f6;
-  --color-unpaid-leave: #f59e0b;
+  --color-off-day: #3b82f6;
 
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--text-main);
@@ -420,8 +419,7 @@ const printReport = () => {
 
 .attendance-legend__swatch--present { background: var(--color-present); }
 .attendance-legend__swatch--absent { background: var(--color-absent); }
-.attendance-legend__swatch--paid-leave { background: var(--color-paid-leave); }
-.attendance-legend__swatch--unpaid-leave { background: var(--color-unpaid-leave); }
+.attendance-legend__swatch--off_day { background: var(--color-off-day); }
 
 /* ==========================================
    Calendar Grid System
@@ -530,11 +528,10 @@ const printReport = () => {
 
 .attendance-item--present .attendance-avatar { background: var(--color-present); }
 .attendance-item--absent .attendance-avatar { background: var(--color-absent); }
-.attendance-item--paid-leave .attendance-avatar { background: var(--color-paid-leave); }
-.attendance-item--unpaid-leave .attendance-avatar { background: var(--color-unpaid-leave); }
+.attendance-item--off_day .attendance-avatar { background: var(--color-off-day); }
 
 .attendance-item--incomplete .attendance-avatar {
-  outline: 1px dashed var(--color-unpaid-leave);
+  outline: 1px dashed var(--color-off-day);
   outline-offset: 1px;
 }
 

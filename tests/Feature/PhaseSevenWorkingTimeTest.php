@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Models\Attendance;
 use App\Models\DailyAnalytics;
 use App\Models\Employee;
+use App\Models\LeaveRequest;
 use App\Models\MonthlyAttendanceSummary;
-use App\Models\PaidTimeOff;
 use App\Models\Setting;
 use App\Services\AttendanceCalculationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,7 +22,7 @@ class PhaseSevenWorkingTimeTest extends TestCase
         parent::setUp();
         Setting::create([
             'navigation_clr' => '#111111', 'cards_clr' => '#ffffff', 'footer_clr' => '#111111',
-            'paid_leave_days_per_year' => 20, 'automatic_attendance_enabled' => true,
+            'off_day_allowance_days_per_year' => 20, 'automatic_attendance_enabled' => true,
             'website_title' => 'Test', 'website_address' => 'https://example.test',
             'timezone' => 'Asia/Kabul', 'phone' => '123', 'physical_address' => 'Kabul',
             'short_company_name' => 'Test', 'original_company_name' => 'Test Company',
@@ -80,7 +80,7 @@ class PhaseSevenWorkingTimeTest extends TestCase
         $employee = Employee::factory()->create(['join_date' => '2026-07-01']);
         $attendance = Attendance::create([
             'employee_id' => $employee->id, 'date' => '2026-07-11', 'status' => 'present',
-            'leave_duration_days' => 0.5, 'paid_leave_days' => 0.5, 'logged_at' => '13:00:00',
+            'leave_days' => 0.5, 'off_day_days' => 0.5, 'logged_at' => '13:00:00',
             'check_in_time' => '13:00', 'check_out_time' => '17:00',
             'checked_in_at' => Carbon::parse('2026-07-11 08:30:00', 'UTC'),
             'checked_out_at' => Carbon::parse('2026-07-11 12:30:00', 'UTC'), 'break_minutes' => 0,
@@ -126,13 +126,13 @@ class PhaseSevenWorkingTimeTest extends TestCase
         $this->assertSame(0, $attendance->fresh()->overtime_minutes);
     }
 
-    public function test_monthly_command_is_idempotent_handles_paid_leave_and_refreshes_employee_total(): void
+    public function test_monthly_command_is_idempotent_handles_off_days_and_refreshes_employee_total(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-08-13 12:00:00', 'UTC'));
         $employee = Employee::factory()->create(['join_date' => '2026-07-29']);
-        PaidTimeOff::create([
+        LeaveRequest::create([
             'employee_id' => $employee->id, 'date' => '2026-07-30', 'year' => 2026,
-            'duration_days' => 1, 'paid_days' => 1, 'is_granted' => true, 'reason' => 'Approved',
+            'duration_days' => 1, 'off_day_days' => 1, 'is_granted' => true, 'reason' => 'Approved',
         ]);
         Attendance::create([
             'employee_id' => $employee->id, 'date' => '2026-07-29', 'status' => 'present', 'logged_at' => '22:00:00',
@@ -145,10 +145,10 @@ class PhaseSevenWorkingTimeTest extends TestCase
         $this->artisan('attendance:finalize --from=2026-07-29 --to=2026-07-30')->assertSuccessful();
 
         $this->assertDatabaseCount('attendances', 2);
-        $this->assertDatabaseHas('attendances', ['employee_id' => $employee->id, 'date' => '2026-07-30', 'status' => 'paid-leave']);
+        $this->assertDatabaseHas('attendances', ['employee_id' => $employee->id, 'date' => '2026-07-30', 'status' => 'off_day']);
         $summary = MonthlyAttendanceSummary::where('employee_id', $employee->id)->where('year', 2026)->where('month', 7)->firstOrFail();
         $this->assertSame(450, $summary->net_worked_minutes);
-        $this->assertSame(1.0, $summary->paid_leave_days);
+        $this->assertSame(1.0, (float) $summary->off_days);
         $this->assertSame(7.5, (float) $employee->fresh()->total_worked_hours);
     }
 

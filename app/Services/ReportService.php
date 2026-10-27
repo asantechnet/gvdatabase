@@ -15,7 +15,7 @@ use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
 use App\Models\Office;
-use App\Models\PaidTimeOff;
+use App\Models\LeaveRequest;
 use App\Models\Salary;
 use App\Models\Setting;
 use App\Models\Task;
@@ -243,20 +243,21 @@ class ReportService
             ]);
         }
 
-        if ($user->hasPermission('view_paid_time_off')) {
-            $leave = PaidTimeOff::query()->with(['employee.office:id,name'])
+        if ($user->hasPermission('view_leave_requests')) {
+            $leave = LeaveRequest::query()->with(['employee.office:id,name'])
                 ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
                 ->when($filters['employee_id'] ?? null, fn (Builder $q, $id) => $q->where('employee_id', $id))
                 ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->whereHas('employee', fn (Builder $e) => $e->where('office_id', $id)))
-                ->latest('date')->get()->map(fn (PaidTimeOff $row) => [
+                ->latest('date')->get()->map(fn (LeaveRequest $row) => [
                     'date' => $row->date?->format('Y-m-d'), 'employee' => $row->employee?->name,
                     'office' => $row->employee?->office?->name, 'reason' => $row->reason,
                     'status' => $row->is_granted ? 'granted' : 'pending',
-                    'classification' => $row->is_paid === null ? 'unclassified' : ($row->is_paid ? 'paid' : 'unpaid'),
+                    'treatment' => ! $row->is_granted ? 'pending'
+                        : ((float) $row->off_day_days >= (float) $row->duration_days ? 'off_day' : 'absent'),
                 ]);
-            $sections[] = $this->section('paid_time_off', ['date', 'employee', 'office', 'reason', 'status', 'classification'], $leave, [
+            $sections[] = $this->section('leave_requests', ['date', 'employee', 'office', 'reason', 'status', 'treatment'], $leave, [
                 'requests' => $leave->count(), 'granted' => $leave->where('status', 'granted')->count(),
-                'pending' => $leave->where('status', 'pending')->count(), 'unpaid' => $leave->where('classification', 'unpaid')->count(),
+                'pending' => $leave->where('status', 'pending')->count(), 'absent' => $leave->where('treatment', 'absent')->count(),
             ]);
         }
 
@@ -290,7 +291,7 @@ class ReportService
 
         $sections = [$this->section('attendance', ['date', 'employee', 'office', 'status', 'check_in_utc', 'check_out_utc', 'gross_minutes', 'break_minutes', 'worked_minutes', 'required_minutes', 'late_minutes', 'early_minutes', 'overtime_minutes', 'punch_state', 'overnight'], $rows, [
             'records' => $rows->count(), 'present' => $rows->where('status', 'present')->count(),
-            'absent' => $rows->where('status', 'absent')->count(), 'paid_leave' => $rows->where('status', 'paid-leave')->count(),
+            'absent' => $rows->where('status', 'absent')->count(), 'off_day' => $rows->where('status', 'off_day')->count(),
             'incomplete' => $rows->where('status', 'present')->where('punch_state', '!=', 'none')->count(),
             'worked_minutes' => (int) $rows->sum('worked_minutes'), 'overtime_minutes' => (int) $rows->sum('overtime_minutes'),
         ])];

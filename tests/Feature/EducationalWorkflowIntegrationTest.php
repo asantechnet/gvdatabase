@@ -63,7 +63,7 @@ class EducationalWorkflowIntegrationTest extends TestCase
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
 
         Sanctum::actingAs($creator, ['access']);
-        $pending = $this->postJson('/api/pending-transactions', [
+        $pending = $this->postJson('/api/payment-requests', [
             'transaction_type' => 'income',
             'reason' => 'Applicant deposit',
             'amount' => 25000,
@@ -80,14 +80,14 @@ class EducationalWorkflowIntegrationTest extends TestCase
             'requested_at' => now(),
         ]);
 
-        $this->getJson('/api/pending-transactions')
+        $this->getJson('/api/payment-requests')
             ->assertOk()
             ->assertJsonCount(1, 'data.data')
             ->assertJsonPath('data.data.0.id', $pending['id']);
         $this->assertSame(1, $manager->notifications()->where('notification_key', "finance.pending.submitted.{$pending['id']}")->count());
 
         Sanctum::actingAs($manager, ['access']);
-        $this->postJson("/api/pending-transactions/{$pending['id']}/approve")->assertOk();
+        $this->postJson("/api/payment-requests/{$pending['id']}/approve")->assertOk();
         $this->assertSame(1, $creator->notifications()->where('notification_key', "finance.pending.approved.{$pending['id']}")->count());
     }
 

@@ -216,7 +216,7 @@ class RealtimeNotificationTest extends TestCase
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
 
         Sanctum::actingAs($requester, ['access']);
-        $pending = $this->postJson('/api/pending-transactions', [
+        $pending = $this->postJson('/api/payment-requests', [
             'transaction_type' => 'income',
             'reason' => 'Applicant deposit',
             'amount' => 100,

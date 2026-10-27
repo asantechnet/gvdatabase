@@ -468,7 +468,7 @@ class ContractController extends Controller
             'department' => $employee->department, 'office' => $employee->office?->name,
             'start_date' => $employee->join_date?->format('Y-m-d'),
             'contract_duration' => $employee->contract_duration,
-            'paid_leave_days' => $employee->paid_leave_days !== null ? (float) $employee->paid_leave_days : null,
+            'paid_leave_days' => $employee->off_day_allowance_days !== null ? (float) $employee->off_day_allowance_days : null,
             'salary' => $employee->salary,
         ];
     }

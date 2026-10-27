@@ -31,7 +31,7 @@ class PhaseSixWorkdayTest extends TestCase
             'navigation_clr' => '#111111',
             'cards_clr' => '#ffffff',
             'footer_clr' => '#111111',
-            'paid_leave_days_per_year' => 0,
+            'off_day_allowance_days_per_year' => 0,
             'automatic_attendance_enabled' => true,
             'website_title' => 'Test',
             'website_address' => 'https://example.test',
@@ -275,11 +275,12 @@ class PhaseSixWorkdayTest extends TestCase
         Sanctum::actingAs($user, ['access']);
         Carbon::setTestNow(Carbon::parse('2026-08-13 08:30:00', 'UTC'));
         $row = Attendance::create([
-            'employee_id' => $employee->id, 'date' => '2026-08-13', 'status' => 'paid-leave',
-            'leave_duration_days' => 0.5, 'paid_leave_days' => 0.5, 'logged_at' => '00:00',
+            'employee_id' => $employee->id, 'date' => '2026-08-13', 'status' => 'off_day',
+            'leave_days' => 0.5, 'off_day_days' => 0.5, 'logged_at' => '00:00',
         ]);
         $this->postJson('/api/workday/start')->assertOk()->assertJsonPath('data.state', 'active');
-        $this->assertSame(0.5, $row->fresh()->paid_leave_days);
+        $this->assertSame(0.5, $row->fresh()->leave_days);
+        $this->assertSame(0.5, $row->fresh()->off_day_days);
         $this->postJson('/api/workday/end', ['summary' => 'Wrong session', 'attendanceId' => $row->id + 1])
             ->assertConflict()->assertJsonPath('code', 'business.workday_session_changed');
         $this->assertDatabaseCount('daily_reports', 0);
@@ -309,7 +310,7 @@ class PhaseSixWorkdayTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-08-12 03:30', 'UTC'));
         $this->postJson('/api/workday/start')->assertOk();
         $row = Attendance::firstOrFail();
-        $row->update(['leave_duration_days' => 0.5, 'paid_leave_days' => 0.5]);
+        $row->update(['leave_days' => 0.5, 'off_day_days' => 0.5]);
         Carbon::setTestNow(Carbon::parse('2026-08-13 04:00', 'UTC'));
         $this->getJson('/api/workday/status')->assertOk()->assertJsonPath('data.needsCheckoutCorrection', true);
         $path = '/api/attendances/'.$row->id.'/checkout-correction';
@@ -319,7 +320,7 @@ class PhaseSixWorkdayTest extends TestCase
         $this->postJson($path, ['date' => '2026-08-12', 'time' => '07:59'])->assertUnprocessable();
         $this->postJson($path, ['date' => '2026-08-13', 'time' => '12:00'])->assertUnprocessable();
         $this->postJson($path, ['date' => '2026-08-12', 'time' => '12:00'])->assertOk()
-            ->assertJsonPath('data.id', $row->id)->assertJsonPath('data.paid_leave_days', 0.5);
+            ->assertJsonPath('data.id', $row->id)->assertJsonPath('data.leave_days', 0.5);
         $this->assertSame('hr_correction', $row->fresh()->check_out_source);
         $this->assertSame('2026-08-12T07:30:00.000000Z', $row->fresh()->checked_out_at->toISOString());
         $this->assertSame('2026-08-12T03:30:00.000000Z', $row->fresh()->checked_in_at->toISOString());

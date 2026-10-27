@@ -62,7 +62,7 @@ class Employee extends Model
         'supervisor_id',
         'join_date',
         'contract_duration',
-        'paid_leave_days',
+        'off_day_allowance_days',
         'is_commission_based',
         'avatar',
         'document_path', 'document_name', 'document_mime', 'document_size',
@@ -106,9 +106,9 @@ class Employee extends Model
         return $this->hasMany(CommissionAccrual::class);
     }
 
-    public function paidTimeOffs(): HasMany
+    public function leaveRequests(): HasMany
     {
-        return $this->hasMany(PaidTimeOff::class);
+        return $this->hasMany(LeaveRequest::class);
     }
 
     /** Contracted services sold by this employee. */
@@ -192,7 +192,7 @@ class Employee extends Model
         return [
             'salary' => 'decimal:2',
             'total_worked_hours' => 'decimal:2',
-            'paid_leave_days' => 'decimal:1',
+            'off_day_allowance_days' => 'decimal:1',
             'join_date' => 'date',
             'is_commission_based' => 'boolean',
         ];

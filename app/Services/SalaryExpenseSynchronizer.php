@@ -22,9 +22,9 @@ class SalaryExpenseSynchronizer
     {
         $salary->loadMissing(['employee', 'deductions']);
         $details = sprintf(
-            'Payroll installment for %s (%s); payable: %.1f, paid leave: %.1f, absent: %.1f, unpaid leave: %.1f',
+            'Payroll installment for %s (%s); worked: %.1f, total: %d, absent: %.1f, off days: %.1f of %s',
             $salary->employee?->name ?? 'employee', $salary->salary_month,
-            $salary->worked_days, $salary->paid_leave_days, $salary->absent_days, $salary->unpaid_leave_days,
+            $salary->worked_days, (int) $salary->total_days, $salary->absent_days, $salary->off_days, $salary->payslip_number,
         );
 
         $expense = Expense::create([

@@ -246,7 +246,7 @@
       "pastDue": "Past due",
       "terminated": "Terminated",
       "noContracts": "No contracts",
-      "pendingTransaction": "Pending transaction",
+      "pendingTransaction": "Payment request",
       "closed": "Closed",
       "applied": "Applied",
       "admitted": "Admitted",
@@ -342,7 +342,7 @@
       "noDeductionsAdded": "No deductions added.",
       "totalDeductions": "Total deductions",
       "totalDays": "Total days",
-      "automaticAttendanceDeduction": "Unpaid leave / absent days",
+      "automaticAttendanceDeduction": "Absent days deduction",
       "unpaidAndAbsentDays": "{days} unworked day(s)",
       "remarks": "Remarks",
       "serialNumber": "Serial Number",
@@ -479,14 +479,13 @@
       "myVisaCase": "My visa case",
       "sales": "Sales",
       "serviceSales": "Service sales",
-      "pendingTransactions": "Pending transactions",
-      "loans": "Loans",
       "paymentRequests": "Payment requests",
       "educationalData": "Educational data",
       "contractStages": "Contract stages",
       "announcements": "Announcements",
       "incomeTypes": "Income Types",
-      "expenseTypes": "Expense Types"
+      "expenseTypes": "Expense Types",
+      "payrolls": "Payrolls"
     },
     "languages": {
       "english": "English",
@@ -727,26 +726,26 @@
       "contractedServices": "Contracted services"
     },
     "leaveApproval": {
-      "paidException": "Approve as paid exception ({count})",
-      "exceptionTitle": "Paid leave exception",
-      "exceptionHint": "One or more selected employees have insufficient paid-leave allowance. This authorization keeps every selected day paid and records the justification in the audit trail.",
+      "exceptionTitle": "Off-day allowance exception",
+      "exceptionHint": "One or more selected employees have an insufficient off-day allowance. This authorization keeps the selected days as off days and records the justification in the audit trail.",
       "usageSummary": "Used {used} · Remaining {remaining} · Selected {selected} days",
       "overLimit": "+{count} over limit",
       "justification": "Approval justification",
-      "approvePaid": "Approve paid leave",
-      "employeeFallback": "Employee"
+      "employeeFallback": "Employee",
+      "offDayException": "Approve as paid exception ({count})",
+      "approveOffDay": "Approve off-day exception"
     },
     "validation": {
       "required": "Required."
     },
     "ui": {
-      "newFinancialRequest": "New financial request",
+      "newFinancialRequest": "New payment request",
       "attachCaseDocument": "Attach case document",
       "caseTask": "Case task",
       "document": "Document",
       "documentsAreStoredAsInputAttachmentsOnACaseTaskSoTheyFollowTheSameAccessControlsAndAuditTrail": "Documents are stored as input attachments on a case task, so they follow the same access controls and audit trail.",
-      "unableToLoadFinancialRequestOptions": "Unable to load financial request options.",
-      "financialRequestLinkedToThisVisaCase": "Financial request linked to this visa case.",
+      "unableToLoadFinancialRequestOptions": "Unable to load payment request options.",
+      "financialRequestLinkedToThisVisaCase": "Payment request linked to this visa case.",
       "documentAttachedToThisVisaCase": "Document attached to this visa case.",
       "allocatedTo": "Allocated to",
       "whatIsMonitored": "What is monitored",
@@ -830,7 +829,12 @@
     "unspecified": "Unspecified",
     "notAvailable": "Not available",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "attendanceStatuses": {
+      "present": "Present",
+      "absent": "Absent",
+      "offDay": "Off day"
+    }
   },
   "pages": {
     "whatsapp": {
@@ -1755,7 +1759,12 @@
         "resetDefaults": "Reset Defaults",
         "saveSettings": "Save Settings",
         "noChangesToSave": "There are no changes to save on this page.",
-        "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings."
+        "completeCompanyProfileFirst": "Complete and save the company profile before configuring other settings.",
+        "offDayAllowanceDaysPerYear": "Default off-day allowance (days / year)",
+        "offDayAllowanceDaysPerYearHint": "This catalogue value only prefills a new employee profile. The employee’s own allowance is used for approvals.",
+        "missingAttendanceStatus": "Missing attendance days",
+        "missingAttendanceStatusHint": "How to record an elapsed workday that has no attendance row. Company holidays always override this.",
+        "attendanceWeatherWarning": "Automatic attendance tracking relies on device location and can be less accurate in bad weather. Review the timesheet before running payroll."
       },
       "users": {
         "user": "User",
@@ -1838,7 +1847,7 @@
           "commissionBasedHint": "Earns a percentage of each contracted service when a contract is completed.",
           "commissionPerService": "Commission rate per service (%)",
           "paidLeaveDaysHint": "Optional. Leave empty to inherit the office base, then the company default.",
-          "paidOffDaysTheYearlyAllowanceHasBeenUsed": "Leave: The yearly allowance has been used.",
+          "paidOffDaysTheYearlyAllowanceHasBeenUsed": "The yearly off-day allowance has been used.",
           "searchStaff": "Search Staff",
           "filterByPosition": "Filter By Position",
           "printStaffRecords": "Print Staff Records",
@@ -1848,7 +1857,7 @@
           "salary": "Salary",
           "workedHours": "Worked Hours",
           "joinDate": "Join Date",
-          "managePaidOffDays": "Manage leave",
+          "managePaidOffDays": "Manage off-day requests",
           "editStaffRecord": "Edit staff record",
           "deleteStaffRecord": "Delete staff record",
           "activateStaffRecord": "Activate employee",
@@ -1856,10 +1865,14 @@
           "staffStatusUpdated": "Employee status updated.",
           "addNewStaff": "Add New Staff",
           "editStaff": "Edit Staff",
-          "paidOffDays": "Leave",
+          "paidOffDays": "Off-day requests",
           "salaryCannotBeNegative": "Salary cannot be negative.",
           "service": "Service",
-          "statusUpdateFailed": "Unable to update the employee status."
+          "statusUpdateFailed": "Unable to update the employee status.",
+          "offDayAllowanceDays": "Off-day allowance (days / year)",
+          "offDayAllowanceDaysHint": "The accountable allowance for this employee. Leave beyond it is recorded as absent.",
+          "editMyProfile": "Edit my profile",
+          "unableToSaveEmployee": "Unable to save your profile."
         }
       },
       "apppricing": {
@@ -2380,7 +2393,20 @@
           "removeFromFollowUp": "Remove from follow-up list",
           "markedForFollowUp": "Visitor moved to the follow-up list.",
           "removedFromFollowUp": "Visitor removed from the follow-up list.",
-          "followUpUpdateFailed": "Unable to update the follow-up list."
+          "followUpUpdateFailed": "Unable to update the follow-up list.",
+          "age": "Age",
+          "province": "Province",
+          "englishLevel": "English level",
+          "acquisitionRoute": "Acquisition route",
+          "acquisitionRouteHint": "How the visitor found out about the firm.",
+          "consultant": "Consultant",
+          "reviewedByConsultant": "Reviewed by consultant",
+          "reviewedByConsultantHint": "Signs off this enquiry for the consultant.",
+          "review": "Consultant review",
+          "reviewed": "Reviewed",
+          "pendingReview": "Pending review",
+          "markReviewed": "Mark reviewed",
+          "markedReviewed": "Visitor marked as reviewed."
         }
       },
       "contractform": {
@@ -2485,10 +2511,10 @@
           "captureOutgoingCashWithItsLiveCurrencyRelationship": "Capture outgoing cash with its live currency relationship.",
           "saveExpense": "Save expense",
           "saveModeDirect": "Record directly",
-          "saveModeLoan": "Send to loans",
+          "saveModeLoan": "Send to payment requests",
           "saveModeDirectHint": "The expense is written to the ledger immediately.",
-          "saveModeLoanHint": "The amount is submitted as a loan request and only reaches the ledger after approval.",
-          "loanSubmitted": "Expense request submitted to loans for approval.",
+          "saveModeLoanHint": "The amount is submitted as a payment request and only reaches the ledger after approval.",
+          "loanSubmitted": "Expense request submitted to payment requests for approval.",
           "editExpense": "Edit expense",
           "updateTheRecordedSpendAndItsCurrency": "Update the recorded spend and its currency.",
           "deleteExpense": "Delete expense?",
@@ -2540,10 +2566,10 @@
           "incomeLedger": "Income Ledger",
           "saveMode": "Save as",
           "saveModeDirect": "Record directly",
-          "saveModeLoan": "Send to loans",
+          "saveModeLoan": "Send to payment requests",
           "saveModeDirectHint": "The receipt is written to the income ledger immediately.",
-          "saveModeLoanHint": "The amount is submitted as a loan request and only reaches the ledger after approval.",
-          "loanSubmitted": "Income request submitted to loans for approval.",
+          "saveModeLoanHint": "The amount is submitted as a payment request and only reaches the ledger after approval.",
+          "loanSubmitted": "Income request submitted to payment requests for approval.",
           "liveReceiptActivityAndCurrencyTotalsInOneView": "Live receipt activity and currency totals in one view",
           "printIncomeRecords": "Print Income Records",
           "recordIncome": "Record Income",
@@ -2893,7 +2919,7 @@
         "tasks": "Tasks & delivery",
         "asset_assets": "Asset & assets",
         "employee_roster": "Employee roster",
-        "paid_time_off": "Leave",
+        "leave_requests": "Off-day requests",
         "daily_reports": "Daily work reports",
         "applicants": "Applicants",
         "applicant_contracts": "Contract service lines"
@@ -2978,6 +3004,7 @@
         "companyHeadcount": "Company Headcount",
         "joinedInPeriod": "Joined In Period",
         "classification": "Classification",
+        "treatment": "Treatment",
         "requests": "Requests",
         "granted": "Granted",
         "pending": "Pending",
@@ -3017,42 +3044,6 @@
           "addContent": "Add Content"
         }
       }
-    },
-    "paidTimeOff": {
-      "title": "Leave",
-      "myTitle": "My leave",
-      "reportTitle": "Leave Report",
-      "calendarYear": "Calendar year {year}",
-      "classification": "Classification",
-      "generated": "Generated {date}",
-      "grantSelected": "Grant selected ({count})",
-      "requestsGranted": "{count} request(s) granted.",
-      "allowanceExceeded": "{count} day(s) exceeded the leave allowance and were recorded as unpaid leave.",
-      "unableToLoad": "Unable to load leave requests.",
-      "unableToGrant": "Unable to grant selected requests.",
-      "unableToRequest": "Unable to request time off.",
-      "requestSubmitted": "Time-off request submitted.",
-      "limit": "Allowance: {count}",
-      "grantedPaid": "Paid days granted: {count}",
-      "pending": "Pending: {count}",
-      "remaining": "Remaining: {count}",
-      "from": "From",
-      "to": "To",
-      "requestDays": "Request {count} day(s)",
-      "rangeExceeds": "This range exceeds your remaining allowance of {count} day(s).",
-      "balance": "Balance",
-      "allowance": "Allowance",
-      "paidDaysGranted": "Used",
-      "pendingRequests": "Pending",
-      "daysRemaining": "Remaining",
-      "requestTimeOff": "Request time off",
-      "requestHint": "Choose a date range and add a reason.",
-      "duration": "Duration",
-      "fullDay": "Full day",
-      "halfDay": "Half day",
-      "historyTitle": "Request history",
-      "historySubtitle": "Track the status of your submitted requests.",
-      "perEmployeeAllowanceHint": "Allowances follow each employee's office base unless a personal override is set."
     },
     "audits": {
       "title": "Audits",
@@ -3218,7 +3209,7 @@
         "educational_bonus_sources": "Bonus sources",
         "languages": "Languages",
         "leaves": "Leave",
-        "pending_transactions": "Financial requests",
+        "pending_transactions": "Payment requests",
         "salary_payments": "Salary payments",
         "semesters": "Semesters",
         "attachments": "Attachments",
@@ -3396,7 +3387,6 @@
       }
     },
     "offDays": {
-      "title": "Off days",
       "subtitle": "Announce company-wide holidays; approved days mark attendance and count as present in payroll.",
       "add": "Announce off day",
       "edit": "Edit off day",
@@ -3419,7 +3409,111 @@
       "empty": "No off days announced for this period.",
       "affectsNote": "Approved off days are marked as present in attendance and shown separately on the payslip.",
       "startDateRequired": "Choose a start and end date.",
-      "endDateAfterStart": "The end date must be on or after the start date."
+      "endDateAfterStart": "The end date must be on or after the start date.",
+      "companyTitle": "Company Off Days"
+    },
+    "leaveRequests": {
+      "title": "Off Day Requests",
+      "myTitle": "My off days",
+      "reportTitle": "Off Day Requests Report",
+      "calendarYear": "Calendar year {year}",
+      "classification": "Classification",
+      "generated": "Generated {date}",
+      "grantSelected": "Approve selected ({count})",
+      "requestsGranted": "{count} request(s) approved.",
+      "allowanceExceeded": "{count} day(s) exceeded the allowance and were recorded as absences.",
+      "unableToLoad": "Unable to load off-day requests.",
+      "unableToGrant": "Unable to approve the selected requests.",
+      "unableToRequest": "Unable to submit the request.",
+      "requestSubmitted": "Off-day request submitted.",
+      "limit": "Allowance: {count}",
+      "grantedPaid": "Paid days granted: {count}",
+      "pending": "Pending: {count}",
+      "remaining": "Remaining: {count}",
+      "from": "From",
+      "to": "To",
+      "requestDays": "Request {count} day(s)",
+      "rangeExceeds": "The selected range exceeds the remaining allowance by {count} day(s).",
+      "balance": "Balance",
+      "allowance": "Allowance",
+      "paidDaysGranted": "Used",
+      "pendingRequests": "Pending",
+      "daysRemaining": "Remaining",
+      "requestTimeOff": "Request time off",
+      "requestHint": "Choose a date range and add a reason.",
+      "duration": "Duration",
+      "fullDay": "Full day",
+      "halfDay": "Half day",
+      "historyTitle": "My requests",
+      "historySubtitle": "Approved days inside your allowance are off days; the rest are recorded as absent.",
+      "perEmployeeAllowanceHint": "Allowances follow each employee's office base unless a personal override is set.",
+      "description": "Employee requests for time away. Approved days inside the allowance are off days; the days beyond it are absences.",
+      "treatment": "Treatment",
+      "partial": "Partially covered",
+      "partialWithAbsence": "{off} off day · {absent} absent",
+      "subtitle": "Request company off days in advance and track the allowance."
+    },
+    "payrolls": {
+      "title": "Payrolls",
+      "description": "Description",
+      "unableToLoad": "Unable to load payroll data.",
+      "unableToGenerate": "Unable to generate payslips.",
+      "generate": "Generate payslips",
+      "generateTitle": "Generate missing payslips",
+      "generateHint": "Create payslips for the {count} employee(s) without one in {month}. Existing payslips are left unchanged.",
+      "generatedCount": "{created} payslip(s) created; {skipped} skipped.",
+      "saved": "Payroll saved.",
+      "unableToSave": "Unable to save the payroll change.",
+      "deductionSaved": "Deduction saved.",
+      "deductionDeleted": "Deduction deleted.",
+      "paymentSaved": "Payment recorded.",
+      "deleted": "Payslip deleted.",
+      "unableToDelete": "Unable to delete the record.",
+      "baseSalary": "Base salary",
+      "bonus": "Bonus",
+      "payPeriodLabel": "Pay period: {month}",
+      "automaticDeduction": "Attendance deduction",
+      "noPosition": "No position assigned",
+      "advanceSaved": "Advance recorded.",
+      "advanceDeleted": "Advance deleted.",
+      "notGenerated": "Not generated",
+      "open": "Open",
+      "partiallyPaid": "Partially paid",
+      "netPayroll": "Net payroll",
+      "paid": "Paid",
+      "outstanding": "Outstanding",
+      "progress": "Generated",
+      "missing": "missing",
+      "payslipsTab": "Payslips",
+      "advancesTab": "Advances",
+      "worked": "Worked / total",
+      "offDays": "Off days",
+      "absent": "Absent",
+      "net": "Net payable",
+      "createPayslip": "Create payslip",
+      "printPayslip": "Preview and print payslip",
+      "addDeduction": "Add deduction",
+      "addPayment": "Record payment",
+      "deletePayslip": "Delete payslip",
+      "addAdvance": "Add advance",
+      "advanceNumber": "Advance number",
+      "date": "Date",
+      "amount": "Amount",
+      "recovered": "Recovered",
+      "outstandingAdvance": "Outstanding",
+      "printReceipt": "Print advance receipt",
+      "registerTitle": "Monthly payroll register",
+      "deductionsTitle": "Deductions",
+      "noDeductions": "No deductions on this payslip yet.",
+      "paymentDate": "Payment date",
+      "remarks": "Remarks",
+      "confirmDelete": "Delete the payslip for {employee}? Its payments and expenses are removed too.",
+      "confirmDeleteAdvance": "Delete the advance for {employee}? Its payroll expense is removed too.",
+      "deleteAdvance": "Delete advance",
+      "totalWorkingDays": "Total working days",
+      "workedDays": "Worked days",
+      "absentDays": "Absent days",
+      "baseCurrencyMissing": "No base currency is configured."
     }
   },
   "components": {
@@ -4140,12 +4234,12 @@
       "approvedBySignature": "Approved By"
     },
     "loan": {
-      "title": "Loan Request",
+      "title": "Payment Request",
       "requestedBy": "Requested By",
       "requestSummary": "Request Summary",
       "reason": "Reason",
-      "reference": "Loan ID",
-      "details": "Loan Details",
+      "reference": "Payment request ID",
+      "details": "Payment request details",
       "item": "Item",
       "amount": "Amount",
       "requestedAmount": "Requested Amount",
@@ -4153,8 +4247,8 @@
       "remaining": "Not Yet Approved",
       "status": "Status",
       "requestedAt": "Requested On",
-      "footerNote": "This is a system-generated loan request document.",
-      "print": "Print loan"
+      "footerNote": "This is a system-generated payment request document.",
+      "print": "Print payment request"
     },
     "academySlip": {
       "title": "Academy Enrolment Slip",
@@ -4209,8 +4303,7 @@
       "statuses": {
         "present": "Present",
         "absent": "Absent",
-        "paid-leave": "Paid leave",
-        "unpaid-leave": "Unpaid leave"
+        "off_day": "Off day"
       }
     },
     "contract_cover_template": {
@@ -4579,11 +4672,11 @@
     },
     "finance": {
       "pendingSubmitted": {
-        "title": "Financial request awaiting review",
+        "title": "Payment request awaiting review",
         "message": "A {type} request for {amount} is ready for review."
       },
       "pendingStatus": {
-        "title": "Financial request updated",
+        "title": "Payment request updated",
         "message": "Your {type} request is now {status}. {reason}"
       }
     },
@@ -5027,7 +5120,7 @@
       "primary": "Primary",
       "noApplications": "No applications tracked yet. Add every university the student applies to; each keeps its own outcome.",
       "finance": "Finance",
-      "pendingWorkspace": "Pending workspace",
+      "pendingWorkspace": "Payment requests",
       "financeSummary": "Posted income {income} · posted expenses {expenses}.",
       "transactionTitle": "{type} — {reason}",
       "transactionSummary": "{amount} · {status} · {rejection}",
@@ -5173,9 +5266,9 @@
     "reason": "Reason",
     "amount": "Amount",
     "requested": "Requested",
-    "noTransactions": "No pending transactions.",
-    "newPending": "New pending transaction",
-    "editPending": "Edit pending transaction",
+    "noTransactions": "No payment requests.",
+    "newPending": "New payment request",
+    "editPending": "Edit payment request",
     "applicantOptional": "Applicant / case (optional)",
     "employeeOptional": "Employee (optional)",
     "rejectTransaction": "Reject transaction",
@@ -5303,7 +5396,10 @@
       "saved": "Saved.",
       "saveFailed": "Unable to save this record.",
       "removeConfirm": "Remove {name}?",
-      "inUse": "This record is in use and cannot be removed."
+      "inUse": "This record is in use and cannot be removed.",
+      "provinces": "Provinces",
+      "englishLevels": "English levels",
+      "acquisitionRoutes": "Acquisition routes"
     },
     "pendingUi": {
       "customerEmployee": "Customer / employee",
@@ -5312,7 +5408,7 @@
       "rejected": "Transaction rejected.",
       "rejectFailed": "Unable to reject the transaction.",
       "actions": {
-        "edit": "Edit this loan request",
+        "edit": "Edit this payment request",
         "review": "Send to review",
         "approve": "Approve this request",
         "reject": "Reject with a reason",
@@ -5403,7 +5499,8 @@
       "cancelled": "Cancelled",
       "rejected": "Rejected",
       "withdrawn": "Withdrawn"
-    }
+    },
+    "contractType": "Contract type"
   },
   "finance": {
     "servicePayments": {
@@ -5473,8 +5570,8 @@
   },
   "agencyStaff": {
     "counselor": "Counselor",
-    "optionalCounselor": "Optional. Assign an active counselor to this visitor.",
-    "counselorLockedToYou": "As a counselor you are recorded as this visitor's counselor.",
+    "optionalCounselor": "Optional. Assign a consultant to this visitor.",
+    "counselorLockedToYou": "As a counselor you are recorded as this visitor's consultant.",
     "admission": "Admission employee (optional)",
     "contractVersion": "Contract version",
     "templateNotReady": "Contract template is not configured",

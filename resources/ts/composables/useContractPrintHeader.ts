@@ -147,7 +147,7 @@ export const buildContractPrintHeader = (contract: Contract): ContractPrintHeade
     ].filter(Boolean).join(' · ') || null
 
     const salary = firstText(employeeSnapshot.salary, employee.salary)
-    const paidLeave = firstText(employeeSnapshot.paid_leave_days, employee.paid_leave_days)
+    const paidLeave = firstText(employeeSnapshot.paid_leave_days, employee.off_day_allowance_days)
     const period = contract.end_date && contract.start_date
       ? `${formatLocalizedDate(contract.start_date)} — ${formatLocalizedDate(contract.end_date)}`
       : null

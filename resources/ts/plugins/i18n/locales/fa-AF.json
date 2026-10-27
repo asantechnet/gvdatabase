@@ -246,7 +246,7 @@
       "pastDue": "گذشته از موعد",
       "terminated": "???????????",
       "noContracts": "بدون قرارداد",
-      "pendingTransaction": "تراکنش در انتظار",
+      "pendingTransaction": "درخواست پرداخت",
       "closed": "بسته شده",
       "applied": "درخواست شده",
       "admitted": "پذیرفته شده",
@@ -342,7 +342,7 @@
       "noDeductionsAdded": "هیچ کسری اضافه نشده است.",
       "totalDeductions": "مجموع کسرات",
       "totalDays": "مجموع روزها",
-      "automaticAttendanceDeduction": "روزهای مرخصی بدون معاش / غیبت",
+      "automaticAttendanceDeduction": "کسر روزهای غیبت",
       "unpaidAndAbsentDays": "{days} روز کارنکرده",
       "remarks": "ملاحظات",
       "serialNumber": "شماره سریال",
@@ -479,14 +479,13 @@
       "myVisaCase": "پرونده ویزه من",
       "sales": "فروش",
       "serviceSales": "فروش خدمات",
-      "pendingTransactions": "معاملات در انتظار",
-      "loans": "قرضه‌ها / وام‌ها",
       "paymentRequests": "درخواست‌های پرداخت",
       "educationalData": "داده‌های تحصیلی",
       "contractStages": "مراحل قرارداد",
       "announcements": "اعلامیه‌ها",
       "incomeTypes": "انواع درآمد",
-      "expenseTypes": "انواع هزینه"
+      "expenseTypes": "انواع هزینه",
+      "payrolls": "معاش‌ها"
     },
     "languages": {
       "english": "English",
@@ -727,26 +726,26 @@
       "contractedServices": "خدمات قرارداد"
     },
     "leaveApproval": {
-      "paidException": "تأیید به‌عنوان استثنای با معاش ({count})",
-      "exceptionTitle": "استثنای رخصتی با معاش",
-      "exceptionHint": "سهمیه رخصتی با معاش یک یا چند کارمند انتخاب‌شده کافی نیست. این مجوز تمام روزهای انتخاب‌شده را با معاش نگه می‌دارد و دلیل آن را در سابقه بررسی ثبت می‌کند.",
+      "exceptionTitle": "استثنای سهمیه روز رخصتی",
+      "exceptionHint": "یک یا چند کارمند انتخاب‌شده سهمیه کافی روز رخصتی ندارند. این تأیید روزهای انتخاب‌شده را رخصتی نگه می‌دارد و توجیه را در سابقه ثبت می‌کند.",
       "usageSummary": "استفاده‌شده {used} · باقی‌مانده {remaining} · انتخاب‌شده {selected} روز",
       "overLimit": "+{count} بیشتر از سهمیه",
       "justification": "دلیل تأیید",
-      "approvePaid": "تأیید رخصتی با معاش",
-      "employeeFallback": "کارمند"
+      "employeeFallback": "کارمند",
+      "offDayException": "تأیید به‌عنوان استثنای با معاش ({count})",
+      "approveOffDay": "تأیید استثنای روز رخصتی"
     },
     "validation": {
       "required": "الزامی است."
     },
     "ui": {
-      "newFinancialRequest": "درخواست مالی جدید",
+      "newFinancialRequest": "درخواست پرداخت جدید",
       "attachCaseDocument": "ضمیمه سند پرونده",
       "caseTask": "وظیفه پرونده",
       "document": "سند",
       "documentsAreStoredAsInputAttachmentsOnACaseTaskSoTheyFollowTheSameAccessControlsAndAuditTrail": "اسناد به‌عنوان ضمایم ورودی وظیفه پرونده ذخیره می‌شوند و تابع همان کنترل دسترسی و سابقه بررسی هستند.",
-      "unableToLoadFinancialRequestOptions": "گزینه‌های درخواست مالی بارگیری نشد.",
-      "financialRequestLinkedToThisVisaCase": "درخواست مالی به این پرونده ویزه پیوند شد.",
+      "unableToLoadFinancialRequestOptions": "گزینه‌های درخواست پرداخت بارگیری نشد.",
+      "financialRequestLinkedToThisVisaCase": "درخواست پرداخت به این پرونده ویزه پیوند شد.",
       "documentAttachedToThisVisaCase": "سند به این پرونده ویزه ضمیمه شد.",
       "allocatedTo": "تخصیص به",
       "whatIsMonitored": "موارد تحت بررسی",
@@ -830,7 +829,12 @@
     "unspecified": "نامشخص",
     "notAvailable": "موجود نیست",
     "yes": "بلی",
-    "no": "نخیر"
+    "no": "نخیر",
+    "attendanceStatuses": {
+      "present": "حاضر",
+      "absent": "غایب",
+      "offDay": "روز رخصتی"
+    }
   },
   "pages": {
     "whatsapp": {
@@ -1750,7 +1754,12 @@
         "encryption": "رمزگذاری",
         "tlsRecommended": "TLS (پیشنهادشده)",
         "resetPage": "بازنشانی صفحه",
-        "saveChanges": "ذخیره تغییرات"
+        "saveChanges": "ذخیره تغییرات",
+        "offDayAllowanceDaysPerYear": "سهمیه پیش‌فرض روز رخصتی (روز / سال)",
+        "offDayAllowanceDaysPerYearHint": "این مقدار فقط برای پیش‌پر کردن پروفایل کارمند جدید است. سهمیه خود کارمند مبنای تأیید است.",
+        "missingAttendanceStatus": "روزهای بدون ثبت حضور",
+        "missingAttendanceStatusHint": "نحوه ثبت روز کاری گذشته که رکورد حضور ندارد. رخصتی‌های شرکت همیشه اولویت دارد.",
+        "attendanceWeatherWarning": "ثبت خودکار حضور به موقعیت دستگاه وابسته است و در هوای بد ممکن است دقت کمتری داشته باشد. پیش از اجرای معاش، جدول حضور را بررسی کنید."
       },
       "users": {
         "user": "کاربر",
@@ -1833,7 +1842,7 @@
           "commissionBasedHint": "با تکمیل قرارداد، درصدی از هر خدمت قراردادی را کسب می‌کند.",
           "commissionPerService": "نرخ کمیسیون به ازای هر خدمت (٪)",
           "paidLeaveDaysHint": "اختیاری. خالی بگذارید تا اساس دفتر و سپس مقدار پیش‌فرض شرکت اعمال شود.",
-          "paidOffDaysTheYearlyAllowanceHasBeenUsed": "روزهای رخصتی با معاش: سهمیه سالانه استفاده شده است.",
+          "paidOffDaysTheYearlyAllowanceHasBeenUsed": "سهمیه سالانه روزهای رخصتی مصرف شده است.",
           "searchStaff": "جستجوی پرسونل / کارمند",
           "filterByPosition": "فیلتر بر اساس موقف",
           "printStaffRecords": "چاپ رکوردهای پرسونل",
@@ -1843,7 +1852,7 @@
           "salary": "معاش",
           "workedHours": "ساعات کارشده",
           "joinDate": "تاریخ شمولیت",
-          "managePaidOffDays": "مدیریت روزهای رخصتی با معاش",
+          "managePaidOffDays": "مدیریت درخواست‌های روز رخصتی",
           "editStaffRecord": "ویرایش رکورد کارمند",
           "deleteStaffRecord": "حذف رکورد کارمند",
           "activateStaffRecord": "فعال‌سازی کارمند",
@@ -1851,10 +1860,14 @@
           "staffStatusUpdated": "وضعیت کارمند به‌روزرسانی شد.",
           "addNewStaff": "افزودن کارمند جدید",
           "editStaff": "ویرایش کارمند",
-          "paidOffDays": "روزهای رخصتی با معاش",
+          "paidOffDays": "درخواست‌های روز رخصتی",
           "salaryCannotBeNegative": "معاش نمی‌تواند منفی باشد.",
           "service": "خدمت",
-          "statusUpdateFailed": "تغییر وضعیت کارمند ممکن نشد."
+          "statusUpdateFailed": "تغییر وضعیت کارمند ممکن نشد.",
+          "offDayAllowanceDays": "سهمیه روز رخصتی (روز / سال)",
+          "offDayAllowanceDaysHint": "سهمیه قابل محاسبه برای این کارمند. مرخصی بیش از آن غیبت ثبت می‌شود.",
+          "editMyProfile": "ویرایش پروفایل من",
+          "unableToSaveEmployee": "ذخیره پروفایل ناکام ماند."
         }
       },
       "apppricing": {
@@ -2375,7 +2388,20 @@
           "removeFromFollowUp": "حذف از لیست پیگیری",
           "markedForFollowUp": "مراجع به لیست پیگیری منتقل شد.",
           "removedFromFollowUp": "مراجع از لیست پیگیری حذف شد.",
-          "followUpUpdateFailed": "به‌روزرسانی لیست پیگیری ممکن نشد."
+          "followUpUpdateFailed": "به‌روزرسانی لیست پیگیری ممکن نشد.",
+          "age": "سن",
+          "province": "ولایت",
+          "englishLevel": "سطح انگلیسی",
+          "acquisitionRoute": "راه آشنایی",
+          "acquisitionRouteHint": "مراجعه‌کننده چطور با شرکت آشنا شد.",
+          "consultant": "مشاور",
+          "reviewedByConsultant": "بررسی‌شده توسط مشاور",
+          "reviewedByConsultantHint": "این درخواست را برای مشاور تایید می‌کند.",
+          "review": "بررسی مشاور",
+          "reviewed": "بررسی‌شده",
+          "pendingReview": "در انتظار بررسی",
+          "markReviewed": "ثبت بررسی",
+          "markedReviewed": "مراجعه‌کننده به عنوان بررسی‌شده ثبت شد."
         }
       },
       "contractform": {
@@ -2480,10 +2506,10 @@
           "captureOutgoingCashWithItsLiveCurrencyRelationship": "ثبت پول نقد خروجی با رابطه زنده ارزی آن.",
           "saveExpense": "ذخیره مصرف",
           "saveModeDirect": "ثبت مستقیم",
-          "saveModeLoan": "ارسال به قرضه‌ها",
+          "saveModeLoan": "ارسال به درخواست‌های پرداخت",
           "saveModeDirectHint": "مصرف بلافاصله در دفتر کل ثبت می‌شود.",
-          "saveModeLoanHint": "مبلغ به عنوان درخواست قرضه ارسال می‌شود و تنها پس از تأیید در دفتر کل ثبت می‌گردد.",
-          "loanSubmitted": "درخواست مصرف برای تأیید به قرضه‌ها ارسال شد.",
+          "saveModeLoanHint": "مبلغ به عنوان درخواست پرداخت ارسال می‌شود و تنها پس از تأیید در دفتر کل ثبت می‌گردد.",
+          "loanSubmitted": "درخواست مصرف برای تأیید به درخواست‌های پرداخت ارسال شد.",
           "editExpense": "ویرایش مصرف",
           "updateTheRecordedSpendAndItsCurrency": "بروزرسانی مصرف ثبت‌شده و واحد پول آن.",
           "deleteExpense": "حذف مصرف؟",
@@ -2535,10 +2561,10 @@
           "incomeLedger": "دفتر کل درآمد",
           "saveMode": "روش ذخیره",
           "saveModeDirect": "ثبت مستقیم",
-          "saveModeLoan": "ارسال به قرضه‌ها",
+          "saveModeLoan": "ارسال به درخواست‌های پرداخت",
           "saveModeDirectHint": "رسید بلافاصله در دفتر کل درآمد ثبت می‌شود.",
-          "saveModeLoanHint": "مبلغ به عنوان درخواست قرضه ارسال می‌شود و تنها پس از تأیید در دفتر کل ثبت می‌گردد.",
-          "loanSubmitted": "درخواست درآمد برای تأیید به قرضه‌ها ارسال شد.",
+          "saveModeLoanHint": "مبلغ به عنوان درخواست پرداخت ارسال می‌شود و تنها پس از تأیید در دفتر کل ثبت می‌گردد.",
+          "loanSubmitted": "درخواست درآمد برای تأیید به درخواست‌های پرداخت ارسال شد.",
           "liveReceiptActivityAndCurrencyTotalsInOneView": "فعالیت زنده رسیدها و مجموع ارزها در یک نما",
           "printIncomeRecords": "چاپ رکوردهای درآمد",
           "recordIncome": "ثبت درآمد",
@@ -2888,7 +2914,7 @@
         "tasks": "وظایف و تحویل",
         "asset_assets": "موجودی و دارایی‌ها",
         "employee_roster": "فهرست کارمندان",
-        "paid_time_off": "رخصتی با معاش",
+        "leave_requests": "درخواست‌های روز رخصتی",
         "daily_reports": "گزارش‌های روزانه",
         "applicants": "متقاضیان",
         "applicant_contracts": "خدمات قرارداد"
@@ -2973,6 +2999,7 @@
         "companyHeadcount": "تعداد کارمندان شرکت",
         "joinedInPeriod": "استخدام‌شده در دوره",
         "classification": "طبقه‌بندی",
+        "treatment": "نوعیت",
         "requests": "درخواست‌ها",
         "granted": "تأییدشده",
         "pending": "در انتظار",
@@ -3012,42 +3039,6 @@
           "addContent": "افزودن محتوا"
         }
       }
-    },
-    "paidTimeOff": {
-      "title": "روزهای رخصتی با معاش",
-      "myTitle": "روزهای رخصتی با معاش من",
-      "reportTitle": "گزارش روزهای رخصتی با معاش",
-      "calendarYear": "سال تقویمی {year}",
-      "classification": "طبقه‌بندی",
-      "generated": "ایجاد شده در {date}",
-      "grantSelected": "تأیید انتخاب‌شده‌ها ({count})",
-      "requestsGranted": "{count} درخواست تأیید شد.",
-      "allowanceExceeded": "{count} روز از سهمیه با معاش بیشتر بود و به‌عنوان رخصتی بدون معاش ثبت شد.",
-      "unableToLoad": "بارگیری روزهای رخصتی با معاش ممکن نشد.",
-      "unableToGrant": "تأیید درخواست‌های انتخاب‌شده ممکن نشد.",
-      "unableToRequest": "درخواست رخصتی ممکن نشد.",
-      "requestSubmitted": "درخواست رخصتی ثبت شد.",
-      "limit": "سهمیه: {count}",
-      "grantedPaid": "با معاش تأییدشده: {count}",
-      "pending": "در انتظار: {count}",
-      "remaining": "باقی‌مانده: {count}",
-      "from": "از",
-      "to": "تا",
-      "requestDays": "درخواست {count}",
-      "rangeExceeds": "این بازه از {count} روز باقی‌مانده شما بیشتر است.",
-      "balance": "موجودی رخصتی",
-      "allowance": "سهمیه",
-      "paidDaysGranted": "استفاده‌شده",
-      "pendingRequests": "در انتظار",
-      "daysRemaining": "باقیمانده",
-      "requestTimeOff": "درخواست رخصتی",
-      "requestHint": "بازه زمانی را انتخاب کنید و دلیل بنویسید.",
-      "duration": "مدت",
-      "fullDay": "تمام روز",
-      "halfDay": "نیم روز",
-      "historyTitle": "تاریخچه درخواست‌ها",
-      "historySubtitle": "وضعیت درخواست‌های ثبت‌شده خود را پیگیری کنید.",
-      "perEmployeeAllowanceHint": "مقدار رخصتی با معاش بر اساس دفتر هر کارمند است مگر مقدار شخصی تعیین شده باشد."
     },
     "audits": {
       "title": "تفتیش‌ها",
@@ -3213,7 +3204,7 @@
         "educational_bonus_sources": "منابع پاداش",
         "languages": "زبان‌ها",
         "leaves": "رخصتی",
-        "pending_transactions": "درخواست‌های مالی",
+        "pending_transactions": "درخواست‌های پرداخت",
         "salary_payments": "پرداخت معاش",
         "semesters": "سمسترها",
         "attachments": "ضمیمه‌ها",
@@ -3391,7 +3382,6 @@
       }
     },
     "offDays": {
-      "title": "روزهای رخصتی",
       "subtitle": "رخصتی‌های عمومی شرکت را اعلام کنید؛ روزهای تأییدشده در حاضری ثبت و در معاش حاضر شمرده می‌شوند.",
       "add": "اعلام روز رخصتی",
       "edit": "ویرایش روز رخصتی",
@@ -3414,7 +3404,111 @@
       "empty": "برای این دوره روز رخصتی اعلام نشده است.",
       "affectsNote": "روزهای رخصتی تأییدشده در حاضری حاضر ثبت و در فیش معاش جداگانه نمایش داده می‌شوند.",
       "startDateRequired": "تاریخ شروع و ختم را انتخاب کنید.",
-      "endDateAfterStart": "تاریخ ختم باید بعد یا برابر تاریخ شروع باشد."
+      "endDateAfterStart": "تاریخ ختم باید بعد یا برابر تاریخ شروع باشد.",
+      "companyTitle": "رخصتی‌های شرکت"
+    },
+    "leaveRequests": {
+      "title": "درخواست‌های روز رخصتی",
+      "myTitle": "روزهای رخصتی من",
+      "reportTitle": "گزارش درخواست‌های روز رخصتی",
+      "calendarYear": "سال {year}",
+      "classification": "دسته‌بندی",
+      "generated": "ایجادشده {date}",
+      "grantSelected": "تأیید انتخاب‌شده‌ها ({count})",
+      "requestsGranted": "{count} درخواست تأیید شد.",
+      "allowanceExceeded": "{count} روز از سهمیه فراتر رفت و به‌عنوان غیبت ثبت شد.",
+      "unableToLoad": "بارگیری درخواست‌ها ناکام ماند.",
+      "unableToGrant": "تأیید درخواست‌های انتخاب‌شده ناکام ماند.",
+      "unableToRequest": "ثبت درخواست ناکام ماند.",
+      "requestSubmitted": "درخواست ثبت شد.",
+      "limit": "سهمیه: {count}",
+      "grantedPaid": "با معاش تأییدشده: {count}",
+      "pending": "در انتظار: {count}",
+      "remaining": "باقی‌مانده: {count}",
+      "from": "از",
+      "to": "تا",
+      "requestDays": "درخواست {count} روز",
+      "rangeExceeds": "بازه انتخاب‌شده {count} روز از سهمیه باقی‌مانده فراتر است.",
+      "balance": "موجودی رخصتی",
+      "allowance": "سهمیه",
+      "paidDaysGranted": "استفاده‌شده",
+      "pendingRequests": "در انتظار",
+      "daysRemaining": "باقیمانده",
+      "requestTimeOff": "درخواست رخصتی",
+      "requestHint": "بازه زمانی را انتخاب کنید و دلیل بنویسید.",
+      "duration": "مدت",
+      "fullDay": "تمام روز",
+      "halfDay": "نیم روز",
+      "historyTitle": "درخواست‌های من",
+      "historySubtitle": "روزهای تأییدشده در حد سهمیه رخصتی و مابقی غیبت ثبت می‌شود.",
+      "perEmployeeAllowanceHint": "مقدار رخصتی با معاش بر اساس دفتر هر کارمند است مگر مقدار شخصی تعیین شده باشد.",
+      "description": "درخواست‌های کارمندان برای مرخصی. روزهای تأییدشده در حد سهمیه، روز رخصتی و مابقی غیبت محسوب می‌شود.",
+      "treatment": "نوع محاسبه",
+      "partial": "بخشی پوشش‌شده",
+      "partialWithAbsence": "{off} روز رخصتی · {absent} غیبت",
+      "subtitle": "روزهای رخصتی را از قبل درخواست کنید و سهمیه را پیگیری نمایید."
+    },
+    "payrolls": {
+      "title": "معاش‌ها",
+      "description": "توضیحات",
+      "unableToLoad": "بارگیری معلومات معاش ناکام ماند.",
+      "unableToGenerate": "ایجاد فیش‌های معاش ناکام ماند.",
+      "generate": "ایجاد فیش‌های معاش",
+      "generateTitle": "ایجاد فیش‌های باقی‌مانده",
+      "generateHint": "برای {count} کارمند که در {month} فیش معاش ندارند فیش ایجاد شود. فیش‌های موجود تغییری نمی‌کنند.",
+      "generatedCount": "{created} فیش ایجاد شد؛ {skipped} نادیده گرفته شد.",
+      "saved": "معاش ذخیره شد.",
+      "unableToSave": "ذخیره تغییر معاش ناکام ماند.",
+      "deductionSaved": "کسر ذخیره شد.",
+      "deductionDeleted": "کسر حذف شد.",
+      "paymentSaved": "پرداخت ثبت شد.",
+      "deleted": "فیش معاش حذف شد.",
+      "unableToDelete": "حذف رکورد ناکام ماند.",
+      "baseSalary": "معاش اساسی",
+      "bonus": "بونس",
+      "payPeriodLabel": "دوره معاش: {month}",
+      "automaticDeduction": "کسر حضور",
+      "noPosition": "وظیفه تعیین نشده",
+      "advanceSaved": "پیش‌پرداخت ثبت شد.",
+      "advanceDeleted": "پیش‌پرداخت حذف شد.",
+      "notGenerated": "ایجاد نشده",
+      "open": "باز",
+      "partiallyPaid": "بخشی پرداخت‌شده",
+      "netPayroll": "معاش خالص",
+      "paid": "پرداخت‌شده",
+      "outstanding": "باقی‌مانده",
+      "progress": "ایجادشده",
+      "missing": "باقی‌مانده",
+      "payslipsTab": "فیش‌های معاش",
+      "advancesTab": "پیش‌پرداخت‌ها",
+      "worked": "کارکرده / مجموع",
+      "offDays": "روزهای رخصتی",
+      "absent": "غیبت",
+      "net": "قابل پرداخت",
+      "createPayslip": "ایجاد فیش معاش",
+      "printPayslip": "پیش‌نمایش و چاپ فیش معاش",
+      "addDeduction": "افزودن کسر",
+      "addPayment": "ثبت پرداخت",
+      "deletePayslip": "حذف فیش معاش",
+      "addAdvance": "افزودن پیش‌پرداخت",
+      "advanceNumber": "شماره پیش‌پرداخت",
+      "date": "تاریخ",
+      "amount": "مبلغ",
+      "recovered": "بازیافت‌شده",
+      "outstandingAdvance": "باقی‌مانده",
+      "printReceipt": "چاپ رسید پیش‌پرداخت",
+      "registerTitle": "دفتر معاش ماهانه",
+      "deductionsTitle": "کسرها",
+      "noDeductions": "هنوز کسری برای این فیش ثبت نشده.",
+      "paymentDate": "تاریخ پرداخت",
+      "remarks": "ملاحظات",
+      "confirmDelete": "فیش معاش {employee} حذف شود؟ پرداخت‌ها و مصارف آن نیز حذف می‌شود.",
+      "confirmDeleteAdvance": "پیش‌پرداخت {employee} حذف شود؟ مصرف معاش آن نیز حذف می‌شود.",
+      "deleteAdvance": "حذف پیش‌پرداخت",
+      "totalWorkingDays": "مجموع روزهای کاری",
+      "workedDays": "روزهای کارکرده",
+      "absentDays": "روزهای غیبت",
+      "baseCurrencyMissing": "ارز اساسی تعیین نشده است."
     }
   },
   "components": {
@@ -4131,12 +4225,12 @@
       "approvedBySignature": "تصویب‌کننده"
     },
     "loan": {
-      "title": "درخواست قرضه",
+      "title": "درخواست پرداخت",
       "requestedBy": "درخواست کننده",
       "requestSummary": "خلاصه درخواست",
       "reason": "دلیل",
-      "reference": "شناسه قرضه",
-      "details": "جزئیات قرضه",
+      "reference": "شناسه درخواست پرداخت",
+      "details": "جزئیات درخواست پرداخت",
       "item": "مورد",
       "amount": "مبلغ",
       "requestedAmount": "مبلغ درخواست‌شده",
@@ -4144,8 +4238,8 @@
       "remaining": "تاییدنشده",
       "status": "وضعیت",
       "requestedAt": "تاریخ درخواست",
-      "footerNote": "این سند درخواست قرضه به‌صورت سیستمی تولید شده است.",
-      "print": "چاپ قرضه"
+      "footerNote": "این سند درخواست پرداخت به‌صورت سیستمی تولید شده است.",
+      "print": "چاپ درخواست پرداخت"
     },
     "academySlip": {
       "title": "برگه ثبت نام آکادمی",
@@ -4200,8 +4294,7 @@
       "statuses": {
         "present": "حاضر",
         "absent": "غایب",
-        "paid-leave": "رخصتی با معاش",
-        "unpaid-leave": "رخصتی بدون معاش"
+        "off_day": "روز رخصتی"
       }
     },
     "contract_cover_template": {
@@ -4564,11 +4657,11 @@
     },
     "finance": {
       "pendingSubmitted": {
-        "title": "درخواست مالی منتظر بررسی است",
+        "title": "درخواست پرداخت منتظر بررسی است",
         "message": "درخواست {type} به مبلغ {amount} آماده بررسی است."
       },
       "pendingStatus": {
-        "title": "درخواست مالی به‌روز شد",
+        "title": "درخواست پرداخت به‌روز شد",
         "message": "درخواست {type} شما اکنون {status} است. {reason}"
       }
     },
@@ -5012,7 +5105,7 @@
       "primary": "اصلی",
       "noApplications": "هنوز درخواستی ثبت نشده است. هر دانشگاهی را که دانشجو درخواست می‌دهد جداگانه اضافه کنید.",
       "finance": "مالی",
-      "pendingWorkspace": "فضای درخواست‌های معلق",
+      "pendingWorkspace": "درخواست‌های پرداخت",
       "financeSummary": "عاید ثبت‌شده {income} · مصارف ثبت‌شده {expenses}.",
       "transactionTitle": "{type} — {reason}",
       "transactionSummary": "{amount} · {status} · {rejection}",
@@ -5241,9 +5334,9 @@
     "reason": "دلیل",
     "amount": "مبلغ",
     "requested": "درخواست‌شده",
-    "noTransactions": "هیچ معاملهٔ در انتظاری نیست.",
-    "newPending": "معاملهٔ در انتظار جدید",
-    "editPending": "ویرایش معاملهٔ در انتظار",
+    "noTransactions": "هیچ درخواست پرداختی نیست.",
+    "newPending": "درخواست پرداخت جدید",
+    "editPending": "ویرایش درخواست پرداخت",
     "applicantOptional": "متقاضی / پرونده (اختیاری)",
     "employeeOptional": "کارمند (اختیاری)",
     "rejectTransaction": "رد معامله",
@@ -5334,7 +5427,10 @@
       "saved": "ذخیره شد.",
       "saveFailed": "این مورد ذخیره نشد.",
       "removeConfirm": "{name} حذف شود؟",
-      "inUse": "این مورد در استفاده است و حذف نمی‌شود."
+      "inUse": "این مورد در استفاده است و حذف نمی‌شود.",
+      "provinces": "ولایات",
+      "englishLevels": "سطح‌های انگلیسی",
+      "acquisitionRoutes": "راه‌های آشنایی"
     },
     "pendingUi": {
       "customerEmployee": "مشتری / کارمند",
@@ -5343,7 +5439,7 @@
       "rejected": "معامله رد شد.",
       "rejectFailed": "معامله رد نشد.",
       "actions": {
-        "edit": "ویرایش این درخواست وام",
+        "edit": "ویرایش این درخواست پرداخت",
         "review": "ارسال برای بررسی",
         "approve": "تأیید این درخواست",
         "reject": "رد با ذکر دلیل",
@@ -5388,7 +5484,8 @@
       "cancelled": "لغو شده",
       "rejected": "رد شده",
       "withdrawn": "انصراف داده"
-    }
+    },
+    "contractType": "نوع قرارداد"
   },
   "finance": {
     "servicePayments": {
@@ -5458,7 +5555,7 @@
   },
   "agencyStaff": {
     "counselor": "مشاور",
-    "optionalCounselor": "اختیاری. یک مشاور فعال را برای این مراجعه‌کننده انتخاب کنید.",
+    "optionalCounselor": "اختیاری. یک مشاور را برای این مراجعه‌کننده انتخاب کنید.",
     "counselorLockedToYou": "شما به عنوان مشاور، مشاور این مراجعه‌کننده ثبت می‌شوید.",
     "admission": "کارمند پذیرش (اختیاری)",
     "contractVersion": "نسخه قرارداد",

@@ -12,7 +12,7 @@ use App\Models\ContractType;
 use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Income;
-use App\Models\PaidTimeOff;
+use App\Models\LeaveRequest;
 use App\Models\RecurringEvent;
 use App\Models\Role;
 use App\Models\Salary;
@@ -27,16 +27,16 @@ class BusinessLogicConsistencyTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_unpaid_leave_is_a_persistable_attendance_status(): void
+    public function test_absent_is_a_persistable_attendance_status(): void
     {
         $attendance = Attendance::create([
             'employee_id' => Employee::factory()->create()->id,
             'date' => '2026-08-31',
-            'status' => 'unpaid-leave',
+            'status' => 'absent',
             'logged_at' => '00:00:00',
         ]);
 
-        $this->assertSame('unpaid-leave', $attendance->fresh()->status);
+        $this->assertSame('absent', $attendance->fresh()->status);
     }
 
     public function test_inactivating_a_user_revokes_existing_tokens(): void
@@ -173,7 +173,7 @@ class BusinessLogicConsistencyTest extends TestCase
         Sanctum::actingAs($this->superAdmin(), ['access']);
         $employee = Employee::factory()->create(['join_date' => '2026-09-01']);
 
-        $this->postJson("/api/employees/{$employee->id}/leaves", [
+        $this->postJson("/api/employees/{$employee->id}/leave-requests", [
             'date' => '2026-09-11',
             'duration_days' => 1,
             'reason' => 'Invalid Friday leave',
@@ -196,7 +196,7 @@ class BusinessLogicConsistencyTest extends TestCase
             'check_in_time' => '08:00:00',
             'checked_in_at' => '2026-08-31 08:00:00',
         ]);
-        $leave = PaidTimeOff::create([
+        $leave = LeaveRequest::create([
             'employee_id' => $employee->id,
             'date' => '2026-08-31',
             'year' => 2026,
@@ -205,9 +205,9 @@ class BusinessLogicConsistencyTest extends TestCase
             'is_granted' => false,
         ]);
 
-        $this->patchJson('/api/paid-time-offs/grant', ['ids' => [$leave->id]])
+        $this->patchJson('/api/leave-requests/grant', ['ids' => [$leave->id]])
             ->assertUnprocessable()
-            ->assertJsonPath('errors.date.0', 'business.paid_time_off_conflicts_with_attendance');
+            ->assertJsonPath('errors.date.0', 'business.leave_request_conflicts_with_attendance');
 
         $this->assertFalse($leave->fresh()->is_granted);
         $this->assertSame('present', $attendance->fresh()->status);

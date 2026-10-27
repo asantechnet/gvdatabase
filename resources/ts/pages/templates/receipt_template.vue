@@ -30,8 +30,9 @@ const copies = computed(() => receiptCopies(props.copies))
 const letterhead = computed(() => props.receipt.letterhead)
 const hasLetterhead = computed(() => Boolean(letterhead.value?.url))
 
-// Incomes and loans share this template; only the section labels and the extra
-// loan rows differ so both documents keep one layout and one print pipeline.
+// Income receipts and payment request documents share this template; only the
+// section labels and the extra request rows differ so both documents keep one
+// layout and one print pipeline.
 const isLoan = computed(() => props.receipt.document === 'loan')
 // A payment request prints one of two layouts: money coming in keeps the income
 // receipt, while an expense or salary prints as a payment voucher.

@@ -19,7 +19,7 @@ class SettingResource extends JsonResource
             ...collect(ThemePalette::fields())
                 ->mapWithKeys(fn (string $field) => [$field => ThemePalette::value($field, $this->{$field})])
                 ->all(),
-            'paid_leave_days_per_year' => (float) $this->paid_leave_days_per_year,
+            'off_day_allowance_days_per_year' => (float) $this->off_day_allowance_days_per_year,
             'website_title' => $this->website_title,
             'website_logo' => $this->website_logo,
             'website_logo_url' => $this->website_logo ? Storage::url($this->website_logo) : null,
@@ -73,6 +73,9 @@ class SettingResource extends JsonResource
             'office_close_time' => $this->office_close_time ? substr($this->office_close_time, 0, 5) : null,
             'default_break_minutes' => (int) $this->default_break_minutes,
             'automatic_attendance_enabled' => (bool) $this->automatic_attendance_enabled,
+            'missing_attendance_status' => in_array($this->missing_attendance_status, ['present', 'absent', 'off_day'], true)
+                ? $this->missing_attendance_status
+                : 'absent',
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

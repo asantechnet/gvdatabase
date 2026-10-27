@@ -13,7 +13,7 @@ use App\Models\DailyAnalytics;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
-use App\Models\PaidTimeOff;
+use App\Models\LeaveRequest;
 use App\Models\Salary;
 use App\Models\Task;
 use App\Models\User;
@@ -492,7 +492,7 @@ class DashboardController extends Controller
             'overtime_minutes_this_month' => $canViewAttendance ? (int) Attendance::query()
                 ->whereBetween('date', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
                 ->sum('overtime_minutes') : null,
-            'pending_leave_requests' => $canViewEmployees ? PaidTimeOff::query()->where('is_granted', false)->whereDate('date', '>=', $now->toDateString())->count() : null,
+            'pending_leave_requests' => $canViewEmployees ? LeaveRequest::query()->where('is_granted', false)->whereDate('date', '>=', $now->toDateString())->count() : null,
             'latest_payroll_period' => $latestPayrollPeriod,
             'latest_payroll_total' => $latestPayrollPeriod ? round($latestPayrollTotal, 2) : null,
         ];

@@ -5,21 +5,28 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class PaidTimeOffResource extends JsonResource
+class LeaveRequestResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $duration = (float) $this->duration_days;
+        $offDays = (float) ($this->off_day_days ?? 0);
+
         return [
             'id' => $this->id,
             'employee_id' => $this->employee_id,
             'date' => $this->date->format('Y-m-d'),
             'year' => $this->year,
-            'duration_days' => (float) $this->duration_days,
+            'duration_days' => $duration,
             'reason' => $this->reason,
             'is_granted' => $this->is_granted,
-            'is_paid' => $this->is_paid,
-            'paid_days' => $this->paid_days === null ? null : (float) $this->paid_days,
-            'paid_override' => (bool) $this->paid_override,
+            'off_day_days' => $offDays,
+            'absent_days' => $this->is_granted ? max(0, $duration - $offDays) : 0,
+            'off_day_override' => (bool) $this->off_day_override,
+            // What the request means for pay once it is approved.
+            'treatment' => ! $this->is_granted
+                ? 'pending'
+                : ($offDays >= $duration ? 'off_day' : ($offDays > 0 ? 'partial' : 'absent')),
             'approval_note' => $this->approval_note,
             'granted_at' => $this->granted_at?->toISOString(),
             'approved_by' => $this->granted_by,

@@ -267,8 +267,8 @@ const timeColors: Record<NonNullable<Attendance['check_in_state'] | Attendance['
 
 const timeColor = (state: Attendance['check_in_state'] | Attendance['check_out_state']) => state ? timeColors[state] : 'secondary'
 
-const statusColor = (status: Attendance['status']) => ({ 'present': 'success', 'absent': 'error', 'paid-leave': 'info', 'unpaid-leave': 'warning' }[status])
-const statusIcon = (status: Attendance['status']) => ({ 'present': 'tabler-circle-check', 'absent': 'tabler-circle-x', 'paid-leave': 'tabler-beach', 'unpaid-leave': 'tabler-calendar-dollar' }[status])
+const statusColor = (status: Attendance['status']) => ({ 'present': 'success', 'absent': 'error', 'off_day': 'info' }[status])
+const statusIcon = (status: Attendance['status']) => ({ 'present': 'tabler-circle-check', 'absent': 'tabler-circle-x', 'off_day': 'tabler-beach' }[status])
 
 const timeHints: Record<NonNullable<Attendance['check_in_state'] | Attendance['check_out_state']>, string> = {
   early: 'Early arrival',
@@ -714,7 +714,7 @@ watch(logDate, async () => {
             />
             <VSelect
               v-model="statusFilter"
-              :items="[{ title: translate('common.statuses.present'), value: 'present' }, { title: translate('pages.attendance.timesheet.timesheet.absent'), value: 'absent' }, { title: translate('pages.attendance.timesheet.timesheet.paidLeave'), value: 'paid-leave' }, { title: $t('documents.timesheet.statuses.unpaid-leave'), value: 'unpaid-leave' }, { title: translate('pages.attendance.timesheet.timesheet.incomplete'), value: 'incomplete' }]"
+              :items="[{ title: translate('common.statuses.present'), value: 'present' }, { title: translate('pages.attendance.timesheet.timesheet.absent'), value: 'absent' }, { title: translate('common.attendanceStatuses.offDay'), value: 'off_day' }, { title: translate('pages.attendance.timesheet.timesheet.incomplete'), value: 'incomplete' }]"
               :label="$t('common.fields.status')"
               clearable
               class="mb-2"
@@ -882,24 +882,24 @@ watch(logDate, async () => {
                         {{ record.off_day_reason }}
                       </div>
                       <div
-                        v-if="record.leave_duration_days"
+                        v-if="record.leave_days"
                         class="d-flex justify-center ga-1 mt-1"
                       >
                         <VChip
-                          v-if="record.paid_leave_days"
+                          v-if="record.off_day_days"
                           size="x-small"
                           color="success"
                           variant="tonal"
                         >
-                          {{ record.paid_leave_days }} {{ translateBackendValue('paid-leave') }}
+                          {{ record.off_day_days }} {{ $t('common.attendanceStatuses.offDay') }}
                         </VChip>
                         <VChip
-                          v-if="record.unpaid_leave_days"
+                          v-if="record.leave_days - record.off_day_days > 0"
                           size="x-small"
                           color="warning"
                           variant="tonal"
                         >
-                          {{ record.unpaid_leave_days }} {{ translateBackendValue('unpaid-leave') }}
+                          {{ record.leave_days - record.off_day_days }} {{ $t('common.attendanceStatuses.absent') }}
                         </VChip>
                       </div>
                     </td>

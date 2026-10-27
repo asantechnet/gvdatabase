@@ -29,7 +29,7 @@ class AttendanceController extends Controller
             'end_date' => 'sometimes|date|after_or_equal:start_date',
             'employee_id' => 'sometimes|integer|exists:employees,id',
             'office_id' => 'sometimes|integer|exists:offices,id',
-            'status' => ['sometimes', Rule::in(['present', 'absent', 'paid-leave', 'unpaid-leave', 'incomplete'])],
+            'status' => ['sometimes', Rule::in(['present', 'absent', 'off_day', 'incomplete'])],
         ]);
 
         $startDate = $request->input('start_date', now(app(CompanyProfile::class)->timezone())->format('Y-m-d'));
@@ -37,7 +37,7 @@ class AttendanceController extends Controller
 
         // Daily-report contents deliberately stay out of this list query. The
         // timesheet fetches an individual report only when it is opened.
-        $records = Attendance::with(['staff.position', 'office', 'offDay'])
+        $records = Attendance::with(['staff.position', 'office', 'offDay', 'leaveRequest'])
             ->withExists('dailyReport')
             ->betweenDates($startDate, $endDate)
             ->when($request->filled('employee_id'), fn ($query) => $query->where('employee_id', $request->integer('employee_id')))
@@ -45,12 +45,6 @@ class AttendanceController extends Controller
             ->when($request->filled('status'), function ($query) use ($request) {
                 if ($request->input('status') === 'incomplete') {
                     return $query->where('status', 'present')->where('missing_punch_state', '!=', 'none');
-                }
-                if ($request->input('status') === 'paid-leave') {
-                    return $query->where('paid_leave_days', '>', 0);
-                }
-                if ($request->input('status') === 'unpaid-leave') {
-                    return $query->where('unpaid_leave_days', '>', 0);
                 }
 
                 return $query->where('status', $request->input('status'));
@@ -81,7 +75,7 @@ class AttendanceController extends Controller
         $request->validate(['start_date' => ['sometimes', 'date'], 'end_date' => ['sometimes', 'date', 'after_or_equal:start_date']]);
         $employeeId = $request->user()->employee?->id;
         abort_unless($employeeId, 404, 'Employee profile not found.');
-        $records = Attendance::with(['staff.position', 'office', 'offDay'])->withExists('dailyReport')
+        $records = Attendance::with(['staff.position', 'office', 'offDay', 'leaveRequest'])->withExists('dailyReport')
             ->betweenDates($request->input('start_date', now(app(CompanyProfile::class)->timezone())->startOfMonth()->toDateString()), $request->input('end_date', now(app(CompanyProfile::class)->timezone())->toDateString()))
             ->where('employee_id', $employeeId)->latest('date')->get();
         $records->each(fn (Attendance $attendance) => $calculator->calculate($attendance));
@@ -144,9 +138,9 @@ class AttendanceController extends Controller
                 ->first();
 
             $isOpenHalfLeave = $attendance && ! $attendance->trashed()
-                && (float) $attendance->leave_duration_days > 0
-                && (float) $attendance->leave_duration_days < 1
-                && in_array($attendance->status, ['paid-leave', 'unpaid-leave'], true);
+                && (float) $attendance->leave_days > 0
+                && (float) $attendance->leave_days < 1
+                && in_array($attendance->status, ['off_day', 'absent'], true);
             if ($attendance && ! $attendance->trashed() && ! $isOpenHalfLeave) {
                 throw ValidationException::withMessages([
                     'staff_id' => ['business.attendance_already_recorded'],
@@ -154,8 +148,21 @@ class AttendanceController extends Controller
             }
 
             if ($attendance) {
+                // Recording the worked part of an approved half-day request
+                // must not discard the leave metadata payroll still needs.
+                $leave = $isOpenHalfLeave ? [
+                    'leave_days' => $attendance->leave_days,
+                    'off_day_days' => $attendance->off_day_days,
+                    'leave_request_id' => $attendance->leave_request_id,
+                ] : [
+                    'leave_days' => 0,
+                    'off_day_days' => 0,
+                    'leave_request_id' => null,
+                ];
                 $attendance->fill([
                     'status' => $validated['status'],
+                    'source' => 'manual',
+                    ...$leave,
                     'logged_at' => now(app(CompanyProfile::class)->timezone())->format('H:i:s'),
                     'check_in_time' => $validated['check_in_time'] ?? null,
                     'check_out_time' => $validated['check_out_time'] ?? null,
@@ -179,6 +186,7 @@ class AttendanceController extends Controller
                 'employee_id' => $validated['staff_id'],
                 'date' => $validated['date'],
                 'status' => $validated['status'],
+                'source' => 'manual',
                 'logged_at' => now(app(CompanyProfile::class)->timezone())->format('H:i:s'),
                 'check_in_time' => $validated['check_in_time'] ?? null,
                 'check_out_time' => $validated['check_out_time'] ?? null,
@@ -212,12 +220,10 @@ class AttendanceController extends Controller
             return EmployeeResource::collection(collect());
         }
 
-        $unmarkedStaff = Employee::selectable()->active()->excludePrimaryRecord()->whereDate('join_date', '<=', $date)->whereDoesntHave('attendances', function ($query) use ($date) {
-            $query->where('date', $date)->where(function ($marked) {
-                $marked->whereIn('status', ['present', 'absent'])
-                    ->orWhere('leave_duration_days', '>=', 1);
-            });
-        })->get();
+        $unmarkedStaff = Employee::selectable()->active()->excludePrimaryRecord()
+            ->whereDate('join_date', '<=', $date)
+            ->whereDoesntHave('attendances', fn ($query) => $query->where('date', $date))
+            ->get();
 
         return EmployeeResource::collection($unmarkedStaff);
     }
@@ -259,10 +265,13 @@ class AttendanceController extends Controller
      */
     public function destroy(Attendance $attendance): JsonResponse
     {
-        if ((float) $attendance->leave_duration_days > 0) {
+        if ((float) $attendance->leave_days > 0) {
+            // Removing the work entry keeps the approved off-day request (or
+            // the over-allowance absence) intact for payroll.
             $attendance->update([
-                'status' => (float) $attendance->paid_leave_days >= (float) $attendance->leave_duration_days
-                    ? 'paid-leave' : 'unpaid-leave',
+                'status' => (float) $attendance->off_day_days >= (float) $attendance->leave_days
+                    ? 'off_day' : 'absent',
+                'source' => 'leave',
                 'check_in_time' => null, 'check_out_time' => null,
                 'checked_in_at' => null, 'checked_out_at' => null,
                 'break_minutes' => 0, 'gross_minutes' => null, 'net_worked_minutes' => null,

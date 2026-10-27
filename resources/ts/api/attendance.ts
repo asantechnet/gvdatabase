@@ -1,5 +1,7 @@
 import api from './axios'
 
+export type AttendanceStatus = 'present' | 'absent' | 'off_day'
+
 export interface Attendance {
   id: number
   staff_id: number
@@ -8,13 +10,14 @@ export interface Attendance {
   office_id: number | null
   office: string | null
   date: string
-  status: 'present' | 'absent' | 'paid-leave' | 'unpaid-leave'
+  status: AttendanceStatus
   off_day_id: number | null
+  leave_request_id: number | null
+  source: 'manual' | 'self_service' | 'holiday' | 'leave' | 'missing_policy' | null
   is_off_day: boolean
   off_day_reason: string | null
-  leave_duration_days: number
-  paid_leave_days: number
-  unpaid_leave_days: number
+  leave_days: number
+  off_day_days: number
   timestamp: string
   check_in_time: string | null
   check_out_time: string | null
@@ -48,7 +51,7 @@ export interface DailyReport {
 }
 
 export interface UnmarkedStaff { id: number; name: string; position: string; role?: string }
-export interface AttendanceParams { start_date?: string; end_date?: string; employee_id?: number; office_id?: number; status?: Attendance['status'] | 'incomplete' }
+export interface AttendanceParams { start_date?: string; end_date?: string; employee_id?: number; office_id?: number; status?: AttendanceStatus | 'incomplete' }
 export interface CreateAttendanceData {
   staff_id: number
   date: string

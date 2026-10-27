@@ -191,7 +191,7 @@ class CompanySettingsTest extends TestCase
             'navigation_clr' => '#ffffff',
             'cards_clr' => '#ffffff',
             'footer_clr' => '#ffffff',
-            'paid_leave_days_per_year' => 20,
+            'off_day_allowance_days_per_year' => 20,
             'website_title' => 'Asantech',
             'website_address' => 'https://example.com',
             'company_email' => 'people@example.com',

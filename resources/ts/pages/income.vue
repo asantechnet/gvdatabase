@@ -292,8 +292,8 @@ const addIncome = async () => {
   try {
     formError.value = ''
 
-    // Loans route the receipt through the approval workflow (pending
-    // transactions) instead of writing the ledger row immediately.
+    // Payment requests route the receipt through the approval workflow instead
+    // of writing the ledger row immediately.
     if (saveMode.value === 'loan') {
       await PendingTransactionApi.create({
         transaction_type: 'income',

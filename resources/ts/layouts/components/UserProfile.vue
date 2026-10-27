@@ -150,7 +150,7 @@ onMounted(() => {
               prepend-icon="tabler-beach"
               @click="paidTimeOffDialog = true"
             >
-              <VListItemTitle>{{ $t('pages.paidTimeOff.myTitle') }}</VListItemTitle>
+              <VListItemTitle>{{ $t('pages.leaveRequests.myTitle') }}</VListItemTitle>
             </VListItem>
             <WorkdayControl
               :key="userData?.id"

@@ -2,30 +2,30 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
-import PaidTimeOffApi, { type PaidTimeOff } from '@/api/paidTimeOff'
+import LeaveRequestApi, { type LeaveRequest } from '@/api/leaveRequests'
 import { apiErrorMessage } from '@/utils/apiErrors'
-import { formatLocalizedDate } from '@/utils/localization'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import { printDocument } from '@/utils/printDocument'
 
 const toast = useToast()
 const { t: $t } = useI18n()
 const year = ref(new Date().getFullYear())
-const rows = ref<PaidTimeOff[]>([])
+const rows = ref<LeaveRequest[]>([])
 const selected = ref<number[]>([])
-const statusFilter = ref<'pending' | 'paid' | 'unpaid' | null>(null)
+const statusFilter = ref<'pending' | 'off_day' | 'partial' | 'absent' | null>(null)
 const loading = ref(false)
 const overrideDialog = ref(false)
 const approvalNote = ref('')
 const allowance = ref(0)
-// Paid leave is an employee entitlement: the office base (or the employee's own
-// override) is resolved per row, not once for the whole ledger.
+// The allowance is resolved per employee by the API; the company default is
+// only a fallback for a row whose employee has no personal value.
 const allowances = ref<Record<number, number>>({})
 
 const statusOptions = computed(() => [
   { title: $t('common.statuses.pending'), value: 'pending' },
-  { title: $t('common.statuses.paid'), value: 'paid' },
-  { title: $t('common.statuses.unpaid'), value: 'unpaid' },
+  { title: $t('common.attendanceStatuses.offDay'), value: 'off_day' },
+  { title: $t('pages.leaveRequests.partial'), value: 'partial' },
+  { title: $t('common.attendanceStatuses.absent'), value: 'absent' },
 ])
 
 const filteredRows = computed(() => rows.value.filter(row => {
@@ -34,10 +34,10 @@ const filteredRows = computed(() => rows.value.filter(row => {
   if (statusFilter.value === 'pending')
     return !row.is_granted
 
-  return row.is_granted && row.is_paid === (statusFilter.value === 'paid')
+  return row.is_granted && row.treatment === statusFilter.value
 }))
 
-const isSelectable = (row: PaidTimeOff) => !row.is_granted
+const isSelectable = (row: LeaveRequest) => !row.is_granted
 
 const selectedRows = computed(() => {
   const ids = new Set(selected.value)
@@ -46,12 +46,12 @@ const selectedRows = computed(() => {
 })
 
 const allowanceRisks = computed(() => {
-  const paidByEmployee = new Map<number, number>()
+  const usedByEmployee = new Map<number, number>()
   const selectedByEmployee = new Map<number, { name: string; requested: number }>()
 
   rows.value.forEach(row => {
     if (row.is_granted)
-      paidByEmployee.set(row.employee_id, (paidByEmployee.get(row.employee_id) ?? 0) + Number(row.paid_days ?? 0))
+      usedByEmployee.set(row.employee_id, (usedByEmployee.get(row.employee_id) ?? 0) + Number(row.off_day_days ?? 0))
   })
   selectedRows.value.forEach(row => {
     const current = selectedByEmployee.get(row.employee_id) ?? { name: row.employee?.name ?? $t('common.leaveApproval.employeeFallback'), requested: 0 }
@@ -61,8 +61,7 @@ const allowanceRisks = computed(() => {
   })
 
   return [...selectedByEmployee.entries()].map(([employeeId, selection]) => {
-    const used = paidByEmployee.get(employeeId) ?? 0
-
+    const used = usedByEmployee.get(employeeId) ?? 0
     const employeeAllowance = allowances.value[employeeId] ?? allowance.value
 
     return { employeeId, ...selection, used, remaining: Math.max(0, employeeAllowance - used), excess: Math.max(0, used + selection.requested - employeeAllowance) }
@@ -74,36 +73,45 @@ const selectionExceedsAllowance = computed(() => allowanceRisks.value.length > 0
 async function load() {
   loading.value = true
   try {
-    const result = await PaidTimeOffApi.getAllRequests(year.value)
+    const result = await LeaveRequestApi.getAllRequests(year.value)
 
     rows.value = result.data
     allowance.value = result.allowance
     allowances.value = result.allowances ?? {}
   }
-  catch (error) { toast.error(apiErrorMessage(error, $t('pages.paidTimeOff.unableToLoad'))) }
+  catch (error) { toast.error(apiErrorMessage(error, $t('pages.leaveRequests.unableToLoad'))) }
   finally { loading.value = false }
 }
 
-async function grantSelected(forcePaid = false) {
+async function grantSelected(forceOffDay = false) {
   if (!selected.value.length)
     return
   loading.value = true
   try {
-    const result = await PaidTimeOffApi.grant(selected.value, forcePaid, approvalNote.value || undefined)
+    const result = await LeaveRequestApi.grant(selected.value, forceOffDay, approvalNote.value || undefined)
 
-    toast.success($t('pages.paidTimeOff.requestsGranted', { count: selected.value.length }))
+    toast.success($t('pages.leaveRequests.requestsGranted', { count: selected.value.length }))
     if (result.exceeded)
-      toast.warning($t('pages.paidTimeOff.allowanceExceeded', { count: result.exceeded }))
+      toast.warning($t('pages.leaveRequests.allowanceExceeded', { count: result.exceeded }))
     selected.value = []
     overrideDialog.value = false
     approvalNote.value = ''
     await load()
   }
-  catch (error) { toast.error(apiErrorMessage(error, $t('pages.paidTimeOff.unableToGrant'))) }
+  catch (error) { toast.error(apiErrorMessage(error, $t('pages.leaveRequests.unableToGrant'))) }
   finally { loading.value = false }
 }
 
-function printReport() { void printDocument({ bodyClass: 'printing-table-paid-time-off', pageStyle: 'size: A4 landscape; margin: 12mm;' }) }
+function treatmentLabel(row: LeaveRequest) {
+  if (!row.is_granted)
+    return $t('common.statuses.pending')
+  if (row.treatment === 'partial')
+    return $t('pages.leaveRequests.partialWithAbsence', { off: row.off_day_days, absent: row.absent_days })
+
+  return row.treatment === 'off_day' ? $t('common.attendanceStatuses.offDay') : $t('common.attendanceStatuses.absent')
+}
+
+function printReport() { void printDocument({ bodyClass: 'printing-table-leave-requests', pageStyle: 'size: A4 landscape; margin: 12mm;' }) }
 watch(year, load)
 watch(rows, currentRows => {
   const pendingIds = new Set(currentRows.filter(isSelectable).map(row => row.id))
@@ -114,16 +122,16 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="pto-page pa-4">
+  <div class="leave-requests-page pa-4">
     <DataTablePageKpis
       :items="filteredRows"
-      :title="$t('pages.settings.staffList.staffList.paidOffDays')"
-      description="Review full and half-day requests, allowance usage, and authorized paid exceptions."
+      :title="$t('pages.leaveRequests.title')"
+      :description="$t('pages.leaveRequests.description')"
       icon="tabler-beach"
     />
-    <VCard class="pto-screen">
+    <VCard class="leave-requests-screen">
       <VCardTitle class="d-flex flex-wrap align-center ga-3 pa-5">
-        <VIcon icon="tabler-beach" />{{ $t('pages.paidTimeOff.title') }}<VSpacer /><DataTableFilterMenu
+        <VIcon icon="tabler-beach" />{{ $t('pages.leaveRequests.title') }}<VSpacer /><DataTableFilterMenu
           :active="Boolean(statusFilter || year !== new Date().getFullYear())"
           @reset="statusFilter = null; year = new Date().getFullYear()"
         >
@@ -154,7 +162,7 @@ onMounted(load)
           :loading="loading"
           @click="overrideDialog = true"
         >
-          {{ $t('common.leaveApproval.paidException', { count: selected.length }) }}
+          {{ $t('common.leaveApproval.offDayException', { count: selected.length }) }}
         </VBtn><VBtn
           v-else
           prepend-icon="tabler-checks"
@@ -162,7 +170,7 @@ onMounted(load)
           :loading="loading"
           @click="grantSelected"
         >
-          {{ $t('pages.paidTimeOff.grantSelected', { count: selected.length }) }}
+          {{ $t('pages.leaveRequests.grantSelected', { count: selected.length }) }}
         </VBtn>
       </VCardTitle>
       <ResponsiveDataTable
@@ -172,14 +180,25 @@ onMounted(load)
         :item-selectable="isSelectable"
         :items="filteredRows"
         :loading="loading"
-        :headers="[{ title: $t('common.fields.employee'), key: 'employee.name' }, { title: $t('common.fields.date'), key: 'date' }, { title: $t('components.account.accountsettingsbillingandplans.days'), key: 'duration_days' }, { title: $t('common.fields.reason'), key: 'reason' }, { title: $t('common.fields.status'), key: 'status' }, { title: $t('common.ui.approvedBy'), key: 'approvedBy.name' }, { title: $t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' }]"
+        :headers="[
+          { title: $t('common.fields.employee'), key: 'employee.name' },
+          { title: $t('common.fields.date'), key: 'date' },
+          { title: $t('pages.leaveRequests.duration'), key: 'duration_days' },
+          { title: $t('pages.leaveRequests.treatment'), key: 'treatment' },
+          { title: $t('common.fields.reason'), key: 'reason' },
+          { title: $t('common.ui.approvedBy'), key: 'approvedBy.name' },
+          { title: $t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
+        ]"
       >
-        <template #item.status="{ item }">
+        <template #item.duration_days="{ item }">
+          {{ item.duration_days === 0.5 ? $t('pages.leaveRequests.halfDay') : $t('pages.leaveRequests.fullDay') }}
+        </template>
+        <template #item.treatment="{ item }">
           <VChip
-            :color="!item.is_granted ? 'warning' : item.is_paid ? 'success' : 'error'"
+            :color="!item.is_granted ? 'warning' : item.treatment === 'off_day' ? 'success' : item.treatment === 'partial' ? 'info' : 'error'"
             size="small"
           >
-            {{ !item.is_granted ? $t('common.statuses.pending') : item.is_paid ? $t('common.statuses.paid') : $t('common.statuses.unpaid') }}
+            {{ treatmentLabel(item) }}
           </VChip>
         </template>
         <template #item.approvedBy.name="{ item }">
@@ -197,10 +216,10 @@ onMounted(load)
       </ResponsiveDataTable>
     </VCard>
     <PrintableListReport
-      :title="$t('pages.paidTimeOff.reportTitle')"
+      :title="$t('pages.leaveRequests.reportTitle')"
       :subtitle="String(year)"
-      :columns="[$t('common.fields.employee'), $t('common.messages.position'), $t('common.fields.date'), $t('pages.paidTimeOff.duration'), $t('common.fields.reason'), $t('common.fields.status')]"
-      :rows="filteredRows.map(row => [row.employee?.name, row.employee?.position, row.date, row.duration_days, row.reason, !row.is_granted ? $t('common.statuses.pending') : row.is_paid ? $t('common.statuses.paid') : $t('common.statuses.unpaid')])"
+      :columns="[$t('common.fields.employee'), $t('common.messages.position'), $t('common.fields.date'), $t('pages.leaveRequests.duration'), $t('common.fields.reason'), $t('pages.leaveRequests.treatment')]"
+      :rows="filteredRows.map(row => [row.employee?.name, row.employee?.position, row.date, row.duration_days, row.reason, treatmentLabel(row)])"
     />
     <VDialog
       v-model="overrideDialog"
@@ -258,7 +277,7 @@ onMounted(load)
             :disabled="!approvalNote.trim()"
             @click="grantSelected(true)"
           >
-            {{ $t('common.leaveApproval.approvePaid') }}
+            {{ $t('common.leaveApproval.approveOffDay') }}
           </VBtn>
         </VCardActions>
       </VCard>

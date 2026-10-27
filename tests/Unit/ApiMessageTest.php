@@ -49,7 +49,7 @@ class ApiMessageTest extends TestCase
 
         $this->assertSame(
             'برای یک یا چند تاریخ انتخاب‌شده قبلاً درخواست رخصتی ثبت شده است.',
-            ApiMessage::forCode('business.paid_time_off_date_exists'),
+            ApiMessage::forCode('business.leave_request_date_exists'),
         );
     }
 

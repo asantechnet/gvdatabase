@@ -11,9 +11,11 @@ For current feature behavior, start with [docs/facts](../facts/README.md). The [
 | [compact-service-contract-forms-and-portal-controls.md](<compact-service-contract-forms-and-portal-controls.md>) | Historical task record; status is as of its recorded date |
 | [contracts-applications-merge-and-per-service-stages.md](<contracts-applications-merge-and-per-service-stages.md>) | Historical task record; status is as of its recorded date |
 | [fix-rtl-global-selector-scope-leaks.md](<fix-rtl-global-selector-scope-leaks.md>) | Historical task record; status is as of its recorded date |
+| [hr-attendance-off-days-and-payroll-cleanup.md](<hr-attendance-off-days-and-payroll-cleanup.md>) | HR cleanup: company off days vs off-day requests, simplified attendance and attendance-derived payroll; validation status is recorded inside |
 | [hr-payroll-off-days-audit-realtime.md](<hr-payroll-off-days-audit-realtime.md>) | Historical task record; status is as of its recorded date |
 | [known-issues-and-deployment-readiness.md](<known-issues-and-deployment-readiness.md>) | Historical task record; status is as of its recorded date |
 | [multi-tenancy-per-office.md](<multi-tenancy-per-office.md>) | Historical task record; status is as of its recorded date |
+| [payment-requests-legacy-name-cleanup.md](<payment-requests-legacy-name-cleanup.md>) | Renames the workflow's legacy loans/pending-transaction labels to Payment requests and removes the legacy URL aliases; validation status recorded inside |
 | [pwa-offline-caching.md](<pwa-offline-caching.md>) | Historical task record; status is as of its recorded date |
 | [pwa-update-reliability-and-facts.md](<pwa-update-reliability-and-facts.md>) | PWA reliability task; validation status is recorded inside |
 | [real-time-notifications.md](<real-time-notifications.md>) | Historical task record; status is as of its recorded date |

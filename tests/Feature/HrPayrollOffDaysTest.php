@@ -11,8 +11,10 @@ use App\Models\Office;
 use App\Models\OffDay;
 use App\Models\Position;
 use App\Models\Salary;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -37,6 +39,23 @@ class HrPayrollOffDaysTest extends TestCase
     private function employee(array $overrides = []): Employee
     {
         return Employee::factory()->create(array_merge(['join_date' => '2026-01-01'], $overrides));
+    }
+
+    /** Payroll derives worked days from the ledger, so tests seed the ledger. */
+    private function markMonthPresent(Employee $employee, string $month): void
+    {
+        $start = Carbon::parse($month.'-01')->startOfDay();
+        for ($day = $start->copy(); $day->lte($start->copy()->endOfMonth()); $day->addDay()) {
+            if ($day->isFriday()) {
+                continue;
+            }
+            Attendance::create([
+                'employee_id' => $employee->id,
+                'date' => $day->toDateString(),
+                'status' => 'present',
+                'logged_at' => '08:00:00',
+            ]);
+        }
     }
 
     public function test_an_employee_stores_a_guarantor_name(): void
@@ -64,7 +83,7 @@ class HrPayrollOffDaysTest extends TestCase
         ]);
     }
 
-    public function test_an_approved_off_day_marks_attendance_present_and_payroll_off_days(): void
+    public function test_an_approved_off_day_marks_attendance_off_and_payroll_off_days(): void
     {
         $this->actingAsSuperAdmin();
         $this->baseCurrency();
@@ -82,7 +101,7 @@ class HrPayrollOffDaysTest extends TestCase
         $this->assertDatabaseHas('attendances', [
             'employee_id' => $employee->id,
             'date' => '2026-09-07',
-            'status' => 'present',
+            'status' => 'off_day',
         ]);
         $this->assertNotNull(
             Attendance::where('employee_id', $employee->id)->whereDate('date', '2026-09-07')->value('off_day_id'),
@@ -122,6 +141,7 @@ class HrPayrollOffDaysTest extends TestCase
         $this->actingAsSuperAdmin();
         $currency = $this->baseCurrency();
         $employee = $this->employee();
+        $this->markMonthPresent($employee, '2026-09');
 
         $advanceId = $this->postJson('/api/employee-advances', [
             'employee_id' => $employee->id,
@@ -189,19 +209,27 @@ class HrPayrollOffDaysTest extends TestCase
         $this->assertSame(1000.0, (float) Salary::findOrFail($salaryId)->amount_paid);
     }
 
-    public function test_paid_leave_allowance_is_resolved_per_employee(): void
+    public function test_off_day_allowance_is_resolved_per_employee(): void
     {
         $this->actingAsSuperAdmin();
-        $office = Office::factory()->create(['paid_leave_days_per_year' => 30]);
-        $employee = $this->employee(['office_id' => $office->id, 'paid_leave_days' => null]);
+        Setting::create([
+            'navigation_clr' => '#ffffff', 'cards_clr' => '#ffffff', 'footer_clr' => '#ffffff',
+            'off_day_allowance_days_per_year' => 20, 'website_title' => 'Test',
+            'website_address' => 'https://example.test', 'phone' => '123',
+            'physical_address' => 'Test address', 'short_company_name' => 'Test',
+            'original_company_name' => 'Test Company',
+        ]);
+        $employee = $this->employee(['off_day_allowance_days' => null]);
 
-        $this->getJson("/api/employees/{$employee->id}/leaves?year=2026")
+        // The company-wide value is only a creation-time catalogue default;
+        // it is never a runtime fallback for an existing employee.
+        $this->getJson("/api/employees/{$employee->id}/leave-requests?year=2026")
             ->assertOk()
-            ->assertJsonPath('allowance', 30);
+            ->assertJsonPath('allowance', 0);
 
-        $employee->forceFill(['paid_leave_days' => 12])->save();
+        $employee->forceFill(['off_day_allowance_days' => 12])->save();
 
-        $this->getJson("/api/employees/{$employee->id}/leaves?year=2026")
+        $this->getJson("/api/employees/{$employee->id}/leave-requests?year=2026")
             ->assertOk()
             ->assertJsonPath('allowance', 12);
     }

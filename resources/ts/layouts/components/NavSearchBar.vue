@@ -45,7 +45,7 @@ const suggestionGroups: SuggestionGroup[] = [
     content: [
       { icon: 'tabler-users', title: translate('common.messages.staffList'), url: { name: 'staff-list' } },
       { icon: 'tabler-calendar-check', title: translate('common.messages.timesheet'), url: { name: 'timesheet' } },
-      { icon: 'tabler-cash', title: translate('components.navigation.navsearchbar.staffSalary'), url: { name: 'staff-salary' } },
+      { icon: 'tabler-cash', title: translate('components.navigation.navsearchbar.staffSalary'), url: { name: 'payrolls' } },
       { icon: 'tabler-award', title: translate('components.navigation.navsearchbar.bonusList'), url: { name: 'bonuslist' } },
     ],
   },

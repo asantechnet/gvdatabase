@@ -30,12 +30,12 @@ class ApplicantCaseViewTest extends TestCase
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $a = $this->postJson('/api/applicants', ['name' => 'Case One', 'notes' => 'Initial note'])->assertCreated()->json('data');
 
-        $pending = $this->postJson('/api/pending-transactions', ['transaction_type' => 'income', 'reason' => 'Tuition fee', 'amount' => 200, 'currency_id' => $currency->id, 'applicant_id' => $a['id']])->assertCreated()->json('data');
+        $pending = $this->postJson('/api/payment-requests', ['transaction_type' => 'income', 'reason' => 'Tuition fee', 'amount' => 200, 'currency_id' => $currency->id, 'applicant_id' => $a['id']])->assertCreated()->json('data');
         $approver = User::factory()->create();
         $approver->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
         Sanctum::actingAs($approver, ['access']);
-        $this->postJson("/api/pending-transactions/{$pending['id']}/approve")->assertOk();
-        $this->postJson("/api/pending-transactions/{$pending['id']}/post")->assertOk();
+        $this->postJson("/api/payment-requests/{$pending['id']}/approve")->assertOk();
+        $this->postJson("/api/payment-requests/{$pending['id']}/post")->assertOk();
 
         $case = $this->getJson("/api/applicants/{$a['id']}")->assertOk()->json('data');
         $this->assertCount(1, $case['pending_transactions']);

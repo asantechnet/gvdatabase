@@ -23,11 +23,9 @@ export interface Employee {
   accountNumber: string
   workedDays: number
   totalDays: number
-  paidLeaveDays: number
-  /** Approved company off days inside the pay period (paid, non-worked). */
+  /** Approved company holidays and allowance-covered off days in the period. */
   offDays?: number
   absentDays: number
-  unpaidLeaveDays: number
   tazkiraNumber?: string
   tinNumber?: string
 }
@@ -101,11 +99,10 @@ const totalNetPayable = computed(() => netPay.value + totalReimbursements.value)
 const offDays = computed(() => Number(props.employee.offDays ?? 0))
 
 const attendanceMetrics = computed(() => [
-  { key: 'worked', value: `${props.employee.workedDays} / ${props.employee.totalDays}` },
-  { key: 'paidLeave', value: props.employee.paidLeaveDays },
+  { key: 'total', value: props.employee.totalDays },
+  { key: 'worked', value: props.employee.workedDays },
   { key: 'offDays', value: offDays.value },
   { key: 'absent', value: props.employee.absentDays },
-  { key: 'unpaidLeave', value: props.employee.unpaidLeaveDays },
 ])
 
 const formatCurrency = (amount: number) => {
@@ -229,15 +226,13 @@ defineExpose({ print: printSalarySlip })
           :class="{ 'attendance-strip__item--off': metric.key === 'offDays' && offDays > 0 }"
         >
           <span class="attendance-strip__label">
-            {{ metric.key === 'worked'
-              ? $t('documents.payslip_template.payslipTemplate.workedTotalDays')
-              : metric.key === 'paidLeave'
-                ? $t('common.statuses.paidLeave')
+            {{ metric.key === 'total'
+              ? $t('pages.payrolls.totalWorkingDays')
+              : metric.key === 'worked'
+                ? $t('pages.payrolls.workedDays')
                 : metric.key === 'offDays'
-                  ? $t('pages.payroll.staffSalary.staffSalary.offDays')
-                  : metric.key === 'absent'
-                    ? $t('components.dataTablePageKpis.absentDays')
-                    : $t('documents.timesheet.statuses.unpaid-leave') }}
+                  ? $t('pages.payrolls.offDays')
+                  : $t('pages.payrolls.absentDays') }}
           </span>
           <span class="attendance-strip__value">{{ metric.value }}</span>
         </div>

@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 
 class AttendanceCalculationService
 {
-    private const CALCULATION_VERSION = 4;
+    private const CALCULATION_VERSION = 5;
 
     public function __construct(private readonly CompanyProfile $companyProfile) {}
 
@@ -29,7 +29,7 @@ class AttendanceCalculationService
             self::CALCULATION_VERSION,
             $attendance->status, $attendance->date?->format('Y-m-d'), $effectiveStart?->toISOString(),
             $effectiveEnd?->toISOString(),
-            $breakMinutes, $scheduleStart, $scheduleEnd, $timezone, (float) $attendance->leave_duration_days,
+            $breakMinutes, $scheduleStart, $scheduleEnd, $timezone, (float) $attendance->leave_days,
         ], JSON_THROW_ON_ERROR));
 
         if (! $force && $attendance->calculation_hash === $hash) {
@@ -44,8 +44,8 @@ class AttendanceCalculationService
 
     private function derive(Attendance $attendance, string $timezone, ?string $scheduleStart, ?string $scheduleEnd, int $breakMinutes): array
     {
-        // An approved off day is a paid, non-worked day: it has no punches and
-        // must not be reported as an incomplete attendance.
+        // An off day is a non-worked day: it has no punches and must not be
+        // reported as an incomplete attendance.
         if ($attendance->status !== 'present' || $attendance->off_day_id) {
             return $this->emptySummary('none', 0);
         }
@@ -75,7 +75,7 @@ class AttendanceCalculationService
         $net = max(0, $gross - $break);
 
         [$required, $late, $early] = $this->scheduleMetrics($attendance, $start, $end, $scheduleStart, $scheduleEnd, max(0, $breakMinutes));
-        $leaveFraction = min(1, max(0, (float) $attendance->leave_duration_days));
+        $leaveFraction = min(1, max(0, (float) $attendance->leave_days));
         if ($required !== null && $leaveFraction > 0) {
             $required = (int) round($required * (1 - $leaveFraction));
             // Without a morning/afternoon designation the partial leave is flexible;

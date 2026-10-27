@@ -13,6 +13,7 @@ use App\Models\Income;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\ReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -26,7 +27,7 @@ class PhaseEightReportsTest extends TestCase
         parent::setUp();
         Setting::create([
             'navigation_clr' => '#111111', 'cards_clr' => '#ffffff', 'footer_clr' => '#111111',
-            'paid_leave_days_per_year' => 20, 'website_title' => 'Report Test', 'website_address' => 'https://example.test',
+            'off_day_allowance_days_per_year' => 20, 'website_title' => 'Report Test', 'website_address' => 'https://example.test',
             'company_email' => 'reports@example.test', 'timezone' => 'Asia/Kabul', 'phone' => '123',
             'physical_address' => 'Kabul', 'short_company_name' => 'RT', 'original_company_name' => 'Report Test Company',
         ]);
@@ -103,6 +104,24 @@ class PhaseEightReportsTest extends TestCase
 
         $this->get('/api/reports/financial/export?start_date=2026-08-01&end_date=2026-08-31&format=print')
             ->assertOk()->assertSee('Report Test Company')->assertSee('Print / Save PDF');
+    }
+
+    public function test_every_catalogued_report_type_is_generatable_and_exportable(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+        $this->financialReferences();
+
+        foreach (ReportService::TYPES as $type) {
+            $this->getJson("/api/reports/generate/{$type}?start_date=2026-08-01&end_date=2026-08-31")
+                ->assertOk()->assertJsonPath('data.type', $type);
+
+            $this->get("/api/reports/{$type}/export?start_date=2026-08-01&end_date=2026-08-31&format=csv")
+                ->assertOk()->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+            // The print and CSV documents title the report server-side; a
+            // missing translation would print the raw key instead.
+            $this->assertNotSame("reports.types.{$type}", __("reports.types.{$type}"));
+        }
     }
 
     public function test_catalog_and_generation_are_permission_aware(): void

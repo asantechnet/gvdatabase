@@ -14,10 +14,15 @@ export interface SalaryDeduction {
 export interface AttendanceBreakdown {
   workedDays: number
   totalDays: number
-  paidLeaveDays: number
   offDays: number
-  unpaidLeaveDays: number
   absentDays: number
+}
+
+export interface GenerateSalariesResult {
+  success: boolean
+  created: number
+  skipped: number
+  errors: Record<number, string>
 }
 
 export interface SalaryAdvanceLine {
@@ -46,13 +51,11 @@ export interface Salary {
   paymentStatus: 'open' | 'partially_paid' | 'paid'
   payments?: Array<{ id: number; paymentNumber: string | null; amount: number; date: string; remarks: string | null; expenseId: number | null }>
   bonus: number
-  workedDays?: number
-  paidLeaveDays: number
+  workedDays: number
   offDays: number
   advanceRecovery: number
   advances?: SalaryAdvanceLine[]
   absentDays: number
-  unpaidLeaveDays: number
   totalDays: number
   totalAmount: number
   amountPaidBase: number
@@ -86,8 +89,6 @@ export interface CreateSalaryData {
   rate: number
   amountPaid: number
   initialPayment?: number
-  workedDays: number
-  totalDays?: number
   remarks?: string
   date: string
   deductions: SalaryDeduction[]
@@ -99,8 +100,6 @@ export interface UpdateSalaryData {
   currency_id?: number
   rate?: number
   amountPaid?: number
-  workedDays?: number
-  totalDays?: number
   remarks?: string
   date?: string
   deductions?: SalaryDeduction[]
@@ -143,10 +142,21 @@ const SalaryApi = {
     return response.data
   },
 
-  // Attendance-derived working days used to prefill the editable day inputs.
+  // Attendance-derived working days used to prefill and verify the payslip.
   getAttendanceBreakdown: async (employeeId: number, salaryMonth: string) => {
     const response = await api.get<{ data: AttendanceBreakdown }>('/salaries/attendance-breakdown', {
       params: { employee_id: employeeId, salaryMonth },
+    })
+
+    return response.data
+  },
+
+  // Create the payslips that are still missing for a month.
+  generate: async (salaryMonth: string, employeeIds?: number[], date?: string) => {
+    const response = await api.post<GenerateSalariesResult>('/salaries/generate', {
+      salaryMonth,
+      employee_ids: employeeIds,
+      date,
     })
 
     return response.data

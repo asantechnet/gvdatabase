@@ -59,9 +59,6 @@ class OfficeController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'geofence_radius_meters' => ['sometimes', 'integer', 'between:10,5000'],
             'geofence_enabled' => ['sometimes', 'boolean'],
-            // Employees inherit this allowance unless they have a personal
-            // override; null falls back to the company-wide setting.
-            'paid_leave_days_per_year' => ['nullable', 'integer', 'between:0,366'],
         ], ['required' => __('settings.validation.required')], (array) __('settings.fields'));
         $enabled = $validated['geofence_enabled'] ?? $office?->geofence_enabled ?? false;
         if ($enabled) {

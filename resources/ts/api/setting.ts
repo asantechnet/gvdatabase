@@ -2,6 +2,8 @@ import api, { mutationHeaders, type ApiMutationOptions } from './axios'
 
 export type LetterheadSource = 'none' | 'contract' | 'custom'
 
+export type MissingAttendanceStatus = 'present' | 'absent' | 'off_day'
+
 export interface SafeArea {
   x: number
   y: number
@@ -24,7 +26,7 @@ export interface Setting {
   light_surface_color: string
   dark_background_color: string
   dark_surface_color: string
-  paid_leave_days_per_year: number
+  off_day_allowance_days_per_year: number
   website_title: string
   website_logo: string | null
   website_logo_url: string | null
@@ -73,6 +75,7 @@ export interface Setting {
   office_close_time: string | null
   default_break_minutes: number
   automatic_attendance_enabled: boolean
+  missing_attendance_status: MissingAttendanceStatus
   created_at?: string
   updated_at?: string
 }
@@ -84,7 +87,7 @@ export interface SettingForm {
   light_surface_color?: string | null
   dark_background_color?: string | null
   dark_surface_color?: string | null
-  paid_leave_days_per_year: number
+  off_day_allowance_days_per_year: number
   website_title: string
   website_logo?: File | null
   remove_website_logo?: boolean
@@ -133,6 +136,7 @@ export interface SettingForm {
   office_close_time: string
   default_break_minutes: number
   automatic_attendance_enabled: boolean
+  missing_attendance_status: MissingAttendanceStatus
 }
 
 export interface ApiResponse<T> {

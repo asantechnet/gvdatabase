@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AuditLog extends Model
@@ -18,37 +18,47 @@ class AuditLog extends Model
         'url', 'method', 'ip_address',
     ];
 
-    /** Memoized guard: the flag column arrives with its own migration. */
-    private static ?bool $hasUnreadAuditColumn = null;
-
     protected static function booted(): void
     {
         // Raise the real-time audit flag for everyone allowed to review audit
         // history. The heartbeat drains it; the flag is a cheap boolean so a
         // bulk write only costs one UPDATE.
         static::created(function (): void {
-            // Earlier migrations create audited models (roles, permissions)
-            // before the flag column exists. Skipping the write there keeps a
-            // fresh install migrating cleanly; once the column exists the check
-            // short-circuits and the flag write costs nothing extra.
-            if (self::$hasUnreadAuditColumn !== true) {
-                self::$hasUnreadAuditColumn = Schema::hasColumn('users', 'unread_audit_logs');
-                if (! self::$hasUnreadAuditColumn) {
-                    return;
+            try {
+                User::query()
+                    ->where('acc_status', 'active')
+                    ->where('unread_audit_logs', false)
+                    ->where(function ($query): void {
+                        $query->whereHas('roles', fn ($roles) => $roles->where('name', 'super_admin'))
+                            ->orWhereHas('roles.permissions', fn ($permissions) => $permissions->whereIn('name', [
+                                'view_audit_logs', 'view_team_audit_logs',
+                            ]));
+                    })
+                    ->update(['unread_audit_logs' => true]);
+            } catch (QueryException $e) {
+                // The flag column arrives with its own migration, and this hook
+                // fires for models that earlier migrations create (roles,
+                // permissions) as well as for processes whose schema changes
+                // underneath them. While the column is absent there is nobody
+                // to flag, so that one failure is expected; anything else is
+                // still reported.
+                if (! self::isMissingUnreadColumn($e)) {
+                    throw $e;
                 }
             }
-
-            User::query()
-                ->where('acc_status', 'active')
-                ->where('unread_audit_logs', false)
-                ->where(function ($query): void {
-                    $query->whereHas('roles', fn ($roles) => $roles->where('name', 'super_admin'))
-                        ->orWhereHas('roles.permissions', fn ($permissions) => $permissions->whereIn('name', [
-                            'view_audit_logs', 'view_team_audit_logs',
-                        ]));
-                })
-                ->update(['unread_audit_logs' => true]);
         });
+    }
+
+    /**
+     * A missing flag column is the only expected failure of the bulk update:
+     * migrations run against schemas that predate it.
+     */
+    private static function isMissingUnreadColumn(QueryException $e): bool
+    {
+        $message = $e->getMessage();
+
+        return str_contains($message, "Unknown column 'unread_audit_logs'")
+            || str_contains($message, 'no such column: unread_audit_logs');
     }
 
     protected function casts(): array

@@ -24,7 +24,6 @@ interface DirectoryRecord {
   longitude?: number | null
   geofence_radius_meters?: number
   geofence_enabled?: boolean
-  paid_leave_days_per_year?: number | null
 }
 interface DirectoryForm {
   user_id: number | null
@@ -142,8 +141,8 @@ async function save() {
     }
 
     const saved = await (editing.value
-        ? OfficeApi.update(editing.value.id, { ...common, code: form.value.code.trim().toUpperCase(), address: form.value.address.trim() || null, latitude: form.value.latitude, longitude: form.value.longitude, geofence_radius_meters: form.value.geofenceRadiusMeters, geofence_enabled: form.value.geofenceEnabled, paid_leave_days_per_year: editing.value?.paid_leave_days_per_year ?? null })
-        : OfficeApi.create({ ...common, code: form.value.code.trim().toUpperCase(), address: form.value.address.trim() || null, latitude: form.value.latitude, longitude: form.value.longitude, geofence_radius_meters: form.value.geofenceRadiusMeters, geofence_enabled: form.value.geofenceEnabled, paid_leave_days_per_year: null }))
+        ? OfficeApi.update(editing.value.id, { ...common, code: form.value.code.trim().toUpperCase(), address: form.value.address.trim() || null, latitude: form.value.latitude, longitude: form.value.longitude, geofence_radius_meters: form.value.geofenceRadiusMeters, geofence_enabled: form.value.geofenceEnabled })
+        : OfficeApi.create({ ...common, code: form.value.code.trim().toUpperCase(), address: form.value.address.trim() || null, latitude: form.value.latitude, longitude: form.value.longitude, geofence_radius_meters: form.value.geofenceRadiusMeters, geofence_enabled: form.value.geofenceEnabled }))
 
     const index = records.value.findIndex(record => record.id === saved.id)
     if (index === -1)

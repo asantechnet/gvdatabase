@@ -3,14 +3,14 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import { apiErrorMessage } from '@/utils/apiErrors'
-import PaidTimeOffApi, { type PaidTimeOff } from '@/api/paidTimeOff'
+import LeaveRequestApi, { type LeaveRequest } from '@/api/leaveRequests'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 const toast = useToast()
 const { t: translate } = useI18n()
 const year = ref(new Date().getFullYear())
-const rows = ref<PaidTimeOff[]>([])
+const rows = ref<LeaveRequest[]>([])
 const allowance = ref(0)
 const used = ref(0)
 const remaining = ref(0)
@@ -29,11 +29,11 @@ const requestedDays = computed(() => {
 async function load() {
   loading.value = true
   try {
-    const ledger = await PaidTimeOffApi.mine(year.value)
+    const ledger = await LeaveRequestApi.mine(year.value)
 
     rows.value = ledger.data; allowance.value = ledger.allowance; used.value = ledger.used; remaining.value = ledger.remaining; pending.value = ledger.pending
   }
-  catch (error) { toast.error(apiErrorMessage(error, translate('pages.paidTimeOff.unableToLoad'))) }
+  catch (error) { toast.error(apiErrorMessage(error, translate('pages.leaveRequests.unableToLoad'))) }
   finally { loading.value = false }
 }
 
@@ -42,12 +42,12 @@ async function submit() {
     return
   loading.value = true
   try {
-    await PaidTimeOffApi.requestRange({ ...form.value, reason: form.value.reason.trim() })
-    toast.success(translate('pages.paidTimeOff.requestSubmitted'))
+    await LeaveRequestApi.requestRange({ ...form.value, reason: form.value.reason.trim() })
+    toast.success(translate('pages.leaveRequests.requestSubmitted'))
     form.value.reason = ''
     await load()
   }
-  catch (error) { toast.error(apiErrorMessage(error, translate('pages.paidTimeOff.unableToRequest'))) }
+  catch (error) { toast.error(apiErrorMessage(error, translate('pages.leaveRequests.unableToRequest'))) }
   finally { loading.value = false }
 }
 
@@ -83,10 +83,10 @@ watch(year, () => {
           </VAvatar>
           <div>
             <div class="text-h6 font-weight-bold">
-              {{ translate('pages.paidTimeOff.myTitle') }}
+              {{ translate('pages.leaveRequests.myTitle') }}
             </div>
             <div class="text-body-2 text-medium-emphasis">
-              {{ translate('pages.paidTimeOff.title') }}
+              {{ translate('pages.leaveRequests.title') }}
             </div>
           </div>
           <VSpacer />
@@ -105,7 +105,7 @@ watch(year, () => {
         <section class="mb-6">
           <div class="d-flex align-center justify-space-between mb-3">
             <div class="text-subtitle-1 font-weight-bold">
-              {{ translate('pages.paidTimeOff.balance') }}
+              {{ translate('pages.leaveRequests.balance') }}
             </div>
             <div class="text-caption text-medium-emphasis">
               {{ year }}
@@ -129,7 +129,7 @@ watch(year, () => {
                   <div class="text-h6 font-weight-bold">
                     {{ allowance }}
                   </div><div class="text-caption text-medium-emphasis">
-                    {{ translate('pages.paidTimeOff.allowance') }}
+                    {{ translate('pages.leaveRequests.allowance') }}
                   </div>
                 </div>
               </VSheet>
@@ -151,7 +151,7 @@ watch(year, () => {
                   <div class="text-h6 font-weight-bold">
                     {{ used }}
                   </div><div class="text-caption text-medium-emphasis">
-                    {{ translate('pages.paidTimeOff.paidDaysGranted') }}
+                    {{ translate('pages.leaveRequests.paidDaysGranted') }}
                   </div>
                 </div>
               </VSheet>
@@ -173,7 +173,7 @@ watch(year, () => {
                   <div class="text-h6 font-weight-bold">
                     {{ pending }}
                   </div><div class="text-caption text-medium-emphasis">
-                    {{ translate('pages.paidTimeOff.pendingRequests') }}
+                    {{ translate('pages.leaveRequests.pendingRequests') }}
                   </div>
                 </div>
               </VSheet>
@@ -195,7 +195,7 @@ watch(year, () => {
                   <div class="text-h6 font-weight-bold">
                     {{ remaining }}
                   </div><div class="text-caption text-medium-emphasis">
-                    {{ translate('pages.paidTimeOff.daysRemaining') }}
+                    {{ translate('pages.leaveRequests.daysRemaining') }}
                   </div>
                 </div>
               </VSheet>
@@ -218,9 +218,9 @@ watch(year, () => {
             </VAvatar>
             <div>
               <div class="text-subtitle-1 font-weight-bold">
-                {{ translate('pages.paidTimeOff.requestTimeOff') }}
+                {{ translate('pages.leaveRequests.requestTimeOff') }}
               </div><div class="text-caption text-medium-emphasis">
-                {{ translate('pages.paidTimeOff.requestHint') }}
+                {{ translate('pages.leaveRequests.requestHint') }}
               </div>
             </div>
           </div>
@@ -232,7 +232,7 @@ watch(year, () => {
             >
               <AppDateTimePicker
                 v-model="form.start_date"
-                :label="translate('pages.paidTimeOff.from')"
+                :label="translate('pages.leaveRequests.from')"
                 :config="{ dateFormat: 'Y-m-d' }"
               />
             </VCol>
@@ -243,7 +243,7 @@ watch(year, () => {
             >
               <AppDateTimePicker
                 v-model="form.end_date"
-                :label="translate('pages.paidTimeOff.to')"
+                :label="translate('pages.leaveRequests.to')"
                 :config="{ dateFormat: 'Y-m-d' }"
               />
             </VCol>
@@ -264,8 +264,8 @@ watch(year, () => {
             >
               <VSelect
                 v-model="form.duration_days"
-                :items="[{ title: translate('pages.paidTimeOff.fullDay'), value: 1 }, { title: translate('pages.paidTimeOff.halfDay'), value: 0.5 }]"
-                :label="translate('pages.paidTimeOff.duration')"
+                :items="[{ title: translate('pages.leaveRequests.fullDay'), value: 1 }, { title: translate('pages.leaveRequests.halfDay'), value: 0.5 }]"
+                :label="translate('pages.leaveRequests.duration')"
               />
             </VCol>
             <VCol
@@ -282,7 +282,7 @@ watch(year, () => {
                 <VIcon
                   icon="tabler-send"
                   start
-                />{{ translate('pages.paidTimeOff.requestDays', { count: requestedDays || '' }) }}
+                />{{ translate('pages.leaveRequests.requestDays', { count: requestedDays || '' }) }}
               </VBtn>
             </VCol>
           </VRow>
@@ -296,7 +296,7 @@ watch(year, () => {
             <VIcon
               icon="tabler-alert-triangle"
               start
-            />{{ translate('pages.paidTimeOff.rangeExceeds', { count: remaining }) }}
+            />{{ translate('pages.leaveRequests.rangeExceeds', { count: remaining }) }}
           </VAlert>
         </VSheet>
 
@@ -304,9 +304,9 @@ watch(year, () => {
           <div class="d-flex align-center justify-space-between mb-3">
             <div>
               <div class="text-subtitle-1 font-weight-bold">
-                {{ translate('pages.paidTimeOff.historyTitle') }}
+                {{ translate('pages.leaveRequests.historyTitle') }}
               </div><div class="text-caption text-medium-emphasis">
-                {{ translate('pages.paidTimeOff.historySubtitle') }}
+                {{ translate('pages.leaveRequests.historySubtitle') }}
               </div>
             </div><VChip
               size="small"
@@ -327,11 +327,11 @@ watch(year, () => {
             >
               <template #item.status="{ item }">
                 <VChip
-                  :color="!item.is_granted ? 'warning' : item.is_paid ? 'success' : 'error'"
+                  :color="!item.is_granted ? 'warning' : item.treatment === 'off_day' ? 'success' : item.treatment === 'partial' ? 'info' : 'error'"
                   size="small"
                   label
                 >
-                  {{ !item.is_granted ? translate('common.statuses.pending') : item.is_paid ? translate('common.statuses.paid') : translate('common.statuses.unpaid') }}
+                  {{ !item.is_granted ? translate('common.statuses.pending') : item.treatment === 'partial' ? translate('pages.leaveRequests.partial') : item.treatment === 'off_day' ? translate('common.attendanceStatuses.offDay') : translate('common.attendanceStatuses.absent') }}
                 </VChip>
               </template>
               <template #item.actions="{ item }">

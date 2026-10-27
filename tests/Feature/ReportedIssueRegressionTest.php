@@ -232,17 +232,17 @@ class ReportedIssueRegressionTest extends TestCase
             ->assertJsonPath('data.0.id', $employeeContract->id);
     }
 
-    public function test_paid_time_off_creates_updates_and_removes_attendance(): void
+    public function test_leave_request_creates_updates_and_removes_its_attendance_claim(): void
     {
         Setting::create([
             'navigation_clr' => '#ffffff', 'cards_clr' => '#ffffff', 'footer_clr' => '#ffffff',
-            'paid_leave_days_per_year' => 10, 'website_title' => 'Test', 'website_address' => 'https://example.test',
+            'off_day_allowance_days_per_year' => 10, 'website_title' => 'Test', 'website_address' => 'https://example.test',
             'phone' => '123', 'physical_address' => 'Test address', 'short_company_name' => 'Test',
             'original_company_name' => 'Test Company',
         ]);
-        $employee = Employee::factory()->create();
+        $employee = Employee::factory()->create(['join_date' => '2026-01-01', 'off_day_allowance_days' => 10]);
 
-        $leaveId = $this->postJson("/api/employees/{$employee->id}/paid-time-offs", [
+        $leaveId = $this->postJson("/api/employees/{$employee->id}/leave-requests", [
             'date' => '2026-08-20', 'duration_days' => 1, 'reason' => 'Annual leave',
         ])->assertCreated()->json('data.id');
 
@@ -250,17 +250,22 @@ class ReportedIssueRegressionTest extends TestCase
             'employee_id' => $employee->id, 'date' => '2026-08-20',
         ]);
 
-        $this->putJson("/api/employees/{$employee->id}/paid-time-offs/{$leaveId}", [
+        $this->putJson("/api/employees/{$employee->id}/leave-requests/{$leaveId}", [
             'date' => '2026-08-22', 'duration_days' => 1, 'reason' => 'Changed day',
         ])->assertOk();
 
-        $this->patchJson('/api/paid-time-offs/grant', ['ids' => [$leaveId]])->assertOk();
+        $this->patchJson('/api/leave-requests/grant', ['ids' => [$leaveId]])->assertOk();
         $this->assertDatabaseHas('attendances', [
-            'employee_id' => $employee->id, 'date' => '2026-08-22', 'status' => 'paid-leave',
+            'employee_id' => $employee->id, 'date' => '2026-08-22', 'status' => 'off_day', 'leave_request_id' => $leaveId,
         ]);
 
-        $this->deleteJson("/api/employees/{$employee->id}/paid-time-offs/{$leaveId}")->assertOk();
-        $this->assertSoftDeleted('attendances', ['employee_id' => $employee->id, 'date' => '2026-08-22']);
+        $this->deleteJson("/api/employees/{$employee->id}/leave-requests/{$leaveId}")->assertOk();
+        $this->assertSoftDeleted('leaves', ['id' => $leaveId]);
+        // The released day may be rebuilt by the missing-attendance policy,
+        // but it must no longer carry this request's claim.
+        $this->assertDatabaseMissing('attendances', [
+            'employee_id' => $employee->id, 'date' => '2026-08-22', 'leave_request_id' => $leaveId,
+        ]);
     }
 
     public function test_admin_invitation_verifies_email_then_requires_user_created_password(): void

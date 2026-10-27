@@ -4,9 +4,9 @@ import { useToast } from 'vue-toastification'
 import type { ReceiptPayload } from '@/api/receipts'
 import ReceiptTemplate, { type ReceiptPaperSize } from '@/pages/templates/receipt_template.vue'
 
-// Shared preview/print dialog for A5 receipt-shaped documents. Incomes and
-// loans both render the same template; callers pass their own loader so the
-// income and loan API contracts stay separate.
+// Shared preview/print dialog for A5 receipt-shaped documents. Income receipts
+// and payment requests both render the same template; callers pass their own
+// loader so the income and payment-request API contracts stay separate.
 const props = withDefaults(defineProps<{
   modelValue: boolean
   recordId: number | null

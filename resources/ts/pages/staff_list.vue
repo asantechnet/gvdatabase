@@ -8,9 +8,11 @@ import EmployeeApi, { type CreateEmployeeData, type Employee, type EmployeeAccou
 import PositionApi, { type Position } from '@/api/position'
 import OfficeApi, { type Office } from '@/api/office'
 import DepartmentApi, { type Department } from '@/api/department'
-import PaidTimeOffApi, { type PaidTimeOff } from '@/api/paidTimeOff'
+import LeaveRequestApi, { type LeaveRequest } from '@/api/leaveRequests'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
+import { canAccess } from '@/utils/authorization'
+import { useCookie } from '@core/composable/useCookie'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
 import StaffCommissionFields from '@/components/StaffCommissionFields.vue'
@@ -45,7 +47,7 @@ interface Staff {
   total_worked_hours: number
   addr: string
   join_date: string
-  paid_leave_days: number | null
+  off_day_allowance_days: number | null
   is_commission_based: boolean
   service_commissions?: Array<{ service: string; percentage: number }>
   document?: Employee['document']
@@ -57,8 +59,16 @@ const router = useRouter()
 const toast = useToast()
 const isAddStaffDialogVisible = ref(false)
 const isEditStaffDialogVisible = ref(false)
+const isSelfProfileDialogVisible = ref(false)
+const selfProfileForm = ref({
+  name: '', father_name: '', contact: '', addr: '',
+  emergency_contact_name: '', emergency_contact_phone: '',
+  bank_account_number: '', guarantor_name: '', guarantor_id_number: '',
+  guarantor_phone: '', guarantor_address: '', guarantor_licence: '',
+})
+const selfProfileId = ref<number | null>(null)
 const isDeleteStaffDialogVisible = ref(false)
-const isPaidTimeOffDialogVisible = ref(false)
+const isLeaveDialogVisible = ref(false)
 const selectedStaff = ref<Staff | null>(null)
 const searchQuery = ref('')
 const filterPosition = ref<string | null>(null)
@@ -81,8 +91,9 @@ const userAccounts = ref<EmployeeAccount[]>([])
 const isUserAccountsLoading = ref(false)
 const formSubmissionError = ref('')
 const leaveStaff = ref<Staff | null>(null)
-const paidTimeOffs = ref<PaidTimeOff[]>([])
-const paidTimeOffYear = ref(new Date().getFullYear())
+const leaveRequests = ref<LeaveRequest[]>([])
+const userData = useCookie<{ employee?: { id?: number } | null } | null>('userData')
+const leaveYear = ref(new Date().getFullYear())
 const leaveAllowance = ref(0)
 const leaveUsed = ref(0)
 const leaveRemaining = ref(0)
@@ -121,25 +132,25 @@ const requestedLeaveDays = computed(() => {
   return days
 })
 
-const isPaidTimeOffFormComplete = computed(() => Boolean(
+const isLeaveFormComplete = computed(() => Boolean(
   leaveForm.value.start_date
   && leaveForm.value.end_date
   && leaveForm.value.reason.trim(),
 ))
 
-const canSavePaidTimeOff = computed(() => Boolean(
+const canSaveLeave = computed(() => Boolean(
   !isLeaveLoading.value
-  && isPaidTimeOffFormComplete.value
+  && isLeaveFormComplete.value
   ,
 ))
 
-const paidTimeOffLimitMessage = computed(() => {
+const leaveLimitMessage = computed(() => {
   if (leaveForm.value.id || leaveRemaining.value > 0)
     return ''
 
   return leaveAllowance.value === 0
-    ? 'No paid leave is configured. Set paid leave days per year in Settings.'
-    : `The ${leaveAllowance.value}-day paid allowance is used; new leave will be unpaid unless an authority overrides it.`
+    ? 'No off-day allowance is configured. Set the default in Settings, or give this employee a personal allowance.'
+    : `The ${leaveAllowance.value}-day off-day allowance is used; further approved days are recorded as absent unless an authority overrides them.`
 })
 
 const educationOptions = ['High School', 'Diploma', 'Bachelor', 'Master', 'PhD']
@@ -328,18 +339,6 @@ const commissionPayload = () => (selectedStaff.value?.is_commission_based
   ? (selectedStaff.value.service_commissions ?? []).filter(row => Number(row.percentage) > 0)
   : [])
 
-// Paid leave is an employee entitlement. Selecting an office prefills the
-// employee field with the office base so HR sees what will actually apply;
-// the value stays editable as a personal override.
-const applyOfficeLeaveBase = (officeId: number | null) => {
-  if (!selectedStaff.value)
-    return
-  const current = selectedStaff.value.paid_leave_days
-  if (current !== null && current !== undefined && `${current}` !== '')
-    return
-  selectedStaff.value.paid_leave_days = offices.value.find(office => office.id === officeId)?.paid_leave_days_per_year ?? null
-}
-
 const openAddStaffDialog = () => {
   selectedStaff.value = {
     id: 0,
@@ -369,7 +368,7 @@ const openAddStaffDialog = () => {
     salary: 0,
     total_worked_hours: 0,
     join_date: new Date().toISOString().split('T')[0],
-    paid_leave_days: null,
+    off_day_allowance_days: null,
     guarantor_name: null,
     is_commission_based: false,
     service_commissions: [],
@@ -379,7 +378,37 @@ const openAddStaffDialog = () => {
   isAddStaffDialogVisible.value = true
 }
 
+const canManageEmployees = computed(() => canAccess('edit_employees'))
+const canEditOwnProfile = computed(() => canAccess('edit_own_employee_profile'))
+const ownEmployeeId = computed(() => userData.value?.employee?.id ?? null)
+const canEditStaff = (staff: Staff) => canManageEmployees.value || (canEditOwnProfile.value && staff.id === ownEmployeeId.value)
+// A self-editor never sees payroll, hierarchy or account fields they cannot change.
+const isSelfOnlyEdit = computed(() => !canManageEmployees.value)
+
 const openEditStaffDialog = (staff: Staff) => {
+  if (!canManageEmployees.value) {
+    // A self-editor maintains personal, contact, guarantor and bank details
+    // only. Payroll, position, office, hierarchy and account linkage stay HR.
+    selfProfileId.value = staff.id
+    selfProfileForm.value = {
+      name: staff.name ?? '',
+      father_name: staff.father_name ?? '',
+      contact: staff.contact ?? '',
+      addr: staff.addr ?? '',
+      emergency_contact_name: staff.emergency_contact_name ?? '',
+      emergency_contact_phone: staff.emergency_contact_phone ?? '',
+      bank_account_number: staff.bank_account_number ?? '',
+      guarantor_name: staff.guarantor_name ?? '',
+      guarantor_id_number: staff.guarantor_id_number ?? '',
+      guarantor_phone: staff.guarantor_phone ?? '',
+      guarantor_address: staff.guarantor_address ?? '',
+      guarantor_licence: staff.guarantor_licence ?? '',
+    }
+    isSelfProfileDialogVisible.value = true
+
+    return
+  }
+
   // Keep edits local until Save.
   selectedStaff.value = {
     ...staff,
@@ -391,20 +420,52 @@ const openEditStaffDialog = (staff: Staff) => {
   isEditStaffDialogVisible.value = true
 }
 
+const saveSelfProfile = async () => {
+  if (!selfProfileId.value)
+    return
+
+  isLoading.value = true
+  formSubmissionError.value = ''
+  try {
+    const response = await EmployeeApi.update(selfProfileId.value, { ...selfProfileForm.value })
+    const updated = response.data?.data
+    if (updated) {
+      const index = staffList.value.findIndex(row => row.id === selfProfileId.value)
+      if (index !== -1)
+        staffList.value[index] = {
+          ...staffList.value[index],
+          ...updated,
+          email: updated.email ?? staffList.value[index].email,
+          salary: updated.salary ?? 0,
+          join_date: updated.join_date ?? '',
+          position: updated.position || staffList.value[index].position,
+        }
+    }
+    isSelfProfileDialogVisible.value = false
+  }
+  catch (error) {
+    applyStaffApiErrors(error)
+    formSubmissionError.value = apiErrorMessage(error, translate('pages.settings.staffList.staffList.unableToSaveEmployee'))
+  }
+  finally {
+    isLoading.value = false
+  }
+}
+
 const openDeleteStaffDialog = (staff: Staff) => {
   selectedStaff.value = staff
   isDeleteStaffDialogVisible.value = true
 }
 
-const loadPaidTimeOffs = async () => {
+const loadLeaveRequests = async () => {
   if (!leaveStaff.value)
     return
   isLeaveLoading.value = true
   leaveError.value = ''
   try {
-    const ledger = await PaidTimeOffApi.getAll(leaveStaff.value.id, paidTimeOffYear.value)
+    const ledger = await LeaveRequestApi.getAll(leaveStaff.value.id, leaveYear.value)
 
-    paidTimeOffs.value = ledger.data
+    leaveRequests.value = ledger.data
     leaveAllowance.value = ledger.allowance
     leaveUsed.value = ledger.used
     leaveRemaining.value = ledger.remaining
@@ -417,16 +478,16 @@ const loadPaidTimeOffs = async () => {
   }
 }
 
-const openPaidTimeOffDialog = async (staff: Staff) => {
+const openLeaveDialog = async (staff: Staff) => {
   leaveStaff.value = staff
-  paidTimeOffYear.value = new Date().getFullYear()
+  leaveYear.value = new Date().getFullYear()
   const today = new Date().toISOString().slice(0, 10)
   leaveForm.value = { id: null, start_date: today, end_date: today, duration_days: 1, reason: '' }
-  isPaidTimeOffDialogVisible.value = true
-  await loadPaidTimeOffs()
+  isLeaveDialogVisible.value = true
+  await loadLeaveRequests()
 }
 
-const editPaidTimeOff = (record: PaidTimeOff) => {
+const editLeaveRequest = (record: LeaveRequest) => {
   leaveForm.value = {
     id: record.id,
     start_date: record.date,
@@ -437,27 +498,27 @@ const editPaidTimeOff = (record: PaidTimeOff) => {
   leaveError.value = ''
 }
 
-const resetPaidTimeOffForm = () => {
+const resetLeaveForm = () => {
   leaveForm.value = {
     id: null,
-    start_date: `${paidTimeOffYear.value}-01-01`,
-    end_date: `${paidTimeOffYear.value}-01-01`,
+    start_date: `${leaveYear.value}-01-01`,
+    end_date: `${leaveYear.value}-01-01`,
     duration_days: 1,
     reason: '',
   }
   leaveError.value = ''
 }
 
-const changePaidTimeOffYear = async () => {
+const changeLeaveYear = async () => {
   if (!leaveForm.value.id) {
-    leaveForm.value.start_date = `${paidTimeOffYear.value}-01-01`
-    leaveForm.value.end_date = `${paidTimeOffYear.value}-01-01`
+    leaveForm.value.start_date = `${leaveYear.value}-01-01`
+    leaveForm.value.end_date = `${leaveYear.value}-01-01`
   }
 
-  await loadPaidTimeOffs()
+  await loadLeaveRequests()
 }
 
-const savePaidTimeOff = async () => {
+const saveLeave = async () => {
   if (!leaveStaff.value)
     return
   if (!leaveForm.value.start_date || !leaveForm.value.end_date || !leaveForm.value.reason.trim()) {
@@ -465,14 +526,14 @@ const savePaidTimeOff = async () => {
 
     return
   }
-  if (!leaveForm.value.start_date.startsWith(`${paidTimeOffYear.value}-`)
-    || !leaveForm.value.end_date.startsWith(`${paidTimeOffYear.value}-`)) {
-    leaveError.value = `Date: Choose a date in ${paidTimeOffYear.value}.`
+  if (!leaveForm.value.start_date.startsWith(`${leaveYear.value}-`)
+    || !leaveForm.value.end_date.startsWith(`${leaveYear.value}-`)) {
+    leaveError.value = `Date: Choose a date in ${leaveYear.value}.`
 
     return
   }
   if (leaveForm.value.end_date < leaveForm.value.start_date) {
-    leaveError.value = translate('pages.paidTimeOff.rangeExceeds', { count: leaveRemaining.value })
+    leaveError.value = translate('pages.leaveRequests.rangeExceeds', { count: leaveRemaining.value })
 
     return
   }
@@ -480,22 +541,22 @@ const savePaidTimeOff = async () => {
   leaveError.value = ''
   try {
     if (leaveForm.value.id) {
-      await PaidTimeOffApi.update(leaveStaff.value.id, leaveForm.value.id, {
+      await LeaveRequestApi.update(leaveStaff.value.id, leaveForm.value.id, {
         date: leaveForm.value.start_date,
         duration_days: leaveForm.value.duration_days,
         reason: leaveForm.value.reason.trim(),
       })
     }
     else {
-      await PaidTimeOffApi.createRange(leaveStaff.value.id, {
+      await LeaveRequestApi.createRange(leaveStaff.value.id, {
         start_date: leaveForm.value.start_date,
         end_date: leaveForm.value.end_date,
         duration_days: requestedLeaveDays.value === 1 ? leaveForm.value.duration_days : 1,
         reason: leaveForm.value.reason.trim(),
       })
     }
-    resetPaidTimeOffForm()
-    await loadPaidTimeOffs()
+    resetLeaveForm()
+    await loadLeaveRequests()
   }
   catch (error) {
     leaveError.value = apiErrorMessage(error, 'Unable to save leave.')
@@ -505,15 +566,15 @@ const savePaidTimeOff = async () => {
   }
 }
 
-const deletePaidTimeOff = async (id: number) => {
+const deleteLeave = async (id: number) => {
   if (!leaveStaff.value)
     return
   isLeaveLoading.value = true
   try {
-    await PaidTimeOffApi.delete(leaveStaff.value.id, id)
+    await LeaveRequestApi.delete(leaveStaff.value.id, id)
     if (leaveForm.value.id === id)
-      resetPaidTimeOffForm()
-    await loadPaidTimeOffs()
+      resetLeaveForm()
+    await loadLeaveRequests()
   }
   catch (error) {
     leaveError.value = apiErrorMessage(error, 'Unable to remove leave.')
@@ -669,7 +730,7 @@ const addStaff = async () => {
       salary: selectedStaff.value.salary,
       addr: selectedStaff.value.addr,
       join_date: selectedStaff.value.join_date,
-      paid_leave_days: selectedStaff.value.paid_leave_days,
+      off_day_allowance_days: selectedStaff.value.off_day_allowance_days,
       is_commission_based: selectedStaff.value.is_commission_based,
       service_commissions: commissionPayload(),
       status: selectedStaff.value.status,
@@ -732,7 +793,7 @@ const updateStaff = async () => {
       salary: selectedStaff.value.salary,
       addr: selectedStaff.value.addr,
       join_date: selectedStaff.value.join_date,
-      paid_leave_days: selectedStaff.value.paid_leave_days,
+      off_day_allowance_days: selectedStaff.value.off_day_allowance_days,
       is_commission_based: selectedStaff.value.is_commission_based,
       service_commissions: commissionPayload(),
     }
@@ -1054,7 +1115,7 @@ onMounted(async () => {
                 variant="text"
                 size="small"
                 color="primary"
-                @click="openPaidTimeOffDialog(item)"
+                @click="openLeaveDialog(item)"
               >
                 <VIcon icon="tabler-calendar-time" /><VTooltip
                   activator="parent"
@@ -1064,6 +1125,7 @@ onMounted(async () => {
                 </VTooltip>
               </VBtn>
               <VBtn
+                v-if="canEditStaff(item)"
                 icon="tabler-edit"
                 variant="text"
                 size="small"
@@ -1317,12 +1379,12 @@ onMounted(async () => {
                 md="6"
               >
                 <VTextField
-                  v-model="selectedStaff.paid_leave_days"
+                  v-model="selectedStaff.off_day_allowance_days"
                   type="number"
                   min="0"
                   step="0.5"
-                  :label="$t('pages.settings.staffList.staffList.paidLeaveDays')"
-                  :hint="$t('pages.settings.staffList.staffList.paidLeaveDaysHint')"
+                  :label="$t('pages.settings.staffList.staffList.offDayAllowanceDays')"
+                  :hint="$t('pages.settings.staffList.staffList.offDayAllowanceDaysHint')"
                   persistent-hint
                 />
               </VCol>
@@ -1337,7 +1399,6 @@ onMounted(async () => {
                   item-value="id"
                   :label="$t('common.fields.office')"
                   clearable
-                  @update:model-value="applyOfficeLeaveBase"
                 />
               </VCol>
               <VCol
@@ -1673,12 +1734,12 @@ onMounted(async () => {
                 md="6"
               >
                 <VTextField
-                  v-model="selectedStaff.paid_leave_days"
+                  v-model="selectedStaff.off_day_allowance_days"
                   type="number"
                   min="0"
                   step="0.5"
-                  :label="$t('pages.settings.staffList.staffList.paidLeaveDays')"
-                  :hint="$t('pages.settings.staffList.staffList.paidLeaveDaysHint')"
+                  :label="$t('pages.settings.staffList.staffList.offDayAllowanceDays')"
+                  :hint="$t('pages.settings.staffList.staffList.offDayAllowanceDaysHint')"
                   persistent-hint
                 />
               </VCol>
@@ -1693,7 +1754,6 @@ onMounted(async () => {
                   item-value="id"
                   :label="$t('common.fields.office')"
                   clearable
-                  @update:model-value="applyOfficeLeaveBase"
                 />
               </VCol>
               <VCol
@@ -1843,7 +1903,7 @@ onMounted(async () => {
     </VDialog>
 
     <VDialog
-      v-model="isPaidTimeOffDialogVisible"
+      v-model="isLeaveDialogVisible"
       max-width="900px"
     >
       <VCard>
@@ -1853,19 +1913,19 @@ onMounted(async () => {
               {{ $t('pages.settings.staffList.staffList.paidOffDays') }}
             </div>
             <div class="text-caption text-medium-emphasis">
-              {{ leaveStaff?.name }} · {{ paidTimeOffYear }}
+              {{ leaveStaff?.name }} · {{ leaveYear }}
             </div>
           </div>
           <VSpacer />
           <VTextField
-            v-model.number="paidTimeOffYear"
+            v-model.number="leaveYear"
             type="number"
             min="2000"
             max="3000"
             density="compact"
             hide-details
             style="max-width: 110px"
-            @update:model-value="changePaidTimeOffYear"
+            @update:model-value="changeLeaveYear"
           />
         </VCardTitle>
 
@@ -1899,12 +1959,12 @@ onMounted(async () => {
             {{ leaveError }}
           </VAlert>
           <VAlert
-            v-else-if="paidTimeOffLimitMessage"
+            v-else-if="leaveLimitMessage"
             type="warning"
             variant="tonal"
             class="mb-4"
           >
-            {{ paidTimeOffLimitMessage }}
+            {{ leaveLimitMessage }}
           </VAlert>
           <VAlert
             v-else-if="requestedLeaveDays > leaveRemaining"
@@ -1912,21 +1972,21 @@ onMounted(async () => {
             variant="tonal"
             class="mb-4"
           >
-            {{ $t('pages.paidTimeOff.rangeExceeds', { count: leaveRemaining }) }}
+            {{ $t('pages.leaveRequests.rangeExceeds', { count: leaveRemaining }) }}
           </VAlert>
 
           <VRow class="align-end mb-3">
             <VCol cols="12" sm="6" md="3">
               <AppDateTimePicker
                 v-model="leaveForm.start_date"
-                :label="$t('pages.paidTimeOff.from')"
+                :label="$t('pages.leaveRequests.from')"
                 :config="{ dateFormat: 'Y-m-d' }"
               />
             </VCol>
             <VCol cols="12" sm="6" md="3">
               <AppDateTimePicker
                 v-model="leaveForm.end_date"
-                :label="$t('pages.paidTimeOff.to')"
+                :label="$t('pages.leaveRequests.to')"
                 :config="{ dateFormat: 'Y-m-d' }"
                 :disabled="Boolean(leaveForm.id)"
               />
@@ -1941,29 +2001,29 @@ onMounted(async () => {
             <VCol v-if="requestedLeaveDays === 1" cols="12" md="2">
               <VSelect
                 v-model="leaveForm.duration_days"
-                :items="[{ title: $t('pages.paidTimeOff.fullDay'), value: 1 }, { title: $t('pages.paidTimeOff.halfDay'), value: 0.5 }]"
-                :label="$t('pages.paidTimeOff.duration')"
+                :items="[{ title: $t('pages.leaveRequests.fullDay'), value: 1 }, { title: $t('pages.leaveRequests.halfDay'), value: 0.5 }]"
+                :label="$t('pages.leaveRequests.duration')"
               />
             </VCol>
             <VCol cols="12" md="1" class="d-flex gap-2">
               <VBtn
                 color="primary"
-                :disabled="!canSavePaidTimeOff || isLeaveLoading"
-                @click="savePaidTimeOff"
+                :disabled="!canSaveLeave || isLeaveLoading"
+                @click="saveLeave"
               >
-                {{ leaveForm.id ? $t('common.actions.update') : $t('pages.paidTimeOff.requestDays', { count: requestedLeaveDays || '' }) }}
+                {{ leaveForm.id ? $t('common.actions.update') : $t('pages.leaveRequests.requestDays', { count: requestedLeaveDays || '' }) }}
                 <VTooltip
                   activator="parent"
                   location="top"
                 >
-                  {{ !isPaidTimeOffFormComplete ? 'Enter both a date and reason.' : paidTimeOffLimitMessage }}
+                  {{ !isLeaveFormComplete ? 'Enter both a date and reason.' : leaveLimitMessage }}
                 </VTooltip>
               </VBtn>
               <VBtn
                 v-if="leaveForm.id"
                 icon="tabler-x"
                 variant="text"
-                @click="resetPaidTimeOffForm"
+                @click="resetLeaveForm"
               />
             </VCol>
           </VRow>
@@ -1974,7 +2034,7 @@ onMounted(async () => {
               { title: translate('common.fields.reason'), key: 'reason' },
               { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
             ]"
-            :items="paidTimeOffs"
+            :items="leaveRequests"
             item-value="id"
             :loading="isLeaveLoading"
             density="comfortable"
@@ -1985,14 +2045,14 @@ onMounted(async () => {
                 icon="tabler-edit"
                 size="small"
                 variant="text"
-                @click="editPaidTimeOff(item)"
+                @click="editLeaveRequest(item)"
               />
               <VBtn
                 icon="tabler-trash"
                 size="small"
                 variant="text"
                 color="error"
-                @click="deletePaidTimeOff(item.id)"
+                @click="deleteLeave(item.id)"
               />
             </template>
           </ResponsiveDataTable>
@@ -2001,9 +2061,79 @@ onMounted(async () => {
         <VCardActions class="pa-5">
           <VSpacer /><VBtn
             variant="tonal"
-            @click="isPaidTimeOffDialogVisible = false"
+            @click="isLeaveDialogVisible = false"
           >
             {{ $t('common.actions.close') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Self-service employee profile: personal, contact, guarantor and bank fields only. -->
+    <VDialog
+      v-model="isSelfProfileDialogVisible"
+      max-width="840"
+      scrollable
+    >
+      <VCard>
+        <VCardTitle class="pa-5">
+          {{ $t('pages.settings.staffList.staffList.editMyProfile') }}
+        </VCardTitle>
+        <VCardText>
+          <VAlert
+            v-if="formSubmissionError"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+          >
+            {{ formSubmissionError }}
+          </VAlert>
+          <VRow>
+            <VCol cols="12" md="6">
+              <VTextField v-model="selfProfileForm.name" :label="$t('common.messages.fullName')" :error-messages="formErrors.name" required />
+            </VCol>
+            <VCol cols="12" md="6">
+              <VTextField v-model="selfProfileForm.father_name" :label="$t('common.messages.fatherName')" :error-messages="formErrors.father_name" required />
+            </VCol>
+            <VCol cols="12" md="6">
+              <VTextField v-model="selfProfileForm.contact" :label="$t('common.messages.contactPhone')" :error-messages="formErrors.contact" required />
+            </VCol>
+            <VCol cols="12" md="6">
+              <VTextField v-model="selfProfileForm.addr" :label="$t('common.fields.address')" :error-messages="formErrors.addr" required />
+            </VCol>
+            <VCol cols="12" md="6">
+              <VTextField v-model="selfProfileForm.emergency_contact_name" :label="$t('pages.settings.staffList.staffList.emergencyContactName')" />
+            </VCol>
+            <VCol cols="12" md="6">
+              <VTextField v-model="selfProfileForm.emergency_contact_phone" :label="$t('pages.settings.staffList.staffList.emergencyContactPhone')" />
+            </VCol>
+            <VCol cols="12" md="6">
+              <VTextField v-model="selfProfileForm.bank_account_number" :label="$t('common.ui.bankAccountNumber')" />
+            </VCol>
+            <VCol cols="12" md="6">
+              <VTextField v-model="selfProfileForm.guarantor_name" :label="$t('common.messages.guarantorName')" />
+            </VCol>
+            <VCol cols="12" md="6">
+              <VTextField v-model="selfProfileForm.guarantor_id_number" :label="$t('common.messages.guarantorGovernmentID')" />
+            </VCol>
+            <VCol cols="12" md="6">
+              <VTextField v-model="selfProfileForm.guarantor_phone" :label="$t('common.messages.guarantorPhone')" />
+            </VCol>
+            <VCol cols="12" md="6">
+              <VTextField v-model="selfProfileForm.guarantor_licence" :label="$t('common.messages.guarantorLicence')" />
+            </VCol>
+            <VCol cols="12">
+              <VTextField v-model="selfProfileForm.guarantor_address" :label="$t('common.messages.guarantorAddress')" />
+            </VCol>
+          </VRow>
+        </VCardText>
+        <VCardActions class="pa-5">
+          <VSpacer />
+          <VBtn variant="tonal" @click="isSelfProfileDialogVisible = false">
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn color="primary" :loading="isLoading" @click="saveSelfProfile">
+            {{ $t('common.actions.save') }}
           </VBtn>
         </VCardActions>
       </VCard>

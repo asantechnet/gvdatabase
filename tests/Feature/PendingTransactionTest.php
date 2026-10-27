@@ -30,15 +30,15 @@ class PendingTransactionTest extends TestCase
     {
         $creator = $this->actingAsAdmin();
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
-        $pending = $this->postJson('/api/pending-transactions', ['transaction_type' => 'income', 'reason' => 'Deposit', 'amount' => 20, 'currency_id' => $currency->id])->assertCreated()->json('data');
-        $this->postJson("/api/pending-transactions/{$pending['id']}/post")->assertUnprocessable();
-        $this->postJson("/api/pending-transactions/{$pending['id']}/approve")->assertUnprocessable();
+        $pending = $this->postJson('/api/payment-requests', ['transaction_type' => 'income', 'reason' => 'Deposit', 'amount' => 20, 'currency_id' => $currency->id])->assertCreated()->json('data');
+        $this->postJson("/api/payment-requests/{$pending['id']}/post")->assertUnprocessable();
+        $this->postJson("/api/payment-requests/{$pending['id']}/approve")->assertUnprocessable();
         $approver = User::factory()->create();
         $approver->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
         Sanctum::actingAs($approver, ['access']);
-        $this->postJson("/api/pending-transactions/{$pending['id']}/approve")->assertOk();
-        $this->postJson("/api/pending-transactions/{$pending['id']}/post")->assertOk();
-        $this->postJson("/api/pending-transactions/{$pending['id']}/post")->assertOk();
+        $this->postJson("/api/payment-requests/{$pending['id']}/approve")->assertOk();
+        $this->postJson("/api/payment-requests/{$pending['id']}/post")->assertOk();
+        $this->postJson("/api/payment-requests/{$pending['id']}/post")->assertOk();
         $this->assertDatabaseCount('incomes', 1);
         $this->assertDatabaseHas('incomes', ['pending_transaction_id' => $pending['id']]);
     }
@@ -50,12 +50,12 @@ class PendingTransactionTest extends TestCase
         $applicant = $this->postJson('/api/applicants', ['name' => 'Pending Case'])->assertCreated()->json('data');
         $employee = Employee::factory()->create();
 
-        $income = $this->postJson('/api/pending-transactions', ['transaction_type' => 'income', 'reason' => 'Tuition fee', 'amount' => 100, 'currency_id' => $currency->id, 'applicant_id' => $applicant['id'], 'employee_id' => $employee->id])->assertCreated()->json('data');
+        $income = $this->postJson('/api/payment-requests', ['transaction_type' => 'income', 'reason' => 'Tuition fee', 'amount' => 100, 'currency_id' => $currency->id, 'applicant_id' => $applicant['id'], 'employee_id' => $employee->id])->assertCreated()->json('data');
         $approver = User::factory()->create();
         $approver->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
         Sanctum::actingAs($approver, ['access']);
-        $this->postJson("/api/pending-transactions/{$income['id']}/approve")->assertOk();
-        $this->postJson("/api/pending-transactions/{$income['id']}/post")->assertOk();
+        $this->postJson("/api/payment-requests/{$income['id']}/approve")->assertOk();
+        $this->postJson("/api/payment-requests/{$income['id']}/post")->assertOk();
         $this->assertDatabaseHas('incomes', ['pending_transaction_id' => $income['id'], 'applicant_id' => $applicant['id'], 'employee_id' => $employee->id]);
 
         // The posted income is filed against the same single applicant.
@@ -69,17 +69,17 @@ class PendingTransactionTest extends TestCase
         $applicant = Applicant::factory()->create();
 
         // No active contract: applicant income still flows, applicant expense is blocked.
-        $this->postJson('/api/pending-transactions', ['transaction_type' => 'income', 'reason' => 'Deposit', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertCreated();
-        $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertUnprocessable();
+        $this->postJson('/api/payment-requests', ['transaction_type' => 'income', 'reason' => 'Deposit', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertCreated();
+        $this->postJson('/api/payment-requests', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertUnprocessable();
         // Office-level expense without an applicant is unaffected.
-        $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Office rent', 'amount' => 50, 'currency_id' => $currency->id])->assertCreated();
+        $this->postJson('/api/payment-requests', ['transaction_type' => 'expense', 'reason' => 'Office rent', 'amount' => 50, 'currency_id' => $currency->id])->assertCreated();
 
         Contract::factory()->create(['applicant_id' => $applicant->id, 'status' => 'active', 'is_cancelled' => false]);
-        $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertCreated();
+        $this->postJson('/api/payment-requests', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertCreated();
 
         // A cancelled contract no longer satisfies the rule.
         Contract::query()->where('applicant_id', $applicant->id)->update(['is_cancelled' => true]);
-        $this->postJson('/api/pending-transactions', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertUnprocessable();
+        $this->postJson('/api/payment-requests', ['transaction_type' => 'expense', 'reason' => 'Embassy fee', 'amount' => 50, 'currency_id' => $currency->id, 'applicant_id' => $applicant->id])->assertUnprocessable();
     }
 
     public function test_salary_is_no_longer_a_payment_request_type(): void
@@ -89,7 +89,7 @@ class PendingTransactionTest extends TestCase
 
         // Payroll owns salary records, so a payment request may only be money in
         // (income) or a cost going out (expense).
-        $this->postJson('/api/pending-transactions', [
+        $this->postJson('/api/payment-requests', [
             'transaction_type' => 'salary',
             'reason' => 'Payroll',
             'amount' => 500,
@@ -97,21 +97,21 @@ class PendingTransactionTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('transaction_type');
     }
 
-    public function test_loan_receipt_returns_printable_payload(): void
+    public function test_payment_request_receipt_returns_printable_payload(): void
     {
         $this->actingAsAdmin();
         $currency = Currency::factory()->create(['code' => 'USD', 'symbol' => '$', 'is_base' => true, 'rate' => 1]);
-        $pending = $this->postJson('/api/pending-transactions', [
+        $pending = $this->postJson('/api/payment-requests', [
             'transaction_type' => 'income',
             'reason' => 'Tuition deposit',
             'amount' => 250,
             'currency_id' => $currency->id,
         ])->assertCreated()->json('data');
 
-        $payload = $this->getJson("/api/loans/{$pending['id']}/receipt")->assertOk()->json('data');
+        $payload = $this->getJson("/api/payment-requests/{$pending['id']}/receipt")->assertOk()->json('data');
 
-        // The loan prints through the receipt template: a stable serial, the
-        // request data in the income slot and the loan status block.
+        // The payment request prints through the receipt template: a stable
+        // serial, the request data in the income slot and the request block.
         $this->assertSame('loan', $payload['document']);
         $this->assertStringStartsWith('PR-', $payload['serial_number']);
         $this->assertSame($pending['id'], $payload['income']['id']);
@@ -121,16 +121,16 @@ class PendingTransactionTest extends TestCase
         // A submitted request is not an approved amount yet.
         $this->assertEqualsWithDelta(0.0, $payload['totals']['paid_amount'], 0.001);
         $this->assertSame('submitted', $payload['loan']['status']);
-        // Loans are not tied to a contract line.
+        // Payment requests are not tied to a contract line.
         $this->assertNull($payload['contract']);
         $this->assertArrayHasKey('safe', $payload['letterhead']);
     }
 
-    public function test_loan_receipt_requires_view_permission(): void
+    public function test_payment_request_receipt_requires_view_permission(): void
     {
         $this->actingAsAdmin();
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
-        $pending = $this->postJson('/api/pending-transactions', [
+        $pending = $this->postJson('/api/payment-requests', [
             'transaction_type' => 'income',
             'reason' => 'Deposit',
             'amount' => 10,
@@ -139,6 +139,15 @@ class PendingTransactionTest extends TestCase
 
         $restricted = User::factory()->create();
         Sanctum::actingAs($restricted, ['access']);
-        $this->getJson("/api/loans/{$pending['id']}/receipt")->assertForbidden();
+        $this->getJson("/api/payment-requests/{$pending['id']}/receipt")->assertForbidden();
+    }
+
+    public function test_legacy_loans_and_pending_transactions_paths_are_gone(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->getJson('/api/payment-requests')->assertOk();
+        $this->getJson('/api/pending-transactions')->assertNotFound();
+        $this->getJson('/api/loans')->assertNotFound();
     }
 }

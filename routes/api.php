@@ -43,7 +43,7 @@ use App\Http\Controllers\KanbanController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OffDayController;
 use App\Http\Controllers\OfficeController;
-use App\Http\Controllers\PaidTimeOffController;
+use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\PendingTransactionController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PositionController;
@@ -67,6 +67,7 @@ use App\Http\Controllers\WhatsappTemplateController;
 use App\Http\Controllers\WorkdayController;
 use App\Http\Controllers\WorthyEmployeeController;
 use App\Http\Middleware\AttendanceBrowser;
+use App\Services\ReportService;
 use App\Support\BuiltInService;
 use Illuminate\Support\Facades\Route;
 
@@ -196,25 +197,16 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::post('/users/{user}/reactivate', [AccountDeactivationRequestController::class, 'reactivate'])
         ->middleware('permission:reactivate_user_accounts');
 
-    // Employee routes
-    Route::get('paid-time-offs', [PaidTimeOffController::class, 'all'])->middleware('permission:view_paid_time_off');
-    Route::get('my-paid-time-offs', [PaidTimeOffController::class, 'mine'])->middleware('permission:request_own_paid_time_off');
-    Route::post('my-paid-time-offs', [PaidTimeOffController::class, 'requestRange'])->middleware('permission:request_own_paid_time_off');
-    Route::patch('paid-time-offs/grant', [PaidTimeOffController::class, 'grant'])->middleware('permission:grant_paid_time_off');
-    Route::get('employees/{employee}/paid-time-offs', [PaidTimeOffController::class, 'index'])->middleware('permission:view_paid_time_off');
-    Route::post('employees/{employee}/paid-time-offs', [PaidTimeOffController::class, 'store'])->middleware('permission:create_paid_time_off');
-    Route::put('employees/{employee}/paid-time-offs/{paidTimeOff}', [PaidTimeOffController::class, 'update'])->middleware('permission:edit_paid_time_off');
-    Route::delete('employees/{employee}/paid-time-offs/{paidTimeOff}', [PaidTimeOffController::class, 'destroy'])->middleware('permission:delete_paid_time_off');
-    // Canonical leave API. Legacy paid-time-off URLs above remain during the
-    // compatibility window for older mobile clients.
-    Route::get('leaves', [PaidTimeOffController::class, 'all'])->middleware('permission:view_paid_time_off');
-    Route::get('my-leaves', [PaidTimeOffController::class, 'mine'])->middleware('permission:request_own_paid_time_off');
-    Route::post('my-leaves', [PaidTimeOffController::class, 'requestRange'])->middleware('permission:request_own_paid_time_off');
-    Route::patch('leaves/grant', [PaidTimeOffController::class, 'grant'])->middleware('permission:grant_paid_time_off');
-    Route::get('employees/{employee}/leaves', [PaidTimeOffController::class, 'index'])->middleware('permission:view_paid_time_off');
-    Route::post('employees/{employee}/leaves', [PaidTimeOffController::class, 'store'])->middleware('permission:create_paid_time_off');
-    Route::put('employees/{employee}/leaves/{paidTimeOff}', [PaidTimeOffController::class, 'update'])->middleware('permission:edit_paid_time_off');
-    Route::delete('employees/{employee}/leaves/{paidTimeOff}', [PaidTimeOffController::class, 'destroy'])->middleware('permission:delete_paid_time_off');
+    // Off-day requests (employee leave). An approved request is an off_day up
+    // to the employee's allowance and an absence beyond it.
+    Route::get('leave-requests', [LeaveRequestController::class, 'all'])->middleware('permission:view_leave_requests');
+    Route::get('my-leave-requests', [LeaveRequestController::class, 'mine'])->middleware('permission:request_own_leave');
+    Route::post('my-leave-requests', [LeaveRequestController::class, 'requestRange'])->middleware('permission:request_own_leave');
+    Route::patch('leave-requests/grant', [LeaveRequestController::class, 'grant'])->middleware('permission:grant_leave_requests');
+    Route::get('employees/{employee}/leave-requests', [LeaveRequestController::class, 'index'])->middleware('permission:view_leave_requests');
+    Route::post('employees/{employee}/leave-requests', [LeaveRequestController::class, 'store'])->middleware('permission:create_leave_requests');
+    Route::put('employees/{employee}/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update'])->middleware('permission:edit_leave_requests');
+    Route::delete('employees/{employee}/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'destroy'])->middleware('permission:delete_leave_requests');
 
     // Company-wide off days. Announcing needs manage_off_days; activating and
     // removing an approved holiday needs the dedicated approve_off_days grant.
@@ -235,7 +227,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::apiResource('employees', EmployeeController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_employees')
         ->middlewareFor('store', 'permission:create_employees')
-        ->middlewareFor('update', 'permission:edit_employees')
+        // A self-editor may only update their own profile and only the fields
+        // the controller allows; see EmployeeController::update.
+        ->middlewareFor('update', 'permission:edit_employees,edit_own_employee_profile')
         ->middlewareFor('destroy', 'permission:delete_employees');
     Route::post('employees/{employee}/document', [EmployeeController::class, 'uploadDocument'])->middleware('permission:edit_employees');
     Route::get('employees/{employee}/document', [EmployeeController::class, 'downloadDocument'])->middleware('permission:view_employees');
@@ -257,7 +251,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middlewareFor('destroy', 'permission:delete_bonus_nominations');
 
     // Employee Salary routes
-    Route::get('salaries/granted-bonuses', [SalaryController::class, 'grantedBonuses'])->middleware('permission:view_bonuses');        Route::get('salaries/attendance-breakdown', [SalaryController::class, 'attendanceBreakdown'])->middleware('permission:view_salaries');
+    Route::get('salaries/granted-bonuses', [SalaryController::class, 'grantedBonuses'])->middleware('permission:view_bonuses');
+    Route::get('salaries/attendance-breakdown', [SalaryController::class, 'attendanceBreakdown'])->middleware('permission:view_salaries');
+    Route::post('salaries/generate', [SalaryController::class, 'generate'])->middleware('permission:create_salaries');
         // Employee salary advances (an employee-level ledger, not tied to one salary).
         Route::get('employee-advances', [EmployeeAdvanceController::class, 'index'])->middleware('permission:view_salaries');
         Route::post('employee-advances', [EmployeeAdvanceController::class, 'store'])->middleware('permission:create_salaries');
@@ -410,19 +406,19 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::put('educational-bonus-sources/{educationalBonusSource}', [EducationalBonusSourceController::class, 'update'])->middleware('permission:manage_educational_bonuses');
     // Payment requests are the canonical public workflow: an admission officer
     // or counselor raises one, and the finance manager approves, posts and
-    // prints it. `loans` and `pending-transactions` stay as aliases so older
-    // clients, bookmarks and deep links keep hitting the same controller.
-    foreach (['payment-requests', 'loans', 'pending-transactions'] as $paymentRequestPath) {
-        Route::get($paymentRequestPath, [PendingTransactionController::class, 'index'])->middleware('permission:view_pending_transactions');
-        Route::get("{$paymentRequestPath}/options", [PendingTransactionController::class, 'options'])->middleware('permission:create_pending_transactions');
-        Route::post($paymentRequestPath, [PendingTransactionController::class, 'store'])->middleware('permission:create_pending_transactions');
-        Route::put("{$paymentRequestPath}/{pendingTransaction}", [PendingTransactionController::class, 'update'])->middleware('permission:create_pending_transactions');
-        Route::post("{$paymentRequestPath}/{pendingTransaction}/review", [PendingTransactionController::class, 'review'])->middleware('permission:approve_pending_transactions');
-        Route::post("{$paymentRequestPath}/{pendingTransaction}/approve", [PendingTransactionController::class, 'approve'])->middleware('permission:approve_pending_transactions');
-        Route::post("{$paymentRequestPath}/{pendingTransaction}/reject", [PendingTransactionController::class, 'reject'])->middleware('permission:approve_pending_transactions');
-        Route::post("{$paymentRequestPath}/{pendingTransaction}/post", [PendingTransactionController::class, 'post'])->middleware('permission:post_pending_transactions');
-        Route::get("{$paymentRequestPath}/{pendingTransaction}/receipt", [PendingTransactionController::class, 'receipt'])->middleware('permission:view_pending_transactions');
-    }
+    // prints it. The legacy `loans` and `pending-transactions` paths are gone,
+    // so this prefix is the only public address of the workflow.
+    Route::prefix('payment-requests')->group(function () {
+        Route::get('/', [PendingTransactionController::class, 'index'])->middleware('permission:view_pending_transactions');
+        Route::get('options', [PendingTransactionController::class, 'options'])->middleware('permission:create_pending_transactions');
+        Route::post('/', [PendingTransactionController::class, 'store'])->middleware('permission:create_pending_transactions');
+        Route::put('{pendingTransaction}', [PendingTransactionController::class, 'update'])->middleware('permission:create_pending_transactions');
+        Route::post('{pendingTransaction}/review', [PendingTransactionController::class, 'review'])->middleware('permission:approve_pending_transactions');
+        Route::post('{pendingTransaction}/approve', [PendingTransactionController::class, 'approve'])->middleware('permission:approve_pending_transactions');
+        Route::post('{pendingTransaction}/reject', [PendingTransactionController::class, 'reject'])->middleware('permission:approve_pending_transactions');
+        Route::post('{pendingTransaction}/post', [PendingTransactionController::class, 'post'])->middleware('permission:post_pending_transactions');
+        Route::get('{pendingTransaction}/receipt', [PendingTransactionController::class, 'receipt'])->middleware('permission:view_pending_transactions');
+    });
     // Timesheet routes
     Route::prefix('attendances')->group(function () {
         Route::get('/', [AttendanceController::class, 'index'])->middleware('permission:view_attendance');
@@ -535,8 +531,10 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     // Report routes
     Route::prefix('reports')->group(function () {
         Route::get('/catalog', [ReportController::class, 'catalog']);
-        Route::get('/{type}/export', [ReportController::class, 'export'])->whereIn('type', ['financial', 'payroll', 'attendance', 'operations']);
-        Route::get('/generate/{type}', [ReportController::class, 'generate'])->whereIn('type', ['financial', 'payroll', 'attendance', 'operations']);
+        // Bound to the service's catalogue so a new report family can never be
+        // reachable in the UI while its routes still answer 404.
+        Route::get('/{type}/export', [ReportController::class, 'export'])->whereIn('type', ReportService::TYPES);
+        Route::get('/generate/{type}', [ReportController::class, 'generate'])->whereIn('type', ReportService::TYPES);
         Route::get('/expences', [ReportController::class, 'generateExpenceReport'])->middleware('permission:view_financial_reports');
         Route::get('/expenses', [ReportController::class, 'generateExpenseReport'])->middleware('permission:view_financial_reports');
         Route::get('/salaries', [ReportController::class, 'generateSalaryReport'])->middleware('permission:view_salaries');
