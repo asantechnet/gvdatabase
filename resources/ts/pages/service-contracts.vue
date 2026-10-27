@@ -392,7 +392,7 @@ async function save() {
             <VBtn v-if="service !== 'academy'" icon="tabler-printer" size="small" variant="text" @click="printable = item; printing = true"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('serviceContracts.print') }}</VTooltip></VBtn>
             <VBtn v-if="service === 'academy'" icon="tabler-school" size="small" variant="text" @click="openSlip(item)"><VIcon icon="tabler-school" /><VTooltip activator="parent">{{ t('documents.academySlip.print') }}</VTooltip></VBtn>
             <VBtn v-if="service === 'academy' && ability.can('read', 'create_contracts') && item.contract_role === 'primary' && ['active', 'completed'].includes(item.status)" icon="tabler-file-plus" size="small" variant="text" @click="create(item)"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent">{{ t('serviceContracts.extend') }}</VTooltip></VBtn>
-            <VBtn v-if="canMarkPaid(item)" icon="tabler-cash-check" size="small" variant="text" color="success" :loading="markingPaid === item.id" @click="markPaid(item)"><VIcon icon="tabler-cash-check" /><VTooltip activator="parent">{{ t('serviceContracts.markPaid') }}</VTooltip></VBtn>
+            <VBtn v-if="canMarkPaid(item)" icon="tabler-checks" size="small" variant="text" color="success" :loading="markingPaid === item.id" @click="markPaid(item)"><VIcon icon="tabler-checks" /><VTooltip activator="parent">{{ t('serviceContracts.markPaid') }}</VTooltip></VBtn>
             <VBtn v-if="canCancel(item)" icon="tabler-ban" size="small" variant="text" color="error" @click="requestCancel(item)"><VIcon icon="tabler-ban" /><VTooltip activator="parent">{{ t('serviceContracts.cancelContract') }}</VTooltip></VBtn>
           </template>
         </div>
