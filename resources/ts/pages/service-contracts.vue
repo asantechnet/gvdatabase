@@ -232,7 +232,7 @@ const headers = computed(() => [
 // a label and relationships can be read in their own tab.
 const contractDetailFields = computed(() => [
   { key: 'contract_number', label: t('serviceContracts.number') },
-  { key: 'contract', label: t('educational.contract') },
+  { key: 'contract', label: t('common.messages.contract') },
   { key: 'service', label: t('educational.service') },
   { key: 'contract_role', label: t('serviceContracts.contractRole') },
   { key: 'type', label: t('educational.contractType') },
