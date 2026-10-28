@@ -93,6 +93,17 @@ class Contract extends Model
         return 'CTR';
     }
 
+    /** Contracts use the compact, customer-facing CTR-26-001 format. */
+    protected function documentNumberFormat(): string
+    {
+        return '%s-%s-%03d';
+    }
+
+    protected function documentNumberYearFormat(): string
+    {
+        return 'y';
+    }
+
     public function template()
     {
         return $this->belongsTo(ContractTemplate::class)->withTrashed();

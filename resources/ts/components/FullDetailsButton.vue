@@ -81,11 +81,42 @@ const friendlyLabels: Record<string, string> = {
   'absent_days': 'Absent days',
 }
 
-const labelFor = (key: string) => {
-  const fallback = friendlyLabels[key] || humanize(key)
-  const alias = detailsText(`fieldAliases.${normalizedKey(key)}`, fallback)
+const localizedFieldKeys: Record<string, string> = {
+  contractnumber: 'serviceContracts.number',
+  contractrole: 'serviceContracts.contractRole',
+  startdate: 'serviceContracts.startDate',
+  enddate: 'serviceContracts.endDate',
+  counterparty: 'serviceContracts.applicant',
+  counterpartyemail: 'serviceContracts.email',
+  counterpartycontact: 'serviceContracts.contact',
+  counterpartyaddress: 'serviceContracts.address',
+  companysignatoryname: 'serviceContracts.companySignatory',
+  iscancelled: 'serviceContracts.isCancelled',
+  cancelledat: 'serviceContracts.cancelledAt',
+  applicant: 'serviceContracts.applicantDetails',
+  contracttype: 'educational.contractType',
+  contracttypeid: 'educational.contractType',
+  fathername: 'serviceContracts.fatherName',
+  fatherphone: 'serviceContracts.fatherPhone',
+  applicationfeemin: 'serviceContracts.applicationFeeMinimum',
+  applicationfeemax: 'serviceContracts.applicationFeeMaximum',
+  applicationfee: 'serviceContracts.applicationFeeRange',
+  visafee: 'erp.visaFee',
+  currencyrate: 'serviceContracts.rate',
+  admissionemployee: 'agencyStaff.admission',
+  responsibleemployee: 'serviceContracts.consultant',
+  createdat: 'serviceContracts.createdAt',
+  updatedat: 'serviceContracts.updatedAt',
+}
 
-  return detailsText(`fields.${normalizedKey(key)}`, alias)
+const labelFor = (key: string) => {
+  const normalized = normalizedKey(key)
+  const fallback = localizedFieldKeys[normalized]
+    ? t(localizedFieldKeys[normalized])
+    : friendlyLabels[key] || humanize(key)
+  const alias = detailsText(`fieldAliases.${normalized}`, fallback)
+
+  return detailsText(`fields.${normalized}`, alias)
 }
 
 const getValue = (source: DetailRecord, path: string) => path
@@ -198,6 +229,21 @@ const currencyContext = (source: DetailRecord = record.value) => {
   return currency ? String(currency.symbol || currency.code || currency.shortname || '') : String(source.cnv_curr_shrt || record.value.cnv_curr_shrt || '')
 }
 
+const plainText = (value: string) => {
+  const withParagraphBreaks = value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+
+  if (typeof document === 'undefined')
+    return withParagraphBreaks
+
+  const decoder = document.createElement('textarea')
+  decoder.innerHTML = withParagraphBreaks
+
+  return decoder.value
+}
+
 const formatScalar = (value: unknown, key = '', source: DetailRecord = record.value) => {
   if (isEmpty(value))
     return '—'
@@ -223,9 +269,13 @@ const formatScalar = (value: unknown, key = '', source: DetailRecord = record.va
       : formatted
   }
 
-  const raw = String(value).replaceAll('_', ' ')
+  const raw = plainText(String(value))
+    .replaceAll('\u00a0', ' ')
+    .replaceAll('_', ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 
-  return /status|condition|state|is_active/i.test(key)
+  return /status|condition|state|is_active|service|contract_role/i.test(key)
     ? detailsText(`values.${normalizedKey(raw)}`, raw)
     : raw
 }

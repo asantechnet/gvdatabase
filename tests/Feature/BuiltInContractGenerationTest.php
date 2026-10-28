@@ -126,6 +126,16 @@ class BuiltInContractGenerationTest extends TestCase
         ], ...$fields, ...$extra];
     }
 
+    public function test_contract_numbers_use_the_compact_customer_format(): void
+    {
+        $contract = Contract::factory()->create();
+
+        $this->assertMatchesRegularExpression(
+            '/^CTR-'.now()->format('y').'-\\d{3}$/',
+            $contract->contract_number,
+        );
+    }
+
     public function test_each_service_atomically_creates_identity_details_contract_line_and_task(): void
     {
         foreach (BuiltInService::ALL as $service) {

@@ -34,8 +34,8 @@ trait HasDocumentNumber
             throw new LogicException('A document number requires a persisted model.');
         }
 
-        $year = ($this->created_at ?? now())->format('Y');
-        $number = sprintf('%s-%s-%06d', $this->documentNumberPrefix(), $year, $this->getKey());
+        $year = ($this->created_at ?? now())->format($this->documentNumberYearFormat());
+        $number = sprintf($this->documentNumberFormat(), $this->documentNumberPrefix(), $year, $this->getKey());
 
         $this->setAttribute($column, $number);
         $this->saveQuietly();
@@ -46,4 +46,14 @@ trait HasDocumentNumber
     abstract protected function documentNumberColumn(): string;
 
     abstract protected function documentNumberPrefix(): string;
+
+    protected function documentNumberFormat(): string
+    {
+        return '%s-%s-%06d';
+    }
+
+    protected function documentNumberYearFormat(): string
+    {
+        return 'Y';
+    }
 }

@@ -75,7 +75,6 @@ const fee = computed(() => service.value === 'private'
 const feeMin = computed(() => service.value === 'private'
   ? Number(applicationFeeRange.value[0] || 0) + Number(charges.value.visa_fee || 0)
   : fee.value)
-const applicationFeeCeiling = computed(() => Math.max(10000, Math.ceil(Number(applicationFeeRange.value[1] || 0) / 1000) * 1000 + 1000))
 const canRecordIncome = computed(() => ability.can('read', 'create_incomes'))
 const formRef = ref()
 const discount = ref<number | string>(0)
@@ -228,6 +227,28 @@ const headers = computed(() => [
   { title: t('serviceContracts.startDate'), key: 'start_date' },
   { title: t('serviceContracts.status'), key: 'status' },
   { title: t('serviceContracts.actions'), key: 'actions', sortable: false },
+])
+const privateDetailFields = computed(() => [
+  { key: 'contract_number', label: t('serviceContracts.number') },
+  { key: 'service', label: t('educational.service') },
+  { key: 'contract_role', label: t('serviceContracts.contractRole') },
+  { key: 'type', label: t('educational.contractType') },
+  { key: 'status', label: t('serviceContracts.status') },
+  { key: 'start_date', label: t('serviceContracts.startDate') },
+  { key: 'end_date', label: t('serviceContracts.endDate') },
+  { key: 'counterparty', label: t('serviceContracts.applicant') },
+  { key: 'counterparty_email', label: t('serviceContracts.email') },
+  { key: 'counterparty_contact', label: t('serviceContracts.contact') },
+  { key: 'counterparty_address', label: t('serviceContracts.address') },
+  { key: 'company_signatory_name', label: t('serviceContracts.companySignatory') },
+  { key: 'is_cancelled', label: t('serviceContracts.isCancelled') },
+  { key: 'cancelled_at', label: t('serviceContracts.cancelledAt') },
+  { key: 'applicant', label: t('serviceContracts.applicantDetails') },
+  { key: 'contract_type', label: t('educational.contractType') },
+  { key: 'services', label: t('educational.service') },
+  { key: 'notes', label: t('erp.admissionNotes') },
+  { key: 'created_at', label: t('serviceContracts.createdAt') },
+  { key: 'updated_at', label: t('serviceContracts.updatedAt') },
 ])
 const valid = computed(() => !!(editing.value ? selectedVersionId.value : selectedVersion.value) && !preparing.value && (parent.value || form.value.name?.trim()) && currencyId.value && languageId.value
   && chargeFields.value.every(field => Number.isFinite(Number(charges.value[field])) && Number(charges.value[field]) >= 0)
@@ -520,25 +541,25 @@ async function save() {
           </VCol>
         </VRow>
       </VCardText>
+      <TableLoadingSkeleton v-if="loading" :columns="headers.length" :label="t('common.messages.loading')" />
+      <TableEmptyState v-else-if="!rows.length" icon="tabler-file-description" :description="t('serviceContracts.empty')" />
       <VDataTableServer
+        v-else
         :headers="headers"
         :items="rows"
         :items-length="total"
         :page="page"
         :items-per-page="perPage"
         :items-per-page-options="[10, 25, 50, 100]"
-        :loading="loading"
         @update:options="updateTableOptions"
       >
-      <template #loading><TableLoadingSkeleton :columns="headers.length" :label="t('common.messages.loading')" /></template>
-      <template #no-data><TableEmptyState icon="tabler-file-description" :description="t('serviceContracts.empty')" /></template>
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
       <template #item.details="{ item }"><ApplicantSummary v-if="item.applicant" :applicant="item.applicant" :lines="item.services" /></template>
       <template #item.charges="{ item }"><span v-for="line in item.services" :key="line.id">{{ linePrice(line) }}</span></template>
       <template #item.status="{ item }"><VChip size="small" :color="item.is_cancelled ? 'error' : 'success'">{{ t(`serviceContracts.${item.status}`) }}</VChip></template>
       <template #item.actions="{ item }">
         <div class="d-flex gap-1">
-          <FullDetailsButton :item="item" :title="item.contract_number || item.counterparty || ''" />
+          <FullDetailsButton :item="item" :fields="service === 'private' ? privateDetailFields : undefined" :title="item.contract_number || item.counterparty || ''" />
           <!-- A cancelled contract keeps its history in this list: it stays
                viewable but loses every other action, in particular printing. -->
           <template v-if="!item.is_cancelled">
@@ -553,7 +574,7 @@ async function save() {
       </template>
       </VDataTableServer>
     </VCard>
-    <VDialog v-model="open" :persistent="saving" max-width="1240" scrollable class="erp-form service-contract-dialog">
+    <VDialog v-model="open" :persistent="saving" max-width="1100" scrollable class="erp-form service-contract-dialog">
       <VCard>
         <VCardTitle class="service-contract-header">
           <div class="min-w-0"><div class="text-h6">{{ t(labelKey) }}</div><div class="text-caption text-medium-emphasis text-truncate">{{ selectedTemplate?.name ?? t('agencyStaff.templateNotReady') }}</div></div>
@@ -566,7 +587,9 @@ async function save() {
           <div v-if="parent" class="mb-4">{{ parent.contract_number }}: {{ parent.counterparty }}</div>
           <VForm ref="formRef" @submit.prevent="save">
             <template v-if="!parent || service === 'academy'">
-              <VRow v-if="!parent && !editing && ability.can('read', 'view_visitors')" dense><VCol cols="12" sm="6" md="4"><VAutocomplete v-model="visitorId" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :disabled="preparing" density="compact" clearable /></VCol></VRow>
+              <section class="service-contract-section">
+                <div class="service-contract-section__heading"><VIcon icon="tabler-user" size="19" /><div><h3>{{ t('serviceContracts.applicantSection') }}</h3><p>{{ t('serviceContracts.applicantSectionHint') }}</p></div></div>
+                <VRow v-if="!parent && !editing && ability.can('read', 'view_visitors')" dense><VCol cols="12" sm="6" md="3"><VAutocomplete v-model="visitorId" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :disabled="preparing" density="compact" clearable /></VCol></VRow>
               <VRow dense class="mb-3">
                 <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="form.name" :label="service === 'academy' ? t('serviceContracts.studentFullName') : t('serviceContracts.applicant')" maxlength="255" required /></VCol>
                 <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" maxlength="255" required /></VCol>
@@ -578,8 +601,11 @@ async function save() {
                 <VCol v-if="!parent" cols="12" sm="6" md="3"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" clearable /></VCol>
                 <VCol v-if="!parent && ['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('agencyStaff.admission')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
               </VRow>
-              <ApplicantServiceFields v-model="form" v-model:language-id="languageId" fixed-service show-language :languages="languages" />
+              </section>
             </template>
+            <section class="service-contract-section">
+              <div class="service-contract-section__heading"><VIcon icon="tabler-file-description" size="19" /><div><h3>{{ t('serviceContracts.contractSection') }}</h3><p>{{ t('serviceContracts.contractSectionHint') }}</p></div></div>
+              <ApplicantServiceFields v-if="!parent || service === 'academy'" v-model="form" v-model:language-id="languageId" fixed-service show-language :languages="languages" />
             <!-- A contract creates the applicant, so its portal login can be
                  issued by the same save. The credentials are shown first and
                  never created until the contract is saved. -->
@@ -601,29 +627,19 @@ async function save() {
                 </div>
               </VCardText>
             </VCard>
+            <div class="service-contract-terms">
             <VRow dense>
-              <VCol v-if="service === 'private'" cols="12" md="6">
-                <label class="erp-field-label">{{ t('serviceContracts.applicationFeeRange') }} <span class="text-error" aria-hidden="true">*</span></label>
-                <VRangeSlider
-                  v-model="applicationFeeRange"
-                  class="mt-2"
-                  :min="0"
-                  :max="applicationFeeCeiling"
-                  :step="10"
-                  thumb-label="always"
-                  color="primary"
-                />
-                <div class="text-caption text-medium-emphasis">
-                  {{ applicationFeeRange[0] }} – {{ applicationFeeRange[1] }} {{ currencies.find(row => row.id === currencyId)?.code }}
-                </div>
-              </VCol>
+              <VCol v-if="service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="applicationFeeRange[0]" type="number" min="0" step="10" :label="t('serviceContracts.applicationFeeMinimum')" required /></VCol>
+              <VCol v-if="service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="applicationFeeRange[1]" type="number" :min="applicationFeeRange[0]" step="10" :label="t('serviceContracts.applicationFeeMaximum')" required /></VCol>
               <VCol v-for="field in chargeFields" :key="field" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="charges[field]" type="number" min="0" step="0.01" :label="chargeLabel(field)" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" required /></VCol>
               <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" required /></VCol>
               <VCol class="service-contract-discount" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="discount" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.discount')" /></VCol>
               <VCol v-if="service === 'academy' && canRecordIncome && !editing" cols="12" sm="6" md="3"><ErpField v-model="paidFee" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.paidFee')" :hint="t('serviceContracts.paidFeeHint')" persistent-hint /></VCol>
-              <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" md="6"><ErpField v-model="form.notes" kind="textarea" rows="1" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
+              <VCol v-if="['scholarship', 'private'].includes(service)" cols="12"><ErpField v-model="form.notes" kind="textarea" rows="3" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
             </VRow>
+            </div>
+            </section>
             <div class="service-contract-footer">
               <div class="d-flex flex-wrap align-center ga-4"><strong>{{ t('erp.totalFee') }}: {{ feeMin.toFixed(2) }}<template v-if="service === 'private'"> – {{ fee.toFixed(2) }}</template> {{ currencies.find(row => row.id === currencyId)?.code }}</strong><span class="text-medium-emphasis">{{ t('serviceContracts.discount') }}: {{ discount }}</span></div>
               <div class="d-flex ga-2"><VBtn color="secondary" variant="tonal" :disabled="saving" @click="open = false">{{ t('erp.cancel') }}</VBtn><VBtn type="submit" color="primary" prepend-icon="tabler-check" :disabled="!valid || saving">{{ t('erp.save') }}</VBtn></div>
@@ -703,6 +719,51 @@ async function save() {
 
 .service-contract-body :deep(.v-col) {
   padding-block: 3px;
+}
+
+.service-contract-section {
+  margin-block-end: 12px;
+  padding: 14px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), 0.018);
+}
+
+.service-contract-terms {
+  margin-block-start: 12px;
+}
+
+.service-contract-section__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-block-end: 10px;
+  color: rgb(var(--v-theme-primary));
+}
+
+.service-contract-section__heading h3 {
+  margin: 0;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: .9rem;
+}
+
+.service-contract-section__heading p {
+  margin: 2px 0 0;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: .75rem;
+}
+
+:deep(.v-data-table__wrapper) {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+:deep(.v-data-table__wrapper::-webkit-scrollbar) {
+  display: none;
+}
+
+:deep(.v-data-table__wrapper > table) {
+  min-inline-size: 1180px;
 }
 
 .service-contract-footer {

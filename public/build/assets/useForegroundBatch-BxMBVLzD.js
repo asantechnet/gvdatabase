@@ -1,0 +1,1 @@
+import{ad as d,du as o,dt as f}from"./main-Cu6N6hxx.js";function p(u){const e=new Map;let t,n=!1;return d(()=>{n=!0,e.clear()}),(a=[],c=o())=>{if(n)return;const r=o();if(t!==r&&(e.clear(),t=r),c!==r||(a.forEach(s=>e.set(s.id,s)),!f()||!e.size))return;const i=[...e.values()];e.clear(),u(i)}}export{p as u};
