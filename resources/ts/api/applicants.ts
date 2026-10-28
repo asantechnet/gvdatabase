@@ -2,6 +2,9 @@ import api from './axios'
 
 export type BuiltInService = 'scholarship' | 'test_offer' | 'academy' | 'private'
 
+/** A counselor's assessment is one of three fixed values, never free text. */
+export type ConsultantReview = 'good' | 'bad' | 'great'
+
 export interface ApplicantServiceDetails {
   scholarship_id?: number | null
   class_id?: number | null
@@ -79,7 +82,7 @@ export interface Applicant {
   status: string
   payment_status?: 'paid' | 'unpaid' | 'partially_paid' | null
   notes?: string | null
-  consultant_review?: string | null
+  consultant_review?: ConsultantReview | null
   responsible_employee?: { id: number; name: string } | null
   // A case's stage decides the workflow: terminal stages close the case, and
   // `completed` is the terminal stage that also releases commission.
@@ -232,7 +235,7 @@ export default {
   get: async (id: number) => (await api.get(`/applicants/${id}`)).data.data as Applicant,
   create: async (data: ApplicantPayload) => (await api.post('/applicants', data)).data.data as Applicant,
   update: async (id: number, data: ApplicantPayload) => (await api.put(`/applicants/${id}`, data)).data.data as Applicant,
-  updateConsultantReview: async (id: number, consultant_review: string | null) => (await api.put(`/applicants/${id}/consultant-review`, { consultant_review })).data.data as Applicant,
+  updateConsultantReview: async (id: number, consultant_review: ConsultantReview | null) => (await api.put(`/applicants/${id}/consultant-review`, { consultant_review })).data.data as Applicant,
   delete: async (id: number) => api.delete(`/applicants/${id}`),
   stages: async (params?: Pick<ApplicantListParams, 'country_id' | 'university_id' | 'service'>) => (await api.get('/applicant-stages', { params: clean(params) })).data.data as ApplicantStage[],
   // Laravel's boolean validation accepts 1/0 query values reliably; URL query

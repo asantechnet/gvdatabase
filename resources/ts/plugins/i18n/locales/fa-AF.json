@@ -224,6 +224,8 @@
       "suspended": "معلق",
       "new": "جدید",
       "good": "خوب",
+      "bad": "بد",
+      "great": "عالی",
       "fair": "قناعت‌بخش",
       "poor": "ضعیف",
       "damaged": "آسیب‌دیده",
@@ -2426,7 +2428,7 @@
           "acquisitionRouteHint": "مراجعه‌کننده چطور با شرکت آشنا شد.",
           "consultant": "مشاور",
           "consultantReview": "بررسی مشاور",
-          "consultantReviewHint": "ارزیابی مشاور از این مراجعه‌کننده را ثبت کنید.",
+          "consultantReviewHint": "ارزیابی مشاور را انتخاب کنید: عالی، خوب یا بد.",
           "consultantReviewSaved": "بررسی مشاور ذخیره شد.",
           "review": "بررسی مشاور"
         }

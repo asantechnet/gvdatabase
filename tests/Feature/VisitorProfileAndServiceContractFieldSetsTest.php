@@ -62,16 +62,50 @@ class VisitorProfileAndServiceContractFieldSetsTest extends TestCase
         Sanctum::actingAs($counselorUser, ['access']);
         $data = ['name' => 'Review Visitor', 'contact' => '0700000001', 'service' => 'Private', 'date' => '2026-10-20'];
 
-        $visitorId = $this->postJson('/api/visitors', [...$data, 'consultant_review' => 'Needs a scholarship comparison.'])
-            ->assertCreated()->assertJsonPath('data.consultant_review', 'Needs a scholarship comparison.')
+        $visitorId = $this->postJson('/api/visitors', [...$data, 'consultant_review' => 'great'])
+            ->assertCreated()->assertJsonPath('data.consultant_review', 'great')
             ->json('data.id');
 
-        $this->putJson("/api/visitors/{$visitorId}/consultant-review", ['consultant_review' => 'Eligible after document check.'])
-            ->assertOk()->assertJsonPath('data.consultant_review', 'Eligible after document check.');
+        $this->putJson("/api/visitors/{$visitorId}/consultant-review", ['consultant_review' => 'bad'])
+            ->assertOk()->assertJsonPath('data.consultant_review', 'bad');
 
         Sanctum::actingAs(User::factory()->create(['roles' => ['staff']]), ['access']);
-        $this->putJson("/api/visitors/{$visitorId}/consultant-review", ['consultant_review' => 'Not allowed.'])
+        $this->putJson("/api/visitors/{$visitorId}/consultant-review", ['consultant_review' => 'good'])
             ->assertForbidden();
+    }
+
+    public function test_consultant_reviews_only_accept_the_three_fixed_options(): void
+    {
+        $counselorUser = User::factory()->create(['roles' => ['counselor']]);
+        Employee::factory()->create(['user_id' => $counselorUser->id]);
+        Sanctum::actingAs($counselorUser, ['access']);
+        $data = ['contact' => '0700000010', 'service' => 'Private', 'date' => '2026-10-20'];
+
+        $this->postJson('/api/visitors', [...$data, 'name' => 'Prose Visitor', 'consultant_review' => 'Needs a scholarship comparison.'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('consultant_review');
+
+        foreach (['good', 'bad', 'great'] as $review) {
+            $id = $this->postJson('/api/visitors', [...$data, 'name' => "Review {$review}", 'consultant_review' => $review])
+                ->assertCreated()
+                ->assertJsonPath('data.consultant_review', $review)
+                ->json('data.id');
+
+            $this->putJson("/api/visitors/{$id}/consultant-review", ['consultant_review' => 'Eligible after document check.'])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('consultant_review');
+        }
+
+        $this->superAdmin();
+        $applicantId = $this->postJson('/api/applicants', ['name' => 'Review Applicant', 'service' => 'scholarship'])
+            ->assertCreated()->json('data.id');
+
+        $this->putJson("/api/applicants/{$applicantId}/consultant-review", ['consultant_review' => 'Prepared for the next intake.'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('consultant_review');
+        $this->putJson("/api/applicants/{$applicantId}/consultant-review", ['consultant_review' => 'good'])
+            ->assertOk()
+            ->assertJsonPath('data.consultant_review', 'good');
     }
 
     public function test_a_reviewer_can_edit_an_applicant_consultant_review_without_case_edit_access(): void
@@ -84,8 +118,8 @@ class VisitorProfileAndServiceContractFieldSetsTest extends TestCase
         Employee::factory()->create(['user_id' => $counselorUser->id]);
         Sanctum::actingAs($counselorUser, ['access']);
 
-        $this->putJson("/api/applicants/{$applicantId}/consultant-review", ['consultant_review' => 'Prepared for the next intake.'])
-            ->assertOk()->assertJsonPath('data.consultant_review', 'Prepared for the next intake.');
+        $this->putJson("/api/applicants/{$applicantId}/consultant-review", ['consultant_review' => 'great'])
+            ->assertOk()->assertJsonPath('data.consultant_review', 'great');
     }
 
     public function test_a_consultant_cannot_move_their_visitor_to_another_consultant(): void

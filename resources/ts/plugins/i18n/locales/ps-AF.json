@@ -573,6 +573,8 @@
       "suspended": "ځنډول شوی",
       "new": "نوی",
       "good": "ښه",
+      "bad": "بد",
+      "great": "غوره",
       "fair": "متوسط",
       "poor": "ضعیف",
       "damaged": "زیانمن شوی",
@@ -2771,7 +2773,7 @@
           "acquisitionRouteHint": "لیدونکی د شرکت په اړه څنګه پوه شو.",
           "consultant": "سلاکار",
           "consultantReview": "د سلاکار بیاکتنه",
-          "consultantReviewHint": "د دې لیدونکي په اړه د سلاکار ارزونه ثبت کړئ.",
+          "consultantReviewHint": "د سلاکار ارزونه وټاکئ: غوره، ښه یا بد.",
           "consultantReviewSaved": "د سلاکار بیاکتنه خوندي شوه.",
           "review": "د سلاکار بیاکتنه"
         }

@@ -10,6 +10,7 @@ use App\Models\ApplicantStage;
 use App\Models\CrmInteraction;
 use App\Models\Visitor;
 use App\Support\AgencyStaffAssignment;
+use App\Support\ConsultantReview;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -94,7 +95,7 @@ class VisitorController extends Controller
             'province_id' => ['nullable', 'integer', Rule::exists('provinces', 'id')->whereNull('deleted_at')],
             'english_level_id' => ['nullable', 'integer', Rule::exists('english_levels', 'id')->whereNull('deleted_at')],
             'acquisition_route_id' => ['nullable', 'integer', Rule::exists('acquisition_routes', 'id')->whereNull('deleted_at')],
-            'consultant_review' => ['sometimes', 'nullable', 'string', 'max:10000'],
+            'consultant_review' => ['sometimes', 'nullable', 'string', Rule::in(ConsultantReview::ALL)],
             'date' => 'required|date',
             'notes' => 'nullable|string|max:10000',
         ]);
@@ -139,7 +140,7 @@ class VisitorController extends Controller
             'province_id' => ['nullable', 'integer', Rule::exists('provinces', 'id')->whereNull('deleted_at')],
             'english_level_id' => ['nullable', 'integer', Rule::exists('english_levels', 'id')->whereNull('deleted_at')],
             'acquisition_route_id' => ['nullable', 'integer', Rule::exists('acquisition_routes', 'id')->whereNull('deleted_at')],
-            'consultant_review' => ['sometimes', 'nullable', 'string', 'max:10000'],
+            'consultant_review' => ['sometimes', 'nullable', 'string', Rule::in(ConsultantReview::ALL)],
             'date' => 'sometimes|required|date',
             'notes' => 'nullable|string|max:10000',
         ]);
@@ -185,7 +186,7 @@ class VisitorController extends Controller
     /** A review is editable by its dedicated permission, independent of visitor editing. */
     public function updateConsultantReview(Request $request, Visitor $visitor): VisitorResource
     {
-        $data = $request->validate(['consultant_review' => ['nullable', 'string', 'max:10000']]);
+        $data = $request->validate(['consultant_review' => ['nullable', 'string', Rule::in(ConsultantReview::ALL)]]);
         $visitor->update($data);
 
         return new VisitorResource($visitor->load($this->relations()));

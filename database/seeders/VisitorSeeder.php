@@ -62,7 +62,7 @@ class VisitorSeeder extends Seeder
                 'province_id' => Province::query()->where('name', $data['province'])->value('id'),
                 'english_level_id' => $english[$index % max($english->count(), 1)] ?? null,
                 'acquisition_route_id' => $routes[$index % max($routes->count(), 1)] ?? null,
-                'consultant_review' => $index % 2 === 0 ? 'Initial counseling review completed.' : null,
+                'consultant_review' => $index % 2 === 0 ? 'good' : null,
                 'date' => $at->format('Y-m-d'),
                 'notes' => 'Walk-in enquiry about '.$data['service'].'.',
                 'converted_at' => $index === 0 ? Carbon::now()->subDays($data['days_ago'] - 1) : null,

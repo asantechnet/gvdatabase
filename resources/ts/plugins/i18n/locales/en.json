@@ -224,6 +224,8 @@
       "suspended": "Suspended",
       "new": "New",
       "good": "Good",
+      "bad": "Bad",
+      "great": "Great",
       "fair": "Fair",
       "poor": "Poor",
       "damaged": "Damaged",
@@ -2431,7 +2433,7 @@
           "acquisitionRouteHint": "How the visitor found out about the firm.",
           "consultant": "Consultant",
           "consultantReview": "Counselor review",
-          "consultantReviewHint": "Record the counselor's assessment of this visitor.",
+          "consultantReviewHint": "Choose the counselor's assessment: great, good or bad.",
           "consultantReviewSaved": "Counselor review saved.",
           "review": "Counselor review"
         }

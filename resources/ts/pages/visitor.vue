@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { translate } from '@/utils/localization'
+import { translate, translateBackendValue } from '@/utils/localization'
+import type { ConsultantReview } from '@/api/applicants'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -152,7 +153,7 @@ const profilePayload = (): Omit<CreateVisitorData, 'date' | 'name' | 'contact' |
   acquisition_route_id: visitorData.value.acquisition_route_id,
   consultant_employee_id: consultantLocked.value ? lockedConsultantId.value : visitorData.value.consultant_employee_id,
   notes: visitorData.value.notes,
-  ...(canReview.value ? { consultant_review: visitorData.value.consultant_review.trim() || null } : {}),
+  ...(canReview.value ? { consultant_review: visitorData.value.consultant_review || null } : {}),
 })
 
 const listParams = () => ({
@@ -227,7 +228,7 @@ const visitorReportRow = (visitor: Visitor): string[] => [
   visitor.english_level?.name || '—',
   visitor.acquisition_route?.name || '—',
   consultantLabel(visitor),
-  visitor.consultant_review || '—',
+  visitor.consultant_review ? translateBackendValue(visitor.consultant_review) : '—',
   visitor.date,
 ]
 
@@ -374,7 +375,12 @@ const setFollowUp = async (visitor: Visitor, followUp: boolean) => {
 
 const reviewDialog = ref(false)
 const reviewVisitor = ref<Visitor | null>(null)
-const consultantReview = ref('')
+const consultantReview = ref<ConsultantReview | ''>('')
+const reviewOptions = computed(() => [
+  { title: translate('common.statuses.good'), value: 'good' },
+  { title: translate('common.statuses.bad'), value: 'bad' },
+  { title: translate('common.statuses.great'), value: 'great' },
+])
 
 const openConsultantReview = (visitor: Visitor) => {
   reviewVisitor.value = visitor
@@ -389,7 +395,7 @@ const saveConsultantReview = async () => {
 
   try {
     isSaving.value = true
-    const updated = await VisitorApi.updateConsultantReview(reviewVisitor.value.id, consultantReview.value.trim() || null)
+    const updated = await VisitorApi.updateConsultantReview(reviewVisitor.value.id, consultantReview.value || null)
     const index = visitors.value.findIndex(v => v.id === reviewVisitor.value?.id)
     if (index !== -1)
       visitors.value[index] = updated
@@ -590,7 +596,7 @@ onMounted(async () => {
         </div>
       </template>
 
-      <template #item.review="{ item }"><span class="text-medium-emphasis">{{ item.consultant_review || '—' }}</span></template>
+      <template #item.review="{ item }"><span class="text-medium-emphasis">{{ item.consultant_review ? translateBackendValue(item.consultant_review) : '—' }}</span></template>
 
       <template #item.actions="{ item }">
         <div class="d-flex justify-end gap-1">
@@ -756,7 +762,7 @@ onMounted(async () => {
     <VCard>
       <VCardTitle>{{ $t('pages.contracts.visitor.visitor.consultantReview') }}</VCardTitle>
       <VCardText>
-        <VTextarea v-model="consultantReview" :label="$t('pages.contracts.visitor.visitor.consultantReview')" rows="4" auto-grow />
+        <VSelect v-model="consultantReview" :items="reviewOptions" :label="$t('pages.contracts.visitor.visitor.consultantReview')" clearable />
       </VCardText>
       <VCardActions>
         <VSpacer />

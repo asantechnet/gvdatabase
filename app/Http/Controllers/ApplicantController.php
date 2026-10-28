@@ -14,6 +14,7 @@ use App\Services\CaseWinService;
 use App\Services\EducationalWorkflowNotificationService;
 use App\Support\AgencyStaffAssignment;
 use App\Support\BuiltInService;
+use App\Support\ConsultantReview;
 use App\Support\EmployeeScope;
 use App\Support\PaymentStatus;
 use Illuminate\Database\Eloquent\Builder;
@@ -292,7 +293,7 @@ class ApplicantController extends Controller
     /** Consultant reviews are editable without the broader applicant-edit grant. */
     public function updateConsultantReview(Request $request, Applicant $applicant)
     {
-        $data = $request->validate(['consultant_review' => ['nullable', 'string', 'max:10000']]);
+        $data = $request->validate(['consultant_review' => ['nullable', 'string', Rule::in(ConsultantReview::ALL)]]);
         $applicant->update($data);
 
         return response()->json(['success' => true, 'data' => $this->aliasDetails($applicant->fresh()->load($this->relations()))]);
@@ -360,7 +361,7 @@ class ApplicantController extends Controller
             'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
             'semester_id' => ['nullable', 'integer', 'exists:semesters,id'],
             'notes' => ['nullable', 'string', 'max:10000'],
-            'consultant_review' => ['sometimes', 'nullable', 'string', 'max:10000'],
+            'consultant_review' => ['sometimes', 'nullable', 'string', Rule::in(ConsultantReview::ALL)],
             // The built-in service this applicant belongs to. It decides which
             // detail field set applies. Defaults to scholarship on creation.
             'service' => ['sometimes', Rule::in(BuiltInService::ALL)],

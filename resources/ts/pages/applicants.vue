@@ -8,7 +8,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import ApplicantApi, { type Applicant, type ApplicantStage, type BuiltInService, type ApplicantPayload, type ApplicantListParams, applicantServicePayload } from '@/api/applicants'
+import ApplicantApi, { type Applicant, type ApplicantStage, type BuiltInService, type ApplicantPayload, type ApplicantListParams, type ConsultantReview, applicantServicePayload } from '@/api/applicants'
 import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import EmployeeApi, { type Employee } from '@/api/employee'
@@ -113,7 +113,12 @@ const createDialog = ref(false)
 const creating = ref(false)
 const reviewDialog = ref(false)
 const reviewApplicant = ref<Applicant | null>(null)
-const consultantReview = ref('')
+const consultantReview = ref<ConsultantReview | ''>('')
+const reviewOptions = computed(() => [
+  { title: t('common.statuses.good'), value: 'good' },
+  { title: t('common.statuses.bad'), value: 'bad' },
+  { title: t('common.statuses.great'), value: 'great' },
+])
 const createForm = ref({ name: '', father_name: '', father_phone: '', backup_phone: '', contact: '', email: '', admission_employee_id: null as number | null, responsible_employee_id: null as number | null, notes: '' })
 const serviceForm = ref<ApplicantPayload>({ service: 'scholarship' })
 // The list is driven by the workflow stages themselves: every stage is a tab,
@@ -291,7 +296,7 @@ async function create() {
 
 function openConsultantReview(applicant: Applicant) {
   reviewApplicant.value = applicant
-  consultantReview.value = applicant.consultant_review || ''
+  consultantReview.value = applicant.consultant_review ?? ''
   reviewDialog.value = true
 }
 
@@ -301,7 +306,7 @@ async function saveConsultantReview() {
 
   try {
     creating.value = true
-    const updated = await ApplicantApi.updateConsultantReview(reviewApplicant.value.id, consultantReview.value.trim() || null)
+    const updated = await ApplicantApi.updateConsultantReview(reviewApplicant.value.id, consultantReview.value || null)
     const index = rows.value.findIndex(row => row.id === updated.id)
     if (index !== -1)
       rows.value[index] = updated
@@ -468,7 +473,7 @@ onMounted(async () => {
   <VDialog v-model="reviewDialog" max-width="640">
     <VCard>
       <VCardTitle>{{ $t('pages.contracts.visitor.visitor.consultantReview') }}</VCardTitle>
-      <VCardText><VTextarea v-model="consultantReview" :label="$t('pages.contracts.visitor.visitor.consultantReview')" rows="4" auto-grow /></VCardText>
+      <VCardText><VSelect v-model="consultantReview" :items="reviewOptions" :label="$t('pages.contracts.visitor.visitor.consultantReview')" clearable /></VCardText>
       <VCardActions><VSpacer /><VBtn variant="outlined" @click="reviewDialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="primary" :loading="creating" @click="saveConsultantReview">{{ $t('common.actions.save') }}</VBtn></VCardActions>
     </VCard>
   </VDialog>

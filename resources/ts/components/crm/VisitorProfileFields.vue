@@ -3,8 +3,16 @@ import ErpField from '@/components/erp/ErpField.vue'
 import type { MasterDataRecord } from '@/api/educationalMasterData'
 import type { Employee } from '@/api/employee'
 import type { VisitorFormData } from '@/api/visitor'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const model = defineModel<VisitorFormData>({ required: true })
+const { t } = useI18n()
+const reviewOptions = computed(() => [
+  { title: t('common.statuses.good'), value: 'good' },
+  { title: t('common.statuses.bad'), value: 'bad' },
+  { title: t('common.statuses.great'), value: 'great' },
+])
 const props = defineProps<{
   catalogs: Partial<Record<'education-levels' | 'provinces' | 'english-levels' | 'acquisition-routes', MasterDataRecord[]>>
   consultants: Employee[]
@@ -130,13 +138,14 @@ const options = (catalog: 'education-levels' | 'provinces' | 'english-levels' | 
       />
     </VCol>
     <VCol v-if="canReview" cols="12" sm="6" md="4">
-      <VTextarea
+      <ErpField
         v-model="model.consultant_review"
+        kind="select"
+        :items="reviewOptions"
         :label="$t('pages.contracts.visitor.visitor.consultantReview')"
         :hint="$t('pages.contracts.visitor.visitor.consultantReviewHint')"
         persistent-hint
-        rows="2"
-        auto-grow
+        clearable
       />
     </VCol>
     <VCol cols="12">

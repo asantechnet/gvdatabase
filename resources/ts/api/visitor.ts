@@ -1,5 +1,5 @@
 import api from './axios'
-import type { Applicant, ApplicantPayload } from './applicants'
+import type { Applicant, ApplicantPayload, ConsultantReview } from './applicants'
 import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 
 export interface VisitorPerson {
@@ -26,7 +26,7 @@ export interface Visitor {
   consultant_employee_id: number | null
   consultant: VisitorPerson | null
   /** Only holders of `review_visitors` may edit this counselor's review. */
-  consultant_review: string | null
+  consultant_review: ConsultantReview | null
   notes: string | null
   /** Marked as worthy of follow-up: shown in the Follow-up list, not in Visitors. */
   follow_up: boolean
@@ -62,7 +62,7 @@ export interface CreateVisitorData {
   english_level_id?: number | null
   acquisition_route_id?: number | null
   consultant_employee_id?: number | null
-  consultant_review?: string | null
+  consultant_review?: ConsultantReview | null
   date: string
   notes?: string | null
 }
@@ -82,7 +82,7 @@ export interface VisitorFormData {
   english_level_id: number | null
   acquisition_route_id: number | null
   consultant_employee_id: number | null
-  consultant_review: string
+  consultant_review: ConsultantReview | ''
   notes: string
 }
 
@@ -109,7 +109,7 @@ export const visitorApplicantFields = (visitor: Pick<Visitor, 'name' | 'contact'
 // Visitor API endpoints
 const VisitorApi = {
   convertToApplicant: async (id: number): Promise<Applicant> => (await api.post<{ data: Applicant }>(`/visitors/${id}/convert-to-applicant`)).data.data,
-  updateConsultantReview: async (id: number, consultant_review: string | null): Promise<Visitor> => (await api.put<{ data: Visitor }>(`/visitors/${id}/consultant-review`, { consultant_review })).data.data,
+  updateConsultantReview: async (id: number, consultant_review: ConsultantReview | null): Promise<Visitor> => (await api.put<{ data: Visitor }>(`/visitors/${id}/consultant-review`, { consultant_review })).data.data,
 
   // Every matching visitor; also used by the print report, which covers the
   // whole filtered set rather than the visible page.
