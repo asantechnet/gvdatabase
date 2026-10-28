@@ -3,14 +3,15 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import { VDialog } from 'vuetify/components'
-import SalaryApi, { type Salary, type SalaryDeduction } from '@/api/salary'
-import CurrencyApi from '@/api/currency'
+import SalaryApi, { type PayrollRegisterRow, type PayrollRegisterTotals, type Salary, type SalaryDeduction } from '@/api/salary'
+import CurrencyApi, { type Currency } from '@/api/currency'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import EmployeeAdvanceApi, { type EmployeeAdvance, type CreateEmployeeAdvanceData } from '@/api/employeeAdvances'
 import SettingApi, { type Setting } from '@/api/setting'
 import PayslipTemplate, { type SalarySlipProps } from './templates/payslip_template.vue'
 import AdvanceReceiptTemplate, { type AdvanceReceiptData } from './templates/advance_receipt_template.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { formatLocalizedDate, formatLocalizedNumber, translate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
@@ -41,10 +42,22 @@ const month = ref(`${today.getFullYear()}-${String(today.getMonth() + 1).padStar
 const activeTab = ref<'payslips' | 'advances'>('payslips')
 const search = ref('')
 const employees = ref<Employee[]>([])
+// The register is employee-driven and paged on the server; `employees` stays
+// the complete list the form pickers and receipts need.
+const registerRows = ref<PayrollRegisterRow[]>([])
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+// Filled from every register row right before printing.
+const reportRows = ref<string[][]>([])
 const salaries = ref<Salary[]>([])
 const advances = ref<EmployeeAdvance[]>([])
+const advancesPage = ref(1)
+const advancesPerPage = ref(25)
+const advancesTotal = ref(0)
 const companySetting = ref<Setting | null>(null)
 const baseCurrencyId = ref<number | null>(null)
+const baseCurrency = ref<Pick<Currency, 'id' | 'code' | 'symbol'> | null>(null)
 const loading = ref(false)
 const saving = ref(false)
 
@@ -77,8 +90,8 @@ const advanceReceiptRef = ref<InstanceType<typeof AdvanceReceiptTemplate> | null
 // Derived data ------------------------------------------------------------
 const salaryByEmployee = computed(() => new Map(salaries.value.map(salary => [salary.employee_id, salary])))
 
-const rows = computed<PayrollRow[]>(() => employees.value.map(employee => {
-  const salary = salaryByEmployee.value.get(employee.id) ?? null
+const toPayrollRows = (register: PayrollRegisterRow[]): PayrollRow[] => register.map(({ employee, salary: rowSalary }) => {
+  const salary = rowSalary ?? salaryByEmployee.value.get(employee.id) ?? null
   const base = salary ? Number(salary.totalAmount) - Number(salary.bonus ?? 0) : Number(employee.salary ?? 0)
 
   return {
@@ -97,32 +110,19 @@ const rows = computed<PayrollRow[]>(() => employees.value.map(employee => {
     status: !salary ? 'missing' : (salary.paymentStatus ?? 'open'),
     salary,
   }
-}))
-
-const filteredRows = computed(() => {
-  const term = search.value.trim().toLowerCase()
-  if (!term)
-    return rows.value
-
-  return rows.value.filter(row => row.name.toLowerCase().includes(term) || row.position.toLowerCase().includes(term))
 })
 
-const totals = computed(() => {
-  const generated = rows.value.filter(row => row.salary)
-  const net = generated.reduce((sum, row) => sum + (row.net ?? 0), 0)
-  const paid = generated.reduce((sum, row) => sum + row.paid, 0)
+const rows = computed<PayrollRow[]>(() => toPayrollRows(registerRows.value))
 
-  return {
-    net,
-    paid,
-    outstanding: Math.max(0, net - paid),
-    generated: generated.length,
-    missing: rows.value.filter(row => !row.salary).length,
-  }
-})
+// The month-wide figures come from the API, so they describe the whole
+// register rather than the visible page.
+const emptyTotals: PayrollRegisterTotals = { net: 0, paid: 0, outstanding: 0, generated: 0, missing: 0 }
+const totals = ref<PayrollRegisterTotals>({ ...emptyTotals })
 
-const currencyCode = computed(() => salaries.value[0]?.currency?.code ?? 'AFN')
-const currencySymbol = computed(() => salaries.value[0]?.currency?.symbol ?? '')
+// The register is printed in the payslip currency; when the visible page has
+// no payslips yet (nothing generated) the company's base currency is used.
+const currencyCode = computed(() => salaries.value[0]?.currency?.code ?? baseCurrency.value?.code ?? 'AFN')
+const currencySymbol = computed(() => salaries.value[0]?.currency?.symbol ?? baseCurrency.value?.symbol ?? '')
 
 const companyProfile = computed(() => ({
   name: companySetting.value?.original_company_name || companySetting.value?.website_title || '',
@@ -149,22 +149,32 @@ const formatInWords = (amount: number) => translate('documents.payslip.amountInW
 })
 
 // Loading ----------------------------------------------------------------
+// (see `load` below, which pages the register and the advances ledger)
 async function load() {
   loading.value = true
   try {
-    const [salaryResponse, employeeResponse, advanceResponse, settingResponse, currencyResponse] = await Promise.all([
-      SalaryApi.getAll({ salaryMonthFilter: month.value }),
-      EmployeeApi.getAll(),
-      EmployeeAdvanceApi.list(),
+    const [register, employeeRows, advanceResponse, settingResponse, currencyResponse] = await Promise.all([
+      SalaryApi.register({ month: month.value, search: search.value.trim() || undefined, page: page.value, perPage: perPage.value }),
+      EmployeeApi.getOptions(),
+      EmployeeAdvanceApi.listPage({ page: advancesPage.value, perPage: advancesPerPage.value }),
       SettingApi.getCompanyProfile(),
       CurrencyApi.getAll(),
     ])
 
-    salaries.value = salaryResponse.data
-    employees.value = employeeResponse.data.data
-    advances.value = advanceResponse
+    registerRows.value = register.rows
+    total.value = register.total
+    totals.value = register.totals ?? { ...emptyTotals }
+    // The month's payslips of this page drive the currency shown on screen and
+    // the payslip dialogs; the full employee list serves the pickers.
+    salaries.value = register.rows.map(row => row.salary).filter((salary): salary is Salary => salary !== null)
+    employees.value = employeeRows
+    advances.value = advanceResponse.rows
+    advancesTotal.value = advanceResponse.total
     companySetting.value = settingResponse.data
-    baseCurrencyId.value = currencyResponse.data.find(currency => currency.isBase)?.id ?? null
+    const base = currencyResponse.data.find(currency => currency.isBase) ?? null
+
+    baseCurrency.value = base
+    baseCurrencyId.value = base?.id ?? null
   }
   catch (error) {
     toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToLoad')))
@@ -173,6 +183,30 @@ async function load() {
     loading.value = false
   }
 }
+
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  void load()
+}
+
+function updateAdvancesTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (advancesPage.value === options.page && advancesPerPage.value === options.itemsPerPage)
+    return
+
+  advancesPage.value = options.page
+  advancesPerPage.value = options.itemsPerPage
+  void load()
+}
+
+// Typing in the register search is a filter change, so it starts from the first page.
+const debouncedRegisterSearch = useDebounceFn(() => {
+  page.value = 1
+  void load()
+}, 300)
 
 // Payroll actions --------------------------------------------------------
 async function generateMissing() {
@@ -397,8 +431,38 @@ function printPayslip() {
   payslipRef.value?.print()
 }
 
-function printRegister() {
-  void printDocument({ bodyClass: 'printing-table-payrolls', pageStyle: 'size: A4 landscape; margin: 10mm;' })
+// Print is global: the report is filled from every register row first.
+const registerReportRow = (row: PayrollRow): string[] => [
+  row.name,
+  formatAmount(row.base),
+  row.salary ? `${row.workedDays}/${row.totalDays}` : '—',
+  row.offDays === null ? '—' : String(row.offDays),
+  row.absentDays === null ? '—' : String(row.absentDays),
+  formatAmount(row.net),
+  formatAmount(row.paid),
+  formatAmount(row.outstanding),
+]
+
+async function printRegister() {
+  try {
+    const collected: PayrollRow[] = []
+    let nextPage = 1
+    let lastPage = 1
+
+    do {
+      const result = await SalaryApi.register({ month: month.value, search: search.value.trim() || undefined, page: nextPage, perPage: 100 })
+
+      collected.push(...toPayrollRows(result.rows))
+      lastPage = result.lastPage
+      nextPage += 1
+    } while (nextPage <= lastPage)
+
+    reportRows.value = collected.map(registerReportRow)
+    await printDocument({ bodyClass: 'printing-table-payrolls', pageStyle: 'size: A4 landscape; margin: 10mm;' })
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToLoad')))
+  }
 }
 
 function getEmployeePosition(employee: Employee | undefined): string {
@@ -496,14 +560,19 @@ function statusColor(status: PayrollRow['status']) {
   return { missing: 'secondary', open: 'warning', partially_paid: 'info', paid: 'success' }[status]
 }
 
-watch(month, load)
+function updateMonth() {
+  page.value = 1
+  void load()
+}
+
+watch(month, updateMonth)
 onMounted(load)
 </script>
 
 <template>
   <div class="payrolls-page pa-4">
     <DataTablePageKpis
-      :items="filteredRows"
+      :items="rows"
       :title="$t('pages.payrolls.title')"
       :description="$t('pages.payrolls.description')"
       icon="tabler-wallet"
@@ -608,10 +677,15 @@ onMounted(load)
                 density="compact"
                 hide-details
                 style="max-width: 320px"
+                @update:model-value="debouncedRegisterSearch"
               />
             </div>
-            <ResponsiveDataTable
-              :items="filteredRows"
+            <ResponsiveDataTableServer
+              :items="rows"
+              :items-length="total"
+              :page="page"
+              :items-per-page="perPage"
+              :items-per-page-options="[10, 25, 50, 100]"
               :loading="loading"
               item-value="id"
               :headers="[
@@ -711,7 +785,7 @@ onMounted(load)
                   </template>
                 </div>
               </template>
-            </ResponsiveDataTable>
+            </ResponsiveDataTableServer>
           </VWindowItem>
           <VWindowItem value="advances">
             <div class="d-flex flex-wrap align-center ga-3 mb-4">
@@ -723,8 +797,12 @@ onMounted(load)
                 {{ $t('pages.payrolls.addAdvance') }}
               </VBtn>
             </div>
-            <ResponsiveDataTable
+            <ResponsiveDataTableServer
               :items="advances"
+              :items-length="advancesTotal"
+              :page="advancesPage"
+              :items-per-page="advancesPerPage"
+              :items-per-page-options="[10, 25, 50, 100]"
               :loading="loading"
               item-value="id"
               :headers="[
@@ -770,7 +848,7 @@ onMounted(load)
                   />
                 </div>
               </template>
-            </ResponsiveDataTable>
+            </ResponsiveDataTableServer>
           </VWindowItem>
         </VWindow>
       </VCardText>
@@ -780,7 +858,7 @@ onMounted(load)
       :title="$t('pages.payrolls.registerTitle')"
       :subtitle="month"
       :columns="[$t('common.fields.employee'), $t('pages.payrolls.baseSalary'), $t('pages.payrolls.worked'), $t('pages.payrolls.offDays'), $t('pages.payrolls.absent'), $t('pages.payrolls.net'), $t('pages.payrolls.paid'), $t('pages.payrolls.outstanding')]"
-      :rows="filteredRows.map(row => [row.name, formatAmount(row.base), row.salary ? `${row.workedDays}/${row.totalDays}` : '—', row.offDays ?? '—', row.absentDays ?? '—', formatAmount(row.net), formatAmount(row.paid), formatAmount(row.outstanding)])"
+      :rows="reportRows"
     />
 
     <!-- Generate missing payslips -->

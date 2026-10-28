@@ -3,7 +3,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import { useAbility } from '@casl/vue'
-import OffDayApi, { type OffDay, type OffDayPayload, type OffDayStatus } from '@/api/offDays'
+import OffDayApi, { type OffDay, type OffDayParams, type OffDayPayload, type OffDayStatus } from '@/api/offDays'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { formatLocalizedDate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
@@ -15,6 +16,12 @@ const ability = useAbility()
 const year = ref(new Date().getFullYear())
 const statusFilter = ref<OffDayStatus | null>(null)
 const rows = ref<OffDay[]>([])
+// The ledger asks the server for one page at a time.
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+// Filled from every matching row right before printing.
+const reportRows = ref<string[][]>([])
 const loading = ref(false)
 const saving = ref(false)
 const dialog = ref(false)
@@ -35,16 +42,19 @@ const statusOptions = computed(() => [
 
 const statusColor = (status: OffDayStatus) => ({ pending: 'warning', approved: 'success', rejected: 'error' }[status])
 
-const filteredRows = computed(() => rows.value)
-
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
 }
 
+const filterParams = (): OffDayParams => ({ year: year.value, status: statusFilter.value ?? undefined })
+
 async function load() {
   loading.value = true
   try {
-    rows.value = await OffDayApi.list({ year: year.value, status: statusFilter.value ?? undefined })
+    const result = await OffDayApi.listPage({ ...filterParams(), page: page.value, perPage: perPage.value })
+
+    rows.value = result.rows
+    total.value = result.total
   }
   catch (e) {
     toast.error(apiErrorMessage(e, t('pages.offDays.unableToLoad')))
@@ -141,18 +151,44 @@ async function remove() {
   }
 }
 
-function printReport() {
-  void printDocument({ bodyClass: 'printing-table-off-days', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  load()
 }
 
-watch([year, statusFilter], load)
+// Print is global: the report is filled from every matching row first.
+async function printReport() {
+  try {
+    reportRows.value = (await OffDayApi.list(filterParams())).map(row => [
+      row.start_date,
+      row.end_date,
+      String(row.days),
+      row.reason,
+      t(`common.statuses.${row.status}`),
+      row.approvedBy?.name ?? '—',
+    ])
+    await printDocument({ bodyClass: 'printing-table-off-days', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  }
+  catch (e) {
+    toast.error(apiErrorMessage(e, t('pages.offDays.unableToLoad')))
+  }
+}
+
+watch([year, statusFilter], () => {
+  page.value = 1
+  load()
+})
 onMounted(load)
 </script>
 
 <template>
   <div>
     <DataTablePageKpis
-      :items="filteredRows"
+      :items="rows"
       :title="t('pages.offDays.companyTitle')"
       :description="t('pages.offDays.subtitle')"
       icon="tabler-calendar-off"
@@ -210,9 +246,14 @@ onMounted(load)
           {{ t('pages.offDays.affectsNote') }}
         </VAlert>
 
-        <ResponsiveDataTable
-          :items="filteredRows"
+        <ResponsiveDataTableServer
+          :items="rows"
+          :items-length="total"
+          :page="page"
+          :items-per-page="perPage"
+          :items-per-page-options="[10, 25, 50, 100]"
           :loading="loading"
+          @update:options="updateTableOptions"
           :headers="[
             { title: t('pages.offDays.startDate'), key: 'start_date' },
             { title: t('pages.offDays.endDate'), key: 'end_date' },
@@ -301,7 +342,7 @@ onMounted(load)
               </VBtn>
             </div>
           </template>
-        </ResponsiveDataTable>
+        </ResponsiveDataTableServer>
       </VCardText>
     </VCard>
 
@@ -309,7 +350,7 @@ onMounted(load)
       :title="t('pages.offDays.reportTitle')"
       :subtitle="String(year)"
       :columns="[t('pages.offDays.startDate'), t('pages.offDays.endDate'), t('pages.offDays.days'), t('pages.offDays.reason'), t('common.fields.status'), t('pages.offDays.approvedBy')]"
-      :rows="filteredRows.map(row => [row.start_date, row.end_date, row.days, row.reason, t(`common.statuses.${row.status}`), row.approvedBy?.name ?? '—'])"
+      :rows="reportRows"
     />
 
     <VDialog

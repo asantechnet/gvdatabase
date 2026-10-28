@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import EmployeeApi, { type CreateEmployeeData, type Employee, type EmployeeAccount, type UpdateEmployeeData } from '@/api/employee'
+import EmployeeApi, { type CreateEmployeeData, type Employee, type EmployeeAccount, type EmployeeParams, type UpdateEmployeeData } from '@/api/employee'
 import PositionApi, { type Position } from '@/api/position'
 import OfficeApi, { type Office } from '@/api/office'
 import DepartmentApi, { type Department } from '@/api/department'
@@ -14,6 +14,7 @@ import { printDocument } from '@/utils/printDocument'
 import { canAccess } from '@/utils/authorization'
 import { useCookie } from '@core/composable/useCookie'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
 import StaffCommissionFields from '@/components/StaffCommissionFields.vue'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
@@ -55,6 +56,12 @@ interface Staff {
 }
 
 const staffList = ref<Staff[]>([])
+// The directory asks the server for one page at a time.
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+// Filled from every matching staff row right before printing.
+const reportRows = ref<string[][]>([])
 const router = useRouter()
 const toast = useToast()
 const isAddStaffDialogVisible = ref(false)
@@ -624,31 +631,25 @@ const fetchPositions = async () => {
   }
 }
 
+// The directory asks the server for one page at a time. A staff row falls back
+// to the position catalogue when the API sends no position title.
+const asStaffRow = (employee: Employee): Staff => ({
+  ...employee,
+  email: employee.email ?? '',
+  salary: employee.salary ?? 0,
+  join_date: employee.join_date ?? '',
+  status: employee.status ?? 'active',
+  position: employee.position || positionOptions.value[employee.position_id - 1] || employee.position_id.toString(),
+})
+
 const fetchEmployees = async () => {
   try {
     isLoading.value = true
 
-    const response = await EmployeeApi.getAll({ status: statusFilter.value })
-    if (response.data && Array.isArray(response.data.data)) {
-      staffList.value = response.data.data.map(emp => ({
-        ...emp,
-        email: emp.email ?? '',
-        salary: emp.salary ?? 0,
-        join_date: emp.join_date ?? '',
-        status: emp.status ?? 'active',
-        position: emp.position || positionOptions.value[emp.position_id - 1] || emp.position_id.toString(),
-      }))
-    }
-    else if (Array.isArray(response.data)) {
-      staffList.value = response.data.map(emp => ({
-        ...emp,
-        email: emp.email ?? '',
-        salary: emp.salary ?? 0,
-        join_date: emp.join_date ?? '',
-        status: emp.status ?? 'active',
-        position: emp.position || positionOptions.value[emp.position_id - 1] || emp.position_id.toString(),
-      }))
-    }
+    const result = await EmployeeApi.listPage({ ...staffFilterParams(), page: page.value, perPage: perPage.value })
+
+    staffList.value = result.rows.map(asStaffRow)
+    total.value = result.total
   }
   catch (error) {
     console.error('Error fetching employees:', error)
@@ -658,11 +659,24 @@ const fetchEmployees = async () => {
   }
 }
 
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  void fetchEmployees()
+}
+
+// A filter change starts from the first page.
+const reloadStaff = () => {
+  page.value = 1
+  void fetchEmployees()
+}
+
 // Re-query the backend whenever the management status filter changes so the
 // default (active) view never receives inactive employees in the first place.
-watch(statusFilter, () => {
-  void fetchEmployees()
-})
+watch(statusFilter, reloadStaff)
 
 const fetchUserAccounts = async () => {
   try {
@@ -889,29 +903,45 @@ const toggleStaffStatus = async (staff: Staff) => {
   }
 }
 
-const filteredStaff = computed(() => {
-  return staffList.value.filter(staff => {
-    const matchesSearch = staff.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-      || staff.father_name.toLowerCase().includes(searchQuery.value.toLowerCase())
-      || staff.contact.includes(searchQuery.value)
-      || (staff.id_number ?? '').includes(searchQuery.value)
-      || staff.email.toLowerCase().includes(searchQuery.value.toLowerCase())
-      || staff.position.toLowerCase().includes(searchQuery.value.toLowerCase())
-
-    const matchesPosition = !filterPosition.value || staff.position === filterPosition.value
-    const matchesStatus = statusFilter.value === 'all' || (staff.status ?? 'active') === statusFilter.value
-
-    return matchesSearch && matchesPosition && matchesStatus
-  })
+const staffFilterParams = (): EmployeeParams => ({
+  status: statusFilter.value,
+  search: searchQuery.value || undefined,
+  position: filterPosition.value || undefined,
 })
+
+// Typing in the search box is a filter change, so it starts from the first page.
+const debouncedStaffSearch = useDebounceFn(reloadStaff, 300)
 
 const resetStaffFilters = () => {
   filterPosition.value = null
   statusFilter.value = 'active'
+  searchQuery.value = ''
+  page.value = 1
+  void fetchEmployees()
 }
 
-const printTable = () => {
-  void printDocument({ bodyClass: 'printing-table-staff', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+const staffReportRow = (staff: Staff): string[] => [
+  String(staff.id),
+  staff.name,
+  staff.position,
+  staff.contact,
+  staff.email,
+  staff.office?.name ?? '—',
+]
+
+// Print is global: the report is filled from every matching row first.
+const printTable = async () => {
+  try {
+    const response = await EmployeeApi.getAll(staffFilterParams())
+    const rows: Employee[] = Array.isArray(response.data?.data) ? response.data.data : []
+
+    reportRows.value = rows.map(asStaffRow).map(staffReportRow)
+    await printDocument({ bodyClass: 'printing-table-staff', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  }
+  catch (error) {
+    console.error('Error preparing staff report:', error)
+    toast.error(apiErrorMessage(error))
+  }
 }
 
 onMounted(async () => {
@@ -926,7 +956,7 @@ onMounted(async () => {
 <template>
   <div>
     <DataTablePageKpis
-      :items="filteredStaff"
+      :items="staffList"
       :title="$t('components.dataTablePageKpis.pages.staffDirectory.title')"
       :description="$t('components.dataTablePageKpis.pages.staffDirectory.description')"
       icon="tabler-users"
@@ -946,6 +976,7 @@ onMounted(async () => {
               density="compact"
               clearable
               hide-details
+              @update:model-value="debouncedStaffSearch"
             />
           </VCol>
 
@@ -966,6 +997,7 @@ onMounted(async () => {
                 clearable
                 hide-details
                 :loading="isPositionsLoading"
+                @update:model-value="reloadStaff"
               />
               <VSelect
                 v-model="statusFilter"
@@ -1004,8 +1036,12 @@ onMounted(async () => {
 
     <VCard>
       <div class="table-container">
-        <ResponsiveDataTable
-          :items="filteredStaff"
+        <ResponsiveDataTableServer
+          :items="staffList"
+          :items-length="total"
+          :page="page"
+          :items-per-page="perPage"
+          :items-per-page-options="[10, 25, 50, 100]"
           :headers="[
             { title: translate('common.messages.id'), key: 'id' },
             { title: translate('common.fields.name'), key: 'name' },
@@ -1025,6 +1061,7 @@ onMounted(async () => {
           :loading="isLoading"
           mobile-breakpoint="sm"
           density="comfortable"
+          @update:options="updateTableOptions"
         >
           <template #item.salary="{ item }">
             <div>${{ Number(item.salary || 0).toFixed(2) }}</div>
@@ -1170,7 +1207,7 @@ onMounted(async () => {
               </VBtn>
             </div>
           </template>
-        </ResponsiveDataTable>
+        </ResponsiveDataTableServer>
       </div>
     </VCard>
 
@@ -1178,7 +1215,7 @@ onMounted(async () => {
       :title="$t('common.crmUi.printReports.staff.title')"
       :subtitle="$t('common.crmUi.printReports.staff.subtitle')"
       :columns="[$t('common.crmUi.printReports.columns.id'), $t('common.crmUi.printReports.columns.name'), $t('common.crmUi.printReports.columns.position'), $t('common.crmUi.printReports.columns.contact'), $t('common.crmUi.printReports.columns.email'), $t('common.crmUi.printReports.columns.office')]"
-      :rows="filteredStaff.map(staff => [staff.id, staff.name, staff.position, staff.contact, staff.email, staff.office?.name])"
+      :rows="reportRows"
     />
 
     <!-- Add Staff Dialog -->

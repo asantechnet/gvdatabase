@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Applicant;
 use App\Models\ApplicantContract;
+use App\Models\ApplicantStage;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\ContractTemplateVersion;
@@ -56,6 +57,17 @@ class ContractSeeder extends Seeder
             BuiltInService::ACADEMY => ['fee' => 20000, 'paid' => 20000],
         ];
 
+        // A seeded line starts on its service's `new` stage exactly like a
+        // line created through ContractGenerationService, so the service
+        // pipeline and the per-line move control work on demo data too.
+        $stages = [];
+        foreach (array_keys($plans) as $service) {
+            $stages[$service] = ApplicantStage::query()
+                ->where('key', 'new')->where('is_active', true)->where('service', $service)
+                ->orderByRaw('country_id IS NULL')->orderByRaw('university_id IS NULL')
+                ->value('id');
+        }
+
         foreach ($plans as $service => $plan) {
             $applicant = Applicant::query()->where('service', $service)->orderBy('id')->first();
             if (! $applicant) {
@@ -106,6 +118,7 @@ class ContractSeeder extends Seeder
                 'currency_id' => $currency->id,
                 'currency_rate' => 1,
                 'sold_by_employee_id' => $soldBy,
+                'current_stage_id' => $stages[$service] ?? $applicant->current_stage_id,
                 'notes' => 'Seeded service line',
             ]);
             if ($plan['paid'] > 0) {
@@ -157,6 +170,7 @@ class ContractSeeder extends Seeder
                 'currency_id' => $currency->id,
                 'currency_rate' => 1,
                 'sold_by_employee_id' => $soldBy,
+                'current_stage_id' => $stages[$service] ?? $applicant->current_stage_id,
                 'notes' => 'Seeded extension service line',
             ]);
             $extLine->deleted_at = null;

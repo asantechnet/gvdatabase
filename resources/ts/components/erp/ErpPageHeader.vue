@@ -48,7 +48,6 @@ const sections: Record<HeaderSection, HeaderLink[]> = {
   crm: [
     { name: 'visitor', label: 'common.navigation.visitor', icon: 'tabler-user-search', color: 'primary', permission: 'view_visitors' },
     { name: 'visitor', query: { list: 'follow-up' }, label: 'common.navigation.followUpList', icon: 'tabler-list-check', color: 'warning', permission: 'view_visitors' },
-    { name: 'all-customers', label: 'common.navigation.applicants', icon: 'tabler-users', color: 'success', permission: 'view_applicants' },
   ],
   applications: [
     { name: 'applications', label: 'educational.applications', icon: 'tabler-clipboard-list', color: 'primary', permission: 'view_applicants' },

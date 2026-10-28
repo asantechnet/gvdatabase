@@ -40,7 +40,8 @@ class PendingTransactionController extends Controller
         $ownEmployeeId = $isManager ? null : Employee::query()->where('user_id', $request->user()->id)->value('id');
 
         return response()->json(['success' => true, 'data' => [
-            'currencies' => Currency::query()->where('is_active', true)->orderBy('code')->get(['id', 'name', 'code', 'symbol', 'is_base']),
+            // Every currency is offered; the base one stays first for the pickers.
+            'currencies' => Currency::query()->orderByDesc('is_base')->orderBy('code')->get(['id', 'name', 'code', 'symbol', 'is_base']),
             'employees' => Employee::query()->active()->excludePrimaryRecord()->when(! $isManager, fn ($query) => $query->whereKey($ownEmployeeId))->orderBy('name')->get(['id', 'name']),
             'applicants' => Applicant::query()->when(! $isManager, fn ($query) => $query->where('responsible_employee_id', $ownEmployeeId))->latest()->get(['id', 'name']),
         ]]);
@@ -105,7 +106,7 @@ class PendingTransactionController extends Controller
             }
             abort_unless($pending->approval_status === PendingTransaction::APPROVED, 422, 'business.pending_transaction_not_approved');
 
-            $currency = Currency::query()->where('is_active', true)->findOrFail($pending->currency_id);
+            $currency = Currency::query()->findOrFail($pending->currency_id);
             $baseCurrency = Currency::query()->where('is_base', true)->where('is_active', true)->firstOrFail();
             $rate = (float) $currency->rate;
             abort_unless($rate > 0, 422, 'business.pending_transaction_currency_rate_invalid');

@@ -2,9 +2,10 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
-import LeaveRequestApi, { type LeaveRequest } from '@/api/leaveRequests'
+import LeaveRequestApi, { type LeaveRequest, type LeaveRequestStatus } from '@/api/leaveRequests'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import { printDocument } from '@/utils/printDocument'
 
 const toast = useToast()
@@ -12,14 +13,23 @@ const { t: $t } = useI18n()
 const year = ref(new Date().getFullYear())
 const rows = ref<LeaveRequest[]>([])
 const selected = ref<number[]>([])
-const statusFilter = ref<'pending' | 'off_day' | 'partial' | 'absent' | null>(null)
+const statusFilter = ref<LeaveRequestStatus | null>(null)
 const loading = ref(false)
 const overrideDialog = ref(false)
 const approvalNote = ref('')
 const allowance = ref(0)
+// The ledger asks the server for one page at a time.
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+// Filled from every row of the year right before printing.
+const reportRows = ref<string[][]>([])
 // The allowance is resolved per employee by the API; the company default is
 // only a fallback for a row whose employee has no personal value.
 const allowances = ref<Record<number, number>>({})
+// Approved off-day days of the whole year per employee: an approval is checked
+// against the employee's real usage, not only the visible page.
+const usage = ref<Record<number, number>>({})
 
 const statusOptions = computed(() => [
   { title: $t('common.statuses.pending'), value: 'pending' },
@@ -27,15 +37,6 @@ const statusOptions = computed(() => [
   { title: $t('pages.leaveRequests.partial'), value: 'partial' },
   { title: $t('common.attendanceStatuses.absent'), value: 'absent' },
 ])
-
-const filteredRows = computed(() => rows.value.filter(row => {
-  if (!statusFilter.value)
-    return true
-  if (statusFilter.value === 'pending')
-    return !row.is_granted
-
-  return row.is_granted && row.treatment === statusFilter.value
-}))
 
 const isSelectable = (row: LeaveRequest) => !row.is_granted
 
@@ -46,13 +47,8 @@ const selectedRows = computed(() => {
 })
 
 const allowanceRisks = computed(() => {
-  const usedByEmployee = new Map<number, number>()
   const selectedByEmployee = new Map<number, { name: string; requested: number }>()
 
-  rows.value.forEach(row => {
-    if (row.is_granted)
-      usedByEmployee.set(row.employee_id, (usedByEmployee.get(row.employee_id) ?? 0) + Number(row.off_day_days ?? 0))
-  })
   selectedRows.value.forEach(row => {
     const current = selectedByEmployee.get(row.employee_id) ?? { name: row.employee?.name ?? $t('common.leaveApproval.employeeFallback'), requested: 0 }
 
@@ -61,7 +57,7 @@ const allowanceRisks = computed(() => {
   })
 
   return [...selectedByEmployee.entries()].map(([employeeId, selection]) => {
-    const used = usedByEmployee.get(employeeId) ?? 0
+    const used = Number(usage.value[employeeId] ?? 0)
     const employeeAllowance = allowances.value[employeeId] ?? allowance.value
 
     return { employeeId, ...selection, used, remaining: Math.max(0, employeeAllowance - used), excess: Math.max(0, used + selection.requested - employeeAllowance) }
@@ -73,14 +69,30 @@ const selectionExceedsAllowance = computed(() => allowanceRisks.value.length > 0
 async function load() {
   loading.value = true
   try {
-    const result = await LeaveRequestApi.getAllRequests(year.value)
+    const result = await LeaveRequestApi.listPage({
+      year: year.value,
+      status: statusFilter.value,
+      page: page.value,
+      perPage: perPage.value,
+    })
 
-    rows.value = result.data
+    rows.value = result.rows
+    total.value = result.total
     allowance.value = result.allowance
     allowances.value = result.allowances ?? {}
+    usage.value = result.usage ?? {}
   }
   catch (error) { toast.error(apiErrorMessage(error, $t('pages.leaveRequests.unableToLoad'))) }
   finally { loading.value = false }
+}
+
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  load()
 }
 
 async function grantSelected(forceOffDay = false) {
@@ -111,8 +123,25 @@ function treatmentLabel(row: LeaveRequest) {
   return row.treatment === 'off_day' ? $t('common.attendanceStatuses.offDay') : $t('common.attendanceStatuses.absent')
 }
 
-function printReport() { void printDocument({ bodyClass: 'printing-table-leave-requests', pageStyle: 'size: A4 landscape; margin: 12mm;' }) }
-watch(year, load)
+// Print is global: the report is filled from every matching row first.
+async function printReport() {
+  try {
+    reportRows.value = (await LeaveRequestApi.getAllRequests(year.value, statusFilter.value)).data.map(row => [
+      row.employee?.name ?? '—',
+      row.employee?.position ?? '—',
+      row.date,
+      `${row.duration_days}`,
+      row.reason,
+      treatmentLabel(row),
+    ])
+    await printDocument({ bodyClass: 'printing-table-leave-requests', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  }
+  catch (error) { toast.error(apiErrorMessage(error, $t('pages.leaveRequests.unableToLoad'))) }
+}
+watch([year, statusFilter], () => {
+  page.value = 1
+  load()
+})
 watch(rows, currentRows => {
   const pendingIds = new Set(currentRows.filter(isSelectable).map(row => row.id))
 
@@ -124,7 +153,7 @@ onMounted(load)
 <template>
   <div class="leave-requests-page pa-4">
     <DataTablePageKpis
-      :items="filteredRows"
+      :items="rows"
       :title="$t('pages.leaveRequests.title')"
       :description="$t('pages.leaveRequests.description')"
       icon="tabler-beach"
@@ -173,13 +202,18 @@ onMounted(load)
           {{ $t('pages.leaveRequests.grantSelected', { count: selected.length }) }}
         </VBtn>
       </VCardTitle>
-      <ResponsiveDataTable
+      <ResponsiveDataTableServer
         v-model="selected"
         show-select
         item-value="id"
         :item-selectable="isSelectable"
-        :items="filteredRows"
+        :items="rows"
+        :items-length="total"
+        :page="page"
+        :items-per-page="perPage"
+        :items-per-page-options="[10, 25, 50, 100]"
         :loading="loading"
+        @update:options="updateTableOptions"
         :headers="[
           { title: $t('common.fields.employee'), key: 'employee.name' },
           { title: $t('common.fields.date'), key: 'date' },
@@ -213,13 +247,13 @@ onMounted(load)
             :title="item.employee?.name"
           />
         </template>
-      </ResponsiveDataTable>
+      </ResponsiveDataTableServer>
     </VCard>
     <PrintableListReport
       :title="$t('pages.leaveRequests.reportTitle')"
       :subtitle="String(year)"
       :columns="[$t('common.fields.employee'), $t('common.messages.position'), $t('common.fields.date'), $t('pages.leaveRequests.duration'), $t('common.fields.reason'), $t('pages.leaveRequests.treatment')]"
-      :rows="filteredRows.map(row => [row.employee?.name, row.employee?.position, row.date, row.duration_days, row.reason, treatmentLabel(row)])"
+      :rows="reportRows"
     />
     <VDialog
       v-model="overrideDialog"

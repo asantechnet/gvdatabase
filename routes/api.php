@@ -254,6 +254,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('salaries/granted-bonuses', [SalaryController::class, 'grantedBonuses'])->middleware('permission:view_bonuses');
     Route::get('salaries/attendance-breakdown', [SalaryController::class, 'attendanceBreakdown'])->middleware('permission:view_salaries');
     Route::post('salaries/generate', [SalaryController::class, 'generate'])->middleware('permission:create_salaries');
+    // Registered before the resource so `register` is not read as a salary id.
+    Route::get('salaries/register', [SalaryController::class, 'register'])->middleware('permission:view_salaries');
         // Employee salary advances (an employee-level ledger, not tied to one salary).
         Route::get('employee-advances', [EmployeeAdvanceController::class, 'index'])->middleware('permission:view_salaries');
         Route::post('employee-advances', [EmployeeAdvanceController::class, 'store'])->middleware('permission:create_salaries');
@@ -344,6 +346,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     // list) is an edit of the visitor record, so it reuses that permission.
     Route::put('visitors/{visitor}/follow-up', [VisitorController::class, 'setFollowUp'])
         ->middleware('permission:edit_visitors');
+    Route::put('visitors/{visitor}/consultant-review', [VisitorController::class, 'updateConsultantReview'])
+        ->middleware('permission:review_visitors');
     // Visitors reach the pipeline by becoming applicants; there is no lead stage.
     Route::post('visitors/{visitor}/convert-to-applicant', [VisitorController::class, 'convertToApplicant'])
         ->middleware('permission:create_applicants');
@@ -381,6 +385,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::put('applicants/{applicant}/portal-access', [ApplicantPortalController::class, 'setAccess'])->middleware('permission:invite_applicant_portal');
     Route::get('applicants-pipeline', [ApplicantController::class, 'pipeline'])->middleware('permission:view_applicants');
     Route::apiResource('applicants', ApplicantController::class)->middlewareFor(['index', 'show'], 'permission:view_applicants')->middlewareFor('store', 'permission:create_applicants')->middlewareFor('update', 'permission:edit_applicants')->middlewareFor('destroy', 'permission:delete_applicants');
+    Route::put('applicants/{applicant}/consultant-review', [ApplicantController::class, 'updateConsultantReview'])
+        ->middleware('permission:review_visitors');
     Route::get('applicants/{applicant}/attachments', [ApplicantAttachmentController::class, 'index'])->middleware('permission:view_applicants');
     Route::post('applicants/{applicant}/attachments', [ApplicantAttachmentController::class, 'store'])->middleware('permission:edit_applicants');
     Route::put('applicants/{applicant}/attachments/{attachment}', [ApplicantAttachmentController::class, 'update'])->middleware('permission:edit_applicants');
@@ -482,6 +488,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->whereIn('service', BuiltInService::ALL)
         ->middleware('permission:edit_contracts');
     // Receipt-like A5 enrolment slip for an individual academy contract.
+    // Registered before the resource so `counterparties` is not read as an id.
+    Route::get('contracts/counterparties', [ContractController::class, 'counterparties'])
+        ->middleware('permission:view_contracts');
     Route::get('contracts/{id}/academy-slip', [ContractController::class, 'academySlip'])
         ->middleware('permission:view_contracts');
     Route::apiResource('contracts', ContractController::class)
@@ -519,6 +528,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::post('audit-logs/{auditLog}/revert', [AuditLogController::class, 'revert'])->middleware('permission:revert_audit_changes');
 
     // Asset routes
+    // Registered before the resource so `models` is not read as an asset id.
+    Route::get('assets/models', [AssetController::class, 'models'])->middleware('permission:view_assets');
     Route::apiResource('assets', AssetController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_assets')
         ->middlewareFor('store', 'permission:create_assets')

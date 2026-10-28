@@ -6,10 +6,11 @@ import { type FinanceType, getFinanceTypes } from '@/api/financeTypes'
 import { financeTypeLabel } from '@/utils/financeTypes'
 import PendingTransactionApi from '@/api/pendingTransactions'
 import CurrencyApi, { type Currency } from '@/api/currency'
-import { type Expense, type ExpenseCreateData, type ExpenseFormData, type ExpenseUpdateData, createExpense, deleteExpense, getExpenses, updateExpense } from '@/api/expenses'
+import { type Expense, type ExpenseCreateData, type ExpenseFormData, type ExpenseUpdateData, type ExpenseParams, createExpense, deleteExpense, getExpenses, getExpensesPage, updateExpense } from '@/api/expenses'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
@@ -17,6 +18,12 @@ import ExpenseFormDialog from '@/components/forms/ExpenseFormDialog.vue'
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
 
 const expenses = ref<Expense[]>([])
+// The ledger asks the server for one page at a time.
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+// Filled from every matching expense right before printing.
+const reportRows = ref<string[][]>([])
 const currencies = ref<Currency[]>([])
 const selectedExpense = ref<ExpenseFormData | null>(null)
 const isAddExpenseDialogVisible = ref(false)
@@ -47,6 +54,7 @@ async function fetchTypes() {
   catch (error) { toast.error(apiErrorMessage(error, translate('pages.finance.types.loadFailed'))) }
 }
 
+// Every currency on record can be used for an expense; the base one is first.
 const currencyOptions = computed(() => currencies.value.map(currency => ({
   title: `${currency.code} — ${currency.name}`,
   value: currency.id,
@@ -56,33 +64,49 @@ const currencyOptions = computed(() => currencies.value.map(currency => ({
 const fetchCurrencies = async () => {
   const response = await CurrencyApi.getAll()
 
-  currencies.value = response.data.filter(currency => currency.isActive)
+  currencies.value = response.data
 }
+
+const filterParams = (): ExpenseParams => ({
+  search: searchQuery.value || undefined,
+  type: filterType.value || undefined,
+  currency_id: filterCurrency.value || undefined,
+  date_from: dateFrom.value || undefined,
+  date_to: dateTo.value || undefined,
+})
 
 const fetchExpenses = async () => {
   try {
     isLoading.value = true
 
-    const params: { search?: string; type?: string; currency_id?: number; date_from?: string; date_to?: string } = {}
-    if (searchQuery.value)
-      params.search = searchQuery.value
-    if (filterType.value)
-      params.type = filterType.value
-    if (filterCurrency.value)
-      params.currency_id = filterCurrency.value
-    if (dateFrom.value)
-      params.date_from = dateFrom.value
-    if (dateTo.value)
-      params.date_to = dateTo.value
-    expenses.value = await getExpenses(params)
+    const result = await getExpensesPage({ ...filterParams(), page: page.value, perPage: perPage.value })
+
+    expenses.value = result.rows
+    total.value = result.total
   }
   catch (error) {
     console.error('Error fetching expenses:', error)
     expenses.value = []
+    total.value = 0
   }
   finally {
     isLoading.value = false
   }
+}
+
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  fetchExpenses()
+}
+
+// A filter change starts from the first page.
+const reload = () => {
+  page.value = 1
+  void fetchExpenses()
 }
 
 const setDefaultCurrency = () => {
@@ -215,14 +239,16 @@ const saveExpense = async (isEditing = false, submittedExpense?: ExpenseFormData
       date: selectedExpense.value.date,
     }
 
-    const savedExpense = isEditing && 'id' in selectedExpense.value
-      ? await updateExpense(selectedExpense.value.id, payload as ExpenseUpdateData)
-      : await createExpense(payload as ExpenseCreateData)
+    if (isEditing && 'id' in selectedExpense.value) {
+      await updateExpense(selectedExpense.value.id, payload as ExpenseUpdateData)
+      await fetchExpenses()
+    }
+    else {
+      await createExpense(payload as ExpenseCreateData)
+      // A new record belongs on the first page of the current filters.
+      reload()
+    }
 
-    const index = expenses.value.findIndex(expense => expense.id === savedExpense.id)
-    if (index >= 0)
-      expenses.value[index] = savedExpense
-    else expenses.value.unshift(savedExpense)
     isAddExpenseDialogVisible.value = false
     isEditExpenseDialogVisible.value = false
   }
@@ -239,7 +265,11 @@ const deleteExpenseRecord = async () => {
   const deletedId = selectedExpense.value.id
   try {
     await deleteExpense(deletedId)
-    expenses.value = expenses.value.filter(expense => expense.id !== deletedId)
+    // The deleted row was the last one on this page, so step back instead of
+    // showing an empty page.
+    if (page.value > 1 && expenses.value.length === 1)
+      page.value -= 1
+    await fetchExpenses()
     isDeleteExpenseDialogVisible.value = false
   }
   catch (error) {
@@ -256,7 +286,26 @@ const formatExpenseCurrency = (value: number, currency: Expense['currency']) => 
 
 const formatDate = (date: string) => formatLocalizedDate(`${date}T00:00:00`, { day: '2-digit', month: 'short', year: 'numeric' })
 const expenseTypeColor = (type: string) => ({ 'Utilities': 'info', 'Software/SaaS': 'primary', 'Marketing': 'warning', 'Office Supplies': 'secondary', 'Travel & Dining': 'success', 'Salaries': 'error' }[type] ?? 'secondary')
-const printTable = () => void printDocument({ bodyClass: 'printing-table-expenses', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+const expenseReportRow = (expense: Expense): string[] => [
+  `EXP-${String(expense.id).padStart(6, '0')}`,
+  expense.type,
+  expense.description,
+  expense.currency?.code ?? '—',
+  formatExpenseCurrency(expense.amount * expense.quantity, expense.currency),
+  formatDate(expense.date),
+]
+
+// Print is global: the report is filled from every matching row first.
+const printTable = async () => {
+  try {
+    reportRows.value = (await getExpenses(filterParams())).map(expenseReportRow)
+    await printDocument({ bodyClass: 'printing-table-expenses', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  }
+  catch (error) {
+    console.error('Error preparing expense report:', error)
+    toast.error(apiErrorMessage(error))
+  }
+}
 
 onMounted(() => {
   fetchTypes()
@@ -327,7 +376,7 @@ onMounted(() => {
               density="compact"
               clearable
               hide-details
-              @keyup.enter="fetchExpenses"
+              @keyup.enter="reload"
             />
           </VCol>
           <VCol
@@ -337,7 +386,7 @@ onMounted(() => {
           >
             <DataTableFilterMenu
               :active="Boolean(filterType || filterCurrency || dateFrom || dateTo)"
-              @reset="filterType = null; filterCurrency = null; dateFrom = ''; dateTo = ''; fetchExpenses()"
+              @reset="filterType = null; filterCurrency = null; dateFrom = ''; dateTo = ''; reload()"
             >
               <VSelect
                 v-model="filterType"
@@ -346,7 +395,7 @@ onMounted(() => {
                 density="compact"
                 clearable
                 hide-details
-                @update:model-value="fetchExpenses"
+                @update:model-value="reload"
               /><VSelect
                 v-model="filterCurrency"
                 :items="currencyOptions"
@@ -354,11 +403,11 @@ onMounted(() => {
                 density="compact"
                 clearable
                 hide-details
-                @update:model-value="fetchExpenses"
+                @update:model-value="reload"
               />
-              <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="fetchExpenses" />
+              <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="reload" />
             </DataTableFilterMenu><div class="text-caption text-medium-emphasis">
-              <strong class="text-high-emphasis">{{ expenses.length }}</strong> {{ $t('pages.finance.expenses.expenses.expenseRecordsShown') }}
+              <strong class="text-high-emphasis">{{ total }}</strong> {{ $t('pages.finance.expenses.expenses.expenseRecordsShown') }}
             </div>
           </VCol>
         </VRow>
@@ -386,8 +435,12 @@ onMounted(() => {
         </template>
       </VCardItem>
       <div class="table-container">
-        <ResponsiveDataTable
+        <ResponsiveDataTableServer
           :items="expenses"
+          :items-length="total"
+          :page="page"
+          :items-per-page="perPage"
+          :items-per-page-options="[10, 25, 50, 100]"
           :headers="[
             { title: translate('pages.finance.expenses.expenses.expense'), key: 'id', align: 'start' }, { title: translate('common.fields.type'), key: 'type', align: 'start' }, { title: translate('common.fields.currency'), key: 'currency', align: 'start' }, { title: translate('common.fields.amount'), key: 'base_amount', align: 'end' }, { title: translate('common.fields.date'), key: 'date', align: 'center' }, { title: translate('common.messages.actions'), key: 'actions', align: 'center', sortable: false },
           ]"
@@ -396,6 +449,7 @@ onMounted(() => {
           :loading="isLoading"
           mobile-breakpoint="sm"
           density="compact"
+          @update:options="updateTableOptions"
         >
           <template #loading>
             <TableLoadingSkeleton :columns="6" :label="$t('common.messages.loading')" />
@@ -463,7 +517,7 @@ onMounted(() => {
               />
             </div>
           </template>
-        </ResponsiveDataTable>
+        </ResponsiveDataTableServer>
       </div>
     </VCard>
 
@@ -471,7 +525,7 @@ onMounted(() => {
       :title="$t('common.crmUi.printReports.expenses.title')"
       :subtitle="$t('common.crmUi.printReports.expenses.subtitle')"
       :columns="[$t('common.crmUi.printReports.columns.expense'), $t('common.crmUi.printReports.columns.type'), $t('common.crmUi.printReports.columns.details'), $t('common.crmUi.printReports.columns.currency'), $t('common.crmUi.printReports.columns.amount'), $t('common.crmUi.printReports.columns.date')]"
-      :rows="expenses.map(expense => [`EXP-${String(expense.id).padStart(6, '0')}`, expense.type, expense.description, expense.currency?.code, formatExpenseCurrency(expense.amount * expense.quantity, expense.currency), formatDate(expense.date)])"
+      :rows="reportRows"
     />
 
     <ExpenseFormDialog

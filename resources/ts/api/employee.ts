@@ -1,5 +1,6 @@
 import api from './axios'
 import type { Attachment } from './attachments'
+import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 
 // Types matching the frontend requirements
 export interface Employee {
@@ -58,6 +59,8 @@ export interface EmployeeParams {
   perPage?: number
   search?: string
   position?: string
+  sort?: 'created_at' | 'name' | 'id'
+  dir?: 'asc' | 'desc'
 
   /** Defaults to `active` on the backend; `inactive`/`all` are management opt-ins. */
   status?: 'active' | 'inactive' | 'all'
@@ -145,20 +148,31 @@ const EmployeeApi = {
 
   // Normalized list for selectors; keep legacy getAll response until its consumers are migrated.
   getOptions: async (): Promise<Employee[]> => {
-    const response = await api.get<{ data: Employee[] }>('/employees')
+    // The staff list defaults to newest-first; pickers stay alphabetical.
+    const response = await api.get<{ data: Employee[] }>('/employees', { params: { sort: 'name', dir: 'asc' } })
 
     return Array.isArray(response.data.data) ? response.data.data : []
   },
 
-  // Get all employees
+  // Get all employees; also used by the print report, which covers the whole
+  // filtered set rather than the visible page.
   getAll: async (params?: EmployeeParams) => {
     try {
-      return await api.get<{ data: Employee[] }>('/employees', { params })
+      return await api.get<{ data: Employee[] }>('/employees', { params: cleanListParams({ ...params }) })
     }
     catch (error) {
       console.error('API getAll error:', error)
       throw error
     }
+  },
+
+  // One page of the staff directory
+  listPage: async (params?: EmployeeParams & ListPageParams): Promise<ListPage<Employee>> => {
+    const response = await api.get('/employees', {
+      params: cleanListParams({ ...params, page: params?.page, per_page: params?.perPage }),
+    })
+
+    return readPage<Employee>(response.data)
   },
 
   // Get single employee

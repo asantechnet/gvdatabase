@@ -1,6 +1,8 @@
 import api from './axios'
 import type { WorthyEmployee } from './bonuslist'
 import type { Currency } from './currency'
+import type { Employee } from './employee'
+import type { ListPage } from './pagination'
 
 export interface SalaryDeduction {
   id?: number
@@ -105,8 +107,48 @@ export interface UpdateSalaryData {
   deductions?: SalaryDeduction[]
 }
 
+/** One register row: an active employee with this month's payslip, if any. */
+export interface PayrollRegisterRow {
+  employee: Employee
+  salary: Salary | null
+}
+
+/** Month-wide figures of the register, computed by the API. */
+export interface PayrollRegisterTotals {
+  net: number
+  paid: number
+  outstanding: number
+  generated: number
+  missing: number
+}
+
+export interface PayrollRegisterPage extends ListPage<PayrollRegisterRow> {
+  totals: PayrollRegisterTotals
+}
+
 // Salary API endpoints
 const SalaryApi = {
+  /** One page of the payroll register (employee-driven, so it is not `/salaries`). */
+  register: async (params: { month: string; search?: string; page?: number; perPage?: number }): Promise<PayrollRegisterPage> => {
+    const response = await api.get('/salaries/register', {
+      params: {
+        month: params.month,
+        search: params.search || undefined,
+        page: params.page,
+        per_page: params.perPage,
+      },
+    })
+    const payload = response.data
+
+    return {
+      rows: Array.isArray(payload.data) ? payload.data : [],
+      total: Number(payload.total ?? 0),
+      page: Number(payload.current_page ?? 1),
+      lastPage: Number(payload.last_page ?? 1),
+      totals: payload.totals ?? { net: 0, paid: 0, outstanding: 0, generated: 0, missing: 0 },
+    }
+  },
+
   // Get all salaries
   getAll: async (params?: SalaryParams) => {
     try {

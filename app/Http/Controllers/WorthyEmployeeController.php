@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\WorthyEmployeeResource;
 use App\Models\Employee;
 use App\Models\WorthyEmployee;
@@ -15,13 +16,21 @@ use Illuminate\Validation\ValidationException;
 
 class WorthyEmployeeController extends Controller
 {
+    use PaginatesLists;
     private const BONUS_CATEGORIES = ['Performance', 'Customer Appreciation', 'Task Completion', 'Work Anniversary', 'Manager Recognition'];
 
     public function __construct(private readonly CurrencyConversionService $currencies) {}
 
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
-        return WorthyEmployeeResource::collection(WorthyEmployee::with(['employee.user', 'currency'])->latest('bonus_month')->latest()->get());
+        $query = WorthyEmployee::with(['employee.user', 'currency'])->latest('bonus_month')->latest('id');
+
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true]
+                + $this->paginatedPayload($request, $query, fn ($rows) => WorthyEmployeeResource::collection($rows)->resolve()));
+        }
+
+        return WorthyEmployeeResource::collection($query->get());
     }
 
     public function show(WorthyEmployee $worthyEmployee): WorthyEmployeeResource

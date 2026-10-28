@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\OffDayResource;
 use App\Models\OffDay;
 use App\Services\OffDayService;
@@ -20,6 +21,7 @@ use Illuminate\Validation\ValidationException;
  */
 class OffDayController extends Controller
 {
+    use PaginatesLists;
     public function __construct(private readonly OffDayService $offDays) {}
 
     public function index(Request $request): JsonResponse
@@ -45,9 +47,16 @@ class OffDayController extends Controller
             $query->where('status', $data['status']);
         }
 
+        $query->orderByDesc('start_date')->orderByDesc('id');
+
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true]
+                + $this->paginatedPayload($request, $query, fn ($rows) => OffDayResource::collection($rows)->resolve()));
+        }
+
         return response()->json([
             'success' => true,
-            'data' => OffDayResource::collection($query->orderByDesc('start_date')->orderByDesc('id')->get())->resolve(),
+            'data' => OffDayResource::collection($query->get())->resolve(),
         ]);
     }
 

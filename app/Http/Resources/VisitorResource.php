@@ -27,7 +27,7 @@ class VisitorResource extends JsonResource
             'acquisition_route' => $this->whenLoaded('acquisitionRoute', fn () => $this->acquisitionRoute?->only(['id', 'name'])),
             'consultant_employee_id' => $this->consultant_employee_id,
             'consultant' => $this->whenLoaded('consultant', fn () => $this->consultant ? $this->consultant->only(['id', 'name']) : null),
-            'reviewed_by_consultant' => (bool) $this->reviewed_by_consultant,
+            'consultant_review' => $this->consultant_review,
             'notes' => $this->notes,
             'converted_at' => $this->converted_at?->toISOString(),
             'follow_up' => (bool) $this->follow_up,

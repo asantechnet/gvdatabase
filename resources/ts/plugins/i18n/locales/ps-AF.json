@@ -938,6 +938,10 @@
           "title": "د تعقیب لړلیک راپور",
           "subtitle": "د تعقیب لپاره ټاکل شوي لیدونکي"
         },
+        "applications": {
+          "title": "د غوښتنلیکونو راپور",
+          "subtitle": "فلټر شوي غوښتنلیکونه"
+        },
         "columns": {
           "receipt": "رسید",
           "type": "ډول",
@@ -2722,13 +2726,10 @@
           "acquisitionRoute": "د پېژندنې لاره",
           "acquisitionRouteHint": "لیدونکی د شرکت په اړه څنګه پوه شو.",
           "consultant": "سلاکار",
-          "reviewedByConsultant": "د سلاکار لخوا بیاکتنه",
-          "reviewedByConsultantHint": "دا غوښتنلیک د سلاکار لپاره تاییدوي.",
-          "review": "د سلاکار بیاکتنه",
-          "reviewed": "بیاکتل شوی",
-          "pendingReview": "بیاکتنې ته په تمه",
-          "markReviewed": "بیاکتل شوی وټاکه",
-          "markedReviewed": "لیدونکی بیاکتل شوی وټاکل شو."
+          "consultantReview": "د سلاکار بیاکتنه",
+          "consultantReviewHint": "د دې لیدونکي په اړه د سلاکار ارزونه ثبت کړئ.",
+          "consultantReviewSaved": "د سلاکار بیاکتنه خوندي شوه.",
+          "review": "د سلاکار بیاکتنه"
         }
       },
       "contractform": {
@@ -2951,7 +2952,8 @@
           "changeBaseCurrencyTitle": "اصلي پولي واحد بدل کړئ؟",
           "changeBaseCurrencyWarning": "د ډشبورډ او راپورونو ټولیز مبلغونه به په {currency} وښودل شي.",
           "changeBaseCurrencyHint": "دا به د اپلېکېشن اصلي پولي واحد بدل کړي.",
-          "confirmSetAsBaseCurrency": "د اصلي پولي واحد په توګه یې وټاکئ"
+          "confirmSetAsBaseCurrency": "د اصلي پولي واحد په توګه یې وټاکئ",
+          "statusHint": "هر ثبت شوی اسعار کولی شي په رسید، لګښت، قرارداد یا معاش پاڼه کې وکارول شي. غیر فعال اسعار هم د کارولو وړ پاتې کیږي او یوازې دلته نښه کیږي."
         }
       },
       "asset": {

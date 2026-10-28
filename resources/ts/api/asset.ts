@@ -1,4 +1,5 @@
 import api from './axios'
+import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 
 export type AssetCondition = 'new' | 'good' | 'fair' | 'poor' | 'damaged'
 
@@ -48,11 +49,29 @@ const unwrapData = <T>(response: unknown): T => {
 }
 
 const AssetApi = {
+  // Every matching row; used by the print report, which covers the whole
+  // filtered set rather than the visible page.
   async getAll(params?: AssetParams): Promise<AssetItem[]> {
     const response = await api.get('/assets', { params })
     const assets = unwrapData<AssetItem[]>(response)
 
     return Array.isArray(assets) ? assets : []
+  },
+
+  /** One page of the inventory table. */
+  async listPage(params?: AssetParams & ListPageParams): Promise<ListPage<AssetItem>> {
+    const response = await api.get('/assets', {
+      params: cleanListParams({ ...params, page: params?.page, per_page: params?.perPage }),
+    })
+
+    return readPage<AssetItem>(response.data)
+  },
+
+  /** The models already in use, for the filter select. */
+  async models(): Promise<string[]> {
+    const models = unwrapData<string[]>(await api.get('/assets/models'))
+
+    return Array.isArray(models) ? models : []
   },
 
   async getById(id: number): Promise<AssetItem> {

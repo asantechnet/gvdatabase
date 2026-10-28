@@ -34,6 +34,7 @@ class ApplicantResource extends JsonResource
             'admission_employee_id' => $this->admission_employee_id,
             'admission_employee' => $this->whenLoaded('admissionEmployee', fn () => $this->admissionEmployee ? $this->admissionEmployee->only(['id', 'name']) : null),
             'notes' => $this->notes,
+            'consultant_review' => $this->consultant_review,
             // Which built-in service this applicant belongs to, and that
             // service's own field set (null when the record has no detail row).
             'service' => $this->service,

@@ -5,13 +5,14 @@ import { useToast } from 'vue-toastification'
 import { type FinanceType, getFinanceTypes } from '@/api/financeTypes'
 import { financeTypeLabel } from '@/utils/financeTypes'
 import PendingTransactionApi from '@/api/pendingTransactions'
-import { type Income, type IncomeCreateData, type ApplicantContractPaymentOption, createIncome, deleteIncome, getIncomes, getApplicantContractPayments, updateIncome } from '@/api/incomes'
+import { type Income, type IncomeCreateData, type IncomeParams, type ApplicantContractPaymentOption, createIncome, deleteIncome, getIncomes, getIncomesPage, getApplicantContractPayments, updateIncome } from '@/api/incomes'
 import ReceiptApi from '@/api/receipts'
 import ApplicantApi, { type Applicant } from '@/api/applicants'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
@@ -24,6 +25,12 @@ import { canAccess } from '@/utils/authorization'
 import { changedIncomeFields, paymentEntryLimit } from '@/utils/incomePaymentBalance'
 
 const incomes = ref<Income[]>([])
+// The ledger asks the server for one page at a time.
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+// Filled from every matching receipt right before printing.
+const reportRows = ref<string[][]>([])
 const isAddIncomeDialogVisible = ref(false)
 const isEditIncomeDialogVisible = ref(false)
 const isDeleteIncomeDialogVisible = ref(false)
@@ -90,8 +97,8 @@ async function fetchTypes() {
   catch (error) { toast.error(apiErrorMessage(error, translate('pages.finance.types.loadFailed'))) }
 }
 
+// Every currency on record can be used for a receipt; the base one is first.
 const currencyOptions = computed(() => currencies.value
-  .filter(currency => currency.isActive)
   .map(currency => ({ title: `${currency.code} — ${currency.name}`, value: currency.id })))
 
 const selectedServiceLine = computed(() => {
@@ -134,7 +141,7 @@ const fetchApplicantContracts = async (applicantId?: number | null) => {
 const fetchCurrencies = async () => {
   const response = await CurrencyApi.getAll()
 
-  currencies.value = response.data.filter(currency => currency.isActive)
+  currencies.value = response.data
 }
 
 const fetchApplicants = async () => {
@@ -159,34 +166,46 @@ const setDefaultCurrency = () => {
   }
 }
 
+const filterParams = (): IncomeParams => ({
+  search: searchQuery.value || undefined,
+  type: filterType.value || undefined,
+  currency_id: filterCurrency.value || undefined,
+  date_from: dateFrom.value || undefined,
+  date_to: dateTo.value || undefined,
+})
+
 const fetchIncomes = async () => {
   try {
     isLoading.value = true
 
-    const params: any = {}
+    const result = await getIncomesPage({ ...filterParams(), page: page.value, perPage: perPage.value })
 
-    if (searchQuery.value)
-      params.search = searchQuery.value
-    if (filterType.value)
-      params.type = filterType.value
-    if (filterCurrency.value)
-      params.currency_id = filterCurrency.value
-    if (dateFrom.value)
-      params.date_from = dateFrom.value
-    if (dateTo.value)
-      params.date_to = dateTo.value
-
-    const response = await getIncomes(params)
-
-    incomes.value = Array.isArray(response) ? response : []
+    incomes.value = result.rows
+    total.value = result.total
   }
   catch (error) {
     console.error('Error fetching incomes:', error)
     incomes.value = []
+    total.value = 0
   }
   finally {
     isLoading.value = false
   }
+}
+
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  fetchIncomes()
+}
+
+// A filter change starts from the first page.
+const reload = () => {
+  page.value = 1
+  void fetchIncomes()
 }
 
 const openAddIncomeDialog = () => {
@@ -310,9 +329,10 @@ const addIncome = async () => {
     }
 
     const incomeData = { ...selectedIncome.value } as IncomeCreateData
-    const createdIncome = await createIncome(incomeData)
 
-    incomes.value.unshift(createdIncome)
+    await createIncome(incomeData)
+    // A new receipt belongs on the first page of the current filters.
+    reload()
     isAddIncomeDialogVisible.value = false
   }
   catch (error) {
@@ -334,11 +354,8 @@ const updateIncomeRecord = async () => {
       if (!original)
         return
       const incomeData = changedIncomeFields(original, selectedIncome.value)
-      const updatedIncome = await updateIncome(selectedIncome.value.id, incomeData)
-      const index = incomes.value.findIndex(i => i.id === updatedIncome.id)
-      if (index !== -1)
-        incomes.value[index] = updatedIncome
-
+      await updateIncome(selectedIncome.value.id, incomeData)
+      await fetchIncomes()
       isEditIncomeDialogVisible.value = false
     }
     catch (error) {
@@ -352,7 +369,11 @@ const deleteIncomeRecord = async () => {
   if (selectedIncome.value.id) {
     try {
       await deleteIncome(selectedIncome.value.id)
-      incomes.value = incomes.value.filter(i => i.id !== selectedIncome.value.id)
+      // The deleted row was the last one on this page, so step back instead of
+      // showing an empty page.
+      if (page.value > 1 && incomes.value.length === 1)
+        page.value -= 1
+      await fetchIncomes()
       isDeleteIncomeDialogVisible.value = false
     }
     catch (error) {
@@ -394,7 +415,26 @@ const formatDate = (dateString: string | undefined | null): string => {
   })
 }
 
-const printTable = () => void printDocument({ bodyClass: 'printing-table-income', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+const incomeReportRow = (income: Income): string[] => [
+  income.receipt_number,
+  income.type,
+  income.description ?? '',
+  income.contract_service?.service_label ?? '',
+  formatIncomeCurrency(income.amount * income.quantity, income.currency),
+  formatDate(income.date),
+]
+
+// Print is global: the report is filled from every matching row first.
+const printTable = async () => {
+  try {
+    reportRows.value = (await getIncomes(filterParams())).map(incomeReportRow)
+    await printDocument({ bodyClass: 'printing-table-income', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  }
+  catch (error) {
+    console.error('Error preparing income report:', error)
+    toast.error(apiErrorMessage(error))
+  }
+}
 
 onMounted(() => {
   fetchTypes()
@@ -406,7 +446,7 @@ onMounted(() => {
 
 <template>
   <PaymentOverridesDialog v-model="isPaymentOverridesOpen" />
-  <ServicePaymentsDialog v-model="isServicePaymentsOpen" @created="incomes.unshift($event)" />
+  <ServicePaymentsDialog v-model="isServicePaymentsOpen" @created="reload" />
   <div class="income-page">
     <div class="income-page-head d-flex flex-wrap align-center justify-space-between gap-3 mb-6">
       <div class="d-flex align-center ga-3">
@@ -475,7 +515,7 @@ onMounted(() => {
               density="compact"
               clearable
               hide-details
-              @keyup.enter="fetchIncomes"
+              @keyup.enter="reload"
             />
           </VCol>
 
@@ -486,7 +526,7 @@ onMounted(() => {
           >
             <DataTableFilterMenu
               :active="Boolean(filterType || filterCurrency || dateFrom || dateTo)"
-              @reset="filterType = null; filterCurrency = null; dateFrom = ''; dateTo = ''; fetchIncomes()"
+              @reset="filterType = null; filterCurrency = null; dateFrom = ''; dateTo = ''; reload()"
             >
               <VSelect
                 v-model="filterType"
@@ -494,22 +534,20 @@ onMounted(() => {
                 :label="$t('common.messages.filterByType')"
                 density="compact"
                 clearable
-                hide-details
-                @update:model-value="fetchIncomes"
-              />
-              <VSelect
+                hide-details                @update:model-value="reload"
+              /><VSelect
                 v-model="filterCurrency"
                 :items="currencyOptions"
                 :label="$t('common.messages.filterByCurrency')"
                 density="compact"
                 clearable
                 hide-details
-                @update:model-value="fetchIncomes"
+                @update:model-value="reload"
               />
-              <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="fetchIncomes" />
+              <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="reload" />
             </DataTableFilterMenu>
             <div class="text-caption text-medium-emphasis">
-              <strong class="text-high-emphasis">{{ incomes.length }}</strong> {{ $t('pages.finance.income.income.recordsCurrentlyShown') }}
+              <strong class="text-high-emphasis">{{ total }}</strong> {{ $t('pages.finance.income.income.recordsCurrentlyShown') }}
             </div>
           </VCol>
         </VRow>
@@ -538,8 +576,12 @@ onMounted(() => {
         </template>
       </VCardItem>
       <div class="table-container">
-        <ResponsiveDataTable
+        <ResponsiveDataTableServer
           :items="incomes"
+          :items-length="total"
+          :page="page"
+          :items-per-page="perPage"
+          :items-per-page-options="[10, 25, 50, 100]"
           :headers="[
             { title: translate('pages.finance.income.income.receipt'), key: 'receipt_number', align: 'start' },
             { title: translate('common.fields.type'), key: 'type', align: 'start' },
@@ -555,6 +597,7 @@ onMounted(() => {
           :loading="isLoading"
           mobile-breakpoint="sm"
           density="compact"
+          @update:options="updateTableOptions"
         >
           <template #loading>
             <TableLoadingSkeleton :columns="8" :label="$t('common.messages.loading')" />
@@ -681,7 +724,7 @@ onMounted(() => {
             </div>
           </template>
 
-        </ResponsiveDataTable>
+        </ResponsiveDataTableServer>
       </div>
     </VCard>
 
@@ -702,7 +745,7 @@ onMounted(() => {
       :title="$t('common.crmUi.printReports.income.title')"
       :subtitle="$t('common.crmUi.printReports.income.subtitle')"
       :columns="[$t('common.crmUi.printReports.columns.receipt'), $t('common.crmUi.printReports.columns.type'), $t('common.crmUi.printReports.columns.details'), $t('common.crmUi.printReports.columns.service'), $t('common.crmUi.printReports.columns.amount'), $t('common.crmUi.printReports.columns.date')]"
-      :rows="incomes.map(income => [income.receipt_number, income.type, income.description, income.contract_service?.service_label ?? '', formatIncomeCurrency(income.amount * income.quantity, income.currency), formatDate(income.date)])"
+      :rows="reportRows"
     />
 
     <!-- Add Income Dialog -->

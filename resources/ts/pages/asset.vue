@@ -8,12 +8,20 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import OfficeApi, { type Office } from '@/api/office'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
 const toast = useToast()
 
 const assets = ref<AssetItem[]>([])
+// The table asks the server for one page at a time.
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+// Filled from every filtered row right before printing, so the shared report
+// covers the whole result set instead of the visible page.
+const reportRows = ref<string[][]>([])
 const employees = ref<Employee[]>([])
 const isAddAssetDialogVisible = ref(false)
 const isEditAssetDialogVisible = ref(false)
@@ -26,8 +34,7 @@ const filterCondition = ref<AssetCondition | null>(null)
 const isLoading = ref(false)
 const employeesLoading = ref(false)
 const officeDirectory = ref<Office[]>([])
-
-const models = computed(() => [...new Set(assets.value.map(asset => asset.model).filter(Boolean))].sort())
+const models = ref<string[]>([])
 
 const officeOptions = computed(() => {
   const byId = new Map<number, { title: string; value: number; active: boolean }>()
@@ -67,18 +74,16 @@ const allocationTotal = (asset: AssetItem | null) => asset?.allocations.reduce((
 const addAllocation = () => selectedAsset.value?.allocations.push({ employee_id: 0, quantity: 1 })
 const removeAllocation = (index: number) => selectedAsset.value?.allocations.splice(index, 1)
 
-const filtered = computed(() => {
-  return assets.value.filter(s => {
-    const matchesSearch = s.serial_number.toLowerCase().includes(search.value.toLowerCase())
-      || s.item.toLowerCase().includes(search.value.toLowerCase())
-
-    const matchesModel = !filterModel.value || s.model === filterModel.value
-    const matchesOffice = !filterOffice.value || s.office_id === filterOffice.value
-    const matchesCondition = !filterCondition.value || s.condition === filterCondition.value
-
-    return matchesSearch && matchesModel && matchesOffice && matchesCondition
-  })
-})
+const assetReportRow = (asset: AssetItem): string[] => [
+  asset.serial_number,
+  asset.item,
+  `${asset.quantity}`,
+  `${asset.price}`,
+  asset.model,
+  asset.condition,
+  asset.office?.name ?? '—',
+  asset.allocations.map(allocation => `${allocation.employee?.name || 'Employee'}: ${allocation.quantity}`).join(', '),
+]
 
 const headers = computed(() => [
   { title: translate('pages.finance.asset.asset.serialNumber'), key: 'serial_number', sortable: true },
@@ -92,20 +97,20 @@ const headers = computed(() => [
   { title: translate('common.messages.actions'), key: 'actions', sortable: false },
 ])
 
+const filterParams = (): AssetParams => ({
+  search: search.value || undefined,
+  model: filterModel.value || undefined,
+  office_id: filterOffice.value || undefined,
+  condition: filterCondition.value || undefined,
+})
+
 const fetchAssets = async () => {
   isLoading.value = true
   try {
-    const params: AssetParams = {}
-    if (search.value)
-      params.search = search.value
-    if (filterModel.value)
-      params.model = filterModel.value
-    if (filterOffice.value)
-      params.office_id = filterOffice.value
-    if (filterCondition.value)
-      params.condition = filterCondition.value
+    const result = await AssetApi.listPage({ ...filterParams(), page: page.value, perPage: perPage.value })
 
-    assets.value = await AssetApi.getAll(params)
+    assets.value = result.rows
+    total.value = result.total
   }
   catch (error) {
     console.error('Error fetching assets:', error)
@@ -114,6 +119,15 @@ const fetchAssets = async () => {
   finally {
     isLoading.value = false
   }
+}
+
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  fetchAssets()
 }
 
 const fetchEmployees = async () => {
@@ -130,8 +144,16 @@ const fetchEmployees = async () => {
   }
 }
 
-const printTable = () => {
-  void printDocument({ bodyClass: 'printing-table-asset', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+// Print is global: the report is filled from every filtered row first.
+const printTable = async () => {
+  try {
+    reportRows.value = (await AssetApi.getAll(filterParams())).map(assetReportRow)
+    await printDocument({ bodyClass: 'printing-table-asset', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  }
+  catch (error) {
+    console.error('Error preparing asset report:', error)
+    toast.error(translate('pages.finance.asset.asset.failedToFetchAssetRecords'))
+  }
 }
 
 const openAddAssetDialog = () => {
@@ -163,9 +185,11 @@ const addAsset = async () => {
   if (selectedAsset.value) {
     try {
       const { id, office, allocated_quantity, available_quantity, ...assetData } = selectedAsset.value
-      const asset = await AssetApi.create(assetData)
 
-      assets.value.unshift(asset)
+      await AssetApi.create(assetData)
+      // A new row belongs on the first page, and the paging counts changed.
+      page.value = 1
+      await fetchAssets()
       isAddAssetDialogVisible.value = false
       toast.success(translate('pages.finance.asset.asset.assetItemAdded'))
     }
@@ -180,11 +204,9 @@ const updateAsset = async () => {
   if (selectedAsset.value) {
     try {
       const { id, office, allocated_quantity, available_quantity, ...assetData } = selectedAsset.value
-      const asset = await AssetApi.update(id, assetData)
-      const index = assets.value.findIndex(s => s.id === selectedAsset.value?.id)
-      if (index !== -1)
-        assets.value[index] = asset
 
+      await AssetApi.update(id, assetData)
+      await fetchAssets()
       isEditAssetDialogVisible.value = false
       toast.success(translate('pages.finance.asset.asset.assetItemUpdated'))
     }
@@ -199,7 +221,11 @@ const deleteAsset = async () => {
   if (selectedAsset.value) {
     try {
       await AssetApi.delete(selectedAsset.value.id)
-      assets.value = assets.value.filter(s => s.id !== selectedAsset.value?.id)
+      // The deleted row was the last one on this page, so step back instead of
+      // showing an empty page.
+      if (page.value > 1 && assets.value.length === 1)
+        page.value -= 1
+      await fetchAssets()
       isDeleteAssetDialogVisible.value = false
       toast.success(translate('pages.finance.asset.asset.assetItemDeleted'))
     }
@@ -210,7 +236,10 @@ const deleteAsset = async () => {
   }
 }
 
-const debouncedFetchAssets = useDebounceFn(fetchAssets, 300)
+const debouncedFetchAssets = useDebounceFn(() => {
+  page.value = 1
+  void fetchAssets()
+}, 300)
 
 watch([search, filterModel, filterOffice, filterCondition], () => {
   void debouncedFetchAssets()
@@ -219,6 +248,9 @@ watch([search, filterModel, filterOffice, filterCondition], () => {
 onMounted(() => {
   fetchAssets()
   fetchEmployees()
+  AssetApi.models().then(data => { models.value = data }).catch(error => {
+    console.error('Error fetching asset models:', error)
+  })
   OfficeApi.getAll().then(data => { officeDirectory.value = data }).catch(error => {
     console.error('Error fetching offices:', error)
     toast.error(translate('pages.finance.asset.asset.failedToFetchOffices'))
@@ -229,7 +261,7 @@ onMounted(() => {
 <template>
   <div>
     <DataTablePageKpis
-      :items="filtered"
+      :items="assets"
       :title="$t('components.dataTablePageKpis.pages.assetInventory.title')"
       :description="$t('components.dataTablePageKpis.pages.assetInventory.description')"
       icon="tabler-packages"
@@ -315,15 +347,20 @@ onMounted(() => {
 
     <VCard>
       <div class="table-container">
-        <ResponsiveDataTable
+        <ResponsiveDataTableServer
           :headers="headers"
-          :items="filtered"
+          :items="assets"
+          :items-length="total"
+          :page="page"
+          :items-per-page="perPage"
+          :items-per-page-options="[10, 25, 50, 100]"
           item-value="id"
           class="text-no-wrap"
           :loading="isLoading"
           mobile-breakpoint="sm"
           density="compact"
           sticky-last-column
+          @update:options="updateTableOptions"
         >
           <template #loading>
             <TableLoadingSkeleton
@@ -410,7 +447,7 @@ onMounted(() => {
               </VBtn>
             </div>
           </template>
-        </ResponsiveDataTable>
+        </ResponsiveDataTableServer>
       </div>
     </VCard>
 
@@ -418,7 +455,7 @@ onMounted(() => {
       :title="$t('common.crmUi.printReports.assets.title')"
       :subtitle="$t('common.crmUi.printReports.assets.subtitle')"
       :columns="[$t('common.crmUi.printReports.columns.serialNumber'), $t('common.crmUi.printReports.columns.item'), $t('common.crmUi.printReports.columns.quantity'), $t('common.crmUi.printReports.columns.price'), $t('common.crmUi.printReports.columns.model'), $t('common.crmUi.printReports.columns.condition'), $t('common.crmUi.printReports.columns.office'), $t('common.crmUi.printReports.columns.allocations')]"
-      :rows="filtered.map(asset => [asset.serial_number, asset.item, asset.quantity, asset.price, asset.model, asset.condition, asset.office?.name, asset.allocations.map(allocation => `${allocation.employee?.name || 'Employee'}: ${allocation.quantity}`).join(', ')])"
+      :rows="reportRows"
     />
 
     <!-- Add Asset Dialog -->

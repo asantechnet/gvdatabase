@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\RecurringEventOccurrenceResource;
 use App\Http\Resources\RecurringEventResource;
 use App\Models\Board;
@@ -14,9 +15,17 @@ use Illuminate\Validation\Rule;
 
 class RecurringEventController extends Controller
 {
+    use PaginatesLists;
     public function index(Request $request)
     {
-        return RecurringEventResource::collection(RecurringEvent::with('owner')->latest()->get());
+        $query = RecurringEvent::with('owner')->latest('id');
+
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true]
+                + $this->paginatedPayload($request, $query, fn ($rows) => RecurringEventResource::collection($rows)->resolve()));
+        }
+
+        return RecurringEventResource::collection($query->get());
     }
 
     public function store(Request $request)
@@ -125,7 +134,7 @@ class RecurringEventController extends Controller
         $rules = match ($type) {
             'income', 'expense' => [
                 'amount' => ['required', 'numeric', 'gt:0'],
-                'currency_id' => ['required', Rule::exists('currencies', 'id')->where('is_active', true)->whereNull('deleted_at')],
+                'currency_id' => ['required', Rule::exists('currencies', 'id')->whereNull('deleted_at')],
                 'type' => ['required', 'string', 'max:255'],
                 'quantity' => ['sometimes', 'integer', 'min:1'],
             ],

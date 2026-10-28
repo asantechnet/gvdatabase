@@ -7,6 +7,7 @@ import RecurringEventsApi, { type RecurringEvent, type RecurringEventInput, type
 import CurrencyApi, { type Currency } from '@/api/currency'
 import BoardApi from '@/api/board'
 import type { Board } from '@/api/kanban'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 
 const loading = ref(false)
 const route = useRoute()
@@ -14,6 +15,10 @@ const { t } = useI18n()
 const saving = ref(false)
 const catalogLoading = ref(false)
 const events = ref<RecurringEvent[]>([])
+// The table asks the server for one page at a time.
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
 const currencies = ref<Currency[]>([])
 const boards = ref<Board[]>([])
 const dialog = ref(false)
@@ -29,7 +34,8 @@ const availableTypes = computed(() => types.filter(type => canAccess(`create_rec
 const canViewBoards = computed(() => canAccess('view_all_boards') || canAccess('view_assigned_boards'))
 const incomeExpenseTypes = computed(() => ['Service', 'Product', 'Investment', 'Other'].map(value => ({ title: t(`pages.recurringEvents.recordTypes.${value.toLowerCase()}`), value })))
 const frequencyOptions = computed(() => ['daily', 'weekly', 'monthly', 'yearly'].map(value => ({ title: t(`pages.recurringEvents.frequencies.${value}`), value })))
-const currencyOptions = computed(() => currencies.value.filter(currency => currency.isActive))
+// Every currency on record can back a recurring amount.
+const currencyOptions = computed(() => currencies.value)
 
 function remaining(date: string) {
   const days = Math.ceil((new Date(`${date}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000)
@@ -39,8 +45,23 @@ function remaining(date: string) {
 function schedule(interval: number, frequency: string) { return interval === 1 ? t(`pages.recurringEvents.frequencyLabels.${frequency}`) : t('pages.recurringEvents.everyFrequency', { count: interval, frequency: t(`pages.recurringEvents.frequencies.${frequency}`) }) }
 function reset() { form.value = { name: '', description: '', event_type: availableTypes.value[0] ?? 'income', frequency: 'monthly', interval: 1, start_date: today, next_occurrence_date: today, end_date: null, payload: { type: 'Other', amount: null, quantity: 1, currency_id: null } }; selected.value = null }
 async function load() {
-  loading.value = true; try { events.value = await RecurringEventsApi.all() }
+  loading.value = true
+  try {
+    const result = await RecurringEventsApi.listPage({ page: page.value, perPage: perPage.value })
+
+    events.value = result.rows
+    total.value = result.total
+  }
   finally { loading.value = false }
+}
+
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  void load()
 }
 async function openDetail(item: RecurringEvent) { selected.value = await RecurringEventsApi.get(item.id); detailDialog.value = true }
 async function loadCatalogs() {
@@ -73,16 +94,23 @@ async function skip(occurrenceId: number) {
 onMounted(async () => {
   await load()
 
+  // A deep-linked schedule may live on another page, so it is looked up from
+  // the API when it is not in the visible page.
   const id = Number(route.params.id)
+  if (!id)
+    return
+
   const event = events.value.find(item => item.id === id)
   if (event)
     await openDetail(event)
+  else
+    await openDetail({ id } as RecurringEvent)
 })
 </script>
 
 <template>
   <DataTablePageKpis
-    :items="visible"
+    :items="events"
     :title="$t('pages.recurringEvents.title')"
     :description="$t('pages.recurringEvents.description')"
     icon="tabler-repeat"
@@ -102,11 +130,16 @@ onMounted(async () => {
         </VBtn>
       </template>
     </VCardItem>
-    <ResponsiveDataTable
+    <ResponsiveDataTableServer
       :headers="headers"
-      :items="visible"
+      :items="events"
+      :items-length="total"
+      :page="page"
+      :items-per-page="perPage"
+      :items-per-page-options="[10, 25, 50, 100]"
       :loading="loading"
       class="text-no-wrap"
+      @update:options="updateTableOptions"
     >
       <template #item.name="{ item }">
         <a
@@ -160,7 +193,7 @@ onMounted(async () => {
           @click="remove(item)"
         />
       </template>
-    </ResponsiveDataTable>
+    </ResponsiveDataTableServer>
   </VCard>
 
   <VDialog

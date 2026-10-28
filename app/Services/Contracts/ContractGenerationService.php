@@ -125,7 +125,7 @@ class ContractGenerationService
             // informational amount: the line's paid state follows the income.
             if ($service === BuiltInService::ACADEMY && (float) ($data['paid_fee'] ?? 0) > 0) {
                 abort_unless($request->user()->hasPermission('create_incomes'), 403, 'auth.forbidden');
-                $currency = Currency::query()->where('is_active', true)->findOrFail($data['currency_id']);
+                $currency = Currency::query()->findOrFail($data['currency_id']);
                 Income::create([
                     ...$this->currencies->snapshot($currency),
                     'applicant_id' => $applicant->id,

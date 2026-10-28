@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\LeaveRequestResource;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -11,12 +12,14 @@ use App\Support\CompanyProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class LeaveRequestController extends Controller
 {
+    use PaginatesLists;
     public function __construct(
         private readonly CompanyProfile $company,
         private readonly LeaveRequestService $ledger,
@@ -24,23 +27,93 @@ class LeaveRequestController extends Controller
 
     public function all(Request $request): JsonResponse
     {
-        $data = $request->validate(['year' => ['nullable', 'integer', 'between:2000,3000']]);
+        $data = $request->validate([
+            'year' => ['nullable', 'integer', 'between:2000,3000'],
+            // The same treatment the ledger shows in its status column.
+            'status' => ['nullable', Rule::in(['pending', 'off_day', 'partial', 'absent'])],
+        ]);
         $year = $data['year'] ?? now()->year;
-        $rows = LeaveRequest::with(['employee.position', 'employee.office', 'grantor'])
-            ->where('year', $year)->latest('date')->get();
+        $query = LeaveRequest::with(['employee.position', 'employee.office', 'grantor'])
+            ->where('year', $year)->latest('date')->latest('id');
+        $this->applyTreatmentFilter($query, $data['status'] ?? null);
 
-        // The allowance is per employee, so the ledger ships the resolved map.
-        $allowances = $rows->pluck('employee')->filter()->unique('id')
-            ->mapWithKeys(fn (Employee $employee) => [$employee->id => $this->allowanceFor($employee)])
-            ->all();
+        // The allowance is per employee, so the ledger ships the resolved map,
+        // and the approved usage of the whole year so an approval is checked
+        // against the employee's real remaining allowance, not just this page.
+        $shared = [
+            'allowance' => $this->defaultAllowance(),
+            'usage' => $this->usedOffDays($year),
+            'year' => $year,
+        ];
+
+        if ($this->requestedPerPage($request)) {
+            $paginator = $query->paginate($this->requestedPerPage($request))->withQueryString();
+            $rows = collect($paginator->items());
+
+            return response()->json([
+                'success' => true,
+                'data' => LeaveRequestResource::collection($rows)->resolve(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'allowances' => $this->allowancesFor($rows),
+            ] + $shared);
+        }
+
+        $rows = $query->get();
 
         return response()->json([
             'success' => true,
             'data' => LeaveRequestResource::collection($rows)->resolve(),
-            'allowance' => $this->defaultAllowance(),
-            'allowances' => $allowances,
-            'year' => $year,
-        ]);
+            'allowances' => $this->allowancesFor($rows),
+        ] + $shared);
+    }
+
+    /** Narrow the ledger to the treatment its status column shows. */
+    private function applyTreatmentFilter($query, ?string $status): void
+    {
+        if ($status === null) {
+            return;
+        }
+
+        if ($status === 'pending') {
+            $query->where('is_granted', false);
+
+            return;
+        }
+
+        $query->where('is_granted', true);
+        match ($status) {
+            'off_day' => $query->whereColumn('off_day_days', '>=', 'duration_days'),
+            'partial' => $query->where('off_day_days', '>', 0)->whereColumn('off_day_days', '<', 'duration_days'),
+            'absent' => $query->where(fn ($q) => $q->whereNull('off_day_days')->orWhere('off_day_days', '<=', 0)),
+            default => null,
+        };
+    }
+
+    /** Approved off-day days per employee for the year. */
+    private function usedOffDays(int $year): array
+    {
+        return LeaveRequest::query()
+            ->where('year', $year)
+            ->where('is_granted', true)
+            ->groupBy('employee_id')
+            ->selectRaw('employee_id, SUM(off_day_days) as used')
+            ->pluck('used', 'employee_id')
+            ->map(fn ($used) => (float) $used)
+            ->all();
+    }
+
+    /**
+     * The resolved per-employee allowance for the rows the caller is looking
+     * at. A paged ledger only ships the employees on that page.
+     */
+    private function allowancesFor(\Illuminate\Support\Collection $rows): array
+    {
+        return $rows->pluck('employee')->filter()->unique('id')
+            ->mapWithKeys(fn (Employee $employee) => [$employee->id => $this->allowanceFor($employee)])
+            ->all();
     }
 
     public function mine(Request $request): JsonResponse

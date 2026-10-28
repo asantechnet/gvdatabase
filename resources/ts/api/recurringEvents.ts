@@ -1,4 +1,5 @@
 import api from './axios'
+import { readPage, type ListPage, type ListPageParams } from './pagination'
 
 export type RecurringEventType = 'income' | 'expense' | 'task'
 export type RecurringFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'
@@ -9,7 +10,15 @@ export type RecurringEventInput = Omit<RecurringEvent, 'id' | 'owner' | 'occurre
 const data = <T>(response: { data: { data: T } }) => response.data.data
 
 const RecurringEventsApi = {
+  /** Every schedule, for pickers and the deep-link lookup. */
   async all(): Promise<RecurringEvent[]> { return data(await api.get('/recurring-events')) },
+
+  /** One page of the schedules table. */
+  async listPage(params: ListPageParams = {}): Promise<ListPage<RecurringEvent>> {
+    const response = await api.get('/recurring-events', { params: { page: params.page, per_page: params.perPage } })
+
+    return readPage<RecurringEvent>(response.data)
+  },
   async get(id: number): Promise<RecurringEvent> { return data(await api.get(`/recurring-events/${id}`)) },
   async create(input: RecurringEventInput): Promise<RecurringEvent> { return data(await api.post('/recurring-events', input)) },
   async update(id: number, input: Partial<RecurringEventInput>): Promise<RecurringEvent> { return data(await api.put(`/recurring-events/${id}`, input)) },

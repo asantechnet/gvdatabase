@@ -14,15 +14,21 @@ import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterDat
 import { printDocument } from '@/utils/printDocument'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { useCookie } from '@core/composable/useCookie'
 
 const visitors = ref<Visitor[]>([])
+// Both lists ask the server for one page at a time.
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+// Filled from every matching visitor right before printing.
+const reportRows = ref<string[][]>([])
 const search = ref('')
 const dateFrom = ref('')
 const dateTo = ref('')
-const reviewStatus = ref<boolean | null>(null)
 const route = useRoute()
 // This page hosts two lists. The Visitors list shows the records that are not
 // marked worthy of follow-up; the Follow-up list shows the marked ones. The
@@ -63,7 +69,7 @@ const emptyVisitorForm = (): VisitorFormData => ({
   english_level_id: null,
   acquisition_route_id: null,
   consultant_employee_id: lockedConsultantId.value,
-  reviewed_by_consultant: false,
+  consultant_review: '',
   notes: '',
 })
 
@@ -146,45 +152,55 @@ const profilePayload = (): Omit<CreateVisitorData, 'date' | 'name' | 'contact' |
   acquisition_route_id: visitorData.value.acquisition_route_id,
   consultant_employee_id: consultantLocked.value ? lockedConsultantId.value : visitorData.value.consultant_employee_id,
   notes: visitorData.value.notes,
-  ...(canReview.value ? { reviewed_by_consultant: visitorData.value.reviewed_by_consultant } : {}),
+  ...(canReview.value ? { consultant_review: visitorData.value.consultant_review.trim() || null } : {}),
+})
+
+const listParams = () => ({
+  date_from: dateFrom.value || undefined,
+  date_to: dateTo.value || undefined,
+  search: search.value || undefined,
+  consultant_employee_id: filterConsultantId.value || undefined,
+  follow_up: (isFollowUpList.value ? 1 : 0) as 0 | 1,
 })
 
 const fetchVisitors = async () => {
   try {
     isTableLoading.value = true
 
-    const response = await VisitorApi.getAll({
-      date_from: dateFrom.value || undefined,
-      date_to: dateTo.value || undefined,
-      search: search.value,
-      consultant_employee_id: filterConsultantId.value || undefined,
-      reviewed_by_consultant: reviewStatus.value === null ? undefined : (reviewStatus.value ? 1 : 0),
-      follow_up: isFollowUpList.value ? 1 : 0,
-    })
+    const result = await VisitorApi.listPage({ ...listParams(), page: page.value, perPage: perPage.value })
 
-    visitors.value = response
+    visitors.value = result.rows
+    total.value = result.total
   }
   catch (error) {
     console.error('Error fetching visitors:', error)
     visitors.value = []
+    total.value = 0
   }
   finally {
     isTableLoading.value = false
   }
 }
 
-const filtered = computed(() => {
-  return visitors.value.filter(v => {
-    const matchesSearch = v.name.toLowerCase().includes(search.value.toLowerCase())
-      || v.contact.includes(search.value)
-      || (v.email?.toLowerCase().includes(search.value.toLowerCase()) ?? false)
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
 
-    const matchesConsultant = !filterConsultantId.value || v.consultant_employee_id === filterConsultantId.value
-    const matchesReview = reviewStatus.value === null || v.reviewed_by_consultant === reviewStatus.value
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  fetchVisitors()
+}
 
-    return matchesSearch && matchesConsultant && matchesReview
-  })
-})
+// Typing in the search box is a filter change, so it starts from the first page.
+const debouncedSearch = useDebounceFn(() => {
+  page.value = 1
+  void fetchVisitors()
+}, 300)
+
+const reload = () => {
+  page.value = 1
+  void fetchVisitors()
+}
 
 const headers = computed(() => [
   { title: translate('common.fields.name'), key: 'name', sortable: true },
@@ -201,10 +217,32 @@ const headers = computed(() => [
   { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
 
-const printTable = () => {
+const visitorReportRow = (visitor: Visitor): string[] => [
+  visitor.name,
+  visitor.contact,
+  visitor.email || '—',
+  visitor.service,
+  visitor.education_level?.name || '—',
+  visitor.province?.name || '—',
+  visitor.english_level?.name || '—',
+  visitor.acquisition_route?.name || '—',
+  consultantLabel(visitor),
+  visitor.consultant_review || '—',
+  visitor.date,
+]
+
+const printTable = async () => {
   // `printing-table-*` tells the shared print helper to isolate the
   // PrintableListReport rather than print this interactive data-table page.
-  void printDocument({ bodyClass: 'printing-table-visitors', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  // The report covers the whole filtered set, so it is filled from every row.
+  try {
+    reportRows.value = (await VisitorApi.getAll(listParams())).map(visitorReportRow)
+    await printDocument({ bodyClass: 'printing-table-visitors', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  }
+  catch (error) {
+    console.error('Error preparing visitor report:', error)
+    toast.error(apiErrorMessage(error))
+  }
 }
 
 const addNewVisitor = async () => {
@@ -222,10 +260,9 @@ const addNewVisitor = async () => {
       ...profilePayload(),
     }
 
-    const response = await VisitorApi.create(data)
-    if (response)
-      visitors.value.push(response)
-
+    await VisitorApi.create(data)
+    // A new visitor belongs on the first page of the current list.
+    reload()
     isAddNewVisitorDialogVisible.value = false
     resetForm()
   }
@@ -254,12 +291,8 @@ const editVisitor = async () => {
       ...profilePayload(),
     }
 
-    const response = await VisitorApi.update(selectedVisitor.value.id, data)
-    if (response) {
-      const index = visitors.value.findIndex(v => v.id === selectedVisitor.value?.id)
-      if (index !== -1)
-        visitors.value[index] = response
-    }
+    await VisitorApi.update(selectedVisitor.value.id, data)
+    await fetchVisitors()
     isEditVisitorDialogVisible.value = false
     resetForm()
   }
@@ -286,7 +319,7 @@ const openEditDialog = (visitor: Visitor) => {
     english_level_id: visitor.english_level_id,
     acquisition_route_id: visitor.acquisition_route_id,
     consultant_employee_id: visitor.consultant_employee_id,
-    reviewed_by_consultant: visitor.reviewed_by_consultant,
+    consultant_review: visitor.consultant_review || '',
     notes: visitor.notes || '',
   }
   isEditVisitorDialogVisible.value = true
@@ -304,7 +337,11 @@ const deleteVisitor = async () => {
   try {
     isSaving.value = true
     await VisitorApi.delete(selectedVisitor.value.id)
-    visitors.value = visitors.value.filter(v => v.id !== selectedVisitor.value?.id)
+    // The deleted row was the last one on this page, so step back instead of
+    // showing an empty page.
+    if (page.value > 1 && visitors.value.length === 1)
+      page.value -= 1
+    await fetchVisitors()
     isDeleteVisitorDialogVisible.value = false
   }
   catch (error) {
@@ -323,7 +360,8 @@ const setFollowUp = async (visitor: Visitor, followUp: boolean) => {
   try {
     isSaving.value = true
     await VisitorApi.setFollowUp(visitor.id, followUp)
-    visitors.value = visitors.value.filter(v => v.id !== visitor.id)
+    // The record left this list, so the page is refilled from the server.
+    await fetchVisitors()
     toast.success(translate(followUp ? 'pages.contracts.visitor.visitor.markedForFollowUp' : 'pages.contracts.visitor.visitor.removedFromFollowUp'))
   }
   catch (error) {
@@ -334,16 +372,29 @@ const setFollowUp = async (visitor: Visitor, followUp: boolean) => {
   }
 }
 
-// The consultant sign-off is a dedicated permission. A reviewer can complete it
-// from the list without opening the full edit dialog.
-const markReviewed = async (visitor: Visitor) => {
+const reviewDialog = ref(false)
+const reviewVisitor = ref<Visitor | null>(null)
+const consultantReview = ref('')
+
+const openConsultantReview = (visitor: Visitor) => {
+  reviewVisitor.value = visitor
+  consultantReview.value = visitor.consultant_review || ''
+  reviewDialog.value = true
+}
+
+// Review permission is deliberately separate from editing the visitor record.
+const saveConsultantReview = async () => {
+  if (!reviewVisitor.value)
+    return
+
   try {
     isSaving.value = true
-    const updated = await VisitorApi.update(visitor.id, { reviewed_by_consultant: true })
-    const index = visitors.value.findIndex(v => v.id === visitor.id)
+    const updated = await VisitorApi.updateConsultantReview(reviewVisitor.value.id, consultantReview.value.trim() || null)
+    const index = visitors.value.findIndex(v => v.id === reviewVisitor.value?.id)
     if (index !== -1)
       visitors.value[index] = updated
-    toast.success(translate('pages.contracts.visitor.visitor.markedReviewed'))
+    reviewDialog.value = false
+    toast.success(translate('pages.contracts.visitor.visitor.consultantReviewSaved'))
   }
   catch (error) {
     toast.error(apiErrorMessage(error))
@@ -353,7 +404,7 @@ const markReviewed = async (visitor: Visitor) => {
   }
 }
 
-watch(() => route.query.list, () => { fetchVisitors() })
+watch(() => route.query.list, reload)
 
 onMounted(async () => {
   fetchVisitors()
@@ -401,7 +452,7 @@ onMounted(async () => {
             density="compact"
             clearable
             hide-details
-            @input="fetchVisitors"
+            @input="debouncedSearch"
           />
         </VCol>
         <VCol
@@ -410,8 +461,8 @@ onMounted(async () => {
           class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2"
         >
           <DataTableFilterMenu
-            :active="Boolean(filterConsultantId || reviewStatus !== null || dateFrom || dateTo)"
-            @reset="filterConsultantId = null; reviewStatus = null; dateFrom = ''; dateTo = ''; fetchVisitors()"
+            :active="Boolean(filterConsultantId || dateFrom || dateTo)"
+            @reset="filterConsultantId = null; dateFrom = ''; dateTo = ''; reload()"
           >
             <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="fetchVisitors" />
             <VSelect
@@ -420,15 +471,6 @@ onMounted(async () => {
               item-title="name"
               item-value="id"
               :label="$t('pages.contracts.visitor.visitor.consultant')"
-              density="compact"
-              clearable
-              hide-details
-              @update:model-value="fetchVisitors"
-            />
-            <VSelect
-              v-model="reviewStatus"
-              :items="[{ title: $t('pages.contracts.visitor.visitor.reviewed'), value: true }, { title: $t('pages.contracts.visitor.visitor.pendingReview'), value: false }]"
-              :label="$t('pages.contracts.visitor.visitor.review')"
               density="compact"
               clearable
               hide-details
@@ -464,20 +506,25 @@ onMounted(async () => {
       :label="$t('common.messages.loading')"
     />
     <TableEmptyState
-      v-else-if="!filtered.length"
+      v-else-if="!total"
       :icon="isFollowUpList ? 'tabler-list-check' : 'tabler-walk'"
       :description="$t('common.messages.noRecordsFound')"
     />
-    <ResponsiveDataTable
+    <ResponsiveDataTableServer
       v-else
       :headers="headers"
-      :items="filtered"
+      :items="visitors"
+      :items-length="total"
+      :page="page"
+      :items-per-page="perPage"
+      :items-per-page-options="[10, 25, 50, 100]"
       item-value="id"
       class="crm-responsive-table"
       mobile-breakpoint="sm"
       mobile-cards
       mobile-title-key="name"
       mobile-action-key="actions"
+      @update:options="updateTableOptions"
     >
       <!-- Quick contact belongs to the Follow-up list: unqualified visitors are
            shown as plain contact details until somebody marks them for follow-up. -->
@@ -543,15 +590,7 @@ onMounted(async () => {
         </div>
       </template>
 
-      <template #item.review="{ item }">
-        <VChip
-          size="small"
-          :color="item.reviewed_by_consultant ? 'success' : 'warning'"
-          variant="tonal"
-        >
-          {{ item.reviewed_by_consultant ? $t('pages.contracts.visitor.visitor.reviewed') : $t('pages.contracts.visitor.visitor.pendingReview') }}
-        </VChip>
-      </template>
+      <template #item.review="{ item }"><span class="text-medium-emphasis">{{ item.consultant_review || '—' }}</span></template>
 
       <template #item.actions="{ item }">
         <div class="d-flex justify-end gap-1">
@@ -608,19 +647,19 @@ onMounted(async () => {
             </VTooltip>
           </VBtn>
           <VBtn
-            v-if="canReview && !item.reviewed_by_consultant"
-            icon="tabler-user-check"
+            v-if="canReview"
+            icon="tabler-message"
             variant="text"
             size="small"
             color="success"
             :loading="isSaving"
-            @click="markReviewed(item)"
+            @click="openConsultantReview(item)"
           >
-            <VIcon icon="tabler-user-check" /><VTooltip
+            <VIcon icon="tabler-message" /><VTooltip
               activator="parent"
               location="top"
             >
-              {{ $t('pages.contracts.visitor.visitor.markReviewed') }}
+              {{ $t('pages.contracts.visitor.visitor.consultantReview') }}
             </VTooltip>
           </VBtn>
           <VBtn
@@ -655,13 +694,13 @@ onMounted(async () => {
           </VBtn>
         </div>
       </template>
-    </ResponsiveDataTable>
+    </ResponsiveDataTableServer>
   </VCard>
   <PrintableListReport
     :title="isFollowUpList ? $t('common.crmUi.printReports.followUp.title') : $t('common.crmUi.printReports.visitors.title')"
     :subtitle="isFollowUpList ? $t('common.crmUi.printReports.followUp.subtitle') : $t('common.crmUi.printReports.visitors.subtitle')"
     :columns="headers.slice(0, -1).map(header => header.title)"
-    :rows="filtered.map(visitor => [visitor.name, visitor.contact, visitor.email || '—', visitor.service, visitor.education_level?.name || '—', visitor.province?.name || '—', visitor.english_level?.name || '—', visitor.acquisition_route?.name || '—', consultantLabel(visitor), visitor.reviewed_by_consultant ? $t('pages.contracts.visitor.visitor.reviewed') : $t('pages.contracts.visitor.visitor.pendingReview'), visitor.date])"
+    :rows="reportRows"
   />
 
   <!-- Add New Visitor Dialog -->
@@ -709,6 +748,20 @@ onMounted(async () => {
         >
           {{ $t('common.actions.add') }}
         </VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+
+  <VDialog v-model="reviewDialog" max-width="640">
+    <VCard>
+      <VCardTitle>{{ $t('pages.contracts.visitor.visitor.consultantReview') }}</VCardTitle>
+      <VCardText>
+        <VTextarea v-model="consultantReview" :label="$t('pages.contracts.visitor.visitor.consultantReview')" rows="4" auto-grow />
+      </VCardText>
+      <VCardActions>
+        <VSpacer />
+        <VBtn variant="outlined" @click="reviewDialog = false">{{ $t('common.actions.cancel') }}</VBtn>
+        <VBtn color="primary" :loading="isSaving" @click="saveConsultantReview">{{ $t('common.actions.save') }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

@@ -48,26 +48,44 @@ class VisitorProfileAndServiceContractFieldSetsTest extends TestCase
             ->assertJsonPath('data.acquisition_route.name', 'Referral')
             ->assertJsonPath('data.education_level.name', 'Bachelor')
             ->assertJsonPath('data.age', 22)
-            ->assertJsonPath('data.reviewed_by_consultant', false)
+            ->assertJsonPath('data.consultant_review', null)
             ->json('data.id');
 
         $this->putJson("/api/visitors/{$id}", ['province_id' => null, 'grade_score' => 91])
             ->assertOk()->assertJsonPath('data.province', null)->assertJsonPath('data.grade_score', '91.00');
     }
 
-    public function test_the_consultant_review_requires_its_own_permission(): void
+    public function test_consultant_reviews_are_editable_by_their_dedicated_permission(): void
     {
         $counselorUser = User::factory()->create(['roles' => ['counselor']]);
         Employee::factory()->create(['user_id' => $counselorUser->id]);
         Sanctum::actingAs($counselorUser, ['access']);
         $data = ['name' => 'Review Visitor', 'contact' => '0700000001', 'service' => 'Private', 'date' => '2026-10-20'];
 
-        $this->postJson('/api/visitors', [...$data, 'reviewed_by_consultant' => true])
-            ->assertForbidden();
+        $visitorId = $this->postJson('/api/visitors', [...$data, 'consultant_review' => 'Needs a scholarship comparison.'])
+            ->assertCreated()->assertJsonPath('data.consultant_review', 'Needs a scholarship comparison.')
+            ->json('data.id');
 
-        Sanctum::actingAs(User::factory()->create(['roles' => ['manager']]), ['access']);
-        $this->postJson('/api/visitors', [...$data, 'reviewed_by_consultant' => true])
-            ->assertCreated()->assertJsonPath('data.reviewed_by_consultant', true);
+        $this->putJson("/api/visitors/{$visitorId}/consultant-review", ['consultant_review' => 'Eligible after document check.'])
+            ->assertOk()->assertJsonPath('data.consultant_review', 'Eligible after document check.');
+
+        Sanctum::actingAs(User::factory()->create(['roles' => ['staff']]), ['access']);
+        $this->putJson("/api/visitors/{$visitorId}/consultant-review", ['consultant_review' => 'Not allowed.'])
+            ->assertForbidden();
+    }
+
+    public function test_a_reviewer_can_edit_an_applicant_consultant_review_without_case_edit_access(): void
+    {
+        $this->superAdmin();
+        $applicantId = $this->postJson('/api/applicants', ['name' => 'Review Applicant', 'service' => 'scholarship'])
+            ->assertCreated()->json('data.id');
+
+        $counselorUser = User::factory()->create(['roles' => ['counselor']]);
+        Employee::factory()->create(['user_id' => $counselorUser->id]);
+        Sanctum::actingAs($counselorUser, ['access']);
+
+        $this->putJson("/api/applicants/{$applicantId}/consultant-review", ['consultant_review' => 'Prepared for the next intake.'])
+            ->assertOk()->assertJsonPath('data.consultant_review', 'Prepared for the next intake.');
     }
 
     public function test_a_consultant_cannot_move_their_visitor_to_another_consultant(): void

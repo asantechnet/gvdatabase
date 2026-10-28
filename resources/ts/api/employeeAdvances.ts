@@ -1,5 +1,6 @@
 import api from './axios'
 import type { Currency } from './currency'
+import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 
 /** A salary advance paid to an employee ahead of the payroll period. */
 export interface EmployeeAdvance {
@@ -35,10 +36,20 @@ export interface CreateEmployeeAdvanceData {
 }
 
 const EmployeeAdvanceApi = {
+  /** Every matching advance, for pickers and reports. */
   list: async (params?: EmployeeAdvanceParams): Promise<EmployeeAdvance[]> => {
-    const response = await api.get('/employee-advances', { params })
+    const response = await api.get('/employee-advances', { params: cleanListParams({ ...params }) })
 
     return Array.isArray(response.data.data) ? response.data.data : []
+  },
+
+  /** One page of the advances ledger. */
+  listPage: async (params?: EmployeeAdvanceParams & ListPageParams): Promise<ListPage<EmployeeAdvance>> => {
+    const response = await api.get('/employee-advances', {
+      params: cleanListParams({ ...params, page: params?.page, per_page: params?.perPage }),
+    })
+
+    return readPage<EmployeeAdvance>(response.data)
   },
 
   create: async (data: CreateEmployeeAdvanceData): Promise<EmployeeAdvance> => {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\EmployeeAdvanceResource;
 use App\Models\Employee;
 use App\Models\EmployeeAdvance;
@@ -13,9 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 class EmployeeAdvanceController extends Controller
 {
+    use PaginatesLists;
     public function __construct(private readonly EmployeeAdvanceService $advances) {}
 
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         $query = EmployeeAdvance::with(['employee', 'currency', 'recorder']);
 
@@ -44,9 +46,14 @@ class EmployeeAdvanceController extends Controller
             $query->whereDate('advance_date', '<=', $dates['date_to']);
         }
 
-        return EmployeeAdvanceResource::collection(
-            $query->orderByDesc('advance_date')->orderByDesc('id')->get()
-        );
+        $query->orderByDesc('advance_date')->orderByDesc('id');
+
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true]
+                + $this->paginatedPayload($request, $query, fn ($rows) => EmployeeAdvanceResource::collection($rows)->resolve()));
+        }
+
+        return EmployeeAdvanceResource::collection($query->get());
     }
 
     public function store(Request $request): EmployeeAdvanceResource

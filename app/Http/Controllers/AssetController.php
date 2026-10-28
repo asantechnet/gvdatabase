@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\AssetResource;
 use App\Models\Asset;
 use App\Models\Employee;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class AssetController extends Controller
 {
+    use PaginatesLists;
+
     /**
      * Display a listing of the resource.
      */
@@ -38,9 +42,25 @@ class AssetController extends Controller
             $query->where('condition', $request->input('condition'));
         }
 
-        $assets = $query->get();
+        $query->orderByDesc('created_at')->orderByDesc('id');
 
-        return AssetResource::collection($assets);
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true] + $this->paginatedPayload($request, $query, fn ($rows) => AssetResource::collection($rows)->resolve()));
+        }
+
+        return AssetResource::collection($query->get());
+    }
+
+    /**
+     * The distinct models already in use, for the inventory filter. The list is
+     * small and independent of paging, so it stays its own request.
+     */
+    public function models(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => Asset::query()->whereNotNull('model')->distinct()->orderBy('model')->pluck('model')->all(),
+        ]);
     }
 
     /**

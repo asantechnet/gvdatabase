@@ -25,7 +25,7 @@ class Visitor extends Model
         'province_id',
         'english_level_id',
         'acquisition_route_id',
-        'reviewed_by_consultant',
+        'consultant_review',
         'notes',
         'converted_at',
         'follow_up',
@@ -36,7 +36,6 @@ class Visitor extends Model
         'date' => 'date',
         'converted_at' => 'immutable_datetime',
         'follow_up' => 'boolean',
-        'reviewed_by_consultant' => 'boolean',
         'age' => 'integer',
         'grade_score' => 'decimal:2',
     ];

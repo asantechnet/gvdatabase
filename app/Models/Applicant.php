@@ -53,6 +53,7 @@ class Applicant extends Model
         'current_stage_id',
         'status',
         'notes',
+        'consultant_review',
         'profile_data',
         'profile_completed_at',
     ];

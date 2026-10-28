@@ -178,6 +178,25 @@ class ApplicantPipelineTest extends TestCase
         $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", ['stage_id' => $academyStage->id])->assertUnprocessable();
     }
 
+    public function test_line_without_a_stage_is_placed_on_the_service_board_and_can_move(): void
+    {
+        $contract = $this->createBuiltInContract('academy', ['name' => 'Stageless Case']);
+        $line = ApplicantContract::query()->where('contract_id', $contract['id'])->firstOrFail();
+        // Seeded/legacy lines can hold no stage at all; the board must still
+        // show them on their service's starting stage and let them move.
+        ApplicantContract::query()->whereKey($line->id)->update(['current_stage_id' => null]);
+
+        $board = $this->getJson('/api/applicants-pipeline?service=academy')->assertOk()->json('data');
+        $this->assertCount(1, $board['cards']);
+        $this->assertSame('line', $board['cards'][0]['source']);
+        $this->assertSame('new', $board['cards'][0]['current_stage']['key']);
+        $this->assertSame(1, collect($board['stages'])->firstWhere('key', 'new')['count']);
+
+        $next = ApplicantStage::query()->where('service', 'academy')->where('key', 'enrolled')->firstOrFail();
+        $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", ['stage_id' => $next->id])->assertOk();
+        $this->assertDatabaseHas('applicant_contract', ['id' => $line->id, 'current_stage_id' => $next->id]);
+    }
+
     public function test_changing_a_case_service_reseats_it_on_that_service_workflow(): void
     {
         $a = $this->postJson('/api/applicants', ['name' => 'Switching Case'])->assertCreated()->json('data');

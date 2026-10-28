@@ -142,7 +142,7 @@ class RecurringEventService
     private function createIncome(RecurringEvent $event, RecurringEventOccurrence $occurrence, User $user): Income
     {
         $data = $event->payload;
-        $currency = Currency::query()->where('is_active', true)->findOrFail($data['currency_id']);
+        $currency = Currency::query()->findOrFail($data['currency_id']);
         $snapshot = $this->currencies->snapshot($currency);
         unset($data['rate'], $data['base_amount'], $data['base_currency_id']);
 
@@ -152,7 +152,7 @@ class RecurringEventService
     private function createExpense(RecurringEvent $event, RecurringEventOccurrence $occurrence, User $user): Expense
     {
         $data = $event->payload;
-        $currency = Currency::query()->where('is_active', true)->findOrFail($data['currency_id']);
+        $currency = Currency::query()->findOrFail($data['currency_id']);
         $snapshot = $this->currencies->snapshot($currency);
         unset($data['rate'], $data['base_amount'], $data['base_currency_id']);
 

@@ -1,6 +1,7 @@
 import api from './axios'
 import type { Attachment } from './attachments'
 import type { Currency } from './currency'
+import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 
 export interface Expense {
   id: number
@@ -52,13 +53,16 @@ export interface ExpenseParams {
   search?: string
   type?: string
   currency_id?: number
+  date_from?: string
+  date_to?: string
 }
 
+/** Every matching expense; also used by the print report. */
 export const getExpenses = async (
   params?: ExpenseParams,
 ): Promise<Expense[]> => {
   try {
-    const response = await api.get('/expenses', { params })
+    const response = await api.get('/expenses', { params: cleanListParams({ ...params }) })
 
     // Handle nested data structure where actual data is in response.data.data
     return Array.isArray(response.data.data) ? response.data.data : []
@@ -67,6 +71,17 @@ export const getExpenses = async (
     console.error('Error fetching expenses:', error)
     throw error
   }
+}
+
+/** One page of the expense ledger. */
+export const getExpensesPage = async (
+  params?: ExpenseParams & ListPageParams,
+): Promise<ListPage<Expense>> => {
+  const response = await api.get('/expenses', {
+    params: cleanListParams({ ...params, page: params?.page, per_page: params?.perPage }),
+  })
+
+  return readPage<Expense>(response.data)
 }
 
 export const getExpense = async (id: number): Promise<Expense> => {

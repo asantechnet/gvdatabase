@@ -521,6 +521,13 @@ const toggleStatus = async (currency: Currency) => {
                 @click="toggleStatus(currency)"
               >
                 {{ translateBackendValue(currency.isActive ? 'active' : 'inactive') }}
+                <VTooltip
+                  activator="parent"
+                  location="top"
+                  max-width="280"
+                >
+                  {{ $t('pages.finance.currencies.currencies.statusHint') }}
+                </VTooltip>
               </VChip>
             </td>
 

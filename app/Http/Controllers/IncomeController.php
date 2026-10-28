@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\IncomeResource;
 use App\Models\Applicant;
 use App\Models\ApplicantContract;
@@ -22,6 +23,8 @@ use Illuminate\Validation\ValidationException;
 
 class IncomeController extends Controller
 {
+    use PaginatesLists;
+
     public function __construct(
         private readonly CurrencyConversionService $currencies,
         private readonly EducationalWorkflowNotificationService $notifications,
@@ -69,9 +72,13 @@ class IncomeController extends Controller
             $query->whereDate('date', '<=', $dates['date_to']);
         }
 
-        $incomes = $query->latest()->get();
+        $query->latest();
 
-        return IncomeResource::collection($incomes);
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true] + $this->paginatedPayload($request, $query, fn ($rows) => IncomeResource::collection($rows)->resolve()));
+        }
+
+        return IncomeResource::collection($query->get());
     }
 
     public function applicants(Request $request)
@@ -354,7 +361,7 @@ class IncomeController extends Controller
     private function applyCurrencySnapshot(array &$data): void
     {
         $receiptRate = $this->rates->remember((int) $data['currency_id'], $data['rate'] ?? null);
-        $currency = Currency::query()->where('is_active', true)->findOrFail($data['currency_id']);
+        $currency = Currency::query()->findOrFail($data['currency_id']);
         $data = [...$data, ...$this->currencies->snapshot($currency)];
         if (array_key_exists('amount', $data)) {
             $data['amount'] = round((float) $data['amount'], $currency->decimal_places);

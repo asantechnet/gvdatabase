@@ -308,8 +308,8 @@ class PermissionSeeder extends Seeder
         ['name' => 'create_visitors', 'category' => 'operations'],
         ['name' => 'edit_visitors', 'category' => 'operations'],
         ['name' => 'delete_visitors', 'category' => 'operations'],
-        // Consultant review of a visitor enquiry is a separate sign-off, not
-        // an ordinary visitor edit.
+        // Counselor reviews of visitors and applicants are separate from their
+        // ordinary record-edit permissions.
         ['name' => 'review_visitors', 'category' => 'operations'],
         ['name' => 'view_own_notifications', 'category' => 'operations'],
         ['name' => 'update_own_notifications', 'category' => 'operations'],

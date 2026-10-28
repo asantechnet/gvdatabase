@@ -15,6 +15,7 @@ use App\Services\EducationalWorkflowNotificationService;
 use App\Support\AgencyStaffAssignment;
 use App\Support\BuiltInService;
 use App\Support\EmployeeScope;
+use App\Support\PaymentStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -57,19 +58,33 @@ class ApplicantController extends Controller
         $stages = $this->stagesForContext($request->integer('country_id') ?: null, $request->integer('university_id') ?: null, $service);
         $stageIds = $stages->pluck('id')->all();
 
+        // Every line of the service belongs on its board. A line whose stage is
+        // missing (seeded/legacy rows) or no longer in the service's active list
+        // is placed by the shared fallback below instead of being dropped.
         $lineQuery = fn () => ApplicantContract::query()
             ->where('service', $service)
-            ->whereIn('current_stage_id', $stageIds)
             ->whereHas('contract', fn ($q) => $q->whereNotIn('status', ['cancelled', 'terminated'])->where('is_cancelled', false))
             ->whereIn('applicant_id', $this->filteredApplicants($request)->select('applicants.id'));
 
-        // Column counts are line counts; unlined cases are counted below.
-        $counts = $lineQuery()->selectRaw('current_stage_id, COUNT(*) as total')
+        // Column counts are line counts; unlined cases and unplaced lines are
+        // counted from the loaded rows below.
+        $counts = $lineQuery()->whereIn('current_stage_id', $stageIds)->selectRaw('current_stage_id, COUNT(*) as total')
             ->groupBy('current_stage_id')->pluck('total', 'current_stage_id')->all();
 
         $lines = $lineQuery()
             ->with(['currentStage', 'contract:id,contract_number,status', 'applicant' => fn ($q) => $q->with($this->pipelineApplicantRelations())])
             ->latest('applicant_contract.id')->limit(500)->get();
+
+        foreach ($lines as $line) {
+            if (in_array($line->current_stage_id, $stageIds, true)) {
+                continue;
+            }
+
+            $stageId = $this->placementStageId($line->applicant, $stages, $line->currentStage);
+            if ($stageId) {
+                $counts[$stageId] = ($counts[$stageId] ?? 0) + 1;
+            }
+        }
 
         $unlined = $this->unlinedApplicants($request, $service)
             ->with(['currentStage', ...$this->pipelineApplicantRelations()])
@@ -86,7 +101,7 @@ class ApplicantController extends Controller
             'count' => (int) ($counts[$stage->id] ?? 0),
         ]);
 
-        $cards = $lines->map(fn (ApplicantContract $line) => $this->pipelineLineCard($line))
+        $cards = $lines->map(fn (ApplicantContract $line) => $this->pipelineLineCard($line, $stages))
             ->concat($unlined->map(fn (Applicant $applicant) => $this->pipelineApplicantCard($applicant, $stages)))
             ->values();
 
@@ -128,20 +143,27 @@ class ApplicantController extends Controller
             ->whereDoesntHave('services', fn ($q) => $q->where('service', $service));
     }
 
-    /** The stage a case without a line is placed on: its own stage when it
-     * belongs to the service, otherwise the service's starting stage. */
-    private function placementStageId(Applicant $applicant, $stages): ?int
+    /**
+     * The stage a card is placed on: the card's own stage when it belongs to
+     * this service, otherwise the same stage key on this service's list, then
+     * the service's starting stage. Used for cases without a line and for lines
+     * whose stage is missing or no longer part of the service's live list.
+     */
+    private function placementStageId(?Applicant $applicant, $stages, ?ApplicantStage $preferredStage = null): ?int
     {
-        $current = $stages->firstWhere('id', $applicant->current_stage_id);
-
-        if ($current) {
-            return $current->id;
+        foreach ([$preferredStage, $applicant?->currentStage] as $candidate) {
+            if (! $candidate) {
+                continue;
+            }
+            if ($stages->firstWhere('id', $candidate->id)) {
+                return $candidate->id;
+            }
+            if ($match = $stages->firstWhere('key', $candidate->key)) {
+                return $match->id;
+            }
         }
 
-        $key = $applicant->currentStage?->key;
-
-        return ($key ? $stages->firstWhere('key', $key)?->id : null)
-            ?? $stages->firstWhere('key', 'new')?->id
+        return $stages->firstWhere('key', 'new')?->id
             ?? $stages->first()?->id;
     }
 
@@ -163,10 +185,14 @@ class ApplicantController extends Controller
         ];
     }
 
-    private function pipelineLineCard(ApplicantContract $line): array
+    private function pipelineLineCard(ApplicantContract $line, $stages): array
     {
         $applicant = $line->applicant;
         $detail = $applicant?->detail();
+        // A line with no stage (or a stage outside this service's list) is
+        // presented at its fallback placement so it can be moved from there.
+        $stageId = $this->placementStageId($applicant, $stages, $line->currentStage);
+        $stage = $stages->firstWhere('id', $stageId);
 
         return [
             'id' => 'line:'.$line->id,
@@ -176,8 +202,8 @@ class ApplicantController extends Controller
             'name' => $applicant?->name,
             'service' => $line->service ?? BuiltInService::SCHOLARSHIP,
             'status' => $applicant?->status ?? 'active',
-            'current_stage_id' => $line->current_stage_id,
-            'current_stage' => $this->pipelineStage($line->currentStage),
+            'current_stage_id' => $stageId,
+            'current_stage' => $this->pipelineStage($stage),
             'responsible_employee' => $applicant?->responsibleEmployee
                 ? ['id' => $applicant->responsibleEmployee->id, 'name' => $applicant->responsibleEmployee->name]
                 : null,
@@ -263,6 +289,15 @@ class ApplicantController extends Controller
         return response()->json(['success' => true, 'data' => $applicant]);
     }
 
+    /** Consultant reviews are editable without the broader applicant-edit grant. */
+    public function updateConsultantReview(Request $request, Applicant $applicant)
+    {
+        $data = $request->validate(['consultant_review' => ['nullable', 'string', 'max:10000']]);
+        $applicant->update($data);
+
+        return response()->json(['success' => true, 'data' => $this->aliasDetails($applicant->fresh()->load($this->relations()))]);
+    }
+
     public function destroy(Applicant $applicant)
     {
         $this->assertCaseManageAccess(request(), $applicant);
@@ -325,6 +360,7 @@ class ApplicantController extends Controller
             'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
             'semester_id' => ['nullable', 'integer', 'exists:semesters,id'],
             'notes' => ['nullable', 'string', 'max:10000'],
+            'consultant_review' => ['sometimes', 'nullable', 'string', 'max:10000'],
             // The built-in service this applicant belongs to. It decides which
             // detail field set applies. Defaults to scholarship on creation.
             'service' => ['sometimes', Rule::in(BuiltInService::ALL)],
@@ -349,6 +385,10 @@ class ApplicantController extends Controller
             'teacher_ids' => ['nullable', 'array'],
             'teacher_ids.*' => ['integer', 'exists:teachers,id'],
         ]);
+
+        if (array_key_exists('consultant_review', $data) && ! $request->user()->hasPermission('review_visitors')) {
+            abort(403, 'auth.forbidden');
+        }
 
         return DB::transaction(function () use ($request, $applicant, $updating, $data) {
             // The applicant is the CRM's party record, so it follows the same
@@ -490,7 +530,20 @@ class ApplicantController extends Controller
         } elseif ($request->input('focus') === 'unassigned') {
             $query->where('status', 'active')->whereNull('responsible_employee_id');
         }
-        $request->validate(['date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable'], 'per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
+        $request->validate(['date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable'], 'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'], 'payment_status' => ['nullable', Rule::in(PaymentStatus::ALL)]]);
+        // The case's payment state is the aggregate of its service lines, the
+        // same derivation ApplicantResource exposes, so filtering stays server
+        // side instead of trimming only the visible page.
+        if ($request->filled('payment_status')) {
+            $paid = '(SELECT COALESCE(SUM(ac.amount_paid), 0) FROM applicant_contract ac WHERE ac.applicant_id = applicants.id AND ac.deleted_at IS NULL)';
+            $payable = '(SELECT COALESCE(SUM(ac.fee - COALESCE(ac.discount, 0)), 0) FROM applicant_contract ac WHERE ac.applicant_id = applicants.id AND ac.deleted_at IS NULL)';
+            match ($request->input('payment_status')) {
+                PaymentStatus::PAID => $query->whereRaw("{$payable} <= 0.000001 OR {$paid} + 0.000001 >= {$payable}"),
+                PaymentStatus::UNPAID => $query->whereRaw("{$paid} <= 0.000001 AND {$payable} > 0.000001"),
+                PaymentStatus::PARTIALLY_PAID => $query->whereRaw("{$paid} > 0.000001 AND {$paid} + 0.000001 < {$payable}"),
+                default => null,
+            };
+        }
 
         $service = $this->requestedService($request);
         if (! $excludeStage && $request->filled('stage')) {

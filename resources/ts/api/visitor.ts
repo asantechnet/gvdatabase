@@ -1,5 +1,6 @@
 import api from './axios'
 import type { Applicant, ApplicantPayload } from './applicants'
+import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 
 export interface VisitorPerson {
   id: number
@@ -24,8 +25,8 @@ export interface Visitor {
   acquisition_route: VisitorPerson | null
   consultant_employee_id: number | null
   consultant: VisitorPerson | null
-  /** Consultant sign-off; only holders of `review_visitors` may change it. */
-  reviewed_by_consultant: boolean
+  /** Only holders of `review_visitors` may edit this counselor's review. */
+  consultant_review: string | null
   notes: string | null
   /** Marked as worthy of follow-up: shown in the Follow-up list, not in Visitors. */
   follow_up: boolean
@@ -43,7 +44,6 @@ export interface VisitorParams {
   province_id?: number | null
   english_level_id?: number | null
   acquisition_route_id?: number | null
-  reviewed_by_consultant?: 0 | 1
   date_from?: string
   date_to?: string
   /** 1 = only follow-up worthy visitors, 0 = only the rest. Omit for every visitor. */
@@ -62,7 +62,7 @@ export interface CreateVisitorData {
   english_level_id?: number | null
   acquisition_route_id?: number | null
   consultant_employee_id?: number | null
-  reviewed_by_consultant?: boolean
+  consultant_review?: string | null
   date: string
   notes?: string | null
 }
@@ -82,7 +82,7 @@ export interface VisitorFormData {
   english_level_id: number | null
   acquisition_route_id: number | null
   consultant_employee_id: number | null
-  reviewed_by_consultant: boolean
+  consultant_review: string
   notes: string
 }
 
@@ -109,16 +109,33 @@ export const visitorApplicantFields = (visitor: Pick<Visitor, 'name' | 'contact'
 // Visitor API endpoints
 const VisitorApi = {
   convertToApplicant: async (id: number): Promise<Applicant> => (await api.post<{ data: Applicant }>(`/visitors/${id}/convert-to-applicant`)).data.data,
+  updateConsultantReview: async (id: number, consultant_review: string | null): Promise<Visitor> => (await api.put<{ data: Visitor }>(`/visitors/${id}/consultant-review`, { consultant_review })).data.data,
 
-  // Get all visitors
+  // Every matching visitor; also used by the print report, which covers the
+  // whole filtered set rather than the visible page.
   getAll: async (params?: VisitorParams) => {
     try {
-      const response = await api.get<{ data: Visitor[] }>('/visitors', { params })
+      const response = await api.get<{ data: Visitor[] }>('/visitors', { params: cleanListParams({ ...params }) })
 
       return response.data.data
     }
     catch (error) {
       console.error('API getAll error:', error)
+      throw error
+    }
+  },
+
+  // One page of the visitors / follow-up list
+  listPage: async (params?: VisitorParams & ListPageParams) => {
+    try {
+      const response = await api.get('/visitors', {
+        params: cleanListParams({ ...params, page: params?.page, per_page: params?.perPage }),
+      })
+
+      return readPage<Visitor>(response.data)
+    }
+    catch (error) {
+      console.error('API listPage error:', error)
       throw error
     }
   },

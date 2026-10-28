@@ -35,6 +35,14 @@ const dateFrom = ref('')
 const dateTo = ref('')
 const search = ref('')
 const status = ref<string | null>(null)
+// The list asks the server for one page at a time.
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+// Filled from every matching contract right before printing.
+const reportRows = ref<(string | number | null | undefined)[][]>([])
+// Typing in the search box is a filter change, so it starts from the first page.
+const debouncedSearch = useDebounceFn(() => { page.value = 1; void load() }, 300)
 const open = ref(false)
 const saving = ref(false)
 const preparing = ref(false)
@@ -105,9 +113,31 @@ const versionItems = computed(() => {
   return items
 })
 const selectedVersion = computed(() => compatibleVersions.value.find(version => version.id === selectedVersionId.value) ?? null)
-const reportRows = computed(() => visible.value.map(row => [row.contract_number, row.counterparty, row.counterparty_contact,
-  row.snapshot_data?.template_version ? `${row.snapshot_data.template_version.name} · v${row.snapshot_data.template_version.version_number}` : '—', row.services?.map(line => linePrice(line)).join(', '), row.start_date, row.status]))
-const printList = () => printDocument({ bodyClass: 'printing-table-service-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+const contractReportRow = (row: Contract) => [row.contract_number, row.counterparty, row.counterparty_contact,
+  row.snapshot_data?.template_version ? `${row.snapshot_data.template_version.name} · v${row.snapshot_data.template_version.version_number}` : '—', row.services?.map(line => linePrice(line)).join(', '), row.start_date, row.status]
+// Print is global: the report walks the filtered pages first.
+const printList = async () => {
+  try {
+    const collected: Contract[] = []
+    let nextPage = 1
+    let lastPage = 1
+
+    do {
+      const result = await ContractApi.listPage({ ...listParams(), page: nextPage, perPage: 100 })
+
+      collected.push(...result.rows)
+      lastPage = result.lastPage
+      nextPage += 1
+    } while (nextPage <= lastPage)
+
+    reportRows.value = collected.map(contractReportRow)
+    await printDocument({ bodyClass: 'printing-table-service-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+
+    // Leave the table showing the page the operator was on.
+    await load()
+  }
+  catch (cause) { toast.error(apiErrorMessage(cause)) }
+}
 const openSlip = (row: Contract) => { slipContractId.value = row.id; slipOpen.value = true }
 const canCancel = (row: Contract) => ability.can('read', 'cancel_contracts')
   && !row.is_cancelled && ['draft', 'active'].includes(row.status)
@@ -170,9 +200,15 @@ async function confirmCancel() {
   catch (cause) { toast.error(apiErrorMessage(cause)) }
   finally { cancelling.value = false; cancelTarget.value = null }
 }
-const resetFilters = () => { search.value = ''; status.value = null; dateFrom.value = ''; dateTo.value = ''; void load() }
-const visible = computed(() => rows.value.filter(row => (!status.value || row.status === status.value)
-  && `${row.contract_number} ${row.counterparty}`.toLocaleLowerCase().includes(search.value.toLocaleLowerCase())))
+const resetFilters = () => { search.value = ''; status.value = null; dateFrom.value = ''; dateTo.value = ''; page.value = 1; void load() }
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  void load()
+}
 const statuses = computed(() => ['active', 'completed', 'terminated', 'cancelled'].map(value => ({ value, title: t(`serviceContracts.${value}`) })))
 const headers = computed(() => [
   { title: t('serviceContracts.number'), key: 'contract_number' },
@@ -193,17 +229,40 @@ const valid = computed(() => !!(editing.value ? selectedVersionId.value : select
   && (service.value !== 'academy' || !canRecordIncome.value || !Number(paidFee.value) || (Number(paidFee.value) >= 0 && Number(paidFee.value) <= Number(fee.value)))
   && Number.isFinite(Number(rate.value)) && Number(rate.value) > 0)
 
+const listParams = () => {
+  const applicant = Number(route.query.applicant)
+
+  return {
+    service: service.value,
+    status: (status.value || undefined) as Contract['status'] | undefined,
+    search: search.value || undefined,
+    date_from: dateFrom.value || undefined,
+    date_to: dateTo.value || undefined,
+    ...(Number.isSafeInteger(applicant) && applicant > 0 ? { applicant_id: applicant } : {}),
+  }
+}
+
 async function load() {
   const current = ++generation
   loading.value = true
   error.value = ''
   try {
-    const applicant = Number(route.query.applicant)
-    const result = await ContractApi.getAll({ service: service.value, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined, ...(Number.isSafeInteger(applicant) && applicant > 0 ? { applicant_id: applicant } : {}) })
-    if (current === generation) rows.value = result
-    if (current === generation && route.query.contractId) {
-      const contract = result.find(row => row.id === Number(route.query.contractId))
-      if (contract) search.value = contract.contract_number || contract.counterparty || ''
+    const result = await ContractApi.listPage({ ...listParams(), page: page.value, perPage: perPage.value })
+
+    if (current !== generation)
+      return
+
+    rows.value = result.rows
+    total.value = result.total
+
+    if (route.query.contractId) {
+      // The deep-linked contract may live on another page, so it is fetched
+      // directly when it is not in the visible page.
+      const id = Number(route.query.contractId)
+      const contract = result.rows.find(row => row.id === id) ?? await ContractApi.getById(id)
+
+      if (current === generation && contract)
+        search.value = contract.contract_number || contract.counterparty || ''
     }
   }
   catch (cause) { if (current === generation) error.value = apiErrorMessage(cause) }
@@ -369,9 +428,10 @@ async function save() {
       ? await ContractApi.updateService(selectedService, editing.value.id, payload)
       : await ContractApi.createService(selectedService, payload)
     if (service.value === selectedService) {
-      const index = rows.value.findIndex(row => row.id === result.id)
-      if (index === -1) rows.value.unshift(result)
-      else rows.value[index] = result
+      // A created contract belongs on the first page; an edited one stays where
+      // it was, so the filter plus the current page decide in both cases.
+      page.value = editing.value ? page.value : 1
+      await load()
       open.value = false
     }
     toast.success(t(editing.value ? 'serviceContracts.updated' : 'serviceContracts.created'))
@@ -393,8 +453,8 @@ async function save() {
         <VRow align="center" class="table-toolbar">
           <VCol cols="12" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2 ms-auto">
             <DataTableFilterMenu :active="Boolean(search || status || dateFrom || dateTo)" @reset="resetFilters">
-              <VTextField v-model="search" class="data-table-search" prepend-inner-icon="tabler-search" :label="t('serviceContracts.search')" clearable @click:clear="search = ''" />
-              <VSelect v-model="status" :items="statuses" :label="t('serviceContracts.status')" clearable />
+              <VTextField v-model="search" class="data-table-search" prepend-inner-icon="tabler-search" :label="t('serviceContracts.search')" clearable @update:model-value="debouncedSearch" @click:clear="debouncedSearch" />
+              <VSelect v-model="status" :items="statuses" :label="t('serviceContracts.status')" clearable @update:model-value="resetFilters" />
               <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="load" />
             </DataTableFilterMenu>
             <VBtn icon="tabler-printer" variant="text" class="flex-shrink-0" :aria-label="t('serviceContracts.print')" @click="printList"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('serviceContracts.print') }}</VTooltip></VBtn>
@@ -402,7 +462,16 @@ async function save() {
           </VCol>
         </VRow>
       </VCardText>
-      <VDataTable :headers="headers" :items="visible" :loading="loading">
+      <VDataTableServer
+        :headers="headers"
+        :items="rows"
+        :items-length="total"
+        :page="page"
+        :items-per-page="perPage"
+        :items-per-page-options="[10, 25, 50, 100]"
+        :loading="loading"
+        @update:options="updateTableOptions"
+      >
       <template #loading><TableLoadingSkeleton :columns="headers.length" :label="t('common.messages.loading')" /></template>
       <template #no-data><TableEmptyState icon="tabler-file-description" :description="t('serviceContracts.empty')" /></template>
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
@@ -424,7 +493,7 @@ async function save() {
           </template>
         </div>
       </template>
-      </VDataTable>
+      </VDataTableServer>
     </VCard>
     <VDialog v-model="open" :persistent="saving" max-width="1240" scrollable class="erp-form service-contract-dialog">
       <VCard>

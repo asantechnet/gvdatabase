@@ -130,10 +130,10 @@ class RolePermissionSeeder extends Seeder
         // Counselors own their visitor intake, so they may add and edit
         // visitors; a visitor they create is recorded as their own.
         $grants['counselor'] = array_values(array_unique([
-            ...$grants['staff'], 'view_visitors', 'create_visitors', 'edit_visitors',
+            ...$grants['staff'], 'view_visitors', 'create_visitors', 'edit_visitors', 'review_visitors',
         ]));
         $grants['senior_counselor'] = array_values(array_unique([
-            ...$grants['senior_counselor'], 'view_visitors', 'create_visitors', 'edit_visitors',
+            ...$grants['senior_counselor'], 'view_visitors', 'create_visitors', 'edit_visitors', 'review_visitors',
         ]));
         $grants['case_officer'] = $grants['staff'];
 

@@ -623,6 +623,10 @@
           "title": "Follow-up list report",
           "subtitle": "Visitors marked as worthy of follow-up"
         },
+        "applications": {
+          "title": "Applications report",
+          "subtitle": "Filtered applications"
+        },
         "columns": {
           "receipt": "Receipt",
           "type": "Type",
@@ -2403,13 +2407,10 @@
           "acquisitionRoute": "Acquisition route",
           "acquisitionRouteHint": "How the visitor found out about the firm.",
           "consultant": "Consultant",
-          "reviewedByConsultant": "Reviewed by consultant",
-          "reviewedByConsultantHint": "Signs off this enquiry for the consultant.",
-          "review": "Consultant review",
-          "reviewed": "Reviewed",
-          "pendingReview": "Pending review",
-          "markReviewed": "Mark reviewed",
-          "markedReviewed": "Visitor marked as reviewed."
+          "consultantReview": "Counselor review",
+          "consultantReviewHint": "Record the counselor's assessment of this visitor.",
+          "consultantReviewSaved": "Counselor review saved.",
+          "review": "Counselor review"
         }
       },
       "contractform": {
@@ -2639,7 +2640,8 @@
           "changeBaseCurrencyTitle": "Change base currency?",
           "changeBaseCurrencyWarning": "Dashboard and report totals will be displayed in {currency}.",
           "changeBaseCurrencyHint": "This will update the base currency for the application.",
-          "confirmSetAsBaseCurrency": "Set as base currency"
+          "confirmSetAsBaseCurrency": "Set as base currency",
+          "statusHint": "Every currency on record can be used on a receipt, expense, contract or payslip. Inactive currencies stay usable and are only flagged here."
         },
         "rateToBase": "Rate to base ({currency})",
         "baseRate": "1.0000 (Base)",

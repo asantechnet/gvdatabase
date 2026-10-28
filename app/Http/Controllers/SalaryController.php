@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\SalaryResource;
 use App\Http\Resources\WorthyEmployeeResource;
 use App\Models\Attendance;
 use App\Models\Currency;
+use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
 use App\Models\Salary;
 use App\Models\WorthyEmployee;
@@ -14,16 +16,17 @@ use App\Services\MonthlyAttendanceProcessor;
 use App\Services\SalaryAdvanceService;
 use App\Services\SalaryExpenseSynchronizer;
 use App\Support\CompanyProfile;
-use Illuminate\Support\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class SalaryController extends Controller
 {
+    use PaginatesLists;
     public function __construct(
         private readonly CurrencyConversionService $currencies,
         private readonly SalaryExpenseSynchronizer $expenses,
@@ -32,7 +35,7 @@ class SalaryController extends Controller
         private readonly CompanyProfile $company,
     ) {}
 
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         $query = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advances', 'recorder']);
 
@@ -62,7 +65,86 @@ class SalaryController extends Controller
             });
         }
 
-        return SalaryResource::collection($query->latest('payment_date')->get());
+        $query->latest('payment_date')->latest('id');
+
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true]
+                + $this->paginatedPayload($request, $query, fn ($rows) => SalaryResource::collection($rows)->resolve()));
+        }
+
+        return SalaryResource::collection($query->get());
+    }
+
+    /**
+     * One page of the payroll register for a month: each active employee with
+     * that month's payslip (or none, which is how a missing payslip shows).
+     *
+     * The register is employee-driven, so the table cannot simply page the
+     * salary rows: the KPI totals are computed in the database over the whole
+     * month and ship with the page.
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'month' => ['required', 'regex:/^\d{4}-\d{2}$/'],
+            'search' => ['nullable', 'string', 'max:255'],
+        ]);
+        $search = $data['search'] ?? null;
+
+        $employees = Employee::selectable()->excludePrimaryRecord()
+            ->where('status', Employee::STATUS_ACTIVE)
+            ->with(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions'])
+            ->when($search, fn ($query) => $query->where(fn ($q) => $q
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")
+                ->orWhere('contact', 'like', "%{$search}%")
+                ->orWhereHas('position', fn ($position) => $position->where('title', 'like', "%{$search}%"))))
+            ->orderBy('name')->orderBy('id');
+
+        $page = $employees->paginate($this->requestedPerPage($request) ?? 25)->withQueryString();
+
+        $salaries = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advances', 'recorder'])
+            ->where('salary_month', $data['month'])
+            ->whereIn('employee_id', $page->getCollection()->pluck('id'))
+            ->get()->keyBy('employee_id');
+
+        // Same figures the payslip rows show: net is the total minus its
+        // manual/automatic deductions, paid is what was actually paid out.
+        // They cover the whole month's register, independent of the search.
+        $sums = Salary::where('salary_month', $data['month'])->selectRaw(
+            'COUNT(*) as payslip_count,'
+            .' COALESCE(SUM(total_amount - COALESCE((SELECT SUM(sd.amount) FROM salary_deductions sd WHERE sd.salary_id = salaries.id), 0)), 0) as net_total,'
+            .' COALESCE(SUM(COALESCE(amount_paid_total, amount_paid)), 0) as paid_total'
+        )->first();
+        $net = (float) $sums->net_total;
+        $paid = (float) $sums->paid_total;
+
+        $missing = Employee::selectable()->excludePrimaryRecord()
+            ->where('status', Employee::STATUS_ACTIVE)
+            ->whereNotExists(fn ($query) => $query->select(DB::raw(1))->from('salaries')
+                ->whereColumn('salaries.employee_id', 'employees.id')
+                ->where('salaries.salary_month', $data['month'])
+                ->whereNull('salaries.deleted_at'))
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => $page->getCollection()->map(fn (Employee $employee) => [
+                'employee' => (new EmployeeResource($employee))->resolve(),
+                'salary' => ($salary = $salaries->get($employee->id)) ? (new SalaryResource($salary))->resolve() : null,
+            ])->values(),
+            'current_page' => $page->currentPage(),
+            'last_page' => $page->lastPage(),
+            'per_page' => $page->perPage(),
+            'total' => $page->total(),
+            'totals' => [
+                'net' => $net,
+                'paid' => $paid,
+                'outstanding' => max(0, $net - $paid),
+                'generated' => (int) $sums->payslip_count,
+                'missing' => $missing,
+            ],
+        ]);
     }
 
     public function store(Request $request): SalaryResource
@@ -301,7 +383,7 @@ class SalaryController extends Controller
                 'integer',
                 $ignoreId
                     ? Rule::exists('currencies', 'id')
-                    : Rule::exists('currencies', 'id')->where('is_active', true),
+                    : Rule::exists('currencies', 'id'),
             ],
             'rate' => ['sometimes', 'numeric', 'gt:0'],
             'salaryMonth' => ['required', 'string', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],

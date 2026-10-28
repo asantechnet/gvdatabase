@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\ExpenseResource;
 use App\Models\Currency;
 use App\Models\Expense;
@@ -17,6 +18,8 @@ use Illuminate\Validation\ValidationException;
 
 class ExpenseController extends Controller
 {
+    use PaginatesLists;
+
     public function __construct(
         private readonly CurrencyConversionService $currencies,
         private readonly CurrencyRateService $rates,
@@ -54,10 +57,13 @@ class ExpenseController extends Controller
             $query->whereDate('date', '<=', $dates['date_to']);
         }
 
-        // Ensure we're getting all records with proper ordering
-        $expenses = $query->orderBy('date', 'desc')->orderBy('id', 'desc')->get();
+        $query->orderBy('date', 'desc')->orderBy('id', 'desc');
 
-        return ExpenseResource::collection($expenses);
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true] + $this->paginatedPayload($request, $query, fn ($rows) => ExpenseResource::collection($rows)->resolve()));
+        }
+
+        return ExpenseResource::collection($query->get());
     }
 
     public function store(Request $request)
@@ -173,7 +179,7 @@ class ExpenseController extends Controller
     /** @param array<string, mixed> $data */
     private function applyCurrencySnapshot(array &$data): void
     {
-        $currency = Currency::query()->where('is_active', true)->findOrFail($data['currency_id']);
+        $currency = Currency::query()->findOrFail($data['currency_id']);
         if (isset($data['rate'])) {
             $this->rates->remember($currency->id, $data['rate']);
             $currency->refresh();

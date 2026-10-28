@@ -161,7 +161,7 @@ return new class extends Migration
             ->pluck('id', 'name');
 
         $grants = [
-            'review_visitors' => ['admin', 'manager'],
+            'review_visitors' => ['admin', 'manager', 'counselor', 'senior_counselor'],
         ];
         foreach (['province', 'english_level', 'acquisition_route'] as $catalog) {
             $grants["view_{$catalog}"] = ['admin', 'manager', 'staff', 'counselor', 'senior_counselor'];

@@ -7,13 +7,16 @@ import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { printDocument } from '@/utils/printDocument'
 import { computed, onMounted, ref } from 'vue'
 import { VAlert } from 'vuetify/components'
+import ContractApi from '@/api/contracts'
+import type { Contract, ContractParams } from '@/api/contracts'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import { useContracts } from '@/composables/useContracts'
 
 const {
   contracts,
+  listContracts,
   isLoading,
   error,
-  fetchContracts,
 } = useContracts()
 
 const dateFrom = ref('')
@@ -21,22 +24,57 @@ const dateTo = ref('')
 const search = ref('')
 const filterCounterparty = ref<string | null>(null)
 
-const counterparties = computed(() => [...new Set(contracts.value.map(c => c.counterparty).filter(c => c))])
+// The table asks the server for one page at a time.
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+const counterparties = ref<string[]>([])
+// Filled from every matching contract right before printing.
+const printedRows = ref<(string | number)[][]>([])
 
-const filtered = computed(() => {
-  return contracts.value.filter(c => {
-    const contractName = c.contract || c.contract_template?.name || ''
-    const counterpartyName = c.counterparty || ''
-
-    const matchesSearch = contractName.toLowerCase().includes(search.value.toLowerCase())
-      || counterpartyName.toLowerCase().includes(search.value.toLowerCase())
-      || (c.contract_number || '').toLowerCase().includes(search.value.toLowerCase())
-
-    const matchesCounterparty = !filterCounterparty.value || c.counterparty === filterCounterparty.value
-
-    return matchesSearch && matchesCounterparty
-  })
+const listParams = (): ContractParams => ({
+  only_cancelled: true,
+  search: search.value || undefined,
+  counterparty: filterCounterparty.value || undefined,
+  date_from: dateFrom.value || undefined,
+  date_to: dateTo.value || undefined,
 })
+
+async function load() {
+  try {
+    const result = await listContracts({ ...listParams(), page: page.value, perPage: perPage.value })
+
+    total.value = result.total
+  }
+  catch {
+    // The composable already exposes the error for the inline alert.
+  }
+}
+
+function reload() {
+  page.value = 1
+  void load()
+}
+
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  void load()
+}
+
+const debouncedSearch = useDebounceFn(reload, 300)
+
+async function loadCounterparties() {
+  try {
+    counterparties.value = await ContractApi.counterparties()
+  }
+  catch (err) {
+    console.error('Failed to fetch counterparties:', err)
+  }
+}
 
 const headers = computed(() => [
   { title: translate('common.messages.contractNumber'), key: 'contract_number', sortable: true },
@@ -52,7 +90,7 @@ const headers = computed(() => [
 
 const reportColumns = computed(() => headers.value.filter(header => header.key !== 'actions'))
 
-const reportValue = (row: (typeof contracts.value)[number], key: string): string | number => {
+const reportValue = (row: Contract, key: string): string | number => {
   switch (key) {
     case 'contract':
       return row.contract || row.contract_template?.name || ''
@@ -70,15 +108,35 @@ const reportValue = (row: (typeof contracts.value)[number], key: string): string
 }
 
 // Keep the printed sheet aligned with the on-screen columns, including the
-// cancellation date, without duplicating the row shape by hand.
-const reportRows = computed(() => filtered.value.map(row => reportColumns.value.map(column => reportValue(row, column.key))))
+// cancellation date, without duplicating the row shape by hand. Print is
+// global: the report walks the filtered pages first.
+const printTable = async () => {
+  try {
+    const collected: Contract[] = []
+    let nextPage = 1
+    let lastPage = 1
 
-const printTable = () => {
-  printDocument({ bodyClass: 'printing-table-cancelled-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+    do {
+      const result = await listContracts({ ...listParams(), page: nextPage, perPage: 100 })
+
+      collected.push(...result.rows)
+      lastPage = result.lastPage
+      nextPage += 1
+    } while (nextPage <= lastPage)
+
+    printedRows.value = collected.map(row => reportColumns.value.map(column => reportValue(row, column.key)))
+    await printDocument({ bodyClass: 'printing-table-cancelled-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+
+    // Leave the table showing the page the operator was on.
+    await load()
+  }
+  catch (err) {
+    console.error('Failed to prepare the cancelled contracts report:', err)
+  }
 }
 
-onMounted(() => {
-  fetchContracts({ only_cancelled: true })
+onMounted(async () => {
+  await Promise.all([load(), loadCounterparties()])
 })
 </script>
 
@@ -110,7 +168,7 @@ export default {
     <VCardText class="d-flex align-center justify-end flex-wrap ga-2">
       <DataTableFilterMenu
         :active="Boolean(search || filterCounterparty || dateFrom || dateTo)"
-        @reset="search = ''; filterCounterparty = null; dateFrom = ''; dateTo = ''; fetchContracts({ only_cancelled: true })"
+        @reset="search = ''; filterCounterparty = null; dateFrom = ''; dateTo = ''; reload()"
       >
         <VTextField
           v-model="search"
@@ -121,8 +179,9 @@ export default {
           clearable
           hide-details
           style="min-width: 280px;"
+          @update:model-value="debouncedSearch"
         />
-        <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" class="mb-2" @apply="fetchContracts({ only_cancelled: true, date_from: dateFrom || undefined, date_to: dateTo || undefined })" />
+        <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" class="mb-2" @apply="reload" />
         <VSelect
           v-model="filterCounterparty"
           :items="counterparties"
@@ -131,6 +190,7 @@ export default {
           clearable
           hide-details
           style="min-width: 200px;"
+          @update:model-value="reload"
         />
       </DataTableFilterMenu>
       <VBtn
@@ -149,14 +209,19 @@ export default {
       {{ error }}
     </VAlert>
 
-    <ResponsiveDataTable
+    <ResponsiveDataTableServer
       :headers="headers"
-      :items="filtered"
+      :items="contracts"
+      :items-length="total"
+      :page="page"
+      :items-per-page="perPage"
+      :items-per-page-options="[10, 25, 50, 100]"
       item-value="id"
       class="text-no-wrap"
       mobile-breakpoint="sm"
       :loading="isLoading"
       style="overflow-x: auto;"
+      @update:options="updateTableOptions"
     >
       <template #loading><TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" /></template>
       <template #no-data><TableEmptyState icon="tabler-file-off" :description="$t('pages.contracts.cancelledContracts.cancelledContracts.noContracts')" /></template>
@@ -187,8 +252,8 @@ export default {
           :title="item.contract_number || item.contract"
         />
       </template>
-    </ResponsiveDataTable>
+    </ResponsiveDataTableServer>
   </VCard>
-  <PrintableListReport :title="$t('common.navigation.cancelledContracts')" :columns="reportColumns.map(column => column.title)" :rows="reportRows" />
+  <PrintableListReport :title="$t('common.navigation.cancelledContracts')" :columns="reportColumns.map(column => column.title)" :rows="printedRows" />
   </div>
 </template>

@@ -102,7 +102,7 @@ class StoreServiceContractRequest extends FormRequest
                     : ['prohibited']),
             'fee' => ['required', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2'],
             'discount' => ['required', 'numeric', 'min:0', 'lte:fee', 'decimal:0,2'],
-            'currency_id' => ['required', 'integer', Rule::exists('currencies', 'id')->whereNull('deleted_at')->where('is_active', true)],
+            'currency_id' => ['required', 'integer', Rule::exists('currencies', 'id')->whereNull('deleted_at')],
             'currency_rate' => ['required', 'numeric', 'gt:0', 'max:9999999', 'decimal:0,8'],
             'language_id' => ['required', 'integer', Rule::exists('languages', 'id')->whereNull('deleted_at')->where('is_active', true)],
             'start_date' => ['prohibited'],

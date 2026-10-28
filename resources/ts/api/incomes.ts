@@ -1,6 +1,7 @@
 import api from './axios'
 import type { Attachment } from './attachments'
 import type { Currency } from './currency'
+import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 
 type MoneyCurrency = Pick<Currency, 'id' | 'code' | 'symbol' | 'rate' | 'decimalPlaces'>
 
@@ -127,8 +128,11 @@ export interface IncomeParams {
   currency_id?: number
   applicant_id?: number
   applicant_contract_id?: number
+  date_from?: string
+  date_to?: string
 }
 
+/** Every matching receipt; also used by the print report. */
 export const getIncomes = async (params?: IncomeParams): Promise<Income[]> => {
   try {
     const response = await api.get('/incomes', { params })
@@ -140,6 +144,15 @@ export const getIncomes = async (params?: IncomeParams): Promise<Income[]> => {
     console.error('Error fetching incomes:', error)
     throw error
   }
+}
+
+/** One page of the receipt ledger. */
+export const getIncomesPage = async (params?: IncomeParams & ListPageParams): Promise<ListPage<Income>> => {
+  const response = await api.get('/incomes', {
+    params: cleanListParams({ ...params, page: params?.page, per_page: params?.perPage }),
+  })
+
+  return readPage<Income>(response.data)
 }
 
 export const getIncome = async (id: number): Promise<Income> => {

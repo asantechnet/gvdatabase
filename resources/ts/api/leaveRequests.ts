@@ -1,4 +1,5 @@
 import api from './axios'
+import type { ListPage } from './pagination'
 
 /**
  * An employee's request for a day (or half day) away from work.
@@ -33,6 +34,23 @@ export interface LeaveRequestLedger {
   remaining: number
   pending: number
   year: number
+}
+
+/** One page of the company-wide ledger. */
+export interface LeaveRequestPage extends ListPage<LeaveRequest> {
+  allowance: number
+  allowances: Record<number, number>
+  /** Approved off-day days per employee for the year, not just this page. */
+  usage: Record<number, number>
+}
+
+export type LeaveRequestStatus = 'pending' | 'off_day' | 'partial' | 'absent'
+
+export interface CompanyLeaveRequestParams {
+  year?: number
+  status?: LeaveRequestStatus | null
+  page?: number
+  perPage?: number
 }
 
 export type LeaveRequestPayload = Pick<LeaveRequest, 'date' | 'duration_days' | 'reason'>
@@ -71,13 +89,32 @@ const LeaveRequestApi = {
 
     return response.data.data
   },
-  async getAllRequests(year: number): Promise<{ data: LeaveRequest[]; allowance: number; allowances: Record<number, number> }> {
-    const response = await api.get('/leave-requests', { params: { year } })
+  /** Every row of the year, for the print report. */
+  async getAllRequests(year: number, status?: LeaveRequestStatus | null): Promise<{ data: LeaveRequest[]; allowance: number; allowances: Record<number, number>; usage: Record<number, number> }> {
+    const response = await api.get('/leave-requests', { params: { year, status: status ?? undefined } })
 
     return {
       data: response.data.data,
       allowance: Number(response.data.allowance ?? 0),
       allowances: response.data.allowances ?? {},
+      usage: response.data.usage ?? {},
+    }
+  },
+
+  async listPage(params: CompanyLeaveRequestParams): Promise<LeaveRequestPage> {
+    const response = await api.get('/leave-requests', {
+      params: { year: params.year, status: params.status ?? undefined, page: params.page, per_page: params.perPage },
+    })
+    const payload = response.data
+
+    return {
+      rows: Array.isArray(payload.data) ? payload.data : [],
+      total: Number(payload.total ?? 0),
+      page: Number(payload.current_page ?? 1),
+      lastPage: Number(payload.last_page ?? 1),
+      allowance: Number(payload.allowance ?? 0),
+      allowances: payload.allowances ?? {},
+      usage: payload.usage ?? {},
     }
   },
   async grant(ids: number[], forceOffDay = false, approvalNote?: string): Promise<{ data: LeaveRequest[]; exceeded: number }> {

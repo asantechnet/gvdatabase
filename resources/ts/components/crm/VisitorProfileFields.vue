@@ -129,14 +129,14 @@ const options = (catalog: 'education-levels' | 'provinces' | 'english-levels' | 
         persistent-hint
       />
     </VCol>
-    <VCol v-if="canReview" cols="12" sm="6" md="4" class="d-flex align-center">
-      <VSwitch
-        v-model="model.reviewed_by_consultant"
-        :label="$t('pages.contracts.visitor.visitor.reviewedByConsultant')"
-        :hint="$t('pages.contracts.visitor.visitor.reviewedByConsultantHint')"
+    <VCol v-if="canReview" cols="12" sm="6" md="4">
+      <VTextarea
+        v-model="model.consultant_review"
+        :label="$t('pages.contracts.visitor.visitor.consultantReview')"
+        :hint="$t('pages.contracts.visitor.visitor.consultantReviewHint')"
         persistent-hint
-        color="success"
-        inset
+        rows="2"
+        auto-grow
       />
     </VCol>
     <VCol cols="12">

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\UserResource;
 use App\Models\Department;
@@ -22,13 +23,26 @@ use Illuminate\Validation\Rule;
 
 class EmployeeController extends Controller
 {
-    public function index(Request $request): AnonymousResourceCollection
+    use PaginatesLists;
+
+    public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         // Employee directories are active-only by default; inactive employees
         // are only sent when a management surface explicitly opts in.
         $status = $request->validate([
             'status' => ['sometimes', Rule::in([Employee::STATUS_ACTIVE, Employee::STATUS_INACTIVE, 'all'])],
         ])['status'] ?? Employee::STATUS_ACTIVE;
+
+        // Newest staff first by default; pickers can ask for name order.
+        $order = $request->validate([
+            'sort' => ['nullable', Rule::in(['created_at', 'name', 'id'])],
+            'dir' => ['nullable', Rule::in(['asc', 'desc'])],
+        ]);
+
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'position' => ['nullable', 'string', 'max:255'],
+        ]);
 
         $query = Employee::selectable()
             ->excludePrimaryRecord()
@@ -37,7 +51,32 @@ class EmployeeController extends Controller
             $query->whereIn('id', app(EmployeeScope::class)->visibleEmployeeIds($request->user()));
         }
 
-        return EmployeeResource::collection($query->with(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions'])->get());
+        // The directory searches the whole staff record, not only the visible
+        // page, so the filter runs in the database.
+        if (! empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(fn ($q) => $q
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('father_name', 'like', "%{$search}%")
+                ->orWhere('contact', 'like', "%{$search}%")
+                ->orWhere('id_number', 'like', "%{$search}%")
+                // The staff email is the linked account's email.
+                ->orWhereHas('user', fn ($user) => $user->where('email', 'like', "%{$search}%"))
+                ->orWhereHas('position', fn ($position) => $position->where('title', 'like', "%{$search}%")));
+        }
+
+        if (! empty($filters['position'])) {
+            $query->whereHas('position', fn ($position) => $position->where('title', $filters['position']));
+        }
+
+        $query->orderBy($order['sort'] ?? 'created_at', $order['dir'] ?? 'desc')->orderBy('id', 'desc');
+        $query->with(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions']);
+
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true] + $this->paginatedPayload($request, $query, fn ($rows) => EmployeeResource::collection($rows)->resolve()));
+        }
+
+        return EmployeeResource::collection($query->get());
     }
 
     public function assignmentOptions(Request $request): AnonymousResourceCollection

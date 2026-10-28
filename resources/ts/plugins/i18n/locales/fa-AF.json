@@ -623,6 +623,10 @@
           "title": "گزارش لیست پیگیری",
           "subtitle": "مراجعین علامت‌گذاری‌شده برای پیگیری"
         },
+        "applications": {
+          "title": "گزارش درخواست‌ها",
+          "subtitle": "درخواست‌های فیلترشده"
+        },
         "columns": {
           "receipt": "رسید",
           "type": "نوع",
@@ -2398,13 +2402,10 @@
           "acquisitionRoute": "راه آشنایی",
           "acquisitionRouteHint": "مراجعه‌کننده چطور با شرکت آشنا شد.",
           "consultant": "مشاور",
-          "reviewedByConsultant": "بررسی‌شده توسط مشاور",
-          "reviewedByConsultantHint": "این درخواست را برای مشاور تایید می‌کند.",
-          "review": "بررسی مشاور",
-          "reviewed": "بررسی‌شده",
-          "pendingReview": "در انتظار بررسی",
-          "markReviewed": "ثبت بررسی",
-          "markedReviewed": "مراجعه‌کننده به عنوان بررسی‌شده ثبت شد."
+          "consultantReview": "بررسی مشاور",
+          "consultantReviewHint": "ارزیابی مشاور از این مراجعه‌کننده را ثبت کنید.",
+          "consultantReviewSaved": "بررسی مشاور ذخیره شد.",
+          "review": "بررسی مشاور"
         }
       },
       "contractform": {
@@ -2634,7 +2635,8 @@
           "changeBaseCurrencyTitle": "ارز پایه تغییر شود؟",
           "changeBaseCurrencyWarning": "مجموع داشبورد و گزارش‌ها با {currency} نمایش داده خواهد شد.",
           "changeBaseCurrencyHint": "این کار ارز پایهٔ برنامه را تغییر می‌دهد.",
-          "confirmSetAsBaseCurrency": "تنظیم به‌عنوان ارز پایه"
+          "confirmSetAsBaseCurrency": "تنظیم به‌عنوان ارز پایه",
+          "statusHint": "هر ارزی که ثبت شده است میتواند در رسید، مصرف، قرارداد یا فیش معاش استفاده شود. ارزهای غیرفعال نیز قابل استفاده باقی میمانند و تنها در اینجا نشانهگذاری میشوند."
         },
         "rateToBase": "نرخ به پایه ({currency})",
         "baseRate": "۱.۰۰۰۰ (پایه)",

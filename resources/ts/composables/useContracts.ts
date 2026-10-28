@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import ContractApi from '@/api/contracts'
 import ContractTemplateApi, { type ContractTemplate } from '@/api/contractTemplate'
 import type { Contract, ContractCreateData, ContractParams, ContractUpdateData } from '@/api/contracts'
+import type { ListPage, ListPageParams } from '@/api/pagination'
 
 export function useContracts() {
   const contracts = ref<Contract[]>([])
@@ -28,6 +29,28 @@ export function useContracts() {
     catch (err) {
       console.error('Failed to fetch contracts:', err)
       error.value = err instanceof Error ? err.message : translate('common.ui.failedToFetchContracts')
+    }
+    finally {
+      isLoading.value = false
+    }
+  }
+
+  /** One page of a contract list, for the paged tables. */
+  const listContracts = async (params?: ContractParams & ListPageParams): Promise<ListPage<Contract>> => {
+    try {
+      isLoading.value = true
+      error.value = null
+
+      const result = await ContractApi.listPage(params)
+
+      contracts.value = result.rows
+
+      return result
+    }
+    catch (err) {
+      console.error('Failed to fetch contracts:', err)
+      error.value = err instanceof Error ? err.message : translate('common.ui.failedToFetchContracts')
+      throw err
     }
     finally {
       isLoading.value = false
@@ -117,6 +140,7 @@ export function useContracts() {
     isLoading,
     error,
     fetchContracts,
+    listContracts,
     fetchTemplates,
     addContract,
     editContract,

@@ -9,7 +9,7 @@ import ContractCover from './templates/contract_cover_template.vue'
 import ContractPageTemplate, { type CompanyDetails } from './templates/contract_page_template.vue'
 import ContractApi from '@/api/contracts'
 import ContractTemplateApi from '@/api/contractTemplate'
-import type { Contract } from '@/api/contracts'
+import type { Contract, ContractParams } from '@/api/contracts'
 import SettingApi, { type Setting } from '@/api/setting'
 import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
@@ -43,12 +43,20 @@ const {
   templates,
   isLoading,
   error,
-  fetchContracts,
+  listContracts,
   fetchTemplates,
   addContract,
   editContract,
   removeContract,
 } = useContracts()
+
+// The list asks the server for one page at a time.
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+// Filled from every matching contract right before printing.
+const reportRows = ref<string[][]>([])
+const counterparties = ref<string[]>([])
 
 const search = ref('')
 const filterCounterparty = ref<string | null>(null)
@@ -85,7 +93,6 @@ const contractRequest = computed(() => ({ audience: props.contractAudience }))
 const pageTitle = computed(() => t(audienceCopy.value.title))
 const pageDescription = computed(() => t(audienceCopy.value.description))
 
-const counterparties = computed(() => [...new Set(contracts.value.map(c => c.counterparty).filter(c => c))])
 const statuses = ['draft', 'active', 'completed', 'terminated', 'cancelled']
 const canShowPartyDetails = computed(() => !isOtherAudience.value && contractToPrint.value !== null && canPrintPartyDetails(contractToPrint.value))
 const canShowContractHeader = computed(() => contractToPrint.value !== null && canPrintContractHeader(contractToPrint.value))
@@ -116,21 +123,56 @@ const getStatusColor = (status: string) => {
   return statusMap[status?.toLowerCase()] || 'default'
 }
 
-const filtered = computed(() => {
-  return contracts.value.filter(c => {
-    const contractName = c.contract || c.contract_template?.name || ''
-    const counterpartyName = isOtherAudience.value ? '' : c.counterparty || ''
-
-    const matchesSearch = contractName.toLowerCase().includes(search.value.toLowerCase())
-      || counterpartyName.toLowerCase().includes(search.value.toLowerCase())
-      || (c.contract_number || '').toLowerCase().includes(search.value.toLowerCase())
-
-    const matchesCounterparty = isOtherAudience.value || !filterCounterparty.value || c.counterparty === filterCounterparty.value
-    const matchesStatus = !filterStatus.value || c.status === filterStatus.value
-
-    return matchesSearch && matchesCounterparty && matchesStatus
-  })
+const listParams = (): ContractParams => ({
+  ...contractRequest.value,
+  search: search.value || undefined,
+  counterparty: isOtherAudience.value ? undefined : filterCounterparty.value || undefined,
+  status: (filterStatus.value || undefined) as ContractParams['status'],
+  date_from: dateFrom.value || undefined,
+  date_to: dateTo.value || undefined,
 })
+
+// Loads the visible page; `reload` additionally returns to the first page,
+// which is what a filter change needs.
+async function load() {
+  try {
+    const result = await listContracts({ ...listParams(), page: page.value, perPage: perPage.value })
+
+    total.value = result.total
+  }
+  catch {
+    // The composable already exposes the error for the inline alert.
+  }
+}
+
+function reload() {
+  page.value = 1
+  void load()
+}
+
+function updateTableOptions(options: { page: number; itemsPerPage: number }) {
+  if (page.value === options.page && perPage.value === options.itemsPerPage)
+    return
+
+  page.value = options.page
+  perPage.value = options.itemsPerPage
+  void load()
+}
+
+// Typing in the search box is a filter change, so it starts from the first page.
+const debouncedSearch = useDebounceFn(reload, 300)
+
+async function loadCounterparties() {
+  if (isOtherAudience.value)
+    return
+
+  try {
+    counterparties.value = await ContractApi.counterparties()
+  }
+  catch (error) {
+    console.error('Failed to fetch counterparties:', error)
+  }
+}
 
 const headers = computed(() => {
   const rows: Array<{ title: string; key: string; sortable: boolean }> = [
@@ -151,12 +193,12 @@ const headers = computed(() => {
   return rows
 })
 
-const contractReportRow = (contract: Contract) => [
-  contract.contract_number,
-  contract.contract || contract.contract_template?.name,
+const contractReportRow = (contract: Contract): string[] => [
+  contract.contract_number ?? '—',
+  contract.contract || contract.contract_template?.name || '—',
   contract.snapshot_data?.template_version?.name || '—',
-  ...(isOtherAudience.value ? [] : [contract.counterparty]),
-  contract.start_date,
+  ...(isOtherAudience.value ? [] : [contract.counterparty || '—']),
+  contract.start_date ?? '—',
   contract.status,
 ]
 
@@ -255,8 +297,32 @@ const getContractPagesHtml = (contract: Contract): string[] => {
   ]
 }
 
+// Print is global: the report walks the filtered pages so it covers the whole
+// result set instead of the 25 rows on screen.
 const printTable = async () => {
-  await printDocument({ bodyClass: 'printing-table-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  try {
+    const collected: Contract[] = []
+    let nextPage = 1
+    let lastPage = 1
+
+    do {
+      const result = await listContracts({ ...listParams(), page: nextPage, perPage: 100 })
+
+      collected.push(...result.rows)
+      lastPage = result.lastPage
+      nextPage += 1
+    } while (nextPage <= lastPage)
+
+    reportRows.value = collected.map(contractReportRow)
+    await printDocument({ bodyClass: 'printing-table-contracts', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+
+    // Leave the table showing the page the operator was on.
+    await load()
+  }
+  catch (error) {
+    console.error('Failed to prepare the contract report:', error)
+    toast.error(translate('pages.contracts.allContracts.allContracts.failedToFetchContractsPleaseTryAgain'))
+  }
 }
 
 const resetPrintOptions = () => {
@@ -376,7 +442,7 @@ const confirmContractAction = async () => {
     else {
       isCancelling.value = true
       await ContractApi.cancel(action.contract.id)
-      await fetchContracts({ ...contractRequest.value, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined })
+      await load()
       toast.success(translate('pages.contracts.allContracts.allContracts.contractCancelled'))
     }
   }
@@ -427,8 +493,9 @@ const handleFormSubmit = async (contractData: ContractFormPayload) => {
 
 onMounted(async () => {
   await Promise.all([
-    fetchContracts({ ...contractRequest.value, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined }),
+    load(),
     fetchTemplates(),
+    loadCounterparties(),
   ])
   templates.value = templates.value.filter(template =>
     props.contractAudience === 'employees'
@@ -438,7 +505,11 @@ onMounted(async () => {
 
   const employeeId = Number(route.query.employeeId)
   if (props.contractAudience === 'employees' && route.query.print === '1' && employeeId) {
-    const contract = contracts.value.find(item => item.employee_id === employeeId && !item.is_cancelled)
+    // The employee's active contract may live on another page, so the lookup
+    // falls back to the unpaged audience list.
+    const listed = contracts.value.find(item => item.employee_id === employeeId && !item.is_cancelled)
+      ?? (await ContractApi.getAll({ audience: 'employees' })).find(item => item.employee_id === employeeId && !item.is_cancelled)
+    const contract = listed
     if (contract)
       await printContract(contract)
     else toast.warning(translate('pages.contracts.allContracts.allContracts.noActiveEmploymentContractFound'))
@@ -492,7 +563,7 @@ onMounted(async () => {
         >
           <DataTableFilterMenu
             :active="Boolean(search || filterCounterparty || filterStatus || dateFrom || dateTo)"
-            @reset="search = ''; filterCounterparty = null; filterStatus = null; dateFrom = ''; dateTo = ''; fetchContracts(contractRequest)"
+            @reset="search = ''; filterCounterparty = null; filterStatus = null; dateFrom = ''; dateTo = ''; reload()"
           >
             <VTextField
             v-model="search"
@@ -502,8 +573,9 @@ onMounted(async () => {
             density="compact"
             clearable
             hide-details
+            @update:model-value="debouncedSearch"
           />
-            <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" class="mb-4" @apply="fetchContracts({ ...contractRequest, date_from: dateFrom || undefined, date_to: dateTo || undefined })" />
+            <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" class="mb-4" @apply="reload" />
             <VSelect
               v-if="!isOtherAudience"
               v-model="filterCounterparty"
@@ -512,6 +584,7 @@ onMounted(async () => {
               density="compact"
               clearable
               hide-details
+              @update:model-value="reload"
             />
             <VSelect
               v-model="filterStatus"
@@ -520,6 +593,7 @@ onMounted(async () => {
               density="compact"
               clearable
               hide-details
+              @update:model-value="reload"
             />
           </DataTableFilterMenu>
           <VBtn
@@ -559,14 +633,19 @@ onMounted(async () => {
       {{ error }}
     </VAlert>
 
-    <ResponsiveDataTable
+    <ResponsiveDataTableServer
       :headers="headers"
-      :items="filtered"
+      :items="contracts"
+      :items-length="total"
+      :page="page"
+      :items-per-page="perPage"
+      :items-per-page-options="[10, 25, 50, 100]"
       item-value="id"
       class="text-no-wrap"
       mobile-breakpoint="sm"
       :loading="isLoading"
       style="overflow-x: auto;"
+      @update:options="updateTableOptions"
     >
       <template #loading><TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" /></template>
       <template #no-data><TableEmptyState icon="tabler-file-off" :description="$t('pages.contracts.allContracts.allContracts.noContracts')" /></template>
@@ -685,13 +764,13 @@ onMounted(async () => {
           </VTooltip>
         </VBtn>
       </template>
-    </ResponsiveDataTable>
+    </ResponsiveDataTableServer>
   </VCard>
   <PrintableListReport
     :title="t(audienceCopy.report)"
     :subtitle="$t('pages.contracts.allContracts.allContracts.filteredContractRecords')"
     :columns="headers.slice(0, -1).map(header => header.title)"
-    :rows="filtered.map(contractReportRow)"
+    :rows="reportRows"
   />
 
   <!-- Contract Form Dialog -->

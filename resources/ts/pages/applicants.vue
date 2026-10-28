@@ -28,6 +28,10 @@ const { t } = useI18n()
 
 const rows = ref<Applicant[]>([])
 const loading = ref(false)
+// The shared A4 report prints the whole filtered set, not the visible page, so
+// it is filled from every page right before printing.
+const printing = ref(false)
+const reportRows = ref<string[][]>([])
 const page = ref(1)
 const perPage = ref(25)
 const total = ref(0)
@@ -74,8 +78,8 @@ const stages = ref<ApplicantStage[]>([])
 
 const canViewPipeline = computed(() => canAccess('view_applicants'))
 const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
+const canReview = computed(() => canAccess('review_visitors'))
 const activeFilterCount = computed(() => [focus.value, service.value, search.value, stage.value, status.value, paymentStatus.value, responsibleEmployeeId.value, countryId.value, universityId.value, educationLevelId.value, semesterId.value, dateFrom.value, dateTo.value].filter(Boolean).length)
-const visibleRows = computed(() => paymentStatus.value ? rows.value.filter(row => row.payment_status === paymentStatus.value) : rows.value)
 const headers = computed(() => [
   { title: t('educational.id'), key: 'id', sortable: false },
   { title: t('educational.applicant'), key: 'name', sortable: false },
@@ -94,7 +98,7 @@ const destinationLabel = (row: Applicant) => {
   return [serviceLabel(row), place].filter(Boolean).join(' · ')
 }
 const paymentStatusLabel = (row: Applicant) => row.payment_status ? t(`finance.paymentStatus.${row.payment_status}`) : '—'
-const printRows = computed(() => visibleRows.value.map(row => [
+const reportRow = (row: Applicant) => [
   `#${row.id}`,
   row.name,
   row.service === 'academy' ? '—' : (row.responsible_employee?.name ?? t('educational.unassigned')),
@@ -102,10 +106,14 @@ const printRows = computed(() => visibleRows.value.map(row => [
   row.current_stage ? translateApplicantStage(row.current_stage) : '—',
   translateBackendValue(row.status),
   paymentStatusLabel(row),
-]))
+]
+const setReportRows = (source: Applicant[]) => { reportRows.value = source.map(reportRow) }
 
 const createDialog = ref(false)
 const creating = ref(false)
+const reviewDialog = ref(false)
+const reviewApplicant = ref<Applicant | null>(null)
+const consultantReview = ref('')
 const createForm = ref({ name: '', father_name: '', father_phone: '', backup_phone: '', contact: '', email: '', admission_employee_id: null as number | null, responsible_employee_id: null as number | null, notes: '' })
 const serviceForm = ref<ApplicantPayload>({ service: 'scholarship' })
 // The list is driven by the workflow stages themselves: every stage is a tab,
@@ -131,37 +139,66 @@ const terminalStageColor = (key: string) => {
   return key === 'rejected' ? 'error' : 'secondary'
 }
 
+const listParams = (): ApplicantListParams => ({
+  focus: focus.value || undefined,
+  service: service.value || undefined,
+  stage: stage.value || undefined,
+  status: (status.value || undefined) as 'active' | 'closed' | undefined,
+  search: search.value || undefined,
+  payment_status: paymentStatus.value || undefined,
+  responsible_employee_id: responsibleEmployeeId.value,
+  country_id: countryId.value,
+  university_id: universityId.value,
+  education_level_id: educationLevelId.value,
+  semester_id: semesterId.value,
+  date_from: dateFrom.value || undefined,
+  date_to: dateTo.value || undefined,
+})
+
 async function load() {
   if (invalidDateRange.value) return
   loading.value = true
   try {
-    const result = await ApplicantApi.list({
-      focus: focus.value || undefined,
-      service: service.value || undefined,
-      stage: stage.value || undefined,
-      status: (status.value || undefined) as 'active' | 'closed' | undefined,
-      search: search.value || undefined,
-      responsible_employee_id: responsibleEmployeeId.value,
-      country_id: countryId.value,
-      university_id: universityId.value,
-      education_level_id: educationLevelId.value,
-      semester_id: semesterId.value,
-      date_from: dateFrom.value || undefined,
-      date_to: dateTo.value || undefined,
-      page: page.value,
-      per_page: perPage.value,
-    })
+    const result = await ApplicantApi.list({ ...listParams(), page: page.value, per_page: perPage.value })
 
     rows.value = result.data
     page.value = result.current_page
     perPage.value = result.per_page
     total.value = result.total
+    setReportRows(result.data)
   }
   catch {
     toast.error(t('educational.messages.loadApplicantsFailed'))
   }
   finally {
     loading.value = false
+  }
+}
+
+// Print is global: walk the filtered pages so the shared report covers the
+// whole result set instead of the 25 rows currently on screen.
+async function printReport() {
+  if (invalidDateRange.value) return
+  printing.value = true
+  try {
+    const all: Applicant[] = []
+    let nextPage = 1
+    let lastPage = 1
+    do {
+      const result = await ApplicantApi.list({ ...listParams(), page: nextPage, per_page: 100 })
+      all.push(...result.data)
+      lastPage = result.last_page
+      nextPage += 1
+    } while (nextPage <= lastPage)
+
+    setReportRows(all)
+    await printDocument({ bodyClass: 'printing-table-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+  }
+  catch {
+    toast.error(t('educational.messages.loadApplicantsFailed'))
+  }
+  finally {
+    printing.value = false
   }
 }
 
@@ -252,6 +289,33 @@ async function create() {
   }
 }
 
+function openConsultantReview(applicant: Applicant) {
+  reviewApplicant.value = applicant
+  consultantReview.value = applicant.consultant_review || ''
+  reviewDialog.value = true
+}
+
+async function saveConsultantReview() {
+  if (!reviewApplicant.value)
+    return
+
+  try {
+    creating.value = true
+    const updated = await ApplicantApi.updateConsultantReview(reviewApplicant.value.id, consultantReview.value.trim() || null)
+    const index = rows.value.findIndex(row => row.id === updated.id)
+    if (index !== -1)
+      rows.value[index] = updated
+    reviewDialog.value = false
+    toast.success(t('pages.contracts.visitor.visitor.consultantReviewSaved'))
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error))
+  }
+  finally {
+    creating.value = false
+  }
+}
+
 function clearFilters() {
   focus.value = ''
   service.value = ''
@@ -327,7 +391,7 @@ onMounted(async () => {
             <VSelect v-model="semesterId" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="$t('educational.semester')" clearable />
             <VBtn color="primary" :loading="loading" :disabled="invalidDateRange" @click="page = 1; load()">{{ $t('educational.apply') }}</VBtn>
           </DataTableFilterMenu>
-          <VBtn icon="tabler-printer" variant="text" :loading="loading" @click="printDocument({ bodyClass: 'printing-table-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ $t('common.actions.print') }}</VTooltip></VBtn>
+          <VBtn icon="tabler-printer" variant="text" :loading="loading || printing" @click="printReport"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ $t('common.actions.print') }}</VTooltip></VBtn>
         </div>
       </template>
     </ErpPageHeader>
@@ -352,7 +416,7 @@ onMounted(async () => {
     <div class="d-flex align-center gap-2 px-4 py-3"><VIcon icon="tabler-users" color="primary" /><strong>{{ $t('educational.resultCount', { count: total }) }}</strong><VSpacer /><VBtn v-if="activeFilterCount" size="small" variant="text" prepend-icon="tabler-filter" @click="filtersOpen = true">{{ $t('educational.activeFilters', { count: activeFilterCount }) }}</VBtn></div>
     <ResponsiveDataTableServer
       :headers="headers"
-      :items="visibleRows"
+      :items="rows"
       :items-length="total"
       :loading="loading"
       :page="page"
@@ -374,10 +438,10 @@ onMounted(async () => {
       <template #item.stage="{ item }">{{ item.current_stage ? translateApplicantStage(item.current_stage) : '—' }}</template>
       <template #item.status="{ item }"><VChip size="small" :color="item.status === 'active' ? 'success' : 'secondary'">{{ translateBackendValue(item.status) }}</VChip></template>
       <template #item.paymentStatus="{ item }"><VChip v-if="item.payment_status" size="small" variant="tonal" :color="item.payment_status === 'paid' ? 'success' : item.payment_status === 'partially_paid' ? 'warning' : 'error'">{{ paymentStatusLabel(item) }}</VChip><span v-else class="text-medium-emphasis">—</span></template>
-      <template #item.actions="{ item }"><div class="d-flex justify-end align-center ga-1"><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" /><VBtn size="small" variant="text" @click="router.push({ name: 'applicant-case', params: { id: item.id } })">{{ $t('educational.openCase') }}</VBtn></div></template>
+      <template #item.actions="{ item }"><div class="d-flex justify-end align-center ga-1"><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" /><VBtn v-if="canReview" icon="tabler-message" size="small" variant="text" @click="openConsultantReview(item)"><VTooltip activator="parent">{{ $t('pages.contracts.visitor.visitor.consultantReview') }}</VTooltip></VBtn><VBtn size="small" variant="text" @click="router.push({ name: 'applicant-case', params: { id: item.id } })">{{ $t('educational.openCase') }}</VBtn></div></template>
     </ResponsiveDataTableServer>
   </VCard>
-  <PrintableListReport :title="t('educational.applications')" :subtitle="t('agencyStaff.currentPageReport')" :columns="headers.slice(0, -1).map(column => column.title)" :rows="printRows" />
+  <PrintableListReport :title="t('educational.applications')" :subtitle="t('common.crmUi.printReports.applications.subtitle')" :columns="headers.slice(0, -1).map(column => column.title)" :rows="reportRows" />
   </div>
   <VDialog v-model="createDialog" max-width="1100" scrollable class="erp-form">
     <VCard :title="$t('educational.newApplicantCase')">
@@ -399,6 +463,13 @@ onMounted(async () => {
         <VBtn color="secondary" variant="tonal" @click="createDialog = false">{{ $t('common.actions.cancel') }}</VBtn>
         <VBtn color="primary" variant="flat" :loading="creating" :disabled="!createForm.name.trim()" @click="create">{{ $t('educational.createCase') }}</VBtn>
       </VCardActions>
+    </VCard>
+  </VDialog>
+  <VDialog v-model="reviewDialog" max-width="640">
+    <VCard>
+      <VCardTitle>{{ $t('pages.contracts.visitor.visitor.consultantReview') }}</VCardTitle>
+      <VCardText><VTextarea v-model="consultantReview" :label="$t('pages.contracts.visitor.visitor.consultantReview')" rows="4" auto-grow /></VCardText>
+      <VCardActions><VSpacer /><VBtn variant="outlined" @click="reviewDialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="primary" :loading="creating" @click="saveConsultantReview">{{ $t('common.actions.save') }}</VBtn></VCardActions>
     </VCard>
   </VDialog>
 </template>

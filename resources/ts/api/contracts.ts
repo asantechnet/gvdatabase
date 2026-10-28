@@ -1,4 +1,5 @@
 import api from './axios'
+import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 import type { ContractType } from './contractType'
 import { applicantServicePayload, type Applicant, type ApplicantPayload, type BuiltInService } from './applicants'
 
@@ -154,6 +155,7 @@ export interface ContractParams {
   date_from?: string
   date_to?: string
   search?: string
+  counterparty?: string
   only_cancelled?: boolean
 }
 
@@ -180,6 +182,27 @@ const ContractApi = {
     const response = await api.get<{ success: boolean; data: Contract[] }>('/contracts', { params: { ...params, only_cancelled: params?.only_cancelled === undefined ? undefined : Number(params.only_cancelled) } })
 
     return normalizeList(response.data.data)
+  },
+
+  /** One page of a contract list. */
+  async listPage(params?: ContractParams & ListPageParams): Promise<ListPage<Contract>> {
+    const response = await api.get('/contracts', {
+      params: cleanListParams({
+        ...params,
+        page: params?.page,
+        per_page: params?.perPage,
+        only_cancelled: params?.only_cancelled === undefined ? undefined : Number(params.only_cancelled),
+      }),
+    })
+
+    return readPage<Contract>(response.data)
+  },
+
+  /** The counterparties already on record, for the list filter. */
+  async counterparties(): Promise<string[]> {
+    const response = await api.get<{ success: boolean; data: string[] }>('/contracts/counterparties')
+
+    return Array.isArray(response.data.data) ? response.data.data : []
   },
 
   async getById(id: number): Promise<Contract> {

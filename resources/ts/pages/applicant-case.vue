@@ -72,10 +72,15 @@ const guardianSummary = computed(() => {
   return rows
 })
 const transitionOptions = computed(() => {
-  const current = applicant.value?.current_stage?.key
+  const current = applicant.value?.current_stage
   if (!current) return stages.value
-  const allowed = stages.value.find(stage => stage.key === current)?.allowed_next_keys ?? []
-  return stages.value.filter(stage => allowed.includes(stage.key))
+  const configured = stages.value.find(stage => stage.key === current.key)
+  // The case sits on a stage that is not in its service's live list (for
+  // example an archived stage): never trap it, offer the whole list.
+  if (!configured) return stages.value
+  // A terminal stage has no allowed next keys on purpose, so an empty map only
+  // means "no moves" when the stage itself is in the list.
+  return stages.value.filter(stage => (configured.allowed_next_keys ?? []).includes(stage.key))
 })
 // Terminal stages are the ones that close the case: `completed` finishes it and
 // releases commission, while cancelled/rejected/withdrawn end it without one.
@@ -179,9 +184,15 @@ const movingLine = ref<number | null>(null)
 const canMoveLineStage = computed(() => canAccess('change_applicant_stage'))
 const lineStageLabel = (stage?: { name: string; key: string } | null) => stage ? translateApplicantStage(stage) : '—'
 const lineNextStages = (line: { service?: BuiltInService | null; current_stage?: { allowed_next_keys?: string[] } | null }) => {
-  const allowed = line.current_stage?.allowed_next_keys ?? []
+  const options = lineStageOptions.value[line.service ?? ''] ?? []
+  // A line with no stage yet is seated from its service's whole live list; a
+  // seated line only offers its configured next stages.
+  if (!line.current_stage)
+    return options
 
-  return (lineStageOptions.value[line.service ?? ''] ?? []).filter(stage => allowed.includes(stage.key))
+  const allowed = line.current_stage.allowed_next_keys ?? []
+
+  return options.filter(stage => allowed.includes(stage.key))
 }
 async function loadLineStages() {
   const services = [...new Set((applicant.value?.services ?? []).map(line => line.service).filter((service): service is BuiltInService => !!service))]

@@ -227,7 +227,9 @@ onMounted(load)
               <VSelect v-model="form.university_id" :items="universities.filter(row => !form.country_id || row.country_id === form.country_id).map(row => ({ title: row.name, value: row.id }))" :label="$t('educational.university')" :hint="$t('educational.masterData.universityScopeHint')" clearable class="mb-4" />
             </VCol>
             <VCol cols="12">
-              <VCombobox v-model="form.allowed_next_keys" :items="nextStageOptions" item-title="title" item-value="value" multiple chips :label="$t('educational.masterData.allowedNextStages')" :hint="$t('educational.masterData.allowedNextStagesHint')" persistent-hint class="mb-4" />
+              <!-- A multi-select, not a combobox: Vuetify's combobox returns the item object,
+                   and the API stores stage keys as a string array. -->
+              <VSelect v-model="form.allowed_next_keys" :items="nextStageOptions" item-title="title" item-value="value" multiple chips closable-chips :label="$t('educational.masterData.allowedNextStages')" :hint="$t('educational.masterData.allowedNextStagesHint')" persistent-hint class="mb-4" />
             </VCol>
             <VCol cols="12" sm="6">
               <VSwitch v-model="form.is_terminal" :label="$t('educational.masterData.terminalStage')" />

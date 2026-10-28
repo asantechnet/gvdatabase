@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Requests\StoreServiceContractRequest;
 use App\Http\Resources\ContractResource;
 use App\Http\Resources\ContractTemplateResource;
@@ -30,6 +31,7 @@ use Illuminate\Validation\Rule;
 
 class ContractController extends Controller
 {
+    use PaginatesLists;
     private const RELATIONS = [
         'template.contractType', 'templateVersion.country', 'templateVersion.language',
         'contractCountry', 'contractLanguage', 'contractType', 'applicantContracts.currency',
@@ -56,6 +58,7 @@ class ContractController extends Controller
             'type_slug' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', Rule::in(Contract::STATUSES)],
             'search' => ['nullable', 'string', 'max:255'],
+            'counterparty' => ['nullable', 'string', 'max:255'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable'],
             'only_cancelled' => ['nullable', 'boolean'],
@@ -83,6 +86,9 @@ class ContractController extends Controller
         if (! empty($data['status'])) {
             $query->where('status', $data['status']);
         }
+        if (! empty($data['counterparty'])) {
+            $query->where('counterparty', $data['counterparty']);
+        }
         if (! empty($data['search'])) {
             $search = $data['search'];
             $query->where(fn ($query) => $query
@@ -96,8 +102,31 @@ class ContractController extends Controller
         $query->when(! empty($data['date_from']), fn ($q) => $q->whereDate('start_date', '>=', $data['date_from']))
             ->when(! empty($data['date_to']), fn ($q) => $q->whereDate('start_date', '<=', $data['date_to']));
         ContractAccess::scopeVisibleTo($query, $request->user());
+        // Newest agreements first, matching every other record list.
+        $query->orderByDesc('created_at')->orderByDesc('id');
+
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true] + $this->paginatedPayload($request, $query, fn ($rows) => ContractResource::collection($rows)->resolve()));
+        }
 
         return response()->json(['success' => true, 'data' => ContractResource::collection($query->get())]);
+    }
+
+    /**
+     * The counterparties already on record, for the list filter. The list is
+     * small and independent of paging, so it stays its own request.
+     */
+    public function counterparties(Request $request): JsonResponse
+    {
+        $query = Contract::query()
+            ->whereNotNull('counterparty')
+            ->where('counterparty', '!=', '');
+        ContractAccess::scopeVisibleTo($query, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'data' => $query->distinct()->orderBy('counterparty')->pluck('counterparty')->all(),
+        ]);
     }
 
     public function store(Request $request): JsonResponse
@@ -184,7 +213,8 @@ class ContractController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => [
-            'currencies' => Currency::query()->where('is_active', true)->get(['id', 'code', 'rate']),
+            // Every currency is offered; the base one stays first for the pickers.
+            'currencies' => Currency::query()->orderByDesc('is_base')->orderBy('code')->get(['id', 'code', 'rate']),
             'languages' => Language::query()->where('is_active', true)->get(['id', 'name']),
             'employees' => $employees->get(['id', 'name']),
             'admission_employees' => $request->user()->hasPermission('assign_admission_employee')

@@ -312,6 +312,13 @@ class NotificationDemoSeeder extends Seeder
     {
         $currency = Currency::query()->where('is_base', true)->first() ?? Currency::query()->first();
 
+        // The line starts on its service's `new` stage like a generated one, so
+        // the pipeline and the per-line move control work on this fixture.
+        $stageId = ApplicantStage::query()
+            ->where('key', 'new')->where('is_active', true)->where('service', BuiltInService::SCHOLARSHIP)
+            ->orderByRaw('country_id IS NULL')->orderByRaw('university_id IS NULL')
+            ->value('id') ?? $applicant->current_stage_id;
+
         $line = ApplicantContract::withTrashed()->firstOrNew([
             'contract_id' => $contract->id,
             'service' => BuiltInService::SCHOLARSHIP,
@@ -323,6 +330,7 @@ class NotificationDemoSeeder extends Seeder
             'currency_id' => $currency?->id,
             'currency_rate' => 1,
             'sold_by_employee_id' => $employee->id,
+            'current_stage_id' => $stageId,
             'notes' => 'Realtime notification demo service line',
         ]);
         $line->deleted_at = null;

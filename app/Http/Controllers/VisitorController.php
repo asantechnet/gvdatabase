@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\ApplicantResource;
 use App\Http\Resources\VisitorResource;
 use App\Models\Applicant;
@@ -17,15 +18,16 @@ use Illuminate\Validation\Rule;
 
 class VisitorController extends Controller
 {
+    use PaginatesLists;
+
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
         $dates = $request->validate(['date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable']]);
         $request->validate([
             'follow_up' => ['nullable', 'boolean'],
-            'reviewed_by_consultant' => ['nullable', 'boolean'],
             'consultant_employee_id' => ['nullable', 'integer'],
             'education_level_id' => ['nullable', 'integer'],
             'province_id' => ['nullable', 'integer'],
@@ -46,10 +48,6 @@ class VisitorController extends Controller
             $query->where('follow_up', $request->boolean('follow_up'));
         }
 
-        if ($request->has('reviewed_by_consultant')) {
-            $query->where('reviewed_by_consultant', $request->boolean('reviewed_by_consultant'));
-        }
-
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%$search%")
@@ -66,6 +64,12 @@ class VisitorController extends Controller
 
         $query->when(! empty($dates['date_from']), fn ($q) => $q->whereDate('date', '>=', $dates['date_from']))
             ->when(! empty($dates['date_to']), fn ($q) => $q->whereDate('date', '<=', $dates['date_to']));
+        // Newest visits first; the id breaks ties between same-day rows.
+        $query->orderByDesc('date')->orderByDesc('id');
+
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true] + $this->paginatedPayload($request, $query, fn ($rows) => VisitorResource::collection($rows)->resolve()));
+        }
 
         return VisitorResource::collection($query->get());
     }
@@ -90,7 +94,7 @@ class VisitorController extends Controller
             'province_id' => ['nullable', 'integer', Rule::exists('provinces', 'id')->whereNull('deleted_at')],
             'english_level_id' => ['nullable', 'integer', Rule::exists('english_levels', 'id')->whereNull('deleted_at')],
             'acquisition_route_id' => ['nullable', 'integer', Rule::exists('acquisition_routes', 'id')->whereNull('deleted_at')],
-            'reviewed_by_consultant' => ['sometimes', 'boolean'],
+            'consultant_review' => ['sometimes', 'nullable', 'string', 'max:10000'],
             'date' => 'required|date',
             'notes' => 'nullable|string|max:10000',
         ]);
@@ -135,7 +139,7 @@ class VisitorController extends Controller
             'province_id' => ['nullable', 'integer', Rule::exists('provinces', 'id')->whereNull('deleted_at')],
             'english_level_id' => ['nullable', 'integer', Rule::exists('english_levels', 'id')->whereNull('deleted_at')],
             'acquisition_route_id' => ['nullable', 'integer', Rule::exists('acquisition_routes', 'id')->whereNull('deleted_at')],
-            'reviewed_by_consultant' => ['sometimes', 'boolean'],
+            'consultant_review' => ['sometimes', 'nullable', 'string', 'max:10000'],
             'date' => 'sometimes|required|date',
             'notes' => 'nullable|string|max:10000',
         ]);
@@ -178,6 +182,15 @@ class VisitorController extends Controller
         return new VisitorResource($visitor->load($this->relations()));
     }
 
+    /** A review is editable by its dedicated permission, independent of visitor editing. */
+    public function updateConsultantReview(Request $request, Visitor $visitor): VisitorResource
+    {
+        $data = $request->validate(['consultant_review' => ['nullable', 'string', 'max:10000']]);
+        $visitor->update($data);
+
+        return new VisitorResource($visitor->load($this->relations()));
+    }
+
     public function convertToApplicant(Visitor $visitor): ApplicantResource
     {
         $applicant = DB::transaction(function () use ($visitor) {
@@ -188,6 +201,7 @@ class VisitorController extends Controller
                 'contact' => $visitor->contact,
                 'email' => $visitor->email,
                 'notes' => $visitor->notes,
+                'consultant_review' => $visitor->consultant_review,
                 'status' => 'active',
                 'current_stage_id' => ApplicantStage::query()->where('key', 'new')->value('id'),
             ]);
@@ -235,14 +249,14 @@ class VisitorController extends Controller
     }
 
     /**
-     * The consultant review is a dedicated sign-off; a visitor edit alone does
-     * not grant it.
+     * A consultant review has its own permission; a visitor edit alone does not
+     * grant it.
      *
      * @param  array<string, mixed>  $data
      */
     private function guardReviewPermission(Request $request, array $data): void
     {
-        if (array_key_exists('reviewed_by_consultant', $data) && ! $request->user()->hasPermission('review_visitors')) {
+        if (array_key_exists('consultant_review', $data) && ! $request->user()->hasPermission('review_visitors')) {
             abort(403, 'auth.forbidden');
         }
     }
