@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
-import ApplicantSummary from '@/components/erp/ApplicantSummary.vue'
 import ErpField from '@/components/erp/ErpField.vue'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -59,6 +59,7 @@ const charges = ref<Record<string, number | string>>({})
 // Private contracts price the application fee as a range; every other service
 // keeps a single itemised charge.
 const applicationFeeRange = ref<[number, number]>([0, 0])
+const applicationFeeRangeLimit = computed(() => Math.max(100000, Math.ceil(Number(applicationFeeRange.value[1] || 0) / 100) * 200))
 const paidFee = ref<number | string>(0)
 // A portal login issued with a new contract. The credentials are generated and
 // shown before saving, then created with exactly these values.
@@ -222,14 +223,16 @@ const headers = computed(() => [
   { title: t('serviceContracts.applicant'), key: 'counterparty' },
   { title: t('erp.phone'), key: 'counterparty_contact' },
   { title: t('agencyStaff.contractVersion'), key: 'version', sortable: false },
-  { title: t('erp.details'), key: 'details', sortable: false },
   { title: t('erp.totalFee'), key: 'charges', sortable: false },
   { title: t('serviceContracts.startDate'), key: 'start_date' },
   { title: t('serviceContracts.status'), key: 'status' },
   { title: t('serviceContracts.actions'), key: 'actions', sortable: false },
 ])
-const privateDetailFields = computed(() => [
+// Keep the dense contract record in the detail viewer, where every value has
+// a label and relationships can be read in their own tab.
+const contractDetailFields = computed(() => [
   { key: 'contract_number', label: t('serviceContracts.number') },
+  { key: 'contract', label: t('educational.contract') },
   { key: 'service', label: t('educational.service') },
   { key: 'contract_role', label: t('serviceContracts.contractRole') },
   { key: 'type', label: t('educational.contractType') },
@@ -237,6 +240,7 @@ const privateDetailFields = computed(() => [
   { key: 'start_date', label: t('serviceContracts.startDate') },
   { key: 'end_date', label: t('serviceContracts.endDate') },
   { key: 'counterparty', label: t('serviceContracts.applicant') },
+  { key: 'counterparty_company', label: t('common.fields.company') },
   { key: 'counterparty_email', label: t('serviceContracts.email') },
   { key: 'counterparty_contact', label: t('serviceContracts.contact') },
   { key: 'counterparty_address', label: t('serviceContracts.address') },
@@ -543,7 +547,7 @@ async function save() {
       </VCardText>
       <TableLoadingSkeleton v-if="loading" :columns="headers.length" :label="t('common.messages.loading')" />
       <TableEmptyState v-else-if="!rows.length" icon="tabler-file-description" :description="t('serviceContracts.empty')" />
-      <VDataTableServer
+      <ResponsiveDataTableServer
         v-else
         :headers="headers"
         :items="rows"
@@ -551,15 +555,20 @@ async function save() {
         :page="page"
         :items-per-page="perPage"
         :items-per-page-options="[10, 25, 50, 100]"
+        item-value="id"
+        mobile-breakpoint="sm"
+        mobile-cards
+        mobile-title-key="contract_number"
+        mobile-action-key="actions"
+        class="service-contract-table text-no-wrap"
         @update:options="updateTableOptions"
       >
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
-      <template #item.details="{ item }"><ApplicantSummary v-if="item.applicant" :applicant="item.applicant" :lines="item.services" /></template>
       <template #item.charges="{ item }"><span v-for="line in item.services" :key="line.id">{{ linePrice(line) }}</span></template>
       <template #item.status="{ item }"><VChip size="small" :color="item.is_cancelled ? 'error' : 'success'">{{ t(`serviceContracts.${item.status}`) }}</VChip></template>
       <template #item.actions="{ item }">
         <div class="d-flex gap-1">
-          <FullDetailsButton :item="item" :fields="service === 'private' ? privateDetailFields : undefined" :title="item.contract_number || item.counterparty || ''" />
+          <FullDetailsButton :item="item" :fields="contractDetailFields" :title="item.contract_number || item.counterparty || ''" />
           <!-- A cancelled contract keeps its history in this list: it stays
                viewable but loses every other action, in particular printing. -->
           <template v-if="!item.is_cancelled">
@@ -572,9 +581,9 @@ async function save() {
           </template>
         </div>
       </template>
-      </VDataTableServer>
+      </ResponsiveDataTableServer>
     </VCard>
-    <VDialog v-model="open" :persistent="saving" max-width="1100" scrollable class="erp-form service-contract-dialog">
+    <VDialog v-model="open" :persistent="saving" max-width="980" scrollable class="erp-form service-contract-dialog">
       <VCard>
         <VCardTitle class="service-contract-header">
           <div class="min-w-0"><div class="text-h6">{{ t(labelKey) }}</div><div class="text-caption text-medium-emphasis text-truncate">{{ selectedTemplate?.name ?? t('agencyStaff.templateNotReady') }}</div></div>
@@ -589,13 +598,13 @@ async function save() {
             <template v-if="!parent || service === 'academy'">
               <section class="service-contract-section">
                 <div class="service-contract-section__heading"><VIcon icon="tabler-user" size="19" /><div><h3>{{ t('serviceContracts.applicantSection') }}</h3><p>{{ t('serviceContracts.applicantSectionHint') }}</p></div></div>
-                <VRow v-if="!parent && !editing && ability.can('read', 'view_visitors')" dense><VCol cols="12" sm="6" md="3"><VAutocomplete v-model="visitorId" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :disabled="preparing" density="compact" clearable /></VCol></VRow>
-              <VRow dense class="mb-3">
-                <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="form.name" :label="service === 'academy' ? t('serviceContracts.studentFullName') : t('serviceContracts.applicant')" maxlength="255" required /></VCol>
+                <VRow v-if="!parent && !editing && ability.can('read', 'view_visitors')"><VCol cols="12" sm="6" md="3"><VAutocomplete v-model="visitorId" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :disabled="preparing" density="compact" clearable /></VCol></VRow>
+              <VRow class="mb-3">
+                <VCol cols="12" sm="6" :md="service === 'academy' ? 4 : 3"><ErpField v-model="form.name" :label="service === 'academy' ? t('serviceContracts.studentFullName') : t('serviceContracts.applicant')" maxlength="255" required /></VCol>
                 <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" maxlength="255" required /></VCol>
-                <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="form.contact" :label="t('erp.phone')" maxlength="255" required /></VCol>
+                <VCol cols="12" sm="6" :md="service === 'academy' ? 4 : 3"><ErpField v-model="form.contact" :label="t('erp.phone')" maxlength="255" required /></VCol>
                 <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.father_phone" :label="t('serviceContracts.fatherPhone')" maxlength="50" required /></VCol>
-                <VCol v-if="service === 'test_offer'" cols="12" sm="6" md="4"><ErpField v-model="form.backup_phone" :label="t('erp.backupPhone')" maxlength="50" required /></VCol>
+                <VCol v-if="service === 'test_offer'" cols="12" sm="6" md="3"><ErpField v-model="form.backup_phone" :label="t('erp.backupPhone')" maxlength="50" required /></VCol>
                 <VCol v-if="!parent && service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="form.email" :label="t('serviceContracts.email')" type="email" maxlength="255" /></VCol>
                 <VCol v-if="!parent && service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="form.address" :label="t('serviceContracts.address')" maxlength="1000" /></VCol>
                 <VCol v-if="!parent" cols="12" sm="6" md="3"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" clearable /></VCol>
@@ -609,7 +618,7 @@ async function save() {
             <!-- A contract creates the applicant, so its portal login can be
                  issued by the same save. The credentials are shown first and
                  never created until the contract is saved. -->
-            <VCard v-if="!parent && !editing" variant="tonal" class="portal-user-panel mb-3">
+            <VCard v-if="!parent && !editing" variant="tonal" class="portal-user-panel mb-4">
               <VCardText class="py-3">
                 <VSwitch
                   :model-value="createPortalUser"
@@ -628,15 +637,20 @@ async function save() {
               </VCardText>
             </VCard>
             <div class="service-contract-terms">
-            <VRow dense>
-              <VCol v-if="service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="applicationFeeRange[0]" type="number" min="0" step="10" :label="t('serviceContracts.applicationFeeMinimum')" required /></VCol>
-              <VCol v-if="service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="applicationFeeRange[1]" type="number" :min="applicationFeeRange[0]" step="10" :label="t('serviceContracts.applicationFeeMaximum')" required /></VCol>
-              <VCol v-for="field in chargeFields" :key="field" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="charges[field]" type="number" min="0" step="0.01" :label="chargeLabel(field)" required /></VCol>
-              <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" required /></VCol>
-              <VCol cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" required /></VCol>
-              <VCol class="service-contract-discount" cols="12" sm="6" :md="['scholarship', 'private'].includes(service) ? 3 : 4"><ErpField v-model="discount" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.discount')" /></VCol>
+            <VRow>
+              <VCol v-if="service === 'private'" cols="12" md="6">
+                <div class="application-fee-range">
+                  <span class="erp-field-label">{{ t('serviceContracts.applicationFeeRange') }} <span class="text-error" aria-hidden="true">*</span></span>
+                  <VRangeSlider v-model="applicationFeeRange" :min="0" :max="applicationFeeRangeLimit" step="10" thumb-label="always" hide-details class="mt-5 px-2" />
+                  <div class="application-fee-range__values"><span>{{ t('serviceContracts.applicationFeeMinimum') }}: {{ applicationFeeRange[0] }}</span><span>{{ t('serviceContracts.applicationFeeMaximum') }}: {{ applicationFeeRange[1] }}</span></div>
+                </div>
+              </VCol>
+              <VCol v-for="field in chargeFields" :key="field" cols="12" sm="6" :md="service === 'academy' ? 4 : 3"><ErpField v-model="charges[field]" type="number" min="0" step="0.01" :label="chargeLabel(field)" required /></VCol>
+              <VCol cols="12" sm="6" :md="service === 'academy' ? 4 : 3"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" required /></VCol>
+              <VCol cols="12" sm="6" :md="service === 'academy' ? 4 : 3"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" required /></VCol>
+              <VCol class="service-contract-discount" cols="12" sm="6" :md="service === 'academy' ? 4 : 3"><ErpField v-model="discount" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.discount')" /></VCol>
               <VCol v-if="service === 'academy' && canRecordIncome && !editing" cols="12" sm="6" md="3"><ErpField v-model="paidFee" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.paidFee')" :hint="t('serviceContracts.paidFeeHint')" persistent-hint /></VCol>
-              <VCol v-if="['scholarship', 'private'].includes(service)" cols="12"><ErpField v-model="form.notes" kind="textarea" rows="3" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
+              <VCol v-if="['scholarship', 'private'].includes(service)" cols="12"><ErpField v-model="form.notes" kind="textarea" rows="4" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
             </VRow>
             </div>
             </section>
@@ -713,14 +727,6 @@ async function save() {
   overflow-wrap: anywhere;
 }
 
-.service-contract-body :deep(.v-row) {
-  margin-block: -3px;
-}
-
-.service-contract-body :deep(.v-col) {
-  padding-block: 3px;
-}
-
 .service-contract-section {
   margin-block-end: 12px;
   padding: 14px;
@@ -730,7 +736,22 @@ async function save() {
 }
 
 .service-contract-terms {
-  margin-block-start: 12px;
+  margin-block-start: 16px;
+}
+
+.application-fee-range {
+  min-block-size: 68px;
+  padding: 2px 10px 8px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+}
+
+.application-fee-range__values {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: .72rem;
 }
 
 .service-contract-section__heading {
@@ -753,17 +774,17 @@ async function save() {
   font-size: .75rem;
 }
 
-:deep(.v-data-table__wrapper) {
+.service-contract-table :deep(.v-data-table__wrapper) {
   overflow-x: auto;
   scrollbar-width: none;
 }
 
-:deep(.v-data-table__wrapper::-webkit-scrollbar) {
+.service-contract-table :deep(.v-data-table__wrapper::-webkit-scrollbar) {
   display: none;
 }
 
-:deep(.v-data-table__wrapper > table) {
-  min-inline-size: 1180px;
+.service-contract-table :deep(.v-data-table__wrapper > table) {
+  min-inline-size: 1320px;
 }
 
 .service-contract-footer {
@@ -791,6 +812,33 @@ async function save() {
     flex-basis: auto;
     inline-size: 100%;
     min-inline-size: 0;
+  }
+
+  .application-fee-range__values {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+}
+
+@media (max-width: 959px) {
+  .service-contract-table :deep(.v-data-table__wrapper) {
+    overflow: clip;
+  }
+
+  .service-contract-table :deep(.v-data-table__wrapper > table) {
+    inline-size: 100%;
+    min-inline-size: 0;
+    table-layout: fixed;
+  }
+
+  .service-contract-table :deep(.v-data-table__thead) {
+    display: none;
+  }
+
+  .service-contract-table :deep(.responsive-data-table__mobile-row > td) {
+    padding: .75rem;
   }
 }
 </style>

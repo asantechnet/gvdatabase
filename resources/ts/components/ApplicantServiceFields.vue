@@ -64,7 +64,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <VRow dense>
+  <VRow>
     <VCol v-if="!props.fixedService" cols="12"><ErpField v-model="model.service" kind="select" :items="serviceOptions" :label="t('educational.service')" required /></VCol>
     <template v-if="model.service === 'scholarship' || model.service === 'private'">
       <VCol cols="12" sm="6" md="3"><ErpField v-model="model.grade_score" type="number" min="0" max="100" step="0.01" suffix="%" :label="t('erp.percentage')" required clearable /></VCol>
@@ -77,9 +77,9 @@ onMounted(async () => {
       <VCol cols="12" sm="6" md="3"><ErpField v-model="model.favorite_subject_ids" kind="select" :items="options('subjects')" :label="t('erp.requestedFields')" required multiple chips closable-chips clearable /></VCol>
     </template>
     <template v-else-if="model.service === 'test_offer'">
-      <VCol cols="12" sm="6" md="4"><ErpField v-model="model.test_id" kind="select" :items="options('tests')" :label="t('educational.masterData.tests')" required clearable /></VCol>
-      <VCol v-if="props.showLanguage" cols="12" sm="6" md="4"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" required /></VCol>
-      <VCol cols="12" sm="6" md="4"><ErpField v-model="model.skill_ids" kind="select" :items="options('skills')" :label="t('educational.masterData.skills')" required multiple chips closable-chips clearable /></VCol>
+      <VCol cols="12" sm="6" md="3"><ErpField v-model="model.test_id" kind="select" :items="options('tests')" :label="t('educational.masterData.tests')" required clearable /></VCol>
+      <VCol v-if="props.showLanguage" cols="12" sm="6" md="3"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" required /></VCol>
+      <VCol cols="12" sm="6" md="3"><ErpField v-model="model.skill_ids" kind="select" :items="options('skills')" :label="t('educational.masterData.skills')" required multiple chips closable-chips clearable /></VCol>
     </template>
     <template v-else-if="model.service === 'academy'">
       <VCol cols="12" sm="6" md="4"><ErpField v-model="model.student_id" :label="t('serviceContracts.studentId')" maxlength="64" required /></VCol>

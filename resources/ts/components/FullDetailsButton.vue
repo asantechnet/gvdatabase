@@ -230,18 +230,23 @@ const currencyContext = (source: DetailRecord = record.value) => {
 }
 
 const plainText = (value: string) => {
-  const withParagraphBreaks = value
+  const decode = (text: string) => {
+    if (typeof document === 'undefined')
+      return text
+
+    const decoder = document.createElement('textarea')
+    decoder.innerHTML = text
+
+    return decoder.value
+  }
+  // Rich-text fields may arrive as HTML or as entity-escaped HTML. Decode
+  // first so both forms are rendered as readable text, never markup.
+  const withParagraphBreaks = decode(value)
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(?:p|div|li|h[1-6])>/gi, '\n')
     .replace(/<[^>]*>/g, '')
 
-  if (typeof document === 'undefined')
-    return withParagraphBreaks
-
-  const decoder = document.createElement('textarea')
-  decoder.innerHTML = withParagraphBreaks
-
-  return decoder.value
+  return decode(withParagraphBreaks)
 }
 
 const formatScalar = (value: unknown, key = '', source: DetailRecord = record.value) => {
@@ -275,7 +280,7 @@ const formatScalar = (value: unknown, key = '', source: DetailRecord = record.va
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 
-  return /status|condition|state|is_active|service|contract_role/i.test(key)
+  return /status|condition|state|is_active|service|contract_role|type/i.test(key)
     ? detailsText(`values.${normalizedKey(raw)}`, raw)
     : raw
 }
