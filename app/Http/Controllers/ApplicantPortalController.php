@@ -4,13 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Applicant;
 use App\Models\ApplicantStage;
-use App\Models\Role;
+use App\Models\EducationLevel;
+use App\Models\Program;
+use App\Models\Test;
 use App\Models\User;
+use App\Services\ApplicantPortalAccountService;
 use App\Services\EducationalWorkflowNotificationService;
+use App\Support\BuiltInService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -20,7 +23,10 @@ use Illuminate\Validation\Rule;
  */
 class ApplicantPortalController extends Controller
 {
-    public function __construct(private readonly EducationalWorkflowNotificationService $notifications) {}
+    public function __construct(
+        private readonly EducationalWorkflowNotificationService $notifications,
+        private readonly ApplicantPortalAccountService $accounts,
+    ) {}
 
     public function show(Request $request): JsonResponse
     {
@@ -115,41 +121,87 @@ class ApplicantPortalController extends Controller
         return response()->json(['success' => true, 'data' => $this->attachmentData($attachment)], 201);
     }
 
+    /**
+     * Create the applicant's portal login.
+     *
+     * A supplied password issues a ready-to-use, already-verified account so
+     * staff can hand the credentials over directly; without one the applicant
+     * is invited and chooses their own password after verifying the address.
+     */
     public function invite(Request $request, Applicant $applicant): JsonResponse
     {
         abort_unless($request->user()?->hasPermission('invite_applicant_portal'), 403, 'auth.forbidden');
         $this->assertStaffCaseAccess($request, $applicant);
-        abort_if($applicant->user_id, 422, 'business.request_rejected');
+        abort_if($applicant->user_id, 422, 'business.applicant_portal_account_exists');
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string', 'max:2000'],
+            'password' => ['nullable', 'string', 'min:8', 'max:255'],
         ]);
+        $password = filled($data['password'] ?? null) ? $data['password'] : null;
 
-        $user = DB::transaction(function () use ($data, $applicant): User {
+        $user = DB::transaction(function () use ($data, $applicant, $password): User {
             $lockedApplicant = Applicant::query()->lockForUpdate()->findOrFail($applicant->id);
-            abort_if($lockedApplicant->user_id, 422, 'business.request_rejected');
-            $role = Role::query()->where('name', 'applicant')->firstOrFail();
-            $user = User::create([
-                ...$data,
-                'password' => Hash::make(Str::random(64)),
-                'acc_status' => 'active',
-                'must_set_password' => true,
-            ]);
-            $user->roles()->sync([$role->id]);
-            $lockedApplicant->update(['user_id' => $user->id]);
 
-            return $user;
+            return $this->accounts->create($lockedApplicant, $data['name'], $data['email'], $password, [
+                'phone' => $data['phone'] ?? null,
+                'address' => $data['address'] ?? null,
+            ]);
         });
 
-        $user->sendEmailVerificationNotification();
+        if ($password === null) {
+            $user->sendEmailVerificationNotification();
+        }
 
         return response()->json(['success' => true, 'data' => [
             'user_id' => $user->id,
             'email' => $user->email,
-            'message' => 'Applicant portal invitation sent.',
+            'verified' => $password !== null,
+            'message' => $password === null ? 'Applicant portal invitation sent.' : 'Applicant portal account created.',
         ]], 201);
+    }
+
+    /**
+     * A free login email and a strong password for a contract not saved yet.
+     *
+     * Nothing is created here: the contract form shows these credentials and
+     * the contract's creation issues the account with exactly these values.
+     */
+    public function credentials(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'service' => ['required', Rule::in(BuiltInService::ALL)],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
+            'program_id' => ['nullable', 'integer', 'exists:programs,id'],
+            'test_id' => ['nullable', 'integer', 'exists:tests,id'],
+        ]);
+        // The service's own academic selection names the account when the
+        // applicant is not an admission case (academy and test-offer).
+        $education = EducationLevel::query()->whereKey($data['education_level_id'] ?? 0)->value('name')
+            ?? Program::query()->whereKey($data['program_id'] ?? 0)->value('name')
+            ?? Test::query()->whereKey($data['test_id'] ?? 0)->value('name')
+            ?? BuiltInService::label($data['service']);
+
+        return response()->json(['success' => true, 'data' => $this->accounts->suggest(
+            $data['name'], $data['email'] ?? null, $education,
+        )]);
+    }
+
+    /** Delete the applicant's portal login and unlink the case, keeping the case. */
+    public function destroyUser(Request $request, Applicant $applicant): JsonResponse
+    {
+        abort_unless($request->user()?->hasPermission('invite_applicant_portal'), 403, 'auth.forbidden');
+        $this->assertStaffCaseAccess($request, $applicant);
+
+        DB::transaction(function () use ($applicant): void {
+            $this->accounts->delete(Applicant::query()->lockForUpdate()->findOrFail($applicant->id));
+        });
+
+        return response()->json(['success' => true]);
     }
 
     public function setAccess(Request $request, Applicant $applicant): JsonResponse
@@ -157,7 +209,7 @@ class ApplicantPortalController extends Controller
         abort_unless($request->user()?->hasPermission('invite_applicant_portal'), 403, 'auth.forbidden');
         $this->assertStaffCaseAccess($request, $applicant);
         $data = $request->validate(['enabled' => ['required', 'boolean']]);
-        abort_unless($applicant->user_id, 422, 'business.request_rejected');
+        abort_unless($applicant->user_id, 422, 'business.applicant_portal_account_missing');
 
         DB::transaction(function () use ($applicant, $data): void {
             $user = User::query()->lockForUpdate()->findOrFail($applicant->user_id);

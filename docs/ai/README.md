@@ -7,6 +7,7 @@ For current feature behavior, start with [docs/facts](../facts/README.md). The [
 | Record | Role |
 | --- | --- |
 | [agency-overview.md](<agency-overview.md>) | Historical task record; status is as of its recorded date |
+| [applicant-portal-user-provisioning.md](applicant-portal-user-provisioning.md) | Manual and contract-issued applicant portal accounts with generated credentials; validation status recorded inside |
 | [background-polling-error-storm.md](background-polling-error-storm.md) | Foreground polling and error-storm fix; validation status recorded inside |
 | [compact-service-contract-forms-and-portal-controls.md](<compact-service-contract-forms-and-portal-controls.md>) | Historical task record; status is as of its recorded date |
 | [contracts-applications-merge-and-per-service-stages.md](<contracts-applications-merge-and-per-service-stages.md>) | Historical task record; status is as of its recorded date |

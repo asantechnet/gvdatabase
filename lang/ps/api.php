@@ -48,6 +48,8 @@ return [
             'default' => 'دا کار په اوسني حالت کې اجازه نه لري.',
             'conflict' => 'دا کار له اوسنیو معلوماتو سره ټکر لري. پاڼه تازه او بیا هڅه وکړئ.',
             'request_rejected' => 'دا کار په اوسني حالت کې اجازه نه لري.',
+            'applicant_portal_account_exists' => 'دا غوښتونکی لا دمخه د پورټل حساب لري.',
+            'applicant_portal_account_missing' => 'دا غوښتونکی د لرې کولو وړ د پورټل حساب نه لري.',
             'current_password_invalid' => 'اوسنی پټنوم ناسم دی.',
             'employee_not_selectable' => 'دا کارکوونکی د دې کار لپاره وړ نه دی.',
             'employee_has_no_account' => 'ټاکل شوی کارکوونکی سیسټمي حساب نه لري.',

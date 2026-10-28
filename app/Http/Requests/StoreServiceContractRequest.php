@@ -139,6 +139,19 @@ class StoreServiceContractRequest extends FormRequest
             ? ['nullable', 'numeric', 'min:0', 'lte:fee', 'max:9999999999999', 'decimal:0,2']
             : ['prohibited'];
 
+        // A portal login issued by the same save. The form generates and shows
+        // these credentials before submitting, so the account is created with
+        // exactly the pair the operator saw. Editing a contract never touches
+        // the account.
+        $issuing = $this->isMethod('post');
+        $rules['create_portal_user'] = $issuing ? ['sometimes', 'boolean'] : ['prohibited'];
+        $rules['portal_user_email'] = $issuing
+            ? ['required_if_accepted:create_portal_user', 'nullable', 'email', 'max:255', Rule::unique('users', 'email')]
+            : ['prohibited'];
+        $rules['portal_user_password'] = $issuing
+            ? ['required_if_accepted:create_portal_user', 'nullable', 'string', 'min:8', 'max:255']
+            : ['prohibited'];
+
         // Service detail fields.
         $detailFields = match ($service) {
             BuiltInService::PRIVATE => [

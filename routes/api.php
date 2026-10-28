@@ -381,8 +381,12 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::put('applicant-portal/profile', [ApplicantPortalController::class, 'updateProfile'])->middleware('permission:edit_own_applicant_profile');
     Route::get('applicant-portal/attachments', [ApplicantPortalController::class, 'attachments'])->middleware('permission:view_own_applicant_portal');
     Route::post('applicant-portal/attachments', [ApplicantPortalController::class, 'uploadAttachment'])->middleware('permission:edit_own_applicant_profile');
+    // Credential suggestion for a contract that has not been saved yet; the
+    // contract's creation issues the account with exactly these values.
+    Route::post('applicants/portal-credentials', [ApplicantPortalController::class, 'credentials'])->middleware('permission:create_contracts');
     Route::post('applicants/{applicant}/portal-invitation', [ApplicantPortalController::class, 'invite'])->middleware('permission:invite_applicant_portal');
     Route::put('applicants/{applicant}/portal-access', [ApplicantPortalController::class, 'setAccess'])->middleware('permission:invite_applicant_portal');
+    Route::delete('applicants/{applicant}/portal-user', [ApplicantPortalController::class, 'destroyUser'])->middleware('permission:invite_applicant_portal');
     Route::get('applicants-pipeline', [ApplicantController::class, 'pipeline'])->middleware('permission:view_applicants');
     Route::apiResource('applicants', ApplicantController::class)->middlewareFor(['index', 'show'], 'permission:view_applicants')->middlewareFor('store', 'permission:create_applicants')->middlewareFor('update', 'permission:edit_applicants')->middlewareFor('destroy', 'permission:delete_applicants');
     Route::put('applicants/{applicant}/consultant-review', [ApplicantController::class, 'updateConsultantReview'])

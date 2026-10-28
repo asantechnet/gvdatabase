@@ -12,6 +12,7 @@ use App\Models\ContractTemplate;
 use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Income;
+use App\Services\ApplicantPortalAccountService;
 use App\Services\ApplicantServiceDetails;
 use App\Services\CurrencyConversionService;
 use App\Services\ContractDocumentDesignService;
@@ -35,6 +36,7 @@ class ContractGenerationService
         private readonly ContractDocumentDesignService $designs,
         private readonly EducationalWorkflowNotificationService $notifications,
         private readonly CurrencyConversionService $currencies,
+        private readonly ApplicantPortalAccountService $portalAccounts,
     ) {}
 
     public function create(string $service, StoreServiceContractRequest $request): Contract
@@ -162,6 +164,14 @@ class ContractGenerationService
                 'changed_at' => now(), 'note' => 'Contract created',
             ]);
             $this->tasks->ensureForApplicantContract($line, $request->user());
+            // The form pre-generated these credentials and showed them to the
+            // operator, so the account is created with exactly that pair.
+            if (! $primary && ($data['create_portal_user'] ?? false)) {
+                abort_unless($request->user()->hasPermission('invite_applicant_portal'), 403, 'auth.forbidden');
+                $this->portalAccounts->create($applicant, $applicant->name, $data['portal_user_email'], $data['portal_user_password'], [
+                    'phone' => $applicant->contact, 'address' => $applicant->address,
+                ]);
+            }
             if (! $primary) {
                 $this->notifications->applicantAssigned($applicant, $request->user()->id);
             }

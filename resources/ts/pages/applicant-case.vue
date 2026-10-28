@@ -151,7 +151,12 @@ const portalDialog = ref(false)
 const sendingPortalInvite = ref(false)
 const portalAccessDialog = ref(false)
 const updatingPortalAccess = ref(false)
-const portalForm = ref({ name: '', email: '', phone: '', address: '' })
+const portalDeleteDialog = ref(false)
+const deletingPortalUser = ref(false)
+const portalForm = ref({ name: '', email: '', phone: '', address: '', password: '' })
+// A supplied password must satisfy the server's minimum; an empty one keeps the
+// invitation flow, where the applicant chooses their own.
+const portalPasswordValid = computed(() => !portalForm.value.password || portalForm.value.password.length >= 8)
 const financeDialog = ref(false)
 const savingFinance = ref(false)
 const financeOptions = ref<PendingTransactionOptions>({ currencies: [], employees: [], applicants: [] })
@@ -412,31 +417,53 @@ function openPortalInvite() {
     email: applicant.value.email ?? '',
     phone: applicant.value.contact ?? '',
     address: '',
+    password: '',
   }
   portalDialog.value = true
 }
 
 async function sendPortalInvite() {
-  if (!applicant.value || !portalForm.value.name.trim() || !portalForm.value.email.trim())
+  if (!applicant.value || !portalForm.value.name.trim() || !portalForm.value.email.trim() || !portalPasswordValid.value)
     return
 
   sendingPortalInvite.value = true
   try {
+    const created = portalForm.value.password.length > 0
     await ApplicantPortalApi.invite(applicant.value.id, {
       name: portalForm.value.name.trim(),
       email: portalForm.value.email.trim(),
       phone: portalForm.value.phone.trim() || null,
       address: portalForm.value.address.trim() || null,
+      password: created ? portalForm.value.password : null,
     })
     portalDialog.value = false
     await load()
-    toast.success(t('educational.caseUi.invitationSent'))
+    toast.success(t(created ? 'educational.caseUi.portalAccountCreated' : 'educational.caseUi.invitationSent'))
   }
   catch {
-    toast.error(t('educational.caseUi.invitationFailed'))
+    // The shared API notifier shows the server's specific validation error.
   }
   finally {
     sendingPortalInvite.value = false
+  }
+}
+
+async function deletePortalUser() {
+  if (!applicant.value?.user_id)
+    return
+
+  deletingPortalUser.value = true
+  try {
+    await ApplicantPortalApi.remove(applicant.value.id)
+    portalDeleteDialog.value = false
+    await load()
+    toast.success(t('educational.caseUi.portalUserDeleted'))
+  }
+  catch {
+    // The shared API notifier shows the server's specific message.
+  }
+  finally {
+    deletingPortalUser.value = false
   }
 }
 
@@ -657,7 +684,8 @@ onMounted(async () => {
       <VSpacer />
       <VChip v-if="applicant.user_id" size="small" :color="applicant.portal_access_status === 'active' ? 'success' : 'warning'">{{ t(applicant.portal_access_status === 'active' ? 'educational.caseUi.portalActive' : 'educational.caseUi.portalDisabledStatus') }}</VChip>
       <VBtn v-if="applicant.user_id && canInvitePortal" size="small" variant="tonal" :color="applicant.portal_access_status === 'active' ? 'error' : 'success'" :prepend-icon="applicant.portal_access_status === 'active' ? 'tabler-lock' : 'tabler-lock-open'" @click="portalAccessDialog = true">{{ t(applicant.portal_access_status === 'active' ? 'educational.caseUi.disablePortal' : 'educational.caseUi.enablePortal') }}</VBtn>
-      <VBtn v-else-if="canInvitePortal" size="small" variant="tonal" color="primary" prepend-icon="tabler-send" @click="openPortalInvite">{{ t('educational.caseUi.invitePortal') }}</VBtn>
+      <VBtn v-if="applicant.user_id && canInvitePortal" size="small" variant="text" color="error" prepend-icon="tabler-user-minus" @click="portalDeleteDialog = true">{{ t('educational.caseUi.deletePortalUser') }}</VBtn>
+      <VBtn v-if="!applicant.user_id && canInvitePortal" size="small" variant="tonal" color="primary" prepend-icon="tabler-send" @click="openPortalInvite">{{ t('educational.caseUi.invitePortal') }}</VBtn>
       <VBtn v-if="canEditCase" size="small" variant="text" prepend-icon="tabler-pencil" @click="openEditCase">{{ t('educational.caseUi.editCase') }}</VBtn>
     </VCardTitle>
     <VCardSubtitle v-if="guardianSummary.length" class="d-flex flex-wrap ga-4">
@@ -832,13 +860,33 @@ onMounted(async () => {
       <VCardText class="case-dialog-body">
         <VTextField v-model="portalForm.name" :label="t('educational.caseUi.applicantName')" class="mb-3" />
         <VTextField v-model="portalForm.email" type="email" :label="t('educational.caseUi.applicantEmail')" class="mb-3" />
+        <VTextField
+          v-model="portalForm.password"
+          type="password"
+          autocomplete="new-password"
+          :label="t('educational.caseUi.portalPassword')"
+          :hint="t('educational.caseUi.portalPasswordHint')"
+          :error-messages="portalPasswordValid ? [] : [t('educational.caseUi.portalPasswordTooShort')]"
+          persistent-hint
+          class="mb-4"
+        />
         <VTextField v-model="portalForm.phone" :label="t('common.fields.phone')" class="mb-3" />
         <VTextarea v-model="portalForm.address" :label="t('common.fields.address')" rows="2" />
       </VCardText>
       <VCardActions>
         <VSpacer />
         <VBtn @click="portalDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="sendingPortalInvite" :disabled="!portalForm.name.trim() || !portalForm.email.trim()" @click="sendPortalInvite">{{ t('educational.caseUi.sendInvitation') }}</VBtn>
+        <VBtn color="primary" :loading="sendingPortalInvite" :disabled="!portalForm.name.trim() || !portalForm.email.trim() || !portalPasswordValid" @click="sendPortalInvite">{{ t(portalForm.password ? 'educational.caseUi.createPortalAccount' : 'educational.caseUi.sendInvitation') }}</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+  <VDialog v-model="portalDeleteDialog" max-width="520">
+    <VCard :title="t('educational.caseUi.deletePortalUser')">
+      <VCardText>{{ t('educational.caseUi.deletePortalUserConfirm', { name: applicant?.name }) }}</VCardText>
+      <VCardActions>
+        <VSpacer />
+        <VBtn variant="tonal" color="secondary" @click="portalDeleteDialog = false">{{ t('common.actions.cancel') }}</VBtn>
+        <VBtn color="error" :loading="deletingPortalUser" @click="deletePortalUser">{{ t('common.actions.delete') }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>

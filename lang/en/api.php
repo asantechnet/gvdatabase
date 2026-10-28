@@ -58,6 +58,8 @@ return [
             'default' => 'This action is not allowed in the current state.',
             'conflict' => 'This action conflicts with the current data. Refresh and try again.',
             'request_rejected' => 'This action is not allowed in the current state.',
+            'applicant_portal_account_exists' => 'This applicant already has a portal account.',
+            'applicant_portal_account_missing' => 'This applicant has no portal account to remove.',
             'current_password_invalid' => 'The current password is incorrect.',
             'employee_not_selectable' => 'This employee is not eligible for this action.',
             'employee_has_no_account' => 'The selected employee does not have a system account.',

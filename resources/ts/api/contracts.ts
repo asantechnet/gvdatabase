@@ -264,6 +264,11 @@ export interface ServiceContractCreateData {
   application_fee_max?: number
   visa_fee?: number
   paid_fee?: number
+  // A portal login issued with the contract, using the credentials the form
+  // generated and displayed before saving.
+  create_portal_user?: boolean
+  portal_user_email?: string | null
+  portal_user_password?: string | null
   student_id?: string | null
   booking_fee?: number
   service_fee?: number

@@ -10,6 +10,7 @@ import { useAbility } from '@casl/vue'
 import { useToast } from 'vue-toastification'
 import ContractApi, { type Contract, type ServiceContractOptions, serviceContractApplicantFields } from '@/api/contracts'
 import { setContractPaymentOverride } from '@/api/incomes'
+import ApplicantPortalApi, { type ApplicantPortalCredentials } from '@/api/applicantPortal'
 import type { ApplicantPayload, BuiltInService } from '@/api/applicants'
 import VisitorApi, { visitorApplicantFields, type Visitor } from '@/api/visitor'
 import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
@@ -59,6 +60,13 @@ const charges = ref<Record<string, number | string>>({})
 // keeps a single itemised charge.
 const applicationFeeRange = ref<[number, number]>([0, 0])
 const paidFee = ref<number | string>(0)
+// A portal login issued with a new contract. The credentials are generated and
+// shown before saving, then created with exactly these values.
+const createPortalUser = ref(false)
+const portalCredentials = ref<ApplicantPortalCredentials | null>(null)
+const generatingCredentials = ref(false)
+const createdCredentials = ref<ApplicantPortalCredentials | null>(null)
+const credentialsDialog = ref(false)
 const chargeFields = computed(() => service.value === 'private' ? ['visa_fee'] : service.value === 'scholarship' ? ['application_fee'] : service.value === 'test_offer' ? ['booking_fee', 'service_fee', 'remote_fee'] : ['service_fee'])
 const chargeLabel = (field: string) => t(`erp.${field.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())}`)
 const fee = computed(() => service.value === 'private'
@@ -227,7 +235,8 @@ const valid = computed(() => !!(editing.value ? selectedVersionId.value : select
   && Number.isFinite(Number(fee.value)) && Number(fee.value) >= 0
   && Number.isFinite(Number(discount.value)) && Number(discount.value) >= 0 && Number(discount.value) <= Number(fee.value)
   && (service.value !== 'academy' || !canRecordIncome.value || !Number(paidFee.value) || (Number(paidFee.value) >= 0 && Number(paidFee.value) <= Number(fee.value)))
-  && Number.isFinite(Number(rate.value)) && Number(rate.value) > 0)
+  && Number.isFinite(Number(rate.value)) && Number(rate.value) > 0
+  && (!createPortalUser.value || !!portalCredentials.value))
 
 const listParams = () => {
   const applicant = Number(route.query.applicant)
@@ -317,6 +326,8 @@ async function create(extension: Contract | null = null, editedContract: Contrac
   const lineMax = Number(extensionLine?.application_fee_max ?? extensionLine?.application_fee ?? 0)
   applicationFeeRange.value = [lineMin, Math.max(lineMin, lineMax)]
   paidFee.value = 0
+  createPortalUser.value = false
+  portalCredentials.value = null
   discount.value = Number(extensionLine?.discount ?? 0)
   currencyId.value = extensionLine?.currency_id ?? null
   rate.value = Number(extensionLine?.currency_rate ?? 1)
@@ -399,6 +410,44 @@ watch(() => [service.value, route.query.visitor, route.query.applicant, route.qu
   if (route.query.visitor && ability.can('read', 'create_contracts')) await create()
 }, { immediate: true })
 
+const credentialText = (credentials: ApplicantPortalCredentials) => `Email: ${credentials.email}\nPassword: ${credentials.password}`
+const copyCredentials = async (credentials: ApplicantPortalCredentials | null) => {
+  if (!credentials)
+    return
+  try {
+    await navigator.clipboard.writeText(credentialText(credentials))
+    toast.success(t('serviceContracts.credentialsCopied'))
+  }
+  catch {
+    toast.error(t('serviceContracts.credentialsCopyFailed'))
+  }
+}
+
+/** Generate the login the new contract will issue; nothing is created yet. */
+async function togglePortalUser(enabled: boolean | null) {
+  createPortalUser.value = enabled === true
+  portalCredentials.value = null
+  if (!enabled || parent.value || editing.value)
+    return
+  generatingCredentials.value = true
+  error.value = ''
+  try {
+    portalCredentials.value = await ApplicantPortalApi.credentials({
+      service: service.value,
+      name: form.value.name?.trim() ?? '',
+      email: form.value.email ?? null,
+      education_level_id: form.value.education_level_id ?? null,
+      program_id: form.value.program_id ?? null,
+      test_id: form.value.test_id ?? null,
+    })
+  }
+  catch (cause) {
+    error.value = apiErrorMessage(cause)
+    createPortalUser.value = false
+  }
+  finally { generatingCredentials.value = false }
+}
+
 async function save() {
   if (!valid.value || saving.value || !(await formRef.value?.validate())?.valid) return
   const selectedService = service.value
@@ -421,6 +470,9 @@ async function save() {
         application_fee: Number(applicationFeeRange.value[1]),
       } : {}),
       ...(!editing.value && selectedService === 'academy' && canRecordIncome.value && Number(paidFee.value) > 0 ? { paid_fee: Number(paidFee.value) } : {}),
+      ...(createPortalUser.value && portalCredentials.value && !editing.value && !parent.value
+        ? { create_portal_user: true, portal_user_email: portalCredentials.value.email, portal_user_password: portalCredentials.value.password }
+        : {}),
       fee: Number(fee.value), discount: Number(discount.value), currency_id: currencyId.value!,
       currency_rate: Number(rate.value), language_id: languageId.value!, contract_template_version_id: selectedVersionId.value!,
     }
@@ -433,6 +485,12 @@ async function save() {
       page.value = editing.value ? page.value : 1
       await load()
       open.value = false
+      // The password cannot be read back once the account exists, so the
+      // generated pair stays on screen until the operator dismisses it.
+      if (createPortalUser.value && portalCredentials.value && !editing.value && !parent.value) {
+        createdCredentials.value = portalCredentials.value
+        credentialsDialog.value = true
+      }
     }
     toast.success(t(editing.value ? 'serviceContracts.updated' : 'serviceContracts.created'))
   }
@@ -522,6 +580,27 @@ async function save() {
               </VRow>
               <ApplicantServiceFields v-model="form" v-model:language-id="languageId" fixed-service show-language :languages="languages" />
             </template>
+            <!-- A contract creates the applicant, so its portal login can be
+                 issued by the same save. The credentials are shown first and
+                 never created until the contract is saved. -->
+            <VCard v-if="!parent && !editing" variant="tonal" class="portal-user-panel mb-3">
+              <VCardText class="py-3">
+                <VSwitch
+                  :model-value="createPortalUser"
+                  :label="t('serviceContracts.createPortalUser')"
+                  :disabled="preparing || generatingCredentials || !form.name?.trim()"
+                  density="compact"
+                  hide-details
+                  @update:model-value="togglePortalUser"
+                />
+                <p class="text-caption text-medium-emphasis mb-0">{{ t('serviceContracts.createPortalUserHint') }}</p>
+                <div v-if="portalCredentials" class="portal-credentials mt-3">
+                  <div><span class="text-medium-emphasis">{{ t('serviceContracts.portalEmail') }}</span> <strong>{{ portalCredentials.email }}</strong></div>
+                  <div><span class="text-medium-emphasis">{{ t('serviceContracts.portalPassword') }}</span> <strong class="portal-password">{{ portalCredentials.password }}</strong></div>
+                  <VBtn size="small" variant="tonal" prepend-icon="tabler-copy" class="mt-2" @click="copyCredentials(portalCredentials)">{{ t('serviceContracts.copyCredentials') }}</VBtn>
+                </div>
+              </VCardText>
+            </VCard>
             <VRow dense>
               <VCol v-if="service === 'private'" cols="12" md="6">
                 <label class="erp-field-label">{{ t('serviceContracts.applicationFeeRange') }} <span class="text-error" aria-hidden="true">*</span></label>
@@ -554,6 +633,22 @@ async function save() {
       </VCard>
     </VDialog>
     <PrintableListReport :title="t(labelKey)" :subtitle="[search, status, dateFrom, dateTo].filter(Boolean).join(' · ')" :columns="[t('serviceContracts.number'), t('serviceContracts.applicant'), t('erp.phone'), t('agencyStaff.contractVersion'), t('erp.totalFee'), t('serviceContracts.startDate'), t('serviceContracts.status')]" :rows="reportRows" />
+    <VDialog v-model="credentialsDialog" max-width="460">
+      <VCard :title="t('serviceContracts.portalCredentialsTitle')">
+        <VCardText>
+          <p class="text-body-2 mb-3">{{ t('serviceContracts.portalCredentialsSubtitle') }}</p>
+          <div v-if="createdCredentials" class="portal-credentials">
+            <div><span class="text-medium-emphasis">{{ t('serviceContracts.portalEmail') }}</span> <strong>{{ createdCredentials.email }}</strong></div>
+            <div><span class="text-medium-emphasis">{{ t('serviceContracts.portalPassword') }}</span> <strong class="portal-password">{{ createdCredentials.password }}</strong></div>
+          </div>
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn variant="tonal" color="secondary" @click="credentialsDialog = false">{{ t('common.actions.close') }}</VBtn>
+          <VBtn color="primary" prepend-icon="tabler-copy" @click="copyCredentials(createdCredentials)">{{ t('serviceContracts.copyCredentials') }}</VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
     <ContractDocumentPrinter v-model="printing" :contract="printable" />
     <AcademySlipPrinter v-model="slipOpen" :contract-id="slipContractId" />
     <VDialog v-model="cancelOpen" max-width="460">
@@ -589,6 +684,17 @@ async function save() {
 
 .service-contract-discount {
   display: none;
+}
+
+.portal-credentials {
+  display: grid;
+  gap: 4px;
+  font-size: 0.875rem;
+}
+
+.portal-password {
+  font-family: var(--erp-mono-font, monospace);
+  overflow-wrap: anywhere;
 }
 
 .service-contract-body :deep(.v-row) {

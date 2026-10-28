@@ -64,10 +64,17 @@ const uploadAttachment = async (file: File, label?: string) => {
     headers: { 'Content-Type': 'multipart/form-data' },
   })).data.data as ApplicantPortalAttachment
 }
-const invite = async (applicantId: number, data: { name: string; email: string; phone?: string | null; address?: string | null }) =>
-  (await api.post(`/applicants/${applicantId}/portal-invitation`, data)).data.data as { user_id: number; email: string; message: string }
+const invite = async (applicantId: number, data: { name: string; email: string; phone?: string | null; address?: string | null; password?: string | null }) =>
+  (await api.post(`/applicants/${applicantId}/portal-invitation`, data)).data.data as { user_id: number; email: string; verified: boolean; message: string }
 
 const setAccess = async (applicantId: number, enabled: boolean) =>
   (await api.put(`/applicants/${applicantId}/portal-access`, { enabled })).data.data as { user_id: number; status: 'active' | 'inactive' }
 
-export default { get, updateProfile, listAttachments, uploadAttachment, invite, setAccess }
+/** A free login email and strong password for an applicant account not created yet. */
+export interface ApplicantPortalCredentials { email: string; password: string }
+const credentials = async (data: { service: BuiltInService; name: string; email?: string | null; education_level_id?: number | null; program_id?: number | null; test_id?: number | null }) =>
+  (await api.post('/applicants/portal-credentials', data)).data.data as ApplicantPortalCredentials
+
+const remove = async (applicantId: number) => api.delete(`/applicants/${applicantId}/portal-user`)
+
+export default { get, updateProfile, listAttachments, uploadAttachment, invite, setAccess, credentials, remove }
