@@ -615,11 +615,14 @@ async function save() {
             <section class="service-contract-section">
               <div class="service-contract-section__heading"><VIcon icon="tabler-file-description" size="19" /><div><h3>{{ t('serviceContracts.contractSection') }}</h3><p>{{ t('serviceContracts.contractSectionHint') }}</p></div></div>
               <ApplicantServiceFields v-if="!parent || service === 'academy'" v-model="form" v-model:language-id="languageId" fixed-service show-language :languages="languages" />
+            </section>
             <!-- A contract creates the applicant, so its portal login can be
                  issued by the same save. The credentials are shown first and
                  never created until the contract is saved. -->
-            <VCard v-if="!parent && !editing" variant="tonal" class="portal-user-panel mb-4">
-              <VCardText class="py-3">
+            <section v-if="!parent && !editing" class="service-contract-section">
+              <div class="service-contract-section__heading"><VIcon icon="tabler-user-plus" size="19" /><div><h3>{{ t('serviceContracts.createPortalUser') }}</h3><p>{{ t('serviceContracts.createPortalUserHint') }}</p></div></div>
+              <VCard variant="tonal" class="portal-user-panel">
+                <VCardText class="py-3">
                 <VSwitch
                   :model-value="createPortalUser"
                   :label="t('serviceContracts.createPortalUser')"
@@ -635,8 +638,11 @@ async function save() {
                   <VBtn size="small" variant="tonal" prepend-icon="tabler-copy" class="mt-2" @click="copyCredentials(portalCredentials)">{{ t('serviceContracts.copyCredentials') }}</VBtn>
                 </div>
               </VCardText>
-            </VCard>
-            <div class="service-contract-terms">
+              </VCard>
+            </section>
+            <section class="service-contract-section">
+              <div class="service-contract-section__heading"><VIcon icon="tabler-cash" size="19" /><div><h3>{{ t('erp.totalFee') }}</h3><p>{{ t('serviceContracts.fee') }}</p></div></div>
+              <div class="service-contract-terms">
             <VRow>
               <VCol v-if="service === 'private'" cols="12" md="6">
                 <div class="application-fee-range">
@@ -652,7 +658,7 @@ async function save() {
               <VCol v-if="service === 'academy' && canRecordIncome && !editing" cols="12" sm="6" md="3"><ErpField v-model="paidFee" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.paidFee')" :hint="t('serviceContracts.paidFeeHint')" persistent-hint /></VCol>
               <VCol v-if="['scholarship', 'private'].includes(service)" cols="12"><ErpField v-model="form.notes" kind="textarea" rows="4" auto-grow :label="t('erp.admissionNotes')" maxlength="10000" /></VCol>
             </VRow>
-            </div>
+              </div>
             </section>
             <div class="service-contract-footer">
               <div class="d-flex flex-wrap align-center ga-4"><strong>{{ t('erp.totalFee') }}: {{ feeMin.toFixed(2) }}<template v-if="service === 'private'"> – {{ fee.toFixed(2) }}</template> {{ currencies.find(row => row.id === currencyId)?.code }}</strong><span class="text-medium-emphasis">{{ t('serviceContracts.discount') }}: {{ discount }}</span></div>
@@ -736,7 +742,7 @@ async function save() {
 }
 
 .service-contract-terms {
-  margin-block-start: 16px;
+  margin-block-start: 0;
 }
 
 .application-fee-range {

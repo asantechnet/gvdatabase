@@ -18,6 +18,8 @@ import ResponsiveDataTableServer from '@/components/responsive-data-table/Respon
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
 import StaffCommissionFields from '@/components/StaffCommissionFields.vue'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
 interface Staff {
   id: number
@@ -162,6 +164,45 @@ const leaveLimitMessage = computed(() => {
 
 const educationOptions = ['High School', 'Diploma', 'Bachelor', 'Master', 'PhD']
 const avatarText = (name: string) => name.split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase()
+
+const staffHeaders = computed(() => [
+  { title: translate('common.messages.id'), key: 'id' },
+  { title: translate('common.fields.name'), key: 'name' },
+  { title: translate('pages.settings.staffList.staffList.fatherName'), key: 'father_name' },
+  { title: translate('common.messages.contact'), key: 'contact' },
+  { title: translate('common.messages.position'), key: 'position' },
+  { title: translate('pages.settings.staffList.staffList.salary'), key: 'salary' },
+  { title: translate('pages.settings.staffList.staffList.workedHours'), key: 'total_worked_hours' },
+  { title: translate('pages.settings.staffList.staffList.joinDate'), key: 'join_date' },
+  { title: translate('common.fields.status'), key: 'status' },
+  { title: translate('common.messages.actions'), key: 'actions', sortable: false },
+])
+
+const staffDetailFields = computed(() => [
+  { key: 'name', label: translate('common.fields.name') },
+  { key: 'father_name', label: translate('pages.settings.staffList.staffList.fatherName') },
+  { key: 'id_number', label: translate('common.messages.governmentIDNumber') },
+  { key: 'contact', label: translate('common.messages.contact') },
+  { key: 'email', label: translate('common.fields.email') },
+  { key: 'emergency_contact_name', label: translate('pages.settings.staffList.staffList.emergencyContactName') },
+  { key: 'emergency_contact_phone', label: translate('pages.settings.staffList.staffList.emergencyContactPhone') },
+  { key: 'education_lvl', label: translate('common.messages.educationLevel') },
+  { key: 'position', label: translate('common.messages.position') },
+  { key: 'office.name', label: translate('common.fields.office') },
+  { key: 'department_name', label: translate('common.fields.department') },
+  { key: 'supervisor_name', label: translate('common.fields.supervisor') },
+  { key: 'join_date', label: translate('common.messages.joinDate') },
+  { key: 'salary', label: translate('common.messages.salary') },
+  { key: 'total_worked_hours', label: translate('pages.settings.staffList.staffList.workedHours') },
+  { key: 'bank_account_number', label: translate('common.ui.bankAccountNumber') },
+  { key: 'addr', label: translate('common.fields.address') },
+  { key: 'guarantor_name', label: translate('common.messages.guarantorName') },
+  { key: 'guarantor_id_number', label: translate('common.messages.guarantorGovernmentID') },
+  { key: 'guarantor_phone', label: translate('common.messages.guarantorPhone') },
+  { key: 'guarantor_licence', label: translate('common.messages.guarantorLicence') },
+  { key: 'guarantor_address', label: translate('common.messages.guarantorAddress') },
+  { key: 'status', label: translate('common.fields.status') },
+])
 
 const printEmployeeContract = (staff: Staff) => {
   router.push({ name: 'employee-contracts', query: { employeeId: staff.id, print: '1' } })
@@ -1036,29 +1077,18 @@ onMounted(async () => {
 
     <VCard>
       <div class="table-container">
+        <TableLoadingSkeleton v-if="isLoading" :columns="staffHeaders.length" :label="$t('common.messages.loading')" />
+        <TableEmptyState v-else-if="!staffList.length" icon="tabler-user-off" :description="$t('educational.noStaff')" />
         <ResponsiveDataTableServer
+          v-else
           :items="staffList"
           :items-length="total"
           :page="page"
           :items-per-page="perPage"
           :items-per-page-options="[10, 25, 50, 100]"
-          :headers="[
-            { title: translate('common.messages.id'), key: 'id' },
-            { title: translate('common.fields.name'), key: 'name' },
-            { title: translate('pages.settings.staffList.staffList.fatherName'), key: 'father_name' },
-            { title: translate('pages.settings.staffList.staffList.governmentID'), key: 'id_number' },
-            { title: translate('common.messages.contact'), key: 'contact' },
-            { title: translate('common.messages.position'), key: 'position' },
-            { title: translate('common.fields.office'), key: 'office' },
-            { title: translate('pages.settings.staffList.staffList.salary'), key: 'salary' },
-            { title: translate('pages.settings.staffList.staffList.workedHours'), key: 'total_worked_hours' },
-            { title: translate('pages.settings.staffList.staffList.joinDate'), key: 'join_date' },
-            { title: translate('common.fields.status'), key: 'status' },
-            { title: translate('common.messages.actions'), key: 'actions', sortable: false },
-          ]"
+          :headers="staffHeaders"
           item-value="id"
           class="text-no-wrap staff-table"
-          :loading="isLoading"
           mobile-breakpoint="sm"
           density="comfortable"
           @update:options="updateTableOptions"
@@ -1078,10 +1108,6 @@ onMounted(async () => {
               audience="employee"
               :context="item"
             />
-          </template>
-
-          <template #item.office="{ item }">
-            <span>{{ item.office?.name || '—' }}</span>
           </template>
 
           <template #item.name="{ item }">
@@ -1117,6 +1143,7 @@ onMounted(async () => {
             <div class="d-flex gap-1">
               <FullDetailsButton
                 :item="item"
+                :fields="staffDetailFields"
                 :title="item.name"
               />
               <VBtn
@@ -1247,7 +1274,7 @@ onMounted(async () => {
               />
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.name"
@@ -1258,7 +1285,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.father_name"
@@ -1269,7 +1296,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.contact"
@@ -1280,7 +1307,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.emergency_contact_name"
@@ -1290,7 +1317,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.emergency_contact_phone"
@@ -1300,7 +1327,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.user_id"
@@ -1347,7 +1374,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.id_number"
@@ -1358,7 +1385,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.email"
@@ -1370,7 +1397,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.education_lvl"
@@ -1387,7 +1414,7 @@ onMounted(async () => {
               />
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.position"
@@ -1401,7 +1428,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <AppDateTimePicker
                   v-model="selectedStaff.join_date"
@@ -1413,7 +1440,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.off_day_allowance_days"
@@ -1427,7 +1454,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.office_id"
@@ -1440,7 +1467,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.department_id"
@@ -1453,7 +1480,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.supervisor_id"
@@ -1466,7 +1493,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model.number="selectedStaff.salary"
@@ -1485,7 +1512,7 @@ onMounted(async () => {
               />
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.bank_account_number"
@@ -1499,7 +1526,7 @@ onMounted(async () => {
               />
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.guarantor_name"
@@ -1508,7 +1535,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.guarantor_id_number"
@@ -1517,7 +1544,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.guarantor_phone"
@@ -1526,7 +1553,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.guarantor_licence"
@@ -1543,7 +1570,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.addr"
@@ -1552,7 +1579,7 @@ onMounted(async () => {
                   required
                 />
               </VCol>
-              <VCol cols="12" md="6">
+              <VCol cols="12" md="4">
                 <VSelect
                   v-model="selectedStaff.status"
                   :items="statusFilterOptions.filter(option => option.value !== 'all')"
@@ -1605,9 +1632,14 @@ onMounted(async () => {
               {{ formSubmissionError }}
             </VAlert>
             <VRow>
+              <FormSection
+                title-key="common.fields.employee"
+                description-key="common.messages.contact"
+                icon="tabler-user"
+              />
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.name"
@@ -1618,7 +1650,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.father_name"
@@ -1629,7 +1661,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.contact"
@@ -1640,7 +1672,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.emergency_contact_name"
@@ -1650,7 +1682,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.emergency_contact_phone"
@@ -1660,7 +1692,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.user_id"
@@ -1707,7 +1739,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.id_number"
@@ -1718,7 +1750,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.email"
@@ -1730,7 +1762,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.education_lvl"
@@ -1742,7 +1774,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.position"
@@ -1754,9 +1786,14 @@ onMounted(async () => {
                   @update:model-value="applyPositionSalary"
                 />
               </VCol>
+              <FormSection
+                title-key="common.messages.position"
+                description-key="common.messages.contractDuration"
+                icon="tabler-briefcase"
+              />
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <AppDateTimePicker
                   v-model="selectedStaff.join_date"
@@ -1768,7 +1805,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.off_day_allowance_days"
@@ -1782,7 +1819,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.office_id"
@@ -1795,7 +1832,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.department_id"
@@ -1808,7 +1845,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.supervisor_id"
@@ -1821,7 +1858,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model.number="selectedStaff.salary"
@@ -1838,9 +1875,14 @@ onMounted(async () => {
                 :rate="commissionRate"
                 @update:rate="setCommissionRate"
               />
+              <FormSection
+                title-key="common.fields.address"
+                description-key="common.messages.guarantorAddress"
+                icon="tabler-shield-check"
+              />
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.bank_account_number"
@@ -1849,7 +1891,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.guarantor_name"
@@ -1858,7 +1900,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.guarantor_id_number"
@@ -1867,7 +1909,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.guarantor_phone"
@@ -1876,7 +1918,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.guarantor_licence"
@@ -1893,7 +1935,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VTextField
                   v-model="selectedStaff.addr"
@@ -1904,7 +1946,7 @@ onMounted(async () => {
               </VCol>
               <VCol
                 cols="12"
-                md="6"
+                md="4"
               >
                 <VSelect
                   v-model="selectedStaff.status"
@@ -2239,5 +2281,26 @@ onMounted(async () => {
 
 .table-container {
   overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.table-container::-webkit-scrollbar,
+.staff-table :deep(.v-data-table__wrapper::-webkit-scrollbar) {
+  display: none;
+}
+
+.staff-table :deep(.v-data-table__wrapper) {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.staff-table :deep(.v-data-table__wrapper > table) {
+  min-inline-size: 1180px;
+}
+
+@media (max-width: 599px) {
+  .staff-table :deep(.v-data-table__wrapper > table) {
+    min-inline-size: 980px;
+  }
 }
 </style>

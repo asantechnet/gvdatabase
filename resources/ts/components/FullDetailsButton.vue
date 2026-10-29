@@ -241,7 +241,9 @@ const plainText = (value: string) => {
   }
   // Rich-text fields may arrive as HTML or as entity-escaped HTML. Decode
   // first so both forms are rendered as readable text, never markup.
-  const withParagraphBreaks = decode(value)
+  // Some legacy rich-text values are HTML-escaped twice. Decode both layers
+  // before removing markup so contract notes never show paragraph tags.
+  const withParagraphBreaks = decode(decode(value))
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(?:p|div|li|h[1-6])>/gi, '\n')
     .replace(/<[^>]*>/g, '')
