@@ -115,6 +115,16 @@ const leaveForm = ref({
 })
 const leaveError = ref('')
 const isLeaveLoading = ref(false)
+const leaveRequestDetailFields = computed(() => [
+  { key: 'date', label: translate('common.fields.date') },
+  { key: 'duration_days', label: translate('pages.leaveRequests.duration') },
+  { key: 'treatment', label: translate('pages.leaveRequests.treatment') },
+  { key: 'off_day_days', label: translate('common.attendanceStatuses.offDay') },
+  { key: 'absent_days', label: translate('common.attendanceStatuses.absent') },
+  { key: 'reason', label: translate('common.fields.reason') },
+  { key: 'approvedBy.name', label: translate('common.ui.approvedBy') },
+  { key: 'approval_note', label: translate('common.leaveApproval.justification') },
+])
 const attachmentTarget = ref<Staff | null>(null)
 const isAttachmentsOpen = ref(false)
 
@@ -2121,7 +2131,11 @@ onMounted(async () => {
             density="comfortable"
           >
             <template #item.actions="{ item }">
-              <FullDetailsButton :item="item" />
+              <FullDetailsButton
+                :item="item"
+                :title="leaveStaff?.name"
+                :fields="leaveRequestDetailFields"
+              />
               <VBtn
                 icon="tabler-edit"
                 size="small"

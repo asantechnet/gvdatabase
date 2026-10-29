@@ -12,6 +12,8 @@ import SettingApi from '@/api/setting'
 import { calendarDate } from '@/utils/calendarDate'
 import { canAccess } from '@/utils/authorization'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
 // Operational Date Range States (For Filter & Printing)
 const startDate = ref<string>(new Date().toISOString().substring(0, 10))
@@ -234,9 +236,7 @@ const stats = computed(() => {
 
   const workedMinutes = displayedRecords.value.reduce((sum, row) => sum + (row.net_worked_minutes ?? 0), 0)
   const overtimeMinutes = displayedRecords.value.reduce((sum, row) => sum + row.overtime_minutes, 0)
-  const incomplete = displayedRecords.value.filter(row => row.status === 'present' && row.missing_punch_state !== 'none').length
-
-  return { present, absent, totalInView, pendingOnLogDate, workedMinutes, overtimeMinutes, incomplete }
+  return { present, absent, totalInView, pendingOnLogDate, workedMinutes, overtimeMinutes }
 })
 
 const formatDuration = (minutes: number | null) => {
@@ -328,8 +328,7 @@ watch(logDate, async () => {
       <!-- TOP ROW: Range Metric Indicators -->
       <VRow class="timesheet-kpi-strip mb-6">
         <VCol
-          cols="12"
-          sm="4"
+          cols="auto"
         >
           <VCard
             elevation="2"
@@ -359,8 +358,7 @@ watch(logDate, async () => {
           </VCard>
         </VCol>
         <VCol
-          cols="12"
-          sm="4"
+          cols="auto"
         >
           <VCard
             elevation="2"
@@ -382,8 +380,7 @@ watch(logDate, async () => {
           </VCard>
         </VCol>
         <VCol
-          cols="12"
-          sm="4"
+          cols="auto"
         >
           <VCard
             elevation="2"
@@ -405,32 +402,7 @@ watch(logDate, async () => {
           </VCard>
         </VCol>
         <VCol
-          cols="12"
-          sm="4"
-        >
-          <VCard
-            elevation="2"
-            class="stats-card border-inline-start-warning"
-          >
-            <VCardText class="stats-card__body">
-              <div class="stats-card__copy">
-                <h6 class="stats-card__label">
-                  {{ $t('pages.attendance.timesheet.timesheet.incompleteSESSIONS') }}
-                </h6>
-                <div class="stats-card__value text-warning">
-                  {{ stats.incomplete }}
-                </div>
-              </div>
-              <VAvatar color="warning" variant="tonal" rounded size="42">
-                <VIcon icon="tabler-alert-triangle" size="22" />
-              </VAvatar>
-            </VCardText>
-          </VCard>
-        </VCol>
-
-        <VCol
-          cols="12"
-          sm="4"
+          cols="auto"
         >
           <VCard
             elevation="2"
@@ -460,37 +432,6 @@ watch(logDate, async () => {
           </VCard>
         </VCol>
 
-        <VCol
-          cols="12"
-          sm="4"
-        >
-          <VCard
-            elevation="2"
-            class="stats-card border-inline-start-warning"
-          >
-            <VCardText class="stats-card__body">
-              <div class="stats-card__copy">
-                <h6 class="stats-card__label">
-                  {{ $t('pages.attendance.timesheet.unmarkedFor', { date: formatLocalizedDate(`${logDate}T00:00:00`) }) }}
-                </h6>
-                <div class="stats-card__value text-warning">
-                  {{ stats.pendingOnLogDate }}
-                </div>
-              </div>
-              <VAvatar
-                color="warning"
-                variant="tonal"
-                rounded
-                size="42"
-              >
-                <VIcon
-                  icon="tabler-clock-hour-4"
-                  size="22"
-                />
-              </VAvatar>
-            </VCardText>
-          </VCard>
-        </VCol>
       </VRow>
 
       <!-- MAIN GRID CONTAINER -->
@@ -760,22 +701,13 @@ watch(logDate, async () => {
 
             <!-- Live Attendance Log Grid List -->
             <div class="attendance-table-wrapper">
-              <div
-                v-if="displayedRecords.length === 0"
-                class="text-center py-12 border-dashed rounded-lg grey-bg"
-              >
-                <VIcon
-                  icon="tabler-notebook-off"
-                  size="48"
-                  class="text-disabled mb-3"
-                />
-                <h4 class="text-h5 font-weight-medium text-medium-emphasis mb-1">
-                  {{ $t('pages.attendance.timesheet.timesheet.noRecordsFoundInsideRange') }}
-                </h4>
-                <p class="text-body-2 text-disabled mb-0">
-                  {{ $t('pages.attendance.timesheet.timesheet.adjustYourRangeLimitsOrSelectTeamMembersToBuildDataPoints') }}
-                </p>
-              </div>
+              <TableLoadingSkeleton v-if="loading" :columns="8" :label="$t('common.messages.loading')" />
+              <TableEmptyState
+                v-else-if="displayedRecords.length === 0"
+                icon="tabler-notebook-off"
+                :title="$t('pages.attendance.timesheet.timesheet.noRecordsFoundInsideRange')"
+                :description="$t('pages.attendance.timesheet.timesheet.adjustYourRangeLimitsOrSelectTeamMembersToBuildDataPoints')"
+              />
 
               <table
                 v-else
@@ -784,13 +716,7 @@ watch(logDate, async () => {
                 <thead>
                   <tr>
                     <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
-                      {{ $t('common.fields.date') }}
-                    </th>
-                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
                       {{ $t('common.fields.employee') }}
-                    </th>
-                    <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
-                      {{ $t('common.fields.role') }}
                     </th>
                     <th class="text-left py-3 px-4 font-weight-bold text-subtitle-2 text-uppercase tracking-wider">
                       {{ $t('common.fields.office') }}
@@ -822,20 +748,6 @@ watch(logDate, async () => {
                     class="table-row-hover transition-all"
                     :class="{ 'incomplete-session': record.status === 'present' && record.missing_punch_state !== 'none', 'friday-weekend': isFriday(record.date) }"
                   >
-                    <!-- Date Marked -->
-                    <td class="py-3 px-4 font-weight-bold text-body-2 text-primary">
-                      {{ formatLocalizedDate(`${record.date}T00:00:00`) }}
-                      <VChip
-                        v-if="isFriday(record.date)"
-                        size="x-small"
-                        color="info"
-                        variant="tonal"
-                        class="ml-2"
-                      >
-                        {{ $t('common.ui.weekend') }}
-                      </VChip>
-                    </td>
-
                     <!-- Employee Name -->
                     <td class="py-3 px-4 font-weight-semibold text-body-1">
                       <div class="d-flex align-center">
@@ -851,10 +763,6 @@ watch(logDate, async () => {
                       </div>
                     </td>
 
-                    <!-- Job Assignment -->
-                    <td class="py-3 px-4 text-medium-emphasis text-body-2">
-                      {{ record.role }}
-                    </td>
                     <td class="py-3 px-4 text-medium-emphasis text-body-2">
                       {{ record.office || '—' }}
                     </td>
@@ -1172,29 +1080,31 @@ watch(logDate, async () => {
   white-space: nowrap;
 }
 
-@media (max-width: 599px) {
-  .timesheet-kpi-strip {
-    position: relative;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    padding-block-end: 0.25rem;
-    border-radius: 0.75rem;
-    scroll-snap-type: inline proximity;
-    scrollbar-width: none;
-  }
+.timesheet-kpi-strip {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding-block-end: 0.25rem;
+  scroll-snap-type: inline proximity;
+  scrollbar-width: none;
+}
 
-  .timesheet-kpi-strip::-webkit-scrollbar {
-    display: none;
-  }
+.timesheet-kpi-strip::-webkit-scrollbar {
+  display: none;
+}
 
+.timesheet-kpi-strip > .v-col {
+  flex: 0 0 min(76vw, 15rem) !important;
+  inline-size: min(76vw, 15rem) !important;
+  max-inline-size: min(76vw, 15rem) !important;
+  scroll-snap-align: start;
+}
+
+@media (min-width: 1280px) {
   .timesheet-kpi-strip > .v-col {
-    position: relative;
-    z-index: 0;
-    flex: 0 0 min(84vw, 21rem) !important;
-    inline-size: min(84vw, 21rem) !important;
-    max-inline-size: min(84vw, 21rem) !important;
-    scroll-snap-align: start;
+    flex: 1 1 0 !important;
+    inline-size: auto !important;
+    max-inline-size: none !important;
   }
 }
 
@@ -1233,11 +1143,17 @@ watch(logDate, async () => {
 .attendance-table-wrapper {
   overflow-x: auto;
   border-radius: 6px;
+  scrollbar-width: none;
+}
+
+.attendance-table-wrapper::-webkit-scrollbar {
+  display: none;
 }
 
 .custom-attendance-table {
   border-collapse: separate;
   border-spacing: 0;
+  min-inline-size: 68rem;
 }
 
 .custom-attendance-table th {
@@ -1250,6 +1166,17 @@ watch(logDate, async () => {
 .custom-attendance-table td,
 .custom-attendance-table th {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  min-inline-size: 8.5rem;
+}
+
+.custom-attendance-table th:first-child,
+.custom-attendance-table td:first-child {
+  min-inline-size: 15rem;
+}
+
+.custom-attendance-table th:last-child,
+.custom-attendance-table td:last-child {
+  min-inline-size: 9rem;
 }
 
 .incomplete-session { background: rgba(var(--v-theme-warning), 0.1); }

@@ -3481,6 +3481,7 @@
       "perEmployeeAllowanceHint": "Allowances follow each employee's office base unless a personal override is set.",
       "description": "Employee requests for time away. Approved days inside the allowance are off days; the days beyond it are absences.",
       "treatment": "Treatment",
+      "noRequests": "No off-day requests match these filters.",
       "partial": "Partially covered",
       "partialWithAbsence": "{off} off day · {absent} absent",
       "subtitle": "Request company off days in advance and track the allowance."

@@ -6,6 +6,8 @@ import LeaveRequestApi, { type LeaveRequest, type LeaveRequestStatus } from '@/a
 import { apiErrorMessage } from '@/utils/apiErrors'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { printDocument } from '@/utils/printDocument'
 
 const toast = useToast()
@@ -30,6 +32,17 @@ const allowances = ref<Record<number, number>>({})
 // Approved off-day days of the whole year per employee: an approval is checked
 // against the employee's real usage, not only the visible page.
 const usage = ref<Record<number, number>>({})
+const detailFields = computed(() => [
+  { key: 'employee.name', label: $t('common.fields.employee') },
+  { key: 'date', label: $t('common.fields.date') },
+  { key: 'duration_days', label: $t('pages.leaveRequests.duration') },
+  { key: 'treatment', label: $t('pages.leaveRequests.treatment') },
+  { key: 'off_day_days', label: $t('common.attendanceStatuses.offDay') },
+  { key: 'absent_days', label: $t('common.attendanceStatuses.absent') },
+  { key: 'reason', label: $t('common.fields.reason') },
+  { key: 'approvedBy.name', label: $t('common.ui.approvedBy') },
+  { key: 'approval_note', label: $t('common.leaveApproval.justification') },
+])
 
 const statusOptions = computed(() => [
   { title: $t('common.statuses.pending'), value: 'pending' },
@@ -157,6 +170,7 @@ onMounted(load)
       :title="$t('pages.leaveRequests.title')"
       :description="$t('pages.leaveRequests.description')"
       icon="tabler-beach"
+      :show-scroll-hint="false"
     />
     <VCard class="leave-requests-screen">
       <VCardTitle class="d-flex flex-wrap align-center ga-3 pa-5">
@@ -202,7 +216,14 @@ onMounted(load)
           {{ $t('pages.leaveRequests.grantSelected', { count: selected.length }) }}
         </VBtn>
       </VCardTitle>
+      <TableLoadingSkeleton v-if="loading" :columns="7" :label="$t('common.messages.loading')" />
+      <TableEmptyState
+        v-else-if="!rows.length"
+        icon="tabler-beach"
+        :description="$t('pages.leaveRequests.noRequests')"
+      />
       <ResponsiveDataTableServer
+        v-else
         v-model="selected"
         show-select
         item-value="id"
@@ -245,6 +266,7 @@ onMounted(load)
           <FullDetailsButton
             :item="item"
             :title="item.employee?.name"
+            :fields="detailFields"
           />
         </template>
       </ResponsiveDataTableServer>
