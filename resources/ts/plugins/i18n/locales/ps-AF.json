@@ -1139,6 +1139,7 @@
       "descriptionOptional": "تشریح (اختیاري)",
       "activeDepartment": "فعاله څانګه",
       "createDepartment": "څانګه جوړول",
+      "noDepartments": "تراوسه هېڅ څانګه نه ده جوړه شوې.",
       "onlyAHigherRankedEmployeeWithSupervisoryAccessCanManageADepartmentAssignDirectSupervisorsFromStaffDirectoryAfterSaving": "یوازې لوړپوړی کارکوونکی چې د څارنې لاسرسی لري، د څانګې مدیر کېدای شي. له ساتلو وروسته مستقیم څارونکي د کارکوونکو له لړلیک څخه وټاکئ.",
       "onlyEmptyDepartmentsCanBeDeletedMoveItsEmployeesFirst": "یوازې تشې څانګې ړنګېدای شي. لومړی یې کارکوونکي ولېږدوئ.",
       "members": "غړي",
@@ -2602,6 +2603,7 @@
           "counterparty": "مقابل لوری",
           "createContract": "قرارداد جوړول",
           "failedToLoadContractTemplateUsingDefaultContent": "د قرارداد بڼه خلاصه نشوه؛ له عادي (ډیفالټ) متن څخه کار اخیستل کیږي",
+          "failedToFetchContractsPleaseTryAgain": "قراردادونه پورته نه شول. مهرباني وکړئ بیا هڅه وکړئ.",
           "failedToDeleteContractPleaseTryAgain": "د قرارداد حذف کول ناکام شول، مهرباني وکړئ بیا هڅه وکړئ",
           "failedToCancelContractPleaseTryAgain": "د قرارداد لغوه کول ناکام شول، مهرباني وکړئ بیا هڅه وکړئ",
           "failedToSaveContractPleaseTryAgain": "د قرارداد خوندي کول ناکام شول، مهرباني وکړئ بیا هڅه وکړئ",
@@ -3809,7 +3811,9 @@
         "finance_type_in_use": "دا ډول د سیستم لپاره اړین دی یا په راکړه ورکړه کې کارول شوی او نه شي حذف کېدای.",
         "salary_amount_immutable": "د معاش اساسي مقدار د معاش فیش له جوړولو وروسته نه شي بدلېدای.",
         "off_day_already_approved": "یوازې د رخصتۍ د ورځې تصویب اجازه لرونکی کولای شي تصویب شوې ورځ بدله کړي.",
-        "off_day_range_too_long": "د رخصتۍ ورځو دوره نشي کولای له یو کال ډېره وي."
+        "off_day_range_too_long": "د رخصتۍ ورځو دوره نشي کولای له یو کال ډېره وي.",
+        "department_manager_not_supervisory": "د دې څانګې د مدیریت لپاره د څارنې لاسرسی لرونکی کارکوونکی وټاکئ.",
+        "department_manager_rank_invalid": "داسې مدیر وټاکئ چې د څانګې له ټولو اوسنیو غړو لوړ رتبه ولري."
       }
     }
   },

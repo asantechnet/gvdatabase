@@ -8,6 +8,7 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import PositionApi, { type Position } from '@/api/position'
 import CounterpartyCard, { type CounterpartyDetails } from '@/components/contract/CounterpartyCard.vue'
+import FormSection from '@/components/forms/FormSection.vue'
 
 const { t } = useI18n()
 const tr = (key: string, values: Record<string, unknown> = {}) => t(`pages.contracts.contractform.contractform.${key}`, values)
@@ -107,6 +108,7 @@ const isApplicantLocked = computed(() => props.applicantId != null)
 // Other contracts are blank templates the office completes by hand: they carry
 // no counterparty identity, only the optional record that feeds placeholders.
 const isOtherAudience = computed(() => props.audience === 'other')
+const isEmployeeAudience = computed(() => props.audience === 'employees')
 const countries = ref<MasterDataRecord[]>([])
 const languages = ref<MasterDataRecord[]>([])
 const positions = ref<Position[]>([])
@@ -502,6 +504,11 @@ defineExpose({ submit })
           {{ tr('extendingNotice', { contract: parentContract.contract || `#${parentContract.id}` }) }}
         </VAlert>
       </VCol>
+      <FormSection
+        v-if="isEmployeeAudience"
+        title-key="common.messages.contract"
+        icon="tabler-file-description"
+      />
       <VCol cols="12">
         <ErpField kind="select"
           v-model="form.template_id"
@@ -567,7 +574,7 @@ defineExpose({ submit })
         </VAlert>
       </VCol>
       <VCol
-        v-if="selectedTemplateVersion"
+        v-if="selectedTemplateVersion && !isEmployeeAudience"
         cols="12"
       >
         <VAlert color="success" variant="tonal" density="compact" icon="tabler-versions">
@@ -577,17 +584,22 @@ defineExpose({ submit })
         </VAlert>
       </VCol>
 
+      <FormSection
+        v-if="isEmployeeAudience && context === 'employee'"
+        title-key="common.fields.employee"
+        icon="tabler-user"
+      />
+
       <!-- Context-driven counterparty selection -->
       <VCol
         v-if="context === 'employee' && selectedTemplate"
         cols="12"
+        md="6"
       >
         <VTextField
           :model-value="templatePositionTitle"
           :label="tr('position')"
           prepend-inner-icon="tabler-briefcase"
-          :hint="tr('positionFromTemplate')"
-          persistent-hint
           readonly
           variant="outlined"
           density="compact"
@@ -596,6 +608,7 @@ defineExpose({ submit })
       <VCol
         v-if="context === 'employee'"
         cols="12"
+        md="6"
       >
         <VAutocomplete
           v-model="form.employee_id"
@@ -611,7 +624,7 @@ defineExpose({ submit })
       </VCol>
 
       <VCol
-        v-else-if="context === 'other'"
+        v-if="context === 'other'"
         cols="12"
       >
         <VAutocomplete
@@ -667,6 +680,7 @@ defineExpose({ submit })
           start-required
           :start-date="form.start_date"
           :end-date="form.end_date"
+          :show-end-date-hint="!isEmployeeAudience"
           @update:start-date="form.start_date = $event ?? ''"
           @update:end-date="form.end_date = $event ?? ''"
         />
@@ -674,7 +688,7 @@ defineExpose({ submit })
 
       <VCol
         cols="12"
-        sm="6"
+        md="6"
       >
         <ErpField kind="select"
           v-model="form.status"
@@ -689,13 +703,11 @@ defineExpose({ submit })
       </VCol>
       <VCol
         cols="12"
-        sm="6"
+        md="6"
       >
         <ErpField
           v-model="form.company_signatory_name"
           :label="tr('signatory')"
-          :hint="isSuperAdmin ? tr('signatoryHint') : tr('signatoryLockedHint')"
-          persistent-hint
           :disabled="!isSuperAdmin"
         />
       </VCol>

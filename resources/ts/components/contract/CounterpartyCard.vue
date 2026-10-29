@@ -26,6 +26,7 @@ const props = withDefaults(defineProps<{
   endDate?: string | null
   editable?: boolean
   startRequired?: boolean
+  showEndDateHint?: boolean
   /** Override the card title (other contracts have no counterparty). */
   titleKey?: string | null
 }>(), {
@@ -33,6 +34,7 @@ const props = withDefaults(defineProps<{
   endDate: null,
   editable: false,
   startRequired: false,
+  showEndDateHint: true,
   titleKey: null,
 })
 
@@ -131,7 +133,7 @@ const startRules = computed(() => (props.editable && props.startRequired
         </VCol>
         <VCol cols="12" sm="6">
           <VTextField :model-value="endDate ?? ''" type="date" :label="tr('endDate')"
-            prepend-inner-icon="tabler-calendar-check" :hint="tr('endDateHint')" persistent-hint clearable
+            prepend-inner-icon="tabler-calendar-check" :hint="showEndDateHint ? tr('endDateHint') : undefined" :persistent-hint="showEndDateHint" clearable
             @update:model-value="emit('update:endDate', $event === '' ? null : $event)" />
         </VCol>
       </VRow>

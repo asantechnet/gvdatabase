@@ -4,6 +4,8 @@ import { useToast } from 'vue-toastification'
 import DepartmentApi, { type Department, type DepartmentPayload } from '@/api/department'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { apiErrorMessage } from '@/utils/apiErrors'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
 const toast = useToast()
 const departments = ref<Department[]>([])
@@ -115,14 +117,17 @@ onMounted(load)
     :title="$t('common.navigation.departments')"
     :description="$t('common.ui.createStaffGroupsAndAssignASeniorEmployeeAsTheGroupManagerThenSetEachEmployeeSDepartmentAndDirectSupervisorInStaffDirectory')"
     icon="tabler-sitemap"
+  :show-scroll-hint="false"
   />
 
-  <VCard :loading="loading">
+  <VCard>
     <VCardTitle class="d-flex align-center justify-space-between flex-wrap ga-3">
       <span>{{ $t('common.navigation.departments') }}</span>
       <VBtn color="primary" prepend-icon="tabler-plus" @click="create">{{ $t('common.ui.createDepartment') }}</VBtn>
     </VCardTitle>
-    <ResponsiveDataTable :headers="headers" :items="departments" item-value="id">
+    <TableLoadingSkeleton v-if="loading" :columns="headers.length" :label="$t('common.messages.loading')" />
+    <TableEmptyState v-else-if="!departments.length" icon="tabler-sitemap" :description="$t('common.ui.noDepartments')" />
+    <ResponsiveDataTable v-else :headers="headers" :items="departments" item-value="id" class="departments-table text-no-wrap">
       <template #item.code="{ item }">{{ item.code || '—' }}</template>
       <template #item.manager_name="{ item }">{{ item.manager_name || $t('common.ui.notAssigned') }}</template>
       <template #item.is_active="{ item }">
@@ -160,3 +165,18 @@ onMounted(load)
     </VCard>
   </VDialog>
 </template>
+
+<style scoped>
+.departments-table :deep(.v-data-table__wrapper) {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.departments-table :deep(.v-data-table__wrapper::-webkit-scrollbar) {
+  display: none;
+}
+
+.departments-table :deep(.v-data-table__wrapper > table) {
+  min-inline-size: 900px;
+}
+</style>

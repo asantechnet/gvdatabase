@@ -14,9 +14,11 @@ const props = withDefaults(defineProps<{
   icon?: string
   statusKey?: string
   baseCurrency?: BaseCurrency | null
+  showScrollHint?: boolean
 }>(), {
   icon: 'tabler-table',
   statusKey: 'status',
+  showScrollHint: true,
 })
 
 const { t } = useI18n()
@@ -73,7 +75,7 @@ const displayDescription = computed(() => pageTranslationKey.value
           </p>
         </div>
       </div>
-      <span class="data-table-page-summary__hint"><VIcon
+      <span v-if="showScrollHint" class="data-table-page-summary__hint"><VIcon
         icon="tabler-arrows-left-right"
         size="16"
       /> {{ $t('components.dataTablePageKpis.scrollHint') }}</span>

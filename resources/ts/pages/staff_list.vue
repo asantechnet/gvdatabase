@@ -1984,6 +1984,8 @@ onMounted(async () => {
     <VDialog
       v-model="isLeaveDialogVisible"
       max-width="900px"
+      scrollable
+      class="erp-form"
     >
       <VCard>
         <VCardTitle class="d-flex align-center pa-5">
@@ -2055,14 +2057,14 @@ onMounted(async () => {
           </VAlert>
 
           <VRow class="align-end mb-3">
-            <VCol cols="12" sm="6" md="3">
+            <VCol cols="12" md="6">
               <AppDateTimePicker
                 v-model="leaveForm.start_date"
                 :label="$t('pages.leaveRequests.from')"
                 :config="{ dateFormat: 'Y-m-d' }"
               />
             </VCol>
-            <VCol cols="12" sm="6" md="3">
+            <VCol cols="12" md="6">
               <AppDateTimePicker
                 v-model="leaveForm.end_date"
                 :label="$t('pages.leaveRequests.to')"
@@ -2070,21 +2072,21 @@ onMounted(async () => {
                 :disabled="Boolean(leaveForm.id)"
               />
             </VCol>
-            <VCol cols="12" md="3">
+            <VCol cols="12" md="6">
               <VTextField
                 v-model="leaveForm.reason"
                 :label="$t('common.fields.reason')"
                 maxlength="1000"
               />
             </VCol>
-            <VCol v-if="requestedLeaveDays === 1" cols="12" md="2">
+            <VCol v-if="requestedLeaveDays === 1" cols="12" md="6">
               <VSelect
                 v-model="leaveForm.duration_days"
                 :items="[{ title: $t('pages.leaveRequests.fullDay'), value: 1 }, { title: $t('pages.leaveRequests.halfDay'), value: 0.5 }]"
                 :label="$t('pages.leaveRequests.duration')"
               />
             </VCol>
-            <VCol cols="12" md="1" class="d-flex gap-2">
+            <VCol cols="12" class="d-flex flex-wrap gap-2">
               <VBtn
                 color="primary"
                 :disabled="!canSaveLeave || isLeaveLoading"

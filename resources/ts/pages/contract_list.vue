@@ -89,6 +89,7 @@ const pendingContractAction = ref<{ type: 'delete' | 'cancel'; contract: Contrac
 // carry no counterparty at all: no input, no column, no filter and no print
 // party block. Only employment contracts are drawn for a named counterparty.
 const isOtherAudience = computed(() => props.contractAudience === 'other')
+const isEmployeeAudience = computed(() => props.contractAudience === 'employees')
 const contractRequest = computed(() => ({ audience: props.contractAudience }))
 const pageTitle = computed(() => t(audienceCopy.value.title))
 const pageDescription = computed(() => t(audienceCopy.value.description))
@@ -178,8 +179,10 @@ const headers = computed(() => {
   const rows: Array<{ title: string; key: string; sortable: boolean }> = [
     { title: t('common.messages.contractNumber'), key: 'contract_number', sortable: true },
     { title: t('common.messages.contract'), key: 'contract', sortable: true },
-    { title: t('agencyStaff.contractVersion'), key: 'version', sortable: true },
   ]
+
+  if (!isEmployeeAudience.value)
+    rows.push({ title: t('agencyStaff.contractVersion'), key: 'version', sortable: true })
 
   if (!isOtherAudience.value)
     rows.push({ title: t('pages.contracts.allContracts.allContracts.counterparty'), key: 'counterparty', sortable: true })
@@ -196,11 +199,32 @@ const headers = computed(() => {
 const contractReportRow = (contract: Contract): string[] => [
   contract.contract_number ?? '—',
   contract.contract || contract.contract_template?.name || '—',
-  contract.snapshot_data?.template_version?.name || '—',
+  ...(isEmployeeAudience.value ? [] : [contract.snapshot_data?.template_version?.name || '—']),
   ...(isOtherAudience.value ? [] : [contract.counterparty || '—']),
   contract.start_date ?? '—',
   contract.status,
 ]
+
+const employeeContractDetailFields = computed(() => [
+  { key: 'contract_number', label: t('common.messages.contractNumber') },
+  { key: 'contract', label: t('common.messages.contract') },
+  { key: 'snapshot_data.template_version.name', label: t('agencyStaff.contractVersion') },
+  { key: 'type', label: t('educational.contractType') },
+  { key: 'status', label: t('common.fields.status') },
+  { key: 'start_date', label: t('serviceContracts.startDate') },
+  { key: 'end_date', label: t('serviceContracts.endDate') },
+  { key: 'counterparty_company', label: t('common.fields.company') },
+  { key: 'counterparty', label: t('common.fields.employee') },
+  { key: 'employee.father_name', label: t('serviceContracts.fatherName') },
+  { key: 'employee.position', label: t('common.fields.position') },
+  { key: 'employee.department_name', label: t('common.fields.department') },
+  { key: 'employee.office.name', label: t('common.fields.office') },
+  { key: 'counterparty_contact', label: t('serviceContracts.contact') },
+  { key: 'counterparty_email', label: t('serviceContracts.email') },
+  { key: 'counterparty_address', label: t('serviceContracts.address') },
+  { key: 'company_signatory_name', label: t('serviceContracts.companySignatory') },
+  { key: 'content', label: t('common.messages.contract') },
+])
 
 const companySetting = ref<Setting | null>(null)
 const snapshotDesign = computed(() => contractToPrint.value?.snapshot_data?.document_design)
@@ -641,10 +665,9 @@ onMounted(async () => {
       :items-per-page="perPage"
       :items-per-page-options="[10, 25, 50, 100]"
       item-value="id"
-      class="text-no-wrap"
+      class="contract-table text-no-wrap"
       mobile-breakpoint="sm"
       :loading="isLoading"
-      style="overflow-x: auto;"
       @update:options="updateTableOptions"
     >
       <template #loading><TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" /></template>
@@ -683,6 +706,7 @@ onMounted(async () => {
         <FullDetailsButton
           :item="item"
           :title="item.contract_number || item.contract"
+          :fields="isEmployeeAudience ? employeeContractDetailFields : []"
         />
         <VBtn
           v-if="ability.can('read', 'cancel_contracts') && !item.is_cancelled && ['draft', 'active'].includes(item.status)"
@@ -776,7 +800,8 @@ onMounted(async () => {
   <!-- Contract Form Dialog -->
   <VDialog
     v-model="isDialogVisible" class="erp-form"
-    max-width="600px"
+    :max-width="isEmployeeAudience ? '800px' : '600px'"
+    scrollable
   >
     <VCard>
       <VCardTitle>
@@ -970,3 +995,18 @@ onMounted(async () => {
   </div>
   </div>
 </template>
+
+<style scoped>
+.contract-table :deep(.v-data-table__wrapper) {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.contract-table :deep(.v-data-table__wrapper::-webkit-scrollbar) {
+  display: none;
+}
+
+.contract-table :deep(.v-data-table__wrapper > table) {
+  min-inline-size: 1100px;
+}
+</style>
