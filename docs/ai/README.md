@@ -20,6 +20,7 @@ For current feature behavior, start with [docs/facts](../facts/README.md). The [
 | [pwa-offline-caching.md](<pwa-offline-caching.md>) | Historical task record; status is as of its recorded date |
 | [pwa-update-reliability-and-facts.md](<pwa-update-reliability-and-facts.md>) | PWA reliability task; validation status is recorded inside |
 | [real-time-notifications.md](<real-time-notifications.md>) | Historical task record; status is as of its recorded date |
+| [service-contract-edit-action-and-strict-counselor-review.md](<service-contract-edit-action-and-strict-counselor-review.md>) | Strict three-option counselor reviews (good/bad/great) for visitors and applicants; validation status is recorded inside |
 | [settings-ui-refinement.md](<settings-ui-refinement.md>) | Settings navigation, artwork and theme refinement record |
 | [settings-validation.md](<settings-validation.md>) | Historical task record; status is as of its recorded date |
 | [staff-salary-advance-payments.md](<staff-salary-advance-payments.md>) | Historical task record; status is as of its recorded date |

@@ -2,8 +2,8 @@
 
 - **Task ID:** service-contract-edit-action-and-strict-counselor-review
 - **Created:** 2026-10-28
-- **Last updated:** 2026-10-28
-- **Status:** PARTIALLY COMPLETED (main delivered; mirror pending)
+- **Last updated:** 2026-10-29
+- **Status:** COMPLETED
 - **Outcome:** Every built-in service-contract list (scholarship, test offer, private, academy) offers a working Edit action, and a counselor review is stored as exactly one of `good`, `bad` or `great` instead of free text. Main is the source, the multi-tenancy branch mirrors it per `docs/facts/branch-mirroring.md`.
 
 ### 1. Requirements and acceptance criteria
@@ -12,7 +12,7 @@
 - [x] A counselor review accepts only `good`, `bad` or `great` at every write path; any other value is rejected.
 - [x] The visitor form, the visitor review dialog and the applicant review dialog each offer exactly those three choices, and the visitor list/print show the translated value.
 - [x] Existing reviews are normalized by a migration so no stored value falls outside the three options.
-- [ ] Main and the multi-tenancy branch both carry the behavior, with the branch's own regenerated bundle. (Main done; mirror pending.)
+- [x] Main and the multi-tenancy branch both carry the behavior, with the branch's own regenerated bundle. Ported main commits: `e37544a`, `a8101b5`, `dd47354`.
 
 ### 2. Scope and non-goals
 
@@ -55,15 +55,16 @@
 - [x] Replace the three review textareas with a three-option select and translated display in the visitor table/print.
 - [x] Update API types, seeder data and feature tests (valid values accepted, arbitrary text rejected for visitors and applicants).
 - [x] Add the missing translations in `en`, `fa-AF`, `ps-AF`.
-- [ ] Commit on main, then port to the multi-tenancy branch, place the migration under `database/migrations/office`, run the branch's typecheck/tests and rebuild its bundle.
+- [x] Commit on main, then port to the multi-tenancy branch, place the migration under `database/migrations/office`, run the branch's typecheck/tests and rebuild its bundle.
 
 ### 7. Validation plan and results
 
 - [x] `npm run typecheck` — passes.
 - [x] `npm run i18n:check` — only the pre-existing `contract_list.vue` key (`pages.contracts.allContracts.allContracts.failedToFetchContractsPleaseTryAgain`) is missing; the new `common.statuses.bad` / `great` keys are used and present in all three locales.
 - [x] Focused PHP feature tests — `VisitorProfileAndServiceContractFieldSetsTest` 9 passed / 88 assertions; `ConsultantReviewMigrationTest` 1 passed / 4 assertions (legacy `Reviewed`→`good`, prose→null, `GREAT`→`great`, applicant note→`good`). The fourth-service edit test from the omitted half also passed (1 test / 36 assertions).
-- [ ] `npm run build` (and branch build for the mirror).
-- Results: main source validated; build and mirror pending.
+- [x] `npm run build` on main — completed; the generated assets are in `a8101b5` (on top of `e37544a`).
+- [x] Branch (`pnpm`): `pnpm run typecheck` passes; `pnpm run i18n:check` fails only on the pre-existing tenant-only `MySQL`/`SQLite` literals in `pages/saas/offices.vue`; `php artisan test tests/Feature/VisitorProfileAndServiceContractFieldSetsTest.php tests/Feature/ConsultantReviewMigrationTest.php` 10 passed / 92 assertions; `pnpm run build` regenerated `public/build`, `public/sw.js` and `public/version.json` for the branch.
+- Results: main and the multi-tenancy branch are both validated; the migration lives in `database/migrations/office` on the branch.
 
 ### 8. Risks and mitigations
 
@@ -79,6 +80,9 @@
 - 2026-10-28 — PROGRESS: added `App\Support\ConsultantReview`, restricted all four validation sites (`VisitorController` store/update/review and `ApplicantController` save/review), added the normalization migration and updated the seeder. Replaced the form and two dialog textareas with three-option selects, added `common.statuses.bad`/`great` in all three locales, and translated the visitor list/print cell. Updated API types and the review feature tests.
 - 2026-10-28 — NOTE: while this task was in progress the unrelated working-tree edits were committed on main as `e7a233b` (service-contract list/details), followed by `f1b8821` (shared contract detail label); they were not touched by this task. Two more main commits, `8db98bd` and `e7a233b`/`f1b8821`, are unmirrored on the tenancy branch and will be included in the port to keep the branches at parity.
 - 2026-10-28 — VALIDATION: `npm run typecheck` passes; `npm run i18n:check` reports only the known pre-existing `contract_list.vue` key; `php artisan test tests/Feature/VisitorProfileAndServiceContractFieldSetsTest.php` 9 passed / 88 assertions; `php artisan test tests/Feature/ConsultantReviewMigrationTest.php` 1 passed / 4 assertions.
+- 2026-10-28 — COMMIT (main): `e37544a` implements the strict reviews, `a8101b5` rebuilds the generated assets.
+- 2026-10-29 — MIRROR: ported `e37544a`, `a8101b5` and the follow-up test fix `dd47354` to `feature/multi-tenancy-per-office` as ordinary commits; placed the migration in `database/migrations/office`. The previously unmirrored `8db98bd`, `e7a233b` and `f1b8821` were confirmed already present from the earlier private-contract and service-contract ports. Branch validation: typecheck passes, focused tests 10 passed / 92 assertions, branch bundle rebuilt. The branch's pre-existing SQLite office-migration fix and the deploy runbook docs were left uncommitted and untouched.
+- 2026-10-29 — REVIEW: the main commit `dd47354` makes the migration test resolve either the default or the `office` migration directory so the same test file works in both products.
 
 ### 10. Completion summary
 
