@@ -334,6 +334,12 @@ class PermissionSeeder extends Seeder
         ['name' => 'delete_files', 'category' => 'operations'],
     ];
 
+    /** @return array<int, array{name: string, category: string}> */
+    public static function catalog(): array
+    {
+        return self::CATALOG;
+    }
+
     /** @return array<int, string> */
     public static function catalogNames(): array
     {

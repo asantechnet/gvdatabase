@@ -12,9 +12,32 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        $all = PermissionSeeder::catalogNames();
-
         $roleIds = Role::query()->pluck('id', 'name')->all();
+        $permissionIds = Permission::query()
+            ->whereIn('name', PermissionSeeder::catalogNames())
+            ->pluck('id', 'name');
+
+        foreach (self::grants() as $roleName => $permissionNames) {
+            $roleId = $roleIds[$roleName] ?? null;
+            if ($roleId === null) {
+                continue;
+            }
+            foreach (array_unique($permissionNames) as $permissionName) {
+                $permissionId = $permissionIds[$permissionName] ?? null;
+                if ($permissionId) {
+                    RolePermission::query()->firstOrCreate([
+                        'role_id' => $roleId,
+                        'permission_id' => $permissionId,
+                    ]);
+                }
+            }
+        }
+    }
+
+    /** @return array<string, array<int, string>> */
+    public static function grants(): array
+    {
+        $all = PermissionSeeder::catalogNames();
 
         // Group-scope permissions shared by every supervisory role.
         $supervisoryScope = [
@@ -168,22 +191,6 @@ class RolePermissionSeeder extends Seeder
             'print_leave_requests',
         ];
 
-        $permissionIds = Permission::query()->whereIn('name', $all)->pluck('id', 'name');
-
-        foreach ($grants as $roleName => $permissionNames) {
-            $roleId = $roleIds[$roleName] ?? null;
-            if ($roleId === null) {
-                continue;
-            }
-            foreach (array_unique($permissionNames) as $permissionName) {
-                $permissionId = $permissionIds[$permissionName] ?? null;
-                if ($permissionId) {
-                    RolePermission::query()->firstOrCreate([
-                        'role_id' => $roleId,
-                        'permission_id' => $permissionId,
-                    ]);
-                }
-            }
-        }
+        return $grants;
     }
 }
