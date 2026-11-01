@@ -1,0 +1,253 @@
+- generic [active] [ref=f87e1]:
+  - generic [ref=f87e6]:
+    - complementary [ref=f87e7]:
+      - generic [ref=f87e8]:
+        - link [ref=f87e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f87e10]
+        - button "Collapse navigation" [ref=f87e11] [cursor=pointer]
+      - list [ref=f87e14]:
+        - listitem [ref=f87e15]:
+          - link "Home" [ref=f87e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f87e19]:
+          - link "Contracts" [ref=f87e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f87e23]:
+          - link "Applications" [ref=f87e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f87e27]:
+          - link "CRM" [ref=f87e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f87e31]:
+          - generic [ref=f87e32] [cursor=pointer]: Finance
+        - listitem [ref=f87e36]:
+          - generic [ref=f87e37] [cursor=pointer]: HR
+          - list [ref=f87e41]:
+            - listitem [ref=f87e42]:
+              - link "Staff list" [ref=f87e43] [cursor=pointer]:
+                - /url: /staff-list
+            - listitem [ref=f87e46]:
+              - link "Departments" [ref=f87e47] [cursor=pointer]:
+                - /url: /setup/departments
+            - listitem [ref=f87e50]:
+              - link "Employment contracts" [ref=f87e51] [cursor=pointer]:
+                - /url: /employee-contracts
+            - listitem [ref=f87e54]:
+              - link "Timesheet" [ref=f87e55] [cursor=pointer]:
+                - /url: /timesheet
+            - listitem [ref=f87e58]:
+              - link "Off Day Requests" [ref=f87e59] [cursor=pointer]:
+                - /url: /leave-requests
+            - listitem [ref=f87e62]:
+              - link "Company Off Days" [ref=f87e63] [cursor=pointer]:
+                - /url: /off-days
+            - listitem [ref=f87e66]:
+              - link "Payrolls" [ref=f87e67] [cursor=pointer]:
+                - /url: /payrolls
+            - listitem [ref=f87e70]:
+              - link "Bonus list" [ref=f87e71] [cursor=pointer]:
+                - /url: /bonuslist
+            - listitem [ref=f87e74]:
+              - link "Positions" [ref=f87e75] [cursor=pointer]:
+                - /url: /setup/positions
+            - listitem [ref=f87e78]:
+              - link "Announcements" [ref=f87e79] [cursor=pointer]:
+                - /url: /announcements
+        - listitem [ref=f87e82]:
+          - link "Tasks" [ref=f87e83] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f87e86]:
+          - generic [ref=f87e87] [cursor=pointer]: Options
+        - listitem [ref=f87e91]:
+          - generic [ref=f87e92] [cursor=pointer]: Setup
+    - generic [ref=f87e98]:
+      - banner [ref=f87e99]:
+        - generic [ref=f87e101]:
+          - generic [ref=f87e102]:
+            - button "Open search" [ref=f87e103] [cursor=pointer]
+            - button "Search" [ref=f87e106] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f87e108]: ⌘K
+          - button "Guide for this page" [ref=f87e109] [cursor=pointer]
+          - button "English" [ref=f87e112] [cursor=pointer]
+          - button [ref=f87e121] [cursor=pointer]
+          - button [ref=f87e124] [cursor=pointer]
+          - generic [ref=f87e128]:
+            - button "Open audits" [ref=f87e129] [cursor=pointer]
+            - status "Badge" [ref=f87e132]: 99+
+          - button [ref=f87e133] [cursor=pointer]:
+            - status "Badge" [ref=f87e138]: "11"
+          - generic [ref=f87e140]:
+            - generic [ref=f87e141] [cursor=pointer]
+            - status "Badge" [ref=f87e143]
+      - main [ref=f87e144]:
+        - generic [ref=f87e146]:
+          - region "Payrolls overview" [ref=f87e147]:
+            - generic [ref=f87e148]:
+              - generic [ref=f87e152]:
+                - heading "Payrolls" [level=1] [ref=f87e153]
+                - paragraph [ref=f87e154]: Description
+              - generic [ref=f87e155]: Scroll tables sideways on small screens
+          - generic [ref=f87e157]:
+            - generic [ref=f87e158]:
+              - text: Payrolls
+              - textbox [ref=f87e164]: 2026-10
+              - button "Generate payslips" [ref=f87e165] [cursor=pointer]
+              - button "Print" [ref=f87e169] [cursor=pointer]
+            - generic [ref=f87e173]:
+              - generic [ref=f87e174]:
+                - generic [ref=f87e176]:
+                  - generic [ref=f87e177]: Net payroll
+                  - generic [ref=f87e178]: ؋0.00
+                - generic [ref=f87e180]:
+                  - generic [ref=f87e181]: Paid
+                  - generic [ref=f87e182]: ؋0.00
+                - generic [ref=f87e184]:
+                  - generic [ref=f87e185]: Outstanding
+                  - generic [ref=f87e186]: ؋0.00
+                - generic [ref=f87e188]:
+                  - generic [ref=f87e189]: Generated
+                  - generic [ref=f87e190]: 0 · 6 missing
+              - tablist [ref=f87e191]:
+                - generic [ref=f87e193]:
+                  - tab "Payslips" [selected] [ref=f87e194] [cursor=pointer]
+                  - tab "Advances" [ref=f87e196] [cursor=pointer]
+            - generic [ref=f87e201]:
+              - generic [ref=f87e208]:
+                - generic: Search
+                - textbox "Search Search" [ref=f87e209]
+              - generic [ref=f87e211]:
+                - table [ref=f87e213]:
+                  - rowgroup [ref=f87e214]:
+                    - row [ref=f87e215]:
+                      - columnheader "Employee" [ref=f87e216]
+                      - columnheader "Base salary" [ref=f87e220]
+                      - columnheader "Worked / total" [ref=f87e224]
+                      - columnheader "Off days" [ref=f87e228]
+                      - columnheader "Absent" [ref=f87e232]
+                      - columnheader "Net payable" [ref=f87e236]
+                      - columnheader "Paid" [ref=f87e240]
+                      - columnheader "Outstanding" [ref=f87e244]
+                      - columnheader "Status" [ref=f87e248]
+                      - columnheader "Actions" [ref=f87e252]
+                  - rowgroup [ref=f87e255]:
+                    - row [ref=f87e256]:
+                      - cell "Ahmad Karimi Counselor" [ref=f87e257]:
+                        - generic [ref=f87e258]:
+                          - generic [ref=f87e259]: Ahmad Karimi
+                          - generic [ref=f87e260]: Counselor
+                      - cell "؋60,000.00" [ref=f87e261]
+                      - cell "—" [ref=f87e262]
+                      - cell "—" [ref=f87e263]
+                      - cell "—" [ref=f87e264]
+                      - cell "—" [ref=f87e265]
+                      - cell "؋0.00" [ref=f87e266]
+                      - cell "؋0.00" [ref=f87e267]
+                      - cell "Not generated" [ref=f87e268]
+                      - cell [ref=f87e271]:
+                        - button "Create payslip" [ref=f87e273] [cursor=pointer]
+                    - row [ref=f87e276]:
+                      - cell "Bilal Ahmadi Admission Officer" [ref=f87e277]:
+                        - generic [ref=f87e278]:
+                          - generic [ref=f87e279]: Bilal Ahmadi
+                          - generic [ref=f87e280]: Admission Officer
+                      - cell "؋55,000.00" [ref=f87e281]
+                      - cell "—" [ref=f87e282]
+                      - cell "—" [ref=f87e283]
+                      - cell "—" [ref=f87e284]
+                      - cell "—" [ref=f87e285]
+                      - cell "؋0.00" [ref=f87e286]
+                      - cell "؋0.00" [ref=f87e287]
+                      - cell "Not generated" [ref=f87e288]
+                      - cell [ref=f87e291]:
+                        - button "Create payslip" [ref=f87e293] [cursor=pointer]
+                    - row [ref=f87e296]:
+                      - cell "Fatima Noori Senior Counselor" [ref=f87e297]:
+                        - generic [ref=f87e298]:
+                          - generic [ref=f87e299]: Fatima Noori
+                          - generic [ref=f87e300]: Senior Counselor
+                      - cell "؋80,000.00" [ref=f87e301]
+                      - cell "—" [ref=f87e302]
+                      - cell "—" [ref=f87e303]
+                      - cell "—" [ref=f87e304]
+                      - cell "—" [ref=f87e305]
+                      - cell "؋0.00" [ref=f87e306]
+                      - cell "؋0.00" [ref=f87e307]
+                      - cell "Not generated" [ref=f87e308]
+                      - cell [ref=f87e311]:
+                        - button "Create payslip" [ref=f87e313] [cursor=pointer]
+                    - row [ref=f87e316]:
+                      - cell "Omid Safi Document Officer" [ref=f87e317]:
+                        - generic [ref=f87e318]:
+                          - generic [ref=f87e319]: Omid Safi
+                          - generic [ref=f87e320]: Document Officer
+                      - cell "؋45,000.00" [ref=f87e321]
+                      - cell "—" [ref=f87e322]
+                      - cell "—" [ref=f87e323]
+                      - cell "—" [ref=f87e324]
+                      - cell "—" [ref=f87e325]
+                      - cell "؋0.00" [ref=f87e326]
+                      - cell "؋0.00" [ref=f87e327]
+                      - cell "Not generated" [ref=f87e328]
+                      - cell [ref=f87e331]:
+                        - button "Create payslip" [ref=f87e333] [cursor=pointer]
+                    - row [ref=f87e336]:
+                      - cell "Sana Rahimi Finance Officer" [ref=f87e337]:
+                        - generic [ref=f87e338]:
+                          - generic [ref=f87e339]: Sana Rahimi
+                          - generic [ref=f87e340]: Finance Officer
+                      - cell "؋70,000.00" [ref=f87e341]
+                      - cell "—" [ref=f87e342]
+                      - cell "—" [ref=f87e343]
+                      - cell "—" [ref=f87e344]
+                      - cell "—" [ref=f87e345]
+                      - cell "؋0.00" [ref=f87e346]
+                      - cell "؋0.00" [ref=f87e347]
+                      - cell "Not generated" [ref=f87e348]
+                      - cell [ref=f87e351]:
+                        - button "Create payslip" [ref=f87e353] [cursor=pointer]
+                    - row [ref=f87e356]:
+                      - cell "Zahra Aziz Operations Manager" [ref=f87e357]:
+                        - generic [ref=f87e358]:
+                          - generic [ref=f87e359]: Zahra Aziz
+                          - generic [ref=f87e360]: Operations Manager
+                      - cell "؋120,000.00" [ref=f87e361]
+                      - cell "—" [ref=f87e362]
+                      - cell "—" [ref=f87e363]
+                      - cell "—" [ref=f87e364]
+                      - cell "—" [ref=f87e365]
+                      - cell "؋0.00" [ref=f87e366]
+                      - cell "؋0.00" [ref=f87e367]
+                      - cell "Not generated" [ref=f87e368]
+                      - cell [ref=f87e371]:
+                        - button "Create payslip" [ref=f87e373] [cursor=pointer]
+                - separator [ref=f87e376]
+                - generic [ref=f87e377]:
+                  - generic [ref=f87e378]:
+                    - generic "Items per page:" [ref=f87e379]
+                    - combobox [ref=f87e382] [cursor=pointer]:
+                      - generic [ref=f87e384]:
+                        - generic [ref=f87e385]: "25"
+                        - combobox "Open": "25"
+                  - generic [ref=f87e389]: 1-6 of 6
+                  - navigation "Pagination" [ref=f87e392]:
+                    - list [ref=f87e393]:
+                      - listitem [ref=f87e394]:
+                        - button "First page" [disabled]
+                      - listitem [ref=f87e395]:
+                        - button "Previous page" [disabled]
+                      - listitem [ref=f87e396]:
+                        - button "Next page" [disabled]
+                      - listitem [ref=f87e397]:
+                        - button "Last page" [disabled]
+      - contentinfo [ref=f87e398]:
+        - generic [ref=f87e401]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f87e402] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

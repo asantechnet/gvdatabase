@@ -1,3 +1,4 @@
+import type { HorizontalNavItems } from '@layouts/types'
 import applicantPortal from './applicant-portal'
 import applications from './applications'
 import contracts from './contracts'
@@ -8,14 +9,13 @@ import hr from './hr'
 import settings from './settings'
 import setup from './setup'
 import tasks from './tasks'
-import type { HorizontalNavItems } from '@layouts/types'
 
 export default [
   ...home,
+  ...crm,
   ...applicantPortal,
   ...contracts,
   ...applications,
-  ...crm,
   ...finance,
   ...hr,
   ...tasks,

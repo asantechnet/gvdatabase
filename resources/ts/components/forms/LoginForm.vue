@@ -1,12 +1,18 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 defineProps<{
-  form: { email: string; password: string; remember: boolean; twoFactorCode: string }
+  form: { email: string; password: string; remember: boolean; twoFactorCode: string; recoveryCode: string }
   loading: boolean
   showPassword: boolean
   twoFactorRequired: boolean
 }>()
 
 const emit = defineEmits<{ togglePassword: []; submit: [] }>()
+
+// A lost authenticator must not lock the account out; the recovery code is
+// accepted by the same login request.
+const usingRecoveryCode = ref(false)
 </script>
 
 <template>
@@ -23,6 +29,7 @@ const emit = defineEmits<{ togglePassword: []; submit: [] }>()
           type="email"
           autocomplete="email"
           :placeholder="$t('pages.auth.login.login.enterYourEmail')"
+          :aria-label="$t('common.fields.email')"
           required
         />
       </VCol>
@@ -34,16 +41,28 @@ const emit = defineEmits<{ togglePassword: []; submit: [] }>()
           :placeholder="$t('pages.auth.login.login.enterYourPassword')"
           :type="showPassword ? 'text' : 'password'"
           autocomplete="current-password"
-          :append-inner-icon="showPassword ? 'tabler-eye-off' : 'tabler-eye'"
+          :aria-label="$t('common.fields.password')"
           required
-          @click:append-inner="emit('togglePassword')"
-        />
+        >
+          <template #append-inner>
+            <VBtn
+              icon
+              size="small"
+              variant="text"
+              :aria-label="showPassword ? 'Hide password' : 'Show password'"
+              @click="emit('togglePassword')"
+            >
+              <VIcon :icon="showPassword ? 'tabler-eye-off' : 'tabler-eye'" />
+            </VBtn>
+          </template>
+        </VTextField>
       </VCol>
       <VCol
         v-if="twoFactorRequired"
         cols="12"
       >
         <VTextField
+          v-if="!usingRecoveryCode"
           v-model="form.twoFactorCode"
           name="two_factor_code"
           :label="$t('pages.auth.login.login.authenticatorCode')"
@@ -53,6 +72,24 @@ const emit = defineEmits<{ togglePassword: []; submit: [] }>()
           prepend-inner-icon="tabler-shield-lock"
           required
         />
+        <VTextField
+          v-else
+          v-model="form.recoveryCode"
+          name="recovery_code"
+          label="Recovery code"
+          autocomplete="one-time-code"
+          maxlength="64"
+          prepend-inner-icon="tabler-key"
+          required
+        />
+        <VBtn
+          variant="text"
+          size="small"
+          class="px-0 mt-1"
+          @click="usingRecoveryCode = !usingRecoveryCode"
+        >
+          {{ usingRecoveryCode ? 'Use your authenticator code' : 'Use a recovery code' }}
+        </VBtn>
       </VCol>
       <VCol cols="12">
         <div class="d-flex align-center justify-space-between flex-wrap gap-3">

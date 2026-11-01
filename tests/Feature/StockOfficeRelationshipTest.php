@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Asset;
+use App\Models\Currency;
 use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,12 +23,15 @@ class StockOfficeRelationshipTest extends TestCase
     public function test_asset_uses_an_office_foreign_key_and_exposes_the_relationship(): void
     {
         $office = Office::factory()->create(['name' => 'Central Office', 'code' => 'CENTRAL']);
+        $currency = Currency::factory()->create(['code' => 'AFN', 'is_base' => true, 'is_active' => true]);
 
         $response = $this->postJson('/api/assets', [
             'serial_number' => 'REL-1001',
             'item' => 'Laptop',
             'quantity' => 1,
             'price' => 900,
+            'currency_id' => $currency->id,
+            'acquisition_date' => '2026-10-01',
             'model' => 'ThinkPad',
             'condition' => 'good',
             'office_id' => $office->id,

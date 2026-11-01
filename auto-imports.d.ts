@@ -10,6 +10,7 @@ declare global {
   const COOKIE_MAX_AGE_1_YEAR: typeof import('./resources/ts/utils/constants')['COOKIE_MAX_AGE_1_YEAR']
   const CreateUrl: typeof import('./src/@core/composable/CreateUrl')['CreateUrl']
   const EffectScope: typeof import('vue')['EffectScope']
+  const FORMATTING_PLACEHOLDER: typeof import('./resources/ts/utils/money')['FORMATTING_PLACEHOLDER']
   const PLACEHOLDER_SPAN_PATTERN: typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']
   const PwaUpdates: typeof import('./resources/ts/utils/pwaUpdates')['PwaUpdates']
   const SUPPORT_CONTACT: typeof import('./resources/ts/utils/constants')['SUPPORT_CONTACT']
@@ -79,6 +80,8 @@ declare global {
   const createTemplatePromise: typeof import('@vueuse/core')['createTemplatePromise']
   const createUnrefFn: typeof import('@vueuse/core')['createUnrefFn']
   const createUrl: typeof import('./resources/ts/@core/composable/createUrl')['createUrl']
+  const currencyCode: typeof import('./resources/ts/utils/money')['currencyCode']
+  const currencyDecimalPlaces: typeof import('./resources/ts/utils/money')['currencyDecimalPlaces']
   const currentLocale: typeof import('./resources/ts/utils/localization')['currentLocale']
   const customRef: typeof import('vue')['customRef']
   const dayAfter: typeof import('./resources/ts/utils/contractExpiry')['dayAfter']
@@ -99,11 +102,18 @@ declare global {
   const fieldLabel: typeof import('./resources/ts/utils/apiValidation')['fieldLabel']
   const financeTypeLabel: typeof import('./resources/ts/utils/financeTypes')['financeTypeLabel']
   const formErrors: typeof import('./resources/ts/utils/formErrors')['formErrors']
+  const formatActiveCount: typeof import('./resources/ts/utils/localization')['formatActiveCount']
+  const formatActiveDate: typeof import('./resources/ts/utils/localization')['formatActiveDate']
+  const formatActiveMoney: typeof import('./resources/ts/utils/localization')['formatActiveMoney']
   const formatCalendarDuration: typeof import('./resources/ts/utils/contractExpiry')['formatCalendarDuration']
+  const formatCount: typeof import('./resources/ts/utils/money')['formatCount']
   const formatDate: typeof import('./resources/ts/@core/utils/formatters')['formatDate']
   const formatDateToMonthShort: typeof import('./resources/ts/@core/utils/formatters')['formatDateToMonthShort']
+  const formatDisplayDate: typeof import('./resources/ts/utils/money')['formatDisplayDate']
   const formatLocalizedDate: typeof import('./resources/ts/utils/localization')['formatLocalizedDate']
   const formatLocalizedNumber: typeof import('./resources/ts/utils/localization')['formatLocalizedNumber']
+  const formatMoney: typeof import('./resources/ts/utils/money')['formatMoney']
+  const formatNumber: typeof import('./resources/ts/utils/money')['formatNumber']
   const getAccessToken: typeof import('./resources/ts/utils/authStorage')['getAccessToken']
   const getActivePinia: typeof import('pinia')['getActivePinia']
   const getCurrentInstance: typeof import('vue')['getCurrentInstance']
@@ -246,6 +256,7 @@ declare global {
   const throttledWatch: typeof import('@vueuse/core')['throttledWatch']
   const toCalendarFormat: typeof import('./resources/ts/utils/taskTransformers')['toCalendarFormat']
   const toFrappeGanttFormat: typeof import('./resources/ts/utils/taskTransformers')['toFrappeGanttFormat']
+  const toIsoDate: typeof import('./resources/ts/utils/money')['toIsoDate']
   const toKanbanFormat: typeof import('./resources/ts/utils/taskTransformers')['toKanbanFormat']
   const toRaw: typeof import('vue')['toRaw']
   const toReactive: typeof import('@vueuse/core')['toReactive']
@@ -511,6 +522,7 @@ declare module 'vue' {
   interface ComponentCustomProperties {
     readonly COOKIE_MAX_AGE_1_YEAR: UnwrapRef<typeof import('./resources/ts/utils/constants')['COOKIE_MAX_AGE_1_YEAR']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly FORMATTING_PLACEHOLDER: UnwrapRef<typeof import('./resources/ts/utils/money')['FORMATTING_PLACEHOLDER']>
     readonly PLACEHOLDER_SPAN_PATTERN: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']>
     readonly PwaUpdates: UnwrapRef<typeof import('./resources/ts/utils/pwaUpdates')['PwaUpdates']>
     readonly SUPPORT_CONTACT: UnwrapRef<typeof import('./resources/ts/utils/constants')['SUPPORT_CONTACT']>
@@ -576,6 +588,8 @@ declare module 'vue' {
     readonly createTemplatePromise: UnwrapRef<typeof import('@vueuse/core')['createTemplatePromise']>
     readonly createUnrefFn: UnwrapRef<typeof import('@vueuse/core')['createUnrefFn']>
     readonly createUrl: UnwrapRef<typeof import('./resources/ts/@core/composable/createUrl')['createUrl']>
+    readonly currencyCode: UnwrapRef<typeof import('./resources/ts/utils/money')['currencyCode']>
+    readonly currencyDecimalPlaces: UnwrapRef<typeof import('./resources/ts/utils/money')['currencyDecimalPlaces']>
     readonly currentLocale: UnwrapRef<typeof import('./resources/ts/utils/localization')['currentLocale']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
     readonly debouncedRef: UnwrapRef<typeof import('@vueuse/core')['debouncedRef']>
@@ -593,10 +607,17 @@ declare module 'vue' {
     readonly fieldLabel: UnwrapRef<typeof import('./resources/ts/utils/apiValidation')['fieldLabel']>
     readonly financeTypeLabel: UnwrapRef<typeof import('./resources/ts/utils/financeTypes')['financeTypeLabel']>
     readonly formErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['formErrors']>
+    readonly formatActiveCount: UnwrapRef<typeof import('./resources/ts/utils/localization')['formatActiveCount']>
+    readonly formatActiveDate: UnwrapRef<typeof import('./resources/ts/utils/localization')['formatActiveDate']>
+    readonly formatActiveMoney: UnwrapRef<typeof import('./resources/ts/utils/localization')['formatActiveMoney']>
+    readonly formatCount: UnwrapRef<typeof import('./resources/ts/utils/money')['formatCount']>
     readonly formatDate: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['formatDate']>
     readonly formatDateToMonthShort: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['formatDateToMonthShort']>
+    readonly formatDisplayDate: UnwrapRef<typeof import('./resources/ts/utils/money')['formatDisplayDate']>
     readonly formatLocalizedDate: UnwrapRef<typeof import('./resources/ts/utils/localization')['formatLocalizedDate']>
     readonly formatLocalizedNumber: UnwrapRef<typeof import('./resources/ts/utils/localization')['formatLocalizedNumber']>
+    readonly formatMoney: UnwrapRef<typeof import('./resources/ts/utils/money')['formatMoney']>
+    readonly formatNumber: UnwrapRef<typeof import('./resources/ts/utils/money')['formatNumber']>
     readonly getAccessToken: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['getAccessToken']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
@@ -735,6 +756,7 @@ declare module 'vue' {
     readonly throttledWatch: UnwrapRef<typeof import('@vueuse/core')['throttledWatch']>
     readonly toCalendarFormat: UnwrapRef<typeof import('./resources/ts/utils/taskTransformers')['toCalendarFormat']>
     readonly toFrappeGanttFormat: UnwrapRef<typeof import('./resources/ts/utils/taskTransformers')['toFrappeGanttFormat']>
+    readonly toIsoDate: UnwrapRef<typeof import('./resources/ts/utils/money')['toIsoDate']>
     readonly toKanbanFormat: UnwrapRef<typeof import('./resources/ts/utils/taskTransformers')['toKanbanFormat']>
     readonly toRaw: UnwrapRef<typeof import('vue')['toRaw']>
     readonly toReactive: UnwrapRef<typeof import('@vueuse/core')['toReactive']>

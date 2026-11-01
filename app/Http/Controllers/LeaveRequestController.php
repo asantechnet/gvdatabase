@@ -9,6 +9,7 @@ use App\Models\LeaveRequest;
 use App\Models\Setting;
 use App\Services\LeaveRequestService;
 use App\Support\CompanyProfile;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -148,7 +149,7 @@ class LeaveRequestController extends Controller
             Employee::whereKey($employee->id)->lockForUpdate()->firstOrFail();
             $existing = $employee->leaveRequests()->whereIn('date', $dates->map->toDateString())->pluck('date');
             if ($existing->isNotEmpty()) {
-                throw ValidationException::withMessages(['start_date' => ['business.leave_request_date_exists']]);
+                $this->failDateExists();
             }
 
             return $dates->map(fn (Carbon $date) => $employee->leaveRequests()->create([
@@ -163,6 +164,7 @@ class LeaveRequestController extends Controller
 
         return response()->json([
             'success' => true,
+            'stored' => $created->count(),
             'data' => LeaveRequestResource::collection($created)->resolve(),
         ], 201);
     }
@@ -383,7 +385,7 @@ class LeaveRequestController extends Controller
             Employee::whereKey($employee->id)->lockForUpdate()->firstOrFail();
             $existing = $employee->leaveRequests()->whereIn('date', $dates->map->toDateString())->pluck('date');
             if ($existing->isNotEmpty()) {
-                throw ValidationException::withMessages(['start_date' => ['business.leave_request_date_exists']]);
+                $this->failDateExists();
             }
 
             return $dates->map(fn (Carbon $date) => $employee->leaveRequests()->create([
@@ -397,8 +399,25 @@ class LeaveRequestController extends Controller
 
         return response()->json([
             'success' => true,
+            'stored' => $created->count(),
             'data' => LeaveRequestResource::collection($created)->resolve(),
         ], 201);
+    }
+
+    /**
+     * A range is all-or-nothing: one existing date rolls the whole request
+     * back. The response keeps its own business code rather than the generic
+     * validation code because the client already maps it to a specific toast.
+     */
+    private function failDateExists(): never
+    {
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'code' => 'business.leave_request_date_exists',
+            'errors' => [
+                'start_date' => ['business.leave_request_date_exists'],
+            ],
+        ], 422));
     }
 
     /** @return array{date: string, duration_days: float, reason: string} */

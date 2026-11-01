@@ -62,6 +62,7 @@ export interface CreateNominationData {
 export interface UpdateEmployeeData {
   amount?: number
   selectedAmount?: number
+  grantedAmount?: number
   selectedType?: BonusType
   isGranted?: boolean
 }

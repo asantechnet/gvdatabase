@@ -77,6 +77,9 @@ const admissionEmployees = ref<Employee[]>([])
 const stages = ref<ApplicantStage[]>([])
 
 const canViewPipeline = computed(() => canAccess('view_applicants'))
+// Payment state is a finance field: the column is omitted entirely for a
+// viewer without the permission rather than rendered as a dash on every row.
+const canViewFinancials = computed(() => canAccess('view_applicant_financials'))
 const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
 const canReview = computed(() => canAccess('review_visitors'))
 const activeFilterCount = computed(() => [focus.value, service.value, search.value, stage.value, status.value, paymentStatus.value, responsibleEmployeeId.value, countryId.value, universityId.value, educationLevelId.value, semesterId.value, dateFrom.value, dateTo.value].filter(Boolean).length)
@@ -89,7 +92,7 @@ const headers = computed(() => [
   { title: t('educational.status'), key: 'status', sortable: false },
   { title: t('pages.finance.income.income.paymentStatus'), key: 'paymentStatus', sortable: false },
   { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
-])
+].filter(column => column.key !== 'paymentStatus' || canViewFinancials.value))
 const serviceLabel = (row: Applicant) => serviceOptions.value.find(option => option.value === row.service)?.title ?? row.service
 const destinationLabel = (row: Applicant) => {
   const details = row.details
@@ -97,15 +100,18 @@ const destinationLabel = (row: Applicant) => {
 
   return [serviceLabel(row), place].filter(Boolean).join(' · ')
 }
-const paymentStatusLabel = (row: Applicant) => row.payment_status ? t(`finance.paymentStatus.${row.payment_status}`) : '—'
+const paymentStatusLabel = (row: Applicant) => row.payment_status ? t(`finance.paymentStatus.${row.payment_status}`) : t('educational.noServiceLines')
+// The API returns the same stage it filters by: the service line's under a
+// service filter, the applicant mirror otherwise.
+const stageOf = (row: Applicant) => row.display_stage ?? row.current_stage
 const reportRow = (row: Applicant) => [
   `#${row.id}`,
   row.name,
   row.service === 'academy' ? '—' : (row.responsible_employee?.name ?? t('educational.unassigned')),
   destinationLabel(row),
-  row.current_stage ? translateApplicantStage(row.current_stage) : '—',
+  stageOf(row) ? translateApplicantStage(stageOf(row)!) : '—',
   translateBackendValue(row.status),
-  paymentStatusLabel(row),
+  ...(canViewFinancials.value ? [paymentStatusLabel(row)] : []),
 ]
 const setReportRows = (source: Applicant[]) => { reportRows.value = source.map(reportRow) }
 
@@ -388,7 +394,7 @@ onMounted(async () => {
             <VSelect v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable />
             <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" :show-apply="false" />
             <VSelect v-model="status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable />
-            <VSelect v-model="paymentStatus" :items="[{ title: $t('finance.paymentStatus.paid'), value: 'paid' }, { title: $t('finance.paymentStatus.partially_paid'), value: 'partially_paid' }, { title: $t('finance.paymentStatus.unpaid'), value: 'unpaid' }]" :label="$t('pages.finance.income.income.paymentStatus')" clearable />
+            <VSelect v-if="canViewFinancials" v-model="paymentStatus" :items="[{ title: $t('finance.paymentStatus.paid'), value: 'paid' }, { title: $t('finance.paymentStatus.partially_paid'), value: 'partially_paid' }, { title: $t('finance.paymentStatus.unpaid'), value: 'unpaid' }]" :label="$t('pages.finance.income.income.paymentStatus')" clearable />
             <VSelect v-model="responsibleEmployeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable />
             <VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable />
             <VSelect v-model="universityId" :items="universities.filter(u => u.is_active && (!countryId || u.country_id === countryId)).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable />
@@ -432,6 +438,7 @@ onMounted(async () => {
       mobile-cards
       mobile-title-key="name"
       mobile-action-key="actions"
+      :mobile-fields="['stage', 'employee', 'destination', 'status']"
       @update:options="updateTableOptions"
     >
       <template #loading><TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" /></template>
@@ -440,9 +447,9 @@ onMounted(async () => {
       <template #item.name="{ item }"><span class="font-weight-medium">{{ item.name }}</span></template>
       <template #item.employee="{ item }">{{ item.service === 'academy' ? '—' : (item.responsible_employee?.name ?? $t('educational.unassigned')) }}</template>
       <template #item.destination="{ item }"><VChip size="x-small" variant="tonal">{{ serviceLabel(item) }}</VChip><span v-if="['scholarship', 'private'].includes(item.service)" class="ms-2">{{ item.details?.country?.name ?? '—' }}{{ item.details?.university?.name ? ` · ${item.details.university.name}` : '' }}</span></template>
-      <template #item.stage="{ item }">{{ item.current_stage ? translateApplicantStage(item.current_stage) : '—' }}</template>
+      <template #item.stage="{ item }">{{ stageOf(item) ? translateApplicantStage(stageOf(item)!) : '—' }}</template>
       <template #item.status="{ item }"><VChip size="small" :color="item.status === 'active' ? 'success' : 'secondary'">{{ translateBackendValue(item.status) }}</VChip></template>
-      <template #item.paymentStatus="{ item }"><VChip v-if="item.payment_status" size="small" variant="tonal" :color="item.payment_status === 'paid' ? 'success' : item.payment_status === 'partially_paid' ? 'warning' : 'error'">{{ paymentStatusLabel(item) }}</VChip><span v-else class="text-medium-emphasis">—</span></template>
+      <template #item.paymentStatus="{ item }"><VChip v-if="item.payment_status" size="small" variant="tonal" :color="item.payment_status === 'paid' ? 'success' : item.payment_status === 'partially_paid' ? 'warning' : 'error'">{{ paymentStatusLabel(item) }}</VChip><span v-else class="text-medium-emphasis">{{ $t('educational.noServiceLines') }}</span></template>
       <template #item.actions="{ item }"><div class="d-flex justify-end align-center ga-1"><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" /><VBtn v-if="canReview" icon="tabler-message" size="small" variant="text" @click="openConsultantReview(item)"><VTooltip activator="parent">{{ $t('pages.contracts.visitor.visitor.consultantReview') }}</VTooltip></VBtn><VBtn size="small" variant="text" @click="router.push({ name: 'applicant-case', params: { id: item.id } })">{{ $t('educational.openCase') }}</VBtn></div></template>
     </ResponsiveDataTableServer>
   </VCard>

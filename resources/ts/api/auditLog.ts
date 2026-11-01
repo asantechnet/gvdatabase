@@ -12,8 +12,11 @@ export interface AuditPerson {
 
 export interface AuditChange {
   field: string
+  field_label?: string
   before: unknown
   after: unknown
+  old_label?: string | null
+  new_label?: string | null
 }
 
 export interface AuditLog {
@@ -28,6 +31,9 @@ export interface AuditLog {
   resolution: AuditResolution
   audited_at: string | null
   created_at: string
+  ip_address: string | null
+  method: string | null
+  url: string | null
   can_revert: boolean
   revert_blocked_by_id: number | null
 }
@@ -62,6 +68,7 @@ export interface AuditLogParams {
   from?: string
   to?: string
   search?: string
+  source?: 'people' | 'system'
   sort?: 'created_at' | 'audited_at'
   direction?: 'asc' | 'desc'
 }

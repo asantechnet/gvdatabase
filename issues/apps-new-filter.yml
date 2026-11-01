@@ -1,0 +1,185 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e6]:
+    - complementary [ref=f2e7]:
+      - generic [ref=f2e8]:
+        - link [ref=f2e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f2e10]
+        - button "Collapse navigation" [ref=f2e11] [cursor=pointer]
+      - list [ref=f2e14]:
+        - listitem [ref=f2e15]:
+          - link "Home" [ref=f2e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f2e19]:
+          - link "Contracts" [ref=f2e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f2e23]:
+          - link "Applications" [ref=f2e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f2e27]:
+          - link "CRM" [ref=f2e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f2e31]:
+          - generic [ref=f2e32] [cursor=pointer]: Finance
+        - listitem [ref=f2e36]:
+          - generic [ref=f2e37] [cursor=pointer]: HR
+        - listitem [ref=f2e82]:
+          - link "Tasks" [ref=f2e83] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f2e86]:
+          - generic [ref=f2e87] [cursor=pointer]: Options
+        - listitem [ref=f2e91]:
+          - generic [ref=f2e92] [cursor=pointer]: Setup
+    - generic [ref=f2e98]:
+      - banner [ref=f2e99]:
+        - generic [ref=f2e101]:
+          - generic [ref=f2e102]:
+            - button "Open search" [ref=f2e103] [cursor=pointer]
+            - button "Search" [ref=f2e106] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f2e108]: ⌘K
+          - button "Guide for this page" [ref=f2e109] [cursor=pointer]
+          - button "English" [ref=f2e112] [cursor=pointer]
+          - button [ref=f2e121] [cursor=pointer]
+          - button [ref=f2e124] [cursor=pointer]
+          - generic [ref=f2e128]:
+            - button "Open audits" [ref=f2e129] [cursor=pointer]
+            - status "Badge" [ref=f2e132]: 99+
+          - button [ref=f2e2687] [cursor=pointer]:
+            - status "Badge" [ref=f2e138]: "2"
+          - generic [ref=f2e140]:
+            - generic [ref=f2e141] [cursor=pointer]
+            - status "Badge" [ref=f2e143]
+      - main [ref=f2e144]:
+        - generic [ref=f2e5233]:
+          - generic [ref=f2e5234]:
+            - generic [ref=f2e5235]:
+              - list [ref=f2e5236]:
+                - listitem [ref=f2e5237]:
+                  - link "Home" [ref=f2e5238] [cursor=pointer]:
+                    - /url: /home
+                - listitem [aria-hidden] [ref=f2e5239]: /
+                - listitem: Applications
+              - heading "Applications" [level=1] [ref=f2e5240]
+            - navigation "Applications" [ref=f2e5241]:
+              - link "Applications" [ref=f2e5242] [cursor=pointer]:
+                - /url: /applications
+              - link "Applicant pipeline" [ref=f2e5246] [cursor=pointer]:
+                - /url: /applicant-pipeline
+              - link "Visa reports" [ref=f2e5250] [cursor=pointer]:
+                - /url: /visa-reports
+            - generic [ref=f2e5255]:
+              - button "Filters" [ref=f2e5256] [cursor=pointer]
+              - button [ref=f2e5259] [cursor=pointer]
+          - generic [ref=f2e5262]:
+            - generic [ref=f2e5271]:
+              - generic: Search name, phone, email, or ID
+              - textbox "Search name, phone, email, or ID Search name, phone, email, or ID" [ref=f2e5272]
+            - tablist [ref=f2e5273]:
+              - generic [ref=f2e5275]:
+                - tab "All applications" [selected] [ref=f2e5276] [cursor=pointer]
+                - tab "New" [ref=f2e5278] [cursor=pointer]
+                - tab "Consultation" [ref=f2e5280] [cursor=pointer]
+                - tab "Documents Required" [ref=f2e5282] [cursor=pointer]
+                - tab "Documents Complete" [ref=f2e5284] [cursor=pointer]
+                - tab "University Selection" [ref=f2e5286] [cursor=pointer]
+                - tab "University Application" [ref=f2e5288] [cursor=pointer]
+                - tab "Admission Pending" [ref=f2e5290] [cursor=pointer]
+                - tab "Admission Received" [ref=f2e5292] [cursor=pointer]
+                - tab "Contract Service Active" [ref=f2e5294] [cursor=pointer]
+                - tab "Visa Preparation" [ref=f2e5296] [cursor=pointer]
+                - tab "Visa Submitted" [ref=f2e5298] [cursor=pointer]
+                - tab "Visa Processing" [ref=f2e5300] [cursor=pointer]
+                - tab "Visa Approved" [ref=f2e5302] [cursor=pointer]
+                - separator [ref=f2e5304]
+                - tab "Completed" [ref=f2e5305] [cursor=pointer]
+                - tab "Cancelled" [ref=f2e5308] [cursor=pointer]
+                - tab "Rejected" [ref=f2e5311] [cursor=pointer]
+                - tab "Withdrawn" [ref=f2e5314] [cursor=pointer]
+              - generic [ref=f2e5317] [cursor=pointer]
+            - separator [ref=f2e5319]
+            - generic [ref=f2e5320]:
+              - strong [ref=f2e5322]: 2 records
+              - button "1 active filters" [ref=f2e5323] [cursor=pointer]
+            - generic [ref=f2e5328]:
+              - table [ref=f2e5330]:
+                - rowgroup [ref=f2e5331]:
+                  - row [ref=f2e5332]:
+                    - columnheader "ID" [ref=f2e5333]
+                    - columnheader "Applicant" [ref=f2e5336]
+                    - columnheader "Employee" [ref=f2e5339]
+                    - columnheader "Country / university" [ref=f2e5342]
+                    - columnheader "Stage" [ref=f2e5345]
+                    - columnheader "Status" [ref=f2e5348]
+                    - columnheader "Payment status" [ref=f2e5351]
+                    - columnheader "Actions" [ref=f2e5354]
+                - rowgroup [ref=f2e5357]:
+                  - row [ref=f2e5358]:
+                    - cell "#5" [ref=f2e5359]
+                    - cell "Portal Test Applicant" [ref=f2e5360]
+                    - cell "Ahmad Karimi" [ref=f2e5361]
+                    - cell "Scholarship —" [ref=f2e5362]:
+                      - generic [ref=f2e5363]: Scholarship
+                      - text: —
+                    - cell "Consultation" [ref=f2e5365]
+                    - cell "Active" [ref=f2e5366]
+                    - cell "—" [ref=f2e5369]
+                    - cell [ref=f2e5370]:
+                      - generic [ref=f2e5371]:
+                        - button "Relationship details" [ref=f2e5372] [cursor=pointer]
+                        - button [ref=f2e5375] [cursor=pointer]
+                        - button "Open case" [ref=f2e5376] [cursor=pointer]
+                  - row [ref=f2e5378]:
+                    - cell "#1" [ref=f2e5379]
+                    - cell "Ahmad Wali" [ref=f2e5380]
+                    - cell "Ahmad Karimi" [ref=f2e5381]
+                    - cell "Scholarship Canada · University of Toronto" [ref=f2e5382]:
+                      - generic [ref=f2e5383]: Scholarship
+                      - text: Canada · University of Toronto
+                    - cell "University Application" [ref=f2e5385]
+                    - cell "Active" [ref=f2e5386]
+                    - cell "—" [ref=f2e5389]
+                    - cell [ref=f2e5390]:
+                      - generic [ref=f2e5391]:
+                        - button "Relationship details" [ref=f2e5392] [cursor=pointer]
+                        - button [ref=f2e5395] [cursor=pointer]
+                        - button "Open case" [ref=f2e5396] [cursor=pointer]
+              - separator [ref=f2e5398]
+              - generic [ref=f2e5399]:
+                - generic [ref=f2e5400]:
+                  - generic "Items per page:" [ref=f2e5401]
+                  - combobox [ref=f2e5404] [cursor=pointer]:
+                    - generic [ref=f2e5406]:
+                      - generic [ref=f2e5407]: "25"
+                      - combobox "Open": "25"
+                - generic [ref=f2e5411]: 1-2 of 2
+                - navigation "Pagination" [ref=f2e5414]:
+                  - list [ref=f2e5415]:
+                    - listitem [ref=f2e5416]:
+                      - button "First page" [disabled]
+                    - listitem [ref=f2e5417]:
+                      - button "Previous page" [disabled]
+                    - listitem [ref=f2e5418]:
+                      - button "Next page" [disabled]
+                    - listitem [ref=f2e5419]:
+                      - button "Last page" [disabled]
+      - contentinfo [ref=f2e302]:
+        - generic [ref=f2e305]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f2e306] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

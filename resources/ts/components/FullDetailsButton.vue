@@ -129,26 +129,10 @@ const relationKeys = computed(() => new Set(
     .map(([key]) => normalizedKey(key)),
 ))
 
-const isForeignKey = (key: string) => {
-  if (/^id$/i.test(key))
-    return true
-  const match = key.match(/^(.*?)(?:_id|Id)$/)
-  if (!match)
-    return false
-
-  const stem = normalizedKey(match[1])
-
-  const aliases: Record<string, string[]> = {
-    currency: ['currency', 'currentbasecurrency'],
-    recordedby: ['recordedby', 'recorder'],
-    user: ['user', 'account'],
-    template: ['template', 'contracttemplate'],
-  }
-
-  return relationKeys.value.has(stem)
-    || (aliases[stem] || []).some(alias => relationKeys.value.has(alias))
-    || /^(customer|employee|staff|office|position|service|currency|contract|template|user|role|permission|board|project|expense)$/i.test(stem)
-}
+// A raw foreign key is never finance-readable: the connected record is shown
+// as a relation instead, so `base_currency_id` or `applicant_contract_id` does
+// not leak an internal id into the detail panel.
+const isForeignKey = (key: string) => /^id$/i.test(key) || /(_id|Id)$/.test(key)
 
 const shouldHide = (key: string) => hiddenKeys.has(key)
   || props.exclude.includes(key)
@@ -181,7 +165,7 @@ const systemFields = computed(() => scalarFields.value.filter(field => isSystemF
 const narrativeFields = computed(() => scalarFields.value.filter(field => !isSystemField(field.key) && isNarrativeField(field)))
 const metricFields = computed(() => scalarFields.value.filter(field => !isSystemField(field.key) && !isNarrativeField(field) && isMetricField(field)))
 const factFields = computed(() => scalarFields.value.filter(field => !isSystemField(field.key) && !isNarrativeField(field) && !isMetricField(field)))
-const relatedRecords = computed(() => requestedFields.value.filter(field => isObject(field.value)))
+const relatedRecords = computed(() => requestedFields.value.filter(field => isObject(field.value) && Object.keys(field.value).length > 0))
 const collections = computed(() => requestedFields.value.filter(field => Array.isArray(field.value) && field.value.length))
 
 const meaningfulFieldCount = computed(() => requestedFields.value.filter(field => !isEmpty(field.value)).length)
@@ -402,7 +386,7 @@ watch(isOpen, open => {
             size="26"
           /></div>
           <div class="detail-viewer__identity">
-            <div class="detail-viewer__eyebrow">{{ detailsText('eyebrow', `${recordKind} · ${meaningfulFieldCount} useful details`, { kind: recordKind, count: meaningfulFieldCount }) }}</div>
+            <div class="detail-viewer__eyebrow">{{ recordKind }}</div>
             <h2>{{ recordTitle }}</h2>
             <p v-if="subtitle">{{ subtitle }}</p>
           </div>

@@ -2,6 +2,9 @@ import api from './axios'
 
 export type BuiltInService = 'scholarship' | 'test_offer' | 'academy' | 'private'
 
+/** The one shared frontend list of built-in services (order is display order). */
+export const BUILT_IN_SERVICES: BuiltInService[] = ['scholarship', 'test_offer', 'academy', 'private']
+
 /** A counselor's assessment is one of three fixed values, never free text. */
 export type ConsultantReview = 'good' | 'bad' | 'great'
 
@@ -87,9 +90,12 @@ export interface Applicant {
   // A case's stage decides the workflow: terminal stages close the case, and
   // `completed` is the terminal stage that also releases commission.
   current_stage?: { id: number; name: string; key: string; is_terminal?: boolean; allowed_next_keys?: string[] }
+  // The stage the list filtered by and displays: the service line's stage under
+  // a service filter, the applicant mirror otherwise.
+  display_stage?: { id: number; name: string; key: string; is_terminal?: boolean } | null
   tasks?: Array<{ id: number; title: string; progress: number; priority?: string | null; due_date?: string | null; attachments?: Array<{ id: number; original_name: string; mime_type?: string | null; size?: number | null }> }>
   contracts?: Array<{ id: number; contract_number: string; status: string }>
-  stage_history?: Array<{ id: number; changed_at: string; note?: string; new_stage?: { name: string }; old_stage?: { name: string } }>
+  stage_history?: Array<{ id: number; changed_at: string; note?: string; changed_by?: number | null; changer?: { id: number; name: string } | null; new_stage?: { name: string }; old_stage?: { name: string } }>
   pending_transactions?: Array<{ id: number; transaction_type: string; reason: string; amount: number | string; approval_status: string; rejection_reason?: string | null }>
   incomes?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
   expenses?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null }>
@@ -172,6 +178,9 @@ export interface PipelineCard {
   university?: string | null
   contract_number?: string | null
   contract_status?: string | null
+  // An extension line names the primary agreement it extends.
+  contract_role?: string | null
+  parent_contract_number?: string | null
 }
 
 export interface PipelineResponse {
@@ -180,6 +189,9 @@ export interface PipelineResponse {
   stages: PipelineColumn[]
   cards: PipelineCard[]
   totals: { active: number, closed: number, all: number }
+  // Columns count cards (a service line, or a case without that line), while
+  // totals count cases.
+  counts?: { unit: string, cards: number, columns: number }
 }
 
 const clean = (params: ApplicantListParams = {}) => {

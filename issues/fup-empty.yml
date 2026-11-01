@@ -1,0 +1,86 @@
+- generic [active] [ref=f43e1]:
+  - generic [ref=f43e6]:
+    - complementary [ref=f43e7]:
+      - generic [ref=f43e8]:
+        - link [ref=f43e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f43e10]
+        - button "Collapse navigation" [ref=f43e11] [cursor=pointer]
+      - list [ref=f43e14]:
+        - listitem [ref=f43e15]:
+          - link "Home" [ref=f43e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f43e19]:
+          - link "Contracts" [ref=f43e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f43e23]:
+          - link "Applications" [ref=f43e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f43e27]:
+          - link "CRM" [ref=f43e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f43e31]:
+          - generic [ref=f43e32] [cursor=pointer]: Finance
+        - listitem [ref=f43e36]:
+          - generic [ref=f43e37] [cursor=pointer]: HR
+        - listitem [ref=f43e41]:
+          - link "Tasks" [ref=f43e42] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f43e45]:
+          - generic [ref=f43e46] [cursor=pointer]: Options
+        - listitem [ref=f43e50]:
+          - generic [ref=f43e51] [cursor=pointer]: Setup
+    - generic [ref=f43e57]:
+      - banner [ref=f43e58]:
+        - generic [ref=f43e60]:
+          - generic [ref=f43e61]:
+            - button "Open search" [ref=f43e62] [cursor=pointer]
+            - button "Search" [ref=f43e65] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f43e67]: ⌘K
+          - button "Guide for this page" [ref=f43e68] [cursor=pointer]
+          - button "English" [ref=f43e71] [cursor=pointer]
+          - button [ref=f43e80] [cursor=pointer]
+          - button [ref=f43e83] [cursor=pointer]
+          - generic [ref=f43e87]:
+            - button "Open audits" [ref=f43e88] [cursor=pointer]
+            - status "Badge" [ref=f43e91]: 99+
+          - button [ref=f43e92] [cursor=pointer]:
+            - status "Badge" [ref=f43e97]: "11"
+          - generic [ref=f43e99]:
+            - generic [ref=f43e100] [cursor=pointer]
+            - status "Badge" [ref=f43e102]
+      - main [ref=f43e103]:
+        - generic [ref=f43e105]:
+          - generic [ref=f43e106]:
+            - generic [ref=f43e107]:
+              - list [ref=f43e108]:
+                - listitem [ref=f43e109]:
+                  - link "Home" [ref=f43e110] [cursor=pointer]:
+                    - /url: /home
+                - listitem [aria-hidden] [ref=f43e111]: /
+                - listitem: CRM
+              - heading "Follow-up list" [level=1] [ref=f43e112]
+            - navigation "CRM" [ref=f43e113]:
+              - link "Visitors" [ref=f43e114] [cursor=pointer]:
+                - /url: /visitor
+              - link "Follow-up list" [ref=f43e118] [cursor=pointer]:
+                - /url: /visitor?list=follow-up
+          - generic [ref=f43e122]:
+            - generic [ref=f43e124]:
+              - textbox "Search Visitors" [ref=f43e132]
+              - generic [ref=f43e133]:
+                - button "Filters" [ref=f43e134] [cursor=pointer]
+                - button [ref=f43e137] [cursor=pointer]
+            - paragraph [ref=f43e144]: No records found
+      - contentinfo [ref=f43e145]:
+        - generic [ref=f43e148]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f43e149] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

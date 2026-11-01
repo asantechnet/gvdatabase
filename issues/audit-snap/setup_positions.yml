@@ -1,0 +1,255 @@
+- generic [active] [ref=f81e1]:
+  - generic [ref=f81e6]:
+    - complementary [ref=f81e7]:
+      - generic [ref=f81e8]:
+        - link [ref=f81e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f81e10]
+        - button "Collapse navigation" [ref=f81e11] [cursor=pointer]
+      - list [ref=f81e14]:
+        - listitem [ref=f81e15]:
+          - link "Home" [ref=f81e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f81e19]:
+          - link "Contracts" [ref=f81e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f81e23]:
+          - link "Applications" [ref=f81e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f81e27]:
+          - link "CRM" [ref=f81e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f81e31]:
+          - generic [ref=f81e32] [cursor=pointer]: Finance
+        - listitem [ref=f81e36]:
+          - generic [ref=f81e37] [cursor=pointer]: HR
+          - list [ref=f81e41]:
+            - listitem [ref=f81e42]:
+              - link "Staff list" [ref=f81e43] [cursor=pointer]:
+                - /url: /staff-list
+            - listitem [ref=f81e46]:
+              - link "Departments" [ref=f81e47] [cursor=pointer]:
+                - /url: /setup/departments
+            - listitem [ref=f81e50]:
+              - link "Employment contracts" [ref=f81e51] [cursor=pointer]:
+                - /url: /employee-contracts
+            - listitem [ref=f81e54]:
+              - link "Timesheet" [ref=f81e55] [cursor=pointer]:
+                - /url: /timesheet
+            - listitem [ref=f81e58]:
+              - link "Off Day Requests" [ref=f81e59] [cursor=pointer]:
+                - /url: /leave-requests
+            - listitem [ref=f81e62]:
+              - link "Company Off Days" [ref=f81e63] [cursor=pointer]:
+                - /url: /off-days
+            - listitem [ref=f81e66]:
+              - link "Payrolls" [ref=f81e67] [cursor=pointer]:
+                - /url: /payrolls
+            - listitem [ref=f81e70]:
+              - link "Bonus list" [ref=f81e71] [cursor=pointer]:
+                - /url: /bonuslist
+            - listitem [ref=f81e74]:
+              - link "Positions" [ref=f81e75] [cursor=pointer]:
+                - /url: /setup/positions
+            - listitem [ref=f81e78]:
+              - link "Announcements" [ref=f81e79] [cursor=pointer]:
+                - /url: /announcements
+        - listitem [ref=f81e82]:
+          - link "Tasks" [ref=f81e83] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f81e86]:
+          - generic [ref=f81e87] [cursor=pointer]: Options
+        - listitem [ref=f81e91]:
+          - generic [ref=f81e92] [cursor=pointer]: Setup
+    - generic [ref=f81e98]:
+      - banner [ref=f81e99]:
+        - generic [ref=f81e101]:
+          - generic [ref=f81e102]:
+            - button "Open search" [ref=f81e103] [cursor=pointer]
+            - button "Search" [ref=f81e106] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f81e108]: ⌘K
+          - button "Guide for this page" [ref=f81e109] [cursor=pointer]
+          - button "English" [ref=f81e112] [cursor=pointer]
+          - button [ref=f81e121] [cursor=pointer]
+          - button [ref=f81e124] [cursor=pointer]
+          - generic [ref=f81e128]:
+            - button "Open audits" [ref=f81e129] [cursor=pointer]
+            - status "Badge" [ref=f81e132]: 99+
+          - button [ref=f81e133] [cursor=pointer]:
+            - status "Badge" [ref=f81e138]: "11"
+          - generic [ref=f81e140]:
+            - generic [ref=f81e141] [cursor=pointer]
+            - status "Badge" [ref=f81e143]
+      - main [ref=f81e144]:
+        - generic [ref=f81e145]:
+          - region "Positions overview" [ref=f81e146]:
+            - generic [ref=f81e147]:
+              - generic [ref=f81e151]:
+                - heading "Positions" [level=1] [ref=f81e152]
+                - paragraph [ref=f81e153]: Review team roles, staffing levels, and position availability.
+              - generic [ref=f81e154]: Scroll tables sideways on small screens
+          - generic [ref=f81e156]:
+            - generic [ref=f81e158]:
+              - generic [ref=f81e159]: Positions
+              - generic [ref=f81e160]: HR job titles are separate from account access roles.
+            - generic [ref=f81e162]:
+              - generic [ref=f81e169]:
+                - generic: Search positions
+                - textbox "Search positions Search positions" [ref=f81e170]
+              - generic [ref=f81e171]:
+                - button "Filters" [ref=f81e172] [cursor=pointer]
+                - button "Add position" [ref=f81e175] [cursor=pointer]
+            - generic [ref=f81e180]:
+              - table [ref=f81e182]:
+                - rowgroup [ref=f81e183]:
+                  - row [ref=f81e184]:
+                    - columnheader "Position" [ref=f81e185]
+                    - columnheader "Description" [ref=f81e189]
+                    - columnheader "Default Salary" [ref=f81e192]
+                    - columnheader "Status" [ref=f81e196]
+                    - columnheader "Assigned" [ref=f81e200]
+                    - columnheader "Actions" [ref=f81e204]
+                - rowgroup [ref=f81e207]:
+                  - row [ref=f81e208]:
+                    - cell "Admission Officer" [ref=f81e209]
+                    - cell "Processes admissions and intake" [ref=f81e211]
+                    - cell "55,000.00 Legacy currency not recorded" [ref=f81e212]:
+                      - generic [ref=f81e213]: 55,000.00
+                      - generic [ref=f81e214]: Legacy currency not recorded
+                    - cell "Active" [ref=f81e215]
+                    - cell "1 staff / 0 users" [ref=f81e218]
+                    - cell [ref=f81e219]:
+                      - button "View full details" [ref=f81e221] [cursor=pointer]
+                      - button "Edit contract" [ref=f81e224] [cursor=pointer]
+                      - button "Edit position" [ref=f81e228] [cursor=pointer]
+                      - button "Delete position" [ref=f81e231] [cursor=pointer]
+                  - row [ref=f81e234]:
+                    - cell "Case Officer" [ref=f81e235]
+                    - cell "Tracks case progress and follow-ups" [ref=f81e237]
+                    - cell "50,000.00 Legacy currency not recorded" [ref=f81e238]:
+                      - generic [ref=f81e239]: 50,000.00
+                      - generic [ref=f81e240]: Legacy currency not recorded
+                    - cell "Active" [ref=f81e241]
+                    - cell "0 staff / 0 users" [ref=f81e244]
+                    - cell [ref=f81e245]:
+                      - button "View full details" [ref=f81e247] [cursor=pointer]
+                      - button "Edit contract" [ref=f81e250] [cursor=pointer]
+                      - button "Edit position" [ref=f81e254] [cursor=pointer]
+                      - button "Delete position" [ref=f81e257] [cursor=pointer]
+                  - row [ref=f81e260]:
+                    - cell "Counselor" [ref=f81e261]
+                    - cell "Advises applicants and owns their cases" [ref=f81e263]
+                    - cell "60,000.00 Legacy currency not recorded" [ref=f81e264]:
+                      - generic [ref=f81e265]: 60,000.00
+                      - generic [ref=f81e266]: Legacy currency not recorded
+                    - cell "Active" [ref=f81e267]
+                    - cell "1 staff / 0 users" [ref=f81e270]
+                    - cell [ref=f81e271]:
+                      - button "View full details" [ref=f81e273] [cursor=pointer]
+                      - button "Edit contract" [ref=f81e276] [cursor=pointer]
+                      - button "Edit position" [ref=f81e280] [cursor=pointer]
+                      - button "Delete position" [ref=f81e283] [cursor=pointer]
+                  - row [ref=f81e286]:
+                    - cell "Director" [ref=f81e287]
+                    - cell "Executive leadership" [ref=f81e289]
+                    - cell "150,000.00 Legacy currency not recorded" [ref=f81e290]:
+                      - generic [ref=f81e291]: 150,000.00
+                      - generic [ref=f81e292]: Legacy currency not recorded
+                    - cell "Active" [ref=f81e293]
+                    - cell "1 staff / 1 users" [ref=f81e296]
+                    - cell [ref=f81e297]:
+                      - button "View full details" [ref=f81e299] [cursor=pointer]
+                      - button "Edit contract" [ref=f81e302] [cursor=pointer]
+                      - button "Edit position" [ref=f81e306] [cursor=pointer]
+                      - button "Delete position" [ref=f81e309] [cursor=pointer]
+                  - row [ref=f81e312]:
+                    - cell "Document Officer" [ref=f81e313]
+                    - cell "Collects and verifies applicant documents" [ref=f81e315]
+                    - cell "45,000.00 Legacy currency not recorded" [ref=f81e316]:
+                      - generic [ref=f81e317]: 45,000.00
+                      - generic [ref=f81e318]: Legacy currency not recorded
+                    - cell "Active" [ref=f81e319]
+                    - cell "1 staff / 0 users" [ref=f81e322]
+                    - cell [ref=f81e323]:
+                      - button "View full details" [ref=f81e325] [cursor=pointer]
+                      - button "Edit contract" [ref=f81e328] [cursor=pointer]
+                      - button "Edit position" [ref=f81e332] [cursor=pointer]
+                      - button "Delete position" [ref=f81e335] [cursor=pointer]
+                  - row [ref=f81e338]:
+                    - cell "Finance Officer" [ref=f81e339]
+                    - cell "Handles receipts, salaries and financial records" [ref=f81e341]
+                    - cell "70,000.00 Legacy currency not recorded" [ref=f81e342]:
+                      - generic [ref=f81e343]: 70,000.00
+                      - generic [ref=f81e344]: Legacy currency not recorded
+                    - cell "Active" [ref=f81e345]
+                    - cell "1 staff / 0 users" [ref=f81e348]
+                    - cell [ref=f81e349]:
+                      - button "View full details" [ref=f81e351] [cursor=pointer]
+                      - button "Edit contract" [ref=f81e354] [cursor=pointer]
+                      - button "Edit position" [ref=f81e358] [cursor=pointer]
+                      - button "Delete position" [ref=f81e361] [cursor=pointer]
+                  - row [ref=f81e364]:
+                    - cell "Operations Manager" [ref=f81e365]
+                    - cell "Runs day-to-day operations and supervises teams" [ref=f81e367]
+                    - cell "120,000.00 Legacy currency not recorded" [ref=f81e368]:
+                      - generic [ref=f81e369]: 120,000.00
+                      - generic [ref=f81e370]: Legacy currency not recorded
+                    - cell "Active" [ref=f81e371]
+                    - cell "1 staff / 0 users" [ref=f81e374]
+                    - cell [ref=f81e375]:
+                      - button "View full details" [ref=f81e377] [cursor=pointer]
+                      - button "Edit contract" [ref=f81e380] [cursor=pointer]
+                      - button "Edit position" [ref=f81e384] [cursor=pointer]
+                      - button "Delete position" [ref=f81e387] [cursor=pointer]
+                  - row [ref=f81e390]:
+                    - cell "Senior Counselor" [ref=f81e391]
+                    - cell "Leads a counseling team and reviews cases" [ref=f81e393]
+                    - cell "80,000.00 Legacy currency not recorded" [ref=f81e394]:
+                      - generic [ref=f81e395]: 80,000.00
+                      - generic [ref=f81e396]: Legacy currency not recorded
+                    - cell "Active" [ref=f81e397]
+                    - cell "1 staff / 0 users" [ref=f81e400]
+                    - cell [ref=f81e401]:
+                      - button "View full details" [ref=f81e403] [cursor=pointer]
+                      - button "Edit contract" [ref=f81e406] [cursor=pointer]
+                      - button "Edit position" [ref=f81e410] [cursor=pointer]
+                      - button "Delete position" [ref=f81e413] [cursor=pointer]
+              - separator [ref=f81e416]
+              - generic [ref=f81e417]:
+                - generic [ref=f81e418]:
+                  - generic "Items per page:" [ref=f81e419]
+                  - combobox [ref=f81e422] [cursor=pointer]:
+                    - generic [ref=f81e424]:
+                      - generic [ref=f81e425]: "10"
+                      - combobox "Open": "10"
+                - generic [ref=f81e429]: 1-8 of 8
+                - navigation "Pagination" [ref=f81e432]:
+                  - list [ref=f81e433]:
+                    - listitem [ref=f81e434]:
+                      - button "First page" [disabled]
+                    - listitem [ref=f81e435]:
+                      - button "Previous page" [disabled]
+                    - listitem [ref=f81e436]:
+                      - button "Next page" [disabled]
+                    - listitem [ref=f81e437]:
+                      - button "Last page" [disabled]
+      - contentinfo [ref=f81e438]:
+        - generic [ref=f81e441]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f81e442] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

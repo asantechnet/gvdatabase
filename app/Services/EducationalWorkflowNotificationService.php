@@ -197,6 +197,14 @@ class EducationalWorkflowNotificationService
 
     public function applicantStageChanged(Applicant $applicant, ApplicantStage $stage, ApplicantStageHistory $history, ?int $actorId = null): void
     {
+        $history->loadMissing(['oldStage:id,name', 'newStage:id,name', 'changer:id,name']);
+        $from = $history->oldStage?->name ?? 'the previous stage';
+        $to = $history->newStage?->name ?? $stage->name;
+        $actor = $history->changer?->name
+            ?? ($actorId ? User::query()->find($actorId)?->name : null)
+            ?? 'System';
+        $label = $this->applicantLabel($applicant);
+
         $staffIds = collect([$applicant->responsibleEmployee?->user_id])
             ->merge($this->supervisorUserIds($applicant->responsibleEmployee))
             ->filter(fn ($id) => $id && (int) $id !== $actorId)
@@ -205,11 +213,14 @@ class EducationalWorkflowNotificationService
             "applicant.stage.{$history->id}.staff",
             'task',
             'Applicant stage updated',
-            "Applicant case #{$applicant->id} moved to {$stage->name}.",
+            "Applicant case {$label} moved from {$from} to {$to} by {$actor}.",
             [
                 'applicant_id' => $applicant->id,
-                'applicant' => $this->applicantLabel($applicant),
-                'stage' => $stage->name,
+                'applicant' => $label,
+                'stage' => $to,
+                'from_stage' => $from,
+                'to_stage' => $to,
+                'actor' => $actor,
                 'translation_key' => 'applicant.stageStaff',
             ],
             "/applicants/{$applicant->id}",
@@ -222,11 +233,14 @@ class EducationalWorkflowNotificationService
             "applicant.stage.{$history->id}.applicant",
             'task',
             'Your visa case was updated',
-            "Your visa case moved to {$stage->name}.",
+            "Your visa case moved from {$from} to {$to} by {$actor}.",
             [
                 'applicant_id' => $applicant->id,
-                'applicant' => $this->applicantLabel($applicant),
-                'stage' => $stage->name,
+                'applicant' => $label,
+                'stage' => $to,
+                'from_stage' => $from,
+                'to_stage' => $to,
+                'actor' => $actor,
                 'translation_key' => 'applicant.stageApplicant',
             ],
             '/my-case',

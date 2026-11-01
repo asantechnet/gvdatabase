@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Applicant;
+use App\Models\ApplicantStage;
 use App\Models\AuditLog;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
@@ -52,6 +53,23 @@ final class AuditPresenter
         'base_currency_id' => Currency::class,
         'recorded_by' => User::class,
         'pending_transaction_id' => PendingTransaction::class,
+        'current_stage_id' => ApplicantStage::class,
+        'old_stage_id' => ApplicantStage::class,
+        'new_stage_id' => ApplicantStage::class,
+        'stage_id' => ApplicantStage::class,
+    ];
+
+    private const FIELD_LABELS = [
+        'current_stage_id' => 'Stage',
+        'old_stage_id' => 'Previous stage',
+        'new_stage_id' => 'New stage',
+        'responsible_employee_id' => 'Responsible employee',
+        'admission_employee_id' => 'Admission employee',
+        'applicant_id' => 'Applicant',
+        'employee_id' => 'Employee',
+        'currency_id' => 'Currency',
+        'amount' => 'Amount',
+        'status' => 'Status',
     ];
 
     public function present(AuditLog $audit): array
@@ -69,6 +87,9 @@ final class AuditPresenter
             'changes' => $audit->event === 'created' ? [] : $this->changes($audit),
             'changed_by' => $this->person($audit->employee?->name ?: $audit->user?->name, $audit->user_id),
             'audited_by' => $this->person($audit->auditor?->name, $audit->audited_by),
+            'ip_address' => $audit->ip_address,
+            'method' => $audit->method,
+            'url' => $audit->url,
             'audit_state' => $audit->audited_at ? 'audited' : 'pending',
             'resolution' => $audit->review_status,
             'audited_at' => $audit->audited_at?->toISOString(),
@@ -108,10 +129,16 @@ final class AuditPresenter
                 continue;
             }
 
+            $before = $this->safeValue((string) $field, $old[$field] ?? null);
+            $after = $this->safeValue((string) $field, $new[$field] ?? null);
+
             $changes[] = [
                 'field' => $this->friendlyFieldKey((string) $field),
-                'before' => $this->safeValue((string) $field, $old[$field] ?? null),
-                'after' => $this->safeValue((string) $field, $new[$field] ?? null),
+                'field_label' => $this->fieldLabel((string) $field),
+                'before' => $before,
+                'after' => $after,
+                'old_label' => $this->label($before),
+                'new_label' => $this->label($after),
             ];
         }
 
@@ -126,6 +153,32 @@ final class AuditPresenter
                 'letterhead', 'cover_design', 'mail_',
             ])
             || Str::endsWith($field, ['_latitude', '_longitude', '_accuracy_meters', '_distance_meters']);
+    }
+
+    private function fieldLabel(string $field): string
+    {
+        return self::FIELD_LABELS[$field] ?? Str::headline($field);
+    }
+
+    /** Human-readable label for a resolved audit value; raw values stay intact. */
+    private function label(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_array($value)) {
+            return implode(' · ', array_map(
+                fn ($item) => is_scalar($item) ? (string) $item : (string) json_encode($item),
+                $value,
+            ));
+        }
+
+        return is_scalar($value) ? (string) $value : (string) json_encode($value);
     }
 
     private function friendlyFieldKey(string $field): string

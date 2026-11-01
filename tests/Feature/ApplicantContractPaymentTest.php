@@ -139,11 +139,11 @@ class ApplicantContractPaymentTest extends TestCase
         $url = "/api/incomes/applicant-contracts/{$line->id}/payment-override";
         $this->putJson($url, ['amount_paid' => 80, 'payment_status' => null])->assertOk();
         $this->pay($line, 21)->assertUnprocessable();
-        $this->putJson("/api/incomes/{$income->id}", ['amount' => 60])->assertOk();
+        $this->putJson("/api/incomes/{$income->id}", ['amount' => 60, 'revaluation_reason' => 'Payment corrected'])->assertOk();
         $this->putJson("/api/incomes/{$income->id}", ['amount' => 81])->assertUnprocessable();
         $this->putJson($url, ['amount_paid' => 10, 'payment_status' => null])->assertOk();
         $this->putJson("/api/incomes/{$income->id}", ['amount' => 101])->assertUnprocessable();
-        $this->putJson("/api/incomes/{$income->id}", ['amount' => 100])->assertOk();
+        $this->putJson("/api/incomes/{$income->id}", ['amount' => 100, 'revaluation_reason' => 'Restored the agreed amount'])->assertOk();
         $this->getJson('/api/incomes/applicant-contracts?applicant_id='.$line->applicant_id)->assertOk()
             ->assertJsonPath('data.0.amount_paid', 10)->assertJsonPath('data.0.recorded_amount_paid', 100);
     }
@@ -331,7 +331,7 @@ class ApplicantContractPaymentTest extends TestCase
         $this->assertDatabaseCount('incomes', 0);
 
         $id = $this->pay($line, 50)->assertCreated()->json('data.id');
-        $this->putJson("/api/incomes/{$id}", ['currency_id' => $other->id, 'rate' => 80])
+        $this->putJson("/api/incomes/{$id}", ['currency_id' => $other->id, 'rate' => 80, 'revaluation_reason' => 'Switch payment currency'])
             ->assertUnprocessable()->assertJsonValidationErrors('currency_id');
         $this->assertEquals(70, $other->fresh()->rate);
         $this->assertEquals(50, $line->fresh()->amount_paid);
@@ -367,7 +367,7 @@ class ApplicantContractPaymentTest extends TestCase
         $id = $this->postJson('/api/incomes', $payload)->assertCreated()->json('data.id');
         $this->assertEquals(2, $this->currency->fresh()->rate);
         $this->assertEquals(20, $line->fresh()->amount_paid);
-        $this->putJson("/api/incomes/{$id}", ['rate' => 4])->assertOk();
+        $this->putJson("/api/incomes/{$id}", ['rate' => 4, 'revaluation_reason' => 'Corrected the agreed rate'])->assertOk();
         $this->assertEquals(4, $this->currency->fresh()->rate);
         $this->assertEquals(10, $line->fresh()->amount_paid);
         $this->putJson("/api/incomes/{$id}", ['amount' => 1000, 'rate' => 3])->assertUnprocessable();

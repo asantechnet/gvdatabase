@@ -1,0 +1,367 @@
+- generic [active] [ref=f74e1]:
+  - generic [ref=f74e6]:
+    - complementary [ref=f74e7]:
+      - generic [ref=f74e8]:
+        - link [ref=f74e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f74e10]
+        - button "Collapse navigation" [ref=f74e11] [cursor=pointer]
+      - list [ref=f74e14]:
+        - listitem [ref=f74e15]:
+          - link "Home" [ref=f74e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f74e19]:
+          - link "Contracts" [ref=f74e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f74e23]:
+          - link "Applications" [ref=f74e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f74e27]:
+          - link "CRM" [ref=f74e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f74e31]:
+          - generic [ref=f74e32] [cursor=pointer]: Finance
+        - listitem [ref=f74e36]:
+          - generic [ref=f74e37] [cursor=pointer]: HR
+        - listitem [ref=f74e41]:
+          - link "Tasks" [ref=f74e42] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f74e45]:
+          - generic [ref=f74e46] [cursor=pointer]: Options
+          - list [ref=f74e50]:
+            - listitem [ref=f74e51]:
+              - generic [ref=f74e52] [cursor=pointer]: Contracts
+            - listitem [ref=f74e56]:
+              - generic [ref=f74e57] [cursor=pointer]: Finance
+              - list [ref=f74e61]:
+                - listitem [ref=f74e62]:
+                  - link "Income Types" [ref=f74e63] [cursor=pointer]:
+                    - /url: /options/finance/income-types
+                - listitem [ref=f74e66]:
+                  - link "Expense Types" [ref=f74e67] [cursor=pointer]:
+                    - /url: /options/finance/expense-types
+                - listitem [ref=f74e70]:
+                  - link "Currencies" [ref=f74e71] [cursor=pointer]:
+                    - /url: /options/currencies
+            - listitem [ref=f74e74]:
+              - link "WhatsApp Messages" [ref=f74e75] [cursor=pointer]:
+                - /url: /options/whatsapp-messages
+        - listitem [ref=f74e78]:
+          - generic [ref=f74e79] [cursor=pointer]: Setup
+    - generic [ref=f74e85]:
+      - banner [ref=f74e86]:
+        - generic [ref=f74e88]:
+          - generic [ref=f74e89]:
+            - button "Open search" [ref=f74e90] [cursor=pointer]
+            - button "Search" [ref=f74e93] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f74e95]: ⌘K
+          - button "Guide for this page" [ref=f74e96] [cursor=pointer]
+          - button "English" [ref=f74e99] [cursor=pointer]
+          - button [ref=f74e108] [cursor=pointer]
+          - button [ref=f74e111] [cursor=pointer]
+          - generic [ref=f74e115]:
+            - button "Open audits" [ref=f74e116] [cursor=pointer]
+            - status "Badge" [ref=f74e119]: 99+
+          - button [ref=f74e120] [cursor=pointer]:
+            - status "Badge" [ref=f74e125]: "11"
+          - generic [ref=f74e127]:
+            - generic [ref=f74e128] [cursor=pointer]
+            - status "Badge" [ref=f74e130]
+      - main [ref=f74e131]:
+        - generic [ref=f74e133]:
+          - generic [ref=f74e134]:
+            - generic [ref=f74e135]:
+              - heading "Currency Management" [level=2] [ref=f74e136]
+              - paragraph [ref=f74e137]: Manage exchange rates, set your application's primary base currency, and toggle status
+            - button "Add Currency" [ref=f74e138] [cursor=pointer]
+          - generic [ref=f74e142]:
+            - generic [ref=f74e146]:
+              - text: Total Currencies
+              - heading "11" [level=3] [ref=f74e147]
+            - generic [ref=f74e153]:
+              - text: Base Currency
+              - heading "AFN (؋)" [level=3] [ref=f74e154]
+            - generic [ref=f74e160]:
+              - text: Active Currencies
+              - heading "1" [level=3] [ref=f74e161]
+          - generic [ref=f74e164]:
+            - generic [ref=f74e166]:
+              - textbox "Search By Name Short Code Or Symbol" [ref=f74e174]
+              - combobox [ref=f74e178] [cursor=pointer]:
+                - generic [ref=f74e180]:
+                  - generic [ref=f74e181]: All Statuses
+                  - combobox "Open": all
+            - table [ref=f74e187]:
+              - rowgroup [ref=f74e188]:
+                - row [ref=f74e189]:
+                  - columnheader "Currency" [ref=f74e190]
+                  - columnheader "Symbol" [ref=f74e191]
+                  - columnheader "Rate to base (AFN)" [ref=f74e192]
+                  - columnheader "Decimals" [ref=f74e193]
+                  - columnheader "Status" [ref=f74e194]
+                  - columnheader "Actions" [ref=f74e195]
+              - rowgroup [ref=f74e196]:
+                - row [ref=f74e197]:
+                  - cell "Afghan Afghani AFN Base Currency" [ref=f74e198]:
+                    - generic [ref=f74e200]:
+                      - generic [ref=f74e201]: Afghan Afghani
+                      - generic [ref=f74e202]:
+                        - generic [ref=f74e203]: AFN
+                        - generic [ref=f74e205]: Base Currency
+                  - cell [ref=f74e209]:
+                    - code [ref=f74e210]: ؋
+                  - 'cell "1.0000 (Base) Updated: October 29, 2026 at 12:00 AM" [ref=f74e211]':
+                    - generic [ref=f74e212]: 1.0000 (Base)
+                    - generic [ref=f74e213]: "Updated: October 29, 2026 at 12:00 AM"
+                  - cell "2 decimal places" [ref=f74e214]
+                  - cell "Active" [ref=f74e215]
+                  - cell [ref=f74e218]:
+                    - generic [ref=f74e219]:
+                      - button "View full details" [ref=f74e221] [cursor=pointer]
+                      - button [ref=f74e224] [cursor=pointer]
+                      - button [disabled]
+                - row [ref=f74e227]:
+                  - cell "Australian Dollar AUD" [ref=f74e228]:
+                    - generic [ref=f74e230]:
+                      - generic [ref=f74e231]: Australian Dollar
+                      - generic [ref=f74e232]: AUD
+                  - cell [ref=f74e235]:
+                    - code [ref=f74e236]: AU$
+                  - 'cell "1 AFN = 0.021 AUD Updated: October 29, 2026 at 12:00 AM" [ref=f74e237]':
+                    - generic [ref=f74e238]: 1 AFN = 0.021 AUD
+                    - generic [ref=f74e239]: "Updated: October 29, 2026 at 12:00 AM"
+                  - cell "2 decimal places" [ref=f74e240]
+                  - cell "Inactive" [ref=f74e241]
+                  - cell [ref=f74e244]:
+                    - generic [ref=f74e245]:
+                      - button "View full details" [ref=f74e247] [cursor=pointer]
+                      - button [ref=f74e250] [cursor=pointer]
+                      - button [ref=f74e253] [cursor=pointer]
+                      - button [ref=f74e256] [cursor=pointer]
+                - row [ref=f74e259]:
+                  - cell "Canadian Dollar CAD" [ref=f74e260]:
+                    - generic [ref=f74e262]:
+                      - generic [ref=f74e263]: Canadian Dollar
+                      - generic [ref=f74e264]: CAD
+                  - cell [ref=f74e267]:
+                    - code [ref=f74e268]: CA$
+                  - 'cell "1 AFN = 0.019 CAD Updated: October 29, 2026 at 12:00 AM" [ref=f74e269]':
+                    - generic [ref=f74e270]: 1 AFN = 0.019 CAD
+                    - generic [ref=f74e271]: "Updated: October 29, 2026 at 12:00 AM"
+                  - cell "2 decimal places" [ref=f74e272]
+                  - cell "Inactive" [ref=f74e273]
+                  - cell [ref=f74e276]:
+                    - generic [ref=f74e277]:
+                      - button "View full details" [ref=f74e279] [cursor=pointer]
+                      - button [ref=f74e282] [cursor=pointer]
+                      - button [ref=f74e285] [cursor=pointer]
+                      - button [ref=f74e288] [cursor=pointer]
+                - row [ref=f74e291]:
+                  - cell "Swiss Franc CHF" [ref=f74e292]:
+                    - generic [ref=f74e294]:
+                      - generic [ref=f74e295]: Swiss Franc
+                      - generic [ref=f74e296]: CHF
+                  - cell [ref=f74e299]:
+                    - code [ref=f74e300]: CHF
+                  - 'cell "1 AFN = 0.011 CHF Updated: October 29, 2026 at 12:00 AM" [ref=f74e301]':
+                    - generic [ref=f74e302]: 1 AFN = 0.011 CHF
+                    - generic [ref=f74e303]: "Updated: October 29, 2026 at 12:00 AM"
+                  - cell "2 decimal places" [ref=f74e304]
+                  - cell "Inactive" [ref=f74e305]
+                  - cell [ref=f74e308]:
+                    - generic [ref=f74e309]:
+                      - button "View full details" [ref=f74e311] [cursor=pointer]
+                      - button [ref=f74e314] [cursor=pointer]
+                      - button [ref=f74e317] [cursor=pointer]
+                      - button [ref=f74e320] [cursor=pointer]
+                - row [ref=f74e323]:
+                  - cell "Chinese Yuan CNY" [ref=f74e324]:
+                    - generic [ref=f74e326]:
+                      - generic [ref=f74e327]: Chinese Yuan
+                      - generic [ref=f74e328]: CNY
+                  - cell [ref=f74e331]:
+                    - code [ref=f74e332]: ¥
+                  - 'cell "1 AFN = 0.099 CNY Updated: October 29, 2026 at 12:00 AM" [ref=f74e333]':
+                    - generic [ref=f74e334]: 1 AFN = 0.099 CNY
+                    - generic [ref=f74e335]: "Updated: October 29, 2026 at 12:00 AM"
+                  - cell "2 decimal places" [ref=f74e336]
+                  - cell "Inactive" [ref=f74e337]
+                  - cell [ref=f74e340]:
+                    - generic [ref=f74e341]:
+                      - button "View full details" [ref=f74e343] [cursor=pointer]
+                      - button [ref=f74e346] [cursor=pointer]
+                      - button [ref=f74e349] [cursor=pointer]
+                      - button [ref=f74e352] [cursor=pointer]
+                - row [ref=f74e355]:
+                  - cell "Euro EUR" [ref=f74e356]:
+                    - generic [ref=f74e358]:
+                      - generic [ref=f74e359]: Euro
+                      - generic [ref=f74e360]: EUR
+                  - cell [ref=f74e363]:
+                    - code [ref=f74e364]: €
+                  - 'cell "1 AFN = 0.012 EUR Updated: October 29, 2026 at 12:00 AM" [ref=f74e365]':
+                    - generic [ref=f74e366]: 1 AFN = 0.012 EUR
+                    - generic [ref=f74e367]: "Updated: October 29, 2026 at 12:00 AM"
+                  - cell "2 decimal places" [ref=f74e368]
+                  - cell "Inactive" [ref=f74e369]
+                  - cell [ref=f74e372]:
+                    - generic [ref=f74e373]:
+                      - button "View full details" [ref=f74e375] [cursor=pointer]
+                      - button [ref=f74e378] [cursor=pointer]
+                      - button [ref=f74e381] [cursor=pointer]
+                      - button [ref=f74e384] [cursor=pointer]
+                - row [ref=f74e387]:
+                  - cell "British Pound GBP" [ref=f74e388]:
+                    - generic [ref=f74e390]:
+                      - generic [ref=f74e391]: British Pound
+                      - generic [ref=f74e392]: GBP
+                  - cell [ref=f74e395]:
+                    - code [ref=f74e396]: £
+                  - 'cell "1 AFN = 0.01 GBP Updated: October 29, 2026 at 12:00 AM" [ref=f74e397]':
+                    - generic [ref=f74e398]: 1 AFN = 0.01 GBP
+                    - generic [ref=f74e399]: "Updated: October 29, 2026 at 12:00 AM"
+                  - cell "2 decimal places" [ref=f74e400]
+                  - cell "Inactive" [ref=f74e401]
+                  - cell [ref=f74e404]:
+                    - generic [ref=f74e405]:
+                      - button "View full details" [ref=f74e407] [cursor=pointer]
+                      - button [ref=f74e410] [cursor=pointer]
+                      - button [ref=f74e413] [cursor=pointer]
+                      - button [ref=f74e416] [cursor=pointer]
+                - row [ref=f74e419]:
+                  - cell "Indian Rupee INR" [ref=f74e420]:
+                    - generic [ref=f74e422]:
+                      - generic [ref=f74e423]: Indian Rupee
+                      - generic [ref=f74e424]: INR
+                  - cell [ref=f74e427]:
+                    - code [ref=f74e428]: ₹
+                  - 'cell "1 AFN = 1.17 INR Updated: October 29, 2026 at 12:00 AM" [ref=f74e429]':
+                    - generic [ref=f74e430]: 1 AFN = 1.17 INR
+                    - generic [ref=f74e431]: "Updated: October 29, 2026 at 12:00 AM"
+                  - cell "2 decimal places" [ref=f74e432]
+                  - cell "Inactive" [ref=f74e433]
+                  - cell [ref=f74e436]:
+                    - generic [ref=f74e437]:
+                      - button "View full details" [ref=f74e439] [cursor=pointer]
+                      - button [ref=f74e442] [cursor=pointer]
+                      - button [ref=f74e445] [cursor=pointer]
+                      - button [ref=f74e448] [cursor=pointer]
+                - row [ref=f74e451]:
+                  - cell "Japanese Yen JPY" [ref=f74e452]:
+                    - generic [ref=f74e454]:
+                      - generic [ref=f74e455]: Japanese Yen
+                      - generic [ref=f74e456]: JPY
+                  - cell [ref=f74e459]:
+                    - code [ref=f74e460]: ¥
+                  - 'cell "1 AFN = 2.16 JPY Updated: October 29, 2026 at 12:00 AM" [ref=f74e461]':
+                    - generic [ref=f74e462]: 1 AFN = 2.16 JPY
+                    - generic [ref=f74e463]: "Updated: October 29, 2026 at 12:00 AM"
+                  - cell "0 decimal places" [ref=f74e464]
+                  - cell "Inactive" [ref=f74e465]
+                  - cell [ref=f74e468]:
+                    - generic [ref=f74e469]:
+                      - button "View full details" [ref=f74e471] [cursor=pointer]
+                      - button [ref=f74e474] [cursor=pointer]
+                      - button [ref=f74e477] [cursor=pointer]
+                      - button [ref=f74e480] [cursor=pointer]
+                - row [ref=f74e483]:
+                  - cell "Russian Ruble RUB" [ref=f74e484]:
+                    - generic [ref=f74e486]:
+                      - generic [ref=f74e487]: Russian Ruble
+                      - generic [ref=f74e488]: RUB
+                  - cell [ref=f74e491]:
+                    - code [ref=f74e492]: ₽
+                  - 'cell "1 AFN = 1.15 RUB Updated: October 29, 2026 at 12:00 AM" [ref=f74e493]':
+                    - generic [ref=f74e494]: 1 AFN = 1.15 RUB
+                    - generic [ref=f74e495]: "Updated: October 29, 2026 at 12:00 AM"
+                  - cell "2 decimal places" [ref=f74e496]
+                  - cell "Inactive" [ref=f74e497]
+                  - cell [ref=f74e500]:
+                    - generic [ref=f74e501]:
+                      - button "View full details" [ref=f74e503] [cursor=pointer]
+                      - button [ref=f74e506] [cursor=pointer]
+                      - button [ref=f74e509] [cursor=pointer]
+                      - button [ref=f74e512] [cursor=pointer]
+                - row [ref=f74e515]:
+                  - cell "United States Dollar USD" [ref=f74e516]:
+                    - generic [ref=f74e518]:
+                      - generic [ref=f74e519]: United States Dollar
+                      - generic [ref=f74e520]: USD
+                  - cell [ref=f74e523]:
+                    - code [ref=f74e524]: $
+                  - 'cell "1 AFN = 0.014 USD Updated: October 29, 2026 at 12:00 AM" [ref=f74e525]':
+                    - generic [ref=f74e526]: 1 AFN = 0.014 USD
+                    - generic [ref=f74e527]: "Updated: October 29, 2026 at 12:00 AM"
+                  - cell "2 decimal places" [ref=f74e528]
+                  - cell "Inactive" [ref=f74e529]
+                  - cell [ref=f74e532]:
+                    - generic [ref=f74e533]:
+                      - button "View full details" [ref=f74e535] [cursor=pointer]
+                      - button [ref=f74e538] [cursor=pointer]
+                      - button [ref=f74e541] [cursor=pointer]
+                      - button [ref=f74e544] [cursor=pointer]
+      - contentinfo [ref=f74e547]:
+        - generic [ref=f74e550]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f74e551] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

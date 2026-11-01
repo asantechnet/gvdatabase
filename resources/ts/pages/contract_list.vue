@@ -30,7 +30,7 @@ const props = withDefaults(defineProps<{
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, n } = useI18n()
 const ability = useAbility()
 
 const currentListRoute = () => ({
@@ -63,6 +63,9 @@ const filterCounterparty = ref<string | null>(null)
 const dateFrom = ref('')
 const dateTo = ref('')
 const filterStatus = ref<string | null>(null)
+// The dashboard's contracts-requiring-attention tile deep-links here with
+// ?expiring=1, so the filter is a visible, clearable state.
+const expiringOnly = ref(route.query.expiring === '1')
 const isDialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit'>('add')
 const selectedContract = ref<Contract | null>(null)
@@ -90,6 +93,9 @@ const pendingContractAction = ref<{ type: 'delete' | 'cancel'; contract: Contrac
 // party block. Only employment contracts are drawn for a named counterparty.
 const isOtherAudience = computed(() => props.contractAudience === 'other')
 const isEmployeeAudience = computed(() => props.contractAudience === 'employees')
+// Payment state is a case-finance field: without the permission the column is
+// omitted instead of rendered as a dash on every row.
+const canViewFinancials = computed(() => ability.can('read', 'view_applicant_financials'))
 const contractRequest = computed(() => ({ audience: props.contractAudience }))
 const pageTitle = computed(() => t(audienceCopy.value.title))
 const pageDescription = computed(() => t(audienceCopy.value.description))
@@ -129,6 +135,7 @@ const listParams = (): ContractParams => ({
   search: search.value || undefined,
   counterparty: isOtherAudience.value ? undefined : filterCounterparty.value || undefined,
   status: (filterStatus.value || undefined) as ContractParams['status'],
+  expiring: expiringOnly.value || undefined,
   date_from: dateFrom.value || undefined,
   date_to: dateTo.value || undefined,
 })
@@ -189,6 +196,13 @@ const headers = computed(() => {
 
   rows.push(
     { title: t('common.fields.startDate'), key: 'start_date', sortable: true },
+    { title: t('serviceContracts.endDate'), key: 'end_date', sortable: true },
+  )
+
+  if (canViewFinancials.value)
+    rows.push({ title: t('pages.contracts.allContracts.allContracts.paymentStatus'), key: 'payment', sortable: false })
+
+  rows.push(
     { title: t('common.fields.status'), key: 'status', sortable: true },
     { title: t('common.messages.actions'), key: 'actions', sortable: false },
   )
@@ -202,8 +216,61 @@ const contractReportRow = (contract: Contract): string[] => [
   ...(isEmployeeAudience.value ? [] : [contract.snapshot_data?.template_version?.name || '—']),
   ...(isOtherAudience.value ? [] : [contract.counterparty || '—']),
   contract.start_date ?? '—',
-  contract.status,
+  contract.end_date ?? '—',
+  ...(canViewFinancials.value ? [paymentLabel(contract)] : []),
+  contract.display_status ?? contract.status,
 ]
+
+// Expiry comes from the server so the page never re-implements date arithmetic.
+const expiryLabel = (contract: Contract) => {
+  if (contract.expiry_state === 'expired')
+    return t('pages.contracts.allContracts.allContracts.daysExpired', { count: Math.abs(contract.days_remaining ?? 0) })
+
+  if (contract.expiry_state === 'expiring')
+    return t('pages.contracts.allContracts.allContracts.daysRemaining', { count: contract.days_remaining ?? 0 })
+
+  return ''
+}
+
+// A row-level tint makes an expiring/expired agreement distinguishable without
+// relying on the badge alone.
+const expiryRowProps = ({ item }: { item: Contract }) => {
+  if (item.expiry_state === 'expired')
+    return { style: 'background-color: rgba(var(--v-theme-error), 0.06)' }
+
+  if (item.expiry_state === 'expiring')
+    return { style: 'background-color: rgba(var(--v-theme-warning), 0.08)' }
+
+  return {}
+}
+
+const outstandingLabel = (contract: Contract) => {
+  const payment = contract.payment
+  if (!payment?.applicable || payment.outstanding === null)
+    return ''
+
+  const currency = payment.currency?.symbol || payment.currency?.code || ''
+
+  return `${n(Number(payment.outstanding))} ${currency}`.trim()
+}
+
+const paymentLabel = (contract: Contract) => {
+  if (!contract.payment?.applicable)
+    return t('pages.contracts.allContracts.allContracts.notApplicable')
+
+  const status = contract.payment.status ? t(`finance.paymentStatus.${contract.payment.status}`) : ''
+
+  return [status, outstandingLabel(contract)].filter(Boolean).join(' · ')
+}
+
+const paymentColor = (status?: string | null) => status === 'paid' ? 'success' : status === 'partially_paid' ? 'warning' : 'error'
+
+function clearExpiring() {
+  expiringOnly.value = false
+  const { expiring: _expiring, ...query } = route.query
+  void router.replace({ query })
+  reload()
+}
 
 const employeeContractDetailFields = computed(() => [
   { key: 'contract_number', label: t('common.messages.contractNumber') },
@@ -586,8 +653,8 @@ onMounted(async () => {
           class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2 ms-auto"
         >
           <DataTableFilterMenu
-            :active="Boolean(search || filterCounterparty || filterStatus || dateFrom || dateTo)"
-            @reset="search = ''; filterCounterparty = null; filterStatus = null; dateFrom = ''; dateTo = ''; reload()"
+            :active="Boolean(search || filterCounterparty || filterStatus || expiringOnly || dateFrom || dateTo)"
+            @reset="search = ''; filterCounterparty = null; filterStatus = null; expiringOnly = false; dateFrom = ''; dateTo = ''; reload()"
           >
             <VTextField
             v-model="search"
@@ -657,9 +724,17 @@ onMounted(async () => {
       {{ error }}
     </VAlert>
 
+    <div v-if="expiringOnly" class="d-flex flex-wrap align-center gap-2 px-4 pb-3">
+      <VChip closable color="warning" variant="tonal" @click:close="clearExpiring">
+        {{ $t('pages.contracts.allContracts.allContracts.expiringFilter') }}
+      </VChip>
+      <span class="text-caption text-medium-emphasis">{{ $t('pages.contracts.allContracts.allContracts.expiringFilterHint') }}</span>
+    </div>
+
     <ResponsiveDataTableServer
       :headers="headers"
       :items="contracts"
+      :row-props="expiryRowProps"
       :items-length="total"
       :page="page"
       :items-per-page="perPage"
@@ -673,6 +748,19 @@ onMounted(async () => {
       <template #loading><TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" /></template>
       <template #no-data><TableEmptyState icon="tabler-file-off" :description="$t('pages.contracts.allContracts.allContracts.noContracts')" /></template>
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
+      <template #item.contract_number="{ item }">
+        <span>{{ item.contract_number ?? '—' }}</span>
+        <VChip
+          v-if="item.contract_role === 'extension'"
+          size="x-small"
+          color="warning"
+          variant="tonal"
+          class="ms-2"
+        >
+          {{ $t('pages.contracts.allContracts.allContracts.extensionRole') }}
+          <span v-if="item.parent_contract_number"> · {{ $t('pages.contracts.allContracts.allContracts.extensionOf', { number: item.parent_contract_number }) }}</span>
+        </VChip>
+      </template>
       <template #item.contract="{ item }">
         {{ item.contract || item.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract') }}
         <VChip
@@ -693,13 +781,66 @@ onMounted(async () => {
       <template #item.start_date="{ item }">
         {{ formatLocalizedDate(item.start_date) }}
       </template>
+      <template #item.end_date="{ item }">
+        <span v-if="!item.end_date">—</span>
+        <template v-else>
+          <div>{{ formatLocalizedDate(item.end_date) }}</div>
+          <div
+            v-if="expiryLabel(item)"
+            class="text-caption"
+            :class="item.expiry_state === 'expired' ? 'text-error' : 'text-warning'"
+          >
+            {{ expiryLabel(item) }}
+          </div>
+        </template>
+      </template>
+      <template #item.payment="{ item }">
+        <span v-if="!item.payment?.applicable" class="text-medium-emphasis">{{ $t('pages.contracts.allContracts.allContracts.notApplicable') }}</span>
+        <template v-else>
+          <VChip
+            size="small"
+            variant="tonal"
+            :color="paymentColor(item.payment.status)"
+          >
+            {{ item.payment.status ? $t(`finance.paymentStatus.${item.payment.status}`) : '—' }}
+          </VChip>
+          <div v-if="outstandingLabel(item)" class="text-caption text-medium-emphasis">
+            {{ $t('pages.contracts.allContracts.allContracts.outstandingAmount') }}: {{ outstandingLabel(item) }}
+          </div>
+        </template>
+      </template>
       <template #item.status="{ item }">
         <VChip
+          v-if="item.display_status === 'scheduled'"
+          color="warning"
+          size="small"
+          class="font-weight-medium"
+        >
+          {{ $t('pages.contracts.allContracts.allContracts.scheduled') }}
+        </VChip>
+        <VChip
+          v-else
           :color="getStatusColor(item.status)"
           size="small"
           class="font-weight-medium"
         >
           {{ translateBackendValue(item.status || 'unknown') }}
+        </VChip>
+        <VChip
+          v-if="item.expiry_state === 'expired'"
+          color="error"
+          size="x-small"
+          class="ms-2"
+        >
+          {{ $t('pages.contracts.allContracts.allContracts.expired') }}
+        </VChip>
+        <VChip
+          v-else-if="item.expiry_state === 'expiring'"
+          color="warning"
+          size="x-small"
+          class="ms-2"
+        >
+          {{ $t('pages.contracts.allContracts.allContracts.expiringSoon') }}
         </VChip>
       </template>
       <template #item.actions="{ item }">

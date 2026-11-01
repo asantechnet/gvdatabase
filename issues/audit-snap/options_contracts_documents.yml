@@ -1,0 +1,218 @@
+- generic [active] [ref=f73e1]:
+  - generic [ref=f73e6]:
+    - complementary [ref=f73e7]:
+      - generic [ref=f73e8]:
+        - link [ref=f73e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f73e10]
+        - button "Collapse navigation" [ref=f73e11] [cursor=pointer]
+      - list [ref=f73e14]:
+        - listitem [ref=f73e15]:
+          - link "Home" [ref=f73e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f73e19]:
+          - link "Contracts" [ref=f73e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f73e23]:
+          - link "Applications" [ref=f73e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f73e27]:
+          - link "CRM" [ref=f73e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f73e31]:
+          - generic [ref=f73e32] [cursor=pointer]: Finance
+        - listitem [ref=f73e36]:
+          - generic [ref=f73e37] [cursor=pointer]: HR
+        - listitem [ref=f73e41]:
+          - link "Tasks" [ref=f73e42] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f73e45]:
+          - generic [ref=f73e46] [cursor=pointer]: Options
+          - list [ref=f73e50]:
+            - listitem [ref=f73e51]:
+              - generic [ref=f73e52] [cursor=pointer]: Contracts
+              - list [ref=f73e56]:
+                - listitem [ref=f73e57]:
+                  - link "Templates & policies" [ref=f73e58] [cursor=pointer]:
+                    - /url: /options/contracts/documents
+                - listitem [ref=f73e61]:
+                  - link "Educational data" [ref=f73e62] [cursor=pointer]:
+                    - /url: /educational-master-data
+                - listitem [ref=f73e65]:
+                  - link "Academy data" [ref=f73e66] [cursor=pointer]:
+                    - /url: /contracts/academy-data
+                - listitem [ref=f73e69]:
+                  - link "Contract stages" [ref=f73e70] [cursor=pointer]:
+                    - /url: /applicant-stages
+            - listitem [ref=f73e73]:
+              - generic [ref=f73e74] [cursor=pointer]: Finance
+            - listitem [ref=f73e78]:
+              - link "WhatsApp Messages" [ref=f73e79] [cursor=pointer]:
+                - /url: /options/whatsapp-messages
+        - listitem [ref=f73e82]:
+          - generic [ref=f73e83] [cursor=pointer]: Setup
+    - generic [ref=f73e89]:
+      - banner [ref=f73e90]:
+        - generic [ref=f73e92]:
+          - generic [ref=f73e93]:
+            - button "Open search" [ref=f73e94] [cursor=pointer]
+            - button "Search" [ref=f73e97] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f73e99]: ⌘K
+          - button "Guide for this page" [ref=f73e100] [cursor=pointer]
+          - button "English" [ref=f73e103] [cursor=pointer]
+          - button [ref=f73e112] [cursor=pointer]
+          - button [ref=f73e115] [cursor=pointer]
+          - generic [ref=f73e119]:
+            - button "Open audits" [ref=f73e120] [cursor=pointer]
+            - status "Badge" [ref=f73e123]: 99+
+          - button [ref=f73e124] [cursor=pointer]:
+            - status "Badge" [ref=f73e129]: "11"
+          - generic [ref=f73e131]:
+            - generic [ref=f73e132] [cursor=pointer]
+            - status "Badge" [ref=f73e134]
+      - main [ref=f73e135]:
+        - generic [ref=f73e138]:
+          - generic [ref=f73e139]:
+            - generic [ref=f73e140]: Templates & policies — Contract Templates
+            - button "Add" [ref=f73e143] [cursor=pointer]
+          - tablist [ref=f73e148]:
+            - generic [ref=f73e150]:
+              - tab "Contract Templates" [selected] [ref=f73e151] [cursor=pointer]
+              - tab "Contract policies" [ref=f73e153] [cursor=pointer]
+          - main [ref=f73e158]:
+            - generic [ref=f73e159]:
+              - generic [ref=f73e161]:
+                - generic [ref=f73e167]:
+                  - generic: Search
+                  - textbox "Search Search" [ref=f73e168]
+                - button "Filters" [ref=f73e169] [cursor=pointer]
+              - generic [ref=f73e173]:
+                - table [ref=f73e175]:
+                  - rowgroup [ref=f73e176]:
+                    - row [ref=f73e177]:
+                      - columnheader "Contract Name" [ref=f73e178]
+                      - columnheader "Type" [ref=f73e182]
+                      - columnheader "Position" [ref=f73e186]
+                      - columnheader "Scope" [ref=f73e190]
+                      - columnheader "Country & language versions" [ref=f73e194]
+                      - columnheader "Actions" [ref=f73e198]
+                  - rowgroup [ref=f73e201]:
+                    - row [ref=f73e202]:
+                      - cell "Employment Agreement — Document Officer" [ref=f73e203]
+                      - cell "Employment" [ref=f73e204]
+                      - cell "Document Officer" [ref=f73e207]
+                      - cell "—" [ref=f73e208]
+                      - cell "1" [ref=f73e209]
+                      - cell [ref=f73e210]:
+                        - button "Edit" [ref=f73e211] [cursor=pointer]
+                        - button "Delete" [ref=f73e214] [cursor=pointer]
+                    - row [ref=f73e217]:
+                      - cell "Employment Agreement — Finance Officer" [ref=f73e218]
+                      - cell "Employment" [ref=f73e219]
+                      - cell "Finance Officer" [ref=f73e222]
+                      - cell "—" [ref=f73e223]
+                      - cell "1" [ref=f73e224]
+                      - cell [ref=f73e225]:
+                        - button "Edit" [ref=f73e226] [cursor=pointer]
+                        - button "Delete" [ref=f73e229] [cursor=pointer]
+                    - row [ref=f73e232]:
+                      - cell "Employment Agreement — Case Officer" [ref=f73e233]
+                      - cell "Employment" [ref=f73e234]
+                      - cell "Case Officer" [ref=f73e237]
+                      - cell "—" [ref=f73e238]
+                      - cell "1" [ref=f73e239]
+                      - cell [ref=f73e240]:
+                        - button "Edit" [ref=f73e241] [cursor=pointer]
+                        - button "Delete" [ref=f73e244] [cursor=pointer]
+                    - row [ref=f73e247]:
+                      - cell "Employment Agreement — Senior Counselor" [ref=f73e248]
+                      - cell "Employment" [ref=f73e249]
+                      - cell "Senior Counselor" [ref=f73e252]
+                      - cell "—" [ref=f73e253]
+                      - cell "1" [ref=f73e254]
+                      - cell [ref=f73e255]:
+                        - button "Edit" [ref=f73e256] [cursor=pointer]
+                        - button "Delete" [ref=f73e259] [cursor=pointer]
+                    - row [ref=f73e262]:
+                      - cell "Employment Agreement — Operations Manager" [ref=f73e263]
+                      - cell "Employment" [ref=f73e264]
+                      - cell "Operations Manager" [ref=f73e267]
+                      - cell "—" [ref=f73e268]
+                      - cell "1" [ref=f73e269]
+                      - cell [ref=f73e270]:
+                        - button "Edit" [ref=f73e271] [cursor=pointer]
+                        - button "Delete" [ref=f73e274] [cursor=pointer]
+                    - row [ref=f73e277]:
+                      - cell "Employment Agreement — Director" [ref=f73e278]
+                      - cell "Employment" [ref=f73e279]
+                      - cell "Director" [ref=f73e282]
+                      - cell "—" [ref=f73e283]
+                      - cell "1" [ref=f73e284]
+                      - cell [ref=f73e285]:
+                        - button "Edit" [ref=f73e286] [cursor=pointer]
+                        - button "Delete" [ref=f73e289] [cursor=pointer]
+                    - row [ref=f73e292]:
+                      - cell "Employment Agreement — Admission Officer" [ref=f73e293]
+                      - cell "Employment" [ref=f73e294]
+                      - cell "Admission Officer" [ref=f73e297]
+                      - cell "—" [ref=f73e298]
+                      - cell "1" [ref=f73e299]
+                      - cell [ref=f73e300]:
+                        - button "Edit" [ref=f73e301] [cursor=pointer]
+                        - button "Delete" [ref=f73e304] [cursor=pointer]
+                    - row [ref=f73e307]:
+                      - cell "Employment Agreement — Counselor" [ref=f73e308]
+                      - cell "Employment" [ref=f73e309]
+                      - cell "Counselor" [ref=f73e312]
+                      - cell "—" [ref=f73e313]
+                      - cell "1" [ref=f73e314]
+                      - cell [ref=f73e315]:
+                        - button "Edit" [ref=f73e316] [cursor=pointer]
+                        - button "Delete" [ref=f73e319] [cursor=pointer]
+                    - row [ref=f73e322]:
+                      - cell "Test Offer" [ref=f73e323]
+                      - cell "Customer" [ref=f73e324]
+                      - cell "—" [ref=f73e327]
+                      - cell "Test offer" [ref=f73e328]
+                      - cell "3" [ref=f73e331]
+                      - cell [ref=f73e332]:
+                        - button "Edit" [ref=f73e333] [cursor=pointer]
+                    - row [ref=f73e336]:
+                      - cell "Scholarship" [ref=f73e337]
+                      - cell "Customer" [ref=f73e338]
+                      - cell "—" [ref=f73e341]
+                      - cell "Scholarship" [ref=f73e342]
+                      - cell "3" [ref=f73e345]
+                      - cell [ref=f73e346]:
+                        - button "Edit" [ref=f73e347] [cursor=pointer]
+                - separator [ref=f73e350]
+                - generic [ref=f73e351]:
+                  - generic [ref=f73e352]:
+                    - generic "Items per page:" [ref=f73e353]
+                    - combobox [ref=f73e356] [cursor=pointer]:
+                      - generic [ref=f73e358]:
+                        - generic [ref=f73e359]: "10"
+                        - combobox "Open": "10"
+                  - generic [ref=f73e363]: 1-10 of 11
+                  - navigation "Pagination" [ref=f73e366]:
+                    - list [ref=f73e367]:
+                      - listitem [ref=f73e368]:
+                        - button "First page" [disabled]
+                      - listitem [ref=f73e369]:
+                        - button "Previous page" [disabled]
+                      - listitem [ref=f73e370]:
+                        - button "Next page" [ref=f73e371] [cursor=pointer]
+                      - listitem [ref=f73e374]:
+                        - button "Last page" [ref=f73e375] [cursor=pointer]
+      - contentinfo [ref=f73e378]:
+        - generic [ref=f73e381]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f73e382] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

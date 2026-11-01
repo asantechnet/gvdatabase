@@ -1,0 +1,136 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e6]:
+    - complementary [ref=f2e7]:
+      - generic [ref=f2e8]:
+        - link [ref=f2e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f2e10]
+        - button "Collapse navigation" [ref=f2e11] [cursor=pointer]
+      - list [ref=f2e14]:
+        - listitem [ref=f2e15]:
+          - link "Home" [ref=f2e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f2e19]:
+          - link "Contracts" [ref=f2e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f2e23]:
+          - link "Applications" [ref=f2e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f2e27]:
+          - link "CRM" [ref=f2e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f2e31]:
+          - generic [ref=f2e32] [cursor=pointer]: Finance
+          - list [ref=f2e2660]:
+            - listitem [ref=f2e2661]:
+              - link "Income" [ref=f2e2662] [cursor=pointer]:
+                - /url: /income
+            - listitem [ref=f2e2665]:
+              - link "Expenses" [active] [ref=f2e2666] [cursor=pointer]:
+                - /url: /expenses
+            - listitem [ref=f2e2669]:
+              - link "Payment requests" [ref=f2e2670] [cursor=pointer]:
+                - /url: /payment-requests
+            - listitem [ref=f2e2673]:
+              - link "Commissions" [ref=f2e2674] [cursor=pointer]:
+                - /url: /commissions
+            - listitem [ref=f2e2677]:
+              - link "Asset" [ref=f2e2678] [cursor=pointer]:
+                - /url: /asset
+            - listitem [ref=f2e2681]:
+              - link "Reports" [ref=f2e2682] [cursor=pointer]:
+                - /url: /reports
+        - listitem [ref=f2e36]:
+          - generic [ref=f2e37] [cursor=pointer]: HR
+        - listitem [ref=f2e82]:
+          - link "Tasks" [ref=f2e83] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f2e86]:
+          - generic [ref=f2e87] [cursor=pointer]: Options
+        - listitem [ref=f2e91]:
+          - generic [ref=f2e92] [cursor=pointer]: Setup
+    - generic [ref=f2e98]:
+      - banner [ref=f2e99]:
+        - generic [ref=f2e101]:
+          - generic [ref=f2e102]:
+            - button "Open search" [ref=f2e103] [cursor=pointer]
+            - button "Search" [ref=f2e106] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f2e108]: ⌘K
+          - button "Guide for this page" [ref=f2e109] [cursor=pointer]
+          - button "English" [ref=f2e112] [cursor=pointer]
+          - button [ref=f2e121] [cursor=pointer]
+          - button [ref=f2e124] [cursor=pointer]
+          - generic [ref=f2e128]:
+            - button "Open audits" [ref=f2e129] [cursor=pointer]
+            - status "Badge" [ref=f2e132]: 99+
+          - button [ref=f2e2687] [cursor=pointer]:
+            - status "Badge" [ref=f2e138]: "2"
+          - generic [ref=f2e140]:
+            - generic [ref=f2e141] [cursor=pointer]
+            - status "Badge" [ref=f2e143]
+      - main [ref=f2e144]:
+        - generic [ref=f2e2690]:
+          - generic [ref=f2e2691]:
+            - generic [ref=f2e2695]:
+              - heading "Expense Ledger" [level=1] [ref=f2e2696]
+              - paragraph [ref=f2e2697]: Track Outgoing Cash Recurring Costs And Spend Patterns In One Focused View
+            - generic [ref=f2e2698]:
+              - button "Print Expense Records" [ref=f2e2699] [cursor=pointer]
+              - button "Record Expense" [ref=f2e2702] [cursor=pointer]
+          - generic [ref=f2e2708]:
+            - textbox "Search Expense Descriptions Or Types" [ref=f2e2716]
+            - generic [ref=f2e2717]:
+              - button "Filters" [ref=f2e2718] [cursor=pointer]
+              - generic [ref=f2e2721]:
+                - strong [ref=f2e2722]: "0"
+                - text: Expense Records Shown
+          - generic [ref=f2e2723]:
+            - generic [ref=f2e2724]:
+              - generic [ref=f2e2725]: Outgoing Stream
+              - generic [ref=f2e2728]: Spend Ledger
+            - generic [ref=f2e2733]:
+              - table [ref=f2e2735]:
+                - rowgroup [ref=f2e2736]:
+                  - row [ref=f2e2737]:
+                    - columnheader "Expense" [ref=f2e2738]
+                    - columnheader "Type" [ref=f2e2742]
+                    - columnheader "Currency" [ref=f2e2746]
+                    - columnheader "Amount" [ref=f2e2750]
+                    - columnheader "Date" [ref=f2e2754]
+                    - columnheader "Actions" [ref=f2e2758]
+                - rowgroup [ref=f2e2761]:
+                  - row [ref=f2e2762]:
+                    - cell [ref=f2e2763]:
+                      - paragraph [ref=f2e2768]: No records match the current filters.
+              - separator [ref=f2e2769]
+              - generic [ref=f2e2770]:
+                - generic [ref=f2e2771]:
+                  - generic "Items per page:" [ref=f2e2772]
+                  - combobox [ref=f2e2775] [cursor=pointer]:
+                    - generic [ref=f2e2777]:
+                      - generic [ref=f2e2778]: "25"
+                      - combobox "Open": "25"
+                - generic [ref=f2e2782]: 0-0 of 0
+                - navigation "Pagination" [ref=f2e2785]:
+                  - list [ref=f2e2786]:
+                    - listitem [ref=f2e2787]:
+                      - button "First page" [disabled]
+                    - listitem [ref=f2e2788]:
+                      - button "Previous page" [disabled]
+                    - listitem [ref=f2e2789]:
+                      - button "Next page" [disabled]
+                    - listitem [ref=f2e2790]:
+                      - button "Last page" [disabled]
+      - contentinfo [ref=f2e302]:
+        - generic [ref=f2e305]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f2e306] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

@@ -88,6 +88,17 @@ const transitionOptions = computed(() => {
 // never mistaken for a regular step.
 const openTransitions = computed(() => transitionOptions.value.filter(stage => !stage.is_terminal))
 const terminalTransitions = computed(() => transitionOptions.value.filter(stage => stage.is_terminal))
+// The server refuses a forward move out of the case's first stage until a
+// labeled document exists. The UI says so before the user tries, and disables
+// only the blocked (non-terminal) target rather than the whole control.
+const initialStageKey = computed(() => [...stages.value]
+  .filter(stage => !stage.is_terminal)
+  .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0]?.key ?? null)
+const documentsMissing = computed(() => !!initialStageKey.value
+  && applicant.value?.current_stage?.key === initialStageKey.value
+  && applicantAttachments.value.length === 0)
+const selectedStage = computed(() => transitionOptions.value.find(stage => stage.id === Number(selected.value)) ?? null)
+const documentBlocked = computed(() => documentsMissing.value && !!selectedStage.value && !selectedStage.value.is_terminal)
 const transitionItems = computed<Array<Record<string, unknown>>>(() => {
   const items: Array<Record<string, unknown>> = [...openTransitions.value]
   if (openTransitions.value.length && terminalTransitions.value.length)
@@ -115,11 +126,16 @@ const postedExpenseTotal = computed(() => (applicant.value?.expenses ?? []).redu
 const money = (value: number | string) => n(Number(value || 0), 'decimal')
 const formatDate = (value?: string | null) => value ? formatLocalizedDate(value, 'short') : ''
 const formatDateTime = (value?: string | null) => value ? formatLocalizedDate(value, 'long') : ''
-const stageSubtitle = (item: { changed_at: string; note?: string | null }) => {
-  const when = formatDateTime(item.changed_at)
-  const desc = item.note?.trim()
+const stageSubtitle = (item: { changed_at: string; note?: string | null; changer?: { name: string } | null }) => {
+  const parts = [formatDateTime(item.changed_at)]
 
-  return desc ? `${when} · ${desc}` : when
+  // A permanent history row names who moved the case and why.
+  if (item.changer?.name)
+    parts.push(item.changer.name)
+  if (item.note?.trim())
+    parts.push(item.note.trim())
+
+  return parts.join(' · ')
 }
 const taskSummary = (task: { progress: number; priority?: string | null; due_date?: string | null }) => t('educational.caseUi.taskSummary', {
   progress: n(task.progress),
@@ -253,6 +269,12 @@ async function move() {
   // be submitted after the case or workflow data has been refreshed.
   if (!target || !transitionOptions.value.some(stage => stage.id === stageId))
     return
+
+  if (documentsMissing.value && !target.is_terminal) {
+    toast.error(t('educational.caseUi.documentRequiredBeforeMove'))
+
+    return
+  }
 
   // Terminal moves (cancel, reject, withdraw, complete) must carry a reason
   // for the audit trail — the history row is permanent.
@@ -701,6 +723,7 @@ onMounted(async () => {
       </VAlert>
       <template v-else>
         <VAlert v-if="caseIsClosed" type="info" variant="tonal" density="compact" class="mt-5 mb-0">{{ t('educational.caseUi.caseClosedReopen', { stage: translateApplicantStage(applicant.current_stage) }) }}</VAlert>
+        <VAlert v-if="documentsMissing && openTransitions.length" type="warning" variant="tonal" density="compact" class="mt-5 mb-0">{{ t('educational.caseUi.documentRequiredBeforeMove') }}</VAlert>
         <VSelect
           v-model="selected"
           :items="transitionItems"
@@ -715,7 +738,7 @@ onMounted(async () => {
           </template>
         </VSelect>
         <VTextarea v-model="note" :label="t('educational.caseUi.stageNote')" class="mb-4" />
-        <VBtn color="primary" :loading="moving" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
+        <VBtn color="primary" :loading="moving" :disabled="documentBlocked" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
       </template>
       </div>
       <div class="case-overview-grid mt-6">

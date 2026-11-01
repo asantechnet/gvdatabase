@@ -205,6 +205,7 @@
       "inactive": "غیرفعال",
       "approved": "تاییدشده",
       "rejected": "ردشده",
+      "underReview": "در حال بررسی",
       "eligible": "واجد شرایط",
       "granted": "اعطاشده",
       "absent": "غیرحاضر",
@@ -527,9 +528,10 @@
         "addAdjustment": "افزودن تعدیل",
         "newSettlement": "تسویه جدید",
         "reconcile": "تطبیق پرونده‌های تکمیل‌شده",
-        "syncedCases": "{count} پرونده تکمیل‌شده تطبیق شد و {voided} تعهدی منسوخ باطل گردید.",
+        "syncedCases": "{count} پرونده تکمیل‌شده تطبیق شد. | {count} پرونده تکمیل‌شده تطبیق شد.",
+        "syncedVoided": "{count} تعهدی منسوخ باطل گردید. | {count} تعهدی منسوخ باطل گردید.",
         "syncFailed": "تطبیق پرونده‌های تکمیل‌شده انجام نشد.",
-        "accrualCount": "{count} تعهدی",
+        "accrualCount": "{count} تعهدی | {count} تعهدی",
         "employee": "کارمند",
         "commissionEmployee": "کارمند کمیسیون‌محور",
         "settlementStatus": "وضعیت تسویه",
@@ -542,7 +544,7 @@
         "periodStart": "شروع دوره",
         "periodEnd": "پایان دوره",
         "notes": "یادداشت",
-        "settlementPreview": "{count} تعهدی برای مجموع {amount} انتخاب شد.",
+        "settlementPreview": "{count} تعهدی برای مجموع {amount} انتخاب شد. | {count} تعهدی برای مجموع {amount} انتخاب شد.",
         "selectAccruals": "انتخاب تعهدی‌ها",
         "selectAll": "انتخاب همه",
         "clearSelection": "پاک کردن",
@@ -791,6 +793,8 @@
       "departmentName": "نام دیپارتمنت",
       "codeOptional": "کد (اختیاری)",
       "departmentManager": "مدیر دیپارتمنت",
+      "noEligibleDepartmentManagers": "مدیر واجد شرایط وجود ندارد. مدیر باید حساب فعال و دسترسی نظارتی داشته باشد.",
+      "currentManagerNoLongerEligible": "مدیر فعلی — دیگر واجد شرایط نیست",
       "descriptionOptional": "توضیحات (اختیاری)",
       "activeDepartment": "دیپارتمنت فعال",
       "createDepartment": "ایجاد دیپارتمنت",
@@ -1814,10 +1818,15 @@
           "applicant": "متقاضی"
         },
         "verification": {
+          "label": "تایید حساب",
           "invited": "دعوت شده",
           "verified": "تایید شده",
           "pending": "در انتظار تایید"
         },
+        "primaryAccount": "حساب اصلی",
+        "primaryAccountProtected": "حساب مدیر اصلی قابل حذف نیست.",
+        "selfDeleteBlocked": "نمی‌توانید حساب خود را حذف کنید.",
+        "lastSuperAdminRoleHint": "حداقل یک مدیر ارشد فعال باید باقی بماند. حذف آخرین نقش مدیر ارشد رد می‌شود.",
         "created": "ایجاد شد",
         "nameEmailAndAtLeastOneRoleAreRequired": "نام، ایمیل و حداقل یک نقش الزامی است",
         "userDeleted": "کاربر حذف شد",
@@ -1953,10 +1962,11 @@
         "rolecards": {
           "rolesGrantPermissionsPositionsRemainHRJobTitlesChangesTakeEffectWhenAf": "نقش‌ها دسترسی‌ها را اعطا می‌کنند. موقف‌ها به عنوان عناوین وظیفوی منابع بشری باقی می‌مانند. تغییرات پس از اعمال موثر می‌شوند...",
           "savePermissions": "ذخیره دسترسی‌ها (صلاحیت‌ها)",
-          "totalUsers": "مجموع {count} کاربر",
+          "totalUsers": "مجموع {count} کاربر | مجموع {count} کاربر",
           "editRole": "ویرایش نقش",
           "deleteRole": "حذف نقش",
           "deleteRoleAria": "حذف {role}",
+          "roleInUseDeleteHint": "به {count} کاربر اختصاص دارد؛ ابتدا آن‌ها را بردارید. | به {count} کاربر اختصاص دارد؛ ابتدا آن‌ها را بردارید.",
           "addNewRole": "افزودن نقش جدید",
           "addRoleHint": "اگر نقش وجود ندارد، آن را اضافه کنید",
           "createRole": "ایجاد نقش",
@@ -1968,7 +1978,7 @@
           "permissionsHint": "دسترسی‌ها را بر اساس دسته جستجو و مدیریت کنید. دسترسی‌های تکی یا همه دسته را تغییر دهید.",
           "selectedCount": "{selected} از {total} انتخاب شده",
           "searchPermissions": "جستجوی دسترسی‌ها (مثلاً خروجی، مشاهده کاربران)",
-          "permissionCount": "{count} دسترسی",
+          "permissionCount": "{count} دسترسی | {count} دسترسی",
           "filtered": "فیلتر شده",
           "selectAllFiltered": "انتخاب همه فیلترشده‌ها",
           "selectAll": "انتخاب همه",
@@ -2142,6 +2152,8 @@
           "confirmBonusGrant": "تایید اعطای پاداش",
           "finalAmount": "مبلغ نهایی:",
           "confirmGrant": "تایید و اعطا",
+          "grantAmountRequired": "پیش از اعطا، مبلغ پاداش بزرگ‌تر از صفر را وارد کنید.",
+          "grantedToast": "{amount} به {employee} برای {month} اعطا شد.",
           "bonusCalculationEvidence": "شواهد محاسبه پاداش",
           "task": "وظیفه",
           "participation": "مشارکت",
@@ -2270,6 +2282,18 @@
           "cancelContractConfirmation": "{contract} لغو شود؟ این عمل قابل برگشت نیست.",
           "unnamedContract": "این قرارداد",
           "searchContracts": "جستجوی قراردادها",
+          "expiringFilter": "منقضی در ۳۰ روز",
+          "expiringFilterHint": "قراردادهای فعالی که پایان آن‌ها تا ۳۰ روز دیگر است.",
+          "daysRemaining": "{count} روز باقی‌مانده",
+          "daysExpired": "{count} روز پیش",
+          "expiringSoon": "در حال انقضا",
+          "expired": "منقضی",
+          "scheduled": "زمان‌بندی‌شده",
+          "extensionRole": "تمدید",
+          "extensionOf": "از {number}",
+          "paymentStatus": "پرداخت",
+          "outstandingAmount": "باقی‌مانده",
+          "notApplicable": "قابل اجرا نیست",
           "filterByCounterparty": "فیلتر بر اساس جانب مقابل",
           "printTable": "چاپ جدول",
           "addContract": "افزودن قرارداد",
@@ -2431,6 +2455,10 @@
           "consultant": "مشاور",
           "consultantReview": "بررسی مشاور",
           "consultantReviewHint": "ارزیابی مشاور را انتخاب کنید: عالی، خوب یا بد.",
+          "gradeScoreLabel": "نمره صلاحیت (۰–۱۰۰)",
+          "gradeScoreHint": "فیصدی صلاحیت متقاضی را از ۰ تا ۱۰۰ وارد کنید.",
+          "followUpEmpty": "هنوز هیچ بازدیدکنندهای برای پیگیری علامتگذاری نشده است. یک بازدیدکننده را در فهرست بازدیدکنندگان ستاره کنید تا به اینجا منتقل شود.",
+          "ageHint": "بین ۱ تا ۱۲۰ سال.",
           "consultantReviewSaved": "بررسی مشاور ذخیره شد.",
           "review": "بررسی مشاور"
         }
@@ -2530,6 +2558,8 @@
           "searchExpenseDescriptionsOrTypes": "جستجوی توضیحات یا انواع مصارف",
           "filterByType": "فیلتر بر اساس نوع",
           "expenseRecordsShown": "رکوردهای مصارف نمایش‌داده‌شده",
+          "expenseRecordCount": "{count} سابقه مصرف | {count} سابقه مصرف",
+          "expensePageDescription": "پول نقد خروجی، هزینه‌های تکراری و الگوهای مصرف را در یک دفتر پیگیری کنید.",
           "outgoingStream": "جریان خروجی",
           "spendLedger": "دفتر مصارف",
           "expense": "مصرف",
@@ -2693,6 +2723,18 @@
           "quantity": "تعداد",
           "model": "مدل",
           "condition": "وضعیت / حالت",
+          "unitPrice": "قیمت واحد",
+          "acquisitionDate": "تاریخ خرید",
+          "usefulLifeYears": "عمر مفید (سال)",
+          "salvageValue": "ارزش باقیمانده",
+          "totalValue": "ارزش مجموعی",
+          "bookValue": "ارزش دفتری",
+          "totalValuePreview": "ارزش مجموعی: {amount}",
+          "bookValuePreview": "ارزش دفتری: {amount}",
+          "valuationAfterSave": "ارزش دفتری پس از ذخیره دارایی محاسبه می‌شود.",
+          "wholeNumberAtLeast": "عدد کامل حداقل {min} را وارد کنید.",
+          "nonNegativeNumber": "مقدار ۰ یا بیشتر وارد کنید.",
+          "failedToFetchCurrencies": "دریافت واحدهای پول ناکام ماند.",
           "assignedTo": "واگذارشده به",
           "failedToFetchAssetRecords": "دریافت رکوردهای گدام/موجودی ناکام ماند",
           "failedToFetchEmployees": "دریافت کارمندان ناکام ماند",
@@ -2716,6 +2758,7 @@
           "employeeAllocations": "تخصیص‌های کارمند",
           "addEmployee": "افزودن کارمند",
           "employee": "کارمند",
+          "removeAllocation": "حذف تخصیص",
           "allocationTotalCannotExceed": "تخصیص‌شده: {allocated} / {quantity}. مجموع نمی‌تواند از تعداد موجودی بیشتر باشد.",
           "allocationReduceBeforeLowering": "تخصیص‌شده: {allocated} / {quantity}. قبل از کاهش تعداد موجودی، تخصیص‌ها را کاهش دهید."
         }
@@ -3129,7 +3172,9 @@
         "resource": "بخش کاری",
         "action": "عملیات",
         "allResources": "همه بخش‌های کاری",
-        "allActions": "همه عملیات"
+        "allActions": "همه عملیات",
+        "people": "افراد",
+        "source": "منبع تغییر"
       },
       "events": {
         "created": "ایجاد شد",
@@ -3288,10 +3333,15 @@
         "model": "مدل",
         "condition": "حالت",
         "editableUntil": "مهلت ویرایش",
-        "overrideUsedAt": "ویرایش دیرهنگام"
+        "overrideUsedAt": "ویرایش دیرهنگام",
+        "currentStageId": "مرحله",
+        "responsibleEmployeeId": "کارمند مسئول",
+        "admissionEmployeeId": "کارمند پذیرش"
       },
       "scopeNotice": "غیرفعال‌کردن یک بخش تنها بر تغییرات آینده اثر دارد. سوابق قبلی و موارد در انتظار هرگز حذف نمی‌شوند.",
       "unknownRecord": "مورد کاری",
+      "ipAddress": "آدرس IP",
+      "requestMethod": "روش درخواست",
       "system": "سیستم",
       "notAuditedYet": "هنوز تفتیش نشده",
       "noCreateColumns": "ایجاد شد — نیازی به نمایش ستون‌ها نیست",
@@ -4696,11 +4746,11 @@
       },
       "stageStaff": {
         "title": "مرحله متقاضی به‌روز شد",
-        "message": "پرونده {applicant} به مرحله {stage} منتقل شد."
+        "message": "پرونده {applicant} از {from_stage} به {to_stage} توسط {actor} منتقل شد."
       },
       "stageApplicant": {
         "title": "پرونده ویزه شما به‌روز شد",
-        "message": "پرونده شما به مرحله {stage} منتقل شد."
+        "message": "پرونده شما از {from_stage} به {to_stage} توسط {actor} منتقل شد."
       },
       "stalled": {
         "title": "پرونده متقاضی نیازمند توجه است",
@@ -5119,6 +5169,7 @@
   },
   "educational": {
     "caseUi": {
+      "documentRequiredBeforeMove": "پیش از جابه‌جایی این پرونده از مرحله اول، حداقل یک سند برچسب‌دار پیوست کنید.",
       "terminalConfirm": "این پرونده به {stage} انتقال یابد؟ پرونده بسته می‌شود و از مسیر عادی قابل برگشت نیست.",
       "terminalConfirmTitle": "این پرونده بسته شود؟",
       "completedMoveNote": "{stage} پرونده را به پایان می‌رساند: پرونده به‌عنوان تکمیل‌شده بسته شده و کمیسیون خدمات قراردادی آن برای پرداخت ثبت می‌شود.",
@@ -5411,6 +5462,13 @@
     "createCase": "ایجاد پرونده",
     "newApplicantCase": "پرونده متقاضی جدید",
     "caseCount": "{count} پرونده",
+    "pipelineCardCount": "{count} کارت",
+    "pipelineCountsNote": "هر ستون کارت‌ها را می‌شمارد: یک کارت برای هر خدمت قراردادی، به‌علاوه پرونده‌هایی که هنوز این خدمت را نخریده‌اند. نشان‌های بالا پرونده‌ها را می‌شمارند.",
+    "activeCasesCount": "پرونده‌های فعال: {count}",
+    "closedCasesCount": "پرونده‌های بسته: {count}",
+    "allCasesCount": "همه پرونده‌ها: {count}",
+    "extensionOf": "تمدید {number}",
+    "noServiceLines": "بدون خدمت",
     "currentStage": "مرحله فعلی",
     "pipelineInstructions": "کارت را به مرحله مجاز بعدی بکشید. شمارش‌ها مطابق فیلترهای فعال است.",
     "activeCount": "فعال: {count}",
@@ -5498,6 +5556,10 @@
     },
     "pendingUi": {
       "customerEmployee": "مشتری / کارمند",
+      "searchReason": "جستجوی دلیل پرداخت",
+      "saved": "درخواست پرداخت ذخیره شد.",
+      "submitted": "درخواست پرداخت برای تأیید ارسال شد.",
+      "selfApproval": "شما نمی‌توانید درخواست پرداخت خود را تأیید، رد یا ثبت کنید. یک تأییدکننده دیگر باید آن را بررسی کند.",
       "saveFailed": "معامله ذخیره نشد؛ شاید قفل یا مهلت ویرایش آن تمام شده باشد.",
       "transitioned": "وضعیت معامله اکنون {status} است.",
       "rejected": "معامله رد شد.",
@@ -5584,8 +5646,14 @@
       "partially_paid": "تا حدی پرداخت‌شده"
     }
   },
+  "tasksPage": {
+    "title": "وظایف",
+    "description": "هر ستون یک خدمت است. برای دسترسی به همه خدمت‌ها به طرفین بروید و برای جابه‌جایی، وظیفه را بکشید."
+  },
   "erp": {
     "home": "خانه",
+    "tasks": "وظایف",
+    "finance": "مالی",
     "contracts": "قراردادها",
     "crm": "ارتباط با مشتری",
     "applicants": "متقاضیان",

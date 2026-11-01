@@ -38,7 +38,7 @@ class VisitorProfileAndServiceContractFieldSetsTest extends TestCase
 
         $id = $this->postJson('/api/visitors', [
             'name' => 'Profile Visitor', 'contact' => '0701234567', 'email' => 'visitor@example.test',
-            'service' => 'Scholarship', 'date' => '2026-10-20',
+            'service' => 'scholarship', 'date' => '2026-10-20',
             'education_level_id' => $education->id, 'age' => 22, 'grade_score' => 88.5,
             'province_id' => $province->id, 'english_level_id' => $english->id,
             'acquisition_route_id' => $route->id,
@@ -60,7 +60,7 @@ class VisitorProfileAndServiceContractFieldSetsTest extends TestCase
         $counselorUser = User::factory()->create(['roles' => ['counselor']]);
         Employee::factory()->create(['user_id' => $counselorUser->id]);
         Sanctum::actingAs($counselorUser, ['access']);
-        $data = ['name' => 'Review Visitor', 'contact' => '0700000001', 'service' => 'Private', 'date' => '2026-10-20'];
+        $data = ['name' => 'Review Visitor', 'contact' => '0700000001', 'service' => 'private', 'date' => '2026-10-20'];
 
         $visitorId = $this->postJson('/api/visitors', [...$data, 'consultant_review' => 'great'])
             ->assertCreated()->assertJsonPath('data.consultant_review', 'great')
@@ -79,7 +79,7 @@ class VisitorProfileAndServiceContractFieldSetsTest extends TestCase
         $counselorUser = User::factory()->create(['roles' => ['counselor']]);
         Employee::factory()->create(['user_id' => $counselorUser->id]);
         Sanctum::actingAs($counselorUser, ['access']);
-        $data = ['contact' => '0700000010', 'service' => 'Private', 'date' => '2026-10-20'];
+        $data = ['contact' => '0700000010', 'service' => 'private', 'date' => '2026-10-20'];
 
         $this->postJson('/api/visitors', [...$data, 'name' => 'Prose Visitor', 'consultant_review' => 'Needs a scholarship comparison.'])
             ->assertUnprocessable()
@@ -133,7 +133,7 @@ class VisitorProfileAndServiceContractFieldSetsTest extends TestCase
         Sanctum::actingAs($user, ['access']);
 
         $id = $this->postJson('/api/visitors', [
-            'name' => 'Locked Update', 'contact' => '0700000002', 'service' => 'Private', 'date' => '2026-10-20',
+            'name' => 'Locked Update', 'contact' => '0700000002', 'service' => 'private', 'date' => '2026-10-20',
             'consultant_employee_id' => $other->id,
         ])->assertCreated()->assertJsonPath('data.consultant_employee_id', $self->id)->json('data.id');
 

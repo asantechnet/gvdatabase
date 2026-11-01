@@ -75,6 +75,20 @@ export interface Contract {
   service?: BuiltInService | null
   contract_role?: 'primary' | 'extension'
   parent_contract_id?: number | null
+  parent_contract_number?: string | null
+  /** Derived presentation state: a future-dated extension is `scheduled`. */
+  display_status?: string | null
+  is_scheduled?: boolean
+  /** Negative once the end date has passed. */
+  days_remaining?: number | null
+  expiry_state?: 'none' | 'expiring' | 'expired'
+  payment?: {
+    applicable: boolean
+    status: string | null
+    outstanding: number | string | null
+    currency: { code?: string | null; symbol?: string | null } | null
+    lines: number
+  } | null
   contract_number: string | null
   contract: string
   status: ContractStatus
@@ -157,6 +171,8 @@ export interface ContractParams {
   search?: string
   counterparty?: string
   only_cancelled?: boolean
+  /** Active contracts ending on or before 30 days from today. */
+  expiring?: boolean
 }
 
 const normalizeList = (payload: unknown): Contract[] =>
@@ -192,6 +208,7 @@ const ContractApi = {
         page: params?.page,
         per_page: params?.perPage,
         only_cancelled: params?.only_cancelled === undefined ? undefined : Number(params.only_cancelled),
+        expiring: params?.expiring === undefined ? undefined : Number(params.expiring),
       }),
     })
 

@@ -45,6 +45,25 @@ const renewSession = (refreshToken: string): Promise<AuthTokens> => {
   return refreshRequest
 }
 
+const errorNotificationsSuppressed = (config?: InternalAxiosRequestConfig) =>
+  config?.headers?.['X-Suppress-Error-Notification'] === 'true'
+  || config?.headers?.['X-Background-Request'] === 'true'
+
+/**
+ * The single dispatch point for `api-error`. The error is marked handled before
+ * dispatching so a rejection that passes through more than one interceptor — a
+ * request-interceptor validation failure rejects before any response exists —
+ * can never notify the user twice. Quiet and background requests stay silent.
+ */
+const dispatchApiError = (error: ApiError, config?: InternalAxiosRequestConfig) => {
+  error.handled = true
+
+  if (typeof window === 'undefined' || errorNotificationsSuppressed(config))
+    return
+
+  window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: error }))
+}
+
 // Request interceptor for adding the authorization token
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -57,18 +76,16 @@ api.interceptors.request.use(
 
     const errors = validateApiRequest(config)
     if (Object.keys(errors).length) {
-      const suppressErrorNotification = config.headers?.['X-Suppress-Error-Notification'] === 'true'
-      if (!suppressErrorNotification) replaceFormErrors(errors)
+      if (!errorNotificationsSuppressed(config))
+        replaceFormErrors(errors)
 
       const apiError: ApiError = {
         code: 'validation_failed',
         errors,
         success: false,
-        handled: true,
       }
 
-      if (typeof window !== 'undefined' && !suppressErrorNotification)
-        window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))
+      dispatchApiError(apiError, config)
 
       return Promise.reject(apiError)
     }
@@ -77,12 +94,10 @@ api.interceptors.request.use(
     if (requiredPermissions && !isApiRequestAllowed(config.method, config.url, config.data)) {
       const apiError: ApiError = {
         code: 'auth.forbidden',
-        handled: true,
         success: false,
       }
 
-      if (typeof window !== 'undefined' && config.headers?.['X-Suppress-Error-Notification'] !== 'true')
-        window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))
+      dispatchApiError(apiError, config)
 
       return Promise.reject(apiError)
     }
@@ -178,13 +193,10 @@ api.interceptors.response.use(
 
       apiError.message = apiErrorMessage(apiError)
 
-      const quietPreview = originalRequest?.headers?.['X-Suppress-Error-Notification'] === 'true'
-
-      if (!quietPreview && apiError.status === 422 && apiError.errors)
+      if (!errorNotificationsSuppressed(originalRequest) && apiError.status === 422 && apiError.errors)
         replaceFormErrors(apiFieldErrors(apiError))
 
-      if (!quietPreview && typeof window !== 'undefined')
-        window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))
+      dispatchApiError(apiError, originalRequest)
 
       return Promise.reject(apiError)
     }
@@ -196,10 +208,7 @@ api.interceptors.response.use(
         code: 'pwa.offline_action_blocked',
         success: false,
       } as ApiError
-      const quietOffline = originalRequest?.headers?.['X-Suppress-Error-Notification'] === 'true'
-
-      if (!quietOffline && typeof window !== 'undefined')
-        window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: offlineError }))
+      dispatchApiError(offlineError, originalRequest)
 
       return Promise.reject(offlineError)
     }
@@ -210,9 +219,7 @@ api.interceptors.response.use(
       success: false,
     } as ApiError
 
-    const quietStatus = originalRequest?.headers?.['X-Suppress-Error-Notification'] === 'true'
-    if (!quietStatus && typeof window !== 'undefined')
-      window.dispatchEvent(new CustomEvent<ApiError>('api-error', { detail: apiError }))
+    dispatchApiError(apiError, originalRequest)
 
     return Promise.reject(apiError)
   },

@@ -1,0 +1,152 @@
+- generic [active] [ref=f40e1]:
+  - generic [ref=f40e6]:
+    - complementary [ref=f40e7]:
+      - generic [ref=f40e8]:
+        - link [ref=f40e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f40e10]
+        - button "Collapse navigation" [ref=f40e11] [cursor=pointer]
+      - list [ref=f40e14]:
+        - listitem [ref=f40e15]:
+          - link "Home" [ref=f40e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f40e19]:
+          - link "Contracts" [ref=f40e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f40e23]:
+          - link "Applications" [ref=f40e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f40e27]:
+          - link "CRM" [ref=f40e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f40e31]:
+          - generic [ref=f40e32] [cursor=pointer]: Finance
+        - listitem [ref=f40e36]:
+          - generic [ref=f40e37] [cursor=pointer]: HR
+        - listitem [ref=f40e41]:
+          - link "Tasks" [ref=f40e42] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f40e45]:
+          - generic [ref=f40e46] [cursor=pointer]: Options
+        - listitem [ref=f40e50]:
+          - generic [ref=f40e51] [cursor=pointer]: Setup
+    - generic [ref=f40e57]:
+      - banner [ref=f40e58]:
+        - generic [ref=f40e60]:
+          - generic [ref=f40e61]:
+            - button "Open search" [ref=f40e62] [cursor=pointer]
+            - button "Search" [ref=f40e65] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f40e67]: ⌘K
+          - button "Guide for this page" [ref=f40e68] [cursor=pointer]
+          - button "English" [ref=f40e71] [cursor=pointer]
+          - button [ref=f40e80] [cursor=pointer]
+          - button [ref=f40e83] [cursor=pointer]
+          - generic [ref=f40e87]:
+            - button "Open audits" [ref=f40e88] [cursor=pointer]
+            - status "Badge" [ref=f40e91]: 99+
+          - button [ref=f40e92] [cursor=pointer]:
+            - status "Badge" [ref=f40e97]: "9"
+          - generic [ref=f40e99]:
+            - generic [ref=f40e100] [cursor=pointer]
+            - status "Badge" [ref=f40e102]
+      - main [ref=f40e103]:
+        - generic [ref=f40e105]:
+          - generic [ref=f40e106]:
+            - generic [ref=f40e107]:
+              - list [ref=f40e108]:
+                - listitem [ref=f40e109]:
+                  - link "Home" [ref=f40e110] [cursor=pointer]:
+                    - /url: /home
+                - listitem [aria-hidden] [ref=f40e111]: /
+                - listitem: CRM
+              - heading "Follow-up list" [level=1] [ref=f40e978]
+            - navigation "CRM" [ref=f40e113]:
+              - link "Visitors" [ref=f40e114] [cursor=pointer]:
+                - /url: /visitor
+              - link "Follow-up list" [ref=f40e118] [cursor=pointer]:
+                - /url: /visitor?list=follow-up
+          - generic [ref=f40e122]:
+            - generic [ref=f40e124]:
+              - textbox "Search Visitors" [ref=f40e132]
+              - generic [ref=f40e133]:
+                - button "Filters" [ref=f40e134] [cursor=pointer]
+                - button [ref=f40e137] [cursor=pointer]
+            - generic [ref=f40e1143]:
+              - table [ref=f40e1145]:
+                - rowgroup [ref=f40e1146]:
+                  - row [ref=f40e1147]:
+                    - columnheader "Name" [ref=f40e1148]
+                    - columnheader "Contact" [ref=f40e1152]
+                    - columnheader "Email" [ref=f40e1156]
+                    - columnheader "Service" [ref=f40e1160]
+                    - columnheader "Education level" [ref=f40e1164]
+                    - columnheader "Province" [ref=f40e1167]
+                    - columnheader "English level" [ref=f40e1170]
+                    - columnheader "Acquisition route" [ref=f40e1173]
+                    - columnheader "Consultant" [ref=f40e1176]
+                    - columnheader "Counselor review" [ref=f40e1180]
+                    - columnheader "Date" [ref=f40e1183]
+                    - columnheader "Actions" [ref=f40e1187]
+                - rowgroup [ref=f40e1190]:
+                  - row [ref=f40e1191]:
+                    - cell "Samiullah Baqi" [ref=f40e1192]
+                    - cell [ref=f40e1193]:
+                      - button "Communication options for +93 700 300 005" [ref=f40e1195] [cursor=pointer]:
+                        - generic [ref=f40e1198]: +93 700 300 005
+                    - cell "—" [ref=f40e1201]
+                    - cell "Scholarship" [ref=f40e1202]
+                    - cell "Master 85.00%" [ref=f40e1203]:
+                      - generic [ref=f40e1204]:
+                        - generic [ref=f40e1205]: Master
+                        - generic [ref=f40e1206]: 85.00%
+                    - cell "Kabul" [ref=f40e1207]
+                    - cell "C1 Advanced" [ref=f40e1208]
+                    - cell "—" [ref=f40e1209]
+                    - cell "Fatima Noori" [ref=f40e1210]
+                    - cell "Good" [ref=f40e1215]
+                    - cell "2026-10-27" [ref=f40e1216]
+                    - cell [ref=f40e1217]:
+                      - generic [ref=f40e1218]:
+                        - button [ref=f40e1219] [cursor=pointer]
+                        - button "Relationship details" [ref=f40e1222] [cursor=pointer]
+                        - button [ref=f40e1225] [cursor=pointer]
+                        - button [ref=f40e1228] [cursor=pointer]
+                        - button [ref=f40e1231] [cursor=pointer]
+                        - button [ref=f40e1234] [cursor=pointer]
+              - separator [ref=f40e1237]
+              - generic [ref=f40e1238]:
+                - generic [ref=f40e1239]:
+                  - generic "Items per page:" [ref=f40e1240]
+                  - combobox [ref=f40e1243] [cursor=pointer]:
+                    - generic [ref=f40e1245]:
+                      - generic [ref=f40e1246]: "25"
+                      - combobox "Open": "25"
+                - generic [ref=f40e1250]: 1-1 of 1
+                - navigation "Pagination" [ref=f40e1253]:
+                  - list [ref=f40e1254]:
+                    - listitem [ref=f40e1255]:
+                      - button "First page" [disabled]
+                    - listitem [ref=f40e1256]:
+                      - button "Previous page" [disabled]
+                    - listitem [ref=f40e1257]:
+                      - button "Next page" [disabled]
+                    - listitem [ref=f40e1258]:
+                      - button "Last page" [disabled]
+      - contentinfo [ref=f40e257]:
+        - generic [ref=f40e260]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f40e261] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

@@ -190,6 +190,9 @@ class ApplicantServiceDetailsTest extends TestCase
             'country_id' => $country->id, 'is_active' => true,
         ]);
 
+        // The stage gate needs a labeled document before the case moves forward.
+        $this->seedApplicantDocuments($applicant);
+
         $this->postJson("/api/applicants/{$applicant->id}/change-stage", ['stage_id' => $stage->id])
             ->assertOk()->assertJsonPath('data.current_stage_id', $stage->id);
 

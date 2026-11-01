@@ -48,7 +48,9 @@ class VisitorFollowUpTest extends TestCase
         $this->visitor('Marked and converted', '0700000004', true, now()->toDateTimeString());
 
         $plain = $this->getJson('/api/visitors?follow_up=0')->assertOk()->json('data');
-        $this->assertSame(['Plain one', 'Plain two'], array_column($plain, 'name'));
+        // The register is newest-first (visit date desc, then id desc), not
+        // insertion order.
+        $this->assertSame(['Plain two', 'Plain one'], array_column($plain, 'name'));
         $this->assertSame([false, false], array_column($plain, 'follow_up'));
 
         $marked = $this->getJson('/api/visitors?follow_up=1')->assertOk()->json('data');

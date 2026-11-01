@@ -3,11 +3,18 @@ import ErpField from '@/components/erp/ErpField.vue'
 import type { MasterDataRecord } from '@/api/educationalMasterData'
 import type { Employee } from '@/api/employee'
 import type { VisitorFormData } from '@/api/visitor'
+import { BUILT_IN_SERVICES } from '@/api/applicants'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const model = defineModel<VisitorFormData>({ required: true })
 const { t } = useI18n()
+// Visitors share the case vocabulary, so the service is a fixed choice rather
+// than free text that would fragment reporting.
+const serviceOptions = computed(() => BUILT_IN_SERVICES.map(service => ({
+  title: t(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`),
+  value: service,
+})))
 const reviewOptions = computed(() => [
   { title: t('common.statuses.good'), value: 'good' },
   { title: t('common.statuses.bad'), value: 'bad' },
@@ -58,8 +65,9 @@ const options = (catalog: 'education-levels' | 'provinces' | 'english-levels' | 
     <VCol cols="12" md="4">
       <ErpField
         v-model="model.service"
+        kind="select"
+        :items="serviceOptions"
         :label="$t('common.messages.service')"
-        :placeholder="$t('common.messages.enterService')"
         :error-messages="errors?.service"
         required
       />
@@ -80,6 +88,8 @@ const options = (catalog: 'education-levels' | 'provinces' | 'english-levels' | 
         min="1"
         max="120"
         :label="$t('pages.contracts.visitor.visitor.age')"
+        :hint="$t('pages.contracts.visitor.visitor.ageHint')"
+        persistent-hint
       />
     </VCol>
     <VCol cols="6" md="2">
@@ -90,7 +100,9 @@ const options = (catalog: 'education-levels' | 'provinces' | 'english-levels' | 
         max="100"
         step="0.01"
         suffix="%"
-        :label="$t('erp.percentage')"
+        :label="$t('pages.contracts.visitor.visitor.gradeScoreLabel')"
+        :hint="$t('pages.contracts.visitor.visitor.gradeScoreHint')"
+        persistent-hint
         clearable
       />
     </VCol>

@@ -18,7 +18,7 @@ class UserController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizePermission($request, 'view_users');
-        $users = User::query()->excludePrimaryRecord()->orderBy('name')->get();
+        $users = User::query()->orderBy('name')->get();
 
         return response()->json(['success' => true, 'data' => UserResource::collection($users)]);
     }
@@ -59,7 +59,6 @@ class UserController extends Controller
     public function show(Request $request, User $user): JsonResponse
     {
         $this->authorizePermission($request, 'view_users');
-        abort_if((int) $user->id === User::primaryRecordId(), 404);
 
         return response()->json(['success' => true, 'data' => new UserResource($user)]);
     }
@@ -80,6 +79,7 @@ class UserController extends Controller
             $this->guardRoleAssignment($request, $data['roles'] ?? []);
         }
         $this->guardCurrentSuperAdmin($request, $user, $data);
+        $this->guardLastSuperAdminRole($user, $data);
         $emailChanged = isset($data['email']) && $data['email'] !== $user->email;
         if ($emailChanged) {
             $data['email_verified_at'] = null;
@@ -103,6 +103,7 @@ class UserController extends Controller
     public function destroy(Request $request, User $user): JsonResponse
     {
         $this->authorizePermission($request, 'delete_users');
+        abort_if((int) $user->id === User::primaryRecordId(), 422, 'business.primary_account_protected');
         $this->guardSuperAdminTarget($request, $user);
         $this->guardTargetRank($request, $user);
         abort_if($user->is($request->user()), 422, 'business.cannot_delete_current_user');
@@ -187,6 +188,16 @@ class UserController extends Controller
         if ($user->is($request->user()) && (isset($data['roles']) && ! in_array('super_admin', $data['roles'], true))) {
             abort(422, 'business.cannot_remove_current_super_admin_role');
         }
+    }
+
+    /** Never let an edit remove the only active super-admin role. */
+    private function guardLastSuperAdminRole(User $user, array $data): void
+    {
+        if (! array_key_exists('roles', $data) || in_array('super_admin', $data['roles'], true)) {
+            return;
+        }
+
+        abort_if($this->isLastSuperAdmin($user), 422, 'business.last_super_admin_required');
     }
 
     private function guardSuperAdminTarget(Request $request, User $user): void

@@ -12,6 +12,7 @@ import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import ExpenseFormDialog from '@/components/forms/ExpenseFormDialog.vue'
@@ -316,24 +317,12 @@ onMounted(() => {
 
 <template>
   <div class="expense-page">
-    <div class="expense-page-head d-flex flex-wrap align-center justify-space-between gap-3 mb-6">
-      <div class="d-flex align-center ga-3">
-        <VAvatar
-          icon="tabler-receipt-2"
-          color="error"
-          variant="tonal"
-          rounded="lg"
-        />
-        <div>
-          <h1 class="text-h5 font-weight-bold mb-0">
-            {{ $t('pages.finance.expenses.expenses.expenseLedger') }}
-          </h1>
-          <p class="text-body-2 text-medium-emphasis mb-0">
-            {{ $t('pages.finance.expenses.expenses.trackOutgoingCashRecurringCostsAndSpendPatternsInOneFocusedView') }}
-          </p>
-        </div>
-      </div>
-      <div class="d-flex align-center gap-2">
+    <ErpPageHeader
+      :title="$t('pages.finance.expenses.expenses.expenseLedger')"
+      :description="$t('pages.finance.expenses.expenses.expensePageDescription')"
+      section="finance"
+    >
+      <template #actions>
         <VBtn
           icon="tabler-printer"
           variant="text"
@@ -355,8 +344,8 @@ onMounted(() => {
         >
           {{ $t('pages.finance.expenses.expenses.recordExpense') }}
         </VBtn>
-      </div>
-    </div>
+      </template>
+    </ErpPageHeader>
 
     <VCard
       class="mb-6 filter-deck"
@@ -406,9 +395,7 @@ onMounted(() => {
                 @update:model-value="reload"
               />
               <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="reload" />
-            </DataTableFilterMenu><div class="text-caption text-medium-emphasis">
-              <strong class="text-high-emphasis">{{ total }}</strong> {{ $t('pages.finance.expenses.expenses.expenseRecordsShown') }}
-            </div>
+            </DataTableFilterMenu><span class="text-caption text-medium-emphasis">{{ $t('pages.finance.expenses.expenses.expenseRecordCount', { count: total }) }}</span>
           </VCol>
         </VRow>
       </VCardText>
@@ -418,22 +405,6 @@ onMounted(() => {
       class="ledger-card"
       elevation="0"
     >
-      <VCardItem class="ledger-card__header">
-        <VCardTitle class="ledger-card__title font-weight-bold">
-          <VIcon
-            icon="tabler-receipt-2"
-            size="20"
-          />{{ $t('pages.finance.expenses.expenses.outgoingStream') }}
-        </VCardTitle><template #append>
-          <VChip
-            size="small"
-            color="error"
-            variant="tonal"
-          >
-            {{ $t('pages.finance.expenses.expenses.spendLedger') }}
-          </VChip>
-        </template>
-      </VCardItem>
       <div class="table-container">
         <ResponsiveDataTableServer
           :items="expenses"
@@ -555,12 +526,14 @@ onMounted(() => {
         </VCardTitle><VCardText>{{ $t('pages.finance.expenses.expenses.thisRemovesTheSelectedExpenseRecordPermanently') }}</VCardText><VCardActions class="pa-5">
           <VSpacer /><VBtn
             color="secondary"
-            variant="tonal"
+            variant="text"
             @click="isDeleteExpenseDialogVisible = false"
           >
             {{ $t('common.actions.cancel') }}
           </VBtn><VBtn
             color="error"
+            variant="flat"
+            prepend-icon="tabler-trash"
             @click="deleteExpenseRecord"
           >
             {{ $t('common.actions.delete') }}

@@ -64,6 +64,8 @@ const errorMessages: Record<string, string> = {
   'business.board_order_invalid': 'The board order is no longer valid. Refresh and try again.',
   'business.task_assignee_outside_department': 'As a department manager you can only assign tasks to members of your own department.',
   'business.cannot_delete_current_user': 'You cannot delete your own account.',
+  'business.primary_account_protected': 'The primary administrator account cannot be deleted.',
+  'business.role_in_use': 'This role is assigned to users and cannot be deleted.',
   'business.last_super_admin_required': 'At least one active super administrator must remain.',
   'business.cannot_remove_current_super_admin_role': 'You cannot remove your own super administrator role.',
   'business.audit_already_reviewed': 'This audit entry has already been reviewed.',

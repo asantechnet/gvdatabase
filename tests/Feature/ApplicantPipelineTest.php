@@ -34,6 +34,7 @@ class ApplicantPipelineTest extends TestCase
         $migration->up();
         $new = ApplicantStage::where('key', 'new')->whereNull('country_id')->whereNull('university_id')->firstOrFail();
         $this->assertSame($new->id, $applicant->fresh()->current_stage_id);
+        $this->seedApplicantDocuments($applicant->id);
         $this->getJson('/api/applicants-pipeline')->assertOk()->assertJsonFragment(['key' => 'new', 'count' => 1]);
         $consultation = ApplicantStage::where('key', 'consultation')->firstOrFail();
         $this->postJson('/api/applicants/'.$applicant->id.'/change-stage', ['stage_id' => $consultation->id])
@@ -110,15 +111,18 @@ class ApplicantPipelineTest extends TestCase
     public function test_cancel_withdraw_reject_and_appeal_paths_are_reachable(): void
     {
         $stageId = fn (string $key) => ApplicantStage::query()->where('key', $key)->firstOrFail()->id;
-        $move = fn (int $id, string $key) => $this->postJson("/api/applicants/{$id}/change-stage", ['stage_id' => $stageId($key)])->assertOk();
+        // Every move carries a note; terminal moves require one.
+        $move = fn (int $id, string $key) => $this->postJson("/api/applicants/{$id}/change-stage", ['stage_id' => $stageId($key), 'note' => "Move to {$key}"])->assertOk();
 
         // Cancel from an early active stage; withdrawn case re-engages.
         $a = $this->postJson('/api/applicants', ['name' => 'Cancel Case'])->assertCreated()->json('data');
+        $this->seedApplicantDocuments((int) $a['id']);
         $move($a['id'], 'consultation');
         $move($a['id'], 'cancelled');
         $this->getJson('/api/applicants?board=cancelled')->assertOk()->assertJsonFragment(['id' => $a['id']]);
 
         $b = $this->postJson('/api/applicants', ['name' => 'Withdraw Case'])->assertCreated()->json('data');
+        $this->seedApplicantDocuments((int) $b['id']);
         $move($b['id'], 'consultation');
         $move($b['id'], 'withdrawn');
         $moved = $move($b['id'], 'consultation');
@@ -126,6 +130,7 @@ class ApplicantPipelineTest extends TestCase
 
         // Walk to a decision stage, record a refusal, then appeal.
         $c = $this->postJson('/api/applicants', ['name' => 'Appeal Case'])->assertCreated()->json('data');
+        $this->seedApplicantDocuments((int) $c['id']);
         foreach (['consultation', 'documents_required', 'documents_complete', 'university_selection', 'university_application', 'admission_pending'] as $key) {
             $move($c['id'], $key);
         }
@@ -145,6 +150,7 @@ class ApplicantPipelineTest extends TestCase
         // Buying a service creates the line that now owns the workflow.
         $contract = $this->createBuiltInContract('test_offer', ['name' => 'Test Offer Case']);
         $line = ApplicantContract::query()->where('contract_id', $contract['id'])->firstOrFail();
+        $this->seedApplicantDocuments((int) $line->applicant_id);
 
         $offers = $this->getJson('/api/applicants-pipeline?service=test_offer')->assertOk()->json('data');
         $this->assertSame('test_offer', $offers['service']);
@@ -182,6 +188,7 @@ class ApplicantPipelineTest extends TestCase
     {
         $contract = $this->createBuiltInContract('academy', ['name' => 'Stageless Case']);
         $line = ApplicantContract::query()->where('contract_id', $contract['id'])->firstOrFail();
+        $this->seedApplicantDocuments((int) $line->applicant_id);
         // Seeded/legacy lines can hold no stage at all; the board must still
         // show them on their service's starting stage and let them move.
         ApplicantContract::query()->whereKey($line->id)->update(['current_stage_id' => null]);
@@ -200,6 +207,7 @@ class ApplicantPipelineTest extends TestCase
     public function test_changing_a_case_service_reseats_it_on_that_service_workflow(): void
     {
         $a = $this->postJson('/api/applicants', ['name' => 'Switching Case'])->assertCreated()->json('data');
+        $this->seedApplicantDocuments((int) $a['id']);
         $consultation = ApplicantStage::query()->where('service', 'scholarship')->where('key', 'consultation')->firstOrFail();
         $this->postJson("/api/applicants/{$a['id']}/change-stage", ['stage_id' => $consultation->id])->assertOk();
 

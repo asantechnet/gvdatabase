@@ -1,0 +1,120 @@
+- generic [active] [ref=f71e1]:
+  - generic [ref=f71e6]:
+    - complementary [ref=f71e7]:
+      - generic [ref=f71e8]:
+        - link [ref=f71e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f71e10]
+        - button "Collapse navigation" [ref=f71e11] [cursor=pointer]
+      - list [ref=f71e14]:
+        - listitem [ref=f71e15]:
+          - link "Home" [ref=f71e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f71e19]:
+          - link "Contracts" [ref=f71e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f71e23]:
+          - link "Applications" [ref=f71e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f71e27]:
+          - link "CRM" [ref=f71e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f71e31]:
+          - generic [ref=f71e32] [cursor=pointer]: Finance
+        - listitem [ref=f71e36]:
+          - generic [ref=f71e37] [cursor=pointer]: HR
+        - listitem [ref=f71e41]:
+          - link "Tasks" [ref=f71e42] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f71e45]:
+          - generic [ref=f71e46] [cursor=pointer]: Options
+          - list [ref=f71e50]:
+            - listitem [ref=f71e51]:
+              - generic [ref=f71e52] [cursor=pointer]: Contracts
+              - list [ref=f71e56]:
+                - listitem [ref=f71e57]:
+                  - link "Templates & policies" [ref=f71e58] [cursor=pointer]:
+                    - /url: /options/contracts/documents
+                - listitem [ref=f71e61]:
+                  - link "Educational data" [ref=f71e62] [cursor=pointer]:
+                    - /url: /educational-master-data
+                - listitem [ref=f71e65]:
+                  - link "Academy data" [ref=f71e66] [cursor=pointer]:
+                    - /url: /contracts/academy-data
+                - listitem [ref=f71e69]:
+                  - link "Contract stages" [ref=f71e70] [cursor=pointer]:
+                    - /url: /applicant-stages
+            - listitem [ref=f71e73]:
+              - generic [ref=f71e74] [cursor=pointer]: Finance
+            - listitem [ref=f71e78]:
+              - link "WhatsApp Messages" [ref=f71e79] [cursor=pointer]:
+                - /url: /options/whatsapp-messages
+        - listitem [ref=f71e82]:
+          - generic [ref=f71e83] [cursor=pointer]: Setup
+    - generic [ref=f71e89]:
+      - banner [ref=f71e90]:
+        - generic [ref=f71e92]:
+          - generic [ref=f71e93]:
+            - button "Open search" [ref=f71e94] [cursor=pointer]
+            - button "Search" [ref=f71e97] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f71e99]: ⌘K
+          - button "Guide for this page" [ref=f71e100] [cursor=pointer]
+          - button "English" [ref=f71e103] [cursor=pointer]
+          - button [ref=f71e112] [cursor=pointer]
+          - button [ref=f71e115] [cursor=pointer]
+          - generic [ref=f71e119]:
+            - button "Open audits" [ref=f71e120] [cursor=pointer]
+            - status "Badge" [ref=f71e123]: 99+
+          - button [ref=f71e124] [cursor=pointer]:
+            - status "Badge" [ref=f71e129]: "11"
+          - generic [ref=f71e131]:
+            - generic [ref=f71e132] [cursor=pointer]
+            - status "Badge" [ref=f71e134]
+      - main [ref=f71e135]:
+        - generic [ref=f71e138]:
+          - generic [ref=f71e139]:
+            - generic [ref=f71e140]: Academy data — Class times
+            - button "Add" [ref=f71e141] [cursor=pointer]
+          - generic [ref=f71e145]:
+            - tablist [ref=f71e146]:
+              - generic [ref=f71e148]:
+                - tab "Class times" [selected] [ref=f71e149] [cursor=pointer]
+                - tab "Durations" [ref=f71e151] [cursor=pointer]
+                - tab "Teachers" [ref=f71e153] [cursor=pointer]
+                - tab "Class" [ref=f71e155] [cursor=pointer]
+            - table [ref=f71e160]:
+              - rowgroup [ref=f71e161]:
+                - row [ref=f71e162]:
+                  - columnheader "Display order" [ref=f71e163]
+                  - columnheader "Name" [ref=f71e164]
+                  - columnheader "Details" [ref=f71e165]
+                  - columnheader "Status" [ref=f71e166]
+                  - columnheader [ref=f71e167]
+              - rowgroup [ref=f71e168]:
+                - row [ref=f71e169]:
+                  - cell "10" [ref=f71e170]
+                  - cell "Morning" [ref=f71e171]
+                  - cell "—" [ref=f71e172]
+                  - cell "Active" [ref=f71e173]
+                  - cell [ref=f71e176]:
+                    - button [ref=f71e177] [cursor=pointer]
+                    - button [ref=f71e180] [cursor=pointer]
+                - row [ref=f71e183]:
+                  - cell "20" [ref=f71e184]
+                  - cell "Evening" [ref=f71e185]
+                  - cell "—" [ref=f71e186]
+                  - cell "Active" [ref=f71e187]
+                  - cell [ref=f71e190]:
+                    - button [ref=f71e191] [cursor=pointer]
+                    - button [ref=f71e194] [cursor=pointer]
+      - contentinfo [ref=f71e197]:
+        - generic [ref=f71e200]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f71e201] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

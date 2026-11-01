@@ -13,7 +13,7 @@ import AdvanceReceiptTemplate, { type AdvanceReceiptData } from './templates/adv
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import { apiErrorMessage } from '@/utils/apiErrors'
-import { formatLocalizedDate, formatLocalizedNumber, translate } from '@/utils/localization'
+import { formatActiveMoney, formatLocalizedDate, formatLocalizedNumber, translate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
 
 const toast = useToast()
@@ -135,13 +135,10 @@ const companyProfile = computed(() => ({
   signature: companySetting.value?.company_signature_url || undefined,
 }))
 
-const formatAmount = (amount: number | null | undefined) => {
-  if (amount === null || amount === undefined)
-    return '—'
-  const decimals = 2
-
-  return `${currencySymbol.value}${formatLocalizedNumber(Number(amount), { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
-}
+// One formatter for the whole register: the currency code appears exactly once
+// and no symbol is concatenated by hand.
+const formatAmount = (amount: number | null | undefined) =>
+  formatActiveMoney(amount, { code: currencyCode.value, decimalPlaces: 2 })
 
 const formatInWords = (amount: number) => translate('documents.payslip.amountInWordsFallback', {
   amount: formatLocalizedNumber(amount, { minimumFractionDigits: 2 }),

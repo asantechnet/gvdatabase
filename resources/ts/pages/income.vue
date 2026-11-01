@@ -5,7 +5,7 @@ import { useToast } from 'vue-toastification'
 import { type FinanceType, getFinanceTypes } from '@/api/financeTypes'
 import { financeTypeLabel } from '@/utils/financeTypes'
 import PendingTransactionApi from '@/api/pendingTransactions'
-import { type Income, type IncomeCreateData, type IncomeParams, type ApplicantContractPaymentOption, createIncome, deleteIncome, getIncomes, getIncomesPage, getApplicantContractPayments, updateIncome } from '@/api/incomes'
+import { type Income, type IncomeCreateData, type IncomeParams, type IncomeUpdateData, type ApplicantContractPaymentOption, createIncome, deleteIncome, getIncomes, getIncomesPage, getApplicantContractPayments, updateIncome } from '@/api/incomes'
 import ReceiptApi from '@/api/receipts'
 import ApplicantApi, { type Applicant } from '@/api/applicants'
 import CurrencyApi, { type Currency } from '@/api/currency'
@@ -298,6 +298,16 @@ const validateIncomeForm = () => {
   return ''
 }
 
+// An issued receipt's value is protected: a value change opens a confirmation
+// that shows old → new total and requires a written reason.
+const revaluationDialog = ref(false)
+const revaluationReason = ref('')
+const revaluationError = ref('')
+const revaluationOld = ref(0)
+const revaluationNew = ref(0)
+const pendingRevaluation = ref<IncomeUpdateData | null>(null)
+const incomeTotal = (amount: number | string, quantity: number | string) => Number(amount) * Number(quantity)
+
 const openDeleteIncomeDialog = (income: Income) => {
   selectedIncome.value = income
   isDeleteIncomeDialogVisible.value = true
@@ -330,7 +340,8 @@ const addIncome = async () => {
 
     const incomeData = { ...selectedIncome.value } as IncomeCreateData
 
-    await createIncome(incomeData)
+    const created = await createIncome(incomeData)
+    toast.success(created.receipt_number ?? '')
     // A new receipt belongs on the first page of the current filters.
     reload()
     isAddIncomeDialogVisible.value = false
@@ -354,9 +365,23 @@ const updateIncomeRecord = async () => {
       if (!original)
         return
       const incomeData = changedIncomeFields(original, selectedIncome.value)
-      await updateIncome(selectedIncome.value.id, incomeData)
-      await fetchIncomes()
-      isEditIncomeDialogVisible.value = false
+
+      // Only value-bearing fields trigger the reason; a description or date
+      // edit stays a free, unconfirmed change.
+      const valueChanged = (['amount', 'quantity', 'currency_id', 'rate'] as Array<keyof IncomeUpdateData>)
+        .some(field => field in incomeData)
+      if (valueChanged) {
+        revaluationOld.value = incomeTotal(original.amount, original.quantity)
+        revaluationNew.value = incomeTotal(selectedIncome.value.amount, selectedIncome.value.quantity)
+        revaluationReason.value = ''
+        revaluationError.value = ''
+        pendingRevaluation.value = incomeData
+        revaluationDialog.value = true
+
+        return
+      }
+
+      await saveIncomeUpdate(incomeData)
     }
     catch (error) {
       console.error('Error updating income:', error)
@@ -365,10 +390,46 @@ const updateIncomeRecord = async () => {
   }
 }
 
+const saveIncomeUpdate = async (data: IncomeUpdateData) => {
+  if (!selectedIncome.value.id)
+    return
+
+  try {
+    const updated = await updateIncome(selectedIncome.value.id, data)
+    await fetchIncomes()
+    isEditIncomeDialogVisible.value = false
+    revaluationDialog.value = false
+    toast.success(`${updated.receipt_number} · ${formatIncomeCurrency(incomeTotal(updated.amount, updated.quantity), updated.currency)}`)
+  }
+  catch (error) {
+    const message = messageFromError(error)
+
+    formError.value = message
+    revaluationError.value = message
+  }
+}
+
+const confirmRevaluation = async () => {
+  if (!pendingRevaluation.value)
+    return
+
+  const reason = revaluationReason.value.trim()
+  if (!reason) {
+    revaluationError.value = translate('erp.required')
+
+    return
+  }
+
+  await saveIncomeUpdate({ ...pendingRevaluation.value, revaluation_reason: reason })
+}
+
 const deleteIncomeRecord = async () => {
   if (selectedIncome.value.id) {
     try {
+      const receiptNumber = selectedIncome.value.receipt_number
+
       await deleteIncome(selectedIncome.value.id)
+      toast.success(receiptNumber ?? '')
       // The deleted row was the last one on this page, so step back instead of
       // showing an empty page.
       if (page.value > 1 && incomes.value.length === 1)
@@ -388,7 +449,7 @@ const calculateTotal = () => {
   selectedIncome.value.base_amount = Number((selectedIncome.value.amount * selectedIncome.value.quantity / selectedIncome.value.rate).toFixed(decimals))
 }
 
-const formatIncomeCurrency = (value: number | string, currency: Income['currency']): string => {
+const formatIncomeCurrency = (value: number | string, currency: Income['currency'] | undefined): string => {
   const amount = Number(value)
   const formatted = Number.isFinite(amount) ? amount.toFixed(currency?.decimalPlaces ?? 2) : '0.00'
 
@@ -684,6 +745,7 @@ onMounted(() => {
                 variant="text"
                 size="small"
                 color="primary"
+                :aria-label="$t('documents.receipt.printReceipt')"
                 @click="openReceiptPreview(item)"
               >
                 <VIcon icon="tabler-receipt" /><VTooltip
@@ -698,6 +760,7 @@ onMounted(() => {
                 variant="text"
                 size="small"
                 color="medium-emphasis"
+                :aria-label="$t('pages.finance.income.income.editIncomeRecord')"
                 @click="openEditIncomeDialog(item)"
               >
                 <VIcon icon="tabler-edit" /><VTooltip
@@ -712,6 +775,7 @@ onMounted(() => {
                 variant="text"
                 size="small"
                 color="error"
+                :aria-label="$t('pages.finance.income.income.deleteIncomeRecord')"
                 @click="openDeleteIncomeDialog(item)"
               >
                 <VIcon icon="tabler-trash" /><VTooltip
@@ -1236,6 +1300,52 @@ onMounted(() => {
           <VBtn
             color="primary"
             @click="updateIncomeRecord"
+          >
+            {{ $t('common.actions.save') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Receipt revaluation confirmation: issued values change only with a reason -->
+    <VDialog
+      v-model="revaluationDialog"
+      max-width="520px"
+    >
+      <VCard>
+        <VCardTitle class="pa-5">
+          {{ $t('pages.finance.income.income.editIncomeRecord') }}
+        </VCardTitle>
+        <VCardText>
+          <VAlert
+            type="warning"
+            variant="tonal"
+            class="mb-4"
+          >
+            {{ formatIncomeCurrency(revaluationOld, selectedIncome.currency) }}
+            →
+            {{ formatIncomeCurrency(revaluationNew, selectedIncome.currency) }}
+          </VAlert>
+          <VTextarea
+            v-model="revaluationReason"
+            :label="$t('common.fields.reason')"
+            :error-messages="revaluationError"
+            rows="3"
+            autofocus
+          />
+        </VCardText>
+        <VCardActions class="pa-5">
+          <VSpacer />
+          <VBtn
+            color="secondary"
+            variant="tonal"
+            @click="revaluationDialog = false"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="primary"
+            @click="confirmRevaluation"
           >
             {{ $t('common.actions.save') }}
           </VBtn>

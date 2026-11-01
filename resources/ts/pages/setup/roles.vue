@@ -265,6 +265,11 @@ const saveRole = async () => {
 }
 
 const askDeleteRole = (role: AppRole) => {
+  if ((role.users_count ?? 0) > 0) {
+    toast.warning(tr('roleInUseDeleteHint', { count: role.users_count ?? 0 }))
+
+    return
+  }
   deletingRole.value = role
   deleteRoleDialog.value = true
 }
@@ -350,9 +355,18 @@ onMounted(loadAll)
           </VCardText>
 
           <VCardText>
-            <h4 class="text-h4 mb-1 text-capitalize">
-              {{ role.name.replace('_', ' ') }}
-            </h4>
+            <div class="d-flex align-center flex-wrap gap-2 mb-1">
+              <h4 class="text-h4 mb-0 text-capitalize">
+                {{ role.name.replace('_', ' ') }}
+              </h4>
+              <VChip
+                size="small"
+                color="primary"
+                variant="tonal"
+              >
+                {{ tr('permissionCount', { count: role.permissions?.length ?? 0 }) }}
+              </VChip>
+            </div>
             <div class="d-flex align-center">
               <a
                 href="javascript:void(0)"
@@ -362,15 +376,32 @@ onMounted(loadAll)
                 {{ tr('editRole') }}
               </a>
               <VSpacer />
-              <IconBtn
-                v-if="!isIdentityProtectedRoleName(role.name)"
-                :aria-label="tr('deleteRoleAria', { role: role.name })"
-                color="error"
-                size="small"
-                @click.stop="askDeleteRole(role)"
-              >
-                <VIcon icon="tabler-trash" />
-              </IconBtn>
+              <template v-if="!isIdentityProtectedRoleName(role.name)">
+                <VTooltip
+                  v-if="(role.users_count ?? 0) > 0"
+                  :text="tr('roleInUseDeleteHint', { count: role.users_count ?? 0 })"
+                  location="top"
+                >
+                  <template #activator="{ props }">
+                    <span v-bind="props"><IconBtn
+                      disabled
+                      size="small"
+                      :aria-label="tr('roleInUseDeleteHint', { count: role.users_count ?? 0 })"
+                    >
+                      <VIcon icon="tabler-lock" />
+                    </IconBtn></span>
+                  </template>
+                </VTooltip>
+                <IconBtn
+                  v-else
+                  :aria-label="tr('deleteRoleAria', { role: role.name })"
+                  color="error"
+                  size="small"
+                  @click.stop="askDeleteRole(role)"
+                >
+                  <VIcon icon="tabler-trash" />
+                </IconBtn>
+              </template>
             </div>
           </VCardText>
         </VCard>

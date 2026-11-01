@@ -38,6 +38,9 @@ class EducationalWorkflowIntegrationTest extends TestCase
 
         $this->assertSame(1, $agent->notifications()->where('notification_key', "applicant.assigned.{$case['id']}.{$agent->id}")->count());
 
+        // The first forward move needs a labeled document on the case.
+        $this->seedApplicantDocuments($case['id']);
+
         $next = ApplicantStage::query()->where('key', 'consultation')->firstOrFail();
         $this->postJson("/api/applicants/{$case['id']}/change-stage", ['stage_id' => $next->id])
             ->assertOk();

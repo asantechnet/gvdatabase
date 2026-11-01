@@ -15,6 +15,7 @@ const form = ref({
   password: '',
   remember: false,
   twoFactorCode: '',
+  recoveryCode: '',
 })
 
 const loading = ref(false)
@@ -55,7 +56,8 @@ const handleLogin = async () => {
       email: form.value.email,
       password: form.value.password,
       remember: form.value.remember,
-      two_factor_code: twoFactorRequired.value ? form.value.twoFactorCode : undefined,
+      two_factor_code: twoFactorRequired.value && form.value.twoFactorCode ? form.value.twoFactorCode : undefined,
+      recovery_code: twoFactorRequired.value && form.value.recoveryCode ? form.value.recoveryCode : undefined,
     })
 
     const session = response.data.data

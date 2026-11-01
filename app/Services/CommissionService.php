@@ -181,26 +181,35 @@ class CommissionService
 
                 $commission = round($eligibleBase * ($percentage / 100), 6);
 
-                $accrual = CommissionAccrual::withTrashed()->updateOrCreate(
-                    [
-                        'contract_id' => $contract->id,
-                        'applicant_contract_id' => $line->id,
-                        'employee_id' => $employee->id,
-                    ],
-                    [
-                        'service' => $lineService,
-                        'base_currency_id' => $base->id,
-                        'commission_settlement_id' => null,
-                        'entry_type' => 'earned',
-                        'earned_at' => $earnedOn,
-                        'source_base_amount' => $eligibleBase,
-                        'eligible_base_amount' => $eligibleBase,
-                        'percentage' => $percentage,
-                        'commission_base_amount' => $commission,
-                        'status' => 'pending',
-                        'deleted_at' => null,
-                    ],
-                );
+                $accrual = CommissionAccrual::withTrashed()->firstOrNew([
+                    'contract_id' => $contract->id,
+                    'applicant_contract_id' => $line->id,
+                    'employee_id' => $employee->id,
+                ]);
+
+                // Money already attached to a settlement is immutable. Keeping
+                // it in the eligible set prevents `voidStale` from voiding it,
+                // and skipping the write prevents a sync from detaching or
+                // resurrecting it as a pending accrual.
+                if ($accrual->exists && $accrual->commission_settlement_id !== null) {
+                    $eligibleIds[] = $accrual->id;
+
+                    continue;
+                }
+
+                $accrual->fill([
+                    'service' => $lineService,
+                    'base_currency_id' => $base->id,
+                    'commission_settlement_id' => null,
+                    'entry_type' => 'earned',
+                    'earned_at' => $earnedOn,
+                    'source_base_amount' => $eligibleBase,
+                    'eligible_base_amount' => $eligibleBase,
+                    'percentage' => $percentage,
+                    'commission_base_amount' => $commission,
+                    'status' => 'pending',
+                    'deleted_at' => null,
+                ])->save();
 
                 $eligibleIds[] = $accrual->id;
             }

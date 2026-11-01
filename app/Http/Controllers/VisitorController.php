@@ -10,6 +10,7 @@ use App\Models\ApplicantStage;
 use App\Models\CrmInteraction;
 use App\Models\Visitor;
 use App\Support\AgencyStaffAssignment;
+use App\Support\BuiltInService;
 use App\Support\ConsultantReview;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -87,7 +88,9 @@ class VisitorController extends Controller
             'name' => 'required|string|max:255',
             'contact' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
-            'service' => 'required|string|max:255',
+            // The four built-in services are the CRM's shared vocabulary: a
+            // typo here would fragment case and report groupings forever.
+            'service' => ['required', 'string', Rule::in(BuiltInService::ALL)],
             'consultant_employee_id' => AgencyStaffAssignment::rules('counselor'),
             'education_level_id' => ['nullable', 'integer', Rule::exists('education_levels', 'id')->whereNull('deleted_at')],
             'age' => ['nullable', 'integer', 'min:1', 'max:120'],
@@ -132,7 +135,7 @@ class VisitorController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'contact' => 'sometimes|required|string|max:255',
             'email' => 'nullable|email|max:255',
-            'service' => 'sometimes|required|string|max:255',
+            'service' => ['sometimes', 'required', 'string', Rule::in(BuiltInService::ALL)],
             'consultant_employee_id' => AgencyStaffAssignment::rules('counselor'),
             'education_level_id' => ['nullable', 'integer', Rule::exists('education_levels', 'id')->whereNull('deleted_at')],
             'age' => ['nullable', 'integer', 'min:1', 'max:120'],

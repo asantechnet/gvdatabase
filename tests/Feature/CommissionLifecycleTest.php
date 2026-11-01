@@ -71,6 +71,12 @@ class CommissionLifecycleTest extends TestCase
      */
     private function advanceCase(Applicant $applicant, string $target): Applicant
     {
+        // Leaving the first stage needs a labeled document. The workflow under
+        // test is the transition and its commission effect, not the upload.
+        if ($applicant->attachments()->doesntExist()) {
+            $this->seedApplicantDocuments($applicant);
+        }
+
         for ($step = 0; $step < 30; $step++) {
             $current = $applicant->fresh()->currentStage;
             if ($current?->key === $target) {
@@ -221,6 +227,55 @@ class CommissionLifecycleTest extends TestCase
             ->assertJsonPath('data.voided', 1);
 
         $this->assertSame('void', CommissionAccrual::where('contract_id', $contract->id)->firstOrFail()->status);
+    }
+
+    public function test_syncing_the_same_completed_case_twice_does_not_duplicate_accruals(): void
+    {
+        $this->actingSuperAdmin();
+        $employee = $this->commissionEmployee('scholarship', 50);
+        $contract = $this->liveContract([$employee->id]);
+        $this->advanceCase($contract->applicant, ApplicantStage::COMPLETED_KEY);
+
+        $this->postJson('/api/commissions/sync')->assertOk()
+            ->assertJsonPath('data.cases', 1)
+            ->assertJsonPath('data.voided', 0);
+
+        $this->assertSame(1, CommissionAccrual::where('contract_id', $contract->id)->count());
+        $accrual = CommissionAccrual::where('contract_id', $contract->id)->firstOrFail();
+        $this->assertSame('pending', $accrual->status);
+        $this->assertSame(50.0, (float) $accrual->commission_base_amount);
+    }
+
+    public function test_sync_does_not_resurrect_a_paid_accrual(): void
+    {
+        $this->actingSuperAdmin();
+        $employee = $this->commissionEmployee('scholarship', 40);
+        $contract = $this->liveContract([$employee->id]);
+        $this->advanceCase($contract->applicant, ApplicantStage::COMPLETED_KEY);
+
+        $accrual = CommissionAccrual::where('employee_id', $employee->id)->firstOrFail();
+        $today = now()->toDateString();
+        $settlementId = $this->postJson('/api/commission-settlements', [
+            'employee_id' => $employee->id,
+            'base_currency_id' => $accrual->base_currency_id,
+            'period_start' => $today,
+            'period_end' => $today,
+            'accrual_ids' => [$accrual->id],
+        ])->assertCreated()->json('data.id');
+
+        $this->postJson("/api/commission-settlements/{$settlementId}/pay", ['payment_date' => $today])
+            ->assertOk();
+
+        $paid = CommissionAccrual::findOrFail($accrual->id);
+        $this->assertSame('paid', $paid->status);
+        $this->assertNotNull($paid->commission_settlement_id);
+
+        $this->postJson('/api/commissions/sync')->assertOk();
+
+        $after = CommissionAccrual::findOrFail($accrual->id);
+        $this->assertSame('paid', $after->status);
+        $this->assertSame($paid->commission_settlement_id, $after->commission_settlement_id);
+        $this->assertSame((float) $paid->commission_base_amount, (float) $after->commission_base_amount);
     }
 
     public function test_settlement_approval_and_payment_book_an_expense(): void

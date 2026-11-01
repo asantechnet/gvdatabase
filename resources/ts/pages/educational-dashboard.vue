@@ -73,7 +73,12 @@ onMounted(() => load())
     <AgencyOverviewSkeleton v-if="loading" :panel-heights="skeletonHeights" :summary-height="skeletonSummaryHeight" />
     <VAlert v-if="failed" type="error" variant="tonal" class="mb-4">{{ t('educational.loadOverviewFailed') }}<VBtn variant="text" size="small" @click="load()">{{ t('agencyDashboard.refresh') }}</VBtn></VAlert>
     <div v-if="data" v-show="!loading" ref="dashboardContent">
-      <div class="text-caption text-medium-emphasis mb-2">{{ t('agencyDashboard.liveOperations') }}</div>
+      <div class="d-flex flex-wrap align-center gap-2 mb-2">
+        <span class="text-caption text-medium-emphasis">{{ t('agencyDashboard.liveOperations') }}</span>
+        <VChip v-if="appliedFilters.date_from || appliedFilters.date_to" size="x-small" variant="tonal" color="primary">
+          {{ appliedFilters.date_from || '—' }} — {{ appliedFilters.date_to || '—' }}
+        </VChip>
+      </div>
       <section class="summary-grid">
         <VCard :to="applicationLink({ status: 'active', date_from: '', date_to: '' })" class="summary-card"><div><div class="text-caption">{{ t('educational.activeCasesLabel') }}</div><div class="summary-value"><VIcon color="primary" icon="tabler-users-group" /><strong>{{ n(data.operations.active_cases) }}</strong></div><div class="text-caption text-medium-emphasis">{{ t('agencyDashboard.unassigned', { count: n(data.operations.unassigned_cases) }) }}</div></div></VCard>
         <VCard href="#agency-priorities" class="summary-card"><div><div class="text-caption">{{ t('agencyDashboard.actionItems') }}</div><div class="summary-value"><VIcon color="warning" icon="tabler-alert-triangle" /><strong>{{ n(priorityCount) }}</strong></div><div class="text-caption text-medium-emphasis">{{ t('agencyDashboard.itemsNotCases') }}</div></div></VCard>
@@ -99,7 +104,8 @@ onMounted(() => load())
           <VCardItem :title="t('agencyDashboard.moneyAndSales')" :subtitle="t('agencyDashboard.postedPeriod')" /><VList density="compact">
             <VListItem :to="canAccess('view_incomes') ? { name: 'income' } : undefined" :title="t('educational.postedIncome')" :subtitle="money(data.financial.income)"><template #prepend><VIcon color="success" icon="tabler-trending-up" /></template></VListItem>
             <VListItem :to="canAccess('view_expenses') ? { name: 'expenses' } : undefined" :title="t('educational.postedExpenses')" :subtitle="money(data.financial.expenses)"><template #prepend><VIcon color="error" icon="tabler-trending-down" /></template></VListItem>
-            <VListItem :title="t('educational.postedSalaries')" :subtitle="money(data.financial.salaries)"><template #prepend><VIcon color="info" icon="tabler-wallet" /></template></VListItem>
+            <VListItem :title="t('pages.payrolls.netPayroll')" :subtitle="money(data.financial.salaries_payable)"><template #prepend><VIcon color="info" icon="tabler-wallet" /></template></VListItem>
+            <VListItem :title="t('pages.payrolls.paid')" :subtitle="money(data.financial.salaries_paid)"><template #prepend><VIcon color="success" icon="tabler-cash-banknote" /></template></VListItem>
           </VList><VDivider /><VList density="compact"><VListItem v-for="sale in sales" :key="sale.service" :to="canAccess('view_contracts') ? { name: sale.route } : undefined" :title="serviceName(sale.service)"><template #append><span class="text-body-2">{{ n(sale.row.sold) }}</span></template></VListItem></VList><div class="text-caption text-medium-emphasis px-4 pb-3">{{ t('agencyDashboard.serviceCountHelp') }}</div>
         </VCard>
         <VCard class="h-100">

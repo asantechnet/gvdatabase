@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\BuiltInService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,7 +15,12 @@ class VisitorResource extends JsonResource
             'name' => $this->name,
             'contact' => $this->contact,
             'email' => $this->email,
+            // The stored value stays visible even when it is legacy free text;
+            // canonical rows also get a translation key for the UI.
             'service' => $this->service,
+            'service_key' => BuiltInService::isValid($this->service) ? $this->service : null,
+            'service_label' => BuiltInService::isValid($this->service) ? BuiltInService::label($this->service) : $this->service,
+            'service_label_key' => BuiltInService::isValid($this->service) ? BuiltInService::labelKey($this->service) : null,
             'education_level_id' => $this->education_level_id,
             'education_level' => $this->whenLoaded('educationLevel', fn () => $this->educationLevel?->only(['id', 'name'])),
             'age' => $this->age,

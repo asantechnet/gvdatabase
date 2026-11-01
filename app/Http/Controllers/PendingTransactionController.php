@@ -15,16 +15,33 @@ use App\Services\LoanReceiptService;
 use App\Support\EditWindow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class PendingTransactionController extends Controller
 {
     public function index(Request $request)
     {
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', Rule::in([
+                PendingTransaction::SUBMITTED, PendingTransaction::UNDER_REVIEW,
+                PendingTransaction::APPROVED, PendingTransaction::REJECTED,
+                PendingTransaction::POSTED, PendingTransaction::DRAFT,
+            ])],
+            'transaction_type' => ['nullable', Rule::in(['income', 'expense', 'salary'])],
+        ]);
+
         $query = PendingTransaction::with(['currency', 'requester', 'approver', 'applicant', 'employee']);
         if (! $request->user()->hasPermission('approve_pending_transactions') && ! $request->user()->hasPermission('post_pending_transactions')) {
             $query->where('requested_by', $request->user()->id);
         }
+
+        $search = trim((string) ($filters['search'] ?? ''));
+        $query
+            ->when($search !== '', fn ($builder) => $builder->where('reason', 'like', "%{$search}%"))
+            ->when($filters['status'] ?? null, fn ($builder, $status) => $builder->where('approval_status', $status))
+            ->when($filters['transaction_type'] ?? null, fn ($builder, $type) => $builder->where('transaction_type', $type));
 
         return response()->json(['success' => true, 'data' => $query->latest()->paginate($request->integer('per_page', 25))]);
     }
@@ -104,6 +121,10 @@ class PendingTransactionController extends Controller
             if ($pending->posted_at) {
                 return response()->json(['success' => true, 'data' => $pending]);
             }
+            // Posting is the final authorization step, so the same rule that
+            // blocks self-approval also blocks a requester posting their own
+            // request. The UI hides the action; the API remains authoritative.
+            abort_if($pending->requested_by === $request->user()->id, 422, 'business.pending_transaction_self_approval');
             abort_unless($pending->approval_status === PendingTransaction::APPROVED, 422, 'business.pending_transaction_not_approved');
 
             $currency = Currency::query()->findOrFail($pending->currency_id);

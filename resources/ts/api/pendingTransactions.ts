@@ -16,6 +16,7 @@ export interface PendingTransaction {
   applicant_id: number | null
   employee_id: number | null
   approval_status: PendingTransactionStatus
+  requested_by: number
   rejection_reason: string | null
   requested_at: string | null
   approved_at: string | null
@@ -26,6 +27,12 @@ export interface PendingTransaction {
   employee?: { id: number; name: string }
   requester?: { id: number; name: string }
   approver?: { id: number; name: string }
+}
+
+export interface PendingTransactionFilters {
+  search?: string
+  status?: PendingTransactionStatus | null
+  transaction_type?: PendingTransactionType | null
 }
 
 export interface PendingTransactionInput {
@@ -53,7 +60,15 @@ export interface PendingTransactionPage {
 const unwrap = <T>(response: { data: { data: T } }) => response.data.data
 
 export default {
-  list: async (page = 1, perPage = 25) => unwrap<PendingTransactionPage>(await api.get('/payment-requests', { params: { page, per_page: perPage } })),
+  list: async (page = 1, perPage = 25, filters: PendingTransactionFilters = {}) => unwrap<PendingTransactionPage>(await api.get('/payment-requests', {
+    params: {
+      page,
+      per_page: perPage,
+      ...(filters.search ? { search: filters.search } : {}),
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.transaction_type ? { transaction_type: filters.transaction_type } : {}),
+    },
+  })),
   create: async (data: PendingTransactionInput) => unwrap<PendingTransaction>(await api.post('/payment-requests', data)),
   update: async (id: number, data: Partial<PendingTransactionInput>) => unwrap<PendingTransaction>(await api.put(`/payment-requests/${id}`, data)),
   options: async () => unwrap<PendingTransactionOptions>(await api.get('/payment-requests/options')),

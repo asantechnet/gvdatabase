@@ -125,6 +125,21 @@ class OffDayService
         $this->recalculate($offDay);
     }
 
+    /**
+     * The pending or approved company off day that shares at least one date
+     * with the requested range. Rejected ranges never block a new one, and
+     * the row being edited is excluded so it cannot conflict with itself.
+     */
+    public function findOverlap(string $start, string $end, ?int $ignoreId = null): ?OffDay
+    {
+        return OffDay::query()
+            ->whereIn('status', [OffDay::STATUS_PENDING, OffDay::STATUS_APPROVED])
+            ->overlapping($start, $end)
+            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
+            ->orderBy('start_date')
+            ->first();
+    }
+
     /** @return array<int, Carbon> */
     private function dates(OffDay $offDay): array
     {

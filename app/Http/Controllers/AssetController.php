@@ -20,7 +20,7 @@ class AssetController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Asset::query()->with(['allocations.employee', 'office']);
+        $query = Asset::query()->with(['allocations.employee', 'office', 'currency']);
 
         if ($request->has('search')) {
             $search = $request->input('search');
@@ -73,6 +73,10 @@ class AssetController extends Controller
             'item' => 'required|string|max:255',
             'quantity' => 'required|integer|min:1',
             'price' => 'required|numeric|min:0',
+            'currency_id' => ['required', 'integer', Rule::exists('currencies', 'id')->whereNull('deleted_at')],
+            'acquisition_date' => ['required', 'date', 'before_or_equal:today'],
+            'useful_life_years' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'salvage_value' => ['nullable', 'numeric', 'min:0'],
             'model' => 'required|string|max:255',
             'condition' => ['required', Rule::in(Asset::conditions())],
             'office_id' => ['required', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
@@ -90,7 +94,7 @@ class AssetController extends Controller
             return $asset;
         });
 
-        return new AssetResource($asset->load(['allocations.employee', 'office']));
+        return new AssetResource($asset->load(['allocations.employee', 'office', 'currency']));
     }
 
     /**
@@ -98,7 +102,7 @@ class AssetController extends Controller
      */
     public function show(Asset $asset)
     {
-        return new AssetResource($asset->load(['allocations.employee', 'office']));
+        return new AssetResource($asset->load(['allocations.employee', 'office', 'currency']));
     }
 
     /**
@@ -111,6 +115,10 @@ class AssetController extends Controller
             'item' => 'sometimes|string|max:255',
             'quantity' => 'sometimes|integer|min:1',
             'price' => 'sometimes|numeric|min:0',
+            'currency_id' => ['sometimes', 'required', 'integer', Rule::exists('currencies', 'id')->whereNull('deleted_at')],
+            'acquisition_date' => ['sometimes', 'required', 'date', 'before_or_equal:today'],
+            'useful_life_years' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100'],
+            'salvage_value' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'model' => 'sometimes|string|max:255',
             'condition' => ['sometimes', Rule::in(Asset::conditions())],
             'office_id' => ['sometimes', 'required', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
@@ -131,7 +139,7 @@ class AssetController extends Controller
             }
         });
 
-        return new AssetResource($asset->fresh()->load(['allocations.employee', 'office']));
+        return new AssetResource($asset->fresh()->load(['allocations.employee', 'office', 'currency']));
     }
 
     /**

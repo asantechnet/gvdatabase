@@ -99,6 +99,7 @@ class RoleController extends Controller
     {
         abort_unless($request->user()->hasPermission('delete_roles'), 403, 'auth.forbidden');
         abort_if(in_array($role->name, self::PROTECTED_ROLE_NAMES, true), 422, 'business.request_rejected');
+        abort_if($role->users()->exists(), 422, 'business.role_in_use');
 
         $role->delete();
 

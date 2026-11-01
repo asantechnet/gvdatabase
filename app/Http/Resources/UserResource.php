@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -11,6 +12,8 @@ class UserResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'is_primary' => (int) $this->id === (int) User::primaryRecordId(),
+            'is_self' => (int) $this->id === (int) $request->user()?->id,
             'name' => $this->name,
             'email' => $this->email,
             'avatar' => $this->whenLoaded('employee', fn () => $this->employee?->avatar),

@@ -27,6 +27,7 @@ class AuditLogController extends Controller
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
             'search' => ['nullable', 'string', 'max:255'],
+            'source' => ['nullable', 'in:people,system'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
             'sort' => ['nullable', 'in:created_at,audited_at'],
@@ -40,6 +41,8 @@ class AuditLogController extends Controller
             ->when(($data['audit_state'] ?? null) === 'audited', fn ($query) => $query->whereNotNull('audited_at'))
             ->when(isset($data['resolution']), fn ($query) => $query->where('review_status', $data['resolution']))
             ->when(isset($data['changed_by']), fn ($query) => $query->where('user_id', $data['changed_by']))
+            ->when(($data['source'] ?? null) === 'people', fn ($query) => $query->whereNotNull('user_id'))
+            ->when(($data['source'] ?? null) === 'system', fn ($query) => $query->whereNull('user_id'))
             ->when(isset($data['audited_by']), fn ($query) => $query->where('audited_by', $data['audited_by']))
             ->when(isset($data['from']), fn ($query) => $query->whereDate('created_at', '>=', $data['from']))
             ->when(isset($data['to']), fn ($query) => $query->whereDate('created_at', '<=', $data['to']))

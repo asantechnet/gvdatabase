@@ -77,6 +77,7 @@ class BusinessLogicConsistencyTest extends TestCase
         $this->putJson("/api/incomes/{$income->id}", [
             'description' => 'Corrected description',
             'amount' => 120,
+            'revaluation_reason' => 'Corrected the receipt amount',
         ])->assertOk();
 
         $income->refresh();

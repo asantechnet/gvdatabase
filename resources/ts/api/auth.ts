@@ -27,9 +27,34 @@ export interface AccountUpdatePayload {
   address?: string | null
 }
 
+export interface TwoFactorSetup {
+  secret: string
+  issuer: string
+  otpauth_url: string
+}
+
+/** Sanctum tokens are listed as access/refresh rows; the token value is never returned. */
+export interface AccountSession {
+  id: number
+  type: 'access' | 'refresh'
+  device: string | null
+  created_at: string | null
+  last_used_at: string | null
+  expires_at: string | null
+  current: boolean
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+  remember?: boolean
+  two_factor_code?: string
+  recovery_code?: string
+}
+
 const AuthApi = {
   register: (data: { name: string; email: string; password: string; password_confirmation: string; phone: string; address: string }) => api.post('/auth/register', data),
-  login: (credentials: { email: string; password: string; remember?: boolean; two_factor_code?: string }) => api.post('/auth/login', credentials),
+  login: (credentials: LoginCredentials) => api.post('/auth/login', credentials),
   logout: (refreshToken?: string | null) => api.post('/auth/logout', { refresh_token: refreshToken }),
   refreshToken: (refreshToken: string, remember: boolean) => api.post('/auth/refresh-token', { refresh_token: refreshToken, remember }),
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
@@ -53,6 +78,8 @@ const AuthApi = {
   confirmTwoFactor: (code: string) => api.post('/auth/account/two-factor/confirm', { code }),
   disableTwoFactor: (password: string) => api.delete('/auth/account/two-factor', { data: { password } }),
   logoutOtherDevices: (password: string) => api.post('/auth/account/logout-other-devices', { password }),
+  sessions: () => api.get('/auth/account/sessions'),
+  revokeSession: (id: number) => api.delete(`/auth/account/sessions/${id}`),
 }
 
 export default AuthApi

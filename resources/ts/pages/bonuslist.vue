@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { translate } from '@/utils/localization'
 import { computed, onMounted, ref } from 'vue'
+import { useToast } from 'vue-toastification'
 import BonusListApi, { type BonusType, type WorthyEmployee } from '@/api/bonuslist'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { canAccess } from '@/utils/authorization'
 import BonusRulesDialog from '@/components/bonus/BonusRulesDialog.vue'
+
+const toast = useToast()
 
 // --------------------------------------------------------------------------
 // State & Mock Data
@@ -22,6 +25,10 @@ const isCalculationDialogVisible = ref(false)
 const isRulesDialogVisible = ref(false)
 const selectedCalculation = ref<WorthyEmployee | null>(null)
 const selectedForGrant = ref<WorthyEmployee | null>(null)
+const grantError = ref('')
+const granting = ref(false)
+const grantAmount = computed(() => Number(selectedForGrant.value?.selectedAmount ?? 0))
+const grantAmountInvalid = computed(() => !selectedForGrant.value || !Number.isFinite(grantAmount.value) || grantAmount.value <= 0)
 const worthyEmployees = ref<WorthyEmployee[]>([])
 const employees = ref<Employee[]>([])
 const isLoadingEmployees = ref(false)
@@ -153,30 +160,52 @@ const updateEmployee = async (employee: WorthyEmployee) => {
   }
 }
 
-const triggerGrantConfirmation = async (employee: WorthyEmployee) => {
+const triggerGrantConfirmation = (employee: WorthyEmployee) => {
   selectedForGrant.value = employee
+  grantError.value = ''
   isConfirmGrantVisible.value = true
 }
 
 const confirmGrantBonus = async () => {
-  if (!selectedForGrant.value)
+  const target = selectedForGrant.value
+  if (!target || granting.value)
     return
 
+  const amount = Number(target.selectedAmount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    grantError.value = translate('pages.bonuses.bonuslist.bonuslist.grantAmountRequired')
+
+    return
+  }
+
+  granting.value = true
+  grantError.value = ''
   try {
-    const response = await BonusListApi.update(selectedForGrant.value.id, {
+    const response = await BonusListApi.update(target.id, {
       isGranted: true,
+      grantedAmount: amount,
     })
 
     // Update the local state to reflect the granted status
-    const index = worthyEmployees.value.findIndex(e => e.id === selectedForGrant.value?.id)
+    const index = worthyEmployees.value.findIndex(e => e.id === target.id)
     if (index >= 0)
       worthyEmployees.value[index] = response.data.data
 
     isConfirmGrantVisible.value = false
     selectedForGrant.value = null
+    toast.success(translate('pages.bonuses.bonuslist.bonuslist.grantedToast', {
+      amount: formatBonusAmount(target, amount),
+      employee: target.employeeName,
+      month: formatMonth(target.bonusMonth),
+    }))
   }
   catch (error) {
-    console.error('Failed to grant bonus:', error)
+    // ApiErrorNotifier owns the single error toast; keep the dialog open and
+    // put the specific field message beside the amount.
+    grantError.value = apiFieldErrors(error).grantedAmount || apiErrorMessage(error)
+  }
+  finally {
+    granting.value = false
   }
 }
 
@@ -815,22 +844,28 @@ const getStatusColor = (isGranted: boolean) => {
           <div class="d-flex justify-space-between align-center pa-4 mt-4 bg-var-theme-surface rounded border">
             <span class="text-medium-emphasis font-weight-medium">{{ $t('pages.bonuses.bonuslist.bonuslist.finalAmount') }}</span>
             <span class="text-h5 font-weight-bold text-primary">
-              {{ selectedForGrant ? formatBonusAmount(selectedForGrant, selectedForGrant.selectedAmount) : formatCurrency(0) }}
+              {{ selectedForGrant ? formatBonusAmount(selectedForGrant, grantAmount) : formatCurrency(0) }}
             </span>
           </div>
+
+          <VAlert v-if="grantError || grantAmountInvalid" type="error" variant="tonal" class="mt-4">
+            {{ grantError || $t('pages.bonuses.bonuslist.bonuslist.grantAmountRequired') }}
+          </VAlert>
         </VCardText>
 
         <VCardActions class="pa-4 justify-end gap-2">
           <VBtn
             variant="outlined"
             color="secondary"
-            @click="isConfirmGrantVisible = false"
+            @click="isConfirmGrantVisible = false; grantError = ''"
           >
             {{ $t('common.actions.cancel') }}
           </VBtn>
           <VBtn
             color="primary"
             elevation="1"
+            :loading="granting"
+            :disabled="grantAmountInvalid"
             @click="confirmGrantBonus"
           >
             {{ $t('pages.bonuses.bonuslist.bonuslist.confirmGrant') }}

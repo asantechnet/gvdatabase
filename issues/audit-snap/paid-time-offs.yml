@@ -1,0 +1,107 @@
+- generic [active] [ref=f84e1]:
+  - generic [ref=f84e6]:
+    - complementary [ref=f84e7]:
+      - generic [ref=f84e8]:
+        - link [ref=f84e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f84e10]
+        - button "Collapse navigation" [ref=f84e11] [cursor=pointer]
+      - list [ref=f84e14]:
+        - listitem [ref=f84e15]:
+          - link "Home" [ref=f84e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f84e19]:
+          - link "Contracts" [ref=f84e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f84e23]:
+          - link "Applications" [ref=f84e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f84e27]:
+          - link "CRM" [ref=f84e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f84e31]:
+          - generic [ref=f84e32] [cursor=pointer]: Finance
+        - listitem [ref=f84e36]:
+          - generic [ref=f84e37] [cursor=pointer]: HR
+          - list [ref=f84e41]:
+            - listitem [ref=f84e42]:
+              - link "Staff list" [ref=f84e43] [cursor=pointer]:
+                - /url: /staff-list
+            - listitem [ref=f84e46]:
+              - link "Departments" [ref=f84e47] [cursor=pointer]:
+                - /url: /setup/departments
+            - listitem [ref=f84e50]:
+              - link "Employment contracts" [ref=f84e51] [cursor=pointer]:
+                - /url: /employee-contracts
+            - listitem [ref=f84e54]:
+              - link "Timesheet" [ref=f84e55] [cursor=pointer]:
+                - /url: /timesheet
+            - listitem [ref=f84e58]:
+              - link "Off Day Requests" [ref=f84e59] [cursor=pointer]:
+                - /url: /leave-requests
+            - listitem [ref=f84e62]:
+              - link "Company Off Days" [ref=f84e63] [cursor=pointer]:
+                - /url: /off-days
+            - listitem [ref=f84e66]:
+              - link "Payrolls" [ref=f84e67] [cursor=pointer]:
+                - /url: /payrolls
+            - listitem [ref=f84e70]:
+              - link "Bonus list" [ref=f84e71] [cursor=pointer]:
+                - /url: /bonuslist
+            - listitem [ref=f84e74]:
+              - link "Positions" [ref=f84e75] [cursor=pointer]:
+                - /url: /setup/positions
+            - listitem [ref=f84e78]:
+              - link "Announcements" [ref=f84e79] [cursor=pointer]:
+                - /url: /announcements
+        - listitem [ref=f84e82]:
+          - link "Tasks" [ref=f84e83] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f84e86]:
+          - generic [ref=f84e87] [cursor=pointer]: Options
+        - listitem [ref=f84e91]:
+          - generic [ref=f84e92] [cursor=pointer]: Setup
+    - generic [ref=f84e98]:
+      - banner [ref=f84e99]:
+        - generic [ref=f84e101]:
+          - generic [ref=f84e102]:
+            - button "Open search" [ref=f84e103] [cursor=pointer]
+            - button "Search" [ref=f84e106] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f84e108]: ⌘K
+          - button "Guide for this page" [ref=f84e109] [cursor=pointer]
+          - button "English" [ref=f84e112] [cursor=pointer]
+          - button [ref=f84e121] [cursor=pointer]
+          - button [ref=f84e124] [cursor=pointer]
+          - generic [ref=f84e128]:
+            - button "Open audits" [ref=f84e129] [cursor=pointer]
+            - status "Badge" [ref=f84e132]: 99+
+          - button [ref=f84e133] [cursor=pointer]:
+            - status "Badge" [ref=f84e138]: "11"
+          - generic [ref=f84e140]:
+            - generic [ref=f84e141] [cursor=pointer]
+            - status "Badge" [ref=f84e143]
+      - main [ref=f84e144]:
+        - generic [ref=f84e146]:
+          - region "Off Day Requests overview" [ref=f84e147]:
+            - generic [ref=f84e152]:
+              - heading "Off Day Requests" [level=1] [ref=f84e153]
+              - paragraph [ref=f84e154]: Employee requests for time away. Approved days inside the allowance are off days; the days beyond it are absences.
+          - generic [ref=f84e155]:
+            - generic [ref=f84e156]:
+              - text: Off Day Requests
+              - button "Filters" [ref=f84e158] [cursor=pointer]
+              - button "Print" [ref=f84e161] [cursor=pointer]
+              - button "Approve selected (0)" [disabled]
+            - paragraph [ref=f84e169]: No off-day requests match these filters.
+      - contentinfo [ref=f84e170]:
+        - generic [ref=f84e173]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f84e174] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

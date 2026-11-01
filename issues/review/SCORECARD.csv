@@ -1,0 +1,39 @@
+page,route,ui_ux,security,logic_sanity,note
+Login,/login,3,2,4,Duplicate accessible labels; weak seeded credential
+Agency overview,/agency-overview,3,4,2,Truncated cards; mobile overflow; unpaid salary labelled posted; case-stage mismatch
+Applications list,/applications,3,4,2,Stage filter contradicts visible stage; payment status blank; 21 tabs
+Case detail,/applicants/1,2,3,2,Clipped workflow column; duplicate data; blank timeline; no document gate
+Applicant pipeline,/applicant-pipeline,3,4,2,Same case twice; Active 2 vs three cards; clipped columns
+Visa reports,/visa-reports,3,4,3,Raw service enum values; no visible period
+Contracts list,/contracts/scholarship,2,4,2,Status+actions hidden; unnamed icons; extension/primary indistinguishable
+Contract detail drawer,contract row,3,4,3,Misleading activity label; timestamps only; clipped content
+Create contract dialog,contracts create,2,4,3,Footer overlap; unlabelled no-matching-version; unexplained percentage
+Employee contracts,/employee-contracts,3,4,2,No end date despite dashboard attention
+CRM Visitors,/visitor,2,3,2,Hidden actions; blank emails; unlabeled date
+Add Visitor dialog,visitor add,3,4,2,Free-text service; undefined percentage; notes under footer
+Follow-up list,/visitor?list=follow-up,2,3,1,Not filtered; identical to Visitors
+Income ledger,/income,3,4,3,Promised totals missing; zero-state controls; inconsistent header
+Record income dialog,income record,3,3,3,Competing modes; no payment method/reference; computed total OK
+Expense ledger,/expenses,3,4,3,No totals/date context; duplicate stream labels
+Payment requests,/payment-requests,2,3,3,Two paginations; clipped subtitle; no search; self-approval guard present
+New payment request,payment request new,3,3,2,No payee/method/reference/attachment
+Commissions,/commissions,3,4,3,Clear concept; demo data empty; rules unexplained
+Asset inventory,/asset,3,4,2,No currency/acquisition/depreciation; hidden columns
+Reports,/reports,3,4,2,Invisible period; headcount excludes admin; clipped subtitles
+Task board,/tasks,2,4,2,Columns are services not statuses; no header; clipped; missing due/assignee text
+Task edit dialog,task card,3,4,2,Description/priority/progress/comments not editable
+Todo matrix,/tasks todo matrix,3,4,2,Mega Tasks jargon; progress inconsistent with stored value
+Staff directory,/staff-list,2,3,2,Salary shown in $ instead of AFN; hidden columns; seven row icons
+Payrolls,/payrolls,3,3,3,Placeholder subtitle; suffix currency; hidden actions
+Timesheet,/timesheet,2,3,2,No page title; range with no range control
+Off Day Requests,/leave-requests,3,4,3,Clear explanation; empty data
+Bonus list,/bonuslist,2,3,2,1 candidates; 2 bonuses with zero payout; currency duplicative
+Users,/setup/users,2,3,2,Super admin missing; Email column shows Verified
+Roles,/setup/roles,3,3,3,Total 1 users; no permission matrix; in-use delete offered
+Settings Company,/setup/settings/company,3,4,3,No company email; nested upload control
+Settings Appearance,/setup/settings/appearance,3,4,3,Color controls work; no explicit theme toggle
+My Account,/account-settings/account,3,3,2,Avatar US vs Demo Admin; clipped tabs; no role shown
+Security settings,/account-settings/security,3,2,3,Raw 2FA secret; no QR/recovery; no sessions
+Audits,/audits,2,3,1,Other information 5-to-6; 550 seeded rows; clipped
+Notifications,notification panel,3,4,2,Vague change text; missing translations
+Dashboard filters,filters popover,3,4,2,US date format; no applied-filter summary

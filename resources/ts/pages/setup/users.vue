@@ -33,7 +33,7 @@ const headers = computed(() => [
   { title: t('pages.settings.users.user'), key: 'name' },
   { title: t('common.messages.roles'), key: 'roles', sortable: false },
   { title: t('common.fields.status'), key: 'acc_status' },
-  { title: t('common.fields.email'), key: 'email_verified' },
+  { title: t('pages.settings.users.verification.label'), key: 'email_verified' },
   { title: t('pages.settings.users.created'), key: 'created_at' },
   { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
 ])
@@ -50,6 +50,10 @@ const roleLabel = (role: UserRole) => t(`pages.settings.users.roleOptions.${role
 const verificationLabel = (user: ManagedUser) => user.password_setup_pending
   ? t('pages.settings.users.verification.invited')
   : user.email_verified ? t('pages.settings.users.verification.verified') : t('pages.settings.users.verification.pending')
+const canDeleteUser = (user: ManagedUser) => !user.is_primary && !user.is_self
+const deleteBlockedReason = (user: ManagedUser) => user.is_primary
+  ? t('pages.settings.users.primaryAccountProtected')
+  : t('pages.settings.users.selfDeleteBlocked')
 
 async function loadUsers() {
   loading.value = true
@@ -109,7 +113,12 @@ async function save() {
   finally { loading.value = false }
 }
 
-function askDelete(user: ManagedUser) { deletingUser.value = user; deleteDialogOpen.value = true }
+function askDelete(user: ManagedUser) {
+  if (!canDeleteUser(user))
+    return
+  deletingUser.value = user
+  deleteDialogOpen.value = true
+}
 async function confirmDelete() {
   if (!deletingUser.value)
     return
@@ -196,8 +205,18 @@ onMounted(loadUsers)
     >
       <template #item.name="{ item }">
         <div>
-          <div class="font-weight-medium">
-            {{ item.name }}
+          <div class="d-flex align-center flex-wrap gap-2">
+            <div class="font-weight-medium">
+              {{ item.name }}
+            </div>
+            <VChip
+              v-if="item.is_primary"
+              size="x-small"
+              color="primary"
+              variant="tonal"
+            >
+              {{ $t('pages.settings.users.primaryAccount') }}
+            </VChip>
           </div><div class="text-caption text-medium-emphasis">
             {{ item.email }}
           </div>
@@ -245,7 +264,21 @@ onMounted(loadUsers)
           @click="openEdit(item)"
         >
           <VIcon icon="tabler-pencil" />
-        </IconBtn><IconBtn
+        </IconBtn><VTooltip
+          v-if="!canDeleteUser(item)"
+          :text="deleteBlockedReason(item)"
+          location="top"
+        >
+          <template #activator="{ props }">
+            <span v-bind="props"><IconBtn
+              disabled
+              :aria-label="deleteBlockedReason(item)"
+            >
+              <VIcon icon="tabler-lock" />
+            </IconBtn></span>
+          </template>
+        </VTooltip><IconBtn
+          v-else
           :aria-label="$t('pages.settings.users.deleteUser')"
           @click="askDelete(item)"
         >
@@ -279,6 +312,14 @@ onMounted(loadUsers)
             {{ $t(passwordMode ? 'pages.settings.users.noEmailWillBeSent' : 'pages.settings.users.theUserWillReceiveAVerificationEmailThenCreateTheirOwnPassword') }}
           </VAlert>
         </template>
+        <VAlert
+          v-if="editingUser?.roles.includes('super_admin')"
+          type="info"
+          variant="tonal"
+          class="mb-4"
+        >
+          {{ $t('pages.settings.users.lastSuperAdminRoleHint') }}
+        </VAlert>
         <UserForm
           :form="form"
           :roles="roleOptions"

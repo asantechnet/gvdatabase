@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\OffDayResource;
 use App\Models\OffDay;
 use App\Services\OffDayService;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -91,7 +92,7 @@ class OffDayController extends Controller
             throw ValidationException::withMessages(['status' => ['business.off_day_already_approved']]);
         }
 
-        $data = $this->validated($request);
+        $data = $this->validated($request, $offDay);
         $wasApproved = $offDay->isApproved();
 
         if ($wasApproved) {
@@ -129,6 +130,12 @@ class OffDayController extends Controller
                 'data' => new OffDayResource($offDay->load(['approver:id,name', 'creator:id,name'])),
             ]);
         }
+
+        $this->assertNoOverlap(
+            $offDay->start_date->format('Y-m-d'),
+            $offDay->end_date->format('Y-m-d'),
+            $offDay->id,
+        );
 
         $offDay->update([
             'status' => OffDay::STATUS_APPROVED,
@@ -177,7 +184,7 @@ class OffDayController extends Controller
     }
 
     /** @return array{start_date: string, end_date: string, reason: string} */
-    private function validated(Request $request): array
+    private function validated(Request $request, ?OffDay $ignore = null): array
     {
         $data = $request->validate([
             'start_date' => ['required', 'date_format:Y-m-d'],
@@ -193,6 +200,38 @@ class OffDayController extends Controller
             ]);
         }
 
+        $this->assertNoOverlap($data['start_date'], $data['end_date'], $ignore?->id);
+
         return $data;
+    }
+
+    /**
+     * A shared date with a pending or approved range is rejected before any
+     * attendance is materialized. Adjacent ranges are allowed; the conflict is
+     * reported on the start date together with the overlapping range.
+     */
+    private function assertNoOverlap(string $start, string $end, ?int $ignoreId = null): void
+    {
+        $conflict = $this->offDays->findOverlap($start, $end, $ignoreId);
+        if (! $conflict) {
+            return;
+        }
+
+        $conflictStart = $conflict->start_date->format('Y-m-d');
+        $conflictEnd = $conflict->end_date->format('Y-m-d');
+
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'code' => 'business.off_day_overlaps_existing',
+            'errors' => [
+                'start_date' => [__('api.errors.business.off_day_overlaps_existing')],
+            ],
+            'conflict' => [
+                'id' => $conflict->id,
+                'start_date' => $conflictStart,
+                'end_date' => $conflictEnd,
+                'status' => $conflict->status,
+            ],
+        ], 422));
     }
 }

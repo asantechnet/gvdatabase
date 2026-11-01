@@ -1,0 +1,109 @@
+- generic [active] [ref=f63e1]:
+  - generic [ref=f63e6]:
+    - complementary [ref=f63e7]:
+      - generic [ref=f63e8]:
+        - link [ref=f63e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f63e10]
+        - button "Collapse navigation" [ref=f63e11] [cursor=pointer]
+      - list [ref=f63e14]:
+        - listitem [ref=f63e15]:
+          - link "Home" [ref=f63e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f63e19]:
+          - link "Contracts" [ref=f63e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f63e23]:
+          - link "Applications" [ref=f63e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f63e27]:
+          - link "CRM" [ref=f63e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f63e31]:
+          - generic [ref=f63e32] [cursor=pointer]: Finance
+        - listitem [ref=f63e36]:
+          - generic [ref=f63e37] [cursor=pointer]: HR
+        - listitem [ref=f63e41]:
+          - link "Tasks" [ref=f63e42] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f63e45]:
+          - generic [ref=f63e46] [cursor=pointer]: Options
+        - listitem [ref=f63e50]:
+          - generic [ref=f63e51] [cursor=pointer]: Setup
+    - generic [ref=f63e57]:
+      - banner [ref=f63e58]:
+        - generic [ref=f63e60]:
+          - generic [ref=f63e61]:
+            - button "Open search" [ref=f63e62] [cursor=pointer]
+            - button "Search" [ref=f63e65] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f63e67]: ⌘K
+          - button "Guide for this page" [ref=f63e68] [cursor=pointer]
+          - button "English" [ref=f63e71] [cursor=pointer]
+          - button [ref=f63e80] [cursor=pointer]
+          - button [ref=f63e83] [cursor=pointer]
+          - generic [ref=f63e87]:
+            - button "Open audits" [ref=f63e88] [cursor=pointer]
+            - status "Badge" [ref=f63e91]: 99+
+          - button [ref=f63e92] [cursor=pointer]:
+            - status "Badge" [ref=f63e97]: "11"
+          - generic [ref=f63e99]:
+            - generic [ref=f63e100] [cursor=pointer]
+            - status "Badge" [ref=f63e102]
+      - main [ref=f63e103]:
+        - generic [ref=f63e104]:
+          - region "Recurring events overview" [ref=f63e105]:
+            - generic [ref=f63e106]:
+              - generic [ref=f63e110]:
+                - heading "Recurring events" [level=1] [ref=f63e111]
+                - paragraph [ref=f63e112]: Monitor automated reminders and keep recurring work on schedule.
+              - generic [ref=f63e113]: Scroll tables sideways on small screens
+          - generic [ref=f63e115]:
+            - generic [ref=f63e116]:
+              - generic [ref=f63e117]:
+                - generic [ref=f63e118]: Recurring events
+                - generic [ref=f63e119]: Set it once; the application will remind you when it is due.
+              - button "Create recurring event" [ref=f63e121] [cursor=pointer]
+            - generic [ref=f63e126]:
+              - table [ref=f63e128]:
+                - rowgroup [ref=f63e129]:
+                  - row [ref=f63e130]:
+                    - columnheader "Name" [ref=f63e131]
+                    - columnheader "Type" [ref=f63e135]
+                    - columnheader "Schedule" [ref=f63e139]
+                    - columnheader "Next occurrence" [ref=f63e143]
+                    - columnheader "Time remaining" [ref=f63e147]
+                    - columnheader "Status" [ref=f63e151]
+                    - columnheader [ref=f63e155]
+                - rowgroup [ref=f63e156]:
+                  - row [ref=f63e157]:
+                    - cell "No data available" [ref=f63e158]
+              - separator [ref=f63e159]
+              - generic [ref=f63e160]:
+                - generic [ref=f63e161]:
+                  - generic "Items per page:" [ref=f63e162]
+                  - combobox [ref=f63e165] [cursor=pointer]:
+                    - generic [ref=f63e167]:
+                      - generic [ref=f63e168]: "25"
+                      - combobox "Open": "25"
+                - generic [ref=f63e172]: 0-0 of 0
+                - navigation "Pagination" [ref=f63e175]:
+                  - list [ref=f63e176]:
+                    - listitem [ref=f63e177]:
+                      - button "First page" [disabled]
+                    - listitem [ref=f63e178]:
+                      - button "Previous page" [disabled]
+                    - listitem [ref=f63e179]:
+                      - button "Next page" [disabled]
+                    - listitem [ref=f63e180]:
+                      - button "Last page" [disabled]
+      - contentinfo [ref=f63e181]:
+        - generic [ref=f63e184]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f63e185] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

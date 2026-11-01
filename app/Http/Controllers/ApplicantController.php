@@ -8,6 +8,7 @@ use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
 use App\Models\Employee;
 use App\Models\University;
+use App\Services\ApplicantDocumentReadiness;
 use App\Services\ApplicantServiceDetails;
 use App\Services\ApplicantTaskService;
 use App\Services\CaseWinService;
@@ -27,8 +28,10 @@ class ApplicantController extends Controller
 {
     public function index(Request $request)
     {
+        $canSeeFinancials = $request->user()->hasPermission('view_applicant_financials');
+        $service = $this->requestedService($request);
         $query = Applicant::with($this->relations())->withCount('attachments');
-        if ($request->user()->hasPermission('view_applicant_financials')) {
+        if ($canSeeFinancials) {
             $query->with('applicantContracts.currency', 'applicantContracts.contract', 'applicantContracts.currentStage');
         }
         $this->scopeCasesToActor($query, $request);
@@ -40,6 +43,17 @@ class ApplicantController extends Controller
 
         $page = $query->paginate($request->integer('per_page', 25))
             ->through(fn (Applicant $applicant) => $this->aliasDetails($applicant));
+
+        // The list shows one stage per row. Under a service filter that stage is
+        // the service line's, so the stage filter and the stage column cannot
+        // disagree; without one it is the applicant's mirrored stage.
+        $this->applyDisplayStages($page, $service);
+
+        if ($canSeeFinancials) {
+            foreach ($page->items() as $applicant) {
+                $applicant->setAttribute('payment_status', $applicant->overallPaymentStatus());
+            }
+        }
 
         return response()->json(['success' => true, 'data' => $page->appends($request->query())]);
     }
@@ -73,7 +87,12 @@ class ApplicantController extends Controller
             ->groupBy('current_stage_id')->pluck('total', 'current_stage_id')->all();
 
         $lines = $lineQuery()
-            ->with(['currentStage', 'contract:id,contract_number,status', 'applicant' => fn ($q) => $q->with($this->pipelineApplicantRelations())])
+            ->with([
+                'currentStage',
+                'contract:id,contract_number,status,contract_role,parent_contract_id',
+                'contract.parentContract:id,contract_number',
+                'applicant' => fn ($q) => $q->with($this->pipelineApplicantRelations()),
+            ])
             ->latest('applicant_contract.id')->limit(500)->get();
 
         foreach ($lines as $line) {
@@ -119,6 +138,14 @@ class ApplicantController extends Controller
                 'active' => (clone $totalsQuery)->where('status', 'active')->count(),
                 'closed' => (clone $totalsQuery)->where('status', 'closed')->count(),
                 'all' => (clone $totalsQuery)->count(),
+            ],
+            // Columns count cards, not cases: a card is one contracted service
+            // line, or a case that has not bought this service yet. The header
+            // totals count cases. Stating both keeps the labels honest.
+            'counts' => [
+                'unit' => 'service_line_or_unlined_case',
+                'cards' => $cards->count(),
+                'columns' => array_sum($counts),
             ],
         ]]);
     }
@@ -212,6 +239,10 @@ class ApplicantController extends Controller
             'university' => $detail?->university?->name,
             'contract_number' => $line->contract?->contract_number,
             'contract_status' => $line->contract?->status,
+            // An extension is sold on top of a primary agreement; the board
+            // must say so or it looks like a second primary case.
+            'contract_role' => $line->contract?->contract_role,
+            'parent_contract_number' => $line->contract?->parentContract?->contract_number,
         ];
     }
 
@@ -238,6 +269,8 @@ class ApplicantController extends Controller
             'university' => $detail?->university?->name,
             'contract_number' => null,
             'contract_status' => null,
+            'contract_role' => null,
+            'parent_contract_number' => null,
         ];
     }
 
@@ -325,9 +358,13 @@ class ApplicantController extends Controller
         if ($current && ! $current->allowsTransitionTo($next)) {
             throw ValidationException::withMessages(['stage_id' => ["Transition from {$current->name} to {$next->name} is not permitted."]]);
         }
-        DB::transaction(function () use ($applicant, $current, $next, $data, $request, $notifications) {
+        $note = trim((string) ($data['note'] ?? '')) ?: null;
+        // The same guard the service-line endpoint uses: a labeled document is
+        // required to leave the initial stage forward, a reason to close a case.
+        app(ApplicantDocumentReadiness::class)->assertTransition($applicant, $current, $next, $note);
+        DB::transaction(function () use ($applicant, $current, $next, $note, $request, $notifications) {
             $applicant->update(['current_stage_id' => $next->id, 'status' => $next->is_terminal ? 'closed' : 'active']);
-            $history = ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'old_stage_id' => $current?->id, 'new_stage_id' => $next->id, 'changed_by' => $request->user()?->id, 'changed_at' => now(), 'note' => $data['note'] ?? null]);
+            $history = ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'old_stage_id' => $current?->id, 'new_stage_id' => $next->id, 'changed_by' => $request->user()?->id, 'changed_at' => now(), 'note' => $note]);
             $applicant = $applicant->fresh()->load(['user', 'responsibleEmployee.user']);
             $caseWin = app(CaseWinService::class)->record($applicant, $next, $history);
             app(ApplicantTaskService::class)->ensureForStage($applicant, $next, $request->user());
@@ -488,6 +525,44 @@ class ApplicantController extends Controller
         return $applicant;
     }
 
+    /**
+     * Attach the stage each list row displays.
+     *
+     * A case's real position lives on its contracted service line once that
+     * line exists, so a service filter makes the line the displayed unit. One
+     * bounded query resolves the page's line stages without serializing the
+     * line's money fields for viewers who may not see them.
+     */
+    private function applyDisplayStages($page, ?string $service): void
+    {
+        $items = $page->items();
+        if ($items === []) {
+            return;
+        }
+
+        $lineStages = collect();
+        if ($service) {
+            $lineStages = ApplicantContract::query()
+                ->whereIn('applicant_id', array_column($items, 'id'))
+                ->where('service', $service)
+                ->with('currentStage')
+                ->orderByDesc('id')
+                ->get()
+                ->groupBy('applicant_id');
+        }
+
+        foreach ($items as $applicant) {
+            $stage = $service ? $lineStages->get($applicant->id)?->first()?->currentStage : null;
+            $stage ??= $applicant->currentStage;
+            $applicant->setAttribute('display_stage', $stage ? [
+                'id' => $stage->id,
+                'key' => $stage->key,
+                'name' => $stage->name,
+                'is_terminal' => (bool) $stage->is_terminal,
+            ] : null);
+        }
+    }
+
     private function relations(): array
     {
         return [
@@ -549,14 +624,21 @@ class ApplicantController extends Controller
         $service = $this->requestedService($request);
         if (! $excludeStage && $request->filled('stage')) {
             $stage = $request->input('stage');
-            // A case is in a stage when its mirror is there or when any of its
-            // service lines is; with a service filter only that line counts.
-            $query->where(function ($q) use ($stage, $service) {
-                $q->whereHas('currentStage', fn ($s) => $s->where('key', $stage))
-                    ->orWhereHas('services', fn ($line) => $line
-                        ->whereHas('currentStage', fn ($s) => $s->where('key', $stage))
-                        ->when($service, fn ($l) => $l->where('service', $service)));
-            });
+            // The filter uses the stage the row displays. Under a service filter
+            // that is the line's own stage (falling back to the applicant mirror
+            // only while that service has no line); otherwise it is the mirror.
+            if ($service) {
+                $query->where(function ($q) use ($stage, $service) {
+                    $q->whereHas('services', fn ($line) => $line
+                        ->where('service', $service)
+                        ->whereHas('currentStage', fn ($s) => $s->where('key', $stage)))
+                        ->orWhere(fn ($fallback) => $fallback
+                            ->whereDoesntHave('services', fn ($line) => $line->where('service', $service))
+                            ->whereHas('currentStage', fn ($s) => $s->where('key', $stage)));
+                });
+            } else {
+                $query->whereHas('currentStage', fn ($s) => $s->where('key', $stage));
+            }
         }
         if ($request->filled('status') && in_array($request->input('status'), ['active', 'closed'], true)) {
             $query->where('status', $request->input('status'));

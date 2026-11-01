@@ -336,7 +336,11 @@ class EducationalReportController extends Controller
                 }
             }
             $rows = $rows->merge($query->limit(2500)->get()->map(fn ($r) => [
-                'record_type' => $type, 'id' => $r->id, 'status' => 'posted', 'category' => $r->type ?? $type,
+                // Payroll reports its persisted payment state; income and expense
+                // rows have no posting marker, so they are labelled recorded.
+                'record_type' => $type, 'id' => $r->id,
+                'status' => $type === 'salary' ? ($r->payment_status ?? 'open') : 'recorded',
+                'category' => $r->type ?? $type,
                 'applicant' => $r->applicant?->name ?? '—',
                 'employee' => $r->employee?->name ?? '—', 'amount' => (float) $r->{$amount},
                 'currency' => $codes[$r->currency_id] ?? '', 'date' => $r->{$date}?->format('Y-m-d') ?? '',

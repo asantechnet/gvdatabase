@@ -1,0 +1,469 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e6]:
+    - complementary [ref=f2e7]:
+      - generic [ref=f2e8]:
+        - link [ref=f2e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f2e10]
+        - button "Collapse navigation" [ref=f2e11] [cursor=pointer]
+      - list [ref=f2e14]:
+        - listitem [ref=f2e15]:
+          - link "Home" [ref=f2e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f2e19]:
+          - link "Contracts" [ref=f2e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f2e23]:
+          - link "Applications" [ref=f2e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f2e27]:
+          - link "CRM" [ref=f2e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f2e31]:
+          - generic [ref=f2e32] [cursor=pointer]: Finance
+          - list [ref=f2e2660]:
+            - listitem [ref=f2e2661]:
+              - link "Income" [ref=f2e2662] [cursor=pointer]:
+                - /url: /income
+            - listitem [ref=f2e2665]:
+              - link "Expenses" [ref=f2e2666] [cursor=pointer]:
+                - /url: /expenses
+            - listitem [ref=f2e2669]:
+              - link "Payment requests" [ref=f2e2670] [cursor=pointer]:
+                - /url: /payment-requests
+            - listitem [ref=f2e2673]:
+              - link "Commissions" [ref=f2e2674] [cursor=pointer]:
+                - /url: /commissions
+            - listitem [ref=f2e2677]:
+              - link "Asset" [ref=f2e2678] [cursor=pointer]:
+                - /url: /asset
+            - listitem [ref=f2e2681]:
+              - link "Reports" [ref=f2e2682] [cursor=pointer]:
+                - /url: /reports
+        - listitem [ref=f2e36]:
+          - generic [ref=f2e37] [cursor=pointer]: HR
+        - listitem [ref=f2e82]:
+          - link "Tasks" [ref=f2e83] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f2e86]:
+          - generic [ref=f2e87] [cursor=pointer]: Options
+        - listitem [ref=f2e91]:
+          - generic [ref=f2e92] [cursor=pointer]: Setup
+    - generic [ref=f2e98]:
+      - banner [ref=f2e99]:
+        - generic [ref=f2e101]:
+          - generic [ref=f2e102]:
+            - button "Open search" [ref=f2e103] [cursor=pointer]
+            - button "Search" [ref=f2e106] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f2e108]: ⌘K
+          - button "Guide for this page" [ref=f2e109] [cursor=pointer]
+          - button "English" [ref=f2e112] [cursor=pointer]
+          - button [ref=f2e121] [cursor=pointer]
+          - button [ref=f2e124] [cursor=pointer]
+          - generic [ref=f2e128]:
+            - button "Open audits" [ref=f2e129] [cursor=pointer]
+            - status "Badge" [ref=f2e132]: 99+
+          - button [ref=f2e2687] [cursor=pointer]:
+            - status "Badge" [ref=f2e138]: "2"
+          - generic [ref=f2e140]:
+            - generic [ref=f2e141] [cursor=pointer]
+            - status "Badge" [ref=f2e143]
+      - main [ref=f2e144]:
+        - generic [ref=f2e1819]:
+          - generic [ref=f2e1821]:
+            - heading "Audits" [level=1] [ref=f2e1822]
+            - paragraph [ref=f2e1823]: Review important changes and choose which business areas should be audited.
+          - tablist [ref=f2e1824]:
+            - generic [ref=f2e1826]:
+              - tab "Rows to audit" [selected] [ref=f2e1827] [cursor=pointer]
+              - tab "Audited tables" [ref=f2e1831] [cursor=pointer]
+          - generic [ref=f2e1838]:
+            - generic [ref=f2e1839]:
+              - generic [ref=f2e1840]:
+                - button "Needs audit" [ref=f2e1841] [cursor=pointer]
+                - button "Audited" [ref=f2e1843] [cursor=pointer]
+                - button "All" [ref=f2e1845] [cursor=pointer]
+              - generic [ref=f2e1852]:
+                - generic: Search by record or person
+                - textbox "Search by record or person Search by record or person" [ref=f2e1853]
+              - combobox [ref=f2e1856] [cursor=pointer]:
+                - generic [ref=f2e1858]:
+                  - generic [ref=f2e1859]: All business areas
+                  - combobox "Open": all
+                - generic: Business area
+              - combobox [ref=f2e1865] [cursor=pointer]:
+                - generic [ref=f2e1867]:
+                  - generic [ref=f2e1868]: All actions
+                  - combobox "Open": all
+                - generic: Action
+            - separator [ref=f2e1872]
+            - generic [ref=f2e1874]:
+              - table [ref=f2e1876]:
+                - rowgroup [ref=f2e1877]:
+                  - row [ref=f2e1878]:
+                    - columnheader [ref=f2e1879]:
+                      - checkbox [ref=f2e1886] [cursor=pointer]
+                    - columnheader "Action" [ref=f2e1887]
+                    - columnheader "Record" [ref=f2e1891]
+                    - columnheader "What changed" [ref=f2e1895]
+                    - columnheader "Changed by" [ref=f2e1898]
+                    - columnheader "When" [ref=f2e1901]
+                    - columnheader "Audited by" [ref=f2e1905]
+                    - columnheader "Audit status" [ref=f2e1908]
+                    - columnheader "Actions" [ref=f2e1911]
+                - rowgroup [ref=f2e1914]:
+                  - row [ref=f2e1915]:
+                    - cell [ref=f2e1916]:
+                      - checkbox [ref=f2e1923] [cursor=pointer]
+                    - cell "Created" [ref=f2e1924]
+                    - cell [ref=f2e1927]:
+                      - strong [ref=f2e1929]: Tasks · Prepare and submit university application
+                    - cell "Created — no field list needed" [ref=f2e1930]
+                    - cell "Demo Admin" [ref=f2e1932]
+                    - cell "Oct 29, 2026" [ref=f2e1933]
+                    - cell "Not audited yet" [ref=f2e1934]
+                    - cell "Needs audit" [ref=f2e1935]
+                    - cell [ref=f2e1938]:
+                      - button "View audit details" [ref=f2e1939] [cursor=pointer]
+                  - row [ref=f2e1942]:
+                    - cell [ref=f2e1943]:
+                      - checkbox [ref=f2e1950] [cursor=pointer]
+                    - cell "Created" [ref=f2e1951]
+                    - cell [ref=f2e1954]:
+                      - strong [ref=f2e1956]: Task boards · Applicant Cases
+                    - cell "Created — no field list needed" [ref=f2e1957]
+                    - cell "Demo Admin" [ref=f2e1959]
+                    - cell "Oct 29, 2026" [ref=f2e1960]
+                    - cell "Not audited yet" [ref=f2e1961]
+                    - cell "Needs audit" [ref=f2e1962]
+                    - cell [ref=f2e1965]:
+                      - button "View audit details" [ref=f2e1966] [cursor=pointer]
+                  - row [ref=f2e1969]:
+                    - cell [ref=f2e1970]:
+                      - checkbox [ref=f2e1977] [cursor=pointer]
+                    - cell "Changed" [ref=f2e1978]
+                    - cell [ref=f2e1981]:
+                      - strong [ref=f2e1983]: Applicants · Ahmad Wali
+                    - 'cell "Other information: 5 → 6" [ref=f2e1984]'
+                    - cell "Demo Admin" [ref=f2e1986]
+                    - cell "Oct 29, 2026" [ref=f2e1987]
+                    - cell "Not audited yet" [ref=f2e1988]
+                    - cell "Needs audit" [ref=f2e1989]
+                    - cell [ref=f2e1992]:
+                      - button "View audit details" [ref=f2e1993] [cursor=pointer]
+                  - row [ref=f2e1996]:
+                    - cell [ref=f2e1997]:
+                      - checkbox [ref=f2e2004] [cursor=pointer]
+                    - cell "Created" [ref=f2e2005]
+                    - cell [ref=f2e2008]:
+                      - strong [ref=f2e2010]: Scholarship details · Portal Test Applicant
+                    - cell "Created — no field list needed" [ref=f2e2011]
+                    - cell "System" [ref=f2e2013]
+                    - cell "Oct 29, 2026" [ref=f2e2014]
+                    - cell "Not audited yet" [ref=f2e2015]
+                    - cell "Needs audit" [ref=f2e2016]
+                    - cell [ref=f2e2019]:
+                      - button "View audit details" [ref=f2e2020] [cursor=pointer]
+                  - row [ref=f2e2023]:
+                    - cell [ref=f2e2024]:
+                      - checkbox [ref=f2e2031] [cursor=pointer]
+                    - cell "Created" [ref=f2e2032]
+                    - cell [ref=f2e2035]:
+                      - strong [ref=f2e2037]: Applicants · Portal Test Applicant
+                    - cell "Created — no field list needed" [ref=f2e2038]
+                    - cell "System" [ref=f2e2040]
+                    - cell "Oct 29, 2026" [ref=f2e2041]
+                    - cell "Not audited yet" [ref=f2e2042]
+                    - cell "Needs audit" [ref=f2e2043]
+                    - cell [ref=f2e2046]:
+                      - button "View audit details" [ref=f2e2047] [cursor=pointer]
+                  - row [ref=f2e2050]:
+                    - cell [ref=f2e2051]:
+                      - checkbox [ref=f2e2058] [cursor=pointer]
+                    - cell "Created" [ref=f2e2059]
+                    - cell [ref=f2e2062]:
+                      - strong [ref=f2e2064]: Users · Portal Test Applicant
+                    - cell "Created — no field list needed" [ref=f2e2065]
+                    - cell "System" [ref=f2e2067]
+                    - cell "Oct 29, 2026" [ref=f2e2068]
+                    - cell "Not audited yet" [ref=f2e2069]
+                    - cell "Needs audit" [ref=f2e2070]
+                    - cell [ref=f2e2073]:
+                      - button "View audit details" [ref=f2e2074] [cursor=pointer]
+                  - row [ref=f2e2077]:
+                    - cell [ref=f2e2078]:
+                      - checkbox [ref=f2e2085] [cursor=pointer]
+                    - cell "Created" [ref=f2e2086]
+                    - cell [ref=f2e2089]:
+                      - strong [ref=f2e2091]: Visitors · Rana Alizai
+                    - cell "Created — no field list needed" [ref=f2e2092]
+                    - cell "System" [ref=f2e2094]
+                    - cell "Oct 29, 2026" [ref=f2e2095]
+                    - cell "Not audited yet" [ref=f2e2096]
+                    - cell "Needs audit" [ref=f2e2097]
+                    - cell [ref=f2e2100]:
+                      - button "View audit details" [ref=f2e2101] [cursor=pointer]
+                  - row [ref=f2e2104]:
+                    - cell [ref=f2e2105]:
+                      - checkbox [ref=f2e2112] [cursor=pointer]
+                    - cell "Created" [ref=f2e2113]
+                    - cell [ref=f2e2116]:
+                      - strong [ref=f2e2118]: Visitors · Samiullah Baqi
+                    - cell "Created — no field list needed" [ref=f2e2119]
+                    - cell "System" [ref=f2e2121]
+                    - cell "Oct 29, 2026" [ref=f2e2122]
+                    - cell "Not audited yet" [ref=f2e2123]
+                    - cell "Needs audit" [ref=f2e2124]
+                    - cell [ref=f2e2127]:
+                      - button "View audit details" [ref=f2e2128] [cursor=pointer]
+                  - row [ref=f2e2131]:
+                    - cell [ref=f2e2132]:
+                      - checkbox [ref=f2e2139] [cursor=pointer]
+                    - cell "Created" [ref=f2e2140]
+                    - cell [ref=f2e2143]:
+                      - strong [ref=f2e2145]: Visitors · Mariam Yousufi
+                    - cell "Created — no field list needed" [ref=f2e2146]
+                    - cell "System" [ref=f2e2148]
+                    - cell "Oct 29, 2026" [ref=f2e2149]
+                    - cell "Not audited yet" [ref=f2e2150]
+                    - cell "Needs audit" [ref=f2e2151]
+                    - cell [ref=f2e2154]:
+                      - button "View audit details" [ref=f2e2155] [cursor=pointer]
+                  - row [ref=f2e2158]:
+                    - cell [ref=f2e2159]:
+                      - checkbox [ref=f2e2166] [cursor=pointer]
+                    - cell "Created" [ref=f2e2167]
+                    - cell [ref=f2e2170]:
+                      - strong [ref=f2e2172]: Visitors · Karim Zadran
+                    - cell "Created — no field list needed" [ref=f2e2173]
+                    - cell "System" [ref=f2e2175]
+                    - cell "Oct 29, 2026" [ref=f2e2176]
+                    - cell "Not audited yet" [ref=f2e2177]
+                    - cell "Needs audit" [ref=f2e2178]
+                    - cell [ref=f2e2181]:
+                      - button "View audit details" [ref=f2e2182] [cursor=pointer]
+                  - row [ref=f2e2185]:
+                    - cell [ref=f2e2186]:
+                      - checkbox [ref=f2e2193] [cursor=pointer]
+                    - cell "Created" [ref=f2e2194]
+                    - cell [ref=f2e2197]:
+                      - strong [ref=f2e2199]: Visitors · Laila Sultani
+                    - cell "Created — no field list needed" [ref=f2e2200]
+                    - cell "System" [ref=f2e2202]
+                    - cell "Oct 29, 2026" [ref=f2e2203]
+                    - cell "Not audited yet" [ref=f2e2204]
+                    - cell "Needs audit" [ref=f2e2205]
+                    - cell [ref=f2e2208]:
+                      - button "View audit details" [ref=f2e2209] [cursor=pointer]
+                  - row [ref=f2e2212]:
+                    - cell [ref=f2e2213]:
+                      - checkbox [ref=f2e2220] [cursor=pointer]
+                    - cell "Created" [ref=f2e2221]
+                    - cell [ref=f2e2224]:
+                      - strong [ref=f2e2226]: Visitors · Hamid Noorzai
+                    - cell "Created — no field list needed" [ref=f2e2227]
+                    - cell "System" [ref=f2e2229]
+                    - cell "Oct 29, 2026" [ref=f2e2230]
+                    - cell "Not audited yet" [ref=f2e2231]
+                    - cell "Needs audit" [ref=f2e2232]
+                    - cell [ref=f2e2235]:
+                      - button "View audit details" [ref=f2e2236] [cursor=pointer]
+                  - row [ref=f2e2239]:
+                    - cell [ref=f2e2240]:
+                      - checkbox [ref=f2e2247] [cursor=pointer]
+                    - cell "Created" [ref=f2e2248]
+                    - cell [ref=f2e2251]:
+                      - strong [ref=f2e2253]: Bonus nominations · Sana Rahimi
+                    - cell "Created — no field list needed" [ref=f2e2254]
+                    - cell "System" [ref=f2e2256]
+                    - cell "Oct 29, 2026" [ref=f2e2257]
+                    - cell "Not audited yet" [ref=f2e2258]
+                    - cell "Needs audit" [ref=f2e2259]
+                    - cell [ref=f2e2262]:
+                      - button "View audit details" [ref=f2e2263] [cursor=pointer]
+                  - row [ref=f2e2266]:
+                    - cell [ref=f2e2267]:
+                      - checkbox [ref=f2e2274] [cursor=pointer]
+                    - cell "Created" [ref=f2e2275]
+                    - cell [ref=f2e2278]:
+                      - strong [ref=f2e2280]: Bonus nominations · Bilal Ahmadi
+                    - cell "Created — no field list needed" [ref=f2e2281]
+                    - cell "System" [ref=f2e2283]
+                    - cell "Oct 29, 2026" [ref=f2e2284]
+                    - cell "Not audited yet" [ref=f2e2285]
+                    - cell "Needs audit" [ref=f2e2286]
+                    - cell [ref=f2e2289]:
+                      - button "View audit details" [ref=f2e2290] [cursor=pointer]
+                  - row [ref=f2e2293]:
+                    - cell [ref=f2e2294]:
+                      - checkbox [ref=f2e2301] [cursor=pointer]
+                    - cell "Created" [ref=f2e2302]
+                    - cell [ref=f2e2305]:
+                      - strong [ref=f2e2307]: Bonus nominations · Ahmad Karimi
+                    - cell "Created — no field list needed" [ref=f2e2308]
+                    - cell "System" [ref=f2e2310]
+                    - cell "Oct 29, 2026" [ref=f2e2311]
+                    - cell "Not audited yet" [ref=f2e2312]
+                    - cell "Needs audit" [ref=f2e2313]
+                    - cell [ref=f2e2316]:
+                      - button "View audit details" [ref=f2e2317] [cursor=pointer]
+                  - row [ref=f2e2320]:
+                    - cell [ref=f2e2321]:
+                      - checkbox [ref=f2e2328] [cursor=pointer]
+                    - cell "Created" [ref=f2e2329]
+                    - cell [ref=f2e2332]:
+                      - strong [ref=f2e2334]: Salaries · 2026-06
+                    - cell "Created — no field list needed" [ref=f2e2335]
+                    - cell "System" [ref=f2e2337]
+                    - cell "Oct 29, 2026" [ref=f2e2338]
+                    - cell "Not audited yet" [ref=f2e2339]
+                    - cell "Needs audit" [ref=f2e2340]
+                    - cell [ref=f2e2343]:
+                      - button "View audit details" [ref=f2e2344] [cursor=pointer]
+                  - row [ref=f2e2347]:
+                    - cell [ref=f2e2348]:
+                      - checkbox [ref=f2e2355] [cursor=pointer]
+                    - cell "Created" [ref=f2e2356]
+                    - cell [ref=f2e2359]:
+                      - strong [ref=f2e2361]: Salaries · 2026-06
+                    - cell "Created — no field list needed" [ref=f2e2362]
+                    - cell "System" [ref=f2e2364]
+                    - cell "Oct 29, 2026" [ref=f2e2365]
+                    - cell "Not audited yet" [ref=f2e2366]
+                    - cell "Needs audit" [ref=f2e2367]
+                    - cell [ref=f2e2370]:
+                      - button "View audit details" [ref=f2e2371] [cursor=pointer]
+                  - row [ref=f2e2374]:
+                    - cell [ref=f2e2375]:
+                      - checkbox [ref=f2e2382] [cursor=pointer]
+                    - cell "Created" [ref=f2e2383]
+                    - cell [ref=f2e2386]:
+                      - strong [ref=f2e2388]: Salaries · 2026-06
+                    - cell "Created — no field list needed" [ref=f2e2389]
+                    - cell "System" [ref=f2e2391]
+                    - cell "Oct 29, 2026" [ref=f2e2392]
+                    - cell "Not audited yet" [ref=f2e2393]
+                    - cell "Needs audit" [ref=f2e2394]
+                    - cell [ref=f2e2397]:
+                      - button "View audit details" [ref=f2e2398] [cursor=pointer]
+                  - row [ref=f2e2401]:
+                    - cell [ref=f2e2402]:
+                      - checkbox [ref=f2e2409] [cursor=pointer]
+                    - cell "Created" [ref=f2e2410]
+                    - cell [ref=f2e2413]:
+                      - strong [ref=f2e2415]: Salaries · 2026-06
+                    - cell "Created — no field list needed" [ref=f2e2416]
+                    - cell "System" [ref=f2e2418]
+                    - cell "Oct 29, 2026" [ref=f2e2419]
+                    - cell "Not audited yet" [ref=f2e2420]
+                    - cell "Needs audit" [ref=f2e2421]
+                    - cell [ref=f2e2424]:
+                      - button "View audit details" [ref=f2e2425] [cursor=pointer]
+                  - row [ref=f2e2428]:
+                    - cell [ref=f2e2429]:
+                      - checkbox [ref=f2e2436] [cursor=pointer]
+                    - cell "Created" [ref=f2e2437]
+                    - cell [ref=f2e2440]:
+                      - strong [ref=f2e2442]: Salaries · 2026-06
+                    - cell "Created — no field list needed" [ref=f2e2443]
+                    - cell "System" [ref=f2e2445]
+                    - cell "Oct 29, 2026" [ref=f2e2446]
+                    - cell "Not audited yet" [ref=f2e2447]
+                    - cell "Needs audit" [ref=f2e2448]
+                    - cell [ref=f2e2451]:
+                      - button "View audit details" [ref=f2e2452] [cursor=pointer]
+                  - row [ref=f2e2455]:
+                    - cell [ref=f2e2456]:
+                      - checkbox [ref=f2e2463] [cursor=pointer]
+                    - cell "Created" [ref=f2e2464]
+                    - cell [ref=f2e2467]:
+                      - strong [ref=f2e2469]: Salaries · 2026-06
+                    - cell "Created — no field list needed" [ref=f2e2470]
+                    - cell "System" [ref=f2e2472]
+                    - cell "Oct 29, 2026" [ref=f2e2473]
+                    - cell "Not audited yet" [ref=f2e2474]
+                    - cell "Needs audit" [ref=f2e2475]
+                    - cell [ref=f2e2478]:
+                      - button "View audit details" [ref=f2e2479] [cursor=pointer]
+                  - row [ref=f2e2482]:
+                    - cell [ref=f2e2483]:
+                      - checkbox [ref=f2e2490] [cursor=pointer]
+                    - cell "Created" [ref=f2e2491]
+                    - cell [ref=f2e2494]:
+                      - strong [ref=f2e2496]: Salaries · 2026-06
+                    - cell "Created — no field list needed" [ref=f2e2497]
+                    - cell "System" [ref=f2e2499]
+                    - cell "Oct 29, 2026" [ref=f2e2500]
+                    - cell "Not audited yet" [ref=f2e2501]
+                    - cell "Needs audit" [ref=f2e2502]
+                    - cell [ref=f2e2505]:
+                      - button "View audit details" [ref=f2e2506] [cursor=pointer]
+                  - row [ref=f2e2509]:
+                    - cell [ref=f2e2510]:
+                      - checkbox [ref=f2e2517] [cursor=pointer]
+                    - cell "Created" [ref=f2e2518]
+                    - cell [ref=f2e2521]:
+                      - strong [ref=f2e2523]: Attendance · Oct 24, 2026
+                    - cell "Created — no field list needed" [ref=f2e2524]
+                    - cell "System" [ref=f2e2526]
+                    - cell "Oct 29, 2026" [ref=f2e2527]
+                    - cell "Not audited yet" [ref=f2e2528]
+                    - cell "Needs audit" [ref=f2e2529]
+                    - cell [ref=f2e2532]:
+                      - button "View audit details" [ref=f2e2533] [cursor=pointer]
+                  - row [ref=f2e2536]:
+                    - cell [ref=f2e2537]:
+                      - checkbox [ref=f2e2544] [cursor=pointer]
+                    - cell "Created" [ref=f2e2545]
+                    - cell [ref=f2e2548]:
+                      - strong [ref=f2e2550]: Attendance · Oct 24, 2026
+                    - cell "Created — no field list needed" [ref=f2e2551]
+                    - cell "System" [ref=f2e2553]
+                    - cell "Oct 29, 2026" [ref=f2e2554]
+                    - cell "Not audited yet" [ref=f2e2555]
+                    - cell "Needs audit" [ref=f2e2556]
+                    - cell [ref=f2e2559]:
+                      - button "View audit details" [ref=f2e2560] [cursor=pointer]
+                  - row [ref=f2e2563]:
+                    - cell [ref=f2e2564]:
+                      - checkbox [ref=f2e2571] [cursor=pointer]
+                    - cell "Created" [ref=f2e2572]
+                    - cell [ref=f2e2575]:
+                      - strong [ref=f2e2577]: Attendance · Oct 24, 2026
+                    - cell "Created — no field list needed" [ref=f2e2578]
+                    - cell "System" [ref=f2e2580]
+                    - cell "Oct 29, 2026" [ref=f2e2581]
+                    - cell "Not audited yet" [ref=f2e2582]
+                    - cell "Needs audit" [ref=f2e2583]
+                    - cell [ref=f2e2586]:
+                      - button "View audit details" [ref=f2e2587] [cursor=pointer]
+              - separator [ref=f2e2590]
+              - generic [ref=f2e2591]:
+                - generic [ref=f2e2592]:
+                  - generic "Items per page:" [ref=f2e2593]
+                  - combobox [ref=f2e2596] [cursor=pointer]:
+                    - generic [ref=f2e2598]:
+                      - generic [ref=f2e2599]: "25"
+                      - combobox "Open": "25"
+                - generic [ref=f2e2603]: 1-25 of 550
+                - navigation "Pagination" [ref=f2e2606]:
+                  - list [ref=f2e2607]:
+                    - listitem [ref=f2e2608]:
+                      - button "First page" [disabled]
+                    - listitem [ref=f2e2609]:
+                      - button "Previous page" [disabled]
+                    - listitem [ref=f2e2610]:
+                      - button "Next page" [ref=f2e2611] [cursor=pointer]
+                    - listitem [ref=f2e2614]:
+                      - button "Last page" [ref=f2e2615] [cursor=pointer]
+      - contentinfo [ref=f2e302]:
+        - generic [ref=f2e305]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f2e306] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

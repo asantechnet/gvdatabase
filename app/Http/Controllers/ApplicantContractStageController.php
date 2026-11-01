@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ApplicantContract;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
+use App\Services\ApplicantDocumentReadiness;
 use App\Services\ContractTaskService;
 use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
@@ -50,7 +51,12 @@ class ApplicantContractStageController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($line, $current, $next, $data, $user, $applicant): void {
+        $note = trim((string) ($data['note'] ?? '')) ?: null;
+        // Both stage endpoints share one guard, so a case and its line agree on
+        // when a labeled document or a closing reason is required.
+        app(ApplicantDocumentReadiness::class)->assertTransition($applicant, $current, $next, $note);
+
+        DB::transaction(function () use ($line, $current, $next, $note, $user, $applicant): void {
             $line->update(['current_stage_id' => $next->id]);
 
             ApplicantStageHistory::create([
@@ -60,7 +66,7 @@ class ApplicantContractStageController extends Controller
                 'new_stage_id' => $next->id,
                 'changed_by' => $user->id,
                 'changed_at' => now(),
-                'note' => $data['note'] ?? null,
+                'note' => $note,
             ]);
 
             // Mirror the line's stage onto the applicant for the aggregate views.

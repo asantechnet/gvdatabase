@@ -1,4 +1,11 @@
 import { type SupportedLocale, getI18n, supportedLocales } from '@/plugins/i18n'
+import {
+  type CurrencyFormatSource,
+  type DisplayDateFormat,
+  formatCount as formatCountFor,
+  formatDisplayDate as formatDisplayDateFor,
+  formatMoney as formatMoneyFor,
+} from '@/utils/money'
 
 export const currentLocale = (): SupportedLocale => {
   const locale = String(getI18n().global.locale.value)
@@ -8,6 +15,20 @@ export const currentLocale = (): SupportedLocale => {
 
 export const translate = (key: string, values?: Record<string, unknown>): string =>
   String(getI18n().global.t(key, values ?? {}))
+
+/**
+ * Active-locale presentation wrappers. Pages must use these (or the pure
+ * functions in `@/utils/money`) instead of `Intl`/`toFixed` money strings; see
+ * the adoption rules in `money.ts`.
+ */
+export const formatActiveMoney = (value: number | string | null | undefined, currency?: CurrencyFormatSource | null): string =>
+  formatMoneyFor(value, currency, currentLocale())
+
+export const formatActiveDate = (value: string | number | Date | null | undefined, format: DisplayDateFormat = 'short'): string =>
+  formatDisplayDateFor(value, format, currentLocale())
+
+export const formatActiveCount = (value: number | string | null | undefined): string =>
+  formatCountFor(value, currentLocale())
 
 /** Resolve optional catalog entries without displaying a key or a missing marker. */
 export const translateOrFallback = (key: string, fallback: string): string => {

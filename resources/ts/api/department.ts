@@ -11,6 +11,22 @@ export interface Department {
   employees_count: number
 }
 
+export interface DepartmentManagerOption {
+  id: number
+  name: string
+  employeeId: number
+  rank: number
+  departmentId: number | null
+  departmentName?: string | null
+}
+
+export interface DepartmentDeleteRefusal {
+  code?: string
+  message?: string
+  blocking_employee_count?: number
+  blocking_employees?: string[]
+}
+
 export interface DepartmentPayload {
   name: string
   code?: string | null
@@ -21,6 +37,7 @@ export interface DepartmentPayload {
 
 const DepartmentApi = {
   getAll: async (includeInactive = false): Promise<Department[]> => (await api.get<{ data: Department[] }>('/departments', { params: includeInactive ? { include_inactive: true } : undefined })).data.data,
+  getManagerOptions: async (departmentId?: number | null): Promise<DepartmentManagerOption[]> => (await api.get<{ data: DepartmentManagerOption[] }>('/departments/manager-options', { params: departmentId ? { department_id: departmentId } : undefined })).data.data,
   create: async (data: DepartmentPayload): Promise<Department> => (await api.post<{ data: Department }>('/departments', data)).data.data,
   update: async (id: number, data: Partial<DepartmentPayload>): Promise<Department> => (await api.put<{ data: Department }>(`/departments/${id}`, data)).data.data,
   delete: async (id: number): Promise<void> => { await api.delete(`/departments/${id}`) },

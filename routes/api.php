@@ -129,6 +129,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         Route::post('/account/two-factor/confirm', [AuthController::class, 'confirmTwoFactor']);
         Route::delete('/account/two-factor', [AuthController::class, 'disableTwoFactor']);
         Route::post('/account/logout-other-devices', [AuthController::class, 'logoutOtherDevices']);
+        Route::get('/account/sessions', [AuthController::class, 'sessions']);
+        Route::delete('/account/sessions/{token}', [AuthController::class, 'revokeSession'])->whereNumber('token');
         Route::get('/account/deactivation-requests', [AccountDeactivationRequestController::class, 'mine']);
         Route::post('/account/deactivation-requests', [AccountDeactivationRequestController::class, 'store'])
             ->middleware(['permission:request_account_deactivation', 'throttle:5,1']);
@@ -218,6 +220,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::delete('off-days/{offDay}', [OffDayController::class, 'destroy'])->middleware('permission:manage_off_days');
     // Departments are the firm's groups; the manager assignment is what makes
     // a senior role see a team's data.
+    Route::get('departments/manager-options', [DepartmentController::class, 'managerOptions'])
+        ->middleware('permission:view_departments,manage_departments');
     Route::get('departments', [DepartmentController::class, 'index'])->middleware('permission:view_departments');
     Route::post('departments', [DepartmentController::class, 'store'])->middleware('permission:manage_departments');
     Route::put('departments/{department}', [DepartmentController::class, 'update'])->middleware('permission:manage_departments');

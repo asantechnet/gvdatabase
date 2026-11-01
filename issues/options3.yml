@@ -1,0 +1,280 @@
+- generic [active] [ref=f11e1]:
+  - generic [ref=f11e6]:
+    - complementary [ref=f11e7]:
+      - generic [ref=f11e8]:
+        - link [ref=f11e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f11e10]
+        - button "Collapse navigation" [ref=f11e11] [cursor=pointer]
+      - list [ref=f11e14]:
+        - listitem [ref=f11e15]:
+          - link "Home" [ref=f11e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f11e19]:
+          - link "Contracts" [ref=f11e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f11e23]:
+          - link "Applications" [ref=f11e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f11e27]:
+          - link "CRM" [ref=f11e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f11e31]:
+          - generic [ref=f11e32] [cursor=pointer]: Finance
+        - listitem [ref=f11e36]:
+          - generic [ref=f11e37] [cursor=pointer]: HR
+          - list [ref=f11e41]:
+            - listitem [ref=f11e42]:
+              - link "Staff list" [ref=f11e43] [cursor=pointer]:
+                - /url: /staff-list
+            - listitem [ref=f11e46]:
+              - link "Departments" [ref=f11e47] [cursor=pointer]:
+                - /url: /setup/departments
+            - listitem [ref=f11e50]:
+              - link "Employment contracts" [ref=f11e51] [cursor=pointer]:
+                - /url: /employee-contracts
+            - listitem [ref=f11e54]:
+              - link "Timesheet" [ref=f11e55] [cursor=pointer]:
+                - /url: /timesheet
+            - listitem [ref=f11e58]:
+              - link "Off Day Requests" [ref=f11e59] [cursor=pointer]:
+                - /url: /leave-requests
+            - listitem [ref=f11e62]:
+              - link "Company Off Days" [ref=f11e63] [cursor=pointer]:
+                - /url: /off-days
+            - listitem [ref=f11e66]:
+              - link "Payrolls" [ref=f11e67] [cursor=pointer]:
+                - /url: /payrolls
+            - listitem [ref=f11e70]:
+              - link "Bonus list" [ref=f11e71] [cursor=pointer]:
+                - /url: /bonuslist
+            - listitem [ref=f11e74]:
+              - link "Positions" [ref=f11e75] [cursor=pointer]:
+                - /url: /setup/positions
+            - listitem [ref=f11e78]:
+              - link "Announcements" [ref=f11e79] [cursor=pointer]:
+                - /url: /announcements
+        - listitem [ref=f11e82]:
+          - link "Tasks" [ref=f11e83] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f11e86]:
+          - generic [ref=f11e87] [cursor=pointer]: Options
+          - list [ref=f11e403]:
+            - listitem [ref=f11e404]:
+              - generic [ref=f11e405] [cursor=pointer]: Contracts
+              - list [ref=f11e420]:
+                - listitem [ref=f11e421]:
+                  - link "Templates & policies" [ref=f11e422] [cursor=pointer]:
+                    - /url: /options/contracts/documents
+                - listitem [ref=f11e425]:
+                  - link "Educational data" [ref=f11e426] [cursor=pointer]:
+                    - /url: /educational-master-data
+                - listitem [ref=f11e429]:
+                  - link "Academy data" [ref=f11e430] [cursor=pointer]:
+                    - /url: /contracts/academy-data
+                - listitem [ref=f11e433]:
+                  - link "Contract stages" [ref=f11e434] [cursor=pointer]:
+                    - /url: /applicant-stages
+            - listitem [ref=f11e409]:
+              - generic [ref=f11e410] [cursor=pointer]: Finance
+            - listitem [ref=f11e414]:
+              - link "WhatsApp Messages" [ref=f11e415] [cursor=pointer]:
+                - /url: /options/whatsapp-messages
+        - listitem [ref=f11e91]:
+          - generic [ref=f11e92] [cursor=pointer]: Setup
+    - generic [ref=f11e98]:
+      - banner [ref=f11e99]:
+        - generic [ref=f11e101]:
+          - generic [ref=f11e102]:
+            - button "Open search" [ref=f11e103] [cursor=pointer]
+            - button "Search" [ref=f11e106] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f11e108]: ⌘K
+          - button "Guide for this page" [ref=f11e109] [cursor=pointer]
+          - button "English" [ref=f11e112] [cursor=pointer]
+          - button [ref=f11e121] [cursor=pointer]
+          - button [ref=f11e124] [cursor=pointer]
+          - generic [ref=f11e128]:
+            - button "Open audits" [ref=f11e129] [cursor=pointer]
+            - status "Badge" [ref=f11e132]: 99+
+          - button [ref=f11e133] [cursor=pointer]:
+            - status "Badge" [ref=f11e138]: "2"
+          - generic [ref=f11e140]:
+            - generic [ref=f11e141] [cursor=pointer]
+            - status "Badge" [ref=f11e143]
+      - main [ref=f11e144]:
+        - generic [ref=f11e146]:
+          - generic [ref=f11e147]:
+            - generic [ref=f11e148]:
+              - list [ref=f11e149]:
+                - listitem [ref=f11e150]:
+                  - link "Home" [ref=f11e151] [cursor=pointer]:
+                    - /url: /home
+                - listitem [aria-hidden] [ref=f11e152]: /
+                - listitem: Contracts
+              - heading "Employee contracts" [level=1] [ref=f11e153]
+            - navigation "Contracts" [ref=f11e154]:
+              - link "Private" [ref=f11e155] [cursor=pointer]:
+                - /url: /contracts/private
+              - link "Scholarship" [ref=f11e159] [cursor=pointer]:
+                - /url: /contracts/scholarship
+              - link "Test offer" [ref=f11e163] [cursor=pointer]:
+                - /url: /contracts/test-offer
+              - link "Academy" [ref=f11e167] [cursor=pointer]:
+                - /url: /contracts/academy
+              - link "Other contracts" [ref=f11e171] [cursor=pointer]:
+                - /url: /other-contracts
+              - link "Cancelled contracts" [ref=f11e175] [cursor=pointer]:
+                - /url: /cancelled-contracts
+          - generic [ref=f11e179]:
+            - generic [ref=f11e182]:
+              - button "Filters" [ref=f11e183] [cursor=pointer]
+              - button [ref=f11e186] [cursor=pointer]
+              - button "Add Contract" [ref=f11e189] [cursor=pointer]
+            - generic [ref=f11e193]:
+              - table [ref=f11e195]:
+                - rowgroup [ref=f11e196]:
+                  - row [ref=f11e197]:
+                    - columnheader "Contract Number" [ref=f11e198]
+                    - columnheader "Contract" [ref=f11e202]
+                    - columnheader "Counterparty" [ref=f11e206]
+                    - columnheader "Start Date" [ref=f11e210]
+                    - columnheader "Status" [ref=f11e214]
+                    - columnheader "Actions" [ref=f11e218]
+                - rowgroup [ref=f11e221]:
+                  - row [ref=f11e222]:
+                    - cell "CTR-26-015" [ref=f11e223]
+                    - cell "Employment Agreement — Document Officer" [ref=f11e224]
+                    - cell "Omid Safi" [ref=f11e225]
+                    - cell "Jan 8, 2024" [ref=f11e226]
+                    - cell "Active" [ref=f11e227]
+                    - cell [ref=f11e230]:
+                      - button "View full details" [ref=f11e232] [cursor=pointer]
+                      - button [ref=f11e235] [cursor=pointer]
+                      - button [ref=f11e238] [cursor=pointer]
+                      - button [ref=f11e241] [cursor=pointer]
+                  - row [ref=f11e244]:
+                    - cell "CTR-26-014" [ref=f11e245]
+                    - cell "Employment Agreement — Finance Officer" [ref=f11e246]
+                    - cell "Sana Rahimi" [ref=f11e247]
+                    - cell "Sep 15, 2022" [ref=f11e248]
+                    - cell "Active" [ref=f11e249]
+                    - cell [ref=f11e252]:
+                      - button "View full details" [ref=f11e254] [cursor=pointer]
+                      - button [ref=f11e257] [cursor=pointer]
+                      - button [ref=f11e260] [cursor=pointer]
+                      - button [ref=f11e263] [cursor=pointer]
+                  - row [ref=f11e266]:
+                    - cell "CTR-26-013" [ref=f11e267]
+                    - cell "Employment Agreement — Admission Officer" [ref=f11e268]
+                    - cell "Bilal Ahmadi" [ref=f11e269]
+                    - cell "May 2, 2023" [ref=f11e270]
+                    - cell "Active" [ref=f11e271]
+                    - cell [ref=f11e274]:
+                      - button "View full details" [ref=f11e276] [cursor=pointer]
+                      - button [ref=f11e279] [cursor=pointer]
+                      - button [ref=f11e282] [cursor=pointer]
+                      - button [ref=f11e285] [cursor=pointer]
+                  - row [ref=f11e288]:
+                    - cell "CTR-26-012" [ref=f11e289]
+                    - cell "Employment Agreement — Counselor" [ref=f11e290]
+                    - cell "Ahmad Karimi" [ref=f11e291]
+                    - cell "Feb 20, 2023" [ref=f11e292]
+                    - cell "Active" [ref=f11e293]
+                    - cell [ref=f11e296]:
+                      - button "View full details" [ref=f11e298] [cursor=pointer]
+                      - button [ref=f11e301] [cursor=pointer]
+                      - button [ref=f11e304] [cursor=pointer]
+                      - button [ref=f11e307] [cursor=pointer]
+                  - row [ref=f11e310]:
+                    - cell "CTR-26-011" [ref=f11e311]
+                    - cell "Employment Agreement — Senior Counselor" [ref=f11e312]
+                    - cell "Fatima Noori" [ref=f11e313]
+                    - cell "Jan 10, 2022" [ref=f11e314]
+                    - cell "Active" [ref=f11e315]
+                    - cell [ref=f11e318]:
+                      - button "View full details" [ref=f11e320] [cursor=pointer]
+                      - button [ref=f11e323] [cursor=pointer]
+                      - button [ref=f11e326] [cursor=pointer]
+                      - button [ref=f11e329] [cursor=pointer]
+                  - row [ref=f11e332]:
+                    - cell "CTR-26-010" [ref=f11e333]
+                    - cell "Employment Agreement — Operations Manager" [ref=f11e334]
+                    - cell "Zahra Aziz" [ref=f11e335]
+                    - cell "Mar 1, 2021" [ref=f11e336]
+                    - cell "Active" [ref=f11e337]
+                    - cell [ref=f11e340]:
+                      - button "View full details" [ref=f11e342] [cursor=pointer]
+                      - button [ref=f11e345] [cursor=pointer]
+                      - button [ref=f11e348] [cursor=pointer]
+                      - button [ref=f11e351] [cursor=pointer]
+                  - row [ref=f11e354]:
+                    - cell "CTR-26-009" [ref=f11e355]
+                    - cell "Employment Agreement — Director" [ref=f11e356]
+                    - cell "Demo Admin" [ref=f11e357]
+                    - cell "Oct 29, 2026" [ref=f11e358]
+                    - cell "Active" [ref=f11e359]
+                    - cell [ref=f11e362]:
+                      - button "View full details" [ref=f11e364] [cursor=pointer]
+                      - button [ref=f11e367] [cursor=pointer]
+                      - button [ref=f11e370] [cursor=pointer]
+                      - button [ref=f11e373] [cursor=pointer]
+              - separator [ref=f11e376]
+              - generic [ref=f11e377]:
+                - generic [ref=f11e378]:
+                  - generic "Items per page:" [ref=f11e379]
+                  - combobox [ref=f11e382] [cursor=pointer]:
+                    - generic [ref=f11e384]:
+                      - generic [ref=f11e385]: "25"
+                      - combobox "Open": "25"
+                - generic [ref=f11e389]: 1-7 of 7
+                - navigation "Pagination" [ref=f11e392]:
+                  - list [ref=f11e393]:
+                    - listitem [ref=f11e394]:
+                      - button "First page" [disabled]
+                    - listitem [ref=f11e395]:
+                      - button "Previous page" [disabled]
+                    - listitem [ref=f11e396]:
+                      - button "Next page" [disabled]
+                    - listitem [ref=f11e397]:
+                      - button "Last page" [disabled]
+      - contentinfo [ref=f11e398]:
+        - generic [ref=f11e401]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f11e402] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

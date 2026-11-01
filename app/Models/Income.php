@@ -29,6 +29,9 @@ class Income extends Model
         'amount',
         'quantity',
         'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',
+        // Required when an issued receipt's value fields change; audited with
+        // the row so the reason cannot be separated from the change.
+        'revaluation_reason',
         'date',
         'recorded_by',
     ];

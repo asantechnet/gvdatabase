@@ -554,6 +554,7 @@
       "inactive": "غیر فعال",
       "approved": "تایید شوی",
       "rejected": "رد شوی",
+      "underReview": "د بیا کتنې لاندې",
       "eligible": "مستحق (په شرایطو برابر)",
       "granted": "ورکړل شوی",
       "absent": "غیر حاضر",
@@ -872,9 +873,10 @@
         "addAdjustment": "سمون زیات کړه",
         "newSettlement": "نوې تصفیه",
         "reconcile": "بشپړې شوې قضیې تنظیم کړه",
-        "syncedCases": "{count} بشپړې قضیې تنظیم شوې او {voided} ناوخته تعهدات لغوه شول.",
+        "syncedCases": "{count} بشپړه قضیه تنظیم شوه. | {count} بشپړې قضیې تنظیم شوې.",
+        "syncedVoided": "{count} ناوخته تعهد لغوه شو. | {count} ناوخته تعهدات لغوه شول.",
         "syncFailed": "بشپړې شوې قضیې تنظیم نه شوې.",
-        "accrualCount": "{count} تعهدات",
+        "accrualCount": "{count} تعهد | {count} تعهدات",
         "employee": "کارکوونکی",
         "commissionEmployee": "کمیشن ولاړ کارکوونکی",
         "settlementStatus": "د تصفیې حالت",
@@ -887,7 +889,7 @@
         "periodStart": "د مودې پیل",
         "periodEnd": "د مودې پای",
         "notes": "یادښتونه",
-        "settlementPreview": "{count} تعهدات د {amount} مجموعې لپاره غوره شول.",
+        "settlementPreview": "د {amount} مجموعې لپاره {count} تعهد غوره شو. | د {amount} مجموعې لپاره {count} تعهدات غوره شول.",
         "selectAccruals": "تعهدات وټاکه",
         "selectAll": "ټول وټاکه",
         "clearSelection": "پاک کړه",
@@ -1136,6 +1138,8 @@
       "departmentName": "د څانګې نوم",
       "codeOptional": "کوډ (اختیاري)",
       "departmentManager": "د څانګې مدیر",
+      "noEligibleDepartmentManagers": "وړ مدیر نشته. مدیر باید فعال حساب او نظارتي لاسرسی ولري.",
+      "currentManagerNoLongerEligible": "اوسنی مدیر — نور وړ نه دی",
       "descriptionOptional": "تشریح (اختیاري)",
       "activeDepartment": "فعاله څانګه",
       "createDepartment": "څانګه جوړول",
@@ -2159,10 +2163,15 @@
           "applicant": "غوښتونکی"
         },
         "verification": {
+          "label": "تایید",
           "invited": "بلل شوی",
           "verified": "تایید شوی",
           "pending": "د تایید په انتظار"
         },
+        "primaryAccount": "لومړنی حساب",
+        "primaryAccountProtected": "لومړنی مدیر حساب حذف کیدی نشي.",
+        "selfDeleteBlocked": "خپل حساب نه شي حذف کولی.",
+        "lastSuperAdminRoleHint": "لږترلږه یو فعال لوی مدیر باید پاتې شي. د وروستي لوی مدیر رول لرې کول رد کیږي.",
         "created": "جوړ شو",
         "nameEmailAndAtLeastOneRoleAreRequired": "نوم، برېښنالیک او لږترلږه یو رول اړین دي",
         "userDeleted": "کاروونکی حذف شو",
@@ -2298,10 +2307,11 @@
         "rolecards": {
           "rolesGrantPermissionsPositionsRemainHRJobTitlesChangesTakeEffectWhenAf": "رولونه صلاحیتونه ورکوي، موقفونه د بشري سرچینو کاري عنوانونه پاتې کیږي. بدلونونه د ننوتلو وروسته پلي کیږي.",
           "savePermissions": "صلاحیتونه خوندي کړئ",
-          "totalUsers": "ټول {count} کاروونکي",
+          "totalUsers": "ټول {count} کاروونکی | ټول {count} کاروونکي",
           "editRole": "رول بدل کړئ",
           "deleteRole": "رول حذف کړئ",
           "deleteRoleAria": "{role} حذف کړئ",
+          "roleInUseDeleteHint": "د {count} کاروونکي سره تړلی دی؛ لومړی یې لرې کړئ. | د {count} کاروونکو سره تړلی دی؛ لومړی یې لرې کړئ.",
           "addNewRole": "نوی رول زیات کړئ",
           "addRoleHint": "که رول نشته، زیات یې کړئ",
           "createRole": "رول جوړ کړئ",
@@ -2313,7 +2323,7 @@
           "permissionsHint": "صلاحیتونه د کتګورۍ له مخې ولټوئ او اداره یې کړئ. انفرادي صلاحیتونه یا ټولې کتګورۍ بدل کړئ.",
           "selectedCount": "{selected} / {total} ټاکل شوي",
           "searchPermissions": "صلاحیتونه ولټوئ (لکه صادرول، د کاروونکو لیدل)",
-          "permissionCount": "{count} صلاحیتونه",
+          "permissionCount": "{count} صلاحیت | {count} صلاحیتونه",
           "filtered": "فلټر شوي",
           "selectAllFiltered": "ټول فلټر شوي وټاکئ",
           "selectAll": "ټول وټاکئ",
@@ -2487,6 +2497,8 @@
           "confirmBonusGrant": "د بونس ورکړه تایید کړئ",
           "finalAmount": "وروستی مبلغ:",
           "confirmGrant": "تایید او ورکړه",
+          "grantAmountRequired": "د ورکړې دمخه د بونس له صفر څخه زیاته اندازه ولیکئ.",
+          "grantedToast": "{amount} په {month} کې {employee} ته ورکړل شو.",
           "bonusCalculationEvidence": "د بونس د محاسبې شواهد",
           "task": "دنده",
           "participation": "ګډون",
@@ -2615,6 +2627,18 @@
           "cancelContractConfirmation": "{contract} لغوه کړئ؟ دا عمل بېرته نه شي ګرځېدلی.",
           "unnamedContract": "دا قرارداد",
           "searchContracts": "قراردادونه وپلټئ",
+          "expiringFilter": "په ۳۰ ورځو کې پای ته رسېدونکي",
+          "expiringFilterHint": "هغه فعال قراردادونه چې پای نېټه یې تر ۳۰ ورځو پورې ده.",
+          "daysRemaining": "{count} ورځې پاتې",
+          "daysExpired": "{count} ورځې مخکې",
+          "expiringSoon": "ژر پای ته رسېږي",
+          "expired": "پای ته رسېدلی",
+          "scheduled": "مهال ویش شوی",
+          "extensionRole": "غځونه",
+          "extensionOf": "د {number}",
+          "paymentStatus": "تادیه",
+          "outstandingAmount": "پاتې",
+          "notApplicable": "نه تطبیقېږي",
           "filterByCounterparty": "د مقابل لوري له مخې فلټر کړئ",
           "printTable": "جدول چاپ کړئ",
           "addContract": "قرارداد اضافه کړئ",
@@ -2776,6 +2800,10 @@
           "consultant": "سلاکار",
           "consultantReview": "د سلاکار بیاکتنه",
           "consultantReviewHint": "د سلاکار ارزونه وټاکئ: غوره، ښه یا بد.",
+          "gradeScoreLabel": "د وړتیا نمره (۰–۱۰۰)",
+          "gradeScoreHint": "د غوښتونکي د وړتیا فیصدي له ۰ څخه تر ۱۰۰ پورې ولیکئ.",
+          "followUpEmpty": "لا تر اوسه هیڅ لیدونکی د تعقیب لپاره نښه شوی نه دی. په لیدونکو کې یو لیدونکی ستوری کړئ ترڅو دلته راشي.",
+          "ageHint": "د ۱ او ۱۲۰ کلونو ترمنځ.",
           "consultantReviewSaved": "د سلاکار بیاکتنه خوندي شوه.",
           "review": "د سلاکار بیاکتنه"
         }
@@ -2875,6 +2903,8 @@
           "searchExpenseDescriptionsOrTypes": "د لګښت تفصیل یا ډولونه وپلټئ",
           "filterByType": "د ډول له مخې فلټر کړئ",
           "expenseRecordsShown": "ښودل شوي د لګښت ریکارډونه",
+          "expenseRecordCount": "{count} د لګښت ریکارډ | {count} د لګښت ریکارډونه",
+          "expensePageDescription": "وتونکې نغدې، دوامداره لګښتونه او د لګښتونو بڼې په یوه کتابچه کې تعقیب کړئ.",
           "outgoingStream": "وتونکی جریان",
           "spendLedger": "د مصرف کتابچه",
           "expense": "لګښت",
@@ -3007,9 +3037,22 @@
       "asset": {
         "asset": {
           "quantity": "شمېر",
+          "unitPrice": "د واحد بیه",
+          "acquisitionDate": "د پیرود نېټه",
+          "usefulLifeYears": "ګټور عمر (کالونه)",
+          "salvageValue": "پاتې ارزښت",
+          "totalValue": "ټولیز ارزښت",
+          "bookValue": "د دفتر ارزښت",
+          "totalValuePreview": "ټولیز ارزښت: {amount}",
+          "bookValuePreview": "د دفتر ارزښت: {amount}",
+          "valuationAfterSave": "د دفتر ارزښت به د شتمنۍ له خوندي کولو وروسته محاسبه شي.",
+          "wholeNumberAtLeast": "لږ تر لږه {min} بشپړ شمېر ولیکئ.",
+          "nonNegativeNumber": "۰ یا زیات ارزښت ولیکئ.",
+          "failedToFetchCurrencies": "اسعار پورته نه شول.",
           "employeeAllocations": "د کارکوونکو وېش",
           "addEmployee": "کارکوونکی زیات کړئ",
           "employee": "کارکوونکی",
+          "removeAllocation": "وېش لرې کړئ",
           "allocationTotalCannotExceed": "وېشل شوی: {allocated} / {quantity}. ټولیز شمېر له موجودۍ ډېر نه شي کېدای.",
           "allocationReduceBeforeLowering": "وېشل شوی: {allocated} / {quantity}. د موجودۍ له کمولو مخکې وېش کم کړئ."
         }
@@ -3302,6 +3345,25 @@
       }
     },
     "audits": {
+      "filters": {
+        "all": "ټول",
+        "search": "د ریکارډ یا کس له مخې لټون",
+        "searchResources": "د کاري برخو لټون",
+        "resource": "کاري برخه",
+        "action": "کړنه",
+        "allResources": "ټولې کاري برخې",
+        "allActions": "ټولې کړنې",
+        "people": "خلک",
+        "source": "د بدلون سرچینه"
+      },
+      "fields": {
+        "currentStageId": "پړاو",
+        "responsibleEmployeeId": "مسئول کارکوونکی",
+        "admissionEmployeeId": "د داخلې کارکوونکی"
+      },
+      "system": "سیستم",
+      "ipAddress": "IP پته",
+      "requestMethod": "د غوښتنې طریقه",
       "events": {
         "announcement_sent": "اعلانیه ولېږل شوه"
       },
@@ -3838,11 +3900,11 @@
       },
       "stageStaff": {
         "title": "د غوښتونکي پړاو تازه شو",
-        "message": "د {applicant} قضیه {stage} پړاو ته ولاړه."
+        "message": "د {applicant} قضیه له {from_stage} څخه {to_stage} ته د {actor} لخوا ولاړه."
       },
       "stageApplicant": {
         "title": "ستاسو د ویزې قضیه تازه شوه",
-        "message": "ستاسو قضیه {stage} پړاو ته ولاړه."
+        "message": "ستاسو قضیه له {from_stage} څخه {to_stage} ته د {actor} لخوا ولاړه."
       },
       "stalled": {
         "title": "د غوښتونکي قضیه پاملرنې ته اړتیا لري",
@@ -4111,6 +4173,7 @@
   },
   "educational": {
     "caseUi": {
+      "documentRequiredBeforeMove": "د دې قضیې له لومړني پړاو څخه د لېږدولو دمخه لږ تر لږه یو نښه شوی سند ضمیمه کړئ.",
       "terminalConfirm": "دا دوسیه {stage} پړاو ته ولېږدول شي؟ دوسیه به وتړل شي او په عادي بهیر کې بېرته نه راګرځي.",
       "terminalConfirmTitle": "دا دوسیه وتړل شي؟",
       "completedMoveNote": "{stage} دوسیه پای ته رسوي: دوسیه د بشپړې شوې په توګه تړل کیږي او د هغې د قراردادي خدمتونو کمیشن د تادیې لپاره ثبت کیږي.",
@@ -4403,6 +4466,13 @@
     "createCase": "قضیه جوړه کړئ",
     "newApplicantCase": "د غوښتونکي نوې قضیه",
     "caseCount": "{count} قضیه",
+    "pipelineCardCount": "{count} کارتونه",
+    "pipelineCountsNote": "هره ستن کارتونه شمېري: یو کارت د هر قراردادي خدمت لپاره، او هغه قضیې چې لا دا خدمت نه دی اخیستی. پورته چپس قضیې شمېري.",
+    "activeCasesCount": "فعالې قضیې: {count}",
+    "closedCasesCount": "بندې قضیې: {count}",
+    "allCasesCount": "ټولې قضیې: {count}",
+    "extensionOf": "د {number} غځونه",
+    "noServiceLines": "خدمتونه نشته",
     "currentStage": "اوسنی پړاو",
     "pipelineInstructions": "کارت بل مجاز پړاو ته کش کړئ. شمېرې فعال فلټرونه په پام کې نیسي.",
     "activeCount": "فعال: {count}",
@@ -4490,6 +4560,10 @@
     },
     "pendingUi": {
       "customerEmployee": "پېرودونکی / کارکوونکی",
+      "searchReason": "د تادیې دلیل پلټنه",
+      "saved": "د تادیې غوښتنه خوندي شوه.",
+      "submitted": "د تادیې غوښتنه د تصویب لپاره ولېږل شوه.",
+      "selfApproval": "تاسو نشئ کولای خپله د تادیې غوښتنه تصویب، رد یا ثبت کړئ. بل تصویب کوونکی باید یې وګوري.",
       "saveFailed": "معامله خوندي نه شوه؛ ښايي قفل یا د سمون وخت یې پای ته رسېدلی وي.",
       "transitioned": "د معاملې حالت اوس {status} دی.",
       "rejected": "معامله رد شوه.",
@@ -4576,8 +4650,14 @@
       "partially_paid": "تر یوې کچې تادیه شوی"
     }
   },
+  "tasksPage": {
+    "title": "دندې",
+    "description": "هره کالم یوه خدمت دی. د ټولو خدمتونو لپاره په څنګ کې وګرځئ او د لېږدولو لپاره دنده کش کړئ."
+  },
   "erp": {
     "home": "کور",
+    "tasks": "دندې",
+    "finance": "مالي",
     "contracts": "قراردادونه",
     "crm": "د پېرودونکو اړیکې",
     "applicants": "غوښتونکي",

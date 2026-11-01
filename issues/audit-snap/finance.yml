@@ -1,0 +1,94 @@
+- generic [active] [ref=f67e1]:
+  - generic [ref=f67e6]:
+    - complementary [ref=f67e7]:
+      - generic [ref=f67e8]:
+        - link [ref=f67e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f67e10]
+        - button "Collapse navigation" [ref=f67e11] [cursor=pointer]
+      - list [ref=f67e14]:
+        - listitem [ref=f67e15]:
+          - link "Home" [ref=f67e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f67e19]:
+          - link "Contracts" [ref=f67e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f67e23]:
+          - link "Applications" [ref=f67e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f67e27]:
+          - link "CRM" [ref=f67e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f67e31]:
+          - generic [ref=f67e32] [cursor=pointer]: Finance
+        - listitem [ref=f67e36]:
+          - generic [ref=f67e37] [cursor=pointer]: HR
+        - listitem [ref=f67e41]:
+          - link "Tasks" [ref=f67e42] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f67e45]:
+          - generic [ref=f67e46] [cursor=pointer]: Options
+        - listitem [ref=f67e50]:
+          - generic [ref=f67e51] [cursor=pointer]: Setup
+    - generic [ref=f67e57]:
+      - banner [ref=f67e58]:
+        - generic [ref=f67e60]:
+          - generic [ref=f67e61]:
+            - button "Open search" [ref=f67e62] [cursor=pointer]
+            - button "Search" [ref=f67e65] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f67e67]: ⌘K
+          - button "Guide for this page" [ref=f67e68] [cursor=pointer]
+          - button "English" [ref=f67e71] [cursor=pointer]
+          - button [ref=f67e80] [cursor=pointer]
+          - button [ref=f67e83] [cursor=pointer]
+          - generic [ref=f67e87]:
+            - button "Open audits" [ref=f67e88] [cursor=pointer]
+            - status "Badge" [ref=f67e91]: 99+
+          - button [ref=f67e92] [cursor=pointer]:
+            - status "Badge" [ref=f67e97]: "11"
+          - generic [ref=f67e99]:
+            - generic [ref=f67e100] [cursor=pointer]
+            - status "Badge" [ref=f67e102]
+      - main [ref=f67e103]:
+        - main [ref=f67e105]:
+          - generic [ref=f67e106]:
+            - generic [ref=f67e107]:
+              - generic [ref=f67e108]: Reporting studio
+              - heading "Understand the business" [level=1] [ref=f67e109]
+              - paragraph [ref=f67e110]: Explore evidence, compare performance, and publish decision-ready reports.
+            - generic [ref=f67e111]:
+              - button "Export CSV" [ref=f67e112] [cursor=pointer]
+              - button "Print report" [ref=f67e116] [cursor=pointer]
+          - generic [ref=f67e120]:
+            - button "Financial performance" [ref=f67e121] [cursor=pointer]
+            - button "People & payroll" [ref=f67e122] [cursor=pointer]
+            - button "Time & attendance" [ref=f67e123] [cursor=pointer]
+            - button "Educational & contracts" [ref=f67e124] [cursor=pointer]
+            - button "CRM & tasks" [ref=f67e125] [cursor=pointer]
+          - button "Filters" [ref=f67e127] [cursor=pointer]
+          - article [ref=f67e130]:
+            - generic [ref=f67e131]:
+              - generic [ref=f67e135]:
+                - paragraph [ref=f67e136]: Cash collected
+                - heading "AFN 0" [level=3] [ref=f67e137]
+                - paragraph [ref=f67e138]: 0 records in period
+              - generic [ref=f67e144]:
+                - paragraph [ref=f67e145]: Expenses
+                - heading "AFN 0" [level=3] [ref=f67e146]
+                - paragraph [ref=f67e147]: 0 records in period
+              - generic [ref=f67e153]:
+                - paragraph [ref=f67e154]: Net cash flow
+                - heading "AFN 0" [level=3] [ref=f67e155]
+                - paragraph [ref=f67e156]: AFN 0 spent
+      - contentinfo [ref=f67e159]:
+        - generic [ref=f67e162]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f67e163] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

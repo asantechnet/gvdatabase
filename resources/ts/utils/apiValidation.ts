@@ -12,7 +12,9 @@ const serviceContractRules: Schema = {
   parent_contract_id: ['nullable', 'integer'], name: ['nullable', 'string', 'max:255'],
   fee: ['required', 'numeric', 'min:0', 'max:9999999999999'], discount: ['required', 'numeric', 'min:0'],
   currency_id: ['required', 'integer'], currency_rate: ['required', 'numeric', 'gt:0', 'max:9999999'],
-  language_id: ['required', 'integer'], start_date: ['required', 'date'],
+  // `start_date` is prohibited server-side: ContractGenerationService derives it
+  // from today. A client rule here rejected every valid dialog submission.
+  language_id: ['required', 'integer'],
   email: ['nullable', 'email', 'max:255'], responsible_employee_id: ['nullable', 'integer'],
 }
 

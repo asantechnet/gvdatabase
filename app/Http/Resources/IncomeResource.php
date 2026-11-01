@@ -62,6 +62,7 @@ class IncomeResource extends JsonResource
             'base_curr_shrt' => $this->base_curr_shrt,
             'rate' => (float) $this->rate,
             'base_amount' => (float) $this->base_amount,
+            'revaluation_reason' => $this->revaluation_reason,
             'currentBaseAmount' => $this->currentBaseAmount((float) $this->amount * (int) $this->quantity, $currency),
             'currentBaseCurrency' => $this->currentBaseCurrencyData(),
             'recorded_by' => $this->recorded_by,

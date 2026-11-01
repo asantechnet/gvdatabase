@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\MissingValue;
 
 /**
  * Presents an applicant as the single customer-facing record.
@@ -46,13 +47,27 @@ class ApplicantResource extends JsonResource
             'skill_ids' => $this->whenLoaded('skills', fn () => $this->skills->pluck('id')->all()),
             'teacher_ids' => $this->whenLoaded('teachers', fn () => $this->teachers->pluck('id')->all()),
             // Overall payment state across the contracted lines: one chip for
-            // the applications list (null when no lines were loaded).
-            'payment_status' => $this->whenLoaded('applicantContracts', fn () => $this->overallPaymentStatus()),
+            // the applications list. Only a viewer allowed to see case finances
+            // receives it, so the list omits the column instead of rendering a
+            // dash for every row.
+            'payment_status' => $this->when(
+                $request->user()?->hasPermission('view_applicant_financials') === true
+                    && $this->relationLoaded('applicantContracts'),
+                fn () => $this->overallPaymentStatus(),
+                new MissingValue,
+            ),
             // Case.
             'parent_applicant_id' => $this->parent_applicant_id,
             'status' => $this->status,
             'responsible_employee_id' => $this->responsible_employee_id,
             'current_stage_id' => $this->current_stage_id,
+            // The stage the applications list displays for this row: the
+            // service line's under a service filter, the mirror otherwise.
+            'display_stage' => $this->when(
+                $this->resource->getAttribute('display_stage') !== null,
+                fn () => $this->resource->getAttribute('display_stage'),
+                new MissingValue,
+            ),
             'current_stage' => $this->whenLoaded('currentStage', fn () => $this->currentStage ? [
                 'id' => $this->currentStage->id,
                 'name' => $this->currentStage->name,

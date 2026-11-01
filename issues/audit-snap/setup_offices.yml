@@ -1,0 +1,178 @@
+- generic [active] [ref=f82e1]:
+  - generic [ref=f82e6]:
+    - complementary [ref=f82e7]:
+      - generic [ref=f82e8]:
+        - link [ref=f82e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f82e10]
+        - button "Collapse navigation" [ref=f82e11] [cursor=pointer]
+      - list [ref=f82e14]:
+        - listitem [ref=f82e15]:
+          - link "Home" [ref=f82e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f82e19]:
+          - link "Contracts" [ref=f82e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f82e23]:
+          - link "Applications" [ref=f82e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f82e27]:
+          - link "CRM" [ref=f82e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f82e31]:
+          - generic [ref=f82e32] [cursor=pointer]: Finance
+        - listitem [ref=f82e36]:
+          - generic [ref=f82e37] [cursor=pointer]: HR
+        - listitem [ref=f82e41]:
+          - link "Tasks" [ref=f82e42] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f82e45]:
+          - generic [ref=f82e46] [cursor=pointer]: Options
+        - listitem [ref=f82e50]:
+          - generic [ref=f82e51] [cursor=pointer]: Setup
+          - list [ref=f82e55]:
+            - listitem [ref=f82e56]:
+              - link "Users" [ref=f82e57] [cursor=pointer]:
+                - /url: /setup/users
+            - listitem [ref=f82e60]:
+              - link "Roles" [ref=f82e61] [cursor=pointer]:
+                - /url: /setup/roles
+            - listitem [ref=f82e64]:
+              - link "Settings" [ref=f82e65] [cursor=pointer]:
+                - /url: /setup/settings/office
+    - generic [ref=f82e70]:
+      - banner [ref=f82e71]:
+        - generic [ref=f82e73]:
+          - generic [ref=f82e74]:
+            - button "Open search" [ref=f82e75] [cursor=pointer]
+            - button "Search" [ref=f82e78] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f82e80]: ⌘K
+          - button "Guide for this page" [ref=f82e81] [cursor=pointer]
+          - button "English" [ref=f82e84] [cursor=pointer]
+          - button [ref=f82e93] [cursor=pointer]
+          - button [ref=f82e96] [cursor=pointer]
+          - generic [ref=f82e100]:
+            - button "Open audits" [ref=f82e101] [cursor=pointer]
+            - status "Badge" [ref=f82e104]: 99+
+          - button [ref=f82e105] [cursor=pointer]:
+            - status "Badge" [ref=f82e110]: "11"
+          - generic [ref=f82e112]:
+            - generic [ref=f82e113] [cursor=pointer]
+            - status "Badge" [ref=f82e115]
+      - main [ref=f82e116]:
+        - generic [ref=f82e119]:
+          - generic [ref=f82e120]:
+            - generic [ref=f82e121]:
+              - generic [ref=f82e122]: Settings
+              - generic [ref=f82e123]: Company Settings
+              - paragraph [ref=f82e124]: Manage company preferences and system defaults.
+            - list [ref=f82e125]:
+              - link "Company" [ref=f82e126] [cursor=pointer]:
+                - /url: /setup/settings/company
+              - link "Email delivery" [ref=f82e131] [cursor=pointer]:
+                - /url: /setup/settings/email
+              - link "Operations" [ref=f82e136] [cursor=pointer]:
+                - /url: /setup/settings/operations
+              - link "Appearance" [ref=f82e141] [cursor=pointer]:
+                - /url: /setup/settings/appearance
+              - link "Documents" [ref=f82e146] [cursor=pointer]:
+                - /url: /setup/settings/documents
+              - link "Support" [ref=f82e151] [cursor=pointer]:
+                - /url: /setup/settings/support
+              - link "Office" [ref=f82e156] [cursor=pointer]:
+                - /url: /setup/settings/office
+          - generic [ref=f82e161]:
+            - generic [ref=f82e167]:
+              - heading "Office" [level=1] [ref=f82e168]
+              - paragraph [ref=f82e169]: Company location, contact details, and attendance geofence.
+            - generic [ref=f82e171]:
+              - alert [ref=f82e172]:
+                - generic [ref=f82e175]: Turn on automatic attendance in Operations to use the office geofence. You can still keep the location ready below.
+              - generic [ref=f82e176]:
+                - generic [ref=f82e179]:
+                  - generic [ref=f82e182]: Single office workspace
+                  - heading "Head Office" [level=2] [ref=f82e183]
+                  - paragraph [ref=f82e184]: This profile is shared by staff, assets, attendance, reports, and documents.
+                  - list [ref=f82e185]:
+                    - listitem [ref=f82e186]:
+                      - generic [ref=f82e189]: HQ
+                    - listitem [ref=f82e191]:
+                      - generic [ref=f82e194]: Address pending
+                    - listitem [ref=f82e196]:
+                      - generic [ref=f82e199]: Geofence disabled
+                - generic [ref=f82e202]:
+                  - generic [ref=f82e204]:
+                    - generic [ref=f82e205]: Office profile
+                    - generic [ref=f82e206]: Keep the company’s physical location and contact details accurate.
+                  - generic [ref=f82e208]:
+                    - generic [ref=f82e212]:
+                      - textbox "Name Name" [ref=f82e214]: Head Office
+                      - generic: Name
+                    - generic [ref=f82e218]:
+                      - textbox "Office code Office code" [ref=f82e220]: HQ
+                      - generic: Office code
+                    - generic [ref=f82e225]:
+                      - generic: Email
+                      - textbox "Email Email" [ref=f82e226]
+                    - generic [ref=f82e231]:
+                      - generic: Phone
+                      - textbox "Phone Phone" [ref=f82e232]
+                    - generic [ref=f82e237]:
+                      - generic: Address
+                      - textbox "Address Address" [ref=f82e238]
+                    - combobox [ref=f82e242] [cursor=pointer]:
+                      - generic [ref=f82e244]:
+                        - generic [ref=f82e245]: Active
+                        - combobox "Open": active
+                      - generic: Status
+                    - generic [ref=f82e249]: Complete the profile
+                - generic [ref=f82e255]:
+                  - generic [ref=f82e257]:
+                    - generic [ref=f82e258]: Attendance geofence
+                    - generic [ref=f82e259]: Set one trusted location for location-aware clock-ins.
+                  - generic [ref=f82e260]:
+                    - generic [ref=f82e261]:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - checkbox "Require staff to clock in from this office" [disabled]
+                            - generic: Require staff to clock in from this office
+                      - button "Use my current location" [ref=f82e262] [cursor=pointer]
+                    - generic "Office geofence map" [ref=f82e266]:
+                      - generic:
+                        - region "Map" [ref=f82e267]
+                        - img "Map marker" [ref=f82e268]
+                        - img "Map marker" [ref=f82e274]
+                      - generic:
+                        - generic [ref=f82e280]:
+                          - button "Zoom in" [ref=f82e281] [cursor=pointer]
+                          - button "Zoom out" [ref=f82e283] [cursor=pointer]
+                        - link "Mapbox logo" [ref=f82e286] [cursor=pointer]:
+                          - /url: https://www.mapbox.com/
+                        - button [ref=f82e288] [cursor=pointer]
+                    - generic [ref=f82e290]:
+                      - generic [ref=f82e295]:
+                        - generic: Latitude
+                        - spinbutton "Latitude Latitude" [ref=f82e296]
+                      - generic [ref=f82e301]:
+                        - generic: Longitude
+                        - spinbutton "Longitude Longitude" [ref=f82e302]
+                      - generic [ref=f82e306]:
+                        - generic [ref=f82e307]:
+                          - spinbutton "Office radius (meters) Office radius (meters)" [ref=f82e308]: "100"
+                          - generic [ref=f82e309]: m
+                        - generic: Office radius (meters)
+              - button "Save office profile" [ref=f82e312] [cursor=pointer]
+      - contentinfo [ref=f82e316]:
+        - generic [ref=f82e319]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f82e320] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

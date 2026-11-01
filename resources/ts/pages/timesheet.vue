@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { translate } from '@/utils/localization'
+import { useToast } from 'vue-toastification'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { VAlert, VAvatar, VBtn, VCard, VCardText, VChip, VCol, VDialog, VIcon, VRow, VSelect } from 'vuetify/components'
@@ -42,6 +43,8 @@ const attendanceRecords = ref<Attendance[]>([])
 const unmarkedStaff = ref<UnmarkedStaff[]>([])
 const loading = ref<boolean>(false)
 const error = ref<string | null>(null)
+const toast = useToast()
+const staffName = (id: number | null) => employees.value.find(employee => employee.id === id)?.name ?? `#${id ?? ''}`
 const reportDialogOpen = ref(false)
 const reportLoading = ref(false)
 const selectedReport = ref<DailyReport | null>(null)
@@ -141,6 +144,8 @@ const logAttendance = async (status: 'present' | 'absent') => {
       break_minutes: status === 'present' ? breakMinutes.value : null,
     })
 
+    toast.success(`${staffName(selectedStaffId.value)} · ${logDate.value} · ${status === 'present' ? translate('common.statuses.present') : translate('pages.attendance.timesheet.timesheet.absent')}`)
+
     // Refresh data after logging
     await fetchAttendanceRecords()
     await fetchUnmarkedStaff()
@@ -153,7 +158,10 @@ const logAttendance = async (status: 'present' | 'absent') => {
     breakMinutes.value = setting?.default_break_minutes || 0
   }
   catch (err) {
-    error.value = translate('pages.attendance.timesheet.timesheet.failedToLogAttendance')
+    const message = apiErrorMessage(err, translate('pages.attendance.timesheet.timesheet.failedToLogAttendance'))
+
+    error.value = message
+    toast.error(`${staffName(selectedStaffId.value)} · ${logDate.value} · ${message}`)
     console.error(err)
   }
   finally {
@@ -167,12 +175,17 @@ const deleteRecord = async (id: number) => {
     loading.value = true
     await AttendanceApi.delete(id)
 
+    toast.success(translate('common.actions.delete'))
+
     // Refresh data after deletion
     await fetchAttendanceRecords()
     await fetchUnmarkedStaff()
   }
   catch (err) {
-    error.value = translate('pages.attendance.timesheet.timesheet.failedToDeleteAttendanceRecord')
+    const message = apiErrorMessage(err, translate('pages.attendance.timesheet.timesheet.failedToDeleteAttendanceRecord'))
+
+    error.value = message
+    toast.error(message)
     console.error(err)
   }
   finally {

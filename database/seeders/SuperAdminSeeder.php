@@ -20,7 +20,8 @@ class SuperAdminSeeder extends Seeder
      */
     public const DEMO_EMAIL = 'admin@example.test';
 
-    public const DEMO_PASSWORD = '1234';
+    /** Demo-only credential; it meets the production eight-character minimum. */
+    public const DEMO_PASSWORD = 'Demo1234';
 
     /**
      * Run the database seeds.

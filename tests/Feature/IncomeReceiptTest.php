@@ -161,6 +161,7 @@ class IncomeReceiptTest extends TestCase
 
         $this->putJson("/api/incomes/{$income->id}", [
             'amount' => 90,
+            'revaluation_reason' => 'Fee corrected after review',
         ], ['Accept' => 'application/json'])->assertOk();
 
         $incomeAudit = AuditLog::query()

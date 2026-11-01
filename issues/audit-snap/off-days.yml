@@ -1,0 +1,144 @@
+- generic [active] [ref=f64e1]:
+  - generic [ref=f64e6]:
+    - complementary [ref=f64e7]:
+      - generic [ref=f64e8]:
+        - link [ref=f64e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f64e10]
+        - button "Collapse navigation" [ref=f64e11] [cursor=pointer]
+      - list [ref=f64e14]:
+        - listitem [ref=f64e15]:
+          - link "Home" [ref=f64e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f64e19]:
+          - link "Contracts" [ref=f64e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f64e23]:
+          - link "Applications" [ref=f64e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f64e27]:
+          - link "CRM" [ref=f64e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f64e31]:
+          - generic [ref=f64e32] [cursor=pointer]: Finance
+        - listitem [ref=f64e36]:
+          - generic [ref=f64e37] [cursor=pointer]: HR
+          - list [ref=f64e41]:
+            - listitem [ref=f64e42]:
+              - link "Staff list" [ref=f64e43] [cursor=pointer]:
+                - /url: /staff-list
+            - listitem [ref=f64e46]:
+              - link "Departments" [ref=f64e47] [cursor=pointer]:
+                - /url: /setup/departments
+            - listitem [ref=f64e50]:
+              - link "Employment contracts" [ref=f64e51] [cursor=pointer]:
+                - /url: /employee-contracts
+            - listitem [ref=f64e54]:
+              - link "Timesheet" [ref=f64e55] [cursor=pointer]:
+                - /url: /timesheet
+            - listitem [ref=f64e58]:
+              - link "Off Day Requests" [ref=f64e59] [cursor=pointer]:
+                - /url: /leave-requests
+            - listitem [ref=f64e62]:
+              - link "Company Off Days" [ref=f64e63] [cursor=pointer]:
+                - /url: /off-days
+            - listitem [ref=f64e66]:
+              - link "Payrolls" [ref=f64e67] [cursor=pointer]:
+                - /url: /payrolls
+            - listitem [ref=f64e70]:
+              - link "Bonus list" [ref=f64e71] [cursor=pointer]:
+                - /url: /bonuslist
+            - listitem [ref=f64e74]:
+              - link "Positions" [ref=f64e75] [cursor=pointer]:
+                - /url: /setup/positions
+            - listitem [ref=f64e78]:
+              - link "Announcements" [ref=f64e79] [cursor=pointer]:
+                - /url: /announcements
+        - listitem [ref=f64e82]:
+          - link "Tasks" [ref=f64e83] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f64e86]:
+          - generic [ref=f64e87] [cursor=pointer]: Options
+        - listitem [ref=f64e91]:
+          - generic [ref=f64e92] [cursor=pointer]: Setup
+    - generic [ref=f64e98]:
+      - banner [ref=f64e99]:
+        - generic [ref=f64e101]:
+          - generic [ref=f64e102]:
+            - button "Open search" [ref=f64e103] [cursor=pointer]
+            - button "Search" [ref=f64e106] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f64e108]: ⌘K
+          - button "Guide for this page" [ref=f64e109] [cursor=pointer]
+          - button "English" [ref=f64e112] [cursor=pointer]
+          - button [ref=f64e121] [cursor=pointer]
+          - button [ref=f64e124] [cursor=pointer]
+          - generic [ref=f64e128]:
+            - button "Open audits" [ref=f64e129] [cursor=pointer]
+            - status "Badge" [ref=f64e132]: 99+
+          - button [ref=f64e133] [cursor=pointer]:
+            - status "Badge" [ref=f64e138]: "11"
+          - generic [ref=f64e140]:
+            - generic [ref=f64e141] [cursor=pointer]
+            - status "Badge" [ref=f64e143]
+      - main [ref=f64e144]:
+        - generic [ref=f64e146]:
+          - region "Company Off Days overview" [ref=f64e147]:
+            - generic [ref=f64e148]:
+              - generic [ref=f64e152]:
+                - heading "Company Off Days" [level=1] [ref=f64e153]
+                - paragraph [ref=f64e154]: Announce company-wide holidays; approved days mark attendance and count as present in payroll.
+              - generic [ref=f64e155]: Scroll tables sideways on small screens
+          - generic [ref=f64e157]:
+            - generic [ref=f64e158]:
+              - text: Company Off Days
+              - button "Filters" [ref=f64e160] [cursor=pointer]
+              - button "Print" [ref=f64e163] [cursor=pointer]
+              - button "Announce off day" [ref=f64e167] [cursor=pointer]
+            - generic [ref=f64e171]:
+              - alert [ref=f64e172]:
+                - generic [ref=f64e175]: Approved off days are marked as present in attendance and shown separately on the payslip.
+              - generic [ref=f64e177]:
+                - table [ref=f64e179]:
+                  - rowgroup [ref=f64e180]:
+                    - row [ref=f64e181]:
+                      - columnheader "Start date" [ref=f64e182]
+                      - columnheader "End date" [ref=f64e186]
+                      - columnheader "Days" [ref=f64e190]
+                      - columnheader "Reason" [ref=f64e194]
+                      - columnheader "Status" [ref=f64e198]
+                      - columnheader "Approved by" [ref=f64e202]
+                      - columnheader "Actions" [ref=f64e206]
+                  - rowgroup [ref=f64e209]:
+                    - row [ref=f64e210]:
+                      - cell "No data available" [ref=f64e211]
+                - separator [ref=f64e212]
+                - generic [ref=f64e213]:
+                  - generic [ref=f64e214]:
+                    - generic "Items per page:" [ref=f64e215]
+                    - combobox [ref=f64e218] [cursor=pointer]:
+                      - generic [ref=f64e220]:
+                        - generic [ref=f64e221]: "25"
+                        - combobox "Open": "25"
+                  - generic [ref=f64e225]: 0-0 of 0
+                  - navigation "Pagination" [ref=f64e228]:
+                    - list [ref=f64e229]:
+                      - listitem [ref=f64e230]:
+                        - button "First page" [disabled]
+                      - listitem [ref=f64e231]:
+                        - button "Previous page" [disabled]
+                      - listitem [ref=f64e232]:
+                        - button "Next page" [disabled]
+                      - listitem [ref=f64e233]:
+                        - button "Last page" [disabled]
+      - contentinfo [ref=f64e234]:
+        - generic [ref=f64e237]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f64e238] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

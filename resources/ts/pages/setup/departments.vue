@@ -1,24 +1,45 @@
 <script setup lang="ts">
 import { translate } from '@/utils/localization'
 import { useToast } from 'vue-toastification'
-import DepartmentApi, { type Department, type DepartmentPayload } from '@/api/department'
-import EmployeeApi, { type Employee } from '@/api/employee'
-import { apiErrorMessage } from '@/utils/apiErrors'
+import DepartmentApi, { type Department, type DepartmentDeleteRefusal, type DepartmentManagerOption, type DepartmentPayload } from '@/api/department'
+import { clearFieldError, fieldErrorMessages } from '@/utils/formErrors'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
 const toast = useToast()
 const departments = ref<Department[]>([])
-const employees = ref<Employee[]>([])
 const loading = ref(false)
 const dialogOpen = ref(false)
 const deleteDialogOpen = ref(false)
 const deleting = ref<Department | null>(null)
 const editing = ref<Department | null>(null)
+const managerOptions = ref<DepartmentManagerOption[]>([])
+const managerLoading = ref(false)
+const deleteRefusal = ref<DepartmentDeleteRefusal | null>(null)
 
 const blank = (): DepartmentPayload => ({ name: '', code: null, description: null, manager_employee_id: null, is_active: true })
 const form = ref<DepartmentPayload>(blank())
-const employeeOptions = computed(() => employees.value.map(employee => ({ title: employee.name, value: employee.id })))
+const managerError = computed(() => fieldErrorMessages('manager_id'))
+
+const managerSelectOptions = computed(() => {
+  const options: Array<{ title: string; value: number; props?: { disabled: boolean } }> = managerOptions.value.map(option => ({
+    title: option.departmentName ? `${option.name} · ${option.departmentName}` : option.name,
+    value: option.id,
+  }))
+
+  // Keep a saved manager visible even after they lose eligibility. Dropping
+  // the value silently would make the form look like it has no manager.
+  const currentId = editing.value?.manager_employee_id
+  if (currentId && !options.some(option => option.value === currentId)) {
+    options.unshift({
+      title: `${editing.value?.manager_name ?? `#${currentId}`} · ${translate('common.ui.currentManagerNoLongerEligible')}`,
+      value: currentId,
+      props: { disabled: true },
+    })
+  }
+
+  return options
+})
 
 const headers = computed(() => [
   { title: translate('common.fields.department'), key: 'name' },
@@ -32,37 +53,48 @@ const headers = computed(() => [
 async function load() {
   loading.value = true
   try {
-    const [departmentRows, employeeRows] = await Promise.all([
-      DepartmentApi.getAll(true),
-      EmployeeApi.getOptions(),
-    ])
-    departments.value = departmentRows
-    employees.value = employeeRows
+    departments.value = await DepartmentApi.getAll(true)
   }
-  catch (error) {
-    toast.error(apiErrorMessage(error, translate('common.ui.unableToLoadDepartments')))
+  catch {
+    // ApiErrorNotifier owns API failure feedback; this page only reports success.
   }
   finally {
     loading.value = false
   }
 }
 
-function create() {
-  editing.value = null
-  form.value = blank()
+async function openDialog(department: Department | null = null) {
+  editing.value = department
+  form.value = department
+    ? {
+        name: department.name,
+        code: department.code,
+        description: department.description,
+        manager_employee_id: department.manager_employee_id,
+        is_active: department.is_active,
+      }
+    : blank()
+  clearFieldError('manager_id')
   dialogOpen.value = true
+  managerOptions.value = []
+  managerLoading.value = true
+  try {
+    managerOptions.value = await DepartmentApi.getManagerOptions(department?.id ?? null)
+  }
+  catch {
+    managerOptions.value = []
+  }
+  finally {
+    managerLoading.value = false
+  }
+}
+
+function create() {
+  void openDialog()
 }
 
 function edit(department: Department) {
-  editing.value = department
-  form.value = {
-    name: department.name,
-    code: department.code,
-    description: department.description,
-    manager_employee_id: department.manager_employee_id,
-    is_active: department.is_active,
-  }
-  dialogOpen.value = true
+  void openDialog(department)
 }
 
 async function save() {
@@ -82,8 +114,9 @@ async function save() {
     dialogOpen.value = false
     toast.success(editing.value ? translate('common.ui.departmentUpdated') : translate('common.ui.departmentCreated'))
   }
-  catch (error) {
-    toast.error(apiErrorMessage(error, translate('common.ui.unableToSaveTheDepartment')))
+  catch {
+    // Leave the dialog open: the global notifier shows one API error and the
+    // shared form-error store renders manager_id inline.
   }
   finally {
     loading.value = false
@@ -91,17 +124,21 @@ async function save() {
 }
 
 async function remove() {
-  if (!deleting.value) return
+  const target = deleting.value
+  if (!target) return
   loading.value = true
+  deleteRefusal.value = null
   try {
-    await DepartmentApi.delete(deleting.value.id)
-    departments.value = departments.value.filter(item => item.id !== deleting.value?.id)
+    await DepartmentApi.delete(target.id)
+    departments.value = departments.value.filter(item => item.id !== target.id)
     deleting.value = null
     deleteDialogOpen.value = false
-    toast.success(translate('common.ui.departmentRemoved'))
+    toast.success(`${target.name}: ${translate('common.ui.departmentRemoved')}`)
   }
   catch (error) {
-    toast.error(apiErrorMessage(error, translate('common.ui.aDepartmentWithMembersCannotBeRemoved')))
+    // One toast is raised by ApiErrorNotifier. Keep the dialog open and show
+    // the server's blocking count/names in place.
+    deleteRefusal.value = (error ?? {}) as DepartmentDeleteRefusal
   }
   finally {
     loading.value = false
@@ -135,7 +172,7 @@ onMounted(load)
       </template>
       <template #item.actions="{ item }">
         <IconBtn :aria-label="$t('common.ui.editDepartment')" @click="edit(item)"><VIcon icon="tabler-pencil" /></IconBtn>
-        <IconBtn :aria-label="$t('common.ui.deleteDepartment')" @click="deleting = item; deleteDialogOpen = true"><VIcon icon="tabler-trash" /></IconBtn>
+        <IconBtn :aria-label="$t('common.ui.deleteDepartment')" @click="deleting = item; deleteRefusal = null; deleteDialogOpen = true"><VIcon icon="tabler-trash" /></IconBtn>
       </template>
     </ResponsiveDataTable>
   </VCard>
@@ -149,7 +186,17 @@ onMounted(load)
         </VAlert>
         <VTextField v-model="form.name" :label="$t('common.ui.departmentName')" class="mb-3" />
         <VTextField v-model="form.code" :label="$t('common.ui.codeOptional')" class="mb-3" />
-        <VSelect v-model="form.manager_employee_id" :items="employeeOptions" :label="$t('common.ui.departmentManager')" clearable class="mb-3" />
+        <VSelect
+          v-model="form.manager_employee_id"
+          :items="managerSelectOptions"
+          :label="$t('common.ui.departmentManager')"
+          :loading="managerLoading"
+          :error-messages="managerError"
+          :no-data-text="$t('common.ui.noEligibleDepartmentManagers')"
+          clearable
+          class="mb-3"
+          @update:model-value="clearFieldError('manager_id')"
+        />
         <VTextarea v-model="form.description" :label="$t('common.ui.descriptionOptional')" rows="3" class="mb-3" />
         <VSwitch v-model="form.is_active" :label="$t('common.ui.activeDepartment')" color="primary" hide-details />
       </VCardText>
@@ -157,11 +204,20 @@ onMounted(load)
     </VCard>
   </VDialog>
 
-  <VDialog v-model="deleteDialogOpen" max-width="420">
+  <VDialog v-model="deleteDialogOpen" max-width="480">
     <VCard>
       <VCardTitle>{{ $t('common.ui.deleteDepartment') }}</VCardTitle>
-      <VCardText>{{ $t('common.ui.onlyEmptyDepartmentsCanBeDeletedMoveItsEmployeesFirst') }}</VCardText>
-      <VCardActions><VSpacer /><VBtn variant="tonal" @click="deleteDialogOpen = false; deleting = null">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="error" :loading="loading" @click="remove">{{ $t('common.actions.delete') }}</VBtn></VCardActions>
+      <VCardText>
+        <div>{{ $t('common.ui.onlyEmptyDepartmentsCanBeDeletedMoveItsEmployeesFirst') }}</div>
+        <VAlert v-if="deleteRefusal" type="error" variant="tonal" class="mt-4">
+          <div>{{ deleteRefusal.message || $t('common.ui.aDepartmentWithMembersCannotBeRemoved') }}</div>
+          <div v-if="deleteRefusal.blocking_employee_count" class="mt-2">
+            {{ $t('common.ui.members') }} ({{ deleteRefusal.blocking_employee_count }}):
+            {{ (deleteRefusal.blocking_employees || []).join(', ') }}
+          </div>
+        </VAlert>
+      </VCardText>
+      <VCardActions><VSpacer /><VBtn variant="tonal" @click="deleteDialogOpen = false; deleting = null; deleteRefusal = null">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="error" :loading="loading" @click="remove">{{ $t('common.actions.delete') }}</VBtn></VCardActions>
     </VCard>
   </VDialog>
 </template>

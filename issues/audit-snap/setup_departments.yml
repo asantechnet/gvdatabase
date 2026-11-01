@@ -1,0 +1,104 @@
+- generic [active] [ref=f80e1]:
+  - generic [ref=f80e6]:
+    - complementary [ref=f80e7]:
+      - generic [ref=f80e8]:
+        - link [ref=f80e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f80e10]
+        - button "Collapse navigation" [ref=f80e11] [cursor=pointer]
+      - list [ref=f80e14]:
+        - listitem [ref=f80e15]:
+          - link "Home" [ref=f80e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f80e19]:
+          - link "Contracts" [ref=f80e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f80e23]:
+          - link "Applications" [ref=f80e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f80e27]:
+          - link "CRM" [ref=f80e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f80e31]:
+          - generic [ref=f80e32] [cursor=pointer]: Finance
+        - listitem [ref=f80e36]:
+          - generic [ref=f80e37] [cursor=pointer]: HR
+          - list [ref=f80e41]:
+            - listitem [ref=f80e42]:
+              - link "Staff list" [ref=f80e43] [cursor=pointer]:
+                - /url: /staff-list
+            - listitem [ref=f80e46]:
+              - link "Departments" [ref=f80e47] [cursor=pointer]:
+                - /url: /setup/departments
+            - listitem [ref=f80e50]:
+              - link "Employment contracts" [ref=f80e51] [cursor=pointer]:
+                - /url: /employee-contracts
+            - listitem [ref=f80e54]:
+              - link "Timesheet" [ref=f80e55] [cursor=pointer]:
+                - /url: /timesheet
+            - listitem [ref=f80e58]:
+              - link "Off Day Requests" [ref=f80e59] [cursor=pointer]:
+                - /url: /leave-requests
+            - listitem [ref=f80e62]:
+              - link "Company Off Days" [ref=f80e63] [cursor=pointer]:
+                - /url: /off-days
+            - listitem [ref=f80e66]:
+              - link "Payrolls" [ref=f80e67] [cursor=pointer]:
+                - /url: /payrolls
+            - listitem [ref=f80e70]:
+              - link "Bonus list" [ref=f80e71] [cursor=pointer]:
+                - /url: /bonuslist
+            - listitem [ref=f80e74]:
+              - link "Positions" [ref=f80e75] [cursor=pointer]:
+                - /url: /setup/positions
+            - listitem [ref=f80e78]:
+              - link "Announcements" [ref=f80e79] [cursor=pointer]:
+                - /url: /announcements
+        - listitem [ref=f80e82]:
+          - link "Tasks" [ref=f80e83] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f80e86]:
+          - generic [ref=f80e87] [cursor=pointer]: Options
+        - listitem [ref=f80e91]:
+          - generic [ref=f80e92] [cursor=pointer]: Setup
+    - generic [ref=f80e98]:
+      - banner [ref=f80e99]:
+        - generic [ref=f80e101]:
+          - generic [ref=f80e102]:
+            - button "Open search" [ref=f80e103] [cursor=pointer]
+            - button "Search" [ref=f80e106] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f80e108]: ⌘K
+          - button "Guide for this page" [ref=f80e109] [cursor=pointer]
+          - button "English" [ref=f80e112] [cursor=pointer]
+          - button [ref=f80e121] [cursor=pointer]
+          - button [ref=f80e124] [cursor=pointer]
+          - generic [ref=f80e128]:
+            - button "Open audits" [ref=f80e129] [cursor=pointer]
+            - status "Badge" [ref=f80e132]: 99+
+          - button [ref=f80e133] [cursor=pointer]:
+            - status "Badge" [ref=f80e138]: "11"
+          - generic [ref=f80e140]:
+            - generic [ref=f80e141] [cursor=pointer]
+            - status "Badge" [ref=f80e143]
+      - main [ref=f80e144]:
+        - generic [ref=f80e145]:
+          - region "Departments overview" [ref=f80e146]:
+            - generic [ref=f80e151]:
+              - heading "Departments" [level=1] [ref=f80e152]
+              - paragraph [ref=f80e153]: Create staff groups and assign a senior employee as the group manager. Then set each employee’s department and direct supervisor in Staff Directory.
+          - generic [ref=f80e154]:
+            - generic [ref=f80e155]:
+              - generic [ref=f80e156]: Departments
+              - button "Create department" [ref=f80e157] [cursor=pointer]
+            - paragraph [ref=f80e165]: No departments have been created yet.
+      - contentinfo [ref=f80e166]:
+        - generic [ref=f80e169]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f80e170] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

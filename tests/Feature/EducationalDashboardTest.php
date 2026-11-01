@@ -80,6 +80,7 @@ class EducationalDashboardTest extends TestCase
         // Moving one line only changes that service's column.
         $line = ApplicantContract::query()->where('service', 'test_offer')->firstOrFail();
         $next = ApplicantStage::query()->where('service', 'test_offer')->where('key', 'documents_required')->firstOrFail();
+        $this->seedApplicantDocuments($line->applicant_id);
         $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", ['stage_id' => $next->id])->assertOk();
 
         $moved = collect($this->getJson('/api/educational-dashboard')->assertOk()->json('data.pipeline.stages'));
@@ -164,7 +165,12 @@ class EducationalDashboardTest extends TestCase
         $this->assertFalse(collect($queries)->contains(fn ($query) => preg_match('/(?:from|join)\s+[`"]?visitors[`"]?/i', $query['query']) === 1));
         $this->assertArrayNotHasKey('prospects', $data['operations']);
         $this->assertSame(1, $data['attention']['counts']['contracts_requiring_attention']);
-        $this->assertSame('applicant-case', $data['attention']['contracts_requiring_attention'][0]['route']['name']);
+        $expiring = $data['attention']['contracts_requiring_attention'][0];
+        // An expiring active contract opens the register's expiring view and
+        // names its end date instead of a generic case.
+        $this->assertSame('employee-contracts', $expiring['route']['name']);
+        $this->assertSame(1, $expiring['route']['query']['expiring']);
+        $this->assertStringContainsString('ends', $expiring['subtitle']);
         $this->getJson('/api/educational-dashboard?country_id='.$country->id)->assertOk()->assertJsonMissingPath('data.operations.prospects');
     }
 }

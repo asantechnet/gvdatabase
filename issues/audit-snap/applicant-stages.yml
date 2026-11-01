@@ -1,0 +1,317 @@
+- generic [active] [ref=f47e1]:
+  - generic [ref=f47e6]:
+    - complementary [ref=f47e7]:
+      - generic [ref=f47e8]:
+        - link [ref=f47e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f47e10]
+        - button "Collapse navigation" [ref=f47e11] [cursor=pointer]
+      - list [ref=f47e14]:
+        - listitem [ref=f47e15]:
+          - link "Home" [ref=f47e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f47e19]:
+          - link "Contracts" [ref=f47e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f47e23]:
+          - link "Applications" [ref=f47e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f47e27]:
+          - link "CRM" [ref=f47e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f47e31]:
+          - generic [ref=f47e32] [cursor=pointer]: Finance
+        - listitem [ref=f47e36]:
+          - generic [ref=f47e37] [cursor=pointer]: HR
+        - listitem [ref=f47e41]:
+          - link "Tasks" [ref=f47e42] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f47e45]:
+          - generic [ref=f47e46] [cursor=pointer]: Options
+          - list [ref=f47e50]:
+            - listitem [ref=f47e51]:
+              - generic [ref=f47e52] [cursor=pointer]: Contracts
+              - list [ref=f47e56]:
+                - listitem [ref=f47e57]:
+                  - link "Templates & policies" [ref=f47e58] [cursor=pointer]:
+                    - /url: /options/contracts/documents
+                - listitem [ref=f47e61]:
+                  - link "Educational data" [ref=f47e62] [cursor=pointer]:
+                    - /url: /educational-master-data
+                - listitem [ref=f47e65]:
+                  - link "Academy data" [ref=f47e66] [cursor=pointer]:
+                    - /url: /contracts/academy-data
+                - listitem [ref=f47e69]:
+                  - link "Contract stages" [ref=f47e70] [cursor=pointer]:
+                    - /url: /applicant-stages
+            - listitem [ref=f47e73]:
+              - generic [ref=f47e74] [cursor=pointer]: Finance
+            - listitem [ref=f47e78]:
+              - link "WhatsApp Messages" [ref=f47e79] [cursor=pointer]:
+                - /url: /options/whatsapp-messages
+        - listitem [ref=f47e82]:
+          - generic [ref=f47e83] [cursor=pointer]: Setup
+    - generic [ref=f47e89]:
+      - banner [ref=f47e90]:
+        - generic [ref=f47e92]:
+          - generic [ref=f47e93]:
+            - button "Open search" [ref=f47e94] [cursor=pointer]
+            - button "Search" [ref=f47e97] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f47e99]: ⌘K
+          - button "Guide for this page" [ref=f47e100] [cursor=pointer]
+          - button "English" [ref=f47e103] [cursor=pointer]
+          - button [ref=f47e112] [cursor=pointer]
+          - button [ref=f47e115] [cursor=pointer]
+          - generic [ref=f47e119]:
+            - button "Open audits" [ref=f47e120] [cursor=pointer]
+            - status "Badge" [ref=f47e123]: 99+
+          - button [ref=f47e124] [cursor=pointer]:
+            - status "Badge" [ref=f47e129]: "11"
+          - generic [ref=f47e131]:
+            - generic [ref=f47e132] [cursor=pointer]
+            - status "Badge" [ref=f47e134]
+      - main [ref=f47e135]:
+        - generic [ref=f47e138]:
+          - generic [ref=f47e139]:
+            - generic [ref=f47e140]: Stage
+            - combobox [ref=f47e143] [cursor=pointer]:
+              - generic [ref=f47e145]:
+                - generic [ref=f47e146]: Scholarship
+                - combobox "Open": scholarship
+              - generic: Service
+            - button "Add" [ref=f47e150] [cursor=pointer]
+          - table [ref=f47e158]:
+            - rowgroup [ref=f47e159]:
+              - row [ref=f47e160]:
+                - columnheader "Name" [ref=f47e161]
+                - columnheader "Code" [ref=f47e162]
+                - columnheader "Service" [ref=f47e163]
+                - columnheader "Display order" [ref=f47e164]
+                - columnheader "Allowed next stages" [ref=f47e165]
+                - columnheader "Country / University" [ref=f47e166]
+                - columnheader "Status" [ref=f47e167]
+                - columnheader [ref=f47e168]
+            - rowgroup [ref=f47e169]:
+              - row [ref=f47e170]:
+                - cell "New" [ref=f47e171]
+                - cell [ref=f47e172]:
+                  - code [ref=f47e173]: new
+                - cell "Scholarship" [ref=f47e174]
+                - cell "10" [ref=f47e175]
+                - cell "Consultation, Cancelled, Withdrawn" [ref=f47e176]
+                - cell "—" [ref=f47e177]
+                - cell "Active" [ref=f47e178]
+                - cell [ref=f47e181]:
+                  - button [ref=f47e182] [cursor=pointer]
+                  - button [ref=f47e185] [cursor=pointer]
+              - row [ref=f47e188]:
+                - cell "Consultation" [ref=f47e189]
+                - cell [ref=f47e190]:
+                  - code [ref=f47e191]: consultation
+                - cell "Scholarship" [ref=f47e192]
+                - cell "20" [ref=f47e193]
+                - cell "Documents Required, Cancelled, Withdrawn" [ref=f47e194]
+                - cell "—" [ref=f47e195]
+                - cell "Active" [ref=f47e196]
+                - cell [ref=f47e199]:
+                  - button [ref=f47e200] [cursor=pointer]
+                  - button [ref=f47e203] [cursor=pointer]
+              - row [ref=f47e206]:
+                - cell "Documents Required" [ref=f47e207]
+                - cell [ref=f47e208]:
+                  - code [ref=f47e209]: documents_required
+                - cell "Scholarship" [ref=f47e210]
+                - cell "30" [ref=f47e211]
+                - cell "Documents Complete, Cancelled, Withdrawn" [ref=f47e212]
+                - cell "—" [ref=f47e213]
+                - cell "Active" [ref=f47e214]
+                - cell [ref=f47e217]:
+                  - button [ref=f47e218] [cursor=pointer]
+                  - button [ref=f47e221] [cursor=pointer]
+              - row [ref=f47e224]:
+                - cell "Documents Complete" [ref=f47e225]
+                - cell [ref=f47e226]:
+                  - code [ref=f47e227]: documents_complete
+                - cell "Scholarship" [ref=f47e228]
+                - cell "40" [ref=f47e229]
+                - cell "University Selection, Cancelled, Withdrawn" [ref=f47e230]
+                - cell "—" [ref=f47e231]
+                - cell "Active" [ref=f47e232]
+                - cell [ref=f47e235]:
+                  - button [ref=f47e236] [cursor=pointer]
+                  - button [ref=f47e239] [cursor=pointer]
+              - row [ref=f47e242]:
+                - cell "University Selection" [ref=f47e243]
+                - cell [ref=f47e244]:
+                  - code [ref=f47e245]: university_selection
+                - cell "Scholarship" [ref=f47e246]
+                - cell "50" [ref=f47e247]
+                - cell "University Application, Cancelled, Withdrawn" [ref=f47e248]
+                - cell "—" [ref=f47e249]
+                - cell "Active" [ref=f47e250]
+                - cell [ref=f47e253]:
+                  - button [ref=f47e254] [cursor=pointer]
+                  - button [ref=f47e257] [cursor=pointer]
+              - row [ref=f47e260]:
+                - cell "University Application" [ref=f47e261]
+                - cell [ref=f47e262]:
+                  - code [ref=f47e263]: university_application
+                - cell "Scholarship" [ref=f47e264]
+                - cell "60" [ref=f47e265]
+                - cell "Admission Pending, Cancelled, Withdrawn" [ref=f47e266]
+                - cell "—" [ref=f47e267]
+                - cell "Active" [ref=f47e268]
+                - cell [ref=f47e271]:
+                  - button [ref=f47e272] [cursor=pointer]
+                  - button [ref=f47e275] [cursor=pointer]
+              - row [ref=f47e278]:
+                - cell "Admission Pending" [ref=f47e279]
+                - cell [ref=f47e280]:
+                  - code [ref=f47e281]: admission_pending
+                - cell "Scholarship" [ref=f47e282]
+                - cell "70" [ref=f47e283]
+                - cell "Admission Received, Cancelled, Withdrawn, Rejected" [ref=f47e284]
+                - cell "—" [ref=f47e285]
+                - cell "Active" [ref=f47e286]
+                - cell [ref=f47e289]:
+                  - button [ref=f47e290] [cursor=pointer]
+                  - button [ref=f47e293] [cursor=pointer]
+              - row [ref=f47e296]:
+                - cell "Admission Received" [ref=f47e297]
+                - cell [ref=f47e298]:
+                  - code [ref=f47e299]: admission_received
+                - cell "Scholarship" [ref=f47e300]
+                - cell "80" [ref=f47e301]
+                - cell "Contract Service Active, Cancelled, Withdrawn" [ref=f47e302]
+                - cell "—" [ref=f47e303]
+                - cell "Active" [ref=f47e304]
+                - cell [ref=f47e307]:
+                  - button [ref=f47e308] [cursor=pointer]
+                  - button [ref=f47e311] [cursor=pointer]
+              - row [ref=f47e314]:
+                - cell "Contract Service Active" [ref=f47e315]
+                - cell [ref=f47e316]:
+                  - code [ref=f47e317]: contract_service_active
+                - cell "Scholarship" [ref=f47e318]
+                - cell "90" [ref=f47e319]
+                - cell "Visa Preparation, Cancelled, Withdrawn" [ref=f47e320]
+                - cell "—" [ref=f47e321]
+                - cell "Active" [ref=f47e322]
+                - cell [ref=f47e325]:
+                  - button [ref=f47e326] [cursor=pointer]
+                  - button [ref=f47e329] [cursor=pointer]
+              - row [ref=f47e332]:
+                - cell "Visa Preparation" [ref=f47e333]
+                - cell [ref=f47e334]:
+                  - code [ref=f47e335]: visa_preparation
+                - cell "Scholarship" [ref=f47e336]
+                - cell "100" [ref=f47e337]
+                - cell "Visa Submitted, Cancelled, Withdrawn" [ref=f47e338]
+                - cell "—" [ref=f47e339]
+                - cell "Active" [ref=f47e340]
+                - cell [ref=f47e343]:
+                  - button [ref=f47e344] [cursor=pointer]
+                  - button [ref=f47e347] [cursor=pointer]
+              - row [ref=f47e350]:
+                - cell "Visa Submitted" [ref=f47e351]
+                - cell [ref=f47e352]:
+                  - code [ref=f47e353]: visa_submitted
+                - cell "Scholarship" [ref=f47e354]
+                - cell "110" [ref=f47e355]
+                - cell "Visa Processing, Cancelled, Withdrawn, Rejected" [ref=f47e356]
+                - cell "—" [ref=f47e357]
+                - cell "Active" [ref=f47e358]
+                - cell [ref=f47e361]:
+                  - button [ref=f47e362] [cursor=pointer]
+                  - button [ref=f47e365] [cursor=pointer]
+              - row [ref=f47e368]:
+                - cell "Visa Processing" [ref=f47e369]
+                - cell [ref=f47e370]:
+                  - code [ref=f47e371]: visa_processing
+                - cell "Scholarship" [ref=f47e372]
+                - cell "120" [ref=f47e373]
+                - cell "Visa Approved, Cancelled, Withdrawn, Rejected" [ref=f47e374]
+                - cell "—" [ref=f47e375]
+                - cell "Active" [ref=f47e376]
+                - cell [ref=f47e379]:
+                  - button [ref=f47e380] [cursor=pointer]
+                  - button [ref=f47e383] [cursor=pointer]
+              - row [ref=f47e386]:
+                - cell "Visa Approved" [ref=f47e387]
+                - cell [ref=f47e388]:
+                  - code [ref=f47e389]: visa_approved
+                - cell "Scholarship" [ref=f47e390]
+                - cell "130" [ref=f47e391]
+                - cell "Completed, Cancelled, Withdrawn" [ref=f47e392]
+                - cell "—" [ref=f47e393]
+                - cell "Active" [ref=f47e394]
+                - cell [ref=f47e397]:
+                  - button [ref=f47e398] [cursor=pointer]
+                  - button [ref=f47e401] [cursor=pointer]
+              - row [ref=f47e404]:
+                - cell "Completed" [ref=f47e405]
+                - cell [ref=f47e406]:
+                  - code [ref=f47e407]: completed
+                - cell "Scholarship" [ref=f47e408]
+                - cell "140" [ref=f47e409]
+                - cell "—" [ref=f47e410]
+                - cell "—" [ref=f47e411]
+                - cell "Active Terminal stage" [ref=f47e412]:
+                  - generic [ref=f47e413]: Active
+                  - generic [ref=f47e415]: Terminal stage
+                - cell [ref=f47e417]:
+                  - button [ref=f47e418] [cursor=pointer]
+                  - button [ref=f47e421] [cursor=pointer]
+              - row [ref=f47e424]:
+                - cell "Cancelled" [ref=f47e425]
+                - cell [ref=f47e426]:
+                  - code [ref=f47e427]: cancelled
+                - cell "Scholarship" [ref=f47e428]
+                - cell "900" [ref=f47e429]
+                - cell "—" [ref=f47e430]
+                - cell "—" [ref=f47e431]
+                - cell "Active Terminal stage" [ref=f47e432]:
+                  - generic [ref=f47e433]: Active
+                  - generic [ref=f47e435]: Terminal stage
+                - cell [ref=f47e437]:
+                  - button [ref=f47e438] [cursor=pointer]
+                  - button [ref=f47e441] [cursor=pointer]
+              - row [ref=f47e444]:
+                - cell "Rejected" [ref=f47e445]
+                - cell [ref=f47e446]:
+                  - code [ref=f47e447]: rejected
+                - cell "Scholarship" [ref=f47e448]
+                - cell "910" [ref=f47e449]
+                - cell "University Selection, Visa Preparation" [ref=f47e450]
+                - cell "—" [ref=f47e451]
+                - cell "Active Terminal stage" [ref=f47e452]:
+                  - generic [ref=f47e453]: Active
+                  - generic [ref=f47e455]: Terminal stage
+                - cell [ref=f47e457]:
+                  - button [ref=f47e458] [cursor=pointer]
+                  - button [ref=f47e461] [cursor=pointer]
+              - row [ref=f47e464]:
+                - cell "Withdrawn" [ref=f47e465]
+                - cell [ref=f47e466]:
+                  - code [ref=f47e467]: withdrawn
+                - cell "Scholarship" [ref=f47e468]
+                - cell "920" [ref=f47e469]
+                - cell "Consultation" [ref=f47e470]
+                - cell "—" [ref=f47e471]
+                - cell "Active Terminal stage" [ref=f47e472]:
+                  - generic [ref=f47e473]: Active
+                  - generic [ref=f47e475]: Terminal stage
+                - cell [ref=f47e477]:
+                  - button [ref=f47e478] [cursor=pointer]
+                  - button [ref=f47e481] [cursor=pointer]
+      - contentinfo [ref=f47e484]:
+        - generic [ref=f47e487]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f47e488] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

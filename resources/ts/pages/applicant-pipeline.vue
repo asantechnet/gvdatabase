@@ -220,7 +220,9 @@ async function moveCard(card: PipelineCard, target: PipelineColumn) {
     await load()
   }
   catch {
-    toast.error(t('educational.messages.transitionNotAllowed'))
+    // The shared API notifier already explains the refusal (document gate,
+    // terminal reason, illegal transition); a second generic toast would
+    // contradict it.
   }
   finally {
     movingId.value = null
@@ -254,9 +256,9 @@ onMounted(async () => {
       <template #append>
         <div class="pipeline-header-actions">
           <VBtn v-if="canAccess('view_applicant_stages')" size="small" variant="text" :to="{ name: 'applicant-stages' }">{{ $t('educational.stage') }}</VBtn>
-          <VChip color="success" size="small">{{ $t('educational.activeCount', { count: totals.active }) }}</VChip>
-          <VChip color="secondary" size="small">{{ $t('educational.closedCount', { count: totals.closed }) }}</VChip>
-          <VChip color="primary" size="small">{{ $t('educational.allCount', { count: totals.all }) }}</VChip>
+          <VChip color="success" size="small">{{ $t('educational.activeCasesCount', { count: totals.active }) }}</VChip>
+          <VChip color="secondary" size="small">{{ $t('educational.closedCasesCount', { count: totals.closed }) }}</VChip>
+          <VChip color="primary" size="small">{{ $t('educational.allCasesCount', { count: totals.all }) }}</VChip>
           <DataTableFilterMenu v-model="filtersOpen" :active="activeFilterCount > 0" @reset="clearFilters">
             <VSelect v-model="filters.service" :items="serviceOptions" :label="$t('educational.service')" />
             <VTextField v-model="filters.search" :label="$t('educational.searchApplicant')" clearable @keyup.enter="applyFilters" />
@@ -272,12 +274,13 @@ onMounted(async () => {
       </template>
     </VCardItem>
     <VCardText>
+      <p class="text-caption text-medium-emphasis mb-4">{{ $t('educational.pipelineCountsNote') }}</p>
       <VAlert v-if="!canMove" type="info" variant="tonal" density="compact" class="mb-4">{{ $t('educational.stageMovePermission') }}</VAlert>
       <ApplicantPipelineSkeleton v-if="loading" />
       <TableEmptyState v-else-if="!stages.length" icon="tabler-layout-kanban" :description="$t('educational.noActiveStages')" />
       <div v-else ref="pipelineScroller" class="d-flex gap-3 overflow-x-auto pb-2 pipeline-scroller" @dragover.prevent="onPipelineDragOver">
         <VCard v-for="stage in stages" :key="stage.key" variant="outlined" min-width="260" class="flex-shrink-0 pipeline-column" :class="{ 'pipeline-column--allowed': isAllowedDropStage(stage), 'pipeline-column--blocked': dragCard && !isAllowedDropStage(stage) }" style="inline-size: 260px;" @dragover.prevent @drop="onDrop(stage)">
-          <VCardItem :subtitle="$t('educational.caseCount', { count: stage.count })">
+          <VCardItem :subtitle="$t('educational.pipelineCardCount', { count: stage.count })">
             <template #title><VTooltip location="top"><template #activator="{ props }"><span v-bind="props" class="d-inline-block text-truncate" style="max-inline-size: 185px">{{ translateApplicantStage(stage) }}</span></template>{{ translateApplicantStage(stage) }}</VTooltip></template>
             <template #append><VChip size="small" :color="stage.is_terminal ? 'secondary' : 'primary'">{{ stage.count }}</VChip></template>
           </VCardItem>
@@ -286,6 +289,7 @@ onMounted(async () => {
               <VCardText class="py-2">
                 <div class="font-weight-medium">{{ card.name || $t('educational.applicantNumber', { id: card.applicant_id }) }}</div>
                 <div class="text-caption text-medium-emphasis">#{{ card.applicant_id }} · {{ translateBackendValue(card.status) }}<span v-if="card.contract_number"> · {{ card.contract_number }}</span></div>
+                <div v-if="card.contract_role === 'extension'" class="text-caption text-warning">{{ $t('educational.extensionOf', { number: card.parent_contract_number ?? '—' }) }}</div>
                 <div class="text-caption">{{ serviceOptions.find(option => option.value === card.service)?.title }}<span v-if="card.country">{{ ` · ${card.country}` }}</span><span v-if="card.university">{{ ` · ${card.university}` }}</span></div>
                 <div class="text-caption text-medium-emphasis">{{ card.responsible_employee?.name ?? $t('educational.unassigned') }}</div>
                 <div class="d-flex gap-1 mt-2">

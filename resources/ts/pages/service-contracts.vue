@@ -418,6 +418,12 @@ watch(visitorId, id => {
     form.value = { ...form.value, ...visitorApplicantFields(visitor) }
 })
 watch(currencyId, id => { rate.value = currencies.value.find(row => row.id === id)?.rate ?? 1 })
+// A form-level API error describes the payload that was just submitted. Once
+// the operator edits any field it is stale, so it must not stay on screen.
+watch([form, charges, applicationFeeRange, paidFee, discount, currencyId, rate, languageId, selectedVersionId, createPortalUser], () => {
+  if (open.value)
+    error.value = ''
+}, { deep: true })
 watch(compatibleVersions, versions => {
   if (editing.value)
     return

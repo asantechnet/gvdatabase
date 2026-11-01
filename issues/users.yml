@@ -1,0 +1,218 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e6]:
+    - complementary [ref=f2e7]:
+      - generic [ref=f2e8]:
+        - link [ref=f2e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f2e10]
+        - button "Collapse navigation" [ref=f2e11] [cursor=pointer]
+      - list [ref=f2e14]:
+        - listitem [ref=f2e15]:
+          - link "Home" [ref=f2e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f2e19]:
+          - link "Contracts" [ref=f2e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f2e23]:
+          - link "Applications" [ref=f2e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f2e27]:
+          - link "CRM" [ref=f2e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f2e31]:
+          - generic [ref=f2e32] [cursor=pointer]: Finance
+        - listitem [ref=f2e36]:
+          - generic [ref=f2e37] [cursor=pointer]: HR
+        - listitem [ref=f2e82]:
+          - link "Tasks" [ref=f2e83] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f2e86]:
+          - generic [ref=f2e87] [cursor=pointer]: Options
+        - listitem [ref=f2e91]:
+          - generic [ref=f2e92] [cursor=pointer]: Setup
+          - list [ref=f2e781]:
+            - listitem [ref=f2e782]:
+              - link "Users" [active] [ref=f2e783] [cursor=pointer]:
+                - /url: /setup/users
+            - listitem [ref=f2e786]:
+              - link "Roles" [ref=f2e787] [cursor=pointer]:
+                - /url: /setup/roles
+            - listitem [ref=f2e790]:
+              - link "Settings" [ref=f2e791] [cursor=pointer]:
+                - /url: /setup/settings
+    - generic [ref=f2e98]:
+      - banner [ref=f2e99]:
+        - generic [ref=f2e101]:
+          - generic [ref=f2e102]:
+            - button "Open search" [ref=f2e103] [cursor=pointer]
+            - button "Search" [ref=f2e106] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f2e108]: ⌘K
+          - button "Guide for this page" [ref=f2e109] [cursor=pointer]
+          - button "English" [ref=f2e112] [cursor=pointer]
+          - button [ref=f2e121] [cursor=pointer]
+          - button [ref=f2e124] [cursor=pointer]
+          - generic [ref=f2e128]:
+            - button "Open audits" [ref=f2e129] [cursor=pointer]
+            - status "Badge" [ref=f2e132]: 99+
+          - button [ref=f2e133] [cursor=pointer]:
+            - status "Badge" [ref=f2e138]: "2"
+          - generic [ref=f2e140]:
+            - generic [ref=f2e141] [cursor=pointer]
+            - status "Badge" [ref=f2e143]
+      - main [ref=f2e144]:
+        - generic [ref=f2e145]:
+          - region "Users overview" [ref=f2e800]:
+            - generic [ref=f2e801]:
+              - generic [ref=f2e805]:
+                - heading "Users" [level=1] [ref=f2e806]
+                - paragraph [ref=f2e807]: Manage access, invitations, and the current health of user accounts.
+              - generic [ref=f2e808]: Scroll tables sideways on small screens
+          - generic [ref=f2e810]:
+            - generic [ref=f2e811]: Users
+            - generic [ref=f2e815]:
+              - generic [ref=f2e822]:
+                - generic: Search Users
+                - textbox "Search Users Search Users" [ref=f2e823]
+              - generic [ref=f2e824]:
+                - button "Filters" [ref=f2e825] [cursor=pointer]
+                - button "Add user" [ref=f2e828] [cursor=pointer]
+            - generic [ref=f2e833]:
+              - table [ref=f2e835]:
+                - rowgroup [ref=f2e836]:
+                  - row [ref=f2e837]:
+                    - columnheader "User" [ref=f2e838]
+                    - columnheader "Roles" [ref=f2e842]
+                    - columnheader "Status" [ref=f2e845]
+                    - columnheader "Email" [ref=f2e849]
+                    - columnheader "Created" [ref=f2e853]
+                    - columnheader "Actions" [ref=f2e857]
+                - rowgroup [ref=f2e860]:
+                  - row [ref=f2e861]:
+                    - cell "Ahmad Karimi ahmad.karimi@example.test" [ref=f2e862]:
+                      - generic [ref=f2e863]:
+                        - generic [ref=f2e864]: Ahmad Karimi
+                        - generic [ref=f2e865]: ahmad.karimi@example.test
+                    - cell "Counselor" [ref=f2e866]
+                    - cell "Active" [ref=f2e870]
+                    - cell "Verified" [ref=f2e873]
+                    - cell "Oct 29, 2026" [ref=f2e876]
+                    - cell [ref=f2e877]:
+                      - button "View full details" [ref=f2e879] [cursor=pointer]
+                      - button "Edit user" [ref=f2e882] [cursor=pointer]
+                      - button "Delete user" [ref=f2e885] [cursor=pointer]
+                  - row [ref=f2e888]:
+                    - cell "Bilal Ahmadi bilal.ahmadi@example.test" [ref=f2e889]:
+                      - generic [ref=f2e890]:
+                        - generic [ref=f2e891]: Bilal Ahmadi
+                        - generic [ref=f2e892]: bilal.ahmadi@example.test
+                    - cell "Staff" [ref=f2e893]
+                    - cell "Active" [ref=f2e897]
+                    - cell "Verified" [ref=f2e900]
+                    - cell "Oct 29, 2026" [ref=f2e903]
+                    - cell [ref=f2e904]:
+                      - button "View full details" [ref=f2e906] [cursor=pointer]
+                      - button "Edit user" [ref=f2e909] [cursor=pointer]
+                      - button "Delete user" [ref=f2e912] [cursor=pointer]
+                  - row [ref=f2e915]:
+                    - cell "Fatima Noori fatima.noori@example.test" [ref=f2e916]:
+                      - generic [ref=f2e917]:
+                        - generic [ref=f2e918]: Fatima Noori
+                        - generic [ref=f2e919]: fatima.noori@example.test
+                    - cell "Senior counselor" [ref=f2e920]
+                    - cell "Active" [ref=f2e924]
+                    - cell "Verified" [ref=f2e927]
+                    - cell "Oct 29, 2026" [ref=f2e930]
+                    - cell [ref=f2e931]:
+                      - button "View full details" [ref=f2e933] [cursor=pointer]
+                      - button "Edit user" [ref=f2e936] [cursor=pointer]
+                      - button "Delete user" [ref=f2e939] [cursor=pointer]
+                  - row [ref=f2e942]:
+                    - cell "Omid Safi omid.safi@example.test" [ref=f2e943]:
+                      - generic [ref=f2e944]:
+                        - generic [ref=f2e945]: Omid Safi
+                        - generic [ref=f2e946]: omid.safi@example.test
+                    - cell "Document officer" [ref=f2e947]
+                    - cell "Active" [ref=f2e951]
+                    - cell "Verified" [ref=f2e954]
+                    - cell "Oct 29, 2026" [ref=f2e957]
+                    - cell [ref=f2e958]:
+                      - button "View full details" [ref=f2e960] [cursor=pointer]
+                      - button "Edit user" [ref=f2e963] [cursor=pointer]
+                      - button "Delete user" [ref=f2e966] [cursor=pointer]
+                  - row [ref=f2e969]:
+                    - cell "Portal Test Applicant portal.applicant@example.test" [ref=f2e970]:
+                      - generic [ref=f2e971]:
+                        - generic [ref=f2e972]: Portal Test Applicant
+                        - generic [ref=f2e973]: portal.applicant@example.test
+                    - cell "Applicant" [ref=f2e974]
+                    - cell "Active" [ref=f2e978]
+                    - cell "Verified" [ref=f2e981]
+                    - cell "Oct 29, 2026" [ref=f2e984]
+                    - cell [ref=f2e985]:
+                      - button "View full details" [ref=f2e987] [cursor=pointer]
+                      - button "Edit user" [ref=f2e990] [cursor=pointer]
+                      - button "Delete user" [ref=f2e993] [cursor=pointer]
+                  - row [ref=f2e996]:
+                    - cell "Sana Rahimi sana.rahimi@example.test" [ref=f2e997]:
+                      - generic [ref=f2e998]:
+                        - generic [ref=f2e999]: Sana Rahimi
+                        - generic [ref=f2e1000]: sana.rahimi@example.test
+                    - cell "Finance officer" [ref=f2e1001]
+                    - cell "Active" [ref=f2e1005]
+                    - cell "Verified" [ref=f2e1008]
+                    - cell "Oct 29, 2026" [ref=f2e1011]
+                    - cell [ref=f2e1012]:
+                      - button "View full details" [ref=f2e1014] [cursor=pointer]
+                      - button "Edit user" [ref=f2e1017] [cursor=pointer]
+                      - button "Delete user" [ref=f2e1020] [cursor=pointer]
+                  - row [ref=f2e1023]:
+                    - cell "Zahra Aziz zahra.aziz@example.test" [ref=f2e1024]:
+                      - generic [ref=f2e1025]:
+                        - generic [ref=f2e1026]: Zahra Aziz
+                        - generic [ref=f2e1027]: zahra.aziz@example.test
+                    - cell "Manager" [ref=f2e1028]
+                    - cell "Active" [ref=f2e1032]
+                    - cell "Verified" [ref=f2e1035]
+                    - cell "Oct 29, 2026" [ref=f2e1038]
+                    - cell [ref=f2e1039]:
+                      - button "View full details" [ref=f2e1041] [cursor=pointer]
+                      - button "Edit user" [ref=f2e1044] [cursor=pointer]
+                      - button "Delete user" [ref=f2e1047] [cursor=pointer]
+              - separator [ref=f2e1050]
+              - generic [ref=f2e1051]:
+                - generic [ref=f2e1052]:
+                  - generic "Items per page:" [ref=f2e1053]
+                  - combobox [ref=f2e1056] [cursor=pointer]:
+                    - generic [ref=f2e1058]:
+                      - generic [ref=f2e1059]: "10"
+                      - combobox "Open": "10"
+                - generic [ref=f2e1063]: 1-7 of 7
+                - navigation "Pagination" [ref=f2e1066]:
+                  - list [ref=f2e1067]:
+                    - listitem [ref=f2e1068]:
+                      - button "First page" [disabled]
+                    - listitem [ref=f2e1069]:
+                      - button "Previous page" [disabled]
+                    - listitem [ref=f2e1070]:
+                      - button "Next page" [disabled]
+                    - listitem [ref=f2e1071]:
+                      - button "Last page" [disabled]
+      - contentinfo [ref=f2e302]:
+        - generic [ref=f2e305]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f2e306] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

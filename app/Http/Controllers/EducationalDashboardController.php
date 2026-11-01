@@ -256,10 +256,36 @@ class EducationalDashboardController extends Controller
             }))
             ->selectRaw('approval_status, COUNT(*) as count')->groupBy('approval_status')->pluck('count', 'approval_status');
 
+        // Payroll is split by its persisted payment state so an open salary is
+        // never presented as posted. `salaries` stays the total for existing
+        // consumers; the new keys say what is still payable and what is paid.
+        $salaryBuckets = Salary::query()
+            ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereIn('employee_id', $employeeIds))
+            ->when(! empty($filters['date_from']), fn ($q) => $q->whereDate('payment_date', '>=', $filters['date_from']))
+            ->when(! empty($filters['date_to']), fn ($q) => $q->whereDate('payment_date', '<=', $filters['date_to']))
+            ->selectRaw("COALESCE(payment_status, 'open') as status, currency_id, COUNT(*) as records, COALESCE(SUM(total_amount), 0) as amount")
+            ->groupBy('status', 'currency_id')->get()
+            ->map(fn ($row) => [
+                'status' => $row->status,
+                'currency' => $row->currency_id ? DB::table('currencies')->where('id', $row->currency_id)->value('code') : null,
+                'records' => (int) $row->records,
+                'amount' => (float) $row->amount,
+            ])->values();
+        $salaryFor = fn (array $states) => $salaryBuckets->whereIn('status', $states)
+            ->groupBy(fn ($row) => $row['currency'] ?? '')
+            ->map(fn ($rows) => [
+                'currency' => $rows->first()['currency'] ?? null,
+                'records' => (int) $rows->sum('records'),
+                'amount' => (float) $rows->sum('amount'),
+            ])->values()->all();
+
         return [
             'income' => $scope(Income::class, 'amount'),
             'expenses' => $scope(Expense::class, 'amount'),
             'salaries' => $scope(Salary::class, 'total_amount', 'payment_date'),
+            'salaries_by_status' => $salaryBuckets->all(),
+            'salaries_payable' => $salaryFor(['open', 'partially_paid']),
+            'salaries_paid' => $salaryFor(['paid']),
             'pending_by_status' => $pending->map(fn ($count) => (int) $count)->all(),
         ];
     }
@@ -356,7 +382,20 @@ class EducationalDashboardController extends Controller
             ->oldest('created_at');
         $counts['contracts_requiring_attention'] = (clone $contractsRequiringAttention)->count();
         $contractsRequiringAttention = $contractsRequiringAttention->limit(10)->get()
-            ->map(fn (Contract $c) => ['id' => $c->id, 'title' => $c->contract_number ?? "Contract #{$c->id}", 'subtitle' => ($c->applicant?->name ?? 'No applicant').' · '.$c->status, 'route' => $c->applicant_id ? ['name' => 'applicant-case', 'params' => ['id' => $c->applicant_id]] : ['name' => $c->type_slug === 'employment' ? 'employee-contracts' : 'other-contracts']])->all();
+            ->map(function (Contract $c) {
+                // An expiring active contract names its end date and opens the
+                // register's expiring view, not a generic contract list.
+                $expiring = $c->status === 'active' && $c->end_date;
+
+                return [
+                    'id' => $c->id,
+                    'title' => $c->contract_number ?? "Contract #{$c->id}",
+                    'subtitle' => ($c->applicant?->name ?? 'No applicant').' · '.($expiring ? 'ends '.$c->end_date->toDateString() : $c->status),
+                    'route' => $expiring
+                        ? ['name' => $c->type_slug === 'employment' ? 'employee-contracts' : 'employee-contracts', 'query' => ['expiring' => 1]]
+                        : ($c->applicant_id ? ['name' => 'applicant-case', 'params' => ['id' => $c->applicant_id]] : ['name' => $c->type_slug === 'employment' ? 'employee-contracts' : 'other-contracts']),
+                ];
+            })->all();
 
         return ['counts' => $counts, 'stuck_applicants' => $stuck, 'overdue_tasks' => $overdue, 'pending_approvals' => $pendingApprovals, 'missing_documents' => $missingDocuments, 'contracts_requiring_attention' => $contractsRequiringAttention];
     }
@@ -370,16 +409,26 @@ class EducationalDashboardController extends Controller
             ->whereHas('contract', fn ($q) => $q->whereNotIn('status', ['cancelled', 'terminated'])->where('is_cancelled', false));
         // Use persisted payment state, including deliberate manager overrides.
         $balance = 'CASE WHEN fee - COALESCE(discount, 0) - COALESCE(amount_paid, 0) > 0 THEN fee - COALESCE(discount, 0) - COALESCE(amount_paid, 0) ELSE 0 END';
-        $outstanding = (clone $lines)->with('currency:id,code')
+        // A future-dated extension is not collectible yet, so it is reported in
+        // its own bucket instead of inflating the current receivable.
+        $today = now()->toDateString();
+        $outstandingFor = fn (bool $future) => (clone $lines)
+            ->whereHas('contract', fn ($q) => $future
+                ? $q->whereDate('start_date', '>', $today)
+                : $q->where(fn ($inner) => $inner->whereNull('start_date')->orWhereDate('start_date', '<=', $today)))
+            ->with('currency:id,code')
             ->selectRaw("currency_id, COUNT(*) as records, SUM({$balance}) as amount")
             ->whereRaw("({$balance}) > 0")->groupBy('currency_id')->get()
             ->map(fn ($row) => ['currency' => $row->currency?->code, 'records' => (int) $row->records, 'amount' => (float) $row->amount])->all();
+        $outstanding = $outstandingFor(false);
+        $outstandingFuture = $outstandingFor(true);
         $admissions = ApplicantUniversity::query()->whereIn('applicant_id', (clone $cases)->select('applicants.id'))
             ->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
         return [
             'active_cases' => (clone $cases)->where('status', 'active')->count(),
             'unassigned_cases' => (clone $cases)->where('status', 'active')->whereNull('responsible_employee_id')->count(),
             'outstanding' => $outstanding,
+            'outstanding_future' => $outstandingFuture,
             'admissions' => collect(ApplicantUniversity::STATUSES)->mapWithKeys(fn ($status) => [$status => (int) ($admissions[$status] ?? 0)])->all(),
             'service_stages' => (clone $lines)->with('currentStage:id,key,name,is_terminal')->selectRaw('service, current_stage_id, COUNT(*) as total')
                 ->groupBy('service', 'current_stage_id')->get()->map(fn ($row) => [

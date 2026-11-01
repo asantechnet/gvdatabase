@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\ApplicantPortalCrmSynchronizer;
 use Illuminate\Auth\Events\PasswordReset;
@@ -58,6 +59,7 @@ class AuthController extends Controller
             'password' => 'required|string',
             'remember' => 'sometimes|boolean',
             'two_factor_code' => 'nullable|digits:6',
+            'recovery_code' => 'nullable|string|max:64',
         ]);
         $validator->validate();
 
@@ -77,13 +79,21 @@ class AuthController extends Controller
         if ($user->must_set_password) {
             return response()->json(['success' => false, 'code' => 'auth.password_setup_required'], 403);
         }
-        if ($user->two_factor_confirmed_at && ! $this->validTotp($user->two_factor_secret, (string) $request->two_factor_code)) {
-            return response()->json(['success' => false, 'two_factor_required' => true], 422);
+        if ($user->two_factor_confirmed_at) {
+            $totpValid = $this->validTotp($user->two_factor_secret, (string) $request->two_factor_code);
+            // A recovery code is only consumed when the authenticator path did
+            // not already succeed, so submitting both never burns a code.
+            $recoveryValid = ! $totpValid
+                && $this->consumeRecoveryCode($user, (string) $request->input('recovery_code', ''));
+
+            if (! $totpValid && ! $recoveryValid) {
+                return response()->json(['success' => false, 'two_factor_required' => true], 422);
+            }
         }
 
         app(ApplicantPortalCrmSynchronizer::class)->synchronize($user);
 
-        $tokens = $this->issueTokens($user, $request->boolean('remember'));
+        $tokens = $this->issueTokens($user, $request->boolean('remember'), $request->userAgent());
 
         return response()->json(['success' => true, 'data' => array_merge(['user' => $this->accountData($user)], $tokens)]);
     }
@@ -229,10 +239,10 @@ class AuthController extends Controller
 
             $remember = $request->has('remember')
                 ? $request->boolean('remember')
-                : $refreshToken->name === 'refresh-token-remembered';
+                : str_starts_with($refreshToken->name, 'refresh-token-remembered');
             $refreshToken->delete();
 
-            return $this->issueTokens($user, $remember);
+            return $this->issueTokens($user, $remember, $request->userAgent());
         });
 
         if (! $tokens) {
@@ -346,10 +356,18 @@ class AuthController extends Controller
         $user = $request->user();
         $secret = $this->base32Encode(random_bytes(20));
         $user->forceFill(['two_factor_secret' => $secret, 'two_factor_confirmed_at' => null])->save();
-        $issuer = rawurlencode(config('app.name'));
-        $label = rawurlencode(config('app.name').':'.$user->email);
+        // The issuer is what an authenticator shows next to the account, so it
+        // must be the company/product name, not the framework app name.
+        $issuerName = $this->twoFactorIssuer();
+        $issuer = rawurlencode($issuerName);
+        $label = rawurlencode($issuerName.':'.$user->email);
 
-        return response()->json(['success' => true, 'secret' => $secret, 'otpauth_url' => "otpauth://totp/{$label}?secret={$secret}&issuer={$issuer}&algorithm=SHA1&digits=6&period=30"]);
+        return response()->json([
+            'success' => true,
+            'secret' => $secret,
+            'issuer' => $issuerName,
+            'otpauth_url' => "otpauth://totp/{$label}?secret={$secret}&issuer={$issuer}&algorithm=SHA1&digits=6&period=30",
+        ]);
     }
 
     public function confirmTwoFactor(Request $request)
@@ -360,8 +378,10 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'code' => 'validation_failed', 'errors' => ['code' => ['business.two_factor_code_invalid']]], 422);
         }
         $user->forceFill(['two_factor_confirmed_at' => now()])->save();
+        // The raw codes exist only in this response; the table stores hashes.
+        $recoveryCodes = $this->replaceRecoveryCodes($user);
 
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'recovery_codes' => $recoveryCodes]);
     }
 
     public function disableTwoFactor(Request $request)
@@ -372,6 +392,47 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'code' => 'validation_failed', 'errors' => ['password' => ['business.current_password_invalid']]], 422);
         }
         $user->forceFill(['two_factor_secret' => null, 'two_factor_confirmed_at' => null])->save();
+        DB::table('two_factor_recovery_codes')->where('user_id', $user->id)->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    /** Active access/refresh tokens for the signed-in user only. */
+    public function sessions(Request $request)
+    {
+        $user = $request->user();
+        $currentId = $user->currentAccessToken()?->id;
+
+        $tokens = $user->tokens()
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->orderByDesc('last_used_at')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $tokens->map(fn (PersonalAccessToken $token) => [
+                'id' => $token->id,
+                'type' => str_starts_with($token->name, 'refresh-') ? 'refresh' : 'access',
+                'device' => $this->sessionDevice($token->name),
+                'created_at' => $token->created_at?->toISOString(),
+                'last_used_at' => $token->last_used_at?->toISOString(),
+                'expires_at' => $token->expires_at?->toISOString(),
+                'current' => (int) $token->id === (int) $currentId,
+            ])->values(),
+        ]);
+    }
+
+    /** Revoke one of the caller's own tokens; another user's id is a 404. */
+    public function revokeSession(Request $request, int $token)
+    {
+        $owned = $request->user()->tokens()->whereKey($token)->first();
+
+        if (! $owned) {
+            return response()->json(['success' => false, 'code' => 'auth.session_not_found'], 404);
+        }
+
+        $owned->delete();
 
         return response()->json(['success' => true]);
     }
@@ -409,11 +470,15 @@ class AuthController extends Controller
         ]);
     }
 
-    private function issueTokens(User $user, bool $remember): array
+    private function issueTokens(User $user, bool $remember, ?string $userAgent = null): array
     {
-        $accessToken = $user->createToken('access-token', ['access'], now()->addHours(2));
+        // Sanctum stores no device column, so the user-agent travels in the
+        // token name (after `|`) for the session list. Ability checks are
+        // unaffected and refresh detection reads the prefix.
+        $deviceSuffix = '|'.$this->deviceLabel($userAgent);
+        $accessToken = $user->createToken('access-token'.$deviceSuffix, ['access'], now()->addHours(2));
         $refreshToken = $user->createToken(
-            $remember ? 'refresh-token-remembered' : 'refresh-token-session',
+            ($remember ? 'refresh-token-remembered' : 'refresh-token-session').$deviceSuffix,
             ['refresh'],
             $remember ? now()->addDays(30) : now()->addDay(),
         );
@@ -424,6 +489,84 @@ class AuthController extends Controller
             'token_type' => 'Bearer',
             'expires_in' => 7200,
         ];
+    }
+
+    /** Company/product display name for the authenticator issuer. */
+    private function twoFactorIssuer(): string
+    {
+        $settings = Setting::query()->first();
+        $name = trim((string) ($settings?->short_company_name ?: $settings?->website_title ?: ''));
+
+        return $name !== '' ? $name : (string) config('app.name', 'Laravel');
+    }
+
+    /** Replace a user's codes with ten fresh hashes and return the raw values once. */
+    private function replaceRecoveryCodes(User $user): array
+    {
+        return DB::transaction(function () use ($user): array {
+            DB::table('two_factor_recovery_codes')->where('user_id', $user->id)->delete();
+
+            $codes = [];
+            $now = now();
+
+            foreach (range(1, 10) as $_) {
+                $code = strtoupper(Str::random(10));
+                $codes[] = $code;
+                DB::table('two_factor_recovery_codes')->insert([
+                    'user_id' => $user->id,
+                    'code_hash' => Hash::make($code),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
+
+            return $codes;
+        });
+    }
+
+    /** Consume one unused recovery code, marking it used before issuing tokens. */
+    private function consumeRecoveryCode(User $user, string $code): bool
+    {
+        $code = strtoupper(trim($code));
+
+        if ($code === '') {
+            return false;
+        }
+
+        $candidates = DB::table('two_factor_recovery_codes')
+            ->where('user_id', $user->id)
+            ->whereNull('used_at')
+            ->pluck('code_hash', 'id');
+
+        foreach ($candidates as $id => $hash) {
+            if (! Hash::check($code, $hash)) {
+                continue;
+            }
+
+            $updated = DB::table('two_factor_recovery_codes')
+                ->where('id', $id)
+                ->whereNull('used_at')
+                ->update(['used_at' => now(), 'updated_at' => now()]);
+
+            return $updated === 1;
+        }
+
+        return false;
+    }
+
+    private function sessionDevice(string $name): ?string
+    {
+        $device = trim(Str::after($name, '|'));
+
+        return $device !== '' && $device !== $name ? $device : null;
+    }
+
+    private function deviceLabel(?string $userAgent): string
+    {
+        $label = preg_replace('/[^\x20-\x7E]/', '', (string) $userAgent) ?? '';
+        $label = trim(preg_replace('/\s+/', ' ', $label) ?? '');
+
+        return $label === '' ? 'Unknown device' : Str::limit($label, 120, '');
     }
 
     private function employeeFor(User $user): ?Employee

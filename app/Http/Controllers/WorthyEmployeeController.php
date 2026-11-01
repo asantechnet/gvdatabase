@@ -72,7 +72,14 @@ class WorthyEmployeeController extends Controller
     public function update(Request $request, WorthyEmployee $worthyEmployee): WorthyEmployeeResource
     {
         abort_unless($request->user()->hasPermission($request->has('isGranted') ? 'grant_bonuses' : 'edit_bonus_nominations'), 403, 'auth.forbidden');
-        $data = $request->validate(['amount' => 'sometimes|required|numeric|min:0', 'selectedAmount' => 'sometimes|required|numeric|min:0', 'bonusCategory' => ['sometimes', 'required', Rule::in(self::BONUS_CATEGORIES)], 'selectedType' => ['sometimes', 'required', Rule::in(self::BONUS_CATEGORIES)], 'isGranted' => 'sometimes|required|boolean']);
+        $data = $request->validate([
+            'amount' => 'sometimes|required|numeric|min:0',
+            'selectedAmount' => 'sometimes|required|numeric|min:0',
+            'grantedAmount' => 'sometimes|required|numeric|min:0',
+            'bonusCategory' => ['sometimes', 'required', Rule::in(self::BONUS_CATEGORIES)],
+            'selectedType' => ['sometimes', 'required', Rule::in(self::BONUS_CATEGORIES)],
+            'isGranted' => 'sometimes|required|boolean',
+        ]);
         DB::transaction(function () use ($request, $worthyEmployee, $data): void {
             $worthyEmployee = WorthyEmployee::query()->lockForUpdate()->findOrFail($worthyEmployee->id);
             abort_if($worthyEmployee->is_granted && $data !== [], 422, 'business.granted_bonus_immutable');
@@ -84,9 +91,19 @@ class WorthyEmployeeController extends Controller
                 $worthyEmployee->selected_type = $data['bonusCategory'] ?? $data['selectedType'];
             }
             if (($data['isGranted'] ?? false) === true) {
+                // One resolved amount: the explicit grant payload wins, then the
+                // selected nomination. A grant is never allowed to invent or
+                // persist zero/negative money.
+                $grantAmount = (float) ($data['grantedAmount'] ?? $data['selectedAmount'] ?? $data['amount'] ?? $worthyEmployee->selected_amount);
+                if ($grantAmount <= 0) {
+                    throw ValidationException::withMessages([
+                        'grantedAmount' => ['business.bonus_amount_required'],
+                    ]);
+                }
+                $worthyEmployee->selected_amount = $grantAmount;
                 $worthyEmployee->is_granted = true;
-                $worthyEmployee->granted_amount = $worthyEmployee->selected_amount;
-                $worthyEmployee->base_amount = round((float) $worthyEmployee->granted_amount / max((float) ($worthyEmployee->rate ?: 1), 0.00000001), 4);
+                $worthyEmployee->granted_amount = $grantAmount;
+                $worthyEmployee->base_amount = round($grantAmount / max((float) ($worthyEmployee->rate ?: 1), 0.00000001), 4);
                 $worthyEmployee->granted_at = now('UTC');
                 $worthyEmployee->granted_by = $request->user()->id;
             }

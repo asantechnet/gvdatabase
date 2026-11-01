@@ -122,7 +122,7 @@ const syncCases = async () => {
   loading.value = true
   try {
     const result = await CommissionApi.sync()
-    toast.success(tr('syncedCases', { count: result.cases, voided: result.voided }))
+    toast.success(`${tr('syncedCases', { count: result.cases })} ${tr('syncedVoided', { count: result.voided })}`)
     await load()
   }
   catch (error) {

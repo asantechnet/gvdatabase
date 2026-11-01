@@ -1,5 +1,5 @@
 import api from './axios'
-import type { Applicant, ApplicantPayload, ConsultantReview } from './applicants'
+import type { Applicant, ApplicantPayload, BuiltInService, ConsultantReview } from './applicants'
 import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 
 export interface VisitorPerson {
@@ -12,7 +12,11 @@ export interface Visitor {
   name: string
   contact: string
   email: string | null
+  /** Canonical built-in key, or an untouched legacy free-text value. */
   service: string
+  service_key: BuiltInService | null
+  service_label: string
+  service_label_key: string | null
   education_level_id: number | null
   education_level: VisitorPerson | null
   age: number | null
@@ -54,7 +58,7 @@ export interface CreateVisitorData {
   name: string
   contact: string
   email?: string | null
-  service: string
+  service: BuiltInService
   education_level_id?: number | null
   age?: number | null
   grade_score?: number | string | null
@@ -74,7 +78,7 @@ export interface VisitorFormData {
   name: string
   contact: string
   email: string
-  service: string
+  service: BuiltInService | ''
   education_level_id: number | null
   age: number | string | null
   grade_score: number | string | null

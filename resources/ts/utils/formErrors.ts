@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { nextTick, reactive } from 'vue'
 import { fieldLabel } from './apiValidation'
 
 export type FieldErrors = Record<string, string>
@@ -63,6 +63,9 @@ export const displayInlineFormErrors = async (): Promise<number> => {
     return 0
 
   await Promise.resolve()
+  // Shared App* controls render the reactive store themselves; wait for that
+  // render before deciding whether a legacy control still needs the bridge.
+  await nextTick()
   document.querySelectorAll<HTMLElement>('[data-api-field-error]').forEach(element => element.remove())
 
   let matched = 0
@@ -85,6 +88,15 @@ export const displayInlineFormErrors = async (): Promise<number> => {
     if (!control)
       continue
     matched++
+
+    // A shared App* control already shows the store's message. Adding the DOM
+    // bridge there would render the same error twice.
+    const alreadyRendered = Array.from(control.querySelectorAll<HTMLElement>('.v-messages__message'))
+      .some(element => normalizedText(element.textContent ?? '') === normalizedText(message))
+
+    if (alreadyRendered)
+      continue
+
     control.classList.add('v-input--error')
     control.querySelector('.v-field')?.classList.add('v-field--error')
     control.querySelector<HTMLElement>('input, textarea, select')?.setAttribute('aria-invalid', 'true')

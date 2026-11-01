@@ -30,6 +30,10 @@ class ApplicantTaskIntegrationTest extends TestCase
     {
         $stage = ApplicantStage::query()->where('key', $key)->firstOrFail();
 
+        // Every case in this suite starts at its initial stage, where the
+        // document gate applies; the fixtures carry one labeled document.
+        $this->seedApplicantDocuments($applicantId);
+
         return $this->postJson("/api/applicants/{$applicantId}/change-stage", ['stage_id' => $stage->id, 'note' => "Move to {$key}"])->assertOk()->json('data');
     }
 

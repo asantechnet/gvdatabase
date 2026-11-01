@@ -223,12 +223,36 @@ class IncomeController extends Controller
             'quantity' => 'sometimes|integer|min:1',
             'currency_id' => 'sometimes|exists:currencies,id',
             'rate' => 'nullable|numeric|min:0.00000001',
+            // Only required when a value-bearing field actually changes.
+            'revaluation_reason' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'date' => ['sometimes', 'date', 'before_or_equal:today'],
         ]);
 
         $validator->validate();
 
         $data = $validator->validated();
+
+        // Protect the issued value: an amount, quantity, currency or rate
+        // change is a revaluation and cannot be silent, even through a direct
+        // API call. Description, type and date edits stay free.
+        $valueFields = ['amount', 'quantity', 'currency_id', 'rate'];
+        // A null rate is an ignored field, not a revaluation: it keeps the
+        // snapshot exactly as before.
+        $revaluation = collect($valueFields)->contains(fn (string $field) => array_key_exists($field, $data)
+            && $data[$field] !== null
+            && (string) $data[$field] !== (string) $income->{$field});
+        if ($revaluation) {
+            $reason = trim((string) ($data['revaluation_reason'] ?? ''));
+            if ($reason === '') {
+                throw ValidationException::withMessages([
+                    'revaluation_reason' => ['business.revaluation_reason_required'],
+                ]);
+            }
+            $data['revaluation_reason'] = $reason;
+        } else {
+            unset($data['revaluation_reason']);
+        }
+
         $income = DB::transaction(function () use ($data, $income) {
             $income = Income::query()->lockForUpdate()->findOrFail($income->id);
 

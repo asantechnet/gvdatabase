@@ -5,6 +5,8 @@ export type UserStatus = 'active' | 'inactive' | 'deactivated'
 
 export interface ManagedUser {
   id: number
+  is_primary: boolean
+  is_self: boolean
   name: string
   email: string
   phone: string | null

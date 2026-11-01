@@ -1,0 +1,329 @@
+- generic [ref=e1]:
+  - generic [ref=e58]:
+    - complementary [ref=e59]:
+      - generic [ref=e60]:
+        - link [ref=e61] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=e62]
+        - button "Collapse navigation" [ref=e63] [cursor=pointer]
+      - list [ref=e66]:
+        - listitem [ref=e67]:
+          - link "Home" [ref=e68] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=e71]:
+          - link "Contracts" [ref=e72] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=e75]:
+          - link "Applications" [ref=e76] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=e79]:
+          - link "CRM" [ref=e80] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=e83]:
+          - generic [ref=e84] [cursor=pointer]: Finance
+        - listitem [ref=e88]:
+          - generic [ref=e89] [cursor=pointer]: HR
+          - list [ref=e2735]:
+            - listitem [ref=e2736]:
+              - link "Staff list" [active] [ref=e2737] [cursor=pointer]:
+                - /url: /staff-list
+            - listitem [ref=e2740]:
+              - link "Departments" [ref=e2741] [cursor=pointer]:
+                - /url: /setup/departments
+            - listitem [ref=e2744]:
+              - link "Employment contracts" [ref=e2745] [cursor=pointer]:
+                - /url: /employee-contracts
+            - listitem [ref=e2748]:
+              - link "Timesheet" [ref=e2749] [cursor=pointer]:
+                - /url: /timesheet
+            - listitem [ref=e2752]:
+              - link "Off Day Requests" [ref=e2753] [cursor=pointer]:
+                - /url: /leave-requests
+            - listitem [ref=e2756]:
+              - link "Company Off Days" [ref=e2757] [cursor=pointer]:
+                - /url: /off-days
+            - listitem [ref=e2760]:
+              - link "Payrolls" [ref=e2761] [cursor=pointer]:
+                - /url: /payrolls
+            - listitem [ref=e2764]:
+              - link "Bonus list" [ref=e2765] [cursor=pointer]:
+                - /url: /bonuslist
+            - listitem [ref=e2768]:
+              - link "Positions" [ref=e2769] [cursor=pointer]:
+                - /url: /setup/positions
+            - listitem [ref=e2772]:
+              - link "Announcements" [ref=e2773] [cursor=pointer]:
+                - /url: /announcements
+        - listitem [ref=e93]:
+          - link "Tasks" [ref=e94] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=e97]:
+          - generic [ref=e98] [cursor=pointer]: Options
+        - listitem [ref=e102]:
+          - generic [ref=e103] [cursor=pointer]: Setup
+    - generic [ref=e109]:
+      - banner [ref=e110]:
+        - generic [ref=e112]:
+          - generic [ref=e113]:
+            - button "Open search" [ref=e114] [cursor=pointer]
+            - button "Search" [ref=e117] [cursor=pointer]:
+              - generic [aria-hidden] [ref=e119]: ⌘K
+          - button "Guide for this page" [ref=e120] [cursor=pointer]
+          - button "English" [ref=e123] [cursor=pointer]
+          - button [ref=e132] [cursor=pointer]
+          - button [ref=e135] [cursor=pointer]
+          - generic [ref=e139]:
+            - button "Open audits" [ref=e140] [cursor=pointer]
+            - status "Badge" [ref=e143]: 99+
+          - button [ref=e144] [cursor=pointer]:
+            - status "Badge" [ref=e149]: "2"
+          - generic [ref=e151]:
+            - generic [ref=e152] [cursor=pointer]
+            - status "Badge" [ref=e154]
+      - main [ref=e155]:
+        - generic [ref=e2780]:
+          - region "Staff directory overview" [ref=e2781]:
+            - generic [ref=e2782]:
+              - generic [ref=e2786]:
+                - heading "Staff directory" [level=1] [ref=e2787]
+                - paragraph [ref=e2788]: See your team, their assignments, and records that need follow-up.
+              - generic [ref=e2789]: Scroll tables sideways on small screens
+          - generic [ref=e2793]:
+            - textbox "Search Staff" [ref=e2801]
+            - generic [ref=e2802]:
+              - button "Filters" [ref=e2803] [cursor=pointer]
+              - button [ref=e2806] [cursor=pointer]
+              - button "Add Staff" [ref=e2809] [cursor=pointer]
+          - generic [ref=e2815]:
+            - table [ref=e2817]:
+              - rowgroup [ref=e2818]:
+                - row [ref=e2819]:
+                  - columnheader "Id" [ref=e2820]
+                  - columnheader "Name" [ref=e2824]
+                  - columnheader "Father Name" [ref=e2828]
+                  - columnheader "Contact" [ref=e2832]
+                  - columnheader "Position" [ref=e2836]
+                  - columnheader "Salary" [ref=e2840]
+                  - columnheader "Worked Hours" [ref=e2844]
+                  - columnheader "Join Date" [ref=e2848]
+                  - columnheader "Status" [ref=e2852]
+                  - columnheader "Actions" [ref=e2856]
+              - rowgroup [ref=e2859]:
+                - row [ref=e2860]:
+                  - cell "7" [ref=e2861]
+                  - cell "OS Omid Safi" [ref=e2862]:
+                    - generic [ref=e2863]:
+                      - generic [ref=e2864]: OS
+                      - generic [ref=e2866]: Omid Safi
+                  - cell "N/A" [ref=e2867]
+                  - cell [ref=e2868]:
+                    - button "Communication options for +93 700 100 006" [ref=e2870] [cursor=pointer]:
+                      - generic [ref=e2873]: +93 700 100 006
+                  - cell "Document Officer" [ref=e2876]
+                  - cell "$45000.00" [ref=e2877]
+                  - cell "0" [ref=e2879]
+                  - cell "2024-01-08" [ref=e2880]
+                  - cell "Active" [ref=e2881]
+                  - cell [ref=e2884]:
+                    - generic [ref=e2885]:
+                      - button "View full details" [ref=e2887] [cursor=pointer]
+                      - button "Attachments" [ref=e2890] [cursor=pointer]
+                      - button [ref=e2893] [cursor=pointer]
+                      - button [ref=e2896] [cursor=pointer]
+                      - button [ref=e2899] [cursor=pointer]
+                      - button "Deactivate employee" [ref=e2902] [cursor=pointer]
+                      - button [ref=e2905] [cursor=pointer]
+                - row [ref=e2908]:
+                  - cell "6" [ref=e2909]
+                  - cell "SR Sana Rahimi" [ref=e2910]:
+                    - generic [ref=e2911]:
+                      - generic [ref=e2912]: SR
+                      - generic [ref=e2914]: Sana Rahimi
+                  - cell "N/A" [ref=e2915]
+                  - cell [ref=e2916]:
+                    - button "Communication options for +93 700 100 005" [ref=e2918] [cursor=pointer]:
+                      - generic [ref=e2921]: +93 700 100 005
+                  - cell "Finance Officer" [ref=e2924]
+                  - cell "$70000.00" [ref=e2925]
+                  - cell "0" [ref=e2927]
+                  - cell "2022-09-15" [ref=e2928]
+                  - cell "Active" [ref=e2929]
+                  - cell [ref=e2932]:
+                    - generic [ref=e2933]:
+                      - button "View full details" [ref=e2935] [cursor=pointer]
+                      - button "Attachments" [ref=e2938] [cursor=pointer]
+                      - button [ref=e2941] [cursor=pointer]
+                      - button [ref=e2944] [cursor=pointer]
+                      - button [ref=e2947] [cursor=pointer]
+                      - button "Deactivate employee" [ref=e2950] [cursor=pointer]
+                      - button [ref=e2953] [cursor=pointer]
+                - row [ref=e2956]:
+                  - cell "5" [ref=e2957]
+                  - cell "BA Bilal Ahmadi" [ref=e2958]:
+                    - generic [ref=e2959]:
+                      - generic [ref=e2960]: BA
+                      - generic [ref=e2962]: Bilal Ahmadi
+                  - cell "N/A" [ref=e2963]
+                  - cell [ref=e2964]:
+                    - button "Communication options for +93 700 100 004" [ref=e2966] [cursor=pointer]:
+                      - generic [ref=e2969]: +93 700 100 004
+                  - cell "Admission Officer" [ref=e2972]
+                  - cell "$55000.00" [ref=e2973]
+                  - cell "0" [ref=e2975]
+                  - cell "2023-05-02" [ref=e2976]
+                  - cell "Active" [ref=e2977]
+                  - cell [ref=e2980]:
+                    - generic [ref=e2981]:
+                      - button "View full details" [ref=e2983] [cursor=pointer]
+                      - button "Attachments" [ref=e2986] [cursor=pointer]
+                      - button [ref=e2989] [cursor=pointer]
+                      - button [ref=e2992] [cursor=pointer]
+                      - button [ref=e2995] [cursor=pointer]
+                      - button "Deactivate employee" [ref=e2998] [cursor=pointer]
+                      - button [ref=e3001] [cursor=pointer]
+                - row [ref=e3004]:
+                  - cell "4" [ref=e3005]
+                  - cell "AK Ahmad Karimi" [ref=e3006]:
+                    - generic [ref=e3007]:
+                      - generic [ref=e3008]: AK
+                      - generic [ref=e3010]: Ahmad Karimi
+                  - cell "N/A" [ref=e3011]
+                  - cell [ref=e3012]:
+                    - button "Communication options for +93 700 100 003" [ref=e3014] [cursor=pointer]:
+                      - generic [ref=e3017]: +93 700 100 003
+                  - cell "Counselor" [ref=e3020]
+                  - cell "$60000.00" [ref=e3021]
+                  - cell "0" [ref=e3023]
+                  - cell "2023-02-20" [ref=e3024]
+                  - cell "Active" [ref=e3025]
+                  - cell [ref=e3028]:
+                    - generic [ref=e3029]:
+                      - button "View full details" [ref=e3031] [cursor=pointer]
+                      - button "Attachments" [ref=e3034] [cursor=pointer]
+                      - button [ref=e3037] [cursor=pointer]
+                      - button [ref=e3040] [cursor=pointer]
+                      - button [ref=e3043] [cursor=pointer]
+                      - button "Deactivate employee" [ref=e3046] [cursor=pointer]
+                      - button [ref=e3049] [cursor=pointer]
+                - row [ref=e3052]:
+                  - cell "3" [ref=e3053]
+                  - cell "FN Fatima Noori" [ref=e3054]:
+                    - generic [ref=e3055]:
+                      - generic [ref=e3056]: FN
+                      - generic [ref=e3058]: Fatima Noori
+                  - cell "N/A" [ref=e3059]
+                  - cell [ref=e3060]:
+                    - button "Communication options for +93 700 100 002" [ref=e3062] [cursor=pointer]:
+                      - generic [ref=e3065]: +93 700 100 002
+                  - cell "Senior Counselor" [ref=e3068]
+                  - cell "$80000.00" [ref=e3069]
+                  - cell "0" [ref=e3071]
+                  - cell "2022-01-10" [ref=e3072]
+                  - cell "Active" [ref=e3073]
+                  - cell [ref=e3076]:
+                    - generic [ref=e3077]:
+                      - button "View full details" [ref=e3079] [cursor=pointer]
+                      - button "Attachments" [ref=e3082] [cursor=pointer]
+                      - button [ref=e3085] [cursor=pointer]
+                      - button [ref=e3088] [cursor=pointer]
+                      - button [ref=e3091] [cursor=pointer]
+                      - button "Deactivate employee" [ref=e3094] [cursor=pointer]
+                      - button [ref=e3097] [cursor=pointer]
+                - row [ref=e3100]:
+                  - cell "2" [ref=e3101]
+                  - cell "ZA Zahra Aziz" [ref=e3102]:
+                    - generic [ref=e3103]:
+                      - generic [ref=e3104]: ZA
+                      - generic [ref=e3106]: Zahra Aziz
+                  - cell "N/A" [ref=e3107]
+                  - cell [ref=e3108]:
+                    - button "Communication options for +93 700 100 001" [ref=e3110] [cursor=pointer]:
+                      - generic [ref=e3113]: +93 700 100 001
+                  - cell "Operations Manager" [ref=e3116]
+                  - cell "$120000.00" [ref=e3117]
+                  - cell "0" [ref=e3119]
+                  - cell "2021-03-01" [ref=e3120]
+                  - cell "Active" [ref=e3121]
+                  - cell [ref=e3124]:
+                    - generic [ref=e3125]:
+                      - button "View full details" [ref=e3127] [cursor=pointer]
+                      - button "Attachments" [ref=e3130] [cursor=pointer]
+                      - button [ref=e3133] [cursor=pointer]
+                      - button [ref=e3136] [cursor=pointer]
+                      - button [ref=e3139] [cursor=pointer]
+                      - button "Deactivate employee" [ref=e3142] [cursor=pointer]
+                      - button [ref=e3145] [cursor=pointer]
+            - separator [ref=e3148]
+            - generic [ref=e3149]:
+              - generic [ref=e3150]:
+                - generic "Items per page:" [ref=e3151]
+                - combobox [ref=e3154] [cursor=pointer]:
+                  - generic [ref=e3156]:
+                    - generic [ref=e3157]: "25"
+                    - combobox "Open": "25"
+              - generic [ref=e3161]: 1-6 of 6
+              - navigation "Pagination" [ref=e3164]:
+                - list [ref=e3165]:
+                  - listitem [ref=e3166]:
+                    - button "First page" [disabled]
+                  - listitem [ref=e3167]:
+                    - button "Previous page" [disabled]
+                  - listitem [ref=e3168]:
+                    - button "Next page" [disabled]
+                  - listitem [ref=e3169]:
+                    - button "Last page" [disabled]
+      - contentinfo [ref=e423]:
+        - generic [ref=e426]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=e427] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

@@ -205,6 +205,7 @@
       "inactive": "Inactive",
       "approved": "Approved",
       "rejected": "Rejected",
+      "underReview": "Under review",
       "eligible": "Eligible",
       "granted": "Granted",
       "absent": "Absent",
@@ -527,9 +528,10 @@
         "addAdjustment": "Add adjustment",
         "newSettlement": "New settlement",
         "reconcile": "Reconcile completed cases",
-        "syncedCases": "Reconciled {count} completed case(s) and voided {voided} outdated accrual(s).",
+        "syncedCases": "{count} completed case reconciled. | {count} completed cases reconciled.",
+        "syncedVoided": "{count} outdated accrual voided. | {count} outdated accruals voided.",
         "syncFailed": "Could not reconcile completed cases.",
-        "accrualCount": "{count} accruals",
+        "accrualCount": "{count} accrual | {count} accruals",
         "employee": "Employee",
         "commissionEmployee": "Commission-based employee",
         "settlementStatus": "Settlement status",
@@ -542,7 +544,7 @@
         "periodStart": "Period start",
         "periodEnd": "Period end",
         "notes": "Notes",
-        "settlementPreview": "{count} accrual(s) selected for a total of {amount}.",
+        "settlementPreview": "{count} accrual selected for a total of {amount}. | {count} accruals selected for a total of {amount}.",
         "selectAccruals": "Select accruals",
         "selectAll": "Select all",
         "clearSelection": "Clear",
@@ -791,6 +793,8 @@
       "departmentName": "Department name",
       "codeOptional": "Code (optional)",
       "departmentManager": "Department manager",
+      "noEligibleDepartmentManagers": "No eligible managers. A manager needs an active account with supervisory access.",
+      "currentManagerNoLongerEligible": "Current manager — no longer eligible",
       "descriptionOptional": "Description (optional)",
       "activeDepartment": "Active department",
       "createDepartment": "Create department",
@@ -1819,10 +1823,15 @@
           "applicant": "Applicant"
         },
         "verification": {
+          "label": "Verification",
           "invited": "Invited",
           "verified": "Verified",
           "pending": "Pending verification"
         },
+        "primaryAccount": "Primary account",
+        "primaryAccountProtected": "The primary administrator account cannot be deleted.",
+        "selfDeleteBlocked": "You cannot delete your own account.",
+        "lastSuperAdminRoleHint": "At least one active super administrator must remain. Removing the last super administrator role is rejected.",
         "created": "Created",
         "nameEmailAndAtLeastOneRoleAreRequired": "Name, email, and at least one role are required",
         "userDeleted": "User Deleted",
@@ -1958,10 +1967,11 @@
         "rolecards": {
           "rolesGrantPermissionsPositionsRemainHRJobTitlesChangesTakeEffectWhenAf": "Roles grant permissions. Positions remain HR job titles. Changes take effect after the user signs in again.",
           "savePermissions": "Save Permissions",
-          "totalUsers": "Total {count} users",
+          "totalUsers": "Total {count} user | Total {count} users",
           "editRole": "Edit role",
           "deleteRole": "Delete role",
           "deleteRoleAria": "Delete {role}",
+          "roleInUseDeleteHint": "Assigned to {count} user; remove them first. | Assigned to {count} users; remove them first.",
           "addNewRole": "Add new role",
           "addRoleHint": "Add a role if it does not exist",
           "createRole": "Create role",
@@ -1973,7 +1983,7 @@
           "permissionsHint": "Search and manage permissions by category. Toggle individual permissions or entire categories.",
           "selectedCount": "{selected} / {total} selected",
           "searchPermissions": "Search permissions (e.g. export, view users)",
-          "permissionCount": "{count} permissions",
+          "permissionCount": "{count} permission | {count} permissions",
           "filtered": "filtered",
           "selectAllFiltered": "Select all filtered",
           "selectAll": "Select all",
@@ -2147,6 +2157,8 @@
           "confirmBonusGrant": "Confirm Bonus Grant",
           "finalAmount": "Final Amount:",
           "confirmGrant": "Confirm & Grant",
+          "grantAmountRequired": "Enter a bonus amount greater than zero before granting it.",
+          "grantedToast": "Granted {amount} to {employee} for {month}.",
           "bonusCalculationEvidence": "Bonus calculation evidence",
           "task": "Task",
           "participation": "Participation",
@@ -2275,6 +2287,18 @@
           "cancelContractConfirmation": "Cancel {contract}? This action cannot be undone.",
           "unnamedContract": "this contract",
           "searchContracts": "Search Contracts",
+          "expiringFilter": "Expiring within 30 days",
+          "expiringFilterHint": "Active contracts ending on or before 30 days from today.",
+          "daysRemaining": "{count} days left",
+          "daysExpired": "{count} days ago",
+          "expiringSoon": "Expiring soon",
+          "expired": "Expired",
+          "scheduled": "Scheduled",
+          "extensionRole": "Extension",
+          "extensionOf": "of {number}",
+          "paymentStatus": "Payment",
+          "outstandingAmount": "Outstanding",
+          "notApplicable": "Not applicable",
           "filterByCounterparty": "Filter By Counterparty",
           "printTable": "Print Table",
           "addContract": "Add Contract",
@@ -2436,6 +2460,10 @@
           "consultant": "Consultant",
           "consultantReview": "Counselor review",
           "consultantReviewHint": "Choose the counselor's assessment: great, good or bad.",
+          "gradeScoreLabel": "Qualification score (0–100)",
+          "gradeScoreHint": "Enter the applicant's qualification percentage, from 0 to 100.",
+          "followUpEmpty": "No visitor is marked for follow-up yet. Star a visitor in the Visitors list to move it here.",
+          "ageHint": "Between 1 and 120 years old.",
           "consultantReviewSaved": "Counselor review saved.",
           "review": "Counselor review"
         }
@@ -2535,6 +2563,8 @@
           "searchExpenseDescriptionsOrTypes": "Search Expense Descriptions Or Types",
           "filterByType": "Filter By Type",
           "expenseRecordsShown": "Expense Records Shown",
+          "expenseRecordCount": "{count} expense record | {count} expense records",
+          "expensePageDescription": "Track outgoing cash, recurring costs and spending patterns in one ledger.",
           "outgoingStream": "Outgoing Stream",
           "spendLedger": "Spend Ledger",
           "expense": "Expense",
@@ -2698,6 +2728,18 @@
           "quantity": "Quantity",
           "model": "Model",
           "condition": "Condition",
+          "unitPrice": "Unit price",
+          "acquisitionDate": "Acquisition date",
+          "usefulLifeYears": "Useful life (years)",
+          "salvageValue": "Salvage value",
+          "totalValue": "Total value",
+          "bookValue": "Book value",
+          "totalValuePreview": "Total value: {amount}",
+          "bookValuePreview": "Book value: {amount}",
+          "valuationAfterSave": "Book value will be calculated after the asset is saved.",
+          "wholeNumberAtLeast": "Enter a whole number of at least {min}.",
+          "nonNegativeNumber": "Enter a value of 0 or more.",
+          "failedToFetchCurrencies": "Failed to fetch currencies.",
           "assignedTo": "Assigned To",
           "failedToFetchAssetRecords": "Failed To Fetch Asset Records",
           "failedToFetchEmployees": "Failed To Fetch Employees",
@@ -2721,6 +2763,7 @@
           "employeeAllocations": "Employee allocations",
           "addEmployee": "Add employee",
           "employee": "Employee",
+          "removeAllocation": "Remove allocation",
           "allocationTotalCannotExceed": "Allocated: {allocated} / {quantity}. The total cannot exceed inventory quantity.",
           "allocationReduceBeforeLowering": "Allocated: {allocated} / {quantity}. Reduce allocations before lowering inventory quantity."
         }
@@ -3134,7 +3177,9 @@
         "resource": "Business area",
         "action": "Action",
         "allResources": "All business areas",
-        "allActions": "All actions"
+        "allActions": "All actions",
+        "people": "People",
+        "source": "Change source"
       },
       "events": {
         "created": "Created",
@@ -3293,10 +3338,15 @@
         "model": "Model",
         "condition": "Condition",
         "editableUntil": "Editing deadline",
-        "overrideUsedAt": "Late edit used"
+        "overrideUsedAt": "Late edit used",
+        "currentStageId": "Stage",
+        "responsibleEmployeeId": "Responsible employee",
+        "admissionEmployeeId": "Admission employee"
       },
       "scopeNotice": "Turning a business area off affects future changes only. Existing and pending audit records are never removed.",
       "unknownRecord": "Business record",
+      "ipAddress": "IP address",
+      "requestMethod": "Request method",
       "system": "System",
       "notAuditedYet": "Not audited yet",
       "noCreateColumns": "Created — no field list needed",
@@ -4711,11 +4761,11 @@
       },
       "stageStaff": {
         "title": "Applicant stage updated",
-        "message": "{applicant} moved to {stage}."
+        "message": "{applicant} moved from {from_stage} to {to_stage} by {actor}."
       },
       "stageApplicant": {
         "title": "Your visa case was updated",
-        "message": "Your case moved to {stage}."
+        "message": "Your case moved from {from_stage} to {to_stage} by {actor}."
       },
       "stalled": {
         "title": "Applicant case needs attention",
@@ -5134,6 +5184,7 @@
   },
   "educational": {
     "caseUi": {
+      "documentRequiredBeforeMove": "Attach at least one labeled document before moving this case out of its first stage.",
       "terminalConfirm": "Move this case to {stage}? This closes the case and cannot be reversed through the normal workflow.",
       "terminalConfirmTitle": "Close this case?",
       "completedMoveNote": "{stage} finishes the case: it is closed as completed and the commission earned on its contracted services is recorded for payout.",
@@ -5380,6 +5431,13 @@
     "createCase": "Create case",
     "newApplicantCase": "New applicant case",
     "caseCount": "{count} case(s)",
+    "pipelineCardCount": "{count} cards",
+    "pipelineCountsNote": "Columns count cards: one per contracted service line, plus cases that have not bought this service yet. The chips above count cases.",
+    "activeCasesCount": "Active cases: {count}",
+    "closedCasesCount": "Closed cases: {count}",
+    "allCasesCount": "All cases: {count}",
+    "extensionOf": "Extension of {number}",
+    "noServiceLines": "No services",
     "currentStage": "current stage",
     "pipelineInstructions": "Drag a card to the next allowed stage. Counts respect the active filters.",
     "activeCount": "Active: {count}",
@@ -5467,6 +5525,10 @@
     },
     "pendingUi": {
       "customerEmployee": "Customer / employee",
+      "searchReason": "Search payment reasons",
+      "saved": "Payment request saved.",
+      "submitted": "Payment request submitted for approval.",
+      "selfApproval": "You cannot approve, reject or post your own payment request. Another approver must review it.",
       "saveFailed": "Unable to save the transaction. It may be locked or outside the edit window.",
       "transitioned": "Transaction is now {status}.",
       "rejected": "Transaction rejected.",
@@ -5599,8 +5661,14 @@
       "partially_paid": "Partially Paid"
     }
   },
+  "tasksPage": {
+    "title": "Tasks",
+    "description": "Each column is a service. Scroll sideways to reach every service, and drag a task to move it."
+  },
   "erp": {
     "home": "Home",
+    "tasks": "Tasks",
+    "finance": "Finance",
     "contracts": "Contracts",
     "crm": "CRM",
     "applicants": "Applicants",

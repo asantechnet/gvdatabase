@@ -116,6 +116,8 @@ declare module 'vue' {
     TableEmptyState: typeof import('./resources/ts/components/TableEmptyState.vue')['default']
     TableLoadingSkeleton: typeof import('./resources/ts/components/TableLoadingSkeleton.vue')['default']
     TablePagination: typeof import('./resources/ts/@core/components/TablePagination.vue')['default']
+    TablePaginationFooter: typeof import('./resources/ts/components/responsive-data-table/TablePaginationFooter.vue')['default']
+    TableScrollAffordance: typeof import('./resources/ts/components/TableScrollAffordance.vue')['default']
     TaskAppShell: typeof import('./resources/ts/components/task-manager/TaskAppShell.vue')['default']
     TaskCommentsDrawer: typeof import('./resources/ts/components/task-manager/components/TaskCommentsDrawer.vue')['default']
     TaskCompletionChip: typeof import('./resources/ts/components/task-manager/TaskCompletionChip.vue')['default']

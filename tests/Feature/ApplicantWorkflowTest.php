@@ -1,3 +1,33 @@
 <?php
-namespace Tests\Feature; use App\Models\Applicant; use App\Models\Role; use App\Models\User; use Illuminate\Foundation\Testing\RefreshDatabase; use Laravel\Sanctum\Sanctum; use Tests\TestCase;
-class ApplicantWorkflowTest extends TestCase { use RefreshDatabase; protected function setUp():void{parent::setUp();$u=User::factory()->create();$u->roles()->attach(Role::firstOrCreate(['name'=>'super_admin']));Sanctum::actingAs($u,['access']);} public function test_case_records_its_stage_history():void{$a=$this->postJson('/api/applicants',['name'=>'Workflow Case'])->assertCreated()->json('data');$stage=$this->getJson('/api/applicant-stages')->json('data')[1];$this->postJson("/api/applicants/{$a['id']}/change-stage",['stage_id'=>$stage['id'],'note'=>'Consultation complete'])->assertOk()->assertJsonPath('data.current_stage.key','consultation');$this->assertDatabaseHas('applicant_stage_histories',['applicant_id'=>$a['id'],'note'=>'Consultation complete']);}}
+
+namespace Tests\Feature;
+
+use App\Models\Role;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
+
+class ApplicantWorkflowTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $user = User::factory()->create();
+        $user->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
+        Sanctum::actingAs($user, ['access']);
+    }
+
+    public function test_case_records_its_stage_history(): void
+    {
+        $a = $this->postJson('/api/applicants', ['name' => 'Workflow Case'])->assertCreated()->json('data');
+        $stage = $this->getJson('/api/applicant-stages')->json('data')[1];
+        $this->seedApplicantDocuments((int) $a['id']);
+        $this->postJson("/api/applicants/{$a['id']}/change-stage", ['stage_id' => $stage['id'], 'note' => 'Consultation complete'])
+            ->assertOk()
+            ->assertJsonPath('data.current_stage.key', 'consultation');
+        $this->assertDatabaseHas('applicant_stage_histories', ['applicant_id' => $a['id'], 'note' => 'Consultation complete']);
+    }
+}

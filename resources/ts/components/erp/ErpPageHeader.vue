@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { canAccess } from '@/utils/authorization'
 import './workspace.scss'
 
-type HeaderSection = 'contracts' | 'crm' | 'applications' | 'dashboard'
+type HeaderSection = 'contracts' | 'crm' | 'applications' | 'dashboard' | 'tasks' | 'finance'
 
 // One in-page destination inside a concept's navigation strip.
 interface HeaderLink {
@@ -25,6 +25,8 @@ interface HeaderLink {
 const props = withDefaults(defineProps<{
   title: string
   section: HeaderSection
+  /** Optional sentence under the H1; pages with only a title omit it. */
+  description?: string
   /** Pages whose own tab strip is the primary navigation hide the crumb trail. */
   breadcrumbs?: boolean
 }>(), { breadcrumbs: true })
@@ -55,6 +57,8 @@ const sections: Record<HeaderSection, HeaderLink[]> = {
     { name: 'visa-reports', label: 'common.navigation.visaReports', icon: 'tabler-report-analytics', color: 'tertiary', permission: 'view_visa_reports' },
   ],
   dashboard: [],
+  tasks: [],
+  finance: [],
 }
 
 const links = computed(() => sections[props.section].filter(link => !link.permission || canAccess(link.permission)))
@@ -92,6 +96,12 @@ watch(() => route.fullPath, () => revealCurrentDestination('smooth'))
     <div class="erp-page-heading">
       <VBreadcrumbs v-if="breadcrumbs" :items="[{ title: t('erp.home'), to: { name: 'home' } }, { title: t(`erp.${section}`), disabled: true }]" density="compact" class="pa-0 mb-1" />
       <h1 class="text-h5 font-weight-bold">{{ title }}</h1>
+      <p
+        v-if="description"
+        class="erp-page-description text-body-2 text-medium-emphasis mb-0 mt-1"
+      >
+        {{ description }}
+      </p>
     </div>
     <nav ref="navigation" v-if="links.length || $slots.navigation" class="erp-subnav" :aria-label="t(`erp.${section}`)">
       <VChip

@@ -1,0 +1,112 @@
+- generic [active] [ref=f45e1]:
+  - generic [ref=f45e6]:
+    - complementary [ref=f45e7]:
+      - generic [ref=f45e8]:
+        - link [ref=f45e9] [cursor=pointer]:
+          - /url: /
+          - img "Educational Visa" [ref=f45e10]
+        - button "Collapse navigation" [ref=f45e11] [cursor=pointer]
+      - list [ref=f45e14]:
+        - listitem [ref=f45e15]:
+          - link "Home" [ref=f45e16] [cursor=pointer]:
+            - /url: /agency-overview
+        - listitem [ref=f45e19]:
+          - link "Contracts" [ref=f45e20] [cursor=pointer]:
+            - /url: /contracts/scholarship
+        - listitem [ref=f45e23]:
+          - link "Applications" [ref=f45e24] [cursor=pointer]:
+            - /url: /applications
+        - listitem [ref=f45e27]:
+          - link "CRM" [ref=f45e28] [cursor=pointer]:
+            - /url: /visitor
+        - listitem [ref=f45e31]:
+          - generic [ref=f45e32] [cursor=pointer]: Finance
+        - listitem [ref=f45e36]:
+          - generic [ref=f45e37] [cursor=pointer]: HR
+          - list [ref=f45e41]:
+            - listitem [ref=f45e42]:
+              - link "Staff list" [ref=f45e43] [cursor=pointer]:
+                - /url: /staff-list
+            - listitem [ref=f45e46]:
+              - link "Departments" [ref=f45e47] [cursor=pointer]:
+                - /url: /setup/departments
+            - listitem [ref=f45e50]:
+              - link "Employment contracts" [ref=f45e51] [cursor=pointer]:
+                - /url: /employee-contracts
+            - listitem [ref=f45e54]:
+              - link "Timesheet" [ref=f45e55] [cursor=pointer]:
+                - /url: /timesheet
+            - listitem [ref=f45e58]:
+              - link "Off Day Requests" [ref=f45e59] [cursor=pointer]:
+                - /url: /leave-requests
+            - listitem [ref=f45e62]:
+              - link "Company Off Days" [ref=f45e63] [cursor=pointer]:
+                - /url: /off-days
+            - listitem [ref=f45e66]:
+              - link "Payrolls" [ref=f45e67] [cursor=pointer]:
+                - /url: /payrolls
+            - listitem [ref=f45e70]:
+              - link "Bonus list" [ref=f45e71] [cursor=pointer]:
+                - /url: /bonuslist
+            - listitem [ref=f45e74]:
+              - link "Positions" [ref=f45e75] [cursor=pointer]:
+                - /url: /setup/positions
+            - listitem [ref=f45e78]:
+              - link "Announcements" [ref=f45e79] [cursor=pointer]:
+                - /url: /announcements
+        - listitem [ref=f45e82]:
+          - link "Tasks" [ref=f45e83] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=f45e86]:
+          - generic [ref=f45e87] [cursor=pointer]: Options
+        - listitem [ref=f45e91]:
+          - generic [ref=f45e92] [cursor=pointer]: Setup
+    - generic [ref=f45e98]:
+      - banner [ref=f45e99]:
+        - generic [ref=f45e101]:
+          - generic [ref=f45e102]:
+            - button "Open search" [ref=f45e103] [cursor=pointer]
+            - button "Search" [ref=f45e106] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f45e108]: ⌘K
+          - button "Guide for this page" [ref=f45e109] [cursor=pointer]
+          - button "English" [ref=f45e112] [cursor=pointer]
+          - button [ref=f45e121] [cursor=pointer]
+          - button [ref=f45e124] [cursor=pointer]
+          - generic [ref=f45e128]:
+            - button "Open audits" [ref=f45e129] [cursor=pointer]
+            - status "Badge" [ref=f45e132]: 99+
+          - button [ref=f45e133] [cursor=pointer]:
+            - status "Badge" [ref=f45e138]: "11"
+          - generic [ref=f45e140]:
+            - generic [ref=f45e141] [cursor=pointer]
+            - status "Badge" [ref=f45e143]
+      - main [ref=f45e144]:
+        - generic [ref=f45e146]:
+          - generic [ref=f45e148]:
+            - generic [ref=f45e149]:
+              - generic [ref=f45e150]: Announcements
+              - generic [ref=f45e151]: Company-wide messages delivered straight into notification inboxes.
+            - button "New announcement" [ref=f45e153] [cursor=pointer]
+          - generic [ref=f45e157]:
+            - generic [ref=f45e158]:
+              - generic [ref=f45e159]: My announcements
+              - generic [ref=f45e162]:
+                - button "Mine" [ref=f45e163] [cursor=pointer]
+                - button "Everyone" [ref=f45e165] [cursor=pointer]
+            - separator [ref=f45e167]
+            - list [ref=f45e168]:
+              - listitem [ref=f45e169]:
+                - generic [ref=f45e170]:
+                  - generic [ref=f45e171]: No announcements yet.
+                  - generic [ref=f45e172]: Announcements you send will appear here.
+      - contentinfo [ref=f45e173]:
+        - generic [ref=f45e176]:
+          - text: © 2026 Developed by
+          - link "Asan Tech" [ref=f45e177] [cursor=pointer]:
+            - /url: https://asantech.net
+  - generic:
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip
+    - tooltip

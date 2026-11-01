@@ -45,6 +45,11 @@ const auditState = ref<'all' | AuditState>((route.query.state as 'all' | AuditSt
 const eventFilter = ref(String(route.query.event || 'all'))
 const resourceFilter = ref(String(route.query.resource || 'all'))
 const auditSearch = ref(String(route.query.search || ''))
+// Seeded history has no authenticated actor; the review queue defaults to
+// human changes while keeping system rows available behind the filter.
+const sourceFilter = ref<'people' | 'system' | 'all'>(
+  route.query.source === 'system' ? 'system' : route.query.source === 'all' ? 'all' : 'people',
+)
 
 const resourcePage = ref(1)
 const resourcePerPage = ref(25)
@@ -128,15 +133,20 @@ function eventLabel(event: string): string {
   return localized(`pages.audits.events.${event}`, 'pages.audits.events.other')
 }
 
-function fieldLabel(field: string): string {
-  const auditLabel = String(t(`pages.audits.fields.${field}`))
-  if (auditLabel && !auditLabel.startsWith('[missing:') && auditLabel !== `pages.audits.fields.${field}`)
-    return auditLabel
-  const commonLabel = String(t(`common.fields.${field}`))
+function humanizeField(field: string): string {
+  return field.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').trim().replace(/^./, letter => letter.toUpperCase())
+}
 
-  return commonLabel && !commonLabel.startsWith('[missing:') && commonLabel !== `common.fields.${field}`
-    ? commonLabel
-    : String(t('pages.audits.otherInformation'))
+/** Translation first, then the API's human label, then the column name. */
+function fieldLabel(change: AuditChange): string {
+  const auditLabel = String(t(`pages.audits.fields.${change.field}`))
+  if (auditLabel && !auditLabel.startsWith('[missing:') && auditLabel !== `pages.audits.fields.${change.field}`)
+    return auditLabel
+  const commonLabel = String(t(`common.fields.${change.field}`))
+  if (commonLabel && !commonLabel.startsWith('[missing:') && commonLabel !== `common.fields.${change.field}`)
+    return commonLabel
+
+  return change.field_label || humanizeField(change.field)
 }
 
 function recordLabel(log: AuditLog): string {
@@ -169,7 +179,7 @@ function shortChanges(log: AuditLog): string {
   if (!log.changes.length)
     return String(t('pages.audits.noUserFacingChanges'))
   const first = log.changes[0]
-  const text = `${fieldLabel(first.field)}: ${formatValue(first.before, first.field)} → ${formatValue(first.after, first.field)}`
+  const text = `${fieldLabel(first)}: ${formatValue(first.before, first.field)} → ${formatValue(first.after, first.field)}`
 
   return log.changes.length > 1 ? `${text} ${t('pages.audits.moreChanges', { count: log.changes.length - 1 })}` : text
 }
@@ -204,6 +214,7 @@ async function loadAudits() {
       event: eventFilter.value === 'all' ? undefined : eventFilter.value,
       resource: resourceFilter.value === 'all' ? undefined : resourceFilter.value,
       search: auditSearch.value || undefined,
+      source: sourceFilter.value === 'all' ? undefined : sourceFilter.value,
     })
 
     logs.value = result.data
@@ -335,8 +346,8 @@ watch(auditSearch, () => {
     clearTimeout(auditSearchTimer)
   auditSearchTimer = setTimeout(resetAuditPage, 300)
 })
-watch([auditState, eventFilter, resourceFilter], resetAuditPage)
-watch([auditState, eventFilter, resourceFilter, auditPage, auditPerPage], () => { selectedAuditIds.value = [] })
+watch([auditState, eventFilter, resourceFilter, sourceFilter], resetAuditPage)
+watch([auditState, eventFilter, resourceFilter, sourceFilter, auditPage, auditPerPage], () => { selectedAuditIds.value = [] })
 watch([auditPage, auditPerPage], loadAudits)
 
 let resourceSearchTimer: ReturnType<typeof setTimeout> | undefined
@@ -425,6 +436,25 @@ onUnmounted(() => {
                 {{ $t('pages.audits.filters.all') }}
               </VBtn>
             </VBtnToggle>
+            <VBtnToggle
+              v-model="sourceFilter"
+              mandatory
+              density="compact"
+              color="primary"
+              divided
+              class="audit-filter-toggle"
+              :aria-label="$t('pages.audits.filters.source')"
+            >
+              <VBtn value="people">
+                {{ $t('pages.audits.filters.people') }}
+              </VBtn>
+              <VBtn value="system">
+                {{ $t('pages.audits.system') }}
+              </VBtn>
+              <VBtn value="all">
+                {{ $t('pages.audits.filters.all') }}
+              </VBtn>
+            </VBtnToggle>
             <VTextField
               v-model="auditSearch"
               :label="$t('pages.audits.filters.search')"
@@ -505,6 +535,7 @@ onUnmounted(() => {
             :loading="loading"
             item-value="id"
             show-select
+            sticky-last-column
             mobile-cards
             mobile-title-key="record"
             mobile-action-key="actions"
@@ -696,6 +727,9 @@ onUnmounted(() => {
           <div class="audit-accountability mb-5">
             <div><span>{{ $t('pages.audits.columns.changedBy') }}</span><strong>{{ selectedAudit.changed_by?.name ?? $t('pages.audits.system') }}</strong></div>
             <div><span>{{ $t('pages.audits.columns.auditedBy') }}</span><strong>{{ selectedAudit.audited_by?.name ?? $t('pages.audits.notAuditedYet') }}</strong></div>
+            <div><span>{{ $t('pages.audits.ipAddress') }}</span><strong>{{ selectedAudit.ip_address || $t('common.messages.notAvailable') }}</strong></div>
+            <div><span>{{ $t('pages.audits.requestMethod') }}</span><strong>{{ selectedAudit.method || $t('common.messages.notAvailable') }}</strong></div>
+            <div><span>{{ $t('pages.audits.columns.when') }}</span><strong>{{ formatLocalizedDate(selectedAudit.created_at, 'long') }}</strong></div>
             <div>
               <span>{{ $t('pages.audits.columns.status') }}</span><VChip
                 size="small"
@@ -732,7 +766,7 @@ onUnmounted(() => {
                 v-for="change in selectedAudit.changes"
                 :key="change.field"
               >
-                <td><strong>{{ fieldLabel(change.field) }}</strong></td><td class="text-error">
+                <td><strong>{{ fieldLabel(change) }}</strong></td><td class="text-error">
                   {{ formatValue(change.before, change.field) }}
                 </td><td class="text-success">
                   {{ formatValue(change.after, change.field) }}
@@ -837,12 +871,13 @@ onUnmounted(() => {
 .audit-selection-toolbar__summary > span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: 0.8125rem; }
 .audit-selection-toolbar__undo-wrap { display: inline-flex; }
 .audit-record { display: flex; flex-direction: column; gap: 0.4rem; min-inline-size: 0; white-space: normal; }
+.audit-record strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .audit-record__mobile-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: 0.75rem; }
 .audit-record__mobile-meta > span { flex-basis: 100%; min-inline-size: 0; overflow-wrap: anywhere; }
 .audit-resource-name__mobile-purpose { flex-basis: 100%; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: 0.8125rem; line-height: 1.4; }
 .audit-resource-name { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }
 .audit-resource-purpose { display: block; max-inline-size: 34rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); white-space: normal; }
-.audit-change-summary { display: block; min-inline-size: 220px; max-inline-size: 440px; white-space: normal; color: rgb(var(--v-theme-on-surface)); }
+.audit-change-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; min-inline-size: 220px; max-inline-size: 440px; white-space: normal; color: rgb(var(--v-theme-on-surface)); }
 .audit-accountability { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .audit-accountability > div { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.85rem; border-radius: 0.6rem; background: rgba(var(--v-theme-on-surface), 0.04); }
 .audit-accountability span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: 0.75rem; }

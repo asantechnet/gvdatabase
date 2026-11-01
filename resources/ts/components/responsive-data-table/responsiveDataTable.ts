@@ -1,4 +1,4 @@
-import { type Component, type VNode, cloneVNode, computed, defineComponent, h, isVNode, ref } from 'vue'
+import { type Component, type PropType, type VNode, cloneVNode, computed, defineComponent, h, isVNode, onBeforeUnmount, onMounted, onUpdated, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   VBottomSheet,
@@ -12,6 +12,8 @@ import {
   VDataTableRows,
   VIcon,
 } from 'vuetify/components'
+import TableScrollAffordance from '../TableScrollAffordance.vue'
+import TablePaginationFooter from './TablePaginationFooter.vue'
 
 interface DataTableColumn {
   key: string
@@ -135,14 +137,114 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
     // Opt in when a data-dense operational table should become expandable
     // cards on phones instead of retaining a scrollable table grid.
     mobileCards: Boolean,
+    // Explicit decision fields for the phone card: stage, service, assignee,
+    // amount, and so on. Never derive this from every column; a card with all
+    // columns is just a vertical table.
+    mobileFields: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
 
     // These opt-in hooks keep the generic table useful for operational grids
     // without forcing sticky cells onto short or form-oriented tables.
     stickyFirstColumn: Boolean,
     stickyLastColumn: Boolean,
+    // Sticky actions default on when the last column is an action column, and
+    // the identifier column stays pinned with them unless explicitly opted out.
+    stickyKeyColumn: {
+      type: Boolean as PropType<boolean | undefined>,
+      default: undefined,
+    },
+    stickyActionColumn: {
+      type: Boolean as PropType<boolean | undefined>,
+      default: undefined,
+    },
+
+    // One accessible footer with page size, range and first/prev/next/last.
+    // Opt-in so pages that already render their own footer are not doubled.
+    pagination: Boolean,
+    pageSizes: {
+      type: Array as PropType<number[]>,
+      default: () => [10, 25, 50, 100],
+    },
+    showScrollAffordance: {
+      type: Boolean,
+      default: true,
+    },
   },
   setup(props, { attrs, slots }) {
     const { t } = useI18n({ useScope: 'global' })
+
+    const headerColumns = computed<DataTableColumn[]>(() => Array.isArray(attrs.headers) ? attrs.headers as DataTableColumn[] : [])
+    const lastColumnIsAction = computed(() => {
+      const columns = headerColumns.value
+
+      return columns.length > 0 && isActionColumn(columns[columns.length - 1])
+    })
+    const stickyActions = computed(() => props.stickyActionColumn ?? lastColumnIsAction.value)
+    const stickyKey = computed(() => props.stickyKeyColumn ?? stickyActions.value)
+
+    const tableRoot = ref<HTMLElement | null>(null)
+    const hasHorizontalOverflow = ref(false)
+    const canScrollStart = ref(false)
+    const canScrollEnd = ref(false)
+    let scrollWrapper: HTMLElement | null = null
+    let overflowObserver: ResizeObserver | null = null
+
+    const updateOverflow = () => {
+      if (!scrollWrapper)
+        return
+
+      const maxScroll = Math.max(0, scrollWrapper.scrollWidth - scrollWrapper.clientWidth)
+      const position = Math.abs(scrollWrapper.scrollLeft)
+      const overflow = maxScroll > 1
+      const atStart = position <= 1
+      const atEnd = maxScroll - position <= 1
+
+      if (hasHorizontalOverflow.value !== overflow)
+        hasHorizontalOverflow.value = overflow
+      if (canScrollStart.value !== !atStart)
+        canScrollStart.value = !atStart
+      if (canScrollEnd.value !== !atEnd)
+        canScrollEnd.value = !atEnd
+    }
+
+    const scrollColumns = (direction: 1 | -1) => {
+      if (!scrollWrapper)
+        return
+
+      const rtl = typeof getComputedStyle === 'function' && getComputedStyle(scrollWrapper).direction === 'rtl'
+      const amount = Math.max(240, scrollWrapper.clientWidth * 0.6)
+
+      scrollWrapper.scrollBy({ left: direction * amount * (rtl ? -1 : 1), behavior: 'smooth' })
+    }
+
+    onMounted(() => {
+      scrollWrapper = (tableRoot.value?.querySelector('.v-table__wrapper') as HTMLElement | null) ?? null
+
+      if (!scrollWrapper)
+        return
+
+      scrollWrapper.addEventListener('scroll', updateOverflow, { passive: true })
+
+      if (typeof ResizeObserver !== 'undefined') {
+        overflowObserver = new ResizeObserver(updateOverflow)
+        overflowObserver.observe(scrollWrapper)
+        const table = scrollWrapper.querySelector('table')
+
+        if (table)
+          overflowObserver.observe(table)
+      }
+
+      updateOverflow()
+    })
+    onUpdated(updateOverflow)
+    onBeforeUnmount(() => {
+      scrollWrapper?.removeEventListener('scroll', updateOverflow)
+      overflowObserver?.disconnect()
+      overflowObserver = null
+      scrollWrapper = null
+    })
 
     const isNarrowViewport = useMediaQuery('(max-width: 959px)')
     const mobile = computed(() => props.mobileCards && isNarrowViewport.value)
@@ -219,10 +321,27 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
         ? slots[`item.${titleColumn.key}`]?.(titleProps as any) ?? String(titleProps.value ?? '—')
         : '—'
 
+      // Decision fields are visible without expanding the card; everything
+      // else stays behind the disclosure so the phone view stays readable.
+      const configuredFields = props.mobileFields
+        .map(field => columns.find(column => column.key === field))
+        .filter((column): column is DataTableColumn => Boolean(column))
+        .filter(column => column !== titleColumn && !isActionColumn(column))
+
+      const detailFields = columns.filter(column =>
+        column !== titleColumn
+        && !isActionColumn(column)
+        && !configuredFields.includes(column))
+
       const hasExpandedRow = Boolean(slots['expanded-row']) || body.columns.some(column => column.key === 'data-table-expand')
-      const isExpanded = expandedCards.value.has(key) || Boolean(hasExpandedRow && internalItem && body.isExpanded(internalItem))
+      const expandable = hasExpandedRow || detailFields.length > 0
+      const isExpanded = expandable
+        && (expandedCards.value.has(key) || Boolean(hasExpandedRow && internalItem && body.isExpanded(internalItem)))
 
       const toggleCard = () => {
+        if (!expandable)
+          return
+
         if (hasExpandedRow && internalItem) {
           body.toggleExpand(internalItem)
 
@@ -275,10 +394,10 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       }, {
         default: () => [
           h('div', {
-            'class': 'responsive-data-table__card-toggle',
-            'role': 'button',
-            'tabindex': 0,
-            'aria-expanded': isExpanded,
+            'class': ['responsive-data-table__card-toggle', !expandable && 'responsive-data-table__card-toggle--static'],
+            'role': expandable ? 'button' : undefined,
+            'tabindex': expandable ? 0 : undefined,
+            'aria-expanded': expandable ? isExpanded : undefined,
             'onClick': toggleCard,
             'onKeydown': (event: KeyboardEvent) => {
               if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key))
@@ -319,6 +438,11 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
               ]),
             }),
           ]),
+          configuredFields.length
+            ? h(VCardText, { class: 'responsive-data-table__card-fields py-0' }, {
+              default: () => configuredFields.map(column => renderField(column, item, index, body)),
+            })
+            : undefined,
           ...(isExpanded
             ? [h(VCardText, { class: 'responsive-data-table__card-details pt-0' }, {
               default: () => {
@@ -334,7 +458,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
                   : undefined
 
                 return [
-                  ...columns.filter(column => column !== titleColumn && !isActionColumn(column)).map(column => renderField(column, item, index, body)),
+                  ...detailFields.map(column => renderField(column, item, index, body)),
                   ...(expandedContent ? [expandedContent] : []),
                 ]
               },
@@ -449,11 +573,38 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
     }
 
     return () => {
-      const tableSlots = {
+      const tableSlots: Record<string, any> = {
         ...slots,
         body: (body: TableBodySlotProps) => slots.body
           ? slots.body(body as any)
           : mobile.value ? renderMobileBody(body) : renderDesktopBody(body),
+      }
+
+      if (props.pagination) {
+        tableSlots.footer = (footer: any) => {
+          if (!footer || !footer.itemsLength)
+            return null
+
+          return h(TablePaginationFooter, {
+            page: footer.page,
+            itemsPerPage: footer.itemsPerPage,
+            pageCount: footer.pageCount,
+            itemsLength: footer.itemsLength,
+            pageSizes: props.pageSizes,
+            'onUpdate:page': (value: number) => {
+              if (typeof footer.setPage === 'function')
+                footer.setPage(value)
+              else
+                footer.updateOptions?.({ page: value })
+            },
+            'onUpdate:itemsPerPage': (value: number) => {
+              if (typeof footer.setItemsPerPage === 'function')
+                footer.setItemsPerPage(value)
+              else
+                footer.updateOptions?.({ itemsPerPage: value })
+            },
+          })
+        }
       }
 
       const table = h(TableComponent, {
@@ -461,8 +612,8 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
         class: [
           'responsive-data-table',
           mobile.value && 'responsive-data-table--mobile-cards',
-          props.stickyFirstColumn && 'responsive-data-table--sticky-first',
-          props.stickyLastColumn && 'responsive-data-table--sticky-last',
+          (props.stickyFirstColumn || stickyKey.value) && 'responsive-data-table--sticky-first',
+          (props.stickyLastColumn || stickyActions.value) && 'responsive-data-table--sticky-last',
           attrs.class,
         ],
         mobileBreakpoint: props.mobileBreakpoint,
@@ -497,7 +648,19 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
         }),
       })
 
-      return h('div', { class: 'responsive-data-table__root' }, [table, sheet])
+      return h('div', { class: 'responsive-data-table__root', ref: tableRoot }, [
+        table,
+        props.showScrollAffordance && hasHorizontalOverflow.value
+          ? h(TableScrollAffordance, {
+            visible: true,
+            canScrollStart: canScrollStart.value,
+            canScrollEnd: canScrollEnd.value,
+            onScrollStart: () => scrollColumns(-1),
+            onScrollEnd: () => scrollColumns(1),
+          })
+          : null,
+        sheet,
+      ])
     }
   },
 })

@@ -89,6 +89,8 @@ export interface Income {
   base_curr_shrt: string
   rate: number
   base_amount: number
+  /** Why an issued receipt's value was changed; null when never revalued. */
+  revaluation_reason: string | null
   currentBaseAmount: number | null
   currentBaseCurrency: Pick<Currency, 'id' | 'code' | 'symbol' | 'decimalPlaces'> | null
   date: string
@@ -120,6 +122,8 @@ export interface IncomeUpdateData {
   quantity?: number
   rate?: number
   date?: string
+  /** Mandatory when a value field changes; audited with the receipt. */
+  revaluation_reason?: string
 }
 
 export interface IncomeParams {

@@ -2,10 +2,13 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useToast } from 'vue-toastification'
-import { translate } from '@/utils/localization'
-import AssetApi, { type AssetCondition, type AssetItem, type AssetParams } from '@/api/asset'
+import { formatActiveDate, formatActiveMoney, translate } from '@/utils/localization'
+import { toIsoDate } from '@/utils/money'
+import AssetApi, { type AssetCondition, type AssetItem, type AssetParams, type AssetPayload } from '@/api/asset'
+import CurrencyApi, { type Currency } from '@/api/currency'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import OfficeApi, { type Office } from '@/api/office'
+import { canAccess } from '@/utils/authorization'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
@@ -13,6 +16,8 @@ import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
 const toast = useToast()
+
+type ValidatableForm = { validate: () => Promise<{ valid: boolean }> }
 
 const assets = ref<AssetItem[]>([])
 // The table asks the server for one page at a time.
@@ -35,6 +40,12 @@ const isLoading = ref(false)
 const employeesLoading = ref(false)
 const officeDirectory = ref<Office[]>([])
 const models = ref<string[]>([])
+const currencies = ref<Currency[]>([])
+const addFormRef = ref<ValidatableForm | null>(null)
+const editFormRef = ref<ValidatableForm | null>(null)
+const canCreateAssets = computed(() => canAccess('create_assets'))
+const canEditAssets = computed(() => canAccess('edit_assets'))
+const canDeleteAssets = computed(() => canAccess('delete_assets'))
 
 const officeOptions = computed(() => {
   const byId = new Map<number, { title: string; value: number; active: boolean }>()
@@ -54,6 +65,25 @@ const officeOptions = computed(() => {
 
 const activeOfficeOptions = computed(() => officeOptions.value.filter(office => office.active || office.value === selectedAsset.value?.office_id))
 
+const currencyOptions = computed(() => currencies.value.map(currency => ({
+  title: `${currency.code} — ${currency.name}`,
+  value: currency.id,
+})))
+const baseCurrency = computed(() => currencies.value.find(currency => currency.isBase) ?? null)
+const selectedCurrency = computed(() => currencies.value.find(currency => currency.id === selectedAsset.value?.currency_id) ?? null)
+const selectedAssetTotal = computed(() => Number(selectedAsset.value?.quantity ?? 0) * Number(selectedAsset.value?.price ?? 0))
+const valuationSummary = computed(() => {
+  const total = translate('pages.finance.asset.asset.totalValuePreview', {
+    amount: formatActiveMoney(selectedAssetTotal.value, selectedCurrency.value),
+  })
+  const book = selectedAsset.value?.book_value
+
+  if (book !== null && book !== undefined)
+    return `${total} · ${translate('pages.finance.asset.asset.bookValuePreview', { amount: formatActiveMoney(book, selectedCurrency.value) })}`
+
+  return `${total} · ${translate('pages.finance.asset.asset.valuationAfterSave')}`
+})
+
 const conditions: Array<{ title: string; value: AssetCondition }> = [
   { title: translate('pages.finance.asset.asset.new'), value: 'new' },
   { title: translate('pages.finance.asset.asset.good'), value: 'good' },
@@ -70,6 +100,31 @@ const conditionColor = (condition: AssetCondition) => ({
   damaged: 'error',
 }[condition])
 
+const isBlank = (value: unknown) => value === null || value === undefined || String(value).trim() === ''
+const requiredRule = (value: unknown) => !isBlank(value) || translate('common.validation.required')
+const wholeNumberAtLeast = (min: number) => (value: unknown) =>
+  (Number.isInteger(Number(value)) && Number(value) >= min) || translate('pages.finance.asset.asset.wholeNumberAtLeast', { min })
+const nonNegativeNumber = (value: unknown) =>
+  (!isBlank(value) && Number.isFinite(Number(value)) && Number(value) >= 0) || translate('pages.finance.asset.asset.nonNegativeNumber')
+const optionalRule = (rule: (value: unknown) => true | string) => (value: unknown) => isBlank(value) ? true : rule(value)
+
+const currencyFor = (asset: AssetItem) => asset.currency ?? baseCurrency.value
+const assetMoney = (value: number | string | null | undefined, asset: AssetItem) => formatActiveMoney(value, currencyFor(asset))
+const totalValueFor = (asset: AssetItem) => asset.total_value ?? Number(asset.quantity || 0) * Number(asset.price || 0)
+const conditionLabel = (condition: AssetCondition) => conditions.find(entry => entry.value === condition)?.title || condition
+
+const toPayload = (asset: AssetItem): AssetPayload => {
+  const { id, office, currency, allocated_quantity, available_quantity, total_value, book_value, ...payload } = asset
+
+  return {
+    ...payload,
+    currency_id: Number(payload.currency_id),
+    acquisition_date: payload.acquisition_date ?? '',
+    useful_life_years: isBlank(payload.useful_life_years) ? null : Number(payload.useful_life_years),
+    salvage_value: isBlank(payload.salvage_value) ? 0 : Number(payload.salvage_value),
+  }
+}
+
 const allocationTotal = (asset: AssetItem | null) => asset?.allocations.reduce((total, allocation) => total + Number(allocation.quantity || 0), 0) ?? 0
 const addAllocation = () => selectedAsset.value?.allocations.push({ employee_id: 0, quantity: 1 })
 const removeAllocation = (index: number) => selectedAsset.value?.allocations.splice(index, 1)
@@ -78,9 +133,13 @@ const assetReportRow = (asset: AssetItem): string[] => [
   asset.serial_number,
   asset.item,
   `${asset.quantity}`,
-  `${asset.price}`,
+  assetMoney(asset.price, asset),
+  assetMoney(totalValueFor(asset), asset),
+  asset.currency?.code ?? baseCurrency.value?.code ?? '—',
+  formatActiveDate(asset.acquisition_date),
+  formatActiveMoney(asset.book_value, currencyFor(asset)),
   asset.model,
-  asset.condition,
+  conditionLabel(asset.condition),
   asset.office?.name ?? '—',
   asset.allocations.map(allocation => `${allocation.employee?.name || 'Employee'}: ${allocation.quantity}`).join(', '),
 ]
@@ -89,7 +148,11 @@ const headers = computed(() => [
   { title: translate('pages.finance.asset.asset.serialNumber'), key: 'serial_number', sortable: true },
   { title: translate('pages.finance.asset.asset.item'), key: 'item', sortable: true },
   { title: translate('pages.finance.asset.asset.quantity'), key: 'quantity', sortable: true },
-  { title: translate('common.crmUi.printReports.columns.price'), key: 'price', sortable: true },
+  { title: translate('pages.finance.asset.asset.unitPrice'), key: 'price', sortable: true },
+  { title: translate('pages.finance.asset.asset.totalValue'), key: 'total_value', sortable: false },
+  { title: translate('common.fields.currency'), key: 'currency.code', sortable: false },
+  { title: translate('pages.finance.asset.asset.acquisitionDate'), key: 'acquisition_date', sortable: true },
+  { title: translate('pages.finance.asset.asset.bookValue'), key: 'book_value', sortable: false },
   { title: translate('pages.finance.asset.asset.model'), key: 'model', sortable: true },
   { title: translate('pages.finance.asset.asset.condition'), key: 'condition', sortable: true },
   { title: translate('common.fields.office'), key: 'office.name', sortable: true },
@@ -130,6 +193,17 @@ function updateTableOptions(options: { page: number; itemsPerPage: number }) {
   fetchAssets()
 }
 
+const fetchCurrencies = async () => {
+  try {
+    const response = await CurrencyApi.getAll()
+    currencies.value = response.data
+  }
+  catch (error) {
+    console.error('Error fetching currencies:', error)
+    toast.error(translate('pages.finance.asset.asset.failedToFetchCurrencies'))
+  }
+}
+
 const fetchEmployees = async () => {
   try {
     employeesLoading.value = true
@@ -166,6 +240,10 @@ const openAddAssetDialog = () => {
     model: '',
     condition: 'good',
     office_id: officeDirectory.value.find(office => office.status === 'active')?.id ?? null,
+    currency_id: currencies.value.find(currency => currency.isBase)?.id ?? currencies.value[0]?.id ?? null,
+    acquisition_date: toIsoDate(new Date()),
+    useful_life_years: null,
+    salvage_value: 0,
     allocations: [],
   }
   isAddAssetDialogVisible.value = true
@@ -182,11 +260,13 @@ const openDeleteAssetDialog = (asset: AssetItem) => {
 }
 
 const addAsset = async () => {
+  const validation = await addFormRef.value?.validate()
+  if (validation && !validation.valid)
+    return
+
   if (selectedAsset.value) {
     try {
-      const { id, office, allocated_quantity, available_quantity, ...assetData } = selectedAsset.value
-
-      await AssetApi.create(assetData)
+      await AssetApi.create(toPayload(selectedAsset.value))
       // A new row belongs on the first page, and the paging counts changed.
       page.value = 1
       await fetchAssets()
@@ -201,11 +281,13 @@ const addAsset = async () => {
 }
 
 const updateAsset = async () => {
+  const validation = await editFormRef.value?.validate()
+  if (validation && !validation.valid)
+    return
+
   if (selectedAsset.value) {
     try {
-      const { id, office, allocated_quantity, available_quantity, ...assetData } = selectedAsset.value
-
-      await AssetApi.update(id, assetData)
+      await AssetApi.update(selectedAsset.value.id, toPayload(selectedAsset.value))
       await fetchAssets()
       isEditAssetDialogVisible.value = false
       toast.success(translate('pages.finance.asset.asset.assetItemUpdated'))
@@ -247,6 +329,7 @@ watch([search, filterModel, filterOffice, filterCondition], () => {
 
 onMounted(() => {
   fetchAssets()
+  fetchCurrencies()
   fetchEmployees()
   AssetApi.models().then(data => { models.value = data }).catch(error => {
     console.error('Error fetching asset models:', error)
@@ -320,6 +403,7 @@ onMounted(() => {
             <VBtn
               icon
               variant="text"
+              :aria-label="$t('pages.finance.asset.asset.printAssetRecords')"
               @click="printTable"
             >
               <VIcon icon="tabler-printer" />
@@ -331,6 +415,7 @@ onMounted(() => {
               </VTooltip>
             </VBtn>
             <VBtn
+              v-if="canCreateAssets"
               color="primary"
               @click="openAddAssetDialog"
             >
@@ -398,6 +483,26 @@ onMounted(() => {
             {{ item.office ? `${item.office.name} (${item.office.code})` : '—' }}
           </template>
 
+          <template #item.price="{ item }">
+            {{ assetMoney(item.price, item) }}
+          </template>
+
+          <template #item.total_value="{ item }">
+            {{ assetMoney(totalValueFor(item), item) }}
+          </template>
+
+          <template #item.currency.code="{ item }">
+            {{ item.currency?.code ?? baseCurrency?.code ?? '—' }}
+          </template>
+
+          <template #item.acquisition_date="{ item }">
+            {{ formatActiveDate(item.acquisition_date) }}
+          </template>
+
+          <template #item.book_value="{ item }">
+            {{ assetMoney(item.book_value, item) }}
+          </template>
+
           <template #item.condition="{ item }">
             <VChip
               :color="conditionColor(item.condition)"
@@ -405,7 +510,7 @@ onMounted(() => {
               variant="tonal"
               label
             >
-              {{ conditions.find(condition => condition.value === item.condition)?.title || item.condition }}
+              {{ conditionLabel(item.condition) }}
             </VChip>
           </template>
 
@@ -416,10 +521,12 @@ onMounted(() => {
                 :title="item.item_name || item.name || item.serial_number"
               />
               <VBtn
+                v-if="canEditAssets"
                 icon
                 variant="text"
                 size="small"
                 color="medium-emphasis"
+                :aria-label="$t('pages.finance.asset.asset.editAssetRecord')"
                 @click="openEditAssetDialog(item)"
               >
                 <VIcon icon="tabler-edit" />
@@ -431,10 +538,12 @@ onMounted(() => {
                 </VTooltip>
               </VBtn>
               <VBtn
+                v-if="canDeleteAssets"
                 icon
                 variant="text"
                 size="small"
                 color="error"
+                :aria-label="$t('pages.finance.asset.asset.deleteAssetRecord')"
                 @click="openDeleteAssetDialog(item)"
               >
                 <VIcon icon="tabler-trash" />
@@ -454,7 +563,20 @@ onMounted(() => {
     <PrintableListReport
       :title="$t('common.crmUi.printReports.assets.title')"
       :subtitle="$t('common.crmUi.printReports.assets.subtitle')"
-      :columns="[$t('common.crmUi.printReports.columns.serialNumber'), $t('common.crmUi.printReports.columns.item'), $t('common.crmUi.printReports.columns.quantity'), $t('common.crmUi.printReports.columns.price'), $t('common.crmUi.printReports.columns.model'), $t('common.crmUi.printReports.columns.condition'), $t('common.crmUi.printReports.columns.office'), $t('common.crmUi.printReports.columns.allocations')]"
+      :columns="[
+        $t('common.crmUi.printReports.columns.serialNumber'),
+        $t('common.crmUi.printReports.columns.item'),
+        $t('common.crmUi.printReports.columns.quantity'),
+        $t('pages.finance.asset.asset.unitPrice'),
+        $t('pages.finance.asset.asset.totalValue'),
+        $t('common.fields.currency'),
+        $t('pages.finance.asset.asset.acquisitionDate'),
+        $t('pages.finance.asset.asset.bookValue'),
+        $t('common.crmUi.printReports.columns.model'),
+        $t('common.crmUi.printReports.columns.condition'),
+        $t('common.crmUi.printReports.columns.office'),
+        $t('common.crmUi.printReports.columns.allocations'),
+      ]"
       :rows="reportRows"
     />
 
@@ -470,7 +592,7 @@ onMounted(() => {
         </VCardTitle>
 
         <VCardText>
-          <VForm class="app-form">
+          <VForm ref="addFormRef" class="app-form">
             <VRow>
               <VCol
                 cols="12"
@@ -479,6 +601,7 @@ onMounted(() => {
                 <VTextField
                   v-model="selectedAsset.serial_number"
                   :label="$t('common.messages.serialNumber')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -489,6 +612,7 @@ onMounted(() => {
                 <VTextField
                   v-model="selectedAsset.item"
                   :label="$t('common.messages.itemName')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -500,6 +624,7 @@ onMounted(() => {
                   v-model.number="selectedAsset.quantity"
                   :label="$t('common.messages.quantity')"
                   type="number"
+                  :rules="[requiredRule, wholeNumberAtLeast(1)]"
                   required
                 />
               </VCol>
@@ -509,9 +634,22 @@ onMounted(() => {
               >
                 <VTextField
                   v-model.number="selectedAsset.price"
-                  :label="$t('common.crmUi.printReports.columns.price')"
+                  :label="$t('pages.finance.asset.asset.unitPrice')"
                   type="number"
                   min="0"
+                  :rules="[requiredRule, nonNegativeNumber]"
+                  required
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedAsset.currency_id"
+                  :items="currencyOptions"
+                  :label="$t('common.fields.currency')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -520,8 +658,54 @@ onMounted(() => {
                 md="6"
               >
                 <VTextField
+                  v-model="selectedAsset.acquisition_date"
+                  :label="$t('pages.finance.asset.asset.acquisitionDate')"
+                  type="date"
+                  :rules="[requiredRule]"
+                  required
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model.number="selectedAsset.useful_life_years"
+                  :label="$t('pages.finance.asset.asset.usefulLifeYears')"
+                  type="number"
+                  min="1"
+                  :rules="[optionalRule(wholeNumberAtLeast(1))]"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model.number="selectedAsset.salvage_value"
+                  :label="$t('pages.finance.asset.asset.salvageValue')"
+                  type="number"
+                  min="0"
+                  :rules="[optionalRule(nonNegativeNumber)]"
+                />
+              </VCol>
+              <VCol cols="12">
+                <VAlert
+                  type="info"
+                  variant="tonal"
+                  density="compact"
+                >
+                  {{ valuationSummary }}
+                </VAlert>
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
                   v-model="selectedAsset.model"
                   :label="$t('common.messages.model')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -533,6 +717,7 @@ onMounted(() => {
                   v-model="selectedAsset.office_id"
                   :items="activeOfficeOptions"
                   :label="$t('common.fields.office')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -544,6 +729,7 @@ onMounted(() => {
                   v-model="selectedAsset.condition"
                   :items="conditions"
                   :label="$t('common.messages.condition')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -601,11 +787,20 @@ onMounted(() => {
                     class="d-flex align-center"
                   >
                     <VBtn
-                      icon="tabler-trash"
+                      icon
                       variant="text"
                       color="error"
+                      :aria-label="$t('pages.finance.asset.asset.removeAllocation')"
                       @click="removeAllocation(index)"
-                    />
+                    >
+                      <VIcon icon="tabler-trash" />
+                      <VTooltip
+                        activator="parent"
+                        location="top"
+                      >
+                        {{ $t('pages.finance.asset.asset.removeAllocation') }}
+                      </VTooltip>
+                    </VBtn>
                   </VCol>
                 </VRow>
               </VCol>
@@ -644,7 +839,7 @@ onMounted(() => {
         </VCardTitle>
 
         <VCardText>
-          <VForm class="app-form">
+          <VForm ref="editFormRef" class="app-form">
             <VRow>
               <VCol
                 cols="12"
@@ -653,6 +848,7 @@ onMounted(() => {
                 <VTextField
                   v-model="selectedAsset.serial_number"
                   :label="$t('common.messages.serialNumber')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -663,6 +859,7 @@ onMounted(() => {
                 <VTextField
                   v-model="selectedAsset.item"
                   :label="$t('common.messages.itemName')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -674,6 +871,7 @@ onMounted(() => {
                   v-model.number="selectedAsset.quantity"
                   :label="$t('common.messages.quantity')"
                   type="number"
+                  :rules="[requiredRule, wholeNumberAtLeast(1)]"
                   required
                 />
               </VCol>
@@ -683,9 +881,22 @@ onMounted(() => {
               >
                 <VTextField
                   v-model.number="selectedAsset.price"
-                  :label="$t('common.crmUi.printReports.columns.price')"
+                  :label="$t('pages.finance.asset.asset.unitPrice')"
                   type="number"
                   min="0"
+                  :rules="[requiredRule, nonNegativeNumber]"
+                  required
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VSelect
+                  v-model="selectedAsset.currency_id"
+                  :items="currencyOptions"
+                  :label="$t('common.fields.currency')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -694,8 +905,54 @@ onMounted(() => {
                 md="6"
               >
                 <VTextField
+                  v-model="selectedAsset.acquisition_date"
+                  :label="$t('pages.finance.asset.asset.acquisitionDate')"
+                  type="date"
+                  :rules="[requiredRule]"
+                  required
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model.number="selectedAsset.useful_life_years"
+                  :label="$t('pages.finance.asset.asset.usefulLifeYears')"
+                  type="number"
+                  min="1"
+                  :rules="[optionalRule(wholeNumberAtLeast(1))]"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
+                  v-model.number="selectedAsset.salvage_value"
+                  :label="$t('pages.finance.asset.asset.salvageValue')"
+                  type="number"
+                  min="0"
+                  :rules="[optionalRule(nonNegativeNumber)]"
+                />
+              </VCol>
+              <VCol cols="12">
+                <VAlert
+                  type="info"
+                  variant="tonal"
+                  density="compact"
+                >
+                  {{ valuationSummary }}
+                </VAlert>
+              </VCol>
+              <VCol
+                cols="12"
+                md="6"
+              >
+                <VTextField
                   v-model="selectedAsset.model"
                   :label="$t('common.messages.model')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -707,6 +964,7 @@ onMounted(() => {
                   v-model="selectedAsset.office_id"
                   :items="activeOfficeOptions"
                   :label="$t('common.fields.office')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -718,6 +976,7 @@ onMounted(() => {
                   v-model="selectedAsset.condition"
                   :items="conditions"
                   :label="$t('common.messages.condition')"
+                  :rules="[requiredRule]"
                   required
                 />
               </VCol>
@@ -775,11 +1034,20 @@ onMounted(() => {
                     class="d-flex align-center"
                   >
                     <VBtn
-                      icon="tabler-trash"
+                      icon
                       variant="text"
                       color="error"
+                      :aria-label="$t('pages.finance.asset.asset.removeAllocation')"
                       @click="removeAllocation(index)"
-                    />
+                    >
+                      <VIcon icon="tabler-trash" />
+                      <VTooltip
+                        activator="parent"
+                        location="top"
+                      >
+                        {{ $t('pages.finance.asset.asset.removeAllocation') }}
+                      </VTooltip>
+                    </VBtn>
                   </VCol>
                 </VRow>
               </VCol>

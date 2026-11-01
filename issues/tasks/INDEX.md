@@ -1,0 +1,96 @@
+# Task Set Index
+
+- **Plan source/version:** `issues/review/REPORT.md` and `issues/review/issues/01-18`; `hr-issues/README.md` and `hr-issues/issues/HR-001..009`; `fin-issues/README.md` and `fin-issues/issues/FIN-001..010`; validation record `issues/tasks/VALIDATION.md`; repository state 2026-10-31
+- **Last updated:** `2026-10-31`
+- **Status:** `Validated`
+- **Validation command:** `python3 issues/tasks/scripts/validate_tasks.py issues/tasks`
+- **Last validation result:** `PASS (2026-10-31), 20 tasks, 0 errors`
+
+## Tasks
+
+| Task ID | Folder | Outcome | Status | Dependencies | Exclusive owner / file area | Validation status |
+|---|---|---|---|---|---|---|
+| Task-001 | `Task-001-case-workflow-integrity/` | Authoritative case stage, gated transitions and readable stage timeline | Review | Task-013 | `app/Http/Controllers/ApplicantController.php`, `app/Http/Controllers/ApplicantContractStageController.php`, `app/Http/Resources/ApplicantResource.php`, `app/Services/ApplicantDocumentReadiness.php`, `resources/ts/pages/applicants.vue`, `resources/ts/pages/applicant-case.vue`, `resources/ts/pages/applicant-pipeline.vue`, `resources/ts/api/applicants.ts` | Passed |
+| Task-002 | `Task-002-service-contract-start-date/` | Service contracts can be created because the client schema matches the server | Review | None | `resources/ts/utils/apiValidation.ts`, `resources/ts/pages/service-contracts.vue`, `tests/Feature/ServiceContractStartDateTest.php` | Passed |
+| Task-003 | `Task-003-contract-register-truth/` | Contract register shows role, expiry, scheduled extensions and payment state | Review | Task-012, Task-013 | `resources/ts/pages/contract_list.vue`, `resources/ts/composables/useContracts.ts`, `resources/ts/api/contracts.ts`, `app/Http/Controllers/ContractController.php`, `app/Http/Resources/ContractResource.php` | Passed |
+| Task-004 | `Task-004-dashboard-report-truth/` | Dashboard and reports distinguish accrued, paid, posted and future money | Review | Task-003, Task-012 | `app/Http/Controllers/EducationalDashboardController.php`, `app/Http/Controllers/EducationalReportController.php`, `resources/ts/pages/educational-dashboard.vue`, `resources/ts/pages/educational-reports.vue` | Passed |
+| Task-005 | `Task-005-crm-service-and-followup/` | Visitor service uses the controlled vocabulary and the follow-up queue is truthful | Review | Task-013 | `app/Http/Controllers/VisitorController.php`, `app/Http/Resources/VisitorResource.php`, `app/Models/Visitor.php`, `resources/ts/pages/visitor.vue`, `resources/ts/api/visitor.ts`, `database/migrations/2026_11_01_000003_normalize_visitor_services.php` | Passed |
+| Task-006 | `Task-006-hr-presentation/` | Staff, payroll, timesheet and leave screens are unambiguous and report every HR write | In Progress | Task-012, Task-013, Task-018 | `resources/ts/pages/staff_list.vue`, `resources/ts/pages/payrolls.vue`, `resources/ts/pages/timesheet.vue`, `resources/ts/pages/leave_requests.vue`, `resources/ts/api/salary.ts`, `resources/ts/api/leaveRequests.ts` | Passed |
+| Task-007 | `Task-007-asset-valuation/` | Assets carry currency, valuation and field-level form feedback | Review | Task-012, Task-013 | `database/migrations/2026_11_01_000001_add_valuation_fields_to_assets.php`, `app/Models/Asset.php`, `app/Http/Controllers/AssetController.php`, `app/Http/Resources/AssetResource.php`, `resources/ts/pages/asset.vue`, `resources/ts/api/asset.ts` | Passed |
+| Task-008 | `Task-008-admin-users-roles/` | User administration includes the super admin and roles report truthfully | Review | Task-013 | `app/Http/Controllers/UserController.php`, `app/Http/Resources/UserResource.php`, `resources/ts/pages/setup/users.vue`, `app/Http/Controllers/RoleController.php`, `app/Http/Resources/RoleResource.php`, `resources/ts/pages/setup/roles.vue` | Passed |
+| Task-009 | `Task-009-two-factor-and-sessions/` | Two-factor enrolment has QR, recovery codes and a session list | Review | None | `app/Http/Controllers/AuthController.php`, `resources/ts/views/pages/account-settings/AccountSettingsSecurity.vue`, `resources/ts/components/forms/LoginForm.vue`, `resources/ts/api/auth.ts`, `routes/api.php`, `database/migrations/2026_11_01_000002_add_two_factor_recovery_codes.php`, `database/seeders`, `package.json` | Passed |
+| Task-010 | `Task-010-audit-readability/` | Audit rows and stage notifications state field, old, new, actor and time | Review | Task-013 | `app/Http/Controllers/AuditLogController.php`, `app/Http/Resources/AuditLogResource.php`, `resources/ts/pages/audits.vue`, `resources/ts/api/auditLog.ts` | Passed |
+| Task-011 | `Task-011-payment-requests-pagination/` | Payment requests have one paginator, real filters and safe actions | Review | Task-012, Task-013, Task-018 | `resources/ts/pages/pending-transactions.vue`, `app/Http/Controllers/PendingTransactionController.php`, `resources/ts/api/pendingTransactions.ts` | Passed |
+| Task-012 | `Task-012-formatting-core/` | One locale-aware money, date and number formatter | Review | None | `resources/ts/utils/localization.ts`, `resources/ts/utils/money.ts` | Passed |
+| Task-013 | `Task-013-table-accessibility-foundations/` | Shared tables keep key columns/actions visible, cards useful and controls named | Review | None | `resources/ts/components/responsive-data-table`, `resources/ts/components/TableEmptyState.vue`, `resources/ts/components/TableLoadingSkeleton.vue`, `resources/ts/components/TableScrollAffordance.vue` | Passed |
+| Task-014 | `Task-014-headers-and-copy/` | Tasks and expenses share one header, real copy, correct plurals and a legible dark brand mark | Review | None | `resources/ts/pages/tasks.vue`, `resources/ts/pages/expenses.vue`, `resources/ts/components/erp/ErpPageHeader.vue` | Passed |
+| Task-015 | `Task-015-receipt-integrity/` | Issued receipts cannot be silently revalued and income writes are acknowledged | Review | Task-012, Task-013, Task-018 | `resources/ts/pages/income.vue`, `resources/ts/api/incomes.ts`, `app/Http/Controllers/IncomeController.php`, `resources/ts/components/FullDetailsButton.vue`, `database/migrations/2026_11_01_000004_add_revaluation_reason_to_incomes.php` | Passed |
+| Task-016 | `Task-016-commission-trigger/` | Commission accrual fires on the approved event and its copy is truthful | Blocked | None | `app/Services/CommissionService.php`, `app/Http/Controllers/CommissionController.php`, `resources/ts/pages/commissions.vue`, `tests/Feature/CommissionLifecycleTest.php`, `app/Observers/ContractObserver.php`, `app/Providers/AppServiceProvider.php` | Passed |
+| Task-017 | `Task-017-bonus-grant-integrity/` | Bonus grants are explicit, non-zero, acknowledged and reach payroll | Review | Task-018 | `resources/ts/pages/bonuslist.vue`, `resources/ts/api/bonuslist.ts`, `app/Http/Controllers/WorthyEmployeeController.php`, `app/Http/Resources/WorthyEmployeeResource.php`, `tests/Feature/BonusGrantTest.php` | Passed |
+| Task-018 | `Task-018-api-error-feedback/` | One failed API request produces one specific, localized message | Review | None | `resources/ts/api/axios.ts`, `resources/ts/components/ApiErrorNotifier.vue`, `resources/ts/utils/apiErrors.ts`, `resources/ts/utils/formErrors.ts`, `lang/en/api.php`, `lang/fa/api.php`, `lang/ps/api.php`, `resources/ts/plugins/i18n/locales/en.json`, `resources/ts/plugins/i18n/locales/fa.json`, `resources/ts/plugins/i18n/locales/ps.json` | Passed |
+| Task-019 | `Task-019-department-manager-eligibility/` | Department managers are limited to eligible employees and refusals explain themselves | Review | Task-018 | `app/Http/Controllers/DepartmentController.php`, `resources/ts/pages/setup/departments.vue`, `resources/ts/api/department.ts`, `tests/Feature/DepartmentManagerTest.php` | Passed |
+| Task-020 | `Task-020-leave-offday-edge-cases/` | Leave and off-day edge cases are guarded and covered by tests | Review | None | `app/Http/Controllers/OffDayController.php`, `app/Services/OffDayService.php`, `app/Http/Controllers/LeaveRequestController.php`, `tests/Feature/LeaveRequestEdgeCaseTest.php`, `tests/Feature/OffDayOverlapTest.php` | Passed |
+
+## Dependency layers
+
+- **Layer 0 (independent):** Task-002, Task-009, Task-012, Task-013, Task-016, Task-018, Task-020
+- **Layer 1 (needs shared foundations):** Task-001, Task-005, Task-008, Task-010, Task-014, Task-017, Task-019
+- **Layer 2 (needs formatting, tables or the toast contract):** Task-003, Task-006, Task-007, Task-011, Task-015
+- **Layer 3 (needs the contract register):** Task-004
+
+## Shared contracts and integration owners
+
+| Contract/schema/interface | Exclusive owner task | Consumers | Freeze/compatibility rule |
+|---|---|---|---|
+| Money/date/number formatter (`resources/ts/utils/money.ts`, `localization.ts`) | Task-012 | Task-003, Task-004, Task-006, Task-007, Task-011, Task-015 | Signatures and currency precision are frozen once Task-012 lands; consumers do not reimplement formatting. |
+| Responsive table/config primitives | Task-013 | Task-001, Task-003, Task-005, Task-006, Task-007, Task-008, Task-010, Task-011, Task-015 | Page tasks configure props; they do not fork the table or add a second footer. |
+| API failure feedback (`api-error` event, inline-vs-toast precedence, business copy) | Task-018 | Task-006, Task-011, Task-015, Task-017, Task-019 | Pages show success/local validation only; the notifier owns API failure feedback. A page may suppress feedback only for an explicitly quiet request. |
+| Issued receipt value changes (`revaluation_reason`) | Task-015 | Income detail, audit, reports | Server rejects a value change without a reason; receipt number and currency snapshot are preserved. |
+| Commission accrual trigger | Task-016 | Commission ledger, payroll source amount | The approved event (contract completion or case completion) is the only trigger; settled rows are immutable. |
+| Expiring contract URL `/employee-contracts?expiring=1` | Task-003 | Task-004 | The query parameter name and 30-day definition are frozen; Task-004 only links. |
+| Service contract client schema | Task-002 | Contract creation UI | Must mirror `StoreServiceContractRequest`; new required keys are added on both sides together. |
+| Locale JSON files (`en.json`, Dari/Persian locales) | No single owner; merge plan applies | All UI tasks | Each task edits only its own key subtree, adds the same keys to every supported locale, and does not reformat the file. |
+| Stage-history actor/note display | Task-001 | Task-010 notification copy | Task-001 owns the case timeline; Task-010 must not edit `applicant-case.vue`. |
+
+## Cross-cutting coverage
+
+| Concern | Owning task(s) | Acceptance/verification evidence |
+|---|---|---|
+| Permissions and data scope | Task-001, Task-003, Task-005, Task-007, Task-008, Task-009, Task-010, Task-011, Task-017, Task-019 | Each task's Contracts section and a negative permission criterion where the screen is scoped. |
+| RTL, light/dark and responsive | Task-001, Task-004, Task-006, Task-013, Task-014, Task-015, Task-019 | Viewport and direction checks at 390/768/1280 px in the verification plans. |
+| Accessibility and focus order | Task-013 plus every page task | Accessible-name criteria and keyboard traversal evidence. |
+| Audit and error handling | Task-001, Task-008, Task-010, Task-015, Task-018 | Field-level errors, audit labels, receipt reasons and rejected-action evidence. |
+| i18n and pluralization | Task-014, Task-016, Task-018 plus locale-key merge plan | Plural checks, three-locale business copy and missing-key search. |
+| Data migration and rollback | Task-005, Task-007, Task-009, Task-015 | Additive/reversible migration notes and stop conditions. |
+| Printing/paper layout | Task-003, Task-006, Task-007, Task-015 | Asset/contract/payslip/receipt print regression checks; no global `@page` change is in scope. |
+| Payroll integrity | Task-006, Task-016, Task-017, Task-020 | Grant inclusion, settlement source, off-day/absence proration and advance recovery evidence. |
+
+## Unresolved blockers
+
+| Decision/dependency | Affected tasks | Owner | Next action |
+|---|---|---|---|
+| Definition of "posted" vs "recorded" expenses | Task-004 | Product/finance owner | Confirm the marker before changing the expense label; the salary-status fix can proceed independently. |
+| Depreciation method and unit-price interpretation | Task-007 | Finance owner | Confirm straight-line and unit price; ship currency/acquisition/total first if undecided. |
+| Approved dark-mode brand asset | Task-014 | Brand/design owner | Provide a light-on-dark variant or approve a neutral container treatment. |
+| Demo super-admin seed path and new demo password | Task-009 | Environment owner | Locate the seeder that creates the account and document the new demo-only credential. |
+| Commission accrual trigger (contract vs case completion) | Task-016 | Product/HR owner | Record the authoritative event; pluralization can proceed independently. |
+| Receipt corrections: reason-gated edit vs append-only reversal | Task-015 | Finance owner | Confirm before implementation; the task currently plans reason-gated edits. |
+
+## Validation history
+
+- `2026-10-31` — Task set created from the validated issue review.
+- `2026-10-31` — `python3 issues/tasks/scripts/validate_tasks.py issues/tasks` failed with 1 error: Task-001 dependency cell included a non-dependency Task-003 mention. Fixed by moving the coordination note to Contracts and boundaries.
+- `2026-10-31` — Re-run passed: 14 tasks, 0 errors. After adding mobile sub-nav, renewal, login-label and bonus-format criteria, the final run passed: 14 tasks, 0 errors. Status `Validated`.
+- `2026-10-31` — HR and finance issues validated and tasks 015–020 added; Task-006, Task-007, Task-011 and Task-014 updated to absorb the confirmed findings without duplicate file ownership. Re-run passed: 20 tasks, 0 errors. Status `Validated`.
+- `2026-10-31` — Task-020 implemented (off-day overlap guard, duplicate-date business code, `stored` count, six missing locale messages, two new test suites). 11 new tests / 100 assertions and 11 HR regression tests / 53 assertions passed; validator re-run passed with 20 tasks, 0 errors. Status moved to `Review`.
+- `2026-10-31` — Task-011 implemented (one server paginator, server search/status/type filters, clear-all, ERP header, self-approval gating, self-post guard, single-owner error feedback). 4 new tests / 22 assertions and `npm run typecheck` passed; locale and task validation passed. Status moved to `Review` pending manual viewport/screen-reader checks.
+- `2026-10-31` — Task-010 implemented (audit field/old/new labels with stage resolution, source filter, detail IP/method/time, bounded columns, stage notification from/to/actor copy). 4 new tests / 26 assertions, 7 audit regressions and typecheck passed; one unrelated contract-notification regression remains red. Status moved to `Review` pending manual UI checks.
+- `2026-10-31` — Task-014 partially implemented within its three owned files (shared header + descriptions, task-board horizontal access, expense plural count, single ledger label, destructive-action hierarchy) and matching keys in three locales. Typecheck, locale, plural, validator and diff checks passed; board-card metadata/tooltip, expense-form save hierarchy and dark brand mark are blocked by exclusive ownership. Status moved to `Review` pending reassignment/visual checks.
+- `2026-10-31` — Task-001 implemented (shared transition guard requiring a labeled document out of the initial stage and a reason for terminal moves, service-filter stage filter/display alignment, permission-gated payment column, pipeline count/extension labels, timeline actor). New `ApplicantWorkflowGateTest` 5 tests / 44 assertions passed on an isolated database; 61 of 64 tests across the 10 affected suites passed in the shared run (3 DDL collisions from a concurrent process, not assertions); `npm run typecheck` passed. Status moved to `Review` pending 390/768/1280 px visual checks.
+- `2026-10-31` — Task-003 implemented (expiring filter matching the dashboard definition, end date/days/expiry badges with row tint, extension role + parent number, scheduled display state, permission-gated payment status/outstanding with a defined not-applicable state). `ContractRegisterTest` 4 tests / 36 assertions passed on an isolated database; `npm run typecheck` and the validator passed. Status moved to `Review` pending viewport checks.
+- `2026-10-31` — Task-005 implemented (service select plus `Rule::in(BuiltInService::ALL)` on create/update, resource `service_key`/`service_label`/`service_label_key`, reversible label-normalization migration, follow-up-specific empty state, accessible names on every icon action, score/age labels and ranges). New `VisitorServiceTest` 4 tests / 24 assertions and `VisitorFollowUpTest` 3 tests / 43 assertions pass; the pre-existing order assertion was aligned to the endpoint's newest-first contract. `npm run typecheck`, PHP lint, locale JSON and the validator pass. Status moved to `Review` pending 1280x720 dialog and screen-reader checks.
+- `2026-10-31` — Task-004 implemented (salary buckets by `payment_status` per currency, current vs future receivables split by contract start date, derived report row status with `recorded` for income/expense, expiring attention tile with end date and `?expiring=1` target, applied period on dashboard and report). `EducationalDashboardTest` 7 tests / 57 assertions, `EducationalReportTest` 5 tests and typecheck pass. Status moved to `Review` pending 390 px/Dari and dark-header checks.
+- `2026-10-31` — Task-007 verified as implemented (additive valuation migration with base-currency backfill, model total/book value, resource/API types, register columns and named actions). `AssetValuationTest` 5 tests pass; typecheck passes. Status moved to `Review` with inline form rules and viewport checks outstanding.
+- `2026-10-31` — Task-006 partially implemented (payroll amounts through the shared money formatter with the currency code; timesheet manual save/delete success and error toasts naming employee and date). Payroll counts, leave hint and stale staff errors verified as already fixed. Remaining: staff salary formatting, position-change confirmation, payroll subtitle, viewport/AT checks. Status `In Progress`.
+- `2026-10-31` — Task-015 implemented (`revaluation_reason` column/model/resource, server-side reason gate on amount/quantity/currency/rate changes with null-rate ignored, audited reason with old/new values, income create/edit/delete toasts, named row actions, detail viewer hides foreign keys/empty relations and drops the details tally, three-locale business message). New `IncomeRevaluationTest` 3 tests; affected income/payment suites pass; fixtures updated. Status moved to `Review` pending the browser click-through.
+- `2026-10-31` — Task-008 implemented (primary account included/protected by identity, verification column, last-super-admin guard, in-use role delete guard, role member/permission plurals, typed resource fields and three-locale copy). 4 new tests / 18 assertions and the existing user/role suites passed; typecheck, locale, validator and diff checks passed. Status moved to `Review` pending live demo count and 1280 px accessibility checks.

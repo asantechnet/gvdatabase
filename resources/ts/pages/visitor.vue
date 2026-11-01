@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { translate, translateBackendValue } from '@/utils/localization'
-import type { ConsultantReview } from '@/api/applicants'
+import { BUILT_IN_SERVICES, type BuiltInService, type ConsultantReview } from '@/api/applicants'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -130,8 +130,10 @@ const validateForm = () => {
     formErrors.value.service = translate('pages.contracts.visitor.visitor.serviceIsRequired')
     isValid = false
   }
-  else if (visitorData.value.service.length < 2) {
-    formErrors.value.service = translate('pages.contracts.visitor.visitor.serviceMustBeAtLeast2Characters')
+  else if (!BUILT_IN_SERVICES.includes(visitorData.value.service as (typeof BUILT_IN_SERVICES)[number])) {
+    // The select only offers built-in services; this catches a stale or
+    // hand-crafted value before the request is sent.
+    formErrors.value.service = translate('pages.contracts.visitor.visitor.serviceIsRequired')
     isValid = false
   }
   else {
@@ -203,6 +205,10 @@ const reload = () => {
   void fetchVisitors()
 }
 
+// The list shows the service in the reader's language; legacy free text that
+// has not been normalized yet stays visible exactly as stored.
+const serviceLabel = (visitor: Visitor) => visitor.service_label_key ? translate(visitor.service_label_key) : (visitor.service_label || visitor.service)
+
 const headers = computed(() => [
   { title: translate('common.fields.name'), key: 'name', sortable: true },
   { title: translate('common.messages.contact'), key: 'contact', sortable: true },
@@ -222,7 +228,7 @@ const visitorReportRow = (visitor: Visitor): string[] => [
   visitor.name,
   visitor.contact,
   visitor.email || '—',
-  visitor.service,
+  serviceLabel(visitor),
   visitor.education_level?.name || '—',
   visitor.province?.name || '—',
   visitor.english_level?.name || '—',
@@ -256,7 +262,8 @@ const addNewVisitor = async () => {
     const data: CreateVisitorData = {
       name: visitorData.value.name,
       contact: visitorData.value.contact,
-      service: visitorData.value.service,
+      // validateForm() guarantees one of the four keys before we get here.
+      service: visitorData.value.service as BuiltInService,
       date: new Date().toISOString().split('T')[0],
       ...profilePayload(),
     }
@@ -288,7 +295,7 @@ const editVisitor = async () => {
     const data: UpdateVisitorData = {
       name: visitorData.value.name,
       contact: visitorData.value.contact,
-      service: visitorData.value.service,
+      service: visitorData.value.service as BuiltInService,
       ...profilePayload(),
     }
 
@@ -312,7 +319,9 @@ const openEditDialog = (visitor: Visitor) => {
     name: visitor.name,
     contact: visitor.contact,
     email: visitor.email ?? '',
-    service: visitor.service,
+    // Only canonical keys are selectable; a legacy free-text service has to be
+    // re-chosen from the four built-ins before the visitor can be saved again.
+    service: visitor.service_key ?? '',
     education_level_id: visitor.education_level_id,
     age: visitor.age,
     grade_score: visitor.grade_score,
@@ -486,6 +495,7 @@ onMounted(async () => {
           <VBtn
             icon="tabler-printer"
             variant="text"
+            :aria-label="$t('common.actions.print')"
             :loading="isTableLoading"
             @click="printTable"
           />
@@ -514,7 +524,7 @@ onMounted(async () => {
     <TableEmptyState
       v-else-if="!total"
       :icon="isFollowUpList ? 'tabler-list-check' : 'tabler-walk'"
-      :description="$t('common.messages.noRecordsFound')"
+      :description="isFollowUpList ? $t('pages.contracts.visitor.visitor.followUpEmpty') : $t('common.messages.noRecordsFound')"
     />
     <ResponsiveDataTableServer
       v-else
@@ -561,6 +571,10 @@ onMounted(async () => {
         >{{ item.email || '—' }}</span>
       </template>
 
+      <template #item.service="{ item }">
+        {{ serviceLabel(item) }}
+      </template>
+
       <template #item.education="{ item }">
         <div class="d-flex flex-column">
           <span>{{ item.education_level?.name || '—' }}</span>
@@ -604,6 +618,7 @@ onMounted(async () => {
           <VBtn
             v-if="!isFollowUpList"
             icon="tabler-star"
+            :aria-label="$t('pages.contracts.visitor.visitor.markForFollowUp')"
             variant="text"
             size="small"
             color="warning"
@@ -619,7 +634,7 @@ onMounted(async () => {
           </VBtn>
           <VMenu v-if="isFollowUpList && ability.can('read', 'create_contracts') && ability.can('read', 'view_contracts')">
             <template #activator="{ props: menuProps }">
-              <VBtn v-bind="menuProps" icon="tabler-file-plus" variant="text" size="small"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent">{{ $t('serviceContracts.create') }}</VTooltip></VBtn>
+              <VBtn v-bind="menuProps" icon="tabler-file-plus" variant="text" size="small" :aria-label="$t('serviceContracts.create')"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent">{{ $t('serviceContracts.create') }}</VTooltip></VBtn>
             </template>
             <VList>
               <VListItem :title="$t('educational.builtInServices.scholarship')" :to="{ name: 'scholarship-contracts', query: { visitor: item.id } }" />
@@ -639,6 +654,7 @@ onMounted(async () => {
           <VBtn
             v-if="isFollowUpList"
             icon="tabler-star-off"
+            :aria-label="$t('pages.contracts.visitor.visitor.removeFromFollowUp')"
             variant="text"
             size="small"
             color="warning"
@@ -655,6 +671,7 @@ onMounted(async () => {
           <VBtn
             v-if="canReview"
             icon="tabler-message"
+            :aria-label="$t('pages.contracts.visitor.visitor.consultantReview')"
             variant="text"
             size="small"
             color="success"
@@ -673,6 +690,7 @@ onMounted(async () => {
             variant="text"
             size="small"
             color="medium-emphasis"
+            :aria-label="$t('pages.contracts.visitor.visitor.editVisitor')"
             :loading="isSaving"
             @click="openEditDialog(item)"
           >
@@ -688,6 +706,7 @@ onMounted(async () => {
             variant="text"
             size="small"
             color="error"
+            :aria-label="$t('pages.contracts.visitor.visitor.deleteVisitor')"
             :loading="isSaving"
             @click="openDeleteDialog(item)"
           >

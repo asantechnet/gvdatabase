@@ -42,13 +42,13 @@ class UnifiedPackageServiceTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->postJson("/api/applicants/{$applicant->id}/change-stage", ['stage_id' => $approved->id])->assertOk();
+        $this->postJson("/api/applicants/{$applicant->id}/change-stage", ['stage_id' => $approved->id, 'note' => 'Visa approved'])->assertOk();
         $win = CaseWin::firstOrFail();
         $this->assertSame($employee->id, $win->employee_id);
         $this->assertSame('visa_approved', $win->stage_key);
         $this->assertDatabaseHas('notifications', ['notification_key' => "case.won.{$win->id}"]);
 
-        $this->postJson("/api/applicants/{$applicant->id}/change-stage", ['stage_id' => $completed->id])->assertOk();
+        $this->postJson("/api/applicants/{$applicant->id}/change-stage", ['stage_id' => $completed->id, 'note' => 'Case completed'])->assertOk();
         $this->assertSame(1, CaseWin::count());
     }
 }

@@ -1,4 +1,5 @@
 import api from './axios'
+import type { Currency } from './currency'
 import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 
 export type AssetCondition = 'new' | 'good' | 'fair' | 'poor' | 'damaged'
@@ -8,7 +9,15 @@ export interface AssetItem {
   serial_number: string
   item: string
   quantity: number
+  /** Unit price. The total is quantity × price. */
   price: number
+  currency_id: number | null
+  currency?: Currency | null
+  acquisition_date: string | null
+  useful_life_years: number | null
+  salvage_value: number
+  total_value?: number
+  book_value?: number | null
   model: string
   condition: AssetCondition
   office_id: number | null
@@ -37,7 +46,10 @@ export interface AssetParams {
   condition?: AssetCondition
 }
 
-export type AssetPayload = Omit<AssetItem, 'id' | 'office' | 'allocated_quantity' | 'available_quantity'>
+export type AssetPayload = Omit<AssetItem, 'id' | 'office' | 'currency' | 'allocated_quantity' | 'available_quantity' | 'total_value' | 'book_value' | 'currency_id' | 'acquisition_date'> & {
+  currency_id: number
+  acquisition_date: string
+}
 
 const unwrapData = <T>(response: unknown): T => {
   let payload = response

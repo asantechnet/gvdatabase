@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Asset;
+use App\Models\Currency;
 use App\Models\Office;
 use Illuminate\Database\Seeder;
 
@@ -11,6 +12,11 @@ class AssetSeeder extends Seeder
     public function run(): void
     {
         $officeId = Office::query()->where('code', 'HQ')->value('id');
+        $currencyId = Currency::query()->where('is_base', true)->value('id');
+
+        if (! $currencyId) {
+            throw new \RuntimeException('AssetSeeder requires a base currency. Run CurrencySeeder first.');
+        }
 
         $assets = [
             ['serial_number' => 'SN-1001', 'item' => 'Dell Laptop', 'quantity' => 1, 'model' => 'XPS 15', 'condition' => 'good', 'price' => 1200],
@@ -23,7 +29,14 @@ class AssetSeeder extends Seeder
         foreach ($assets as $asset) {
             Asset::updateOrCreate(
                 ['serial_number' => $asset['serial_number']],
-                [...$asset, 'office_id' => $officeId],
+                [
+                    ...$asset,
+                    'office_id' => $officeId,
+                    'currency_id' => $currencyId,
+                    'acquisition_date' => now()->subMonths(18)->toDateString(),
+                    'useful_life_years' => 4,
+                    'salvage_value' => 0,
+                ],
             );
         }
     }

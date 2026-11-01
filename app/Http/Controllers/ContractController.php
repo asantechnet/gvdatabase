@@ -34,7 +34,7 @@ class ContractController extends Controller
     use PaginatesLists;
     private const RELATIONS = [
         'template.contractType', 'templateVersion.country', 'templateVersion.language',
-        'contractCountry', 'contractLanguage', 'contractType', 'applicantContracts.currency',
+        'contractCountry', 'contractLanguage',        'contractType', 'parentContract:id,contract_number', 'applicantContracts.currency',
         'employee.position', 'employee.office', 'employee.user',
         'applicant.scholarshipDetail.educationLevel', 'applicant.scholarshipDetail.semester',
         'applicant.scholarshipDetail.country', 'applicant.scholarshipDetail.scholarship',
@@ -62,6 +62,7 @@ class ContractController extends Controller
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable'],
             'only_cancelled' => ['nullable', 'boolean'],
+            'expiring' => ['nullable', 'boolean'],
             'service_id' => ['prohibited'], 'service_ids' => ['prohibited'],
             'without_service' => ['prohibited'],
         ]);
@@ -85,6 +86,15 @@ class ContractController extends Controller
         }
         if (! empty($data['status'])) {
             $query->where('status', $data['status']);
+        }
+        // Same definition as the dashboard's contracts-requiring-attention tile:
+        // an active, non-cancelled contract whose end date is on or before 30
+        // days from today (already-expired active contracts included).
+        if ($request->boolean('expiring')) {
+            $query->where('is_cancelled', false)
+                ->where('status', 'active')
+                ->whereNotNull('end_date')
+                ->whereDate('end_date', '<=', now()->addDays(30)->toDateString());
         }
         if (! empty($data['counterparty'])) {
             $query->where('counterparty', $data['counterparty']);
