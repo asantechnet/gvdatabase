@@ -2219,6 +2219,8 @@
           "positionIsRequired": "موقف اړین دی",
           "salaryIsRequired": "معاش اړین دی",
           "salaryMustBeGreaterThan0": "معاش باید له صفر څخه زیات وي",
+          "positionSalaryTitle": "دا موقف معاش بدلوي",
+          "positionSalaryConfirm": "د {position} موقف د {salary} معاش سره تړلی دی. دا معاش دې کارمند ته وکارول شي؟",
           "educationLevelIsRequired": "د زده کړې کچه اړینه ده",
           "contractDurationIsRequired": "د قرارداد موده اړینه ده",
           "joinDateIsRequired": "د شاملېدو نېټه اړینه ده",
@@ -3517,6 +3519,7 @@
     "payrolls": {
       "title": "معاشونه",
       "description": "توضیحات",
+      "subtitle": "د هرې میاشتې معاش پاڼې جوړې، تادیه او تطبیق کړئ. مقدارونه د شرکت په اصلي پولي واحد ښودل کیږي.",
       "unableToLoad": "د معاش معلومات راوړل ناکام شول.",
       "unableToGenerate": "د معاش پاڼو جوړول ناکام شول.",
       "generate": "د معاش پاڼې جوړې کړه",

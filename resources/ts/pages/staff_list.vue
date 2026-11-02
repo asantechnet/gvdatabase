@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { translate } from '@/utils/localization'
+import { formatActiveMoney, translate } from '@/utils/localization'
 import { computed, onMounted, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import EmployeeApi, { type CreateEmployeeData, type Employee, type EmployeeAccount, type EmployeeParams, type UpdateEmployeeData } from '@/api/employee'
 import PositionApi, { type Position } from '@/api/position'
+import CurrencyApi, { type Currency } from '@/api/currency'
 import OfficeApi, { type Office } from '@/api/office'
 import DepartmentApi, { type Department } from '@/api/department'
 import LeaveRequestApi, { type LeaveRequest } from '@/api/leaveRequests'
@@ -94,6 +95,18 @@ const isPositionsLoading = ref(false)
 const positionOptions = ref<string[]>([])
 const positionIdMap = ref<Record<string, number>>({})
 const positionSalaryMap = ref<Record<string, number>>({})
+// Salaries are workspace money: the company's base currency is the only
+// currency a staff record carries, so the directory prints its code.
+const baseCurrency = ref<Pick<Currency, 'code' | 'symbol' | 'decimalPlaces'> | null>(null)
+const formatSalaryValue = (value: number | null | undefined) => formatActiveMoney(value, baseCurrency.value ?? { code: 'AFN' })
+const formatSalary = (staff: Staff) => formatSalaryValue(staff.salary)
+// Changing the position can rewrite pay from the position catalogue. Keep the
+// previous value so a cancelled confirmation restores the record.
+const positionBeforeChange = ref<string | null>(null)
+const pendingPosition = ref<string | null>(null)
+const isPositionSalaryDialogVisible = ref(false)
+const pendingPositionSalary = computed(() => (pendingPosition.value === null ? null : positionSalaryMap.value[pendingPosition.value] ?? null))
+
 const offices = ref<Office[]>([])
 const departments = ref<Department[]>([])
 const userAccounts = ref<EmployeeAccount[]>([])
@@ -431,6 +444,7 @@ const openAddStaffDialog = () => {
     is_commission_based: false,
     service_commissions: [],
   }
+  positionBeforeChange.value = ''
   resetFormErrors()
   formSubmissionError.value = ''
   isAddStaffDialogVisible.value = true
@@ -473,6 +487,7 @@ const openEditStaffDialog = (staff: Staff) => {
     is_commission_based: staff.is_commission_based ?? false,
     service_commissions: staff.service_commissions ?? [],
   }
+  positionBeforeChange.value = staff.position
   resetFormErrors()
   formSubmissionError.value = ''
   isEditStaffDialogVisible.value = true
@@ -642,6 +657,17 @@ const deleteLeave = async (id: number) => {
   }
 }
 
+const fetchBaseCurrency = async () => {
+  try {
+    const response = await CurrencyApi.getAll()
+
+    baseCurrency.value = response.data.find(currency => currency.isBase) ?? null
+  }
+  catch (error) {
+    console.error('Error fetching base currency:', error)
+  }
+}
+
 const fetchPositions = async () => {
   try {
     isPositionsLoading.value = true
@@ -756,8 +782,50 @@ const updateSelectedAccountEmail = (userId: number | null) => {
 }
 
 const applyPositionSalary = (position: string) => {
-  if (selectedStaff.value && position in positionSalaryMap.value)
-    selectedStaff.value.salary = positionSalaryMap.value[position]
+  if (!selectedStaff.value)
+    return
+
+  const catalogueSalary = positionSalaryMap.value[position]
+
+  // No catalogue salary, or the same salary: nothing is rewritten, so no
+  // confirmation is needed.
+  if (catalogueSalary === undefined || catalogueSalary === Number(selectedStaff.value.salary)) {
+    positionBeforeChange.value = position
+
+    return
+  }
+
+  pendingPosition.value = position
+  isPositionSalaryDialogVisible.value = true
+}
+
+const confirmPositionSalary = () => {
+  if (!selectedStaff.value || pendingPosition.value === null)
+    return
+
+  const salary = positionSalaryMap.value[pendingPosition.value]
+
+  selectedStaff.value.position = pendingPosition.value
+  if (salary !== undefined)
+    selectedStaff.value.salary = salary
+
+  positionBeforeChange.value = pendingPosition.value
+  pendingPosition.value = null
+  isPositionSalaryDialogVisible.value = false
+}
+
+const cancelPositionSalary = () => {
+  if (selectedStaff.value && positionBeforeChange.value !== null)
+    selectedStaff.value.position = positionBeforeChange.value
+
+  pendingPosition.value = null
+  isPositionSalaryDialogVisible.value = false
+}
+
+// Closing the dialog by Esc or an outside click is a cancellation too.
+const handlePositionSalaryDialog = (open: boolean) => {
+  if (!open && pendingPosition.value !== null)
+    cancelPositionSalary()
 }
 
 const addStaff = async () => {
@@ -996,7 +1064,7 @@ const printTable = async () => {
 }
 
 onMounted(async () => {
-  const [, officeRows, departmentRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), DepartmentApi.getAll(), fetchUserAccounts()])
+  const [, officeRows, departmentRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), DepartmentApi.getAll(), fetchUserAccounts(), fetchBaseCurrency()])
 
   offices.value = officeRows.filter(office => office.status === 'active')
   departments.value = departmentRows
@@ -1104,7 +1172,7 @@ onMounted(async () => {
           @update:options="updateTableOptions"
         >
           <template #item.salary="{ item }">
-            <div>${{ Number(item.salary || 0).toFixed(2) }}</div>
+            <div>{{ formatSalary(item) }}</div>
           </template>
 
           <!-- Quick contact for the employee directory: the same menu the CRM
@@ -1175,6 +1243,7 @@ onMounted(async () => {
                 variant="text"
                 size="small"
                 color="primary"
+                :aria-label="$t('common.ui.printEmploymentContract')"
                 @click="printEmployeeContract(item)"
               >
                 <VIcon icon="tabler-file-description" /><VTooltip
@@ -1189,6 +1258,7 @@ onMounted(async () => {
                 variant="text"
                 size="small"
                 color="primary"
+                :aria-label="$t('pages.settings.staffList.staffList.managePaidOffDays')"
                 @click="openLeaveDialog(item)"
               >
                 <VIcon icon="tabler-calendar-time" /><VTooltip
@@ -1204,6 +1274,7 @@ onMounted(async () => {
                 variant="text"
                 size="small"
                 color="medium-emphasis"
+                :aria-label="$t('pages.settings.staffList.staffList.editStaffRecord')"
                 @click="openEditStaffDialog(item)"
               >
                 <VIcon icon="tabler-edit" /><VTooltip
@@ -1233,6 +1304,7 @@ onMounted(async () => {
                 variant="text"
                 size="small"
                 color="error"
+                :aria-label="$t('pages.settings.staffList.staffList.deleteStaffRecord')"
                 @click="openDeleteStaffDialog(item)"
               >
                 <VIcon icon="tabler-trash" /><VTooltip
@@ -2229,6 +2301,40 @@ onMounted(async () => {
           </VBtn>
           <VBtn color="primary" :loading="isLoading" @click="saveSelfProfile">
             {{ $t('common.actions.save') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Position / salary confirmation: a position change never rewrites pay silently. -->
+    <VDialog
+      v-model="isPositionSalaryDialogVisible"
+      max-width="520px"
+      @update:model-value="handlePositionSalaryDialog"
+    >
+      <VCard>
+        <VCardTitle class="pa-5">
+          <span class="headline">{{ $t('pages.settings.staffList.staffList.positionSalaryTitle') }}</span>
+        </VCardTitle>
+        <VCardText>
+          {{ $t('pages.settings.staffList.staffList.positionSalaryConfirm', {
+            position: pendingPosition,
+            salary: formatSalaryValue(pendingPositionSalary),
+          }) }}
+        </VCardText>
+        <VCardActions class="pa-5">
+          <VSpacer />
+          <VBtn
+            variant="tonal"
+            @click="cancelPositionSalary"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="primary"
+            @click="confirmPositionSalary"
+          >
+            {{ $t('common.actions.confirm') }}
           </VBtn>
         </VCardActions>
       </VCard>

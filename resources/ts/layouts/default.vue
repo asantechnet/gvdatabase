@@ -75,13 +75,16 @@ watch([isFallbackStateActive, refLoadingIndicator], () => {
   transition: background-color 0.18s ease;
 }
 
-/* Navigation remains physically stable in RTL: controls retain their LTR
-   positions while each label can still render in its own writing direction. */
-[dir='rtl'] .layout-navbar .navbar-content-container {
+/* The application header is physically LTR in every locale and must never
+   inherit the document direction (RTL for Dari/Pashto). Text inside it keeps
+   its own writing direction, so Persian inputs and button labels still read
+   right-to-left. See docs/facts/rtl-direction.md before changing this. */
+.layout-navbar .navbar-content-container {
   direction: ltr;
 }
 
 [dir='rtl'] .layout-navbar .navbar-content-container input,
+[dir='rtl'] .layout-navbar .navbar-content-container textarea,
 [dir='rtl'] .layout-navbar .navbar-content-container .v-btn__content {
   direction: rtl;
 }

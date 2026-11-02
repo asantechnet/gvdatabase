@@ -69,6 +69,7 @@
 - 2026-10-19 — PLAN: Plan saved before implementation.
 - 2026-10-19 — PROGRESS: Fixed all 24 miscompiled selectors in `educational-dashboard.vue`, `timesheet_template.vue`, `contract_page_template.vue`, `contract_cover_template.vue`; rebuilt committed `public/build` assets, `public/sw.js` and `public/version.json`.
 - 2026-10-19 — VALIDATION: `npm run typecheck` exit 0; `npm run build` exit 0; scanner clean; headless Chrome confirmed RTL root not transformed and print selectors applied to their intended elements.
+- 2026-11-01 — REGRESSION + FIX: `TableScrollAffordance.vue` and `TablePaginationFooter.vue` reintroduced the `:global([dir='rtl']) <descendant>` pattern. All four selectors compiled to a bare `[dir="rtl"]` rule, which applied `transform: scaleX(-1)` to `<html>` and mirrored the whole application (text read backwards) in Dari/Pashto. Rewrote them as single `:global([dir='rtl'] …)` selectors; verified in the running SPA that `<html>` computes `transform: none`, the shell mirrors correctly in RTL and stays unchanged in LTR.
 
 ### 10. Completion summary
 - Delivered: RTL page rotation removed and all frontend `:global(...)`-prefixed scoped selectors corrected so RTL/print declarations reach their intended elements.

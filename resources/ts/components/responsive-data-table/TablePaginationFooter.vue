@@ -143,11 +143,13 @@ const changePageSize = (value: number | null) => {
   gap: 0.125rem;
 }
 
-:global([dir='rtl']) .table-pagination-footer__controls {
+/* Keep the whole selector inside :global(): Vue's scoped compiler drops every
+   part after it, which would otherwise apply these declarations to <html>. */
+:global([dir='rtl'] .table-pagination-footer__controls) {
   flex-direction: row-reverse;
 }
 
-:global([dir='rtl']) .table-pagination-footer__controls .v-icon {
+:global([dir='rtl'] .table-pagination-footer__controls .v-icon) {
   transform: scaleX(-1);
 }
 

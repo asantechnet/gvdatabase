@@ -60,6 +60,8 @@ onUnmounted(() => {
     :model-value="pendingCount > 0"
     color="error"
     location="top end"
+    offset-x="8"
+    offset-y="8"
   >
     <IconBtn
       :aria-label="$t('pages.audits.openPage')"

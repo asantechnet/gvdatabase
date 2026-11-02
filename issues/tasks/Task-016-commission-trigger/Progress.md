@@ -3,9 +3,9 @@
 ## Status snapshot
 - Status: `Blocked`
 - Owner: `Buffy (erp-task-implementer)`
-- Last updated: `2026-10-31`
+- Last updated: `2026-11-01`
 - Current focus: `Pluralization and trigger-independent sync integrity are implemented; the accrual trigger itself is blocked on the product decision.`
-- Blocker: `Product/HR owner has not recorded whether contract completion or case completion is the authoritative accrual event. The task forbids changing the trigger without that decision.`
+- Blocker: `The product owner explicitly deferred the trigger decision on 2026-11-01 ("leave blocked; only keep the pluralization fix"). The task forbids changing the trigger without that decision, so Task-016 remains Blocked by design.`
 - Next action: `Record the approved trigger (and its approver) here, then align CommissionService, the observer path and the page wording to that single event.`
 
 ## Acceptance criteria progress
@@ -46,6 +46,7 @@ The paid-accrual test is the important one: the old `updateOrCreate` path would 
 
 ## Decisions and deviations
 - **Trigger left unchanged.** The task says the product decision is a hard precondition and provides a stop condition: implement only the pluralization copy and leave the trigger unchanged with the blocker explicit. That is what was done, plus the trigger-independent sync-integrity fix the same scope explicitly requires.
+- **Trigger decision explicitly deferred (2026-11-01).** When asked to choose between contract completion, case completion or keeping the task blocked, the product owner selected "Leave blocked; only keep the pluralization fix". No trigger, observer or page-copy rename was made. The existing case-completion gate remains the current implementation without being endorsed as approved policy, and this task's deliverable is final unless the decision is later recorded.
 - **Pluralization split into two keys.** `syncedCases` and `syncedVoided` have independent counts; vue-i18n allows only one `count` plural per message, so composing two pluralized sentences is the correct form. The old single key combined both counts and could not pluralize both.
 - **Existing case-completion behavior is not endorsed.** It remains because it is the current implementation and tests; changing it either way requires the approver's decision. The page still says "Reconcile completed cases", matching the current code but not a recorded product decision.
 - **No browser capture** for the toast/preview strings; the evidence is the locale assertions and typecheck.
@@ -65,3 +66,4 @@ The paid-accrual test is the important one: the old `updateOrCreate` path would 
 - `2026-10-31 00:00 Asia/Kabul` Created task record from validated HR-006 and FIN-010; implementation has not started.
 - `2026-10-31` Claimed by `Buffy (erp-task-implementer)`, status → `In Progress`.
 - `2026-10-31` Confirmed the product decision is still unrecorded; did not change the trigger. Implemented the stop-condition pluralization and fixed settled-accrual resurrection in `lineAccruals()`. Added two regression tests; 12/12 pass. Status → `Blocked` pending the product/HR decision.
+- `2026-11-01` Product owner explicitly deferred the trigger decision and chose to keep only the pluralization fix. No code, page copy or trigger change. Task remains `Blocked`; recorded as the final state for this task.

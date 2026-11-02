@@ -571,7 +571,7 @@ onMounted(load)
     <DataTablePageKpis
       :items="rows"
       :title="$t('pages.payrolls.title')"
-      :description="$t('pages.payrolls.description')"
+      :description="$t('pages.payrolls.subtitle')"
       icon="tabler-wallet"
     />
     <VCard class="payrolls-screen">
@@ -746,6 +746,7 @@ onMounted(load)
                     variant="text"
                     color="primary"
                     :title="$t('pages.payrolls.createPayslip')"
+                    :aria-label="$t('pages.payrolls.createPayslip')"
                     @click="openCreate(item)"
                   />
                   <template v-else>
@@ -754,6 +755,7 @@ onMounted(load)
                       size="small"
                       variant="text"
                       :title="$t('pages.payrolls.printPayslip')"
+                      :aria-label="$t('pages.payrolls.printPayslip')"
                       @click="openPayslip(item)"
                     />
                     <VBtn
@@ -761,6 +763,7 @@ onMounted(load)
                       size="small"
                       variant="text"
                       :title="$t('pages.payrolls.addDeduction')"
+                      :aria-label="$t('pages.payrolls.addDeduction')"
                       @click="openDeductions(item.salary!)"
                     />
                     <VBtn
@@ -769,6 +772,7 @@ onMounted(load)
                       variant="text"
                       color="success"
                       :title="$t('pages.payrolls.addPayment')"
+                      :aria-label="$t('pages.payrolls.addPayment')"
                       @click="openPayment(item.salary!)"
                     />
                     <VBtn
@@ -777,6 +781,7 @@ onMounted(load)
                       variant="text"
                       color="error"
                       :title="$t('pages.payrolls.deletePayslip')"
+                      :aria-label="$t('pages.payrolls.deletePayslip')"
                       @click="confirmDelete(item.salary!)"
                     />
                   </template>
@@ -833,6 +838,7 @@ onMounted(load)
                     size="small"
                     variant="text"
                     :title="$t('pages.payrolls.printReceipt')"
+                    :aria-label="$t('pages.payrolls.printReceipt')"
                     @click="openAdvanceReceipt(item)"
                   />
                   <VBtn
@@ -841,6 +847,7 @@ onMounted(load)
                     variant="text"
                     color="error"
                     :title="$t('common.actions.delete')"
+                    :aria-label="$t('common.actions.delete')"
                     @click="confirmDeleteAdvance(item)"
                   />
                 </div>

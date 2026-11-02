@@ -7,8 +7,9 @@ This directory is the maintained reference for implemented behavior. Read the re
 | Testing workflow and performance | [testing.md](testing.md) | Test database configuration, bulk authorization seeding, measured setup cost, commands, parallel/isolated runs, guardrails and troubleshooting |
 | PWA and release updates | [pwa.md](pwa.md) | Installation, branding, release identity, update checks, consent, caches, offline behavior, manual deployment, troubleshooting and regression checks |
 | Background polling and error feedback | [background-polling.md](background-polling.md) | Active-tab scheduling, quiet API reads, auth retries, deferred heartbeat notices and regression procedure |
+| RTL direction and the always-LTR header | [rtl-direction.md](rtl-direction.md) | Locale-driven document direction, header direction override, scoped-style `:global()` mirroring pitfall, browser diagnosis and prevention checks |
 
-PWA, background polling and testing behavior have been consolidated here so far. The absence of a facts file for another feature does not make its older plan current.
+PWA, background polling, RTL direction and testing behavior have been consolidated here so far. The absence of a facts file for another feature does not make its older plan current.
 
 ## Maintenance rules
 

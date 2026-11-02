@@ -83,11 +83,13 @@ const endLabel = computed(() => localized('$vuetify.pagination.ariaLabel.next', 
   white-space: nowrap;
 }
 
-:global([dir='rtl']) .table-scroll-affordance {
+/* Keep the whole selector inside :global(): Vue's scoped compiler drops every
+   part after it, which would otherwise apply these declarations to <html>. */
+:global([dir='rtl'] .table-scroll-affordance) {
   flex-direction: row-reverse;
 }
 
-:global([dir='rtl']) .table-scroll-affordance__control .v-icon {
+:global([dir='rtl'] .table-scroll-affordance__control .v-icon) {
   transform: scaleX(-1);
 }
 </style>
