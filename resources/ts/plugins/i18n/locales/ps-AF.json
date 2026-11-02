@@ -4094,6 +4094,7 @@
     "current": "اوسنی",
     "caseCreated": "ستاسو قضیه جوړه شوې",
     "universityApplications": "د پوهنتون غوښتنلیکونه",
+    "total": "ټول",
     "universityHelp": "د هر پوهنتون، داخلې دورې او وروستي حالت معلومات وګورئ.",
     "university": "پوهنتون",
     "intake": "د داخلې دوره",
@@ -4703,6 +4704,8 @@
     "currentPageReport": "د اوسنۍ پاڼې غوښتونکي"
   },
   "agencyDashboard": {
+    "title": "د ډشبورډ لنډیز",
+    "welcomeBack": "بیا ښه راغلاست. دا ستاسو د عملیاتو وروستی انځور دی.",
     "noPriorityItems": "په دې کټګوریو کې د دوسیې یا قرارداد خبرتیا نشته.",
     "refresh": "تازه کول",
     "unspecifiedCurrency": "نامعلوم اسعار",

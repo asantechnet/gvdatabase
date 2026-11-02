@@ -5091,6 +5091,7 @@
     "current": "فعلی",
     "caseCreated": "پرونده شما ایجاد شده است",
     "universityApplications": "درخواست‌های دانشگاه",
+    "total": "مجموع",
     "universityHelp": "دانشگاه، ورودی و آخرین وضعیت هر درخواست را ببینید.",
     "university": "دانشگاه",
     "intake": "ورودی",
@@ -5700,6 +5701,8 @@
     "currentPageReport": "متقاضیان صفحه فعلی"
   },
   "agencyDashboard": {
+    "title": "نمای کلی داشبورد",
+    "welcomeBack": "خوش آمدید. این تازه‌ترین تصویر عملیاتی شما است.",
     "noPriorityItems": "در این دسته‌ها هشدار پرونده یا قرارداد وجود ندارد.",
     "refresh": "تازه‌سازی",
     "unspecifiedCurrency": "واحد پول نامشخص",

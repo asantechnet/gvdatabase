@@ -5106,6 +5106,7 @@
     "current": "Current",
     "caseCreated": "Your case has been created",
     "universityApplications": "University applications",
+    "total": "Total",
     "universityHelp": "See each institution, intake, and latest application status.",
     "university": "University",
     "intake": "Intake",
@@ -5320,7 +5321,7 @@
     "agencyOverview": "Educational visa agency overview",
     "responsibleEmployee": "Counselor",
     "destinationCountry": "Destination country",
-    "activeCasesLabel": "active cases",
+    "activeCasesLabel": "Active cases",
     "awaitingApproval": "awaiting approval",
     "contractsReport": "Contracts",
     "servicesReport": "Service sales",
@@ -5715,6 +5716,8 @@
     "currentPageReport": "Applicants on the current page"
   },
   "agencyDashboard": {
+    "title": "Dashboard overview",
+    "welcomeBack": "Welcome back. Here is the latest operational picture.",
     "noPriorityItems": "No case or contract alerts in these categories.",
     "refresh": "Refresh",
     "unspecifiedCurrency": "Unspecified currency",
