@@ -43,9 +43,9 @@ function handleAuditNotification(event: Event) {
 
 const { start: startCountRefresh } = useVisiblePolling(refreshCount, 60_000);
 
-// Real-time channel: a raised flag delivers the new audit rows, the badge is
-// refreshed from the authoritative pending count and the user gets one notice
-// per batch (never per row).
+// Real-time channel: a raised flag delivers the new audit rows, the pending
+// count remains refreshed for audit-state logic, and the user gets one notice
+// per batch (never per row). The count is intentionally not shown as a badge.
 const { start: startHeartbeat } = useAuditHeartbeat((batch) => {
   pendingCount.value += batch.filter(
     (audit) => audit.audit_state === "pending",
@@ -66,30 +66,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <VBadge
-    v-if="canViewAudit"
-    :content="pendingCount > 99 ? '99+' : pendingCount"
-    :model-value="pendingCount > 0"
-    color="error"
-    location="top end"
-    offset-x="8"
-    offset-y="8"
-  >
+  <template v-if="canViewAudit">
     <IconBtn :aria-label="$t('pages.audits.openPage')" @click="openAudits">
       <VIcon icon="tabler-history" />
       <VTooltip activator="parent" location="bottom">
         {{ $t("pages.audits.openPage") }}
       </VTooltip>
     </IconBtn>
-  </VBadge>
+  </template>
 </template>
-
-<style scoped lang="scss">
-:deep(.v-badge__badge) {
-  min-inline-size: 22px;
-  padding-inline: 3px;
-  font-size: 0.625rem;
-  line-height: 1rem;
-  white-space: nowrap;
-}
-</style>
