@@ -20,7 +20,7 @@ withDefaults(
         v-for="index in 2"
         :key="index"
         class="skeleton-card skeleton-panel"
-        :style="{ blockSize: `${panelHeights[index - 1] || 480}px` }"
+        :style="{ blockSize: `${panelHeights[index - 1] || 420}px` }"
       >
         <b class="skeleton-title" />
         <div v-if="index === 1" class="skeleton-stages">
@@ -36,7 +36,7 @@ withDefaults(
         v-for="index in 3"
         :key="index"
         class="skeleton-card skeleton-panel"
-        :style="{ blockSize: `${panelHeights[index + 1] || 310}px` }"
+        :style="{ blockSize: `${panelHeights[index + 1] || 324}px` }"
       >
         <b class="skeleton-title" />
         <div v-if="index === 1" class="skeleton-metrics">
@@ -183,23 +183,13 @@ withDefaults(
     transform: translateX(100%);
   }
 }
-@media (max-width: 1439px) {
+@media (max-width: 1279px) {
   .dashboard-skeleton__secondary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .dashboard-skeleton__secondary > :last-child {
     grid-column: span 2;
   }
-}
-@media (max-width: 959px) {
-  .dashboard-skeleton__kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .dashboard-skeleton__primary {
-    grid-template-columns: 1fr;
-  }
-}
-@media (max-width: 599px) {
   .dashboard-skeleton__kpis {
     display: flex;
     overflow-x: auto;
@@ -209,6 +199,16 @@ withDefaults(
   .dashboard-skeleton__kpis::-webkit-scrollbar {
     display: none;
   }
+  .dashboard-skeleton__kpis .skeleton-kpi {
+    flex: 0 0 260px;
+  }
+}
+@media (max-width: 959px) {
+  .dashboard-skeleton__primary {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 599px) {
   .dashboard-skeleton__kpis .skeleton-kpi {
     flex: 0 0 min(82vw, 300px);
   }

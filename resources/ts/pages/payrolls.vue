@@ -1,225 +1,322 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useToast } from 'vue-toastification'
-import { VDialog } from 'vuetify/components'
-import SalaryApi, { type PayrollRegisterRow, type PayrollRegisterTotals, type Salary, type SalaryDeduction } from '@/api/salary'
-import CurrencyApi, { type Currency } from '@/api/currency'
-import EmployeeApi, { type Employee } from '@/api/employee'
-import EmployeeAdvanceApi, { type EmployeeAdvance, type CreateEmployeeAdvanceData } from '@/api/employeeAdvances'
-import SettingApi, { type Setting } from '@/api/setting'
-import PayslipTemplate, { type SalarySlipProps } from './templates/payslip_template.vue'
-import AdvanceReceiptTemplate, { type AdvanceReceiptData } from './templates/advance_receipt_template.vue'
-import PrintableListReport from '@/components/PrintableListReport.vue'
-import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
-import { apiErrorMessage } from '@/utils/apiErrors'
-import { formatActiveMoney, formatLocalizedDate, formatLocalizedNumber, translate } from '@/utils/localization'
-import { printDocument } from '@/utils/printDocument'
+import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { useToast } from "vue-toastification";
+import { VDialog } from "vuetify/components";
+import SalaryApi, {
+  type PayrollRegisterRow,
+  type PayrollRegisterTotals,
+  type Salary,
+  type SalaryDeduction,
+} from "@/api/salary";
+import CurrencyApi, { type Currency } from "@/api/currency";
+import EmployeeApi, { type Employee } from "@/api/employee";
+import EmployeeAdvanceApi, {
+  type EmployeeAdvance,
+  type CreateEmployeeAdvanceData,
+} from "@/api/employeeAdvances";
+import SettingApi, { type Setting } from "@/api/setting";
+import PayslipTemplate, {
+  type SalarySlipProps,
+} from "./templates/payslip_template.vue";
+import AdvanceReceiptTemplate, {
+  type AdvanceReceiptData,
+} from "./templates/advance_receipt_template.vue";
+import PrintableListReport from "@/components/PrintableListReport.vue";
+import ResponsiveDataTableServer from "@/components/responsive-data-table/ResponsiveDataTableServer.vue";
+import { apiErrorMessage } from "@/utils/apiErrors";
+import {
+  formatActiveMoney,
+  formatLocalizedDate,
+  formatLocalizedNumber,
+  translate,
+} from "@/utils/localization";
+import { printDocument } from "@/utils/printDocument";
 
-const toast = useToast()
-const { t: $t } = useI18n()
+const toast = useToast();
+const { t: $t } = useI18n();
 
 interface PayrollRow {
-  [key: string]: unknown
-  id: number
-  employeeId: number
-  name: string
-  position: string
-  base: number
-  workedDays: number | null
-  totalDays: number | null
-  offDays: number | null
-  absentDays: number | null
-  net: number | null
-  paid: number
-  outstanding: number
-  status: 'missing' | 'open' | 'partially_paid' | 'paid'
-  salary: Salary | null
+  [key: string]: unknown;
+  id: number;
+  employeeId: number;
+  name: string;
+  position: string;
+  base: number;
+  workedDays: number | null;
+  totalDays: number | null;
+  offDays: number | null;
+  absentDays: number | null;
+  net: number | null;
+  paid: number;
+  outstanding: number;
+  status: "missing" | "open" | "partially_paid" | "paid";
+  salary: Salary | null;
 }
 
-const today = new Date()
-const month = ref(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`)
-const activeTab = ref<'payslips' | 'advances'>('payslips')
-const search = ref('')
-const employees = ref<Employee[]>([])
+const today = new Date();
+const month = ref(
+  `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`,
+);
+const activeTab = ref<"payslips" | "advances">("payslips");
+const search = ref("");
+const employees = ref<Employee[]>([]);
 // The register is employee-driven and paged on the server; `employees` stays
 // the complete list the form pickers and receipts need.
-const registerRows = ref<PayrollRegisterRow[]>([])
-const page = ref(1)
-const perPage = ref(25)
-const total = ref(0)
+const registerRows = ref<PayrollRegisterRow[]>([]);
+const page = ref(1);
+const perPage = ref(25);
+const total = ref(0);
 // Filled from every register row right before printing.
-const reportRows = ref<string[][]>([])
-const salaries = ref<Salary[]>([])
-const advances = ref<EmployeeAdvance[]>([])
-const advancesPage = ref(1)
-const advancesPerPage = ref(25)
-const advancesTotal = ref(0)
-const companySetting = ref<Setting | null>(null)
-const baseCurrencyId = ref<number | null>(null)
-const baseCurrency = ref<Pick<Currency, 'id' | 'code' | 'symbol'> | null>(null)
-const loading = ref(false)
-const saving = ref(false)
+const reportRows = ref<string[][]>([]);
+const salaries = ref<Salary[]>([]);
+const advances = ref<EmployeeAdvance[]>([]);
+const advancesPage = ref(1);
+const advancesPerPage = ref(25);
+const advancesTotal = ref(0);
+const companySetting = ref<Setting | null>(null);
+const baseCurrencyId = ref<number | null>(null);
+const baseCurrency = ref<Pick<
+  Currency,
+  "id" | "code" | "symbol" | "decimalPlaces" | "rate"
+> | null>(null);
+const loading = ref(false);
+const saving = ref(false);
 
 // Dialog state ------------------------------------------------------------
-const generateDialog = ref(false)
-const deleteSalaryDialog = ref(false)
-const selectedSalary = ref<Salary | null>(null)
+const generateDialog = ref(false);
+const deleteSalaryDialog = ref(false);
+const selectedSalary = ref<Salary | null>(null);
 
-const createDialog = ref(false)
-const createForm = ref({ employee_id: null as number | null, amountPaid: 0, date: today.toISOString().slice(0, 10), remarks: '', deductions: [] as SalaryDeduction[] })
+const createDialog = ref(false);
+const createForm = ref({
+  employee_id: null as number | null,
+  amountPaid: 0,
+  date: today.toISOString().slice(0, 10),
+  remarks: "",
+  deductions: [] as SalaryDeduction[],
+});
 
-const deductionDialog = ref(false)
-const deductionForm = ref({ description: '', amount: 0 })
+const deductionDialog = ref(false);
+const deductionForm = ref({ description: "", amount: 0 });
 
-const paymentDialog = ref(false)
-const paymentForm = ref({ amount: 0, date: today.toISOString().slice(0, 10), remarks: '' })
+const paymentDialog = ref(false);
+const paymentForm = ref({
+  amount: 0,
+  date: today.toISOString().slice(0, 10),
+  remarks: "",
+});
 
-const payslipDialog = ref(false)
-const payslipProps = ref<SalarySlipProps | null>(null)
-const payslipRef = ref<InstanceType<typeof PayslipTemplate> | null>(null)
+const payslipDialog = ref(false);
+const payslipProps = ref<SalarySlipProps | null>(null);
+const payslipRef = ref<InstanceType<typeof PayslipTemplate> | null>(null);
 
-const advanceDialog = ref(false)
-const advanceForm = ref<{ employee_id: number | null; amount: number; date: string; remarks: string }>({ employee_id: null, amount: 0, date: today.toISOString().slice(0, 10), remarks: '' })
-const deleteAdvanceDialog = ref(false)
-const selectedAdvance = ref<EmployeeAdvance | null>(null)
-const advanceReceiptDialog = ref(false)
-const advanceReceipt = ref<AdvanceReceiptData | null>(null)
-const advanceReceiptRef = ref<InstanceType<typeof AdvanceReceiptTemplate> | null>(null)
+const advanceDialog = ref(false);
+const advanceForm = ref<{
+  employee_id: number | null;
+  amount: number;
+  date: string;
+  remarks: string;
+}>({
+  employee_id: null,
+  amount: 0,
+  date: today.toISOString().slice(0, 10),
+  remarks: "",
+});
+const deleteAdvanceDialog = ref(false);
+const selectedAdvance = ref<EmployeeAdvance | null>(null);
+const advanceReceiptDialog = ref(false);
+const advanceReceipt = ref<AdvanceReceiptData | null>(null);
+const advanceReceiptRef = ref<InstanceType<
+  typeof AdvanceReceiptTemplate
+> | null>(null);
 
 // Derived data ------------------------------------------------------------
-const salaryByEmployee = computed(() => new Map(salaries.value.map(salary => [salary.employee_id, salary])))
+const salaryByEmployee = computed(
+  () => new Map(salaries.value.map((salary) => [salary.employee_id, salary])),
+);
 
-const toPayrollRows = (register: PayrollRegisterRow[]): PayrollRow[] => register.map(({ employee, salary: rowSalary }) => {
-  const salary = rowSalary ?? salaryByEmployee.value.get(employee.id) ?? null
-  const base = salary ? Number(salary.totalAmount) - Number(salary.bonus ?? 0) : Number(employee.salary ?? 0)
+const toPayrollRows = (register: PayrollRegisterRow[]): PayrollRow[] =>
+  register.map(({ employee, salary: rowSalary }) => {
+    const salary = rowSalary ?? salaryByEmployee.value.get(employee.id) ?? null;
+    const base = salary
+      ? Number(salary.totalAmount) - Number(salary.bonus ?? 0)
+      : Number(employee.salary ?? 0);
 
-  return {
-    id: employee.id,
-    employeeId: employee.id,
-    name: employee.name,
-    position: typeof employee.position === 'string' ? employee.position : '',
-    base,
-    workedDays: salary ? Number(salary.workedDays ?? 0) : null,
-    totalDays: salary ? Number(salary.totalDays ?? 0) : null,
-    offDays: salary ? Number(salary.offDays ?? 0) : null,
-    absentDays: salary ? Number(salary.absentDays ?? 0) : null,
-    net: salary ? Number(salary.netAmount ?? 0) : null,
-    paid: salary ? Number(salary.amountPaid ?? 0) : 0,
-    outstanding: salary ? Number(salary.amountOutstanding ?? 0) : 0,
-    status: !salary ? 'missing' : (salary.paymentStatus ?? 'open'),
-    salary,
-  }
-})
+    return {
+      id: employee.id,
+      employeeId: employee.id,
+      name: employee.name,
+      position: typeof employee.position === "string" ? employee.position : "",
+      base,
+      workedDays: salary ? Number(salary.workedDays ?? 0) : null,
+      totalDays: salary ? Number(salary.totalDays ?? 0) : null,
+      offDays: salary ? Number(salary.offDays ?? 0) : null,
+      absentDays: salary ? Number(salary.absentDays ?? 0) : null,
+      net: salary ? Number(salary.netAmount ?? 0) : null,
+      paid: salary ? Number(salary.amountPaid ?? 0) : 0,
+      outstanding: salary ? Number(salary.amountOutstanding ?? 0) : 0,
+      status: !salary ? "missing" : (salary.paymentStatus ?? "open"),
+      salary,
+    };
+  });
 
-const rows = computed<PayrollRow[]>(() => toPayrollRows(registerRows.value))
+const rows = computed<PayrollRow[]>(() => toPayrollRows(registerRows.value));
 
 // The month-wide figures come from the API, so they describe the whole
 // register rather than the visible page.
-const emptyTotals: PayrollRegisterTotals = { net: 0, paid: 0, outstanding: 0, generated: 0, missing: 0 }
-const totals = ref<PayrollRegisterTotals>({ ...emptyTotals })
+const emptyTotals: PayrollRegisterTotals = {
+  net: 0,
+  paid: 0,
+  outstanding: 0,
+  generated: 0,
+  missing: 0,
+};
+const totals = ref<PayrollRegisterTotals>({ ...emptyTotals });
 
 // The register is printed in the payslip currency; when the visible page has
 // no payslips yet (nothing generated) the company's base currency is used.
-const currencyCode = computed(() => salaries.value[0]?.currency?.code ?? baseCurrency.value?.code ?? 'AFN')
-const currencySymbol = computed(() => salaries.value[0]?.currency?.symbol ?? baseCurrency.value?.symbol ?? '')
+const currencyCode = computed(
+  () => salaries.value[0]?.currency?.code ?? baseCurrency.value?.code ?? "AFN",
+);
+const currencySymbol = computed(
+  () => salaries.value[0]?.currency?.symbol ?? baseCurrency.value?.symbol ?? "",
+);
+const displayMoneyCurrency = computed(
+  () =>
+    salaries.value[0]?.currency ??
+    baseCurrency.value ?? { code: currencyCode.value },
+);
 
 const companyProfile = computed(() => ({
-  name: companySetting.value?.original_company_name || companySetting.value?.website_title || '',
-  brandName: companySetting.value?.short_company_name || companySetting.value?.website_title || '',
-  addressLines: [companySetting.value?.physical_address].filter(Boolean) as string[],
-  email: companySetting.value?.company_email || '',
-  phone: companySetting.value?.phone || '',
+  name:
+    companySetting.value?.original_company_name ||
+    companySetting.value?.website_title ||
+    "",
+  brandName:
+    companySetting.value?.short_company_name ||
+    companySetting.value?.website_title ||
+    "",
+  addressLines: [companySetting.value?.physical_address].filter(
+    Boolean,
+  ) as string[],
+  email: companySetting.value?.company_email || "",
+  phone: companySetting.value?.phone || "",
   tinNumber: companySetting.value?.business_licence || undefined,
   logo: companySetting.value?.website_logo_url || undefined,
   signature: companySetting.value?.company_signature_url || undefined,
-}))
+}));
 
 // One formatter for the whole register: the currency code appears exactly once
 // and no symbol is concatenated by hand.
 const formatAmount = (amount: number | null | undefined) =>
-  formatActiveMoney(amount, { code: currencyCode.value, decimalPlaces: 2 })
+  formatActiveMoney(amount, displayMoneyCurrency.value);
 
-const formatInWords = (amount: number) => translate('documents.payslip.amountInWordsFallback', {
-  amount: formatLocalizedNumber(amount, { minimumFractionDigits: 2 }),
-  currency: currencyCode.value,
-})
+const formatInWords = (amount: number) =>
+  translate("documents.payslip.amountInWordsFallback", {
+    amount: formatLocalizedNumber(amount, { minimumFractionDigits: 2 }),
+    currency: currencyCode.value,
+  });
 
 // Loading ----------------------------------------------------------------
 // (see `load` below, which pages the register and the advances ledger)
 async function load() {
-  loading.value = true
+  loading.value = true;
   try {
-    const [register, employeeRows, advanceResponse, settingResponse, currencyResponse] = await Promise.all([
-      SalaryApi.register({ month: month.value, search: search.value.trim() || undefined, page: page.value, perPage: perPage.value }),
+    const [
+      register,
+      employeeRows,
+      advanceResponse,
+      settingResponse,
+      currencyResponse,
+    ] = await Promise.all([
+      SalaryApi.register({
+        month: month.value,
+        search: search.value.trim() || undefined,
+        page: page.value,
+        perPage: perPage.value,
+      }),
       EmployeeApi.getOptions(),
-      EmployeeAdvanceApi.listPage({ page: advancesPage.value, perPage: advancesPerPage.value }),
+      EmployeeAdvanceApi.listPage({
+        page: advancesPage.value,
+        perPage: advancesPerPage.value,
+      }),
       SettingApi.getCompanyProfile(),
       CurrencyApi.getAll(),
-    ])
+    ]);
 
-    registerRows.value = register.rows
-    total.value = register.total
-    totals.value = register.totals ?? { ...emptyTotals }
+    registerRows.value = register.rows;
+    total.value = register.total;
+    totals.value = register.totals ?? { ...emptyTotals };
     // The month's payslips of this page drive the currency shown on screen and
     // the payslip dialogs; the full employee list serves the pickers.
-    salaries.value = register.rows.map(row => row.salary).filter((salary): salary is Salary => salary !== null)
-    employees.value = employeeRows
-    advances.value = advanceResponse.rows
-    advancesTotal.value = advanceResponse.total
-    companySetting.value = settingResponse.data
-    const base = currencyResponse.data.find(currency => currency.isBase) ?? null
+    salaries.value = register.rows
+      .map((row) => row.salary)
+      .filter((salary): salary is Salary => salary !== null);
+    employees.value = employeeRows;
+    advances.value = advanceResponse.rows;
+    advancesTotal.value = advanceResponse.total;
+    companySetting.value = settingResponse.data;
+    const base =
+      currencyResponse.data.find((currency) => currency.isBase) ?? null;
 
-    baseCurrency.value = base
-    baseCurrencyId.value = base?.id ?? null
-  }
-  catch (error) {
-    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToLoad')))
-  }
-  finally {
-    loading.value = false
+    baseCurrency.value = base;
+    baseCurrencyId.value = base?.id ?? null;
+  } catch (error) {
+    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToLoad")));
+  } finally {
+    loading.value = false;
   }
 }
 
 function updateTableOptions(options: { page: number; itemsPerPage: number }) {
   if (page.value === options.page && perPage.value === options.itemsPerPage)
-    return
+    return;
 
-  page.value = options.page
-  perPage.value = options.itemsPerPage
-  void load()
+  page.value = options.page;
+  perPage.value = options.itemsPerPage;
+  void load();
 }
 
-function updateAdvancesTableOptions(options: { page: number; itemsPerPage: number }) {
-  if (advancesPage.value === options.page && advancesPerPage.value === options.itemsPerPage)
-    return
+function updateAdvancesTableOptions(options: {
+  page: number;
+  itemsPerPage: number;
+}) {
+  if (
+    advancesPage.value === options.page &&
+    advancesPerPage.value === options.itemsPerPage
+  )
+    return;
 
-  advancesPage.value = options.page
-  advancesPerPage.value = options.itemsPerPage
-  void load()
+  advancesPage.value = options.page;
+  advancesPerPage.value = options.itemsPerPage;
+  void load();
 }
 
 // Typing in the register search is a filter change, so it starts from the first page.
 const debouncedRegisterSearch = useDebounceFn(() => {
-  page.value = 1
-  void load()
-}, 300)
+  page.value = 1;
+  void load();
+}, 300);
 
 // Payroll actions --------------------------------------------------------
 async function generateMissing() {
-  saving.value = true
+  saving.value = true;
   try {
-    const result = await SalaryApi.generate(month.value)
+    const result = await SalaryApi.generate(month.value);
 
-    toast.success($t('pages.payrolls.generatedCount', { created: result.created, skipped: result.skipped }))
-    generateDialog.value = false
-    await load()
-  }
-  catch (error) {
-    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToGenerate')))
-  }
-  finally {
-    saving.value = false
+    toast.success(
+      $t("pages.payrolls.generatedCount", {
+        created: result.created,
+        skipped: result.skipped,
+      }),
+    );
+    generateDialog.value = false;
+    await load();
+  } catch (error) {
+    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToGenerate")));
+  } finally {
+    saving.value = false;
   }
 }
 
@@ -228,22 +325,21 @@ function openCreate(row: PayrollRow) {
     employee_id: row.employeeId,
     amountPaid: row.base,
     date: today.toISOString().slice(0, 10),
-    remarks: '',
+    remarks: "",
     deductions: [],
-  }
-  createDialog.value = true
+  };
+  createDialog.value = true;
 }
 
 async function saveCreate() {
-  if (!createForm.value.employee_id)
-    return
+  if (!createForm.value.employee_id) return;
 
-  saving.value = true
+  saving.value = true;
   try {
     if (!baseCurrencyId.value) {
-      toast.error($t('pages.payrolls.baseCurrencyMissing'))
+      toast.error($t("pages.payrolls.baseCurrencyMissing"));
 
-      return
+      return;
     }
 
     await SalaryApi.create({
@@ -255,141 +351,143 @@ async function saveCreate() {
       remarks: createForm.value.remarks || undefined,
       date: createForm.value.date,
       deductions: createForm.value.deductions,
-    })
-    toast.success($t('pages.payrolls.saved'))
-    createDialog.value = false
-    await load()
-  }
-  catch (error) {
-    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToSave')))
-  }
-  finally {
-    saving.value = false
+    });
+    toast.success($t("pages.payrolls.saved"));
+    createDialog.value = false;
+    await load();
+  } catch (error) {
+    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToSave")));
+  } finally {
+    saving.value = false;
   }
 }
 
 function openDeductions(salary: Salary) {
-  selectedSalary.value = salary
-  deductionForm.value = { description: '', amount: 0 }
-  deductionDialog.value = true
+  selectedSalary.value = salary;
+  deductionForm.value = { description: "", amount: 0 };
+  deductionDialog.value = true;
 }
 
 async function addDeduction() {
-  if (!selectedSalary.value)
-    return
+  if (!selectedSalary.value) return;
 
-  saving.value = true
+  saving.value = true;
   try {
     await SalaryApi.createDeduction(selectedSalary.value.id, {
       description: deductionForm.value.description,
       amount: Number(deductionForm.value.amount),
-    })
-    toast.success($t('pages.payrolls.deductionSaved'))
-    deductionForm.value = { description: '', amount: 0 }
-    await refreshSelectedSalary()
-  }
-  catch (error) {
-    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToSave')))
-  }
-  finally {
-    saving.value = false
+    });
+    toast.success($t("pages.payrolls.deductionSaved"));
+    deductionForm.value = { description: "", amount: 0 };
+    await refreshSelectedSalary();
+  } catch (error) {
+    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToSave")));
+  } finally {
+    saving.value = false;
   }
 }
 
 async function removeDeduction(deduction: SalaryDeduction) {
-  if (!selectedSalary.value || !deduction.id)
-    return
+  if (!selectedSalary.value || !deduction.id) return;
 
-  saving.value = true
+  saving.value = true;
   try {
-    await SalaryApi.deleteDeduction(selectedSalary.value.id, deduction.id)
-    toast.success($t('pages.payrolls.deductionDeleted'))
-    await refreshSelectedSalary()
-  }
-  catch (error) {
-    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToSave')))
-  }
-  finally {
-    saving.value = false
+    await SalaryApi.deleteDeduction(selectedSalary.value.id, deduction.id);
+    toast.success($t("pages.payrolls.deductionDeleted"));
+    await refreshSelectedSalary();
+  } catch (error) {
+    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToSave")));
+  } finally {
+    saving.value = false;
   }
 }
 
 async function refreshSelectedSalary() {
-  if (!selectedSalary.value)
-    return
-  const response = await SalaryApi.getById(selectedSalary.value.id)
+  if (!selectedSalary.value) return;
+  const response = await SalaryApi.getById(selectedSalary.value.id);
 
-  selectedSalary.value = response.data
-  salaries.value = salaries.value.map(salary => salary.id === response.data.id ? response.data : salary)
+  selectedSalary.value = response.data;
+  salaries.value = salaries.value.map((salary) =>
+    salary.id === response.data.id ? response.data : salary,
+  );
 }
 
 function openPayment(salary: Salary) {
-  selectedSalary.value = salary
-  paymentForm.value = { amount: Number(salary.amountOutstanding ?? 0), date: today.toISOString().slice(0, 10), remarks: '' }
-  paymentDialog.value = true
+  selectedSalary.value = salary;
+  paymentForm.value = {
+    amount: Number(salary.amountOutstanding ?? 0),
+    date: today.toISOString().slice(0, 10),
+    remarks: "",
+  };
+  paymentDialog.value = true;
 }
 
 async function savePayment() {
-  if (!selectedSalary.value)
-    return
+  if (!selectedSalary.value) return;
 
-  saving.value = true
+  saving.value = true;
   try {
     await SalaryApi.addPayment(selectedSalary.value.id, {
       amount: Number(paymentForm.value.amount),
       date: paymentForm.value.date,
       remarks: paymentForm.value.remarks || undefined,
-    })
-    toast.success($t('pages.payrolls.paymentSaved'))
-    paymentDialog.value = false
-    await load()
-  }
-  catch (error) {
-    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToSave')))
-  }
-  finally {
-    saving.value = false
+    });
+    toast.success($t("pages.payrolls.paymentSaved"));
+    paymentDialog.value = false;
+    await load();
+  } catch (error) {
+    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToSave")));
+  } finally {
+    saving.value = false;
   }
 }
 
 function confirmDelete(salary: Salary) {
-  selectedSalary.value = salary
-  deleteSalaryDialog.value = true
+  selectedSalary.value = salary;
+  deleteSalaryDialog.value = true;
 }
 
 async function deleteSalary() {
-  if (!selectedSalary.value)
-    return
+  if (!selectedSalary.value) return;
 
-  saving.value = true
+  saving.value = true;
   try {
-    await SalaryApi.delete(selectedSalary.value.id)
-    toast.success($t('pages.payrolls.deleted'))
-    deleteSalaryDialog.value = false
-    await load()
-  }
-  catch (error) {
-    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToDelete')))
-  }
-  finally {
-    saving.value = false
+    await SalaryApi.delete(selectedSalary.value.id);
+    toast.success($t("pages.payrolls.deleted"));
+    deleteSalaryDialog.value = false;
+    await load();
+  } catch (error) {
+    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToDelete")));
+  } finally {
+    saving.value = false;
   }
 }
 
 async function openPayslip(row: PayrollRow) {
-  const salary = row.salary
-  if (!salary)
-    return
+  const salary = row.salary;
+  if (!salary) return;
 
-  const employee = employees.value.find(item => item.id === row.employeeId)
-  const earnings = [{ label: $t('pages.payrolls.baseSalary'), amount: Number(salary.totalAmount) - Number(salary.bonus ?? 0) }]
+  const employee = employees.value.find((item) => item.id === row.employeeId);
+  const earnings = [
+    {
+      label: $t("pages.payrolls.baseSalary"),
+      amount: Number(salary.totalAmount) - Number(salary.bonus ?? 0),
+    },
+  ];
   if (Number(salary.bonus ?? 0) > 0)
-    earnings.push({ label: $t('pages.payrolls.bonus'), amount: Number(salary.bonus) })
+    earnings.push({
+      label: $t("pages.payrolls.bonus"),
+      amount: Number(salary.bonus),
+    });
 
   payslipProps.value = {
-    documentTitle: translate('documents.payslip_template.payslipTemplate.officialPAYSLIP'),
+    documentTitle: translate(
+      "documents.payslip_template.payslipTemplate.officialPAYSLIP",
+    ),
     documentNumber: salary.payslip_number,
-    payslipSubtitle: $t('pages.payrolls.payPeriodLabel', { month: salary.salaryMonth }),
+    payslipSubtitle: $t("pages.payrolls.payPeriodLabel", {
+      month: salary.salaryMonth,
+    }),
     currency: salary.currency?.code ?? currencyCode.value,
     company: companyProfile.value,
     letterheadUrl: companySetting.value?.letterheads?.payslip?.url || undefined,
@@ -397,134 +495,145 @@ async function openPayslip(row: PayrollRow) {
     employee: {
       name: salary.employeeName,
       designation: getEmployeePosition(employee),
-      department: employee?.department || '—',
-      dateOfJoining: employee?.join_date || '—',
+      department: employee?.department || "—",
+      dateOfJoining: employee?.join_date || "—",
       payPeriod: salary.salaryMonth,
       payDate: salary.date,
       workedDays: Number(salary.workedDays ?? 0),
       totalDays: Number(salary.totalDays ?? 0),
       offDays: Number(salary.offDays ?? 0),
       absentDays: Number(salary.absentDays ?? 0),
-      tazkiraNumber: employee?.id_number || 'N/A',
-      accountNumber: employee?.bank_account_number || 'N/A',
+      tazkiraNumber: employee?.id_number || "N/A",
+      accountNumber: employee?.bank_account_number || "N/A",
     },
     earnings,
-    deductions: (salary.deductions ?? []).map(deduction => ({
-      label: deduction.isAutomatic ? $t('pages.payrolls.automaticDeduction') : deduction.description,
+    deductions: (salary.deductions ?? []).map((deduction) => ({
+      label: deduction.isAutomatic
+        ? $t("pages.payrolls.automaticDeduction")
+        : deduction.description,
       amount: Number(deduction.amount),
     })),
-    advances: (salary.advances ?? []).map(advance => ({
-      label: `${advance.advanceNumber ?? '—'}${advance.date ? ` · ${formatLocalizedDate(advance.date)}` : ''}`,
+    advances: (salary.advances ?? []).map((advance) => ({
+      label: `${advance.advanceNumber ?? "—"}${advance.date ? ` · ${formatLocalizedDate(advance.date)}` : ""}`,
       amount: Number(advance.amount),
     })),
     reimbursements: [],
     amountInWords: formatInWords(Number(salary.netAmount ?? 0)),
-  }
-  payslipDialog.value = true
-  await nextTick()
+  };
+  payslipDialog.value = true;
+  await nextTick();
 }
 
 function printPayslip() {
-  payslipRef.value?.print()
+  payslipRef.value?.print();
 }
 
 // Print is global: the report is filled from every register row first.
 const registerReportRow = (row: PayrollRow): string[] => [
   row.name,
   formatAmount(row.base),
-  row.salary ? `${row.workedDays}/${row.totalDays}` : '—',
-  row.offDays === null ? '—' : String(row.offDays),
-  row.absentDays === null ? '—' : String(row.absentDays),
+  row.salary ? `${row.workedDays}/${row.totalDays}` : "—",
+  row.offDays === null ? "—" : String(row.offDays),
+  row.absentDays === null ? "—" : String(row.absentDays),
   formatAmount(row.net),
   formatAmount(row.paid),
   formatAmount(row.outstanding),
-]
+];
 
 async function printRegister() {
   try {
-    const collected: PayrollRow[] = []
-    let nextPage = 1
-    let lastPage = 1
+    const collected: PayrollRow[] = [];
+    let nextPage = 1;
+    let lastPage = 1;
 
     do {
-      const result = await SalaryApi.register({ month: month.value, search: search.value.trim() || undefined, page: nextPage, perPage: 100 })
+      const result = await SalaryApi.register({
+        month: month.value,
+        search: search.value.trim() || undefined,
+        page: nextPage,
+        perPage: 100,
+      });
 
-      collected.push(...toPayrollRows(result.rows))
-      lastPage = result.lastPage
-      nextPage += 1
-    } while (nextPage <= lastPage)
+      collected.push(...toPayrollRows(result.rows));
+      lastPage = result.lastPage;
+      nextPage += 1;
+    } while (nextPage <= lastPage);
 
-    reportRows.value = collected.map(registerReportRow)
-    await printDocument({ bodyClass: 'printing-table-payrolls', pageStyle: 'size: A4 landscape; margin: 10mm;' })
-  }
-  catch (error) {
-    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToLoad')))
+    reportRows.value = collected.map(registerReportRow);
+    await printDocument({
+      bodyClass: "printing-table-payrolls",
+      pageStyle: "size: A4 landscape; margin: 10mm;",
+    });
+  } catch (error) {
+    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToLoad")));
   }
 }
 
 function getEmployeePosition(employee: Employee | undefined): string {
-  if (!employee)
-    return $t('pages.payrolls.noPosition')
+  if (!employee) return $t("pages.payrolls.noPosition");
 
-  return typeof employee.position === 'string' && employee.position ? employee.position : $t('pages.payrolls.noPosition')
+  return typeof employee.position === "string" && employee.position
+    ? employee.position
+    : $t("pages.payrolls.noPosition");
 }
 
 // Salary advances --------------------------------------------------------
 function openAdvanceDialog() {
-  advanceForm.value = { employee_id: null, amount: 0, date: today.toISOString().slice(0, 10), remarks: '' }
-  advanceDialog.value = true
+  advanceForm.value = {
+    employee_id: null,
+    amount: 0,
+    date: today.toISOString().slice(0, 10),
+    remarks: "",
+  };
+  advanceDialog.value = true;
 }
 
 async function saveAdvance() {
-  if (!advanceForm.value.employee_id)
-    return
+  if (!advanceForm.value.employee_id) return;
 
-  saving.value = true
+  saving.value = true;
   try {
     await EmployeeAdvanceApi.create({
       employee_id: advanceForm.value.employee_id,
       amount: Number(advanceForm.value.amount),
       date: advanceForm.value.date,
       remarks: advanceForm.value.remarks,
-    } as CreateEmployeeAdvanceData)
-    toast.success($t('pages.payrolls.advanceSaved'))
-    advanceDialog.value = false
-    await load()
-  }
-  catch (error) {
-    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToSave')))
-  }
-  finally {
-    saving.value = false
+    } as CreateEmployeeAdvanceData);
+    toast.success($t("pages.payrolls.advanceSaved"));
+    advanceDialog.value = false;
+    await load();
+  } catch (error) {
+    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToSave")));
+  } finally {
+    saving.value = false;
   }
 }
 
 function confirmDeleteAdvance(advance: EmployeeAdvance) {
-  selectedAdvance.value = advance
-  deleteAdvanceDialog.value = true
+  selectedAdvance.value = advance;
+  deleteAdvanceDialog.value = true;
 }
 
 async function deleteAdvance() {
-  if (!selectedAdvance.value)
-    return
+  if (!selectedAdvance.value) return;
 
-  saving.value = true
+  saving.value = true;
   try {
-    await EmployeeAdvanceApi.remove(selectedAdvance.value.id)
-    toast.success($t('pages.payrolls.advanceDeleted'))
-    deleteAdvanceDialog.value = false
-    await load()
-  }
-  catch (error) {
-    toast.error(apiErrorMessage(error, $t('pages.payrolls.unableToDelete')))
-  }
-  finally {
-    saving.value = false
+    await EmployeeAdvanceApi.remove(selectedAdvance.value.id);
+    toast.success($t("pages.payrolls.advanceDeleted"));
+    deleteAdvanceDialog.value = false;
+    await load();
+  } catch (error) {
+    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToDelete")));
+  } finally {
+    saving.value = false;
   }
 }
 
 function openAdvanceReceipt(advance: EmployeeAdvance) {
-  const employee = employees.value.find(item => item.id === advance.employee_id)
+  const employee = employees.value.find(
+    (item) => item.id === advance.employee_id,
+  );
   advanceReceipt.value = {
     advanceNumber: advance.advanceNumber,
     date: advance.date,
@@ -539,31 +648,36 @@ function openAdvanceReceipt(advance: EmployeeAdvance) {
       department: employee?.department ?? employee?.department_name ?? null,
     },
     company: companyProfile.value,
-  }
-  advanceReceiptDialog.value = true
-  void nextTick(() => advanceReceiptRef.value?.print())
+  };
+  advanceReceiptDialog.value = true;
+  void nextTick(() => advanceReceiptRef.value?.print());
 }
 
-function statusLabel(status: PayrollRow['status']) {
+function statusLabel(status: PayrollRow["status"]) {
   return {
-    missing: $t('pages.payrolls.notGenerated'),
-    open: $t('pages.payrolls.open'),
-    partially_paid: $t('pages.payrolls.partiallyPaid'),
-    paid: $t('common.statuses.paid'),
-  }[status]
+    missing: $t("pages.payrolls.notGenerated"),
+    open: $t("pages.payrolls.open"),
+    partially_paid: $t("pages.payrolls.partiallyPaid"),
+    paid: $t("common.statuses.paid"),
+  }[status];
 }
 
-function statusColor(status: PayrollRow['status']) {
-  return { missing: 'secondary', open: 'warning', partially_paid: 'info', paid: 'success' }[status]
+function statusColor(status: PayrollRow["status"]) {
+  return {
+    missing: "secondary",
+    open: "warning",
+    partially_paid: "info",
+    paid: "success",
+  }[status];
 }
 
 function updateMonth() {
-  page.value = 1
-  void load()
+  page.value = 1;
+  void load();
 }
 
-watch(month, updateMonth)
-onMounted(load)
+watch(month, updateMonth);
+onMounted(load);
 </script>
 
 <template>
@@ -576,7 +690,8 @@ onMounted(load)
     />
     <VCard class="payrolls-screen">
       <VCardTitle class="d-flex flex-wrap align-center ga-3 pa-5">
-        <VIcon icon="tabler-wallet" />{{ $t('pages.payrolls.title') }}<VSpacer /><VTextField
+        <VIcon icon="tabler-wallet" />{{ $t("pages.payrolls.title")
+        }}<VSpacer /><VTextField
           v-model="month"
           type="month"
           density="compact"
@@ -587,84 +702,71 @@ onMounted(load)
           :loading="loading"
           @click="generateDialog = true"
         >
-          {{ $t('pages.payrolls.generate') }}
-        </VBtn><VBtn
+          {{ $t("pages.payrolls.generate") }} </VBtn
+        ><VBtn
           prepend-icon="tabler-printer"
           variant="tonal"
           :disabled="activeTab !== 'payslips'"
           @click="printRegister"
         >
-          {{ $t('common.actions.print') }}
+          {{ $t("common.actions.print") }}
         </VBtn>
       </VCardTitle>
       <VCardText class="pb-0">
         <div class="payroll-kpis">
-          <VCard
-            border
-            variant="flat"
-          >
+          <VCard border variant="flat">
             <VCardText>
               <div class="text-caption text-medium-emphasis">
-                {{ $t('pages.payrolls.netPayroll') }}
-              </div><div class="text-h5">
+                {{ $t("pages.payrolls.netPayroll") }}
+              </div>
+              <div class="text-h5">
                 {{ formatAmount(totals.net) }}
               </div>
             </VCardText>
           </VCard>
-          <VCard
-            border
-            variant="flat"
-          >
+          <VCard border variant="flat">
             <VCardText>
               <div class="text-caption text-medium-emphasis">
-                {{ $t('pages.payrolls.paid') }}
-              </div><div class="text-h5 text-success">
+                {{ $t("pages.payrolls.paid") }}
+              </div>
+              <div class="text-h5 text-success">
                 {{ formatAmount(totals.paid) }}
               </div>
             </VCardText>
           </VCard>
-          <VCard
-            border
-            variant="flat"
-          >
+          <VCard border variant="flat">
             <VCardText>
               <div class="text-caption text-medium-emphasis">
-                {{ $t('pages.payrolls.outstanding') }}
-              </div><div class="text-h5 text-warning">
+                {{ $t("pages.payrolls.outstanding") }}
+              </div>
+              <div class="text-h5 text-warning">
                 {{ formatAmount(totals.outstanding) }}
               </div>
             </VCardText>
           </VCard>
-          <VCard
-            border
-            variant="flat"
-          >
+          <VCard border variant="flat">
             <VCardText>
               <div class="text-caption text-medium-emphasis">
-                {{ $t('pages.payrolls.progress') }}
-              </div><div class="text-h5">
-                {{ totals.generated }} · {{ totals.missing }} {{ $t('pages.payrolls.missing') }}
+                {{ $t("pages.payrolls.progress") }}
+              </div>
+              <div class="text-h5">
+                {{ totals.generated }} · {{ totals.missing }}
+                {{ $t("pages.payrolls.missing") }}
               </div>
             </VCardText>
           </VCard>
         </div>
-        <VTabs
-          v-model="activeTab"
-          class="mt-4"
-        >
+        <VTabs v-model="activeTab" class="mt-4">
           <VTab value="payslips">
-            {{ $t('pages.payrolls.payslipsTab') }}
+            {{ $t("pages.payrolls.payslipsTab") }}
           </VTab>
           <VTab value="advances">
-            {{ $t('pages.payrolls.advancesTab') }}
+            {{ $t("pages.payrolls.advancesTab") }}
           </VTab>
         </VTabs>
       </VCardText>
       <VCardText>
-        <VWindow
-          v-model="activeTab"
-          class="payroll-window"
-        >
+        <VWindow v-model="activeTab" class="payroll-window">
           <VWindowItem value="payslips">
             <div class="d-flex flex-wrap align-center ga-3 mb-4">
               <VTextField
@@ -695,15 +797,21 @@ onMounted(load)
                 { title: $t('pages.payrolls.paid'), key: 'paid' },
                 { title: $t('pages.payrolls.outstanding'), key: 'outstanding' },
                 { title: $t('common.fields.status'), key: 'status' },
-                { title: $t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
+                {
+                  title: $t('common.messages.actions'),
+                  key: 'actions',
+                  sortable: false,
+                  align: 'end',
+                },
               ]"
             >
               <template #item.name="{ item }">
                 <div>
                   <div class="font-weight-medium">
                     {{ item.name }}
-                  </div><div class="text-caption text-medium-emphasis">
-                    {{ item.position || '—' }}
+                  </div>
+                  <div class="text-caption text-medium-emphasis">
+                    {{ item.position || "—" }}
                   </div>
                 </div>
               </template>
@@ -711,13 +819,15 @@ onMounted(load)
                 {{ formatAmount(item.base) }}
               </template>
               <template #item.workedDays="{ item }">
-                {{ item.salary ? `${item.workedDays} / ${item.totalDays}` : '—' }}
+                {{
+                  item.salary ? `${item.workedDays} / ${item.totalDays}` : "—"
+                }}
               </template>
               <template #item.offDays="{ item }">
-                {{ item.offDays ?? '—' }}
+                {{ item.offDays ?? "—" }}
               </template>
               <template #item.absentDays="{ item }">
-                {{ item.absentDays ?? '—' }}
+                {{ item.absentDays ?? "—" }}
               </template>
               <template #item.net="{ item }">
                 {{ formatAmount(item.net) }}
@@ -796,7 +906,7 @@ onMounted(load)
                 color="primary"
                 @click="openAdvanceDialog"
               >
-                {{ $t('pages.payrolls.addAdvance') }}
+                {{ $t("pages.payrolls.addAdvance") }}
               </VBtn>
             </div>
             <ResponsiveDataTableServer
@@ -808,16 +918,32 @@ onMounted(load)
               :loading="loading"
               item-value="id"
               :headers="[
-                { title: $t('pages.payrolls.advanceNumber'), key: 'advanceNumber' },
+                {
+                  title: $t('pages.payrolls.advanceNumber'),
+                  key: 'advanceNumber',
+                },
                 { title: $t('common.fields.employee'), key: 'employeeName' },
                 { title: $t('pages.payrolls.date'), key: 'date' },
                 { title: $t('pages.payrolls.amount'), key: 'amount' },
                 { title: $t('common.fields.status'), key: 'status' },
-                { title: $t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
+                {
+                  title: $t('common.messages.actions'),
+                  key: 'actions',
+                  sortable: false,
+                  align: 'end',
+                },
               ]"
             >
               <template #item.date="{ item }">
-                {{ item.date ? formatLocalizedDate(`${item.date}T00:00:00`, { day: '2-digit', month: 'short', year: 'numeric' }) : '—' }}
+                {{
+                  item.date
+                    ? formatLocalizedDate(`${item.date}T00:00:00`, {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : "—"
+                }}
               </template>
               <template #item.amount="{ item }">
                 {{ formatAmount(item.amount) }}
@@ -828,7 +954,11 @@ onMounted(load)
                   size="small"
                   variant="tonal"
                 >
-                  {{ item.salaryId ? $t('pages.payrolls.recovered') : $t('pages.payrolls.outstandingAdvance') }}
+                  {{
+                    item.salaryId
+                      ? $t("pages.payrolls.recovered")
+                      : $t("pages.payrolls.outstandingAdvance")
+                  }}
                 </VChip>
               </template>
               <template #item.actions="{ item }">
@@ -861,48 +991,51 @@ onMounted(load)
     <PrintableListReport
       :title="$t('pages.payrolls.registerTitle')"
       :subtitle="month"
-      :columns="[$t('common.fields.employee'), $t('pages.payrolls.baseSalary'), $t('pages.payrolls.worked'), $t('pages.payrolls.offDays'), $t('pages.payrolls.absent'), $t('pages.payrolls.net'), $t('pages.payrolls.paid'), $t('pages.payrolls.outstanding')]"
+      :columns="[
+        $t('common.fields.employee'),
+        $t('pages.payrolls.baseSalary'),
+        $t('pages.payrolls.worked'),
+        $t('pages.payrolls.offDays'),
+        $t('pages.payrolls.absent'),
+        $t('pages.payrolls.net'),
+        $t('pages.payrolls.paid'),
+        $t('pages.payrolls.outstanding'),
+      ]"
       :rows="reportRows"
     />
 
     <!-- Generate missing payslips -->
-    <VDialog
-      v-model="generateDialog"
-      max-width="480"
-    >
+    <VDialog v-model="generateDialog" max-width="480">
       <VCard :title="$t('pages.payrolls.generateTitle')">
         <VCardText>
-          {{ $t('pages.payrolls.generateHint', { month, count: totals.missing }) }}
+          {{
+            $t("pages.payrolls.generateHint", { month, count: totals.missing })
+          }}
         </VCardText>
         <VCardActions>
           <VSpacer />
-          <VBtn
-            variant="text"
-            @click="generateDialog = false"
-          >
-            {{ $t('common.actions.cancel') }}
+          <VBtn variant="text" @click="generateDialog = false">
+            {{ $t("common.actions.cancel") }}
           </VBtn>
-          <VBtn
-            color="primary"
-            :loading="saving"
-            @click="generateMissing"
-          >
-            {{ $t('pages.payrolls.generate') }}
+          <VBtn color="primary" :loading="saving" @click="generateMissing">
+            {{ $t("pages.payrolls.generate") }}
           </VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
     <!-- Create one payslip -->
-    <VDialog
-      v-model="createDialog"
-      max-width="600"
-    >
+    <VDialog v-model="createDialog" max-width="600">
       <VCard :title="$t('pages.payrolls.createPayslip')">
         <VCardText class="d-flex flex-column ga-4">
           <VSelect
             v-model="createForm.employee_id"
-            :items="employees.map(employee => ({ title: employee.name, value: employee.id }))"
+            :items="
+              employees.map((employee) => ({
+                title: employee.name,
+                value: employee.id,
+              }))
+            "
             :label="$t('common.fields.employee')"
             disabled
           />
@@ -924,28 +1057,18 @@ onMounted(load)
         </VCardText>
         <VCardActions>
           <VSpacer />
-          <VBtn
-            variant="text"
-            @click="createDialog = false"
-          >
-            {{ $t('common.actions.cancel') }}
+          <VBtn variant="text" @click="createDialog = false">
+            {{ $t("common.actions.cancel") }}
           </VBtn>
-          <VBtn
-            color="primary"
-            :loading="saving"
-            @click="saveCreate"
-          >
-            {{ $t('common.actions.save') }}
+          <VBtn color="primary" :loading="saving" @click="saveCreate">
+            {{ $t("common.actions.save") }}
           </VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
     <!-- Deductions -->
-    <VDialog
-      v-model="deductionDialog"
-      max-width="640"
-    >
+    <VDialog v-model="deductionDialog" max-width="640">
       <VCard :title="$t('pages.payrolls.deductionsTitle')">
         <VCardText>
           <VTable
@@ -955,9 +1078,9 @@ onMounted(load)
           >
             <thead>
               <tr>
-                <th>{{ $t('pages.payrolls.description') }}</th>
+                <th>{{ $t("pages.payrolls.description") }}</th>
                 <th class="text-end">
-                  {{ $t('pages.payrolls.amount') }}
+                  {{ $t("pages.payrolls.amount") }}
                 </th>
                 <th />
               </tr>
@@ -967,7 +1090,13 @@ onMounted(load)
                 v-for="deduction in selectedSalary.deductions"
                 :key="deduction.id"
               >
-                <td>{{ deduction.isAutomatic ? $t('pages.payrolls.automaticDeduction') : deduction.description }}</td>
+                <td>
+                  {{
+                    deduction.isAutomatic
+                      ? $t("pages.payrolls.automaticDeduction")
+                      : deduction.description
+                  }}
+                </td>
                 <td class="text-end">
                   {{ formatAmount(deduction.amount) }}
                 </td>
@@ -985,13 +1114,8 @@ onMounted(load)
               </tr>
             </tbody>
           </VTable>
-          <VAlert
-            v-else
-            variant="tonal"
-            color="info"
-            class="mb-5"
-          >
-            {{ $t('pages.payrolls.noDeductions') }}
+          <VAlert v-else variant="tonal" color="info" class="mb-5">
+            {{ $t("pages.payrolls.noDeductions") }}
           </VAlert>
           <div class="d-flex flex-column ga-4">
             <VTextField
@@ -1008,11 +1132,8 @@ onMounted(load)
         </VCardText>
         <VCardActions>
           <VSpacer />
-          <VBtn
-            variant="text"
-            @click="deductionDialog = false"
-          >
-            {{ $t('common.actions.close') }}
+          <VBtn variant="text" @click="deductionDialog = false">
+            {{ $t("common.actions.close") }}
           </VBtn>
           <VBtn
             color="primary"
@@ -1020,17 +1141,14 @@ onMounted(load)
             :disabled="!deductionForm.description || deductionForm.amount <= 0"
             @click="addDeduction"
           >
-            {{ $t('pages.payrolls.addDeduction') }}
+            {{ $t("pages.payrolls.addDeduction") }}
           </VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
     <!-- Payment -->
-    <VDialog
-      v-model="paymentDialog"
-      max-width="520"
-    >
+    <VDialog v-model="paymentDialog" max-width="520">
       <VCard :title="$t('pages.payrolls.addPayment')">
         <VCardText class="d-flex flex-column ga-4">
           <VTextField
@@ -1051,11 +1169,8 @@ onMounted(load)
         </VCardText>
         <VCardActions>
           <VSpacer />
-          <VBtn
-            variant="text"
-            @click="paymentDialog = false"
-          >
-            {{ $t('common.actions.cancel') }}
+          <VBtn variant="text" @click="paymentDialog = false">
+            {{ $t("common.actions.cancel") }}
           </VBtn>
           <VBtn
             color="success"
@@ -1063,50 +1178,46 @@ onMounted(load)
             :disabled="paymentForm.amount <= 0"
             @click="savePayment"
           >
-            {{ $t('common.actions.save') }}
+            {{ $t("common.actions.save") }}
           </VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
     <!-- Delete payslip -->
-    <VDialog
-      v-model="deleteSalaryDialog"
-      max-width="480"
-    >
+    <VDialog v-model="deleteSalaryDialog" max-width="480">
       <VCard :title="$t('pages.payrolls.deletePayslip')">
         <VCardText>
-          {{ $t('pages.payrolls.confirmDelete', { employee: selectedSalary?.employeeName ?? '' }) }}
+          {{
+            $t("pages.payrolls.confirmDelete", {
+              employee: selectedSalary?.employeeName ?? "",
+            })
+          }}
         </VCardText>
         <VCardActions>
           <VSpacer />
-          <VBtn
-            variant="text"
-            @click="deleteSalaryDialog = false"
-          >
-            {{ $t('common.actions.cancel') }}
+          <VBtn variant="text" @click="deleteSalaryDialog = false">
+            {{ $t("common.actions.cancel") }}
           </VBtn>
-          <VBtn
-            color="error"
-            :loading="saving"
-            @click="deleteSalary"
-          >
-            {{ $t('common.actions.delete') }}
+          <VBtn color="error" :loading="saving" @click="deleteSalary">
+            {{ $t("common.actions.delete") }}
           </VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
     <!-- Advance -->
-    <VDialog
-      v-model="advanceDialog"
-      max-width="520"
-    >
+    <VDialog v-model="advanceDialog" max-width="520">
       <VCard :title="$t('pages.payrolls.addAdvance')">
         <VCardText class="d-flex flex-column ga-4">
           <VSelect
             v-model="advanceForm.employee_id"
-            :items="employees.map(employee => ({ title: employee.name, value: employee.id }))"
+            :items="
+              employees.map((employee) => ({
+                title: employee.name,
+                value: employee.id,
+              }))
+            "
             :label="$t('common.fields.employee')"
           />
           <VTextField
@@ -1127,56 +1238,39 @@ onMounted(load)
         </VCardText>
         <VCardActions>
           <VSpacer />
-          <VBtn
-            variant="text"
-            @click="advanceDialog = false"
-          >
-            {{ $t('common.actions.cancel') }}
+          <VBtn variant="text" @click="advanceDialog = false">
+            {{ $t("common.actions.cancel") }}
           </VBtn>
-          <VBtn
-            color="primary"
-            :loading="saving"
-            @click="saveAdvance"
-          >
-            {{ $t('common.actions.save') }}
+          <VBtn color="primary" :loading="saving" @click="saveAdvance">
+            {{ $t("common.actions.save") }}
           </VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
-    <VDialog
-      v-model="deleteAdvanceDialog"
-      max-width="480"
-    >
+    <VDialog v-model="deleteAdvanceDialog" max-width="480">
       <VCard :title="$t('pages.payrolls.deleteAdvance')">
         <VCardText>
-          {{ $t('pages.payrolls.confirmDeleteAdvance', { employee: selectedAdvance?.employeeName ?? '' }) }}
+          {{
+            $t("pages.payrolls.confirmDeleteAdvance", {
+              employee: selectedAdvance?.employeeName ?? "",
+            })
+          }}
         </VCardText>
         <VCardActions>
           <VSpacer />
-          <VBtn
-            variant="text"
-            @click="deleteAdvanceDialog = false"
-          >
-            {{ $t('common.actions.cancel') }}
+          <VBtn variant="text" @click="deleteAdvanceDialog = false">
+            {{ $t("common.actions.cancel") }}
           </VBtn>
-          <VBtn
-            color="error"
-            :loading="saving"
-            @click="deleteAdvance"
-          >
-            {{ $t('common.actions.delete') }}
+          <VBtn color="error" :loading="saving" @click="deleteAdvance">
+            {{ $t("common.actions.delete") }}
           </VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
     <!-- Payslip preview -->
-    <VDialog
-      v-model="payslipDialog"
-      max-width="1100"
-      scrollable
-    >
+    <VDialog v-model="payslipDialog" max-width="1100" scrollable>
       <VCard class="document-preview-dialog">
         <VCardText class="pa-0">
           <PayslipTemplate
@@ -1186,29 +1280,22 @@ onMounted(load)
           />
         </VCardText>
         <VCardActions class="justify-end pa-4">
-          <VBtn
-            variant="text"
-            @click="payslipDialog = false"
-          >
-            {{ $t('common.actions.close') }}
+          <VBtn variant="text" @click="payslipDialog = false">
+            {{ $t("common.actions.close") }}
           </VBtn>
           <VBtn
             prepend-icon="tabler-printer"
             color="primary"
             @click="printPayslip"
           >
-            {{ $t('common.actions.print') }}
+            {{ $t("common.actions.print") }}
           </VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
     <!-- Advance receipt preview -->
-    <VDialog
-      v-model="advanceReceiptDialog"
-      max-width="900"
-      scrollable
-    >
+    <VDialog v-model="advanceReceiptDialog" max-width="900" scrollable>
       <VCard class="document-preview-dialog">
         <VCardText class="pa-0">
           <AdvanceReceiptTemplate
@@ -1218,18 +1305,15 @@ onMounted(load)
           />
         </VCardText>
         <VCardActions class="justify-end pa-4">
-          <VBtn
-            variant="text"
-            @click="advanceReceiptDialog = false"
-          >
-            {{ $t('common.actions.close') }}
+          <VBtn variant="text" @click="advanceReceiptDialog = false">
+            {{ $t("common.actions.close") }}
           </VBtn>
           <VBtn
             prepend-icon="tabler-printer"
             color="primary"
             @click="advanceReceiptRef?.print()"
           >
-            {{ $t('common.actions.print') }}
+            {{ $t("common.actions.print") }}
           </VBtn>
         </VCardActions>
       </VCard>

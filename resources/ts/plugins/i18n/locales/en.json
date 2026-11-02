@@ -963,6 +963,23 @@
       }
     },
     "auth": {
+      "common": {
+        "backToLogin": "Back to sign in",
+        "goToLogin": "Go to sign in",
+        "emailRequired": "Enter your email address.",
+        "verificationEmailSent": "If verification is required, a new email has been sent.",
+        "requestFailed": "We could not complete that request. Please try again.",
+        "passwordRequirement": "Use at least 8 characters.",
+        "passwordsDoNotMatch": "Passwords do not match.",
+        "showPassword": "Show password",
+        "hidePassword": "Hide password"
+      },
+      "shell": {
+        "secureWorkspace": "Secure workspace",
+        "heroTitle": "Everything your team needs, in one place.",
+        "heroDescription": "A secure, focused workspace for managing your people, work, and progress.",
+        "heroAssurance": "Protected access for your organization"
+      },
       "createPassword": {
         "invalidInvitation": "This invitation link is incomplete or expired.",
         "createPassword": {
@@ -979,7 +996,10 @@
           "forgotPassword": "Forgot Password",
           "enterYourAccountEmailAndWeLlSendYouASecureResetLink": "Enter your account email and we’ll send you a secure reset link.",
           "sendResetLink": "Send reset link"
-        }
+        },
+        "title": "Reset your password",
+        "description": "Enter your account email and we will send a secure reset link.",
+        "sent": "If an account exists for that email, a password reset link has been sent."
       },
       "login": {
         "login": {
@@ -987,7 +1007,6 @@
           "yourAccountIsReadySignInWithThePasswordYouCreated": "Your account is ready. Sign in with the password you created.",
           "emailAndPasswordAreRequired": "Email and password are required.",
           "enterYourEmailAddressFirst": "Enter Your Email Address First",
-          "asantechMiniManagement": "Educational System",
           "welcome": "Welcome!",
           "pleaseSignInToYourAccount": "Please sign in to your account",
           "resendEmail": "Resend email",
@@ -996,7 +1015,24 @@
           "authenticatorCode": "Authenticator code",
           "rememberMe": "Remember me",
           "forgotPassword": "Forgot password?"
-        }
+        },
+        "title": "Welcome back",
+        "description": "Sign in to continue to your workspace.",
+        "twoFactorTitle": "Verify your sign-in",
+        "twoFactorDescription": "Enter a code from your authenticator app to finish signing in.",
+        "passwordAccepted": "Your password was accepted. One more step keeps your account secure.",
+        "recoveryCode": "Recovery code",
+        "useRecoveryCode": "Use a recovery code",
+        "useAuthenticatorCode": "Use your authenticator code",
+        "verifyAndSignIn": "Verify and sign in",
+        "signIn": "Sign in",
+        "verificationRequired": "Verify {email} before signing in.",
+        "resendVerification": "Send a new verification email",
+        "passwordResetSuccess": "Your password was reset. You can now sign in.",
+        "invitationSuccess": "Your account is ready. Sign in with the password you created.",
+        "emailAndPasswordRequired": "Enter your email and password.",
+        "emailFirst": "Enter your email address first.",
+        "failed": "We could not sign you in. Check your details and try again."
       },
       "resetPassword": {
         "missingToken": "This reset link is missing its security token.",
@@ -1006,7 +1042,11 @@
           "newPassword": "New password",
           "confirmNewPassword": "Confirm new password",
           "resetPassword": "Reset password"
-        }
+        },
+        "title": "Choose a new password",
+        "description": "Create a new password to restore access to your account.",
+        "invalidLink": "This reset link is invalid or has expired.",
+        "requestNewLink": "Request a new reset link"
       },
       "verifyEmail": {
         "invalidLink": "This verification link is invalid or has expired.",
@@ -1014,8 +1054,32 @@
           "resendVerificationEmail": "Resend Verification Email",
           "goToLogin": "Go to login"
         },
-        "verified": "Your email address is verified. You can now sign in.",
-        "requestNew": "Request a new verification link below."
+        "verifiedMessage": "Your email address is verified. You can now sign in.",
+        "requestNew": "Request a new verification link below.",
+        "resend": "Send verification email",
+        "verified": {
+          "title": "Email verified",
+          "description": "Your email address is verified. You can now sign in."
+        },
+        "pending": {
+          "title": "Verify your email",
+          "description": "Enter your email address and we will send a verification link."
+        },
+        "expired": {
+          "title": "Verification link expired",
+          "description": "For your security, verification links expire. Request a fresh link below.",
+          "notice": "This verification link has expired."
+        },
+        "invalid": {
+          "title": "Verification link unavailable",
+          "description": "This link cannot be used. Request a new verification email below.",
+          "notice": "This verification link is invalid or malformed."
+        }
+      },
+      "invitation": {
+        "title": "Set up your password",
+        "description": "Your email is verified. Choose a password to finish setting up your account.",
+        "invalidLink": "This invitation link is invalid or has expired. Ask an administrator for a new invitation if you need one."
       }
     },
     "dashboard": {
@@ -4092,6 +4156,17 @@
         "searchCommandsAndModules": "Search commands and modules",
         "recent": "Recent",
         "noResultsFor": "No results for"
+      },
+      "preferences": {
+        "title": "Preferences",
+        "appearance": "Appearance",
+        "navigation": "Navigation",
+        "displayCurrency": "Display currency",
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System",
+        "sidebar": "Sidebar",
+        "topbar": "Top bar"
       },
       "userprofile": {
         "myAccount": "My Account",

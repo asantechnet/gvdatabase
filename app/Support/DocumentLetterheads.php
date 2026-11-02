@@ -45,7 +45,7 @@ class DocumentLetterheads
 
         return [
             'source' => $source,
-            'url' => $path ? Storage::url($path) : null,
+            'url' => $path ? Storage::disk('public')->url($path) : null,
             'raw' => $raw,
             'safe' => [
                 'x' => (float) ($setting?->{"{$type}_letterhead_safe_x"} ?? $defaults[0]),

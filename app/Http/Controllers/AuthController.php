@@ -177,12 +177,15 @@ class AuthController extends Controller
     {
         $redirectUrl = url('/verify-email');
         if (! $request->hasValidSignature()) {
-            return redirect()->to($redirectUrl.'?verified=0');
+            $expiresAt = $request->query('expires');
+            $reason = is_numeric($expiresAt) && (int) $expiresAt < now()->getTimestamp() ? 'expired' : 'invalid';
+
+            return redirect()->to($redirectUrl.'?reason='.$reason);
         }
 
         $user = User::find($id);
         if (! $user || ! hash_equals(sha1($user->getEmailForVerification()), $hash)) {
-            return redirect()->to($redirectUrl.'?verified=0');
+            return redirect()->to($redirectUrl.'?reason=invalid');
         }
 
         if (! $user->hasVerifiedEmail() && $user->markEmailAsVerified()) {
@@ -192,7 +195,7 @@ class AuthController extends Controller
         if ($user->must_set_password) {
             $token = Password::broker()->createToken($user);
 
-            return redirect()->to(url('/create-password').'?token='.urlencode($token).'&email='.urlencode($user->email));
+            return redirect()->to(url('/accept-invitation').'?token='.urlencode($token).'&email='.urlencode($user->email));
         }
 
         return redirect()->to($redirectUrl.'?verified=1');
@@ -294,7 +297,7 @@ class AuthController extends Controller
         $path = 'avatars/'.Str::uuid().'.'.$extension;
         Storage::disk('public')->putFileAs('avatars', $file, basename($path));
         $this->deleteAvatar($employee->avatar);
-        $employee->update(['avatar' => '/storage/'.$path]);
+        $employee->update(['avatar' => Storage::disk('public')->url($path)]);
 
         return response()->json(['success' => true, 'avatar' => $employee->avatar]);
     }

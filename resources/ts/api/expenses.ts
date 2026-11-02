@@ -141,7 +141,9 @@ export const deleteExpense = async (id: number): Promise<void> => {
 export const uploadExpenseDocument = async (id: number, document: File): Promise<Expense> => {
   const body = new FormData()
   body.append('document', document)
-  return (await api.post<{ data: Expense }>(`/expenses/${id}/document`, body)).data.data
+  return (await api.post<{ data: Expense }>(`/expenses/${id}/document`, body, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })).data.data
 }
 
 export const removeExpenseDocument = async (id: number): Promise<Expense> =>

@@ -1,148 +1,191 @@
-import { type SupportedLocale, getI18n, supportedLocales } from '@/plugins/i18n'
+import {
+  type SupportedLocale,
+  getI18n,
+  supportedLocales,
+} from "@/plugins/i18n";
 import {
   type CurrencyFormatSource,
   type DisplayDateFormat,
   formatCount as formatCountFor,
   formatDisplayDate as formatDisplayDateFor,
-  formatMoney as formatMoneyFor,
-} from '@/utils/money'
+} from "@/utils/money";
+import { formatDisplayMoney } from "@/utils/displayCurrency";
 
 export const currentLocale = (): SupportedLocale => {
-  const locale = String(getI18n().global.locale.value)
+  const locale = String(getI18n().global.locale.value);
 
-  return supportedLocales.includes(locale as SupportedLocale) ? locale as SupportedLocale : 'en'
-}
+  return supportedLocales.includes(locale as SupportedLocale)
+    ? (locale as SupportedLocale)
+    : "en";
+};
 
-export const translate = (key: string, values?: Record<string, unknown>): string =>
-  String(getI18n().global.t(key, values ?? {}))
+export const translate = (
+  key: string,
+  values?: Record<string, unknown>,
+): string => String(getI18n().global.t(key, values ?? {}));
 
 /**
  * Active-locale presentation wrappers. Pages must use these (or the pure
  * functions in `@/utils/money`) instead of `Intl`/`toFixed` money strings; see
  * the adoption rules in `money.ts`.
  */
-export const formatActiveMoney = (value: number | string | null | undefined, currency?: CurrencyFormatSource | null): string =>
-  formatMoneyFor(value, currency, currentLocale())
+export const formatActiveMoney = (
+  value: number | string | null | undefined,
+  currency?: CurrencyFormatSource | null,
+): string => formatDisplayMoney(value, currency, currentLocale());
 
-export const formatActiveDate = (value: string | number | Date | null | undefined, format: DisplayDateFormat = 'short'): string =>
-  formatDisplayDateFor(value, format, currentLocale())
+export const formatActiveDate = (
+  value: string | number | Date | null | undefined,
+  format: DisplayDateFormat = "short",
+): string => formatDisplayDateFor(value, format, currentLocale());
 
-export const formatActiveCount = (value: number | string | null | undefined): string =>
-  formatCountFor(value, currentLocale())
+export const formatActiveCount = (
+  value: number | string | null | undefined,
+): string => formatCountFor(value, currentLocale());
 
 /** Resolve optional catalog entries without displaying a key or a missing marker. */
 export const translateOrFallback = (key: string, fallback: string): string => {
-  const i18n = getI18n().global
-  const locales = currentLocale() === 'ps-AF' ? ['ps-AF', 'fa-AF', 'en'] : [currentLocale(), 'en']
+  const i18n = getI18n().global;
+  const locales =
+    currentLocale() === "ps-AF"
+      ? ["ps-AF", "fa-AF", "en"]
+      : [currentLocale(), "en"];
 
-  return locales.some(locale => i18n.te(key, locale)) ? translate(key) : fallback
-}
+  return locales.some((locale) => i18n.te(key, locale))
+    ? translate(key)
+    : fallback;
+};
 
 const calendarDate = (value: string | number | Date): Date => {
   // Date-only API values represent a local calendar day. Parsing them as UTC
   // can display the previous day for users west of UTC.
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value))
-    return new Date(`${value}T00:00:00`)
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value))
+    return new Date(`${value}T00:00:00`);
 
-  return value instanceof Date ? value : new Date(value)
-}
+  return value instanceof Date ? value : new Date(value);
+};
 
-export const formatLocalizedDate = (value: string | number | Date | null | undefined, style: 'short' | 'long' | 'time' | Intl.DateTimeFormatOptions = 'short'): string => {
-  if (value === null || value === undefined || value === '')
-    return translate('common.messages.notAvailable')
-  const date = calendarDate(value)
-  if (Number.isNaN(date.getTime()))
-    return String(value)
+export const formatLocalizedDate = (
+  value: string | number | Date | null | undefined,
+  style: "short" | "long" | "time" | Intl.DateTimeFormatOptions = "short",
+): string => {
+  if (value === null || value === undefined || value === "")
+    return translate("common.messages.notAvailable");
+  const date = calendarDate(value);
+  if (Number.isNaN(date.getTime())) return String(value);
 
-  return typeof style === 'string'
+  return typeof style === "string"
     ? String(getI18n().global.d(date, style))
-    : new Intl.DateTimeFormat(currentLocale(), style).format(date)
-}
+    : new Intl.DateTimeFormat(currentLocale(), style).format(date);
+};
 
-export const formatLocalizedNumber = (value: number | string | null | undefined, style: 'decimal' | 'percent' | Intl.NumberFormatOptions = 'decimal'): string => {
-  const number = Number(value)
+export const formatLocalizedNumber = (
+  value: number | string | null | undefined,
+  style: "decimal" | "percent" | Intl.NumberFormatOptions = "decimal",
+): string => {
+  const number = Number(value);
   if (!Number.isFinite(number))
-    return translate('common.messages.notAvailable')
+    return translate("common.messages.notAvailable");
 
-  return typeof style === 'string'
+  return typeof style === "string"
     ? String(getI18n().global.n(number, style))
-    : new Intl.NumberFormat(currentLocale(), style).format(number)
-}
+    : new Intl.NumberFormat(currentLocale(), style).format(number);
+};
 
 const backendAliases: Record<string, string> = {
-  'off_day': 'offDay',
-  'in_progress': 'inProgress',
-  'in progress': 'inProgress',
-  'not_started': 'notStarted',
-  'not started': 'notStarted',
-  'top_performer': 'topPerformer',
-  'top performer': 'topPerformer',
-  'project_milestone': 'projectMilestone',
-  'project milestone': 'projectMilestone',
-  'client_praise': 'clientPraise',
-  'client praise': 'clientPraise',
-  'work_anniversary': 'workAnniversary',
-  'work anniversary': 'workAnniversary',
-  'manager_nomination': 'managerNomination',
-  'manager nomination': 'managerNomination',
-}
+  off_day: "offDay",
+  in_progress: "inProgress",
+  "in progress": "inProgress",
+  not_started: "notStarted",
+  "not started": "notStarted",
+  top_performer: "topPerformer",
+  "top performer": "topPerformer",
+  project_milestone: "projectMilestone",
+  "project milestone": "projectMilestone",
+  client_praise: "clientPraise",
+  "client praise": "clientPraise",
+  work_anniversary: "workAnniversary",
+  "work anniversary": "workAnniversary",
+  manager_nomination: "managerNomination",
+  "manager nomination": "managerNomination",
+};
 
 const normalizedKey = (value: string) => {
-  const normalized = value.trim().toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '')
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, "");
 
-  return backendAliases[normalized] ?? normalized.replace(/[_\s-]+(.)/g, (_, letter: string) => letter.toUpperCase())
-}
+  return (
+    backendAliases[normalized] ??
+    normalized.replace(/[_\s-]+(.)/g, (_, letter: string) =>
+      letter.toUpperCase(),
+    )
+  );
+};
 
-export const translateBackendValue = (value: unknown, namespace = 'common.statuses'): string => {
-  if (value === null || value === undefined || value === '')
-    return translate('common.messages.notAvailable')
-  const key = `${namespace}.${normalizedKey(String(value))}`
-  return translateOrFallback(key, String(value))
-}
+export const translateBackendValue = (
+  value: unknown,
+  namespace = "common.statuses",
+): string => {
+  if (value === null || value === undefined || value === "")
+    return translate("common.messages.notAvailable");
+  const key = `${namespace}.${normalizedKey(String(value))}`;
+  return translateOrFallback(key, String(value));
+};
 
 /** Translate seeded pipeline stages while preserving administrator-defined names. */
-export const translateApplicantStage = (stage: { key?: string; name?: string } | null | undefined): string => {
-  if (!stage?.name) return translate('common.messages.notAvailable')
-  const key = stage.key ?? stage.name.toLowerCase().replace(/\s+/g, '_')
-  const defaultName = key.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())
-  if (stage.name !== defaultName) return stage.name
+export const translateApplicantStage = (
+  stage: { key?: string; name?: string } | null | undefined,
+): string => {
+  if (!stage?.name) return translate("common.messages.notAvailable");
+  const key = stage.key ?? stage.name.toLowerCase().replace(/\s+/g, "_");
+  const defaultName = key
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  if (stage.name !== defaultName) return stage.name;
 
-  return translateOrFallback(`educational.stageNames.${key}`, stage.name)
-}
+  return translateOrFallback(`educational.stageNames.${key}`, stage.name);
+};
 
 const policyTypeBases = [
-  'pages.settings.policies.policies.policyLibrary.types',
-  'pages.settings.policies.policies.contractTemplate.types',
-]
+  "pages.settings.policies.policies.policyLibrary.types",
+  "pages.settings.policies.policies.contractTemplate.types",
+];
 
 const humanizeSlug = (slug: string) =>
-  slug.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\b\w/g, letter => letter.toUpperCase())
+  slug
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 // Contract policy clauses are scoped by contract-type slug. System and
 // educational slugs have catalogue entries; user-defined types fall back to
 // the stored contract-type name and finally to a humanized slug so the UI
 // never renders a raw machine key.
-export const translateContractPolicyType = (slug: unknown, fallbackName?: string | null): string => {
-  const raw = String(slug ?? '').trim()
-  if (!raw)
-    return translate('common.messages.notAvailable')
+export const translateContractPolicyType = (
+  slug: unknown,
+  fallbackName?: string | null,
+): string => {
+  const raw = String(slug ?? "").trim();
+  if (!raw) return translate("common.messages.notAvailable");
   for (const base of policyTypeBases) {
-    const translated = translateOrFallback(`${base}.${raw}`, '')
-    if (translated)
-      return translated
+    const translated = translateOrFallback(`${base}.${raw}`, "");
+    if (translated) return translated;
   }
-  if (fallbackName)
-    return fallbackName
+  if (fallbackName) return fallbackName;
 
-  return humanizeSlug(raw) || raw
-}
+  return humanizeSlug(raw) || raw;
+};
 
-export const translateContractTypeRecord = (type: { slug: string; name: string } | null | undefined): string => {
-  if (!type)
-    return ''
-  const translated = translateContractPolicyType(type.slug)
+export const translateContractTypeRecord = (
+  type: { slug: string; name: string } | null | undefined,
+): string => {
+  if (!type) return "";
+  const translated = translateContractPolicyType(type.slug);
 
   // translateContractPolicyType only returns the raw/humanized slug when no
   // catalogue entry exists; in that case the stored custom name is correct.
-  return translated === humanizeSlug(type.slug) ? type.name : translated
-}
+  return translated === humanizeSlug(type.slug) ? type.name : translated;
+};

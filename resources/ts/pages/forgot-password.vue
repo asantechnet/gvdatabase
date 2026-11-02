@@ -1,86 +1,40 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import AuthApi from '@/api/auth'
+import AuthShell from '@/components/auth/AuthShell.vue'
+import AuthStatus from '@/components/auth/AuthStatus.vue'
 import ForgotPasswordForm from '@/components/forms/ForgotPasswordForm.vue'
 
+const { t } = useI18n()
 const route = useRoute()
-const email = ref(typeof route.query.email === 'string' ? route.query.email : '')
+const email = ref(typeof route.query.email === 'string' ? route.query.email.trim() : '')
 const loading = ref(false)
 const status = ref('')
 const error = ref('')
 
 const submit = async () => {
-  if (!email.value) {
-    error.value = translate('common.messages.enterYourEmailAddress')
-
-    return
-  }
-
+  email.value = email.value.trim()
+  if (!email.value) { error.value = t('pages.auth.common.emailRequired'); return }
   loading.value = true
   error.value = ''
   try {
     await AuthApi.forgotPassword(email.value)
-    status.value = translate('pages.auth.forgotPassword.forgotPassword.ifAnAccountExistsForThatEmailAPasswordResetLinkHasBeenSent')
+    status.value = t('pages.auth.forgotPassword.sent')
   }
-  catch (err: any) {
-    error.value = err.errors?.email?.[0] || err.message || 'Unable to request a password reset.'
-  }
-  finally {
-    loading.value = false
-  }
+  catch (err: any) { error.value = err.errors?.email?.[0] || err.message || t('pages.auth.common.requestFailed') }
+  finally { loading.value = false }
 }
 </script>
 
 <template>
-  <div class="auth-page d-flex align-center justify-center pa-4">
-    <VCard
-      width="448"
-      class="pa-4"
-    >
-      <VCardItem :title="$t('pages.auth.forgotPassword.forgotPassword.forgotPassword')">
-        <template #prepend>
-          <VIcon
-            icon="tabler-lock-question"
-            color="primary"
-          />
-        </template>
-      </VCardItem>
-      <VCardText>
-        <p class="text-medium-emphasis">
-          {{ $t('pages.auth.forgotPassword.forgotPassword.enterYourAccountEmailAndWeLlSendYouASecureResetLink') }}
-        </p>
-        <VAlert
-          v-if="status"
-          type="success"
-          variant="tonal"
-          class="mb-4"
-        >
-          {{ status }}
-        </VAlert>
-        <VAlert
-          v-if="error"
-          type="error"
-          variant="tonal"
-          class="mb-4"
-        >
-          {{ error }}
-        </VAlert>
-        <ForgotPasswordForm
-          v-model:email="email"
-          :loading="loading"
-          @submit="submit"
-        />
-        <div class="text-center mt-5">
-          <RouterLink :to="{ name: 'login' }">
-            {{ $t('common.messages.backToLogin') }}
-          </RouterLink>
-        </div>
-      </VCardText>
-    </VCard>
-  </div>
+  <AuthShell :title="$t('pages.auth.forgotPassword.title')" :description="$t('pages.auth.forgotPassword.description')">
+    <template #status>
+      <AuthStatus v-if="status" :message="status" tone="success" @dismiss="status = ''" />
+      <AuthStatus v-else-if="error" :message="error" tone="error" @dismiss="error = ''" />
+    </template>
+    <ForgotPasswordForm v-model:email="email" :loading="loading" @submit="submit" />
+    <template #footer><RouterLink :to="{ name: 'login' }">{{ $t('pages.auth.common.backToLogin') }}</RouterLink></template>
+  </AuthShell>
 </template>
-
-<style scoped>
-.auth-page { min-height: 100vh; }
-</style>

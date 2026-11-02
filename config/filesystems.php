@@ -41,7 +41,12 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
+            // Public uploads are consumed by the SPA from the same Laravel
+            // origin. Keeping this path relative prevents a stale APP_URL
+            // (for example http://localhost without a development port) from
+            // turning every uploaded image into a broken cross-origin URL.
+            // Deployments using a CDN may set FILESYSTEM_PUBLIC_URL instead.
+            'url' => env('FILESYSTEM_PUBLIC_URL', '/storage'),
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

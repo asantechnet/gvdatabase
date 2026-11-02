@@ -963,6 +963,23 @@
       }
     },
     "auth": {
+      "common": {
+        "backToLogin": "بازگشت به ورود",
+        "goToLogin": "رفتن به ورود",
+        "emailRequired": "آدرس ایمیل خود را وارد کنید.",
+        "verificationEmailSent": "اگر تایید لازم باشد، ایمیل جدیدی ارسال شده است.",
+        "requestFailed": "این درخواست انجام نشد. لطفاً دوباره تلاش کنید.",
+        "passwordRequirement": "حداقل ۸ نویسه وارد کنید.",
+        "passwordsDoNotMatch": "رمزهای عبور یکسان نیستند.",
+        "showPassword": "نمایش رمز عبور",
+        "hidePassword": "پنهان کردن رمز عبور"
+      },
+      "shell": {
+        "secureWorkspace": "فضای کاری امن",
+        "heroTitle": "همه چیز مورد نیاز تیم شما، در یک جا.",
+        "heroDescription": "یک فضای کاری امن و متمرکز برای مدیریت کارمندان، کارها و پیشرفت شما.",
+        "heroAssurance": "دسترسی محافظت‌شده برای سازمان شما"
+      },
       "createPassword": {
         "invalidInvitation": "این لینک دعوت ناقص یا منقضی شده است.",
         "createPassword": {
@@ -979,7 +996,10 @@
           "forgotPassword": "فراموشی رمز عبور",
           "enterYourAccountEmailAndWeLlSendYouASecureResetLink": "ایمیل حساب خود را وارد کنید تا لینک امن بازنشانی را برایتان ارسال کنیم.",
           "sendResetLink": "ارسال لینک بازنشانی"
-        }
+        },
+        "title": "بازنشانی رمز عبور",
+        "description": "ایمیل حساب خود را وارد کنید تا لینک امن بازنشانی را برایتان ارسال کنیم.",
+        "sent": "اگر حسابی با این ایمیل وجود داشته باشد، لینک بازنشانی ارسال شده است."
       },
       "login": {
         "login": {
@@ -987,7 +1007,6 @@
           "yourAccountIsReadySignInWithThePasswordYouCreated": "حساب شما آماده است. با رمز عبوری که ایجاد کرده‌اید وارد شوید.",
           "emailAndPasswordAreRequired": "ایمیل و رمز عبور الزامی است.",
           "enterYourEmailAddressFirst": "ابتدا آدرس ایمیل خود را وارد کنید",
-          "asantechMiniManagement": "سیستم آموزشی",
           "welcome": "خوش آمدید!",
           "pleaseSignInToYourAccount": "لطفاً به حساب کاربری خود وارد شوید",
           "resendEmail": "ارسال مجدد ایمیل",
@@ -996,7 +1015,24 @@
           "authenticatorCode": "کد تاییدکننده (Authenticator)",
           "rememberMe": "مرا به خاطر بسپار",
           "forgotPassword": "فراموشی رمز عبور؟"
-        }
+        },
+        "title": "خوش آمدید",
+        "description": "برای ادامه به فضای کاری خود وارد شوید.",
+        "twoFactorTitle": "ورود خود را تایید کنید",
+        "twoFactorDescription": "برای تکمیل ورود، کد برنامه تاییدکننده خود را وارد کنید.",
+        "passwordAccepted": "رمز عبور شما پذیرفته شد. یک گام دیگر حساب شما را امن نگه می‌دارد.",
+        "recoveryCode": "کد بازیابی",
+        "useRecoveryCode": "استفاده از کد بازیابی",
+        "useAuthenticatorCode": "استفاده از کد تاییدکننده",
+        "verifyAndSignIn": "تایید و ورود",
+        "signIn": "ورود",
+        "verificationRequired": "پیش از ورود، {email} را تایید کنید.",
+        "resendVerification": "ارسال ایمیل تایید جدید",
+        "passwordResetSuccess": "رمز عبور شما بازنشانی شد. اکنون می‌توانید وارد شوید.",
+        "invitationSuccess": "حساب شما آماده است. با رمز عبوری که ایجاد کرده‌اید وارد شوید.",
+        "emailAndPasswordRequired": "ایمیل و رمز عبور خود را وارد کنید.",
+        "emailFirst": "ابتدا آدرس ایمیل خود را وارد کنید.",
+        "failed": "ورود انجام نشد. اطلاعات خود را بررسی و دوباره تلاش کنید."
       },
       "resetPassword": {
         "missingToken": "لینک بازنشانی فاقد توکن امنیتی است.",
@@ -1006,7 +1042,11 @@
           "newPassword": "رمز عبور جدید",
           "confirmNewPassword": "تایید رمز عبور جدید",
           "resetPassword": "بازنشانی رمز عبور"
-        }
+        },
+        "title": "رمز عبور جدید انتخاب کنید",
+        "description": "برای بازیابی دسترسی به حساب خود، یک رمز عبور جدید بسازید.",
+        "invalidLink": "این لینک بازنشانی نامعتبر است یا منقضی شده است.",
+        "requestNewLink": "درخواست لینک بازنشانی جدید"
       },
       "verifyEmail": {
         "invalidLink": "این لینک تایید نامعتبر است یا منقضی شده است.",
@@ -1014,8 +1054,18 @@
           "resendVerificationEmail": "ارسال مجدد ایمیل تایید",
           "goToLogin": "رفتن به صفحه ورود"
         },
-        "verified": "آدرس ایمیل شما تایید شد. اکنون می‌توانید وارد شوید.",
-        "requestNew": "لینک تایید جدید را در زیر درخواست کنید."
+        "verifiedMessage": "آدرس ایمیل شما تایید شد. اکنون می‌توانید وارد شوید.",
+        "requestNew": "لینک تایید جدید را در زیر درخواست کنید.",
+        "resend": "ارسال ایمیل تایید",
+        "verified": { "title": "ایمیل تایید شد", "description": "آدرس ایمیل شما تایید شد. اکنون می‌توانید وارد شوید." },
+        "pending": { "title": "ایمیل خود را تایید کنید", "description": "آدرس ایمیل خود را وارد کنید تا لینک تایید را ارسال کنیم." },
+        "expired": { "title": "لینک تایید منقضی شد", "description": "برای امنیت شما، لینک‌های تایید منقضی می‌شوند. در زیر لینک جدید درخواست کنید.", "notice": "این لینک تایید منقضی شده است." },
+        "invalid": { "title": "لینک تایید قابل استفاده نیست", "description": "این لینک قابل استفاده نیست. در زیر ایمیل تایید جدید درخواست کنید.", "notice": "این لینک تایید نامعتبر یا ناقص است." }
+      },
+      "invitation": {
+        "title": "رمز عبور خود را تنظیم کنید",
+        "description": "ایمیل شما تایید شده است. برای تکمیل تنظیم حساب، رمز عبور انتخاب کنید.",
+        "invalidLink": "این لینک دعوت نامعتبر است یا منقضی شده است. در صورت نیاز از مدیر دعوت جدید بخواهید."
       }
     },
     "dashboard": {
@@ -4083,6 +4133,17 @@
         "searchCommandsAndModules": "جستجوی فرمان‌ها و بخش‌ها",
         "recent": "اخیراً بازدیدشده",
         "noResultsFor": "نتیجه‌ای یافت نشد برای"
+      },
+      "preferences": {
+        "title": "تنظیمات نمایش",
+        "appearance": "ظاهر",
+        "navigation": "ناوبری",
+        "displayCurrency": "واحد نمایش پول",
+        "light": "روشن",
+        "dark": "تیره",
+        "system": "سیستم",
+        "sidebar": "نوار کناری",
+        "topbar": "نوار بالا"
       },
       "userprofile": {
         "myAccount": "حساب من",

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   form: { email: string; password: string; remember: boolean; twoFactorCode: string; recoveryCode: string }
   loading: boolean
   showPassword: boolean
@@ -13,6 +13,14 @@ const emit = defineEmits<{ togglePassword: []; submit: [] }>()
 // A lost authenticator must not lock the account out; the recovery code is
 // accepted by the same login request.
 const usingRecoveryCode = ref(false)
+const twoFactorInput = ref<{ focus: () => void } | null>(null)
+
+watch(() => props.twoFactorRequired, async required => {
+  if (required) {
+    await nextTick()
+    twoFactorInput.value?.focus()
+  }
+})
 </script>
 
 <template>
@@ -31,6 +39,8 @@ const usingRecoveryCode = ref(false)
           :placeholder="$t('pages.auth.login.login.enterYourEmail')"
           :aria-label="$t('common.fields.email')"
           required
+          validate-on="blur"
+          @blur="form.email = form.email.trim()"
         />
       </VCol>
       <VCol cols="12">
@@ -49,7 +59,7 @@ const usingRecoveryCode = ref(false)
               icon
               size="small"
               variant="text"
-              :aria-label="showPassword ? 'Hide password' : 'Show password'"
+              :aria-label="$t(showPassword ? 'pages.auth.common.hidePassword' : 'pages.auth.common.showPassword')"
               @click="emit('togglePassword')"
             >
               <VIcon :icon="showPassword ? 'tabler-eye-off' : 'tabler-eye'" />
@@ -61,8 +71,12 @@ const usingRecoveryCode = ref(false)
         v-if="twoFactorRequired"
         cols="12"
       >
+        <p class="text-body-2 text-medium-emphasis mb-3">
+          {{ $t('pages.auth.login.passwordAccepted') }}
+        </p>
         <VTextField
           v-if="!usingRecoveryCode"
+          ref="twoFactorInput"
           v-model="form.twoFactorCode"
           name="two_factor_code"
           :label="$t('pages.auth.login.login.authenticatorCode')"
@@ -74,9 +88,10 @@ const usingRecoveryCode = ref(false)
         />
         <VTextField
           v-else
+          ref="twoFactorInput"
           v-model="form.recoveryCode"
           name="recovery_code"
-          label="Recovery code"
+          :label="$t('pages.auth.login.recoveryCode')"
           autocomplete="one-time-code"
           maxlength="64"
           prepend-inner-icon="tabler-key"
@@ -88,7 +103,7 @@ const usingRecoveryCode = ref(false)
           class="px-0 mt-1"
           @click="usingRecoveryCode = !usingRecoveryCode"
         >
-          {{ usingRecoveryCode ? 'Use your authenticator code' : 'Use a recovery code' }}
+          {{ $t(usingRecoveryCode ? 'pages.auth.login.useAuthenticatorCode' : 'pages.auth.login.useRecoveryCode') }}
         </VBtn>
       </VCol>
       <VCol cols="12">
@@ -111,7 +126,7 @@ const usingRecoveryCode = ref(false)
           type="submit"
           :loading="loading"
         >
-          {{ twoFactorRequired ? 'Verify and sign in' : 'Login' }}
+          {{ $t(twoFactorRequired ? 'pages.auth.login.verifyAndSignIn' : 'pages.auth.login.signIn') }}
         </VBtn>
       </VCol>
     </VRow>

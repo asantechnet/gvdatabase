@@ -133,7 +133,9 @@ const EmployeeApi = {
   uploadDocument: async (id: number, document: File): Promise<Employee> => {
     const body = new FormData()
     body.append('document', document)
-    return (await api.post<{ data: Employee }>(`/employees/${id}/document`, body)).data.data
+    return (await api.post<{ data: Employee }>(`/employees/${id}/document`, body, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })).data.data
   },
   removeDocument: async (id: number): Promise<Employee> => (await api.delete<{ data: Employee }>(`/employees/${id}/document`)).data.data,
   getAccountOptions: async (): Promise<EmployeeAccount[]> => {

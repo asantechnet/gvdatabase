@@ -1,60 +1,72 @@
 <script lang="ts" setup>
-import type { Component } from 'vue'
-import { useRoute } from 'vue-router'
-import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
-import { layoutConfig } from '@layouts'
-import { VerticalNavGroup, VerticalNavLink, VerticalNavSectionTitle } from '@layouts/components'
-import { useLayoutConfigStore } from '@layouts/stores/config'
-import { injectionKeyIsVerticalNavHovered } from '@layouts/symbols'
-import type { NavGroup, NavLink, NavSectionTitle, VerticalNavItems } from '@layouts/types'
+import type { Component } from "vue";
+import { useRoute } from "vue-router";
+import { PerfectScrollbar } from "vue3-perfect-scrollbar";
+import { layoutConfig } from "@layouts";
+import {
+  VerticalNavGroup,
+  VerticalNavLink,
+  VerticalNavSectionTitle,
+} from "@layouts/components";
+import { useLayoutConfigStore } from "@layouts/stores/config";
+import { injectionKeyIsVerticalNavHovered } from "@layouts/symbols";
+import type {
+  NavGroup,
+  NavLink,
+  NavSectionTitle,
+  VerticalNavItems,
+} from "@layouts/types";
 
 interface Props {
-  tag?: string | Component
-  navItems: VerticalNavItems
-  isOverlayNavActive: boolean
-  toggleIsOverlayNavActive: (value: boolean) => void
+  tag?: string | Component;
+  navItems: VerticalNavItems;
+  isOverlayNavActive: boolean;
+  toggleIsOverlayNavActive: (value: boolean) => void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  tag: 'aside',
-})
+  tag: "aside",
+});
 
-const refNav = ref()
+const refNav = ref();
+const configStore = useLayoutConfigStore();
 
-const isHovered = useElementHover(refNav)
+const isHovered = useElementHover(refNav);
+const isHoverExpansionAllowed = computed(() =>
+  configStore.isVerticalNavHoverEnabled ? isHovered.value : false,
+);
 
-provide(injectionKeyIsVerticalNavHovered, isHovered)
+provide(injectionKeyIsVerticalNavHovered, isHoverExpansionAllowed);
 
-const configStore = useLayoutConfigStore()
+const resolveNavItemComponent = (
+  item: NavLink | NavSectionTitle | NavGroup,
+): unknown => {
+  if ("heading" in item) return VerticalNavSectionTitle;
+  if ("children" in item) return VerticalNavGroup;
 
-const resolveNavItemComponent = (item: NavLink | NavSectionTitle | NavGroup): unknown => {
-  if ('heading' in item)
-    return VerticalNavSectionTitle
-  if ('children' in item)
-    return VerticalNavGroup
-
-  return VerticalNavLink
-}
+  return VerticalNavLink;
+};
 
 /*
   ℹ️ Close overlay side when route is changed
   Close overlay vertical nav when link is clicked
 */
-const route = useRoute()
+const route = useRoute();
 
-watch(() => route.name, () => {
-  props.toggleIsOverlayNavActive(false)
-})
+watch(
+  () => route.name,
+  () => {
+    props.toggleIsOverlayNavActive(false);
+  },
+);
 
-const isVerticalNavScrolled = ref(false)
-const updateIsVerticalNavScrolled = (val: boolean) => isVerticalNavScrolled.value = val
+const isVerticalNavScrolled = ref(false);
+const updateIsVerticalNavScrolled = (val: boolean) =>
+  (isVerticalNavScrolled.value = val);
 
 const handleNavScroll = (evt: Event) => {
-  isVerticalNavScrolled.value = (evt.target as HTMLElement).scrollTop > 0
-}
-
-
-
+  isVerticalNavScrolled.value = (evt.target as HTMLElement).scrollTop > 0;
+};
 </script>
 
 <template>
@@ -66,9 +78,9 @@ const handleNavScroll = (evt: Event) => {
     :class="[
       {
         'overlay-nav': configStore.isLessThanOverlayNavBreakpoint,
-        'hovered': isHovered,
-        'visible': isOverlayNavActive,
-        'scrolled': isVerticalNavScrolled,
+        hovered: isHoverExpansionAllowed,
+        visible: isOverlayNavActive,
+        scrolled: isVerticalNavScrolled,
       },
     ]"
   >
@@ -82,21 +94,27 @@ const handleNavScroll = (evt: Event) => {
             :is="layoutConfig.app.iconRenderer || 'div'"
             v-show="configStore.isVerticalNavCollapsed"
             class="d-none nav-unpin"
-            :class="configStore.isVerticalNavCollapsed && 'd-lg-block'"
+            :class="configStore.isVerticalNavCollapsed && 'd-md-block'"
             v-bind="layoutConfig.icons.verticalNavUnPinned"
-            @click="configStore.isVerticalNavCollapsed = !configStore.isVerticalNavCollapsed"
+            @click="
+              configStore.isVerticalNavCollapsed =
+                !configStore.isVerticalNavCollapsed
+            "
           />
           <Component
             :is="layoutConfig.app.iconRenderer || 'div'"
             v-show="!configStore.isVerticalNavCollapsed"
             class="d-none nav-pin"
-            :class="!configStore.isVerticalNavCollapsed && 'd-lg-block'"
+            :class="!configStore.isVerticalNavCollapsed && 'd-md-block'"
             v-bind="layoutConfig.icons.verticalNavPinned"
-            @click="configStore.isVerticalNavCollapsed = !configStore.isVerticalNavCollapsed"
+            @click="
+              configStore.isVerticalNavCollapsed =
+                !configStore.isVerticalNavCollapsed
+            "
           />
           <Component
             :is="layoutConfig.app.iconRenderer || 'div'"
-            class="d-lg-none"
+            class="d-md-none"
             v-bind="layoutConfig.icons.close"
             @click="toggleIsOverlayNavActive(false)"
           />
@@ -143,7 +161,9 @@ const handleNavScroll = (evt: Event) => {
   inline-size: variables.$layout-vertical-nav-width;
   inset-block-start: 0;
   inset-inline-start: 0;
-  transition: inline-size 0.25s ease-in-out, box-shadow 0.25s ease-in-out;
+  transition:
+    inline-size 0.25s ease-in-out,
+    box-shadow 0.25s ease-in-out;
   will-change: transform, inline-size;
 
   .nav-header {
@@ -178,7 +198,10 @@ const handleNavScroll = (evt: Event) => {
     // overflow-y: auto;
   }
 
-
+  .nav-link,
+  .nav-group {
+    margin-block: 2px;
+  }
 
   .nav-item-title {
     overflow: hidden;
@@ -196,7 +219,7 @@ const handleNavScroll = (evt: Event) => {
 }
 
 // Small screen vertical nav transition
-@media (max-width: 1279px) {
+@media (max-width: 959px) {
   .layout-vertical-nav {
     &:not(.visible) {
       transform: translateX(-#{variables.$layout-vertical-nav-width});

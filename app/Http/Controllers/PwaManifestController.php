@@ -33,7 +33,7 @@ class PwaManifestController extends Controller
 
         if ($setting?->website_logo) {
             $icons[] = [
-                'src' => Storage::url($setting->website_logo),
+                'src' => Storage::disk('public')->url($setting->website_logo),
                 'sizes' => 'any',
                 'type' => $this->mimeType($setting->website_logo),
                 'purpose' => 'any',

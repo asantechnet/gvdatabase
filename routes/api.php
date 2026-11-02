@@ -85,6 +85,8 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 // Deployed frontend build version. Never cached by the service worker.
 Route::get('version', AppVersionController::class);
+// Authentication screens use this deliberately limited identity before a user has a session.
+Route::get('company-branding', [SettingController::class, 'publicBrandingProfile']);
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
@@ -449,7 +451,6 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_currencies');
 
     // Setting routes
-    Route::get('company-profile', [SettingController::class, 'profile']);
     Route::apiResource('settings', SettingController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_settings')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:edit_settings');
@@ -598,3 +599,4 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         Route::get('/view', [FileController::class, 'viewFile'])->middleware('permission:view_files');
     });
 });
+ 

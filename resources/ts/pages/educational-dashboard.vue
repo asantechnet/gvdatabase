@@ -3,8 +3,6 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { RouterLink } from "vue-router";
 import { useToast } from "vue-toastification";
-import { useTheme } from "vuetify";
-import VueApexCharts from "vue3-apexcharts";
 import ErpPageHeader from "@/components/erp/ErpPageHeader.vue";
 import ErpDateFilterMenu from "@/components/erp/ErpDateFilterMenu.vue";
 import AgencyOverviewSkeleton from "@/components/dashboard/AgencyOverviewSkeleton.vue";
@@ -12,15 +10,16 @@ import DashboardApi, {
   type EducationalDashboard,
   type EducationalDashboardParams,
 } from "@/api/educationalDashboard";
+import { useDisplayCurrency } from "@/composables/useDisplayCurrency";
 import { canAccess } from "@/utils/authorization";
 import {
+  formatActiveMoney,
   translateApplicantStage,
   translateBackendValue,
 } from "@/utils/localization";
 
-const { t, n, locale } = useI18n();
+const { t, n } = useI18n();
 const toast = useToast();
-const vuetifyTheme = useTheme();
 const data = ref<EducationalDashboard | null>(null);
 const loading = ref(false);
 const failed = ref(false);
@@ -28,6 +27,8 @@ const appliedFilters = ref<EducationalDashboardParams>({});
 const dashboardContent = ref<HTMLElement>();
 const skeletonHeights = ref<number[]>([]);
 const skeletonSummaryHeight = ref<number>();
+const { currencies: displayCurrencies, loadCurrencies: loadDisplayCurrencies } =
+  useDisplayCurrency();
 
 const applicationLink = (extra: Record<string, string | number> = {}) => ({
   name: "applications",
@@ -41,9 +42,15 @@ const applicationLink = (extra: Record<string, string | number> = {}) => ({
 
 const money = (rows: Array<{ amount: number; currency: string | null }>) =>
   rows
-    .map(
-      (row) =>
-        `${n(row.amount, "decimal")} ${row.currency ?? t("agencyDashboard.unspecifiedCurrency")}`,
+    .map((row) =>
+      row.currency
+        ? formatActiveMoney(
+            row.amount,
+            displayCurrencies.value.find(
+              (currency) => currency.code === row.currency,
+            ) ?? { code: row.currency },
+          )
+        : `${n(row.amount, "decimal")} ${t("agencyDashboard.unspecifiedCurrency")}`,
     )
     .join(" · ") || n(0);
 
@@ -241,6 +248,7 @@ const financialRows = computed(() =>
           value: money(data.value.financial.income),
           isZero: !data.value.financial.income.some((row) => row.amount),
           icon: "tabler-trending-up",
+          tone: "success",
           to: canAccess("view_incomes") ? { name: "income" } : undefined,
         },
         {
@@ -248,6 +256,7 @@ const financialRows = computed(() =>
           value: money(data.value.financial.expenses),
           isZero: !data.value.financial.expenses.some((row) => row.amount),
           icon: "tabler-trending-down",
+          tone: "error",
           to: canAccess("view_expenses") ? { name: "expenses" } : undefined,
         },
         {
@@ -255,6 +264,7 @@ const financialRows = computed(() =>
           value: money(data.value.financial.salaries),
           isZero: !data.value.financial.salaries.some((row) => row.amount),
           icon: "tabler-cash-banknote",
+          tone: "info",
         },
       ]
     : [],
@@ -266,95 +276,14 @@ const staff = computed(() =>
     .slice(0, 6),
 );
 const destinations = computed(() => (data.value?.countries ?? []).slice(0, 6));
-const isRtl = computed(() => ["fa-AF", "ps-AF"].includes(locale.value));
-const chartPrimary = computed(
-  () => vuetifyTheme.global.current.value.colors.primary,
+const largestStaffWorkload = computed(() =>
+  Math.max(1, ...staff.value.map((row) => row.active_applicants)),
 );
-const chartText = computed(
-  () => vuetifyTheme.global.current.value.colors["on-surface"],
+const largestDestinationCount = computed(() =>
+  Math.max(1, ...destinations.value.map((row) => row.active)),
 );
-const chartTheme = computed(() =>
-  vuetifyTheme.global.current.value.dark ? "dark" : "light",
-);
-const number = (value: number | string) => n(Math.floor(Number(value)));
-const chartHeight = (rows: number) =>
-  Math.max(130, Math.min(240, rows * 36 + 48));
-const horizontalOptions = (categories: string[], values: number[]) => {
-  const maximum = Math.max(1, ...values.map((value) => Math.floor(value)));
-  const tickAmount = Math.min(4, maximum);
-
-  return {
-    chart: {
-      toolbar: { show: false },
-      fontFamily: "inherit",
-      foreColor: chartText.value,
-      parentHeightOffset: 0,
-      animations: { enabled: true, speed: 250 },
-    },
-    colors: [chartPrimary.value],
-    dataLabels: {
-      enabled: true,
-      formatter: number,
-      style: { fontWeight: 600 },
-    },
-    grid: {
-      show: false,
-      padding: { left: 10, right: 20, top: 0, bottom: 0 },
-    },
-    legend: { show: false },
-    plotOptions: {
-      bar: { horizontal: true, borderRadius: 4, barHeight: "54%" },
-    },
-    tooltip: { theme: chartTheme.value, y: { formatter: number } },
-    xaxis: {
-      categories,
-      min: 0,
-      max: maximum,
-      tickAmount,
-      labels: { formatter: number },
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-    },
-    yaxis: {
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-      labels: {
-        minWidth: 120,
-        maxWidth: 160,
-        align: isRtl.value ? "right" : "left",
-        trim: false,
-        style: { fontSize: "12px", fontWeight: 500 },
-      },
-    },
-  };
-};
-
-const counselorChart = computed(() => ({
-  height: chartHeight(staff.value.length),
-  series: [
-    {
-      name: t("educational.activeCases"),
-      data: staff.value.map((row) => row.active_applicants),
-    },
-  ],
-  options: horizontalOptions(
-    staff.value.map((row) => row.name),
-    staff.value.map((row) => row.active_applicants),
-  ),
-}));
-const destinationChart = computed(() => ({
-  height: chartHeight(destinations.value.length),
-  series: [
-    {
-      name: t("educational.activeCases"),
-      data: destinations.value.map((row) => row.active),
-    },
-  ],
-  options: horizontalOptions(
-    destinations.value.map((row) => row.name),
-    destinations.value.map((row) => row.active),
-  ),
-}));
+const progressWidth = (value: number, maximum: number) =>
+  `${Math.max(0, Math.min(100, (value / maximum) * 100))}%`;
 
 let requestId = 0;
 async function load(range: EducationalDashboardParams = appliedFilters.value) {
@@ -395,7 +324,11 @@ async function load(range: EducationalDashboardParams = appliedFilters.value) {
   }
 }
 
-onMounted(() => load());
+onMounted(() => {
+  if (canAccess("view_currencies"))
+    void loadDisplayCurrencies().catch(() => undefined);
+  void load();
+});
 </script>
 
 <template>
@@ -488,7 +421,7 @@ onMounted(() => load());
               </div>
             </RouterLink>
           </div>
-          <p v-else class="dashboard-empty">
+          <p v-else class="dashboard-empty dashboard-empty--panel">
             {{ t("educational.noActivePipeline") }}
           </p>
         </article>
@@ -512,11 +445,15 @@ onMounted(() => load());
                 ><strong>{{ alert.title }}</strong
                 ><small>{{ alert.reference }}</small></span
               ><span class="dashboard-action__count">{{ n(alert.count) }}</span
-              ><VIcon icon="tabler-arrow-right" size="18"
+              ><VIcon
+                class="dashboard-action__arrow"
+                icon="tabler-arrow-right"
+                size="18"
             /></RouterLink>
           </div>
-          <p v-else class="dashboard-empty">
-            {{ t("agencyDashboard.noPriorityItems") }}
+          <p v-else class="dashboard-empty dashboard-empty--panel">
+            <VIcon icon="tabler-alert-triangle" size="22" />
+            <span>{{ t("agencyDashboard.noPriorityItems") }}</span>
           </p>
         </article>
       </section>
@@ -536,40 +473,80 @@ onMounted(() => load());
               :class="{
                 'dashboard-financial-row--static': !item.to,
                 'dashboard-financial-row--zero': item.isZero,
+                [`dashboard-financial-row--${item.tone}`]: true,
               }"
-              ><span class="dashboard-financial-row__icon"
+              ><span
+                class="dashboard-financial-row__icon"
+                :class="`dashboard-financial-row__icon--${item.tone}`"
                 ><VIcon :icon="item.icon" size="18" /></span
-              ><span>{{ item.label }}</span
+              ><span class="dashboard-financial-row__label">{{
+                item.label
+              }}</span
               ><strong>{{ item.value }}</strong></component
             >
           </div>
         </article>
-        <article class="dashboard-card dashboard-card--chart">
+        <article class="dashboard-card dashboard-card--distribution">
           <header class="dashboard-card__header">
             <h2>{{ t("agencyDashboard.teamWorkload") }}</h2>
           </header>
-          <VueApexCharts
-            v-if="staff.length"
-            type="bar"
-            :height="counselorChart.height"
-            :options="counselorChart.options"
-            :series="counselorChart.series"
-          />
-          <p v-else class="dashboard-empty">{{ t("educational.noStaff") }}</p>
+          <div v-if="staff.length" class="dashboard-distribution-list">
+            <RouterLink
+              v-for="member in staff"
+              :key="member.id"
+              :to="
+                applicationLink({
+                  responsible_employee_id: member.id,
+                  status: 'active',
+                })
+              "
+              class="dashboard-distribution-row"
+            >
+              <strong>{{ member.name }}</strong>
+              <span class="dashboard-distribution-track" aria-hidden="true"
+                ><i
+                  :style="{
+                    inlineSize: progressWidth(
+                      member.active_applicants,
+                      largestStaffWorkload,
+                    ),
+                  }"
+              /></span>
+              <b>{{ n(member.active_applicants) }}</b>
+            </RouterLink>
+          </div>
+          <p v-else class="dashboard-empty dashboard-empty--panel">
+            <VIcon icon="tabler-users-group" size="22" />
+            <span>{{ t("educational.noStaff") }}</span>
+          </p>
         </article>
-        <article class="dashboard-card dashboard-card--chart">
+        <article class="dashboard-card dashboard-card--distribution">
           <header class="dashboard-card__header">
             <h2>{{ t("agencyDashboard.destinations") }}</h2>
           </header>
-          <VueApexCharts
-            v-if="destinations.length"
-            type="bar"
-            :height="destinationChart.height"
-            :options="destinationChart.options"
-            :series="destinationChart.series"
-          />
-          <p v-else class="dashboard-empty">
-            {{ t("educational.noCountryData") }}
+          <div v-if="destinations.length" class="dashboard-distribution-list">
+            <RouterLink
+              v-for="country in destinations"
+              :key="country.id"
+              :to="applicationLink({ country_id: country.id })"
+              class="dashboard-distribution-row dashboard-distribution-row--destination"
+            >
+              <strong>{{ country.name }}</strong>
+              <span class="dashboard-distribution-track" aria-hidden="true"
+                ><i
+                  :style="{
+                    inlineSize: progressWidth(
+                      country.active,
+                      largestDestinationCount,
+                    ),
+                  }"
+              /></span>
+              <b>{{ n(country.active) }}</b>
+            </RouterLink>
+          </div>
+          <p v-else class="dashboard-empty dashboard-empty--panel">
+            <VIcon icon="tabler-map-pin" size="22" />
+            <span>{{ t("educational.noCountryData") }}</span>
           </p>
         </article>
       </section>
@@ -608,11 +585,62 @@ onMounted(() => load());
   background: rgb(var(--v-theme-surface));
   box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
 }
-.dashboard-card--chart {
+.dashboard-card--distribution {
   align-self: start;
+  padding: 1.25rem;
 }
-.dashboard-card--chart :deep(.apexcharts-canvas) {
-  margin-inline: 0 !important;
+.dashboard-distribution-list {
+  display: grid;
+  gap: 19px;
+}
+.dashboard-distribution-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(72px, 1.4fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-inline-size: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.dashboard-distribution-row strong {
+  overflow-wrap: anywhere;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.dashboard-distribution-row b {
+  min-inline-size: 1.25rem;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+.dashboard-distribution-track {
+  display: block;
+  overflow: hidden;
+  block-size: 8px;
+  border-radius: 9999px;
+  background: rgba(var(--v-theme-on-surface), 0.07);
+}
+.dashboard-distribution-track i {
+  display: block;
+  min-inline-size: 2px;
+  block-size: 100%;
+  border-radius: inherit;
+  background: rgb(var(--v-theme-primary));
+  transition: inline-size 0.2s ease;
+}
+.dashboard-distribution-row--destination .dashboard-distribution-track i {
+  background: rgb(var(--v-theme-success));
+}
+.dashboard-distribution-row:hover strong,
+.dashboard-distribution-row:focus-visible strong {
+  color: rgb(var(--v-theme-primary));
+}
+.dashboard-distribution-row:focus-visible {
+  outline: 2px solid rgba(var(--v-theme-primary), 0.45);
+  outline-offset: 3px;
 }
 .dashboard-kpi {
   display: flex;
@@ -704,8 +732,13 @@ onMounted(() => load());
 .dashboard-card--actions {
   display: flex;
   flex-direction: column;
-  max-block-size: 480px;
+  block-size: 420px;
+  max-block-size: 420px;
   overflow: hidden;
+}
+.dashboard-analytics--secondary > .dashboard-card {
+  block-size: 324px;
+  max-block-size: 324px;
 }
 .dashboard-stage-list {
   display: grid;
@@ -777,6 +810,20 @@ onMounted(() => load());
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
   font-size: 0.875rem;
 }
+.dashboard-empty--panel {
+  display: grid;
+  flex: 1 1 auto;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  min-block-size: 0;
+  border: 1px dashed rgba(var(--v-theme-on-surface), 0.16);
+  border-radius: 8px;
+  text-align: center;
+}
+.dashboard-empty--panel .v-icon {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
 .dashboard-action-list {
   display: grid;
   flex: 1 1 auto;
@@ -803,7 +850,10 @@ onMounted(() => load());
     background: rgba(var(--v-theme-error), 0.07);
   }
   &:hover {
-    background: rgba(var(--v-theme-primary), 0.07);
+    background: rgba(var(--v-theme-warning), 0.13);
+  }
+  &--error:hover {
+    background: rgba(var(--v-theme-error), 0.13);
   }
 }
 .dashboard-action__icon {
@@ -812,12 +862,17 @@ onMounted(() => load());
   block-size: 32px;
   place-items: center;
   border-radius: 8px;
-  color: rgb(var(--v-theme-warning));
-  background: rgba(var(--v-theme-warning), 0.12);
+  color: rgb(var(--v-theme-on-warning));
+  background: rgb(var(--v-theme-warning));
+  box-shadow: 0 1px 2px rgba(var(--v-theme-warning), 0.24);
 }
 .dashboard-action--error .dashboard-action__icon {
-  color: rgb(var(--v-theme-error));
-  background: rgba(var(--v-theme-error), 0.12);
+  color: rgb(var(--v-theme-on-error));
+  background: rgb(var(--v-theme-error));
+  box-shadow: 0 1px 2px rgba(var(--v-theme-error), 0.24);
+}
+.dashboard-action__icon .v-icon {
+  color: inherit;
 }
 .dashboard-action__content {
   display: grid;
@@ -843,11 +898,11 @@ onMounted(() => load());
   font-variant-numeric: tabular-nums;
   text-align: end;
 }
-.dashboard-action .v-icon {
+.dashboard-action > .v-icon {
   flex: 0 0 auto;
   color: rgb(var(--v-theme-primary));
 }
-:global(html[dir="rtl"] .dashboard-action .v-icon) {
+:global(html[dir="rtl"] .dashboard-action__arrow) {
   transform: rotate(180deg);
 }
 .dashboard-financial-list {
@@ -866,7 +921,7 @@ onMounted(() => load());
   &:last-child {
     border-block-end: 0;
   }
-  &:not(&--static):hover span {
+  &:not(&--static):hover .dashboard-financial-row__label {
     color: rgb(var(--v-theme-primary));
   }
 }
@@ -878,11 +933,23 @@ onMounted(() => load());
   border-radius: 8px;
   background: rgba(var(--v-theme-primary), 0.08);
 }
+.dashboard-financial-row__icon--success {
+  color: rgb(var(--v-theme-success));
+  background: rgba(var(--v-theme-success), 0.12);
+}
+.dashboard-financial-row__icon--error {
+  color: rgb(var(--v-theme-error));
+  background: rgba(var(--v-theme-error), 0.12);
+}
+.dashboard-financial-row__icon--info {
+  color: rgb(var(--v-theme-info));
+  background: rgba(var(--v-theme-info), 0.12);
+}
 .dashboard-financial-row__icon .v-icon {
-  color: rgb(var(--v-theme-primary));
+  color: inherit;
   opacity: 0.8;
 }
-.dashboard-financial-row span {
+.dashboard-financial-row__label {
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
   font-size: 0.875rem;
   font-weight: 550;
@@ -893,6 +960,15 @@ onMounted(() => load());
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   text-align: end;
+}
+.dashboard-financial-row--success strong {
+  color: rgb(var(--v-theme-success));
+}
+.dashboard-financial-row--error strong {
+  color: rgb(var(--v-theme-error));
+}
+.dashboard-financial-row--info strong {
+  color: rgb(var(--v-theme-info));
 }
 .dashboard-financial-row--zero strong {
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -907,23 +983,13 @@ onMounted(() => load());
   background: rgb(var(--v-theme-primary)) !important;
   color: rgb(var(--v-theme-on-primary)) !important;
 }
-@media (max-width: 1439px) {
+@media (max-width: 1279px) {
   .dashboard-analytics--secondary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .dashboard-analytics--secondary > :last-child {
     grid-column: span 2;
   }
-}
-@media (max-width: 959px) {
-  .dashboard-kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .dashboard-analytics--primary {
-    grid-template-columns: 1fr;
-  }
-}
-@media (max-width: 599px) {
   .dashboard-kpis {
     display: flex;
     overflow-x: auto;
@@ -934,6 +1000,17 @@ onMounted(() => load());
   .dashboard-kpis::-webkit-scrollbar {
     display: none;
   }
+  .dashboard-kpi {
+    flex: 0 0 260px;
+    scroll-snap-align: start;
+  }
+}
+@media (max-width: 959px) {
+  .dashboard-analytics--primary {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 599px) {
   .dashboard-kpi {
     flex: 0 0 min(82vw, 300px);
     scroll-snap-align: start;
