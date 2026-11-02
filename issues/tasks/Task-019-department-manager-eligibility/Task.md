@@ -49,13 +49,11 @@ Deleting a non-empty department is also refused server-side, but the page shows 
 - Error behavior: an ineligible manager save returns 422 with `errors.manager_id` and a business code; a non-empty delete returns 422 with the blocking count and a business code. The page shows the message once.
 - Permission/data scope: existing `view_departments`, `manage_departments` (or the actual permission names) remain unchanged.
 - Integration seam: the picker's eligibility query and the controller's guard must share one scope/rule; do not duplicate the joins in two places without a shared method.
+- Ownership handoff: this task is complete. Forward department controller and manager-test changes belong to Task-022; the departments page and API contract belong to Task-023 from 2026-11-01.
 - Files this task must not modify: `resources/ts/api/axios.ts`, `resources/ts/utils/apiErrors.ts`, `app/Http/Controllers/EmployeeController.php`, `resources/ts/pages/staff_list.vue`.
 
 ## Exclusive file ownership
-- `app/Http/Controllers/DepartmentController.php` — manager options, guard and delete refusal payload.
-- `resources/ts/pages/setup/departments.vue` — picker, inline error, delete refusal and single toast.
-- `resources/ts/api/department.ts` — typed manager options and error payloads.
-- `tests/Feature/DepartmentManagerTest.php` — new options/guard/delete coverage.
+- None — this task is complete. Forward department controller, page, API and manager-test work is owned by Task-022 and Task-023 from 2026-11-01.
 
 ## Acceptance criteria
 - [ ] Given the manager picker opens, when it loads, then it contains only active employees linked to a user whose role holds the supervisory permission; employees without a user account or with an ineligible role are absent.

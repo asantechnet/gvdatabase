@@ -51,6 +51,7 @@ A rejected API request produces exactly one user-facing message, always in the u
 - Error behavior: one failed request yields at most one visible message. A 422 with a matched field is inline-only; a 422 without a field is one toast; 401/403/429/500/network each yield one toast.
 - Permission/data scope: unchanged.
 - Integration seam: page tasks remove their own `toast.error(apiErrorMessage(...))` calls; they do not mute the global notifier or clear unrelated toasts.
+- Ownership handoff: forward changes to the API copy catalogs (`lang/*/api.php`) and the three JSON locale files belong to Task-026 from 2026-11-01; this task's notifier and inline/toast contract remain authoritative.
 - Files this task must not modify: any page under `resources/ts/pages/`, `resources/ts/components/FullDetailsButton.vue`, `app/Http/Controllers/**`.
 
 ## Exclusive file ownership
@@ -58,8 +59,6 @@ A rejected API request produces exactly one user-facing message, always in the u
 - `resources/ts/components/ApiErrorNotifier.vue` — inline-first, one-toast fallback.
 - `resources/ts/utils/apiErrors.ts` — business-code map and message selection.
 - `resources/ts/utils/formErrors.ts` — field matching and clearing contract.
-- `lang/en/api.php`, `lang/fa/api.php`, `lang/ps/api.php` — missing business copy.
-- `resources/ts/plugins/i18n/locales/en.json`, `fa.json`, `ps.json` — missing `common.statuses.underReview` label only.
 
 ## Acceptance criteria
 - [ ] Given a 422 with a field that exists on the form, when the response returns, then the field shows one inline error and the notifier adds no toast.

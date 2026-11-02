@@ -50,6 +50,7 @@ The roles page displays `users_count`, but the report observed "Total 1 users" a
 - Error behavior: attempting to delete the primary account or remove its last super-admin role returns a clear 403/422, not a silent no-op.
 - Permission/data scope: `view_users`, `edit_users`, `delete_users` and `assign_user_roles` remain the gates; no new permission.
 - Integration seam: role membership count and permission summary come from the role resource, not a separate client-side count.
+- Ownership handoff: forward changes to `resources/ts/pages/setup/roles.vue` belong to Task-025 from 2026-11-01; this task's member-count and permission-summary work is historical.
 - Files this task must not modify: `app/Http/Controllers/AuthController.php`, `resources/ts/views/pages/account-settings/AccountSettingsSecurity.vue`, `resources/ts/components/responsive-data-table/**`.
 
 ## Exclusive file ownership
@@ -58,7 +59,6 @@ The roles page displays `users_count`, but the report observed "Total 1 users" a
 - `resources/ts/pages/setup/users.vue` — columns, filters, self-protection messaging and action names.
 - `app/Http/Controllers/RoleController.php` — membership counts, permission summary and in-use delete guard.
 - `app/Http/Resources/RoleResource.php` — count and permission fields.
-- `resources/ts/pages/setup/roles.vue` — member count, pluralization, permission summary and delete state.
 
 ## Acceptance criteria
 - [ ] Given the demo database has 9 users including the primary super admin, when `/setup/users` loads, then all 9 are listed, the footer total is 9, and searching by the admin email finds the account.
