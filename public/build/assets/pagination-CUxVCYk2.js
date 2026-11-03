@@ -1,1 +1,0 @@
-const s=(t=[])=>({rows:t,total:t.length,page:1,lastPage:1}),n=t=>{if(Array.isArray(t))return s(t);const e=t??{},a=Array.isArray(e.data)?e.data:[];return{rows:a,total:Number(e.total??a.length),page:Number(e.current_page??1),lastPage:Number(e.last_page??1)}},o=t=>{const e={};for(const[a,r]of Object.entries(t))r!=null&&r!==""&&(e[a]=r);return e};export{o as c,n as r};
