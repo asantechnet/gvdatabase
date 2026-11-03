@@ -17,6 +17,7 @@ declare module 'vue' {
     ApiErrorNotifier: typeof import('./resources/ts/components/ApiErrorNotifier.vue')['default']
     AppAutocomplete: typeof import('./resources/ts/@core/components/app-form-elements/AppAutocomplete.vue')['default']
     AppBarSearch: typeof import('./resources/ts/@core/components/AppBarSearch.vue')['default']
+    AppBrandMark: typeof import('./resources/ts/components/erp/AppBrandMark.vue')['default']
     AppCardActions: typeof import('./resources/ts/@core/components/cards/AppCardActions.vue')['default']
     AppCardCode: typeof import('./resources/ts/@core/components/cards/AppCardCode.vue')['default']
     AppCombobox: typeof import('./resources/ts/@core/components/app-form-elements/AppCombobox.vue')['default']

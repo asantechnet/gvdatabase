@@ -1,6 +1,10 @@
 import { computed, ref } from 'vue'
 import { useTheme } from 'vuetify'
-import fallbackLogo from '@images/logo.svg'
+// `?url` is required: vite-svg-loader otherwise imports the file as a Vue
+// component, which turns `logoUrl` into an object. `<img :src>` then renders
+// "[object Object]" and the masked brand mark gets `url([object Object])`,
+// which the browser rejects, leaving a solid, blank rectangle.
+import fallbackLogo from '@images/logo.svg?url'
 import SettingApi from '@/api/setting'
 import { type ThemeColorPreferences, persistThemeColors, readStoredThemeColors, themeColorFields, themeWithPalette } from '@/utils/themePersistence'
 
