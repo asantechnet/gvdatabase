@@ -58,10 +58,10 @@ The post-review notes asked for the timesheet to keep four KPIs in one scrollabl
 - Error behavior: a missing currency falls back to the documented base currency and shows a visible fallback, never a bare number.
 - Permission/data scope: staff salary visibility and payroll permissions are unchanged.
 - Integration seam: money formatting is imported from the Task-012 utility, not reimplemented in the page.
+- Ownership handoff: forward changes to `resources/ts/pages/staff_list.vue` belong to Task-024 from 2026-11-01; this task's salary/action work is historical and remains evidence for that page.
 - Files this task must not modify: `resources/ts/utils/localization.ts`, `resources/ts/components/responsive-data-table/**`, `app/Http/Controllers/SalaryController.php`.
 
 ## Exclusive file ownership
-- `resources/ts/pages/staff_list.vue` — salary/currency display and accessible actions.
 - `resources/ts/pages/payrolls.vue` — money display, subtitle and action reachability.
 - `resources/ts/pages/timesheet.vue` — four-KPI strip and attendance ledger layout.
 - `resources/ts/pages/leave_requests.vue` — hint removal, skeleton/empty state and detail trigger.

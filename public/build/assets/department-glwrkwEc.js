@@ -1,1 +1,0 @@
-import{S as t}from"./main-DqUAHEit.js";const s={getAll:async(a=!1)=>(await t.get("/departments",{params:a?{include_inactive:!0}:void 0})).data.data,create:async a=>(await t.post("/departments",a)).data.data,update:async(a,e)=>(await t.put(`/departments/${a}`,e)).data.data,delete:async a=>{await t.delete(`/departments/${a}`)}};export{s as D};

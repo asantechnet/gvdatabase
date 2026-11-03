@@ -1,10 +1,10 @@
 # Task Set Index
 
-- **Plan source/version:** `issues/review/REPORT.md` and `issues/review/issues/01-18`; `hr-issues/README.md` and `hr-issues/issues/HR-001..009`; `fin-issues/README.md` and `fin-issues/issues/FIN-001..010`; validation record `issues/tasks/VALIDATION.md`; repository state 2026-10-31
+- **Plan source/version:** `issues/review/REPORT.md` and `issues/review/issues/01-18`; `hr-issues/README.md` and `hr-issues/issues/HR-001..009`; `fin-issues/README.md` and `fin-issues/issues/FIN-001..010`; validation record `issues/tasks/VALIDATION.md`; repository state 2026-10-31; user request 2026-11-01: multi-department employees, editable role seniority, Reports-to disclosure and visible hierarchy rules
 - **Last updated:** `2026-11-01`
 - **Status:** `Validated`
 - **Validation command:** `python3 issues/tasks/scripts/validate_tasks.py issues/tasks`
-- **Last validation result:** `PASS (2026-10-31), 20 tasks, 0 errors`
+- **Last validation result:** `PASS (2026-11-01), 26 tasks, 0 errors`
 
 ## Tasks
 
@@ -15,9 +15,9 @@
 | Task-003 | `Task-003-contract-register-truth/` | Contract register shows role, expiry, scheduled extensions and payment state | Review | Task-012, Task-013 | `resources/ts/pages/contract_list.vue`, `resources/ts/composables/useContracts.ts`, `resources/ts/api/contracts.ts`, `app/Http/Controllers/ContractController.php`, `app/Http/Resources/ContractResource.php` | Passed |
 | Task-004 | `Task-004-dashboard-report-truth/` | Dashboard and reports distinguish accrued, paid, posted and future money | Review | Task-003, Task-012 | `app/Http/Controllers/EducationalDashboardController.php`, `app/Http/Controllers/EducationalReportController.php`, `resources/ts/pages/educational-dashboard.vue`, `resources/ts/pages/educational-reports.vue` | Passed |
 | Task-005 | `Task-005-crm-service-and-followup/` | Visitor service uses the controlled vocabulary and the follow-up queue is truthful | Review | Task-013 | `app/Http/Controllers/VisitorController.php`, `app/Http/Resources/VisitorResource.php`, `app/Models/Visitor.php`, `resources/ts/pages/visitor.vue`, `resources/ts/api/visitor.ts`, `database/migrations/2026_11_01_000003_normalize_visitor_services.php` | Passed |
-| Task-006 | `Task-006-hr-presentation/` | Staff, payroll, timesheet and leave screens are unambiguous and report every HR write | Review | Task-012, Task-013, Task-018 | `resources/ts/pages/staff_list.vue`, `resources/ts/pages/payrolls.vue`, `resources/ts/pages/timesheet.vue`, `resources/ts/pages/leave_requests.vue`, `resources/ts/api/salary.ts`, `resources/ts/api/leaveRequests.ts` | Passed |
+| Task-006 | `Task-006-hr-presentation/` | Staff, payroll, timesheet and leave screens are unambiguous and report every HR write | Review | Task-012, Task-013, Task-018 | `resources/ts/pages/payrolls.vue`, `resources/ts/pages/timesheet.vue`, `resources/ts/pages/leave_requests.vue`, `resources/ts/api/salary.ts`, `resources/ts/api/leaveRequests.ts` | Passed |
 | Task-007 | `Task-007-asset-valuation/` | Assets carry currency, valuation and field-level form feedback | Review | Task-012, Task-013 | `database/migrations/2026_11_01_000001_add_valuation_fields_to_assets.php`, `app/Models/Asset.php`, `app/Http/Controllers/AssetController.php`, `app/Http/Resources/AssetResource.php`, `resources/ts/pages/asset.vue`, `resources/ts/api/asset.ts` | Passed |
-| Task-008 | `Task-008-admin-users-roles/` | User administration includes the super admin and roles report truthfully | Review | Task-013 | `app/Http/Controllers/UserController.php`, `app/Http/Resources/UserResource.php`, `resources/ts/pages/setup/users.vue`, `app/Http/Controllers/RoleController.php`, `app/Http/Resources/RoleResource.php`, `resources/ts/pages/setup/roles.vue` | Passed |
+| Task-008 | `Task-008-admin-users-roles/` | User administration includes the super admin and roles report truthfully | Review | Task-013 | `app/Http/Controllers/UserController.php`, `app/Http/Resources/UserResource.php`, `resources/ts/pages/setup/users.vue`, `app/Http/Controllers/RoleController.php`, `app/Http/Resources/RoleResource.php` | Passed |
 | Task-009 | `Task-009-two-factor-and-sessions/` | Two-factor enrolment has QR, recovery codes and a session list | Review | None | `app/Http/Controllers/AuthController.php`, `resources/ts/views/pages/account-settings/AccountSettingsSecurity.vue`, `resources/ts/components/forms/LoginForm.vue`, `resources/ts/api/auth.ts`, `routes/api.php`, `database/migrations/2026_11_01_000002_add_two_factor_recovery_codes.php`, `database/seeders`, `package.json` | Passed |
 | Task-010 | `Task-010-audit-readability/` | Audit rows and stage notifications state field, old, new, actor and time | Review | Task-013 | `app/Http/Controllers/AuditLogController.php`, `app/Http/Resources/AuditLogResource.php`, `resources/ts/pages/audits.vue`, `resources/ts/api/auditLog.ts` | Passed |
 | Task-011 | `Task-011-payment-requests-pagination/` | Payment requests have one paginator, real filters and safe actions | Review | Task-012, Task-013, Task-018 | `resources/ts/pages/pending-transactions.vue`, `app/Http/Controllers/PendingTransactionController.php`, `resources/ts/api/pendingTransactions.ts` | Passed |
@@ -27,9 +27,15 @@
 | Task-015 | `Task-015-receipt-integrity/` | Issued receipts cannot be silently revalued and income writes are acknowledged | Review | Task-012, Task-013, Task-018 | `resources/ts/pages/income.vue`, `resources/ts/api/incomes.ts`, `app/Http/Controllers/IncomeController.php`, `resources/ts/components/FullDetailsButton.vue`, `database/migrations/2026_11_01_000004_add_revaluation_reason_to_incomes.php` | Passed |
 | Task-016 | `Task-016-commission-trigger/` | Commission accrual fires on the approved event and its copy is truthful | Blocked | None | `app/Services/CommissionService.php`, `app/Http/Controllers/CommissionController.php`, `resources/ts/pages/commissions.vue`, `tests/Feature/CommissionLifecycleTest.php`, `app/Observers/ContractObserver.php`, `app/Providers/AppServiceProvider.php` | Passed |
 | Task-017 | `Task-017-bonus-grant-integrity/` | Bonus grants are explicit, non-zero, acknowledged and reach payroll | Review | Task-018 | `resources/ts/pages/bonuslist.vue`, `resources/ts/api/bonuslist.ts`, `app/Http/Controllers/WorthyEmployeeController.php`, `app/Http/Resources/WorthyEmployeeResource.php`, `tests/Feature/BonusGrantTest.php` | Passed |
-| Task-018 | `Task-018-api-error-feedback/` | One failed API request produces one specific, localized message | Review | None | `resources/ts/api/axios.ts`, `resources/ts/components/ApiErrorNotifier.vue`, `resources/ts/utils/apiErrors.ts`, `resources/ts/utils/formErrors.ts`, `lang/en/api.php`, `lang/fa/api.php`, `lang/ps/api.php`, `resources/ts/plugins/i18n/locales/en.json`, `resources/ts/plugins/i18n/locales/fa.json`, `resources/ts/plugins/i18n/locales/ps.json` | Passed |
-| Task-019 | `Task-019-department-manager-eligibility/` | Department managers are limited to eligible employees and refusals explain themselves | Review | Task-018 | `app/Http/Controllers/DepartmentController.php`, `resources/ts/pages/setup/departments.vue`, `resources/ts/api/department.ts`, `tests/Feature/DepartmentManagerTest.php` | Passed |
+| Task-018 | `Task-018-api-error-feedback/` | One failed API request produces one specific, localized message | Review | None | `resources/ts/api/axios.ts`, `resources/ts/components/ApiErrorNotifier.vue`, `resources/ts/utils/apiErrors.ts`, `resources/ts/utils/formErrors.ts` | Passed |
+| Task-019 | `Task-019-department-manager-eligibility/` | Department managers are limited to eligible employees and refusals explain themselves | Review | Task-018 | None (complete; forward ownership Task-022 and Task-023) | Passed |
 | Task-020 | `Task-020-leave-offday-edge-cases/` | Leave and off-day edge cases are guarded and covered by tests | Review | None | `app/Http/Controllers/OffDayController.php`, `app/Services/OffDayService.php`, `app/Http/Controllers/LeaveRequestController.php`, `tests/Feature/LeaveRequestEdgeCaseTest.php`, `tests/Feature/OffDayOverlapTest.php` | Passed |
+| Task-021 | `Task-021-multi-department-foundation/` | Employees can belong to several departments while the primary department remains compatible | Ready | None | `database/migrations/2026_11_01_000005_create_department_employee_table.php`, `app/Models/Employee.php`, `app/Models/Department.php`, `app/Support/EmployeeScope.php`, `app/Http/Resources/EmployeeResource.php`, `app/Http/Controllers/EmployeeController.php`, `tests/Feature/EmployeeDepartmentMembershipTest.php`, `tests/Feature/RoleHierarchyScopeTest.php` | Passed |
+| Task-022 | `Task-022-department-membership-api/` | Department updates add and remove members with explained rank and manager refusals | Ready | Task-021 | `app/Http/Controllers/DepartmentController.php`, `app/Support/DepartmentMembership.php`, `tests/Feature/DepartmentManagerTest.php`, `tests/Feature/DepartmentMembershipTest.php` | Passed |
+| Task-023 | `Task-023-department-members-ui/` | Departments page lists and edits member sets with the rules explained before save | Ready | Task-022, Task-026 | `resources/ts/pages/setup/departments.vue`, `resources/ts/api/department.ts`, `resources/ts/components/DepartmentMembersDialog.vue` | Passed |
+| Task-024 | `Task-024-staff-departments-reports-to/` | Staff form supports several departments and discloses Reports-to scope before saving | Ready | Task-021, Task-026 | `resources/ts/pages/staff_list.vue`, `resources/ts/api/employee.ts`, `resources/ts/components/StaffSupervisorDisclosureDialog.vue` | Passed |
+| Task-025 | `Task-025-role-seniority-editor/` | Each role's seniority level is visible, editable and explained | Ready | Task-026 | `resources/ts/pages/setup/roles.vue`, `resources/ts/api/role.ts`, `tests/Feature/RoleLevelTest.php` | Passed |
+| Task-026 | `Task-026-scope-copy-localization/` | Department, Reports-to and role-seniority copy exists in English, Dari and Pashto | Ready | None | `resources/ts/plugins/i18n/locales/en.json`, `resources/ts/plugins/i18n/locales/fa-AF.json`, `resources/ts/plugins/i18n/locales/ps-AF.json`, `lang/en/api.php`, `lang/fa/api.php`, `lang/ps/api.php` | Passed |
 
 ## Dependency layers
 
@@ -37,6 +43,7 @@
 - **Layer 1 (needs shared foundations):** Task-001, Task-005, Task-008, Task-010, Task-014, Task-017, Task-019
 - **Layer 2 (needs formatting, tables or the toast contract):** Task-003, Task-006, Task-007, Task-011, Task-015
 - **Layer 3 (needs the contract register):** Task-004
+- **Org-scope extension (2026-11-01):** Task-021 and Task-026 start independently; Task-022 and Task-025 follow; Task-023 and Task-024 close the chain.
 
 ## Shared contracts and integration owners
 
@@ -49,8 +56,13 @@
 | Commission accrual trigger | Task-016 | Commission ledger, payroll source amount | The approved event (contract completion or case completion) is the only trigger; settled rows are immutable. |
 | Expiring contract URL `/employee-contracts?expiring=1` | Task-003 | Task-004 | The query parameter name and 30-day definition are frozen; Task-004 only links. |
 | Service contract client schema | Task-002 | Contract creation UI | Must mirror `StoreServiceContractRequest`; new required keys are added on both sides together. |
-| Locale JSON files (`en.json`, Dari/Persian locales) | No single owner; merge plan applies | All UI tasks | Each task edits only its own key subtree, adds the same keys to every supported locale, and does not reformat the file. |
+| Locale JSON files (`en.json`, `fa-AF.json`, `ps-AF.json`) | Task-026 for the org-scope keys; each UI task owns its component copy | All UI tasks | Each task edits only its own key subtree, adds the same keys to every supported locale, and does not reformat the file. |
 | Stage-history actor/note display | Task-001 | Task-010 notification copy | Task-001 owns the case timeline; Task-010 must not edit `applicant-case.vue`. |
+| Department membership pivot and primary projection (`department_employee`) | Task-021 | Task-022, Task-023, Task-024 | `employees.department_id` remains the primary department; the pivot is additive and one writer keeps both aligned. |
+| Department member update (`employee_ids`, `members`) | Task-022 | Task-023 | Omitted `employee_ids` means unchanged; an explicit array is the complete set for that department; no new route. |
+| Reports-to disclosure contract | Task-024 | Staff directory, HR admins | Supervisor means the direct HR reporting line and scope, not task assignment, approval or permission; the dialog is a disclosure, not a consent record. |
+| Role seniority level (`roles.level`) | Task-025 | Role admin, employee forms | Higher outranks lower; level feeds supervision, department-manager eligibility and assignment ceilings, never permissions. |
+| Org-scope copy keys (`common.ui.*`, `pages.settings.rolecards.*`) | Task-026 | Task-023, Task-024, Task-025 | UI tasks reference the frozen key list; no local English fallback and no raw business code. |
 
 ## Cross-cutting coverage
 
@@ -64,6 +76,9 @@
 | Data migration and rollback | Task-005, Task-007, Task-009, Task-015 | Additive/reversible migration notes and stop conditions. |
 | Printing/paper layout | Task-003, Task-006, Task-007, Task-015 | Asset/contract/payslip/receipt print regression checks; no global `@page` change is in scope. |
 | Payroll integrity | Task-006, Task-016, Task-017, Task-020 | Grant inclusion, settlement source, off-day/absence proration and advance recovery evidence. |
+| Multi-department membership and primary fallback | Task-021, Task-022, Task-023, Task-024 | Pivot tests, primary repair, department member diff and staff-table chips. |
+| Reports-to and role-rank explainability | Task-024, Task-025, Task-026 | Confirmation copy, rank hint, permission-gated read-only fields and three-locale key parity. |
+| Hidden hierarchy write guard | Task-021, Task-022, Task-024, Task-025 | Negative permission criteria and payload-omission checks. |
 
 ## Unresolved blockers
 
@@ -75,6 +90,9 @@
 | Demo super-admin seed path and new demo password | Task-009 | Environment owner | Locate the seeder that creates the account and document the new demo-only credential. |
 | Commission accrual trigger (contract vs case completion) | Task-016 | Product/HR owner | Record the authoritative event; pluralization can proceed independently. |
 | Receipt corrections: reason-gated edit vs append-only reversal | Task-015 | Finance owner | Confirm before implementation; the task currently plans reason-gated edits. |
+| Primary department fallback and zero-department policy | Task-021, Task-024 | Product/HR owner | Confirm that `department_id` is the primary projection and that the oldest remaining membership is promoted; confirm zero departments remains allowed. |
+| Equal seniority levels at the same numeric value | Task-025, Task-026 | HR owner | Confirm whether equal levels are allowed and what the hint should say; the current plan displays the numeric value without inventing tie-break semantics. |
+| Native Dari/Pashto review of the new disclosure and dialog copy | Task-026 | Localization owner | Name the reviewer and record reviewed keys before the UI tasks close. |
 
 ## Validation history
 
@@ -96,3 +114,5 @@
 - `2026-11-01` — Task-016 trigger decision explicitly deferred by the product owner ("leave blocked; only keep the pluralization fix"). No trigger, observer or copy rename; the stop-condition pluralization and the settled-accrual guard remain as delivered. Task-016 stays `Blocked`.
 - `2026-11-01` — Task-006 implemented to completion (staff base-currency salary via the shared formatter, payroll subtitle copy, position-change salary confirmation with cancel/Escape restore, `aria-label`s on all staff and payroll icon actions; timesheet KPI strip, ledger column/scroll behaviour, leave hint/skeleton and leave detail labels verified by source inspection). `npm run typecheck` exit 0, locale key/placeholder assertions, `npm run i18n:check` and `git diff --check` passed. Status moved to `Review` pending browser viewport/AT checks.
 - `2026-10-31` — Task-008 implemented (primary account included/protected by identity, verification column, last-super-admin guard, in-use role delete guard, role member/permission plurals, typed resource fields and three-locale copy). 4 new tests / 18 assertions and the existing user/role suites passed; typecheck, locale, validator and diff checks passed. Status moved to `Review` pending live demo count and 1280 px accessibility checks.
+
+- `2026-11-01` — Added Task-021..026 for multi-department membership, department-page member management, staff Reports-to disclosure, editable role seniority and org-scope localization. Forward ownership for `staff_list.vue`, `roles.vue`, the department controller/page/API/tests and the locale/API catalogs was moved to the new tasks to keep one writer per file. Structural validation passed: 26 tasks, 0 errors. All new tasks remain `Ready` pending implementation.

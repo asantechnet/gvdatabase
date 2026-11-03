@@ -15,8 +15,10 @@ const emit = defineEmits<{ submit: []; 'update:email': [value: string] }>()
       :label="$t('common.fields.email')"
       autocomplete="email"
       required
+      validate-on="blur"
       class="mb-4"
-      @update:model-value="emit('update:email', $event)"
+      @update:model-value="emit('update:email', $event.trimStart())"
+      @blur="emit('update:email', email.trim())"
     />
     <VBtn
       block

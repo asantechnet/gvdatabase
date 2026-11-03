@@ -78,12 +78,16 @@ const ContractDocumentDesignApi = {
       // Laravel honours this override and still dispatches to the PUT route.
       data.append('_method', 'PUT')
 
-      const response = await api.post<{ data: ContractDocumentDesign }>(`/contract-document-designs/${id}`, data, { headers: mutationHeaders(options) })
+      const response = await api.post<{ data: ContractDocumentDesign }>(`/contract-document-designs/${id}`, data, {
+        headers: { 'Content-Type': 'multipart/form-data', ...mutationHeaders(options) },
+      })
 
       return response.data.data
     }
 
-    const response = await api.post<{ data: ContractDocumentDesign }>('/contract-document-designs', data, { headers: mutationHeaders(options) })
+    const response = await api.post<{ data: ContractDocumentDesign }>('/contract-document-designs', data, {
+      headers: { 'Content-Type': 'multipart/form-data', ...mutationHeaders(options) },
+    })
 
     return response.data.data
   },

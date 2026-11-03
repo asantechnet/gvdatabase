@@ -285,6 +285,17 @@
         "recent": "وروستي کارول شوي",
         "noResultsFor": "پایله ونه موندل شوه د"
       },
+      "preferences": {
+        "title": "غوره توبونه",
+        "appearance": "بڼه",
+        "navigation": "لارښود",
+        "displayCurrency": "د پیسو د ښودلو واحد",
+        "light": "روښانه",
+        "dark": "تیاره",
+        "system": "سیستم",
+        "sidebar": "اړخیز پټی",
+        "topbar": "پورته پټی"
+      },
       "footer": {
         "developerName": "Asan Tech",
         "developedBy": "© {year} د {developer} لخوا جوړ شوی"
@@ -1308,6 +1319,23 @@
       }
     },
     "auth": {
+      "common": {
+        "backToLogin": "ننوتلو ته بېرته",
+        "goToLogin": "ننوتلو ته لاړ شئ",
+        "emailRequired": "خپل برېښنالیک ولیکئ.",
+        "verificationEmailSent": "که تایید اړین وي، نوی برېښنالیک لېږل شوی دی.",
+        "requestFailed": "غوښتنه بشپړه نه شوه. مهرباني وکړئ بیا هڅه وکړئ.",
+        "passwordRequirement": "لږ تر لږه ۸ توري وکاروئ.",
+        "passwordsDoNotMatch": "پټنومونه سره یو شان نه دي.",
+        "showPassword": "پټنوم ښکاره کړئ",
+        "hidePassword": "پټنوم پټ کړئ"
+      },
+      "shell": {
+        "secureWorkspace": "خوندي کاري ځای",
+        "heroTitle": "ستاسو د ټیم ټولې اړتیاوې، په یوه ځای کې.",
+        "heroDescription": "ستاسو د خلکو، کار او پرمختګ اداره کولو لپاره خوندي او متمرکز کاري ځای.",
+        "heroAssurance": "ستاسو د ادارې لپاره خوندي لاسرسی"
+      },
       "createPassword": {
         "invalidInvitation": "دا د بلنې لینک نیمګړی یا ختم شوی دی.",
         "createPassword": {
@@ -1324,7 +1352,10 @@
           "forgotPassword": "پټنوم مو هېر شوی؟",
           "enterYourAccountEmailAndWeLlSendYouASecureResetLink": "خپل برېښنالیک ولیکئ ترڅو د پټنوم بدلولو یو خوندي لینک درته ولېږو.",
           "sendResetLink": "د بدلولو لینک ولېږئ"
-        }
+        },
+        "title": "خپل پټنوم بدل کړئ",
+        "description": "د خپل اکاونټ برېښنالیک ولیکئ، موږ به خوندي بدلولو لینک درولېږو.",
+        "sent": "که په دې برېښنالیک اکاونټ وي، د پټنوم بدلولو لینک لېږل شوی دی."
       },
       "login": {
         "login": {
@@ -1332,7 +1363,6 @@
           "yourAccountIsReadySignInWithThePasswordYouCreated": "ستاسو اکاونټ چمتو دی. له هغه پټنوم سره ننوځئ کوم چې مو جوړ کړی.",
           "emailAndPasswordAreRequired": "برېښنالیک او پټنوم اړین دي.",
           "enterYourEmailAddressFirst": "لومړی خپل برېښنالیک ولیکئ",
-          "asantechMiniManagement": "ښوونیز سیستم",
           "welcome": "ښه راغلاست!",
           "pleaseSignInToYourAccount": "مهرباني وکړئ خپل اکاونټ ته ننوځئ",
           "resendEmail": "برېښنالیک بیا ولېږئ",
@@ -1341,7 +1371,24 @@
           "authenticatorCode": "د تایید کوډ",
           "rememberMe": "ما په یاد ولره",
           "forgotPassword": "پټنوم مو هېر شوی؟"
-        }
+        },
+        "title": "بیا ښه راغلاست",
+        "description": "خپل کاري ځای ته د دوام لپاره ننوزئ.",
+        "twoFactorTitle": "خپل ننوتل تایید کړئ",
+        "twoFactorDescription": "د ننوتلو بشپړولو لپاره د تایید کوډ دننه کړئ.",
+        "passwordAccepted": "ستاسو پټنوم ومنل شو. یو بل ګام مو اکاونټ خوندي ساتي.",
+        "recoveryCode": "د بېرته ترلاسه کولو کوډ",
+        "useRecoveryCode": "د بېرته ترلاسه کولو کوډ وکاروئ",
+        "useAuthenticatorCode": "د تاییدوونکي کوډ وکاروئ",
+        "verifyAndSignIn": "تایید او ننوتل",
+        "signIn": "ننوتل",
+        "verificationRequired": "له ننوتلو مخکې {email} تایید کړئ.",
+        "resendVerification": "نوی تایید برېښنالیک ولېږئ",
+        "passwordResetSuccess": "ستاسو پټنوم بدل شو. اوس کولی شئ سیستم ته ننوځئ.",
+        "invitationSuccess": "ستاسو اکاونټ چمتو دی. له جوړ کړي پټنوم سره ننوځئ.",
+        "emailAndPasswordRequired": "خپل برېښنالیک او پټنوم ولیکئ.",
+        "emailFirst": "لومړی خپل برېښنالیک ولیکئ.",
+        "failed": "ننوتل بشپړ نه شول. معلومات وګورئ او بیا هڅه وکړئ."
       },
       "resetPassword": {
         "missingToken": "د پټنوم بدلولو په دې لینک کې د امنیتي ټوکن شتون نلري.",
@@ -1351,7 +1398,11 @@
           "newPassword": "نوی پټنوم",
           "confirmNewPassword": "نوی پټنوم تایید کړئ",
           "resetPassword": "پټنوم بدل کړئ"
-        }
+        },
+        "title": "نوی پټنوم وټاکئ",
+        "description": "خپل اکاونټ ته د لاسرسي لپاره نوی پټنوم جوړ کړئ.",
+        "invalidLink": "دا د پټنوم بدلولو لینک نامعتبر یا ختم شوی دی.",
+        "requestNewLink": "د نوي بدلولو لینک غوښتنه"
       },
       "verifyEmail": {
         "invalidLink": "دا د تایید لینک نامعتبر یا ختم شوی دی.",
@@ -1359,8 +1410,18 @@
           "resendVerificationEmail": "د تایید برېښنالیک بیا ولېږئ",
           "goToLogin": "ننوتلو پاڼې ته لاړ شئ"
         },
-        "verified": "ستاسو برېښنالیک تایید شو. اوس کولی شئ سیستم ته ننوځئ.",
-        "requestNew": "لاندې د تایید د نوي لینک غوښتنه وکړئ."
+        "verifiedMessage": "ستاسو برېښنالیک تایید شو. اوس کولی شئ سیستم ته ننوځئ.",
+        "requestNew": "لاندې د تایید د نوي لینک غوښتنه وکړئ.",
+        "resend": "د تایید برېښنالیک ولېږئ",
+        "verified": { "title": "برېښنالیک تایید شو", "description": "ستاسو برېښنالیک تایید شو. اوس کولی شئ سیستم ته ننوځئ." },
+        "pending": { "title": "خپل برېښنالیک تایید کړئ", "description": "خپل برېښنالیک ولیکئ ترڅو د تایید لینک درولېږو." },
+        "expired": { "title": "د تایید لینک ختم شوی", "description": "ستاسو د امنیت لپاره تایید لینکونه ختمېږي. لاندې د نوي لینک غوښتنه وکړئ.", "notice": "دا د تایید لینک ختم شوی دی." },
+        "invalid": { "title": "د تایید لینک نه کارېږي", "description": "دا لینک نه کارېږي. لاندې د نوي تایید برېښنالیک غوښتنه وکړئ.", "notice": "دا د تایید لینک نامعتبر یا ناسم جوړ شوی دی." }
+      },
+      "invitation": {
+        "title": "خپل پټنوم تنظیم کړئ",
+        "description": "ستاسو برېښنالیک تایید شوی دی. د اکاونټ بشپړولو لپاره پټنوم وټاکئ.",
+        "invalidLink": "دا د بلنې لینک نامعتبر یا ختم شوی دی. که اړتیا وي له مدیر څخه نوې بلنه وغواړئ."
       }
     },
     "dashboard": {
@@ -4094,6 +4155,7 @@
     "current": "اوسنی",
     "caseCreated": "ستاسو قضیه جوړه شوې",
     "universityApplications": "د پوهنتون غوښتنلیکونه",
+    "total": "ټول",
     "universityHelp": "د هر پوهنتون، داخلې دورې او وروستي حالت معلومات وګورئ.",
     "university": "پوهنتون",
     "intake": "د داخلې دوره",
@@ -4703,6 +4765,8 @@
     "currentPageReport": "د اوسنۍ پاڼې غوښتونکي"
   },
   "agencyDashboard": {
+    "title": "د ډشبورډ لنډیز",
+    "welcomeBack": "بیا ښه راغلاست. دا ستاسو د عملیاتو وروستی انځور دی.",
     "noPriorityItems": "په دې کټګوریو کې د دوسیې یا قرارداد خبرتیا نشته.",
     "refresh": "تازه کول",
     "unspecifiedCurrency": "نامعلوم اسعار",

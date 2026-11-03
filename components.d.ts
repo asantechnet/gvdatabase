@@ -35,6 +35,8 @@ declare module 'vue' {
     AppTextField: typeof import('./resources/ts/@core/components/app-form-elements/AppTextField.vue')['default']
     AttachmentsDialog: typeof import('./resources/ts/components/attachments/AttachmentsDialog.vue')['default']
     AttachmentsPanel: typeof import('./resources/ts/components/attachments/AttachmentsPanel.vue')['default']
+    AuthShell: typeof import('./resources/ts/components/auth/AuthShell.vue')['default']
+    AuthStatus: typeof import('./resources/ts/components/auth/AuthStatus.vue')['default']
     BonusRulesDialog: typeof import('./resources/ts/components/bonus/BonusRulesDialog.vue')['default']
     BulkActionBar: typeof import('./resources/ts/components/BulkActionBar.vue')['default']
     BuyNow: typeof import('./resources/ts/@core/components/BuyNow.vue')['default']

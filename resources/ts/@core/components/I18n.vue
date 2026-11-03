@@ -1,31 +1,32 @@
 <script setup lang="ts">
-import type { I18nLanguage } from '@layouts/types'
-import { loadLocale } from '@/plugins/i18n'
-import { Icon } from '@iconify/vue'
+import type { I18nLanguage } from "@layouts/types";
+import { loadLocale } from "@/plugins/i18n";
+import { Icon } from "@iconify/vue";
 
 interface Props {
-  languages: I18nLanguage[]
-  location?: any
+  languages: I18nLanguage[];
+  location?: any;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  location: 'bottom end',
-})
+  location: "bottom end",
+});
 
-const { locale } = useI18n({ useScope: 'global' })
+const { locale } = useI18n({ useScope: "global" });
 
-const activeLanguage = computed(() => props.languages.find(language => language.i18nLang === locale.value))
-const languageFlag = (language: string) => language === 'en' ? 'flag:gb-4x3' : 'flag:af-4x3'
+const activeLanguage = computed(() =>
+  props.languages.find((language) => language.i18nLang === locale.value),
+);
+const languageFlag = (language: string) =>
+  language === "en" ? "flag:gb-4x3" : "flag:af-4x3";
 
 // Locales other than the default one live in their own chunk. Load the target
 // locale before switching so the UI never renders untranslated keys.
 const switchLocale = async (next: string) => {
-  if (next === locale.value)
-    return
+  if (next === locale.value) return;
 
-  if (await loadLocale(next).catch(() => false))
-    locale.value = next
-}
+  if (await loadLocale(next).catch(() => false)) locale.value = next;
+};
 </script>
 
 <template>
@@ -35,8 +36,13 @@ const switchLocale = async (next: string) => {
     class="language-switcher"
     :aria-label="activeLanguage ? $t(activeLanguage.label) : locale"
   >
-    <Icon :icon="languageFlag(locale)" width="22" height="17" aria-hidden="true" />
-    <span v-if="activeLanguage" class="language-switcher__label">{{ $t(activeLanguage.label) }}</span>
+    <Icon
+      :icon="languageFlag(locale)"
+      width="23"
+      height="17"
+      class="language-switcher__flag"
+      aria-hidden="true"
+    />
 
     <!-- Menu -->
     <VMenu
@@ -46,10 +52,7 @@ const switchLocale = async (next: string) => {
       width="175"
     >
       <!-- List -->
-      <VList
-        :selected="[locale]"
-        color="primary"
-      >
+      <VList :selected="[locale]" color="primary">
         <!-- List item -->
         <VListItem
           v-for="lang in props.languages"
@@ -58,7 +61,13 @@ const switchLocale = async (next: string) => {
           @click="switchLocale(lang.i18nLang)"
         >
           <template #prepend>
-            <Icon :icon="languageFlag(lang.i18nLang)" width="22" height="17" class="me-3" aria-hidden="true" />
+            <Icon
+              :icon="languageFlag(lang.i18nLang)"
+              width="22"
+              height="17"
+              class="me-3"
+              aria-hidden="true"
+            />
           </template>
           <!-- Language label -->
           <VListItemTitle>
@@ -76,11 +85,8 @@ const switchLocale = async (next: string) => {
   padding-inline: 8px;
 }
 
-.language-switcher__label {
-  margin-inline-start: 8px;
-}
-
-@media (max-width: 599px) {
-  .language-switcher__label { display: none; }
+.language-switcher :deep(.language-switcher__flag) {
+  inline-size: 23px !important;
+  block-size: 17px !important;
 }
 </style>

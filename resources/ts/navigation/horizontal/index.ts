@@ -1,14 +1,14 @@
-import type { HorizontalNavItems } from '@layouts/types'
-import applicantPortal from './applicant-portal'
-import applications from './applications'
-import contracts from './contracts'
-import crm from './crm'
-import finance from './finance'
-import home from './home'
-import hr from './hr'
-import settings from './settings'
-import setup from './setup'
-import tasks from './tasks'
+import type { HorizontalNavItems } from "@layouts/types";
+import applicantPortal from "./applicant-portal";
+import applications from "./applications";
+import contracts from "./contracts";
+import crm from "./crm";
+import finance from "./finance";
+import home from "./home";
+import hr from "./hr";
+import settings from "./settings";
+import setup from "./setup";
+import tasks from "./tasks";
 
 export default [
   ...home,
@@ -16,9 +16,9 @@ export default [
   ...applicantPortal,
   ...contracts,
   ...applications,
-  ...finance,
   ...hr,
   ...tasks,
+  ...finance,
   ...settings,
   ...setup,
-] as HorizontalNavItems
+] as HorizontalNavItems;

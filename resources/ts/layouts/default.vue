@@ -88,4 +88,10 @@ watch([isFallbackStateActive, refLoadingIndicator], () => {
 [dir='rtl'] .layout-navbar .navbar-content-container .v-btn__content {
   direction: rtl;
 }
+
+// Match the dashboard/KPI card radius without adding any topbar spacing.
+// This stays consistent for an open or collapsed rail and on mobile.
+.layout-wrapper.layout-nav-type-vertical .layout-navbar .navbar-content-container {
+  border-radius: 12px;
+}
 </style>
