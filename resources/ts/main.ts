@@ -8,8 +8,8 @@ import { getInitialLocale, loadLocale } from '@/plugins/i18n'
 
 // Styles
 import '@core-scss/template/index.scss'
-import '@styles/styles.scss'
 import 'vue-toastification/dist/index.css'
+import '@styles/styles.scss'
 import { restoreUiScale } from '@/utils/uiScale'
 
 restoreUiScale()

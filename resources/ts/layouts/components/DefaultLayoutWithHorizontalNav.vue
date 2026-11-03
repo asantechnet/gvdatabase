@@ -65,7 +65,7 @@ onMounted(async () => {
 
       <NavbarPreferences />
       <!-- <NavbarShortcuts /> -->
-      <NavBarAuditLogs class="me-2" />
+      <NavBarAuditLogs />
       <NavBarNotifications class="me-2" />
       <UserProfile />
     </template>
