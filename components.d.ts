@@ -134,6 +134,7 @@ declare module 'vue' {
     UserInfoEditDialog: typeof import('./resources/ts/components/dialogs/UserInfoEditDialog.vue')['default']
     UserUpgradePlanDialog: typeof import('./resources/ts/components/dialogs/UserUpgradePlanDialog.vue')['default']
     VisitorProfileFields: typeof import('./resources/ts/components/crm/VisitorProfileFields.vue')['default']
+    VueApexCharts: typeof import('vue3-apexcharts')['default']
     WhatsappMessageEditor: typeof import('./resources/ts/components/whatsapp/WhatsappMessageEditor.vue')['default']
     WorkdayControl: typeof import('./resources/ts/components/workday/WorkdayControl.vue')['default']
   }
