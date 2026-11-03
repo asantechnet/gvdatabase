@@ -13,7 +13,7 @@
 /auth.json
 /node_modules
 build
-# /public/build
+/public/build
 /public/hot
 /public/storage
 /public/images
