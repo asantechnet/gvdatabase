@@ -92,6 +92,7 @@ declare global {
   const defineLoader: typeof import('vue-router/auto')['defineLoader']
   const definePage: typeof import('unplugin-vue-router/runtime')['definePage']
   const defineStore: typeof import('pinia')['defineStore']
+  const displayCurrency: typeof import('./resources/ts/utils/displayCurrency')['displayCurrency']
   const displayInlineFormErrors: typeof import('./resources/ts/utils/formErrors')['displayInlineFormErrors']
   const eagerComputed: typeof import('@vueuse/core')['eagerComputed']
   const effectScope: typeof import('vue')['effectScope']
@@ -110,6 +111,7 @@ declare global {
   const formatDate: typeof import('./resources/ts/@core/utils/formatters')['formatDate']
   const formatDateToMonthShort: typeof import('./resources/ts/@core/utils/formatters')['formatDateToMonthShort']
   const formatDisplayDate: typeof import('./resources/ts/utils/money')['formatDisplayDate']
+  const formatDisplayMoney: typeof import('./resources/ts/utils/displayCurrency')['formatDisplayMoney']
   const formatLocalizedDate: typeof import('./resources/ts/utils/localization')['formatLocalizedDate']
   const formatLocalizedNumber: typeof import('./resources/ts/utils/localization')['formatLocalizedNumber']
   const formatMoney: typeof import('./resources/ts/utils/money')['formatMoney']
@@ -236,6 +238,7 @@ declare global {
   const serializePlaceholders: typeof import('./resources/ts/utils/contractPlaceholders')['serializePlaceholders']
   const servicePaymentIssue: typeof import('./resources/ts/utils/incomePaymentBalance')['servicePaymentIssue']
   const setActivePinia: typeof import('pinia')['setActivePinia']
+  const setDisplayCurrency: typeof import('./resources/ts/utils/displayCurrency')['setDisplayCurrency']
   const setMapStoreSuffix: typeof import('pinia')['setMapStoreSuffix']
   const shallowReactive: typeof import('vue')['shallowReactive']
   const shallowReadonly: typeof import('vue')['shallowReadonly']
@@ -339,6 +342,7 @@ declare global {
   const useDeviceOrientation: typeof import('@vueuse/core')['useDeviceOrientation']
   const useDevicePixelRatio: typeof import('@vueuse/core')['useDevicePixelRatio']
   const useDevicesList: typeof import('@vueuse/core')['useDevicesList']
+  const useDisplayCurrency: typeof import('./resources/ts/composables/useDisplayCurrency')['useDisplayCurrency']
   const useDisplayMedia: typeof import('@vueuse/core')['useDisplayMedia']
   const useDocumentVisibility: typeof import('@vueuse/core')['useDocumentVisibility']
   const useDraggable: typeof import('@vueuse/core')['useDraggable']
@@ -597,6 +601,7 @@ declare module 'vue' {
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
+    readonly displayCurrency: UnwrapRef<typeof import('./resources/ts/utils/displayCurrency')['displayCurrency']>
     readonly displayInlineFormErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['displayInlineFormErrors']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
@@ -614,6 +619,7 @@ declare module 'vue' {
     readonly formatDate: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['formatDate']>
     readonly formatDateToMonthShort: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['formatDateToMonthShort']>
     readonly formatDisplayDate: UnwrapRef<typeof import('./resources/ts/utils/money')['formatDisplayDate']>
+    readonly formatDisplayMoney: UnwrapRef<typeof import('./resources/ts/utils/displayCurrency')['formatDisplayMoney']>
     readonly formatLocalizedDate: UnwrapRef<typeof import('./resources/ts/utils/localization')['formatLocalizedDate']>
     readonly formatLocalizedNumber: UnwrapRef<typeof import('./resources/ts/utils/localization')['formatLocalizedNumber']>
     readonly formatMoney: UnwrapRef<typeof import('./resources/ts/utils/money')['formatMoney']>
@@ -736,6 +742,7 @@ declare module 'vue' {
     readonly serializePlaceholders: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['serializePlaceholders']>
     readonly servicePaymentIssue: UnwrapRef<typeof import('./resources/ts/utils/incomePaymentBalance')['servicePaymentIssue']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
+    readonly setDisplayCurrency: UnwrapRef<typeof import('./resources/ts/utils/displayCurrency')['setDisplayCurrency']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
@@ -838,6 +845,7 @@ declare module 'vue' {
     readonly useDeviceOrientation: UnwrapRef<typeof import('@vueuse/core')['useDeviceOrientation']>
     readonly useDevicePixelRatio: UnwrapRef<typeof import('@vueuse/core')['useDevicePixelRatio']>
     readonly useDevicesList: UnwrapRef<typeof import('@vueuse/core')['useDevicesList']>
+    readonly useDisplayCurrency: UnwrapRef<typeof import('./resources/ts/composables/useDisplayCurrency')['useDisplayCurrency']>
     readonly useDisplayMedia: UnwrapRef<typeof import('@vueuse/core')['useDisplayMedia']>
     readonly useDocumentVisibility: UnwrapRef<typeof import('@vueuse/core')['useDocumentVisibility']>
     readonly useDraggable: UnwrapRef<typeof import('@vueuse/core')['useDraggable']>

@@ -1,1 +1,0 @@
-import{_ as o}from"./NavBarNotifications.vue_vue_type_script_setup_true_lang-6WjqzGnS.js";import"./main-DqUAHEit.js";import"./vue3-perfect-scrollbar-D3d-NRec.js";import"./VBadge-DwAqGtE-.js";import"./notification-t44Zted7.js";import"./auditNotification-RDVr53TY.js";import"./useForegroundBatch-Cz-bXu2y.js";export{o as default};

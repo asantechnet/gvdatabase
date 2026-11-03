@@ -1,72 +1,96 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { VDialog } from 'vuetify/components'
-import { useToast } from 'vue-toastification'
-import { type FinanceType, getFinanceTypes } from '@/api/financeTypes'
-import { financeTypeLabel } from '@/utils/financeTypes'
-import PendingTransactionApi from '@/api/pendingTransactions'
-import CurrencyApi, { type Currency } from '@/api/currency'
-import { type Expense, type ExpenseCreateData, type ExpenseFormData, type ExpenseUpdateData, type ExpenseParams, createExpense, deleteExpense, getExpenses, getExpensesPage, updateExpense } from '@/api/expenses'
-import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
-import { printDocument } from '@/utils/printDocument'
-import PrintableListReport from '@/components/PrintableListReport.vue'
-import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
-import ErpDateRange from '@/components/erp/ErpDateRange.vue'
-import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
-import TableEmptyState from '@/components/TableEmptyState.vue'
-import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
-import ExpenseFormDialog from '@/components/forms/ExpenseFormDialog.vue'
-import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
+import { computed, onMounted, ref } from "vue";
+import { VDialog } from "vuetify/components";
+import { useToast } from "vue-toastification";
+import { type FinanceType, getFinanceTypes } from "@/api/financeTypes";
+import { financeTypeLabel } from "@/utils/financeTypes";
+import PendingTransactionApi from "@/api/pendingTransactions";
+import CurrencyApi, { type Currency } from "@/api/currency";
+import {
+  type Expense,
+  type ExpenseCreateData,
+  type ExpenseFormData,
+  type ExpenseUpdateData,
+  type ExpenseParams,
+  createExpense,
+  deleteExpense,
+  getExpenses,
+  getExpensesPage,
+  updateExpense,
+} from "@/api/expenses";
+import { apiErrorMessage, apiFieldErrors } from "@/utils/apiErrors";
+import { formatActiveMoney } from "@/utils/localization";
+import { printDocument } from "@/utils/printDocument";
+import PrintableListReport from "@/components/PrintableListReport.vue";
+import ResponsiveDataTableServer from "@/components/responsive-data-table/ResponsiveDataTableServer.vue";
+import ErpDateRange from "@/components/erp/ErpDateRange.vue";
+import ErpPageHeader from "@/components/erp/ErpPageHeader.vue";
+import TableEmptyState from "@/components/TableEmptyState.vue";
+import TableLoadingSkeleton from "@/components/TableLoadingSkeleton.vue";
+import ExpenseFormDialog from "@/components/forms/ExpenseFormDialog.vue";
+import AttachmentsDialog from "@/components/attachments/AttachmentsDialog.vue";
 
-const expenses = ref<Expense[]>([])
+const expenses = ref<Expense[]>([]);
 // The ledger asks the server for one page at a time.
-const page = ref(1)
-const perPage = ref(25)
-const total = ref(0)
+const page = ref(1);
+const perPage = ref(25);
+const total = ref(0);
 // Filled from every matching expense right before printing.
-const reportRows = ref<string[][]>([])
-const currencies = ref<Currency[]>([])
-const selectedExpense = ref<ExpenseFormData | null>(null)
-const isAddExpenseDialogVisible = ref(false)
-const isEditExpenseDialogVisible = ref(false)
-const isDeleteExpenseDialogVisible = ref(false)
-const searchQuery = ref('')
-const filterType = ref<string | null>(null)
-const filterCurrency = ref<number | null>(null)
-const dateFrom = ref('')
-const dateTo = ref('')
-const isLoading = ref(false)
-const formError = ref('')
-const fieldErrors = ref<Record<string, string>>({})
-const attachmentTarget = ref<Expense | null>(null)
-const isAttachmentsOpen = ref(false)
-const toast = useToast()
+const reportRows = ref<string[][]>([]);
+const currencies = ref<Currency[]>([]);
+const selectedExpense = ref<ExpenseFormData | null>(null);
+const isAddExpenseDialogVisible = ref(false);
+const isEditExpenseDialogVisible = ref(false);
+const isDeleteExpenseDialogVisible = ref(false);
+const searchQuery = ref("");
+const filterType = ref<string | null>(null);
+const filterCurrency = ref<number | null>(null);
+const dateFrom = ref("");
+const dateTo = ref("");
+const isLoading = ref(false);
+const formError = ref("");
+const fieldErrors = ref<Record<string, string>>({});
+const attachmentTarget = ref<Expense | null>(null);
+const isAttachmentsOpen = ref(false);
+const toast = useToast();
 
-const financeTypes = ref<FinanceType[]>([])
-const typeOptions = computed(() => financeTypes.value.map(type => ({ title: financeTypeLabel(type), value: type.value })))
-const filterTypeOptions = typeOptions
+const financeTypes = ref<FinanceType[]>([]);
+const typeOptions = computed(() =>
+  financeTypes.value.map((type) => ({
+    title: financeTypeLabel(type),
+    value: type.value,
+  })),
+);
+const filterTypeOptions = typeOptions;
 const typeLabel = (value: string) => {
-  const type = financeTypes.value.find(type => type.value === value)
-  return type ? financeTypeLabel(type) : translateBackendValue(value)
-}
+  const type = financeTypes.value.find((type) => type.value === value);
+  return type ? financeTypeLabel(type) : translateBackendValue(value);
+};
 
 async function fetchTypes() {
-  try { financeTypes.value = await getFinanceTypes('expense') }
-  catch (error) { toast.error(apiErrorMessage(error, translate('pages.finance.types.loadFailed'))) }
+  try {
+    financeTypes.value = await getFinanceTypes("expense");
+  } catch (error) {
+    toast.error(
+      apiErrorMessage(error, translate("pages.finance.types.loadFailed")),
+    );
+  }
 }
 
 // Every currency on record can be used for an expense; the base one is first.
-const currencyOptions = computed(() => currencies.value.map(currency => ({
-  title: `${currency.code} — ${currency.name}`,
-  value: currency.id,
-  rate: currency.rate,
-})))
+const currencyOptions = computed(() =>
+  currencies.value.map((currency) => ({
+    title: `${currency.code} — ${currency.name}`,
+    value: currency.id,
+    rate: currency.rate,
+  })),
+);
 
 const fetchCurrencies = async () => {
-  const response = await CurrencyApi.getAll()
+  const response = await CurrencyApi.getAll();
 
-  currencies.value = response.data
-}
+  currencies.value = response.data;
+};
 
 const filterParams = (): ExpenseParams => ({
   search: searchQuery.value || undefined,
@@ -74,159 +98,189 @@ const filterParams = (): ExpenseParams => ({
   currency_id: filterCurrency.value || undefined,
   date_from: dateFrom.value || undefined,
   date_to: dateTo.value || undefined,
-})
+});
 
 const fetchExpenses = async () => {
   try {
-    isLoading.value = true
+    isLoading.value = true;
 
-    const result = await getExpensesPage({ ...filterParams(), page: page.value, perPage: perPage.value })
+    const result = await getExpensesPage({
+      ...filterParams(),
+      page: page.value,
+      perPage: perPage.value,
+    });
 
-    expenses.value = result.rows
-    total.value = result.total
+    expenses.value = result.rows;
+    total.value = result.total;
+  } catch (error) {
+    console.error("Error fetching expenses:", error);
+    expenses.value = [];
+    total.value = 0;
+  } finally {
+    isLoading.value = false;
   }
-  catch (error) {
-    console.error('Error fetching expenses:', error)
-    expenses.value = []
-    total.value = 0
-  }
-  finally {
-    isLoading.value = false
-  }
-}
+};
 
 function updateTableOptions(options: { page: number; itemsPerPage: number }) {
   if (page.value === options.page && perPage.value === options.itemsPerPage)
-    return
+    return;
 
-  page.value = options.page
-  perPage.value = options.itemsPerPage
-  fetchExpenses()
+  page.value = options.page;
+  perPage.value = options.itemsPerPage;
+  fetchExpenses();
 }
 
 // A filter change starts from the first page.
 const reload = () => {
-  page.value = 1
-  void fetchExpenses()
-}
+  page.value = 1;
+  void fetchExpenses();
+};
 
 const setDefaultCurrency = () => {
-  if (!selectedExpense.value || selectedExpense.value.currency_id)
-    return
-  const currency = currencies.value.find(item => item.isBase) ?? currencies.value[0]
+  if (!selectedExpense.value || selectedExpense.value.currency_id) return;
+  const currency =
+    currencies.value.find((item) => item.isBase) ?? currencies.value[0];
   if (currency) {
-    selectedExpense.value.currency_id = currency.id
-    selectedExpense.value.rate = currency.rate
+    selectedExpense.value.currency_id = currency.id;
+    selectedExpense.value.rate = currency.rate;
   }
-}
+};
 
 const openAddExpenseDialog = async () => {
-  formError.value = ''
-  fieldErrors.value = {}
+  formError.value = "";
+  fieldErrors.value = {};
   selectedExpense.value = {
     applicant_id: null,
     currency_id: 0,
-    type: '',
-    description: '',
+    type: "",
+    description: "",
     amount: 0,
     quantity: 1,
     rate: 1,
     date: new Date().toISOString().slice(0, 10),
-  }
-  await Promise.all([fetchCurrencies(), fetchTypes()])
-  setDefaultCurrency()
-  isAddExpenseDialogVisible.value = true
-}
+  };
+  await Promise.all([fetchCurrencies(), fetchTypes()]);
+  setDefaultCurrency();
+  isAddExpenseDialogVisible.value = true;
+};
 
 const openEditExpenseDialog = async (expense: Expense) => {
-  formError.value = ''
-  fieldErrors.value = {}
-  selectedExpense.value = { ...expense }
-  await Promise.all([fetchCurrencies(), fetchTypes()])
-  isEditExpenseDialogVisible.value = true
-}
+  formError.value = "";
+  fieldErrors.value = {};
+  selectedExpense.value = { ...expense };
+  await Promise.all([fetchCurrencies(), fetchTypes()]);
+  isEditExpenseDialogVisible.value = true;
+};
 
 const openDeleteExpenseDialog = (expense: Expense) => {
-  selectedExpense.value = expense
-  isDeleteExpenseDialogVisible.value = true
-}
+  selectedExpense.value = expense;
+  isDeleteExpenseDialogVisible.value = true;
+};
 
 function openAttachments(expense: Expense) {
-  attachmentTarget.value = expense
-  isAttachmentsOpen.value = true
+  attachmentTarget.value = expense;
+  isAttachmentsOpen.value = true;
 }
 
 const handleCurrencyChange = (currencyId: number) => {
-  if (!selectedExpense.value)
-    return
-  const currency = currencies.value.find(item => item.id === currencyId)
+  if (!selectedExpense.value) return;
+  const currency = currencies.value.find((item) => item.id === currencyId);
   if (currency) {
-    selectedExpense.value.rate = currency.rate
-    calculateTotal()
+    selectedExpense.value.rate = currency.rate;
+    calculateTotal();
   }
-}
+};
 
 const calculateTotal = () => {
   if (selectedExpense.value)
-    selectedExpense.value.base_amount = Number(selectedExpense.value.amount) * Number(selectedExpense.value.quantity) / Number(selectedExpense.value.rate || 1)
-}
+    selectedExpense.value.base_amount =
+      (Number(selectedExpense.value.amount) *
+        Number(selectedExpense.value.quantity)) /
+      Number(selectedExpense.value.rate || 1);
+};
 
 const validateExpense = () => {
-  if (!selectedExpense.value)
-    return false
+  if (!selectedExpense.value) return false;
 
-  const expense = selectedExpense.value
+  const expense = selectedExpense.value;
 
-  fieldErrors.value = {}
+  fieldErrors.value = {};
   if (!expense.type?.trim())
-    fieldErrors.value.type = translate('pages.finance.expenses.expenses.selectAnExpenseType')
-  if (!Number.isInteger(Number(expense.currency_id)) || Number(expense.currency_id) < 1)
-    fieldErrors.value.currency_id = translate('common.messages.selectACurrency')
+    fieldErrors.value.type = translate(
+      "pages.finance.expenses.expenses.selectAnExpenseType",
+    );
+  if (
+    !Number.isInteger(Number(expense.currency_id)) ||
+    Number(expense.currency_id) < 1
+  )
+    fieldErrors.value.currency_id = translate(
+      "common.messages.selectACurrency",
+    );
   if (!expense.description?.trim())
-    fieldErrors.value.description = translate('pages.finance.expenses.expenses.enterADescription')
+    fieldErrors.value.description = translate(
+      "pages.finance.expenses.expenses.enterADescription",
+    );
   if (!Number.isFinite(Number(expense.amount)) || Number(expense.amount) < 0)
-    fieldErrors.value.amount = translate('pages.finance.expenses.expenses.enterAnAmountOfZeroOrMore')
-  if (!Number.isInteger(Number(expense.quantity)) || Number(expense.quantity) < 1)
-    fieldErrors.value.quantity = translate('pages.finance.expenses.expenses.enterAWholeQuantityOfAtLeast1')
+    fieldErrors.value.amount = translate(
+      "pages.finance.expenses.expenses.enterAnAmountOfZeroOrMore",
+    );
+  if (
+    !Number.isInteger(Number(expense.quantity)) ||
+    Number(expense.quantity) < 1
+  )
+    fieldErrors.value.quantity = translate(
+      "pages.finance.expenses.expenses.enterAWholeQuantityOfAtLeast1",
+    );
   if (!Number.isFinite(Number(expense.rate)) || Number(expense.rate) <= 0)
-    fieldErrors.value.rate = translate('common.messages.exchangeRate')
+    fieldErrors.value.rate = translate("common.messages.exchangeRate");
   if (!expense.date || Number.isNaN(Date.parse(expense.date)))
-    fieldErrors.value.date = translate('pages.finance.expenses.expenses.chooseAValidExpenseDate')
+    fieldErrors.value.date = translate(
+      "pages.finance.expenses.expenses.chooseAValidExpenseDate",
+    );
 
-  return Object.keys(fieldErrors.value).length === 0
-}
+  return Object.keys(fieldErrors.value).length === 0;
+};
 
-const saveExpense = async (isEditing = false, submittedExpense?: ExpenseFormData, mode: 'direct' | 'loan' = 'direct') => {
-  if (submittedExpense)
-    selectedExpense.value = submittedExpense
+const saveExpense = async (
+  isEditing = false,
+  submittedExpense?: ExpenseFormData,
+  mode: "direct" | "loan" = "direct",
+) => {
+  if (submittedExpense) selectedExpense.value = submittedExpense;
 
-  if (!selectedExpense.value)
-    return
+  if (!selectedExpense.value) return;
   if (!validateExpense()) {
-    formError.value = translate('pages.finance.expenses.expenses.pleaseCorrectTheHighlightedFields')
+    formError.value = translate(
+      "pages.finance.expenses.expenses.pleaseCorrectTheHighlightedFields",
+    );
 
-    return
+    return;
   }
 
   try {
-    formError.value = ''
-    fieldErrors.value = {}
+    formError.value = "";
+    fieldErrors.value = {};
 
     // Payment requests route the expense through the approval workflow instead
     // of writing the ledger row immediately.
-    if (!isEditing && mode === 'loan') {
+    if (!isEditing && mode === "loan") {
       await PendingTransactionApi.create({
-        transaction_type: 'expense',
-        reason: selectedExpense.value.description?.trim() || selectedExpense.value.type || 'Expense',
-        amount: Number(selectedExpense.value.amount) * Number(selectedExpense.value.quantity || 1),
+        transaction_type: "expense",
+        reason:
+          selectedExpense.value.description?.trim() ||
+          selectedExpense.value.type ||
+          "Expense",
+        amount:
+          Number(selectedExpense.value.amount) *
+          Number(selectedExpense.value.quantity || 1),
         currency_id: selectedExpense.value.currency_id,
         applicant_id: selectedExpense.value.applicant_id ?? null,
         employee_id: null,
-      })
-      isAddExpenseDialogVisible.value = false
-      toast.success(translate('pages.finance.expenses.expenses.loanSubmitted'))
+      });
+      isAddExpenseDialogVisible.value = false;
+      toast.success(translate("pages.finance.expenses.expenses.loanSubmitted"));
 
-      return
+      return;
     }
 
     const payload = {
@@ -238,103 +292,122 @@ const saveExpense = async (isEditing = false, submittedExpense?: ExpenseFormData
       quantity: selectedExpense.value.quantity,
       rate: selectedExpense.value.rate,
       date: selectedExpense.value.date,
-    }
+    };
 
-    if (isEditing && 'id' in selectedExpense.value) {
-      await updateExpense(selectedExpense.value.id, payload as ExpenseUpdateData)
-      await fetchExpenses()
-    }
-    else {
-      await createExpense(payload as ExpenseCreateData)
+    if (isEditing && "id" in selectedExpense.value) {
+      await updateExpense(
+        selectedExpense.value.id,
+        payload as ExpenseUpdateData,
+      );
+      await fetchExpenses();
+    } else {
+      await createExpense(payload as ExpenseCreateData);
       // A new record belongs on the first page of the current filters.
-      reload()
+      reload();
     }
 
-    isAddExpenseDialogVisible.value = false
-    isEditExpenseDialogVisible.value = false
+    isAddExpenseDialogVisible.value = false;
+    isEditExpenseDialogVisible.value = false;
+  } catch (error) {
+    console.error("Error saving expense:", error);
+    fieldErrors.value = apiFieldErrors(error);
+    formError.value = apiErrorMessage(
+      error,
+      "Unable to save the expense record.",
+    );
   }
-  catch (error) {
-    console.error('Error saving expense:', error)
-    fieldErrors.value = apiFieldErrors(error)
-    formError.value = apiErrorMessage(error, 'Unable to save the expense record.')
-  }
-}
+};
 
 const deleteExpenseRecord = async () => {
-  if (!selectedExpense.value || !('id' in selectedExpense.value))
-    return
-  const deletedId = selectedExpense.value.id
+  if (!selectedExpense.value || !("id" in selectedExpense.value)) return;
+  const deletedId = selectedExpense.value.id;
   try {
-    await deleteExpense(deletedId)
+    await deleteExpense(deletedId);
     // The deleted row was the last one on this page, so step back instead of
     // showing an empty page.
-    if (page.value > 1 && expenses.value.length === 1)
-      page.value -= 1
-    await fetchExpenses()
-    isDeleteExpenseDialogVisible.value = false
+    if (page.value > 1 && expenses.value.length === 1) page.value -= 1;
+    await fetchExpenses();
+    isDeleteExpenseDialogVisible.value = false;
+  } catch (error) {
+    console.error("Error deleting expense:", error);
+    formError.value = apiErrorMessage(
+      error,
+      "Unable to delete the expense record.",
+    );
   }
-  catch (error) {
-    console.error('Error deleting expense:', error)
-    formError.value = apiErrorMessage(error, 'Unable to delete the expense record.')
-  }
-}
+};
 
-const formatExpenseCurrency = (value: number, currency: Expense['currency']) => {
-  const amount = Number(value || 0).toFixed(currency?.decimalPlaces ?? 2)
+const formatExpenseCurrency = (value: number, currency: Expense["currency"]) =>
+  formatActiveMoney(value, currency);
 
-  return currency?.symbol ? `${currency.symbol}${amount}` : `${amount} ${currency?.code ?? ''}`.trim()
-}
-
-const formatDate = (date: string) => formatLocalizedDate(`${date}T00:00:00`, { day: '2-digit', month: 'short', year: 'numeric' })
-const expenseTypeColor = (type: string) => ({ 'Utilities': 'info', 'Software/SaaS': 'primary', 'Marketing': 'warning', 'Office Supplies': 'secondary', 'Travel & Dining': 'success', 'Salaries': 'error' }[type] ?? 'secondary')
+const formatDate = (date: string) =>
+  formatLocalizedDate(`${date}T00:00:00`, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+const expenseTypeColor = (type: string) =>
+  ({
+    Utilities: "info",
+    "Software/SaaS": "primary",
+    Marketing: "warning",
+    "Office Supplies": "secondary",
+    "Travel & Dining": "success",
+    Salaries: "error",
+  })[type] ?? "secondary";
 const expenseReportRow = (expense: Expense): string[] => [
-  `EXP-${String(expense.id).padStart(6, '0')}`,
+  `EXP-${String(expense.id).padStart(6, "0")}`,
   expense.type,
   expense.description,
-  expense.currency?.code ?? '—',
+  expense.currency?.code ?? "—",
   formatExpenseCurrency(expense.amount * expense.quantity, expense.currency),
   formatDate(expense.date),
-]
+];
 
 // Print is global: the report is filled from every matching row first.
 const printTable = async () => {
   try {
-    reportRows.value = (await getExpenses(filterParams())).map(expenseReportRow)
-    await printDocument({ bodyClass: 'printing-table-expenses', pageStyle: 'size: A4 landscape; margin: 12mm;' })
+    reportRows.value = (await getExpenses(filterParams())).map(
+      expenseReportRow,
+    );
+    await printDocument({
+      bodyClass: "printing-table-expenses",
+      pageStyle: "size: A4 landscape; margin: 12mm;",
+    });
+  } catch (error) {
+    console.error("Error preparing expense report:", error);
+    toast.error(apiErrorMessage(error));
   }
-  catch (error) {
-    console.error('Error preparing expense report:', error)
-    toast.error(apiErrorMessage(error))
-  }
-}
+};
 
 onMounted(() => {
-  fetchTypes()
-  fetchExpenses()
-  fetchCurrencies()
-})
+  fetchTypes();
+  fetchExpenses();
+  fetchCurrencies();
+});
 </script>
 
 <template>
   <div class="expense-page">
     <ErpPageHeader
       :title="$t('pages.finance.expenses.expenses.expenseLedger')"
-      :description="$t('pages.finance.expenses.expenses.expensePageDescription')"
+      :description="
+        $t('pages.finance.expenses.expenses.expensePageDescription')
+      "
       section="finance"
     >
       <template #actions>
         <VBtn
           icon="tabler-printer"
           variant="text"
-          :aria-label="$t('pages.finance.expenses.expenses.printExpenseRecords')"
+          :aria-label="
+            $t('pages.finance.expenses.expenses.printExpenseRecords')
+          "
           @click="printTable"
         >
           <VIcon icon="tabler-printer" />
-          <VTooltip
-            activator="parent"
-            location="top"
-          >
-            {{ $t('pages.finance.expenses.expenses.printExpenseRecords') }}
+          <VTooltip activator="parent" location="top">
+            {{ $t("pages.finance.expenses.expenses.printExpenseRecords") }}
           </VTooltip>
         </VBtn>
         <VBtn
@@ -342,26 +415,24 @@ onMounted(() => {
           prepend-icon="tabler-plus"
           @click="openAddExpenseDialog"
         >
-          {{ $t('pages.finance.expenses.expenses.recordExpense') }}
+          {{ $t("pages.finance.expenses.expenses.recordExpense") }}
         </VBtn>
       </template>
     </ErpPageHeader>
 
-    <VCard
-      class="mb-6 filter-deck"
-      elevation="0"
-    >
+    <VCard class="mb-6 filter-deck" elevation="0">
       <VCardText class="filter-deck__content">
         <VRow align="center">
-          <VCol
-            cols="12"
-            md="8"
-          >
+          <VCol cols="12" md="8">
             <VTextField
               v-model="searchQuery"
               class="data-table-search"
               prepend-inner-icon="tabler-search"
-              :placeholder="$t('pages.finance.expenses.expenses.searchExpenseDescriptionsOrTypes')"
+              :placeholder="
+                $t(
+                  'pages.finance.expenses.expenses.searchExpenseDescriptionsOrTypes',
+                )
+              "
               density="compact"
               clearable
               hide-details
@@ -374,8 +445,16 @@ onMounted(() => {
             class="d-flex align-center justify-md-end ga-2"
           >
             <DataTableFilterMenu
-              :active="Boolean(filterType || filterCurrency || dateFrom || dateTo)"
-              @reset="filterType = null; filterCurrency = null; dateFrom = ''; dateTo = ''; reload()"
+              :active="
+                Boolean(filterType || filterCurrency || dateFrom || dateTo)
+              "
+              @reset="
+                filterType = null;
+                filterCurrency = null;
+                dateFrom = '';
+                dateTo = '';
+                reload();
+              "
             >
               <VSelect
                 v-model="filterType"
@@ -394,17 +473,22 @@ onMounted(() => {
                 hide-details
                 @update:model-value="reload"
               />
-              <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="reload" />
-            </DataTableFilterMenu><span class="text-caption text-medium-emphasis">{{ $t('pages.finance.expenses.expenses.expenseRecordCount', { count: total }) }}</span>
+              <ErpDateRange
+                v-model:from="dateFrom"
+                v-model:to="dateTo"
+                @apply="reload"
+              /> </DataTableFilterMenu
+            ><span class="text-caption text-medium-emphasis">{{
+              $t("pages.finance.expenses.expenses.expenseRecordCount", {
+                count: total,
+              })
+            }}</span>
           </VCol>
         </VRow>
       </VCardText>
     </VCard>
 
-    <VCard
-      class="ledger-card"
-      elevation="0"
-    >
+    <VCard class="ledger-card" elevation="0">
       <div class="table-container">
         <ResponsiveDataTableServer
           :items="expenses"
@@ -413,7 +497,37 @@ onMounted(() => {
           :items-per-page="perPage"
           :items-per-page-options="[10, 25, 50, 100]"
           :headers="[
-            { title: translate('pages.finance.expenses.expenses.expense'), key: 'id', align: 'start' }, { title: translate('common.fields.type'), key: 'type', align: 'start' }, { title: translate('common.fields.currency'), key: 'currency', align: 'start' }, { title: translate('common.fields.amount'), key: 'base_amount', align: 'end' }, { title: translate('common.fields.date'), key: 'date', align: 'center' }, { title: translate('common.messages.actions'), key: 'actions', align: 'center', sortable: false },
+            {
+              title: translate('pages.finance.expenses.expenses.expense'),
+              key: 'id',
+              align: 'start',
+            },
+            {
+              title: translate('common.fields.type'),
+              key: 'type',
+              align: 'start',
+            },
+            {
+              title: translate('common.fields.currency'),
+              key: 'currency',
+              align: 'start',
+            },
+            {
+              title: translate('common.fields.amount'),
+              key: 'base_amount',
+              align: 'end',
+            },
+            {
+              title: translate('common.fields.date'),
+              key: 'date',
+              align: 'center',
+            },
+            {
+              title: translate('common.messages.actions'),
+              key: 'actions',
+              align: 'center',
+              sortable: false,
+            },
           ]"
           item-value="id"
           class="text-no-wrap"
@@ -423,16 +537,25 @@ onMounted(() => {
           @update:options="updateTableOptions"
         >
           <template #loading>
-            <TableLoadingSkeleton :columns="6" :label="$t('common.messages.loading')" />
+            <TableLoadingSkeleton
+              :columns="6"
+              :label="$t('common.messages.loading')"
+            />
           </template>
           <template #no-data>
-            <TableEmptyState icon="tabler-receipt-off" :description="$t('common.messages.noMatchingRecords')" />
+            <TableEmptyState
+              icon="tabler-receipt-off"
+              :description="$t('common.messages.noMatchingRecords')"
+            />
           </template>
           <template #item.id="{ item }">
             <div class="font-weight-bold">
-              <bdi>{{ `EXP-${String(item.id).padStart(6, '0')}` }}</bdi>
-            </div><div class="text-caption text-medium-emphasis">
-              {{ $t('common.messages.quantityValue', { value: item.quantity }) }}
+              <bdi>{{ `EXP-${String(item.id).padStart(6, "0")}` }}</bdi>
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              {{
+                $t("common.messages.quantityValue", { value: item.quantity })
+              }}
             </div>
           </template>
           <template #item.type="{ item }">
@@ -445,19 +568,22 @@ onMounted(() => {
             </VChip>
           </template>
           <template #item.currency="{ item }">
-            <VChip
-              v-if="item.currency"
-              size="small"
-              variant="outlined"
-            >
-              {{ item.currency.code }}
-            </VChip><span v-else>—</span>
+            <VChip v-if="item.currency" size="small" variant="outlined">
+              {{ item.currency.code }} </VChip
+            ><span v-else>—</span>
           </template>
           <template #item.base_amount="{ item }">
             <div class="font-weight-bold text-error">
-              {{ formatExpenseCurrency(item.amount * item.quantity, item.currency) }}
-            </div><div class="text-caption text-medium-emphasis">
-              {{ item.base_amount }} {{ item.base_curr_shrt }} · {{ $t('serviceContracts.rate') }} {{ item.rate }}
+              {{
+                formatExpenseCurrency(
+                  item.amount * item.quantity,
+                  item.currency,
+                )
+              }}
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              {{ item.base_amount }} {{ item.base_curr_shrt }} ·
+              {{ $t("serviceContracts.rate") }} {{ item.rate }}
             </div>
           </template>
           <template #item.date="{ item }">
@@ -495,7 +621,14 @@ onMounted(() => {
     <PrintableListReport
       :title="$t('common.crmUi.printReports.expenses.title')"
       :subtitle="$t('common.crmUi.printReports.expenses.subtitle')"
-      :columns="[$t('common.crmUi.printReports.columns.expense'), $t('common.crmUi.printReports.columns.type'), $t('common.crmUi.printReports.columns.details'), $t('common.crmUi.printReports.columns.currency'), $t('common.crmUi.printReports.columns.amount'), $t('common.crmUi.printReports.columns.date')]"
+      :columns="[
+        $t('common.crmUi.printReports.columns.expense'),
+        $t('common.crmUi.printReports.columns.type'),
+        $t('common.crmUi.printReports.columns.details'),
+        $t('common.crmUi.printReports.columns.currency'),
+        $t('common.crmUi.printReports.columns.amount'),
+        $t('common.crmUi.printReports.columns.date'),
+      ]"
       :rows="reportRows"
     />
 
@@ -516,27 +649,29 @@ onMounted(() => {
       @submit="saveExpense(true, $event)"
     />
 
-    <VDialog
-      v-model="isDeleteExpenseDialogVisible"
-      max-width="500px"
-    >
+    <VDialog v-model="isDeleteExpenseDialogVisible" max-width="500px">
       <VCard>
         <VCardTitle class="pa-5">
-          {{ $t('pages.finance.expenses.expenses.deleteExpense') }}
-        </VCardTitle><VCardText>{{ $t('pages.finance.expenses.expenses.thisRemovesTheSelectedExpenseRecordPermanently') }}</VCardText><VCardActions class="pa-5">
+          {{ $t("pages.finance.expenses.expenses.deleteExpense") }} </VCardTitle
+        ><VCardText>{{
+          $t(
+            "pages.finance.expenses.expenses.thisRemovesTheSelectedExpenseRecordPermanently",
+          )
+        }}</VCardText
+        ><VCardActions class="pa-5">
           <VSpacer /><VBtn
             color="secondary"
             variant="text"
             @click="isDeleteExpenseDialogVisible = false"
           >
-            {{ $t('common.actions.cancel') }}
-          </VBtn><VBtn
+            {{ $t("common.actions.cancel") }} </VBtn
+          ><VBtn
             color="error"
             variant="flat"
             prepend-icon="tabler-trash"
             @click="deleteExpenseRecord"
           >
-            {{ $t('common.actions.delete') }}
+            {{ $t("common.actions.delete") }}
           </VBtn>
         </VCardActions>
       </VCard>
@@ -552,9 +687,84 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.expense-page { padding-bottom: 32px; }
-.filter-deck, .ledger-card { overflow: hidden; border: 0; border-radius: 16px; box-shadow: 0 10px 28px rgb(36 20 31 / .08); }.filter-deck { background: rgb(var(--v-theme-surface)); }.filter-deck__content { padding: 14px 18px !important; }.filter-deck :deep(.v-field) { border-radius: 10px; background: rgb(var(--v-theme-on-surface) / .025); }.ledger-card__header { min-height: 68px; padding-inline: 20px; }.ledger-card__title { display: flex; align-items: center; gap: 9px; }.expense-dialog { overflow: visible; }.table-container { overflow-x: auto; }
-.ledger-card :deep(thead th) { height: 48px !important; color: rgb(var(--v-theme-on-surface) / .58) !important; font-size: .68rem !important; font-weight: 800 !important; letter-spacing: .075em; text-transform: uppercase; background: rgb(var(--v-theme-on-surface) / .018); }.ledger-card :deep(tbody td) { height: 66px !important; border-bottom-color: rgb(var(--v-border-color) / .7) !important; }.ledger-card :deep(tbody tr) { transition: background .16s ease; }.ledger-card :deep(tbody tr:hover) { background: rgb(var(--v-theme-error) / .035) !important; }
-.ledger-empty { display: flex; align-items: center; gap: 14px; min-height: 176px; padding: 28px 32px; text-align: start; background: linear-gradient(90deg, rgb(var(--v-theme-error) / .07), transparent 58%); }.ledger-empty :deep(.v-btn) { margin-inline-start: auto; }
-@media (max-width: 600px) { .ledger-empty { align-items: flex-start; flex-direction: column; padding: 24px; }.ledger-empty :deep(.v-btn) { margin-inline-start: 0; } }
+.expense-page {
+  padding-bottom: 32px;
+}
+.filter-deck,
+.ledger-card {
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgb(36 20 31 / 0.08);
+}
+.filter-deck {
+  background: rgb(var(--v-theme-surface));
+}
+.filter-deck__content {
+  padding: 14px 18px !important;
+}
+.filter-deck :deep(.v-field) {
+  border-radius: 10px;
+  background: rgb(var(--v-theme-on-surface) / 0.025);
+}
+.ledger-card__header {
+  min-height: 68px;
+  padding-inline: 20px;
+}
+.ledger-card__title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.expense-dialog {
+  overflow: visible;
+}
+.table-container {
+  overflow-x: auto;
+}
+.ledger-card :deep(thead th) {
+  height: 48px !important;
+  color: rgb(var(--v-theme-on-surface) / 0.58) !important;
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  background: rgb(var(--v-theme-on-surface) / 0.018);
+}
+.ledger-card :deep(tbody td) {
+  height: 66px !important;
+  border-bottom-color: rgb(var(--v-border-color) / 0.7) !important;
+}
+.ledger-card :deep(tbody tr) {
+  transition: background 0.16s ease;
+}
+.ledger-card :deep(tbody tr:hover) {
+  background: rgb(var(--v-theme-error) / 0.035) !important;
+}
+.ledger-empty {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 176px;
+  padding: 28px 32px;
+  text-align: start;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--v-theme-error) / 0.07),
+    transparent 58%
+  );
+}
+.ledger-empty :deep(.v-btn) {
+  margin-inline-start: auto;
+}
+@media (max-width: 600px) {
+  .ledger-empty {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 24px;
+  }
+  .ledger-empty :deep(.v-btn) {
+    margin-inline-start: 0;
+  }
+}
 </style>

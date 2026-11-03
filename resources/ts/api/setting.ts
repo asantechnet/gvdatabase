@@ -80,6 +80,19 @@ export interface Setting {
   updated_at?: string
 }
 
+export interface PublicCompanyBranding {
+  website_logo_url: string | null
+  website_title: string
+  short_company_name: string | null
+  original_company_name: string | null
+  primary_color?: string | null
+  secondary_color?: string | null
+  light_background_color?: string | null
+  light_surface_color?: string | null
+  dark_background_color?: string | null
+  dark_surface_color?: string | null
+}
+
 export interface SettingForm {
   primary_color?: string | null
   secondary_color?: string | null
@@ -178,6 +191,15 @@ function toFormData(data: Partial<SettingForm>) {
 const hasFiles = (data: Partial<SettingForm>) => Object.values(data).some(value => value instanceof File)
 
 const SettingApi = {
+  getPublicCompanyBranding: async (): Promise<ApiResponse<PublicCompanyBranding | null>> => {
+    const response = await api.get('/company-branding')
+
+    return {
+      success: true,
+      data: response.data.data ?? null,
+    }
+  },
+
   getCompanyProfile: async (): Promise<ApiResponse<Setting | null>> => {
     const response = await api.get('/company-profile')
 

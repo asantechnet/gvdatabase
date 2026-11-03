@@ -50,6 +50,25 @@ class SettingController extends Controller
         ]);
     }
 
+    /** Safe company identity needed before authentication; never expose the full settings resource here. */
+    public function publicBrandingProfile(): JsonResponse
+    {
+        $setting = Setting::latest('id')->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => $setting ? [
+                'website_logo_url' => $setting->website_logo ? Storage::disk('public')->url($setting->website_logo) : null,
+                'website_title' => $setting->website_title,
+                'short_company_name' => $setting->short_company_name,
+                'original_company_name' => $setting->original_company_name,
+                ...collect(ThemePalette::fields())
+                    ->mapWithKeys(fn (string $field) => [$field => ThemePalette::value($field, $setting->{$field})])
+                    ->all(),
+            ] : null,
+        ]);
+    }
+
     public function store(UpsertSettingRequest $request): JsonResponse
     {
         abort_if(Setting::query()->exists(), 409, 'business.company_profile_already_exists');

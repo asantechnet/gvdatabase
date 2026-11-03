@@ -71,7 +71,7 @@ class AcademySlipService
             ],
             'letterhead' => DocumentLetterheads::resolve($setting, 'receipt'),
             'signature' => [
-                'url' => $setting?->company_signature ? Storage::url($setting->company_signature) : null,
+                'url' => $setting?->company_signature ? Storage::disk('public')->url($setting->company_signature) : null,
                 'name' => $setting?->original_company_name ?: $setting?->short_company_name,
             ],
         ];
@@ -127,8 +127,8 @@ class AcademySlipService
         return [
             'name' => $setting?->original_company_name ?: $setting?->short_company_name ?: $setting?->website_title,
             'short_name' => $setting?->short_company_name,
-            'logo_url' => $setting?->website_logo ? Storage::url($setting->website_logo) : null,
-            'signature_url' => $setting?->company_signature ? Storage::url($setting->company_signature) : null,
+            'logo_url' => $setting?->website_logo ? Storage::disk('public')->url($setting->website_logo) : null,
+            'signature_url' => $setting?->company_signature ? Storage::disk('public')->url($setting->company_signature) : null,
             'address' => $setting?->physical_address,
             'phone' => $setting?->phone,
             'email' => $setting?->company_email,

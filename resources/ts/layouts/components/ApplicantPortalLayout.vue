@@ -116,9 +116,10 @@ onMounted(loadBranding)
 
 .applicant-portal-brand__logo {
   display: block;
-  block-size: 2.1rem;
   inline-size: auto;
-  max-inline-size: 8rem;
+  block-size: 2.5rem;
+  max-inline-size: 10rem;
+  max-block-size: 2.5rem;
   object-fit: contain;
 }
 

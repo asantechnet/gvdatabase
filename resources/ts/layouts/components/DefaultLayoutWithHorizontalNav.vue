@@ -1,27 +1,32 @@
 <script lang="ts" setup>
-import navItems from '@/navigation/horizontal'
+import navItems from "@/navigation/horizontal";
 
-import { themeConfig } from '@themeConfig'
+import { themeConfig } from "@themeConfig";
 
-import Footer from '@/layouts/components/Footer.vue'
+import Footer from "@/layouts/components/Footer.vue";
 
 // Components
-import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
-import NavBarAuditLogs from '@/layouts/components/NavBarAuditLogs.vue'
-import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
-import NavBarI18n from '@core/components/I18n.vue'
-import { HorizontalNavLayout } from '@layouts'
-import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
-import HeaderPageGuide from '@/layouts/components/HeaderPageGuide.vue'
-import UserProfile from '@/layouts/components/UserProfile.vue'
-import NavbarLayoutSwitcher from '@/layouts/components/NavbarLayoutSwitcher.vue'
-import { useBranding } from '@/composables/useBranding'
+import NavBarNotifications from "@/layouts/components/NavBarNotifications.vue";
+import NavBarAuditLogs from "@/layouts/components/NavBarAuditLogs.vue";
+import NavbarPreferences from "@/layouts/components/NavbarPreferences.vue";
+import NavBarI18n from "@core/components/I18n.vue";
+import { HorizontalNavLayout } from "@layouts";
+import NavSearchBar from "@/layouts/components/NavSearchBar.vue";
+import HeaderPageGuide from "@/layouts/components/HeaderPageGuide.vue";
+import UserProfile from "@/layouts/components/UserProfile.vue";
+import { useBranding } from "@/composables/useBranding";
 
-const { logoUrl, isLogoSquare, shortCompanyName, handleLogoLoad, loadBranding } = useBranding()
+const {
+  logoUrl,
+  isLogoSquare,
+  shortCompanyName,
+  handleLogoLoad,
+  loadBranding,
+} = useBranding();
 
 onMounted(async () => {
-  await loadBranding()
-})
+  await loadBranding();
+});
 </script>
 
 <template>
@@ -37,7 +42,7 @@ onMounted(async () => {
           :alt="shortCompanyName"
           class="navbar-logo"
           @load="handleLogoLoad"
-        >
+        />
 
         <h1
           v-if="isLogoSquare"
@@ -52,14 +57,15 @@ onMounted(async () => {
       <NavSearchBar trigger-btn-class="ms-lg-n3" />
 
       <NavBarI18n
-        v-if="themeConfig.app.i18n.enable && themeConfig.app.i18n.langConfig?.length"
+        v-if="
+          themeConfig.app.i18n.enable && themeConfig.app.i18n.langConfig?.length
+        "
         :languages="themeConfig.app.i18n.langConfig"
       />
 
-      <NavbarLayoutSwitcher />
-      <NavbarThemeSwitcher />
+      <NavbarPreferences />
       <!-- <NavbarShortcuts /> -->
-      <NavBarAuditLogs class="me-2" />
+      <NavBarAuditLogs />
       <NavBarNotifications class="me-2" />
       <UserProfile />
     </template>
@@ -80,13 +86,16 @@ onMounted(async () => {
 <style scoped>
 .navbar-logo {
   display: block;
-  block-size: 2.1rem;
   inline-size: auto;
+  block-size: 2.5rem;
   max-inline-size: 10rem;
+  max-block-size: 2.5rem;
   object-fit: contain;
 }
 
 @media (max-width: 599px) {
-  .navbar-brand { display: none !important; }
+  .navbar-brand {
+    display: none !important;
+  }
 }
 </style>

@@ -14,6 +14,7 @@ const fallbackAvatar = 'https://ui-avatars.com/api/?background=7367f0&color=fff&
 const toast = useToast()
 const refInputEl = ref<HTMLInputElement>()
 const loading = ref(true)
+const avatarUploading = ref(false)
 const saving = ref(false)
 const message = ref('')
 const error = ref('')
@@ -27,6 +28,7 @@ const deactivationRequests = ref<AccountDeactivationRequest[]>([])
 const emailVerified = ref(false)
 const initial = ref<AccountUpdatePayload>({})
 const account = ref<AccountUpdatePayload & { avatar: string | null }>({ name: '', email: '', phone: '', address: '', avatar: null })
+const avatarPreview = ref<string | null>(null)
 const isSuperAdmin = ref(false)
 const userData = useCookie<Record<string, unknown> | null>('userData')
 const uiScale = ref(1)
@@ -44,7 +46,7 @@ watch(error, value => {
   error.value = ''
 })
 
-const displayAvatar = computed(() => account.value.avatar || fallbackAvatar)
+const displayAvatar = computed(() => avatarPreview.value || account.value.avatar || fallbackAvatar)
 const pendingDeactivation = computed(() => deactivationRequests.value.find(item => item.status === 'pending') ?? null)
 const canRequestDeactivation = computed(() => !isSuperAdmin.value && canAccess('request_account_deactivation'))
 const canCancelDeactivation = computed(() => canAccess('cancel_own_deactivation_request'))
@@ -101,18 +103,32 @@ async function changeAvatar(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file)
     return
+
+  if (avatarPreview.value)
+    URL.revokeObjectURL(avatarPreview.value)
+  avatarPreview.value = URL.createObjectURL(file)
   error.value = ''; message.value = ''
+  avatarUploading.value = true
   try {
     account.value.avatar = (await AuthApi.uploadAvatar(file)).data.data.avatar
     userData.value = { ...(userData.value ?? {}), avatar: account.value.avatar }
+    URL.revokeObjectURL(avatarPreview.value)
+    avatarPreview.value = null
     message.value = translate('components.account.accountsettingsaccount.profilePhotoUpdated')
   }
   catch (e: any) { error.value = e.errors?.avatar?.[0] || e.message || 'Unable to upload this image.' }
+  finally {
+    avatarUploading.value = false
+    ;(event.target as HTMLInputElement).value = ''
+  }
 }
 
 async function resetAvatar() {
   try {
     await AuthApi.removeAvatar(); account.value.avatar = null
+    if (avatarPreview.value)
+      URL.revokeObjectURL(avatarPreview.value)
+    avatarPreview.value = null
     userData.value = { ...(userData.value ?? {}), avatar: null }
     message.value = translate('components.account.accountsettingsaccount.profilePhotoRemoved')
   }
@@ -184,7 +200,11 @@ watch(deactivationDialogOpen, open => {
 })
 
 onMounted(() => Promise.all([loadAccount(), loadDeactivationRequests()]))
-onBeforeUnmount(clearDeactivationSecrets)
+onBeforeUnmount(() => {
+  clearDeactivationSecrets()
+  if (avatarPreview.value)
+    URL.revokeObjectURL(avatarPreview.value)
+})
 </script>
 
 <template>
@@ -206,7 +226,8 @@ onBeforeUnmount(clearDeactivationSecrets)
               <VBtn
                 color="primary"
                 size="small"
-                :loading="saving"
+                :loading="avatarUploading"
+                :disabled="avatarUploading"
                 @click="refInputEl?.click()"
               >
                 {{ $t('components.account.accountsettingsaccount.uploadNewPhoto') }}

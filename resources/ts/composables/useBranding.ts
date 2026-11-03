@@ -1,10 +1,12 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useTheme } from 'vuetify'
 import fallbackLogo from '@images/logo.svg'
 import SettingApi from '@/api/setting'
 import { type ThemeColorPreferences, persistThemeColors, readStoredThemeColors, themeColorFields, themeWithPalette } from '@/utils/themePersistence'
 
 const logoUrl = ref(fallbackLogo)
+const hasCompanyLogo = ref(false)
+const logoFailed = ref(false)
 const isLogoSquare = ref<boolean | null>(null)
 const shortCompanyName = ref('Educational Visa')
 const originalCompanyName = ref('Educational Visa Services')
@@ -77,7 +79,9 @@ export const useBranding = () => {
   const vuetifyTheme = useTheme()
 
   const applyBranding = (branding: BrandingSettings, persistApiFallbacks = false) => {
+    hasCompanyLogo.value = Boolean(branding.website_logo_url)
     logoUrl.value = branding.website_logo_url || fallbackLogo
+    logoFailed.value = false
     detectLogoShape(logoUrl.value)
     updateFavicon(branding.website_logo_url || null)
     shortCompanyName.value = branding.short_company_name || branding.website_title || shortCompanyName.value
@@ -110,7 +114,7 @@ export const useBranding = () => {
 
   const loadBranding = async () => {
     if (!brandingRequest) {
-      brandingRequest = SettingApi.getCompanyProfile()
+      brandingRequest = SettingApi.getPublicCompanyBranding()
         .then(({ data }) => {
           if (data)
             applyBranding(data, true)
@@ -125,14 +129,27 @@ export const useBranding = () => {
 
   return {
     logoUrl,
+    hasCompanyLogo,
+    logoFailed,
+    brandInitials: computed(() => shortCompanyName.value
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(word => word[0]?.toUpperCase())
+      .join('') || 'CO'),
     isLogoSquare,
     shortCompanyName,
     originalCompanyName,
     handleLogoLoad: (event: Event) => {
       const image = event.currentTarget as HTMLImageElement | null
 
+      logoFailed.value = false
       if (image)
         setLogoShape(image.naturalWidth, image.naturalHeight)
+    },
+    handleLogoError: () => {
+      logoFailed.value = true
+      isLogoSquare.value = null
     },
     loadBranding,
     updateBranding: applyBranding,

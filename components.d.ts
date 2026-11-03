@@ -35,6 +35,8 @@ declare module 'vue' {
     AppTextField: typeof import('./resources/ts/@core/components/app-form-elements/AppTextField.vue')['default']
     AttachmentsDialog: typeof import('./resources/ts/components/attachments/AttachmentsDialog.vue')['default']
     AttachmentsPanel: typeof import('./resources/ts/components/attachments/AttachmentsPanel.vue')['default']
+    AuthShell: typeof import('./resources/ts/components/auth/AuthShell.vue')['default']
+    AuthStatus: typeof import('./resources/ts/components/auth/AuthStatus.vue')['default']
     BonusRulesDialog: typeof import('./resources/ts/components/bonus/BonusRulesDialog.vue')['default']
     BulkActionBar: typeof import('./resources/ts/components/BulkActionBar.vue')['default']
     BuyNow: typeof import('./resources/ts/@core/components/BuyNow.vue')['default']
@@ -134,6 +136,7 @@ declare module 'vue' {
     UserInfoEditDialog: typeof import('./resources/ts/components/dialogs/UserInfoEditDialog.vue')['default']
     UserUpgradePlanDialog: typeof import('./resources/ts/components/dialogs/UserUpgradePlanDialog.vue')['default']
     VisitorProfileFields: typeof import('./resources/ts/components/crm/VisitorProfileFields.vue')['default']
+    VueApexCharts: typeof import('vue3-apexcharts')['default']
     WhatsappMessageEditor: typeof import('./resources/ts/components/whatsapp/WhatsappMessageEditor.vue')['default']
     WorkdayControl: typeof import('./resources/ts/components/workday/WorkdayControl.vue')['default']
   }

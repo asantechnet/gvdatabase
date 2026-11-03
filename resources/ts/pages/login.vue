@@ -1,23 +1,19 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { useCookie } from '@core/composable/useCookie'
 import AuthApi from '@/api/auth'
+import AuthShell from '@/components/auth/AuthShell.vue'
+import AuthStatus from '@/components/auth/AuthStatus.vue'
+import LoginForm from '@/components/forms/LoginForm.vue'
 import { storeAuthTokens } from '@/utils/authStorage'
 import { applyPermissions } from '@/utils/authorization'
-import { useCookie } from '@core/composable/useCookie'
-import LoginForm from '@/components/forms/LoginForm.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
-
-const form = ref({
-  email: '',
-  password: '',
-  remember: false,
-  twoFactorCode: '',
-  recoveryCode: '',
-})
-
+const form = ref({ email: '', password: '', remember: false, twoFactorCode: '', recoveryCode: '' })
 const loading = ref(false)
 const resendingVerification = ref(false)
 const error = ref('')
@@ -32,26 +28,23 @@ onMounted(() => {
     form.value.email = rememberedEmail
     form.value.remember = true
   }
-
-  if (route.query.reset === '1')
-    status.value = translate('pages.auth.login.login.yourPasswordWasResetYouCanNowSignIn')
-  else if (route.query.invited === '1')
-    status.value = translate('pages.auth.login.login.yourAccountIsReadySignInWithThePasswordYouCreated')
+  if (route.query.reset === '1') status.value = t('pages.auth.login.passwordResetSuccess')
+  else if (route.query.invited === '1') status.value = t('pages.auth.login.invitationSuccess')
 })
+
+const normalizedEmail = () => form.value.email.trim()
 
 const handleLogin = async () => {
   error.value = ''
   status.value = ''
-
+  verificationRequired.value = false
+  form.value.email = normalizedEmail()
   if (!form.value.email || !form.value.password) {
-    error.value = translate('pages.auth.login.login.emailAndPasswordAreRequired')
-
+    error.value = t('pages.auth.login.emailAndPasswordRequired')
     return
   }
-
   try {
     loading.value = true
-
     const response = await AuthApi.login({
       email: form.value.email,
       password: form.value.password,
@@ -59,139 +52,64 @@ const handleLogin = async () => {
       two_factor_code: twoFactorRequired.value && form.value.twoFactorCode ? form.value.twoFactorCode : undefined,
       recovery_code: twoFactorRequired.value && form.value.recoveryCode ? form.value.recoveryCode : undefined,
     })
-
     const session = response.data.data
-
     storeAuthTokens(session, form.value.remember)
     useCookie<Record<string, unknown> | null>('userData').value = session.user
     applyPermissions(session.user.permissions ?? [])
-
-    if (form.value.remember)
-      localStorage.setItem('remembered_login_email', form.value.email)
-    else
-      localStorage.removeItem('remembered_login_email')
-
+    if (form.value.remember) localStorage.setItem('remembered_login_email', form.value.email)
+    else localStorage.removeItem('remembered_login_email')
     await router.replace(
-      session.user.roles?.includes('applicant') && session.user.permissions?.includes('view_own_applicant_portal')
-        ? '/my-case'
-        : session.user.permissions?.includes('view_dashboard')
-        ? '/home'
-        : session.user.permissions?.some((permission: string) => ['view_all_boards', 'view_assigned_boards'].includes(permission))
-          ? '/tasks'
-          : '/account-settings',
+      session.user.roles?.includes('applicant') && session.user.permissions?.includes('view_own_applicant_portal') ? '/my-case'
+        : session.user.permissions?.includes('view_dashboard') ? '/home'
+          : session.user.permissions?.some((permission: string) => ['view_all_boards', 'view_assigned_boards'].includes(permission)) ? '/tasks'
+            : '/account-settings',
     )
   }
   catch (err: any) {
-    twoFactorRequired.value = Boolean(err.two_factor_required) || twoFactorRequired.value
     verificationRequired.value = Boolean(err.email_verification_required)
-    error.value = err.errors?.email?.[0]
-      || err.errors?.password?.[0]
-      || err.message
-      || 'Login failed. Please check your credentials.'
+    twoFactorRequired.value = Boolean(err.two_factor_required) || twoFactorRequired.value
+    if (!twoFactorRequired.value && !verificationRequired.value)
+      error.value = err.errors?.email?.[0] || err.errors?.password?.[0] || err.message || t('pages.auth.login.failed')
   }
-  finally {
-    loading.value = false
-  }
+  finally { loading.value = false }
 }
 
 const resendVerification = async () => {
+  form.value.email = normalizedEmail()
   if (!form.value.email) {
-    error.value = translate('pages.auth.login.login.enterYourEmailAddressFirst')
-
+    error.value = t('pages.auth.login.emailFirst')
     return
   }
-
   resendingVerification.value = true
   error.value = ''
   try {
     await AuthApi.resendEmailVerification(form.value.email)
-    status.value = translate('common.messages.ifVerificationIsRequiredANewEmailHasBeenSent')
+    status.value = t('pages.auth.common.verificationEmailSent')
   }
-  catch (err: any) {
-    error.value = err.message || 'Unable to send a verification email right now.'
-  }
-  finally {
-    resendingVerification.value = false
-  }
+  catch (err: any) { error.value = err.errors?.email?.[0] || err.message || t('pages.auth.common.requestFailed') }
+  finally { resendingVerification.value = false }
 }
 </script>
 
 <template>
-  <div class="auth-wrapper d-flex align-center justify-center pa-4">
-    <VCard
-      class="auth-card pa-4 pt-7"
-      max-width="448"
-    >
-      <VCardItem class="justify-center">
-        <template #prepend>
-        </template>
-        <VCardTitle class="text-h5 font-weight-bold">
-          {{ $t('pages.auth.login.login.asantechMiniManagement') }}
-        </VCardTitle>
-      </VCardItem>
-
-      <VCardText class="pt-2">
-        <h5 class="text-h5 mb-1">
-          {{ $t('pages.auth.login.login.welcome') }}
-        </h5>
-        <p class="mb-0">
-          {{ $t('pages.auth.login.login.pleaseSignInToYourAccount') }}
-        </p>
-      </VCardText>
-
-      <VCardText>
-        <VAlert
-          v-if="status"
-          type="success"
-          variant="tonal"
-          class="mb-4"
-          closable
-          @click:close="status = ''"
-        >
-          {{ status }}
-        </VAlert>
-        <VAlert
-          v-if="error"
-          type="error"
-          variant="tonal"
-          class="mb-4"
-        >
-          {{ error }}
-          <template
-            v-if="verificationRequired"
-            #append
-          >
-            <VBtn
-              size="small"
-              variant="text"
-              :loading="resendingVerification"
-              @click="resendVerification"
-            >
-              {{ $t('pages.auth.login.login.resendEmail') }}
-            </VBtn>
-          </template>
-        </VAlert>
-
-        <LoginForm
-          :form="form"
-          :loading="loading"
-          :show-password="showPassword"
-          :two-factor-required="twoFactorRequired"
-          @submit="handleLogin"
-          @toggle-password="showPassword = !showPassword"
-        />
-      </VCardText>
-    </VCard>
-  </div>
+  <AuthShell
+    :title="$t(twoFactorRequired ? 'pages.auth.login.twoFactorTitle' : 'pages.auth.login.title')"
+    :description="$t(twoFactorRequired ? 'pages.auth.login.twoFactorDescription' : 'pages.auth.login.description')"
+  >
+    <template #status>
+      <AuthStatus v-if="status" :message="status" tone="success" @dismiss="status = ''" />
+      <AuthStatus v-else-if="error" :message="error" tone="error" @dismiss="error = ''" />
+      <div v-else-if="verificationRequired" class="auth-verification-state">
+        <AuthStatus :message="$t('pages.auth.login.verificationRequired', { email: form.email })" tone="warning" :dismissible="false" />
+        <VBtn block color="primary" variant="tonal" :loading="resendingVerification" @click="resendVerification">
+          {{ $t('pages.auth.login.resendVerification') }}
+        </VBtn>
+      </div>
+    </template>
+    <LoginForm :form="form" :loading="loading" :show-password="showPassword" :two-factor-required="twoFactorRequired" @submit="handleLogin" @toggle-password="showPassword = !showPassword" />
+  </AuthShell>
 </template>
 
-<style lang="scss" scoped>
-.auth-wrapper {
-  min-block-size: 100vh;
-
-  .auth-card {
-    width: 100%;
-    max-inline-size: 448px;
-  }
-}
+<style scoped>
+.auth-verification-state { display: grid; gap: .75rem; }
 </style>
