@@ -6,7 +6,7 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -35,8 +35,14 @@ class Department extends Model
         return $this->belongsTo(Employee::class, 'manager_employee_id');
     }
 
-    public function employees(): HasMany
+    /**
+     * Every member, including employees whose primary department is another
+     * one. `is_primary` on the pivot matches `employees.department_id`.
+     */
+    public function employees(): BelongsToMany
     {
-        return $this->hasMany(Employee::class);
+        return $this->belongsToMany(Employee::class, 'department_employee')
+            ->withPivot('is_primary')
+            ->withTimestamps();
     }
 }

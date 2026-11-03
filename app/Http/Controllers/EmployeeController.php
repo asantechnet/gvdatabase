@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class EmployeeController extends Controller
 {
@@ -70,7 +71,7 @@ class EmployeeController extends Controller
         }
 
         $query->orderBy($order['sort'] ?? 'created_at', $order['dir'] ?? 'desc')->orderBy('id', 'desc');
-        $query->with(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions']);
+        $query->with(['position', 'office', 'user', 'departmentRecord', 'departments', 'supervisor', 'serviceCommissions']);
 
         if ($this->requestedPerPage($request)) {
             return response()->json(['success' => true] + $this->paginatedPayload($request, $query, fn ($rows) => EmployeeResource::collection($rows)->resolve()));
@@ -121,6 +122,9 @@ class EmployeeController extends Controller
             'position_id' => ['required', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')->where('status', 'active')],
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
             'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')->whereNull('deleted_at')],
+            'department_ids' => ['sometimes', 'array'],
+            'department_ids.*' => ['integer', 'distinct', Rule::exists('departments', 'id')->whereNull('deleted_at')],
+            'primary_department_id' => ['sometimes', 'nullable', 'integer', Rule::exists('departments', 'id')->whereNull('deleted_at')],
             'supervisor_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'status' => ['sometimes', Rule::in([Employee::STATUS_ACTIVE, Employee::STATUS_INACTIVE])],
             'salary' => ['required', 'numeric', 'min:0'],
@@ -137,6 +141,7 @@ class EmployeeController extends Controller
             'service_commissions.*.percentage' => 'required|numeric|min:0|max:100',
         ]);
         $this->guardHierarchyFields($request, $validated);
+        $this->assertPrimaryDepartmentInSet($validated);
 
         // The company-wide allowance is only a catalogue value: it prefills a
         // new employee profile and is never read for an existing employee.
@@ -146,9 +151,10 @@ class EmployeeController extends Controller
 
         $createdUser = false;
         $Employee = DB::transaction(function () use ($validated, $request, &$createdUser) {
-            $employeeData = collect($validated)->except(['email', 'create_user'])->all();
+            $employeeData = collect($validated)->except(['email', 'create_user', 'department_ids', 'primary_department_id'])->all();
             $employeeData['contract_duration'] = $employeeData['contract_duration'] ?? '';
             $employee = Employee::create($employeeData);
+            $this->syncEmployeeDepartments($employee, $validated);
             if (! $employee->user_id && $request->boolean('create_user', true)) {
                 $user = User::create([
                     'name' => $employee->name,
@@ -173,7 +179,7 @@ class EmployeeController extends Controller
             $Employee->user->sendEmailVerificationNotification();
         }
 
-        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'serviceCommissions']));
+        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'departments', 'serviceCommissions']));
     }
 
     public function show(Employee $Employee): EmployeeResource
@@ -181,7 +187,7 @@ class EmployeeController extends Controller
         $this->authorizeEmployeeView(request(), $Employee);
         abort_if((int) $Employee->id === Employee::primaryRecordId(), 404);
 
-        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions']));
+        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'departmentRecord', 'departments', 'supervisor', 'serviceCommissions']));
     }
 
     public function update(Request $request, Employee $Employee): EmployeeResource
@@ -221,6 +227,9 @@ class EmployeeController extends Controller
             'position_id' => ['sometimes', 'required', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')->where('status', 'active')],
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
             'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')->whereNull('deleted_at')],
+            'department_ids' => ['sometimes', 'array'],
+            'department_ids.*' => ['integer', 'distinct', Rule::exists('departments', 'id')->whereNull('deleted_at')],
+            'primary_department_id' => ['sometimes', 'nullable', 'integer', Rule::exists('departments', 'id')->whereNull('deleted_at')],
             'supervisor_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'status' => ['sometimes', Rule::in([Employee::STATUS_ACTIVE, Employee::STATUS_INACTIVE])],
             'salary' => ['nullable', 'numeric', 'min:0'],
@@ -234,12 +243,14 @@ class EmployeeController extends Controller
             'service_commissions.*.percentage' => 'required|numeric|min:0|max:100',
         ]);
         $this->guardHierarchyFields($request, $validated, $Employee);
+        $this->assertPrimaryDepartmentInSet($validated);
 
         $createdUser = false;
         DB::transaction(function () use ($Employee, $validated, $request, $previousUserId, &$createdUser) {
             $Employee = Employee::query()->lockForUpdate()->findOrFail($Employee->id);
-            $employeeData = collect($validated)->except(['email', 'create_user'])->all();
+            $employeeData = collect($validated)->except(['email', 'create_user', 'department_ids', 'primary_department_id'])->all();
             $Employee->update($employeeData);
+            $this->syncEmployeeDepartments($Employee, $validated);
             if (! $Employee->user && $request->boolean('create_user')) {
                 $request->validate(['email' => 'required|email|max:255|unique:users,email']);
                 $Employee->user()->associate(User::create([
@@ -268,7 +279,7 @@ class EmployeeController extends Controller
             $this->syncServiceCommissions($Employee, $request);
         });
 
-        $Employee = $Employee->fresh(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions']);
+        $Employee = $Employee->fresh(['position', 'office', 'user', 'departmentRecord', 'departments', 'supervisor', 'serviceCommissions']);
 
         if ($Employee->user && $createdUser && ! $hadUser) {
             $Employee->user->sendEmailVerificationNotification();
@@ -321,7 +332,7 @@ class EmployeeController extends Controller
             ], fn ($value) => $value !== null));
         });
 
-        return new EmployeeResource($Employee->fresh(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions']));
+        return new EmployeeResource($Employee->fresh(['position', 'office', 'user', 'departmentRecord', 'departments', 'supervisor', 'serviceCommissions']));
     }
 
     public function destroy(Employee $Employee): JsonResponse
@@ -392,12 +403,15 @@ class EmployeeController extends Controller
      */
     private function guardHierarchyFields(Request $request, array &$data, ?Employee $employee = null): void
     {
-        if (! array_key_exists('supervisor_id', $data) && ! array_key_exists('department_id', $data)) {
+        $hierarchyFields = ['supervisor_id', 'department_id', 'department_ids', 'primary_department_id'];
+        if (array_intersect($hierarchyFields, array_keys($data)) === []) {
             return;
         }
 
         if (! $request->user()->hasPermission('assign_employee_supervisor')) {
-            unset($data['supervisor_id'], $data['department_id']);
+            foreach ($hierarchyFields as $field) {
+                unset($data[$field]);
+            }
 
             return;
         }
@@ -417,13 +431,54 @@ class EmployeeController extends Controller
             abort_unless($hierarchy->canSupervise($supervisor, $subordinate), 422, 'business.employee_supervisor_rank_invalid');
         }
 
-        if (array_key_exists('department_id', $data) && $data['department_id']) {
-            $departmentId = $data['department_id'];
+        // Every submitted membership must satisfy the same manager-rank rule
+        // the single-department select already applied.
+        $departmentIds = array_values(array_unique(array_filter(array_merge(
+            array_map('intval', $data['department_ids'] ?? []),
+            ! empty($data['department_id']) ? [(int) $data['department_id']] : [],
+            ! empty($data['primary_department_id']) ? [(int) $data['primary_department_id']] : [],
+        ))));
+
+        foreach ($departmentIds as $departmentId) {
             $manager = Department::query()->with('manager.user.roles.permissions')->find($departmentId)?->manager;
             if ($manager) {
                 abort_unless($hierarchy->canSupervise($manager, $subordinate), 422, 'business.department_manager_rank_invalid');
             }
         }
+    }
+
+    /** A primary department must be one of the submitted memberships. */
+    private function assertPrimaryDepartmentInSet(array $data): void
+    {
+        if (! array_key_exists('department_ids', $data) || empty($data['primary_department_id'])) {
+            return;
+        }
+
+        $ids = array_map('intval', $data['department_ids'] ?? []);
+        if (! in_array((int) $data['primary_department_id'], $ids, true)) {
+            throw ValidationException::withMessages(['primary_department_id' => ['validation.in']]);
+        }
+    }
+
+    /**
+     * Write the submitted membership set through the model's single writer.
+     * Omitting `department_ids` leaves the existing set alone; an explicit
+     * array (even an empty one) is the employee's complete set.
+     */
+    private function syncEmployeeDepartments(Employee $employee, array $data): void
+    {
+        $hasSet = array_key_exists('department_ids', $data);
+        $primary = $data['primary_department_id'] ?? null;
+
+        if (! $hasSet && $primary === null) {
+            return;
+        }
+
+        $ids = $hasSet
+            ? $data['department_ids']
+            : $employee->departments()->pluck('departments.id')->all();
+
+        $employee->syncDepartments($ids, $primary !== null ? (int) $primary : null);
     }
 
     /**

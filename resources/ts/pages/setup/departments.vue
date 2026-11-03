@@ -3,6 +3,8 @@ import { translate } from '@/utils/localization'
 import { useToast } from 'vue-toastification'
 import DepartmentApi, { type Department, type DepartmentDeleteRefusal, type DepartmentManagerOption, type DepartmentPayload } from '@/api/department'
 import { clearFieldError, fieldErrorMessages } from '@/utils/formErrors'
+import { canAccess } from '@/utils/authorization'
+import DepartmentMembersDialog from '@/components/DepartmentMembersDialog.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
@@ -16,6 +18,11 @@ const editing = ref<Department | null>(null)
 const managerOptions = ref<DepartmentManagerOption[]>([])
 const managerLoading = ref(false)
 const deleteRefusal = ref<DepartmentDeleteRefusal | null>(null)
+const membersDialogOpen = ref(false)
+const membersTarget = ref<Department | null>(null)
+const membersTrigger = ref<HTMLElement | null>(null)
+
+const canManageDepartments = computed(() => canAccess('manage_departments'))
 
 const blank = (): DepartmentPayload => ({ name: '', code: null, description: null, manager_employee_id: null, is_active: true })
 const form = ref<DepartmentPayload>(blank())
@@ -53,7 +60,7 @@ const headers = computed(() => [
 async function load() {
   loading.value = true
   try {
-    departments.value = await DepartmentApi.getAll(true)
+    departments.value = await DepartmentApi.getAll(true, true)
   }
   catch {
     // ApiErrorNotifier owns API failure feedback; this page only reports success.
@@ -95,6 +102,27 @@ function create() {
 
 function edit(department: Department) {
   void openDialog(department)
+}
+
+function openMembers(department: Department, event?: MouseEvent) {
+  if (!canManageDepartments.value)
+    return
+
+  membersTrigger.value = (event?.currentTarget as HTMLElement | null) ?? null
+  membersTarget.value = department
+  membersDialogOpen.value = true
+}
+
+function onMembersSaved(saved: Department) {
+  const index = departments.value.findIndex(item => item.id === saved.id)
+  if (index >= 0)
+    departments.value[index] = saved
+
+  membersTarget.value = saved
+}
+
+function restoreMembersFocus() {
+  void nextTick(() => membersTrigger.value?.focus())
 }
 
 async function save() {
@@ -167,6 +195,19 @@ onMounted(load)
     <ResponsiveDataTable v-else :headers="headers" :items="departments" item-value="id" class="departments-table text-no-wrap">
       <template #item.code="{ item }">{{ item.code || '—' }}</template>
       <template #item.manager_name="{ item }">{{ item.manager_name || $t('common.ui.notAssigned') }}</template>
+      <template #item.employees_count="{ item }">
+        <VBtn
+          v-if="canManageDepartments"
+          size="small"
+          variant="tonal"
+          prepend-icon="tabler-users"
+          :aria-label="$t('common.ui.departmentMembersTitle')"
+          @click="openMembers(item, $event)"
+        >
+          {{ item.employees_count }}
+        </VBtn>
+        <span v-else>{{ item.employees_count }}</span>
+      </template>
       <template #item.is_active="{ item }">
         <VChip size="small" :color="item.is_active ? 'success' : 'secondary'">{{ item.is_active ? $t('serviceContracts.active') : $t('common.statuses.inactive') }}</VChip>
       </template>
@@ -176,6 +217,13 @@ onMounted(load)
       </template>
     </ResponsiveDataTable>
   </VCard>
+
+  <DepartmentMembersDialog
+    v-model="membersDialogOpen"
+    :department="membersTarget"
+    @saved="onMembersSaved"
+    @closed="restoreMembersFocus"
+  />
 
   <VDialog v-model="dialogOpen" max-width="620">
     <VCard>

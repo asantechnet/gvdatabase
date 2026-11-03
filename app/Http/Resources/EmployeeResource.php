@@ -38,6 +38,22 @@ class EmployeeResource extends JsonResource
             'department' => $this->department,
             'department_id' => $this->department_id,
             'department_name' => $this->departmentRecord?->name ?? $this->department,
+            'departments' => $this->whenLoaded('departments', fn () => $this->departments
+                ->map(fn ($department) => [
+                    'id' => $department->id,
+                    'name' => $department->name,
+                    'code' => $department->code,
+                    'is_primary' => (bool) $department->pivot->is_primary,
+                ])
+                ->values()),
+            // Fall back to the legacy primary so an endpoint that did not
+            // eager-load memberships never emits an empty list for a member.
+            'department_ids' => $this->relationLoaded('departments')
+                ? $this->departments->pluck('id')->map(fn ($id) => (int) $id)->values()
+                : array_values(array_filter([$this->department_id])),
+            'primary_department_id' => $this->relationLoaded('departments')
+                ? $this->departments->first(fn ($department) => (bool) $department->pivot->is_primary)?->id
+                : $this->department_id,
             'supervisor_id' => $this->supervisor_id,
             'supervisor_name' => $this->supervisor?->name,
             'salary' => $this->salary !== null ? (float) $this->salary : null,

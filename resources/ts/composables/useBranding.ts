@@ -8,6 +8,9 @@ const logoUrl = ref(fallbackLogo)
 const hasCompanyLogo = ref(false)
 const logoFailed = ref(false)
 const isLogoSquare = ref<boolean | null>(null)
+// Only the packaged mark is a `currentColor` vector. The layouts render it as a
+// theme-coloured mask; an uploaded logo is always shown exactly as uploaded.
+const isMonochromeLogo = ref(true)
 const shortCompanyName = ref('Educational Visa')
 const originalCompanyName = ref('Educational Visa Services')
 let brandingRequest: Promise<void> | null = null
@@ -82,6 +85,7 @@ export const useBranding = () => {
     hasCompanyLogo.value = Boolean(branding.website_logo_url)
     logoUrl.value = branding.website_logo_url || fallbackLogo
     logoFailed.value = false
+    isMonochromeLogo.value = !branding.website_logo_url
     detectLogoShape(logoUrl.value)
     updateFavicon(branding.website_logo_url || null)
     shortCompanyName.value = branding.short_company_name || branding.website_title || shortCompanyName.value
@@ -138,6 +142,7 @@ export const useBranding = () => {
       .map(word => word[0]?.toUpperCase())
       .join('') || 'CO'),
     isLogoSquare,
+    isMonochromeLogo,
     shortCompanyName,
     originalCompanyName,
     handleLogoLoad: (event: Event) => {

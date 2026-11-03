@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router'
 import { themeConfig } from '@themeConfig'
 import { useCookie } from '@core/composable/useCookie'
 import NavBarI18n from '@core/components/I18n.vue'
+import AppBrandMark from '@/components/erp/AppBrandMark.vue'
 import Footer from '@/layouts/components/Footer.vue'
 import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
@@ -11,7 +12,7 @@ import AuthApi from '@/api/auth'
 import { clearAuthTokens, getRefreshToken } from '@/utils/authStorage'
 import { clearPermissions } from '@/utils/authorization'
 
-const { logoUrl, isLogoSquare, shortCompanyName, handleLogoLoad, loadBranding } = useBranding()
+const { logoUrl, isLogoSquare, isMonochromeLogo, shortCompanyName, handleLogoLoad, loadBranding } = useBranding()
 const router = useRouter()
 const userData = useCookie<{ name?: string; avatar?: string } | null>('userData')
 const loggingOut = ref(false)
@@ -41,12 +42,13 @@ onMounted(loadBranding)
   <div class="layout-wrapper applicant-portal-layout">
     <header class="applicant-portal-header">
       <RouterLink to="/my-case" class="applicant-portal-brand">
-        <img
+        <AppBrandMark
           :src="logoUrl"
           :alt="shortCompanyName"
+          :monochrome="isMonochromeLogo"
           class="applicant-portal-brand__logo"
           @load="handleLogoLoad"
-        >
+        />
         <span v-if="isLogoSquare" class="applicant-portal-brand__name">{{ shortCompanyName }}</span>
       </RouterLink>
 

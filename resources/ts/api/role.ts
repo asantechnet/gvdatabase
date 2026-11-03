@@ -3,6 +3,7 @@ import api from './axios'
 export interface Role {
   id: number
   name: string
+  level: number
   permissions: string[]
   is_protected: boolean
   users_count: number
@@ -12,10 +13,12 @@ export interface Role {
 
 export interface RoleCreateData {
   name: string
+  level?: number
 }
 
 export interface RoleUpdateData {
   name?: string
+  level?: number
 }
 
 export const getRoles = async (): Promise<Role[]> => {

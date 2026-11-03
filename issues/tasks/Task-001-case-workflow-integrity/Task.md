@@ -59,14 +59,7 @@ The applications list renders a payment-status column, but `ApplicantResource` r
 - Files this task must not modify: `resources/ts/pages/contract_list.vue`, `app/Http/Controllers/ContractController.php`, `resources/ts/utils/localization.ts`, `resources/ts/components/responsive-data-table/**`.
 
 ## Exclusive file ownership
-- `app/Http/Controllers/ApplicantController.php` — case list filters, stage transition gate and history serialization.
-- `app/Http/Controllers/ApplicantContractStageController.php` — line transition gate and mirror rule.
-- `app/Http/Resources/ApplicantResource.php` — stage and payment fields exposed to the list.
-- `app/Services/ApplicantDocumentReadiness.php` — shared readiness guard; may gain a terminal-reason guard or delegate to one.
-- `resources/ts/pages/applicants.vue` — list filter/display consistency, payment column visibility, mobile card fields.
-- `resources/ts/pages/applicant-case.vue` — transition disabled/explained states and timeline actor/note.
-- `resources/ts/pages/applicant-pipeline.vue` — count labels and extension card identity.
-- `resources/ts/api/applicants.ts` — typed responses and error shapes for the above.
+- `None` — implementation was delivered and this task now holds no forward write ownership. On 2026-11-01 the visa-case review (`visa-cases-issues.md`) found VISA-01..VISA-14 still open in the case screens, so forward write ownership of `app/Http/Controllers/ApplicantController.php`, `app/Http/Controllers/ApplicantContractStageController.php`, `app/Http/Resources/ApplicantResource.php`, `app/Services/ApplicantDocumentReadiness.php`, `resources/ts/pages/applicants.vue`, `resources/ts/pages/applicant-case.vue`, `resources/ts/pages/applicant-pipeline.vue` and `resources/ts/api/applicants.ts` moved to Task-027. Task-001 keeps only read-only review of its three open visual criteria.
 
 ## Acceptance criteria
 - [ ] Given a case with applicant stage 6 and two scholarship lines at stage 1, when the applications list is filtered by scholarship stage New, then every returned row displays New and the filter uses the same service-line stage expression that the row displays.

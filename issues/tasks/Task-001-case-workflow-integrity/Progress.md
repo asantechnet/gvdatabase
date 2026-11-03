@@ -3,7 +3,7 @@
 ## Status snapshot
 - Status: `Review`
 - Owner: `Full-stack implementer`
-- Last updated: `2026-10-31`
+- Last updated: `2026-11-02`
 - Current focus: `Implementation and task-local verification complete; visual/accessibility checks at 390/768/1280 px remain for review.`
 - Blocker: `None`
 - Next action: `Review the diff, then check the applications/pipeline screens at 390, 768 and 1280 px in LTR and RTL for the count labels, extension chips and disabled transition state.`
@@ -62,8 +62,10 @@
 
 ## Handoff notes
 - Ready for review. Visual checks still needed: 390/768/1280 px, LTR/RTL, light/dark for the pipeline count labels, extension chip, payment column absence and the disabled transition button.
+- Forward write ownership of the eight case-screen files moved to Task-027 on 2026-11-01 after the visa-case review found VISA-01..VISA-14 still open. This task no longer edits those files; its three open criteria are read-only review checks that Task-027's verification also covers.
 - `git status` still contains unrelated pre-existing modifications from other tasks; only the files listed above belong to this task.
 
 ## Activity log (append-only)
 - `2026-10-31 00:00 Asia/Kabul` Created task record from validated issues 01, 02, 04 and 11; implementation has not started.
 - `2026-10-31` Implemented the shared transition guard, list stage alignment, payment-column permission gate, pipeline count labels and extension identity, case timeline actor and document-gate UI; added `ApplicantWorkflowGateTest` and updated the affected suites. Typecheck and the isolated gate suite pass. Status moved to `Review`.
+- `2026-11-01` The visa-case review (`visa-cases-issues.md`) confirmed the page still offers two stage writers and found thirteen further defects in the same screens. Forward write ownership of the eight case-screen files moved to Task-027; this task keeps its delivered evidence and its three read-only visual criteria.

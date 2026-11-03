@@ -279,7 +279,17 @@ class ApplicantController extends Controller
         $request = request();
         $this->assertCaseAccess($request, $applicant);
 
-        $relations = [...$this->relations(), 'stageHistory.oldStage', 'stageHistory.newStage', 'stageHistory.changer', 'tasks.attachments', 'universities.university'];
+        $relations = [...$this->relations(), 'stageHistory.oldStage', 'stageHistory.newStage', 'stageHistory.changer', 'stageHistory.applicantContract.contract.parentContract', 'universities.university'];
+        // The Tasks section names the line each task delivers and explains why a
+        // task cannot be completed here: progress is derived from subtasks, and a
+        // task waiting on an unfinished predecessor cannot be closed either. Both
+        // counts let the workspace disable the action with a reason instead of
+        // submitting a request the server rejects.
+        $relations['tasks'] = fn ($query) => $query
+            ->with(['attachments', 'applicantContract.contract.parentContract'])
+            ->withCount('subtasks')
+            ->withCount(['subtasks as open_subtasks_count' => fn ($subtasks) => $subtasks->where('is_completed', false)])
+            ->withCount(['dependencies as incomplete_dependencies_count' => fn ($dependencies) => $dependencies->where('progress', '<', 100)]);
         if ($request->user()->hasPermission('view_applicant_contracts')) {
             $relations[] = 'contracts';
         }
@@ -351,6 +361,17 @@ class ApplicantController extends Controller
     public function changeStage(Request $request, Applicant $applicant, EducationalWorkflowNotificationService $notifications)
     {
         $this->assertCaseManageAccess($request, $applicant);
+
+        // A case with contracted service lines is moved through those lines;
+        // `applicants.current_stage_id` is only their mirror. Refusing here
+        // keeps a single writer per case and prevents the delivery task from
+        // drifting away from the line that owns it.
+        if ($applicant->services()->exists()) {
+            throw ValidationException::withMessages([
+                'stage_id' => ['business.case_stage_managed_by_service'],
+            ]);
+        }
+
         $data = $request->validate(['stage_id' => ['required', 'integer', 'exists:applicant_stages,id'], 'note' => ['nullable', 'string', 'max:5000']]);
         $next = ApplicantStage::findOrFail($data['stage_id']);
         $current = $applicant->currentStage;
@@ -585,6 +606,17 @@ class ApplicantController extends Controller
             'currency_id' => $record->currency_id,
             'date' => $record->contract?->start_date?->toDateString(), 'fee' => $record->fee, 'status' => $record->contract?->status,
             'current_stage_id' => $record->current_stage_id,
+            'contract_role' => $record->contract?->contract_role,
+            'parent_contract_number' => $record->contract?->parentContract?->contract_number,
+            'is_extension' => (bool) $record->contract?->isExtension(),
+            // The line is the payment subject. These are the same derived
+            // values the finance screens use, exposed here so the workspace
+            // does not re-implement balance arithmetic.
+            'payable_total' => $record->payableTotal(),
+            'amount_paid' => (float) $record->amount_paid,
+            'remaining_total' => $record->remainingTotal(),
+            'payment_status' => $record->payment_status,
+            'payment_status_label' => $record->paymentStatusLabel(),
             'current_stage' => $record->relationLoaded('currentStage') && $record->currentStage ? [
                 'id' => $record->currentStage->id, 'key' => $record->currentStage->key, 'name' => $record->currentStage->name,
                 'is_terminal' => (bool) $record->currentStage->is_terminal, 'allowed_next_keys' => $record->currentStage->allowed_next_keys ?? [],

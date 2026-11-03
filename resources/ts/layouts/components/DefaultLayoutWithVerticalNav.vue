@@ -2,6 +2,7 @@
 import navItems from "@/navigation/vertical";
 import { themeConfig } from "@themeConfig";
 
+import AppBrandMark from '@/components/erp/AppBrandMark.vue'
 import Footer from "@/layouts/components/Footer.vue";
 import NavBarAuditLogs from "@/layouts/components/NavBarAuditLogs.vue";
 import NavBarNotifications from "@/layouts/components/NavBarNotifications.vue";
@@ -17,6 +18,7 @@ import { useLayoutConfigStore } from "@layouts/stores/config";
 const {
   logoUrl,
   isLogoSquare,
+  isMonochromeLogo,
   shortCompanyName,
   handleLogoLoad,
   loadBranding,
@@ -42,9 +44,10 @@ onMounted(async () => {
         class="app-logo vertical-nav-brand"
         :class="{ 'vertical-nav-brand--wide': isLogoSquare === false }"
       >
-        <img
+        <AppBrandMark
           :src="logoUrl"
           :alt="shortCompanyName"
+          :monochrome="isMonochromeLogo"
           class="vertical-nav-brand__logo"
           @load="handleLogoLoad"
         />

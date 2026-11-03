@@ -1,67 +1,65 @@
 <script setup lang="ts">
-import { formatActiveMoney, translate } from "@/utils/localization";
-import { computed, onMounted, ref, watch } from "vue";
-import { VDialog } from "vuetify/components";
-import { useRouter } from "vue-router";
-import { useToast } from "vue-toastification";
-import EmployeeApi, {
-  type CreateEmployeeData,
-  type Employee,
-  type EmployeeAccount,
-  type EmployeeParams,
-  type UpdateEmployeeData,
-} from "@/api/employee";
-import PositionApi, { type Position } from "@/api/position";
-import CurrencyApi, { type Currency } from "@/api/currency";
-import OfficeApi, { type Office } from "@/api/office";
-import DepartmentApi, { type Department } from "@/api/department";
-import LeaveRequestApi, { type LeaveRequest } from "@/api/leaveRequests";
-import { apiErrorMessage, apiFieldErrors } from "@/utils/apiErrors";
-import { printDocument } from "@/utils/printDocument";
-import { canAccess } from "@/utils/authorization";
-import { useCookie } from "@core/composable/useCookie";
-import PrintableListReport from "@/components/PrintableListReport.vue";
-import ResponsiveDataTableServer from "@/components/responsive-data-table/ResponsiveDataTableServer.vue";
-import AttachmentsDialog from "@/components/attachments/AttachmentsDialog.vue";
-import StaffCommissionFields from "@/components/StaffCommissionFields.vue";
-import ContactActionMenu from "@/components/ContactActionMenu.vue";
-import TableEmptyState from "@/components/TableEmptyState.vue";
-import TableLoadingSkeleton from "@/components/TableLoadingSkeleton.vue";
+import { formatActiveMoney, translate } from '@/utils/localization'
+import { computed, onMounted, ref, watch } from 'vue'
+import { VDialog } from 'vuetify/components'
+import { useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification'
+import EmployeeApi, { type CreateEmployeeData, type Employee, type EmployeeAccount, type EmployeeParams, type UpdateEmployeeData } from '@/api/employee'
+import StaffSupervisorDisclosureDialog from '@/components/StaffSupervisorDisclosureDialog.vue'
+import PositionApi, { type Position } from '@/api/position'
+import CurrencyApi, { type Currency } from '@/api/currency'
+import OfficeApi, { type Office } from '@/api/office'
+import DepartmentApi, { type Department } from '@/api/department'
+import LeaveRequestApi, { type LeaveRequest } from '@/api/leaveRequests'
+import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
+import { printDocument } from '@/utils/printDocument'
+import { canAccess } from '@/utils/authorization'
+import { useCookie } from '@core/composable/useCookie'
+import PrintableListReport from '@/components/PrintableListReport.vue'
+import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
+import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
+import StaffCommissionFields from '@/components/StaffCommissionFields.vue'
+import ContactActionMenu from '@/components/ContactActionMenu.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 
 interface Staff {
-  id: number;
-  user_id: number | null;
-  name: string;
-  father_name: string;
-  contact: string;
-  emergency_contact_name: string | null;
-  emergency_contact_phone: string | null;
-  id_number: string | null;
-  bank_account_number: string | null;
-  guarantor_name: string | null;
-  guarantor_id_number: string | null;
-  guarantor_phone: string | null;
-  guarantor_address: string | null;
-  guarantor_licence: string | null;
-  education_lvl: string;
-  position: string;
-  status: "active" | "inactive";
-  email: string;
-  office_id: number | null;
-  office: Employee["office"];
-  department_id: number | null;
-  department_name: string | null;
-  supervisor_id: number | null;
-  supervisor_name: string | null;
-  salary: number | null;
-  total_worked_hours: number;
-  addr: string;
-  join_date: string;
-  off_day_allowance_days: number | null;
-  is_commission_based: boolean;
-  service_commissions?: Array<{ service: string; percentage: number }>;
-  document?: Employee["document"];
-  avatar?: string | null;
+  id: number
+  user_id: number | null
+  name: string
+  father_name: string
+  contact: string
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
+  id_number: string | null
+  bank_account_number: string | null
+  guarantor_name: string | null
+  guarantor_id_number: string | null
+  guarantor_phone: string | null
+  guarantor_address: string | null
+  guarantor_licence: string | null
+  education_lvl: string
+  position: string
+  status: 'active' | 'inactive'
+  email: string
+  office_id: number | null
+  office: Employee['office']
+  department_id: number | null
+  department_name: string | null
+  departments?: Array<{ id: number; name: string; code: string | null; is_primary?: boolean }>
+  department_ids?: number[]
+  primary_department_id?: number | null
+  supervisor_id: number | null
+  supervisor_name: string | null
+  salary: number | null
+  total_worked_hours: number
+  addr: string
+  join_date: string
+  off_day_allowance_days: number | null
+  is_commission_based: boolean
+  service_commissions?: Array<{ service: string; percentage: number }>
+  document?: Employee['document']
+  avatar?: string | null
 }
 
 const staffList = ref<Staff[]>([]);
@@ -129,20 +127,22 @@ const pendingPositionSalary = computed(() =>
     : (positionSalaryMap.value[pendingPosition.value] ?? null),
 );
 
-const offices = ref<Office[]>([]);
-const departments = ref<Department[]>([]);
-const userAccounts = ref<EmployeeAccount[]>([]);
-const isUserAccountsLoading = ref(false);
-const formSubmissionError = ref("");
-const leaveStaff = ref<Staff | null>(null);
-const leaveRequests = ref<LeaveRequest[]>([]);
-const userData = useCookie<{ employee?: { id?: number } | null } | null>(
-  "userData",
-);
-const leaveYear = ref(new Date().getFullYear());
-const leaveAllowance = ref(0);
-const leaveUsed = ref(0);
-const leaveRemaining = ref(0);
+const offices = ref<Office[]>([])
+const departments = ref<Department[]>([])
+const supervisorOptions = ref<Employee[]>([])
+const supervisorDialogOpen = ref(false)
+const pendingSupervisorId = ref<number | null>(null)
+const supervisorDialogName = ref<string | null>(null)
+const userAccounts = ref<EmployeeAccount[]>([])
+const isUserAccountsLoading = ref(false)
+const formSubmissionError = ref('')
+const leaveStaff = ref<Staff | null>(null)
+const leaveRequests = ref<LeaveRequest[]>([])
+const userData = useCookie<{ employee?: { id?: number } | null } | null>('userData')
+const leaveYear = ref(new Date().getFullYear())
+const leaveAllowance = ref(0)
+const leaveUsed = ref(0)
+const leaveRemaining = ref(0)
 const leaveForm = ref({
   id: null as number | null,
   start_date: new Date().toISOString().slice(0, 10),
@@ -235,88 +235,45 @@ const avatarText = (name: string) =>
     .toUpperCase();
 
 const staffHeaders = computed(() => [
-  { title: translate("common.messages.id"), key: "id" },
-  { title: translate("common.fields.name"), key: "name" },
-  {
-    title: translate("pages.settings.staffList.staffList.fatherName"),
-    key: "father_name",
-  },
-  { title: translate("common.messages.contact"), key: "contact" },
-  { title: translate("common.messages.position"), key: "position" },
-  {
-    title: translate("pages.settings.staffList.staffList.salary"),
-    key: "salary",
-  },
-  {
-    title: translate("pages.settings.staffList.staffList.workedHours"),
-    key: "total_worked_hours",
-  },
-  {
-    title: translate("pages.settings.staffList.staffList.joinDate"),
-    key: "join_date",
-  },
-  { title: translate("common.fields.status"), key: "status" },
-  {
-    title: translate("common.messages.actions"),
-    key: "actions",
-    sortable: false,
-  },
-]);
+  { title: translate('common.messages.id'), key: 'id' },
+  { title: translate('common.fields.name'), key: 'name' },
+  { title: translate('pages.settings.staffList.staffList.fatherName'), key: 'father_name' },
+  { title: translate('common.messages.contact'), key: 'contact' },
+  { title: translate('common.messages.position'), key: 'position' },
+  { title: translate('common.fields.departments'), key: 'departments' },
+  { title: translate('pages.settings.staffList.staffList.salary'), key: 'salary' },
+  { title: translate('pages.settings.staffList.staffList.workedHours'), key: 'total_worked_hours' },
+  { title: translate('pages.settings.staffList.staffList.joinDate'), key: 'join_date' },
+  { title: translate('common.fields.status'), key: 'status' },
+  { title: translate('common.messages.actions'), key: 'actions', sortable: false },
+])
 
 const staffDetailFields = computed(() => [
-  { key: "name", label: translate("common.fields.name") },
-  {
-    key: "father_name",
-    label: translate("pages.settings.staffList.staffList.fatherName"),
-  },
-  { key: "id_number", label: translate("common.messages.governmentIDNumber") },
-  { key: "contact", label: translate("common.messages.contact") },
-  { key: "email", label: translate("common.fields.email") },
-  {
-    key: "emergency_contact_name",
-    label: translate("pages.settings.staffList.staffList.emergencyContactName"),
-  },
-  {
-    key: "emergency_contact_phone",
-    label: translate(
-      "pages.settings.staffList.staffList.emergencyContactPhone",
-    ),
-  },
-  { key: "education_lvl", label: translate("common.messages.educationLevel") },
-  { key: "position", label: translate("common.messages.position") },
-  { key: "office.name", label: translate("common.fields.office") },
-  { key: "department_name", label: translate("common.fields.department") },
-  { key: "supervisor_name", label: translate("common.fields.supervisor") },
-  { key: "join_date", label: translate("common.messages.joinDate") },
-  { key: "salary", label: translate("common.messages.salary") },
-  {
-    key: "total_worked_hours",
-    label: translate("pages.settings.staffList.staffList.workedHours"),
-  },
-  {
-    key: "bank_account_number",
-    label: translate("common.ui.bankAccountNumber"),
-  },
-  { key: "addr", label: translate("common.fields.address") },
-  { key: "guarantor_name", label: translate("common.messages.guarantorName") },
-  {
-    key: "guarantor_id_number",
-    label: translate("common.messages.guarantorGovernmentID"),
-  },
-  {
-    key: "guarantor_phone",
-    label: translate("common.messages.guarantorPhone"),
-  },
-  {
-    key: "guarantor_licence",
-    label: translate("common.messages.guarantorLicence"),
-  },
-  {
-    key: "guarantor_address",
-    label: translate("common.messages.guarantorAddress"),
-  },
-  { key: "status", label: translate("common.fields.status") },
-]);
+  { key: 'name', label: translate('common.fields.name') },
+  { key: 'father_name', label: translate('pages.settings.staffList.staffList.fatherName') },
+  { key: 'id_number', label: translate('common.messages.governmentIDNumber') },
+  { key: 'contact', label: translate('common.messages.contact') },
+  { key: 'email', label: translate('common.fields.email') },
+  { key: 'emergency_contact_name', label: translate('pages.settings.staffList.staffList.emergencyContactName') },
+  { key: 'emergency_contact_phone', label: translate('pages.settings.staffList.staffList.emergencyContactPhone') },
+  { key: 'education_lvl', label: translate('common.messages.educationLevel') },
+  { key: 'position', label: translate('common.messages.position') },
+  { key: 'office.name', label: translate('common.fields.office') },
+  { key: 'department_name', label: translate('common.fields.department') },
+  { key: 'departments', label: translate('common.fields.departments') },
+  { key: 'supervisor_name', label: translate('common.fields.supervisor') },
+  { key: 'join_date', label: translate('common.messages.joinDate') },
+  { key: 'salary', label: translate('common.messages.salary') },
+  { key: 'total_worked_hours', label: translate('pages.settings.staffList.staffList.workedHours') },
+  { key: 'bank_account_number', label: translate('common.ui.bankAccountNumber') },
+  { key: 'addr', label: translate('common.fields.address') },
+  { key: 'guarantor_name', label: translate('common.messages.guarantorName') },
+  { key: 'guarantor_id_number', label: translate('common.messages.guarantorGovernmentID') },
+  { key: 'guarantor_phone', label: translate('common.messages.guarantorPhone') },
+  { key: 'guarantor_licence', label: translate('common.messages.guarantorLicence') },
+  { key: 'guarantor_address', label: translate('common.messages.guarantorAddress') },
+  { key: 'status', label: translate('common.fields.status') },
+])
 
 const printEmployeeContract = (staff: Staff) => {
   router.push({
@@ -326,32 +283,38 @@ const printEmployeeContract = (staff: Staff) => {
 };
 
 const formErrors = ref({
-  name: "",
-  father_name: "",
-  contact: "",
-  id_number: "",
-  email: "",
-  addr: "",
-  position: "",
-  salary: "",
-  education_lvl: "",
-  join_date: "",
-});
+  department_ids: '',
+  primary_department_id: '',
+  supervisor_id: '',
+  name: '',
+  father_name: '',
+  contact: '',
+  id_number: '',
+  email: '',
+  addr: '',
+  position: '',
+  salary: '',
+  education_lvl: '',
+  join_date: '',
+})
 
 const resetFormErrors = () => {
   formErrors.value = {
-    name: "",
-    father_name: "",
-    contact: "",
-    id_number: "",
-    email: "",
-    addr: "",
-    position: "",
-    salary: "",
-    education_lvl: "",
-    join_date: "",
-  };
-};
+    department_ids: '',
+    primary_department_id: '',
+    supervisor_id: '',
+    name: '',
+    father_name: '',
+    contact: '',
+    id_number: '',
+    email: '',
+    addr: '',
+    position: '',
+    salary: '',
+    education_lvl: '',
+    join_date: '',
+  }
+}
 
 const validateStaffForm = () => {
   let isValid = true;
@@ -563,6 +526,9 @@ const openAddStaffDialog = () => {
     office: null,
     department_id: null,
     department_name: null,
+    departments: [],
+    department_ids: [],
+    primary_department_id: null,
     supervisor_id: null,
     supervisor_name: null,
     salary: 0,
@@ -579,14 +545,97 @@ const openAddStaffDialog = () => {
   isAddStaffDialogVisible.value = true;
 };
 
-const canManageEmployees = computed(() => canAccess("edit_employees"));
-const canEditOwnProfile = computed(() =>
-  canAccess("edit_own_employee_profile"),
-);
-const ownEmployeeId = computed(() => userData.value?.employee?.id ?? null);
-const canEditStaff = (staff: Staff) =>
-  canManageEmployees.value ||
-  (canEditOwnProfile.value && staff.id === ownEmployeeId.value);
+const canManageEmployees = computed(() => canAccess('edit_employees'))
+const canAssignSupervisor = computed(() => canAccess('assign_employee_supervisor'))
+
+const departmentSelectOptions = computed(() => departments.value.map(department => ({
+  title: department.name,
+  value: department.id,
+})))
+
+const primaryDepartmentOptions = computed(() => {
+  const selected = selectedStaff.value?.department_ids ?? []
+
+  return departmentSelectOptions.value.filter(option => selected.includes(option.value as number))
+})
+
+const supervisorSelectOptions = computed(() => supervisorOptions.value
+  .filter(employee => employee.status === 'active' && employee.id !== selectedStaff.value?.id)
+  .map(employee => ({
+    title: [employee.name, employee.position, employee.department_name].filter(Boolean).join(' · '),
+    value: employee.id,
+  })))
+
+function staffDepartments(staff: Staff) {
+  if (staff.departments?.length)
+    return staff.departments
+
+  if (staff.department_id)
+    return [{ id: staff.department_id, name: staff.department_name ?? '', code: null, is_primary: true }]
+
+  return []
+}
+
+function syncPrimaryDepartment(ids: number[] | null) {
+  if (!selectedStaff.value)
+    return
+
+  const list = ids ?? []
+  selectedStaff.value.department_ids = list
+
+  if (!list.length) {
+    selectedStaff.value.primary_department_id = null
+
+    return
+  }
+
+  if (!selectedStaff.value.primary_department_id || !list.includes(selectedStaff.value.primary_department_id))
+    selectedStaff.value.primary_department_id = list[0]
+}
+
+function requestSupervisorChange(value: number | null) {
+  if (!selectedStaff.value || !canAssignSupervisor.value)
+    return
+
+  const next = value ?? null
+  if (next === selectedStaff.value.supervisor_id)
+    return
+
+  pendingSupervisorId.value = next
+  supervisorDialogName.value = next === null
+    ? null
+    : supervisorOptions.value.find(employee => employee.id === next)?.name ?? null
+  supervisorDialogOpen.value = true
+}
+
+function cancelSupervisorChange() {
+  pendingSupervisorId.value = null
+  supervisorDialogName.value = null
+}
+
+function confirmSupervisorChange() {
+  if (!selectedStaff.value)
+    return
+
+  selectedStaff.value.supervisor_id = pendingSupervisorId.value
+  cancelSupervisorChange()
+}
+
+// Hierarchy fields are only sent by a caller who may set them. The server
+// ignores them otherwise; omitting them keeps the intent explicit.
+function hierarchyPayload(): Pick<UpdateEmployeeData, 'department_ids' | 'primary_department_id' | 'supervisor_id'> | Record<string, never> {
+  if (!canAssignSupervisor.value)
+    return {}
+
+  return {
+    department_ids: selectedStaff.value?.department_ids ?? [],
+    primary_department_id: selectedStaff.value?.primary_department_id ?? null,
+    supervisor_id: selectedStaff.value?.supervisor_id ?? null,
+  }
+}
+const canEditOwnProfile = computed(() => canAccess('edit_own_employee_profile'))
+const ownEmployeeId = computed(() => userData.value?.employee?.id ?? null)
+const canEditStaff = (staff: Staff) => canManageEmployees.value || (canEditOwnProfile.value && staff.id === ownEmployeeId.value)
 // A self-editor never sees payroll, hierarchy or account fields they cannot change.
 const isSelfOnlyEdit = computed(() => !canManageEmployees.value);
 
@@ -617,6 +666,8 @@ const openEditStaffDialog = (staff: Staff) => {
   // Keep edits local until Save.
   selectedStaff.value = {
     ...staff,
+    department_ids: staff.department_ids?.length ? staff.department_ids : (staff.department_id ? [staff.department_id] : []),
+    primary_department_id: staff.primary_department_id ?? staff.department_id ?? null,
     is_commission_based: staff.is_commission_based ?? false,
     service_commissions: staff.service_commissions ?? [],
   };
@@ -1020,8 +1071,7 @@ const addStaff = async () => {
       education_lvl: selectedStaff.value.education_lvl,
       position_id: positionId,
       office_id: selectedStaff.value.office_id,
-      department_id: selectedStaff.value.department_id,
-      supervisor_id: selectedStaff.value.supervisor_id,
+      ...hierarchyPayload(),
       salary: selectedStaff.value.salary,
       addr: selectedStaff.value.addr,
       join_date: selectedStaff.value.join_date,
@@ -1082,8 +1132,7 @@ const updateStaff = async () => {
       position_id: positionId,
       status: selectedStaff.value.status,
       office_id: selectedStaff.value.office_id,
-      department_id: selectedStaff.value.department_id,
-      supervisor_id: selectedStaff.value.supervisor_id,
+      ...hierarchyPayload(),
       salary: selectedStaff.value.salary,
       addr: selectedStaff.value.addr,
       join_date: selectedStaff.value.join_date,
@@ -1126,7 +1175,10 @@ const applyStaffApiErrors = (error: unknown) => {
   };
 
   Object.entries(errors).forEach(([field, message]) => {
-    const target = fieldMap[field] ?? field;
+    // Nested collection errors arrive as `department_ids.0`; the field itself
+    // owns the message so the control can show it.
+    const normalized = field.startsWith('department_ids') ? 'department_ids' : field
+    const target = fieldMap[normalized] ?? normalized
     if (target in formErrors.value)
       formErrors.value[target as keyof typeof formErrors.value] = message;
   });
@@ -1222,8 +1274,9 @@ const staffReportRow = (staff: Staff): string[] => [
   staff.position,
   staff.contact,
   staff.email,
-  staff.office?.name ?? "—",
-];
+  staff.office?.name ?? '—',
+  staffDepartments(staff).map(department => department.name).filter(Boolean).join(', ') || '—',
+]
 
 // Print is global: the report is filled from every matching row first.
 const printTable = async () => {
@@ -1245,18 +1298,13 @@ const printTable = async () => {
 };
 
 onMounted(async () => {
-  const [, officeRows, departmentRows] = await Promise.all([
-    fetchPositions(),
-    OfficeApi.getAll(),
-    DepartmentApi.getAll(),
-    fetchUserAccounts(),
-    fetchBaseCurrency(),
-  ]);
+  const [, officeRows, departmentRows, supervisorRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), DepartmentApi.getAll(), EmployeeApi.getOptions(), fetchUserAccounts(), fetchBaseCurrency()])
 
-  offices.value = officeRows.filter((office) => office.status === "active");
-  departments.value = departmentRows;
-  await fetchEmployees();
-});
+  offices.value = officeRows.filter(office => office.status === 'active')
+  departments.value = departmentRows
+  supervisorOptions.value = Array.isArray(supervisorRows) ? supervisorRows : []
+  await fetchEmployees()
+})
 </script>
 
 <template>
@@ -1384,6 +1432,21 @@ onMounted(async () => {
                 <span v-else>{{ avatarText(item.name) }}</span>
               </VAvatar>
               <span>{{ item.name }}</span>
+            </div>
+          </template>
+
+          <template #item.departments="{ item }">
+            <div class="d-flex flex-wrap ga-1">
+              <VChip
+                v-for="department in staffDepartments(item)"
+                :key="department.id"
+                size="small"
+                variant="tonal"
+              >
+                {{ department.name }}
+                <span v-if="department.is_primary" class="ms-1">· {{ $t('common.ui.departmentMembersPrimary') }}</span>
+              </VChip>
+              <span v-if="!staffDepartments(item).length">—</span>
             </div>
           </template>
 
@@ -1542,14 +1605,7 @@ onMounted(async () => {
     <PrintableListReport
       :title="$t('common.crmUi.printReports.staff.title')"
       :subtitle="$t('common.crmUi.printReports.staff.subtitle')"
-      :columns="[
-        $t('common.crmUi.printReports.columns.id'),
-        $t('common.crmUi.printReports.columns.name'),
-        $t('common.crmUi.printReports.columns.position'),
-        $t('common.crmUi.printReports.columns.contact'),
-        $t('common.crmUi.printReports.columns.email'),
-        $t('common.crmUi.printReports.columns.office'),
-      ]"
+      :columns="[$t('common.crmUi.printReports.columns.id'), $t('common.crmUi.printReports.columns.name'), $t('common.crmUi.printReports.columns.position'), $t('common.crmUi.printReports.columns.contact'), $t('common.crmUi.printReports.columns.email'), $t('common.crmUi.printReports.columns.office'), $t('common.fields.departments')]"
       :rows="reportRows"
     />
 
@@ -1757,26 +1813,52 @@ onMounted(async () => {
                   clearable
                 />
               </VCol>
-              <VCol cols="12" md="4">
-                <VSelect
-                  v-model="selectedStaff.department_id"
-                  :items="departments"
-                  item-title="name"
-                  item-value="id"
-                  :label="$t('common.fields.department')"
+              <VCol
+                cols="12"
+                md="4"
+              >
+                <VAutocomplete
+                  v-model="selectedStaff.department_ids"
+                  :items="departmentSelectOptions"
+                  item-title="title"
+                  item-value="value"
+                  :label="$t('common.fields.departments')"
+                  :disabled="!canAssignSupervisor"
+                  :error-messages="formErrors.department_ids"
+                  multiple
+                  chips
+                  closable-chips
                   clearable
+                  @update:model-value="syncPrimaryDepartment"
+                />
+                <VSelect
+                  v-model="selectedStaff.primary_department_id"
+                  :items="primaryDepartmentOptions"
+                  item-title="title"
+                  item-value="value"
+                  :label="$t('common.fields.primaryDepartment')"
+                  :disabled="!canAssignSupervisor || !(selectedStaff.department_ids && selectedStaff.department_ids.length)"
+                  :error-messages="formErrors.primary_department_id"
+                  :hint="canAssignSupervisor ? $t('common.ui.selectPrimaryDepartmentFirst') : $t('common.ui.supervisorDisclosurePermissionNote')"
+                  persistent-hint
+                  clearable
+                  class="mt-3"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.supervisor_id"
-                  :items="
-                    staffList.filter((staff) => staff.id !== selectedStaff?.id)
-                  "
-                  item-title="name"
-                  item-value="id"
+                  :model-value="selectedStaff.supervisor_id"
+                  :items="supervisorSelectOptions"
+                  item-title="title"
+                  item-value="value"
                   :label="$t('common.fields.supervisor')"
+                  :disabled="!canAssignSupervisor"
+                  :error-messages="formErrors.supervisor_id"
+                  :hint="canAssignSupervisor ? $t('common.ui.supervisorRankHint') : $t('common.ui.supervisorDisclosurePermissionNote')"
+                  :no-data-text="$t('common.ui.supervisorOptionsEmpty')"
+                  persistent-hint
                   clearable
+                  @update:model-value="requestSupervisorChange"
                 />
               </VCol>
               <VCol cols="12" md="4">
@@ -2081,26 +2163,52 @@ onMounted(async () => {
                   clearable
                 />
               </VCol>
-              <VCol cols="12" md="4">
-                <VSelect
-                  v-model="selectedStaff.department_id"
-                  :items="departments"
-                  item-title="name"
-                  item-value="id"
-                  :label="$t('common.fields.department')"
+              <VCol
+                cols="12"
+                md="4"
+              >
+                <VAutocomplete
+                  v-model="selectedStaff.department_ids"
+                  :items="departmentSelectOptions"
+                  item-title="title"
+                  item-value="value"
+                  :label="$t('common.fields.departments')"
+                  :disabled="!canAssignSupervisor"
+                  :error-messages="formErrors.department_ids"
+                  multiple
+                  chips
+                  closable-chips
                   clearable
+                  @update:model-value="syncPrimaryDepartment"
+                />
+                <VSelect
+                  v-model="selectedStaff.primary_department_id"
+                  :items="primaryDepartmentOptions"
+                  item-title="title"
+                  item-value="value"
+                  :label="$t('common.fields.primaryDepartment')"
+                  :disabled="!canAssignSupervisor || !(selectedStaff.department_ids && selectedStaff.department_ids.length)"
+                  :error-messages="formErrors.primary_department_id"
+                  :hint="canAssignSupervisor ? $t('common.ui.selectPrimaryDepartmentFirst') : $t('common.ui.supervisorDisclosurePermissionNote')"
+                  persistent-hint
+                  clearable
+                  class="mt-3"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.supervisor_id"
-                  :items="
-                    staffList.filter((staff) => staff.id !== selectedStaff?.id)
-                  "
-                  item-title="name"
-                  item-value="id"
+                  :model-value="selectedStaff.supervisor_id"
+                  :items="supervisorSelectOptions"
+                  item-title="title"
+                  item-value="value"
                   :label="$t('common.fields.supervisor')"
+                  :disabled="!canAssignSupervisor"
+                  :error-messages="formErrors.supervisor_id"
+                  :hint="canAssignSupervisor ? $t('common.ui.supervisorRankHint') : $t('common.ui.supervisorDisclosurePermissionNote')"
+                  :no-data-text="$t('common.ui.supervisorOptionsEmpty')"
+                  persistent-hint
                   clearable
+                  @update:model-value="requestSupervisorChange"
                 />
               </VCol>
               <VCol cols="12" md="4">
@@ -2573,6 +2681,13 @@ onMounted(async () => {
       :title="attachmentTarget?.name || $t('common.attachments.title')"
     />
   </div>
+  <StaffSupervisorDisclosureDialog
+    v-model="supervisorDialogOpen"
+    :supervisor-name="supervisorDialogName"
+    :employee-name="selectedStaff?.name ?? ''"
+    @confirm="confirmSupervisorChange"
+    @cancel="cancelSupervisorChange"
+  />
 </template>
 
 <style scoped>

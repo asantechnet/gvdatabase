@@ -3,7 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 import PermissionApi, { type Permission } from '@/api/permission'
 import RoleApi from '@/api/role'
-import { apiErrorMessage } from '@/utils/apiErrors'
+import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
+import { canAccess } from '@/utils/authorization'
 
 // Extend internal type representation to match the new API payload
 export interface AppUser {
@@ -14,6 +15,8 @@ export interface AppUser {
 export interface AppRole {
   id: number
   name: string
+  level: number
+  is_protected?: boolean
   users_count?: number
   permissions: any[]
   users?: AppUser[]
@@ -32,7 +35,8 @@ const loading = ref(false)
 const roleDialog = ref(false)
 const editingRole = ref<AppRole | null>(null)
 const savingRole = ref(false)
-const roleForm = ref<{ name: string }>({ name: '' })
+const roleForm = ref<{ name: string; level: number | null }>({ name: '', level: 0 })
+const levelError = ref('')
 const selectedPermissions = ref<string[]>([])
 const deleteRoleDialog = ref(false)
 const deletingRole = ref<AppRole | null>(null)
@@ -184,6 +188,20 @@ const clearSearch = () => {
 const isIdentityProtected = computed(() => isIdentityProtectedRoleName(editingRole.value?.name))
 const isPermissionProtected = computed(() => isPermissionProtectedRoleName(editingRole.value?.name))
 
+// The level is a hierarchy decision, not a permission toggle. A caller without
+// the hierarchy grant may rename a role but cannot change its rank, and a
+// protected system role keeps its fixed level.
+const canManageHierarchy = computed(() => canAccess('manage_role_hierarchy'))
+const levelDisabled = computed(() => !canManageHierarchy.value || isIdentityProtected.value || Boolean(editingRole.value?.is_protected))
+const levelDisabledReason = computed(() => {
+  if (isIdentityProtected.value || editingRole.value?.is_protected)
+    return tr('seniorityProtected')
+  if (!canManageHierarchy.value)
+    return tr('seniorityPermissionRequired')
+
+  return ''
+})
+
 const loadAll = async () => {
   loading.value = true
   try {
@@ -206,7 +224,8 @@ const loadAll = async () => {
 // --- Role CRUD ---
 const openCreateRole = () => {
   editingRole.value = null
-  roleForm.value = { name: '' }
+  roleForm.value = { name: '', level: 0 }
+  levelError.value = ''
   selectedPermissions.value = []
   permissionSearch.value = ''
   roleDialog.value = true
@@ -214,7 +233,8 @@ const openCreateRole = () => {
 
 const openEditRole = (role: AppRole) => {
   editingRole.value = role
-  roleForm.value = { name: role.name }
+  roleForm.value = { name: role.name, level: role.level ?? 0 }
+  levelError.value = ''
   selectedPermissions.value = role.permissions?.map((p: any) => p.name || p) || []
   permissionSearch.value = ''
   roleDialog.value = true
@@ -226,13 +246,27 @@ const saveRole = async () => {
 
     return
   }
+
+  levelError.value = ''
+  const level = roleForm.value.level
+
+  if (!levelDisabled.value && (level === null || !Number.isInteger(level) || level < 0 || level > 100000)) {
+    levelError.value = tr('seniorityInvalid')
+
+    return
+  }
+
+  const payload: { name: string; level?: number } = { name: roleForm.value.name }
+  if (!levelDisabled.value && level !== null)
+    payload.level = level
+
   savingRole.value = true
   try {
     let savedRole: any
     if (editingRole.value) {
       savedRole = isIdentityProtected.value
         ? editingRole.value
-        : await RoleApi.updateRole(editingRole.value.id, { name: roleForm.value.name })
+        : await RoleApi.updateRole(editingRole.value.id, payload)
 
       const idx = roles.value.findIndex(r => r.id === savedRole.id)
       if (idx !== -1)
@@ -245,7 +279,7 @@ const saveRole = async () => {
       toast.success(tr('roleUpdated'))
     }
     else {
-      savedRole = await RoleApi.createRole({ name: roleForm.value.name })
+      savedRole = await RoleApi.createRole(payload)
       roles.value.push(savedRole)
 
       // Persist permissions for newly created roles
@@ -257,7 +291,11 @@ const saveRole = async () => {
     await loadAll()
   }
   catch (error) {
-    toast.error(apiErrorMessage(error, tr('unableToSave')))
+    const fields = apiFieldErrors(error)
+    if (fields.level)
+      levelError.value = fields.level
+    // The shared notifier owns the API failure toast; the dialog stays open
+    // with the field-level reason so the user can correct it in place.
   }
   finally {
     savingRole.value = false
@@ -365,6 +403,13 @@ onMounted(loadAll)
                 variant="tonal"
               >
                 {{ tr('permissionCount', { count: role.permissions?.length ?? 0 }) }}
+              </VChip>
+              <VChip
+                size="small"
+                color="info"
+                variant="tonal"
+              >
+                {{ tr('seniorityLevel') }}: {{ role.level ?? 0 }}
               </VChip>
             </div>
             <div class="d-flex align-center">
@@ -504,6 +549,26 @@ onMounted(loadAll)
                   />
                   {{ tr('superAdminLocked') }}
                 </p>
+              </VCol>
+
+              <VCol
+                cols="12"
+                class="mb-1"
+              >
+                <VTextField
+                  v-model.number="roleForm.level"
+                  type="number"
+                  min="0"
+                  max="100000"
+                  step="1"
+                  :label="tr('seniorityLevel')"
+                  :hint="levelDisabled ? levelDisabledReason : tr('seniorityHint')"
+                  persistent-hint
+                  :disabled="levelDisabled"
+                  :error-messages="levelError"
+                  density="comfortable"
+                  variant="outlined"
+                />
               </VCol>
 
               <!-- Permissions Section -->

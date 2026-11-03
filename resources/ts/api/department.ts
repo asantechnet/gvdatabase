@@ -1,5 +1,17 @@
 import api from './axios'
 
+export interface DepartmentMember {
+  id: number
+  name: string
+  position: string | null
+  role: string | null
+  status: 'active' | 'inactive'
+  supervisor_id: number | null
+  supervisor_name: string | null
+  is_primary: boolean
+  is_manager: boolean
+}
+
 export interface Department {
   id: number
   name: string
@@ -9,6 +21,7 @@ export interface Department {
   manager_employee_id: number | null
   manager_name: string | null
   employees_count: number
+  members?: DepartmentMember[]
 }
 
 export interface DepartmentManagerOption {
@@ -33,10 +46,21 @@ export interface DepartmentPayload {
   description?: string | null
   manager_employee_id?: number | null
   is_active: boolean
+  employee_ids?: number[]
 }
 
 const DepartmentApi = {
-  getAll: async (includeInactive = false): Promise<Department[]> => (await api.get<{ data: Department[] }>('/departments', { params: includeInactive ? { include_inactive: true } : undefined })).data.data,
+  getAll: async (includeInactive = false, withMembers = false): Promise<Department[]> => {
+    const params: Record<string, boolean> = {}
+
+    if (includeInactive)
+      params.include_inactive = true
+
+    if (withMembers)
+      params.with_members = true
+
+    return (await api.get<{ data: Department[] }>('/departments', { params })).data.data
+  },
   getManagerOptions: async (departmentId?: number | null): Promise<DepartmentManagerOption[]> => (await api.get<{ data: DepartmentManagerOption[] }>('/departments/manager-options', { params: departmentId ? { department_id: departmentId } : undefined })).data.data,
   create: async (data: DepartmentPayload): Promise<Department> => (await api.post<{ data: Department }>('/departments', data)).data.data,
   update: async (id: number, data: Partial<DepartmentPayload>): Promise<Department> => (await api.put<{ data: Department }>(`/departments/${id}`, data)).data.data,

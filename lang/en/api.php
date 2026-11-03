@@ -69,6 +69,9 @@ return [
             'department_manager_not_supervisory' => 'A department manager must have supervisory access.',
             'department_manager_rank_invalid' => 'The department manager must outrank every employee in the department.',
             'department_has_employees' => 'This department still has employees. Move them to another department before deleting it.',
+            'department_member_rank_invalid' => 'The department manager must outrank every employee you add.',
+            'department_manager_cannot_be_removed' => 'Choose another department manager before removing the current manager from the members.',
+            'employee_inactive' => 'This employee is inactive. Only active employees can be added to a department.',
             'pending_transaction_self_approval' => 'You cannot approve or reject your own payment request. Ask another approver to review it.',
             'pending_transaction_locked' => 'This payment request can no longer be edited because its review has started.',
             'pending_transaction_not_approved' => 'Only an approved payment request can be posted.',
@@ -164,6 +167,7 @@ return [
             'currency_in_use' => 'Currencies referenced by contract lines, salaries, incomes, or expenses cannot be deleted.',
             'applicant_document_required' => 'Attach at least one labeled document before moving this case forward.',
             'terminal_stage_note_required' => 'Add a reason before closing the case.',
+            'case_stage_managed_by_service' => 'This case has contracted service lines. Move each service through its own workflow instead of changing the case stage.',
         ],
         'resource' => [
             'default' => 'The requested record is no longer available.',

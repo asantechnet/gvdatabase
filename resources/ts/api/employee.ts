@@ -28,6 +28,9 @@ export interface Employee {
   department: string | null
   department_id: number | null
   department_name: string | null
+  departments?: Array<{ id: number; name: string; code: string | null; is_primary?: boolean }>
+  department_ids?: number[]
+  primary_department_id?: number | null
   supervisor_id: number | null
   supervisor_name: string | null
   position?: string
@@ -87,6 +90,8 @@ export interface CreateEmployeeData {
   status?: 'active' | 'inactive'
   office_id?: number | null
   department_id?: number | null
+  department_ids?: number[]
+  primary_department_id?: number | null
   supervisor_id?: number | null
   salary?: number | null
   addr: string
@@ -118,6 +123,8 @@ export interface UpdateEmployeeData {
   status?: 'active' | 'inactive'
   office_id?: number | null
   department_id?: number | null
+  department_ids?: number[]
+  primary_department_id?: number | null
   supervisor_id?: number | null
   salary?: number | null
   addr?: string

@@ -3,7 +3,8 @@ import navItems from "@/navigation/horizontal";
 
 import { themeConfig } from "@themeConfig";
 
-import Footer from "@/layouts/components/Footer.vue";
+import AppBrandMark from '@/components/erp/AppBrandMark.vue'
+import Footer from '@/layouts/components/Footer.vue'
 
 // Components
 import NavBarNotifications from "@/layouts/components/NavBarNotifications.vue";
@@ -16,13 +17,7 @@ import HeaderPageGuide from "@/layouts/components/HeaderPageGuide.vue";
 import UserProfile from "@/layouts/components/UserProfile.vue";
 import { useBranding } from "@/composables/useBranding";
 
-const {
-  logoUrl,
-  isLogoSquare,
-  shortCompanyName,
-  handleLogoLoad,
-  loadBranding,
-} = useBranding();
+const { logoUrl, isLogoSquare, isMonochromeLogo, shortCompanyName, handleLogoLoad, loadBranding } = useBranding()
 
 onMounted(async () => {
   await loadBranding();
@@ -37,9 +32,10 @@ onMounted(async () => {
         to="/"
         class="app-logo d-flex align-center gap-x-3 navbar-brand"
       >
-        <img
+        <AppBrandMark
           :src="logoUrl"
           :alt="shortCompanyName"
+          :monochrome="isMonochromeLogo"
           class="navbar-logo"
           @load="handleLogoLoad"
         />

@@ -170,7 +170,7 @@ class EmployeeScope
         }
 
         return Employee::query()
-            ->whereIn('department_id', $departmentIds)
+            ->whereHas('departments', fn ($query) => $query->whereIn('departments.id', $departmentIds))
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
@@ -281,7 +281,7 @@ class EmployeeScope
         }
 
         return Employee::query()
-            ->whereIn('department_id', $departmentIds)
+            ->whereHas('departments', fn ($query) => $query->whereIn('departments.id', $departmentIds))
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();

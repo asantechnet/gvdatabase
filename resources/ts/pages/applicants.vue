@@ -217,6 +217,28 @@ async function loadStages() {
   // Stage tabs follow the selected service. Without one, the API returns the
   // cross-service list deduped by key (the legacy single-pipeline shape).
   stages.value = await ApplicantApi.stages({ service: service.value || undefined })
+  resolveDeepLinkedStage()
+}
+
+// A stage belongs to exactly one service. A deep link that carries only the
+// stage adopts its service, so the tab strip, the table filter and the Stage
+// column all describe the same pipeline instead of a cross-service mix.
+function resolveDeepLinkedStage() {
+  if (!stage.value)
+    return
+
+  if (!service.value) {
+    const matched = stages.value.find(item => item.key === stage.value && item.service)
+
+    if (matched?.service) {
+      service.value = matched.service
+
+      return
+    }
+  }
+
+  if (!stages.value.some(item => item.key === stage.value))
+    stage.value = ''
 }
 
 async function loadCatalogs() {
@@ -370,7 +392,10 @@ watch(service, async () => {
     return
   }
 
-  if (previousStage && !stages.value.some(item => item.key === previousStage)) {
+  // Without a service there is no stage strip, so an old stage must not keep
+  // filtering invisibly; and a stage from the previous service does not exist
+  // in the newly selected one.
+  if (previousStage && (!service.value || !stages.value.some(item => item.key === previousStage))) {
     stage.value = ''
     page.value = 1
     load()
@@ -413,7 +438,8 @@ onMounted(async () => {
       </VRow>
     </VCardText>
     <VChip v-if="focus" closable class="mx-4 mb-3" color="primary" @click:close="focus = ''; page = 1; load()">{{ focusOptions.find(option => option.value === focus)?.title }}</VChip>
-    <VTabs v-model="stage" show-arrows class="px-3" @update:model-value="onTabChange">
+    <p v-if="!service" class="text-caption text-medium-emphasis px-4 pt-4 mb-0">{{ $t('educational.serviceStageHint') }}</p>
+    <VTabs v-if="service" v-model="stage" show-arrows class="px-3" @update:model-value="onTabChange">
       <VTab value="">{{ $t('educational.allApplications') }}</VTab>
       <VTab v-for="item in pipelineStages" :key="item.id" :value="item.key">{{ translateApplicantStage(item) }}</VTab>
       <VDivider v-if="terminalStages.length && pipelineStages.length" vertical class="stage-tabs-divider align-self-center" />

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Support\ApiMessage;
+use App\Support\DepartmentMembership;
 use App\Support\RoleHierarchy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -21,8 +22,15 @@ class DepartmentController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $withMembers = $request->boolean('with_members');
+
         $departments = Department::query()
-            ->with(['manager:id,name'])
+            ->with('manager:id,name')
+            ->when($withMembers, fn (Builder $query) => $query->with([
+                'employees' => fn ($members) => $members
+                    ->with(['position:id,title', 'user.roles:id,name,level', 'supervisor:id,name'])
+                    ->orderBy('employees.name'),
+            ]))
             ->withCount('employees')
             ->when(! $request->boolean('include_inactive'), fn ($query) => $query->where('is_active', true))
             ->orderBy('name')
@@ -83,27 +91,40 @@ class DepartmentController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $department = Department::create($this->validated($request));
+        $department = Department::create(collect($this->validated($request))->except('employee_ids')->all());
 
         return response()->json([
             'success' => true,
-            'data' => $this->present($department->load(['manager:id,name'])->loadCount('employees')),
+            'data' => $this->present($this->loadMembers($department)),
         ], 201);
     }
 
     public function update(Request $request, Department $department): JsonResponse
     {
-        $department->update($this->validated($request, $department));
+        $data = $this->validated($request, $department);
+
+        $department->update(collect($data)->except('employee_ids')->all());
+
+        // An omitted member set means "unchanged". Only an explicit array
+        // (including an empty one) replaces the members of this department.
+        if ($request->has('employee_ids')) {
+            app(DepartmentMembership::class)->sync(
+                $department,
+                $request->input('employee_ids', []),
+            );
+        }
 
         return response()->json([
             'success' => true,
-            'data' => $this->present($department->fresh()->load(['manager:id,name'])->loadCount('employees')),
+            'data' => $this->present($this->loadMembers($department->fresh())),
         ]);
     }
 
     public function destroy(Department $department): JsonResponse
     {
-        $blocking = $department->employees()->orderBy('name')->get(['id', 'name']);
+        $blocking = $department->employees()
+            ->orderBy('employees.name')
+            ->get(['employees.id', 'employees.name']);
 
         if ($blocking->isNotEmpty()) {
             // The count and names let the dialog explain the refusal instead
@@ -132,6 +153,8 @@ class DepartmentController extends Controller
             'description' => ['nullable', 'string', 'max:5000'],
             'manager_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'is_active' => ['sometimes', 'boolean'],
+            'employee_ids' => ['sometimes', 'array', 'max:500'],
+            'employee_ids.*' => ['integer', 'distinct', Rule::exists('employees', 'id')->whereNull('deleted_at')],
         ]);
 
         if (array_key_exists('manager_employee_id', $data) && $data['manager_employee_id']) {
@@ -154,7 +177,7 @@ class DepartmentController extends Controller
 
                 $members = $department->employees()
                     ->with('user.roles')
-                    ->where('id', '!=', $manager->id)
+                    ->where('employees.id', '!=', $manager->id)
                     ->get();
 
                 foreach ($members as $member) {
@@ -188,6 +211,19 @@ class DepartmentController extends Controller
             });
     }
 
+    /** Load the member payload exactly the way the page renders it. */
+    private function loadMembers(Department $department): Department
+    {
+        return $department
+            ->load([
+                'manager:id,name',
+                'employees' => fn ($members) => $members
+                    ->with(['position:id,title', 'user.roles:id,name,level', 'supervisor:id,name'])
+                    ->orderBy('employees.name'),
+            ])
+            ->loadCount('employees');
+    }
+
     /**
      * Rank from eager-loaded roles so a long candidate list never triggers a
      * per-row role query. Falls back to RoleHierarchy for unloaded users.
@@ -212,7 +248,7 @@ class DepartmentController extends Controller
     /** @return array<string, mixed> */
     private function present(Department $department): array
     {
-        return [
+        $payload = [
             'id' => $department->id,
             'name' => $department->name,
             'code' => $department->code,
@@ -222,5 +258,26 @@ class DepartmentController extends Controller
             'manager_name' => $department->manager?->name,
             'employees_count' => (int) ($department->employees_count ?? $department->employees()->count()),
         ];
+
+        if ($department->relationLoaded('employees')) {
+            $payload['members'] = $department->employees
+                ->map(fn (Employee $employee) => [
+                    'id' => $employee->id,
+                    'name' => $employee->name,
+                    'position' => $employee->position?->title,
+                    'role' => $employee->relationLoaded('user')
+                        ? $employee->user?->roles->pluck('name')->first()
+                        : null,
+                    'status' => $employee->status,
+                    'supervisor_id' => $employee->supervisor_id,
+                    'supervisor_name' => $employee->supervisor?->name,
+                    'is_primary' => (bool) ($employee->pivot->is_primary ?? false),
+                    'is_manager' => $department->manager_employee_id !== null
+                        && (int) $department->manager_employee_id === (int) $employee->id,
+                ])
+                ->values();
+        }
+
+        return $payload;
     }
 }

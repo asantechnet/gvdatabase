@@ -38,7 +38,7 @@ The report also observed that the "Educational Visa" wordmark is unreadable in d
 
 ## Preconditions and assumptions
 - `resources/ts/components/erp/ErpPageHeader.vue` is the intended shared header and already supports a title, section breadcrumb and optional actions.
-- Assumption to validate: the dark-theme logo is rendered from a theme/layout asset or component that can select a variant. If it is a single raster asset with no variant, a new light asset is required and must be documented.
+- Assumption to validate: the dark-theme logo is rendered from a theme/layout asset or component that can select a variant. If it is a single raster asset with no variant, a new light asset is required and must be documented. **Resolved 2026-11-03:** the packaged logo is a single `currentColor` vector with no light variant, so it is rendered as a theme-coloured CSS mask instead of a second asset; an uploaded full-colour logo stays an image. No new brand asset was invented.
 - Count strings can use vue-i18n pluralization; existing keys may need restructuring.
 - The tasks board columns are services, not statuses; this task does not rename that model, only the page copy so it does not claim to be a status Kanban.
 
@@ -57,6 +57,19 @@ The report also observed that the "Educational Visa" wordmark is unreadable in d
 - `resources/ts/pages/tasks.vue` — header, board copy and column fit.
 - `resources/ts/pages/expenses.vue` — header, stream copy and duplicate-label removal.
 - `resources/ts/components/erp/ErpPageHeader.vue` — consistent header/action layout.
+
+Ownership was widened on 2026-11-03, after every task in the set reached review and no concurrent writer remained. The three slices that were previously blocked by ownership are now owned here:
+
+- `resources/ts/components/task-manager/views/KanbanView.vue` — card payload (full plain-text description instead of a 50-character cut).
+- `resources/ts/pages/kanban/KanbanCard.vue` — due date and assignees as text, full description on hover and focus.
+- `resources/ts/components/forms/ExpenseFormDialog.vue` — primary Save, secondary Cancel.
+- `resources/ts/components/erp/AppBrandMark.vue` — theme-aware brand mark (new).
+- `resources/ts/composables/useBranding.ts` — monochrome-mark flag for the packaged logo.
+- `resources/ts/layouts/components/DefaultLayoutWithVerticalNav.vue` — adopts the shared brand mark.
+- `resources/ts/layouts/components/DefaultLayoutWithHorizontalNav.vue` — adopts the shared brand mark.
+- `resources/ts/layouts/components/ApplicantPortalLayout.vue` — adopts the shared brand mark.
+
+The locale files stay shared under the contract in `INDEX.md`: this task adds only its own `tasksPage`, `erp.tasks`, `erp.finance`, `expenseRecordCount`, `expensePageDescription` and `kanbanview.*` keys and renames no existing key.
 
 ## Acceptance criteria
 - [ ] Given the tasks and expenses pages, when each opens, then it shows a breadcrumb and H1 through `ErpPageHeader`, and no card repeats the same H1 as a second title.

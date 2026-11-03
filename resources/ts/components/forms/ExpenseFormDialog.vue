@@ -121,7 +121,7 @@ function submit() {
       <VCardTitle class="pa-6 pb-2">
         <div class="d-flex align-center gap-3">
           <VAvatar
-            color="error"
+            color="primary"
             variant="tonal"
             :icon="mode === 'create' ? 'tabler-receipt-2' : 'tabler-pencil'"
           /><div>
@@ -293,12 +293,13 @@ function submit() {
         </VCardText><VCardActions class="pa-5">
           <VSpacer /><VBtn
             color="secondary"
-            variant="tonal"
+            variant="text"
             @click="emit('update:modelValue', false)"
           >
             {{ $t('common.actions.cancel') }}
           </VBtn><VBtn
-            color="error"
+            color="primary"
+            variant="flat"
             type="submit"
           >
             {{ mode === 'create' ? $t('pages.finance.expenses.expenses.saveExpense') : $t('common.messages.saveChanges4') }}

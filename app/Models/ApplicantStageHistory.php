@@ -12,6 +12,13 @@ class ApplicantStageHistory extends Model
 
     protected $casts = ['changed_at' => 'immutable_datetime'];
 
+    /**
+     * The timeline must say which workflow a row belongs to. A case-level move
+     * has no line; a service move names its contract so two lines on one case
+     * cannot be read as one sequence.
+     */
+    protected $appends = ['contract_number', 'contract_role', 'parent_contract_number', 'is_case_level'];
+
     protected static function booted(): void
     {
         // A stage transition is the event that decides commission: a case that
@@ -33,6 +40,26 @@ class ApplicantStageHistory extends Model
     public function applicant(): BelongsTo
     {
         return $this->belongsTo(Applicant::class);
+    }
+
+    public function getContractNumberAttribute(): ?string
+    {
+        return $this->applicantContract?->contract?->contract_number;
+    }
+
+    public function getContractRoleAttribute(): ?string
+    {
+        return $this->applicantContract?->contract?->contract_role;
+    }
+
+    public function getParentContractNumberAttribute(): ?string
+    {
+        return $this->applicantContract?->contract?->parentContract?->contract_number;
+    }
+
+    public function getIsCaseLevelAttribute(): bool
+    {
+        return $this->applicant_contract_id === null;
     }
 
     /** The service line this transition belongs to, when it was a line move. */

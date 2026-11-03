@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { EditKanbanItem, KanbanId, KanbanItem } from '@/types/legacyKanban'
 import { canAccess } from '@/utils/authorization'
+import { formatActiveDate } from '@/utils/localization'
 
 const props = defineProps<{
   item: KanbanItem | undefined
@@ -51,6 +52,35 @@ const emit = defineEmits<{
       <p class="text-base text-high-emphasis mb-0">
         {{ item.title }}
       </p>
+
+      <!-- Description is clamped on the card; the complete text stays available
+           on hover and on keyboard focus, without opening the task. -->
+      <p
+        v-if="item.comments"
+        v-tooltip="item.comments"
+        class="kanban-card__description text-body-2 text-medium-emphasis mb-0"
+        tabindex="0"
+      >
+        {{ item.comments }}
+      </p>
+
+      <!-- Due date and assignees as text, so the card is readable without
+           hovering each avatar. -->
+      <div class="d-flex flex-wrap align-center gap-x-3 gap-y-1 text-caption text-medium-emphasis">
+        <span
+          v-if="item.dueDate"
+          class="d-inline-flex align-center gap-1"
+        >
+          <VIcon
+            size="16"
+            icon="tabler-calendar"
+          />
+          {{ $t('components.taskManager.kanbanview.dueDate') }}: {{ formatActiveDate(item.dueDate) }}
+        </span>
+        <span v-if="item.members && item.members.length">
+          {{ $t('components.taskManager.kanbanview.assignees') }}: {{ item.members.map(member => member.name).join(', ') }}
+        </span>
+      </div>
 
       <!-- Footer -->
       <div class="task-footer d-flex align-center flex-wrap justify-space-between">
@@ -144,5 +174,20 @@ const emit = defineEmits<{
 .kanban-attachment-button {
   inline-size: 30px;
   block-size: 30px;
+}
+
+.kanban-card__description {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.kanban-card__description:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
 }
 </style>

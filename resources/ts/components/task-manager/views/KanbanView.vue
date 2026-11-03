@@ -69,7 +69,10 @@ const vuexyKanbanData = computed(() => {
       attachmentsCount: task.attachments?.length ?? 0,
       progress: task.progress,
       image: '',
-      comments: `${task.description.replace(/<[^>]*>?/g, '').substring(0, 50)}...`,
+      // Keep the complete plain-text description. The card clamps it visually and
+      // offers the whole text on hover and keyboard focus, so a long note is never
+      // silently cut to a 50-character fragment.
+      comments: task.description.replace(/<[^>]*>?/g, '').trim(),
     })),
   }
 })
