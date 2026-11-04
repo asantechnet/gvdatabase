@@ -408,6 +408,12 @@ onBeforeUnmount(() => {
         :items-per-page-options="[10, 25, 50, 100]"
         :page-sizes="[10, 25, 50, 100]"
         pagination
+        :mobile-fields="[
+          'transaction_type',
+          'customer_employee',
+          'amount',
+          'approval_status',
+        ]"
         :headers="[
           { title: $t('educational.transactionType'), key: 'transaction_type' },
           {

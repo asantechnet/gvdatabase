@@ -8,8 +8,8 @@ use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
 use App\Models\Employee;
 use App\Models\University;
-use App\Services\ApplicantDocumentReadiness;
 use App\Services\ApplicantServiceDetails;
+use App\Services\ApplicantStageTransitionGuard;
 use App\Services\ApplicantTaskService;
 use App\Services\CaseWinService;
 use App\Services\EducationalWorkflowNotificationService;
@@ -63,9 +63,9 @@ class ApplicantController extends Controller
      *
      * Stages belong to a single built-in service, so the board is scoped to one
      * service (default: scholarship) instead of mixing every service's columns.
-     * A contracted service line is the unit that moves through the workflow; a
-     * case that has not bought the service yet still appears on its own
-     * service's stage list so new work never disappears from the board.
+     * A contracted service line is the only unit that moves through the
+     * workflow: one line is one case, and an applicant without that line stays
+     * on the party list instead of appearing as a case here.
      */
     public function pipeline(Request $request)
     {
@@ -73,16 +73,16 @@ class ApplicantController extends Controller
         $stages = $this->stagesForContext($request->integer('country_id') ?: null, $request->integer('university_id') ?: null, $service);
         $stageIds = $stages->pluck('id')->all();
 
-        // Every line of the service belongs on its board. A line whose stage is
-        // missing (seeded/legacy rows) or no longer in the service's active list
-        // is placed by the shared fallback below instead of being dropped.
+        // Every non-cancelled line of the service is one card. A line whose
+        // stage is missing (seeded/legacy rows) or no longer in the service's
+        // active list is placed by the fallback below instead of being dropped.
         $lineQuery = fn () => ApplicantContract::query()
             ->where('service', $service)
             ->whereHas('contract', fn ($q) => $q->whereNotIn('status', ['cancelled', 'terminated'])->where('is_cancelled', false))
             ->whereIn('applicant_id', $this->filteredApplicants($request)->select('applicants.id'));
 
-        // Column counts are line counts; unlined cases and unplaced lines are
-        // counted from the loaded rows below.
+        // Column counts are line counts; unplaced lines are counted from the
+        // loaded rows below.
         $counts = $lineQuery()->whereIn('current_stage_id', $stageIds)->selectRaw('current_stage_id, COUNT(*) as total')
             ->groupBy('current_stage_id')->pluck('total', 'current_stage_id')->all();
 
@@ -100,19 +100,10 @@ class ApplicantController extends Controller
                 continue;
             }
 
-            $stageId = $this->placementStageId($line->applicant, $stages, $line->currentStage);
+            $stageId = $this->placementStageId($stages, $line->currentStage);
             if ($stageId) {
                 $counts[$stageId] = ($counts[$stageId] ?? 0) + 1;
             }
-        }
-
-        $unlined = $this->unlinedApplicants($request, $service)
-            ->with(['currentStage', ...$this->pipelineApplicantRelations()])
-            ->latest('applicants.id')->limit(500)->get();
-
-        foreach ($unlined as $applicant) {
-            $stageId = $this->placementStageId($applicant, $stages);
-            $counts[$stageId] = ($counts[$stageId] ?? 0) + 1;
         }
 
         $columns = $stages->map(fn (ApplicantStage $stage) => [
@@ -121,30 +112,25 @@ class ApplicantController extends Controller
             'count' => (int) ($counts[$stage->id] ?? 0),
         ]);
 
-        $cards = $lines->map(fn (ApplicantContract $line) => $this->pipelineLineCard($line, $stages))
-            ->concat($unlined->map(fn (Applicant $applicant) => $this->pipelineApplicantCard($applicant, $stages)))
-            ->values();
+        $cards = $lines->map(fn (ApplicantContract $line) => $this->pipelineLineCard($line, $stages))->values();
 
-        // The counts describe this board's cases, not every service's.
-        $totalsQuery = $this->filteredApplicants($request)
-            ->where(fn ($q) => $q->where('service', $service)
-                ->orWhereHas('services', fn ($line) => $line->where('service', $service)));
+        // Header totals, column counts and the card count all describe the same
+        // unit: one service-case line of this service.
+        $all = $lineQuery()->count();
+        $closed = $lineQuery()->whereHas('currentStage', fn ($q) => $q->where('is_terminal', true))->count();
 
         return response()->json(['success' => true, 'data' => [
             'service' => $service,
             'stages' => $columns,
             'cards' => $cards,
             'totals' => [
-                'active' => (clone $totalsQuery)->where('status', 'active')->count(),
-                'closed' => (clone $totalsQuery)->where('status', 'closed')->count(),
-                'all' => (clone $totalsQuery)->count(),
+                'active' => max(0, $all - $closed),
+                'closed' => $closed,
+                'all' => $all,
             ],
-            // Columns count cards, not cases: a card is one contracted service
-            // line, or a case that has not bought this service yet. The header
-            // totals count cases. Stating both keeps the labels honest.
             'counts' => [
-                'unit' => 'service_line_or_unlined_case',
-                'cards' => $cards->count(),
+                'unit' => 'service_case',
+                'cards' => $all,
                 'columns' => array_sum($counts),
             ],
         ]]);
@@ -161,32 +147,18 @@ class ApplicantController extends Controller
     }
 
     /**
-     * Cases of this service without a contract line for it yet. They stay on
-     * the board (placed on their service's stages) until the line exists.
-     */
-    private function unlinedApplicants(Request $request, string $service): Builder
-    {
-        return $this->filteredApplicants($request)
-            ->where('service', $service)
-            ->whereDoesntHave('services', fn ($q) => $q->where('service', $service));
-    }
-
-    /**
-     * The stage a card is placed on: the card's own stage when it belongs to
+     * The stage a card is placed on: the line's own stage when it belongs to
      * this service, otherwise the same stage key on this service's list, then
-     * the service's starting stage. Used for cases without a line and for lines
-     * whose stage is missing or no longer part of the service's live list.
+     * the service's starting stage. `applicants.current_stage_id` is never read
+     * here, so a stale mirror cannot move a card.
      */
-    private function placementStageId(?Applicant $applicant, $stages, ?ApplicantStage $preferredStage = null): ?int
+    private function placementStageId($stages, ?ApplicantStage $preferredStage = null): ?int
     {
-        foreach ([$preferredStage, $applicant?->currentStage] as $candidate) {
-            if (! $candidate) {
-                continue;
+        if ($preferredStage) {
+            if ($stages->firstWhere('id', $preferredStage->id)) {
+                return $preferredStage->id;
             }
-            if ($stages->firstWhere('id', $candidate->id)) {
-                return $candidate->id;
-            }
-            if ($match = $stages->firstWhere('key', $candidate->key)) {
+            if ($match = $stages->firstWhere('key', $preferredStage->key)) {
                 return $match->id;
             }
         }
@@ -219,7 +191,7 @@ class ApplicantController extends Controller
         $detail = $applicant?->detail();
         // A line with no stage (or a stage outside this service's list) is
         // presented at its fallback placement so it can be moved from there.
-        $stageId = $this->placementStageId($applicant, $stages, $line->currentStage);
+        $stageId = $this->placementStageId($stages, $line->currentStage);
         $stage = $stages->firstWhere('id', $stageId);
 
         return [
@@ -229,7 +201,9 @@ class ApplicantController extends Controller
             'applicant_id' => $line->applicant_id,
             'name' => $applicant?->name,
             'service' => $line->service ?? BuiltInService::SCHOLARSHIP,
-            'status' => $applicant?->status ?? 'active',
+            // A case's open/closed state comes from its own stage, never from
+            // the applicant mirror shared by every sibling line.
+            'status' => $stage?->is_terminal ? 'closed' : 'active',
             'current_stage_id' => $stageId,
             'current_stage' => $this->pipelineStage($stage),
             'responsible_employee' => $applicant?->responsibleEmployee
@@ -243,34 +217,6 @@ class ApplicantController extends Controller
             // must say so or it looks like a second primary case.
             'contract_role' => $line->contract?->contract_role,
             'parent_contract_number' => $line->contract?->parentContract?->contract_number,
-        ];
-    }
-
-    private function pipelineApplicantCard(Applicant $applicant, $stages): array
-    {
-        $stageId = $this->placementStageId($applicant, $stages);
-        $stage = $stages->firstWhere('id', $stageId);
-        $detail = $applicant->detail();
-
-        return [
-            'id' => 'applicant:'.$applicant->id,
-            'source' => 'applicant',
-            'line_id' => null,
-            'applicant_id' => $applicant->id,
-            'name' => $applicant->name,
-            'service' => $applicant->service,
-            'status' => $applicant->status,
-            'current_stage_id' => $stageId,
-            'current_stage' => $this->pipelineStage($stage),
-            'responsible_employee' => $applicant->responsibleEmployee
-                ? ['id' => $applicant->responsibleEmployee->id, 'name' => $applicant->responsibleEmployee->name]
-                : null,
-            'country' => $detail?->country?->name,
-            'university' => $detail?->university?->name,
-            'contract_number' => null,
-            'contract_status' => null,
-            'contract_role' => null,
-            'parent_contract_number' => null,
         ];
     }
 
@@ -382,7 +328,7 @@ class ApplicantController extends Controller
         $note = trim((string) ($data['note'] ?? '')) ?: null;
         // The same guard the service-line endpoint uses: a labeled document is
         // required to leave the initial stage forward, a reason to close a case.
-        app(ApplicantDocumentReadiness::class)->assertTransition($applicant, $current, $next, $note);
+        app(ApplicantStageTransitionGuard::class)->assertTransition($next, $note);
         DB::transaction(function () use ($applicant, $current, $next, $note, $request, $notifications) {
             $applicant->update(['current_stage_id' => $next->id, 'status' => $next->is_terminal ? 'closed' : 'active']);
             $history = ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'old_stage_id' => $current?->id, 'new_stage_id' => $next->id, 'changed_by' => $request->user()?->id, 'changed_at' => now(), 'note' => $note]);
@@ -748,19 +694,35 @@ class ApplicantController extends Controller
         $query->whereIn('responsible_employee_id', app(EmployeeScope::class)->visibleEmployeeIds($user));
     }
 
+    /**
+     * Active stages available for a pipeline context.
+     *
+     * Global stages are always available; a destination adds its own stages on
+     * top. Selecting a university without a country still carries that
+     * university's country scope, because every case at the university is also
+     * a case in its country.
+     */
     private function stagesForContext(?int $countryId, ?int $universityId, ?string $service = null)
     {
+        if (! $countryId && $universityId) {
+            $countryId = University::query()->whereKey($universityId)->value('country_id');
+        }
+
         return ApplicantStage::query()->where('is_active', true)
             ->when($service, fn ($q) => $q->where('service', $service))
             ->where(function ($query) use ($countryId, $universityId) {
-            $query->whereNull('country_id')->whereNull('university_id');
-            if ($countryId) {
-                $query->orWhere(fn ($q) => $q->where('country_id', $countryId)->whereNull('university_id'));
-            }
-            if ($universityId) {
-                $query->orWhere('university_id', $universityId);
-            }
-        })->orderBy('sort_order')->get()->unique('key')->values();
+                $query->whereNull('country_id')->whereNull('university_id');
+                if ($countryId) {
+                    $query->orWhere(fn ($q) => $q->where('country_id', $countryId)->whereNull('university_id'));
+                }
+                if ($universityId) {
+                    $query->orWhere('university_id', $universityId);
+                }
+            })
+            ->orderBy('sort_order')
+            ->get()
+            ->unique('key')
+            ->values();
     }
 
     /** The service filter for a request, only when it is a real built-in service. */

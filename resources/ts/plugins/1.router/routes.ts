@@ -47,6 +47,7 @@ const pageComponents: Record<string, Component> = {
   educationalDashboard: () => import('@/pages/educational-dashboard.vue'),
   educationalReports: () => import('@/pages/educational-reports.vue'),
   applicantCase: () => import('@/pages/applicant-case.vue'),
+  serviceCase: () => import('@/pages/service-case.vue'),
   applicantPortal: () => import('@/pages/applicant-portal.vue'),
   pendingTransactions: () => import('@/pages/pending-transactions.vue'),
   optionsHr: () => import('@/pages/options_hr.vue'),
@@ -159,6 +160,8 @@ const routeDefinitions: Array<{
   { path: '/agency-overview', component: 'educationalDashboard', name: 'agency-overview', meta: { requiresAuth: true, action: 'read', subject: 'view_agency_overview' } },
   { path: '/visa-reports', component: 'educationalReports', name: 'visa-reports', meta: { requiresAuth: true, action: 'read', subject: 'view_visa_reports' } },
   { path: '/applicants/:id', component: 'applicantCase', name: 'applicant-case', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
+  // One contracted service line is one case; the line id is the workspace key.
+  { path: '/service-cases/:line', component: 'serviceCase', name: 'service-case', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
   { path: '/applications/:id', redirect: to => ({ name: 'applicant-case', params: { id: to.params.id }, query: to.query }) },
   { path: '/my-case', component: 'applicantPortal', name: 'applicant-portal', meta: { requiresAuth: true, action: 'read', subject: 'view_own_applicant_portal' } },
   { path: '/payment-requests', component: 'pendingTransactions', name: 'payment-requests', meta: { requiresAuth: true, action: 'read', subject: 'view_pending_transactions' } },

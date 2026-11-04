@@ -10,7 +10,6 @@ import CommissionApi, {
 } from "@/api/commission";
 import EmployeeApi, { type Employee } from "@/api/employee";
 import { canAccess } from "@/utils/authorization";
-import { apiErrorMessage } from "@/utils/apiErrors";
 import {
   formatActiveMoney,
   translateApplicantStage,
@@ -204,7 +203,6 @@ const load = async () => {
     summary.value = summaryRows;
     employees.value = employeeRows;
   } catch (error) {
-    toast.error(apiErrorMessage(error, tr("loadFailed")));
   } finally {
     loading.value = false;
   }
@@ -219,7 +217,6 @@ const syncCases = async () => {
     );
     await load();
   } catch (error) {
-    toast.error(apiErrorMessage(error, tr("syncFailed")));
   } finally {
     loading.value = false;
   }
@@ -269,7 +266,6 @@ const createSettlement = async () => {
     await load();
     activeTab.value = "settlements";
   } catch (error) {
-    toast.error(apiErrorMessage(error, tr("settlementCreateFailed")));
   } finally {
     loading.value = false;
   }
@@ -294,7 +290,6 @@ const createAdjustment = async () => {
     toast.success(tr("adjustmentAdded"));
     await load();
   } catch (error) {
-    toast.error(apiErrorMessage(error, tr("adjustmentCreateFailed")));
   } finally {
     loading.value = false;
   }
@@ -306,7 +301,6 @@ const approve = async (row: CommissionSettlement) => {
     toast.success(tr("approvedSuccess", { number: row.settlement_number }));
     await load();
   } catch (error) {
-    toast.error(apiErrorMessage(error, tr("approveFailed")));
   }
 };
 
@@ -326,7 +320,6 @@ const pay = async () => {
     );
     await load();
   } catch (error) {
-    toast.error(apiErrorMessage(error, tr("payFailed")));
   }
 };
 
@@ -336,7 +329,6 @@ const cancel = async (row: CommissionSettlement) => {
     toast.success(tr("cancelledSuccess", { number: row.settlement_number }));
     await load();
   } catch (error) {
-    toast.error(apiErrorMessage(error, tr("cancelFailed")));
   }
 };
 
@@ -465,6 +457,15 @@ onMounted(load);
           <ResponsiveDataTable
             :loading="loading"
             :items="filteredAccruals"
+            pagination
+            mobile-cards
+            :mobile-fields="[
+              'earned_at',
+              'entry_type',
+              'employee',
+              'commission_base_amount',
+              'status',
+            ]"
             :headers="[
               {
                 title: t('common.crmUi.commissionHeaders.date'),
@@ -591,6 +592,9 @@ onMounted(load);
           <ResponsiveDataTable
             :loading="loading"
             :items="settlements"
+            pagination
+            mobile-cards
+            :mobile-fields="['employee', 'period', 'gross_base_amount', 'status']"
             :headers="[
               {
                 title: t('common.crmUi.commissionHeaders.settlement'),

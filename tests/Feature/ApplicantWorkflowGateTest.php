@@ -56,45 +56,38 @@ class ApplicantWorkflowGateTest extends TestCase
         return $user;
     }
 
-    public function test_a_forward_move_out_of_the_initial_stage_needs_a_labeled_document(): void
+    public function test_a_forward_move_out_of_the_initial_stage_needs_no_document(): void
     {
         $case = $this->postJson('/api/applicants', ['name' => 'No Documents'])->assertCreated()->json('data');
         $history = ApplicantStageHistory::query()->where('applicant_id', $case['id'])->count();
 
         $this->postJson("/api/applicants/{$case['id']}/change-stage", [
             'stage_id' => $this->stageId('consultation'),
-        ])->assertStatus(422)->assertJsonValidationErrors(['stage_id']);
+            'note' => 'Documents are independent of the stage',
+        ])->assertOk()->assertJsonPath('data.current_stage.key', 'consultation');
 
-        $this->assertSame($history, ApplicantStageHistory::query()->where('applicant_id', $case['id'])->count());
         $this->assertDatabaseHas('applicants', [
             'id' => $case['id'],
-            'current_stage_id' => $this->stageId('new'),
+            'current_stage_id' => $this->stageId('consultation'),
         ]);
-
-        $this->seedApplicantDocuments((int) $case['id']);
-
-        $this->postJson("/api/applicants/{$case['id']}/change-stage", [
-            'stage_id' => $this->stageId('consultation'),
-            'note' => 'Documents checked',
-        ])->assertOk()->assertJsonPath('data.current_stage.key', 'consultation');
 
         // One transition, recorded with its actor and note.
         $latest = ApplicantStageHistory::query()
             ->where('applicant_id', $case['id'])
             ->latest('id')
             ->firstOrFail();
-        $this->assertSame('Documents checked', $latest->note);
+        $this->assertSame('Documents are independent of the stage', $latest->note);
         $this->assertSame($this->superAdmin->id, $latest->changed_by);
         $this->assertSame(1, ApplicantStageHistory::query()
             ->where('applicant_id', $case['id'])
             ->where('new_stage_id', $this->stageId('consultation'))
             ->count());
+        $this->assertSame($history + 1, ApplicantStageHistory::query()->where('applicant_id', $case['id'])->count());
     }
 
     public function test_closing_a_case_requires_a_reason(): void
     {
         $case = $this->postJson('/api/applicants', ['name' => 'Closing Case'])->assertCreated()->json('data');
-        $this->seedApplicantDocuments((int) $case['id']);
         $this->postJson("/api/applicants/{$case['id']}/change-stage", [
             'stage_id' => $this->stageId('consultation'),
         ])->assertOk();
@@ -111,17 +104,12 @@ class ApplicantWorkflowGateTest extends TestCase
         ])->assertOk()->assertJsonPath('data.status', 'closed');
     }
 
-    public function test_a_service_line_obeys_the_same_document_and_reason_rules(): void
+    public function test_a_service_line_needs_only_a_reason_to_close(): void
     {
         $contract = $this->createBuiltInContract('academy', ['name' => 'Academy Line']);
         $line = ApplicantContract::query()->where('contract_id', $contract['id'])->firstOrFail();
 
-        $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", [
-            'stage_id' => $this->stageId('enrolled', 'academy'),
-        ])->assertStatus(422)->assertJsonValidationErrors(['stage_id']);
-
-        $this->seedApplicantDocuments((int) $line->applicant_id);
-
+        // No applicant attachment exists anywhere in this test.
         $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", [
             'stage_id' => $this->stageId('enrolled', 'academy'),
         ])->assertOk();
@@ -145,7 +133,6 @@ class ApplicantWorkflowGateTest extends TestCase
         $contract = $this->createBuiltInContract('scholarship', ['name' => 'Filtered Case']);
         $line = ApplicantContract::query()->where('contract_id', $contract['id'])->sole();
 
-        $this->seedApplicantDocuments((int) $line->applicant_id);
         $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", [
             'stage_id' => $this->stageId('consultation'),
         ])->assertOk();

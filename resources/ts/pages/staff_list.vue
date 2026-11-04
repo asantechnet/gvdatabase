@@ -1240,12 +1240,6 @@ const toggleStaffStatus = async (staff: Staff) => {
     );
   } catch (error) {
     console.error("Error updating employee status:", error);
-    toast.error(
-      apiErrorMessage(
-        error,
-        translate("pages.settings.staffList.staffList.statusUpdateFailed"),
-      ),
-    );
   } finally {
     isLoading.value = false;
   }
@@ -1293,7 +1287,6 @@ const printTable = async () => {
     });
   } catch (error) {
     console.error("Error preparing staff report:", error);
-    toast.error(apiErrorMessage(error));
   }
 };
 

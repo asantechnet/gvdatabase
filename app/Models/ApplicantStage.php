@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Http\Exceptions\HttpException;
+use Illuminate\Validation\ValidationException;
 
 class ApplicantStage extends Model
 {
@@ -24,9 +26,55 @@ class ApplicantStage extends Model
      */
     public const EXIT_KEYS = ['cancelled', 'rejected', 'withdrawn'];
 
-    protected $fillable = ['key', 'name', 'service', 'country_id', 'university_id', 'sort_order', 'is_active', 'is_terminal', 'allowed_next_keys'];
+    // `is_terminal` and `is_locked` are deliberately absent from `$fillable`:
+    // the terminal outcome of a case is system-owned, so only migrations and
+    // future seeds may write it, never a request body.
+    protected $fillable = ['key', 'name', 'service', 'country_id', 'university_id', 'test_id', 'sort_order', 'is_active', 'allowed_next_keys'];
 
-    protected $casts = ['sort_order' => 'integer', 'is_active' => 'boolean', 'is_terminal' => 'boolean', 'allowed_next_keys' => 'array'];
+    // The casts keep the JSON contract boolean for the stage editor, and the
+    // defaults keep a just-created row's response identical to a row read from
+    // the database.
+    protected $attributes = ['is_locked' => false, 'is_terminal' => false];
+
+    protected $casts = ['test_id' => 'integer', 'sort_order' => 'integer', 'is_active' => 'boolean', 'is_terminal' => 'boolean', 'is_locked' => 'boolean', 'allowed_next_keys' => 'array'];
+
+    protected static function booted(): void
+    {
+        // A new stage is never terminal: the only terminal rows are the
+        // canonical outcomes written by migrations.
+        static::creating(function (self $stage): void {
+            if ($stage->is_terminal) {
+                throw ValidationException::withMessages(['is_terminal' => ['business.applicant_stage_terminal_managed']]);
+            }
+            $stage->is_terminal = false;
+        });
+        static::updating(function (self $stage): void {
+            // The terminal flag is system-owned. A direct property write is
+            // refused even when a future controller forgets the API check.
+            if ($stage->isDirty('is_terminal')) {
+                throw ValidationException::withMessages(['is_terminal' => ['business.applicant_stage_terminal_managed']]);
+            }
+            // Defence in depth for the controller's `409`: even a future code
+            // path that loads a locked stage and calls `update()`/`delete()`
+            // cannot change or remove it.
+            $stage->assertUnlocked();
+        });
+        static::deleting(fn (self $stage) => $stage->assertUnlocked());
+    }
+
+    /** A platform-seeded terminal stage, frozen for every role. */
+    public function isLocked(): bool
+    {
+        return (bool) $this->is_locked;
+    }
+
+    /** @throws HttpException when the stage is frozen */
+    public function assertUnlocked(): void
+    {
+        if ($this->isLocked()) {
+            throw new HttpException(409, 'business.applicant_stage_locked');
+        }
+    }
 
     /** Stages are scoped to one built-in service (see Migration 2026_10_13_000001). */
     public function scopeForService($query, ?string $service)
@@ -53,5 +101,11 @@ class ApplicantStage extends Model
     public function university()
     {
         return $this->belongsTo(University::class);
+    }
+
+    /** The educational test a test-offer stage is limited to; null is shared. */
+    public function test()
+    {
+        return $this->belongsTo(Test::class);
     }
 }

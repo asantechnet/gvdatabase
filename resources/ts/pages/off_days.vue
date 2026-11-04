@@ -57,7 +57,6 @@ async function load() {
     total.value = result.total
   }
   catch (e) {
-    toast.error(apiErrorMessage(e, t('pages.offDays.unableToLoad')))
   }
   finally {
     loading.value = false
@@ -116,7 +115,6 @@ async function approve(row: OffDay) {
     await load()
   }
   catch (e) {
-    toast.error(apiErrorMessage(e, t('pages.offDays.unableToSave')))
   }
 }
 
@@ -127,7 +125,6 @@ async function reject(row: OffDay) {
     await load()
   }
   catch (e) {
-    toast.error(apiErrorMessage(e, t('pages.offDays.unableToSave')))
   }
 }
 
@@ -147,7 +144,6 @@ async function remove() {
     await load()
   }
   catch (e) {
-    toast.error(apiErrorMessage(e, t('pages.offDays.unableToSave')))
   }
 }
 
@@ -174,7 +170,6 @@ async function printReport() {
     await printDocument({ bodyClass: 'printing-table-off-days', pageStyle: 'size: A4 landscape; margin: 12mm;' })
   }
   catch (e) {
-    toast.error(apiErrorMessage(e, t('pages.offDays.unableToLoad')))
   }
 }
 

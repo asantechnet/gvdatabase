@@ -15,7 +15,6 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
 import { translateApplicantStage, translateBackendValue } from '@/utils/localization'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
-import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
@@ -214,9 +213,14 @@ async function printReport() {
 }
 
 async function loadStages() {
-  // Stage tabs follow the selected service. Without one, the API returns the
-  // cross-service list deduped by key (the legacy single-pipeline shape).
-  stages.value = await ApplicantApi.stages({ service: service.value || undefined })
+  // Stage tabs follow the service and the destination: scholarship and private
+  // stages can be limited to a country or university. Without a service, the
+  // API returns the cross-service list deduped by key.
+  stages.value = await ApplicantApi.stages({
+    service: service.value || undefined,
+    country_id: countryId.value,
+    university_id: universityId.value,
+  })
   resolveDeepLinkedStage()
 }
 
@@ -263,6 +267,19 @@ async function loadCatalogs() {
   catch {
     toast.error(t('educational.messages.loadFiltersFailed'))
   }
+}
+
+async function applyFilters() {
+  page.value = 1
+
+  try {
+    await loadStages()
+  }
+  catch {
+    toast.error(t('educational.messages.loadFiltersFailed'))
+  }
+
+  await load()
 }
 
 function onTabChange() {
@@ -315,7 +332,6 @@ async function create() {
     router.push({ name: 'applicant-case', params: { id: created.id } })
   }
   catch (error) {
-    toast.error(apiErrorMessage(error, t('educational.messages.createCaseFailed')))
   }
   finally {
     creating.value = false
@@ -342,7 +358,6 @@ async function saveConsultantReview() {
     toast.success(t('pages.contracts.visitor.visitor.consultantReviewSaved'))
   }
   catch (error) {
-    toast.error(apiErrorMessage(error))
   }
   finally {
     creating.value = false
@@ -364,7 +379,9 @@ function clearFilters() {
   dateFrom.value = ''
   dateTo.value = ''
   page.value = 1
-  load()
+  // The destination context was reset too, so the stage strip must return to
+  // the unscoped catalogue before the list reloads.
+  void applyFilters()
 }
 
 // Pagination controls call load() explicitly; no page watcher, so changing
@@ -425,7 +442,7 @@ onMounted(async () => {
             <VSelect v-model="universityId" :items="universities.filter(u => u.is_active && (!countryId || u.country_id === countryId)).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable />
             <VSelect v-model="educationLevelId" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable />
             <VSelect v-model="semesterId" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="$t('educational.semester')" clearable />
-            <VBtn color="primary" :loading="loading" :disabled="invalidDateRange" @click="page = 1; load()">{{ $t('educational.apply') }}</VBtn>
+            <VBtn color="primary" :loading="loading" :disabled="invalidDateRange" @click="applyFilters">{{ $t('educational.apply') }}</VBtn>
           </DataTableFilterMenu>
           <VBtn icon="tabler-printer" variant="text" :loading="loading || printing" @click="printReport"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ $t('common.actions.print') }}</VTooltip></VBtn>
         </div>

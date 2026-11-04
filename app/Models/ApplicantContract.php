@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Services\ApplicantContractPaymentService;
+use App\Services\ApplicantStageContext;
 use App\Support\BuiltInService;
 use App\Support\PaymentStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 
 /** One built-in service line, including its agreed economics and payments. */
 class ApplicantContract extends Pivot
@@ -63,6 +65,27 @@ class ApplicantContract extends Pivot
 
     protected static function booted(): void
     {
+        // A line is its own case, so its stage must apply to the line's
+        // service, test and destination even when the applicant's own service
+        // is different. Initial creation is not blocked because the service
+        // detail row may be written around the line.
+        static::updating(function (self $line): void {
+            if (! $line->isDirty('current_stage_id') || $line->current_stage_id === null) {
+                return;
+            }
+
+            $stage = ApplicantStage::query()->find($line->current_stage_id);
+            $applicant = $line->applicant;
+            if (! $stage || ! $applicant) {
+                return;
+            }
+
+            $service = $line->serviceKey() ?? $applicant->service;
+            if (! app(ApplicantStageContext::class)->appliesTo($applicant, $stage, $service)) {
+                throw ValidationException::withMessages(['stage_id' => ['business.applicant_stage_context_mismatch']]);
+            }
+        });
+
         static::created(fn (ApplicantContract $line) => $line->refreshPaymentState());
         static::updated(function (ApplicantContract $line): void {
             if ($line->wasChanged(['fee', 'discount', 'currency_id', 'currency_rate', 'amount_paid_overridden', 'payment_status_overridden'])) {
@@ -97,6 +120,12 @@ class ApplicantContract extends Pivot
     public function stageHistory(): HasMany
     {
         return $this->hasMany(ApplicantStageHistory::class, 'applicant_contract_id')->latest('changed_at');
+    }
+
+    /** Delivery tasks bound to this service case. */
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class, 'applicant_contract_id');
     }
 
     /** Whether the given stage is a legal next step from this line's stage. */

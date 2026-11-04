@@ -45,6 +45,9 @@ return [
             'password_setup_required' => 'Create your password before signing in.',
         ],
         'business' => [
+            'applicant_stage_locked' => 'This terminal stage is built into the workflow and cannot be updated or removed.',
+            'applicant_stage_terminal_managed' => 'Terminal status is managed by the system. Create or edit an ordinary stage instead.',
+            'applicant_stage_context_mismatch' => 'This stage does not apply to the case\'s service, test, country or university.',
             'finance_type_in_use' => 'This type is required by the system or used by a transaction and cannot be deleted.',
             'attendance_browser_account_mismatch' => 'This browser has already recorded attendance for another employee today. Attendance must be recorded personally from your own browser.',
             'attendance_employee_inactive' => 'Your employee profile is inactive. Contact HR before recording attendance.',
@@ -165,7 +168,6 @@ return [
             'paid_commission_settlement_immutable' => 'A paid commission settlement cannot be cancelled.',
             'base_currency_cannot_be_deleted' => 'The base currency cannot be deleted.',
             'currency_in_use' => 'Currencies referenced by contract lines, salaries, incomes, or expenses cannot be deleted.',
-            'applicant_document_required' => 'Attach at least one labeled document before moving this case forward.',
             'terminal_stage_note_required' => 'Add a reason before closing the case.',
             'case_stage_managed_by_service' => 'This case has contracted service lines. Move each service through its own workflow instead of changing the case stage.',
         ],

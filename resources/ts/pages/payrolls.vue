@@ -24,7 +24,6 @@ import AdvanceReceiptTemplate, {
 } from "./templates/advance_receipt_template.vue";
 import PrintableListReport from "@/components/PrintableListReport.vue";
 import ResponsiveDataTableServer from "@/components/responsive-data-table/ResponsiveDataTableServer.vue";
-import { apiErrorMessage } from "@/utils/apiErrors";
 import {
   formatActiveMoney,
   formatLocalizedDate,
@@ -263,7 +262,6 @@ async function load() {
     baseCurrency.value = base;
     baseCurrencyId.value = base?.id ?? null;
   } catch (error) {
-    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToLoad")));
   } finally {
     loading.value = false;
   }
@@ -314,7 +312,6 @@ async function generateMissing() {
     generateDialog.value = false;
     await load();
   } catch (error) {
-    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToGenerate")));
   } finally {
     saving.value = false;
   }
@@ -356,7 +353,6 @@ async function saveCreate() {
     createDialog.value = false;
     await load();
   } catch (error) {
-    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToSave")));
   } finally {
     saving.value = false;
   }
@@ -381,7 +377,6 @@ async function addDeduction() {
     deductionForm.value = { description: "", amount: 0 };
     await refreshSelectedSalary();
   } catch (error) {
-    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToSave")));
   } finally {
     saving.value = false;
   }
@@ -396,7 +391,6 @@ async function removeDeduction(deduction: SalaryDeduction) {
     toast.success($t("pages.payrolls.deductionDeleted"));
     await refreshSelectedSalary();
   } catch (error) {
-    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToSave")));
   } finally {
     saving.value = false;
   }
@@ -436,7 +430,6 @@ async function savePayment() {
     paymentDialog.value = false;
     await load();
   } catch (error) {
-    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToSave")));
   } finally {
     saving.value = false;
   }
@@ -457,7 +450,6 @@ async function deleteSalary() {
     deleteSalaryDialog.value = false;
     await load();
   } catch (error) {
-    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToDelete")));
   } finally {
     saving.value = false;
   }
@@ -565,7 +557,6 @@ async function printRegister() {
       pageStyle: "size: A4 landscape; margin: 10mm;",
     });
   } catch (error) {
-    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToLoad")));
   }
 }
 
@@ -603,7 +594,6 @@ async function saveAdvance() {
     advanceDialog.value = false;
     await load();
   } catch (error) {
-    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToSave")));
   } finally {
     saving.value = false;
   }
@@ -624,7 +614,6 @@ async function deleteAdvance() {
     deleteAdvanceDialog.value = false;
     await load();
   } catch (error) {
-    toast.error(apiErrorMessage(error, $t("pages.payrolls.unableToDelete")));
   } finally {
     saving.value = false;
   }

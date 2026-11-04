@@ -4,7 +4,6 @@ import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
-import { apiErrorMessage } from '@/utils/apiErrors'
 
 /**
  * Academy data extracted from Options → Contracts → Educational data.
@@ -68,7 +67,7 @@ async function save() {
     await load()
     toast.success(t('educational.masterData.saved'))
   }
-  catch (error) { toast.error(apiErrorMessage(error, t('educational.masterData.saveFailed'))) }
+  catch { /* API failure feedback belongs to the global notifier (Task-018). */ }
 }
 
 async function remove(row: MasterDataRecord) {
@@ -79,7 +78,7 @@ async function remove(row: MasterDataRecord) {
     await MasterDataApi.remove(catalog.value, row.id)
     await load()
   }
-  catch (error) { toast.error(apiErrorMessage(error, t('educational.masterData.inUse'))) }
+  catch { /* The server's specific conflict message is shown once by the notifier. */ }
 }
 
 watch(catalog, load)

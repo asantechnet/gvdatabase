@@ -117,9 +117,6 @@ async function fetchTypes() {
   try {
     financeTypes.value = await getFinanceTypes("income");
   } catch (error) {
-    toast.error(
-      apiErrorMessage(error, translate("pages.finance.types.loadFailed")),
-    );
   }
 }
 
@@ -595,7 +592,6 @@ const printTable = async () => {
     });
   } catch (error) {
     console.error("Error preparing income report:", error);
-    toast.error(apiErrorMessage(error));
   }
 };
 

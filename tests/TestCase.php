@@ -88,8 +88,8 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Satisfy the business rule that contracts require at least one document
-     * on the applicant case.
+     * Create profile documents for tests that exercise the documents feature.
+     * Documents are independent of stage changes.
      */
     protected function seedApplicantDocuments(Applicant|int $applicant, int $count = 1): void
     {

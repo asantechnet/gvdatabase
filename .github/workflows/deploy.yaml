@@ -1,9 +1,8 @@
 name: Deploy production
 
+# Production deployment is manual (ISSUE-3). A push to `main` must never
+# deploy on its own; keep the only trigger explicit.
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:

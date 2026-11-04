@@ -212,7 +212,10 @@ class EducationalMasterDataController extends Controller
             $record instanceof Subject => DB::table('scholarship_applicant_subject')->where('subject_id', $record->id)->exists(),
             $record instanceof Skill => DB::table('test_applicant_skill')->where('skill_id', $record->id)->exists(),
             $record instanceof Teacher => DB::table('academy_applicant_teacher')->where('teacher_id', $record->id)->exists(),
-            $record instanceof Test => DB::table('test_applicant_details')->where('test_id', $record->id)->exists(),
+            $record instanceof Test => DB::table('test_applicant_details')->where('test_id', $record->id)->exists()
+                // A stage of any state (including a soft-deleted one) still
+                // names this test; deleting it would orphan the stage scope.
+                || DB::table('applicant_stages')->where('test_id', $record->id)->exists(),
             $record instanceof Program => DB::table('academy_applicant_details')->where('program_id', $record->id)->exists(),
             $record instanceof TimeSlot => DB::table('academy_applicant_details')->where('time_id', $record->id)->exists(),
             $record instanceof Duration => DB::table('academy_applicant_details')->where('duration_id', $record->id)->exists(),

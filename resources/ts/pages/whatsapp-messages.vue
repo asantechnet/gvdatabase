@@ -239,7 +239,6 @@ const confirmDelete = async () => {
     await load()
   }
   catch (error) {
-    toast.error(apiErrorMessage(error, t('pages.whatsapp.deleteFailed')))
   }
   finally {
     saving.value = false

@@ -73,17 +73,7 @@ Task-001 built the shared transition guard, aligned the list filter with the row
 - Files this task must not modify: `resources/ts/pages/applicant-pipeline.vue`, `app/Services/ContractTaskService.php`, `app/Http/Resources/ContractResource.php`, `resources/ts/pages/contract_list.vue`, `resources/ts/components/responsive-data-table/**`, `resources/ts/api/axios.ts`, `resources/ts/components/ApiErrorNotifier.vue`.
 
 ## Exclusive file ownership
-- `app/Http/Controllers/ApplicantController.php` — case payload, timeline identity, legacy-writer guard and line money exposure.
-- `app/Http/Controllers/ApplicantContractStageController.php` — line transition note and field-level errors.
-- `app/Http/Controllers/ApplicantStageController.php` — coherent stage catalogue for the list context.
-- `app/Services/ApplicantDocumentReadiness.php` — shared gate reused by both controls.
-- `app/Http/Resources/ApplicantResource.php` — stage, history and finance fields for the list and workspace.
-- `app/Models/ApplicantStageHistory.php` — owning contract-line accessor for history rows.
-- `resources/ts/pages/applicant-case.vue` — single stage writer, timeline identity, finance, documents, copy and accessibility.
-- `resources/ts/pages/applicants.vue` — stage tab/deep-link resolution, display agreement and unlined labelling.
-- `resources/ts/api/applicants.ts` — typed history, finance and stage payloads.
-- `tests/Feature/VisaCaseWorkspaceTest.php` — new coverage for the review findings.
-- `tests/Feature/ApplicantWorkflowGateTest.php` — extend the existing gate suite for the legacy-writer guard.
+- None — Task-027 is delivered and in review; forward write ownership of the case workspace, the stage controllers, the stage guard, the case API types and the two case test suites moved to `Task-028` on 2026-11-04. Task-027's own files are no longer claimed for parallel writing.
 
 ## Acceptance criteria
 - [ ] Given a case that has at least one contracted service line, when the case workspace renders, then the only stage-write control is the per-service row, the case-level stage is displayed read-only and labelled as a mirror of the authoritative line, and a direct case-level stage request is rejected with 422 and changes no stage or history row.
